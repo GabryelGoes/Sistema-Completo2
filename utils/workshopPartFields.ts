@@ -84,6 +84,7 @@ export type WorkshopPartFormValues = {
   /** IDs das categorias do estoque vinculadas ao produto. */
   category_ids: string[];
   numeric_code: string;
+  barcode: string;
   location: string;
   storage_site: WorkshopPartStorageSite;
   description: string;
@@ -126,6 +127,7 @@ export function emptyPartFormValues(): WorkshopPartFormValues {
     original_code: '',
     category_ids: [],
     numeric_code: '',
+    barcode: '',
     location: '',
     storage_site: 'oficina',
     description: '',
@@ -160,6 +162,7 @@ export function partToFormValues(part: WorkshopPart): WorkshopPartFormValues {
     original_code: part.original_code ?? '',
     category_ids: [...(part.category_ids ?? (part.primary_category_id ? [part.primary_category_id] : []))],
     numeric_code: part.numeric_code ?? '',
+    barcode: part.barcode ?? '',
     location: part.location ?? '',
     storage_site: site,
     description: part.description ?? '',
@@ -224,6 +227,7 @@ export function formValuesToApiPayload(values: WorkshopPartFormValues): Record<s
     brand: values.brand.trim() || null,
     original_code: values.original_code.trim() || null,
     numeric_code: values.numeric_code.trim() || null,
+    barcode: values.barcode.trim() || null,
     location: values.location.trim() || null,
     storage_site: values.storage_site === 'deposito' ? 'deposito' : 'oficina',
     description: values.description.trim() || null,

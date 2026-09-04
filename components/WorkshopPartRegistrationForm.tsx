@@ -565,6 +565,17 @@ export function WorkshopPartRegistrationForm({
             />
           </div>
           <div className="space-y-1.5">
+            <FieldLabel hint="EAN / código da embalagem — pistola ou câmera">Código de barras</FieldLabel>
+            <input
+              type="text"
+              value={values.barcode}
+              onChange={(e) => patch({ barcode: e.target.value })}
+              placeholder="Ex.: 7891234567890"
+              className={`${inputCls} tabular-nums`}
+              autoComplete="off"
+            />
+          </div>
+          <div className="space-y-1.5">
             <FieldLabel hint="Barracão onde o produto está guardado">Empresa / barracão</FieldLabel>
             <select
               value={values.storage_site}

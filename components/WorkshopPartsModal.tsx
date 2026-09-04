@@ -16,6 +16,8 @@ import {
   History,
   BarChart3,
   Printer,
+  ShoppingBag,
+  PackageMinus,
 } from 'lucide-react';
 import { iosModalShell, iosModalClose, iosModalInsetCard, SETTINGS_CHILD_MODAL_Z, NESTED_STOCK_OVERLAY_Z } from './ui/iosModalStyles';
 import { IosAccentIconSquircle } from './ui/IosAccentIconSquircle';
@@ -60,6 +62,7 @@ import {
   type WorkshopPartPurchase,
   type WorkshopPartLabContext,
   type WorkshopPartPendingReservation,
+  type WorkshopPartStockMovementType,
 } from '../services/apiService';
 import { printWorkshopPartSheet } from '../utils/workshopPartPrintSheet';
 import { TechnicianPhotoEditorModal } from './TechnicianPhotoEditorModal';
@@ -69,6 +72,7 @@ import {
 } from './WorkshopPartRegistrationForm';
 import { WorkshopPartDetailView } from './WorkshopPartDetailView';
 import { WorkshopPartsAnalyticsView } from './WorkshopPartsAnalyticsView';
+import { WorkshopPartStockOutboundModal } from './WorkshopPartStockOutboundModal';
 import {
   formValuesToApiPayload,
   purchaseDraftShouldSync,
@@ -206,6 +210,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
   const [stockAlertFilter, setStockAlertFilter] = useState<StockAlertFilter>('all');
   const [sortMode, setSortMode] = useState<WorkshopPartSortMode>(readWorkshopPartSortMode);
   const [isAnalyticsOpen, setIsAnalyticsOpen] = useState(false);
+  const [outboundMode, setOutboundMode] = useState<WorkshopPartStockMovementType | null>(null);
   const [categories, setCategories] = useState<WorkshopPartCategory[]>([]);
   const [isCategoriesModalOpen, setIsCategoriesModalOpen] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
@@ -781,6 +786,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
       const id = (p.id || '').toLowerCase();
       const original = normalizePartSearch(p.original_code || '');
       const numeric = normalizePartSearch(p.numeric_code || '');
+      const barcode = normalizePartSearch(p.barcode || '');
       const location = normalizePartSearch(p.location || '');
       const model = normalizePartSearch(p.model || '');
       const description = normalizePartSearch(p.description || '');
@@ -801,6 +807,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
         storage.includes(q) ||
         original.includes(q) ||
         numeric.includes(q) ||
+        barcode.includes(q) ||
         location.includes(q) ||
         id.includes(raw.toLowerCase().replace(/\s/g, '')) ||
         normalizePartSearch(price).includes(q) ||
@@ -950,8 +957,29 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
   useBrowserBackLayer(isAnalyticsOpen, () => setIsAnalyticsOpen(false));
 
   useEffect(() => {
-    if (!isOpen) setIsAnalyticsOpen(false);
+    if (!isOpen) {
+      setIsAnalyticsOpen(false);
+      setOutboundMode(null);
+    }
   }, [isOpen]);
+
+  const handleOutboundStockChanged = useCallback(
+    (updated: Pick<WorkshopPart, 'id' | 'stock_qty' | 'unit_price' | 'name'>) => {
+      setParts((prev) =>
+        prev.map((p) =>
+          p.id === updated.id
+            ? { ...p, stock_qty: Number(updated.stock_qty), unit_price: Number(updated.unit_price ?? p.unit_price) }
+            : p
+        )
+      );
+      setViewPart((prev) =>
+        prev && prev.id === updated.id
+          ? { ...prev, stock_qty: Number(updated.stock_qty), unit_price: Number(updated.unit_price ?? prev.unit_price) }
+          : prev
+      );
+    },
+    []
+  );
 
   if (!isOpen) return null;
 
@@ -1068,6 +1096,22 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
               <div className="min-w-0 w-full sm:max-w-xl" />
             )}
             <div className="flex flex-wrap gap-2 justify-end shrink-0">
+              <button
+                type="button"
+                onClick={() => setOutboundMode('sale')}
+                className="inline-flex items-center justify-center gap-2 rounded-2xl border border-emerald-300/80 dark:border-emerald-500/30 bg-emerald-50 dark:bg-emerald-950/40 px-4 py-3 text-[15px] font-semibold text-emerald-900 dark:text-emerald-100 hover:bg-emerald-100/90 dark:hover:bg-emerald-900/50 transition-colors"
+              >
+                <ShoppingBag className="w-5 h-5" />
+                Venda avulsa
+              </button>
+              <button
+                type="button"
+                onClick={() => setOutboundMode('consumable')}
+                className="inline-flex items-center justify-center gap-2 rounded-2xl border border-sky-300/80 dark:border-sky-500/30 bg-sky-50 dark:bg-sky-950/40 px-4 py-3 text-[15px] font-semibold text-sky-900 dark:text-sky-100 hover:bg-sky-100/90 dark:hover:bg-sky-900/50 transition-colors"
+              >
+                <PackageMinus className="w-5 h-5" />
+                Insumos
+              </button>
               <button
                 type="button"
                 onClick={() => setIsAnalyticsOpen(true)}
@@ -1946,6 +1990,15 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
       </div>
       </RegistrationPortal>
     )}
+
+    {outboundMode ? (
+      <WorkshopPartStockOutboundModal
+        isOpen
+        mode={outboundMode}
+        onClose={() => setOutboundMode(null)}
+        onStockChanged={handleOutboundStockChanged}
+      />
+    ) : null}
     </ModalPortal>
     </>
   );

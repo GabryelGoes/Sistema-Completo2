@@ -42,6 +42,15 @@ import {
   finalizeStockAggKeyPartName,
 } from "./utils/serviceOrderServiceTechnicians.js";
 import { collectPendingStockReservations } from "./utils/workshopPartReservations.js";
+import { normalizeBarcodeInput } from "./utils/workshopPartBarcode.js";
+import {
+  applyDevMemoryOutbound,
+  isWorkshopPartDevMemoryActive,
+  listDevMemoryMovements,
+  listDevMemoryParts,
+  lookupDevMemoryPart,
+} from "./utils/workshopPartDevMemory.js";
+import type { WorkshopPartStockMovementType } from "./utils/workshopPartStockOutbound.js";
 
 const PBKDF2_ITERATIONS = 100000;
 const SALT_LEN = 16;
@@ -6613,7 +6622,7 @@ export function createApiApp() {
 
   const WORKSHOP_PART_SELECT =
     "id, name, brand, unit_price, stock_qty, photo_url, sort_order, created_at, " +
-    "original_code, numeric_code, location, application_similar, notes, " +
+    "original_code, numeric_code, barcode, location, application_similar, notes, " +
     "description, model, content_qty, content_unit, characteristics, storage_site, " +
     "ncm_code, unit_of_measure, min_stock_qty, max_stock_qty, fiscal_origin, " +
     "premium_amount, commission_pct, default_profit_pct, km_limit, validity_months, " +
@@ -6683,6 +6692,7 @@ export function createApiApp() {
       "brand",
       "original_code",
       "numeric_code",
+      "barcode",
       "location",
       "application_similar",
       "notes",
@@ -6853,6 +6863,35 @@ export function createApiApp() {
   // ----------------- ESTOQUE DE PEÇAS (para orçamentos) -----------------
   app.get("/api/workshop-parts/analytics", async (req, res) => {
     try {
+      if (isWorkshopPartDevMemoryActive(!!(supabaseAdmin && WORKSHOP_ID))) {
+        const now = new Date();
+        const to = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+        const from = new Date(to);
+        from.setDate(from.getDate() - 29);
+        from.setHours(0, 0, 0, 0);
+        return res.json(
+          buildWorkshopPartsAnalytics({
+            parts: listDevMemoryParts().map((p) => ({
+              id: p.id,
+              name: p.name,
+              original_code: p.original_code,
+              created_at: p.created_at,
+              stock_qty: p.stock_qty,
+              unit_price: p.unit_price,
+              unit_cost: p.unit_cost,
+              min_stock_qty: p.min_stock_qty,
+              unit_of_measure: p.unit_of_measure,
+            })),
+            categories: [],
+            categoryMembers: new Map(),
+            budgets: [],
+            purchases: [],
+            from,
+            to,
+            periodLabel: "Últimos 30 dias (dev)",
+          })
+        );
+      }
       if (!supabaseAdmin || !WORKSHOP_ID) {
         return res.status(500).json({
           error: "Supabase ou WORKSHOP_ID não configurados. Verifique variáveis de ambiente.",
@@ -7005,6 +7044,9 @@ export function createApiApp() {
 
   app.get("/api/workshop-parts/pending-reservations", async (_req, res) => {
     try {
+      if (isWorkshopPartDevMemoryActive(!!(supabaseAdmin && WORKSHOP_ID))) {
+        return res.json({ items: [], reservedQtyByPartId: {} });
+      }
       if (!supabaseAdmin || !WORKSHOP_ID) {
         return res.status(500).json({
           error:
@@ -7070,8 +7112,425 @@ export function createApiApp() {
     }
   });
 
+  const MOVEMENT_SELECT =
+    "id, workshop_id, part_id, movement_type, quantity, unit_price, total_amount, notes, " +
+    "barcode_scanned, recorded_by_name, stock_before, stock_after, created_at";
+
+  async function lookupWorkshopPartRowByCode(codeRaw: string): Promise<Record<string, unknown> | null> {
+    if (!supabaseAdmin || !WORKSHOP_ID) return null;
+    const code = normalizeBarcodeInput(codeRaw);
+    if (!code) return null;
+
+    const tryExact = async (column: "barcode" | "original_code" | "numeric_code") => {
+      const { data, error } = await supabaseAdmin
+        .from("workshop_parts")
+        .select(WORKSHOP_PART_SELECT)
+        .eq("workshop_id", WORKSHOP_ID)
+        .eq(column, code)
+        .limit(1)
+        .maybeSingle();
+      if (error) {
+        // Coluna barcode pode ainda não existir se a migration não foi aplicada.
+        if (column === "barcode" && /barcode/i.test(error.message || "")) return null;
+        throw new Error(error.message);
+      }
+      return (data as Record<string, unknown> | null) ?? null;
+    };
+
+    return (
+      (await tryExact("barcode")) ||
+      (await tryExact("original_code")) ||
+      (await tryExact("numeric_code"))
+    );
+  }
+
+  async function applyStockOutboundViaRpcOrFallback(opts: {
+    partId: string;
+    movementType: WorkshopPartStockMovementType;
+    quantity: number;
+    unitPrice: number | null;
+    notes: string | null;
+    barcodeScanned: string | null;
+    recordedByName: string | null;
+  }) {
+    if (!supabaseAdmin || !WORKSHOP_ID) {
+      throw new Error("Supabase ou WORKSHOP_ID não configurados.");
+    }
+
+    const { data: rpcData, error: rpcError } = await supabaseAdmin.rpc(
+      "apply_workshop_part_stock_outbound",
+      {
+        p_workshop_id: WORKSHOP_ID,
+        p_part_id: opts.partId,
+        p_movement_type: opts.movementType,
+        p_quantity: opts.quantity,
+        p_unit_price: opts.unitPrice,
+        p_notes: opts.notes,
+        p_barcode_scanned: opts.barcodeScanned,
+        p_recorded_by_name: opts.recordedByName,
+      }
+    );
+
+    if (!rpcError && rpcData) {
+      return rpcData as { movement: Record<string, unknown>; part: Record<string, unknown> };
+    }
+
+    const rpcMissing =
+      !!rpcError &&
+      (/apply_workshop_part_stock_outbound/i.test(rpcError.message || "") ||
+        rpcError.code === "PGRST202" ||
+        rpcError.code === "42883");
+
+    if (rpcError && !rpcMissing) {
+      throw new Error(rpcError.message);
+    }
+
+    // Fallback sem RPC: baixa + insert na tabela de movimentações.
+    const { data: partRow, error: partErr } = await supabaseAdmin
+      .from("workshop_parts")
+      .select(WORKSHOP_PART_SELECT)
+      .eq("id", opts.partId)
+      .eq("workshop_id", WORKSHOP_ID)
+      .maybeSingle();
+    if (partErr) throw new Error(partErr.message);
+    if (!partRow) throw new Error("Produto não encontrado.");
+
+    const before = Math.round(Number((partRow as { stock_qty?: number }).stock_qty ?? 0) * 1000) / 1000;
+    const qty = Math.round(Number(opts.quantity) * 1000) / 1000;
+    if (!(qty > 0)) throw new Error("Quantidade inválida.");
+    if (before < qty) {
+      throw new Error(
+        `Estoque insuficiente para "${(partRow as { name?: string }).name}". Disponível: ${before}.`
+      );
+    }
+    const after = Math.round((before - qty) * 1000) / 1000;
+
+    let unitPrice: number | null = null;
+    let totalAmount: number | null = null;
+    if (opts.movementType === "sale") {
+      const raw =
+        opts.unitPrice != null
+          ? Number(opts.unitPrice)
+          : Number((partRow as { unit_price?: number }).unit_price ?? 0);
+      if (!Number.isFinite(raw) || raw < 0) throw new Error("Preço unitário inválido.");
+      unitPrice = Math.round(raw * 100) / 100;
+      totalAmount = Math.round(unitPrice * qty * 100) / 100;
+    }
+
+    const { error: updErr } = await supabaseAdmin
+      .from("workshop_parts")
+      .update({ stock_qty: after })
+      .eq("id", opts.partId)
+      .eq("workshop_id", WORKSHOP_ID);
+    if (updErr) throw new Error(updErr.message);
+
+    const insertPayload = {
+      workshop_id: WORKSHOP_ID,
+      part_id: opts.partId,
+      movement_type: opts.movementType,
+      quantity: qty,
+      unit_price: unitPrice,
+      total_amount: totalAmount,
+      notes: opts.notes,
+      barcode_scanned: opts.barcodeScanned,
+      recorded_by_name: opts.recordedByName,
+      stock_before: before,
+      stock_after: after,
+    };
+
+    const { data: movement, error: movErr } = await supabaseAdmin
+      .from("workshop_part_stock_movements")
+      .insert(insertPayload)
+      .select(MOVEMENT_SELECT)
+      .single();
+
+    if (movErr) {
+      // Tenta reverter a baixa se o histórico falhar.
+      await supabaseAdmin
+        .from("workshop_parts")
+        .update({ stock_qty: before })
+        .eq("id", opts.partId)
+        .eq("workshop_id", WORKSHOP_ID);
+      if (/workshop_part_stock_movements/i.test(movErr.message || "")) {
+        throw new Error(
+          "Tabela de movimentações não encontrada. Aplique a migration workshop_part_stock_movements."
+        );
+      }
+      throw new Error(movErr.message);
+    }
+
+    const part = partRow as Record<string, unknown>;
+    return {
+      movement: movement as Record<string, unknown>,
+      part: {
+        id: part.id,
+        name: part.name,
+        stock_qty: after,
+        unit_price: part.unit_price,
+        unit_of_measure: part.unit_of_measure ?? "UN",
+        photo_url: part.photo_url ?? null,
+        barcode: part.barcode ?? null,
+      },
+    };
+  }
+
+  app.get("/api/workshop-parts/lookup", async (req, res) => {
+    try {
+      const code = normalizeBarcodeInput(String(req.query.code ?? ""));
+      if (!code) {
+        return res.status(400).json({ error: "Informe o código (code)." });
+      }
+
+      if (isWorkshopPartDevMemoryActive(!!(supabaseAdmin && WORKSHOP_ID))) {
+        const part = lookupDevMemoryPart(code);
+        if (!part) return res.status(404).json({ error: "Produto não encontrado para este código." });
+        return res.json({ part });
+      }
+
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({
+          error:
+            "Supabase ou WORKSHOP_ID não configurados. Verifique variáveis de ambiente.",
+        });
+      }
+
+      const part = await lookupWorkshopPartRowByCode(code);
+      if (!part) {
+        return res.status(404).json({ error: "Produto não encontrado para este código." });
+      }
+      const id = part.id as string;
+      const [catMap, photosMap] = await Promise.all([
+        loadWorkshopPartCategoryMap([id]),
+        loadWorkshopPartPhotosMap([id]),
+      ]);
+      const photos = photosMap.get(id) ?? [];
+      const coverFromGallery =
+        photos[0]?.photo_url && String(photos[0].photo_url).trim()
+          ? String(photos[0].photo_url).trim()
+          : null;
+      const legacyCover = parseOptionalText(part.photo_url);
+      return res.json({
+        part: {
+          ...part,
+          photo_url: coverFromGallery ?? legacyCover,
+          category_ids: catMap.get(id) ?? [],
+          photos,
+        },
+      });
+    } catch (err: any) {
+      console.error("[API] Erro em GET /api/workshop-parts/lookup:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+    }
+  });
+
+  app.get("/api/workshop-parts/movements", async (req, res) => {
+    try {
+      const typeRaw = String(req.query.type ?? "").trim().toLowerCase();
+      const movementType =
+        typeRaw === "sale" || typeRaw === "consumable"
+          ? (typeRaw as WorkshopPartStockMovementType)
+          : null;
+      const limit = Math.min(200, Math.max(1, Number(req.query.limit ?? 40) || 40));
+
+      if (isWorkshopPartDevMemoryActive(!!(supabaseAdmin && WORKSHOP_ID))) {
+        return res.json({
+          items: listDevMemoryMovements({
+            movementType: movementType ?? undefined,
+            limit,
+          }),
+        });
+      }
+
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({
+          error:
+            "Supabase ou WORKSHOP_ID não configurados. Verifique variáveis de ambiente.",
+        });
+      }
+
+      let query = supabaseAdmin
+        .from("workshop_part_stock_movements")
+        .select(MOVEMENT_SELECT)
+        .eq("workshop_id", WORKSHOP_ID)
+        .order("created_at", { ascending: false })
+        .limit(limit);
+      if (movementType) query = query.eq("movement_type", movementType);
+
+      const { data, error } = await query;
+      if (error) {
+        if (/workshop_part_stock_movements/i.test(error.message || "")) {
+          return res.json({ items: [] });
+        }
+        console.error("[API] Erro ao listar movimentações:", error);
+        return res.status(500).json({ error: error.message });
+      }
+
+      const rows = (data ?? []) as Array<Record<string, unknown>>;
+      const partIds = [...new Set(rows.map((r) => String(r.part_id)).filter(Boolean))];
+      let nameById = new Map<string, { name: string; unit_of_measure: string; photo_url: string | null }>();
+      if (partIds.length > 0) {
+        const { data: partsRows } = await supabaseAdmin
+          .from("workshop_parts")
+          .select("id, name, unit_of_measure, photo_url")
+          .eq("workshop_id", WORKSHOP_ID)
+          .in("id", partIds);
+        nameById = new Map(
+          ((partsRows ?? []) as Array<{
+            id: string;
+            name: string;
+            unit_of_measure?: string | null;
+            photo_url?: string | null;
+          }>).map((p) => [
+            p.id,
+            {
+              name: p.name,
+              unit_of_measure: p.unit_of_measure || "UN",
+              photo_url: p.photo_url ?? null,
+            },
+          ])
+        );
+      }
+
+      const items = rows.map((r) => {
+        const meta = nameById.get(String(r.part_id));
+        return {
+          ...r,
+          quantity: Number(r.quantity ?? 0),
+          unit_price: r.unit_price != null ? Number(r.unit_price) : null,
+          total_amount: r.total_amount != null ? Number(r.total_amount) : null,
+          stock_before: Number(r.stock_before ?? 0),
+          stock_after: Number(r.stock_after ?? 0),
+          part_name: meta?.name ?? null,
+          part_unit_of_measure: meta?.unit_of_measure ?? "UN",
+          part_photo_url: meta?.photo_url ?? null,
+        };
+      });
+
+      return res.json({ items });
+    } catch (err: any) {
+      console.error("[API] Erro em GET /api/workshop-parts/movements:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+    }
+  });
+
+  app.post("/api/workshop-parts/movements", async (req, res) => {
+    try {
+      const body = (req.body || {}) as Record<string, unknown>;
+      const movementTypeRaw = String(body.movement_type ?? body.type ?? "").trim().toLowerCase();
+      if (movementTypeRaw !== "sale" && movementTypeRaw !== "consumable") {
+        return res.status(400).json({ error: "movement_type deve ser sale ou consumable." });
+      }
+      const movementType = movementTypeRaw as WorkshopPartStockMovementType;
+      const quantity = Number(body.quantity);
+      if (!Number.isFinite(quantity) || quantity <= 0) {
+        return res.status(400).json({ error: "Quantidade inválida." });
+      }
+
+      let partId = typeof body.part_id === "string" ? body.part_id.trim() : "";
+      const code = normalizeBarcodeInput(String(body.code ?? body.barcode ?? ""));
+      const notes =
+        typeof body.notes === "string" && body.notes.trim() ? body.notes.trim() : null;
+      const barcodeScanned =
+        typeof body.barcode_scanned === "string" && body.barcode_scanned.trim()
+          ? body.barcode_scanned.trim()
+          : code || null;
+      const recordedByName =
+        typeof body.recorded_by_name === "string" && body.recorded_by_name.trim()
+          ? body.recorded_by_name.trim()
+          : null;
+
+      let unitPrice: number | null = null;
+      if (body.unit_price !== undefined && body.unit_price !== null && body.unit_price !== "") {
+        const n = Number(body.unit_price);
+        if (!Number.isFinite(n) || n < 0) {
+          return res.status(400).json({ error: "Preço unitário inválido." });
+        }
+        unitPrice = n;
+      }
+
+      if (isWorkshopPartDevMemoryActive(!!(supabaseAdmin && WORKSHOP_ID))) {
+        if (!partId && code) {
+          const found = lookupDevMemoryPart(code);
+          if (!found) {
+            return res.status(404).json({ error: "Produto não encontrado para este código." });
+          }
+          partId = found.id;
+        }
+        if (!partId) {
+          return res.status(400).json({ error: "Informe part_id ou code." });
+        }
+        try {
+          const result = applyDevMemoryOutbound({
+            partId,
+            movementType,
+            quantity,
+            unitPrice,
+            notes,
+            barcodeScanned,
+            recordedByName,
+          });
+          return res.status(201).json(result);
+        } catch (e: any) {
+          const msg = e?.message ?? "Falha na movimentação.";
+          const status = /não encontrado/i.test(msg)
+            ? 404
+            : /insuficiente|inválid/i.test(msg)
+              ? 400
+              : 500;
+          return res.status(status).json({ error: msg });
+        }
+      }
+
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({
+          error:
+            "Supabase ou WORKSHOP_ID não configurados. Verifique variáveis de ambiente.",
+        });
+      }
+
+      if (!partId && code) {
+        const found = await lookupWorkshopPartRowByCode(code);
+        if (!found) {
+          return res.status(404).json({ error: "Produto não encontrado para este código." });
+        }
+        partId = String(found.id);
+      }
+      if (!partId) {
+        return res.status(400).json({ error: "Informe part_id ou code." });
+      }
+
+      try {
+        const result = await applyStockOutboundViaRpcOrFallback({
+          partId,
+          movementType,
+          quantity,
+          unitPrice,
+          notes,
+          barcodeScanned,
+          recordedByName,
+        });
+        return res.status(201).json(result);
+      } catch (e: any) {
+        const msg = e?.message ?? "Falha na movimentação.";
+        const status = /não encontrado/i.test(msg)
+          ? 404
+          : /insuficiente|inválid/i.test(msg)
+            ? 400
+            : 500;
+        return res.status(status).json({ error: msg });
+      }
+    } catch (err: any) {
+      console.error("[API] Erro em POST /api/workshop-parts/movements:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+    }
+  });
+
   app.get("/api/workshop-parts", async (_req, res) => {
     try {
+      if (isWorkshopPartDevMemoryActive(!!(supabaseAdmin && WORKSHOP_ID))) {
+        return res.json(listDevMemoryParts());
+      }
+
       if (!supabaseAdmin || !WORKSHOP_ID) {
         return res.status(500).json({
           error:
@@ -7568,6 +8027,9 @@ export function createApiApp() {
   // ----------------- CATEGORIAS DO ESTOQUE DE PEÇAS -----------------
   app.get("/api/workshop-part-categories", async (_req, res) => {
     try {
+      if (isWorkshopPartDevMemoryActive(!!(supabaseAdmin && WORKSHOP_ID))) {
+        return res.json([]);
+      }
       if (!supabaseAdmin || !WORKSHOP_ID) {
         return res.status(500).json({
           error:

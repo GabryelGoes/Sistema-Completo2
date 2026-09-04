@@ -276,6 +276,7 @@ export function WorkshopPartDetailView({
               />
               <DetailRow label="Código original" value={displayText(part.original_code)} />
               <DetailRow label="Código numérico" value={displayText(part.numeric_code)} />
+              <DetailRow label="Código de barras" value={displayText(part.barcode)} />
               <DetailRow
                 label="Categorias"
                 value={

@@ -308,6 +308,7 @@ export function printWorkshopPartSheet(opts: {
       ${fieldHtml('Conteúdo', esc(displayText(formatPartContent(part.content_qty, part.content_unit))))}
       ${fieldHtml('Código original', esc(displayText(part.original_code)))}
       ${fieldHtml('Código numérico', esc(displayText(part.numeric_code)))}
+      ${fieldHtml('Código de barras', esc(displayText(part.barcode)))}
       ${fieldHtml('Categorias', categoriesHtml)}
       ${fieldHtml('Unidade de medida', esc(unitLabel(unit)))}
       ${labTypeHtml}
