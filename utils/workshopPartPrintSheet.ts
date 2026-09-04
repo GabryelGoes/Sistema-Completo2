@@ -7,7 +7,7 @@ import {
   PART_ORIGIN_OPTIONS,
   UNIT_OF_MEASURE_OPTIONS,
 } from './workshopPartFields';
-import { getWorkshopPartStockStatus } from './workshopPartStock';
+import { formatWorkshopPartQty, getWorkshopPartStockStatus } from './workshopPartStock';
 import { printHtmlDocument } from './printHtml';
 import { moduleKindLabel, moduleVehicleKindLabel } from './moduleMetadata';
 
@@ -34,7 +34,7 @@ function fmtMoney(n: number): string {
 }
 
 function fmtQty(n: number, unit: string): string {
-  return `${Number(n ?? 0).toFixed(3)} ${unit}`;
+  return `${formatWorkshopPartQty(n)} ${unit}`;
 }
 
 function originLabel(code: string): string {

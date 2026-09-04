@@ -11,7 +11,7 @@ import {
   PART_ORIGIN_OPTIONS,
   UNIT_OF_MEASURE_OPTIONS,
 } from '../utils/workshopPartFields';
-import { getWorkshopPartStockStatus } from '../utils/workshopPartStock';
+import { formatWorkshopPartQty, getWorkshopPartStockStatus } from '../utils/workshopPartStock';
 import { WorkshopPartStockBadge } from './ui/WorkshopPartStockBadge';
 import type { PartPhotoSlot } from './WorkshopPartRegistrationForm';
 
@@ -26,7 +26,7 @@ function fmtMoney(n: number): string {
 }
 
 function fmtQty(n: number, unit: string): string {
-  return `${Number(n ?? 0).toFixed(3)} ${unit}`;
+  return `${formatWorkshopPartQty(n)} ${unit}`;
 }
 
 function displayText(v: string | null | undefined): string {
