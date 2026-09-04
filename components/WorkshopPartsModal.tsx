@@ -295,35 +295,6 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
       setReservedQtyByPartId(reservations.reservedQtyByPartId);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Erro ao carregar peças.');
-      // TEMP DEMO — não commitar
-      setParts([
-        {
-          id: 'demo-p1',
-          name: 'Sensor ABS dianteiro',
-          unit_price: 120,
-          stock_qty: 5,
-          sort_order: 0,
-          created_at: new Date().toISOString(),
-          unit_of_measure: 'UN',
-          min_stock_qty: 1,
-        },
-      ]);
-      setPendingReservations([
-        {
-          workshopPartId: 'demo-p1',
-          partName: 'Sensor ABS dianteiro',
-          quantity: 2,
-          quantityLabel: '2',
-          budgetId: 'demo-b1',
-          budgetCardName: 'Orçamento técnico',
-          serviceOrderId: 'demo-so1',
-          plate: 'ABC1D23',
-          vehicleModel: 'Gol 1.6',
-          osNumber: 142,
-          status: 'EM_SERVICO',
-        },
-      ]);
-      setReservedQtyByPartId({ 'demo-p1': 2 });
     } finally {
       setLoading(false);
     }
