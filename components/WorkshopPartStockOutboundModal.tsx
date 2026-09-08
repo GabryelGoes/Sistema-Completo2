@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, Loader2, PackageMinus, ShoppingBag, X } from 'lucide-react';
+import { ArrowLeft, Loader2, PackageMinus, Search, ShoppingBag, X } from 'lucide-react';
 import {
   createWorkshopPartStockMovement,
   getWorkshopPartStockMovements,
@@ -10,6 +10,7 @@ import {
 } from '../services/apiService';
 import { formatWorkshopPartQty } from '../utils/workshopPartStock';
 import { stockMovementTypeLabel } from '../utils/workshopPartStockOutbound';
+import { searchWorkshopPartsByText } from '../utils/workshopPartBarcode';
 import { getStoredAuth } from './views/LoginView';
 import { BarcodeScanField } from './BarcodeScanField';
 import { PartPhotoImg } from './ui/PartPhotoImg';
@@ -24,6 +25,8 @@ export type WorkshopPartStockOutboundModalProps = {
   onClose: () => void;
   onStockChanged: (part: Pick<WorkshopPart, 'id' | 'stock_qty' | 'unit_price' | 'name'>) => void;
   initialPart?: WorkshopPart | null;
+  /** Catálogo atual do estoque para busca por nome/marca. */
+  catalogParts?: WorkshopPart[];
 };
 
 function moneyBRL(n: number): string {
@@ -49,12 +52,14 @@ export function WorkshopPartStockOutboundModal({
   onClose,
   onStockChanged,
   initialPart = null,
+  catalogParts = [],
 }: WorkshopPartStockOutboundModalProps) {
   const { isDesktopShell } = useDesktopShellLayout();
   const isSale = mode === 'sale';
   const title = stockMovementTypeLabel(mode);
 
   const [code, setCode] = useState('');
+  const [nameQuery, setNameQuery] = useState('');
   const [part, setPart] = useState<WorkshopPart | null>(null);
   const [qty, setQty] = useState('1');
   const [unitPrice, setUnitPrice] = useState('');
@@ -84,6 +89,7 @@ export function WorkshopPartStockOutboundModal({
   useEffect(() => {
     if (!isOpen) return;
     setCode('');
+    setNameQuery('');
     setLookupError(null);
     setSubmitError(null);
     setSuccessMsg(null);
@@ -99,6 +105,21 @@ export function WorkshopPartStockOutboundModal({
     void loadHistory();
   }, [isOpen, mode, initialPart, loadHistory]);
 
+  /** Mantém o produto selecionado sincronizado com o catálogo (estoque atualizado). */
+  useEffect(() => {
+    if (!part?.id || catalogParts.length === 0) return;
+    const fresh = catalogParts.find((p) => p.id === part.id);
+    if (!fresh) return;
+    if (
+      Number(fresh.stock_qty) !== Number(part.stock_qty) ||
+      Number(fresh.unit_price) !== Number(part.unit_price) ||
+      fresh.name !== part.name
+    ) {
+      setPart(fresh);
+      setUnitPrice(Number(fresh.unit_price ?? 0).toFixed(2));
+    }
+  }, [catalogParts, part]);
+
   const qtyNumber = useMemo(() => {
     const n = Number(String(qty).replace(',', '.'));
     return Number.isFinite(n) ? n : 0;
@@ -111,6 +132,11 @@ export function WorkshopPartStockOutboundModal({
 
   const totalPreview = isSale && qtyNumber > 0 ? priceNumber * qtyNumber : null;
 
+  const nameMatches = useMemo(
+    () => searchWorkshopPartsByText(catalogParts, nameQuery, 15),
+    [catalogParts, nameQuery]
+  );
+
   const selectPart = useCallback((p: WorkshopPart) => {
     setPart(p);
     setUnitPrice(Number(p.unit_price ?? 0).toFixed(2));
@@ -118,6 +144,7 @@ export function WorkshopPartStockOutboundModal({
     setSubmitError(null);
     setSuccessMsg(null);
     setQty('1');
+    setNameQuery(p.name || '');
   }, []);
 
   const handleLookup = useCallback(
@@ -127,24 +154,39 @@ export function WorkshopPartStockOutboundModal({
       setSuccessMsg(null);
       try {
         const found = await lookupWorkshopPartByCode(rawCode);
-        if (!found) {
-          setPart(null);
-          setLookupError('Nenhum produto com este código.');
+        if (found) {
+          selectPart(found);
           return;
         }
-        selectPart(found);
+        // Fallback: se digitou texto (não só dígitos), tenta achar por nome no catálogo.
+        const byName = searchWorkshopPartsByText(catalogParts, rawCode, 8);
+        if (byName.length === 1) {
+          selectPart(byName[0]);
+          setNameQuery(byName[0].name || rawCode);
+          return;
+        }
+        if (byName.length > 1) {
+          setPart(null);
+          setNameQuery(rawCode);
+          setLookupError(
+            `Nenhum código exato. ${byName.length} produtos com nome parecido — escolha na lista abaixo.`
+          );
+          return;
+        }
+        setPart(null);
+        setLookupError('Nenhum produto com este código ou nome.');
       } catch (e) {
         setLookupError(e instanceof Error ? e.message : 'Falha na busca.');
       } finally {
         setLookingUp(false);
       }
     },
-    [selectPart]
+    [catalogParts, selectPart]
   );
 
   const handleConfirm = useCallback(async () => {
     if (!part) {
-      setSubmitError('Leia ou busque um produto primeiro.');
+      setSubmitError('Leia o código ou escolha o produto pelo nome.');
       return;
     }
     if (!(qtyNumber > 0)) {
@@ -215,6 +257,7 @@ export function WorkshopPartStockOutboundModal({
   if (!isOpen) return null;
 
   const overlayClass = resolveIosModalOverlayClass(isDesktopShell, NESTED_STOCK_OVERLAY_Z);
+  const showNameList = nameQuery.trim().length > 0 && (!part || nameQuery.trim() !== part.name);
 
   return (
     <RegistrationPortal>
@@ -234,9 +277,7 @@ export function WorkshopPartStockOutboundModal({
                 <div className="flex items-center gap-2">
                   <span
                     className={`inline-flex h-9 w-9 items-center justify-center rounded-xl ${
-                      isSale
-                        ? 'bg-emerald-600 text-white'
-                        : 'bg-sky-600 text-white'
+                      isSale ? 'bg-emerald-600 text-white' : 'bg-sky-600 text-white'
                     }`}
                   >
                     {isSale ? <ShoppingBag className="h-5 w-5" /> : <PackageMinus className="h-5 w-5" />}
@@ -245,8 +286,8 @@ export function WorkshopPartStockOutboundModal({
                 </div>
                 <p className="mt-1 text-[13px] text-zinc-500 dark:text-zinc-400">
                   {isSale
-                    ? 'Baixa automática no estoque · fora de orçamento'
-                    : 'Uso interno / insumos · baixa automática, sem venda'}
+                    ? 'Baixa automática · código, nome ou lista'
+                    : 'Insumo / consumo · código, nome ou lista'}
                 </p>
               </div>
             </div>
@@ -263,7 +304,7 @@ export function WorkshopPartStockOutboundModal({
           <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-4 custom-scrollbar">
             <section className="space-y-2">
               <h3 className="text-[13px] font-bold uppercase tracking-wide text-zinc-500">
-                Identificar produto
+                Por código de barras
               </h3>
               <BarcodeScanField
                 value={code}
@@ -280,6 +321,75 @@ export function WorkshopPartStockOutboundModal({
               {lookupError ? (
                 <p className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-[13px] text-red-700 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-300">
                   {lookupError}
+                </p>
+              ) : null}
+            </section>
+
+            <section className="space-y-2">
+              <h3 className="text-[13px] font-bold uppercase tracking-wide text-zinc-500">
+                Por nome do produto
+              </h3>
+              <div className="relative">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+                <input
+                  type="search"
+                  value={nameQuery}
+                  onChange={(e) => {
+                    setNameQuery(e.target.value);
+                    setLookupError(null);
+                    setSuccessMsg(null);
+                  }}
+                  disabled={saving}
+                  placeholder="Digite o nome, marca ou modelo…"
+                  className="w-full rounded-2xl border border-zinc-300 bg-white py-3 pl-10 pr-3 text-[15px] text-zinc-900 outline-none ring-emerald-500/30 focus:ring-2 dark:border-white/15 dark:bg-white/5 dark:text-white"
+                  aria-label="Buscar produto por nome"
+                  autoComplete="off"
+                />
+              </div>
+
+              {showNameList ? (
+                nameMatches.length > 0 ? (
+                  <ul className="max-h-[min(240px,32vh)] space-y-1 overflow-y-auto rounded-2xl border border-zinc-200 bg-white p-1.5 dark:border-white/10 dark:bg-white/5 custom-scrollbar">
+                    {nameMatches.map((p) => {
+                      const selected = part?.id === p.id;
+                      return (
+                        <li key={p.id}>
+                          <button
+                            type="button"
+                            onClick={() => selectPart(p)}
+                            disabled={saving}
+                            className={`flex w-full items-center justify-between gap-3 rounded-xl px-3 py-2.5 text-left transition-colors ${
+                              selected
+                                ? 'bg-emerald-500/15 text-emerald-950 dark:text-emerald-100'
+                                : 'hover:bg-zinc-100 dark:hover:bg-white/10'
+                            }`}
+                          >
+                            <span className="min-w-0">
+                              <span className="block truncate text-[14px] font-semibold text-zinc-900 dark:text-white">
+                                {p.name}
+                              </span>
+                              <span className="block truncate text-[12px] text-zinc-500">
+                                {[p.brand, p.original_code || p.numeric_code || p.barcode]
+                                  .filter(Boolean)
+                                  .join(' · ') || 'Sem código'}
+                              </span>
+                            </span>
+                            <span className="shrink-0 text-[12px] font-semibold tabular-nums text-zinc-600 dark:text-zinc-300">
+                              {formatWorkshopPartQty(p.stock_qty)} {p.unit_of_measure || 'UN'}
+                            </span>
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                ) : (
+                  <p className="rounded-xl border border-dashed border-zinc-300 px-3 py-3 text-[13px] text-zinc-500 dark:border-white/15 dark:text-zinc-400">
+                    Nenhum produto com “{nameQuery.trim()}”.
+                  </p>
+                )
+              ) : catalogParts.length > 0 && !part ? (
+                <p className="text-[13px] text-zinc-500">
+                  Digite parte do nome para ver sugestões ({catalogParts.length} no estoque).
                 </p>
               ) : null}
             </section>
@@ -307,6 +417,21 @@ export function WorkshopPartStockOutboundModal({
                       Estoque: {formatWorkshopPartQty(part.stock_qty)} {part.unit_of_measure || 'UN'}
                     </p>
                   </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setPart(null);
+                      setNameQuery('');
+                      setCode('');
+                      setSuccessMsg(null);
+                      setSubmitError(null);
+                    }}
+                    className="shrink-0 self-start rounded-lg p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-white/10"
+                    aria-label="Trocar produto"
+                    title="Trocar produto"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
                 </div>
 
                 <div className="mt-4 grid gap-3 sm:grid-cols-2">
@@ -386,7 +511,7 @@ export function WorkshopPartStockOutboundModal({
               </section>
             ) : (
               <p className="rounded-2xl border border-dashed border-zinc-300 px-4 py-8 text-center text-[14px] text-zinc-500 dark:border-white/15 dark:text-zinc-400">
-                Escaneie com a pistola, use a câmera ou digite o código e pressione Enter.
+                Use o código de barras, digite o nome do produto ou escolha na lista de sugestões.
               </p>
             )}
 

@@ -1997,6 +1997,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
         mode={outboundMode}
         onClose={() => setOutboundMode(null)}
         onStockChanged={handleOutboundStockChanged}
+        catalogParts={parts}
       />
     ) : null}
     </ModalPortal>
