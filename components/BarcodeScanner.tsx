@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useId, useRef, useState } from 'react';
-import { CameraOff, Loader2, X } from 'lucide-react';
+import { CameraOff, Loader2, Minus, Plus, X, ZoomIn } from 'lucide-react';
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import { normalizeBarcodeInput } from '../utils/workshopPartBarcode';
 import { RegistrationPortal } from './ui/RegistrationPortal';
@@ -8,6 +8,7 @@ import { useDesktopShellLayout } from './ui/DesktopShellContext';
 
 const SCANNER_Z = 'z-[145]';
 
+/** Formatos de código de barras 1D — informados explicitamente à lib. */
 const BARCODE_FORMATS = [
   Html5QrcodeSupportedFormats.EAN_13,
   Html5QrcodeSupportedFormats.EAN_8,
@@ -16,12 +17,34 @@ const BARCODE_FORMATS = [
   Html5QrcodeSupportedFormats.CODE_128,
 ];
 
+/** Resolução ideal → fallbacks para aparelhos mais simples. */
+const RESOLUTION_LADDER: Array<{ width: number; height: number }> = [
+  { width: 1920, height: 1080 },
+  { width: 1280, height: 720 },
+  { width: 960, height: 540 },
+  { width: 640, height: 480 },
+];
+
+const SCAN_FPS = 12;
+const NO_READ_HINT_MS = 8000;
+const DUPLICATE_GUARD_MS = 2500;
+/** Zoom moderado relativo (não excessivo). */
+const MODERATE_ZOOM_FACTOR = 1.35;
+
 export type BarcodeScannerProps = {
   isOpen: boolean;
   onDetected: (code: string) => void;
   onClose: () => void;
   /** Título exibido no topo do scanner. */
   title?: string;
+};
+
+type ZoomState = {
+  supported: boolean;
+  min: number;
+  max: number;
+  step: number;
+  value: number;
 };
 
 function mapCameraError(err: unknown): string {
@@ -52,9 +75,75 @@ function mapCameraError(err: unknown): string {
   return raw;
 }
 
+/** Área larga e rasa — adequada a códigos de barras horizontais (EAN/UPC/Code128). */
+function barcodeQrBox(viewfinderWidth: number, viewfinderHeight: number) {
+  const width = Math.floor(Math.min(viewfinderWidth * 0.94, Math.max(280, viewfinderWidth * 0.92)));
+  // Altura suficiente para o código inteiro, sem “janela” estreita demais.
+  const height = Math.floor(
+    Math.min(Math.max(120, viewfinderHeight * 0.34), Math.max(110, width * 0.38))
+  );
+  return {
+    width: Math.max(240, Math.min(width, viewfinderWidth - 8)),
+    height: Math.max(100, Math.min(height, viewfinderHeight - 8)),
+  };
+}
+
+function buildVideoConstraints(res: { width: number; height: number }): MediaTrackConstraints {
+  // focus/exposure via advanced — aceitos em vários mobiles; ignorados se não suportados.
+  const constraints: Record<string, unknown> = {
+    facingMode: { ideal: 'environment' },
+    width: { ideal: res.width },
+    height: { ideal: res.height },
+    advanced: [
+      { focusMode: 'continuous' },
+      { focusMode: 'auto' },
+      { exposureMode: 'continuous' },
+      { whiteBalanceMode: 'continuous' },
+    ],
+  };
+  return constraints as MediaTrackConstraints;
+}
+
+async function applyTrackEnhancements(scanner: Html5Qrcode): Promise<ZoomState | null> {
+  try {
+    const caps = scanner.getRunningTrackCapabilities() as MediaTrackCapabilities & {
+      focusMode?: string[];
+      exposureMode?: string[];
+      torch?: boolean;
+    };
+    const advanced: Record<string, unknown>[] = [];
+    if (Array.isArray(caps.focusMode)) {
+      if (caps.focusMode.includes('continuous')) advanced.push({ focusMode: 'continuous' });
+      else if (caps.focusMode.includes('auto')) advanced.push({ focusMode: 'auto' });
+    }
+    if (Array.isArray(caps.exposureMode) && caps.exposureMode.includes('continuous')) {
+      advanced.push({ exposureMode: 'continuous' });
+    }
+    if (advanced.length > 0) {
+      await scanner.applyVideoConstraints({
+        advanced,
+      } as MediaTrackConstraints);
+    }
+  } catch {
+    // Nem todos os browsers aceitam advanced constraints.
+  }
+
+  try {
+    const camCaps = scanner.getRunningTrackCameraCapabilities();
+    const zoom = camCaps.zoomFeature();
+    if (!zoom.isSupported()) return null;
+    const min = zoom.min();
+    const max = zoom.max();
+    const step = zoom.step() || 0.1;
+    const current = zoom.value() ?? min;
+    return { supported: true, min, max, step, value: current };
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Leitura em tempo real de código de barras via html5-qrcode (PWA / navegador).
- * Não depende exclusivamente de BarcodeDetector.
  */
 export function BarcodeScanner({
   isOpen,
@@ -68,9 +157,12 @@ export function BarcodeScanner({
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const startingRef = useRef(false);
   const handledRef = useRef(false);
+  const lastCodeRef = useRef<{ code: string; at: number } | null>(null);
   const onDetectedRef = useRef(onDetected);
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [hint, setHint] = useState<string | null>(null);
+  const [zoom, setZoom] = useState<ZoomState | null>(null);
 
   useEffect(() => {
     onDetectedRef.current = onDetected;
@@ -83,7 +175,7 @@ export function BarcodeScanner({
     if (!scanner) return;
     try {
       const state = scanner.getState();
-      // 2 = SCANNING, 3 = PAUSED (Html5QrcodeScannerState)
+      // 2 = SCANNING, 3 = PAUSED
       if (state === 2 || state === 3) {
         await scanner.stop();
       }
@@ -101,16 +193,43 @@ export function BarcodeScanner({
     void stopScanner().finally(() => onClose());
   }, [onClose, stopScanner]);
 
+  const applyZoomValue = useCallback(async (next: number) => {
+    const scanner = scannerRef.current;
+    const current = zoom;
+    if (!scanner || !current?.supported) return;
+    const clamped = Math.min(current.max, Math.max(current.min, next));
+    try {
+      const camCaps = scanner.getRunningTrackCameraCapabilities();
+      const feature = camCaps.zoomFeature();
+      if (!feature.isSupported()) return;
+      await feature.apply(clamped);
+      setZoom({ ...current, value: clamped });
+    } catch {
+      // ignore unsupported apply
+    }
+  }, [zoom]);
+
+  const toggleModerateZoom = useCallback(() => {
+    if (!zoom?.supported) return;
+    const target = Math.min(zoom.max, zoom.min * MODERATE_ZOOM_FACTOR);
+    const nearMin = Math.abs(zoom.value - zoom.min) < zoom.step * 1.5;
+    void applyZoomValue(nearMin ? target : zoom.min);
+  }, [applyZoomValue, zoom]);
+
   useEffect(() => {
     if (!isOpen) {
       handledRef.current = false;
+      lastCodeRef.current = null;
       setError(null);
+      setHint(null);
+      setZoom(null);
       setStarting(false);
       void stopScanner();
       return;
     }
 
     let cancelled = false;
+    let hintTimer: ReturnType<typeof setTimeout> | null = null;
     handledRef.current = false;
 
     const start = async () => {
@@ -118,8 +237,9 @@ export function BarcodeScanner({
       startingRef.current = true;
       setStarting(true);
       setError(null);
+      setHint(null);
+      setZoom(null);
 
-      // Garante que o container já está no DOM.
       await new Promise((r) => requestAnimationFrame(() => r(null)));
       if (cancelled) return;
 
@@ -136,8 +256,8 @@ export function BarcodeScanner({
         const scanner = new Html5Qrcode(elementId, {
           verbose: false,
           formatsToSupport: BARCODE_FORMATS,
-          // Preferimos o decoder próprio da lib para consistência entre navegadores.
-          useBarCodeDetectorIfSupported: false,
+          // Usa BarcodeDetector só como aceleração quando existir; senão cai no decoder da lib.
+          useBarCodeDetectorIfSupported: true,
         });
         scannerRef.current = scanner;
 
@@ -145,7 +265,15 @@ export function BarcodeScanner({
           if (handledRef.current || cancelled) return;
           const code = normalizeBarcodeInput(decodedText);
           if (!code) return;
+
+          const now = Date.now();
+          const prev = lastCodeRef.current;
+          if (prev && prev.code === code && now - prev.at < DUPLICATE_GUARD_MS) {
+            return;
+          }
+          lastCodeRef.current = { code, at: now };
           handledRef.current = true;
+          setHint(null);
           try {
             await stopScanner();
           } finally {
@@ -153,28 +281,78 @@ export function BarcodeScanner({
           }
         };
 
-        await scanner.start(
-          { facingMode: 'environment' },
-          {
-            fps: 10,
-            qrbox: (viewfinderWidth, viewfinderHeight) => {
-              const w = Math.floor(Math.min(viewfinderWidth * 0.86, 360));
-              const h = Math.floor(Math.min(viewfinderHeight * 0.28, 140));
-              return { width: Math.max(180, w), height: Math.max(80, h) };
-            },
-            aspectRatio: 1.777,
-            disableFlip: false,
-            videoConstraints: {
-              facingMode: { ideal: 'environment' },
-              width: { ideal: 1280 },
-              height: { ideal: 720 },
-            },
-          },
-          onSuccess,
-          () => {
-            // Erros de frame (sem código) — ignorar.
+        let started = false;
+        let lastErr: unknown = null;
+
+        // Preferência: câmera traseira + resolução alta, com fallback automático.
+        for (const res of RESOLUTION_LADDER) {
+          if (cancelled) return;
+          try {
+            await scanner.start(
+              { facingMode: 'environment' },
+              {
+                fps: SCAN_FPS,
+                qrbox: barcodeQrBox,
+                // Sem aspectRatio fixo: em PWA portrait isso costuma cortar demais o sensor.
+                disableFlip: false,
+                videoConstraints: buildVideoConstraints(res),
+              },
+              onSuccess,
+              () => {
+                // Frame sem código — normal.
+              }
+            );
+            started = true;
+            break;
+          } catch (err) {
+            lastErr = err;
+            try {
+              const state = scanner.getState();
+              if (state === 2 || state === 3) await scanner.stop();
+            } catch {
+              // ignore
+            }
           }
-        );
+        }
+
+        // Último recurso: facingMode simples, sem resolução forçada.
+        if (!started && !cancelled) {
+          try {
+            await scanner.start(
+              { facingMode: 'environment' },
+              {
+                fps: SCAN_FPS,
+                qrbox: barcodeQrBox,
+                disableFlip: false,
+              },
+              onSuccess,
+              () => undefined
+            );
+            started = true;
+          } catch (err) {
+            lastErr = err;
+          }
+        }
+
+        if (!started) {
+          throw lastErr ?? new Error('Não foi possível iniciar a câmera.');
+        }
+
+        if (cancelled) {
+          await stopScanner();
+          return;
+        }
+
+        const zoomState = await applyTrackEnhancements(scanner);
+        if (!cancelled) setZoom(zoomState);
+
+        hintTimer = setTimeout(() => {
+          if (!cancelled && !handledRef.current) {
+            setHint(
+              'Ainda não li o código. Mantenha-o inteiro na faixa, na horizontal, sem reflexo. Afaste ou aproxime até ficar nítido — ou use o zoom moderado.'
+            );
+          }
+        }, NO_READ_HINT_MS);
       } catch (err) {
         if (!cancelled) {
           setError(mapCameraError(err));
@@ -190,6 +368,7 @@ export function BarcodeScanner({
 
     return () => {
       cancelled = true;
+      if (hintTimer) clearTimeout(hintTimer);
       void stopScanner();
     };
   }, [elementId, isOpen, stopScanner]);
@@ -197,6 +376,8 @@ export function BarcodeScanner({
   if (!isOpen) return null;
 
   const overlayClass = resolveIosModalOverlayClass(isDesktopShell, SCANNER_Z);
+  const zoomNearMin =
+    zoom?.supported && Math.abs(zoom.value - zoom.min) <= Math.max(zoom.step, 0.05) * 1.5;
 
   return (
     <RegistrationPortal>
@@ -222,7 +403,7 @@ export function BarcodeScanner({
           <div className="relative bg-black px-3 pb-3 pt-3">
             <div
               id={elementId}
-              className="barcode-scanner-viewport mx-auto min-h-[260px] w-full overflow-hidden rounded-2xl bg-zinc-900"
+              className="barcode-scanner-viewport mx-auto min-h-[300px] w-full overflow-hidden rounded-2xl bg-zinc-900"
             />
 
             {starting && !error ? (
@@ -248,9 +429,54 @@ export function BarcodeScanner({
           </div>
 
           {!error ? (
-            <p className="px-4 pb-4 text-center text-[13px] text-zinc-400">
-              Posicione o código de barras dentro da área destacada. A leitura é automática.
-            </p>
+            <div className="space-y-3 px-4 pb-3">
+              <ul className="space-y-1 text-[12px] leading-snug text-zinc-400">
+                <li>• Enquadre o código inteiro na faixa destacada (na horizontal).</li>
+                <li>• Evite reflexos e sombra forte sobre as barras.</li>
+                <li>• Afaste ou aproxime o celular até o código ficar nítido.</li>
+              </ul>
+
+              {zoom?.supported ? (
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => void applyZoomValue(zoom.value - Math.max(zoom.step, 0.1))}
+                    className="rounded-xl bg-white/10 p-2 hover:bg-white/15 disabled:opacity-40"
+                    aria-label="Diminuir zoom"
+                    disabled={zoom.value <= zoom.min}
+                  >
+                    <Minus className="h-4 w-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={toggleModerateZoom}
+                    className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-white/10 px-3 py-2 text-[13px] font-semibold hover:bg-white/15"
+                  >
+                    <ZoomIn className="h-4 w-4" />
+                    {zoomNearMin ? 'Zoom moderado' : 'Zoom normal'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void applyZoomValue(zoom.value + Math.max(zoom.step, 0.1))}
+                    className="rounded-xl bg-white/10 p-2 hover:bg-white/15 disabled:opacity-40"
+                    aria-label="Aumentar zoom"
+                    disabled={zoom.value >= zoom.max}
+                  >
+                    <Plus className="h-4 w-4" />
+                  </button>
+                </div>
+              ) : null}
+
+              {hint ? (
+                <p className="rounded-xl border border-amber-400/30 bg-amber-500/15 px-3 py-2 text-[13px] text-amber-100">
+                  {hint}
+                </p>
+              ) : (
+                <p className="text-center text-[12px] text-zinc-500">
+                  A leitura é automática em tempo real — sem precisar tirar foto.
+                </p>
+              )}
+            </div>
           ) : null}
 
           <div className="border-t border-white/10 px-4 py-3">
