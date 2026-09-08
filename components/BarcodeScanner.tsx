@@ -68,8 +68,13 @@ export function BarcodeScanner({
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const startingRef = useRef(false);
   const handledRef = useRef(false);
+  const onDetectedRef = useRef(onDetected);
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    onDetectedRef.current = onDetected;
+  }, [onDetected]);
 
   const stopScanner = useCallback(async () => {
     const scanner = scannerRef.current;
@@ -144,7 +149,7 @@ export function BarcodeScanner({
           try {
             await stopScanner();
           } finally {
-            onDetected(code);
+            onDetectedRef.current(code);
           }
         };
 
@@ -187,7 +192,7 @@ export function BarcodeScanner({
       cancelled = true;
       void stopScanner();
     };
-  }, [elementId, isOpen, onDetected, stopScanner]);
+  }, [elementId, isOpen, stopScanner]);
 
   if (!isOpen) return null;
 
