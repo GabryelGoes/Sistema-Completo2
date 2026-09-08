@@ -382,11 +382,11 @@ export function BarcodeScanner({
     try {
       await scanner.applyVideoConstraints({
         advanced: [{ torch: next }],
-      } as MediaTrackConstraints);
+      } as unknown as MediaTrackConstraints);
       setTorchOn(next);
     } catch {
       try {
-        await scanner.applyVideoConstraints({ torch: next } as MediaTrackConstraints);
+        await scanner.applyVideoConstraints({ torch: next } as unknown as MediaTrackConstraints);
         setTorchOn(next);
       } catch {
         setHint('Este iPhone/Safari não permite controlar a lanterna pelo navegador.');
