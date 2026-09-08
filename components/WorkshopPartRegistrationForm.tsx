@@ -16,8 +16,10 @@ import {
 } from 'lucide-react';
 import { PartPhotoImg } from './ui/PartPhotoImg';
 import { CurrencyMaskInput } from './ui/CurrencyMaskInput';
+import { BarcodeScanner } from './BarcodeScanner';
 import type { WorkshopPart, WorkshopPartCategory, WorkshopPartFiscalExtra } from '../services/apiService';
 import { WORKSHOP_PART_PHOTOS_MAX } from '../services/apiService';
+import { normalizeBarcodeInput } from '../utils/workshopPartBarcode';
 
 export type PartPhotoSlot = {
   id: string;
@@ -328,6 +330,8 @@ function PartCategoriesSelect({
 export type WorkshopPartRegistrationFormProps = {
   mode: 'create' | 'edit';
   initialPart?: WorkshopPart | null;
+  /** Pré-preenche código de barras no modo criação (ex.: lido e ainda não cadastrado). */
+  prefillBarcode?: string | null;
   initialPurchases?: WorkshopPartPurchaseDraft[];
   categories?: WorkshopPartCategory[];
   onManageCategories?: () => void;
@@ -351,6 +355,7 @@ export type WorkshopPartRegistrationFormProps = {
 export function WorkshopPartRegistrationForm({
   mode,
   initialPart,
+  prefillBarcode = null,
   initialPurchases,
   categories = [],
   onManageCategories,
@@ -375,17 +380,22 @@ export function WorkshopPartRegistrationForm({
   );
   const [fiscalOpen, setFiscalOpen] = useState(false);
   const [fiscalDraft, setFiscalDraft] = useState<WorkshopPartFiscalExtra>({});
+  const [barcodeScannerOpen, setBarcodeScannerOpen] = useState(false);
 
   useEffect(() => {
     if (initialPart) {
       setValues(partToFormValues(initialPart));
       setFiscalDraft(initialPart.fiscal_extra ?? {});
     } else {
-      setValues(emptyPartFormValues());
+      const base = emptyPartFormValues();
+      if (prefillBarcode?.trim()) {
+        base.barcode = prefillBarcode.trim();
+      }
+      setValues(base);
       setFiscalDraft({});
     }
     setPurchases(initialPurchases ?? []);
-  }, [initialPart?.id, mode]);
+  }, [initialPart?.id, mode, prefillBarcode]);
 
   const patch = useCallback((patchValues: Partial<WorkshopPartFormValues>) => {
     setValues((prev) => {
@@ -566,14 +576,25 @@ export function WorkshopPartRegistrationForm({
           </div>
           <div className="space-y-1.5">
             <FieldLabel hint="EAN / código da embalagem — pistola ou câmera">Código de barras</FieldLabel>
-            <input
-              type="text"
-              value={values.barcode}
-              onChange={(e) => patch({ barcode: e.target.value })}
-              placeholder="Ex.: 7891234567890"
-              className={`${inputCls} tabular-nums`}
-              autoComplete="off"
-            />
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={values.barcode}
+                onChange={(e) => patch({ barcode: e.target.value })}
+                placeholder="Ex.: 7891234567890"
+                className={`${inputCls} flex-1 tabular-nums`}
+                autoComplete="off"
+              />
+              <button
+                type="button"
+                onClick={() => setBarcodeScannerOpen(true)}
+                className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg border border-zinc-200/90 bg-zinc-100 px-3 py-2 text-[13px] font-semibold text-zinc-800 hover:bg-zinc-200/80 dark:border-white/10 dark:bg-white/5 dark:text-white dark:hover:bg-white/10"
+                title="Ler código com a câmera"
+              >
+                <Camera className="h-4 w-4" />
+                <span className="hidden sm:inline">Ler</span>
+              </button>
+            </div>
           </div>
           <div className="space-y-1.5">
             <FieldLabel hint="Barracão onde o produto está guardado">Empresa / barracão</FieldLabel>
@@ -1041,6 +1062,16 @@ export function WorkshopPartRegistrationForm({
           </div>
         </div>
       ) : null}
+
+      <BarcodeScanner
+        isOpen={barcodeScannerOpen}
+        onClose={() => setBarcodeScannerOpen(false)}
+        onDetected={(code) => {
+          setBarcodeScannerOpen(false);
+          patch({ barcode: normalizeBarcodeInput(code) });
+        }}
+        title="Ler código de barras do produto"
+      />
     </div>
   );
 }

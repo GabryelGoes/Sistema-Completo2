@@ -211,6 +211,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
   const [sortMode, setSortMode] = useState<WorkshopPartSortMode>(readWorkshopPartSortMode);
   const [isAnalyticsOpen, setIsAnalyticsOpen] = useState(false);
   const [outboundMode, setOutboundMode] = useState<WorkshopPartStockMovementType | null>(null);
+  const [registrationPrefillBarcode, setRegistrationPrefillBarcode] = useState<string | null>(null);
   const [categories, setCategories] = useState<WorkshopPartCategory[]>([]);
   const [isCategoriesModalOpen, setIsCategoriesModalOpen] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
@@ -343,6 +344,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
 
   const closeRegistration = useCallback(() => {
     setRegistrationMode(null);
+    setRegistrationPrefillBarcode(null);
     setRegistrationPart(null);
     setRegistrationPurchases([]);
     resetNewProductDraft();
@@ -363,14 +365,23 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
     }
   }, [isOpen, closeRegistration, closeProductView]);
 
-  const openCreateRegistration = useCallback(() => {
+  const openCreateRegistration = useCallback((prefillBarcode?: string | null) => {
     closeProductView();
     setRegistrationMode('create');
     setRegistrationPart(null);
     setRegistrationPurchases([]);
+    setRegistrationPrefillBarcode(prefillBarcode?.trim() || null);
     resetNewProductDraft();
     setError(null);
   }, [resetNewProductDraft, closeProductView]);
+
+  const openRegisterFromMissingBarcode = useCallback(
+    (barcode: string) => {
+      setOutboundMode(null);
+      openCreateRegistration(barcode);
+    },
+    [openCreateRegistration]
+  );
 
   const openProductView = useCallback(async (part: WorkshopPart) => {
     const latest = parts.find((p) => p.id === part.id) ?? part;
@@ -1130,7 +1141,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
               </button>
               <button
                 type="button"
-                onClick={openCreateRegistration}
+                onClick={() => openCreateRegistration()}
                 className="inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 py-3 text-[15px] font-semibold text-white shadow-md shadow-emerald-900/20 hover:bg-emerald-500 transition-colors"
               >
                 <Plus className="w-5 h-5" />
@@ -1744,6 +1755,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
               <WorkshopPartRegistrationForm
                 mode={registrationMode}
                 initialPart={registrationMode === 'edit' ? registrationPart : null}
+                prefillBarcode={registrationMode === 'create' ? registrationPrefillBarcode : null}
                 initialPurchases={registrationPurchases}
                 categories={categories}
                 onManageCategories={() => setIsCategoriesModalOpen(true)}
@@ -1998,6 +2010,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
         onClose={() => setOutboundMode(null)}
         onStockChanged={handleOutboundStockChanged}
         catalogParts={parts}
+        onRegisterMissingProduct={openRegisterFromMissingBarcode}
       />
     ) : null}
     </ModalPortal>

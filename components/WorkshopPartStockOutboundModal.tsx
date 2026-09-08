@@ -27,6 +27,8 @@ export type WorkshopPartStockOutboundModalProps = {
   initialPart?: WorkshopPart | null;
   /** Catálogo atual do estoque para busca por nome/marca. */
   catalogParts?: WorkshopPart[];
+  /** Abre o cadastro de produto com o código lido pré-preenchido. */
+  onRegisterMissingProduct?: (barcode: string) => void;
 };
 
 function moneyBRL(n: number): string {
@@ -53,8 +55,9 @@ export function WorkshopPartStockOutboundModal({
   onStockChanged,
   initialPart = null,
   catalogParts = [],
+  onRegisterMissingProduct,
 }: WorkshopPartStockOutboundModalProps) {
-  const { isDesktopShell } = useDesktopShellLayout();
+  const isDesktopShell = useDesktopShellLayout();
   const isSale = mode === 'sale';
   const title = stockMovementTypeLabel(mode);
 
@@ -65,6 +68,7 @@ export function WorkshopPartStockOutboundModal({
   const [unitPrice, setUnitPrice] = useState('');
   const [notes, setNotes] = useState('');
   const [lookupError, setLookupError] = useState<string | null>(null);
+  const [missingBarcode, setMissingBarcode] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [lookingUp, setLookingUp] = useState(false);
@@ -91,6 +95,7 @@ export function WorkshopPartStockOutboundModal({
     setCode('');
     setNameQuery('');
     setLookupError(null);
+    setMissingBarcode(null);
     setSubmitError(null);
     setSuccessMsg(null);
     setNotes('');
@@ -141,6 +146,7 @@ export function WorkshopPartStockOutboundModal({
     setPart(p);
     setUnitPrice(Number(p.unit_price ?? 0).toFixed(2));
     setLookupError(null);
+    setMissingBarcode(null);
     setSubmitError(null);
     setSuccessMsg(null);
     setQty('1');
@@ -151,6 +157,7 @@ export function WorkshopPartStockOutboundModal({
     async (rawCode: string) => {
       setLookingUp(true);
       setLookupError(null);
+      setMissingBarcode(null);
       setSuccessMsg(null);
       try {
         const found = await lookupWorkshopPartByCode(rawCode);
@@ -174,7 +181,8 @@ export function WorkshopPartStockOutboundModal({
           return;
         }
         setPart(null);
-        setLookupError('Nenhum produto com este código ou nome.');
+        setMissingBarcode(rawCode);
+        setLookupError('Produto não cadastrado');
       } catch (e) {
         setLookupError(e instanceof Error ? e.message : 'Falha na busca.');
       } finally {
@@ -319,9 +327,25 @@ export function WorkshopPartStockOutboundModal({
                 </p>
               ) : null}
               {lookupError ? (
-                <p className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-[13px] text-red-700 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-300">
-                  {lookupError}
-                </p>
+                <div className="space-y-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 dark:border-red-900/50 dark:bg-red-950/40">
+                  <p className="text-[13px] font-semibold text-red-700 dark:text-red-300">
+                    {lookupError}
+                    {missingBarcode ? (
+                      <span className="mt-0.5 block font-normal tabular-nums opacity-90">
+                        Código: {missingBarcode}
+                      </span>
+                    ) : null}
+                  </p>
+                  {missingBarcode && onRegisterMissingProduct ? (
+                    <button
+                      type="button"
+                      onClick={() => onRegisterMissingProduct(missingBarcode)}
+                      className="inline-flex items-center justify-center rounded-xl bg-emerald-600 px-3 py-2 text-[13px] font-semibold text-white hover:bg-emerald-500"
+                    >
+                      Cadastrar produto
+                    </button>
+                  ) : null}
+                </div>
               ) : null}
             </section>
 
