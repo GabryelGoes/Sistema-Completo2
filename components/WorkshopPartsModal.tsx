@@ -18,6 +18,7 @@ import {
   Printer,
   ShoppingBag,
   PackageMinus,
+  QrCode,
 } from 'lucide-react';
 import { iosModalShell, iosModalClose, iosModalInsetCard, SETTINGS_CHILD_MODAL_Z, NESTED_STOCK_OVERLAY_Z } from './ui/iosModalStyles';
 import { IosAccentIconSquircle } from './ui/IosAccentIconSquircle';
@@ -73,6 +74,7 @@ import {
 import { WorkshopPartDetailView } from './WorkshopPartDetailView';
 import { WorkshopPartsAnalyticsView } from './WorkshopPartsAnalyticsView';
 import { WorkshopPartStockOutboundModal } from './WorkshopPartStockOutboundModal';
+import { WorkshopAbsModulesModal } from './WorkshopAbsModulesModal';
 import {
   formValuesToApiPayload,
   purchaseDraftShouldSync,
@@ -211,6 +213,9 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
   const [sortMode, setSortMode] = useState<WorkshopPartSortMode>(readWorkshopPartSortMode);
   const [isAnalyticsOpen, setIsAnalyticsOpen] = useState(false);
   const [outboundMode, setOutboundMode] = useState<WorkshopPartStockMovementType | null>(null);
+  const [absModulesOpen, setAbsModulesOpen] = useState(false);
+  const [absInitialPublicId, setAbsInitialPublicId] = useState<string | null>(null);
+  const [absInitialMissingPublicId, setAbsInitialMissingPublicId] = useState<string | null>(null);
   const [registrationPrefillBarcode, setRegistrationPrefillBarcode] = useState<string | null>(null);
   const [categories, setCategories] = useState<WorkshopPartCategory[]>([]);
   const [isCategoriesModalOpen, setIsCategoriesModalOpen] = useState(false);
@@ -382,6 +387,19 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
     },
     [openCreateRegistration]
   );
+
+  const openAbsModules = useCallback((opts?: { publicId?: string; missingPublicId?: string }) => {
+    setOutboundMode(null);
+    setAbsInitialPublicId(opts?.publicId || null);
+    setAbsInitialMissingPublicId(opts?.missingPublicId || null);
+    setAbsModulesOpen(true);
+  }, []);
+
+  const closeAbsModules = useCallback(() => {
+    setAbsModulesOpen(false);
+    setAbsInitialPublicId(null);
+    setAbsInitialMissingPublicId(null);
+  }, []);
 
   const openProductView = useCallback(async (part: WorkshopPart) => {
     const latest = parts.find((p) => p.id === part.id) ?? part;
@@ -971,6 +989,9 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
     if (!isOpen) {
       setIsAnalyticsOpen(false);
       setOutboundMode(null);
+      setAbsModulesOpen(false);
+      setAbsInitialPublicId(null);
+      setAbsInitialMissingPublicId(null);
     }
   }, [isOpen]);
 
@@ -1122,6 +1143,14 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
               >
                 <PackageMinus className="w-5 h-5" />
                 Insumos
+              </button>
+              <button
+                type="button"
+                onClick={() => openAbsModules()}
+                className="inline-flex items-center justify-center gap-2 rounded-2xl border border-amber-300/80 dark:border-amber-500/30 bg-amber-50 dark:bg-amber-950/40 px-4 py-3 text-[15px] font-semibold text-amber-950 dark:text-amber-100 hover:bg-amber-100/90 dark:hover:bg-amber-900/50 transition-colors"
+              >
+                <QrCode className="w-5 h-5" />
+                Módulos ABS
               </button>
               <button
                 type="button"
@@ -2011,6 +2040,19 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
         onStockChanged={handleOutboundStockChanged}
         catalogParts={parts}
         onRegisterMissingProduct={openRegisterFromMissingBarcode}
+        onAbsModuleCode={(code, found) => {
+          if (found) openAbsModules({ publicId: code });
+          else openAbsModules({ missingPublicId: code });
+        }}
+      />
+    ) : null}
+
+    {absModulesOpen ? (
+      <WorkshopAbsModulesModal
+        isOpen
+        onClose={closeAbsModules}
+        initialPublicId={absInitialPublicId}
+        initialMissingPublicId={absInitialMissingPublicId}
       />
     ) : null}
     </ModalPortal>

@@ -2734,6 +2734,23 @@ export interface WorkshopPartCategory {
 }
 
 export type { WorkshopPartsAnalyticsResponse } from '../utils/workshopPartsAnalytics';
+export type {
+  AbsModuleCondition,
+  AbsModuleExitReason,
+  AbsModuleKind,
+  AbsModuleMovementType,
+  AbsModuleStatus,
+  WorkshopAbsModule,
+  WorkshopAbsModuleMovement,
+  WorkshopAbsModuleWriteInput,
+} from '../utils/workshopAbsModules';
+import type {
+  AbsModuleMovementType,
+  AbsModuleStatus,
+  WorkshopAbsModule,
+  WorkshopAbsModuleMovement,
+  WorkshopAbsModuleWriteInput,
+} from '../utils/workshopAbsModules';
 
 export async function getWorkshopPartsAnalytics(
   preset: '7d' | '30d' | '90d' | 'month' | 'year' = '30d'
@@ -2876,6 +2893,166 @@ export async function createWorkshopPartStockMovement(input: {
       unit_price: Number(data.part?.unit_price ?? 0),
     },
   };
+}
+
+// ----------------- MÓDULOS ABS (inventário individual + QR) -----------------
+
+function normalizeAbsModuleRow(row: Record<string, unknown>): WorkshopAbsModule {
+  return {
+    ...(row as WorkshopAbsModule),
+    unit_cost: Number(row.unit_cost ?? 0),
+    unit_price: Number(row.unit_price ?? 0),
+    manufacturer: (row.manufacturer as string) ?? null,
+    original_code: (row.original_code as string) ?? null,
+    application: (row.application as string) ?? null,
+    model: (row.model as string) ?? null,
+    year_label: (row.year_label as string) ?? null,
+    supplier: (row.supplier as string) ?? null,
+    location: (row.location as string) ?? null,
+    notes: (row.notes as string) ?? null,
+    module_kind: (row.module_kind as WorkshopAbsModule['module_kind']) || 'completo',
+    condition: (row.condition as WorkshopAbsModule['condition']) || 'usado',
+    status: (row.status as WorkshopAbsModule['status']) || 'disponivel',
+    public_id: String(row.public_id || '').toUpperCase(),
+    id: String(row.id || ''),
+    received_at: String(row.received_at || row.created_at || ''),
+    created_at: String(row.created_at || ''),
+    updated_at: String(row.updated_at || row.created_at || ''),
+  };
+}
+
+export async function getWorkshopAbsModules(opts?: {
+  q?: string;
+  status?: AbsModuleStatus | '';
+}): Promise<WorkshopAbsModule[]> {
+  const params = new URLSearchParams();
+  if (opts?.q) params.set('q', opts.q);
+  if (opts?.status) params.set('status', opts.status);
+  const qs = params.toString();
+  const response = await fetch(`${API_BASE}/abs-modules${qs ? `?${qs}` : ''}`);
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao listar módulos ABS (${response.status})`);
+  }
+  const data = (await response.json()) as { modules?: Record<string, unknown>[] };
+  return Array.isArray(data.modules) ? data.modules.map(normalizeAbsModuleRow) : [];
+}
+
+export async function lookupWorkshopAbsModuleByCode(
+  code: string
+): Promise<{ found: boolean; module: WorkshopAbsModule | null; public_id?: string; error?: string }> {
+  const q = String(code || '').trim();
+  if (!q) return { found: false, module: null };
+  const response = await fetch(
+    `${API_BASE}/abs-modules/lookup?code=${encodeURIComponent(q)}`
+  );
+  const data = (await response.json().catch(() => ({}))) as {
+    found?: boolean;
+    module?: Record<string, unknown>;
+    public_id?: string;
+    error?: string;
+  };
+  if (!response.ok && response.status !== 400) {
+    throw new Error(data.error || `Falha ao buscar módulo ABS (${response.status})`);
+  }
+  if (!data.found || !data.module) {
+    return {
+      found: false,
+      module: null,
+      public_id: data.public_id,
+      error: data.error,
+    };
+  }
+  return { found: true, module: normalizeAbsModuleRow(data.module), public_id: data.public_id };
+}
+
+export async function getWorkshopAbsModule(publicId: string): Promise<WorkshopAbsModule> {
+  const response = await fetch(`${API_BASE}/abs-modules/${encodeURIComponent(publicId)}`);
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao carregar módulo ABS (${response.status})`);
+  }
+  const data = (await response.json()) as { module?: Record<string, unknown> };
+  if (!data.module) throw new Error('Módulo ABS não encontrado.');
+  return normalizeAbsModuleRow(data.module);
+}
+
+export async function getWorkshopAbsModuleMovements(
+  publicId: string
+): Promise<WorkshopAbsModuleMovement[]> {
+  const response = await fetch(
+    `${API_BASE}/abs-modules/${encodeURIComponent(publicId)}/movements`
+  );
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao carregar histórico (${response.status})`);
+  }
+  const data = (await response.json()) as { movements?: WorkshopAbsModuleMovement[] };
+  return Array.isArray(data.movements) ? data.movements : [];
+}
+
+export async function createWorkshopAbsModule(
+  input: WorkshopAbsModuleWriteInput & { recorded_by_name?: string | null }
+): Promise<WorkshopAbsModule> {
+  const response = await fetch(`${API_BASE}/abs-modules`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao cadastrar módulo ABS (${response.status})`);
+  }
+  const data = (await response.json()) as { module?: Record<string, unknown> };
+  if (!data.module) throw new Error('Resposta inválida ao cadastrar módulo ABS.');
+  return normalizeAbsModuleRow(data.module);
+}
+
+export async function updateWorkshopAbsModule(
+  publicId: string,
+  input: WorkshopAbsModuleWriteInput
+): Promise<WorkshopAbsModule> {
+  const response = await fetch(`${API_BASE}/abs-modules/${encodeURIComponent(publicId)}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao atualizar módulo ABS (${response.status})`);
+  }
+  const data = (await response.json()) as { module?: Record<string, unknown> };
+  if (!data.module) throw new Error('Resposta inválida ao atualizar módulo ABS.');
+  return normalizeAbsModuleRow(data.module);
+}
+
+export async function createWorkshopAbsModuleMovement(input: {
+  public_id: string;
+  movement_type: AbsModuleMovementType;
+  to_location?: string | null;
+  reason_type?: string | null;
+  reason_ref?: string | null;
+  notes?: string | null;
+  recorded_by_name?: string | null;
+}): Promise<{ module: WorkshopAbsModule; movement: WorkshopAbsModuleMovement }> {
+  const response = await fetch(
+    `${API_BASE}/abs-modules/${encodeURIComponent(input.public_id)}/movements`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(input),
+    }
+  );
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha na movimentação do módulo ABS (${response.status})`);
+  }
+  const data = (await response.json()) as {
+    module?: Record<string, unknown>;
+    movement?: WorkshopAbsModuleMovement;
+  };
+  if (!data.module || !data.movement) throw new Error('Resposta inválida da movimentação.');
+  return { module: normalizeAbsModuleRow(data.module), movement: data.movement };
 }
 
 export async function getWorkshopParts(): Promise<WorkshopPart[]> {
