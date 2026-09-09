@@ -246,7 +246,7 @@ export function applyDevAbsModuleMovement(input: {
     from_status: fromStatus,
     to_status: toStatus,
     from_location: fromLocation,
-    to_location: movementType === 'transfer' ? toLocation : fromLocation,
+    to_location: toLocation,
     reason_type: input.reason_type ? String(input.reason_type).trim() || null : null,
     reason_ref: input.reason_ref ? String(input.reason_ref).trim() || null : null,
     notes: input.notes ? String(input.notes).trim() || null : null,

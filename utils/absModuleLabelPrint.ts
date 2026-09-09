@@ -1,6 +1,6 @@
 import QRCode from 'qrcode';
-import { printHtmlDocument } from './printHtml';
-import { absModuleKindLabel } from './workshopAbsModules';
+import { printHtmlDocument } from './printHtml.js';
+import { absModuleKindLabel } from './workshopAbsModules.js';
 
 export type AbsModuleLabelInput = {
   publicId: string;
