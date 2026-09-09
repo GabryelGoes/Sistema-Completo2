@@ -335,10 +335,15 @@ export function WorkshopAbsModulesModal({
 
   return (
     <RegistrationPortal>
-      <div className={resolveIosModalOverlayClass(isDesktopShell, NESTED_STOCK_OVERLAY_Z)}>
-        <div className="mx-auto flex min-h-full w-full max-w-3xl flex-col overflow-y-auto px-3 py-4 sm:px-4">
-          <div className="rounded-[28px] border border-zinc-200/80 bg-zinc-50/95 shadow-2xl dark:border-white/10 dark:bg-zinc-950/95">
-            <header className="flex items-center gap-3 border-b border-zinc-200/80 px-4 py-4 dark:border-white/10">
+      <div
+        className={resolveIosModalOverlayClass(isDesktopShell, NESTED_STOCK_OVERLAY_Z)}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Módulos ABS"
+      >
+        {/* Painel com altura limitada + corpo rolável (mesmo padrão da saída de estoque). */}
+        <div className="flex max-h-[min(920px,94dvh)] w-full max-w-3xl flex-col overflow-hidden rounded-[1.75rem] border border-zinc-200/80 bg-zinc-50 shadow-2xl dark:border-white/10 dark:bg-zinc-950 sm:rounded-[28px]">
+          <header className="flex shrink-0 items-center gap-3 border-b border-zinc-200/80 px-4 py-4 dark:border-white/10">
               {view.kind !== 'list' ? (
                 <button
                   type="button"
@@ -373,7 +378,10 @@ export function WorkshopAbsModulesModal({
               </button>
             </header>
 
-            <div className="space-y-4 px-4 py-4">
+            <div
+              data-abs-modules-scroll
+              className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-y-contain touch-pan-y px-4 py-4 pb-[max(2rem,env(safe-area-inset-bottom))] custom-scrollbar [-webkit-overflow-scrolling:touch]"
+            >
               {error ? (
                 <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300">
                   {error}
@@ -418,6 +426,12 @@ export function WorkshopAbsModulesModal({
                       onClick={() => {
                         setForm(emptyForm());
                         setView({ kind: 'form' });
+                        // Garante que o formulário longo comece no topo da área rolável.
+                        requestAnimationFrame(() => {
+                          document
+                            .querySelector('[data-abs-modules-scroll]')
+                            ?.scrollTo({ top: 0 });
+                        });
                       }}
                       className="inline-flex items-center gap-2 rounded-2xl bg-emerald-600 px-4 py-3 text-[14px] font-semibold text-white"
                     >
@@ -950,7 +964,6 @@ export function WorkshopAbsModulesModal({
               ) : null}
             </div>
           </div>
-        </div>
       </div>
     </RegistrationPortal>
   );
