@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ChevronLeft,
-  ChevronRight,
   Image as ImageIcon,
   Loader2,
   MoreHorizontal,
@@ -89,14 +88,13 @@ function FolderCover({
   dense?: boolean;
 }) {
   const covers = urls.slice(0, 4);
-  const aspect = dense ? 'aspect-[3/4]' : 'aspect-[3/4]';
   if (covers.length === 0) {
     return (
       <div
-        className={`flex ${aspect} items-center justify-center bg-gradient-to-br from-zinc-200 via-zinc-100 to-zinc-300 dark:from-zinc-800 dark:via-zinc-900 dark:to-zinc-950 ${className}`}
+        className={`flex aspect-square items-center justify-center bg-gradient-to-br from-zinc-100 via-zinc-50 to-zinc-200/80 dark:from-zinc-800 dark:via-zinc-900 dark:to-zinc-950 ${className}`}
       >
         <ImageIcon
-          className={`${dense ? 'h-9 w-9' : 'h-11 w-11'} text-white/70`}
+          className={`${dense ? 'h-7 w-7' : 'h-10 w-10'} text-zinc-300 dark:text-zinc-600`}
           strokeWidth={1.5}
         />
       </div>
@@ -104,35 +102,35 @@ function FolderCover({
   }
   if (covers.length === 1) {
     return (
-      <div className={`relative ${aspect} overflow-hidden bg-zinc-200 dark:bg-zinc-900 ${className}`}>
+      <div className={`relative aspect-square overflow-hidden bg-zinc-100 dark:bg-zinc-900 ${className}`}>
         <StorageThumbImg
           src={covers[0]}
           alt=""
           className="h-full w-full object-cover"
-          sizes={dense ? '200px' : '260px'}
-          thumbMaxWidth={dense ? 320 : 420}
-          thumbMaxHeight={dense ? 420 : 560}
-          thumbQuality={62}
+          sizes={dense ? '148px' : '200px'}
+          thumbMaxWidth={dense ? 200 : 280}
+          thumbMaxHeight={dense ? 200 : 280}
+          thumbQuality={58}
         />
       </div>
     );
   }
   return (
-    <div className={`grid ${aspect} grid-cols-2 grid-rows-2 gap-0.5 overflow-hidden bg-black/20 ${className}`}>
+    <div className={`grid aspect-square grid-cols-2 grid-rows-2 gap-px overflow-hidden bg-white/40 dark:bg-black/40 ${className}`}>
       {Array.from({ length: 4 }).map((_, i) => (
-        <div key={i} className="relative min-h-0 min-w-0 overflow-hidden bg-zinc-200 dark:bg-zinc-900">
+        <div key={i} className="relative min-h-0 min-w-0 overflow-hidden bg-zinc-100 dark:bg-zinc-900">
           {covers[i] ? (
             <StorageThumbImg
               src={covers[i]}
               alt=""
               className="h-full w-full object-cover"
-              sizes={dense ? '100px' : '130px'}
-              thumbMaxWidth={dense ? 160 : 210}
-              thumbMaxHeight={dense ? 160 : 210}
-              thumbQuality={55}
+              sizes={dense ? '74px' : '100px'}
+              thumbMaxWidth={dense ? 110 : 140}
+              thumbMaxHeight={dense ? 110 : 140}
+              thumbQuality={50}
             />
           ) : (
-            <div className="h-full w-full bg-zinc-300/80 dark:bg-zinc-800" />
+            <div className="h-full w-full bg-zinc-100/80 dark:bg-zinc-900/80" />
           )}
         </div>
       ))}
@@ -140,12 +138,10 @@ function FolderCover({
   );
 }
 
-const iosAlbumsTitleClass =
-  "font-[-apple-system,BlinkMacSystemFont,'SF Pro Display','SF Pro Text',system-ui,sans-serif] text-[22px] font-bold tracking-[-0.015em] text-zinc-950 dark:text-white sm:text-[24px]";
-
 export type PatioPhotoAlbumsProps = {
   serviceOrderId: string;
   canEdit: boolean;
+  sectionTitleClassName?: string;
   onPhotosChanged?: () => void | Promise<void>;
   onPreviewPhoto?: (photos: ServiceOrderPhoto[], index: number) => void;
   onSharePhoto?: (e: React.MouseEvent, photo: { url: string; name: string }) => void;
@@ -168,6 +164,7 @@ export type PatioPhotoAlbumsProps = {
 export function PatioPhotoAlbums({
   serviceOrderId,
   canEdit,
+  sectionTitleClassName = 'text-[15px] font-semibold tracking-tight text-zinc-900 dark:text-white',
   onPhotosChanged,
   onPreviewPhoto,
   onSharePhoto,
@@ -433,6 +430,11 @@ export function PatioPhotoAlbums({
     void loadFolderDetailRef.current(openFolderId);
   }, [openFolderId, refreshKey, serviceOrderId]);
 
+  const totalPhotos = useMemo(
+    () => folders.reduce((sum, f) => sum + (f.photoCount || 0), 0),
+    [folders]
+  );
+
   useEffect(() => {
     if (!createOpen) {
       setLibraryPhotos([]);
@@ -628,19 +630,18 @@ export function PatioPhotoAlbums({
   /* —— Interior da pasta —— */
   if (openFolderId) {
     return (
-      <div className="space-y-4 font-[-apple-system,BlinkMacSystemFont,'SF Pro Text',system-ui,sans-serif]">
-        <div className="flex items-center gap-1.5">
+      <div className="space-y-4">
+        <div className="flex items-center gap-2">
           <button
             type="button"
             onClick={() => setOpenFolderId(null)}
-            className="inline-flex h-10 items-center gap-0.5 rounded-full px-1.5 text-[17px] font-medium text-[#007AFF] transition-colors hover:bg-[#007AFF]/10 active:opacity-70 dark:text-[#7ab8ff]"
+            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-zinc-100/90 text-[#007AFF] transition-colors hover:bg-zinc-200/90 dark:bg-white/[0.06] dark:hover:bg-white/[0.1]"
             aria-label="Voltar às pastas"
           >
-            <ChevronLeft className="h-6 w-6" strokeWidth={2.4} />
-            Fotos
+            <ChevronLeft className="h-5 w-5" strokeWidth={2.25} />
           </button>
-          <div className="min-w-0 flex-1 text-center">
-            <p className="truncate text-[17px] font-semibold tracking-[-0.01em] text-zinc-950 dark:text-white">
+          <div className="min-w-0 flex-1">
+            <p className={`${sectionTitleClassName} truncate`}>
               {openFolder?.name || 'Pasta'}
             </p>
             <p className="text-[12px] font-medium tabular-nums text-zinc-500 dark:text-zinc-400">
@@ -673,7 +674,7 @@ export function PatioPhotoAlbums({
                 type="button"
                 disabled={uploading}
                 onClick={() => cameraRef.current?.click()}
-                className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-zinc-100 text-[#007AFF] transition-[filter,transform] hover:bg-zinc-200/90 active:scale-[0.96] disabled:opacity-50 dark:bg-white/[0.08] dark:text-[#7ab8ff]"
+                className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-[#007AFF] text-white transition-[filter,transform] hover:brightness-110 active:scale-[0.97] disabled:opacity-50"
                 title="Câmera"
                 aria-label="Adicionar pela câmera"
               >
@@ -683,16 +684,13 @@ export function PatioPhotoAlbums({
                 type="button"
                 disabled={uploading}
                 onClick={() => galleryRef.current?.click()}
-                className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-zinc-100 text-[#007AFF] transition-colors hover:bg-zinc-200/90 disabled:opacity-50 dark:bg-white/[0.08] dark:text-[#7ab8ff]"
-                title="Galeria"
-                aria-label="Adicionar da galeria"
+                className="inline-flex h-9 items-center gap-1.5 rounded-full bg-zinc-100/90 px-3 text-[13px] font-semibold text-zinc-800 transition-colors hover:bg-zinc-200/90 disabled:opacity-50 dark:bg-white/[0.08] dark:text-zinc-100 dark:hover:bg-white/[0.12]"
               >
-                <Plus className="h-5 w-5" strokeWidth={2.5} />
+                <Plus className="h-4 w-4" strokeWidth={2.5} />
+                Galeria
               </button>
             </div>
-          ) : (
-            <div className="w-[76px] shrink-0" aria-hidden />
-          )}
+          ) : null}
         </div>
 
         {loadingFolder ? (
@@ -783,17 +781,16 @@ export function PatioPhotoAlbums({
     );
   }
 
-  /* —— Grade de álbuns (estilo Coleções / Memórias do iOS) —— */
+  /* —— Grade de álbuns —— */
   return (
-    <div className="space-y-3 font-[-apple-system,BlinkMacSystemFont,'SF Pro Text',system-ui,sans-serif]">
-      <div className="flex items-center justify-between gap-3 px-0.5">
-        <div className={`inline-flex min-w-0 items-center gap-1 ${iosAlbumsTitleClass}`}>
-          <span className="truncate">Fotos</span>
-          <ChevronRight
-            className="h-5 w-5 shrink-0 text-zinc-400 dark:text-zinc-500"
-            strokeWidth={2.5}
-            aria-hidden
-          />
+    <div className="space-y-4">
+      <div className="flex items-end justify-between gap-3">
+        <div className="min-w-0">
+          <p className={sectionTitleClassName}>Fotos</p>
+          <p className="mt-0.5 text-[12px] font-medium tabular-nums text-zinc-500 dark:text-zinc-400">
+            {folders.length} {folders.length === 1 ? 'pasta' : 'pastas'}
+            {totalPhotos > 0 ? ` · ${totalPhotos} ${totalPhotos === 1 ? 'foto' : 'fotos'}` : ''}
+          </p>
         </div>
         {canEdit ? (
           <button
@@ -803,7 +800,7 @@ export function PatioPhotoAlbums({
               setNewFolderName('');
               setImportPhotoPaths([]);
             }}
-            className="inline-flex shrink-0 items-center rounded-full bg-zinc-100 px-3.5 py-1.5 text-[15px] font-semibold text-[#007AFF] transition-colors hover:bg-zinc-200/90 active:scale-[0.98] dark:bg-white/[0.08] dark:text-[#7ab8ff] dark:hover:bg-white/[0.12]"
+            className="inline-flex shrink-0 items-center rounded-full bg-[#007AFF] px-3 py-1.5 text-[12px] font-semibold text-white transition-[filter,transform] hover:brightness-110 active:scale-[0.98]"
           >
             Nova pasta
           </button>
@@ -813,19 +810,21 @@ export function PatioPhotoAlbums({
       <div
         className={
           dense
-            ? '-mx-1 flex gap-3 overflow-x-auto px-1 pb-2 pt-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden'
-            : '-mx-1 flex gap-3.5 overflow-x-auto px-1 pb-2 pt-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden'
+            ? 'flex flex-wrap gap-x-3 gap-y-4'
+            : 'grid grid-cols-2 gap-3 sm:grid-cols-3 md:gap-4'
         }
       >
         {folders.map((folder) => {
           const busy = busyFolderId === folder.id;
           const menuOpen = folderMenuId === folder.id;
           const isRenaming = renamingId === folder.id;
-          const cardWidth = dense ? 'w-[168px] sm:w-[184px]' : 'w-[196px] sm:w-[210px]';
           return (
-            <div key={folder.id} className={`relative shrink-0 ${cardWidth}`}>
+            <div
+              key={folder.id}
+              className={`relative min-w-0 ${dense ? 'w-[136px] sm:w-[148px]' : ''}`}
+            >
               {isRenaming ? (
-                <div className="rounded-[22px] bg-zinc-100 p-3 dark:bg-white/[0.06]">
+                <div className="rounded-2xl bg-zinc-50 p-3 dark:bg-white/[0.04]">
                   <input
                     value={renameValue}
                     onChange={(e) => setRenameValue(e.target.value)}
@@ -839,7 +838,7 @@ export function PatioPhotoAlbums({
                         setRenameValue('');
                       }
                     }}
-                    className="w-full rounded-xl bg-white px-3 py-2 text-[14px] font-medium text-zinc-900 outline-none focus:ring-2 focus:ring-[#007AFF]/30 dark:bg-zinc-900 dark:text-white"
+                    className="w-full rounded-xl bg-white px-3 py-2 text-[13px] font-medium text-zinc-900 outline-none ring-1 ring-zinc-200/80 focus:ring-2 focus:ring-[#007AFF]/35 dark:bg-zinc-900 dark:text-white dark:ring-white/10"
                     autoFocus
                     disabled={busy}
                     maxLength={80}
@@ -851,7 +850,7 @@ export function PatioPhotoAlbums({
                         setRenamingId(null);
                         setRenameValue('');
                       }}
-                      className="rounded-lg px-2.5 py-1 text-[13px] font-semibold text-zinc-500"
+                      className="rounded-lg px-2.5 py-1 text-[12px] font-semibold text-zinc-500"
                     >
                       Cancelar
                     </button>
@@ -859,7 +858,7 @@ export function PatioPhotoAlbums({
                       type="button"
                       disabled={busy || !renameValue.trim()}
                       onClick={() => void handleRenameFolder(folder.id)}
-                      className="rounded-lg bg-[#007AFF] px-2.5 py-1 text-[13px] font-semibold text-white disabled:opacity-50"
+                      className="rounded-lg bg-[#007AFF] px-2.5 py-1 text-[12px] font-semibold text-white disabled:opacity-50"
                     >
                       Salvar
                     </button>
@@ -870,38 +869,48 @@ export function PatioPhotoAlbums({
                   <button
                     type="button"
                     onClick={() => setOpenFolderId(folder.id)}
-                    className="group relative block w-full overflow-hidden rounded-[22px] text-left outline-none transition-transform duration-300 ease-out hover:scale-[1.015] active:scale-[0.985] focus-visible:ring-2 focus-visible:ring-[#007AFF]/50"
+                    className="group w-full text-left focus:outline-none"
                   >
-                    <FolderCover
-                      urls={folder.coverUrls || []}
-                      dense={dense}
-                      className="rounded-[22px]"
-                    />
-                    <div className="pointer-events-none absolute inset-0 rounded-[22px] bg-gradient-to-t from-black/55 via-black/10 to-transparent" />
-                    <div className="absolute inset-x-0 bottom-0 p-3.5 sm:p-4">
-                      <p
-                        className="truncate text-[17px] font-bold leading-tight tracking-[-0.01em] text-white"
-                        style={{ textShadow: '0 1px 8px rgba(0,0,0,0.45)' }}
-                      >
-                        {folder.name}
-                      </p>
-                      <p
-                        className="mt-0.5 text-[13px] font-medium tabular-nums text-white/90"
-                        style={{ textShadow: '0 1px 6px rgba(0,0,0,0.4)' }}
-                      >
-                        {folder.photoCount} {folder.photoCount === 1 ? 'foto' : 'fotos'}
-                      </p>
+                    <div
+                      className={`overflow-hidden shadow-[0_12px_32px_-18px_rgba(0,0,0,0.35)] transition-transform duration-300 ease-out group-hover:scale-[1.015] group-active:scale-[0.985] dark:shadow-[0_16px_40px_-20px_rgba(0,0,0,0.65)] ${
+                        dense ? 'rounded-xl' : 'rounded-2xl'
+                      }`}
+                    >
+                      <FolderCover
+                        urls={folder.coverUrls || []}
+                        dense={dense}
+                        className={dense ? '!rounded-xl' : undefined}
+                      />
+                    </div>
+                    <div className={`mt-2 flex items-start gap-1 ${dense ? 'px-0' : 'px-0.5'}`}>
+                      <div className="min-w-0 flex-1">
+                        <p
+                          className={`truncate font-semibold tracking-tight text-zinc-900 dark:text-white ${
+                            dense ? 'text-[13px]' : 'text-[14px]'
+                          }`}
+                        >
+                          {folder.name}
+                        </p>
+                        <p
+                          className={`font-medium tabular-nums text-zinc-500 dark:text-zinc-400 ${
+                            dense ? 'text-[11px]' : 'text-[12px]'
+                          }`}
+                        >
+                          {folder.photoCount} {folder.photoCount === 1 ? 'foto' : 'fotos'}
+                          {folder.isSystem ? ' · Sistema' : ''}
+                        </p>
+                      </div>
                     </div>
                   </button>
                   {canEdit && !folder.isSystem && !folder.id.startsWith('__virtual_') ? (
-                    <div className="absolute right-2 top-2 z-10">
+                    <div className="absolute right-1 top-[calc(100%-2.6rem)]">
                       <button
                         type="button"
                         onClick={(e) => {
                           e.stopPropagation();
                           setFolderMenuId(menuOpen ? null : folder.id);
                         }}
-                        className="rounded-full bg-black/35 p-1.5 text-white backdrop-blur-md transition-colors hover:bg-black/50"
+                        className="rounded-full p-1.5 text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-white/[0.08] dark:hover:text-zinc-200"
                         aria-label="Opções da pasta"
                       >
                         {busy ? (
@@ -911,10 +920,10 @@ export function PatioPhotoAlbums({
                         )}
                       </button>
                       {menuOpen ? (
-                        <div className="absolute right-0 z-20 mt-1.5 min-w-[9.5rem] overflow-hidden rounded-2xl bg-white/95 py-1 shadow-[0_16px_40px_-12px_rgba(0,0,0,0.35)] backdrop-blur-xl dark:bg-zinc-900/95">
+                        <div className="absolute right-0 z-20 mt-1 min-w-[9.5rem] overflow-hidden rounded-xl bg-white py-1 shadow-[0_16px_40px_-12px_rgba(0,0,0,0.35)] dark:bg-zinc-900 dark:shadow-[0_20px_48px_-14px_rgba(0,0,0,0.7)]">
                           <button
                             type="button"
-                            className="flex w-full items-center gap-2 px-3.5 py-2.5 text-left text-[15px] font-medium text-zinc-900 hover:bg-zinc-50 dark:text-zinc-100 dark:hover:bg-white/[0.06]"
+                            className="flex w-full items-center gap-2 px-3 py-2 text-left text-[13px] font-semibold text-zinc-800 hover:bg-zinc-50 dark:text-zinc-100 dark:hover:bg-white/[0.06]"
                             onClick={() => {
                               setRenamingId(folder.id);
                               setRenameValue(folder.name);
@@ -926,7 +935,7 @@ export function PatioPhotoAlbums({
                           </button>
                           <button
                             type="button"
-                            className="flex w-full items-center gap-2 px-3.5 py-2.5 text-left text-[15px] font-medium text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/40"
+                            className="flex w-full items-center gap-2 px-3 py-2 text-left text-[13px] font-semibold text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/40"
                             onClick={() => void handleDeleteFolder(folder)}
                           >
                             <Trash2 className="h-3.5 w-3.5" />

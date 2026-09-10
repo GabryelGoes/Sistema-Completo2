@@ -8896,16 +8896,19 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
                         {showPcOsTab('arquivos') ? (
                         <>
-                         {/* Anexos (fotos) + Documentos (arquivos) — visual estilo Fotos iOS */}
-                         <div className={`${vi} flex flex-col overflow-hidden bg-white shadow-none dark:bg-zinc-950`}>
-                            <div className="relative px-4 pb-1 pt-5 sm:px-5 sm:pt-6">
-                            <div className="flex items-start justify-between gap-3">
-                                <h2
-                                  className="min-w-0 flex-1 font-[-apple-system,BlinkMacSystemFont,'SF Pro Display','SF Pro Text',system-ui,sans-serif] text-[34px] font-bold leading-[1.05] tracking-[-0.02em] text-zinc-950 dark:text-white sm:text-[36px]"
-                                >
-                                  Anexos
-                                </h2>
-                                <div className="relative shrink-0 pt-1" ref={anexosAddMenuRef}>
+                         {/* Anexos (fotos) + Documentos (arquivos) */}
+                         <div className={`${vi} flex flex-col overflow-hidden shadow-none`}>
+                            <div className="relative border-b border-zinc-200/70 bg-white/85 px-3 py-3 dark:border-white/[0.08] dark:bg-zinc-950/35 sm:px-4 sm:py-3.5">
+                            <div className="flex items-center justify-between gap-2 sm:gap-3">
+                                <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-2.5">
+                                    <div className={uiOsModalSectionIconWrap}>
+                                      <Paperclip className="h-4 w-4 text-[#007AFF] dark:text-[#7ab8ff]" strokeWidth={2.25} aria-hidden />
+                                    </div>
+                                    <p className={uiOsModalCardSectionTitle}>
+                                      Anexos
+                                    </p>
+                                </div>
+                                <div className="relative shrink-0" ref={anexosAddMenuRef}>
                                     <input
                                         type="file"
                                         ref={cameraInputRef}
@@ -8936,10 +8939,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                         disabled={isUploading}
                                         aria-expanded={isAnexosAddMenuOpen}
                                         aria-haspopup="menu"
-                                        aria-label="Adicionar anexo"
-                                        className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-zinc-100 text-[#007AFF] transition-colors hover:bg-zinc-200/90 active:scale-[0.96] disabled:opacity-50 dark:bg-white/[0.08] dark:text-[#7ab8ff] dark:hover:bg-white/[0.12]"
+                                        className="inline-flex shrink-0 items-center rounded-md bg-[#4FA8FF] px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-[0.06em] text-white shadow-sm shadow-blue-500/25 transition-[filter,transform] hover:bg-[#3397F8] active:scale-[0.98] disabled:opacity-50 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-100"
                                     >
-                                      <Plus className="h-5 w-5" strokeWidth={2.4} />
+                                      + Adicionar
                                     </button>
                                     {isAnexosAddMenuOpen &&
                                     anexosAddMenuPos &&
@@ -8954,7 +8956,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                               right: anexosAddMenuPos.right,
                                               zIndex: 400,
                                             }}
-                                            className="min-w-[11.5rem] overflow-hidden rounded-2xl bg-white/95 py-1 shadow-[0_16px_48px_-12px_rgba(0,0,0,0.28)] backdrop-blur-xl animate-in fade-in zoom-in-95 duration-150 dark:bg-zinc-900/95 dark:shadow-[0_20px_56px_-14px_rgba(0,0,0,0.7)]"
+                                            className="min-w-[11.5rem] overflow-hidden rounded-xl border border-zinc-200/90 bg-white py-1 shadow-[0_16px_48px_-12px_rgba(0,0,0,0.35)] animate-in fade-in zoom-in-95 duration-150 dark:border-white/[0.1] dark:bg-zinc-900 dark:shadow-[0_20px_56px_-14px_rgba(0,0,0,0.7)]"
                                           >
                                             <button
                                               type="button"
@@ -8964,7 +8966,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                                 setIsAnexosAddMenuOpen(false);
                                                 cameraInputRef.current?.click();
                                               }}
-                                              className="flex w-full items-center gap-2.5 px-3.5 py-2.5 text-left text-[15px] font-medium text-zinc-900 transition-colors hover:bg-zinc-50 disabled:opacity-50 dark:text-zinc-100 dark:hover:bg-white/[0.06]"
+                                              className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-[13px] font-semibold text-zinc-800 transition-colors hover:bg-zinc-50 disabled:opacity-50 dark:text-zinc-100 dark:hover:bg-white/[0.06]"
                                             >
                                               <Camera className="h-4 w-4 shrink-0 text-[#007AFF] dark:text-[#7ab8ff]" strokeWidth={2.25} />
                                               Câmera
@@ -8977,7 +8979,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                                 setIsAnexosAddMenuOpen(false);
                                                 galleryInputRef.current?.click();
                                               }}
-                                              className="flex w-full items-center gap-2.5 px-3.5 py-2.5 text-left text-[15px] font-medium text-zinc-900 transition-colors hover:bg-zinc-50 disabled:opacity-50 dark:text-zinc-100 dark:hover:bg-white/[0.06]"
+                                              className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-[13px] font-semibold text-zinc-800 transition-colors hover:bg-zinc-50 disabled:opacity-50 dark:text-zinc-100 dark:hover:bg-white/[0.06]"
                                             >
                                               <ImageIcon className="h-4 w-4 shrink-0 text-[#007AFF] dark:text-[#7ab8ff]" strokeWidth={2.25} />
                                               Galeria
@@ -8990,7 +8992,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                                 setIsAnexosAddMenuOpen(false);
                                                 filesInputRef.current?.click();
                                               }}
-                                              className="flex w-full items-center gap-2.5 px-3.5 py-2.5 text-left text-[15px] font-medium text-zinc-900 transition-colors hover:bg-zinc-50 disabled:opacity-50 dark:text-zinc-100 dark:hover:bg-white/[0.06]"
+                                              className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-[13px] font-semibold text-zinc-800 transition-colors hover:bg-zinc-50 disabled:opacity-50 dark:text-zinc-100 dark:hover:bg-white/[0.06]"
                                             >
                                               <FolderOpen className="h-4 w-4 shrink-0 text-[#007AFF] dark:text-[#7ab8ff]" strokeWidth={2.25} />
                                               Arquivos
@@ -9029,7 +9031,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                                     }
                                                   })();
                                                 }}
-                                                className="flex w-full items-center gap-2.5 px-3.5 py-2.5 text-left text-[15px] font-medium text-zinc-900 transition-colors hover:bg-zinc-50 disabled:opacity-50 dark:text-zinc-100 dark:hover:bg-white/[0.06]"
+                                                className="flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-[13px] font-semibold text-zinc-800 transition-colors hover:bg-zinc-50 disabled:opacity-50 dark:text-zinc-100 dark:hover:bg-white/[0.06]"
                                               >
                                                 <Copy className="h-4 w-4 shrink-0 text-[#007AFF] dark:text-[#7ab8ff]" strokeWidth={2.25} />
                                                 Da OS do pátio
@@ -9045,7 +9047,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                                   setIsAnexosAddMenuOpen(false);
                                                   setPendingReferenceLink({ label: '', url: '' });
                                                 }}
-                                                className="flex w-full items-center gap-2.5 border-t border-zinc-100 px-3.5 py-2.5 text-left text-[15px] font-medium text-zinc-900 transition-colors hover:bg-zinc-50 disabled:opacity-50 dark:border-white/[0.08] dark:text-zinc-100 dark:hover:bg-white/[0.06]"
+                                                className="flex w-full items-center gap-2.5 border-t border-zinc-100 px-3 py-2.5 text-left text-[13px] font-semibold text-zinc-800 transition-colors hover:bg-zinc-50 disabled:opacity-50 dark:border-white/[0.08] dark:text-zinc-100 dark:hover:bg-white/[0.06]"
                                               >
                                                 <Link2 className="h-4 w-4 shrink-0 text-[#007AFF] dark:text-[#7ab8ff]" strokeWidth={2.25} />
                                                 Links
@@ -9183,7 +9185,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                               </div>
                             ) : null}
 
-                            <div className={`order-2 space-y-4 px-4 sm:px-5 ${isPatioPcModal ? 'pb-8 sm:pb-10' : 'pb-8 pt-3 sm:pb-10 sm:pt-4'}`}>
+                            <div className={`order-2 space-y-3 px-4 sm:px-5 ${isPatioPcModal ? 'pb-8 sm:pb-10' : 'pb-8 pt-5 sm:pb-10 sm:pt-6'}`}>
                                {isUploading && (
                                   <div className="flex justify-center p-4">
                                      <RefreshCw className="w-4 h-4 text-brand-yellow animate-spin" />
@@ -9194,6 +9196,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                    key={selectedCard.id}
                                    serviceOrderId={selectedCard.id}
                                    canEdit={can('canEditFicha')}
+                                   sectionTitleClassName={uiOsModalCardSectionTitle}
                                    refreshKey={photoAlbumsRefreshKey}
                                    onActiveFolderChange={setActivePhotoFolderTarget}
                                    fallbackPhotos={albumFallbackPhotos}
@@ -9243,12 +9246,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                    return null;
                                  }
                                  return (
-                                   <div className="pt-5">
-                                     <div className="mb-3 flex min-w-0 items-center gap-1">
-                                       <p className="font-[-apple-system,BlinkMacSystemFont,'SF Pro Display','SF Pro Text',system-ui,sans-serif] text-[22px] font-bold tracking-[-0.015em] text-zinc-950 dark:text-white">
-                                         Documentos
-                                       </p>
-                                       <ChevronRight className="h-5 w-5 text-zinc-400 dark:text-zinc-500" strokeWidth={2.5} aria-hidden />
+                                   <div className="pt-2">
+                                     <div className="mb-2 flex min-w-0 items-center">
+                                       <p className={uiOsModalCardSectionTitle}>Documentos</p>
                                      </div>
                                      <div className="flex flex-wrap gap-2">
                                        {others.map((att) => {
