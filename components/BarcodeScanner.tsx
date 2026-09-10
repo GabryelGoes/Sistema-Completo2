@@ -8,13 +8,14 @@ import { useDesktopShellLayout } from './ui/DesktopShellContext';
 
 const SCANNER_Z = 'z-[145]';
 
-/** Formatos de código de barras 1D — informados explicitamente à lib. */
+/** Formatos de código de barras 1D + QR (módulos ABS). */
 const BARCODE_FORMATS = [
   Html5QrcodeSupportedFormats.EAN_13,
   Html5QrcodeSupportedFormats.EAN_8,
   Html5QrcodeSupportedFormats.UPC_A,
   Html5QrcodeSupportedFormats.UPC_E,
   Html5QrcodeSupportedFormats.CODE_128,
+  Html5QrcodeSupportedFormats.QR_CODE,
 ];
 
 /** Resolução ideal → fallbacks para aparelhos mais simples. */
@@ -75,16 +76,16 @@ function mapCameraError(err: unknown): string {
   return raw;
 }
 
-/** Área larga e rasa — adequada a códigos de barras horizontais (EAN/UPC/Code128). */
+/** Área larga o bastante para EAN e com altura útil para QR Code. */
 function barcodeQrBox(viewfinderWidth: number, viewfinderHeight: number) {
   const width = Math.floor(Math.min(viewfinderWidth * 0.94, Math.max(280, viewfinderWidth * 0.92)));
-  // Altura suficiente para o código inteiro, sem “janela” estreita demais.
+  // Mais alto que o box 1D puro, para encaixar QR sem prejudicar barras horizontais.
   const height = Math.floor(
-    Math.min(Math.max(120, viewfinderHeight * 0.34), Math.max(110, width * 0.38))
+    Math.min(Math.max(160, viewfinderHeight * 0.42), Math.max(140, width * 0.55))
   );
   return {
     width: Math.max(240, Math.min(width, viewfinderWidth - 8)),
-    height: Math.max(100, Math.min(height, viewfinderHeight - 8)),
+    height: Math.max(130, Math.min(height, viewfinderHeight - 8)),
   };
 }
 

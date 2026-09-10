@@ -51,6 +51,7 @@ import {
   lookupDevMemoryPart,
 } from "./utils/workshopPartDevMemory.js";
 import type { WorkshopPartStockMovementType } from "./utils/workshopPartStockOutbound.js";
+import { registerAbsModuleRoutes } from "./utils/absModuleApiRoutes.js";
 
 const PBKDF2_ITERATIONS = 100000;
 const SALT_LEN = 16;
@@ -8509,6 +8510,9 @@ export function createApiApp() {
       return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
     }
   });
+
+  // ----------------- MÓDULOS ABS (inventário individual + QR) -----------------
+  registerAbsModuleRoutes(app, { WORKSHOP_ID, supabaseAdmin });
 
   // ----------------- TÉCNICOS DA OFICINA (atribuição nos cards) -----------------
   const capitalizeTechnicianName = (s: string) =>

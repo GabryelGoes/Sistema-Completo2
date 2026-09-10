@@ -3,6 +3,7 @@ import { ArrowLeft, Loader2, PackageMinus, Search, ShoppingBag, X } from 'lucide
 import {
   createWorkshopPartStockMovement,
   getWorkshopPartStockMovements,
+  lookupWorkshopAbsModuleByCode,
   lookupWorkshopPartByCode,
   type WorkshopPart,
   type WorkshopPartStockMovement,
@@ -11,6 +12,10 @@ import {
 import { formatWorkshopPartQty } from '../utils/workshopPartStock';
 import { stockMovementTypeLabel } from '../utils/workshopPartStockOutbound';
 import { searchWorkshopPartsByText } from '../utils/workshopPartBarcode';
+import {
+  looksLikeAbsModuleCode,
+  normalizeAbsModuleCode,
+} from '../utils/workshopAbsModules';
 import { getStoredAuth } from './views/LoginView';
 import { BarcodeScanField } from './BarcodeScanField';
 import { PartPhotoImg } from './ui/PartPhotoImg';
@@ -29,6 +34,8 @@ export type WorkshopPartStockOutboundModalProps = {
   catalogParts?: WorkshopPart[];
   /** Abre o cadastro de produto com o código lido pré-preenchido. */
   onRegisterMissingProduct?: (barcode: string) => void;
+  /** Quando o código for ABS-######, redireciona para o fluxo de módulos ABS. */
+  onAbsModuleCode?: (publicId: string, found: boolean) => void;
 };
 
 function moneyBRL(n: number): string {
@@ -56,6 +63,7 @@ export function WorkshopPartStockOutboundModal({
   initialPart = null,
   catalogParts = [],
   onRegisterMissingProduct,
+  onAbsModuleCode,
 }: WorkshopPartStockOutboundModalProps) {
   const isDesktopShell = useDesktopShellLayout();
   const isSale = mode === 'sale';
@@ -160,6 +168,27 @@ export function WorkshopPartStockOutboundModal({
       setMissingBarcode(null);
       setSuccessMsg(null);
       try {
+        // Códigos ABS-###### vão para o inventário individual — não misturar com produtos.
+        if (looksLikeAbsModuleCode(rawCode)) {
+          const publicId = normalizeAbsModuleCode(rawCode);
+          if (!publicId) {
+            setPart(null);
+            setLookupError('ID de módulo ABS inválido. Use o formato ABS-000001.');
+            return;
+          }
+          if (onAbsModuleCode) {
+            const result = await lookupWorkshopAbsModuleByCode(publicId);
+            onAbsModuleCode(publicId, !!result.found);
+            onClose();
+            return;
+          }
+          setPart(null);
+          setLookupError(
+            `Código de módulo ABS (${publicId}). Abra “Módulos ABS” no estoque para gerenciar.`
+          );
+          return;
+        }
+
         const found = await lookupWorkshopPartByCode(rawCode);
         if (found) {
           selectPart(found);
@@ -189,7 +218,7 @@ export function WorkshopPartStockOutboundModal({
         setLookingUp(false);
       }
     },
-    [catalogParts, selectPart]
+    [catalogParts, onAbsModuleCode, onClose, selectPart]
   );
 
   const handleConfirm = useCallback(async () => {

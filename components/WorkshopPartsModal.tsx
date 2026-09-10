@@ -16,8 +16,8 @@ import {
   History,
   BarChart3,
   Printer,
-  ShoppingBag,
-  PackageMinus,
+  ScanLine,
+  QrCode,
 } from 'lucide-react';
 import { iosModalShell, iosModalClose, iosModalInsetCard, SETTINGS_CHILD_MODAL_Z, NESTED_STOCK_OVERLAY_Z } from './ui/iosModalStyles';
 import { IosAccentIconSquircle } from './ui/IosAccentIconSquircle';
@@ -73,6 +73,8 @@ import {
 import { WorkshopPartDetailView } from './WorkshopPartDetailView';
 import { WorkshopPartsAnalyticsView } from './WorkshopPartsAnalyticsView';
 import { WorkshopPartStockOutboundModal } from './WorkshopPartStockOutboundModal';
+import { WorkshopAbsModulesModal } from './WorkshopAbsModulesModal';
+import { WorkshopPartScanHubModal } from './WorkshopPartScanHubModal';
 import {
   formValuesToApiPayload,
   purchaseDraftShouldSync,
@@ -211,6 +213,11 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
   const [sortMode, setSortMode] = useState<WorkshopPartSortMode>(readWorkshopPartSortMode);
   const [isAnalyticsOpen, setIsAnalyticsOpen] = useState(false);
   const [outboundMode, setOutboundMode] = useState<WorkshopPartStockMovementType | null>(null);
+  const [outboundInitialPart, setOutboundInitialPart] = useState<WorkshopPart | null>(null);
+  const [scanHubOpen, setScanHubOpen] = useState(false);
+  const [absModulesOpen, setAbsModulesOpen] = useState(false);
+  const [absInitialPublicId, setAbsInitialPublicId] = useState<string | null>(null);
+  const [absInitialMissingPublicId, setAbsInitialMissingPublicId] = useState<string | null>(null);
   const [registrationPrefillBarcode, setRegistrationPrefillBarcode] = useState<string | null>(null);
   const [categories, setCategories] = useState<WorkshopPartCategory[]>([]);
   const [isCategoriesModalOpen, setIsCategoriesModalOpen] = useState(false);
@@ -382,6 +389,19 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
     },
     [openCreateRegistration]
   );
+
+  const openAbsModules = useCallback((opts?: { publicId?: string; missingPublicId?: string }) => {
+    setOutboundMode(null);
+    setAbsInitialPublicId(opts?.publicId || null);
+    setAbsInitialMissingPublicId(opts?.missingPublicId || null);
+    setAbsModulesOpen(true);
+  }, []);
+
+  const closeAbsModules = useCallback(() => {
+    setAbsModulesOpen(false);
+    setAbsInitialPublicId(null);
+    setAbsInitialMissingPublicId(null);
+  }, []);
 
   const openProductView = useCallback(async (part: WorkshopPart) => {
     const latest = parts.find((p) => p.id === part.id) ?? part;
@@ -971,6 +991,11 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
     if (!isOpen) {
       setIsAnalyticsOpen(false);
       setOutboundMode(null);
+      setAbsModulesOpen(false);
+      setAbsInitialPublicId(null);
+      setAbsInitialMissingPublicId(null);
+      setScanHubOpen(false);
+      setOutboundInitialPart(null);
     }
   }, [isOpen]);
 
@@ -1109,19 +1134,19 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
             <div className="flex flex-wrap gap-2 justify-end shrink-0">
               <button
                 type="button"
-                onClick={() => setOutboundMode('sale')}
+                onClick={() => setScanHubOpen(true)}
                 className="inline-flex items-center justify-center gap-2 rounded-2xl border-0 bg-emerald-50 dark:bg-emerald-950/40 px-4 py-3 text-[15px] font-semibold text-emerald-900 dark:text-emerald-100 hover:bg-emerald-100/90 dark:hover:bg-emerald-900/50 transition-colors shadow-none"
               >
-                <ShoppingBag className="w-5 h-5" />
-                Venda avulsa
+                <ScanLine className="w-5 h-5" />
+                Escanear código
               </button>
               <button
                 type="button"
-                onClick={() => setOutboundMode('consumable')}
-                className="inline-flex items-center justify-center gap-2 rounded-2xl border-0 bg-sky-50 dark:bg-sky-950/40 px-4 py-3 text-[15px] font-semibold text-sky-900 dark:text-sky-100 hover:bg-sky-100/90 dark:hover:bg-sky-900/50 transition-colors shadow-none"
+                onClick={() => openAbsModules()}
+                className="inline-flex items-center justify-center gap-2 rounded-2xl border-0 bg-amber-50 dark:bg-amber-950/40 px-4 py-3 text-[15px] font-semibold text-amber-950 dark:text-amber-100 hover:bg-amber-100/90 dark:hover:bg-amber-900/50 transition-colors shadow-none"
               >
-                <PackageMinus className="w-5 h-5" />
-                Insumos
+                <QrCode className="w-5 h-5" />
+                Módulos ABS
               </button>
               <button
                 type="button"
@@ -2003,14 +2028,57 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
       </RegistrationPortal>
     )}
 
+    {scanHubOpen ? (
+      <WorkshopPartScanHubModal
+        isOpen
+        onClose={() => setScanHubOpen(false)}
+        catalogParts={parts}
+        onStockEntry={(part) => {
+          void openEditRegistration(part);
+        }}
+        onRegisterProduct={(barcode) => {
+          openCreateRegistration(barcode);
+        }}
+        onSaleOutbound={(part) => {
+          setOutboundInitialPart(part);
+          setOutboundMode('sale');
+        }}
+        onConsumableOutbound={(part) => {
+          setOutboundInitialPart(part);
+          setOutboundMode('consumable');
+        }}
+        onAbsModuleCode={(code, found) => {
+          if (found) openAbsModules({ publicId: code });
+          else openAbsModules({ missingPublicId: code });
+        }}
+      />
+    ) : null}
+
     {outboundMode ? (
       <WorkshopPartStockOutboundModal
         isOpen
         mode={outboundMode}
-        onClose={() => setOutboundMode(null)}
+        initialPart={outboundInitialPart}
+        onClose={() => {
+          setOutboundMode(null);
+          setOutboundInitialPart(null);
+        }}
         onStockChanged={handleOutboundStockChanged}
         catalogParts={parts}
         onRegisterMissingProduct={openRegisterFromMissingBarcode}
+        onAbsModuleCode={(code, found) => {
+          if (found) openAbsModules({ publicId: code });
+          else openAbsModules({ missingPublicId: code });
+        }}
+      />
+    ) : null}
+
+    {absModulesOpen ? (
+      <WorkshopAbsModulesModal
+        isOpen
+        onClose={closeAbsModules}
+        initialPublicId={absInitialPublicId}
+        initialMissingPublicId={absInitialMissingPublicId}
       />
     ) : null}
     </ModalPortal>

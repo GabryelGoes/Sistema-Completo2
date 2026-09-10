@@ -21,7 +21,7 @@ export function BarcodeScanField({
   onChange,
   onSubmitCode,
   disabled,
-  placeholder = 'Código de barras, original ou numérico',
+  placeholder = 'Código de barras, ABS-000001 ou nome',
   autoFocus,
   className = '',
 }: BarcodeScanFieldProps) {
@@ -62,7 +62,7 @@ export function BarcodeScanField({
           <input
             ref={inputRef}
             type="text"
-            inputMode="numeric"
+            inputMode="text"
             autoComplete="off"
             autoFocus={autoFocus}
             disabled={disabled || submitting}
@@ -76,7 +76,7 @@ export function BarcodeScanField({
             }}
             placeholder={placeholder}
             className="w-full rounded-2xl border-0 bg-zinc-100 py-3 pl-10 pr-3 text-[15px] text-zinc-900 outline-none ring-emerald-500/30 focus:ring-2 dark:bg-white/5 dark:text-white"
-            aria-label="Código do produto"
+            aria-label="Código do produto ou módulo ABS"
           />
         </div>
         <button

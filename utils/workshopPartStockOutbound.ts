@@ -124,5 +124,5 @@ export function applyWorkshopPartStockOutboundInMemory(
 }
 
 export function stockMovementTypeLabel(type: WorkshopPartStockMovementType): string {
-  return type === 'sale' ? 'Venda avulsa' : 'Insumo / consumo';
+  return type === 'sale' ? 'Baixa por venda' : 'Baixa por consumo interno';
 }
