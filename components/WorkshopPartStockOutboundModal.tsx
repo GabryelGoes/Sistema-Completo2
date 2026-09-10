@@ -323,8 +323,8 @@ export function WorkshopPartStockOutboundModal({
                 </div>
                 <p className="mt-1 text-[13px] text-zinc-500 dark:text-zinc-400">
                   {isSale
-                    ? 'Baixa automática · código, nome ou lista'
-                    : 'Insumo / consumo · código, nome ou lista'}
+                    ? 'Baixa por venda · código, nome ou lista'
+                    : 'Baixa por consumo interno · código, nome ou lista'}
                 </p>
               </div>
             </div>
