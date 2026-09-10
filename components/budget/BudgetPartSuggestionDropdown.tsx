@@ -3,6 +3,7 @@ import { Eye, Image as ImageIcon, Package } from 'lucide-react';
 import type { WorkshopPart } from '../../services/apiService';
 import { PartPhotoImg } from '../ui/PartPhotoImg';
 import { getWorkshopPartCoverUrl } from '../../utils/workshopPartPhotoSlots';
+import { formatWorkshopPartQty } from '../../utils/workshopPartStock';
 import {
   BudgetSuggestionPopoverShell,
   type BudgetSuggestionBoxPosition,
@@ -74,7 +75,7 @@ export const BudgetPartSuggestionDropdown: React.FC<BudgetPartSuggestionDropdown
                   </span>
                   <span className="mt-0.5 inline-flex items-center gap-1 text-[11px] font-semibold text-amber-800/85">
                     <Package className="h-3 w-3 opacity-80" strokeWidth={2.2} aria-hidden />
-                    Estoque{part.stock_qty != null ? ` · ${part.stock_qty}` : ''}
+                    Estoque{part.stock_qty != null ? ` · ${formatWorkshopPartQty(part.stock_qty)}` : ''}
                   </span>
                 </span>
               </button>
