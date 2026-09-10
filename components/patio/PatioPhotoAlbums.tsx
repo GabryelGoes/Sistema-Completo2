@@ -31,6 +31,52 @@ function attachmentDisplayName(fileName: string): string {
   return base.replace(/^\d{10,}_/, '').replace(/^entrada_[^_]+_\d+_/, 'Entrada · ');
 }
 
+/** Storage costuma gravar `{timestamp}_entrada_{osId}_….jpg`. */
+function isEntradaIntakePhotoFileName(name: string): boolean {
+  const base = String(name || '').trim().split('/').pop() || '';
+  return /(^|_)entrada_/i.test(base);
+}
+
+const VIRTUAL_ENTRADA_ID = '__virtual_entrada__';
+const VIRTUAL_OUTRAS_ID = '__virtual_outras__';
+
+function buildVirtualFoldersFromPhotos(photos: ServiceOrderPhoto[]): {
+  folders: ServiceOrderPhotoFolder[];
+  photosByFolder: Record<string, ServiceOrderPhoto[]>;
+} {
+  const entrada: ServiceOrderPhoto[] = [];
+  const outras: ServiceOrderPhoto[] = [];
+  for (const photo of photos) {
+    if (isEntradaIntakePhotoFileName(photo.name)) entrada.push(photo);
+    else outras.push(photo);
+  }
+  const folders: ServiceOrderPhotoFolder[] = [];
+  const photosByFolder: Record<string, ServiceOrderPhoto[]> = {};
+  folders.push({
+    id: VIRTUAL_ENTRADA_ID,
+    name: 'Entrada do veículo',
+    slug: 'entrada',
+    isSystem: true,
+    sortOrder: 0,
+    photoCount: entrada.length,
+    coverUrls: entrada.slice(0, 4).map((p) => p.url),
+  });
+  photosByFolder[VIRTUAL_ENTRADA_ID] = entrada;
+  if (outras.length > 0) {
+    folders.push({
+      id: VIRTUAL_OUTRAS_ID,
+      name: 'Outras fotos',
+      slug: 'outras',
+      isSystem: false,
+      sortOrder: 50,
+      photoCount: outras.length,
+      coverUrls: outras.slice(0, 4).map((p) => p.url),
+    });
+    photosByFolder[VIRTUAL_OUTRAS_ID] = outras;
+  }
+  return { folders, photosByFolder };
+}
+
 function FolderCover({ urls, className = '' }: { urls: string[]; className?: string }) {
   const covers = urls.slice(0, 4);
   if (covers.length === 0) {
@@ -88,11 +134,18 @@ export type PatioPhotoAlbumsProps = {
   onPreviewPhoto?: (photos: ServiceOrderPhoto[], index: number) => void;
   onSharePhoto?: (e: React.MouseEvent, photo: { url: string; name: string }) => void;
   /** Notifica pasta aberta (para uploads do menu superior). */
-  onActiveFolderChange?: (folderId: string | null) => void;
+  onActiveFolderChange?: (
+    target: { folderId?: string; folderSlug?: string } | null
+  ) => void;
   /** Permite o pai disparar refresh após upload externo. */
   refreshKey?: number;
+  /**
+   * Fotos já carregadas da OS (Storage). Usado para montar pastas locais
+   * quando a API de pastas falha (ex.: migration ainda não aplicada) e para
+   * garantir que a entrada do veículo continue visível em Anexos.
+   */
+  fallbackPhotos?: ServiceOrderPhoto[];
 };
-
 export function PatioPhotoAlbums({
   serviceOrderId,
   canEdit,
@@ -102,10 +155,15 @@ export function PatioPhotoAlbums({
   onSharePhoto,
   onActiveFolderChange,
   refreshKey = 0,
+  fallbackPhotos = [],
 }: PatioPhotoAlbumsProps) {
   const [folders, setFolders] = useState<ServiceOrderPhotoFolder[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [usingVirtualFolders, setUsingVirtualFolders] = useState(false);
+  const [virtualPhotosByFolder, setVirtualPhotosByFolder] = useState<
+    Record<string, ServiceOrderPhoto[]>
+  >({});
   const [openFolderId, setOpenFolderId] = useState<string | null>(null);
   const [openFolder, setOpenFolder] = useState<ServiceOrderPhotoFolder | null>(null);
   const [photos, setPhotos] = useState<ServiceOrderPhoto[]>([]);
@@ -122,24 +180,64 @@ export function PatioPhotoAlbums({
   const cameraRef = useRef<HTMLInputElement>(null);
   const galleryRef = useRef<HTMLInputElement>(null);
 
+  const applyVirtualFallback = useCallback((sourcePhotos: ServiceOrderPhoto[]) => {
+    const built = buildVirtualFoldersFromPhotos(sourcePhotos);
+    setFolders(built.folders);
+    setVirtualPhotosByFolder(built.photosByFolder);
+    setUsingVirtualFolders(true);
+    setError(null);
+  }, []);
+
+  const fallbackPhotosRef = useRef(fallbackPhotos);
+  fallbackPhotosRef.current = fallbackPhotos;
+
+  const fallbackSignature = useMemo(
+    () =>
+      fallbackPhotos
+        .map((p) => p.path)
+        .filter(Boolean)
+        .sort()
+        .join('|'),
+    [fallbackPhotos]
+  );
+
   const loadFolders = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
       const list = await getServiceOrderPhotoFolders(serviceOrderId);
       setFolders(list);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Não foi possível carregar as pastas.');
+      setUsingVirtualFolders(false);
+      setVirtualPhotosByFolder({});
+    } catch {
+      if (fallbackPhotosRef.current.length > 0) {
+        applyVirtualFallback(fallbackPhotosRef.current);
+      } else {
+        setError('Não foi possível carregar as pastas.');
+      }
     } finally {
       setLoading(false);
     }
-  }, [serviceOrderId]);
+  }, [serviceOrderId, applyVirtualFallback]);
 
   const loadFolderDetail = useCallback(
     async (folderId: string) => {
       setLoadingFolder(true);
       setError(null);
       try {
+        if (usingVirtualFolders || folderId.startsWith('__virtual_')) {
+          const folder =
+            folders.find((f) => f.id === folderId) ||
+            buildVirtualFoldersFromPhotos(fallbackPhotos).folders.find((f) => f.id === folderId) ||
+            null;
+          const list =
+            virtualPhotosByFolder[folderId] ||
+            buildVirtualFoldersFromPhotos(fallbackPhotos).photosByFolder[folderId] ||
+            [];
+          setOpenFolder(folder);
+          setPhotos(list);
+          return;
+        }
         const detail = await getServiceOrderPhotoFolderDetail(serviceOrderId, folderId);
         setOpenFolder(detail.folder);
         setPhotos(detail.photos);
@@ -156,12 +254,28 @@ export function PatioPhotoAlbums({
           )
         );
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Não foi possível abrir a pasta.');
+        if (fallbackPhotos.length > 0) {
+          const built = buildVirtualFoldersFromPhotos(fallbackPhotos);
+          const folder = built.folders.find((f) => f.id === folderId) || built.folders[0] || null;
+          setOpenFolder(folder);
+          setPhotos(folder ? built.photosByFolder[folder.id] || [] : []);
+          setUsingVirtualFolders(true);
+          setVirtualPhotosByFolder(built.photosByFolder);
+          setFolders(built.folders);
+        } else {
+          setError(err instanceof Error ? err.message : 'Não foi possível abrir a pasta.');
+        }
       } finally {
         setLoadingFolder(false);
       }
     },
-    [serviceOrderId]
+    [
+      serviceOrderId,
+      usingVirtualFolders,
+      folders,
+      virtualPhotosByFolder,
+      fallbackPhotos,
+    ]
   );
 
   useEffect(() => {
@@ -169,8 +283,33 @@ export function PatioPhotoAlbums({
   }, [loadFolders, refreshKey]);
 
   useEffect(() => {
-    onActiveFolderChange?.(openFolderId);
-  }, [openFolderId, onActiveFolderChange]);
+    if (!usingVirtualFolders) return;
+    applyVirtualFallback(fallbackPhotosRef.current);
+  }, [fallbackSignature, usingVirtualFolders, applyVirtualFallback]);
+
+  useEffect(() => {
+    if (!openFolderId) {
+      onActiveFolderChange?.(null);
+      return;
+    }
+    if (openFolderId === VIRTUAL_ENTRADA_ID || openFolder?.slug === 'entrada') {
+      onActiveFolderChange?.(
+        openFolderId.startsWith('__virtual_')
+          ? { folderSlug: 'entrada' }
+          : { folderId: openFolderId, folderSlug: 'entrada' }
+      );
+      return;
+    }
+    if (openFolderId === VIRTUAL_OUTRAS_ID || openFolder?.slug === 'outras') {
+      onActiveFolderChange?.(
+        openFolderId.startsWith('__virtual_')
+          ? { folderSlug: 'outras' }
+          : { folderId: openFolderId, folderSlug: 'outras' }
+      );
+      return;
+    }
+    onActiveFolderChange?.({ folderId: openFolderId });
+  }, [openFolderId, openFolder?.slug, onActiveFolderChange]);
 
   useEffect(() => {
     if (!openFolderId) {
@@ -189,6 +328,12 @@ export function PatioPhotoAlbums({
   const handleCreateFolder = async () => {
     const name = newFolderName.trim();
     if (!name || creating) return;
+    if (usingVirtualFolders) {
+      alert(
+        'Para criar pastas novas, aplique a migration de pastas de fotos no Supabase e atualize a página.'
+      );
+      return;
+    }
     setCreating(true);
     try {
       const created = await createServiceOrderPhotoFolder(serviceOrderId, name);
@@ -196,6 +341,7 @@ export function PatioPhotoAlbums({
       setCreateOpen(false);
       setNewFolderName('');
       setOpenFolderId(created.id);
+      setUsingVirtualFolders(false);
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Erro ao criar pasta.');
     } finally {
@@ -250,12 +396,26 @@ export function PatioPhotoAlbums({
     if (list.length === 0) return;
     setUploading(true);
     try {
+      const folderOpts = openFolderId.startsWith('__virtual_')
+        ? {
+            folderSlug:
+              openFolderId === VIRTUAL_ENTRADA_ID
+                ? 'entrada'
+                : openFolderId === VIRTUAL_OUTRAS_ID
+                  ? 'outras'
+                  : undefined,
+          }
+        : { folderId: openFolderId };
       for (const file of list) {
-        await uploadServiceOrderPhoto(serviceOrderId, file, file.name, { folderId: openFolderId });
+        const fileName =
+          openFolderId === VIRTUAL_ENTRADA_ID || openFolder?.slug === 'entrada'
+            ? `entrada_${serviceOrderId}_${Date.now()}.jpg`
+            : file.name;
+        await uploadServiceOrderPhoto(serviceOrderId, file, fileName, folderOpts);
       }
-      await loadFolderDetail(openFolderId);
-      await loadFolders();
       await onPhotosChanged?.();
+      await loadFolders();
+      if (openFolderId) await loadFolderDetail(openFolderId);
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Erro ao enviar foto.');
     } finally {
@@ -548,7 +708,7 @@ export function PatioPhotoAlbums({
                       </div>
                     </div>
                   </button>
-                  {canEdit && !folder.isSystem ? (
+                  {canEdit && !folder.isSystem && !folder.id.startsWith('__virtual_') ? (
                     <div className="absolute right-1 top-[calc(100%-2.6rem)]">
                       <button
                         type="button"

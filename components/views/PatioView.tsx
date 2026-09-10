@@ -2122,7 +2122,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
   // --- Attachment States ---
   const [isUploading, setIsUploading] = useState(false);
   const [photoAlbumsRefreshKey, setPhotoAlbumsRefreshKey] = useState(0);
-  const [activePhotoFolderId, setActivePhotoFolderId] = useState<string | null>(null);
+  const [activePhotoFolderTarget, setActivePhotoFolderTarget] = useState<{
+    folderId?: string;
+    folderSlug?: string;
+  } | null>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
   /** Câmera nativa do dispositivo (`capture` no input). */
   const cameraInputRef = useRef<HTMLInputElement>(null);
@@ -4644,6 +4647,21 @@ export const PatioView: React.FC<PatioViewProps> = ({
     []
   );
 
+  const albumFallbackPhotos = useMemo(() => {
+    return (cardDetails?.attachments ?? [])
+      .filter(
+        (att) =>
+          att.mimeType?.startsWith('image/') ||
+          /\.(jpg|jpeg|png|gif|webp|heic|heif|bmp)$/i.test(att.url || att.name || '')
+      )
+      .map((att) => ({
+        url: att.url,
+        name: att.name,
+        path: String(att.id),
+      }))
+      .filter((p) => p.path && !/^\d+$/.test(p.path));
+  }, [cardDetails?.attachments]);
+
   const preloadLightboxUrl = useCallback((url: string) => {
     const originalUrl = url.split('?')[0];
     if (!originalUrl || attachmentPreloadRef.current.has(originalUrl)) return;
@@ -4909,8 +4927,15 @@ export const PatioView: React.FC<PatioViewProps> = ({
     try {
       for (const file of files) {
         const folderOpts =
-          isAttachmentImageFile(file, file.name) && activePhotoFolderId
-            ? { folderId: activePhotoFolderId }
+          isAttachmentImageFile(file, file.name) && activePhotoFolderTarget
+            ? {
+                ...(activePhotoFolderTarget.folderId
+                  ? { folderId: activePhotoFolderTarget.folderId }
+                  : {}),
+                ...(activePhotoFolderTarget.folderSlug
+                  ? { folderSlug: activePhotoFolderTarget.folderSlug }
+                  : {}),
+              }
             : undefined;
         await uploadServiceOrderPhoto(selectedCard.id, file, file.name, folderOpts);
       }
@@ -5047,7 +5072,16 @@ export const PatioView: React.FC<PatioViewProps> = ({
         selectedCard.id,
         photoBlob,
         fileName,
-        activePhotoFolderId ? { folderId: activePhotoFolderId } : undefined
+        activePhotoFolderTarget
+          ? {
+              ...(activePhotoFolderTarget.folderId
+                ? { folderId: activePhotoFolderTarget.folderId }
+                : {}),
+              ...(activePhotoFolderTarget.folderSlug
+                ? { folderSlug: activePhotoFolderTarget.folderSlug }
+                : {}),
+            }
+          : undefined
       );
       const photos = await getServiceOrderPhotos(selectedCard.id);
       setCardDetails((prev) => ({
@@ -9164,7 +9198,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                    canEdit={can('canEditFicha')}
                                    sectionTitleClassName={uiOsModalCardSectionTitle}
                                    refreshKey={photoAlbumsRefreshKey}
-                                   onActiveFolderChange={setActivePhotoFolderId}
+                                   onActiveFolderChange={setActivePhotoFolderTarget}
+                                   fallbackPhotos={albumFallbackPhotos}
                                    onPhotosChanged={async () => {
                                      if (!selectedCard) return;
                                      const photos = await getServiceOrderPhotos(selectedCard.id);

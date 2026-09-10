@@ -562,7 +562,9 @@ export function createApiApp() {
   }
 
   function isEntradaIntakePhotoFileName(name: string): boolean {
-    return /^entrada_/i.test(String(name || "").trim());
+    // Storage grava como `{timestamp}_entrada_{osId}_…jpg` (upload-init) ou `entrada_…` (legado).
+    const base = String(name || "").trim().split("/").pop() || "";
+    return /(^|_)entrada_/i.test(base);
   }
 
   type ServiceOrderPhotoFolderRow = {
@@ -781,8 +783,27 @@ export function createApiApp() {
       });
     }
 
-    // Remove metadados de paths que sumiram do Storage
     const storagePaths = new Set(storagePhotos.map((p) => p.path));
+
+    // Corrige itens já cadastrados com o prefixo `{timestamp}_entrada_…` que
+    // antes caíam em "Outras fotos" / pasta errada.
+    if (entrada) {
+      const entradaFolderId = entrada.id;
+      for (const row of (existingItems ?? []) as ServiceOrderPhotoItemRow[]) {
+        if (!storagePaths.has(row.storage_path)) continue;
+        if (!isEntradaIntakePhotoFileName(row.file_name)) continue;
+        if (row.folder_id === entradaFolderId) continue;
+        await upsertServiceOrderPhotoItem({
+          serviceOrderId,
+          folderId: entradaFolderId,
+          storagePath: row.storage_path,
+          fileName: row.file_name,
+          kind: "photo",
+        });
+      }
+    }
+
+    // Remove metadados de paths que sumiram do Storage
     for (const row of (existingItems ?? []) as ServiceOrderPhotoItemRow[]) {
       if (!storagePaths.has(row.storage_path)) {
         await removeServiceOrderPhotoItemByPath(serviceOrderId, row.storage_path);
