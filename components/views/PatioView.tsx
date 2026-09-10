@@ -189,6 +189,7 @@ import {
   PatioOriginAttachmentsSection,
 } from '../patio/PatioOriginAttachmentsPicker';
 import { PatioBoardOriginIcon } from '../patio/PatioBoardOriginIcon';
+import { PatioPhotoAlbums } from '../patio/PatioPhotoAlbums';
 import { BudgetReadModalBody } from '../budget/BudgetReadModalBody';
 import { BudgetVerificationPanel } from '../budget/BudgetVerificationPanel';
 import { BudgetVerifiedSeal } from '../budget/BudgetVerifiedSeal';
@@ -2120,6 +2121,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
   // --- Attachment States ---
   const [isUploading, setIsUploading] = useState(false);
+  const [photoAlbumsRefreshKey, setPhotoAlbumsRefreshKey] = useState(0);
+  const [activePhotoFolderTarget, setActivePhotoFolderTarget] = useState<{
+    folderId?: string;
+    folderSlug?: string;
+  } | null>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
   /** Câmera nativa do dispositivo (`capture` no input). */
   const cameraInputRef = useRef<HTMLInputElement>(null);
@@ -4641,6 +4647,21 @@ export const PatioView: React.FC<PatioViewProps> = ({
     []
   );
 
+  const albumFallbackPhotos = useMemo(() => {
+    return (cardDetails?.attachments ?? [])
+      .filter(
+        (att) =>
+          att.mimeType?.startsWith('image/') ||
+          /\.(jpg|jpeg|png|gif|webp|heic|heif|bmp)$/i.test(att.url || att.name || '')
+      )
+      .map((att) => ({
+        url: att.url,
+        name: att.name,
+        path: String(att.id),
+      }))
+      .filter((p) => p.path && !/^\d+$/.test(p.path));
+  }, [cardDetails?.attachments]);
+
   const preloadLightboxUrl = useCallback((url: string) => {
     const originalUrl = url.split('?')[0];
     if (!originalUrl || attachmentPreloadRef.current.has(originalUrl)) return;
@@ -4848,6 +4869,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
       await deleteServiceOrderPhoto(selectedCard.id, path);
       const photos = await getServiceOrderPhotos(selectedCard.id);
       setCardDetails((prev) => (prev ? { ...prev, attachments: mapPhotosToAttachments(photos) } : null));
+      setPhotoAlbumsRefreshKey((k) => k + 1);
       if (renameAttachmentId === attId) {
         setRenameAttachmentId(null);
         setRenameAttachmentNewName("");
@@ -4904,19 +4926,25 @@ export const PatioView: React.FC<PatioViewProps> = ({
     setIsUploading(true);
     try {
       for (const file of files) {
-        await uploadServiceOrderPhoto(selectedCard.id, file, file.name);
+        const folderOpts =
+          isAttachmentImageFile(file, file.name) && activePhotoFolderTarget
+            ? {
+                ...(activePhotoFolderTarget.folderId
+                  ? { folderId: activePhotoFolderTarget.folderId }
+                  : {}),
+                ...(activePhotoFolderTarget.folderSlug
+                  ? { folderSlug: activePhotoFolderTarget.folderSlug }
+                  : {}),
+              }
+            : undefined;
+        await uploadServiceOrderPhoto(selectedCard.id, file, file.name, folderOpts);
       }
       const photos = await getServiceOrderPhotos(selectedCard.id);
       setCardDetails((prev) => ({
         actions: prev?.actions ?? [],
-        attachments: photos.map((p, i) => ({
-          id: p.path || String(i),
-          name: p.name,
-          url: p.url,
-          mimeType: attachmentMimeType(p.name),
-          previews: [{ url: p.url, width: 200, height: 200 }],
-        })),
+        attachments: mapPhotosToAttachments(photos),
       }));
+      setPhotoAlbumsRefreshKey((k) => k + 1);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Erro ao enviar arquivo(s).';
       alert(message);
@@ -5040,18 +5068,27 @@ export const PatioView: React.FC<PatioViewProps> = ({
         if (!/\.(jpe?g|png|webp)$/i.test(s)) s += ".jpg";
         fileName = s;
       }
-      await uploadServiceOrderPhoto(selectedCard.id, photoBlob, fileName);
+      await uploadServiceOrderPhoto(
+        selectedCard.id,
+        photoBlob,
+        fileName,
+        activePhotoFolderTarget
+          ? {
+              ...(activePhotoFolderTarget.folderId
+                ? { folderId: activePhotoFolderTarget.folderId }
+                : {}),
+              ...(activePhotoFolderTarget.folderSlug
+                ? { folderSlug: activePhotoFolderTarget.folderSlug }
+                : {}),
+            }
+          : undefined
+      );
       const photos = await getServiceOrderPhotos(selectedCard.id);
-      setCardDetails(prev => ({
+      setCardDetails((prev) => ({
         actions: prev?.actions ?? [],
-        attachments: photos.map((p, i) => ({
-          id: p.path || String(i),
-          name: p.name,
-          url: p.url,
-          mimeType: attachmentMimeType(p.name),
-          previews: [{ url: p.url, width: 200, height: 200 }],
-        })),
+        attachments: mapPhotosToAttachments(photos),
       }));
+      setPhotoAlbumsRefreshKey((k) => k + 1);
       setPhotoBlob(null);
       setPhotoPreview(null);
       setPhotoUploadLabel("");
@@ -9154,435 +9191,270 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                      <RefreshCw className="w-4 h-4 text-brand-yellow animate-spin" />
                                   </div>
                                )}
-                               {cardDetails?.attachments && cardDetails.attachments.length > 0 ? (
-                                  (() => {
-                                    const attachments = cardDetails.attachments;
-                                    const images = attachments.filter(att => att.mimeType?.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp|heic|heif|bmp)$/i.test(att.url));
-                                    const others = attachments.filter(att => !(att.mimeType?.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp|heic|heif|bmp)$/i.test(att.url)));
-                                    const visibleImages = images.slice(0, vehicleModalPhotoVisibleCount);
-                                    const hiddenPhotoCount = images.length - visibleImages.length;
-                                    return (
-                                      <div className="flex flex-col gap-8">
-                                        {images.length > 0 && (
-                                          <div className="order-2">
-                                            <div className="mb-2 flex min-w-0 items-center">
-                                              <p className={uiOsModalCardSectionTitle}>
-                                                Fotos
-                                              </p>
-                                            </div>
-                                            <div className="rounded-xl border border-zinc-200/70 bg-white/70 p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.75)] dark:border-white/[0.08] dark:bg-white/[0.03]">
-                                            <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 md:grid-cols-4 md:gap-3">
-                                            {visibleImages.map((att, photoIndex) => {
-                                              const isLoadingThis = loadingAttachmentId === att.id;
-                                              const isDeletingThis = deletingAttachmentId === att.id;
-                                              const isRotatingThis = rotatingAttachmentPath === att.id;
-                                              const attachmentPath = att.id;
-                                              const canRename = attachmentPath && !/^\d+$/.test(String(attachmentPath));
-                                              const canRotatePhoto = canRename && can('canEditFicha');
-                                              const isEditingName = renameAttachmentId === att.id;
-                                              const isRenamingThis = renamingAttachmentId === att.id;
-                                              const label = attachmentDisplayName(att.name);
-                                              return (
-                                                <div
-                                                  key={att.id}
-                                                  className="flex min-w-0 flex-col gap-1"
-                                                >
-                                                  {isEditingName ? (
-                                                    <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-2 dark:border-zinc-700 dark:bg-zinc-900">
-                                                      <input
-                                                        type="text"
-                                                        value={renameAttachmentNewName}
-                                                        onChange={(e) => setRenameAttachmentNewName(e.target.value)}
-                                                        onKeyDown={(e) => {
-                                                          if (e.key === "Enter") {
-                                                            e.preventDefault();
-                                                            if (selectedCard && renameAttachmentNewName.trim()) {
-                                                              setRenamingAttachmentId(att.id);
-                                                              renameServiceOrderPhoto(selectedCard.id, attachmentPath, renameAttachmentNewName.trim())
-                                                                .then(() => getServiceOrderPhotos(selectedCard.id))
-                                                                .then((photos) => {
-                                                                  setCardDetails((prev) =>
-                                                                    prev
-                                                                      ? {
-                                                                          ...prev,
-                                                                          attachments: photos.map((p, i) => ({
-                                                                            id: p.path || String(i),
-                                                                            name: p.name,
-                                                                            url: p.url,
-                                                                            mimeType: attachmentMimeType(p.name),
-                                                                            previews: [{ url: p.url, width: 200, height: 200 }],
-                                                                          })),
-                                                                        }
-                                                                      : null
-                                                                  );
-                                                                })
-                                                                .catch((err) => alert(err?.message ?? "Erro ao renomear."))
-                                                                .finally(() => {
-                                                                  setRenameAttachmentId(null);
-                                                                  setRenamingAttachmentId(null);
-                                                                });
-                                                            }
-                                                          }
-                                                          if (e.key === "Escape") {
-                                                            setRenameAttachmentId(null);
-                                                            setRenameAttachmentNewName("");
-                                                          }
-                                                        }}
-                                                        className="w-full rounded-lg border border-zinc-200 bg-white px-2 py-1.5 text-[12px] text-zinc-800 focus:outline-none focus:ring-2 focus:ring-brand-yellow/40 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
-                                                        placeholder="Nome da foto"
-                                                        autoFocus
-                                                        disabled={isRenamingThis}
-                                                      />
-                                                      <div className="mt-1.5 flex justify-end gap-1">
-                                                        <button
-                                                          type="button"
-                                                          onClick={() => {
-                                                            setRenameAttachmentId(null);
-                                                            setRenameAttachmentNewName("");
-                                                          }}
-                                                          className="rounded-lg px-2 py-1 text-[11px] text-zinc-500 hover:bg-zinc-200 dark:hover:bg-zinc-700"
-                                                        >
-                                                          Cancelar
-                                                        </button>
-                                                        <button
-                                                          type="button"
-                                                          disabled={isRenamingThis || !renameAttachmentNewName.trim()}
-                                                          onClick={() => {
-                                                            if (!selectedCard || !renameAttachmentNewName.trim()) return;
-                                                            setRenamingAttachmentId(att.id);
-                                                            renameServiceOrderPhoto(selectedCard.id, attachmentPath, renameAttachmentNewName.trim())
-                                                              .then(() => getServiceOrderPhotos(selectedCard.id))
-                                                              .then((photos) => {
-                                                                setCardDetails((prev) =>
-                                                                  prev
-                                                                    ? {
-                                                                        ...prev,
-                                                                        attachments: photos.map((p, i) => ({
-                                                                          id: p.path || String(i),
-                                                                          name: p.name,
-                                                                          url: p.url,
-                                                                          mimeType: attachmentMimeType(p.name),
-                                                                          previews: [{ url: p.url, width: 200, height: 200 }],
-                                                                        })),
-                                                                      }
-                                                                    : null
-                                                                );
-                                                              })
-                                                              .catch((err) => alert(err?.message ?? "Erro ao renomear."))
-                                                              .finally(() => {
-                                                                setRenameAttachmentId(null);
-                                                                setRenamingAttachmentId(null);
-                                                              });
-                                                          }}
-                                                          className="rounded-lg bg-brand-yellow px-2 py-1 text-[11px] font-semibold text-black disabled:opacity-50"
-                                                        >
-                                                          {isRenamingThis ? "…" : "OK"}
-                                                        </button>
-                                                      </div>
-                                                    </div>
-                                                  ) : (
-                                                    <>
-                                                      <div className="relative rounded-[14px] bg-gradient-to-r from-[#007AFF] via-brand-yellow to-[#007AFF] p-[2px] shadow-[0_8px_18px_-10px_rgba(0,122,255,0.45)] dark:shadow-[0_10px_24px_-12px_rgba(59,130,246,0.4)]">
-                                                      <div className="group relative aspect-square overflow-hidden rounded-[12px] bg-zinc-100 dark:bg-zinc-900">
-                                                        <button
-                                                          type="button"
-                                                          onPointerEnter={() => preloadLightboxUrl(att.url)}
-                                                          onFocus={() => preloadLightboxUrl(att.url)}
-                                                          onClick={() => {
-                                                            if (isLoadingThis || isRotatingThis) return;
-                                                            preloadLightboxUrl(att.url);
-                                                            setPreviewImages({
-                                                              items: images.map((a) => ({
-                                                                path: a.id,
-                                                                url: a.url,
-                                                                name: a.name,
-                                                              })),
-                                                              currentIndex: images.findIndex((a) => a.url === att.url),
-                                                            });
-                                                          }}
-                                                          className="absolute inset-0 h-full w-full rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-yellow/50 focus:ring-offset-2 dark:focus:ring-offset-zinc-900"
-                                                        >
-                                                          {isLoadingThis ? (
-                                                            <div className="absolute inset-0 flex items-center justify-center bg-zinc-200/80 dark:bg-zinc-800/80">
-                                                              <RefreshCw className="w-6 h-6 text-brand-yellow animate-spin" />
-                                                            </div>
-                                                          ) : (
-                                                            <>
-                                                              <StorageThumbImg
-                                                                key={att.url}
-                                                                src={att.url}
-                                                                alt={label}
-                                                                className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-105"
-                                                                sizes="(max-width: 640px) 45vw, (max-width: 1024px) 28vw, 180px"
-                                                                thumbMaxWidth={200}
-                                                                thumbMaxHeight={200}
-                                                                thumbQuality={52}
-                                                                loading={photoIndex < 8 ? 'eager' : 'lazy'}
-                                                                fetchPriority={photoIndex < 4 ? 'high' : 'low'}
-                                                              />
-                                                              <div className="absolute inset-0 flex items-end justify-between bg-gradient-to-t from-black/50 via-transparent to-transparent px-2 pb-2 opacity-0 transition-opacity group-hover:opacity-100">
-                                                                <button
-                                                                  type="button"
-                                                                  onClick={(e) => handleShareImage(e, { url: att.url, name: att.name })}
-                                                                  className="rounded-lg bg-black/40 p-1.5 text-white drop-shadow-lg hover:bg-black/60"
-                                                                  title="Compartilhar (ex.: WhatsApp)"
-                                                                >
-                                                                  <Share2 className="w-5 h-5" />
-                                                                </button>
-                                                                <ZoomIn className="h-6 w-6 text-white drop-shadow-lg" />
-                                                              </div>
-                                                            </>
-                                                          )}
-                                                        </button>
-                                                      </div>
-                                                      </div>
-                                                      <div className="flex min-h-[2rem] items-start gap-1">
-                                                        <span
-                                                          className="min-w-0 flex-1 break-words text-[10px] font-medium leading-tight text-zinc-600 dark:text-zinc-300 sm:text-[11px]"
-                                                          title={label}
-                                                        >
-                                                          {label}
-                                                        </span>
-                                                        {canRename && (
-                                                          <>
-                                                            {canRotatePhoto && (
-                                                              <button
-                                                                type="button"
-                                                                onClick={(e) =>
-                                                                  handleRotateGridPhoto(
-                                                                    e,
-                                                                    String(attachmentPath),
-                                                                    att.url,
-                                                                    att.name,
-                                                                    'cw'
-                                                                  )
-                                                                }
-                                                                disabled={isDeletingThis || isRotatingThis}
-                                                                className="shrink-0 rounded-md p-1 text-zinc-500 transition-colors hover:bg-zinc-200 hover:text-zinc-800 disabled:opacity-50 dark:hover:bg-zinc-700 dark:hover:text-zinc-100"
-                                                                title="Girar foto"
-                                                                aria-label="Girar foto"
-                                                              >
-                                                                {isRotatingThis ? (
-                                                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                                                ) : (
-                                                                  <RotateCw className="h-3.5 w-3.5" />
-                                                                )}
-                                                              </button>
-                                                            )}
-                                                            <button
-                                                              type="button"
-                                                              onClick={() => {
-                                                                setRenameAttachmentId(att.id);
-                                                                setRenameAttachmentNewName(attachmentDisplayName(att.name));
-                                                              }}
-                                                              className="shrink-0 rounded-md p-1 text-zinc-500 transition-colors hover:bg-zinc-200 hover:text-zinc-800 dark:hover:bg-zinc-700 dark:hover:text-zinc-100"
-                                                              title="Nomear ou renomear foto"
-                                                              aria-label="Nomear ou renomear foto"
-                                                              disabled={isDeletingThis || isRotatingThis}
-                                                            >
-                                                              <Pencil className="h-3.5 w-3.5" />
-                                                            </button>
-                                                            <button
-                                                              type="button"
-                                                              onClick={() =>
-                                                                handleDeleteAttachment(String(attachmentPath), att.id, att.url)
-                                                              }
-                                                              disabled={isDeletingThis}
-                                                              className="shrink-0 rounded-md p-1 text-red-500/90 transition-colors hover:bg-red-500/15 hover:text-red-600 disabled:opacity-50 dark:hover:text-red-400"
-                                                              title="Excluir foto"
-                                                              aria-label="Excluir foto"
-                                                            >
-                                                              {isDeletingThis ? (
-                                                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                                              ) : (
-                                                                <Trash2 className="h-3.5 w-3.5" />
-                                                              )}
-                                                            </button>
-                                                          </>
-                                                        )}
-                                                      </div>
-                                                    </>
-                                                  )}
-                                                </div>
-                                              );
-                                            })}
-                                            </div>
-                                            </div>
-                                            {hiddenPhotoCount > 0 && (
-                                              <button
-                                                type="button"
-                                                className="mt-2 w-full rounded-xl border border-zinc-200/80 bg-zinc-50 py-2 text-xs font-semibold text-zinc-700 hover:bg-zinc-100 dark:border-white/10 dark:bg-white/[0.05] dark:text-zinc-200 dark:hover:bg-white/[0.08]"
-                                                onClick={() => setVehicleModalPhotoVisibleCount(images.length)}
-                                              >
-                                                Mostrar mais ({hiddenPhotoCount}{' '}
-                                                {hiddenPhotoCount === 1 ? 'foto' : 'fotos'})
-                                              </button>
-                                            )}
-                                          </div>
-                                        )}
-                                        {others.length > 0 && (
-                                          <div className="order-1">
-                                            <div className="mb-2 flex min-w-0 items-center">
-                                              <p className={uiOsModalCardSectionTitle}>
-                                                Documentos
-                                              </p>
-                                            </div>
-                                            <div className="flex flex-wrap gap-2">
-                                              {others.map(att => {
-                                                const isPdf = isPdfAttachment(att.mimeType, att.url);
-                                                const isLoadingThis = loadingAttachmentId === att.id;
-                                                const isDeletingThis = deletingAttachmentId === att.id;
-                                                const isRenamingThis = renamingAttachmentId === att.id;
-                                                const isEditingName = renameAttachmentId === att.id;
-                                                const attachmentPath = att.id;
-                                                // Permite renomear quando temos um path real (vindo da API); id numérico é fallback do índice
-                                                const canRename = attachmentPath && !/^\d+$/.test(String(attachmentPath));
-                                                return (
-                                                  <div key={att.id} className="flex items-center gap-2 min-w-0 max-w-full">
-                                                    {isEditingName ? (
-                                                      <div className="flex items-center gap-2 flex-1 min-w-0 px-3 py-2.5 rounded-xl bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700">
-                                                        <FileText className="w-5 h-5 text-zinc-500 shrink-0" />
-                                                        <input
-                                                          type="text"
-                                                          value={renameAttachmentNewName}
-                                                          onChange={(e) => setRenameAttachmentNewName(e.target.value)}
-                                                          onKeyDown={(e) => {
-                                                            if (e.key === 'Enter') {
-                                                              e.preventDefault();
-                                                              if (selectedCard && renameAttachmentNewName.trim()) {
-                                                                setRenamingAttachmentId(att.id);
-                                                                renameServiceOrderPhoto(selectedCard.id, attachmentPath, renameAttachmentNewName.trim())
-                                                                  .then(() => getServiceOrderPhotos(selectedCard.id))
-                                                                  .then(photos => {
-                                                                    setCardDetails(prev => prev ? {
-                                                                      ...prev,
-                                                                      attachments: photos.map((p, i) => ({
-                                                                        id: p.path || String(i),
-                                                                        name: p.name,
-                                                                        url: p.url,
-                                                                        mimeType: attachmentMimeType(p.name),
-                                                                        previews: [{ url: p.url, width: 200, height: 200 }],
-                                                                      })),
-                                                                    } : null);
-                                                                  })
-                                                                  .catch(err => alert(err?.message ?? 'Erro ao renomear.'))
-                                                                  .finally(() => { setRenameAttachmentId(null); setRenamingAttachmentId(null); });
-                                                              }
-                                                            }
-                                                            if (e.key === 'Escape') {
-                                                              setRenameAttachmentId(null);
-                                                              setRenameAttachmentNewName('');
-                                                            }
-                                                          }}
-                                                          className="flex-1 min-w-0 text-sm font-medium text-zinc-700 dark:text-zinc-300 bg-transparent border-0 focus:ring-0 focus:outline-none p-0"
-                                                          placeholder="Novo nome do arquivo"
-                                                          autoFocus
-                                                        />
-                                                        <button
-                                                          type="button"
-                                                          onClick={() => {
-                                                            if (!selectedCard || !renameAttachmentNewName.trim()) return;
-                                                            setRenamingAttachmentId(att.id);
-                                                            renameServiceOrderPhoto(selectedCard.id, attachmentPath, renameAttachmentNewName.trim())
-                                                              .then(() => getServiceOrderPhotos(selectedCard.id))
-                                                              .then(photos => {
-                                                                setCardDetails(prev => prev ? {
-                                                                  ...prev,
-                                                                  attachments: photos.map((p, i) => ({
-                                                                    id: p.path || String(i),
-                                                                    name: p.name,
-                                                                    url: p.url,
-                                                                    mimeType: attachmentMimeType(p.name),
-                                                                    previews: [{ url: p.url, width: 200, height: 200 }],
-                                                                  })),
-                                                                } : null);
-                                                              })
-                                                              .catch(err => alert(err?.message ?? 'Erro ao renomear.'))
-                                                              .finally(() => { setRenameAttachmentId(null); setRenamingAttachmentId(null); });
-                                                          }}
-                                                          disabled={isRenamingThis || !renameAttachmentNewName.trim()}
-                                                          className="shrink-0 p-1 rounded text-brand-yellow hover:bg-brand-yellow/20 disabled:opacity-50"
-                                                          title="Confirmar"
-                                                        >
-                                                          <Check className="w-4 h-4" />
-                                                        </button>
-                                                        <button
-                                                          type="button"
-                                                          onClick={() => { setRenameAttachmentId(null); setRenameAttachmentNewName(''); }}
-                                                          className="shrink-0 p-1 rounded text-zinc-500 hover:bg-zinc-200 dark:hover:bg-zinc-700"
-                                                          title="Cancelar"
-                                                        >
-                                                          <X className="w-4 h-4" />
-                                                        </button>
-                                                      </div>
-                                                    ) : (
-                                                      <>
-                                                        <a
-                                                          href={att.url}
-                                                          target="_blank"
-                                                          rel="noopener noreferrer"
-                                                          className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors min-w-0 flex-1"
-                                                        >
-                                                          {isLoadingThis ? (
-                                                            <RefreshCw className="w-5 h-5 text-brand-yellow animate-spin shrink-0" />
-                                                          ) : (
-                                                            <FileText className="w-5 h-5 text-zinc-500 shrink-0" />
-                                                          )}
-                                                          <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300 truncate">{attachmentDisplayName(att.name)}</span>
-                                                          {(isPdf || !att.mimeType?.startsWith('image/')) && <ExternalLink className="w-4 h-4 text-zinc-400 shrink-0" />}
-                                                        </a>
-                                                        {canRename && (
-                                                          <>
-                                                            <button
-                                                              type="button"
-                                                              onClick={() => {
-                                                                setRenameAttachmentId(att.id);
-                                                                setRenameAttachmentNewName(attachmentDisplayName(att.name));
-                                                              }}
-                                                              className="shrink-0 p-2 rounded-lg text-zinc-500 hover:bg-zinc-200 dark:hover:bg-zinc-700 hover:text-zinc-700 dark:hover:text-zinc-300 disabled:opacity-50"
-                                                              title="Renomear arquivo"
-                                                              disabled={isDeletingThis}
-                                                            >
-                                                              <Pencil className="w-4 h-4" />
-                                                            </button>
-                                                            <button
-                                                              type="button"
-                                                              onClick={() =>
-                                                                handleDeleteAttachment(String(attachmentPath), att.id, att.url)
-                                                              }
-                                                              disabled={isDeletingThis}
-                                                              className="shrink-0 p-2 rounded-lg text-red-500/90 hover:bg-red-500/15 hover:text-red-600 disabled:opacity-50 dark:hover:text-red-400"
-                                                              title="Excluir arquivo"
-                                                              aria-label="Excluir arquivo"
-                                                            >
-                                                              {isDeletingThis ? (
-                                                                <Loader2 className="w-4 h-4 animate-spin" />
-                                                              ) : (
-                                                                <Trash2 className="w-4 h-4" />
-                                                              )}
-                                                            </button>
-                                                          </>
-                                                        )}
-                                                      </>
-                                                    )}
-                                                  </div>
-                                                );
-                                              })}
-                                            </div>
-                                          </div>
-                                        )}
-                                      </div>
-                                    );
-                                  })()
-                               ) : loadingDetails ? (
+                               {selectedCard ? (
+                                 <PatioPhotoAlbums
+                                   key={selectedCard.id}
+                                   serviceOrderId={selectedCard.id}
+                                   canEdit={can('canEditFicha')}
+                                   sectionTitleClassName={uiOsModalCardSectionTitle}
+                                   refreshKey={photoAlbumsRefreshKey}
+                                   onActiveFolderChange={setActivePhotoFolderTarget}
+                                   fallbackPhotos={albumFallbackPhotos}
+                                   dense={isPatioPcModal}
+                                   onPhotosChanged={async () => {
+                                     if (!selectedCard) return;
+                                     const photos = await getServiceOrderPhotos(selectedCard.id);
+                                     setCardDetails((prev) =>
+                                       prev
+                                         ? { ...prev, attachments: mapPhotosToAttachments(photos) }
+                                         : {
+                                             actions: [],
+                                             attachments: mapPhotosToAttachments(photos),
+                                           }
+                                     );
+                                   }}
+                                   onPreviewPhoto={(photos, index) => {
+                                     setPreviewImages({
+                                       items: photos.map((p) => ({
+                                         path: p.path,
+                                         url: p.url,
+                                         name: p.name,
+                                       })),
+                                       currentIndex: index,
+                                     });
+                                   }}
+                                   onSharePhoto={(e, att) => void handleShareImage(e, att)}
+                                 />
+                               ) : null}
+                               {(() => {
+                                 const attachments = cardDetails?.attachments ?? [];
+                                 const others = attachments.filter(
+                                   (att) =>
+                                     !(
+                                       att.mimeType?.startsWith('image/') ||
+                                       /\.(jpg|jpeg|png|gif|webp|heic|heif|bmp)$/i.test(att.url)
+                                     )
+                                 );
+                                 if (others.length === 0) {
+                                   if (!loadingDetails && attachments.length === 0) {
+                                     return (
+                                       <p className="pt-2 text-center text-[12px] font-medium text-zinc-500 dark:text-zinc-400">
+                                         Documentos PDF e outros arquivos aparecem aqui.
+                                       </p>
+                                     );
+                                   }
+                                   return null;
+                                 }
+                                 return (
+                                   <div className="pt-2">
+                                     <div className="mb-2 flex min-w-0 items-center">
+                                       <p className={uiOsModalCardSectionTitle}>Documentos</p>
+                                     </div>
+                                     <div className="flex flex-wrap gap-2">
+                                       {others.map((att) => {
+                                         const isPdf = isPdfAttachment(att.mimeType, att.url);
+                                         const isLoadingThis = loadingAttachmentId === att.id;
+                                         const isDeletingThis = deletingAttachmentId === att.id;
+                                         const isRenamingThis = renamingAttachmentId === att.id;
+                                         const isEditingName = renameAttachmentId === att.id;
+                                         const attachmentPath = att.id;
+                                         const canRename =
+                                           attachmentPath && !/^\d+$/.test(String(attachmentPath));
+                                         return (
+                                           <div
+                                             key={att.id}
+                                             className="flex max-w-full min-w-0 items-center gap-2"
+                                           >
+                                             {isEditingName ? (
+                                               <div className="flex min-w-0 flex-1 items-center gap-2 rounded-xl bg-zinc-100 px-3 py-2.5 dark:bg-zinc-800">
+                                                 <FileText className="h-5 w-5 shrink-0 text-zinc-500" />
+                                                 <input
+                                                   type="text"
+                                                   value={renameAttachmentNewName}
+                                                   onChange={(e) =>
+                                                     setRenameAttachmentNewName(e.target.value)
+                                                   }
+                                                   onKeyDown={(e) => {
+                                                     if (e.key === 'Enter') {
+                                                       e.preventDefault();
+                                                       if (
+                                                         selectedCard &&
+                                                         renameAttachmentNewName.trim()
+                                                       ) {
+                                                         setRenamingAttachmentId(att.id);
+                                                         renameServiceOrderPhoto(
+                                                           selectedCard.id,
+                                                           attachmentPath,
+                                                           renameAttachmentNewName.trim()
+                                                         )
+                                                           .then(() =>
+                                                             getServiceOrderPhotos(selectedCard.id)
+                                                           )
+                                                           .then((photos) => {
+                                                             setCardDetails((prev) =>
+                                                               prev
+                                                                 ? {
+                                                                     ...prev,
+                                                                     attachments:
+                                                                       mapPhotosToAttachments(
+                                                                         photos
+                                                                       ),
+                                                                   }
+                                                                 : null
+                                                             );
+                                                             setPhotoAlbumsRefreshKey((k) => k + 1);
+                                                           })
+                                                           .catch((err) =>
+                                                             alert(
+                                                               err?.message ?? 'Erro ao renomear.'
+                                                             )
+                                                           )
+                                                           .finally(() => {
+                                                             setRenameAttachmentId(null);
+                                                             setRenamingAttachmentId(null);
+                                                           });
+                                                       }
+                                                     }
+                                                     if (e.key === 'Escape') {
+                                                       setRenameAttachmentId(null);
+                                                       setRenameAttachmentNewName('');
+                                                     }
+                                                   }}
+                                                   className="min-w-0 flex-1 border-0 bg-transparent p-0 text-sm font-medium text-zinc-700 focus:outline-none focus:ring-0 dark:text-zinc-300"
+                                                   placeholder="Novo nome do arquivo"
+                                                   autoFocus
+                                                 />
+                                                 <button
+                                                   type="button"
+                                                   onClick={() => {
+                                                     if (
+                                                       !selectedCard ||
+                                                       !renameAttachmentNewName.trim()
+                                                     )
+                                                       return;
+                                                     setRenamingAttachmentId(att.id);
+                                                     renameServiceOrderPhoto(
+                                                       selectedCard.id,
+                                                       attachmentPath,
+                                                       renameAttachmentNewName.trim()
+                                                     )
+                                                       .then(() =>
+                                                         getServiceOrderPhotos(selectedCard.id)
+                                                       )
+                                                       .then((photos) => {
+                                                         setCardDetails((prev) =>
+                                                           prev
+                                                             ? {
+                                                                 ...prev,
+                                                                 attachments:
+                                                                   mapPhotosToAttachments(photos),
+                                                               }
+                                                             : null
+                                                         );
+                                                         setPhotoAlbumsRefreshKey((k) => k + 1);
+                                                       })
+                                                       .catch((err) =>
+                                                         alert(err?.message ?? 'Erro ao renomear.')
+                                                       )
+                                                       .finally(() => {
+                                                         setRenameAttachmentId(null);
+                                                         setRenamingAttachmentId(null);
+                                                       });
+                                                   }}
+                                                   disabled={
+                                                     isRenamingThis ||
+                                                     !renameAttachmentNewName.trim()
+                                                   }
+                                                   className="shrink-0 rounded p-1 text-brand-yellow hover:bg-brand-yellow/20 disabled:opacity-50"
+                                                   title="Confirmar"
+                                                 >
+                                                   <Check className="h-4 w-4" />
+                                                 </button>
+                                                 <button
+                                                   type="button"
+                                                   onClick={() => {
+                                                     setRenameAttachmentId(null);
+                                                     setRenameAttachmentNewName('');
+                                                   }}
+                                                   className="shrink-0 rounded p-1 text-zinc-500 hover:bg-zinc-200 dark:hover:bg-zinc-700"
+                                                   title="Cancelar"
+                                                 >
+                                                   <X className="h-4 w-4" />
+                                                 </button>
+                                               </div>
+                                             ) : (
+                                               <>
+                                                 <a
+                                                   href={att.url}
+                                                   target="_blank"
+                                                   rel="noopener noreferrer"
+                                                   className="flex min-w-0 flex-1 items-center gap-2 rounded-xl bg-zinc-100 px-3 py-2.5 transition-colors hover:bg-zinc-200 dark:bg-zinc-800 dark:hover:bg-zinc-700"
+                                                 >
+                                                   {isLoadingThis ? (
+                                                     <RefreshCw className="h-5 w-5 shrink-0 animate-spin text-brand-yellow" />
+                                                   ) : (
+                                                     <FileText className="h-5 w-5 shrink-0 text-zinc-500" />
+                                                   )}
+                                                   <span className="truncate text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                                                     {attachmentDisplayName(att.name)}
+                                                   </span>
+                                                   {(isPdf ||
+                                                     !att.mimeType?.startsWith('image/')) && (
+                                                     <ExternalLink className="h-4 w-4 shrink-0 text-zinc-400" />
+                                                   )}
+                                                 </a>
+                                                 {canRename && (
+                                                   <>
+                                                     <button
+                                                       type="button"
+                                                       onClick={() => {
+                                                         setRenameAttachmentId(att.id);
+                                                         setRenameAttachmentNewName(
+                                                           attachmentDisplayName(att.name)
+                                                         );
+                                                       }}
+                                                       className="shrink-0 rounded-lg p-2 text-zinc-500 hover:bg-zinc-200 hover:text-zinc-700 disabled:opacity-50 dark:hover:bg-zinc-700 dark:hover:text-zinc-300"
+                                                       title="Renomear arquivo"
+                                                       disabled={isDeletingThis}
+                                                     >
+                                                       <Pencil className="h-4 w-4" />
+                                                     </button>
+                                                     <button
+                                                       type="button"
+                                                       onClick={() =>
+                                                         handleDeleteAttachment(
+                                                           String(attachmentPath),
+                                                           att.id,
+                                                           att.url
+                                                         )
+                                                       }
+                                                       disabled={isDeletingThis}
+                                                       className="shrink-0 rounded-lg p-2 text-red-500/90 hover:bg-red-500/15 hover:text-red-600 disabled:opacity-50 dark:hover:text-red-400"
+                                                       title="Excluir arquivo"
+                                                       aria-label="Excluir arquivo"
+                                                     >
+                                                       {isDeletingThis ? (
+                                                         <Loader2 className="h-4 w-4 animate-spin" />
+                                                       ) : (
+                                                         <Trash2 className="h-4 w-4" />
+                                                       )}
+                                                     </button>
+                                                   </>
+                                                 )}
+                                               </>
+                                             )}
+                                           </div>
+                                         );
+                                       })}
+                                     </div>
+                                   </div>
+                                 );
+                               })()}
+                               {loadingDetails && !(cardDetails?.attachments?.length) ? (
                                   <div className="flex justify-center p-4">
                                      <RefreshCw className="w-4 h-4 text-zinc-500 animate-spin" />
                                   </div>
-                               ) : (
-                                  <div className="text-center py-6 border border-dashed border-zinc-300 dark:border-zinc-800 rounded-xl">
-                                     <p className="text-zinc-600 text-sm">Nenhum anexo encontrado.</p>
-                                  </div>
-                               )}
+                               ) : null}
                             </div>
                          </div>
                         </>

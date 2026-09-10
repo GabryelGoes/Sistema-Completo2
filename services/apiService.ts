@@ -1483,11 +1483,14 @@ async function readServiceOrderPhotoApiError(response: Response, fallback: strin
 async function uploadServiceOrderPhotoMultipart(
   id: string,
   uploadBlob: Blob,
-  name: string
+  name: string,
+  folderOptions?: { folderId?: string; folderSlug?: string }
 ): Promise<ServiceOrderPhoto> {
   const formData = new FormData();
   // Safari iOS: não usar `new File([blob])` — append Blob + nome evita envio vazio.
   formData.append("file", uploadBlob, name);
+  if (folderOptions?.folderId) formData.append("folderId", folderOptions.folderId);
+  if (folderOptions?.folderSlug) formData.append("folderSlug", folderOptions.folderSlug);
   const path = `/service-orders/${id}/photos`;
   const url =
     API_BASE.startsWith("/") && typeof window !== "undefined"
@@ -1535,7 +1538,8 @@ async function uploadServiceOrderPhotoDirect(
   uploadBlob: Blob,
   name: string,
   replacePath?: string,
-  contentTypeHint?: string
+  contentTypeHint?: string,
+  folderOptions?: { folderId?: string; folderSlug?: string }
 ): Promise<ServiceOrderPhoto> {
   let initResponse: Response;
   try {
@@ -1561,7 +1565,7 @@ async function uploadServiceOrderPhotoDirect(
   }
 
   if (initResponse.status === 404 && import.meta.env.DEV) {
-    return uploadServiceOrderPhotoMultipart(id, uploadBlob, name);
+    return uploadServiceOrderPhotoMultipart(id, uploadBlob, name, folderOptions);
   }
   if (!initResponse.ok) {
     throw new Error(
@@ -1623,7 +1627,11 @@ async function uploadServiceOrderPhotoDirect(
     completeResponse = await fetch(`${API_BASE}/service-orders/${id}/photos/upload-complete`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ path: init.path }),
+      body: JSON.stringify({
+        path: init.path,
+        ...(folderOptions?.folderId ? { folderId: folderOptions.folderId } : {}),
+        ...(folderOptions?.folderSlug ? { folderSlug: folderOptions.folderSlug } : {}),
+      }),
       cache: "no-store",
     });
   } catch (e) {
@@ -1650,7 +1658,8 @@ async function uploadServiceOrderPhotoDirect(
 export async function uploadServiceOrderPhoto(
   id: string,
   file: Blob,
-  fileName: string
+  fileName: string,
+  options?: { folderId?: string; folderSlug?: string }
 ): Promise<ServiceOrderPhoto> {
   const { blob, name, contentType } = await prepareServiceOrderUploadPayload(
     file,
@@ -1666,7 +1675,117 @@ export async function uploadServiceOrderPhoto(
     );
   }
 
-  return uploadServiceOrderPhotoDirect(id, blob, name, undefined, contentType);
+  return uploadServiceOrderPhotoDirect(id, blob, name, undefined, contentType, options);
+}
+
+export type ServiceOrderPhotoFolder = {
+  id: string;
+  name: string;
+  slug: string | null;
+  isSystem: boolean;
+  sortOrder: number;
+  photoCount: number;
+  coverUrls: string[];
+  createdAt?: string;
+  /** Fotos da pasta (quando a listagem já inclui). */
+  photos?: ServiceOrderPhoto[];
+};
+
+export type ServiceOrderPhotoFolderDetail = {
+  folder: ServiceOrderPhotoFolder;
+  photos: ServiceOrderPhoto[];
+};
+
+export async function getServiceOrderPhotoFolders(
+  serviceOrderId: string
+): Promise<ServiceOrderPhotoFolder[]> {
+  const response = await fetch(`${API_BASE}/service-orders/${serviceOrderId}/photo-folders`);
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({} as { error?: string }));
+    throw new Error(err.error || `Falha ao carregar pastas de fotos (${response.status})`);
+  }
+  const data = (await response.json()) as { folders?: ServiceOrderPhotoFolder[] };
+  return Array.isArray(data.folders) ? data.folders : [];
+}
+
+export async function getServiceOrderPhotoFolderDetail(
+  serviceOrderId: string,
+  folderId: string
+): Promise<ServiceOrderPhotoFolderDetail> {
+  const response = await fetch(
+    `${API_BASE}/service-orders/${serviceOrderId}/photo-folders/${folderId}`
+  );
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({} as { error?: string }));
+    throw new Error(err.error || `Falha ao abrir pasta (${response.status})`);
+  }
+  return response.json();
+}
+
+export async function createServiceOrderPhotoFolder(
+  serviceOrderId: string,
+  name: string
+): Promise<ServiceOrderPhotoFolder> {
+  const response = await fetch(`${API_BASE}/service-orders/${serviceOrderId}/photo-folders`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name }),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({} as { error?: string }));
+    throw new Error(err.error || `Falha ao criar pasta (${response.status})`);
+  }
+  return response.json();
+}
+
+export async function renameServiceOrderPhotoFolder(
+  serviceOrderId: string,
+  folderId: string,
+  name: string
+): Promise<ServiceOrderPhotoFolder> {
+  const response = await fetch(
+    `${API_BASE}/service-orders/${serviceOrderId}/photo-folders/${folderId}`,
+    {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name }),
+    }
+  );
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({} as { error?: string }));
+    throw new Error(err.error || `Falha ao renomear pasta (${response.status})`);
+  }
+  return response.json();
+}
+
+export async function deleteServiceOrderPhotoFolder(
+  serviceOrderId: string,
+  folderId: string
+): Promise<void> {
+  const response = await fetch(
+    `${API_BASE}/service-orders/${serviceOrderId}/photo-folders/${folderId}`,
+    { method: "DELETE" }
+  );
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({} as { error?: string }));
+    throw new Error(err.error || `Falha ao excluir pasta (${response.status})`);
+  }
+}
+
+export async function moveServiceOrderPhotoToFolder(
+  serviceOrderId: string,
+  path: string,
+  folderId: string
+): Promise<void> {
+  const response = await fetch(`${API_BASE}/service-orders/${serviceOrderId}/photo-items/move`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ path, folderId }),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({} as { error?: string }));
+    throw new Error(err.error || `Falha ao mover foto (${response.status})`);
+  }
 }
 
 export async function renameServiceOrderPhoto(
