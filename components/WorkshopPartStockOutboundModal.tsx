@@ -270,7 +270,7 @@ export function WorkshopPartStockOutboundModal({
   return (
     <RegistrationPortal>
       <div className={overlayClass} role="dialog" aria-modal="true" aria-label={title}>
-        <div className="flex max-h-[min(920px,94vh)] w-full max-w-2xl flex-col overflow-hidden rounded-[1.75rem] border border-white/20 bg-zinc-50 shadow-2xl dark:border-white/10 dark:bg-zinc-950">
+        <div className="flex max-h-[min(920px,94vh)] w-full max-w-2xl flex-col overflow-hidden rounded-[1.75rem] border-0 bg-zinc-50 shadow-none dark:bg-zinc-950">
           <div className="flex items-start justify-between gap-3 border-b border-zinc-200/80 px-5 py-4 dark:border-white/10">
             <div className="flex min-w-0 items-start gap-3">
               <button
@@ -365,7 +365,7 @@ export function WorkshopPartStockOutboundModal({
                   }}
                   disabled={saving}
                   placeholder="Digite o nome, marca ou modelo…"
-                  className="w-full rounded-2xl border border-zinc-300 bg-white py-3 pl-10 pr-3 text-[15px] text-zinc-900 outline-none ring-emerald-500/30 focus:ring-2 dark:border-white/15 dark:bg-white/5 dark:text-white"
+                  className="w-full rounded-2xl border-0 bg-zinc-100 py-3 pl-10 pr-3 text-[15px] text-zinc-900 outline-none ring-emerald-500/30 focus:ring-2 dark:bg-white/5 dark:text-white"
                   aria-label="Buscar produto por nome"
                   autoComplete="off"
                 />
@@ -373,7 +373,7 @@ export function WorkshopPartStockOutboundModal({
 
               {showNameList ? (
                 nameMatches.length > 0 ? (
-                  <ul className="max-h-[min(240px,32vh)] space-y-1 overflow-y-auto rounded-2xl border border-zinc-200 bg-white p-1.5 dark:border-white/10 dark:bg-white/5 custom-scrollbar">
+                  <ul className="max-h-[min(240px,32vh)] space-y-1 overflow-y-auto rounded-2xl border-0 bg-white p-1.5 dark:bg-white/5 custom-scrollbar">
                     {nameMatches.map((p) => {
                       const selected = part?.id === p.id;
                       return (
@@ -419,7 +419,7 @@ export function WorkshopPartStockOutboundModal({
             </section>
 
             {part ? (
-              <section className="rounded-2xl border border-zinc-200 bg-white p-4 dark:border-white/10 dark:bg-white/5">
+              <section className="rounded-2xl border-0 bg-white p-4 dark:bg-white/5">
                 <div className="flex gap-3">
                   <div className="h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-zinc-100 dark:bg-zinc-800">
                     {part.photo_url ? (
@@ -469,7 +469,7 @@ export function WorkshopPartStockOutboundModal({
                       step="0.001"
                       value={qty}
                       onChange={(e) => setQty(e.target.value)}
-                      className="w-full rounded-xl border border-zinc-300 bg-white px-3 py-2.5 text-[15px] tabular-nums outline-none focus:ring-2 focus:ring-emerald-500/30 dark:border-white/15 dark:bg-black/20 dark:text-white"
+                      className="w-full rounded-xl border-0 bg-zinc-100 px-3 py-2.5 text-[15px] tabular-nums outline-none focus:ring-2 focus:ring-emerald-500/30 dark:bg-black/20 dark:text-white"
                     />
                   </label>
                   {isSale ? (
@@ -483,7 +483,7 @@ export function WorkshopPartStockOutboundModal({
                         step="0.01"
                         value={unitPrice}
                         onChange={(e) => setUnitPrice(e.target.value)}
-                        className="w-full rounded-xl border border-zinc-300 bg-white px-3 py-2.5 text-[15px] tabular-nums outline-none focus:ring-2 focus:ring-emerald-500/30 dark:border-white/15 dark:bg-black/20 dark:text-white"
+                        className="w-full rounded-xl border-0 bg-zinc-100 px-3 py-2.5 text-[15px] tabular-nums outline-none focus:ring-2 focus:ring-emerald-500/30 dark:bg-black/20 dark:text-white"
                       />
                     </label>
                   ) : null}
@@ -504,7 +504,7 @@ export function WorkshopPartStockOutboundModal({
                     value={notes}
                     onChange={(e) => setNotes(e.target.value)}
                     placeholder={isSale ? 'Cliente, NF…' : 'Bancada, OS interna…'}
-                    className="w-full rounded-xl border border-zinc-300 bg-white px-3 py-2.5 text-[15px] outline-none focus:ring-2 focus:ring-emerald-500/30 dark:border-white/15 dark:bg-black/20 dark:text-white"
+                    className="w-full rounded-xl border-0 bg-zinc-100 px-3 py-2.5 text-[15px] outline-none focus:ring-2 focus:ring-emerald-500/30 dark:bg-black/20 dark:text-white"
                   />
                 </label>
 
@@ -553,7 +553,7 @@ export function WorkshopPartStockOutboundModal({
                   {history.map((row) => (
                     <li
                       key={row.id}
-                      className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-zinc-200/80 bg-white/80 px-3 py-2.5 text-[13px] dark:border-white/10 dark:bg-white/5"
+                      className="flex flex-wrap items-center justify-between gap-2 rounded-xl border-0 bg-white/80 px-3 py-2.5 text-[13px] dark:bg-white/5"
                     >
                       <span className="min-w-0">
                         <span className="block font-semibold text-zinc-900 dark:text-white">

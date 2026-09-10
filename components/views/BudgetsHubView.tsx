@@ -328,7 +328,7 @@ export const BudgetsHubView: React.FC<BudgetsHubViewProps> = ({
                 type="button"
                 onClick={() => void load({ silent: true })}
                 disabled={refreshing || loading}
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-zinc-200/90 bg-white text-zinc-700 shadow-sm transition-colors hover:bg-zinc-50 disabled:opacity-50 dark:border-white/[0.12] dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-0 bg-zinc-100 text-zinc-700 shadow-none transition-colors hover:bg-zinc-200/80 disabled:opacity-50 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
                 aria-label="Atualizar"
               >
                 <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />

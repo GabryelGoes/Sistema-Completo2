@@ -1134,7 +1134,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
               <button
                 type="button"
                 onClick={() => setIsCategoriesModalOpen(true)}
-                className="inline-flex items-center justify-center gap-2 rounded-2xl border border-zinc-300 dark:border-white/15 bg-white dark:bg-white/5 px-4 py-3 text-[15px] font-semibold text-zinc-800 dark:text-white hover:bg-zinc-50 dark:hover:bg-white/10 transition-colors"
+                className="inline-flex items-center justify-center gap-2 rounded-2xl border-0 bg-zinc-100 dark:bg-white/5 px-4 py-3 text-[15px] font-semibold text-zinc-800 dark:text-white hover:bg-zinc-200/80 dark:hover:bg-white/10 transition-colors"
               >
                 <Tags className="w-5 h-5" />
                 Categorias
@@ -1171,7 +1171,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
                       aria-expanded={categoryFilterMenuOpen}
                       aria-controls="workshop-parts-category-listbox"
                       onClick={() => setCategoryFilterMenuOpen((open) => !open)}
-                      className="flex w-full min-h-[46px] items-center justify-between gap-2 rounded-xl border border-zinc-200/90 dark:border-white/[0.12] bg-white/95 dark:bg-zinc-950/90 py-2.5 pl-3 pr-2 text-left text-[15px] font-semibold text-zinc-900 dark:text-white shadow-sm dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04)] focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:border-emerald-500/50 transition-colors"
+                      className="flex w-full min-h-[46px] items-center justify-between gap-2 rounded-xl border-0 bg-zinc-100 dark:bg-zinc-950/90 py-2.5 pl-3 pr-2 text-left text-[15px] font-semibold text-zinc-900 dark:text-white shadow-none focus:outline-none focus:ring-2 focus:ring-emerald-500/40 transition-colors"
                     >
                       <span className="min-w-0 truncate">{categoryFilterLabel}</span>
                       <ChevronDown
@@ -1186,7 +1186,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
                         id="workshop-parts-category-listbox"
                         role="listbox"
                         aria-label="Opções de filtro por categoria"
-                        className="absolute left-0 right-0 top-full z-[60] mt-1.5 max-h-[min(280px,45vh)] overflow-y-auto rounded-xl border-0 bg-white dark:bg-zinc-900 py-1.5 shadow-none shadow-zinc-900/12 dark:shadow-[0_12px_40px_-8px_rgba(0,0,0,0.65)] ring-1 ring-zinc-900/5 dark:ring-white/10"
+                        className="absolute left-0 right-0 top-full z-[60] mt-1.5 max-h-[min(280px,45vh)] overflow-y-auto rounded-xl border-0 bg-white dark:bg-zinc-900 py-1.5 shadow-none"
                       >
                         {categoryFilterOptions.map((opt) => {
                           const selected = categoryFilter === opt.value;
@@ -1236,7 +1236,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
                       onChange={(e) => setPartsSearchQuery(e.target.value)}
                       placeholder="Pesquisar nesta seleção (nome, preço, categorias…)"
                       autoComplete="off"
-                      className="w-full rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 py-2.5 pl-10 pr-10 text-[15px] text-zinc-900 dark:text-white placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/35 focus:border-emerald-500/50"
+                      className="w-full rounded-xl border-0 bg-zinc-100 dark:bg-white/5 py-2.5 pl-10 pr-10 text-[15px] text-zinc-900 dark:text-white placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/35"
                     />
                     {partsSearchQuery ? (
                       <button
@@ -1261,7 +1261,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
                   <div
                     role="group"
                     aria-labelledby="workshop-parts-sort-label"
-                    className="inline-flex w-full sm:w-auto rounded-xl border border-zinc-200/90 dark:border-white/[0.12] bg-white/95 dark:bg-zinc-950/90 p-1 shadow-sm"
+                    className="inline-flex w-full sm:w-auto rounded-xl border-0 bg-zinc-100 dark:bg-zinc-950/90 p-1 shadow-none"
                   >
                     <button
                       type="button"
@@ -1538,7 +1538,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
                           type="text"
                           value={editingName}
                           onChange={(e) => setEditingName(e.target.value)}
-                          className="w-full min-w-0 basis-full px-3 py-2 rounded-lg border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white text-[15px] focus:outline-none focus:ring-2 focus:ring-brand-yellow/40 md:basis-auto md:min-w-0"
+                          className="w-full min-w-0 basis-full px-3 py-2 rounded-lg border-0 bg-zinc-100 dark:bg-white/5 text-zinc-900 dark:text-white text-[15px] focus:outline-none focus:ring-2 focus:ring-brand-yellow/40 md:basis-auto md:min-w-0"
                           autoFocus
                         />
                         <div className="grid w-full basis-full grid-cols-2 gap-2 md:contents">
@@ -1548,7 +1548,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
                             step="0.01"
                             value={editingPrice}
                             onChange={(e) => setEditingPrice(e.target.value)}
-                            className="min-w-0 px-3 py-2 rounded-lg border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white text-[14px] text-right tabular-nums focus:outline-none focus:ring-2 focus:ring-brand-yellow/40 md:min-w-0"
+                            className="min-w-0 px-3 py-2 rounded-lg border-0 bg-zinc-100 dark:bg-white/5 text-zinc-900 dark:text-white text-[14px] text-right tabular-nums focus:outline-none focus:ring-2 focus:ring-brand-yellow/40 md:min-w-0"
                           />
                           <input
                             type="number"
@@ -1556,7 +1556,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
                             step="0.001"
                             value={editingStock}
                             onChange={(e) => setEditingStock(e.target.value)}
-                            className="min-w-0 px-3 py-2 rounded-lg border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white text-[14px] text-right tabular-nums focus:outline-none focus:ring-2 focus:ring-brand-yellow/40 md:min-w-0"
+                            className="min-w-0 px-3 py-2 rounded-lg border-0 bg-zinc-100 dark:bg-white/5 text-zinc-900 dark:text-white text-[14px] text-right tabular-nums focus:outline-none focus:ring-2 focus:ring-brand-yellow/40 md:min-w-0"
                           />
                         </div>
                         <div className="flex w-full basis-full items-center justify-end gap-2 md:contents">
@@ -1588,7 +1588,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
                           className="w-full min-w-0 flex flex-[1_1_100%] items-center gap-3 text-left rounded-xl -my-1 -ml-2 pl-2 pr-2 py-1.5 hover:bg-zinc-200/70 dark:hover:bg-white/[0.07] transition-colors cursor-pointer md:col-span-1 md:flex-[unset] md:w-auto"
                           title="Ver detalhes do produto"
                         >
-                          <div className="isolate w-10 h-10 shrink-0 overflow-hidden rounded-lg border border-zinc-200 bg-zinc-100 pointer-events-none dark:border-white/10 dark:bg-white/5">
+                          <div className="isolate w-10 h-10 shrink-0 overflow-hidden rounded-lg border-0 bg-zinc-100 pointer-events-none dark:bg-white/5">
                             {p.photo_url ? (
                               <PartPhotoImg
                                 src={p.photo_url}
@@ -1919,7 +1919,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
                   }
                 }}
                 placeholder="Nome da nova categoria"
-                className="flex-1 min-w-0 rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 px-4 py-3 text-[15px] text-zinc-900 dark:text-white placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/35"
+                className="flex-1 min-w-0 rounded-xl border-0 bg-zinc-100 dark:bg-white/5 px-4 py-3 text-[15px] text-zinc-900 dark:text-white placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/35"
               />
               <button
                 type="button"
@@ -1931,7 +1931,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
                 Criar
               </button>
             </div>
-            <ul className="divide-y divide-zinc-200/60 dark:divide-white/[0.08] rounded-xl border border-zinc-200/60 dark:border-white/[0.08] overflow-hidden">
+            <ul className="divide-y divide-zinc-200/60 dark:divide-white/[0.08] rounded-xl border-0 overflow-hidden bg-zinc-50/80 dark:bg-white/[0.03]">
               {categories.length === 0 ? (
                 <li className="px-4 py-8 text-center text-[14px] text-zinc-500 dark:text-zinc-400">Nenhuma categoria ainda.</li>
               ) : (
@@ -1946,7 +1946,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
                           type="text"
                           value={categoryEditingName}
                           onChange={(e) => setCategoryEditingName(e.target.value)}
-                          className="flex-1 min-w-[120px] rounded-lg border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 px-3 py-2 text-[15px] text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/35"
+                          className="flex-1 min-w-[120px] rounded-lg border-0 bg-zinc-100 dark:bg-white/5 px-3 py-2 text-[15px] text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/35"
                           autoFocus
                         />
                         <button

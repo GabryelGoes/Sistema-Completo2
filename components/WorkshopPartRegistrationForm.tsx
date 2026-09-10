@@ -48,7 +48,7 @@ const labelCls =
 const lightFieldShadow = 'shadow-none';
 const lightCardShadow = 'shadow-none';
 const inputCls =
-  `w-full min-w-0 rounded-lg border border-zinc-200/90 dark:border-white/10 bg-zinc-100 dark:bg-white/5 px-3 py-2 text-[14px] text-zinc-900 dark:text-white placeholder:text-zinc-500 dark:placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/35 focus:border-emerald-500/40 ${lightFieldShadow}`;
+  `w-full min-w-0 rounded-lg border-0 bg-zinc-100 dark:bg-white/5 px-3 py-2 text-[14px] text-zinc-900 dark:text-white placeholder:text-zinc-500 dark:placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/35 ${lightFieldShadow}`;
 const textareaCls = `${inputCls} resize-y min-h-[88px]`;
 
 function FieldLabel({ children, hint }: { children: React.ReactNode; hint?: string }) {
@@ -84,7 +84,7 @@ function QtyWithUnit({
         className={`${inputCls} flex-1 tabular-nums`}
       />
       <span
-        className={`flex shrink-0 items-center rounded-lg border border-zinc-200/90 dark:border-white/10 bg-zinc-200/80 dark:bg-white/[0.04] px-2.5 text-[12px] font-bold text-zinc-600 dark:text-zinc-300 ${lightFieldShadow}`}
+        className={`flex shrink-0 items-center rounded-lg border-0 bg-zinc-200/80 dark:bg-white/[0.04] px-2.5 text-[12px] font-bold text-zinc-600 dark:text-zinc-300 ${lightFieldShadow}`}
       >
         {unit}
       </span>
@@ -143,7 +143,7 @@ function UnitOfMeasureSelect({
           id="workshop-part-unit-of-measure-list"
           role="listbox"
           aria-labelledby="workshop-part-unit-of-measure"
-          className={`absolute left-0 right-0 top-full z-30 mt-1 max-h-[min(280px,40vh)] overflow-y-auto rounded-lg border-0 bg-white py-1 shadow-none shadow-zinc-900/10 dark:bg-zinc-900 dark:shadow-[0_12px_40px_-8px_rgba(0,0,0,0.65)]`}
+          className={`absolute left-0 right-0 top-full z-30 mt-1 max-h-[min(280px,40vh)] overflow-y-auto rounded-lg border-0 bg-white py-1 shadow-none dark:bg-zinc-900`}
         >
           {UNIT_OF_MEASURE_OPTIONS.map((opt) => {
             const isSelected = opt.value === value;
@@ -247,7 +247,7 @@ function PartCategoriesSelect({
             onClick={onManageCategories}
             disabled={disabled}
             title="Gerenciar categorias"
-            className={`flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-lg border border-zinc-200/90 bg-zinc-100 text-zinc-700 hover:bg-zinc-200/90 disabled:opacity-50 dark:border-white/10 dark:bg-white/[0.05] dark:text-zinc-200 ${lightFieldShadow}`}
+            className={`flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-lg border-0 bg-zinc-100 text-zinc-700 hover:bg-zinc-200/90 disabled:opacity-50 dark:bg-white/[0.05] dark:text-zinc-200 ${lightFieldShadow}`}
           >
             <Tags className="h-4 w-4" aria-hidden />
           </button>
@@ -256,7 +256,7 @@ function PartCategoriesSelect({
           <ul
             role="listbox"
             aria-multiselectable="true"
-            className="absolute left-0 right-0 top-full z-30 mt-1 max-h-[min(240px,36vh)] overflow-y-auto rounded-lg border-0 bg-white py-1 shadow-none shadow-zinc-900/10 dark:bg-zinc-900 dark:shadow-[0_12px_40px_-8px_rgba(0,0,0,0.65)]"
+            className="absolute left-0 right-0 top-full z-30 mt-1 max-h-[min(240px,36vh)] overflow-y-auto rounded-lg border-0 bg-white py-1 shadow-none dark:bg-zinc-900"
           >
             {categories.length === 0 ? (
               <li className="px-3 py-3 text-[13px] text-zinc-500 dark:text-zinc-400">
@@ -441,7 +441,7 @@ export function WorkshopPartRegistrationForm({
                 {slot ? (
                   <>
                     <div
-                      className={`relative isolate h-full w-full overflow-hidden rounded-xl border border-zinc-200/90 bg-zinc-100 dark:border-white/10 dark:bg-white/[0.03] ${index === 0 ? 'ring-2 ring-emerald-500/45' : ''} ${lightCardShadow}`}
+                      className={`relative isolate h-full w-full overflow-hidden rounded-xl border-0 bg-zinc-100 dark:bg-white/[0.03] ${index === 0 ? 'ring-2 ring-emerald-500/45' : ''} ${lightCardShadow}`}
                     >
                       {index === 0 ? (
                         <span className="absolute left-1 top-1 z-10 rounded-md bg-emerald-600 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-white shadow-sm">
@@ -507,7 +507,7 @@ export function WorkshopPartRegistrationForm({
               type="button"
               onClick={onAddPhoto}
               disabled={photoBusy || photos.length >= maxPhotos}
-              className={`inline-flex items-center gap-1 rounded-lg border border-zinc-200/90 bg-zinc-100 px-2.5 py-1.5 text-[12px] font-semibold text-zinc-700 disabled:opacity-50 dark:border-white/10 dark:bg-transparent dark:text-zinc-200 ${lightFieldShadow}`}
+              className={`inline-flex items-center gap-1 rounded-lg border-0 bg-zinc-100 px-2.5 py-1.5 text-[12px] font-semibold text-zinc-700 disabled:opacity-50 dark:bg-transparent dark:text-zinc-200 ${lightFieldShadow}`}
             >
               <Images className="h-3.5 w-3.5" /> Galeria
             </button>
@@ -515,7 +515,7 @@ export function WorkshopPartRegistrationForm({
               type="button"
               onClick={onAddPhotoCamera ?? onAddPhoto}
               disabled={photoBusy || photos.length >= maxPhotos}
-              className={`inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-2.5 py-1.5 text-[12px] font-semibold text-white disabled:opacity-50 shadow-[0_3px_12px_-2px_rgba(5,150,105,0.45)] dark:shadow-none`}
+              className={`inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-2.5 py-1.5 text-[12px] font-semibold text-white disabled:opacity-50 shadow-none`}
             >
               <Camera className="h-3.5 w-3.5" /> Câmera
             </button>
@@ -586,7 +586,7 @@ export function WorkshopPartRegistrationForm({
               <button
                 type="button"
                 onClick={() => setBarcodeScannerOpen(true)}
-                className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg border border-zinc-200/90 bg-zinc-100 px-3 py-2 text-[13px] font-semibold text-zinc-800 hover:bg-zinc-200/80 dark:border-white/10 dark:bg-white/5 dark:text-white dark:hover:bg-white/10"
+                className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg border-0 bg-zinc-100 px-3 py-2 text-[13px] font-semibold text-zinc-800 hover:bg-zinc-200/80 dark:bg-white/5 dark:text-white dark:hover:bg-white/10"
                 title="Ler código com a câmera"
               >
                 <Camera className="h-4 w-4" />
@@ -850,14 +850,14 @@ export function WorkshopPartRegistrationForm({
           setFiscalDraft(values.fiscal_extra ?? {});
           setFiscalOpen(true);
         }}
-        className={`flex w-full items-center justify-center gap-2 rounded-lg border border-zinc-200/90 bg-zinc-100 px-4 py-3 text-[13px] font-semibold text-zinc-800 dark:border-white/10 dark:bg-white/[0.03] dark:text-zinc-200 hover:bg-zinc-200/90 dark:hover:bg-white/[0.06] ${lightCardShadow}`}
+        className={`flex w-full items-center justify-center gap-2 rounded-lg border-0 bg-zinc-100 px-4 py-3 text-[13px] font-semibold text-zinc-800 dark:bg-white/[0.03] dark:text-zinc-200 hover:bg-zinc-200/90 dark:hover:bg-white/[0.06] ${lightCardShadow}`}
       >
         <Eye className="h-4 w-4" aria-hidden />
         Mais configurações fiscais
       </button>
 
       <div
-        className={`overflow-hidden rounded-xl border border-zinc-200/90 bg-zinc-50/50 dark:border-white/[0.08] dark:bg-transparent ${lightCardShadow}`}
+        className={`overflow-hidden rounded-xl border-0 bg-zinc-50/50 dark:bg-transparent ${lightCardShadow}`}
       >
         <div
           className={`flex items-center justify-between gap-3 border-b border-zinc-200/70 bg-zinc-100 px-4 py-3 dark:border-white/[0.06] dark:bg-white/[0.03] ${lightFieldShadow}`}
@@ -991,7 +991,7 @@ export function WorkshopPartRegistrationForm({
           type="button"
           onClick={handleSave}
           disabled={!values.name.trim() || saving}
-          className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-8 py-3 text-[15px] font-semibold text-white shadow-[0_4px_16px_-2px_rgba(5,150,105,0.45)] hover:bg-emerald-500 disabled:opacity-50 dark:shadow-none"
+          className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-8 py-3 text-[15px] font-semibold text-white shadow-none hover:bg-emerald-500 disabled:opacity-50"
         >
           {saving ? <Loader2 className="h-5 w-5 animate-spin" /> : <Save className="h-5 w-5" />}
           Salvar

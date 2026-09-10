@@ -83,7 +83,7 @@ export function BudgetHubBudgetPickerModal({
 
           <div className="shrink-0 border-b border-zinc-200/70 px-5 pb-3.5 pt-5 dark:border-white/[0.08] sm:px-6 sm:pt-6">
             <div className="flex items-start gap-3 pr-10">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] border border-zinc-200/80 bg-white/80 shadow-sm dark:border-white/[0.1] dark:bg-zinc-900/70">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] border-0 bg-zinc-100 shadow-none dark:bg-zinc-900/70">
                 <FileText className="h-5 w-5 text-[#007AFF]" strokeWidth={2.1} aria-hidden />
               </div>
               <div className="min-w-0 flex-1">
@@ -108,7 +108,7 @@ export function BudgetHubBudgetPickerModal({
                   {!isLab ? (
                     <MercosulPlateMockup plate={plate} blurPlates={blurPlates} size="cardCompact" />
                   ) : (
-                    <span className="truncate rounded-lg border border-zinc-200/80 bg-white/70 px-2 py-0.5 font-mono text-[11px] font-bold text-zinc-800 dark:border-white/[0.1] dark:bg-zinc-950/50 dark:text-zinc-200">
+                    <span className="truncate rounded-lg border-0 bg-zinc-100 px-2 py-0.5 font-mono text-[11px] font-bold text-zinc-800 dark:bg-zinc-950/50 dark:text-zinc-200">
                       {moduleId}
                     </span>
                   )}
@@ -210,7 +210,7 @@ export function BudgetHubBudgetPickerModal({
             <button
               type="button"
               onClick={onClose}
-              className="w-full rounded-xl border border-zinc-200/90 bg-white py-2.5 text-[14px] font-semibold text-zinc-700 transition-colors hover:bg-zinc-50 dark:border-white/[0.1] dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
+              className="w-full rounded-xl border-0 bg-zinc-100 py-2.5 text-[14px] font-semibold text-zinc-700 transition-colors hover:bg-zinc-200/80 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
             >
               Cancelar
             </button>

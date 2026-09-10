@@ -61,7 +61,7 @@ export const BudgetLinePositionControl: React.FC<BudgetLinePositionControlProps>
           id={listId}
           role="listbox"
           aria-label={`Mover ${ariaLabelPrefix.toLowerCase()} para posição`}
-          className="absolute left-0 top-[calc(100%+0.35rem)] z-40 min-w-[9.5rem] max-w-[12rem] rounded-xl border border-sky-200/90 bg-white p-2 shadow-[0_12px_32px_-10px_rgba(14,116,144,0.28)]"
+          className="absolute left-0 top-[calc(100%+0.35rem)] z-40 min-w-[9.5rem] max-w-[12rem] rounded-xl border-0 bg-white p-2 shadow-none"
         >
           <p className="mb-1.5 px-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-sky-700/80">
             Mover para

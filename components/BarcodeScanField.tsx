@@ -75,7 +75,7 @@ export function BarcodeScanField({
               }
             }}
             placeholder={placeholder}
-            className="w-full rounded-2xl border border-zinc-300 bg-white py-3 pl-10 pr-3 text-[15px] text-zinc-900 outline-none ring-emerald-500/30 focus:ring-2 dark:border-white/15 dark:bg-white/5 dark:text-white"
+            className="w-full rounded-2xl border-0 bg-zinc-100 py-3 pl-10 pr-3 text-[15px] text-zinc-900 outline-none ring-emerald-500/30 focus:ring-2 dark:bg-white/5 dark:text-white"
             aria-label="Código do produto"
           />
         </div>
@@ -92,7 +92,7 @@ export function BarcodeScanField({
           type="button"
           disabled={disabled || submitting}
           onClick={() => setScannerOpen(true)}
-          className="inline-flex shrink-0 items-center justify-center gap-2 rounded-2xl border border-zinc-300 bg-white px-3 py-3 text-[14px] font-semibold text-zinc-800 hover:bg-zinc-50 dark:border-white/15 dark:bg-white/5 dark:text-white dark:hover:bg-white/10 disabled:opacity-50"
+          className="inline-flex shrink-0 items-center justify-center gap-2 rounded-2xl border-0 bg-zinc-100 px-3 py-3 text-[14px] font-semibold text-zinc-800 hover:bg-zinc-200/80 dark:bg-white/5 dark:text-white dark:hover:bg-white/10 disabled:opacity-50"
           title="Ler com a câmera"
         >
           <Camera className="h-4 w-4" />

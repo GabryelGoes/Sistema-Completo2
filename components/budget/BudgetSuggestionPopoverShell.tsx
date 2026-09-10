@@ -73,7 +73,7 @@ export const BudgetSuggestionPopoverShell: React.FC<BudgetSuggestionPopoverShell
         aria-hidden
       />
       <div
-        className="fixed z-[321] flex flex-col overflow-hidden rounded-2xl border border-sky-200/80 bg-white shadow-[0_18px_50px_-18px_rgba(15,23,42,0.35),0_8px_24px_-12px_rgba(14,116,144,0.22)]"
+        className="fixed z-[321] flex flex-col overflow-hidden rounded-2xl border-0 bg-white shadow-none"
         style={{
           top: layout.top,
           bottom: layout.bottom,

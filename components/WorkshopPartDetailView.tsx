@@ -138,7 +138,7 @@ export function WorkshopPartDetailView({
       ) : (
         <>
           {(osNum != null || complaint || labContext?.customer_name) ? (
-            <div className="overflow-hidden rounded-2xl border-2 border-teal-500/40 bg-gradient-to-br from-teal-50 to-cyan-50/80 shadow-[0_4px_24px_-8px_rgba(13,148,136,0.35)] dark:border-teal-500/30 dark:from-teal-950/50 dark:to-cyan-950/30">
+            <div className="overflow-hidden rounded-2xl border-0 bg-gradient-to-br from-teal-50 to-cyan-50/80 shadow-none dark:from-teal-950/50 dark:to-cyan-950/30">
               <div className="grid sm:grid-cols-[minmax(120px,180px)_1fr]">
                 <div className="flex flex-col justify-center bg-teal-600 px-5 py-4 text-white dark:bg-teal-700">
                   <p className="text-[10px] font-bold uppercase tracking-widest text-teal-100">
@@ -198,7 +198,7 @@ export function WorkshopPartDetailView({
                   return (
                   <div
                     key={slot.id}
-                    className="group relative aspect-square overflow-hidden rounded-xl border border-zinc-200/90 bg-zinc-100 dark:border-white/10 dark:bg-white/[0.03]"
+                    className="group relative aspect-square overflow-hidden rounded-xl border-0 bg-zinc-100 dark:bg-white/[0.03]"
                   >
                     {canPreview ? (
                       <button

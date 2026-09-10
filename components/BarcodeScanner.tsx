@@ -382,7 +382,7 @@ export function BarcodeScanner({
   return (
     <RegistrationPortal>
       <div className={overlayClass} role="dialog" aria-modal="true" aria-label={title}>
-        <div className="flex w-full max-w-lg flex-col overflow-hidden rounded-[1.75rem] border border-white/20 bg-zinc-950 text-white shadow-2xl">
+        <div className="flex w-full max-w-lg flex-col overflow-hidden rounded-[1.75rem] border-0 bg-zinc-950 text-white shadow-none">
           <div className="flex items-center justify-between gap-3 border-b border-white/10 px-4 py-3">
             <div className="min-w-0">
               <h2 className="truncate text-[16px] font-bold">{title}</h2>
