@@ -384,6 +384,9 @@ export function PatioPhotoAlbums({
     onActiveFolderChange?.({ folderId: openFolderId });
   }, [openFolderId, openFolder?.slug, onActiveFolderChange]);
 
+  const loadFolderDetailRef = useRef(loadFolderDetail);
+  loadFolderDetailRef.current = loadFolderDetail;
+
   // Só reage a openFolderId/refreshKey — evita loop infinito quando folders muda.
   useEffect(() => {
     if (!openFolderId) {
@@ -393,8 +396,7 @@ export function PatioPhotoAlbums({
       setLoadingFolder(false);
       return;
     }
-    void loadFolderDetail(openFolderId);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- intencional: não depender de loadFolderDetail
+    void loadFolderDetailRef.current(openFolderId);
   }, [openFolderId, refreshKey, serviceOrderId]);
 
   const totalPhotos = useMemo(
