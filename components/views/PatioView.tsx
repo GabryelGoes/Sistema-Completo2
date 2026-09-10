@@ -9200,6 +9200,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                    refreshKey={photoAlbumsRefreshKey}
                                    onActiveFolderChange={setActivePhotoFolderTarget}
                                    fallbackPhotos={albumFallbackPhotos}
+                                   dense={isPatioPcModal}
                                    onPhotosChanged={async () => {
                                      if (!selectedCard) return;
                                      const photos = await getServiceOrderPhotos(selectedCard.id);

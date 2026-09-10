@@ -77,14 +77,25 @@ function buildVirtualFoldersFromPhotos(photos: ServiceOrderPhoto[]): {
   return { folders, photosByFolder };
 }
 
-function FolderCover({ urls, className = '' }: { urls: string[]; className?: string }) {
+function FolderCover({
+  urls,
+  className = '',
+  dense = false,
+}: {
+  urls: string[];
+  className?: string;
+  dense?: boolean;
+}) {
   const covers = urls.slice(0, 4);
   if (covers.length === 0) {
     return (
       <div
         className={`flex aspect-square items-center justify-center bg-gradient-to-br from-zinc-100 via-zinc-50 to-zinc-200/80 dark:from-zinc-800 dark:via-zinc-900 dark:to-zinc-950 ${className}`}
       >
-        <ImageIcon className="h-10 w-10 text-zinc-300 dark:text-zinc-600" strokeWidth={1.5} />
+        <ImageIcon
+          className={`${dense ? 'h-7 w-7' : 'h-10 w-10'} text-zinc-300 dark:text-zinc-600`}
+          strokeWidth={1.5}
+        />
       </div>
     );
   }
@@ -95,9 +106,9 @@ function FolderCover({ urls, className = '' }: { urls: string[]; className?: str
           src={covers[0]}
           alt=""
           className="h-full w-full object-cover"
-          sizes="200px"
-          thumbMaxWidth={280}
-          thumbMaxHeight={280}
+          sizes={dense ? '120px' : '200px'}
+          thumbMaxWidth={dense ? 160 : 280}
+          thumbMaxHeight={dense ? 160 : 280}
           thumbQuality={58}
         />
       </div>
@@ -112,9 +123,9 @@ function FolderCover({ urls, className = '' }: { urls: string[]; className?: str
               src={covers[i]}
               alt=""
               className="h-full w-full object-cover"
-              sizes="100px"
-              thumbMaxWidth={140}
-              thumbMaxHeight={140}
+              sizes={dense ? '60px' : '100px'}
+              thumbMaxWidth={dense ? 90 : 140}
+              thumbMaxHeight={dense ? 90 : 140}
               thumbQuality={50}
             />
           ) : (
@@ -145,7 +156,10 @@ export type PatioPhotoAlbumsProps = {
    * garantir que a entrada do veículo continue visível em Anexos.
    */
   fallbackPhotos?: ServiceOrderPhoto[];
+  /** Layout mais compacto (modal PC). */
+  dense?: boolean;
 };
+
 export function PatioPhotoAlbums({
   serviceOrderId,
   canEdit,
@@ -156,6 +170,7 @@ export function PatioPhotoAlbums({
   onActiveFolderChange,
   refreshKey = 0,
   fallbackPhotos = [],
+  dense = false,
 }: PatioPhotoAlbumsProps) {
   const [folders, setFolders] = useState<ServiceOrderPhotoFolder[]>([]);
   const [loading, setLoading] = useState(true);
@@ -180,6 +195,18 @@ export function PatioPhotoAlbums({
   const cameraRef = useRef<HTMLInputElement>(null);
   const galleryRef = useRef<HTMLInputElement>(null);
 
+  const foldersRef = useRef(folders);
+  foldersRef.current = folders;
+  const usingVirtualRef = useRef(usingVirtualFolders);
+  usingVirtualRef.current = usingVirtualFolders;
+  const virtualPhotosRef = useRef(virtualPhotosByFolder);
+  virtualPhotosRef.current = virtualPhotosByFolder;
+  const fallbackPhotosRef = useRef(fallbackPhotos);
+  fallbackPhotosRef.current = fallbackPhotos;
+  const openFolderIdRef = useRef(openFolderId);
+  openFolderIdRef.current = openFolderId;
+  const detailRequestIdRef = useRef(0);
+
   const applyVirtualFallback = useCallback((sourcePhotos: ServiceOrderPhoto[]) => {
     const built = buildVirtualFoldersFromPhotos(sourcePhotos);
     setFolders(built.folders);
@@ -187,9 +214,6 @@ export function PatioPhotoAlbums({
     setUsingVirtualFolders(true);
     setError(null);
   }, []);
-
-  const fallbackPhotosRef = useRef(fallbackPhotos);
-  fallbackPhotosRef.current = fallbackPhotos;
 
   const fallbackSignature = useMemo(
     () =>
@@ -200,6 +224,24 @@ export function PatioPhotoAlbums({
         .join('|'),
     [fallbackPhotos]
   );
+
+  const resolveLocalFolderPhotos = useCallback((folderId: string) => {
+    const built = buildVirtualFoldersFromPhotos(fallbackPhotosRef.current);
+    const folder =
+      foldersRef.current.find((f) => f.id === folderId) ||
+      built.folders.find((f) => f.id === folderId) ||
+      null;
+    const list =
+      virtualPhotosRef.current[folderId] ||
+      built.photosByFolder[folderId] ||
+      (folder?.slug === 'entrada'
+        ? built.photosByFolder[VIRTUAL_ENTRADA_ID]
+        : folder?.slug === 'outras'
+          ? built.photosByFolder[VIRTUAL_OUTRAS_ID]
+          : undefined) ||
+      [];
+    return { folder, list };
+  }, []);
 
   const loadFolders = useCallback(async () => {
     setLoading(true);
@@ -222,60 +264,84 @@ export function PatioPhotoAlbums({
 
   const loadFolderDetail = useCallback(
     async (folderId: string) => {
+      const requestId = ++detailRequestIdRef.current;
       setLoadingFolder(true);
       setError(null);
       try {
-        if (usingVirtualFolders || folderId.startsWith('__virtual_')) {
-          const folder =
-            folders.find((f) => f.id === folderId) ||
-            buildVirtualFoldersFromPhotos(fallbackPhotos).folders.find((f) => f.id === folderId) ||
-            null;
-          const list =
-            virtualPhotosByFolder[folderId] ||
-            buildVirtualFoldersFromPhotos(fallbackPhotos).photosByFolder[folderId] ||
-            [];
+        if (usingVirtualRef.current || folderId.startsWith('__virtual_')) {
+          const { folder, list } = resolveLocalFolderPhotos(folderId);
+          if (requestId !== detailRequestIdRef.current) return;
           setOpenFolder(folder);
           setPhotos(list);
           return;
         }
+
         const detail = await getServiceOrderPhotoFolderDetail(serviceOrderId, folderId);
+        if (requestId !== detailRequestIdRef.current) return;
+
+        let nextPhotos = detail.photos;
+        // Se a API devolve pasta vazia mas há fotos locais conhecidas (entrada/outras), usa fallback.
+        if (nextPhotos.length === 0 && fallbackPhotosRef.current.length > 0) {
+          const built = buildVirtualFoldersFromPhotos(fallbackPhotosRef.current);
+          if (detail.folder.slug === 'entrada') {
+            nextPhotos = built.photosByFolder[VIRTUAL_ENTRADA_ID] || [];
+          } else if (detail.folder.slug === 'outras') {
+            nextPhotos = built.photosByFolder[VIRTUAL_OUTRAS_ID] || [];
+          }
+        }
+
         setOpenFolder(detail.folder);
-        setPhotos(detail.photos);
+        setPhotos(nextPhotos);
         setFolders((prev) =>
           prev.map((f) =>
             f.id === detail.folder.id
               ? {
                   ...f,
-                  ...detail.folder,
-                  photoCount: detail.photos.length,
-                  coverUrls: detail.photos.slice(0, 4).map((p) => p.url),
+                  name: detail.folder.name,
+                  slug: detail.folder.slug,
+                  isSystem: detail.folder.isSystem,
+                  photoCount: nextPhotos.length,
+                  coverUrls:
+                    nextPhotos.slice(0, 4).map((p) => p.url) ||
+                    detail.folder.coverUrls ||
+                    f.coverUrls,
                 }
               : f
           )
         );
       } catch (err) {
-        if (fallbackPhotos.length > 0) {
-          const built = buildVirtualFoldersFromPhotos(fallbackPhotos);
-          const folder = built.folders.find((f) => f.id === folderId) || built.folders[0] || null;
+        if (fallbackPhotosRef.current.length > 0) {
+          const built = buildVirtualFoldersFromPhotos(fallbackPhotosRef.current);
+          const folder =
+            built.folders.find((f) => f.id === folderId) ||
+            foldersRef.current.find((f) => f.id === folderId) ||
+            built.folders[0] ||
+            null;
+          const list = folder
+            ? built.photosByFolder[folder.id] ||
+              (folder.slug === 'entrada'
+                ? built.photosByFolder[VIRTUAL_ENTRADA_ID]
+                : folder.slug === 'outras'
+                  ? built.photosByFolder[VIRTUAL_OUTRAS_ID]
+                  : []) ||
+              []
+            : [];
+          if (requestId !== detailRequestIdRef.current) return;
           setOpenFolder(folder);
-          setPhotos(folder ? built.photosByFolder[folder.id] || [] : []);
+          setPhotos(list);
           setUsingVirtualFolders(true);
           setVirtualPhotosByFolder(built.photosByFolder);
           setFolders(built.folders);
-        } else {
+        } else if (requestId === detailRequestIdRef.current) {
           setError(err instanceof Error ? err.message : 'Não foi possível abrir a pasta.');
         }
       } finally {
-        setLoadingFolder(false);
+        if (requestId === detailRequestIdRef.current) {
+          setLoadingFolder(false);
+        }
       }
     },
-    [
-      serviceOrderId,
-      usingVirtualFolders,
-      folders,
-      virtualPhotosByFolder,
-      fallbackPhotos,
-    ]
+    [serviceOrderId, resolveLocalFolderPhotos]
   );
 
   useEffect(() => {
@@ -285,14 +351,21 @@ export function PatioPhotoAlbums({
   useEffect(() => {
     if (!usingVirtualFolders) return;
     applyVirtualFallback(fallbackPhotosRef.current);
-  }, [fallbackSignature, usingVirtualFolders, applyVirtualFallback]);
+    const currentId = openFolderIdRef.current;
+    if (!currentId) return;
+    const { folder, list } = resolveLocalFolderPhotos(currentId);
+    setOpenFolder(folder);
+    setPhotos(list);
+  }, [fallbackSignature, usingVirtualFolders, applyVirtualFallback, resolveLocalFolderPhotos]);
 
   useEffect(() => {
     if (!openFolderId) {
       onActiveFolderChange?.(null);
       return;
     }
-    if (openFolderId === VIRTUAL_ENTRADA_ID || openFolder?.slug === 'entrada') {
+    const folderMeta = foldersRef.current.find((f) => f.id === openFolderId);
+    const slug = folderMeta?.slug || openFolder?.slug || null;
+    if (openFolderId === VIRTUAL_ENTRADA_ID || slug === 'entrada') {
       onActiveFolderChange?.(
         openFolderId.startsWith('__virtual_')
           ? { folderSlug: 'entrada' }
@@ -300,7 +373,7 @@ export function PatioPhotoAlbums({
       );
       return;
     }
-    if (openFolderId === VIRTUAL_OUTRAS_ID || openFolder?.slug === 'outras') {
+    if (openFolderId === VIRTUAL_OUTRAS_ID || slug === 'outras') {
       onActiveFolderChange?.(
         openFolderId.startsWith('__virtual_')
           ? { folderSlug: 'outras' }
@@ -311,14 +384,18 @@ export function PatioPhotoAlbums({
     onActiveFolderChange?.({ folderId: openFolderId });
   }, [openFolderId, openFolder?.slug, onActiveFolderChange]);
 
+  // Só reage a openFolderId/refreshKey — evita loop infinito quando folders muda.
   useEffect(() => {
     if (!openFolderId) {
+      detailRequestIdRef.current += 1;
       setOpenFolder(null);
       setPhotos([]);
+      setLoadingFolder(false);
       return;
     }
     void loadFolderDetail(openFolderId);
-  }, [openFolderId, loadFolderDetail, refreshKey]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intencional: não depender de loadFolderDetail
+  }, [openFolderId, refreshKey, serviceOrderId]);
 
   const totalPhotos = useMemo(
     () => folders.reduce((sum, f) => sum + (f.photoCount || 0), 0),
@@ -545,7 +622,13 @@ export function PatioPhotoAlbums({
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 md:grid-cols-4 md:gap-3">
+          <div
+            className={
+              dense
+                ? 'grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 md:gap-2.5'
+                : 'grid grid-cols-2 gap-2.5 sm:grid-cols-3 md:grid-cols-4 md:gap-3'
+            }
+          >
             {photos.map((photo, photoIndex) => {
               const label = attachmentDisplayName(photo.name);
               const isDeleting = deletingPath === photo.path;
@@ -638,13 +721,22 @@ export function PatioPhotoAlbums({
         ) : null}
       </div>
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:gap-4">
+      <div
+        className={
+          dense
+            ? 'flex flex-wrap gap-x-3 gap-y-4'
+            : 'grid grid-cols-2 gap-3 sm:grid-cols-3 md:gap-4'
+        }
+      >
         {folders.map((folder) => {
           const busy = busyFolderId === folder.id;
           const menuOpen = folderMenuId === folder.id;
           const isRenaming = renamingId === folder.id;
           return (
-            <div key={folder.id} className="relative min-w-0">
+            <div
+              key={folder.id}
+              className={`relative min-w-0 ${dense ? 'w-[112px] sm:w-[120px]' : ''}`}
+            >
               {isRenaming ? (
                 <div className="rounded-2xl bg-zinc-50 p-3 dark:bg-white/[0.04]">
                   <input
@@ -693,15 +785,31 @@ export function PatioPhotoAlbums({
                     onClick={() => setOpenFolderId(folder.id)}
                     className="group w-full text-left focus:outline-none"
                   >
-                    <div className="overflow-hidden rounded-2xl shadow-[0_12px_32px_-18px_rgba(0,0,0,0.35)] transition-transform duration-300 ease-out group-hover:scale-[1.015] group-active:scale-[0.985] dark:shadow-[0_16px_40px_-20px_rgba(0,0,0,0.65)]">
-                      <FolderCover urls={folder.coverUrls || []} />
+                    <div
+                      className={`overflow-hidden shadow-[0_12px_32px_-18px_rgba(0,0,0,0.35)] transition-transform duration-300 ease-out group-hover:scale-[1.015] group-active:scale-[0.985] dark:shadow-[0_16px_40px_-20px_rgba(0,0,0,0.65)] ${
+                        dense ? 'rounded-xl' : 'rounded-2xl'
+                      }`}
+                    >
+                      <FolderCover
+                        urls={folder.coverUrls || []}
+                        dense={dense}
+                        className={dense ? '!rounded-xl' : undefined}
+                      />
                     </div>
-                    <div className="mt-2 flex items-start gap-1 px-0.5">
+                    <div className={`mt-2 flex items-start gap-1 ${dense ? 'px-0' : 'px-0.5'}`}>
                       <div className="min-w-0 flex-1">
-                        <p className="truncate text-[14px] font-semibold tracking-tight text-zinc-900 dark:text-white">
+                        <p
+                          className={`truncate font-semibold tracking-tight text-zinc-900 dark:text-white ${
+                            dense ? 'text-[12px]' : 'text-[14px]'
+                          }`}
+                        >
                           {folder.name}
                         </p>
-                        <p className="text-[12px] font-medium tabular-nums text-zinc-500 dark:text-zinc-400">
+                        <p
+                          className={`font-medium tabular-nums text-zinc-500 dark:text-zinc-400 ${
+                            dense ? 'text-[11px]' : 'text-[12px]'
+                          }`}
+                        >
                           {folder.photoCount} {folder.photoCount === 1 ? 'foto' : 'fotos'}
                           {folder.isSystem ? ' · Sistema' : ''}
                         </p>
