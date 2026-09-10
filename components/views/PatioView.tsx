@@ -309,7 +309,7 @@ const budgetModalPaperFooter =
 
 /** Nome do cliente no cabeçalho do modal de veículo — caixa com fundo cinza. */
 const vehicleModalCustomerNameBox =
-  'rounded-[14px] border border-zinc-300/80 bg-zinc-200/90 shadow-[inset_0_1px_0_rgba(255,255,255,0.45)] dark:border-zinc-600/50 dark:bg-zinc-800/85 dark:shadow-none';
+  'rounded-[14px] border-0 bg-zinc-200/90 dark:bg-zinc-800/85';
 
 /** Sombra nos glifos do nome do veículo (só tema escuro — no claro fica sem text-shadow). */
 const vehicleModalTitleShadow =
@@ -5081,7 +5081,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
           <button
             type="button"
             onClick={onClosePage}
-            className="absolute left-3 top-[max(0.65rem,env(safe-area-inset-top))] z-20 inline-flex h-9 w-9 items-center justify-center rounded-full border border-zinc-200/75 bg-white/85 text-zinc-700 shadow-[0_4px_18px_-8px_rgba(0,0,0,0.28)] backdrop-blur-xl transition-all hover:bg-white/95 active:scale-[0.97] dark:border-white/[0.12] dark:bg-zinc-900/80 dark:text-zinc-200 dark:hover:bg-zinc-900/90 sm:left-4 sm:h-10 sm:w-10"
+            className="absolute left-3 top-[max(0.65rem,env(safe-area-inset-top))] z-20 inline-flex h-9 w-9 items-center justify-center rounded-full border-0 bg-white text-zinc-700 transition-colors hover:bg-zinc-100 active:scale-[0.97] dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800 sm:left-4 sm:h-10 sm:w-10"
             aria-label="Fechar"
             title="Fechar"
           >
@@ -5089,7 +5089,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
           </button>
         ) : null}
         <div
-          className="flex h-[4.5rem] w-[4.5rem] items-center justify-center overflow-hidden rounded-[1.15rem] border border-zinc-200/90 bg-zinc-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] dark:border-white/[0.1] dark:bg-zinc-900/60 dark:shadow-none"
+          className="flex h-[4.5rem] w-[4.5rem] items-center justify-center overflow-hidden rounded-[1.15rem] border-0 bg-zinc-100 dark:bg-zinc-900/70"
           aria-hidden
         >
           <img
@@ -5143,19 +5143,19 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const activeBoardCountContext = isModuleMode ? 'no laboratório' : 'no pátio';
 
   const patioCompactActionBtn = patioHeaderActionsCentered
-    ? 'relative inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg border border-zinc-200/90 bg-white px-3 py-2 text-[13px] font-semibold text-zinc-800 shadow-[0_2px_10px_-3px_rgba(0,0,0,0.1)] transition-all hover:border-zinc-300 hover:bg-zinc-50 active:scale-[0.98] dark:border-white/[0.1] dark:bg-zinc-900/75 dark:text-zinc-100 dark:hover:bg-zinc-900'
-    : 'relative inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl border border-zinc-200/90 bg-white px-3 py-2.5 text-[13px] font-semibold text-zinc-800 shadow-[0_2px_10px_-3px_rgba(0,0,0,0.1)] transition-all hover:border-zinc-300 hover:bg-zinc-50 active:scale-[0.98] dark:border-white/[0.1] dark:bg-zinc-900/75 dark:text-zinc-100 dark:hover:bg-zinc-900 sm:px-3.5';
+    ? 'relative inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg border-0 bg-white px-3 py-2 text-[13px] font-semibold text-zinc-800 transition-colors hover:bg-zinc-100 active:scale-[0.98] dark:bg-zinc-900/75 dark:text-zinc-100 dark:hover:bg-zinc-900'
+    : 'relative inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl border-0 bg-white px-3 py-2.5 text-[13px] font-semibold text-zinc-800 transition-colors hover:bg-zinc-100 active:scale-[0.98] dark:bg-zinc-900/75 dark:text-zinc-100 dark:hover:bg-zinc-900 sm:px-3.5';
   const patioCompactCreateBtn = isModuleMode
     ? patioHeaderActionsCentered
-      ? 'relative inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg border border-[#6d28d9]/80 bg-[#A855F7] px-4 py-2 text-[13px] font-bold text-white shadow-[0_4px_14px_-4px_rgba(168,85,247,0.55)] transition-all hover:brightness-110 active:scale-[0.98]'
-      : 'relative inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl border border-[#6d28d9]/80 bg-[#A855F7] px-3.5 py-2.5 text-[13px] font-bold text-white shadow-[0_4px_14px_-4px_rgba(168,85,247,0.55)] transition-all hover:brightness-110 active:scale-[0.98] sm:px-4'
+      ? 'relative inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg border-0 bg-[#A855F7] px-4 py-2 text-[13px] font-bold text-white transition-all hover:brightness-110 active:scale-[0.98]'
+      : 'relative inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl border-0 bg-[#A855F7] px-3.5 py-2.5 text-[13px] font-bold text-white transition-all hover:brightness-110 active:scale-[0.98] sm:px-4'
     : patioHeaderActionsCentered
-      ? 'relative inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg border border-[#0058c7]/70 bg-[#007AFF] px-4 py-2 text-[13px] font-bold text-white shadow-[0_4px_14px_-4px_rgba(0,122,255,0.5)] transition-all hover:brightness-110 active:scale-[0.98]'
-      : 'relative inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl border border-[#0058c7]/70 bg-[#007AFF] px-3.5 py-2.5 text-[13px] font-bold text-white shadow-[0_4px_14px_-4px_rgba(0,122,255,0.5)] transition-all hover:brightness-110 active:scale-[0.98] sm:px-4';
+      ? 'relative inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg border-0 bg-[#007AFF] px-4 py-2 text-[13px] font-bold text-white transition-all hover:brightness-110 active:scale-[0.98]'
+      : 'relative inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl border-0 bg-[#007AFF] px-3.5 py-2.5 text-[13px] font-bold text-white transition-all hover:brightness-110 active:scale-[0.98] sm:px-4';
 
   const patioActiveCountBadge = (
     <span
-      className="patio-active-count-badge inline-flex items-center gap-2 rounded-full border border-zinc-200/80 bg-white/90 px-3.5 py-1.5 text-[13px] font-semibold text-zinc-800 shadow-[0_4px_14px_-6px_rgba(0,0,0,0.08)] tabular-nums dark:border-white/10 dark:bg-zinc-900/60 dark:text-zinc-100 dark:shadow-none"
+      className="patio-active-count-badge inline-flex items-center gap-2 rounded-full border-0 bg-white/90 px-3.5 py-1.5 text-[13px] font-semibold text-zinc-800 tabular-nums dark:bg-zinc-900/60 dark:text-zinc-100"
       aria-live="polite"
       aria-label={`${activeBoardCount} ${activeBoardCountUnit} ${activeBoardCountContext}`}
     >
@@ -5169,7 +5169,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
   /** Contagem discreta ao lado do título no tablet (ex.: “17 veículos”). */
   const patioTabletCountChip = (
     <span
-      className="inline-flex shrink-0 items-center rounded-md border border-[#007AFF]/35 bg-[#007AFF]/[0.07] px-2 py-0.5 text-[12px] font-semibold tabular-nums tracking-tight text-[#007AFF] dark:border-[#64B5FF]/40 dark:bg-[#0A84FF]/15 dark:text-[#8cc8ff]"
+      className="inline-flex shrink-0 items-center rounded-md border-0 bg-[#007AFF]/[0.1] px-2 py-0.5 text-[12px] font-semibold tabular-nums tracking-tight text-[#007AFF] dark:bg-[#0A84FF]/15 dark:text-[#8cc8ff]"
       aria-live="polite"
       aria-label={`${activeBoardCount} ${activeBoardCountUnit} ${activeBoardCountContext}`}
     >
@@ -5198,7 +5198,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                     setIsPatioHeaderToolsOpen(false);
                   }}
                 >
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-violet-200/80 bg-violet-50 dark:border-violet-500/30 dark:bg-violet-950/40">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border-0 bg-violet-100 dark:bg-violet-950/50">
                     <LayoutGrid className="h-5 w-5 text-[#A855F7] dark:text-violet-300" strokeWidth={2.2} aria-hidden />
                   </span>
                   <span className="min-w-0 flex-1">
@@ -5313,7 +5313,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                     setIsPatioHeaderToolsOpen(false);
                   }}
                 >
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-zinc-200/80 bg-zinc-50 dark:border-white/[0.1] dark:bg-white/[0.06]">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border-0 bg-zinc-100 dark:bg-white/[0.06]">
                     <Search className="h-5 w-5 text-[#007AFF] dark:text-[#64B5FF]" strokeWidth={2} aria-hidden />
                   </span>
                   <span className="min-w-0 flex-1">
@@ -5336,7 +5336,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                     setIsPatioHeaderToolsOpen(false);
                   }}
                 >
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-zinc-200/80 bg-zinc-50 dark:border-white/[0.1] dark:bg-white/[0.06]">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border-0 bg-zinc-100 dark:bg-white/[0.06]">
                     <RefreshCw className="h-5 w-5 text-[#007AFF] dark:text-[#64B5FF]" strokeWidth={2} aria-hidden />
                   </span>
                   <span className="min-w-0 flex-1">
@@ -5359,7 +5359,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   setIsPatioHeaderToolsOpen(false);
                 }}
               >
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-zinc-200/80 bg-zinc-50 dark:border-white/[0.1] dark:bg-white/[0.06]">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border-0 bg-zinc-100 dark:bg-white/[0.06]">
                   <History className="h-5 w-5 text-[#007AFF] dark:text-[#64B5FF]" strokeWidth={2} aria-hidden />
                 </span>
                 <span className="min-w-0 flex-1">
@@ -5424,7 +5424,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                       <button
                         type="button"
                         onClick={() => setBenchQueueModalOpen(true)}
-                        className={`relative inline-flex shrink-0 items-center justify-center rounded-xl border border-violet-200/90 bg-violet-50/90 font-semibold text-violet-900 shadow-sm transition-all hover:bg-violet-100/90 active:scale-[0.98] dark:border-violet-500/35 dark:bg-violet-950/40 dark:text-violet-100 ${headerPillSize}`}
+                        className={`relative inline-flex shrink-0 items-center justify-center rounded-xl border-0 bg-violet-100 font-semibold text-violet-900 transition-colors hover:bg-violet-200/90 active:scale-[0.98] dark:bg-violet-950/50 dark:text-violet-100 ${headerPillSize}`}
                       >
                         <ListOrdered className="h-4 w-4 shrink-0" strokeWidth={2.2} aria-hidden />
                         <span className="tracking-tight">Fila da bancada</span>
@@ -5437,7 +5437,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                       <button
                         type="button"
                         onClick={() => setExternalRepairModalOpen(true)}
-                        className={`relative inline-flex shrink-0 items-center justify-center rounded-xl border border-purple-200/90 bg-purple-50/90 font-semibold text-purple-900 shadow-sm transition-all hover:bg-purple-100/90 active:scale-[0.98] dark:border-purple-500/35 dark:bg-purple-950/40 dark:text-purple-100 ${headerPillSize}`}
+                        className={`relative inline-flex shrink-0 items-center justify-center rounded-xl border-0 bg-purple-100 font-semibold text-purple-900 transition-colors hover:bg-purple-200/90 active:scale-[0.98] dark:bg-purple-950/50 dark:text-purple-100 ${headerPillSize}`}
                       >
                         <Wrench className="h-4 w-4 shrink-0" strokeWidth={2.2} aria-hidden />
                         <span className="tracking-tight">Conserto externo</span>
@@ -5451,7 +5451,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                         type="button"
                         onClick={handleBenchPanelToggle}
                         aria-expanded={benchPanelOpen}
-                        className={`relative inline-flex shrink-0 items-center justify-center rounded-xl border border-zinc-200/80 bg-white/80 font-semibold text-zinc-700 shadow-sm transition-all hover:border-[#A855F7]/40 active:scale-[0.98] dark:border-white/10 dark:bg-white/10 dark:text-zinc-100 ${headerPillSize}`}
+                        className={`relative inline-flex shrink-0 items-center justify-center rounded-xl border-0 bg-white font-semibold text-zinc-700 transition-colors hover:bg-zinc-100 active:scale-[0.98] dark:border-white/10 dark:bg-white/10 dark:text-zinc-100 ${headerPillSize}`}
                       >
                         <ChevronDown
                           className={`h-4 w-4 shrink-0 transition-transform ${benchPanelOpen ? '' : '-rotate-90'}`}
@@ -5499,7 +5499,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                       aria-expanded={isPatioHeaderToolsOpen}
                       aria-haspopup="menu"
                       aria-label="Mais opções"
-                      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-zinc-200/90 bg-white text-zinc-600 shadow-[0_2px_10px_-3px_rgba(0,0,0,0.1)] transition-all hover:border-[#007AFF]/35 hover:text-[#007AFF] active:scale-95 dark:border-white/[0.1] dark:bg-zinc-900/75 dark:text-zinc-300"
+                      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border-0 bg-white text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-[#007AFF] active:scale-95 dark:border-white/[0.1] dark:bg-zinc-900/75 dark:text-zinc-300"
                     >
                       <MoreHorizontal className="h-5 w-5" strokeWidth={2.2} aria-hidden />
                     </button>
@@ -5529,7 +5529,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   <button
                     type="button"
                     onClick={onClosePage}
-                    className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-zinc-200/75 bg-white/85 text-zinc-700 shadow-[0_4px_18px_-8px_rgba(0,0,0,0.28)] backdrop-blur-xl transition-all hover:bg-white/95 active:scale-[0.97] dark:border-white/[0.12] dark:bg-zinc-900/80 dark:text-zinc-200 dark:hover:bg-zinc-900/90 sm:h-10 sm:w-10"
+                    className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-0 bg-white text-zinc-700 transition-colors hover:bg-zinc-100 active:scale-[0.97] dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800 sm:h-10 sm:w-10"
                     aria-label="Fechar"
                     title="Fechar"
                   >
@@ -5613,7 +5613,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                     aria-expanded={isPatioHeaderToolsOpen}
                     aria-haspopup="menu"
                     aria-label="Mais opções"
-                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-zinc-200/90 bg-white text-zinc-600 shadow-[0_2px_10px_-3px_rgba(0,0,0,0.1)] transition-all hover:border-[#007AFF]/35 hover:text-[#007AFF] active:scale-95 dark:border-white/[0.1] dark:bg-zinc-900/75 dark:text-zinc-300"
+                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border-0 bg-white text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-[#007AFF] active:scale-95 dark:border-white/[0.1] dark:bg-zinc-900/75 dark:text-zinc-300"
                   >
                     <MoreHorizontal className="h-5 w-5" strokeWidth={2.2} aria-hidden />
                   </button>
@@ -5646,7 +5646,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
               <button
                 type="button"
                 onClick={() => setBenchQueueModalOpen(true)}
-                className="inline-flex items-center gap-1.5 rounded-full border border-violet-200/90 bg-violet-50/90 px-3 py-1.5 text-[13px] font-semibold text-violet-900 shadow-sm backdrop-blur-xl transition-colors hover:border-violet-400/60 hover:bg-violet-100/90 dark:border-violet-500/35 dark:bg-violet-950/40 dark:text-violet-100 dark:hover:border-violet-400/50"
+                className="inline-flex items-center gap-1.5 rounded-full border-0 bg-violet-100 px-3 py-1.5 text-[13px] font-semibold text-violet-900 transition-colors hover:bg-violet-200/90 dark:bg-violet-950/50 dark:text-violet-100"
               >
                 <ListOrdered className="h-4 w-4 shrink-0" strokeWidth={2.2} aria-hidden />
                 Fila da bancada
@@ -5659,7 +5659,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
               <button
                 type="button"
                 onClick={() => setExternalRepairModalOpen(true)}
-                className="inline-flex items-center gap-1.5 rounded-full border border-purple-200/90 bg-purple-50/90 px-3 py-1.5 text-[13px] font-semibold text-purple-900 shadow-sm backdrop-blur-xl transition-colors hover:border-purple-400/60 hover:bg-purple-100/90 dark:border-purple-500/35 dark:bg-purple-950/40 dark:text-purple-100 dark:hover:border-purple-400/50"
+                className="inline-flex items-center gap-1.5 rounded-full border-0 bg-purple-100 px-3 py-1.5 text-[13px] font-semibold text-purple-900 transition-colors hover:bg-purple-200/90 dark:bg-purple-950/50 dark:text-purple-100"
               >
                 <Wrench className="h-4 w-4 shrink-0" strokeWidth={2.2} aria-hidden />
                 Conserto externo
@@ -5673,7 +5673,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 type="button"
                 onClick={handleBenchPanelToggle}
                 aria-expanded={benchPanelOpen}
-                className="inline-flex items-center gap-1.5 rounded-full border border-zinc-200/80 bg-white/80 px-3 py-1.5 text-[13px] font-semibold text-zinc-700 shadow-sm backdrop-blur-xl transition-colors hover:border-[#A855F7]/40 hover:text-zinc-900 dark:border-white/10 dark:bg-white/10 dark:text-zinc-100 dark:hover:text-white"
+                className="inline-flex items-center gap-1.5 rounded-full border-0 bg-white px-3 py-1.5 text-[13px] font-semibold text-zinc-700 transition-colors hover:bg-zinc-100 hover:text-zinc-900 dark:border-white/10 dark:bg-white/10 dark:text-zinc-100 dark:hover:text-white"
               >
                 <ChevronDown
                   className={`h-4 w-4 transition-transform ${benchPanelOpen ? '' : '-rotate-90'}`}
@@ -5843,14 +5843,14 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 ? 'violet'
                 : 'amber';
           const cardRingClass = isGarantia
-            ? 'ring-2 ring-inset ring-red-500 ring-offset-0 border-red-500/40'
+            ? 'border-2 border-red-500/70'
             : originTint === 'green'
               ? 'border-2 border-green-500/75 dark:border-green-400/70'
               : originTint === 'violet'
                 ? 'border-2 border-violet-500/75 dark:border-violet-400/70'
                 : originTint === 'amber'
                   ? 'border-2 border-amber-500/75 dark:border-amber-400/70'
-                  : 'border-zinc-200/80 dark:border-white/[0.07] ring-1 ring-inset ring-zinc-400/35 ring-offset-0 dark:ring-white/[0.1]';
+                  : 'border-0';
 
           return (
             <div
@@ -5890,11 +5890,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 }}
                 className={`
                   group relative flex h-auto min-h-0 w-full flex-col overflow-hidden
-                  border bg-white/70 backdrop-blur-2xl dark:bg-zinc-900/40
+                  bg-white dark:bg-zinc-900/70
                   ${patioBoardGlassCardShadow}
-                  ${originTint ? '' : 'hover:border-[#007AFF]/28 dark:hover:border-white/[0.12]'}
                   active:scale-[0.99]
-                  transition-[border-color,transform,box-shadow] duration-200 ease-out
+                  transition-[transform,box-shadow,background-color] duration-200 ease-out
                   ${trelloDrag ? 'cursor-grab select-none active:cursor-grabbing' : 'cursor-pointer'}
                   ${
                     boardPanoramic
@@ -5973,7 +5972,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 {/* Cliente */}
                 {customerName ? (
                   <div
-                    className={`mb-0 flex max-w-full items-center gap-2 rounded-2xl border border-zinc-200/70 bg-white/55 backdrop-blur-sm dark:border-white/[0.08] dark:bg-white/[0.05] portrait:rounded-xl portrait:border-zinc-200/55 ${
+                    className={`mb-0 flex max-w-full items-center gap-2 rounded-2xl border-0 bg-zinc-100/90 dark:bg-white/[0.06] portrait:rounded-xl ${
                       boardPanoramic
                         ? 'min-h-[2.35rem] px-2.5 py-2 portrait:min-h-[2.1rem] portrait:px-2 portrait:py-1.5'
                         : 'min-h-[2.6rem] px-3 py-2.5 portrait:min-h-[2.35rem] portrait:px-2.5 portrait:py-2'
@@ -6010,11 +6009,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
                       disabled={!canAssignMember}
                       onClick={(e) => { e.stopPropagation(); canAssignMember && setCardForMemberAssignment(card); }}
                       className={`
-                        inline-flex max-w-full items-center justify-start gap-1.5 rounded-2xl border px-2.5 transition-all
+                        inline-flex max-w-full items-center justify-start gap-1.5 rounded-2xl border-0 px-2.5 transition-colors
                         ${boardPanoramic ? 'py-1.5' : 'py-1.5'}
                         ${canAssignMember
-                          ? 'cursor-pointer border-light-border bg-light-card text-zinc-700 hover:bg-zinc-200/90 active:scale-[0.97] dark:border-white/10 dark:bg-white/[0.06] dark:text-zinc-200 dark:hover:bg-white/[0.1]'
-                          : 'cursor-default border-zinc-200/60 bg-light-card/80 text-zinc-500 dark:border-white/5 dark:bg-white/[0.04]'}
+                          ? 'cursor-pointer bg-zinc-100 text-zinc-700 hover:bg-zinc-200/90 active:scale-[0.97] dark:bg-white/[0.08] dark:text-zinc-200 dark:hover:bg-white/[0.12]'
+                          : 'cursor-default bg-zinc-100/80 text-zinc-500 dark:bg-white/[0.05]'}
                       `}
                     >
                       {hasMechanic ? (
@@ -6028,11 +6027,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
                           />
                         </div>
                       ) : canAssignMember ? (
-                        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl border border-dashed border-[#007AFF]/35 bg-[#007AFF]/[0.08] dark:border-[#007AFF]/45 dark:bg-[#007AFF]/12 portrait:h-[1.45rem] portrait:w-[1.45rem] portrait:rounded-lg">
+                        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl border-0 bg-[#007AFF]/[0.12] dark:bg-[#007AFF]/18 portrait:h-[1.45rem] portrait:w-[1.45rem] portrait:rounded-lg">
                           <Wrench className="h-3.5 w-3.5 text-[#007AFF] dark:text-[#7ab8ff] portrait:h-[0.75rem] portrait:w-[0.75rem]" strokeWidth={2.35} aria-hidden />
                         </div>
                       ) : (
-                        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl border border-zinc-200/70 bg-zinc-100/80 dark:border-white/10 dark:bg-white/[0.06] portrait:h-[1.45rem] portrait:w-[1.45rem] portrait:rounded-lg">
+                        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl border-0 bg-zinc-100 dark:bg-white/[0.08] portrait:h-[1.45rem] portrait:w-[1.45rem] portrait:rounded-lg">
                           <Wrench className="h-3.5 w-3.5 text-zinc-400 dark:text-zinc-500 portrait:h-[0.75rem] portrait:w-[0.75rem]" strokeWidth={2.35} aria-hidden />
                         </div>
                       )}
@@ -6073,21 +6072,21 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   <div className={boardPanoramic ? 'mt-2' : 'mt-2.5'}>
                     {card.benchQueuedAt && card.benchSlot == null ? (
                       <span
-                        className="inline-flex items-center gap-1.5 rounded-xl border border-violet-300/80 bg-violet-50/90 px-2.5 py-1 text-[11px] font-semibold text-violet-900 dark:border-violet-500/35 dark:bg-violet-950/40 dark:text-violet-100"
+                        className="inline-flex items-center gap-1.5 rounded-xl border-0 bg-violet-100 px-2.5 py-1 text-[11px] font-semibold text-violet-900 dark:bg-violet-950/50 dark:text-violet-100"
                         title="Na fila: será posicionado quando um compartimento liberar (1–24)"
                       >
                         Fila da bancada · aguardando vaga
                       </span>
                     ) : typeof card.benchSlot === 'number' ? (
                       <span
-                        className="inline-flex items-center gap-1.5 rounded-xl border border-violet-200/80 bg-violet-50/90 px-2.5 py-1 text-[11px] font-semibold text-violet-800 dark:border-violet-500/30 dark:bg-violet-950/40 dark:text-violet-200"
+                        className="inline-flex items-center gap-1.5 rounded-xl border-0 bg-violet-100/90 px-2.5 py-1 text-[11px] font-semibold text-violet-800 dark:bg-violet-950/45 dark:text-violet-200"
                         title="Bancada do laboratório — vaga fixa"
                       >
                         Bancada · Cx. {card.benchSlot}
                       </span>
                     ) : (
                       <span
-                        className="inline-flex items-center gap-1.5 rounded-xl border border-amber-300/80 bg-amber-50/90 px-2.5 py-1 text-[11px] font-semibold text-amber-900 dark:border-amber-500/35 dark:bg-amber-950/40 dark:text-amber-100"
+                        className="inline-flex items-center gap-1.5 rounded-xl border-0 bg-amber-100 px-2.5 py-1 text-[11px] font-semibold text-amber-900 dark:bg-amber-950/45 dark:text-amber-100"
                         title="Defina o compartimento na bancada (painel acima ou na ficha)"
                       >
                         Sem compartimento na bancada
@@ -6108,9 +6107,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleOpenMoveModal(card, e); }}
                   onPointerDown={(e) => e.stopPropagation()}
                   className={`
-                    flex w-full cursor-pointer items-center gap-2 rounded-2xl transition-all duration-200 ease-out
-                    shadow-[0_2px_12px_-2px_rgba(0,0,0,0.15)] dark:shadow-[0_2px_16px_-2px_rgba(0,0,0,0.35)]
-                    border border-black/10 dark:border-white/10
+                    flex w-full cursor-pointer items-center gap-2 rounded-2xl border-0 shadow-none transition-[filter,transform] duration-200 ease-out
                     ${
                       boardPanoramic
                         ? 'min-h-[calc(50px*1.6146)] py-[calc(0.5rem*1.6146)] pl-3.5 pr-2.5 text-[13px]'
@@ -6285,7 +6282,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
       })()}
 
       {cards.length === 0 && (
-          <div className={`${iosPageGlass} ring-1 ring-white/40 dark:ring-white/[0.06] flex flex-col items-center justify-center py-16 text-center sm:py-20`}>
+          <div className={`${iosPageGlass} !border-0 !shadow-none ring-0 flex flex-col items-center justify-center py-16 text-center sm:py-20`}>
             <div className="mb-5">
               {isModuleMode ? (
                 <IosAccentIconSquircle variant="tile" strokeWidth={2.2}>
@@ -6578,7 +6575,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
                         {!isModuleMode ? (
                           <div>
-                            <div className={`${patioVmInsetCard} min-w-0 overflow-hidden shadow-[0_8px_30px_-8px_rgba(0,0,0,0.12),0_2px_12px_-6px_rgba(0,0,0,0.06)] dark:shadow-[0_14px_38px_-12px_rgba(0,0,0,0.5),0_4px_14px_-8px_rgba(0,0,0,0.28)]`}>
+                            <div className={`${patioVmInsetCard} min-w-0 overflow-hidden shadow-none`}>
                               <div className="relative min-w-0">
                                 <div
                                   className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.07),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.08),transparent_50%)] dark:bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.11),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.1),transparent_52%)]"
@@ -6659,7 +6656,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                              <MessageSquare className="h-3.5 w-3.5" />
                              Atividades e comentários
                           </p>
-                          <div className={`${iosVehicleModalInsetCard} overflow-hidden shadow-[0_8px_32px_-12px_rgba(0,0,0,0.12)] dark:shadow-[0_12px_40px_-16px_rgba(0,0,0,0.5)]`}>
+                          <div className={`${iosVehicleModalInsetCard} overflow-hidden shadow-none`}>
                              <div className="max-h-[500px] space-y-4 overflow-y-auto bg-[#F2F2F7]/80 p-4 dark:bg-black/25 custom-scrollbar sm:p-5 sm:space-y-5">
                                 {historyCardDetails?.actions && historyCardDetails.actions.length > 0 ? (
                                    historyCardDetails.actions.map(action => {
@@ -7034,7 +7031,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
           const hasSavedExternal = hasExternalRepairData(savedExternalRepair);
           const canEditExternal = can('canEditFicha');
           return (
-                          <div className={`${vi} min-w-0 overflow-hidden shadow-[0_8px_30px_-8px_rgba(0,0,0,0.12),0_2px_12px_-6px_rgba(0,0,0,0.06)] dark:shadow-[0_14px_38px_-12px_rgba(0,0,0,0.5),0_4px_14px_-8px_rgba(0,0,0,0.28)]`}>
+                          <div className={`${vi} min-w-0 overflow-hidden shadow-none`}>
                             <div className="relative flex items-center gap-2 border-b border-black/[0.06] bg-white/85 px-2.5 py-2 pl-3 backdrop-blur-[2px] dark:border-white/[0.08] dark:bg-zinc-950/35 sm:gap-3 sm:px-3 sm:py-2.5 sm:pl-4">
                               <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-2.5">
                                 <div className={uiOsModalSectionIconWrap}>
@@ -7635,7 +7632,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                           </button>
                           {isModuleMode ? (
                             <div
-                              className={`${vi} ${isPatioVmMetaPcLike ? 'patio-vm-meta-card' : ''} relative w-full overflow-hidden shadow-[0_6px_24px_-10px_rgba(0,0,0,0.1)] dark:shadow-[0_10px_32px_-14px_rgba(0,0,0,0.45)]${
+                              className={`${vi} ${isPatioVmMetaPcLike ? 'patio-vm-meta-card' : ''} relative w-full overflow-hidden shadow-none${
                                 isPatioTabletLikeModal ? ' order-3 col-span-2' : ''
                               }`}
                             >
@@ -7662,7 +7659,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                           ) : null}
                           {!isModuleMode && can('canEditMileage') && (
                             <div
-                              className={`${vi} ${isPatioVmMetaPcLike ? 'patio-vm-meta-card' : ''} relative overflow-hidden shadow-[0_6px_24px_-10px_rgba(0,0,0,0.1)] dark:shadow-[0_10px_32px_-14px_rgba(0,0,0,0.45)]${
+                              className={`${vi} ${isPatioVmMetaPcLike ? 'patio-vm-meta-card' : ''} relative overflow-hidden shadow-none${
                                 isPatioTabletLikeModal ? ' order-3' : ''
                               }`}
                             >
@@ -7714,7 +7711,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                           )}
                           {can('canEditDeliveryDate') && (
                           <div
-                            className={`${vi} ${isPatioVmMetaPcLike ? 'patio-vm-meta-card' : ''} relative min-w-0 w-full overflow-hidden shadow-[0_6px_24px_-10px_rgba(0,0,0,0.1)] dark:shadow-[0_10px_32px_-14px_rgba(0,0,0,0.45)]${
+                            className={`${vi} ${isPatioVmMetaPcLike ? 'patio-vm-meta-card' : ''} relative min-w-0 w-full overflow-hidden shadow-none${
                               isPatioTabletLikeModal ? ' order-4' : ''
                             }`}
                           >
@@ -7987,7 +7984,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                       <div
                         className={
                           isPatioPcModal
-                            ? `${vi} overflow-hidden shadow-[0_8px_32px_-12px_rgba(0,0,0,0.12)] dark:shadow-[0_12px_40px_-16px_rgba(0,0,0,0.5)]`
+                            ? `${vi} overflow-hidden shadow-none`
                             : 'patio-vm-scroll--minimal min-h-0 flex-1 overflow-y-auto overscroll-none'
                         }
                       >
@@ -8438,7 +8435,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                         {showPcOsTab('dados') ? (
                         <>
                         <div ref={descriptionSectionRef}>
-                          <div className={`${vi} min-w-0 overflow-hidden shadow-[0_8px_30px_-8px_rgba(0,0,0,0.12),0_2px_12px_-6px_rgba(0,0,0,0.06)] dark:shadow-[0_14px_38px_-12px_rgba(0,0,0,0.5),0_4px_14px_-8px_rgba(0,0,0,0.28)]`}>
+                          <div className={`${vi} min-w-0 overflow-hidden shadow-none`}>
                             <div className="relative min-w-0">
                             <div
                               className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.07),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.08),transparent_50%)] dark:bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.11),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.1),transparent_52%)]"
@@ -8544,7 +8541,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
                         {!isModuleMode ? (
                           <div>
-                            <div className={`${vi} min-w-0 overflow-hidden shadow-[0_8px_30px_-8px_rgba(0,0,0,0.12),0_2px_12px_-6px_rgba(0,0,0,0.06)] dark:shadow-[0_14px_38px_-12px_rgba(0,0,0,0.5),0_4px_14px_-8px_rgba(0,0,0,0.28)]`}>
+                            <div className={`${vi} min-w-0 overflow-hidden shadow-none`}>
                               <div className="relative min-w-0">
                                 <div
                                   className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.07),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.08),transparent_50%)] dark:bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.11),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.1),transparent_52%)]"
@@ -8669,7 +8666,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                          {/* Orçamentos: cabeçalho iOS; lista com aro em gradiente nos itens */}
                          {can('canEditBudgets') && (
                          <div ref={budgetsSectionRef}>
-                          <div className={`${vi} min-w-0 overflow-hidden shadow-[0_8px_30px_-8px_rgba(0,0,0,0.12),0_2px_12px_-6px_rgba(0,0,0,0.06)] dark:shadow-[0_14px_38px_-12px_rgba(0,0,0,0.5),0_4px_14px_-8px_rgba(0,0,0,0.28)]`}>
+                          <div className={`${vi} min-w-0 overflow-hidden shadow-none`}>
                             <div className="relative min-w-0">
                               <div
                                 className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.07),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.08),transparent_50%)] dark:bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.11),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.1),transparent_52%)]"
@@ -8863,7 +8860,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                         {showPcOsTab('arquivos') ? (
                         <>
                          {/* Anexos (fotos) + Documentos (arquivos) */}
-                         <div className={`${vi} flex flex-col overflow-hidden shadow-[0_8px_30px_-8px_rgba(0,0,0,0.1),0_2px_10px_-6px_rgba(0,0,0,0.06)] dark:shadow-[0_12px_34px_-12px_rgba(0,0,0,0.45)]`}>
+                         <div className={`${vi} flex flex-col overflow-hidden shadow-none`}>
                             <div className="relative border-b border-zinc-200/70 bg-white/85 px-3 py-3 dark:border-white/[0.08] dark:bg-zinc-950/35 sm:px-4 sm:py-3.5">
                             <div className="flex items-center justify-between gap-2 sm:gap-3">
                                 <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-2.5">
@@ -9628,7 +9625,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                              Comentários
                           </h3>
 
-                          <div className={`${vi} overflow-hidden shadow-[0_8px_32px_-12px_rgba(0,0,0,0.12)] dark:shadow-[0_12px_40px_-16px_rgba(0,0,0,0.5)]`}>
+                          <div className={`${vi} overflow-hidden shadow-none`}>
                              <div ref={commentsListRef} className={patioVehicleVm.commentsList}>
                                 {cardDetails?.actions && cardDetails.actions.length > 0 ? (
                                    cardDetails.actions.map(action => {
@@ -11096,7 +11093,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                         ${
                           isCurrent
                             ? `${iosModalInsetCard} cursor-not-allowed border-zinc-200/80 opacity-75 shadow-none dark:border-white/[0.08]`
-                            : `border-transparent ${config.style} shadow-[0_2px_12px_-2px_rgba(0,0,0,0.12)] hover:brightness-110 active:scale-[0.99] disabled:opacity-55 dark:shadow-[0_8px_24px_-8px_rgba(0,0,0,0.35)]`
+                            : `border-0 ${config.style} shadow-none hover:brightness-110 active:scale-[0.99] disabled:opacity-55`
                         }
                       `}
                     >
@@ -11131,7 +11128,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                     type="button"
                     onClick={() => void handleSendToExternalRepair(moveCardDisplayed.id)}
                     disabled={isMoving}
-                    className={`group flex min-h-[54px] w-full items-center justify-between gap-3 rounded-[16px] border-2 border-transparent px-4 py-3.5 text-left transition-all duration-200 sm:min-h-[56px] sm:px-5 ${EXTERNAL_REPAIR_STAGE.style} shadow-[0_2px_12px_-2px_rgba(0,0,0,0.12)] hover:brightness-110 active:scale-[0.99] disabled:opacity-55`}
+                    className={`group flex min-h-[54px] w-full items-center justify-between gap-3 rounded-[16px] border-0 px-4 py-3.5 text-left transition-[filter,transform] duration-200 sm:min-h-[56px] sm:px-5 ${EXTERNAL_REPAIR_STAGE.style} shadow-none hover:brightness-110 active:scale-[0.99] disabled:opacity-55`}
                   >
                     <span className="text-[16px] font-semibold uppercase leading-snug tracking-wide !text-white sm:text-[17px]">
                       {EXTERNAL_REPAIR_STAGE.name}
@@ -11229,7 +11226,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                     type="button"
                     onClick={() => handleAssignTechnician(tech)}
                     disabled={isAssigning}
-                    className={`group flex w-full items-center gap-3 rounded-[16px] border-2 text-left shadow-[0_2px_12px_-2px_rgba(0,0,0,0.1)] transition-all duration-200 hover:brightness-[1.06] active:scale-[0.99] disabled:opacity-50 dark:shadow-[0_8px_24px_-8px_rgba(0,0,0,0.45)] ${tech.style} ${
+                    className={`group flex w-full items-center gap-3 rounded-[16px] border-0 text-left shadow-none transition-[filter,transform] duration-200 hover:brightness-[1.06] active:scale-[0.99] disabled:opacity-50 ${tech.style} ${
                       isSmartphone ? 'p-3' : 'p-3.5'
                     }`}
                   >

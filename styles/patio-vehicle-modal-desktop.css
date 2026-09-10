@@ -60,10 +60,8 @@ html[data-device='desktop'] .patio-vehicle-modal--desktop button.patio-vm-card:h
 html[data-device='desktop'] .patio-vehicle-modal--desktop a.patio-vm-card:hover,
 html[data-device='tablet'] .patio-vehicle-modal--desktop button.patio-vm-card:hover,
 html[data-device='tablet'] .patio-vehicle-modal--desktop a.patio-vm-card:hover {
-  border-color: rgba(0, 122, 255, 0.42);
-  box-shadow:
-    0 16px 44px -14px rgba(63, 63, 70, 0.22),
-    0 6px 18px -8px rgba(0, 122, 255, 0.12);
+  background-color: rgba(0, 122, 255, 0.06);
+  box-shadow: none;
 }
 
 html[data-device='desktop'] .patio-vehicle-modal--desktop .patio-vehicle-modal__icon-btn,

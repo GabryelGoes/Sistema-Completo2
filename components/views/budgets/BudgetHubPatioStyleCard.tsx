@@ -118,15 +118,12 @@ export function BudgetHubPatioStyleCard({
   const titleClass = getPatioBoardModelTitleClass(model, Boolean(trelloScale), true);
   const titleScaleClass = trelloScale ? 'origin-top-left scale-[0.86]' : '';
 
-  const ringClass = needsAttention
-    ? 'border-2 border-red-400/70 ring-2 ring-inset ring-red-400/50 ring-offset-0 dark:border-red-400/55'
-    : 'border-zinc-200/80 dark:border-white/[0.07] ring-1 ring-inset ring-zinc-400/35 ring-offset-0 dark:ring-white/[0.1]';
+  const ringClass = needsAttention ? 'border-2 border-red-400/70 dark:border-red-400/55' : 'border-0';
 
   const shellClass = `
-    group relative flex min-h-0 w-full cursor-pointer flex-col overflow-hidden border bg-white/70 text-left backdrop-blur-2xl
-    dark:bg-zinc-900/40
+    group relative flex min-h-0 w-full cursor-pointer flex-col overflow-hidden bg-white text-left
+    dark:bg-zinc-900/70
     ${patioBoardGlassCardShadow}
-    hover:border-[#007AFF]/28 dark:hover:border-white/[0.12]
     ${radius}
     ${pad}
     ${ringClass}
@@ -214,7 +211,7 @@ export function BudgetHubPatioStyleCard({
 
             {hasCustomer ? (
               <div
-                className={`mb-0 flex max-w-full items-center gap-1.5 border border-zinc-200/70 bg-white/55 backdrop-blur-sm dark:border-white/[0.08] dark:bg-white/[0.05] ${
+                className={`mb-0 flex max-w-full items-center gap-1.5 border-0 bg-zinc-100/90 dark:bg-white/[0.06] ${
                   dense ? 'rounded-xl px-2 py-1.5' : 'rounded-2xl px-3 py-2.5'
                 }`}
               >
@@ -261,7 +258,7 @@ export function BudgetHubPatioStyleCard({
                 />
               ) : (
                 <div
-                  className={`max-w-[55%] border border-zinc-200/70 bg-white/55 backdrop-blur-sm dark:border-white/[0.08] dark:bg-white/[0.05] ${
+                  className={`max-w-[55%] border-0 bg-zinc-100/90 dark:bg-white/[0.06] ${
                     dense ? 'rounded-xl px-2 py-1' : 'rounded-2xl px-2.5 py-1.5'
                   }`}
                 >
@@ -346,8 +343,7 @@ export function BudgetHubPatioStyleCard({
           {!hideStageFooter ? (
             <div
               className={`
-                flex w-full items-center gap-1.5 border border-black/10
-                shadow-[0_2px_12px_-2px_rgba(0,0,0,0.15)] dark:border-white/10 dark:shadow-[0_2px_16px_-2px_rgba(0,0,0,0.35)]
+                flex w-full items-center gap-1.5 border-0 shadow-none
                 ${dense ? 'min-h-[38px] rounded-xl py-1.5 pl-3 pr-2' : 'min-h-[52px] rounded-2xl py-2.5 pl-5 pr-3'}
                 ${stageStyle}
               `}

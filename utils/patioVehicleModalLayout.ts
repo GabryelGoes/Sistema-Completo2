@@ -198,7 +198,7 @@ const COMPACT_MOBILE_TABLET_LIKE: PatioVehicleModalCompact = {
 };
 
 const STAGE_PILL_BASE =
-  'inline-flex items-center gap-1.5 font-black uppercase shadow-xl border-2 transition-all hover:brightness-110 hover:scale-[1.02] active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#007AFF]/45 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-[#0a0a0a]';
+  'inline-flex items-center gap-1.5 border-0 font-black uppercase shadow-none transition-[filter,transform] hover:brightness-110 hover:scale-[1.02] active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#007AFF]/45 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-[#0a0a0a]';
 
 export function getPatioVehicleModalLayout(
   isPc: boolean,
@@ -318,9 +318,9 @@ export function getPatioVehicleModalLayout(
     asideCol:
       'patio-vm-aside-col min-w-0 space-y-5 border-t border-zinc-300/70 bg-[#F2F2F7]/80 pt-5 dark:border-white/[0.08] dark:bg-zinc-950/40 lg:border-l lg:border-t-0 lg:pl-6 lg:pt-0',
     insetCard:
-      'patio-vm-card rounded-[6px] border border-zinc-300/70 bg-white shadow-[0_8px_28px_-8px_rgba(63,63,70,0.15),0_3px_14px_-6px_rgba(82,82,91,0.10)] dark:border-white/[0.07] dark:bg-zinc-900/40 dark:backdrop-blur-2xl dark:shadow-[0_8px_40px_-12px_rgba(0,0,0,0.45)]',
+      'patio-vm-card rounded-[6px] border-0 bg-white shadow-none dark:bg-zinc-900/80',
     input:
-      'w-full rounded-md border border-zinc-300/85 bg-zinc-50 px-3.5 py-2.5 text-[15px] leading-relaxed text-zinc-950 placeholder:text-zinc-500 focus:border-[#007AFF]/50 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/35 transition-shadow dark:border-white/[0.08] dark:bg-zinc-950/50 dark:text-white dark:placeholder:text-zinc-500',
+      'w-full rounded-md border-0 bg-zinc-100/90 px-3.5 py-2.5 text-[15px] leading-relaxed text-zinc-950 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/30 transition-shadow dark:bg-zinc-950/60 dark:text-white dark:placeholder:text-zinc-500',
     closeBtn:
       'patio-vehicle-modal__icon-btn flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-full bg-black/5 text-zinc-600 transition-colors hover:bg-black/10 dark:bg-white/10 dark:hover:bg-white/15',
     assignHintLabel: 'Clique para atribuir',

@@ -60,22 +60,22 @@ export const iosModalInsetCard =
  * Tema escuro mantém o vidro existente.
  */
 export const iosVehicleModalShell =
-  'relative w-full flex flex-col min-h-0 overflow-hidden rounded-[1.5rem] sm:rounded-[1.625rem] border border-zinc-300/90 bg-[#F2F2F7] shadow-[0_2px_16px_-4px_rgba(0,0,0,0.1)] backdrop-blur-none dark:border-white/[0.07] dark:bg-zinc-900/40 dark:backdrop-blur-2xl dark:shadow-[0_8px_40px_-12px_rgba(0,0,0,0.45)]';
+  'relative w-full flex flex-col min-h-0 overflow-hidden rounded-[1.5rem] sm:rounded-[1.625rem] border-0 bg-[#F2F2F7] shadow-none backdrop-blur-none dark:bg-zinc-950 dark:backdrop-blur-none';
 
 export const iosVehicleModalInsetCard =
-  'rounded-[16px] border border-zinc-300/70 bg-white ' +
-  'shadow-[0_8px_28px_-8px_rgba(63,63,70,0.15),0_3px_14px_-6px_rgba(82,82,91,0.10),0_1px_4px_rgba(63,63,70,0.07)] ' +
-  'dark:border-white/[0.07] dark:bg-zinc-900/40 dark:backdrop-blur-2xl dark:shadow-[0_8px_40px_-12px_rgba(0,0,0,0.45)]';
+  'rounded-[16px] border-0 bg-white ' +
+  'shadow-none ' +
+  'dark:bg-zinc-900/80 dark:backdrop-blur-none';
 
-/** Bolha de comentário no modal de veículo — modo claro com sombra um pouco mais marcada que o inset padrão. */
+/** Bolha de comentário no modal de veículo — chapada, sem contorno. */
 export const iosVehicleModalCommentBubble =
-  'rounded-[16px] border border-zinc-300/70 bg-white ' +
-  'shadow-[0_16px_48px_-10px_rgba(0,0,0,0.22),0_10px_30px_-12px_rgba(63,63,70,0.17),0_3px_12px_-4px_rgba(63,63,70,0.11)] ' +
-  'dark:border-white/[0.07] dark:bg-zinc-900/40 dark:backdrop-blur-2xl dark:shadow-[0_8px_40px_-12px_rgba(0,0,0,0.45)]';
+  'rounded-[16px] border-0 bg-white ' +
+  'shadow-none ' +
+  'dark:bg-zinc-900/80 dark:backdrop-blur-none';
 
-/** Campos dentro do modal de veículo — claro: cinza suave; escuro: igual ao iosInput. */
+/** Campos dentro do modal de veículo — chapados. */
 export const iosVehicleModalInput =
-  'w-full rounded-xl border border-zinc-300/85 bg-zinc-50 px-4 py-3 text-[15px] text-zinc-950 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/35 focus:border-[#007AFF]/50 transition-shadow dark:border-white/[0.08] dark:bg-zinc-950/50 dark:text-white dark:placeholder:text-zinc-500';
+  'w-full rounded-xl border-0 bg-zinc-100/90 px-4 py-3 text-[15px] text-zinc-950 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/30 transition-shadow dark:bg-zinc-950/60 dark:text-white dark:placeholder:text-zinc-500';
 
 /** Modais da Agenda — modo claro: fundo branco sólido; grupos e campos em cinza claro com sombra. */
 export const agendaModalShell =
@@ -119,7 +119,7 @@ export const iosPrimaryButton =
 
 /** Cor de destaque da oficina (Configurações → Aparência, --app-accent-rgb). */
 export const iosAccentPrimaryButton =
-  'rounded-2xl bg-brand-yellow border border-black/10 dark:border-black/25 px-6 py-3.5 text-[15px] font-semibold text-zinc-950 shadow-lg shadow-brand-yellow/30 hover:brightness-110 active:scale-[0.98] transition-all disabled:opacity-45';
+  'rounded-2xl border-0 bg-brand-yellow px-6 py-3.5 text-[15px] font-semibold text-zinc-950 shadow-none transition-[filter,transform] hover:brightness-110 active:scale-[0.98] disabled:opacity-45';
 
 /**
  * Ícone antes do título (Recepção, Agenda, Pátio, Laboratório): material em `--app-accent-rgb` + borda luminosa e sombras no estilo iOS (vidro / squircle).
@@ -127,10 +127,9 @@ export const iosAccentPrimaryButton =
  */
 export const iosPageTitleIconShell =
   'relative flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-[1.35rem] ' +
-  'border border-zinc-300/75 bg-zinc-100 ' +
-  'shadow-[inset_0_1px_0_0_rgba(255,255,255,0.85),0_6px_18px_-10px_rgba(0,0,0,0.12),0_0_0_1px_rgba(0,0,0,0.05)] ' +
-  'dark:border-white/[0.12] dark:bg-zinc-800/95 ' +
-  'dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.08),0_8px_28px_-12px_rgba(0,0,0,0.55)]';
+  'border-0 bg-zinc-100 ' +
+  'shadow-none ' +
+  'dark:bg-zinc-800';
 
 /** Brilho superior (gloss) — camada atrás do pictograma (escuro: um pouco mais luminoso para o traço não “afundar”). */
 export const iosPageTitleIconGlass =
@@ -142,7 +141,7 @@ export const iosPageTitleIconGlassLight =
 
 /** Força superfície cinza “modo claro” quando o app está em dark (squircle). */
 export const iosForcedLightChromeShell =
-  'dark:!border-zinc-300/75 dark:!bg-zinc-100 dark:!shadow-[inset_0_1px_0_0_rgba(255,255,255,0.85),0_6px_18px_-10px_rgba(0,0,0,0.12),0_0_0_1px_rgba(0,0,0,0.05)]';
+  'dark:!border-0 dark:!bg-zinc-100 dark:!shadow-none';
 
 /** Pictograma (Lucide / PatioCarIcon) — claro: traço escuro; escuro: traço claro + halo escuro (mesma legibilidade do claro). */
 export const iosPageTitleIconGlyph =
@@ -150,10 +149,8 @@ export const iosPageTitleIconGlyph =
 
 /** Superfície compartilhada — cinza claro neutro (sem cor por aba / sem branding no tile). */
 const iosAccentIconSurfaceCore =
-  'border border-zinc-300/75 bg-zinc-100 ' +
-  'shadow-[inset_0_1px_0_0_rgba(255,255,255,0.85),0_6px_18px_-10px_rgba(0,0,0,0.12),0_0_0_1px_rgba(0,0,0,0.05)] ' +
-  'dark:border-white/[0.12] dark:bg-zinc-800/95 ' +
-  'dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.08),0_8px_28px_-12px_rgba(0,0,0,0.55)]';
+  'border-0 bg-zinc-100 shadow-none ' +
+  'dark:bg-zinc-800';
 
 /** Modal / cabeçalhos internos (48px). */
 export const iosAccentIconShellModal =
