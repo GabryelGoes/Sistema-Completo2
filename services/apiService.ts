@@ -844,8 +844,6 @@ export async function createServiceOrder(params: {
   orderType?: ServiceOrderType;
   /** Laboratório: etapa inicial no quadro (padrão: aguardando avaliação). */
   status?: ServiceOrderStatus;
-  /** Só veículo: categoria escolhida na recepção */
-  vehicleCategory?: string | null;
   vehicleBrand?: string | null;
   vehicleColor?: string | null;
   vehicleYear?: string | null;
@@ -859,9 +857,6 @@ export async function createServiceOrder(params: {
     aiAnalysis: params.aiAnalysis ?? null,
     orderType,
   };
-  if (orderType === "vehicle" && params.vehicleCategory !== undefined) {
-    body.vehicleCategory = params.vehicleCategory?.trim() || null;
-  }
   if (orderType === "vehicle") {
     body.plate = (params.plate || '').toUpperCase();
     body.mileageKm = params.mileageKm ?? null;
@@ -901,7 +896,6 @@ export async function createServiceOrder(params: {
 export async function saveReceptionIntake(
   customer: Customer,
   orderType: ServiceOrderType = "vehicle",
-  vehicleCategory?: string | null,
   moduleInitialStatus?: ServiceOrderStatus
 ) {
   const createdCustomer = await createCustomer(customer);
@@ -921,7 +915,6 @@ export async function saveReceptionIntake(
     issueDescription: customer.issueDescription,
     aiAnalysis: customer.aiAnalysis,
     orderType,
-    vehicleCategory: orderType === "vehicle" ? vehicleCategory ?? null : null,
     vehicleBrand: orderType === "vehicle" ? customer.vehicleBrand?.trim() || null : undefined,
     vehicleColor: orderType === "vehicle" ? customer.vehicleColor?.trim() || null : undefined,
     vehicleYear: orderType === "vehicle" ? customer.vehicleYear?.trim() || null : undefined,
@@ -941,7 +934,6 @@ export async function saveReceptionIntakeForExistingCustomer(
   customerId: string,
   customer: Customer,
   orderType: ServiceOrderType = "vehicle",
-  vehicleCategory?: string | null,
   moduleInitialStatus?: ServiceOrderStatus
 ) {
   const createdServiceOrder = await createServiceOrder({
@@ -959,7 +951,6 @@ export async function saveReceptionIntakeForExistingCustomer(
     issueDescription: customer.issueDescription,
     aiAnalysis: customer.aiAnalysis,
     orderType,
-    vehicleCategory: orderType === "vehicle" ? vehicleCategory ?? null : null,
     vehicleBrand: orderType === "vehicle" ? customer.vehicleBrand?.trim() || null : undefined,
     vehicleColor: orderType === "vehicle" ? customer.vehicleColor?.trim() || null : undefined,
     vehicleYear: orderType === "vehicle" ? customer.vehicleYear?.trim() || null : undefined,
@@ -1160,7 +1151,7 @@ export async function updateServiceOrderExternalRepair(
   id: string,
   data: ExternalRepair | null
 ): Promise<ApiServiceOrder> {
-  const body = data === null ? { externalRepair: null } : { ...data };
+  const body = data === null ? { externalRepair: null, clear: true } : { ...data };
   const response = await fetch(`${API_BASE}/service-orders/${id}/external-repair`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
@@ -1389,7 +1380,6 @@ export async function updateServiceOrderType(
   return response.json();
 }
 
-/** Atualiza a categoria do veículo (Compacto, Médio/SUV, Pick-Up, Premium). Só modo veículo. */
 /** Grava caminho da imagem da assinatura (Storage) e data/hora no servidor. */
 export async function updateServiceOrderDiagnosticAuthorization(
   id: string,
@@ -1408,32 +1398,6 @@ export async function updateServiceOrderDiagnosticAuthorization(
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
     throw new Error(err.error || `Falha ao registrar autorização de diagnóstico (${response.status})`);
-  }
-  return response.json();
-}
-
-export async function updateServiceOrderVehicleCategory(
-  id: string,
-  vehicleCategory: string | null,
-  options?: ServiceOrderUpdateActor
-): Promise<ApiServiceOrder> {
-  const body = mergeActorIntoBody(
-    {
-      vehicleCategory:
-        vehicleCategory == null || String(vehicleCategory).trim() === ""
-          ? null
-          : String(vehicleCategory).trim(),
-    },
-    options
-  );
-  const response = await fetch(`${API_BASE}/service-orders/${id}`, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    throw new Error(err.error || `Falha ao atualizar categoria (${response.status})`);
   }
   return response.json();
 }
@@ -1735,6 +1699,48 @@ export async function deleteServiceOrderPhoto(serviceOrderId: string, path: stri
     const err = await response.json().catch(() => ({}));
     throw new Error(err.error || `Falha ao excluir anexo (${response.status})`);
   }
+}
+
+export type LabSourcePatioOrder =
+  | { found: false }
+  | { found: true; id: string; osNumber: number | null; photos: ServiceOrderPhoto[] };
+
+export async function getLabOrderSourcePatio(labOrderId: string): Promise<LabSourcePatioOrder> {
+  const response = await fetch(`${API_BASE}/service-orders/${labOrderId}/source-patio`);
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({} as { error?: string }));
+    throw new Error(err.error || `Falha ao localizar a OS do pátio (${response.status})`);
+  }
+  const data = (await response.json()) as LabSourcePatioOrder;
+  if (!data || data.found !== true) return { found: false };
+  const photos = Array.isArray(data.photos)
+    ? data.photos.filter((p) => p && typeof p.name === "string" && !/AUTORIZACAO_DIAGNOSTICO/i.test(p.name))
+    : [];
+  return { found: true, id: data.id, osNumber: data.osNumber ?? null, photos };
+}
+
+export async function copyServiceOrderPhotosFrom(
+  destOrderId: string,
+  sourceOrderId: string,
+  paths: string[]
+): Promise<{ copied: ServiceOrderPhoto[]; failed: { path: string; error: string }[] }> {
+  const response = await fetch(`${API_BASE}/service-orders/${destOrderId}/photos/copy-from`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ sourceOrderId, paths }),
+  });
+  const data = (await response.json().catch(() => ({}))) as {
+    error?: string;
+    copied?: ServiceOrderPhoto[];
+    failed?: { path: string; error: string }[];
+  };
+  if (!response.ok) {
+    throw new Error(data.error || `Falha ao copiar anexos (${response.status})`);
+  }
+  return {
+    copied: Array.isArray(data.copied) ? data.copied : [],
+    failed: Array.isArray(data.failed) ? data.failed : [],
+  };
 }
 
 /** Substitui o arquivo no Storage (mesmo path) após rotação no cliente. */
@@ -2454,6 +2460,20 @@ export async function saveServiceOrderLabEvaluation(
   return response.json();
 }
 
+/** Remove a avaliação técnica e os orçamentos criados automaticamente por ela (serviços rápidos). */
+export async function deleteServiceOrderLabEvaluation(
+  serviceOrderId: string
+): Promise<ServiceOrderDetail> {
+  const response = await fetch(`${API_BASE}/service-orders/${serviceOrderId}/lab-evaluation`, {
+    method: 'DELETE',
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao excluir avaliação (${response.status})`);
+  }
+  return response.json();
+}
+
 export async function getTechnicianServicesReport(): Promise<{ items: TechnicianServiceReportItem[] }> {
   const response = await fetch(`${API_BASE}/reports/technician-services`);
   if (!response.ok) {
@@ -2643,7 +2663,16 @@ export interface WorkshopPart {
   created_at: string;
   original_code?: string | null;
   numeric_code?: string | null;
+  /** Código de barras / EAN (pistola ou câmera). */
+  barcode?: string | null;
   location?: string | null;
+  /** Barracão: oficina principal ou depósito. */
+  storage_site?: 'oficina' | 'deposito' | null;
+  description?: string | null;
+  model?: string | null;
+  content_qty?: number | null;
+  content_unit?: string | null;
+  characteristics?: string | null;
   application_similar?: string | null;
   notes?: string | null;
   ncm_code?: string | null;
@@ -2671,7 +2700,14 @@ export type WorkshopPartWriteInput = {
   stock_qty?: number;
   original_code?: string | null;
   numeric_code?: string | null;
+  barcode?: string | null;
   location?: string | null;
+  storage_site?: 'oficina' | 'deposito' | null;
+  description?: string | null;
+  model?: string | null;
+  content_qty?: number | null;
+  content_unit?: string | null;
+  characteristics?: string | null;
   application_similar?: string | null;
   notes?: string | null;
   ncm_code?: string | null;
@@ -2698,6 +2734,23 @@ export interface WorkshopPartCategory {
 }
 
 export type { WorkshopPartsAnalyticsResponse } from '../utils/workshopPartsAnalytics';
+export type {
+  AbsModuleCondition,
+  AbsModuleExitReason,
+  AbsModuleKind,
+  AbsModuleMovementType,
+  AbsModuleStatus,
+  WorkshopAbsModule,
+  WorkshopAbsModuleMovement,
+  WorkshopAbsModuleWriteInput,
+} from '../utils/workshopAbsModules';
+import type {
+  AbsModuleMovementType,
+  AbsModuleStatus,
+  WorkshopAbsModule,
+  WorkshopAbsModuleMovement,
+  WorkshopAbsModuleWriteInput,
+} from '../utils/workshopAbsModules';
 
 export async function getWorkshopPartsAnalytics(
   preset: '7d' | '30d' | '90d' | 'month' | 'year' = '30d'
@@ -2708,6 +2761,298 @@ export async function getWorkshopPartsAnalytics(
     throw new Error(err.error || `Falha ao carregar gráficos do estoque (${response.status})`);
   }
   return response.json();
+}
+
+export type WorkshopPartPendingReservation = {
+  workshopPartId: string | null;
+  partName: string;
+  quantity: number;
+  quantityLabel: string;
+  budgetId: string;
+  budgetCardName: string | null;
+  serviceOrderId: string;
+  plate: string | null;
+  vehicleModel: string | null;
+  osNumber: number | null;
+  status: string | null;
+};
+
+export type WorkshopPartPendingReservationsResponse = {
+  items: WorkshopPartPendingReservation[];
+  reservedQtyByPartId: Record<string, number>;
+};
+
+/** Peças do estoque em orçamentos de veículos ainda sem baixa (antes de Finalizado). */
+export async function getWorkshopPartPendingReservations(): Promise<WorkshopPartPendingReservationsResponse> {
+  const response = await fetch(`${API_BASE}/workshop-parts/pending-reservations`);
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao carregar reservas do estoque (${response.status})`);
+  }
+  const data = (await response.json()) as WorkshopPartPendingReservationsResponse;
+  return {
+    items: Array.isArray(data.items) ? data.items : [],
+    reservedQtyByPartId:
+      data.reservedQtyByPartId && typeof data.reservedQtyByPartId === 'object'
+        ? data.reservedQtyByPartId
+        : {},
+  };
+}
+
+export type WorkshopPartStockMovementType = 'sale' | 'consumable';
+
+export type WorkshopPartStockMovement = {
+  id: string;
+  workshop_id: string;
+  part_id: string;
+  movement_type: WorkshopPartStockMovementType;
+  quantity: number;
+  unit_price: number | null;
+  total_amount: number | null;
+  notes: string | null;
+  barcode_scanned: string | null;
+  recorded_by_name: string | null;
+  stock_before: number;
+  stock_after: number;
+  created_at: string;
+  part_name?: string | null;
+  part_unit_of_measure?: string | null;
+  part_photo_url?: string | null;
+};
+
+export type WorkshopPartStockOutboundResult = {
+  movement: WorkshopPartStockMovement;
+  part: Pick<
+    WorkshopPart,
+    'id' | 'name' | 'stock_qty' | 'unit_price' | 'unit_of_measure' | 'photo_url' | 'barcode'
+  >;
+};
+
+/** Busca produto por código de barras, original ou numérico. */
+export async function lookupWorkshopPartByCode(code: string): Promise<WorkshopPart | null> {
+  const q = String(code || '').trim();
+  if (!q) return null;
+  const response = await fetch(
+    `${API_BASE}/workshop-parts/lookup?code=${encodeURIComponent(q)}`
+  );
+  if (response.status === 404) return null;
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao buscar produto (${response.status})`);
+  }
+  const data = (await response.json()) as { part?: Record<string, unknown> } & Record<string, unknown>;
+  const row = (data.part ?? data) as Record<string, unknown>;
+  if (!row?.id) return null;
+  return normalizeWorkshopPartRow(row);
+}
+
+export async function getWorkshopPartStockMovements(opts?: {
+  type?: WorkshopPartStockMovementType;
+  limit?: number;
+}): Promise<WorkshopPartStockMovement[]> {
+  const params = new URLSearchParams();
+  if (opts?.type) params.set('type', opts.type);
+  if (opts?.limit) params.set('limit', String(opts.limit));
+  const qs = params.toString();
+  const response = await fetch(
+    `${API_BASE}/workshop-parts/movements${qs ? `?${qs}` : ''}`
+  );
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao listar movimentações (${response.status})`);
+  }
+  const data = (await response.json()) as { items?: WorkshopPartStockMovement[] };
+  return Array.isArray(data.items) ? data.items : [];
+}
+
+export async function createWorkshopPartStockMovement(input: {
+  movement_type: WorkshopPartStockMovementType;
+  quantity: number;
+  part_id?: string;
+  code?: string;
+  unit_price?: number | null;
+  notes?: string | null;
+  barcode_scanned?: string | null;
+  recorded_by_name?: string | null;
+}): Promise<WorkshopPartStockOutboundResult> {
+  const response = await fetch(`${API_BASE}/workshop-parts/movements`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao registrar movimentação (${response.status})`);
+  }
+  const data = (await response.json()) as WorkshopPartStockOutboundResult;
+  return {
+    movement: data.movement,
+    part: {
+      ...data.part,
+      stock_qty: Number(data.part?.stock_qty ?? 0),
+      unit_price: Number(data.part?.unit_price ?? 0),
+    },
+  };
+}
+
+// ----------------- MÓDULOS ABS (inventário individual + QR) -----------------
+
+function normalizeAbsModuleRow(row: Record<string, unknown>): WorkshopAbsModule {
+  return {
+    ...(row as WorkshopAbsModule),
+    unit_cost: Number(row.unit_cost ?? 0),
+    unit_price: Number(row.unit_price ?? 0),
+    manufacturer: (row.manufacturer as string) ?? null,
+    original_code: (row.original_code as string) ?? null,
+    application: (row.application as string) ?? null,
+    model: (row.model as string) ?? null,
+    year_label: (row.year_label as string) ?? null,
+    supplier: (row.supplier as string) ?? null,
+    location: (row.location as string) ?? null,
+    notes: (row.notes as string) ?? null,
+    module_kind: (row.module_kind as WorkshopAbsModule['module_kind']) || 'completo',
+    condition: (row.condition as WorkshopAbsModule['condition']) || 'usado',
+    status: (row.status as WorkshopAbsModule['status']) || 'disponivel',
+    public_id: String(row.public_id || '').toUpperCase(),
+    id: String(row.id || ''),
+    received_at: String(row.received_at || row.created_at || ''),
+    created_at: String(row.created_at || ''),
+    updated_at: String(row.updated_at || row.created_at || ''),
+  };
+}
+
+export async function getWorkshopAbsModules(opts?: {
+  q?: string;
+  status?: AbsModuleStatus | '';
+}): Promise<WorkshopAbsModule[]> {
+  const params = new URLSearchParams();
+  if (opts?.q) params.set('q', opts.q);
+  if (opts?.status) params.set('status', opts.status);
+  const qs = params.toString();
+  const response = await fetch(`${API_BASE}/abs-modules${qs ? `?${qs}` : ''}`);
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao listar módulos ABS (${response.status})`);
+  }
+  const data = (await response.json()) as { modules?: Record<string, unknown>[] };
+  return Array.isArray(data.modules) ? data.modules.map(normalizeAbsModuleRow) : [];
+}
+
+export async function lookupWorkshopAbsModuleByCode(
+  code: string
+): Promise<{ found: boolean; module: WorkshopAbsModule | null; public_id?: string; error?: string }> {
+  const q = String(code || '').trim();
+  if (!q) return { found: false, module: null };
+  const response = await fetch(
+    `${API_BASE}/abs-modules/lookup?code=${encodeURIComponent(q)}`
+  );
+  const data = (await response.json().catch(() => ({}))) as {
+    found?: boolean;
+    module?: Record<string, unknown>;
+    public_id?: string;
+    error?: string;
+  };
+  if (!response.ok && response.status !== 400) {
+    throw new Error(data.error || `Falha ao buscar módulo ABS (${response.status})`);
+  }
+  if (!data.found || !data.module) {
+    return {
+      found: false,
+      module: null,
+      public_id: data.public_id,
+      error: data.error,
+    };
+  }
+  return { found: true, module: normalizeAbsModuleRow(data.module), public_id: data.public_id };
+}
+
+export async function getWorkshopAbsModule(publicId: string): Promise<WorkshopAbsModule> {
+  const response = await fetch(`${API_BASE}/abs-modules/${encodeURIComponent(publicId)}`);
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao carregar módulo ABS (${response.status})`);
+  }
+  const data = (await response.json()) as { module?: Record<string, unknown> };
+  if (!data.module) throw new Error('Módulo ABS não encontrado.');
+  return normalizeAbsModuleRow(data.module);
+}
+
+export async function getWorkshopAbsModuleMovements(
+  publicId: string
+): Promise<WorkshopAbsModuleMovement[]> {
+  const response = await fetch(
+    `${API_BASE}/abs-modules/${encodeURIComponent(publicId)}/movements`
+  );
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao carregar histórico (${response.status})`);
+  }
+  const data = (await response.json()) as { movements?: WorkshopAbsModuleMovement[] };
+  return Array.isArray(data.movements) ? data.movements : [];
+}
+
+export async function createWorkshopAbsModule(
+  input: WorkshopAbsModuleWriteInput & { recorded_by_name?: string | null }
+): Promise<WorkshopAbsModule> {
+  const response = await fetch(`${API_BASE}/abs-modules`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao cadastrar módulo ABS (${response.status})`);
+  }
+  const data = (await response.json()) as { module?: Record<string, unknown> };
+  if (!data.module) throw new Error('Resposta inválida ao cadastrar módulo ABS.');
+  return normalizeAbsModuleRow(data.module);
+}
+
+export async function updateWorkshopAbsModule(
+  publicId: string,
+  input: WorkshopAbsModuleWriteInput
+): Promise<WorkshopAbsModule> {
+  const response = await fetch(`${API_BASE}/abs-modules/${encodeURIComponent(publicId)}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao atualizar módulo ABS (${response.status})`);
+  }
+  const data = (await response.json()) as { module?: Record<string, unknown> };
+  if (!data.module) throw new Error('Resposta inválida ao atualizar módulo ABS.');
+  return normalizeAbsModuleRow(data.module);
+}
+
+export async function createWorkshopAbsModuleMovement(input: {
+  public_id: string;
+  movement_type: AbsModuleMovementType;
+  to_location?: string | null;
+  reason_type?: string | null;
+  reason_ref?: string | null;
+  notes?: string | null;
+  recorded_by_name?: string | null;
+}): Promise<{ module: WorkshopAbsModule; movement: WorkshopAbsModuleMovement }> {
+  const response = await fetch(
+    `${API_BASE}/abs-modules/${encodeURIComponent(input.public_id)}/movements`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(input),
+    }
+  );
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha na movimentação do módulo ABS (${response.status})`);
+  }
+  const data = (await response.json()) as {
+    module?: Record<string, unknown>;
+    movement?: WorkshopAbsModuleMovement;
+  };
+  if (!data.module || !data.movement) throw new Error('Resposta inválida da movimentação.');
+  return { module: normalizeAbsModuleRow(data.module), movement: data.movement };
 }
 
 export async function getWorkshopParts(): Promise<WorkshopPart[]> {
@@ -2734,6 +3079,8 @@ function normalizeWorkshopPartRow(row: Record<string, unknown>): WorkshopPart {
     unit_cost: Number(row.unit_cost ?? 0),
     km_limit: row.km_limit != null ? Number(row.km_limit) : null,
     validity_months: row.validity_months != null ? Number(row.validity_months) : null,
+    storage_site: row.storage_site === 'deposito' ? 'deposito' : 'oficina',
+    content_qty: row.content_qty != null && row.content_qty !== '' ? Number(row.content_qty) : null,
     fiscal_extra:
       fiscal && typeof fiscal === 'object' && !Array.isArray(fiscal)
         ? (fiscal as WorkshopPartFiscalExtra)

@@ -37,5 +37,10 @@ export function ModalPortal({
   useBrowserBackLayer(manageBackLayer, onBack);
 
   if (typeof document === 'undefined') return null;
-  return createPortal(children, document.body);
+  return createPortal(
+    <div data-modal-portal="" className="contents">
+      {children}
+    </div>,
+    document.body
+  );
 }

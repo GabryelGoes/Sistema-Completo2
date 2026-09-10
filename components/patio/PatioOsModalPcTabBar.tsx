@@ -1,12 +1,14 @@
 import React from 'react';
+import { IosNotificationBadge } from '../ui/IosNotificationBadge';
 
-export type PatioOsModalPcTab = 'dados' | 'arquivos' | 'conserto_externo' | 'laboratorio';
+export type PatioOsModalPcTab = 'dados' | 'orcamentos' | 'arquivos' | 'conserto_externo' | 'laboratorio';
 
 const ALL_TABS: { id: PatioOsModalPcTab; label: string }[] = [
   { id: 'dados', label: 'Dados' },
+  { id: 'orcamentos', label: 'Orçamentos' },
   { id: 'arquivos', label: 'Arquivos' },
   { id: 'conserto_externo', label: 'Conserto externo' },
-  { id: 'laboratorio', label: 'Serviços no laboratório' },
+  { id: 'laboratorio', label: 'Serviços Laboratório' },
 ];
 
 export type PatioOsModalPcTabBarProps = {
@@ -14,12 +16,15 @@ export type PatioOsModalPcTabBarProps = {
   onChange: (tab: PatioOsModalPcTab) => void;
   /** Omitir abas (ex.: laboratório no modo módulo). */
   hiddenTabs?: PatioOsModalPcTab[];
+  /** Contagem estilo notificação iOS por aba (ex.: peças enviadas ao lab). */
+  tabBadges?: Partial<Record<PatioOsModalPcTab, number>>;
 };
 
 export const PatioOsModalPcTabBar: React.FC<PatioOsModalPcTabBarProps> = ({
   active,
   onChange,
   hiddenTabs = [],
+  tabBadges,
 }) => {
   const tabs = ALL_TABS.filter((tab) => !hiddenTabs.includes(tab.id));
   return (
@@ -31,6 +36,7 @@ export const PatioOsModalPcTabBar: React.FC<PatioOsModalPcTabBarProps> = ({
     <div className="mx-auto flex w-full max-w-[1680px] gap-0 px-6 xl:px-8">
       {tabs.map((tab) => {
         const selected = active === tab.id;
+        const badgeCount = tabBadges?.[tab.id] ?? 0;
         return (
           <button
             key={tab.id}
@@ -44,7 +50,18 @@ export const PatioOsModalPcTabBar: React.FC<PatioOsModalPcTabBarProps> = ({
                 : 'text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200'
             }`}
           >
-            {tab.label}
+            <span className="relative inline-block pr-1">
+              {tab.label}
+              <IosNotificationBadge
+                count={badgeCount}
+                className="-right-4 -top-2.5"
+                ariaLabel={
+                  tab.id === 'laboratorio'
+                    ? `${badgeCount} peça${badgeCount === 1 ? '' : 's'} no laboratório`
+                    : undefined
+                }
+              />
+            </span>
             {selected ? (
               <span
                 className="absolute inset-x-3 bottom-0 h-[2px] rounded-full bg-[#007AFF] dark:bg-[#7ab8ff]"

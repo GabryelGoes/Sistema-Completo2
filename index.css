@@ -96,6 +96,131 @@ body {
   background: #aeaeb2;
 }
 
+/** Rolagem discreta — modal de leitura de orçamento (Orçamento 1, etc.). */
+.budget-read-modal-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(14 116 144 / 0.22) transparent;
+}
+.budget-read-modal-scroll::-webkit-scrollbar {
+  width: 4px;
+}
+.budget-read-modal-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.budget-read-modal-scroll::-webkit-scrollbar-thumb {
+  background: rgb(14 116 144 / 0.2);
+  border-radius: 9999px;
+}
+.budget-read-modal-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgb(14 116 144 / 0.34);
+}
+
+/**
+ * Modal de leitura de orçamento — zoom out só no corpo (diagnóstico/serviços/peças),
+ * sem afetar cabeçalho nem botões inferiores (Excluir, Imprimir, etc.).
+ */
+html[data-device='smartphone'] .budget-read-body--zoom-out {
+  --budget-read-body-scale: 0.88;
+  zoom: var(--budget-read-body-scale);
+}
+
+@supports not (zoom: 1) {
+  html[data-device='smartphone'] .budget-read-body--zoom-out {
+    transform: scale(var(--budget-read-body-scale));
+    transform-origin: top left;
+    width: calc(100% / var(--budget-read-body-scale));
+  }
+}
+
+/**
+ * Modal Novo/Editar orçamento — zoom out 88% em mobile/tablet.
+ * Amplia o box com 100vw/dvh (não %) e solta overflow lateral para não cortar a direita.
+ */
+.budget-modal--compact {
+  --budget-compact-scale: 0.88;
+  zoom: var(--budget-compact-scale);
+  top: 0 !important;
+  left: 0 !important;
+  right: auto !important;
+  bottom: auto !important;
+  width: calc(100vw / var(--budget-compact-scale)) !important;
+  height: calc(100dvh / var(--budget-compact-scale)) !important;
+  max-height: none !important;
+  overflow-x: visible !important;
+  overflow-y: hidden !important;
+}
+
+body:has(.budget-modal--compact) {
+  overflow: hidden;
+}
+
+@supports not (zoom: 1) {
+  .budget-modal--compact {
+    width: 100vw !important;
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: 0 !important;
+    overflow: hidden !important;
+  }
+
+  .budget-modal--compact > .relative {
+    transform: scale(var(--budget-compact-scale));
+    transform-origin: top left;
+    width: calc(100% / var(--budget-compact-scale));
+    height: calc(100% / var(--budget-compact-scale));
+  }
+}
+
+.budget-modal--compact .budget-modal-compact-header {
+  padding-left: 1rem;
+  padding-right: 1rem;
+  padding-bottom: 0.75rem;
+}
+
+.budget-modal--compact .budget-modal-compact-scroll {
+  padding-left: 0.85rem;
+  padding-right: 0.85rem;
+  padding-top: 0.75rem;
+  padding-bottom: 0.75rem;
+}
+
+.budget-modal--compact .budget-modal-compact-stack {
+  gap: 0.75rem;
+}
+
+.budget-modal--compact .budget-modal-compact-stack > * + * {
+  margin-top: 0.75rem !important;
+}
+
+.budget-modal--compact .budget-modal-compact-footer {
+  padding-left: 0.85rem;
+  padding-right: 0.85rem;
+}
+
+/* Campos e cartões um pouco mais densos no modo compacto */
+.budget-modal--compact textarea,
+.budget-modal--compact input[type='text'],
+.budget-modal--compact input:not([type]),
+.budget-modal--compact input[type='number'],
+.budget-modal--compact input[type='search'] {
+  font-size: 13.5px !important;
+  padding-top: 0.65rem !important;
+  padding-bottom: 0.65rem !important;
+  padding-left: 0.85rem !important;
+  padding-right: 0.85rem !important;
+}
+
+.budget-modal--compact textarea.min-h-\[120px\] {
+  min-height: 5.5rem !important;
+}
+
+.budget-modal--compact textarea.min-h-\[88px\] {
+  min-height: 4.25rem !important;
+}
+
 /** Rolagem horizontal discreta (quadro estilo Trello / colunas no Pátio). */
 .patio-board-hscroll {
   scrollbar-width: thin;
@@ -124,6 +249,89 @@ body {
 }
 .dark .patio-board-hscroll::-webkit-scrollbar-thumb:hover {
   background: rgb(255 255 255 / 0.18);
+}
+
+/** Hub Orçamentos: rolagem sem barra visível (página, quadro Trello, chips). */
+.budgets-hub-no-scrollbar {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.budgets-hub-no-scrollbar::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+/** Coluna Trello do hub: rolagem vertical dos cards (PC wheel + toque). */
+.budgets-hub-col-scroll {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+  overflow-x: hidden;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+/** Quadro Trello: pointer handler controla pan X/Y (evita button/iOS travar). */
+.budgets-hub-trello-board {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  touch-action: none;
+  cursor: grab;
+}
+.budgets-hub-trello-board:active {
+  cursor: grabbing;
+}
+
+/**
+ * No shell desktop, uma regra global força overflow:visible em
+ * .flex-1 + overflow-y-auto — garante que as colunas do hub continuem roláveis.
+ */
+html[data-desktop-shell='true'] .desktop-shell-content .budgets-hub-col-scroll {
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  max-height: none;
+  min-height: 0;
+}
+
+/** Rolagem vertical minimalista — modal de veículo (mobile). */
+.patio-vm-scroll--minimal {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(0 0 0 / 0.18) transparent;
+}
+.dark .patio-vm-scroll--minimal {
+  scrollbar-color: rgb(255 255 255 / 0.16) transparent;
+}
+.patio-vm-scroll--minimal::-webkit-scrollbar {
+  width: 3px;
+}
+.patio-vm-scroll--minimal::-webkit-scrollbar-track {
+  background: transparent;
+}
+.patio-vm-scroll--minimal::-webkit-scrollbar-thumb {
+  background: rgb(0 0 0 / 0.16);
+  border-radius: 9999px;
+}
+.patio-vm-scroll--minimal::-webkit-scrollbar-thumb:hover {
+  background: rgb(0 0 0 / 0.28);
+}
+.dark .patio-vm-scroll--minimal::-webkit-scrollbar-thumb {
+  background: rgb(255 255 255 / 0.14);
+}
+.dark .patio-vm-scroll--minimal::-webkit-scrollbar-thumb:hover {
+  background: rgb(255 255 255 / 0.24);
+}
+
+/** Data de entrega compacta no meta do modal (celular). */
+.patio-vm-meta-input--date {
+  min-width: 0;
+  box-sizing: border-box;
+}
+.patio-vm-meta-input--date::-webkit-calendar-picker-indicator {
+  margin: 0;
+  padding: 0;
+  width: 0.85rem;
+  height: 0.85rem;
+  cursor: pointer;
 }
 
 .font-vehicle {
@@ -161,6 +369,52 @@ body {
   animation: modal-sheet-in 0.42s cubic-bezier(0.32, 0.72, 0, 1) forwards;
 }
 
+@keyframes modal-backdrop-out {
+  from {
+    opacity: 1;
+  }
+
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes modal-sheet-out {
+  from {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+
+  to {
+    opacity: 0;
+    transform: scale(0.92) translateY(20px);
+  }
+}
+
+@keyframes modal-wp-app-out {
+  from {
+    opacity: 1;
+    transform: perspective(1200px) translateY(0) scale(1) rotateX(0deg);
+    filter: saturate(1) blur(0);
+  }
+
+  to {
+    opacity: 0;
+    transform: perspective(1200px) translateY(28px) scale(0.88) rotateX(8deg);
+    filter: saturate(0.85) blur(1.5px);
+  }
+}
+
+.animate-modal-backdrop-out {
+  animation: modal-backdrop-out 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  pointer-events: none;
+}
+
+.animate-modal-sheet-out {
+  animation: modal-sheet-out 0.32s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  pointer-events: none;
+}
+
 @keyframes modal-wp-app-in {
   from {
     opacity: 0;
@@ -175,16 +429,131 @@ body {
   }
 }
 
+/** Entrada dos módulos (Pátio, Lab, etc.) ao abrir pela página inicial / TabBar. */
+@keyframes home-module-panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.975);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.animate-home-module-panel-in {
+  animation: home-module-panel-in 0.42s cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+
+/** Hub / overlay aberto a partir da home (Configurações e similares). */
+@keyframes home-hub-shell-in {
+  from {
+    opacity: 0;
+    transform: translateY(12%) scale(0.94);
+    filter: blur(2px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+@keyframes home-hub-shell-out {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+
+  to {
+    opacity: 0;
+    transform: translateY(8%) scale(0.96);
+    filter: blur(1.5px);
+  }
+}
+
+.animate-home-hub-in {
+  animation: home-hub-shell-in 0.46s cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+
+.animate-home-hub-out {
+  animation: home-hub-shell-out 0.34s cubic-bezier(0.4, 0, 0.2, 1) both;
+  pointer-events: none;
+}
+
+@keyframes home-tile-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.9);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.animate-home-tile-in {
+  animation: home-tile-in 0.5s cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+
+@keyframes home-tile-launch {
+  0% {
+    transform: scale(1);
+  }
+
+  40% {
+    transform: scale(0.93);
+  }
+
+  100% {
+    transform: scale(1.06);
+    opacity: 0.88;
+  }
+}
+
+.animate-home-tile-launch {
+  animation: home-tile-launch 0.26s cubic-bezier(0.32, 0.72, 0, 1) forwards;
+}
+
 .animate-modal-wp-app {
   transform-origin: center 86%;
   animation: modal-wp-app-in 0.48s cubic-bezier(0.2, 0.85, 0.22, 1) both;
   will-change: transform, opacity, filter;
 }
 
+.animate-modal-wp-app-out {
+  transform-origin: center 86%;
+  animation: modal-wp-app-out 0.34s cubic-bezier(0.4, 0, 0.2, 1) both;
+  will-change: transform, opacity, filter;
+  pointer-events: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-modal-wp-app {
     animation: modal-sheet-in 0.2s ease-out both;
     filter: none;
+  }
+
+  .animate-modal-wp-app-out,
+  .animate-modal-sheet-out,
+  .animate-modal-backdrop-out {
+    animation: modal-backdrop-out 0.14s ease-out forwards;
+    filter: none;
+  }
+
+  .animate-home-module-panel-in,
+  .animate-home-hub-in,
+  .animate-home-hub-out,
+  .animate-home-tile-in,
+  .animate-home-tile-launch {
+    animation: none !important;
+    filter: none !important;
+    opacity: 1 !important;
+    transform: none !important;
   }
 }
 
@@ -268,4 +637,44 @@ html[data-desktop-shell='true'] .agenda-form-modal-shell .agenda-modal-body-scro
   max-height: none !important;
   flex: 1 1 0% !important;
   min-height: 0 !important;
+}
+
+/**
+ * Modal «Aprovar orçamento»: altura limitada + corpo rolável.
+ * Não usar max-h-[calc(... com espaços ...)] em className — o Tailwind
+ * quebra no espaço e a utility nunca é gerada (conteúdo cresce e não rola).
+ */
+.budget-approval-modal-shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  max-height: calc(
+    100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 2rem
+  );
+}
+
+@media (min-width: 1024px) {
+  .budget-approval-modal-shell {
+    max-height: min(90dvh, 56rem);
+  }
+}
+
+.budget-approval-modal-scroll {
+  flex: 1 1 0%;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+}
+
+/**
+ * Enquanto a Home abre um hub/modal, bloqueia pointer-events no conteúdo montado
+ * para o click/touch sintético do mesmo gesto não acionar botões internos.
+ */
+html[data-home-hub-open-guard='1'] [data-home-hub-overlay],
+html[data-home-hub-open-guard='1'] [data-home-hub-overlay] *,
+html[data-home-hub-open-guard='1'] [data-modal-portal] * {
+  pointer-events: none !important;
 }

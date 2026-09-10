@@ -16,8 +16,10 @@ import {
 } from 'lucide-react';
 import { PartPhotoImg } from './ui/PartPhotoImg';
 import { CurrencyMaskInput } from './ui/CurrencyMaskInput';
+import { BarcodeScanner } from './BarcodeScanner';
 import type { WorkshopPart, WorkshopPartCategory, WorkshopPartFiscalExtra } from '../services/apiService';
 import { WORKSHOP_PART_PHOTOS_MAX } from '../services/apiService';
+import { normalizeBarcodeInput } from '../utils/workshopPartBarcode';
 
 export type PartPhotoSlot = {
   id: string;
@@ -26,7 +28,9 @@ export type PartPhotoSlot = {
 };
 import {
   COMMON_NCM_SUGGESTIONS,
+  CONTENT_UNIT_OPTIONS,
   PART_ORIGIN_OPTIONS,
+  STORAGE_SITE_OPTIONS,
   UNIT_OF_MEASURE_OPTIONS,
   emptyPartFormValues,
   emptyPurchaseDraft,
@@ -41,12 +45,10 @@ import {
 const labelCls =
   'block text-[11px] font-bold uppercase tracking-wide text-zinc-600 dark:text-zinc-400';
 /** Sombras suaves só no modo claro (campos elevados sobre fundo branco). */
-const lightFieldShadow =
-  'shadow-[0_2px_10px_-3px_rgba(0,0,0,0.08),0_1px_4px_rgba(0,0,0,0.05)] dark:shadow-none';
-const lightCardShadow =
-  'shadow-[0_4px_20px_-6px_rgba(0,0,0,0.1),0_2px_8px_-2px_rgba(0,0,0,0.06)] dark:shadow-none';
+const lightFieldShadow = 'shadow-none';
+const lightCardShadow = 'shadow-none';
 const inputCls =
-  `w-full min-w-0 rounded-lg border border-zinc-200/90 dark:border-white/10 bg-zinc-100 dark:bg-white/5 px-3 py-2 text-[14px] text-zinc-900 dark:text-white placeholder:text-zinc-500 dark:placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/35 focus:border-emerald-500/40 ${lightFieldShadow}`;
+  `w-full min-w-0 rounded-lg border-0 bg-zinc-100 dark:bg-white/5 px-3 py-2 text-[14px] text-zinc-900 dark:text-white placeholder:text-zinc-500 dark:placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/35 ${lightFieldShadow}`;
 const textareaCls = `${inputCls} resize-y min-h-[88px]`;
 
 function FieldLabel({ children, hint }: { children: React.ReactNode; hint?: string }) {
@@ -82,7 +84,7 @@ function QtyWithUnit({
         className={`${inputCls} flex-1 tabular-nums`}
       />
       <span
-        className={`flex shrink-0 items-center rounded-lg border border-zinc-200/90 dark:border-white/10 bg-zinc-200/80 dark:bg-white/[0.04] px-2.5 text-[12px] font-bold text-zinc-600 dark:text-zinc-300 ${lightFieldShadow}`}
+        className={`flex shrink-0 items-center rounded-lg border-0 bg-zinc-200/80 dark:bg-white/[0.04] px-2.5 text-[12px] font-bold text-zinc-600 dark:text-zinc-300 ${lightFieldShadow}`}
       >
         {unit}
       </span>
@@ -141,7 +143,7 @@ function UnitOfMeasureSelect({
           id="workshop-part-unit-of-measure-list"
           role="listbox"
           aria-labelledby="workshop-part-unit-of-measure"
-          className={`absolute left-0 right-0 top-full z-30 mt-1 max-h-[min(280px,40vh)] overflow-y-auto rounded-lg border border-zinc-200/90 bg-white py-1 shadow-lg shadow-zinc-900/10 dark:border-white/[0.12] dark:bg-zinc-900 dark:shadow-[0_12px_40px_-8px_rgba(0,0,0,0.65)]`}
+          className={`absolute left-0 right-0 top-full z-30 mt-1 max-h-[min(280px,40vh)] overflow-y-auto rounded-lg border-0 bg-white py-1 shadow-none dark:bg-zinc-900`}
         >
           {UNIT_OF_MEASURE_OPTIONS.map((opt) => {
             const isSelected = opt.value === value;
@@ -245,7 +247,7 @@ function PartCategoriesSelect({
             onClick={onManageCategories}
             disabled={disabled}
             title="Gerenciar categorias"
-            className={`flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-lg border border-zinc-200/90 bg-zinc-100 text-zinc-700 hover:bg-zinc-200/90 disabled:opacity-50 dark:border-white/10 dark:bg-white/[0.05] dark:text-zinc-200 ${lightFieldShadow}`}
+            className={`flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-lg border-0 bg-zinc-100 text-zinc-700 hover:bg-zinc-200/90 disabled:opacity-50 dark:bg-white/[0.05] dark:text-zinc-200 ${lightFieldShadow}`}
           >
             <Tags className="h-4 w-4" aria-hidden />
           </button>
@@ -254,7 +256,7 @@ function PartCategoriesSelect({
           <ul
             role="listbox"
             aria-multiselectable="true"
-            className="absolute left-0 right-0 top-full z-30 mt-1 max-h-[min(240px,36vh)] overflow-y-auto rounded-lg border border-zinc-200/90 bg-white py-1 shadow-lg shadow-zinc-900/10 dark:border-white/[0.12] dark:bg-zinc-900 dark:shadow-[0_12px_40px_-8px_rgba(0,0,0,0.65)]"
+            className="absolute left-0 right-0 top-full z-30 mt-1 max-h-[min(240px,36vh)] overflow-y-auto rounded-lg border-0 bg-white py-1 shadow-none dark:bg-zinc-900"
           >
             {categories.length === 0 ? (
               <li className="px-3 py-3 text-[13px] text-zinc-500 dark:text-zinc-400">
@@ -277,10 +279,10 @@ function PartCategoriesSelect({
                       }`}
                     >
                       <span
-                        className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border ${
+                        className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border-0 shadow-none ${
                           isSelected
-                            ? 'border-emerald-600 bg-emerald-600 text-white'
-                            : 'border-zinc-300 bg-white dark:border-white/20 dark:bg-transparent'
+                            ? 'bg-emerald-600 text-white'
+                            : 'bg-zinc-200 dark:bg-zinc-700'
                         }`}
                       >
                         {isSelected ? <Check className="h-3 w-3" strokeWidth={3} /> : null}
@@ -302,7 +304,7 @@ function PartCategoriesSelect({
             return (
               <span
                 key={id}
-                className="inline-flex max-w-full items-center gap-1 rounded-lg border border-emerald-500/25 bg-emerald-500/10 px-2 py-1 text-[12px] font-semibold text-emerald-900 dark:text-emerald-100"
+                className="inline-flex max-w-full items-center gap-1 rounded-lg border-0 bg-emerald-500/10 px-2 py-1 text-[12px] font-semibold text-emerald-900 shadow-none dark:text-emerald-100"
               >
                 <span className="truncate">{name}</span>
                 <button
@@ -326,6 +328,8 @@ function PartCategoriesSelect({
 export type WorkshopPartRegistrationFormProps = {
   mode: 'create' | 'edit';
   initialPart?: WorkshopPart | null;
+  /** Pré-preenche código de barras no modo criação (ex.: lido e ainda não cadastrado). */
+  prefillBarcode?: string | null;
   initialPurchases?: WorkshopPartPurchaseDraft[];
   categories?: WorkshopPartCategory[];
   onManageCategories?: () => void;
@@ -349,6 +353,7 @@ export type WorkshopPartRegistrationFormProps = {
 export function WorkshopPartRegistrationForm({
   mode,
   initialPart,
+  prefillBarcode = null,
   initialPurchases,
   categories = [],
   onManageCategories,
@@ -373,17 +378,22 @@ export function WorkshopPartRegistrationForm({
   );
   const [fiscalOpen, setFiscalOpen] = useState(false);
   const [fiscalDraft, setFiscalDraft] = useState<WorkshopPartFiscalExtra>({});
+  const [barcodeScannerOpen, setBarcodeScannerOpen] = useState(false);
 
   useEffect(() => {
     if (initialPart) {
       setValues(partToFormValues(initialPart));
       setFiscalDraft(initialPart.fiscal_extra ?? {});
     } else {
-      setValues(emptyPartFormValues());
+      const base = emptyPartFormValues();
+      if (prefillBarcode?.trim()) {
+        base.barcode = prefillBarcode.trim();
+      }
+      setValues(base);
       setFiscalDraft({});
     }
     setPurchases(initialPurchases ?? []);
-  }, [initialPart?.id, mode]);
+  }, [initialPart?.id, mode, prefillBarcode]);
 
   const patch = useCallback((patchValues: Partial<WorkshopPartFormValues>) => {
     setValues((prev) => {
@@ -407,7 +417,7 @@ export function WorkshopPartRegistrationForm({
     <div className="space-y-6">
       {error ? (
         <p
-          className={`rounded-xl border border-red-300/80 bg-red-50 px-4 py-3 text-[14px] text-red-800 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-200 ${lightCardShadow}`}
+          className={`rounded-xl border-0 bg-red-50 px-4 py-3 text-[14px] text-red-800 shadow-none dark:bg-red-950/40 dark:text-red-200 ${lightCardShadow}`}
         >
           {error}
         </p>
@@ -431,10 +441,10 @@ export function WorkshopPartRegistrationForm({
                 {slot ? (
                   <>
                     <div
-                      className={`relative isolate h-full w-full overflow-hidden rounded-xl border border-zinc-200/90 bg-zinc-100 dark:border-white/10 dark:bg-white/[0.03] ${index === 0 ? 'ring-2 ring-emerald-500/45' : ''} ${lightCardShadow}`}
+                      className={`relative isolate h-full w-full overflow-hidden rounded-xl border-0 bg-zinc-100 dark:bg-white/[0.03] ${index === 0 ? 'ring-2 ring-emerald-500/45' : ''} ${lightCardShadow}`}
                     >
                       {index === 0 ? (
-                        <span className="absolute left-1 top-1 z-10 rounded-md bg-emerald-600 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-white shadow-sm">
+                        <span className="absolute left-1 top-1 z-10 rounded-md bg-emerald-600 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-white shadow-none">
                           Capa
                         </span>
                       ) : null}
@@ -453,7 +463,7 @@ export function WorkshopPartRegistrationForm({
                       type="button"
                       onClick={() => onRemovePhoto?.(slot.id)}
                       disabled={photoBusy}
-                      className="absolute -right-1.5 -top-1.5 flex h-7 w-7 items-center justify-center rounded-full border border-zinc-200 bg-white text-red-600 shadow-md hover:bg-red-50 disabled:opacity-50 dark:border-white/15 dark:bg-zinc-900"
+                      className="absolute -right-1.5 -top-1.5 flex h-7 w-7 items-center justify-center rounded-full border-0 bg-white text-red-600 shadow-none hover:bg-red-50 disabled:opacity-50 dark:bg-zinc-900"
                       aria-label="Remover foto"
                     >
                       <X className="h-3.5 w-3.5" />
@@ -497,7 +507,7 @@ export function WorkshopPartRegistrationForm({
               type="button"
               onClick={onAddPhoto}
               disabled={photoBusy || photos.length >= maxPhotos}
-              className={`inline-flex items-center gap-1 rounded-lg border border-zinc-200/90 bg-zinc-100 px-2.5 py-1.5 text-[12px] font-semibold text-zinc-700 disabled:opacity-50 dark:border-white/10 dark:bg-transparent dark:text-zinc-200 ${lightFieldShadow}`}
+              className={`inline-flex items-center gap-1 rounded-lg border-0 bg-zinc-100 px-2.5 py-1.5 text-[12px] font-semibold text-zinc-700 disabled:opacity-50 dark:bg-transparent dark:text-zinc-200 ${lightFieldShadow}`}
             >
               <Images className="h-3.5 w-3.5" /> Galeria
             </button>
@@ -505,7 +515,7 @@ export function WorkshopPartRegistrationForm({
               type="button"
               onClick={onAddPhotoCamera ?? onAddPhoto}
               disabled={photoBusy || photos.length >= maxPhotos}
-              className={`inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-2.5 py-1.5 text-[12px] font-semibold text-white disabled:opacity-50 shadow-[0_3px_12px_-2px_rgba(5,150,105,0.45)] dark:shadow-none`}
+              className={`inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-2.5 py-1.5 text-[12px] font-semibold text-white disabled:opacity-50 shadow-none`}
             >
               <Camera className="h-3.5 w-3.5" /> Câmera
             </button>
@@ -535,6 +545,16 @@ export function WorkshopPartRegistrationForm({
             />
           </div>
           <div className="space-y-1.5">
+            <FieldLabel>Modelo</FieldLabel>
+            <input
+              type="text"
+              value={values.model}
+              onChange={(e) => patch({ model: e.target.value })}
+              placeholder="Ex.: ABS 8.1, DOT 4"
+              className={inputCls}
+            />
+          </div>
+          <div className="space-y-1.5">
             <FieldLabel>Código original</FieldLabel>
             <input
               type="text"
@@ -553,13 +573,98 @@ export function WorkshopPartRegistrationForm({
             />
           </div>
           <div className="space-y-1.5">
-            <FieldLabel>Localização</FieldLabel>
+            <FieldLabel hint="EAN / código da embalagem — pistola ou câmera">Código de barras</FieldLabel>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={values.barcode}
+                onChange={(e) => patch({ barcode: e.target.value })}
+                placeholder="Ex.: 7891234567890"
+                className={`${inputCls} flex-1 tabular-nums`}
+                autoComplete="off"
+              />
+              <button
+                type="button"
+                onClick={() => setBarcodeScannerOpen(true)}
+                className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg border-0 bg-zinc-100 px-3 py-2 text-[13px] font-semibold text-zinc-800 hover:bg-zinc-200/80 dark:bg-white/5 dark:text-white dark:hover:bg-white/10"
+                title="Ler código com a câmera"
+              >
+                <Camera className="h-4 w-4" />
+                <span className="hidden sm:inline">Ler</span>
+              </button>
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <FieldLabel hint="Barracão onde o produto está guardado">Empresa / barracão</FieldLabel>
+            <select
+              value={values.storage_site}
+              onChange={(e) =>
+                patch({ storage_site: e.target.value === 'deposito' ? 'deposito' : 'oficina' })
+              }
+              className={inputCls}
+            >
+              {STORAGE_SITE_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="space-y-1.5">
+            <FieldLabel hint="Prateleira ou posição dentro do barracão">Localização</FieldLabel>
             <input
               type="text"
               value={values.location}
               onChange={(e) => patch({ location: e.target.value })}
               placeholder="Prateleira, corredor…"
               className={inputCls}
+            />
+          </div>
+          <div className="space-y-1.5 sm:col-span-2">
+            <FieldLabel hint="Quantidade líquida da embalagem (ex.: 500 ml, 1 L)">Conteúdo</FieldLabel>
+            <div className="flex gap-2">
+              <input
+                type="number"
+                min="0"
+                step="0.001"
+                value={values.content_qty}
+                onChange={(e) => patch({ content_qty: e.target.value })}
+                placeholder="Ex.: 500"
+                className={`${inputCls} flex-1 tabular-nums`}
+              />
+              <select
+                value={values.content_unit}
+                onChange={(e) => patch({ content_unit: e.target.value })}
+                className={`${inputCls} w-36 shrink-0`}
+                aria-label="Unidade do conteúdo"
+              >
+                <option value="">Unidade</option>
+                {CONTENT_UNIT_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <div className="space-y-1.5 sm:col-span-2 lg:col-span-3">
+            <FieldLabel>Descrição</FieldLabel>
+            <textarea
+              value={values.description}
+              onChange={(e) => patch({ description: e.target.value })}
+              placeholder="Descrição do produto…"
+              className={textareaCls}
+              rows={3}
+            />
+          </div>
+          <div className="space-y-1.5 sm:col-span-2 lg:col-span-3">
+            <FieldLabel>Características</FieldLabel>
+            <textarea
+              value={values.characteristics}
+              onChange={(e) => patch({ characteristics: e.target.value })}
+              placeholder="Características técnicas, material, compatibilidade…"
+              className={textareaCls}
+              rows={3}
             />
           </div>
           <div className="space-y-1.5 sm:col-span-2 lg:col-span-3">
@@ -745,14 +850,14 @@ export function WorkshopPartRegistrationForm({
           setFiscalDraft(values.fiscal_extra ?? {});
           setFiscalOpen(true);
         }}
-        className={`flex w-full items-center justify-center gap-2 rounded-lg border border-zinc-200/90 bg-zinc-100 px-4 py-3 text-[13px] font-semibold text-zinc-800 dark:border-white/10 dark:bg-white/[0.03] dark:text-zinc-200 hover:bg-zinc-200/90 dark:hover:bg-white/[0.06] ${lightCardShadow}`}
+        className={`flex w-full items-center justify-center gap-2 rounded-lg border-0 bg-zinc-100 px-4 py-3 text-[13px] font-semibold text-zinc-800 dark:bg-white/[0.03] dark:text-zinc-200 hover:bg-zinc-200/90 dark:hover:bg-white/[0.06] ${lightCardShadow}`}
       >
         <Eye className="h-4 w-4" aria-hidden />
         Mais configurações fiscais
       </button>
 
       <div
-        className={`overflow-hidden rounded-xl border border-zinc-200/90 bg-zinc-50/50 dark:border-white/[0.08] dark:bg-transparent ${lightCardShadow}`}
+        className={`overflow-hidden rounded-xl border-0 bg-zinc-50/50 dark:bg-transparent ${lightCardShadow}`}
       >
         <div
           className={`flex items-center justify-between gap-3 border-b border-zinc-200/70 bg-zinc-100 px-4 py-3 dark:border-white/[0.06] dark:bg-white/[0.03] ${lightFieldShadow}`}
@@ -886,7 +991,7 @@ export function WorkshopPartRegistrationForm({
           type="button"
           onClick={handleSave}
           disabled={!values.name.trim() || saving}
-          className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-8 py-3 text-[15px] font-semibold text-white shadow-[0_4px_16px_-2px_rgba(5,150,105,0.45)] hover:bg-emerald-500 disabled:opacity-50 dark:shadow-none"
+          className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-8 py-3 text-[15px] font-semibold text-white shadow-none hover:bg-emerald-500 disabled:opacity-50"
         >
           {saving ? <Loader2 className="h-5 w-5 animate-spin" /> : <Save className="h-5 w-5" />}
           Salvar
@@ -900,7 +1005,7 @@ export function WorkshopPartRegistrationForm({
           role="presentation"
         >
           <div
-            className="w-full max-w-lg rounded-2xl border border-zinc-200/90 bg-white p-6 shadow-xl dark:border-white/10 dark:bg-zinc-900"
+            className="w-full max-w-lg rounded-2xl border-0 bg-white p-6 shadow-none dark:bg-zinc-900"
             onClick={(e) => e.stopPropagation()}
             role="dialog"
             aria-modal="true"
@@ -955,6 +1060,16 @@ export function WorkshopPartRegistrationForm({
           </div>
         </div>
       ) : null}
+
+      <BarcodeScanner
+        isOpen={barcodeScannerOpen}
+        onClose={() => setBarcodeScannerOpen(false)}
+        onDetected={(code) => {
+          setBarcodeScannerOpen(false);
+          patch({ barcode: normalizeBarcodeInput(code) });
+        }}
+        title="Ler código de barras do produto"
+      />
     </div>
   );
 }

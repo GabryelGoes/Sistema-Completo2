@@ -10,8 +10,10 @@ import { WORKSHOP_PART_PHOTOS_MAX } from '../services/apiService';
 import {
   PART_ORIGIN_OPTIONS,
   UNIT_OF_MEASURE_OPTIONS,
+  formatPartContent,
+  storageSiteLabel,
 } from '../utils/workshopPartFields';
-import { getWorkshopPartStockStatus } from '../utils/workshopPartStock';
+import { formatWorkshopPartQty, getWorkshopPartStockStatus } from '../utils/workshopPartStock';
 import { WorkshopPartStockBadge } from './ui/WorkshopPartStockBadge';
 import type { PartPhotoSlot } from './WorkshopPartRegistrationForm';
 
@@ -19,14 +21,14 @@ const labelCls =
   'text-[11px] font-bold uppercase tracking-wide text-zinc-500 dark:text-zinc-400';
 const valueCls = 'text-[14px] text-zinc-900 dark:text-zinc-100';
 const cardCls =
-  'rounded-xl border border-zinc-200/90 bg-zinc-50/80 p-4 dark:border-white/[0.08] dark:bg-white/[0.03] shadow-[0_2px_10px_-3px_rgba(0,0,0,0.08)] dark:shadow-none';
+  'rounded-xl border-0 bg-zinc-50/80 p-4 shadow-none dark:bg-white/[0.03]';
 
 function fmtMoney(n: number): string {
   return `R$ ${Number(n ?? 0).toFixed(2)}`;
 }
 
 function fmtQty(n: number, unit: string): string {
-  return `${Number(n ?? 0).toFixed(3)} ${unit}`;
+  return `${formatWorkshopPartQty(n)} ${unit}`;
 }
 
 function displayText(v: string | null | undefined): string {
@@ -136,7 +138,7 @@ export function WorkshopPartDetailView({
       ) : (
         <>
           {(osNum != null || complaint || labContext?.customer_name) ? (
-            <div className="overflow-hidden rounded-2xl border-2 border-teal-500/40 bg-gradient-to-br from-teal-50 to-cyan-50/80 shadow-[0_4px_24px_-8px_rgba(13,148,136,0.35)] dark:border-teal-500/30 dark:from-teal-950/50 dark:to-cyan-950/30">
+            <div className="overflow-hidden rounded-2xl border-0 bg-gradient-to-br from-teal-50 to-cyan-50/80 shadow-none dark:from-teal-950/50 dark:to-cyan-950/30">
               <div className="grid sm:grid-cols-[minmax(120px,180px)_1fr]">
                 <div className="flex flex-col justify-center bg-teal-600 px-5 py-4 text-white dark:bg-teal-700">
                   <p className="text-[10px] font-bold uppercase tracking-widest text-teal-100">
@@ -196,7 +198,7 @@ export function WorkshopPartDetailView({
                   return (
                   <div
                     key={slot.id}
-                    className="group relative aspect-square overflow-hidden rounded-xl border border-zinc-200/90 bg-zinc-100 dark:border-white/10 dark:bg-white/[0.03]"
+                    className="group relative aspect-square overflow-hidden rounded-xl border-0 bg-zinc-100 dark:bg-white/[0.03]"
                   >
                     {canPreview ? (
                       <button
@@ -257,6 +259,7 @@ export function WorkshopPartDetailView({
                 <DetailRow label="Nº no estoque" value={`#${catalogNumber}`} />
               ) : null}
               <DetailRow label="Marca" value={displayText(part.brand)} />
+              <DetailRow label="Modelo" value={displayText(part.model)} />
               <DetailRow
                 label="Produto"
                 value={
@@ -265,9 +268,15 @@ export function WorkshopPartDetailView({
                   </span>
                 }
               />
+              <DetailRow label="Empresa / barracão" value={storageSiteLabel(part.storage_site)} />
               <DetailRow label="Localização" value={displayText(part.location)} />
+              <DetailRow
+                label="Conteúdo"
+                value={displayText(formatPartContent(part.content_qty, part.content_unit))}
+              />
               <DetailRow label="Código original" value={displayText(part.original_code)} />
               <DetailRow label="Código numérico" value={displayText(part.numeric_code)} />
+              <DetailRow label="Código de barras" value={displayText(part.barcode)} />
               <DetailRow
                 label="Categorias"
                 value={
@@ -276,7 +285,7 @@ export function WorkshopPartDetailView({
                       {categoryNames.map((name) => (
                         <span
                           key={name}
-                          className="rounded-lg border border-emerald-500/25 bg-emerald-500/10 px-2 py-0.5 text-[12px] font-semibold text-emerald-900 dark:text-emerald-100"
+                          className="rounded-lg border-0 bg-emerald-500/10 px-2 py-0.5 text-[12px] font-semibold text-emerald-900 shadow-none dark:text-emerald-100"
                         >
                           {name}
                         </span>
@@ -291,8 +300,29 @@ export function WorkshopPartDetailView({
             </div>
           </div>
 
-          {(part.application_similar?.trim() || part.notes?.trim()) ? (
+          {(part.description?.trim() ||
+            part.characteristics?.trim() ||
+            part.application_similar?.trim() ||
+            part.notes?.trim()) ? (
             <div className="grid gap-4 lg:grid-cols-2">
+              {part.description?.trim() ? (
+                <div className={cardCls}>
+                  <h3 className="mb-2 text-[13px] font-bold text-zinc-800 dark:text-zinc-200">Descrição</h3>
+                  <p className="whitespace-pre-wrap text-[14px] text-zinc-800 dark:text-zinc-200">
+                    {part.description}
+                  </p>
+                </div>
+              ) : null}
+              {part.characteristics?.trim() ? (
+                <div className={cardCls}>
+                  <h3 className="mb-2 text-[13px] font-bold text-zinc-800 dark:text-zinc-200">
+                    Características
+                  </h3>
+                  <p className="whitespace-pre-wrap text-[14px] text-zinc-800 dark:text-zinc-200">
+                    {part.characteristics}
+                  </p>
+                </div>
+              ) : null}
               {part.application_similar?.trim() ? (
                 <div className={cardCls}>
                   <h3 className="mb-2 text-[13px] font-bold text-zinc-800 dark:text-zinc-200">
@@ -430,7 +460,7 @@ export function WorkshopPartDetailView({
           type="button"
           onClick={handlePrint}
           disabled={loading}
-          className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-teal-200 bg-teal-50 px-5 py-3 text-[15px] font-semibold text-teal-900 hover:bg-teal-100 disabled:opacity-50 dark:border-teal-800/60 dark:bg-teal-950/40 dark:text-teal-100 dark:hover:bg-teal-950/60"
+          className="inline-flex w-full items-center justify-center gap-2 rounded-xl border-0 bg-teal-50 px-5 py-3 text-[15px] font-semibold text-teal-900 shadow-none hover:bg-teal-100 disabled:opacity-50 dark:bg-teal-950/40 dark:text-teal-100 dark:hover:bg-teal-950/60"
         >
           <Printer className="h-5 w-5" />
           Imprimir ficha
@@ -441,7 +471,7 @@ export function WorkshopPartDetailView({
           <button
             type="button"
             onClick={onDelete}
-            className="inline-flex items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 px-5 py-3 text-[15px] font-semibold text-red-700 hover:bg-red-100 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-300 dark:hover:bg-red-950/60"
+            className="inline-flex items-center justify-center gap-2 rounded-xl border-0 bg-red-50 px-5 py-3 text-[15px] font-semibold text-red-700 shadow-none hover:bg-red-100 dark:bg-red-950/40 dark:text-red-300 dark:hover:bg-red-950/60"
           >
             <Trash2 className="h-5 w-5" />
             Excluir

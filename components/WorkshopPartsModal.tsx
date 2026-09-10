@@ -16,6 +16,8 @@ import {
   History,
   BarChart3,
   Printer,
+  ScanLine,
+  QrCode,
 } from 'lucide-react';
 import { iosModalShell, iosModalClose, iosModalInsetCard, SETTINGS_CHILD_MODAL_Z, NESTED_STOCK_OVERLAY_Z } from './ui/iosModalStyles';
 import { IosAccentIconSquircle } from './ui/IosAccentIconSquircle';
@@ -54,10 +56,13 @@ import {
   createWorkshopPartPurchase,
   updateWorkshopPartPurchase,
   deleteWorkshopPartPurchase,
+  getWorkshopPartPendingReservations,
   type WorkshopPart,
   type WorkshopPartCategory,
   type WorkshopPartPurchase,
   type WorkshopPartLabContext,
+  type WorkshopPartPendingReservation,
+  type WorkshopPartStockMovementType,
 } from '../services/apiService';
 import { printWorkshopPartSheet } from '../utils/workshopPartPrintSheet';
 import { TechnicianPhotoEditorModal } from './TechnicianPhotoEditorModal';
@@ -67,6 +72,9 @@ import {
 } from './WorkshopPartRegistrationForm';
 import { WorkshopPartDetailView } from './WorkshopPartDetailView';
 import { WorkshopPartsAnalyticsView } from './WorkshopPartsAnalyticsView';
+import { WorkshopPartStockOutboundModal } from './WorkshopPartStockOutboundModal';
+import { WorkshopAbsModulesModal } from './WorkshopAbsModulesModal';
+import { WorkshopPartScanHubModal } from './WorkshopPartScanHubModal';
 import {
   formValuesToApiPayload,
   purchaseDraftShouldSync,
@@ -79,6 +87,7 @@ import {
   buildPartNumberMap,
   countPartsByCategory,
   countStockAlerts,
+  formatWorkshopPartQty,
   getWorkshopPartStockStatus,
   readWorkshopPartSortMode,
   sortWorkshopPartsForCatalogNumber,
@@ -86,6 +95,7 @@ import {
   WORKSHOP_PARTS_SORT_STORAGE_KEY,
   type WorkshopPartSortMode,
 } from '../utils/workshopPartStock';
+import { storageSiteLabel } from '../utils/workshopPartFields';
 import { WorkshopPartStockBadge } from './ui/WorkshopPartStockBadge';
 
 interface WorkshopPartsModalProps {
@@ -170,6 +180,9 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
   const [parts, setParts] = useState<WorkshopPart[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [pendingReservations, setPendingReservations] = useState<WorkshopPartPendingReservation[]>([]);
+  const [reservedQtyByPartId, setReservedQtyByPartId] = useState<Record<string, number>>({});
+  const [reservationsExpanded, setReservationsExpanded] = useState(false);
 
   const [newName, setNewName] = useState('');
   const [pendingPhotos, setPendingPhotos] = useState<PendingPartPhoto[]>([]);
@@ -199,6 +212,13 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
   const [stockAlertFilter, setStockAlertFilter] = useState<StockAlertFilter>('all');
   const [sortMode, setSortMode] = useState<WorkshopPartSortMode>(readWorkshopPartSortMode);
   const [isAnalyticsOpen, setIsAnalyticsOpen] = useState(false);
+  const [outboundMode, setOutboundMode] = useState<WorkshopPartStockMovementType | null>(null);
+  const [outboundInitialPart, setOutboundInitialPart] = useState<WorkshopPart | null>(null);
+  const [scanHubOpen, setScanHubOpen] = useState(false);
+  const [absModulesOpen, setAbsModulesOpen] = useState(false);
+  const [absInitialPublicId, setAbsInitialPublicId] = useState<string | null>(null);
+  const [absInitialMissingPublicId, setAbsInitialMissingPublicId] = useState<string | null>(null);
+  const [registrationPrefillBarcode, setRegistrationPrefillBarcode] = useState<string | null>(null);
   const [categories, setCategories] = useState<WorkshopPartCategory[]>([]);
   const [isCategoriesModalOpen, setIsCategoriesModalOpen] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
@@ -275,12 +295,18 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
     setLoading(true);
     setError(null);
     try {
-      const [list, cats] = await Promise.all([
+      const [list, cats, reservations] = await Promise.all([
         getWorkshopParts(),
         getWorkshopPartCategories().catch(() => [] as WorkshopPartCategory[]),
+        getWorkshopPartPendingReservations().catch(() => ({
+          items: [] as WorkshopPartPendingReservation[],
+          reservedQtyByPartId: {} as Record<string, number>,
+        })),
       ]);
       setParts(list);
       setCategories(cats);
+      setPendingReservations(reservations.items);
+      setReservedQtyByPartId(reservations.reservedQtyByPartId);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Erro ao carregar peças.');
     } finally {
@@ -325,6 +351,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
 
   const closeRegistration = useCallback(() => {
     setRegistrationMode(null);
+    setRegistrationPrefillBarcode(null);
     setRegistrationPart(null);
     setRegistrationPurchases([]);
     resetNewProductDraft();
@@ -345,14 +372,36 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
     }
   }, [isOpen, closeRegistration, closeProductView]);
 
-  const openCreateRegistration = useCallback(() => {
+  const openCreateRegistration = useCallback((prefillBarcode?: string | null) => {
     closeProductView();
     setRegistrationMode('create');
     setRegistrationPart(null);
     setRegistrationPurchases([]);
+    setRegistrationPrefillBarcode(prefillBarcode?.trim() || null);
     resetNewProductDraft();
     setError(null);
   }, [resetNewProductDraft, closeProductView]);
+
+  const openRegisterFromMissingBarcode = useCallback(
+    (barcode: string) => {
+      setOutboundMode(null);
+      openCreateRegistration(barcode);
+    },
+    [openCreateRegistration]
+  );
+
+  const openAbsModules = useCallback((opts?: { publicId?: string; missingPublicId?: string }) => {
+    setOutboundMode(null);
+    setAbsInitialPublicId(opts?.publicId || null);
+    setAbsInitialMissingPublicId(opts?.missingPublicId || null);
+    setAbsModulesOpen(true);
+  }, []);
+
+  const closeAbsModules = useCallback(() => {
+    setAbsModulesOpen(false);
+    setAbsInitialPublicId(null);
+    setAbsInitialMissingPublicId(null);
+  }, []);
 
   const openProductView = useCallback(async (part: WorkshopPart) => {
     const latest = parts.find((p) => p.id === part.id) ?? part;
@@ -768,7 +817,12 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
       const id = (p.id || '').toLowerCase();
       const original = normalizePartSearch(p.original_code || '');
       const numeric = normalizePartSearch(p.numeric_code || '');
+      const barcode = normalizePartSearch(p.barcode || '');
       const location = normalizePartSearch(p.location || '');
+      const model = normalizePartSearch(p.model || '');
+      const description = normalizePartSearch(p.description || '');
+      const characteristics = normalizePartSearch(p.characteristics || '');
+      const storage = normalizePartSearch(storageSiteLabel(p.storage_site));
       const price = String(p.unit_price ?? '').replace(',', '.');
       const stock = String(p.stock_qty ?? '').replace(',', '.');
       const catNames = (p.category_ids ?? [])
@@ -778,8 +832,13 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
       return (
         name.includes(q) ||
         brand.includes(q) ||
+        model.includes(q) ||
+        description.includes(q) ||
+        characteristics.includes(q) ||
+        storage.includes(q) ||
         original.includes(q) ||
         numeric.includes(q) ||
+        barcode.includes(q) ||
         location.includes(q) ||
         id.includes(raw.toLowerCase().replace(/\s/g, '')) ||
         normalizePartSearch(price).includes(q) ||
@@ -924,13 +983,39 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
 
   /** Lista sem backdrop-blur: blur quebra carregamento de imagens no Safari (mobile/tablet). */
   const workshopPartsListCard =
-    'overflow-visible rounded-[22px] border border-zinc-200/80 dark:border-white/[0.07] bg-white dark:bg-zinc-900 shadow-[0_2px_24px_-4px_rgba(0,0,0,0.08)] dark:shadow-[0_8px_40px_-12px_rgba(0,0,0,0.45)]';
+    'overflow-visible rounded-[22px] border-0 bg-white dark:bg-zinc-900 shadow-none';
 
   useBrowserBackLayer(isAnalyticsOpen, () => setIsAnalyticsOpen(false));
 
   useEffect(() => {
-    if (!isOpen) setIsAnalyticsOpen(false);
+    if (!isOpen) {
+      setIsAnalyticsOpen(false);
+      setOutboundMode(null);
+      setAbsModulesOpen(false);
+      setAbsInitialPublicId(null);
+      setAbsInitialMissingPublicId(null);
+      setScanHubOpen(false);
+      setOutboundInitialPart(null);
+    }
   }, [isOpen]);
+
+  const handleOutboundStockChanged = useCallback(
+    (updated: Pick<WorkshopPart, 'id' | 'stock_qty' | 'unit_price' | 'name'>) => {
+      setParts((prev) =>
+        prev.map((p) =>
+          p.id === updated.id
+            ? { ...p, stock_qty: Number(updated.stock_qty), unit_price: Number(updated.unit_price ?? p.unit_price) }
+            : p
+        )
+      );
+      setViewPart((prev) =>
+        prev && prev.id === updated.id
+          ? { ...prev, stock_qty: Number(updated.stock_qty), unit_price: Number(updated.unit_price ?? prev.unit_price) }
+          : prev
+      );
+    },
+    []
+  );
 
   if (!isOpen) return null;
 
@@ -981,17 +1066,92 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
         ) : (
         <div className="flex-1 min-h-0 overflow-y-auto overscroll-y-auto touch-pan-y px-6 sm:px-8 pb-[max(2rem,env(safe-area-inset-bottom))] custom-scrollbar [scrollbar-gutter:stable]">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between mb-4">
-            <p className="text-[13px] text-zinc-500 dark:text-zinc-400 sm:max-w-xl">
-              Gerencie preço e estoque. Use <span className="font-medium text-zinc-600 dark:text-zinc-300">Categorias</span> para
-              organizar o catálogo. Use <span className="font-medium text-zinc-600 dark:text-zinc-300">Adicionar produto</span> para
-              cadastrar. Toque no nome do item para <span className="font-medium text-zinc-600 dark:text-zinc-300">ver detalhes</span>; use o
-              ícone de lápis para editar.
-            </p>
+            {!loading ? (
+              <div className="min-w-0 w-full sm:max-w-xl overflow-hidden rounded-2xl border-0 bg-amber-50/90 shadow-none dark:bg-amber-950/35">
+                <button
+                  type="button"
+                  onClick={() => setReservationsExpanded((v) => !v)}
+                  className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left"
+                  aria-expanded={reservationsExpanded}
+                >
+                  <span className="min-w-0 flex items-center gap-2">
+                    <span className="text-[15px] font-semibold text-amber-950 dark:text-amber-100">
+                      Em Orçamentos
+                    </span>
+                    {pendingReservations.length > 0 ? (
+                      <span className="rounded-md bg-amber-500/20 px-1.5 py-0.5 text-[11px] font-bold tabular-nums text-amber-950 dark:text-amber-100">
+                        {pendingReservations.length}
+                      </span>
+                    ) : null}
+                  </span>
+                  <ChevronDown
+                    className={`h-5 w-5 shrink-0 text-amber-800 transition-transform dark:text-amber-200 ${
+                      reservationsExpanded ? 'rotate-180' : ''
+                    }`}
+                    aria-hidden
+                  />
+                </button>
+                {reservationsExpanded ? (
+                  pendingReservations.length > 0 ? (
+                    <ul className="max-h-[min(280px,40vh)] space-y-1.5 overflow-y-auto border-t border-amber-200/70 px-3 py-3 dark:border-amber-500/20 custom-scrollbar">
+                      {pendingReservations.map((row) => {
+                        const vehicleBits = [
+                          row.osNumber != null ? `OS #${row.osNumber}` : null,
+                          row.plate,
+                          row.vehicleModel,
+                        ].filter(Boolean);
+                        return (
+                          <li
+                            key={`${row.budgetId}-${row.workshopPartId ?? row.partName}-${row.serviceOrderId}`}
+                            className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-white/80 px-3 py-2.5 text-[13px] dark:bg-black/25"
+                          >
+                            <span className="min-w-0">
+                              <span className="block font-semibold text-zinc-900 dark:text-white">
+                                {row.partName}
+                              </span>
+                              <span className="block text-[12px] text-zinc-500 dark:text-zinc-400">
+                                {vehicleBits.length > 0 ? vehicleBits.join(' · ') : 'Veículo'}
+                                {row.budgetCardName ? ` · ${row.budgetCardName}` : ''}
+                              </span>
+                            </span>
+                            <span className="shrink-0 rounded-lg bg-amber-500/15 px-2.5 py-1 text-[13px] font-bold tabular-nums text-amber-950 dark:text-amber-100">
+                              {row.quantityLabel} un.
+                            </span>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  ) : (
+                    <p className="border-t border-amber-200/70 px-4 py-3 text-[13px] text-amber-900/80 dark:border-amber-500/20 dark:text-amber-200/80">
+                      Nenhum produto em orçamento aguardando baixa.
+                    </p>
+                  )
+                ) : null}
+              </div>
+            ) : (
+              <div className="min-w-0 w-full sm:max-w-xl" />
+            )}
             <div className="flex flex-wrap gap-2 justify-end shrink-0">
               <button
                 type="button"
+                onClick={() => setScanHubOpen(true)}
+                className="inline-flex items-center justify-center gap-2 rounded-2xl border-0 bg-emerald-50 dark:bg-emerald-950/40 px-4 py-3 text-[15px] font-semibold text-emerald-900 dark:text-emerald-100 hover:bg-emerald-100/90 dark:hover:bg-emerald-900/50 transition-colors shadow-none"
+              >
+                <ScanLine className="w-5 h-5" />
+                Escanear código
+              </button>
+              <button
+                type="button"
+                onClick={() => openAbsModules()}
+                className="inline-flex items-center justify-center gap-2 rounded-2xl border-0 bg-amber-50 dark:bg-amber-950/40 px-4 py-3 text-[15px] font-semibold text-amber-950 dark:text-amber-100 hover:bg-amber-100/90 dark:hover:bg-amber-900/50 transition-colors shadow-none"
+              >
+                <QrCode className="w-5 h-5" />
+                Módulos ABS
+              </button>
+              <button
+                type="button"
                 onClick={() => setIsAnalyticsOpen(true)}
-                className="inline-flex items-center justify-center gap-2 rounded-2xl border border-emerald-300/80 dark:border-emerald-500/30 bg-emerald-50 dark:bg-emerald-950/40 px-4 py-3 text-[15px] font-semibold text-emerald-900 dark:text-emerald-100 hover:bg-emerald-100/90 dark:hover:bg-emerald-900/50 transition-colors"
+                className="inline-flex items-center justify-center gap-2 rounded-2xl border-0 bg-emerald-50 dark:bg-emerald-950/40 px-4 py-3 text-[15px] font-semibold text-emerald-900 dark:text-emerald-100 hover:bg-emerald-100/90 dark:hover:bg-emerald-900/50 transition-colors shadow-none"
               >
                 <BarChart3 className="w-5 h-5" />
                 Gráficos
@@ -999,15 +1159,15 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
               <button
                 type="button"
                 onClick={() => setIsCategoriesModalOpen(true)}
-                className="inline-flex items-center justify-center gap-2 rounded-2xl border border-zinc-300 dark:border-white/15 bg-white dark:bg-white/5 px-4 py-3 text-[15px] font-semibold text-zinc-800 dark:text-white hover:bg-zinc-50 dark:hover:bg-white/10 transition-colors"
+                className="inline-flex items-center justify-center gap-2 rounded-2xl border-0 bg-zinc-100 dark:bg-white/5 px-4 py-3 text-[15px] font-semibold text-zinc-800 dark:text-white hover:bg-zinc-200/80 dark:hover:bg-white/10 transition-colors"
               >
                 <Tags className="w-5 h-5" />
                 Categorias
               </button>
               <button
                 type="button"
-                onClick={openCreateRegistration}
-                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 py-3 text-[15px] font-semibold text-white shadow-md shadow-emerald-900/20 hover:bg-emerald-500 transition-colors"
+                onClick={() => openCreateRegistration()}
+                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 py-3 text-[15px] font-semibold text-white shadow-none hover:bg-emerald-500 transition-colors"
               >
                 <Plus className="w-5 h-5" />
                 Adicionar produto
@@ -1016,7 +1176,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
           </div>
 
           {error && (
-            <div className="mb-4 px-4 py-3 rounded-xl bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/50 text-red-700 dark:text-red-300 text-sm">
+            <div className="mb-4 px-4 py-3 rounded-xl bg-red-50 dark:bg-red-950/30 border-0 text-red-700 dark:text-red-300 text-sm shadow-none">
               {error}
             </div>
           )}
@@ -1036,7 +1196,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
                       aria-expanded={categoryFilterMenuOpen}
                       aria-controls="workshop-parts-category-listbox"
                       onClick={() => setCategoryFilterMenuOpen((open) => !open)}
-                      className="flex w-full min-h-[46px] items-center justify-between gap-2 rounded-xl border border-zinc-200/90 dark:border-white/[0.12] bg-white/95 dark:bg-zinc-950/90 py-2.5 pl-3 pr-2 text-left text-[15px] font-semibold text-zinc-900 dark:text-white shadow-sm dark:shadow-[inset_0_1px_0_0_rgba(255,255,255,0.04)] focus:outline-none focus:ring-2 focus:ring-emerald-500/40 focus:border-emerald-500/50 transition-colors"
+                      className="flex w-full min-h-[46px] items-center justify-between gap-2 rounded-xl border-0 bg-zinc-100 dark:bg-zinc-950/90 py-2.5 pl-3 pr-2 text-left text-[15px] font-semibold text-zinc-900 dark:text-white shadow-none focus:outline-none focus:ring-2 focus:ring-emerald-500/40 transition-colors"
                     >
                       <span className="min-w-0 truncate">{categoryFilterLabel}</span>
                       <ChevronDown
@@ -1051,7 +1211,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
                         id="workshop-parts-category-listbox"
                         role="listbox"
                         aria-label="Opções de filtro por categoria"
-                        className="absolute left-0 right-0 top-full z-[60] mt-1.5 max-h-[min(280px,45vh)] overflow-y-auto rounded-xl border border-zinc-200/90 dark:border-white/[0.14] bg-white dark:bg-zinc-900 py-1.5 shadow-xl shadow-zinc-900/12 dark:shadow-[0_12px_40px_-8px_rgba(0,0,0,0.65)] ring-1 ring-zinc-900/5 dark:ring-white/10"
+                        className="absolute left-0 right-0 top-full z-[60] mt-1.5 max-h-[min(280px,45vh)] overflow-y-auto rounded-xl border-0 bg-white dark:bg-zinc-900 py-1.5 shadow-none"
                       >
                         {categoryFilterOptions.map((opt) => {
                           const selected = categoryFilter === opt.value;
@@ -1101,7 +1261,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
                       onChange={(e) => setPartsSearchQuery(e.target.value)}
                       placeholder="Pesquisar nesta seleção (nome, preço, categorias…)"
                       autoComplete="off"
-                      className="w-full rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 py-2.5 pl-10 pr-10 text-[15px] text-zinc-900 dark:text-white placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/35 focus:border-emerald-500/50"
+                      className="w-full rounded-xl border-0 bg-zinc-100 dark:bg-white/5 py-2.5 pl-10 pr-10 text-[15px] text-zinc-900 dark:text-white placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/35"
                     />
                     {partsSearchQuery ? (
                       <button
@@ -1126,7 +1286,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
                   <div
                     role="group"
                     aria-labelledby="workshop-parts-sort-label"
-                    className="inline-flex w-full sm:w-auto rounded-xl border border-zinc-200/90 dark:border-white/[0.12] bg-white/95 dark:bg-zinc-950/90 p-1 shadow-sm"
+                    className="inline-flex w-full sm:w-auto rounded-xl border-0 bg-zinc-100 dark:bg-zinc-950/90 p-1 shadow-none"
                   >
                     <button
                       type="button"
@@ -1134,7 +1294,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
                       aria-pressed={sortMode === 'recent'}
                       className={`inline-flex flex-1 sm:flex-initial items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-[13px] font-semibold transition-colors ${
                         sortMode === 'recent'
-                          ? 'bg-emerald-600 text-white shadow-sm'
+                          ? 'bg-emerald-600 text-white shadow-none'
                           : 'text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-white/[0.08]'
                       }`}
                     >
@@ -1147,7 +1307,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
                       aria-pressed={sortMode === 'oldest'}
                       className={`inline-flex flex-1 sm:flex-initial items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-[13px] font-semibold transition-colors ${
                         sortMode === 'oldest'
-                          ? 'bg-emerald-600 text-white shadow-sm'
+                          ? 'bg-emerald-600 text-white shadow-none'
                           : 'text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-white/[0.08]'
                       }`}
                     >
@@ -1183,7 +1343,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
                           className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] font-semibold transition-colors ${
                             stockAlertFilter === 'zero'
                               ? 'bg-red-600 text-white'
-                              : 'bg-red-100 text-red-900 ring-1 ring-red-300/60 hover:bg-red-200/90 dark:bg-red-950/50 dark:text-red-200 dark:ring-red-500/30'
+                              : 'bg-red-100 text-red-900 shadow-none hover:bg-red-200/90 dark:bg-red-950/50 dark:text-red-200'
                           }`}
                         >
                           <PackageX className="h-3.5 w-3.5" aria-hidden />
@@ -1199,7 +1359,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
                           className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] font-semibold transition-colors ${
                             stockAlertFilter === 'low'
                               ? 'bg-amber-600 text-white'
-                              : 'bg-amber-100 text-amber-900 ring-1 ring-amber-300/60 hover:bg-amber-200/90 dark:bg-amber-950/50 dark:text-amber-200 dark:ring-amber-500/30'
+                              : 'bg-amber-100 text-amber-900 shadow-none hover:bg-amber-200/90 dark:bg-amber-950/50 dark:text-amber-200'
                           }`}
                         >
                           <AlertTriangle className="h-3.5 w-3.5" aria-hidden />
@@ -1403,7 +1563,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
                           type="text"
                           value={editingName}
                           onChange={(e) => setEditingName(e.target.value)}
-                          className="w-full min-w-0 basis-full px-3 py-2 rounded-lg border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white text-[15px] focus:outline-none focus:ring-2 focus:ring-brand-yellow/40 md:basis-auto md:min-w-0"
+                          className="w-full min-w-0 basis-full px-3 py-2 rounded-lg border-0 bg-zinc-100 dark:bg-white/5 text-zinc-900 dark:text-white text-[15px] focus:outline-none focus:ring-2 focus:ring-brand-yellow/40 md:basis-auto md:min-w-0"
                           autoFocus
                         />
                         <div className="grid w-full basis-full grid-cols-2 gap-2 md:contents">
@@ -1413,7 +1573,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
                             step="0.01"
                             value={editingPrice}
                             onChange={(e) => setEditingPrice(e.target.value)}
-                            className="min-w-0 px-3 py-2 rounded-lg border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white text-[14px] text-right tabular-nums focus:outline-none focus:ring-2 focus:ring-brand-yellow/40 md:min-w-0"
+                            className="min-w-0 px-3 py-2 rounded-lg border-0 bg-zinc-100 dark:bg-white/5 text-zinc-900 dark:text-white text-[14px] text-right tabular-nums focus:outline-none focus:ring-2 focus:ring-brand-yellow/40 md:min-w-0"
                           />
                           <input
                             type="number"
@@ -1421,7 +1581,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
                             step="0.001"
                             value={editingStock}
                             onChange={(e) => setEditingStock(e.target.value)}
-                            className="min-w-0 px-3 py-2 rounded-lg border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white text-[14px] text-right tabular-nums focus:outline-none focus:ring-2 focus:ring-brand-yellow/40 md:min-w-0"
+                            className="min-w-0 px-3 py-2 rounded-lg border-0 bg-zinc-100 dark:bg-white/5 text-zinc-900 dark:text-white text-[14px] text-right tabular-nums focus:outline-none focus:ring-2 focus:ring-brand-yellow/40 md:min-w-0"
                           />
                         </div>
                         <div className="flex w-full basis-full items-center justify-end gap-2 md:contents">
@@ -1453,7 +1613,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
                           className="w-full min-w-0 flex flex-[1_1_100%] items-center gap-3 text-left rounded-xl -my-1 -ml-2 pl-2 pr-2 py-1.5 hover:bg-zinc-200/70 dark:hover:bg-white/[0.07] transition-colors cursor-pointer md:col-span-1 md:flex-[unset] md:w-auto"
                           title="Ver detalhes do produto"
                         >
-                          <div className="isolate w-10 h-10 shrink-0 overflow-hidden rounded-lg border border-zinc-200 bg-zinc-100 pointer-events-none dark:border-white/10 dark:bg-white/5">
+                          <div className="isolate w-10 h-10 shrink-0 overflow-hidden rounded-lg border-0 bg-zinc-100 pointer-events-none dark:bg-white/5">
                             {p.photo_url ? (
                               <PartPhotoImg
                                 src={p.photo_url}
@@ -1473,12 +1633,14 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
                             </span>
                             <span className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400 truncate">
                               {p.brand?.trim() || '—'}
+                              {p.model?.trim() ? ` · ${p.model.trim()}` : ''}
                             </span>
                             <span className="text-[16px] font-extrabold leading-tight text-zinc-900 dark:text-white truncate">
                               {p.name}
                             </span>
                             <span className="text-[12px] text-zinc-600 dark:text-zinc-400 truncate">
-                              {p.location?.trim() || '—'}
+                              {storageSiteLabel(p.storage_site)}
+                              {p.location?.trim() ? ` · ${p.location.trim()}` : ''}
                             </span>
                             {originalCode ? (
                               <span
@@ -1505,7 +1667,12 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
                                 : 'text-zinc-700 dark:text-zinc-300'
                           }`}
                         >
-                          <span>{Number(p.stock_qty ?? 0).toFixed(3)}</span>
+                          <span>{formatWorkshopPartQty(p.stock_qty)}</span>
+                          {(reservedQtyByPartId[p.id] ?? 0) > 0 ? (
+                            <span className="text-[11px] font-medium text-amber-700 dark:text-amber-300">
+                              {formatWorkshopPartQty(reservedQtyByPartId[p.id])} em orçamento
+                            </span>
+                          ) : null}
                           <WorkshopPartStockBadge status={stockStatus} className="hidden md:inline-flex" />
                         </span>
                         <button
@@ -1572,7 +1739,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
           className={
             isDesktopShell
               ? 'relative flex h-full min-h-0 w-full max-w-none flex-1 flex-col overflow-hidden bg-white dark:bg-zinc-950'
-              : 'relative flex w-full max-w-[min(98vw,1280px)] max-h-[min(94dvh,calc(100dvh-2rem))] flex-col overflow-hidden rounded-[2rem] border border-zinc-200/90 bg-white shadow-[0_8px_40px_-12px_rgba(0,0,0,0.12)] dark:border-white/[0.08] dark:bg-zinc-950 dark:shadow-[0_8px_40px_-12px_rgba(0,0,0,0.45)] sm:rounded-[2.25rem]'
+              : 'relative flex w-full max-w-[min(98vw,1280px)] max-h-[min(94dvh,calc(100dvh-2rem))] flex-col overflow-hidden rounded-[2rem] border-0 bg-white shadow-none dark:bg-zinc-950 sm:rounded-[2.25rem]'
           }
           onClick={(e) => e.stopPropagation()}
           role="dialog"
@@ -1613,6 +1780,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
               <WorkshopPartRegistrationForm
                 mode={registrationMode}
                 initialPart={registrationMode === 'edit' ? registrationPart : null}
+                prefillBarcode={registrationMode === 'create' ? registrationPrefillBarcode : null}
                 initialPurchases={registrationPurchases}
                 categories={categories}
                 onManageCategories={() => setIsCategoriesModalOpen(true)}
@@ -1651,7 +1819,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
             className={
               isDesktopShell
                 ? 'relative flex h-full min-h-0 w-full max-w-none flex-1 flex-col overflow-hidden bg-white dark:bg-zinc-950'
-                : 'relative flex w-full max-w-[min(98vw,1280px)] max-h-[min(94dvh,calc(100dvh-2rem))] flex-col overflow-hidden rounded-[2rem] border border-zinc-200/90 bg-white shadow-[0_8px_40px_-12px_rgba(0,0,0,0.12)] dark:border-white/[0.08] dark:bg-zinc-950 dark:shadow-[0_8px_40px_-12px_rgba(0,0,0,0.45)] sm:rounded-[2.25rem]'
+                : 'relative flex w-full max-w-[min(98vw,1280px)] max-h-[min(94dvh,calc(100dvh-2rem))] flex-col overflow-hidden rounded-[2rem] border-0 bg-white shadow-none dark:bg-zinc-950 sm:rounded-[2.25rem]'
             }
             onClick={(e) => e.stopPropagation()}
             role="dialog"
@@ -1776,7 +1944,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
                   }
                 }}
                 placeholder="Nome da nova categoria"
-                className="flex-1 min-w-0 rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 px-4 py-3 text-[15px] text-zinc-900 dark:text-white placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/35"
+                className="flex-1 min-w-0 rounded-xl border-0 bg-zinc-100 dark:bg-white/5 px-4 py-3 text-[15px] text-zinc-900 dark:text-white placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/35"
               />
               <button
                 type="button"
@@ -1788,7 +1956,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
                 Criar
               </button>
             </div>
-            <ul className="divide-y divide-zinc-200/60 dark:divide-white/[0.08] rounded-xl border border-zinc-200/60 dark:border-white/[0.08] overflow-hidden">
+            <ul className="divide-y divide-zinc-200/60 dark:divide-white/[0.08] rounded-xl border-0 overflow-hidden bg-zinc-50/80 dark:bg-white/[0.03]">
               {categories.length === 0 ? (
                 <li className="px-4 py-8 text-center text-[14px] text-zinc-500 dark:text-zinc-400">Nenhuma categoria ainda.</li>
               ) : (
@@ -1803,7 +1971,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
                           type="text"
                           value={categoryEditingName}
                           onChange={(e) => setCategoryEditingName(e.target.value)}
-                          className="flex-1 min-w-[120px] rounded-lg border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 px-3 py-2 text-[15px] text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/35"
+                          className="flex-1 min-w-[120px] rounded-lg border-0 bg-zinc-100 dark:bg-white/5 px-3 py-2 text-[15px] text-zinc-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/35"
                           autoFocus
                         />
                         <button
@@ -1859,6 +2027,60 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
       </div>
       </RegistrationPortal>
     )}
+
+    {scanHubOpen ? (
+      <WorkshopPartScanHubModal
+        isOpen
+        onClose={() => setScanHubOpen(false)}
+        catalogParts={parts}
+        onStockEntry={(part) => {
+          void openEditRegistration(part);
+        }}
+        onRegisterProduct={(barcode) => {
+          openCreateRegistration(barcode);
+        }}
+        onSaleOutbound={(part) => {
+          setOutboundInitialPart(part);
+          setOutboundMode('sale');
+        }}
+        onConsumableOutbound={(part) => {
+          setOutboundInitialPart(part);
+          setOutboundMode('consumable');
+        }}
+        onAbsModuleCode={(code, found) => {
+          if (found) openAbsModules({ publicId: code });
+          else openAbsModules({ missingPublicId: code });
+        }}
+      />
+    ) : null}
+
+    {outboundMode ? (
+      <WorkshopPartStockOutboundModal
+        isOpen
+        mode={outboundMode}
+        initialPart={outboundInitialPart}
+        onClose={() => {
+          setOutboundMode(null);
+          setOutboundInitialPart(null);
+        }}
+        onStockChanged={handleOutboundStockChanged}
+        catalogParts={parts}
+        onRegisterMissingProduct={openRegisterFromMissingBarcode}
+        onAbsModuleCode={(code, found) => {
+          if (found) openAbsModules({ publicId: code });
+          else openAbsModules({ missingPublicId: code });
+        }}
+      />
+    ) : null}
+
+    {absModulesOpen ? (
+      <WorkshopAbsModulesModal
+        isOpen
+        onClose={closeAbsModules}
+        initialPublicId={absInitialPublicId}
+        initialMissingPublicId={absInitialMissingPublicId}
+      />
+    ) : null}
     </ModalPortal>
     </>
   );

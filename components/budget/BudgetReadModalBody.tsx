@@ -14,6 +14,7 @@ export type BudgetReadModalBodyProps = {
   parts: BudgetPartFields[];
   observations: string;
   /** Exibe valor sugerido e flags internas (hub / orçamentista). */
+  showInternalFields?: boolean;
   /** Nome do técnico executor abaixo de cada serviço (fechamento da OS). */
   serviceTechnicianNames?: (string | null)[];
 };
@@ -32,7 +33,7 @@ export const BudgetReadModalBody: React.FC<BudgetReadModalBodyProps> = ({
   );
 
   return (
-    <>
+    <div className="budget-read-body--zoom-out space-y-6">
       {diagnosis ? (
         <section>
           <h3 className={budgetReadSectionTitleClass}>Diagnóstico</h3>
@@ -120,6 +121,6 @@ export const BudgetReadModalBody: React.FC<BudgetReadModalBodyProps> = ({
           <div className={`${budgetReadBodyTextClass} whitespace-pre-wrap`}>{observations}</div>
         </section>
       ) : null}
-    </>
+    </div>
   );
 };

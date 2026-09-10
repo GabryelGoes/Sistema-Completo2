@@ -1,7 +1,5 @@
-/** Cards do quadro (Pátio / Laboratório): sombra vidro estática — sem hover para evitar artefatos internos. */
-export const patioBoardGlassCardShadow =
-  'shadow-[0_10px_36px_-8px_rgba(63,63,70,0.20),0_4px_20px_-6px_rgba(82,82,91,0.12),0_1px_3px_rgba(63,63,70,0.08)] ' +
-  'dark:shadow-[0_14px_40px_-10px_rgba(0,0,0,0.44),0_6px_26px_-8px_rgba(0,0,0,0.30),0_2px_10px_-4px_rgba(0,0,0,0.22)]';
+/** Cards do quadro (Pátio / Laboratório): chapados — sem aro e sem sombra marcada. */
+export const patioBoardGlassCardShadow = 'shadow-none';
 
 /** Sombra nos glifos do nome do veículo (só tema escuro). */
 export const vehicleCardTitleShadow =
@@ -27,12 +25,12 @@ export function getPatioBoardCardRadiusClass(isPcLayout: boolean, boardPanoramic
     : 'rounded-[2rem] sm:rounded-[2.25rem]';
 }
 
-/** Shell das colunas Trello / por mecânico — PC com cantos um pouco mais suaves. */
+/** Shell das colunas Trello / por mecânico — chapado, sem contorno marcado. */
 export function getPatioBoardColumnShellClass(isPcLayout: boolean): string {
   if (isPcLayout) {
-    return 'rounded-[1.35rem] border border-zinc-200/90 bg-zinc-100/90 shadow-[inset_0_1px_0_rgba(255,255,255,0.55)] transition-[box-shadow,transform,border-color] duration-300 ease-out dark:border-white/[0.08] dark:bg-zinc-900/40 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]';
+    return 'rounded-[1.35rem] border-0 bg-zinc-100/90 transition-[box-shadow,transform,background-color] duration-300 ease-out dark:bg-zinc-900/40';
   }
-  return 'rounded-[1.35rem] border border-zinc-200/70 bg-zinc-100/50 shadow-[inset_0_1px_0_rgba(255,255,255,0.65)] backdrop-blur-md transition-[box-shadow,transform,border-color] duration-300 ease-out dark:border-white/[0.08] dark:bg-zinc-900/45 dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]';
+  return 'rounded-[1.35rem] border-0 bg-zinc-100/50 backdrop-blur-md transition-[box-shadow,transform,background-color] duration-300 ease-out dark:bg-zinc-900/45';
 }
 
 export function getPatioBoardColumnHeaderTopClass(_isPcLayout: boolean): string {

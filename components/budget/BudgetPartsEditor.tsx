@@ -69,9 +69,14 @@ export const BudgetPartsEditor: React.FC<BudgetPartsEditorProps> = ({
   const [budgetPartQuickView, setBudgetPartQuickView] = useState<WorkshopPart | null>(null);
   const focusedPartInputRef = useRef<HTMLInputElement | null>(null);
   const partSuggestionCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingFocusPartIdRef = useRef<string | null>(null);
+  const [focusPartId, setFocusPartId] = useState<string | null>(null);
 
   const addPartRow = () => {
-    onChange([...parts, { id: `p-${Date.now()}`, description: '', quantity: '1' }]);
+    const newId = `p-${Date.now()}`;
+    pendingFocusPartIdRef.current = newId;
+    setSuggestionsForPartId(null);
+    onChange([...parts, { id: newId, description: '', quantity: '1' }]);
   };
 
   const removePartRow = (id: string) => {
@@ -109,7 +114,7 @@ export const BudgetPartsEditor: React.FC<BudgetPartsEditorProps> = ({
   const getPartSuggestions = (description: string) => {
     const q = normalizeText(description.trim());
     if (!q) return [];
-    return workshopParts.filter((p) => normalizeText(p.name).includes(q)).slice(0, 6);
+    return workshopParts.filter((p) => normalizeText(p.name).includes(q)).slice(0, 12);
   };
 
   const applyPartSuggestion = (partId: string, part: WorkshopPart) => {
@@ -168,6 +173,28 @@ export const BudgetPartsEditor: React.FC<BudgetPartsEditorProps> = ({
   }, [suggestionsForPartId, parts]);
 
   useEffect(() => {
+    const focusId = pendingFocusPartIdRef.current;
+    if (!focusId) return;
+    if (!parts.some((p) => p.id === focusId)) return;
+    pendingFocusPartIdRef.current = null;
+    setFocusPartId(focusId);
+  }, [parts]);
+
+  useLayoutEffect(() => {
+    if (!focusPartId) return;
+    const el = document.querySelector(
+      `input[data-budget-parts-editor-id="${focusPartId}"]`
+    ) as HTMLInputElement | null;
+    el?.focus();
+  }, [focusPartId]);
+
+  useEffect(() => {
+    if (!focusPartId) return;
+    const timer = window.setTimeout(() => setFocusPartId(null), 400);
+    return () => window.clearTimeout(timer);
+  }, [focusPartId]);
+
+  useEffect(() => {
     return () => {
       if (partSuggestionCloseTimerRef.current) clearTimeout(partSuggestionCloseTimerRef.current);
     };
@@ -215,9 +242,15 @@ export const BudgetPartsEditor: React.FC<BudgetPartsEditorProps> = ({
                     placeholder="Nome da peça…"
                     className={`${inputClass} min-w-0 w-full shadow-none`}
                     value={item.description}
+                    data-budget-parts-editor-id={item.id}
                     onChange={(e) => updatePartDescription(item.id, e.target.value)}
                     onFocus={() => handlePartInputFocus(item.id)}
                     onBlur={handlePartInputBlur}
+                    onKeyDown={(e) => {
+                      if (e.key !== 'Enter' || e.shiftKey || e.nativeEvent.isComposing) return;
+                      e.preventDefault();
+                      addPartRow();
+                    }}
                     disabled={disabled}
                   />
                 </div>

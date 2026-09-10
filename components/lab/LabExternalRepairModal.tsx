@@ -69,7 +69,7 @@ export const LabExternalRepairModal: React.FC<LabExternalRepairModalProps> = ({
         onClick={onClose}
       >
         <div
-          className="flex max-h-[min(94vh,1000px)] w-full max-w-5xl flex-col overflow-hidden rounded-t-2xl border border-zinc-200/90 bg-white shadow-xl dark:border-white/[0.1] dark:bg-zinc-900 sm:rounded-2xl"
+          className="flex max-h-[min(94vh,1000px)] w-full max-w-5xl flex-col overflow-hidden rounded-t-2xl border-0 bg-white shadow-none dark:bg-zinc-900 sm:rounded-2xl"
           onClick={(e) => e.stopPropagation()}
         >
           <div className="flex items-start justify-between gap-3 border-b border-zinc-200/80 px-5 pb-3 pt-5 dark:border-white/[0.08]">

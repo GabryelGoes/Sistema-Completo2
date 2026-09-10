@@ -1,0 +1,15 @@
+---
+description: Preservar o layout UI já aprovado ao criar branches
+alwaysApply: true
+---
+
+# Base de layout UI (não perder commits de design)
+
+O layout visual aprovado (Pátio tablet, cabeçalhos, placas, hubs, etc.) está no commit **`95d91e2`** e no branch **`cursor/patio-tablet-header-fix-485b`**.
+
+Quando for alterar UI ou criar um branch novo para mudanças de interface neste app:
+
+1. **Não** criar o branch a partir de `main` se isso descartar o layout de `95d91e2`.
+2. Partir de `cursor/patio-tablet-header-fix-485b` (ou de `95d91e2` / do tip atual desse branch).
+3. Se a tarefa for só uma feature pequena em cima do layout, preferir continuar no mesmo branch de layout (ou rebasear o branch novo em cima dele) em vez de abrir um PR “limpo” só com `main`.
+4. Antes de commit/push, conferir com `git log --oneline -1` e `git merge-base --is-ancestor 95d91e2 HEAD` que o layout ainda está na história do branch.

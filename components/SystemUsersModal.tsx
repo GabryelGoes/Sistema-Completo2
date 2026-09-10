@@ -99,7 +99,7 @@ function PermModuleCard({
 }) {
   return (
     <div
-      className={`flex items-start justify-between gap-3 rounded-2xl border border-zinc-200/85 bg-white/85 p-3 shadow-[0_2px_12px_-4px_rgba(0,0,0,0.08)] dark:border-zinc-600/70 dark:bg-zinc-900/45 dark:shadow-[0_4px_20px_-8px_rgba(0,0,0,0.35)] ${
+      className={`flex items-start justify-between gap-3 rounded-2xl border-0 bg-white/85 p-3 shadow-none dark:bg-zinc-900/45 ${
         disabled ? 'opacity-50' : ''
       }`}
     >

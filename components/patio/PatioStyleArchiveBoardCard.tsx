@@ -86,16 +86,11 @@ export function PatioStyleArchiveBoardCard({
     <div className="h-auto w-full self-start">
       <div
         className={`
-          group relative flex min-h-0 w-full flex-col overflow-hidden border bg-white/70 backdrop-blur-2xl dark:bg-zinc-900/40
+          group relative flex min-h-0 w-full flex-col overflow-hidden bg-white dark:bg-zinc-900/70
           ${patioBoardGlassCardShadow}
-          hover:border-[#007AFF]/28 dark:hover:border-white/[0.12]
           motion-safe:transition-[border-radius,box-shadow] motion-safe:duration-500 motion-safe:ease-[cubic-bezier(0.34,1.35,0.25,1)]
           ${shellRound}
-          ${
-            isGarantia
-              ? 'border-red-500/40 ring-2 ring-inset ring-red-500 ring-offset-0'
-              : 'border-zinc-200/80 dark:border-white/[0.07] ring-1 ring-inset ring-zinc-400/35 ring-offset-0 dark:ring-white/[0.1]'
-          }
+          ${isGarantia ? 'border-2 border-red-500/70' : 'border-0'}
         `}
       >
         <div
@@ -141,90 +136,83 @@ export function PatioStyleArchiveBoardCard({
 
               {hasCustomer ? (
                 <div
-                  className={`mb-0 flex max-w-full items-center justify-between gap-2 rounded-2xl border border-zinc-200/70 bg-white/55 backdrop-blur-sm dark:border-white/[0.08] dark:bg-white/[0.05] portrait:rounded-xl portrait:gap-1.5 portrait:border-zinc-200/55 ${
+                  className={`mb-0 flex max-w-full items-center gap-2 rounded-2xl border-0 bg-zinc-100/90 dark:bg-white/[0.06] portrait:rounded-xl ${
                     boardPanoramic
-                      ? 'px-2 py-[calc(0.25rem*1.6146)] portrait:px-1.5 portrait:py-1'
-                      : 'px-3 py-1.5 portrait:px-2 portrait:py-1'
+                      ? 'min-h-[2.35rem] px-2.5 py-2 portrait:min-h-[2.1rem] portrait:px-2 portrait:py-1.5'
+                      : 'min-h-[2.6rem] px-3 py-2.5 portrait:min-h-[2.35rem] portrait:px-2.5 portrait:py-2'
                   }`}
                 >
-                  <div className="min-w-0 flex flex-1 items-center gap-2">
-                    <User
-                      className={`shrink-0 text-[#007AFF] ${boardPanoramic ? 'h-3.5 w-3.5' : 'h-4 w-4'}`}
-                      strokeWidth={2}
-                    />
-                    <span
-                      className={`min-w-0 flex-1 truncate font-semibold text-zinc-700 dark:text-zinc-200 tracking-tight ${
-                        boardPanoramic
-                          ? 'text-[1.049rem] portrait:text-[0.8392rem]'
-                          : 'text-[1.199rem] portrait:text-[0.9592rem]'
-                      }`}
-                    >
-                      {customerLine}
-                    </span>
-                  </div>
-                  {!isModuleMode && (
-                    <div className="shrink-0">
-                      <MercosulPlateMockup
-                        plate={plate}
-                        blurPlates={blurPlates}
-                        size={boardPanoramic ? 'cardCompact' : 'cardGrid'}
-                      />
-                    </div>
-                  )}
-                </div>
-              ) : !isModuleMode ? (
-                <div className="mb-0 flex max-w-full justify-end">
-                  <MercosulPlateMockup
-                    plate={plate}
-                    blurPlates={blurPlates}
-                    size={boardPanoramic ? 'cardCompact' : 'cardGrid'}
+                  <User
+                    className={`shrink-0 text-[#007AFF] ${boardPanoramic ? 'h-3.5 w-3.5' : 'h-4 w-4'}`}
+                    strokeWidth={2}
                   />
+                  <span
+                    className={`min-w-0 flex-1 truncate font-semibold tracking-tight text-zinc-700 dark:text-zinc-200 ${
+                      boardPanoramic
+                        ? 'text-[1.049rem] portrait:text-[0.8392rem]'
+                        : 'text-[1.199rem] portrait:text-[0.9592rem]'
+                    }`}
+                  >
+                    {customerLine}
+                  </span>
                 </div>
               ) : null}
 
-              <div className={`flex min-w-0 items-start gap-2 sm:gap-3 ${boardPanoramic ? 'mt-2.5' : 'mt-3.5'}`}>
+              <div
+                className={`flex min-w-0 items-center justify-between gap-2 ${
+                  hasCustomer ? (boardPanoramic ? 'mt-1.5' : 'mt-2') : 'mt-0.5'
+                }`}
+              >
                 <div className="min-w-0 flex-1">
                   <div
                     className={`
-                    inline-flex max-w-full cursor-default items-center justify-start gap-1.5 rounded-2xl border px-3 transition-none
-                    ${boardPanoramic ? 'py-[calc(0.375rem*1.6146)]' : 'py-1.5'}
+                    inline-flex max-w-full cursor-default items-center justify-start gap-1.5 rounded-2xl border px-2.5 py-1.5 transition-none
                     border-zinc-200/60 dark:border-white/5 bg-light-card/80 dark:bg-white/[0.04] text-zinc-700 dark:text-zinc-200
                   `}
                   >
                     {hasMechanic ? (
                       <div
-                        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-transparent shadow-md portrait:h-[1.6rem] portrait:w-[1.6rem] portrait:rounded-lg ${mechanicSquircleClassName}`}
+                        className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-xl border border-transparent shadow-md portrait:h-[1.45rem] portrait:w-[1.45rem] portrait:rounded-lg ${mechanicSquircleClassName}`}
                       >
                         <Wrench
-                          className="h-4 w-4 text-white opacity-95 [filter:drop-shadow(0_1px_1px_rgba(0,0,0,0.35))] portrait:h-[0.8rem] portrait:w-[0.8rem]"
+                          className="h-3.5 w-3.5 text-white opacity-95 [filter:drop-shadow(0_1px_1px_rgba(0,0,0,0.35))] portrait:h-[0.75rem] portrait:w-[0.75rem]"
                           strokeWidth={2.35}
                           aria-hidden
                         />
                       </div>
                     ) : (
-                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-zinc-200/70 bg-zinc-100/80 dark:border-white/10 dark:bg-white/[0.06] portrait:h-[1.6rem] portrait:w-[1.6rem] portrait:rounded-lg">
+                      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl border-0 bg-zinc-100 dark:bg-white/[0.08] portrait:h-[1.45rem] portrait:w-[1.45rem] portrait:rounded-lg">
                         <Wrench
-                          className="h-4 w-4 text-zinc-400 dark:text-zinc-500 portrait:h-[0.8rem] portrait:w-[0.8rem]"
+                          className="h-3.5 w-3.5 text-zinc-400 dark:text-zinc-500 portrait:h-[0.75rem] portrait:w-[0.75rem]"
                           strokeWidth={2.35}
                           aria-hidden
                         />
                       </div>
                     )}
                     <span
-                      className={`font-bold truncate ${
-                        boardPanoramic ? 'text-[1.049rem] portrait:text-[0.8392rem]' : 'text-[1.199rem] portrait:text-[0.9592rem]'
+                      className={`truncate font-bold ${
+                        boardPanoramic ? 'text-[0.95rem] portrait:text-[0.78rem]' : 'text-[1.05rem] portrait:text-[0.88rem]'
                       }`}
                     >
                       {hasMechanic ? capitalizeFirst(mechanic) : 'Sem técnico'}
                     </span>
                   </div>
                 </div>
+                {!isModuleMode ? (
+                  <div className="shrink-0">
+                    <MercosulPlateMockup
+                      plate={plate}
+                      blurPlates={blurPlates}
+                      size={boardPanoramic ? 'cardCompact' : 'cardGrid'}
+                    />
+                  </div>
+                ) : null}
               </div>
 
               {isModuleMode ? (
                 <div className={`${boardPanoramic ? 'mt-2.5' : 'mt-3'}`}>
                   <div
-                    className={`inline-block max-w-full rounded-2xl border border-zinc-200/70 bg-white/55 px-3 py-2 backdrop-blur-sm dark:border-white/[0.08] dark:bg-white/[0.05] ${
+                    className={`inline-block max-w-full rounded-2xl border-0 bg-zinc-100/90 px-3 py-2 dark:bg-white/[0.06] ${
                       boardPanoramic ? 'px-2 py-1.5' : ''
                     }`}
                   >
@@ -240,9 +228,7 @@ export function PatioStyleArchiveBoardCard({
             >
               <div
                 className={`
-                flex w-full cursor-pointer items-center gap-2 rounded-2xl transition-all duration-200 ease-out
-                shadow-[0_2px_12px_-2px_rgba(0,0,0,0.15)] dark:shadow-[0_2px_16px_-2px_rgba(0,0,0,0.35)]
-                border border-black/10 dark:border-white/10
+                flex w-full cursor-pointer items-center gap-2 rounded-2xl border-0 shadow-none transition-[filter,transform] duration-200 ease-out
                 ${
                   boardPanoramic
                     ? 'min-h-[calc(50px*1.6146)] py-[calc(0.5rem*1.6146)] pl-3.5 pr-2.5 text-[13px]'

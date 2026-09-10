@@ -415,7 +415,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
   const loadingClass = isDark ? 'text-zinc-400' : 'text-zinc-400';
 
   const panelShellClass = isDesktopTopbar
-    ? 'rounded-2xl border border-zinc-200/90 bg-white shadow-[0_12px_40px_-8px_rgba(0,0,0,0.25)] overflow-hidden flex flex-col'
+    ? 'rounded-2xl border-0 bg-white shadow-none overflow-hidden flex flex-col'
     : `w-[min(420px,calc(100vw-24px))] rounded-[28px] backdrop-blur-2xl overflow-hidden flex flex-col max-h-[78vh] border ${panelClass}`;
 
   const panelContent = (

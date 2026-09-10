@@ -456,8 +456,8 @@ export const ErrorBulletinEditorModal: React.FC<Props> = ({
         <div
           className={
             isDesktopShell
-              ? 'flex h-[min(96%,960px)] w-full max-w-6xl flex-col overflow-hidden rounded-[22px] border border-zinc-200/90 bg-white shadow-2xl dark:border-white/[0.1] dark:bg-zinc-900'
-              : 'flex max-h-[min(96vh,920px)] w-full max-w-3xl flex-col overflow-hidden rounded-t-[22px] border border-zinc-200/90 bg-white shadow-2xl dark:border-white/[0.1] dark:bg-zinc-900 sm:rounded-[22px]'
+              ? 'flex h-[min(96%,960px)] w-full max-w-6xl flex-col overflow-hidden rounded-[22px] border-0 bg-white shadow-none dark:bg-zinc-900'
+              : 'flex max-h-[min(96vh,920px)] w-full max-w-3xl flex-col overflow-hidden rounded-t-[22px] border-0 bg-white shadow-none dark:bg-zinc-900 sm:rounded-[22px]'
           }
           role="dialog"
           aria-modal="true"

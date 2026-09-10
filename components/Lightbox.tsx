@@ -67,12 +67,6 @@ export function Lightbox({ src: singleSrc, images: imagesProp, initialIndex = 0,
   }, [hasMultiple, images, currentIndex, src, preloadImage]);
 
   useEffect(() => {
-    return () => {
-      if (src.startsWith('blob:')) URL.revokeObjectURL(src);
-    };
-  }, [src]);
-
-  useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         e.preventDefault();
