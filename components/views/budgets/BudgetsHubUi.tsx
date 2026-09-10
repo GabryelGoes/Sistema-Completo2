@@ -30,10 +30,10 @@ export function BudgetsHubScopeToggle({
   const isLab = scope === 'laboratory';
   return (
     <div
-      className={`inline-flex shrink-0 self-center rounded-lg border p-0.5 ${
+      className={`inline-flex shrink-0 self-center rounded-lg border-0 p-0.5 shadow-none ${
         isLab
-          ? 'border-violet-400/35 bg-violet-500/10 dark:border-violet-400/25 dark:bg-violet-500/15'
-          : 'border-amber-400/35 bg-amber-500/10 dark:border-amber-400/25 dark:bg-amber-500/15'
+          ? 'bg-violet-500/10 dark:bg-violet-500/15'
+          : 'bg-amber-500/10 dark:bg-amber-500/15'
       }`}
       role="tablist"
       aria-label="Origem dos orçamentos"
@@ -55,8 +55,8 @@ export function BudgetsHubScopeToggle({
             className={`rounded-md px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-[0.06em] transition ${
               active
                 ? tab.id === 'laboratory'
-                  ? 'bg-violet-600 text-white shadow-sm'
-                  : 'bg-amber-600 text-white shadow-sm'
+                  ? 'bg-violet-600 text-white shadow-none'
+                  : 'bg-amber-600 text-white shadow-none'
                 : 'text-zinc-600 hover:bg-white/60 dark:text-zinc-300 dark:hover:bg-white/10'
             }`}
           >
@@ -79,12 +79,12 @@ export function BudgetOrderOriginBadge({
   const isLab = orderType === 'module';
   return (
     <span
-      className={`inline-flex shrink-0 items-center gap-1 rounded-full border font-bold uppercase tracking-[0.06em] ${
+      className={`inline-flex shrink-0 items-center gap-1 rounded-full border-0 font-bold uppercase tracking-[0.06em] shadow-none ${
         compact ? 'px-1.5 py-0.5 text-[9px]' : 'px-2 py-0.5 text-[10px]'
       } ${
         isLab
-          ? 'border-violet-400/55 bg-violet-500/12 text-violet-800 dark:border-violet-400/40 dark:bg-violet-500/18 dark:text-violet-200'
-          : 'border-[#007AFF]/40 bg-[#007AFF]/10 text-[#0058c7] dark:border-[#0A84FF]/45 dark:bg-[#0A84FF]/12 dark:text-[#8cc8ff]'
+          ? 'bg-violet-500/12 text-violet-800 dark:bg-violet-500/18 dark:text-violet-200'
+          : 'bg-[#007AFF]/10 text-[#0058c7] dark:bg-[#0A84FF]/12 dark:text-[#8cc8ff]'
       }`}
       title={isLab ? 'Orçamento do Laboratório' : 'Orçamento do Pátio'}
     >
@@ -184,10 +184,10 @@ export function BudgetsHubViewSwitcher({
                 type="button"
                 onClick={() => onModeChange(m.id)}
                 title={m.description}
-                className={`inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border px-3 text-[11px] font-bold uppercase tracking-[0.06em] transition-all ${
+                className={`inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border-0 px-3 text-[11px] font-bold uppercase tracking-[0.06em] transition-all shadow-none ${
                   active
-                    ? 'border-zinc-800 bg-zinc-900 text-white shadow-md dark:border-zinc-200 dark:bg-white dark:text-zinc-900'
-                    : 'border-zinc-200/90 bg-white/90 text-zinc-600 hover:border-zinc-300 hover:bg-zinc-50 dark:border-white/[0.12] dark:bg-zinc-900/80 dark:text-zinc-300 dark:hover:bg-zinc-800'
+                    ? 'bg-zinc-900 text-white dark:bg-white dark:text-zinc-900'
+                    : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200/80 dark:bg-zinc-900/80 dark:text-zinc-300 dark:hover:bg-zinc-800'
                 }`}
               >
                 {VIEW_ICONS[m.id]}
@@ -204,7 +204,7 @@ export function BudgetsHubViewSwitcher({
               onClick={() => setHelpOpen((o) => !o)}
               aria-label="O que é esta visualização?"
               aria-expanded={helpOpen}
-              className="flex h-9 w-9 items-center justify-center rounded-full bg-[#007AFF] text-[13px] font-bold text-white shadow-sm transition-colors hover:bg-[#0058c7] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#007AFF]/45 focus-visible:ring-offset-1"
+              className="flex h-9 w-9 items-center justify-center rounded-full bg-[#007AFF] text-[13px] font-bold text-white shadow-none transition-colors hover:bg-[#0058c7] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#007AFF]/45 focus-visible:ring-offset-1"
             >
               ?
             </button>

@@ -288,8 +288,8 @@ export const BudgetsHubView: React.FC<BudgetsHubViewProps> = ({
 
   const isLabScope = hubScope === 'laboratory';
   const headerTheme = isLabScope
-    ? 'border-violet-500/25 bg-violet-500/[0.06] dark:border-violet-400/20 dark:bg-violet-500/10'
-    : 'border-amber-500/25 bg-amber-500/[0.06] dark:border-amber-400/20 dark:bg-amber-500/10';
+    ? 'border-0 bg-violet-500/[0.06] shadow-none dark:bg-violet-500/10'
+    : 'border-0 bg-amber-500/[0.06] shadow-none dark:bg-amber-500/10';
   const scopeAccent = isLabScope ? 'text-violet-800 dark:text-violet-200' : 'text-amber-900 dark:text-amber-200';
 
   return (
@@ -298,7 +298,7 @@ export const BudgetsHubView: React.FC<BudgetsHubViewProps> = ({
         isTrelloMode ? 'overflow-hidden' : ''
       }`}
     >
-      <header className={`budgets-hub-page-header shrink-0 border-b px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] backdrop-blur-xl lg:px-6 ${headerTheme} ${isLabScope ? 'border-violet-500/20 dark:border-violet-400/15' : 'border-amber-500/20 dark:border-amber-400/15'}`}>
+      <header className={`budgets-hub-page-header shrink-0 border-b border-zinc-200/50 px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] backdrop-blur-xl lg:px-6 ${headerTheme}`}>
         <div className={`mx-auto w-full ${mainMaxW} space-y-3 lg:mx-0`}>
           <div className="app-view-page-chrome ml-[6.5%] flex min-w-0 items-start gap-3 pt-0.5 lg:ml-0">
             <IosAccentIconSquircle variant="page" strokeWidth={2.2}>

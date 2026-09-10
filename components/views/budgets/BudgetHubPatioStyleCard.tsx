@@ -286,14 +286,14 @@ export function BudgetHubPatioStyleCard({
                       e.stopPropagation();
                       onOpenBudget(row.serviceOrderId, row.budgetId);
                     }}
-                    className={`flex w-full items-center gap-1.5 rounded-xl border text-left transition-colors ${
+                    className={`flex w-full items-center gap-1.5 rounded-xl border-0 text-left shadow-none transition-colors ${
                       dense ? 'px-2 py-1.5' : 'px-2.5 py-2'
                     } ${
                       row.hasApprovedItems
-                        ? 'border-sky-300/70 bg-sky-50/90 hover:bg-sky-100/90 dark:border-sky-400/30 dark:bg-sky-500/10 dark:hover:bg-sky-500/15'
+                        ? 'bg-sky-50/90 hover:bg-sky-100/90 dark:bg-sky-500/10 dark:hover:bg-sky-500/15'
                         : row.isVerified
-                          ? 'border-emerald-300/60 bg-emerald-50/80 hover:bg-emerald-100/80 dark:border-emerald-400/25 dark:bg-emerald-500/10 dark:hover:bg-emerald-500/15'
-                          : 'border-amber-300/55 bg-amber-50/70 hover:bg-amber-100/80 dark:border-amber-500/25 dark:bg-amber-500/10 dark:hover:bg-amber-500/15'
+                          ? 'bg-emerald-50/80 hover:bg-emerald-100/80 dark:bg-emerald-500/10 dark:hover:bg-emerald-500/15'
+                          : 'bg-amber-50/70 hover:bg-amber-100/80 dark:bg-amber-500/10 dark:hover:bg-amber-500/15'
                     }`}
                   >
                     <span className="shrink-0 text-[10px] font-bold uppercase tracking-[0.06em] text-zinc-600 dark:text-zinc-300">
@@ -307,7 +307,7 @@ export function BudgetHubPatioStyleCard({
                         verifiedByName={row.verifiedByName}
                       />
                     ) : (
-                      <span className="shrink-0 rounded-full border border-amber-400/50 bg-amber-100/80 px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-[0.06em] text-amber-900 dark:border-amber-500/35 dark:bg-amber-500/15 dark:text-amber-200">
+                      <span className="shrink-0 rounded-full border-0 bg-amber-100/80 px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-[0.06em] text-amber-900 shadow-none dark:bg-amber-500/15 dark:text-amber-200">
                         Não verif.
                       </span>
                     )}

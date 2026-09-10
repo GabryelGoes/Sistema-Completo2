@@ -285,7 +285,7 @@ export function WorkshopPartDetailView({
                       {categoryNames.map((name) => (
                         <span
                           key={name}
-                          className="rounded-lg border border-emerald-500/25 bg-emerald-500/10 px-2 py-0.5 text-[12px] font-semibold text-emerald-900 dark:text-emerald-100"
+                          className="rounded-lg border-0 bg-emerald-500/10 px-2 py-0.5 text-[12px] font-semibold text-emerald-900 shadow-none dark:text-emerald-100"
                         >
                           {name}
                         </span>
@@ -460,7 +460,7 @@ export function WorkshopPartDetailView({
           type="button"
           onClick={handlePrint}
           disabled={loading}
-          className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-teal-200 bg-teal-50 px-5 py-3 text-[15px] font-semibold text-teal-900 hover:bg-teal-100 disabled:opacity-50 dark:border-teal-800/60 dark:bg-teal-950/40 dark:text-teal-100 dark:hover:bg-teal-950/60"
+          className="inline-flex w-full items-center justify-center gap-2 rounded-xl border-0 bg-teal-50 px-5 py-3 text-[15px] font-semibold text-teal-900 shadow-none hover:bg-teal-100 disabled:opacity-50 dark:bg-teal-950/40 dark:text-teal-100 dark:hover:bg-teal-950/60"
         >
           <Printer className="h-5 w-5" />
           Imprimir ficha
@@ -471,7 +471,7 @@ export function WorkshopPartDetailView({
           <button
             type="button"
             onClick={onDelete}
-            className="inline-flex items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 px-5 py-3 text-[15px] font-semibold text-red-700 hover:bg-red-100 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-300 dark:hover:bg-red-950/60"
+            className="inline-flex items-center justify-center gap-2 rounded-xl border-0 bg-red-50 px-5 py-3 text-[15px] font-semibold text-red-700 shadow-none hover:bg-red-100 dark:bg-red-950/40 dark:text-red-300 dark:hover:bg-red-950/60"
           >
             <Trash2 className="h-5 w-5" />
             Excluir

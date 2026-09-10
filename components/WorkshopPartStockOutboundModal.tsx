@@ -327,7 +327,7 @@ export function WorkshopPartStockOutboundModal({
                 </p>
               ) : null}
               {lookupError ? (
-                <div className="space-y-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 dark:border-red-900/50 dark:bg-red-950/40">
+                <div className="space-y-2 rounded-xl border-0 bg-red-50 shadow-none px-3 py-2.5 dark:border-red-900/50 dark:bg-red-950/40">
                   <p className="text-[13px] font-semibold text-red-700 dark:text-red-300">
                     {lookupError}
                     {missingBarcode ? (
@@ -509,12 +509,12 @@ export function WorkshopPartStockOutboundModal({
                 </label>
 
                 {submitError ? (
-                  <p className="mt-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-[13px] text-red-700 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-300">
+                  <p className="mt-3 rounded-xl border-0 bg-red-50 shadow-none px-3 py-2 text-[13px] text-red-700 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-300">
                     {submitError}
                   </p>
                 ) : null}
                 {successMsg ? (
-                  <p className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-[13px] text-emerald-800 dark:border-emerald-900/40 dark:bg-emerald-950/40 dark:text-emerald-200">
+                  <p className="mt-3 rounded-xl border-0 bg-emerald-50 shadow-none px-3 py-2 text-[13px] text-emerald-800 dark:border-emerald-900/40 dark:bg-emerald-950/40 dark:text-emerald-200">
                     {successMsg}
                   </p>
                 ) : null}
@@ -523,10 +523,10 @@ export function WorkshopPartStockOutboundModal({
                   type="button"
                   disabled={saving}
                   onClick={() => void handleConfirm()}
-                  className={`mt-4 inline-flex w-full items-center justify-center gap-2 rounded-2xl px-4 py-3.5 text-[15px] font-semibold text-white shadow-md disabled:opacity-60 ${
+                  className={`mt-4 inline-flex w-full items-center justify-center gap-2 rounded-2xl px-4 py-3.5 text-[15px] font-semibold text-white shadow-none disabled:opacity-60 ${
                     isSale
-                      ? 'bg-emerald-600 hover:bg-emerald-500 shadow-emerald-900/20'
-                      : 'bg-sky-600 hover:bg-sky-500 shadow-sky-900/20'
+                      ? 'bg-emerald-600 hover:bg-emerald-500'
+                      : 'bg-sky-600 hover:bg-sky-500'
                   }`}
                 >
                   {saving ? <Loader2 className="h-5 w-5 animate-spin" /> : null}
@@ -534,7 +534,7 @@ export function WorkshopPartStockOutboundModal({
                 </button>
               </section>
             ) : (
-              <p className="rounded-2xl border border-dashed border-zinc-300 px-4 py-8 text-center text-[14px] text-zinc-500 dark:border-white/15 dark:text-zinc-400">
+              <p className="rounded-2xl border-0 bg-zinc-100 px-4 py-8 text-center text-[14px] text-zinc-500 shadow-none dark:bg-white/5 dark:text-zinc-400">
                 Use o código de barras, digite o nome do produto ou escolha na lista de sugestões.
               </p>
             )}

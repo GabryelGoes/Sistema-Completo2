@@ -59,7 +59,7 @@ export const BudgetVerifiedSeal: React.FC<BudgetVerifiedSealProps> = ({
         title={titleHint}
       >
         <span
-          className={`relative flex ${dim} items-center justify-center rounded-full bg-gradient-to-b from-emerald-400 to-emerald-600 text-white shadow-[0_2px_6px_rgba(16,185,129,0.5)] ring-2 ring-white dark:ring-zinc-900`}
+          className={`relative flex ${dim} items-center justify-center rounded-full bg-gradient-to-b from-emerald-400 to-emerald-600 text-white shadow-none ring-0`}
         >
           <svg viewBox="0 0 24 24" className={icon} fill="none" aria-hidden>
             <path
@@ -87,7 +87,7 @@ export const BudgetVerifiedSeal: React.FC<BudgetVerifiedSealProps> = ({
           aria-hidden
         />
         <div className="relative flex items-start gap-3">
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-[0_6px_18px_-6px_rgba(16,185,129,0.65)] ring-2 ring-white/80">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-none ring-0">
             <BadgeCheck className="h-7 w-7" strokeWidth={2.25} aria-hidden />
           </div>
           <div className="min-w-0 flex-1">

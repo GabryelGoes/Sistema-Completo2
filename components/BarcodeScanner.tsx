@@ -468,7 +468,7 @@ export function BarcodeScanner({
               ) : null}
 
               {hint ? (
-                <p className="rounded-xl border border-amber-400/30 bg-amber-500/15 px-3 py-2 text-[13px] text-amber-100">
+                <p className="rounded-xl border-0 bg-amber-500/15 px-3 py-2 text-[13px] text-amber-100 shadow-none">
                   {hint}
                 </p>
               ) : (
@@ -483,7 +483,7 @@ export function BarcodeScanner({
             <button
               type="button"
               onClick={handleClose}
-              className="w-full rounded-2xl border border-white/15 bg-white/5 px-4 py-3 text-[15px] font-semibold text-white hover:bg-white/10"
+              className="w-full rounded-2xl border-0 bg-white/10 px-4 py-3 text-[15px] font-semibold text-white shadow-none hover:bg-white/15"
             >
               Cancelar
             </button>

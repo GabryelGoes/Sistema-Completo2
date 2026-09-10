@@ -1042,7 +1042,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
         <div className="flex-1 min-h-0 overflow-y-auto overscroll-y-auto touch-pan-y px-6 sm:px-8 pb-[max(2rem,env(safe-area-inset-bottom))] custom-scrollbar [scrollbar-gutter:stable]">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between mb-4">
             {!loading ? (
-              <div className="min-w-0 w-full sm:max-w-xl overflow-hidden rounded-2xl border border-amber-300/70 bg-amber-50/90 shadow-sm dark:border-amber-500/30 dark:bg-amber-950/35">
+              <div className="min-w-0 w-full sm:max-w-xl overflow-hidden rounded-2xl border-0 bg-amber-50/90 shadow-none dark:bg-amber-950/35">
                 <button
                   type="button"
                   onClick={() => setReservationsExpanded((v) => !v)}
@@ -1110,7 +1110,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
               <button
                 type="button"
                 onClick={() => setOutboundMode('sale')}
-                className="inline-flex items-center justify-center gap-2 rounded-2xl border border-emerald-300/80 dark:border-emerald-500/30 bg-emerald-50 dark:bg-emerald-950/40 px-4 py-3 text-[15px] font-semibold text-emerald-900 dark:text-emerald-100 hover:bg-emerald-100/90 dark:hover:bg-emerald-900/50 transition-colors"
+                className="inline-flex items-center justify-center gap-2 rounded-2xl border-0 bg-emerald-50 dark:bg-emerald-950/40 px-4 py-3 text-[15px] font-semibold text-emerald-900 dark:text-emerald-100 hover:bg-emerald-100/90 dark:hover:bg-emerald-900/50 transition-colors shadow-none"
               >
                 <ShoppingBag className="w-5 h-5" />
                 Venda avulsa
@@ -1118,7 +1118,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
               <button
                 type="button"
                 onClick={() => setOutboundMode('consumable')}
-                className="inline-flex items-center justify-center gap-2 rounded-2xl border border-sky-300/80 dark:border-sky-500/30 bg-sky-50 dark:bg-sky-950/40 px-4 py-3 text-[15px] font-semibold text-sky-900 dark:text-sky-100 hover:bg-sky-100/90 dark:hover:bg-sky-900/50 transition-colors"
+                className="inline-flex items-center justify-center gap-2 rounded-2xl border-0 bg-sky-50 dark:bg-sky-950/40 px-4 py-3 text-[15px] font-semibold text-sky-900 dark:text-sky-100 hover:bg-sky-100/90 dark:hover:bg-sky-900/50 transition-colors shadow-none"
               >
                 <PackageMinus className="w-5 h-5" />
                 Insumos
@@ -1126,7 +1126,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
               <button
                 type="button"
                 onClick={() => setIsAnalyticsOpen(true)}
-                className="inline-flex items-center justify-center gap-2 rounded-2xl border border-emerald-300/80 dark:border-emerald-500/30 bg-emerald-50 dark:bg-emerald-950/40 px-4 py-3 text-[15px] font-semibold text-emerald-900 dark:text-emerald-100 hover:bg-emerald-100/90 dark:hover:bg-emerald-900/50 transition-colors"
+                className="inline-flex items-center justify-center gap-2 rounded-2xl border-0 bg-emerald-50 dark:bg-emerald-950/40 px-4 py-3 text-[15px] font-semibold text-emerald-900 dark:text-emerald-100 hover:bg-emerald-100/90 dark:hover:bg-emerald-900/50 transition-colors shadow-none"
               >
                 <BarChart3 className="w-5 h-5" />
                 Gráficos
@@ -1142,7 +1142,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
               <button
                 type="button"
                 onClick={() => openCreateRegistration()}
-                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 py-3 text-[15px] font-semibold text-white shadow-md shadow-emerald-900/20 hover:bg-emerald-500 transition-colors"
+                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 py-3 text-[15px] font-semibold text-white shadow-none hover:bg-emerald-500 transition-colors"
               >
                 <Plus className="w-5 h-5" />
                 Adicionar produto
@@ -1151,7 +1151,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
           </div>
 
           {error && (
-            <div className="mb-4 px-4 py-3 rounded-xl bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/50 text-red-700 dark:text-red-300 text-sm">
+            <div className="mb-4 px-4 py-3 rounded-xl bg-red-50 dark:bg-red-950/30 border-0 text-red-700 dark:text-red-300 text-sm shadow-none">
               {error}
             </div>
           )}
@@ -1269,7 +1269,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
                       aria-pressed={sortMode === 'recent'}
                       className={`inline-flex flex-1 sm:flex-initial items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-[13px] font-semibold transition-colors ${
                         sortMode === 'recent'
-                          ? 'bg-emerald-600 text-white shadow-sm'
+                          ? 'bg-emerald-600 text-white shadow-none'
                           : 'text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-white/[0.08]'
                       }`}
                     >
@@ -1282,7 +1282,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
                       aria-pressed={sortMode === 'oldest'}
                       className={`inline-flex flex-1 sm:flex-initial items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-[13px] font-semibold transition-colors ${
                         sortMode === 'oldest'
-                          ? 'bg-emerald-600 text-white shadow-sm'
+                          ? 'bg-emerald-600 text-white shadow-none'
                           : 'text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-white/[0.08]'
                       }`}
                     >
@@ -1318,7 +1318,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
                           className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] font-semibold transition-colors ${
                             stockAlertFilter === 'zero'
                               ? 'bg-red-600 text-white'
-                              : 'bg-red-100 text-red-900 ring-1 ring-red-300/60 hover:bg-red-200/90 dark:bg-red-950/50 dark:text-red-200 dark:ring-red-500/30'
+                              : 'bg-red-100 text-red-900 shadow-none hover:bg-red-200/90 dark:bg-red-950/50 dark:text-red-200'
                           }`}
                         >
                           <PackageX className="h-3.5 w-3.5" aria-hidden />
@@ -1334,7 +1334,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
                           className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] font-semibold transition-colors ${
                             stockAlertFilter === 'low'
                               ? 'bg-amber-600 text-white'
-                              : 'bg-amber-100 text-amber-900 ring-1 ring-amber-300/60 hover:bg-amber-200/90 dark:bg-amber-950/50 dark:text-amber-200 dark:ring-amber-500/30'
+                              : 'bg-amber-100 text-amber-900 shadow-none hover:bg-amber-200/90 dark:bg-amber-950/50 dark:text-amber-200'
                           }`}
                         >
                           <AlertTriangle className="h-3.5 w-3.5" aria-hidden />

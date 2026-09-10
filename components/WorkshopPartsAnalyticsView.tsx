@@ -48,7 +48,7 @@ const shell =
 const CHART_GRID = 'stroke-zinc-200/80 dark:stroke-white/10';
 const TOOLTIP_STYLE = {
   borderRadius: 12,
-  border: '1px solid rgba(0,0,0,0.08)',
+  border: 'none',
   background: 'rgba(255,255,255,0.96)',
   fontSize: 13,
 };
@@ -89,14 +89,14 @@ function ChartHelpButton({
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
         aria-label="Como funciona este gráfico"
-        className="flex h-5 w-5 items-center justify-center rounded-full border border-blue-400/80 bg-blue-500 text-[11px] font-bold leading-none text-white shadow-sm transition-colors hover:bg-blue-600 dark:border-blue-400/50 dark:bg-blue-600 dark:hover:bg-blue-500"
+        className="flex h-5 w-5 items-center justify-center rounded-full border-0 bg-blue-500 text-[11px] font-bold leading-none text-white shadow-none transition-colors hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-500"
       >
         ?
       </button>
       {open ? (
         <div
           role="tooltip"
-          className={`absolute top-0 z-50 w-[min(calc(100vw-2rem),268px)] rounded-xl border border-zinc-200/90 bg-white px-3 py-2.5 text-[12px] leading-snug text-zinc-700 shadow-lg ring-1 ring-zinc-900/5 dark:border-white/12 dark:bg-zinc-900 dark:text-zinc-200 dark:ring-white/10 ${
+          className={`absolute top-0 z-50 w-[min(calc(100vw-2rem),268px)] rounded-xl border-0 bg-white px-3 py-2.5 text-[12px] leading-snug text-zinc-700 shadow-none dark:bg-zinc-900 dark:text-zinc-200 ${
             popoverSide === 'right' ? 'left-full ml-2' : 'right-full mr-2'
           }`}
         >
@@ -138,7 +138,7 @@ function KpiCard({
           {sub ? <p className="mt-1 text-[12px] text-zinc-500 dark:text-zinc-400">{sub}</p> : null}
         </div>
         <div
-          className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br ${accent} text-white shadow-lg`}
+          className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br ${accent} text-white shadow-none`}
         >
           {icon}
         </div>
@@ -229,13 +229,13 @@ export const WorkshopPartsAnalyticsView: React.FC<WorkshopPartsAnalyticsViewProp
           <button
             type="button"
             onClick={onBack}
-            className="inline-flex items-center gap-2 rounded-xl border border-zinc-200/90 px-3 py-2 text-[14px] font-semibold text-zinc-800 hover:bg-zinc-100 dark:border-white/10 dark:text-zinc-200 dark:hover:bg-white/10"
+            className="inline-flex items-center gap-2 rounded-xl border-0 bg-zinc-100 px-3 py-2 text-[14px] font-semibold text-zinc-800 hover:bg-zinc-200/80 shadow-none dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-white/10"
           >
             <ArrowLeft className="h-4 w-4" />
             Voltar
           </button>
           <div className="flex min-w-0 flex-1 items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-teal-700 text-white shadow-md">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-teal-700 text-white shadow-none">
               <BarChart3 className="h-5 w-5" />
             </div>
             <div className="min-w-0">
@@ -249,7 +249,7 @@ export const WorkshopPartsAnalyticsView: React.FC<WorkshopPartsAnalyticsViewProp
             type="button"
             onClick={() => void load()}
             disabled={loading}
-            className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-3 py-2 text-[13px] font-semibold text-white shadow-sm hover:bg-emerald-500 disabled:opacity-50"
+            className="inline-flex items-center gap-2 rounded-xl bg-emerald-600 px-3 py-2 text-[13px] font-semibold text-white shadow-none hover:bg-emerald-500 disabled:opacity-50"
           >
             <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
             Atualizar
@@ -264,7 +264,7 @@ export const WorkshopPartsAnalyticsView: React.FC<WorkshopPartsAnalyticsViewProp
               onClick={() => setPreset(opt.id)}
               className={`shrink-0 rounded-full px-3.5 py-1.5 text-[13px] font-semibold transition-colors ${
                 preset === opt.id
-                  ? 'bg-emerald-600 text-white shadow-sm'
+                  ? 'bg-emerald-600 text-white shadow-none'
                   : 'bg-zinc-200/90 text-zinc-700 hover:bg-zinc-300/90 dark:bg-white/10 dark:text-zinc-300 dark:hover:bg-white/15'
               }`}
             >
@@ -276,7 +276,7 @@ export const WorkshopPartsAnalyticsView: React.FC<WorkshopPartsAnalyticsViewProp
 
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-auto px-4 py-4 sm:px-6 sm:py-5 custom-scrollbar">
         {error ? (
-          <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-[14px] text-red-800 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-200">
+          <div className="rounded-xl border-0 bg-red-50 px-4 py-3 text-[14px] text-red-800 shadow-none dark:bg-red-950/40 dark:text-red-200">
             {error}
           </div>
         ) : null}

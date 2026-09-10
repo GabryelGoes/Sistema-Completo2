@@ -119,7 +119,7 @@ export function BudgetHubBudgetPickerModal({
 
           <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-3.5 custom-scrollbar sm:px-5">
             {items.length === 0 ? (
-              <p className="rounded-2xl border border-dashed border-zinc-200 bg-zinc-50/80 px-4 py-8 text-center text-[14px] text-zinc-500 dark:border-white/[0.1] dark:bg-zinc-950/40 dark:text-zinc-400">
+              <p className="rounded-2xl border-0 bg-zinc-50/80 px-4 py-8 text-center text-[14px] text-zinc-500 shadow-none dark:bg-zinc-950/40 dark:text-zinc-400">
                 Nenhum orçamento neste veículo.
               </p>
             ) : (
@@ -138,12 +138,12 @@ export function BudgetHubBudgetPickerModal({
                           onOpenBudget(row.serviceOrderId, row.budgetId);
                           onClose();
                         }}
-                        className={`flex w-full items-start gap-2 rounded-2xl border px-3 py-2.5 text-left transition-colors active:scale-[0.99] ${
+                        className={`flex w-full items-start gap-2 rounded-2xl border-0 px-3 py-2.5 text-left shadow-none transition-colors active:scale-[0.99] ${
                           row.hasApprovedItems
-                            ? 'border-sky-300/70 bg-sky-50/90 hover:bg-sky-100/90 dark:border-sky-400/30 dark:bg-sky-500/10 dark:hover:bg-sky-500/15'
+                            ? 'bg-sky-50/90 hover:bg-sky-100/90 dark:bg-sky-500/10 dark:hover:bg-sky-500/15'
                             : row.isVerified
-                              ? 'border-emerald-300/60 bg-emerald-50/80 hover:bg-emerald-100/80 dark:border-emerald-400/25 dark:bg-emerald-500/10 dark:hover:bg-emerald-500/15'
-                              : 'border-amber-300/55 bg-amber-50/70 hover:bg-amber-100/80 dark:border-amber-500/25 dark:bg-amber-500/10 dark:hover:bg-amber-500/15'
+                              ? 'bg-emerald-50/80 hover:bg-emerald-100/80 dark:bg-emerald-500/10 dark:hover:bg-emerald-500/15'
+                              : 'bg-amber-50/70 hover:bg-amber-100/80 dark:bg-amber-500/10 dark:hover:bg-amber-500/15'
                         }`}
                       >
                         <div className="min-w-0 flex-1">
@@ -159,7 +159,7 @@ export function BudgetHubBudgetPickerModal({
                                 verifiedByName={row.verifiedByName}
                               />
                             ) : (
-                              <span className="rounded-full border border-amber-400/50 bg-amber-100/80 px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-[0.06em] text-amber-900 dark:border-amber-500/35 dark:bg-amber-500/15 dark:text-amber-200">
+                              <span className="rounded-full border-0 bg-amber-100/80 px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-[0.06em] text-amber-900 shadow-none dark:bg-amber-500/15 dark:text-amber-200">
                                 Não verif.
                               </span>
                             )}

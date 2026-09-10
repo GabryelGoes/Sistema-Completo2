@@ -484,7 +484,7 @@ html[data-desktop-shell='true'] .desktop-shell-content .ios-page-glass-desktop-o
   border-top-color: rgb(var(--desktop-shell-accent-rgb) / 1) !important;
   background: #fff !important;
   backdrop-filter: none !important;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 4px 12px -4px rgba(0, 0, 0, 0.08) !important;
+  box-shadow: none !important;
 }
 
 html[data-desktop-shell='true'] .desktop-shell-support {
@@ -584,7 +584,7 @@ html.dark[data-desktop-shell='true'] .desktop-shell-content .ios-page-glass-desk
   background: #18181b !important;
   border-color: rgba(255, 255, 255, 0.1) !important;
   border-top-color: rgb(var(--desktop-shell-accent-rgb) / 1) !important;
-  box-shadow: 0 4px 16px -6px rgba(0, 0, 0, 0.45) !important;
+  box-shadow: none !important;
 }
 
 html.dark[data-desktop-shell='true'] .desktop-shell-theme-toggle {

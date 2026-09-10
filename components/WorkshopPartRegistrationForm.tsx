@@ -279,10 +279,10 @@ function PartCategoriesSelect({
                       }`}
                     >
                       <span
-                        className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border ${
+                        className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border-0 shadow-none ${
                           isSelected
-                            ? 'border-emerald-600 bg-emerald-600 text-white'
-                            : 'border-zinc-300 bg-white dark:border-white/20 dark:bg-transparent'
+                            ? 'bg-emerald-600 text-white'
+                            : 'bg-zinc-200 dark:bg-zinc-700'
                         }`}
                       >
                         {isSelected ? <Check className="h-3 w-3" strokeWidth={3} /> : null}
@@ -304,7 +304,7 @@ function PartCategoriesSelect({
             return (
               <span
                 key={id}
-                className="inline-flex max-w-full items-center gap-1 rounded-lg border border-emerald-500/25 bg-emerald-500/10 px-2 py-1 text-[12px] font-semibold text-emerald-900 dark:text-emerald-100"
+                className="inline-flex max-w-full items-center gap-1 rounded-lg border-0 bg-emerald-500/10 px-2 py-1 text-[12px] font-semibold text-emerald-900 shadow-none dark:text-emerald-100"
               >
                 <span className="truncate">{name}</span>
                 <button
@@ -417,7 +417,7 @@ export function WorkshopPartRegistrationForm({
     <div className="space-y-6">
       {error ? (
         <p
-          className={`rounded-xl border border-red-300/80 bg-red-50 px-4 py-3 text-[14px] text-red-800 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-200 ${lightCardShadow}`}
+          className={`rounded-xl border-0 bg-red-50 px-4 py-3 text-[14px] text-red-800 shadow-none dark:bg-red-950/40 dark:text-red-200 ${lightCardShadow}`}
         >
           {error}
         </p>
@@ -444,7 +444,7 @@ export function WorkshopPartRegistrationForm({
                       className={`relative isolate h-full w-full overflow-hidden rounded-xl border-0 bg-zinc-100 dark:bg-white/[0.03] ${index === 0 ? 'ring-2 ring-emerald-500/45' : ''} ${lightCardShadow}`}
                     >
                       {index === 0 ? (
-                        <span className="absolute left-1 top-1 z-10 rounded-md bg-emerald-600 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-white shadow-sm">
+                        <span className="absolute left-1 top-1 z-10 rounded-md bg-emerald-600 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-white shadow-none">
                           Capa
                         </span>
                       ) : null}
@@ -463,7 +463,7 @@ export function WorkshopPartRegistrationForm({
                       type="button"
                       onClick={() => onRemovePhoto?.(slot.id)}
                       disabled={photoBusy}
-                      className="absolute -right-1.5 -top-1.5 flex h-7 w-7 items-center justify-center rounded-full border border-zinc-200 bg-white text-red-600 shadow-md hover:bg-red-50 disabled:opacity-50 dark:border-white/15 dark:bg-zinc-900"
+                      className="absolute -right-1.5 -top-1.5 flex h-7 w-7 items-center justify-center rounded-full border-0 bg-white text-red-600 shadow-none hover:bg-red-50 disabled:opacity-50 dark:bg-zinc-900"
                       aria-label="Remover foto"
                     >
                       <X className="h-3.5 w-3.5" />
