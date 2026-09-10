@@ -37,7 +37,7 @@ export const DeleteServiceOrderModal: React.FC<DeleteServiceOrderModalProps> = (
         aria-labelledby="delete-os-title"
       >
         <div
-          className="w-full max-w-sm rounded-2xl border border-zinc-200/90 bg-white p-6 shadow-xl dark:border-white/[0.1] dark:bg-zinc-900"
+          className="w-full max-w-sm rounded-2xl border-0 bg-white p-6 shadow-none dark:bg-zinc-900"
           onClick={(e) => e.stopPropagation()}
         >
           <div className="mb-4 flex items-start justify-between gap-3">

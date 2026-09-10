@@ -783,12 +783,12 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
                                   setDetailAppointment(app);
                                 }
                               }}
-                              className={`group ${iosModalInsetCard} overflow-hidden cursor-pointer transition-all duration-200 hover:shadow-[0_8px_28px_-6px_rgba(0,0,0,0.1)] dark:hover:shadow-[0_12px_40px_-12px_rgba(0,0,0,0.45)] active:scale-[0.995] border-zinc-200/80 dark:border-white/[0.1]`}
+                              className={`group ${iosModalInsetCard} overflow-hidden cursor-pointer transition-all duration-200 active:scale-[0.995]`}
                             >
                               <div className="p-4 sm:p-5">
                                 <div className="flex gap-2 sm:gap-4">
                                   <div className="flex flex-col items-center gap-2 shrink-0">
-                                    <div className="rounded-2xl bg-gradient-to-b from-zinc-100 to-zinc-50/90 dark:from-white/[0.09] dark:to-white/[0.04] border border-zinc-200/70 dark:border-white/[0.1] px-3 py-2 min-w-[4.75rem] text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.6)] dark:shadow-none">
+                                    <div className="rounded-2xl bg-gradient-to-b from-zinc-100 to-zinc-50/90 dark:from-white/[0.09] dark:to-white/[0.04] border-0 px-3 py-2 min-w-[4.75rem] text-center shadow-none">
                                       <span className="text-[11px] font-semibold uppercase tracking-[0.1em] text-zinc-500 dark:text-zinc-400 block leading-none mb-1">
                                         Horário
                                       </span>

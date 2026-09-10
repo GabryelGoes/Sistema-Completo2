@@ -57,7 +57,7 @@ const modalHeaderFooterClass =
 
 /** Cards de serviço — cinza um pouco mais escuro no claro. */
 const serviceCardClass =
-  'rounded-[22px] border border-zinc-200/80 bg-zinc-200/95 shadow-[0_2px_10px_-2px_rgba(0,0,0,0.08)] dark:border-white/[0.07] dark:bg-zinc-900/40 dark:backdrop-blur-2xl dark:shadow-[0_8px_40px_-12px_rgba(0,0,0,0.45)]';
+  'rounded-[22px] border-0 bg-zinc-200/95 shadow-none dark:bg-zinc-900/40 dark:backdrop-blur-2xl';
 
 const technicianFieldClass =
   'flex w-full min-h-[40px] items-center gap-2.5 rounded-lg border border-zinc-200/90 bg-white py-2 pl-3 pr-3 text-left text-[14px] text-zinc-900 transition-colors hover:border-zinc-300 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/35 dark:border-white/10 dark:bg-white/5 dark:text-white dark:hover:border-white/20';
@@ -66,7 +66,7 @@ const technicianSelectOverlayClass =
   'fixed inset-0 z-[150] flex items-end justify-center bg-black/45 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-sm sm:items-center sm:p-6';
 
 const technicianSelectShellClass =
-  'flex max-h-[min(70vh,420px)] w-full max-w-sm flex-col overflow-hidden rounded-[22px] border border-zinc-200/80 bg-white shadow-2xl dark:border-white/[0.1] dark:bg-zinc-900';
+  'flex max-h-[min(70vh,420px)] w-full max-w-sm flex-col overflow-hidden rounded-[22px] border-0 bg-white shadow-none dark:bg-zinc-900';
 
 function accentColorToStyle(accent: string | null | undefined): string {
   const c = (accent || 'zinc').toLowerCase();

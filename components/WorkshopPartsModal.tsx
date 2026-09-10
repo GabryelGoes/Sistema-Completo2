@@ -924,7 +924,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
 
   /** Lista sem backdrop-blur: blur quebra carregamento de imagens no Safari (mobile/tablet). */
   const workshopPartsListCard =
-    'overflow-visible rounded-[22px] border border-zinc-200/80 dark:border-white/[0.07] bg-white dark:bg-zinc-900 shadow-[0_2px_24px_-4px_rgba(0,0,0,0.08)] dark:shadow-[0_8px_40px_-12px_rgba(0,0,0,0.45)]';
+    'overflow-visible rounded-[22px] border-0 bg-white dark:bg-zinc-900 shadow-none';
 
   useBrowserBackLayer(isAnalyticsOpen, () => setIsAnalyticsOpen(false));
 
@@ -1051,7 +1051,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
                         id="workshop-parts-category-listbox"
                         role="listbox"
                         aria-label="Opções de filtro por categoria"
-                        className="absolute left-0 right-0 top-full z-[60] mt-1.5 max-h-[min(280px,45vh)] overflow-y-auto rounded-xl border border-zinc-200/90 dark:border-white/[0.14] bg-white dark:bg-zinc-900 py-1.5 shadow-xl shadow-zinc-900/12 dark:shadow-[0_12px_40px_-8px_rgba(0,0,0,0.65)] ring-1 ring-zinc-900/5 dark:ring-white/10"
+                        className="absolute left-0 right-0 top-full z-[60] mt-1.5 max-h-[min(280px,45vh)] overflow-y-auto rounded-xl border-0 bg-white dark:bg-zinc-900 py-1.5 shadow-none shadow-zinc-900/12 dark:shadow-[0_12px_40px_-8px_rgba(0,0,0,0.65)] ring-1 ring-zinc-900/5 dark:ring-white/10"
                       >
                         {categoryFilterOptions.map((opt) => {
                           const selected = categoryFilter === opt.value;
@@ -1572,7 +1572,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
           className={
             isDesktopShell
               ? 'relative flex h-full min-h-0 w-full max-w-none flex-1 flex-col overflow-hidden bg-white dark:bg-zinc-950'
-              : 'relative flex w-full max-w-[min(98vw,1280px)] max-h-[min(94dvh,calc(100dvh-2rem))] flex-col overflow-hidden rounded-[2rem] border border-zinc-200/90 bg-white shadow-[0_8px_40px_-12px_rgba(0,0,0,0.12)] dark:border-white/[0.08] dark:bg-zinc-950 dark:shadow-[0_8px_40px_-12px_rgba(0,0,0,0.45)] sm:rounded-[2.25rem]'
+              : 'relative flex w-full max-w-[min(98vw,1280px)] max-h-[min(94dvh,calc(100dvh-2rem))] flex-col overflow-hidden rounded-[2rem] border-0 bg-white shadow-none dark:bg-zinc-950 sm:rounded-[2.25rem]'
           }
           onClick={(e) => e.stopPropagation()}
           role="dialog"
@@ -1651,7 +1651,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
             className={
               isDesktopShell
                 ? 'relative flex h-full min-h-0 w-full max-w-none flex-1 flex-col overflow-hidden bg-white dark:bg-zinc-950'
-                : 'relative flex w-full max-w-[min(98vw,1280px)] max-h-[min(94dvh,calc(100dvh-2rem))] flex-col overflow-hidden rounded-[2rem] border border-zinc-200/90 bg-white shadow-[0_8px_40px_-12px_rgba(0,0,0,0.12)] dark:border-white/[0.08] dark:bg-zinc-950 dark:shadow-[0_8px_40px_-12px_rgba(0,0,0,0.45)] sm:rounded-[2.25rem]'
+                : 'relative flex w-full max-w-[min(98vw,1280px)] max-h-[min(94dvh,calc(100dvh-2rem))] flex-col overflow-hidden rounded-[2rem] border-0 bg-white shadow-none dark:bg-zinc-950 sm:rounded-[2.25rem]'
             }
             onClick={(e) => e.stopPropagation()}
             role="dialog"

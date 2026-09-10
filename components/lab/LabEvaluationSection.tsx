@@ -216,7 +216,7 @@ export const LabEvaluationSection: React.FC<LabEvaluationSectionProps> = ({
 
   return (
     <div
-      className={`${insetCardClass} min-w-0 overflow-hidden shadow-[0_8px_30px_-8px_rgba(0,0,0,0.12),0_2px_12px_-6px_rgba(0,0,0,0.06)] dark:shadow-[0_14px_38px_-12px_rgba(0,0,0,0.5),0_4px_14px_-8px_rgba(0,0,0,0.28)]`}
+      className={`${insetCardClass} min-w-0 overflow-hidden shadow-none`}
     >
       <div className="relative flex items-center gap-2 border-b border-black/[0.06] bg-white/85 px-2.5 py-2 pl-3 backdrop-blur-[2px] dark:border-white/[0.08] dark:bg-zinc-950/35 sm:gap-3 sm:px-3 sm:py-2.5 sm:pl-4">
         <div className={uiOsModalSectionIconWrap}>

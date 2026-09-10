@@ -89,7 +89,7 @@ export function DesktopShellAccountMenu({
               ref={menuRef}
               role="menu"
               style={menuStyle}
-              className="overflow-hidden rounded-2xl border border-zinc-200/90 bg-white py-1.5 text-zinc-900 shadow-[0_12px_40px_-8px_rgba(0,0,0,0.25)] dark:border-white/[0.12] dark:bg-zinc-900 dark:text-zinc-100"
+              className="overflow-hidden rounded-2xl border-0 bg-white py-1.5 text-zinc-900 shadow-none dark:bg-zinc-900 dark:text-zinc-100"
             >
               {onOpenProfileEditor ? (
                 <button

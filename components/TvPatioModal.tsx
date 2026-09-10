@@ -1174,7 +1174,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
   };
 
   const iosCard =
-    'rounded-[22px] border border-zinc-200/80 bg-white/70 backdrop-blur-2xl shadow-[0_2px_24px_-4px_rgba(0,0,0,0.08)]';
+    'rounded-[22px] border-0 bg-white/70 backdrop-blur-2xl shadow-none';
 
   /** Fundo único claro (igual à área do preview) em todo o painel da TV do pátio */
   const tvPatioShellBg =
@@ -1740,7 +1740,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                     {chimeConfig.alerts.map((a, idx) => (
                       <div
                         key={a.id}
-                        className="rounded-2xl border border-zinc-200/80 bg-white/90 p-4 shadow-[0_4px_18px_-8px_rgba(0,0,0,0.08)]"
+                        className="rounded-2xl border-0 bg-white/90 p-4 shadow-none"
                       >
                         <div className="mb-3 flex items-center justify-between gap-2">
                           <span className="text-[11px] font-bold uppercase tracking-[0.1em] text-zinc-400">

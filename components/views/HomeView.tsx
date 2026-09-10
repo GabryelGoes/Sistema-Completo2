@@ -103,17 +103,13 @@ interface HomeViewProps {
   onOpenTvPatio?: () => void;
 }
 
-/** Alinhado ao modal TV do pátio: vidro, sombra suave, cantos iOS. */
+/** Cartões da home — chapados, sem aro. */
 const iosCard =
-  'rounded-[22px] border border-zinc-200/80 dark:border-white/[0.07] bg-white/70 dark:bg-zinc-900/40 backdrop-blur-2xl ' +
-  'shadow-[0_10px_36px_-8px_rgba(63,63,70,0.22),0_4px_20px_-6px_rgba(82,82,91,0.14),0_1px_3px_rgba(63,63,70,0.08)] ' +
-  'dark:shadow-[0_14px_40px_-10px_rgba(0,0,0,0.46),0_6px_28px_-8px_rgba(0,0,0,0.32),0_2px_12px_-4px_rgba(0,0,0,0.24)]';
+  'rounded-[22px] border-0 bg-white/70 dark:bg-zinc-900/40 backdrop-blur-2xl shadow-none';
 
 /** Cartões da home mobile sem backdrop-blur (melhor FPS em GPU fraca). */
 const mobileHubTileCard =
-  'rounded-[22px] border border-zinc-200/85 dark:border-white/[0.08] bg-white dark:bg-zinc-900 ' +
-  'shadow-[0_4px_20px_-8px_rgba(63,63,70,0.18),0_1px_3px_rgba(63,63,70,0.08)] ' +
-  'dark:shadow-[0_8px_28px_-10px_rgba(0,0,0,0.42),0_2px_10px_-4px_rgba(0,0,0,0.28)]';
+  'rounded-[22px] border-0 bg-white dark:bg-zinc-900 shadow-none';
 
 const iosSectionTitle =
   'text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-950 dark:text-zinc-400 mb-1';
@@ -1047,7 +1043,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                     ref={headerProfileMenuRef}
                     role="menu"
                     style={headerProfileMenuStyle}
-                    className="overflow-hidden rounded-2xl border border-zinc-200/90 bg-white py-1.5 text-zinc-900 shadow-[0_12px_40px_-8px_rgba(0,0,0,0.25)] backdrop-blur-xl dark:border-white/[0.12] dark:bg-zinc-900 dark:text-zinc-100 dark:shadow-[0_16px_48px_-12px_rgba(0,0,0,0.55)]"
+                    className="overflow-hidden rounded-2xl border-0 bg-white py-1.5 text-zinc-900 shadow-none backdrop-blur-xl dark:bg-zinc-900 dark:text-zinc-100"
                   >
                     <button
                       type="button"
@@ -1150,7 +1146,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                         event.preventDefault();
                         setIsQuickEditMode(true);
                       }}
-                      className={`group relative flex w-full flex-col items-center gap-3 p-3 sm:p-4 text-center select-none animate-home-tile-in ${hubCardClass} border-[#007AFF]/0 hover:border-[#007AFF]/15 dark:hover:border-[#0A84FF]/20 ${desktopShell ? 'hover:shadow-md' : 'hover:shadow-[0_12px_40px_-12px_rgba(0,122,255,0.2)]'} transition-all duration-300 active:scale-[0.99] ${
+                      className={`group relative flex w-full flex-col items-center gap-3 p-3 sm:p-4 text-center select-none animate-home-tile-in ${hubCardClass} border-[#007AFF]/0 hover:border-[#007AFF]/15 dark:hover:border-[#0A84FF]/20 hover:shadow-none transition-all duration-300 active:scale-[0.99] ${
                         isWide ? 'col-span-2' : ''
                       } ${isQuickEditMode ? 'animate-[pulse_2.8s_ease-in-out_infinite]' : ''} ${
                         isDragging ? 'scale-[1.02] border-[#007AFF]/35 shadow-[0_18px_48px_-18px_rgba(0,122,255,0.38)]' : ''
@@ -1213,7 +1209,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                   }}
                 >
                   <div
-                    className={`group relative flex h-full w-full flex-col items-center gap-3 p-3 sm:p-4 text-center ${hubCardClass} border-[#007AFF]/45 ${desktopShell ? 'shadow-md' : 'shadow-[0_22px_60px_-18px_rgba(0,122,255,0.45)]'} scale-[1.03]`}
+                    className={`group relative flex h-full w-full flex-col items-center gap-3 p-3 sm:p-4 text-center ${hubCardClass} border-[#007AFF]/45 shadow-none scale-[1.03]`}
                   >
                     <IosAccentIconSquircle variant="tile" className="scale-105" strokeWidth={2.2}>
                       {operationalById[quickDragVisual.id].icon}

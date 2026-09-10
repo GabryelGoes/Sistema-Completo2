@@ -138,7 +138,7 @@ export const ReportServiceOrderDetailModal: React.FC<ReportServiceOrderDetailMod
           aria-labelledby="report-os-detail-title"
         >
           <div
-            className="flex max-h-[min(92vh,900px)] w-full max-w-4xl flex-col overflow-hidden rounded-[22px] border border-zinc-200/80 bg-white/95 shadow-2xl backdrop-blur-xl dark:border-white/[0.1] dark:bg-zinc-900/95"
+            className="flex max-h-[min(92vh,900px)] w-full max-w-4xl flex-col overflow-hidden rounded-[22px] border-0 bg-white/95 shadow-none backdrop-blur-xl dark:bg-zinc-900/95"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex shrink-0 items-start justify-between gap-3 border-b border-zinc-200/70 px-5 py-4 dark:border-white/[0.08]">

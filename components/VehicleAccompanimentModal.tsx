@@ -37,8 +37,7 @@ import { getStageConfig, getStageStyle, isServiceOrderActivePatioFlow } from '..
 const VAC_MODULE_ICON = '/icons/recepcao-ios.png';
 
 const shell =
-  'rounded-[22px] border border-zinc-200/80 dark:border-white/[0.08] bg-white/75 dark:bg-zinc-900/45 backdrop-blur-2xl ' +
-  'shadow-[0_12px_40px_-12px_rgba(0,0,0,0.12)] dark:shadow-[0_16px_48px_-12px_rgba(0,0,0,0.45)]';
+  'rounded-[22px] border-0 bg-white/75 dark:bg-zinc-900/45 backdrop-blur-2xl shadow-none';
 
 /** OS em fluxo ativo no pátio (não cancelada). */
 function isOrderActivePatio(o: ServiceOrderListItem): boolean {
@@ -79,12 +78,10 @@ const sortMostRecentFirst = (a: ServiceOrderListItem, b: ServiceOrderListItem) =
   return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
 };
 
-/** Cartão com vidro, sombra em camadas e leve tinta (Central do atendimento). */
+/** Cartão chapado (Central do atendimento). */
 const vacCard =
-  'relative overflow-hidden rounded-[16px] border border-white/55 dark:border-white/[0.09] ' +
-  'bg-gradient-to-br from-white/95 via-white/[0.88] to-zinc-50/92 dark:from-zinc-900/88 dark:via-zinc-900/72 dark:to-zinc-950/92 backdrop-blur-2xl ' +
-  'shadow-[0_1px_0_rgba(255,255,255,0.65)_inset,0_8px_32px_-8px_rgba(15,23,42,0.12),0_20px_48px_-16px_rgba(0,122,255,0.14),0_12px_36px_-12px_rgba(245,208,11,0.1)] ' +
-  'dark:shadow-[0_1px_0_rgba(255,255,255,0.06)_inset,0_12px_40px_-10px_rgba(0,0,0,0.55),0_24px_56px_-20px_rgba(0,122,255,0.18)]';
+  'relative overflow-hidden rounded-[16px] border-0 ' +
+  'bg-gradient-to-br from-white/95 via-white/[0.88] to-zinc-50/92 dark:from-zinc-900/88 dark:via-zinc-900/72 dark:to-zinc-950/92 backdrop-blur-2xl shadow-none';
 
 const vacCardAccent =
   'pointer-events-none absolute left-0 top-0 h-full w-[3px] bg-gradient-to-b from-[#007AFF] via-[#5AC8FA] to-brand-yellow opacity-90';
@@ -945,7 +942,7 @@ export const VehicleAccompanimentModal: React.FC<VehicleAccompanimentModalProps>
                                     <div key={ph.id} className="space-y-2">
                                       <div
                                         role="presentation"
-                                        className="relative w-full cursor-crosshair overflow-hidden rounded-xl border border-zinc-200/90 bg-zinc-900/5 shadow-[0_8px_32px_-12px_rgba(0,0,0,0.15),inset_0_1px_0_rgba(255,255,255,0.4)] ring-1 ring-black/[0.04] dark:border-white/[0.1] dark:bg-zinc-950 dark:shadow-[0_12px_40px_-12px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.06)] dark:ring-white/[0.05]"
+                                        className="relative w-full cursor-crosshair overflow-hidden rounded-xl border-0 bg-zinc-900/5 shadow-none dark:bg-zinc-950"
                                         onClick={(e) => onPhotoTap(ph.id, e)}
                                       >
                                         <img
@@ -1009,7 +1006,7 @@ export const VehicleAccompanimentModal: React.FC<VehicleAccompanimentModalProps>
                             <div key={ph.id} className="space-y-2">
                           <div
                             role="presentation"
-                            className="relative w-full cursor-crosshair overflow-hidden rounded-xl border border-zinc-200/90 bg-zinc-900/5 shadow-[0_8px_32px_-12px_rgba(0,0,0,0.15),inset_0_1px_0_rgba(255,255,255,0.4)] ring-1 ring-black/[0.04] dark:border-white/[0.1] dark:bg-zinc-950 dark:shadow-[0_12px_40px_-12px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.06)] dark:ring-white/[0.05]"
+                            className="relative w-full cursor-crosshair overflow-hidden rounded-xl border-0 bg-zinc-900/5 shadow-none dark:bg-zinc-950"
                             onClick={(e) => onPhotoTap(ph.id, e)}
                           >
                             <img
@@ -1102,7 +1099,7 @@ export const VehicleAccompanimentModal: React.FC<VehicleAccompanimentModalProps>
                   )}
                 </section>
 
-                <section className="relative overflow-hidden rounded-[16px] border border-zinc-200/80 bg-gradient-to-br from-violet-50/90 via-white/85 to-sky-50/80 p-4 shadow-[0_12px_40px_-14px_rgba(109,40,217,0.15)] dark:border-violet-500/20 dark:from-violet-950/40 dark:via-zinc-900/70 dark:to-sky-950/30 dark:shadow-[0_16px_48px_-12px_rgba(0,0,0,0.5)]">
+                <section className="relative overflow-hidden rounded-[16px] border-0 bg-gradient-to-br from-violet-50/90 via-white/85 to-sky-50/80 p-4 shadow-none dark:from-violet-950/40 dark:via-zinc-900/70 dark:to-sky-950/30">
                   <div className="pointer-events-none absolute -right-16 -top-16 h-40 w-40 rounded-full bg-violet-400/20 blur-3xl dark:bg-violet-500/10" aria-hidden />
                   <h2 className={`relative mb-2 ${vacSectionTitle}`}>Partilhar com o cliente</h2>
                   <p className="relative mb-3 text-[12px] text-zinc-600 dark:text-zinc-400">

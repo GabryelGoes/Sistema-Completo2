@@ -192,7 +192,7 @@ export const PatioOsModalLabServicesSection: React.FC<PatioOsModalLabServicesSec
             data-lab-item-picker=""
           >
             <div
-              className={`relative mb-1 flex max-h-[min(70dvh,32rem)] w-full max-w-sm min-h-[16rem] flex-col overflow-hidden rounded-[1.5rem] border border-zinc-200/90 bg-white shadow-[0_24px_64px_-18px_rgba(0,0,0,0.35)] dark:border-white/[0.1] dark:bg-zinc-900 sm:mb-0 sm:rounded-[1.75rem]`}
+              className={`relative mb-1 flex max-h-[min(70dvh,32rem)] w-full max-w-sm min-h-[16rem] flex-col overflow-hidden rounded-[1.5rem] border-0 bg-white shadow-none dark:bg-zinc-900 sm:mb-0 sm:rounded-[1.75rem]`}
               role="dialog"
               aria-modal="true"
               aria-labelledby="lab-item-picker-title"
@@ -464,7 +464,7 @@ export const PatioOsModalLabServicesSection: React.FC<PatioOsModalLabServicesSec
               type="button"
               onClick={() => setQuickSendModalOpen(true)}
               disabled={busy}
-              className="group flex w-full items-center gap-3 rounded-xl border border-zinc-200/90 bg-white px-3.5 py-3 text-left shadow-[0_4px_18px_-10px_rgba(0,0,0,0.12)] transition-colors hover:border-[#007AFF]/35 dark:border-white/[0.1] dark:bg-zinc-950/55 dark:hover:border-[#007AFF]/40 disabled:opacity-55"
+              className="group flex w-full items-center gap-3 rounded-xl border-0 bg-white px-3.5 py-3 text-left shadow-none transition-colors hover:bg-zinc-50 dark:bg-zinc-950/55 dark:hover:bg-zinc-900 disabled:opacity-55"
             >
               <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#007AFF]/12 text-[#007AFF] dark:bg-[#007AFF]/22 dark:text-[#7ab8ff]">
                 <Zap className="h-5 w-5" strokeWidth={2.25} aria-hidden />

@@ -77,8 +77,7 @@ const STATUS_SOLID: Record<ErrorBulletinStatus, string> = {
 };
 
 const shell =
-  'rounded-[22px] border border-zinc-200/80 dark:border-white/[0.08] bg-white/75 dark:bg-zinc-900/45 backdrop-blur-2xl ' +
-  'shadow-[0_12px_40px_-12px_rgba(0,0,0,0.12)] dark:shadow-[0_16px_48px_-12px_rgba(0,0,0,0.45)]';
+  'rounded-[22px] border-0 bg-white/75 dark:bg-zinc-900/45 backdrop-blur-2xl shadow-none';
 
 export const ErrorBulletinView: React.FC<{ authSession?: AuthSession | null }> = ({ authSession }) => {
   const [settings, setSettings] = useState<BulletinSettings>(() => loadSettings());

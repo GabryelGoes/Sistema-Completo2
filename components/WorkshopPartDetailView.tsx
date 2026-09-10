@@ -19,7 +19,7 @@ const labelCls =
   'text-[11px] font-bold uppercase tracking-wide text-zinc-500 dark:text-zinc-400';
 const valueCls = 'text-[14px] text-zinc-900 dark:text-zinc-100';
 const cardCls =
-  'rounded-xl border border-zinc-200/90 bg-zinc-50/80 p-4 dark:border-white/[0.08] dark:bg-white/[0.03] shadow-[0_2px_10px_-3px_rgba(0,0,0,0.08)] dark:shadow-none';
+  'rounded-xl border-0 bg-zinc-50/80 p-4 shadow-none dark:bg-white/[0.03]';
 
 function fmtMoney(n: number): string {
   return `R$ ${Number(n ?? 0).toFixed(2)}`;

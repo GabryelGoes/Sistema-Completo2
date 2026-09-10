@@ -7,10 +7,8 @@ import {
 } from '../../services/apiService';
 
 const pubCard =
-  'relative overflow-hidden rounded-[22px] border border-white/55 dark:border-white/[0.09] ' +
-  'bg-gradient-to-br from-white/96 via-white/[0.9] to-zinc-50/94 dark:from-zinc-900/90 dark:via-zinc-900/75 dark:to-zinc-950/92 backdrop-blur-2xl ' +
-  'shadow-[0_1px_0_rgba(255,255,255,0.65)_inset,0_8px_32px_-8px_rgba(15,23,42,0.1),0_20px_48px_-16px_rgba(0,122,255,0.12),0_12px_36px_-12px_rgba(245,208,11,0.08)] ' +
-  'dark:shadow-[0_1px_0_rgba(255,255,255,0.06)_inset,0_14px_44px_-12px_rgba(0,0,0,0.5),0_24px_56px_-20px_rgba(0,122,255,0.15)]';
+  'relative overflow-hidden rounded-[22px] border-0 ' +
+  'bg-gradient-to-br from-white/96 via-white/[0.9] to-zinc-50/94 dark:from-zinc-900/90 dark:via-zinc-900/75 dark:to-zinc-950/92 backdrop-blur-2xl shadow-none';
 
 const pubCardAccent =
   'pointer-events-none absolute left-0 top-0 h-full w-[3px] bg-gradient-to-b from-[#007AFF] via-violet-500 to-brand-yellow opacity-90';

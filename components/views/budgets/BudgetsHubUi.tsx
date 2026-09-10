@@ -209,7 +209,7 @@ export function BudgetsHubViewSwitcher({
               ?
             </button>
             {helpOpen ? (
-              <div className="absolute right-0 z-30 mt-2 w-64 rounded-xl border border-zinc-200/90 bg-white p-3 text-left shadow-[0_12px_40px_-8px_rgba(0,0,0,0.25)] dark:border-white/[0.12] dark:bg-zinc-900 dark:shadow-[0_16px_48px_-12px_rgba(0,0,0,0.55)]">
+              <div className="absolute right-0 z-30 mt-2 w-64 rounded-xl border-0 bg-white p-3 text-left shadow-none dark:bg-zinc-900">
                 <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-zinc-500 dark:text-zinc-400">
                   {activeMeta.label}
                 </p>

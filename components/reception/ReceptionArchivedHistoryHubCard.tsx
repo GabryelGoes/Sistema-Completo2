@@ -6,11 +6,9 @@ import { parsePatioCardTitle } from '../../utils/patioCardTitle';
 import { labProductDisplayLabel, moduleVehicleKindLabel } from '../../utils/moduleMetadata';
 import { capitalizeFirst } from '../../utils/personNameFormat';
 
-/** Mesmo chrome visual do hub Orçamentos (`iosPageGlassOrcamentosVehicleCard`), com fundo branco sólido no claro. */
+/** Mesmo chrome chapado do hub Orçamentos (`iosPageGlassOrcamentosVehicleCard`). */
 const receptionHistoryVehicleCardShell =
-  'relative w-full rounded-[2rem] sm:rounded-[2.25rem] border border-zinc-200/80 dark:border-white/[0.07] bg-white backdrop-blur-2xl ' +
-  'shadow-[0_18px_50px_-12px_rgba(0,0,0,0.18),0_10px_32px_-10px_rgba(63,63,70,0.14),0_4px_14px_-4px_rgba(63,63,70,0.10),0_1px_4px_rgba(0,0,0,0.06)] ' +
-  'dark:bg-zinc-900/40 dark:shadow-[0_8px_40px_-12px_rgba(0,0,0,0.45)]';
+  'relative w-full rounded-[2rem] sm:rounded-[2.25rem] border-0 bg-white shadow-none dark:bg-zinc-900/70';
 
 function formatArchivedDate(archivedAt: string | Date | null | undefined): string {
   if (archivedAt == null) return '—';

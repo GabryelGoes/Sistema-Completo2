@@ -100,14 +100,12 @@ type ReceptionIntakePhoto = { id: string; file: Blob; url: string };
 
 const RECEPTION_MODE_KEY = 'app_reception_mode';
 
-/** Vidro do cartão principal da recepção — sombra extra só no claro. */
+/** Cartão principal da recepção — chapado, sem aro. */
 const receptionPageGlass =
-  'relative w-full rounded-[2rem] sm:rounded-[2.25rem] border border-zinc-200/80 dark:border-white/[0.07] bg-white/70 dark:bg-zinc-900/40 backdrop-blur-2xl ' +
-  'shadow-[0_16px_40px_-14px_rgba(0,0,0,0.12),0_8px_24px_-10px_rgba(0,0,0,0.09),0_3px_12px_-5px_rgba(0,0,0,0.06)] ' +
-  'dark:shadow-[0_8px_40px_-12px_rgba(0,0,0,0.45)]';
+  'relative w-full rounded-[2rem] sm:rounded-[2.25rem] border-0 bg-white/70 dark:bg-zinc-900/40 backdrop-blur-2xl shadow-none';
 
 const receptionSectionShell =
-  'overflow-hidden rounded-[24px] border border-zinc-300/70 bg-white shadow-[0_14px_34px_-12px_rgba(0,0,0,0.11),0_7px_22px_-10px_rgba(0,0,0,0.08),0_3px_10px_-5px_rgba(0,0,0,0.06)] dark:border-white/[0.08] dark:bg-zinc-900/40 dark:backdrop-blur-2xl dark:shadow-[0_12px_40px_-16px_rgba(0,0,0,0.5)]';
+  'overflow-hidden rounded-[24px] border-0 bg-white shadow-none dark:bg-zinc-900/40 dark:backdrop-blur-2xl';
 
 function sortArchivedOrdersNewestFirst(orders: ServiceOrderListItem[]): ServiceOrderListItem[] {
   return [...orders].sort(
@@ -1381,7 +1379,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                   </div>
                 ) : null}
                 {intakeCustomerSearchOpen ? (
-                  <div className="absolute left-0 right-0 z-30 mt-2 space-y-2 rounded-xl border border-zinc-200/80 bg-white/95 p-2 shadow-[0_14px_40px_-10px_rgba(0,0,0,0.22),0_6px_18px_-8px_rgba(0,0,0,0.12)] backdrop-blur dark:border-white/[0.1] dark:bg-zinc-900/95">
+                  <div className="absolute left-0 right-0 z-30 mt-2 space-y-2 rounded-xl border-0 bg-white/95 p-2 shadow-none backdrop-blur dark:bg-zinc-900/95">
                     <Input
                       autoFocus
                       className="[&>label]:sr-only"
@@ -1803,7 +1801,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                         {stageMenuOpen ? (
                           <div
                             role="listbox"
-                            className="absolute left-0 right-0 z-30 mt-2 max-h-72 space-y-1 overflow-y-auto rounded-2xl border border-zinc-200/80 bg-white/95 p-1.5 shadow-[0_14px_40px_-10px_rgba(0,0,0,0.22),0_6px_18px_-8px_rgba(0,0,0,0.12)] backdrop-blur dark:border-white/[0.1] dark:bg-zinc-900/95"
+                            className="absolute left-0 right-0 z-30 mt-2 max-h-72 space-y-1 overflow-y-auto rounded-2xl border-0 bg-white/95 p-1.5 shadow-none backdrop-blur dark:bg-zinc-900/95"
                           >
                             {LABORATORY_SERVICE_ORDER_STAGES.filter(
                               (s) => s.id !== 'ORCAMENTO_NAO_APROVADO'

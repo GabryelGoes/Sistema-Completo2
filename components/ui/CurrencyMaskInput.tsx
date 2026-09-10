@@ -10,7 +10,7 @@ import {
 } from '../../utils/currencyMaskInput';
 
 const defaultInputCls =
-  'w-full min-w-0 rounded-lg border border-zinc-200/90 dark:border-white/10 bg-zinc-100 dark:bg-white/5 px-3 py-2 text-[14px] text-zinc-900 dark:text-white placeholder:text-zinc-500 dark:placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/35 focus:border-emerald-500/40 tabular-nums shadow-[0_2px_10px_-3px_rgba(0,0,0,0.08),0_1px_4px_rgba(0,0,0,0.05)] dark:shadow-none';
+  'w-full min-w-0 rounded-lg border-0 bg-zinc-100 dark:bg-white/5 px-3 py-2 text-[14px] text-zinc-900 dark:text-white placeholder:text-zinc-500 dark:placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/35 focus:border-emerald-500/40 tabular-nums shadow-none';
 
 export type CurrencyMaskInputProps = {
   /** Valor numérico em string (ex.: "123.45") para o formulário. */

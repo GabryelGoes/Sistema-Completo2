@@ -41,10 +41,8 @@ import {
 const labelCls =
   'block text-[11px] font-bold uppercase tracking-wide text-zinc-600 dark:text-zinc-400';
 /** Sombras suaves só no modo claro (campos elevados sobre fundo branco). */
-const lightFieldShadow =
-  'shadow-[0_2px_10px_-3px_rgba(0,0,0,0.08),0_1px_4px_rgba(0,0,0,0.05)] dark:shadow-none';
-const lightCardShadow =
-  'shadow-[0_4px_20px_-6px_rgba(0,0,0,0.1),0_2px_8px_-2px_rgba(0,0,0,0.06)] dark:shadow-none';
+const lightFieldShadow = 'shadow-none';
+const lightCardShadow = 'shadow-none';
 const inputCls =
   `w-full min-w-0 rounded-lg border border-zinc-200/90 dark:border-white/10 bg-zinc-100 dark:bg-white/5 px-3 py-2 text-[14px] text-zinc-900 dark:text-white placeholder:text-zinc-500 dark:placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/35 focus:border-emerald-500/40 ${lightFieldShadow}`;
 const textareaCls = `${inputCls} resize-y min-h-[88px]`;
@@ -141,7 +139,7 @@ function UnitOfMeasureSelect({
           id="workshop-part-unit-of-measure-list"
           role="listbox"
           aria-labelledby="workshop-part-unit-of-measure"
-          className={`absolute left-0 right-0 top-full z-30 mt-1 max-h-[min(280px,40vh)] overflow-y-auto rounded-lg border border-zinc-200/90 bg-white py-1 shadow-lg shadow-zinc-900/10 dark:border-white/[0.12] dark:bg-zinc-900 dark:shadow-[0_12px_40px_-8px_rgba(0,0,0,0.65)]`}
+          className={`absolute left-0 right-0 top-full z-30 mt-1 max-h-[min(280px,40vh)] overflow-y-auto rounded-lg border-0 bg-white py-1 shadow-none shadow-zinc-900/10 dark:bg-zinc-900 dark:shadow-[0_12px_40px_-8px_rgba(0,0,0,0.65)]`}
         >
           {UNIT_OF_MEASURE_OPTIONS.map((opt) => {
             const isSelected = opt.value === value;
@@ -254,7 +252,7 @@ function PartCategoriesSelect({
           <ul
             role="listbox"
             aria-multiselectable="true"
-            className="absolute left-0 right-0 top-full z-30 mt-1 max-h-[min(240px,36vh)] overflow-y-auto rounded-lg border border-zinc-200/90 bg-white py-1 shadow-lg shadow-zinc-900/10 dark:border-white/[0.12] dark:bg-zinc-900 dark:shadow-[0_12px_40px_-8px_rgba(0,0,0,0.65)]"
+            className="absolute left-0 right-0 top-full z-30 mt-1 max-h-[min(240px,36vh)] overflow-y-auto rounded-lg border-0 bg-white py-1 shadow-none shadow-zinc-900/10 dark:bg-zinc-900 dark:shadow-[0_12px_40px_-8px_rgba(0,0,0,0.65)]"
           >
             {categories.length === 0 ? (
               <li className="px-3 py-3 text-[13px] text-zinc-500 dark:text-zinc-400">
@@ -900,7 +898,7 @@ export function WorkshopPartRegistrationForm({
           role="presentation"
         >
           <div
-            className="w-full max-w-lg rounded-2xl border border-zinc-200/90 bg-white p-6 shadow-xl dark:border-white/10 dark:bg-zinc-900"
+            className="w-full max-w-lg rounded-2xl border-0 bg-white p-6 shadow-none dark:bg-zinc-900"
             onClick={(e) => e.stopPropagation()}
             role="dialog"
             aria-modal="true"

@@ -47,13 +47,12 @@ export type BudgetApprovalModalProps = {
  * Altura/scroll: classes `.budget-approval-modal-shell` / `-scroll` em index.css
  * (max-h com espaços em arbitrary Tailwind não era gerado → modal não rolava). */
 const approvalShell =
-  'budget-approval-modal-shell relative w-full max-w-[min(96vw,42rem)] overflow-hidden rounded-2xl border border-sky-100/95 bg-[#fafcfe] shadow-[0_28px_90px_-32px_rgba(14,116,144,0.38),0_12px_32px_-16px_rgba(15,23,42,0.14),inset_0_1px_0_rgba(255,255,255,1)] animate-modal-sheet ' +
-  'dark:border-sky-500/20 dark:bg-zinc-950 dark:shadow-[0_28px_90px_-28px_rgba(0,0,0,0.7),0_12px_32px_-16px_rgba(14,116,144,0.18),inset_0_1px_0_rgba(255,255,255,0.06)] ' +
+  'budget-approval-modal-shell relative w-full max-w-[min(96vw,42rem)] overflow-hidden rounded-2xl border-0 bg-[#fafcfe] shadow-none animate-modal-sheet ' +
+  'dark:bg-zinc-950 ' +
   'sm:max-w-[min(94vw,52rem)] lg:max-w-[min(92vw,68rem)] xl:max-w-[min(90vw,76rem)]';
 
 const approvalInset =
-  'rounded-[16px] border border-sky-200/80 bg-white shadow-[0_6px_22px_-10px_rgba(14,116,144,0.18),0_2px_12px_-4px_rgba(15,23,42,0.08),inset_0_1px_0_rgba(255,255,255,1)] ' +
-  'dark:border-sky-500/25 dark:bg-zinc-900/80 dark:shadow-[0_8px_24px_-12px_rgba(0,0,0,0.55),inset_0_1px_0_rgba(255,255,255,0.05)]';
+  'rounded-[16px] border-0 bg-white shadow-none dark:bg-zinc-900/80';
 
 function ApprovalToggle({
   checked,
