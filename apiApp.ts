@@ -901,15 +901,22 @@ export function createApiApp() {
     const photosOnly = items.filter((i) => i.kind === "photo" || isServiceOrderImageFileName(i.file_name));
     return folders.map((folder) => {
       const folderPhotos = photosOnly.filter((i) => i.folder_id === folder.id);
-      const coverUrls = folderPhotos.slice(0, 4).map((p) => publicUrlForStoragePath(p.storage_path));
+      const photos = folderPhotos.map((p) => ({
+        id: p.id,
+        url: publicUrlForStoragePath(p.storage_path),
+        name: p.file_name,
+        path: p.storage_path,
+        createdAt: p.created_at,
+      }));
       return {
         id: folder.id,
         name: folder.name,
         slug: folder.slug,
         isSystem: folder.is_system,
         sortOrder: folder.sort_order,
-        photoCount: folderPhotos.length,
-        coverUrls,
+        photoCount: photos.length,
+        coverUrls: photos.slice(0, 4).map((p) => p.url),
+        photos,
         createdAt: folder.created_at,
       };
     });
@@ -4657,8 +4664,7 @@ export function createApiApp() {
         return res.status(404).json({ error: "Ordem de serviço não encontrada." });
       }
 
-      await ensureAndSyncServiceOrderPhotoFolders(serviceOrderId);
-
+      // Sem sync pesado aqui: a listagem já sincroniza. Detalhe deve abrir rápido.
       const { data: folder, error: folderErr } = await supabaseAdmin
         .from("service_order_photo_folders")
         .select("*")

@@ -1687,6 +1687,8 @@ export type ServiceOrderPhotoFolder = {
   photoCount: number;
   coverUrls: string[];
   createdAt?: string;
+  /** Fotos da pasta (quando a listagem já inclui). */
+  photos?: ServiceOrderPhoto[];
 };
 
 export type ServiceOrderPhotoFolderDetail = {

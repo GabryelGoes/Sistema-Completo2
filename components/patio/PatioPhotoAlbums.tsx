@@ -107,9 +107,9 @@ function FolderCover({
           src={covers[0]}
           alt=""
           className="h-full w-full object-cover"
-          sizes={dense ? '120px' : '200px'}
-          thumbMaxWidth={dense ? 160 : 280}
-          thumbMaxHeight={dense ? 160 : 280}
+          sizes={dense ? '148px' : '200px'}
+          thumbMaxWidth={dense ? 200 : 280}
+          thumbMaxHeight={dense ? 200 : 280}
           thumbQuality={58}
         />
       </div>
@@ -124,9 +124,9 @@ function FolderCover({
               src={covers[i]}
               alt=""
               className="h-full w-full object-cover"
-              sizes={dense ? '60px' : '100px'}
-              thumbMaxWidth={dense ? 90 : 140}
-              thumbMaxHeight={dense ? 90 : 140}
+              sizes={dense ? '74px' : '100px'}
+              thumbMaxWidth={dense ? 110 : 140}
+              thumbMaxHeight={dense ? 110 : 140}
               thumbQuality={50}
             />
           ) : (
@@ -253,8 +253,14 @@ export function PatioPhotoAlbums({
     try {
       const list = await getServiceOrderPhotoFolders(serviceOrderId);
       setFolders(list);
+      const byFolder: Record<string, ServiceOrderPhoto[]> = {};
+      for (const folder of list) {
+        if (Array.isArray(folder.photos)) {
+          byFolder[folder.id] = folder.photos;
+        }
+      }
+      setVirtualPhotosByFolder(byFolder);
       setUsingVirtualFolders(false);
-      setVirtualPhotosByFolder({});
     } catch {
       if (fallbackPhotosRef.current.length > 0) {
         applyVirtualFallback(fallbackPhotosRef.current);
@@ -269,22 +275,41 @@ export function PatioPhotoAlbums({
   const loadFolderDetail = useCallback(
     async (folderId: string) => {
       const requestId = ++detailRequestIdRef.current;
-      setLoadingFolder(true);
       setError(null);
-      try {
-        if (usingVirtualRef.current || folderId.startsWith('__virtual_')) {
-          const { folder, list } = resolveLocalFolderPhotos(folderId);
-          if (requestId !== detailRequestIdRef.current) return;
-          setOpenFolder(folder);
-          setPhotos(list);
-          return;
-        }
 
+      const folderMeta = foldersRef.current.find((f) => f.id === folderId) || null;
+      const cachedFromMap = virtualPhotosRef.current[folderId];
+      const cachedFromFolder = folderMeta?.photos;
+      const isVirtual = usingVirtualRef.current || folderId.startsWith('__virtual_');
+      const cached =
+        cachedFromMap ||
+        cachedFromFolder ||
+        (isVirtual ? resolveLocalFolderPhotos(folderId).list : undefined);
+
+      // Abre na hora com o cache da listagem — sem spinner.
+      if (cached) {
+        if (requestId !== detailRequestIdRef.current) return;
+        setOpenFolder(folderMeta || resolveLocalFolderPhotos(folderId).folder);
+        setPhotos(cached);
+        setLoadingFolder(false);
+        return;
+      }
+
+      if (isVirtual) {
+        const { folder, list } = resolveLocalFolderPhotos(folderId);
+        if (requestId !== detailRequestIdRef.current) return;
+        setOpenFolder(folder);
+        setPhotos(list);
+        setLoadingFolder(false);
+        return;
+      }
+
+      setLoadingFolder(true);
+      try {
         const detail = await getServiceOrderPhotoFolderDetail(serviceOrderId, folderId);
         if (requestId !== detailRequestIdRef.current) return;
 
         let nextPhotos = detail.photos;
-        // Se a API devolve pasta vazia mas há fotos locais conhecidas (entrada/outras), usa fallback.
         if (nextPhotos.length === 0 && fallbackPhotosRef.current.length > 0) {
           const built = buildVirtualFoldersFromPhotos(fallbackPhotosRef.current);
           if (detail.folder.slug === 'entrada') {
@@ -296,6 +321,7 @@ export function PatioPhotoAlbums({
 
         setOpenFolder(detail.folder);
         setPhotos(nextPhotos);
+        setVirtualPhotosByFolder((prev) => ({ ...prev, [folderId]: nextPhotos }));
         setFolders((prev) =>
           prev.map((f) =>
             f.id === detail.folder.id
@@ -309,6 +335,7 @@ export function PatioPhotoAlbums({
                     nextPhotos.slice(0, 4).map((p) => p.url) ||
                     detail.folder.coverUrls ||
                     f.coverUrls,
+                  photos: nextPhotos,
                 }
               : f
           )
@@ -794,7 +821,7 @@ export function PatioPhotoAlbums({
           return (
             <div
               key={folder.id}
-              className={`relative min-w-0 ${dense ? 'w-[112px] sm:w-[120px]' : ''}`}
+              className={`relative min-w-0 ${dense ? 'w-[136px] sm:w-[148px]' : ''}`}
             >
               {isRenaming ? (
                 <div className="rounded-2xl bg-zinc-50 p-3 dark:bg-white/[0.04]">
@@ -859,7 +886,7 @@ export function PatioPhotoAlbums({
                       <div className="min-w-0 flex-1">
                         <p
                           className={`truncate font-semibold tracking-tight text-zinc-900 dark:text-white ${
-                            dense ? 'text-[12px]' : 'text-[14px]'
+                            dense ? 'text-[13px]' : 'text-[14px]'
                           }`}
                         >
                           {folder.name}
