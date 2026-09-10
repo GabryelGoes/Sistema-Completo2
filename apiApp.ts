@@ -555,7 +555,9 @@ export function createApiApp() {
   const SO_PHOTO_FOLDER_ENTRADA_SLUG = "entrada";
   const SO_PHOTO_FOLDER_ENTRADA_NAME = "Entrada do veículo";
   const SO_PHOTO_FOLDER_OUTRAS_SLUG = "outras";
-  const SO_PHOTO_FOLDER_OUTRAS_NAME = "Outras fotos";
+  /** Álbum principal (legado: "Outras fotos"). */
+  const SO_PHOTO_FOLDER_OUTRAS_NAME = "Biblioteca";
+  const SO_PHOTO_FOLDER_OUTRAS_LEGACY_NAMES = ["Outras fotos", "outras fotos"];
 
   function isServiceOrderImageFileName(name: string): boolean {
     return /\.(jpe?g|png|gif|webp|heic|heif|bmp)$/i.test(String(name || ""));
@@ -634,7 +636,27 @@ export function createApiApp() {
       .eq("workshop_id", WORKSHOP_ID)
       .eq("slug", params.slug)
       .maybeSingle();
-    if (bySlug) return bySlug as ServiceOrderPhotoFolderRow;
+    if (bySlug) {
+      const row = bySlug as ServiceOrderPhotoFolderRow;
+      if (row.name !== params.name) {
+        await supabaseAdmin
+          .from("service_order_photo_folders")
+          .update({
+            name: params.name,
+            is_system: params.isSystem || row.is_system,
+            sort_order: params.sortOrder,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", row.id);
+        return {
+          ...row,
+          name: params.name,
+          is_system: params.isSystem || row.is_system,
+          sort_order: params.sortOrder,
+        };
+      }
+      return row;
+    }
 
     const { data: byName } = await supabaseAdmin
       .from("service_order_photo_folders")
@@ -661,6 +683,39 @@ export function createApiApp() {
         is_system: params.isSystem || (byName as ServiceOrderPhotoFolderRow).is_system,
         sort_order: params.sortOrder,
       };
+    }
+
+    // Migra nome legado "Outras fotos" → "Biblioteca" (mesmo slug).
+    if (params.slug === SO_PHOTO_FOLDER_OUTRAS_SLUG) {
+      for (const legacy of SO_PHOTO_FOLDER_OUTRAS_LEGACY_NAMES) {
+        const { data: legacyRow } = await supabaseAdmin
+          .from("service_order_photo_folders")
+          .select("*")
+          .eq("service_order_id", params.serviceOrderId)
+          .eq("workshop_id", WORKSHOP_ID)
+          .ilike("name", legacy)
+          .maybeSingle();
+        if (legacyRow) {
+          const row = legacyRow as ServiceOrderPhotoFolderRow;
+          await supabaseAdmin
+            .from("service_order_photo_folders")
+            .update({
+              name: params.name,
+              slug: params.slug,
+              is_system: params.isSystem || row.is_system,
+              sort_order: params.sortOrder,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", row.id);
+          return {
+            ...row,
+            name: params.name,
+            slug: params.slug,
+            is_system: params.isSystem || row.is_system,
+            sort_order: params.sortOrder,
+          };
+        }
+      }
     }
 
     return insertServiceOrderPhotoFolder({
@@ -4802,7 +4857,7 @@ export function createApiApp() {
     }
   });
 
-  /** Exclui pasta (não sistema). Fotos vão para "Outras fotos". */
+  /** Exclui pasta (não sistema). Fotos vão para a Biblioteca. */
   app.delete("/api/service-orders/:id/photo-folders/:folderId", async (req, res) => {
     try {
       if (!supabaseAdmin || !WORKSHOP_ID) {

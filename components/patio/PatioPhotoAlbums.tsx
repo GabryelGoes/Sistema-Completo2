@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ChevronLeft,
-  FolderPlus,
   Image as ImageIcon,
   Loader2,
   MoreHorizontal,
@@ -12,6 +11,7 @@ import {
   X,
   Camera,
   Images,
+  Check,
 } from 'lucide-react';
 import { StorageThumbImg } from '../ui/StorageThumbImg';
 import {
@@ -20,6 +20,7 @@ import {
   deleteServiceOrderPhotoFolder,
   getServiceOrderPhotoFolderDetail,
   getServiceOrderPhotoFolders,
+  moveServiceOrderPhotoToFolder,
   renameServiceOrderPhotoFolder,
   uploadServiceOrderPhoto,
   type ServiceOrderPhoto,
@@ -65,7 +66,7 @@ function buildVirtualFoldersFromPhotos(photos: ServiceOrderPhoto[]): {
   if (outras.length > 0) {
     folders.push({
       id: VIRTUAL_OUTRAS_ID,
-      name: 'Outras fotos',
+      name: 'Biblioteca',
       slug: 'outras',
       isSystem: false,
       sortOrder: 50,
@@ -186,6 +187,9 @@ export function PatioPhotoAlbums({
   const [creating, setCreating] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
+  const [libraryPhotos, setLibraryPhotos] = useState<ServiceOrderPhoto[]>([]);
+  const [loadingLibraryPhotos, setLoadingLibraryPhotos] = useState(false);
+  const [importPhotoPaths, setImportPhotoPaths] = useState<string[]>([]);
   const [folderMenuId, setFolderMenuId] = useState<string | null>(null);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState('');
@@ -404,6 +408,52 @@ export function PatioPhotoAlbums({
     [folders]
   );
 
+  useEffect(() => {
+    if (!createOpen) {
+      setLibraryPhotos([]);
+      setImportPhotoPaths([]);
+      setLoadingLibraryPhotos(false);
+      return;
+    }
+    let cancelled = false;
+    setLoadingLibraryPhotos(true);
+    void (async () => {
+      try {
+        const libraryFolder =
+          foldersRef.current.find((f) => f.slug === 'outras') ||
+          foldersRef.current.find((f) => /^(biblioteca|outras fotos)$/i.test(f.name));
+        if (libraryFolder && !libraryFolder.id.startsWith('__virtual_')) {
+          const detail = await getServiceOrderPhotoFolderDetail(
+            serviceOrderId,
+            libraryFolder.id
+          );
+          if (!cancelled) setLibraryPhotos(detail.photos);
+          return;
+        }
+        const built = buildVirtualFoldersFromPhotos(fallbackPhotosRef.current);
+        if (!cancelled) {
+          setLibraryPhotos(built.photosByFolder[VIRTUAL_OUTRAS_ID] || []);
+        }
+      } catch {
+        const built = buildVirtualFoldersFromPhotos(fallbackPhotosRef.current);
+        if (!cancelled) {
+          setLibraryPhotos(built.photosByFolder[VIRTUAL_OUTRAS_ID] || []);
+        }
+      } finally {
+        if (!cancelled) setLoadingLibraryPhotos(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [createOpen, serviceOrderId]);
+
+  const toggleImportPhoto = (path: string) => {
+    setImportPhotoPaths((prev) =>
+      prev.includes(path) ? prev.filter((p) => p !== path) : [...prev, path]
+    );
+  };
+
   const handleCreateFolder = async () => {
     const name = newFolderName.trim();
     if (!name || creating) return;
@@ -416,11 +466,18 @@ export function PatioPhotoAlbums({
     setCreating(true);
     try {
       const created = await createServiceOrderPhotoFolder(serviceOrderId, name);
-      setFolders((prev) => [...prev, created]);
+      if (importPhotoPaths.length > 0) {
+        for (const path of importPhotoPaths) {
+          await moveServiceOrderPhotoToFolder(serviceOrderId, path, created.id);
+        }
+      }
       setCreateOpen(false);
       setNewFolderName('');
-      setOpenFolderId(created.id);
+      setImportPhotoPaths([]);
       setUsingVirtualFolders(false);
+      await onPhotosChanged?.();
+      await loadFolders();
+      setOpenFolderId(created.id);
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Erro ao criar pasta.');
     } finally {
@@ -452,7 +509,7 @@ export function PatioPhotoAlbums({
     if (folder.isSystem) return;
     const msg =
       folder.photoCount > 0
-        ? `Excluir a pasta “${folder.name}”? As ${folder.photoCount} foto(s) serão movidas para “Outras fotos”.`
+        ? `Excluir a pasta “${folder.name}”? As ${folder.photoCount} foto(s) serão movidas para a Biblioteca.`
         : `Excluir a pasta “${folder.name}”?`;
     if (!window.confirm(msg)) return;
     setBusyFolderId(folder.id);
@@ -702,7 +759,7 @@ export function PatioPhotoAlbums({
     <div className="space-y-4">
       <div className="flex items-end justify-between gap-3">
         <div className="min-w-0">
-          <p className={sectionTitleClassName}>Pastas de fotos</p>
+          <p className={sectionTitleClassName}>Fotos</p>
           <p className="mt-0.5 text-[12px] font-medium tabular-nums text-zinc-500 dark:text-zinc-400">
             {folders.length} {folders.length === 1 ? 'pasta' : 'pastas'}
             {totalPhotos > 0 ? ` · ${totalPhotos} ${totalPhotos === 1 ? 'foto' : 'fotos'}` : ''}
@@ -714,10 +771,10 @@ export function PatioPhotoAlbums({
             onClick={() => {
               setCreateOpen(true);
               setNewFolderName('');
+              setImportPhotoPaths([]);
             }}
-            className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-[#007AFF] px-3 py-1.5 text-[12px] font-semibold text-white transition-[filter,transform] hover:brightness-110 active:scale-[0.98]"
+            className="inline-flex shrink-0 items-center rounded-full bg-[#007AFF] px-3 py-1.5 text-[12px] font-semibold text-white transition-[filter,transform] hover:brightness-110 active:scale-[0.98]"
           >
-            <FolderPlus className="h-3.5 w-3.5" strokeWidth={2.25} />
             Nova pasta
           </button>
         ) : null}
@@ -874,9 +931,9 @@ export function PatioPhotoAlbums({
             role="dialog"
             aria-modal="true"
             aria-labelledby="patio-new-photo-folder-title"
-            className="w-full max-w-md overflow-hidden rounded-3xl bg-white shadow-[0_24px_80px_-20px_rgba(0,0,0,0.45)] dark:bg-zinc-950"
+            className="flex max-h-[min(88vh,640px)] w-full max-w-lg flex-col overflow-hidden rounded-3xl bg-white shadow-[0_24px_80px_-20px_rgba(0,0,0,0.45)] dark:bg-zinc-950"
           >
-            <div className="flex items-center justify-between px-5 pb-2 pt-5">
+            <div className="flex shrink-0 items-center justify-between px-5 pb-2 pt-5">
               <h3 id="patio-new-photo-folder-title" className="text-[17px] font-semibold tracking-tight text-zinc-900 dark:text-white">
                 Nova pasta
               </h3>
@@ -889,9 +946,9 @@ export function PatioPhotoAlbums({
                 <X className="h-4 w-4" />
               </button>
             </div>
-            <div className="px-5 pb-5 pt-2">
+            <div className="min-h-0 flex-1 overflow-y-auto px-5 pb-2 pt-2">
               <p className="mb-3 text-[13px] leading-relaxed text-zinc-500 dark:text-zinc-400">
-                Organize fotos do veículo em álbuns — como no app Fotos.
+                Dê um nome ao álbum. Você pode trazer fotos da Biblioteca para esta pasta.
               </p>
               <input
                 value={newFolderName}
@@ -907,24 +964,113 @@ export function PatioPhotoAlbums({
                 autoFocus
                 className="w-full rounded-2xl bg-zinc-100 px-4 py-3 text-[15px] font-medium text-zinc-900 outline-none ring-0 placeholder:text-zinc-400 focus:bg-zinc-50 focus:ring-2 focus:ring-[#007AFF]/30 dark:bg-white/[0.06] dark:text-white dark:placeholder:text-zinc-500 dark:focus:bg-white/[0.08]"
               />
-              <div className="mt-4 flex justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => setCreateOpen(false)}
-                  className="rounded-full px-4 py-2.5 text-[14px] font-semibold text-zinc-600 dark:text-zinc-300"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="button"
-                  disabled={creating || !newFolderName.trim()}
-                  onClick={() => void handleCreateFolder()}
-                  className="inline-flex items-center gap-2 rounded-full bg-[#007AFF] px-5 py-2.5 text-[14px] font-semibold text-white disabled:opacity-50"
-                >
-                  {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : <FolderPlus className="h-4 w-4" />}
-                  Criar
-                </button>
+
+              <div className="mt-5">
+                <div className="mb-2 flex items-center justify-between gap-2">
+                  <p className="text-[12px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                    Importar da Biblioteca
+                  </p>
+                  {libraryPhotos.length > 0 ? (
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        disabled={creating || importPhotoPaths.length === libraryPhotos.length}
+                        onClick={() => setImportPhotoPaths(libraryPhotos.map((p) => p.path))}
+                        className="text-[12px] font-semibold text-[#007AFF] disabled:opacity-40"
+                      >
+                        Todas
+                      </button>
+                      <span className="text-zinc-300 dark:text-zinc-600" aria-hidden>
+                        ·
+                      </span>
+                      <button
+                        type="button"
+                        disabled={creating || importPhotoPaths.length === 0}
+                        onClick={() => setImportPhotoPaths([])}
+                        className="text-[12px] font-semibold text-zinc-500 disabled:opacity-40 dark:text-zinc-400"
+                      >
+                        Limpar
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
+                {loadingLibraryPhotos ? (
+                  <div className="flex justify-center py-8">
+                    <Loader2 className="h-5 w-5 animate-spin text-[#007AFF]" />
+                  </div>
+                ) : libraryPhotos.length === 0 ? (
+                  <p className="rounded-2xl bg-zinc-50 px-3 py-4 text-center text-[13px] text-zinc-500 dark:bg-white/[0.04] dark:text-zinc-400">
+                    A Biblioteca ainda não tem fotos para importar.
+                  </p>
+                ) : (
+                  <>
+                    <p className="mb-2 text-[12px] font-medium tabular-nums text-zinc-500 dark:text-zinc-400">
+                      {importPhotoPaths.length} de {libraryPhotos.length} selecionada
+                      {libraryPhotos.length === 1 ? '' : 's'}
+                    </p>
+                    <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+                      {libraryPhotos.map((photo) => {
+                        const selected = importPhotoPaths.includes(photo.path);
+                        const label = attachmentDisplayName(photo.name);
+                        return (
+                          <button
+                            key={photo.path}
+                            type="button"
+                            disabled={creating}
+                            onClick={() => toggleImportPhoto(photo.path)}
+                            aria-pressed={selected}
+                            title={label}
+                            className={`relative overflow-hidden rounded-xl text-left transition active:scale-[0.99] disabled:opacity-55 ${
+                              selected
+                                ? 'ring-2 ring-[#007AFF] ring-offset-1 ring-offset-white dark:ring-[#7ab8ff] dark:ring-offset-zinc-950'
+                                : ''
+                            }`}
+                          >
+                            <StorageThumbImg
+                              src={photo.url}
+                              alt={label}
+                              className="aspect-square h-full w-full object-cover"
+                              thumbMaxWidth={160}
+                              thumbMaxHeight={160}
+                              thumbQuality={52}
+                            />
+                            <span
+                              className={`absolute right-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-full ${
+                                selected
+                                  ? 'bg-[#007AFF] text-white'
+                                  : 'bg-black/35 text-white/90'
+                              }`}
+                              aria-hidden
+                            >
+                              {selected ? <Check className="h-3.5 w-3.5" strokeWidth={2.5} /> : null}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </>
+                )}
               </div>
+            </div>
+            <div className="flex shrink-0 justify-end gap-2 border-t border-zinc-100 px-5 py-4 dark:border-white/[0.06]">
+              <button
+                type="button"
+                onClick={() => setCreateOpen(false)}
+                className="rounded-full px-4 py-2.5 text-[14px] font-semibold text-zinc-600 dark:text-zinc-300"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                disabled={creating || !newFolderName.trim()}
+                onClick={() => void handleCreateFolder()}
+                className="inline-flex items-center gap-2 rounded-full bg-[#007AFF] px-5 py-2.5 text-[14px] font-semibold text-white disabled:opacity-50"
+              >
+                {creating ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                {importPhotoPaths.length > 0
+                  ? `Criar com ${importPhotoPaths.length} foto${importPhotoPaths.length === 1 ? '' : 's'}`
+                  : 'Criar'}
+              </button>
             </div>
           </div>
         </div>
