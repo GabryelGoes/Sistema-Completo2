@@ -9200,8 +9200,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                      <RefreshCw className="w-4 h-4 text-brand-yellow animate-spin" />
                                   </div>
                                )}
-                               <>
-                               <>
                                {selectedCard ? (
                                  <PatioPhotoAlbums
                                    key={selectedCard.id}
@@ -9294,7 +9292,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                    </div>
                                  );
                                })()}
-                               </>
                             </div>
                          </div>
                         </>
