@@ -1,0 +1,9 @@
+# Pastas de fotos nos Anexos do Pátio
+
+As pastas/álbuns de fotos nos Anexos do modal do veículo (**`PatioPhotoAlbums`**) são recurso permanente.
+
+- **Não remover** o componente `components/patio/PatioPhotoAlbums.tsx` nem a integração em `PatioView` (aba/seção Anexos).
+- **Não remover** as APIs/`apiApp` de `photo-folders` nem a migration `service_order_photo_folders`.
+- Ao redesenhar Anexos, manter a organização por pastas (ex.: Entrada do veículo, Biblioteca) sempre visível.
+
+Este pedido foi reforçado pelo usuário: voltar as pastas e nunca mais retirá-las.

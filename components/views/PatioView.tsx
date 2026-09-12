@@ -208,6 +208,7 @@ import {
 import { LabBenchSlotEditor } from '../lab/LabBenchSlotEditor';
 import type { ExternalRepair } from '../../constants/labBench';
 import { MercosulPlateMockup } from '../ui/MercosulPlateMockup';
+import { PatioPhotoAlbums } from '../patio/PatioPhotoAlbums';
 import { VehicleBrandLogo } from '../ui/VehicleBrandLogo';
 import { ReceptionArchivedHistoryHubCard, boardCardToArchivedHistoryHubOrder } from '../reception/ReceptionArchivedHistoryHubCard';
 import { archivedHistoryModalShell } from '../reception/archivedHistoryModalShell';
@@ -373,6 +374,8 @@ interface PatioViewProps {
   onOpenLaboratoryOrder?: (serviceOrderId: string) => void;
   /** Atualiza contagem de veículos/módulos ativos (ex.: barra superior no modo PC). */
   onActiveCardsCountChange?: (count: number) => void;
+  /** PC: exibe o nº da OS na barra amarela superior enquanto o modal do veículo estiver aberto. */
+  onVehicleModalOsLabelChange?: (label: string | null) => void;
   /** Fecha a página e volta ao Início (botão X no cabeçalho mobile/tablet). */
   onClosePage?: () => void;
 }
@@ -530,6 +533,25 @@ function mapArchivedOrdersToCards(
     }
   }
   return cards;
+}
+
+
+function formatServiceOrderPresence(iso: string | null | undefined): string {
+  if (!iso?.trim()) return 'Tempo no pátio indisponível';
+  const start = new Date(iso).getTime();
+  if (Number.isNaN(start)) return 'Tempo no pátio indisponível';
+  const ms = Date.now() - start;
+  if (ms < 0) return 'Há pouco no pátio';
+  const hours = Math.floor(ms / (1000 * 60 * 60));
+  if (hours < 1) {
+    const mins = Math.max(1, Math.floor(ms / (1000 * 60)));
+    return mins === 1 ? 'Há 1 minuto no pátio' : `Há ${mins} minutos no pátio`;
+  }
+  if (hours < 24) {
+    return hours === 1 ? 'Há 1 hora no pátio' : `Há ${hours} horas no pátio`;
+  }
+  const days = Math.floor(hours / 24);
+  return days === 1 ? 'Há 1 dia no pátio' : `Há ${days} dias no pátio`;
 }
 
 function formatServiceOrderCreatedAt(iso: string | null | undefined): string {
@@ -1122,6 +1144,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
   suppressVehiclePortals = false,
   onOpenLaboratoryOrder,
   onActiveCardsCountChange,
+  onVehicleModalOsLabelChange,
   onClosePage,
 }) => {
   /** Admin: sem patioPermissions = tudo permitido. Usuário do sistema: só o que for explicitamente true. */
@@ -1690,6 +1713,25 @@ export const PatioView: React.FC<PatioViewProps> = ({
   /** Celular e tablet vertical compartilham o layout compacto do modal de veículo. */
   const isPatioTabletLikeModal =
     !isPatioPcModal && (isPatioTabletPortrait || patioVehicleVm.mode === 'mobile');
+
+  useEffect(() => {
+    if (!onVehicleModalOsLabelChange) return;
+    if (!isPatioPcModal || !selectedCard) {
+      onVehicleModalOsLabelChange(null);
+      return;
+    }
+    const os = serviceOrderDetail?.os_number ?? selectedCard.osNumber;
+    onVehicleModalOsLabelChange(os != null ? `OS #${os}` : null);
+    return () => onVehicleModalOsLabelChange(null);
+  }, [
+    onVehicleModalOsLabelChange,
+    isPatioPcModal,
+    selectedCard,
+    selectedCard?.id,
+    selectedCard?.osNumber,
+    serviceOrderDetail?.os_number,
+  ]);
+
   const isPatioVmMetaPcLike = patioVehicleVm.isMetaPcLike;
   const patioVmInsetCard = patioVehicleVm.insetCard;
   const patioVmInputClass = patioVehicleVm.input;
@@ -2120,6 +2162,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
   // --- Attachment States ---
   const [isUploading, setIsUploading] = useState(false);
+  const [photoAlbumsRefreshKey, setPhotoAlbumsRefreshKey] = useState(0);
+  const [activePhotoFolderTarget, setActivePhotoFolderTarget] = useState<{
+    folderId?: string;
+    folderSlug?: string;
+  } | null>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
   /** Câmera nativa do dispositivo (`capture` no input). */
   const cameraInputRef = useRef<HTMLInputElement>(null);
@@ -4641,6 +4688,22 @@ export const PatioView: React.FC<PatioViewProps> = ({
     []
   );
 
+  const albumFallbackPhotos = useMemo(() => {
+    return (cardDetails?.attachments ?? [])
+      .filter(
+        (att) =>
+          att.mimeType?.startsWith('image/') ||
+          /\.(jpg|jpeg|png|gif|webp|heic|heif|bmp)$/i.test(att.url || att.name || '')
+      )
+      .map((att) => ({
+        url: att.url,
+        name: att.name,
+        path: String(att.id),
+      }))
+      .filter((p) => p.path && !/^\d+$/.test(p.path));
+  }, [cardDetails?.attachments]);
+
+
   const preloadLightboxUrl = useCallback((url: string) => {
     const originalUrl = url.split('?')[0];
     if (!originalUrl || attachmentPreloadRef.current.has(originalUrl)) return;
@@ -4904,19 +4967,25 @@ export const PatioView: React.FC<PatioViewProps> = ({
     setIsUploading(true);
     try {
       for (const file of files) {
-        await uploadServiceOrderPhoto(selectedCard.id, file, file.name);
+        const folderOpts =
+          isAttachmentImageFile(file, file.name) && activePhotoFolderTarget
+            ? {
+                ...(activePhotoFolderTarget.folderId
+                  ? { folderId: activePhotoFolderTarget.folderId }
+                  : {}),
+                ...(activePhotoFolderTarget.folderSlug
+                  ? { folderSlug: activePhotoFolderTarget.folderSlug }
+                  : {}),
+              }
+            : undefined;
+        await uploadServiceOrderPhoto(selectedCard.id, file, file.name, folderOpts);
       }
       const photos = await getServiceOrderPhotos(selectedCard.id);
       setCardDetails((prev) => ({
         actions: prev?.actions ?? [],
-        attachments: photos.map((p, i) => ({
-          id: p.path || String(i),
-          name: p.name,
-          url: p.url,
-          mimeType: attachmentMimeType(p.name),
-          previews: [{ url: p.url, width: 200, height: 200 }],
-        })),
+        attachments: mapPhotosToAttachments(photos),
       }));
+      setPhotoAlbumsRefreshKey((k) => k + 1);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Erro ao enviar arquivo(s).';
       alert(message);
@@ -5040,7 +5109,22 @@ export const PatioView: React.FC<PatioViewProps> = ({
         if (!/\.(jpe?g|png|webp)$/i.test(s)) s += ".jpg";
         fileName = s;
       }
-      await uploadServiceOrderPhoto(selectedCard.id, photoBlob, fileName);
+      await uploadServiceOrderPhoto(
+        selectedCard.id,
+        photoBlob,
+        fileName,
+        activePhotoFolderTarget
+          ? {
+              ...(activePhotoFolderTarget.folderId
+                ? { folderId: activePhotoFolderTarget.folderId }
+                : {}),
+              ...(activePhotoFolderTarget.folderSlug
+                ? { folderSlug: activePhotoFolderTarget.folderSlug }
+                : {}),
+            }
+          : undefined
+      );
+      setPhotoAlbumsRefreshKey((k) => k + 1);
       const photos = await getServiceOrderPhotos(selectedCard.id);
       setCardDetails(prev => ({
         actions: prev?.actions ?? [],
@@ -5099,9 +5183,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
           />
         </div>
         <Loader2 className="h-6 w-6 text-zinc-400 animate-spin dark:text-zinc-500" strokeWidth={2} aria-hidden />
-        <p className="text-center text-[15px] leading-snug text-zinc-500 dark:text-zinc-400">
-          {isModuleMode ? 'Carregando Laboratório…' : 'Carregando Pátio…'}
-        </p>
+
       </div>
     );
   }
@@ -5394,7 +5476,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   : 'grid grid-cols-1 items-center md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]'
               }`}
             >
-              <div className="flex min-w-0 items-center md:justify-self-start">{patioActiveCountBadge}</div>
+              <div className="flex min-w-0 items-center md:justify-self-start" aria-hidden />
               <div className={`flex justify-center md:justify-self-center md:px-2 ${headerActionsOneLine ? 'hidden' : ''}`}>
                 <button
                   type="button"
@@ -6026,15 +6108,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             aria-hidden
                           />
                         </div>
-                      ) : canAssignMember ? (
-                        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl border-0 bg-[#007AFF]/[0.12] dark:bg-[#007AFF]/18 portrait:h-[1.45rem] portrait:w-[1.45rem] portrait:rounded-lg">
-                          <Wrench className="h-3.5 w-3.5 text-[#007AFF] dark:text-[#7ab8ff] portrait:h-[0.75rem] portrait:w-[0.75rem]" strokeWidth={2.35} aria-hidden />
-                        </div>
-                      ) : (
-                        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl border-0 bg-zinc-100 dark:bg-white/[0.08] portrait:h-[1.45rem] portrait:w-[1.45rem] portrait:rounded-lg">
-                          <Wrench className="h-3.5 w-3.5 text-zinc-400 dark:text-zinc-500 portrait:h-[0.75rem] portrait:w-[0.75rem]" strokeWidth={2.35} aria-hidden />
-                        </div>
-                      )}
+                      ) : null}
                       <span
                         className={`truncate font-bold ${
                           boardPanoramic ? 'text-[0.95rem] portrait:text-[0.78rem]' : 'text-[1.05rem] portrait:text-[0.88rem]'
@@ -6563,7 +6637,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
                       <div className="space-y-10 lg:col-span-2">
                         <div>
                            <p className={uiSectionTitleRow}>
-                              <FileText className="h-3.5 w-3.5" />
                               Queixa do cliente
                            </p>
                            <div className={`${iosModalInsetCard} p-5 ${uiReadBody} sm:p-6`}>
@@ -6587,9 +6660,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                 />
                                 <div className="relative flex items-center justify-between gap-2 border-b border-black/[0.06] bg-white/85 px-2.5 py-2 pl-3 backdrop-blur-[2px] dark:border-white/[0.08] dark:bg-zinc-950/35 sm:gap-3 sm:px-3 sm:py-2.5 sm:pl-4">
                                   <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-2.5">
-                                    <div className={uiOsModalSectionIconWrap}>
-                                      <ClipboardList className="h-4 w-4 text-[#007AFF] dark:text-[#7ab8ff]" strokeWidth={2.25} aria-hidden />
-                                    </div>
                                     <p className={uiOsModalCardSectionTitle}>Observações do veículo</p>
                                   </div>
                                   {can('canEditFicha') && !isEditingVehicleObservations ? (
@@ -6601,7 +6671,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                       }}
                                       className="inline-flex shrink-0 items-center gap-1 rounded-xl border border-[#007AFF]/25 bg-[#007AFF]/[0.09] px-2.5 py-1 text-[11px] font-semibold text-[#007AFF] shadow-[inset_0_1px_0_rgba(255,255,255,0.35)] transition-colors hover:border-[#007AFF]/40 hover:bg-[#007AFF]/15 dark:border-[#007AFF]/35 dark:bg-[#007AFF]/15 dark:text-[#b8d9ff] dark:hover:bg-[#007AFF]/22"
                                     >
-                                      <Pencil className="h-3 w-3" aria-hidden strokeWidth={2.5} />
                                       Editar
                                     </button>
                                   ) : null}
@@ -6653,7 +6722,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
                         <div>
                            <p className={uiSectionTitleRow}>
-                             <MessageSquare className="h-3.5 w-3.5" />
                              Atividades e comentários
                           </p>
                           <div className={`${iosVehicleModalInsetCard} overflow-hidden shadow-none`}>
@@ -6708,7 +6776,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
                         {!isModuleMode && selectedHistoryCard && diagnosticAuthSheetContext ? (
                           <div>
                             <p className={uiSectionTitleRow}>
-                              <FileText className="h-3.5 w-3.5" />
                               Autorização de diagnóstico
                             </p>
                             <button
@@ -6717,9 +6784,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
                               className="group relative w-full overflow-hidden rounded-xl border border-zinc-200/85 bg-gradient-to-br from-white via-white to-zinc-50/95 text-left shadow-[0_4px_22px_-10px_rgba(0,122,255,0.22),inset_0_1px_0_rgba(255,255,255,0.92)] transition-all hover:border-[#007AFF]/40 hover:shadow-[0_10px_32px_-12px_rgba(0,122,255,0.32)] active:scale-[0.99] dark:border-white/[0.1] dark:from-zinc-900 dark:via-zinc-900 dark:to-zinc-950 dark:shadow-[0_6px_28px_-14px_rgba(0,0,0,0.55)] dark:hover:border-[#007AFF]/35"
                             >
                               <span className="flex items-center gap-3.5 px-4 py-3.5">
-                                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#007AFF]/14 to-sky-500/10 text-[#007AFF] ring-1 ring-[#007AFF]/18 dark:from-[#007AFF]/28 dark:to-sky-500/14 dark:text-[#7ab8ff] dark:ring-[#007AFF]/22">
-                                  <FileText className="h-5 w-5" strokeWidth={2.25} aria-hidden />
-                                </span>
                                 <span className="min-w-0 flex-1">
                                   <span className="block text-[14px] font-bold leading-tight tracking-tight text-zinc-900 dark:text-white">
                                     Ver autorização de diagnóstico
@@ -7083,7 +7147,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                       onClick={startExternalRepairEditing}
                                       className="inline-flex items-center gap-1.5 rounded-xl border border-[#007AFF]/25 bg-[#007AFF]/[0.09] px-3.5 py-2 text-[13px] font-semibold text-[#007AFF] transition-colors hover:border-[#007AFF]/40 hover:bg-[#007AFF]/15 dark:border-[#007AFF]/35 dark:bg-[#007AFF]/15 dark:text-[#b8d9ff] dark:hover:bg-[#007AFF]/22"
                                     >
-                                      <Pencil className="h-3.5 w-3.5" aria-hidden strokeWidth={2.5} />
                                       {hasSavedExternal ? 'Editar' : 'Preencher'}
                                     </button>
                                     {hasSavedExternal ? (
@@ -7256,6 +7319,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
         <div className={withModalExitOverlayClass(patioVehicleModalOverlayClass, primaryModalExiting)}>
            <div className={`${patioVehicleVm.shell} ${modalWpAppAnimClass(primaryModalExiting)} ${modalRingClass}`}>
               
+{!isPatioPcModal ? (
               <div className={`absolute z-20 flex items-center gap-2 ${
                 isPatioPcModal
                   ? 'top-4 right-5 xl:right-6'
@@ -7293,6 +7357,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   <X className="h-5 w-5" />
                 </button>
               </div>
+              ) : null}
 
               {can('canDeleteCards') && isDeleteVehicleOpen && (
                 <div className={`absolute inset-0 z-30 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm ${isPatioPcModal || patioVehicleVm.mode === 'mobile' || patioVehicleVm.mode === 'tabletPortrait' ? 'rounded-none' : 'rounded-[1.5rem] sm:rounded-[1.625rem]'}`}>
@@ -7467,6 +7532,12 @@ export const PatioView: React.FC<PatioViewProps> = ({
                               size={patioVehicleVm.brandLogoSize}
                             />
                           ) : null}
+                          {!isModuleMode && isPatioPcModal ? (
+                            <VehicleBrandLogo
+                              brand={serviceOrderDetail?.vehicle_brand || selectedCard.vehicleBrand}
+                              size={patioVehicleVm.brandLogoSize}
+                            />
+                          ) : null}
                           <h1
                             className={`${patioVehicleVm.title} min-w-0 flex-1 ${vehicleModalTitleShadow}`}
                             title={selectedCardTitleParts?.vehicle}
@@ -7480,19 +7551,46 @@ export const PatioView: React.FC<PatioViewProps> = ({
                           ) : null}
                           {!isModuleMode && isPatioPcModal ? (
                             <div className="inline-flex shrink-0 items-center justify-center gap-2.5">
-                              <VehicleBrandLogo
-                                brand={serviceOrderDetail?.vehicle_brand || selectedCard.vehicleBrand}
-                                size={patioVehicleVm.brandLogoSize}
-                              />
-                              <div className="inline-flex items-center gap-2.5">
-                                {modalOriginIcon}
-                                <MercosulPlateMockup
+                              {modalOriginIcon}
+                              <MercosulPlateMockup
                                   plate={selectedCardTitleParts?.plateOrModule || '---'}
                                   blurPlates={blurPlates}
                                   size={patioVehicleVm.plateMockupSize}
                                   selectable
                                 />
-                              </div>
+                            </div>
+                          ) : null}
+                          {isPatioPcModal ? (
+                            <div className="inline-flex shrink-0 items-center gap-2 pl-1">
+                              {isModuleMode && serviceOrderDetail && !loadingDetails ? (
+                                <button
+                                  type="button"
+                                  onClick={handlePrintLabModuleFicha}
+                                  className={`${patioVehicleVm.closeBtn} !border-violet-500/40 !bg-violet-600 !text-white shadow-md shadow-violet-500/25 hover:!bg-violet-500 dark:!bg-violet-600 dark:hover:!bg-violet-500`}
+                                  title="Imprimir ficha do produto"
+                                  aria-label="Imprimir ficha do produto"
+                                >
+                                  <Printer className="h-5 w-5" />
+                                </button>
+                              ) : null}
+                              {can('canDeleteCards') ? (
+                                <button
+                                  type="button"
+                                  onClick={() => { setDeleteVehicleError(null); setDeleteVehiclePassword(''); setDeleteVehiclePasswordReadonly(true); setIsDeleteVehicleOpen(true);  }}
+                                  className={`${patioVehicleVm.closeBtn} hover:bg-red-500/15 hover:text-red-600 dark:hover:bg-red-500/20`}
+                                  title={isModuleMode ? 'Excluir produto do laboratório' : 'Excluir veículo do sistema'}
+                                >
+                                  <Trash2 className="h-5 w-5" />
+                                </button>
+                              ) : null}
+                              <button
+                                type="button"
+                                onClick={() => closePatioPrimaryOverlays()}
+                                className={patioVehicleVm.closeBtn}
+                                aria-label="Fechar"
+                              >
+                                <X className="h-5 w-5" />
+                              </button>
                             </div>
                           ) : null}
                           {!isModuleMode && isPatioTabletLikeModal ? (
@@ -7610,9 +7708,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
                               aria-hidden
                             />
                             <div className={c.row}>
-                              <div className={c.iconSquircle}>
-                                <User className={c.iconGlyph} strokeWidth={2.25} aria-hidden />
-                              </div>
                               <div className="min-w-0 flex-1">
                                 <p className={c.titleText}>
                                   {patioVehicleVm.customerMetaLabel}
@@ -7641,9 +7736,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                 aria-hidden
                               />
                               <div className={c.row}>
-                                <div className={c.iconSquircle}>
-                                  <Calendar className={c.iconGlyph} strokeWidth={2.25} aria-hidden />
-                                </div>
                                 <div className="min-w-0 flex-1">
                                   <p className={c.titleText}>Data de criação</p>
                                   <p className={`${c.bodyText} tabular-nums`}>
@@ -7673,9 +7765,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
                               />
                               <div className={c.splitRow}>
                                 <div className="flex min-w-0 shrink items-center gap-1.5">
-                                  <div className={c.iconSquircle}>
-                                    <Gauge className={c.iconGlyph} strokeWidth={2.25} aria-hidden />
-                                  </div>
                                   <p className={c.titleText}>Km</p>
                                 </div>
                                 <div className={`${c.fieldRow} flex-nowrap`}>
@@ -7727,17 +7816,14 @@ export const PatioView: React.FC<PatioViewProps> = ({
                               <div
                                 className={`flex shrink-0 items-center gap-1${
                                   isPatioPcModal
-                                    ? ' max-w-[5.25rem] min-w-0'
+                                    ? ' min-w-0 shrink-0'
                                     : patioVehicleVm.mode === 'mobile'
                                       ? ''
                                       : isPatioTabletLikeModal
-                                        ? ' max-w-[5.75rem] min-w-0'
+                                        ? ' min-w-0 shrink-0'
                                         : ' min-w-0'
                                 }`}
                               >
-                                <div className={c.iconSquircle}>
-                                  <Calendar className={c.iconGlyph} strokeWidth={2.25} aria-hidden />
-                                </div>
                                 {patioVehicleVm.mode === 'mobile' ? (
                                   <span className="sr-only">{patioVehicleVm.deliveryDateMetaLabel}</span>
                                 ) : (
@@ -7747,32 +7833,23 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                 )}
                               </div>
                               <div className={`${c.fieldRow} flex-nowrap`}>
-                                <input
-                                  id={isPatioPcModal ? 'patio-delivery-date-input' : undefined}
-                                  type="date"
-                                  value={deliveryDateEditValue}
-                                  onChange={(e) => setDeliveryDateEditValue(e.target.value)}
-                                  aria-label="Data de entrega"
-                                  className={c.dateInput}
-                                />
                                 <button
                                   type="button"
-                                  onClick={handleSaveDeliveryDate}
-                                  disabled={savingDeliveryDate || deliveryDateEditValue === lastSavedDeliveryDate}
-                                  aria-label="Salvar data de entrega"
-                                  title="Salvar data de entrega"
-                                  className={`${c.saveBtn} ${
-                                    deliveryDateEditValue !== lastSavedDeliveryDate
-                                      ? 'bg-[#007AFF] shadow-blue-500/20 hover:opacity-95 active:scale-[0.98]'
-                                      : 'bg-zinc-600 shadow-none dark:bg-zinc-700'
-                                  }`}
+                                  className="group/presence relative min-w-0 flex-1 rounded-md px-1 py-0.5 text-left transition-colors hover:bg-[#007AFF]/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#007AFF]/35 dark:hover:bg-[#007AFF]/18"
+                                  title={formatServiceOrderPresence(serviceOrderDetail?.created_at ?? selectedCard.createdAt)}
+                                  aria-label={formatServiceOrderPresence(serviceOrderDetail?.created_at ?? selectedCard.createdAt)}
                                 >
-                                  {savingDeliveryDate ? <RefreshCw className={`${c.saveIcon} animate-spin`} /> : <Save className={c.saveIcon} />}
-                                  {!isPatioVmMetaPcLike ? ' Salvar' : null}
+                                  <span className={`${c.bodyText} tabular-nums`}>
+                                    {loadingDetails && !serviceOrderDetail?.created_at
+                                      ? 'Carregando…'
+                                      : formatServiceOrderCreatedAt(
+                                          serviceOrderDetail?.created_at ?? selectedCard.createdAt
+                                        )}
+                                  </span>
+                                  <span className="pointer-events-none absolute left-0 top-full z-20 mt-1 hidden min-w-[12rem] rounded-md border border-zinc-200/90 bg-white px-2.5 py-1.5 text-[12px] font-semibold text-zinc-700 shadow-lg group-hover/presence:block group-focus/presence:block dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-200">
+                                    {formatServiceOrderPresence(serviceOrderDetail?.created_at ?? selectedCard.createdAt)}
+                                  </span>
                                 </button>
-                                {deliveryDateSavedMessage && !isPatioVmMetaPcLike ? (
-                                  <span className={`${c.salvo} shrink-0`}>Salvo!</span>
-                                ) : null}
                               </div>
                             </div>
                           </div>
@@ -7796,9 +7873,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             <div className={c.row}>
                               {selectedCard.members && selectedCard.members.length > 0 ? (
                                 <>
-                                  <div className={`${c.mechanicWrap} ${getMechanicButtonStyle(selectedCard.members[0].fullName, selectedCard.members[0].id)}`}>
-                                    <Wrench className={c.mechanicWrench} strokeWidth={2.35} aria-hidden />
-                                  </div>
                                   <div className="min-w-0 flex-1">
                                     <p className={c.titleText}>{patioVehicleVm.technicianMetaLabel}</p>
                                     <p className={c.bodyText}>
@@ -7809,9 +7883,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                 </>
                               ) : (
                                 <>
-                                  <div className={c.emptyTech}>
-                                    <Wrench className={c.iconGlyph} strokeWidth={2.35} aria-hidden />
-                                  </div>
                                   <div className="min-w-0 flex-1">
                                     <p className={c.titleText}>{patioVehicleVm.technicianMetaLabel}</p>
                                     <p className={c.assignHint}>{patioVehicleVm.assignHintLabel}</p>
@@ -7838,9 +7909,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                 aria-hidden
                               />
                               <div className={c.row}>
-                                <div className={c.iconSquircle}>
-                                  <FileText className={c.iconGlyph} strokeWidth={2.25} aria-hidden />
-                                </div>
                                 <div className="min-w-0 flex-1">
                                   <p className={c.titleText}>Diagnóstico</p>
                                   <p className={c.bodyText}>Ver autorização</p>
@@ -8448,9 +8516,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
                             <div className="relative flex items-center justify-between gap-2 border-b border-black/[0.06] bg-white/85 px-2.5 py-2 pl-3 backdrop-blur-[2px] dark:border-white/[0.08] dark:bg-zinc-950/35 sm:gap-3 sm:px-3 sm:py-2.5 sm:pl-4">
                               <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-2.5">
-                                <div className={uiOsModalSectionIconWrap}>
-                                  <FileText className="h-4 w-4 text-[#007AFF] dark:text-[#7ab8ff]" strokeWidth={2.25} aria-hidden />
-                                </div>
                                 <p className={uiOsModalCardSectionTitle}>
                                   Queixa do cliente
                                 </p>
@@ -8475,7 +8540,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                     }}
                                     className="inline-flex shrink-0 items-center gap-1 rounded-xl border border-[#007AFF]/25 bg-[#007AFF]/[0.09] px-2.5 py-1 text-[11px] font-semibold text-[#007AFF] shadow-[inset_0_1px_0_rgba(255,255,255,0.35)] transition-colors hover:border-[#007AFF]/40 hover:bg-[#007AFF]/15 dark:border-[#007AFF]/35 dark:bg-[#007AFF]/15 dark:text-[#b8d9ff] dark:hover:bg-[#007AFF]/22"
                                   >
-                                    <Pencil className="h-3 w-3" aria-hidden strokeWidth={2.5} />
                                     Editar
                                   </button>
                                 ) : null}
@@ -8553,9 +8617,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                 />
                                 <div className="relative flex items-center justify-between gap-2 border-b border-black/[0.06] bg-white/85 px-2.5 py-2 pl-3 backdrop-blur-[2px] dark:border-white/[0.08] dark:bg-zinc-950/35 sm:gap-3 sm:px-3 sm:py-2.5 sm:pl-4">
                                   <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-2.5">
-                                    <div className={uiOsModalSectionIconWrap}>
-                                      <ClipboardList className="h-4 w-4 text-[#007AFF] dark:text-[#7ab8ff]" strokeWidth={2.25} aria-hidden />
-                                    </div>
                                     <p className={uiOsModalCardSectionTitle}>Observações do veículo</p>
                                   </div>
                                   {can('canEditFicha') && !isEditingVehicleObservations ? (
@@ -8567,7 +8628,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                       }}
                                       className="inline-flex shrink-0 items-center gap-1 rounded-xl border border-[#007AFF]/25 bg-[#007AFF]/[0.09] px-2.5 py-1 text-[11px] font-semibold text-[#007AFF] shadow-[inset_0_1px_0_rgba(255,255,255,0.35)] transition-colors hover:border-[#007AFF]/40 hover:bg-[#007AFF]/15 dark:border-[#007AFF]/35 dark:bg-[#007AFF]/15 dark:text-[#b8d9ff] dark:hover:bg-[#007AFF]/22"
                                     >
-                                      <Pencil className="h-3 w-3" aria-hidden strokeWidth={2.5} />
                                       Editar
                                     </button>
                                   ) : null}
@@ -8633,9 +8693,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
                               className="group relative w-full overflow-hidden rounded-xl border border-zinc-200/85 bg-gradient-to-br from-white via-white to-zinc-50/95 text-left shadow-[0_4px_22px_-10px_rgba(0,122,255,0.22),inset_0_1px_0_rgba(255,255,255,0.92)] transition-all hover:border-[#007AFF]/40 hover:shadow-[0_10px_32px_-12px_rgba(0,122,255,0.32)] active:scale-[0.99] dark:border-white/[0.1] dark:from-zinc-900 dark:via-zinc-900 dark:to-zinc-950 dark:shadow-[0_6px_28px_-14px_rgba(0,0,0,0.55)] dark:hover:border-[#007AFF]/35"
                             >
                               <span className="flex items-center gap-3.5 px-4 py-3.5">
-                                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#007AFF]/14 to-sky-500/10 text-[#007AFF] ring-1 ring-[#007AFF]/18 dark:from-[#007AFF]/28 dark:to-sky-500/14 dark:text-[#7ab8ff] dark:ring-[#007AFF]/22">
-                                  <FileText className="h-5 w-5" strokeWidth={2.25} aria-hidden />
-                                </span>
                                 <span className="min-w-0 flex-1">
                                   <span className="block text-[14px] font-bold leading-tight tracking-tight text-zinc-900 dark:text-white">
                                     Ver autorização de diagnóstico
@@ -8686,36 +8743,25 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                     Orçamentos
                                   </p>
                                 </div>
-                                {!isPatioPcModal ? (
-                                  <button
+                                <button
                                     type="button"
                                     onClick={() => openBudgetModal()}
                                     className="inline-flex shrink-0 items-center rounded-md bg-[#4FA8FF] px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-[0.06em] text-white shadow-sm shadow-blue-500/25 transition-[filter,transform] hover:bg-[#3397F8] active:scale-[0.98] dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-100"
                                   >
                                     + Criar orçamento
                                   </button>
-                                ) : null}
                               </div>
 
                               <div className="relative space-y-3 border-t border-zinc-200/60 bg-zinc-50/90 px-3 py-3 dark:border-white/[0.06] dark:bg-white/[0.02] sm:px-4 sm:py-4">
-                                {isPatioPcModal ? (
-                                <button
-                                  type="button"
-                                  onClick={() => openBudgetModal()}
-                                  className="group w-full rounded-xl bg-[#4FA8FF] px-3 py-3.5 text-left text-white shadow-[0_4px_14px_-4px_rgba(79,168,255,0.55)] transition-[filter,transform,background-color,box-shadow] hover:bg-[#3397F8] hover:shadow-[0_8px_22px_-6px_rgba(79,168,255,0.45)] active:scale-[0.99] dark:bg-white dark:text-zinc-950 dark:shadow-[0_4px_22px_-8px_rgba(255,255,255,0.22)] dark:hover:bg-zinc-100 dark:hover:shadow-[0_8px_26px_-8px_rgba(255,255,255,0.28)]"
-                                >
-                                  <span className="flex items-center justify-between gap-3">
-                                    <span className="font-semibold">Criar orçamento</span>
-                                    <Calculator className="h-5 w-5 shrink-0 text-white transition-transform group-hover:scale-110 dark:text-[#007AFF]" strokeWidth={2.25} />
-                                  </span>
-                                </button>
-                                ) : null}
+
 
                                 <div
                                   className={`max-h-[380px] overflow-x-hidden overflow-y-auto rounded-xl border border-zinc-200/75 bg-white/95 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)] dark:border-white/[0.08] dark:bg-zinc-950/50 ${
-                                    isPatioTabletLikeModal
-                                      ? 'grid grid-cols-2 gap-2.5 p-3'
-                                      : 'space-y-2.5 p-2.5'
+                                    isPatioPcModal
+                                      ? 'space-y-2.5 p-2.5'
+                                      : isPatioTabletLikeModal
+                                        ? 'grid grid-cols-2 gap-2.5 p-3'
+                                        : 'space-y-2.5 p-2.5'
                                   }`}
                                 >
                               {savedBudgets
@@ -9154,435 +9200,98 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                      <RefreshCw className="w-4 h-4 text-brand-yellow animate-spin" />
                                   </div>
                                )}
-                               {cardDetails?.attachments && cardDetails.attachments.length > 0 ? (
-                                  (() => {
-                                    const attachments = cardDetails.attachments;
-                                    const images = attachments.filter(att => att.mimeType?.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp|heic|heif|bmp)$/i.test(att.url));
-                                    const others = attachments.filter(att => !(att.mimeType?.startsWith('image/') || /\.(jpg|jpeg|png|gif|webp|heic|heif|bmp)$/i.test(att.url)));
-                                    const visibleImages = images.slice(0, vehicleModalPhotoVisibleCount);
-                                    const hiddenPhotoCount = images.length - visibleImages.length;
-                                    return (
-                                      <div className="flex flex-col gap-8">
-                                        {images.length > 0 && (
-                                          <div className="order-2">
-                                            <div className="mb-2 flex min-w-0 items-center">
-                                              <p className={uiOsModalCardSectionTitle}>
-                                                Fotos
-                                              </p>
-                                            </div>
-                                            <div className="rounded-xl border border-zinc-200/70 bg-white/70 p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.75)] dark:border-white/[0.08] dark:bg-white/[0.03]">
-                                            <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 md:grid-cols-4 md:gap-3">
-                                            {visibleImages.map((att, photoIndex) => {
-                                              const isLoadingThis = loadingAttachmentId === att.id;
-                                              const isDeletingThis = deletingAttachmentId === att.id;
-                                              const isRotatingThis = rotatingAttachmentPath === att.id;
-                                              const attachmentPath = att.id;
-                                              const canRename = attachmentPath && !/^\d+$/.test(String(attachmentPath));
-                                              const canRotatePhoto = canRename && can('canEditFicha');
-                                              const isEditingName = renameAttachmentId === att.id;
-                                              const isRenamingThis = renamingAttachmentId === att.id;
-                                              const label = attachmentDisplayName(att.name);
-                                              return (
-                                                <div
-                                                  key={att.id}
-                                                  className="flex min-w-0 flex-col gap-1"
-                                                >
-                                                  {isEditingName ? (
-                                                    <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-2 dark:border-zinc-700 dark:bg-zinc-900">
-                                                      <input
-                                                        type="text"
-                                                        value={renameAttachmentNewName}
-                                                        onChange={(e) => setRenameAttachmentNewName(e.target.value)}
-                                                        onKeyDown={(e) => {
-                                                          if (e.key === "Enter") {
-                                                            e.preventDefault();
-                                                            if (selectedCard && renameAttachmentNewName.trim()) {
-                                                              setRenamingAttachmentId(att.id);
-                                                              renameServiceOrderPhoto(selectedCard.id, attachmentPath, renameAttachmentNewName.trim())
-                                                                .then(() => getServiceOrderPhotos(selectedCard.id))
-                                                                .then((photos) => {
-                                                                  setCardDetails((prev) =>
-                                                                    prev
-                                                                      ? {
-                                                                          ...prev,
-                                                                          attachments: photos.map((p, i) => ({
-                                                                            id: p.path || String(i),
-                                                                            name: p.name,
-                                                                            url: p.url,
-                                                                            mimeType: attachmentMimeType(p.name),
-                                                                            previews: [{ url: p.url, width: 200, height: 200 }],
-                                                                          })),
-                                                                        }
-                                                                      : null
-                                                                  );
-                                                                })
-                                                                .catch((err) => alert(err?.message ?? "Erro ao renomear."))
-                                                                .finally(() => {
-                                                                  setRenameAttachmentId(null);
-                                                                  setRenamingAttachmentId(null);
-                                                                });
-                                                            }
-                                                          }
-                                                          if (e.key === "Escape") {
-                                                            setRenameAttachmentId(null);
-                                                            setRenameAttachmentNewName("");
-                                                          }
-                                                        }}
-                                                        className="w-full rounded-lg border border-zinc-200 bg-white px-2 py-1.5 text-[12px] text-zinc-800 focus:outline-none focus:ring-2 focus:ring-brand-yellow/40 dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100"
-                                                        placeholder="Nome da foto"
-                                                        autoFocus
-                                                        disabled={isRenamingThis}
-                                                      />
-                                                      <div className="mt-1.5 flex justify-end gap-1">
-                                                        <button
-                                                          type="button"
-                                                          onClick={() => {
-                                                            setRenameAttachmentId(null);
-                                                            setRenameAttachmentNewName("");
-                                                          }}
-                                                          className="rounded-lg px-2 py-1 text-[11px] text-zinc-500 hover:bg-zinc-200 dark:hover:bg-zinc-700"
-                                                        >
-                                                          Cancelar
-                                                        </button>
-                                                        <button
-                                                          type="button"
-                                                          disabled={isRenamingThis || !renameAttachmentNewName.trim()}
-                                                          onClick={() => {
-                                                            if (!selectedCard || !renameAttachmentNewName.trim()) return;
-                                                            setRenamingAttachmentId(att.id);
-                                                            renameServiceOrderPhoto(selectedCard.id, attachmentPath, renameAttachmentNewName.trim())
-                                                              .then(() => getServiceOrderPhotos(selectedCard.id))
-                                                              .then((photos) => {
-                                                                setCardDetails((prev) =>
-                                                                  prev
-                                                                    ? {
-                                                                        ...prev,
-                                                                        attachments: photos.map((p, i) => ({
-                                                                          id: p.path || String(i),
-                                                                          name: p.name,
-                                                                          url: p.url,
-                                                                          mimeType: attachmentMimeType(p.name),
-                                                                          previews: [{ url: p.url, width: 200, height: 200 }],
-                                                                        })),
-                                                                      }
-                                                                    : null
-                                                                );
-                                                              })
-                                                              .catch((err) => alert(err?.message ?? "Erro ao renomear."))
-                                                              .finally(() => {
-                                                                setRenameAttachmentId(null);
-                                                                setRenamingAttachmentId(null);
-                                                              });
-                                                          }}
-                                                          className="rounded-lg bg-brand-yellow px-2 py-1 text-[11px] font-semibold text-black disabled:opacity-50"
-                                                        >
-                                                          {isRenamingThis ? "…" : "OK"}
-                                                        </button>
-                                                      </div>
-                                                    </div>
-                                                  ) : (
-                                                    <>
-                                                      <div className="relative rounded-[14px] bg-gradient-to-r from-[#007AFF] via-brand-yellow to-[#007AFF] p-[2px] shadow-[0_8px_18px_-10px_rgba(0,122,255,0.45)] dark:shadow-[0_10px_24px_-12px_rgba(59,130,246,0.4)]">
-                                                      <div className="group relative aspect-square overflow-hidden rounded-[12px] bg-zinc-100 dark:bg-zinc-900">
-                                                        <button
-                                                          type="button"
-                                                          onPointerEnter={() => preloadLightboxUrl(att.url)}
-                                                          onFocus={() => preloadLightboxUrl(att.url)}
-                                                          onClick={() => {
-                                                            if (isLoadingThis || isRotatingThis) return;
-                                                            preloadLightboxUrl(att.url);
-                                                            setPreviewImages({
-                                                              items: images.map((a) => ({
-                                                                path: a.id,
-                                                                url: a.url,
-                                                                name: a.name,
-                                                              })),
-                                                              currentIndex: images.findIndex((a) => a.url === att.url),
-                                                            });
-                                                          }}
-                                                          className="absolute inset-0 h-full w-full rounded-xl focus:outline-none focus:ring-2 focus:ring-brand-yellow/50 focus:ring-offset-2 dark:focus:ring-offset-zinc-900"
-                                                        >
-                                                          {isLoadingThis ? (
-                                                            <div className="absolute inset-0 flex items-center justify-center bg-zinc-200/80 dark:bg-zinc-800/80">
-                                                              <RefreshCw className="w-6 h-6 text-brand-yellow animate-spin" />
-                                                            </div>
-                                                          ) : (
-                                                            <>
-                                                              <StorageThumbImg
-                                                                key={att.url}
-                                                                src={att.url}
-                                                                alt={label}
-                                                                className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-105"
-                                                                sizes="(max-width: 640px) 45vw, (max-width: 1024px) 28vw, 180px"
-                                                                thumbMaxWidth={200}
-                                                                thumbMaxHeight={200}
-                                                                thumbQuality={52}
-                                                                loading={photoIndex < 8 ? 'eager' : 'lazy'}
-                                                                fetchPriority={photoIndex < 4 ? 'high' : 'low'}
-                                                              />
-                                                              <div className="absolute inset-0 flex items-end justify-between bg-gradient-to-t from-black/50 via-transparent to-transparent px-2 pb-2 opacity-0 transition-opacity group-hover:opacity-100">
-                                                                <button
-                                                                  type="button"
-                                                                  onClick={(e) => handleShareImage(e, { url: att.url, name: att.name })}
-                                                                  className="rounded-lg bg-black/40 p-1.5 text-white drop-shadow-lg hover:bg-black/60"
-                                                                  title="Compartilhar (ex.: WhatsApp)"
-                                                                >
-                                                                  <Share2 className="w-5 h-5" />
-                                                                </button>
-                                                                <ZoomIn className="h-6 w-6 text-white drop-shadow-lg" />
-                                                              </div>
-                                                            </>
-                                                          )}
-                                                        </button>
-                                                      </div>
-                                                      </div>
-                                                      <div className="flex min-h-[2rem] items-start gap-1">
-                                                        <span
-                                                          className="min-w-0 flex-1 break-words text-[10px] font-medium leading-tight text-zinc-600 dark:text-zinc-300 sm:text-[11px]"
-                                                          title={label}
-                                                        >
-                                                          {label}
-                                                        </span>
-                                                        {canRename && (
-                                                          <>
-                                                            {canRotatePhoto && (
-                                                              <button
-                                                                type="button"
-                                                                onClick={(e) =>
-                                                                  handleRotateGridPhoto(
-                                                                    e,
-                                                                    String(attachmentPath),
-                                                                    att.url,
-                                                                    att.name,
-                                                                    'cw'
-                                                                  )
-                                                                }
-                                                                disabled={isDeletingThis || isRotatingThis}
-                                                                className="shrink-0 rounded-md p-1 text-zinc-500 transition-colors hover:bg-zinc-200 hover:text-zinc-800 disabled:opacity-50 dark:hover:bg-zinc-700 dark:hover:text-zinc-100"
-                                                                title="Girar foto"
-                                                                aria-label="Girar foto"
-                                                              >
-                                                                {isRotatingThis ? (
-                                                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                                                ) : (
-                                                                  <RotateCw className="h-3.5 w-3.5" />
-                                                                )}
-                                                              </button>
-                                                            )}
-                                                            <button
-                                                              type="button"
-                                                              onClick={() => {
-                                                                setRenameAttachmentId(att.id);
-                                                                setRenameAttachmentNewName(attachmentDisplayName(att.name));
-                                                              }}
-                                                              className="shrink-0 rounded-md p-1 text-zinc-500 transition-colors hover:bg-zinc-200 hover:text-zinc-800 dark:hover:bg-zinc-700 dark:hover:text-zinc-100"
-                                                              title="Nomear ou renomear foto"
-                                                              aria-label="Nomear ou renomear foto"
-                                                              disabled={isDeletingThis || isRotatingThis}
-                                                            >
-                                                              <Pencil className="h-3.5 w-3.5" />
-                                                            </button>
-                                                            <button
-                                                              type="button"
-                                                              onClick={() =>
-                                                                handleDeleteAttachment(String(attachmentPath), att.id, att.url)
-                                                              }
-                                                              disabled={isDeletingThis}
-                                                              className="shrink-0 rounded-md p-1 text-red-500/90 transition-colors hover:bg-red-500/15 hover:text-red-600 disabled:opacity-50 dark:hover:text-red-400"
-                                                              title="Excluir foto"
-                                                              aria-label="Excluir foto"
-                                                            >
-                                                              {isDeletingThis ? (
-                                                                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                                              ) : (
-                                                                <Trash2 className="h-3.5 w-3.5" />
-                                                              )}
-                                                            </button>
-                                                          </>
-                                                        )}
-                                                      </div>
-                                                    </>
-                                                  )}
-                                                </div>
-                                              );
-                                            })}
-                                            </div>
-                                            </div>
-                                            {hiddenPhotoCount > 0 && (
-                                              <button
-                                                type="button"
-                                                className="mt-2 w-full rounded-xl border border-zinc-200/80 bg-zinc-50 py-2 text-xs font-semibold text-zinc-700 hover:bg-zinc-100 dark:border-white/10 dark:bg-white/[0.05] dark:text-zinc-200 dark:hover:bg-white/[0.08]"
-                                                onClick={() => setVehicleModalPhotoVisibleCount(images.length)}
-                                              >
-                                                Mostrar mais ({hiddenPhotoCount}{' '}
-                                                {hiddenPhotoCount === 1 ? 'foto' : 'fotos'})
-                                              </button>
-                                            )}
-                                          </div>
-                                        )}
-                                        {others.length > 0 && (
-                                          <div className="order-1">
-                                            <div className="mb-2 flex min-w-0 items-center">
-                                              <p className={uiOsModalCardSectionTitle}>
-                                                Documentos
-                                              </p>
-                                            </div>
-                                            <div className="flex flex-wrap gap-2">
-                                              {others.map(att => {
-                                                const isPdf = isPdfAttachment(att.mimeType, att.url);
-                                                const isLoadingThis = loadingAttachmentId === att.id;
-                                                const isDeletingThis = deletingAttachmentId === att.id;
-                                                const isRenamingThis = renamingAttachmentId === att.id;
-                                                const isEditingName = renameAttachmentId === att.id;
-                                                const attachmentPath = att.id;
-                                                // Permite renomear quando temos um path real (vindo da API); id numérico é fallback do índice
-                                                const canRename = attachmentPath && !/^\d+$/.test(String(attachmentPath));
-                                                return (
-                                                  <div key={att.id} className="flex items-center gap-2 min-w-0 max-w-full">
-                                                    {isEditingName ? (
-                                                      <div className="flex items-center gap-2 flex-1 min-w-0 px-3 py-2.5 rounded-xl bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700">
-                                                        <FileText className="w-5 h-5 text-zinc-500 shrink-0" />
-                                                        <input
-                                                          type="text"
-                                                          value={renameAttachmentNewName}
-                                                          onChange={(e) => setRenameAttachmentNewName(e.target.value)}
-                                                          onKeyDown={(e) => {
-                                                            if (e.key === 'Enter') {
-                                                              e.preventDefault();
-                                                              if (selectedCard && renameAttachmentNewName.trim()) {
-                                                                setRenamingAttachmentId(att.id);
-                                                                renameServiceOrderPhoto(selectedCard.id, attachmentPath, renameAttachmentNewName.trim())
-                                                                  .then(() => getServiceOrderPhotos(selectedCard.id))
-                                                                  .then(photos => {
-                                                                    setCardDetails(prev => prev ? {
-                                                                      ...prev,
-                                                                      attachments: photos.map((p, i) => ({
-                                                                        id: p.path || String(i),
-                                                                        name: p.name,
-                                                                        url: p.url,
-                                                                        mimeType: attachmentMimeType(p.name),
-                                                                        previews: [{ url: p.url, width: 200, height: 200 }],
-                                                                      })),
-                                                                    } : null);
-                                                                  })
-                                                                  .catch(err => alert(err?.message ?? 'Erro ao renomear.'))
-                                                                  .finally(() => { setRenameAttachmentId(null); setRenamingAttachmentId(null); });
-                                                              }
-                                                            }
-                                                            if (e.key === 'Escape') {
-                                                              setRenameAttachmentId(null);
-                                                              setRenameAttachmentNewName('');
-                                                            }
-                                                          }}
-                                                          className="flex-1 min-w-0 text-sm font-medium text-zinc-700 dark:text-zinc-300 bg-transparent border-0 focus:ring-0 focus:outline-none p-0"
-                                                          placeholder="Novo nome do arquivo"
-                                                          autoFocus
-                                                        />
-                                                        <button
-                                                          type="button"
-                                                          onClick={() => {
-                                                            if (!selectedCard || !renameAttachmentNewName.trim()) return;
-                                                            setRenamingAttachmentId(att.id);
-                                                            renameServiceOrderPhoto(selectedCard.id, attachmentPath, renameAttachmentNewName.trim())
-                                                              .then(() => getServiceOrderPhotos(selectedCard.id))
-                                                              .then(photos => {
-                                                                setCardDetails(prev => prev ? {
-                                                                  ...prev,
-                                                                  attachments: photos.map((p, i) => ({
-                                                                    id: p.path || String(i),
-                                                                    name: p.name,
-                                                                    url: p.url,
-                                                                    mimeType: attachmentMimeType(p.name),
-                                                                    previews: [{ url: p.url, width: 200, height: 200 }],
-                                                                  })),
-                                                                } : null);
-                                                              })
-                                                              .catch(err => alert(err?.message ?? 'Erro ao renomear.'))
-                                                              .finally(() => { setRenameAttachmentId(null); setRenamingAttachmentId(null); });
-                                                          }}
-                                                          disabled={isRenamingThis || !renameAttachmentNewName.trim()}
-                                                          className="shrink-0 p-1 rounded text-brand-yellow hover:bg-brand-yellow/20 disabled:opacity-50"
-                                                          title="Confirmar"
-                                                        >
-                                                          <Check className="w-4 h-4" />
-                                                        </button>
-                                                        <button
-                                                          type="button"
-                                                          onClick={() => { setRenameAttachmentId(null); setRenameAttachmentNewName(''); }}
-                                                          className="shrink-0 p-1 rounded text-zinc-500 hover:bg-zinc-200 dark:hover:bg-zinc-700"
-                                                          title="Cancelar"
-                                                        >
-                                                          <X className="w-4 h-4" />
-                                                        </button>
-                                                      </div>
-                                                    ) : (
-                                                      <>
-                                                        <a
-                                                          href={att.url}
-                                                          target="_blank"
-                                                          rel="noopener noreferrer"
-                                                          className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors min-w-0 flex-1"
-                                                        >
-                                                          {isLoadingThis ? (
-                                                            <RefreshCw className="w-5 h-5 text-brand-yellow animate-spin shrink-0" />
-                                                          ) : (
-                                                            <FileText className="w-5 h-5 text-zinc-500 shrink-0" />
-                                                          )}
-                                                          <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300 truncate">{attachmentDisplayName(att.name)}</span>
-                                                          {(isPdf || !att.mimeType?.startsWith('image/')) && <ExternalLink className="w-4 h-4 text-zinc-400 shrink-0" />}
-                                                        </a>
-                                                        {canRename && (
-                                                          <>
-                                                            <button
-                                                              type="button"
-                                                              onClick={() => {
-                                                                setRenameAttachmentId(att.id);
-                                                                setRenameAttachmentNewName(attachmentDisplayName(att.name));
-                                                              }}
-                                                              className="shrink-0 p-2 rounded-lg text-zinc-500 hover:bg-zinc-200 dark:hover:bg-zinc-700 hover:text-zinc-700 dark:hover:text-zinc-300 disabled:opacity-50"
-                                                              title="Renomear arquivo"
-                                                              disabled={isDeletingThis}
-                                                            >
-                                                              <Pencil className="w-4 h-4" />
-                                                            </button>
-                                                            <button
-                                                              type="button"
-                                                              onClick={() =>
-                                                                handleDeleteAttachment(String(attachmentPath), att.id, att.url)
-                                                              }
-                                                              disabled={isDeletingThis}
-                                                              className="shrink-0 p-2 rounded-lg text-red-500/90 hover:bg-red-500/15 hover:text-red-600 disabled:opacity-50 dark:hover:text-red-400"
-                                                              title="Excluir arquivo"
-                                                              aria-label="Excluir arquivo"
-                                                            >
-                                                              {isDeletingThis ? (
-                                                                <Loader2 className="w-4 h-4 animate-spin" />
-                                                              ) : (
-                                                                <Trash2 className="w-4 h-4" />
-                                                              )}
-                                                            </button>
-                                                          </>
-                                                        )}
-                                                      </>
-                                                    )}
-                                                  </div>
-                                                );
-                                              })}
-                                            </div>
-                                          </div>
-                                        )}
-                                      </div>
-                                    );
-                                  })()
-                               ) : loadingDetails ? (
-                                  <div className="flex justify-center p-4">
-                                     <RefreshCw className="w-4 h-4 text-zinc-500 animate-spin" />
-                                  </div>
-                               ) : (
-                                  <div className="text-center py-6 border border-dashed border-zinc-300 dark:border-zinc-800 rounded-xl">
-                                     <p className="text-zinc-600 text-sm">Nenhum anexo encontrado.</p>
-                                  </div>
-                               )}
+                               {selectedCard ? (
+                                 <PatioPhotoAlbums
+                                   key={selectedCard.id}
+                                   serviceOrderId={selectedCard.id}
+                                   canEdit={can('canEditFicha')}
+                                   sectionTitleClassName={uiOsModalCardSectionTitle}
+                                   refreshKey={photoAlbumsRefreshKey}
+                                   onActiveFolderChange={setActivePhotoFolderTarget}
+                                   fallbackPhotos={albumFallbackPhotos}
+                                   dense={isPatioPcModal}
+                                   onPhotosChanged={async () => {
+                                     if (!selectedCard) return;
+                                     const photos = await getServiceOrderPhotos(selectedCard.id);
+                                     setCardDetails((prev) =>
+                                       prev
+                                         ? { ...prev, attachments: mapPhotosToAttachments(photos) }
+                                         : {
+                                             actions: [],
+                                             attachments: mapPhotosToAttachments(photos),
+                                           }
+                                     );
+                                   }}
+                                   onPreviewPhoto={(photos, index) => {
+                                     setPreviewImages({
+                                       items: photos.map((p) => ({
+                                         path: p.path,
+                                         url: p.url,
+                                         name: p.name,
+                                       })),
+                                       currentIndex: index,
+                                     });
+                                   }}
+                                   onSharePhoto={(e, att) => void handleShareImage(e, att)}
+                                 />
+                               ) : null}
+                               {(() => {
+                                 const attachments = cardDetails?.attachments ?? [];
+                                 const others = attachments.filter(
+                                   (att) =>
+                                     !(
+                                       att.mimeType?.startsWith('image/') ||
+                                       /\.(jpg|jpeg|png|gif|webp|heic|heif|bmp)$/i.test(att.url || '')
+                                     )
+                                 );
+                                 if (others.length === 0) {
+                                   if (!loadingDetails && attachments.length === 0) {
+                                     return (
+                                       <p className="pt-2 text-center text-[12px] font-medium text-zinc-500 dark:text-zinc-400">
+                                         Documentos PDF e outros arquivos aparecem aqui.
+                                       </p>
+                                     );
+                                   }
+                                   return null;
+                                 }
+                                 return (
+                                   <div className="pt-2">
+                                     <div className="mb-2 flex min-w-0 items-center">
+                                       <p className={uiOsModalCardSectionTitle}>Documentos</p>
+                                     </div>
+                                     <div className="flex flex-wrap gap-2">
+                                       {others.map((att) => {
+                                         const isDeletingThis = deletingAttachmentId === att.id;
+                                         return (
+                                           <div
+                                             key={att.id}
+                                             className="inline-flex max-w-full items-center gap-2 rounded-xl border border-zinc-200/80 bg-white px-3 py-2 text-[13px] font-medium text-zinc-800 shadow-sm dark:border-white/[0.1] dark:bg-zinc-900 dark:text-zinc-100"
+                                           >
+                                             <button
+                                               type="button"
+                                               onClick={() => window.open(att.url, '_blank')}
+                                               className="min-w-0 truncate text-left hover:text-[#007AFF]"
+                                             >
+                                               {attachmentDisplayName(att.name)}
+                                             </button>
+                                             {can('canEditFicha') ? (
+                                               <button
+                                                 type="button"
+                                                 disabled={isDeletingThis}
+                                                 onClick={() => void handleDeleteAttachment(att)}
+                                                 className="shrink-0 text-zinc-400 hover:text-red-500"
+                                                 aria-label="Excluir anexo"
+                                               >
+                                                 <Trash2 className="h-3.5 w-3.5" />
+                                               </button>
+                                             ) : null}
+                                           </div>
+                                         );
+                                       })}
+                                     </div>
+                                   </div>
+                                 );
+                               })()}
                             </div>
                          </div>
                         </>
@@ -10153,8 +9862,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                           className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-zinc-200/90 bg-zinc-50 text-zinc-600 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.06)] transition-all hover:border-[#007AFF]/40 hover:bg-[#007AFF]/10 hover:text-[#007AFF] active:scale-95 dark:border-white/[0.1] dark:bg-zinc-950/50 dark:text-zinc-300 dark:hover:border-[#64B5FF]/40 dark:hover:bg-[#0A84FF]/15 dark:hover:text-[#64B5FF]"
                           aria-label="Editar lembrete"
                         >
-                          <Pencil className="h-4 w-4" strokeWidth={2.1} />
-                        </button>
+                          </button>
                       ) : null}
                       <button
                         type="button"
@@ -10351,7 +10059,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
           <div className={`relative flex max-h-[90vh] w-full max-w-md flex-col ${iosModalShell} ${modalSheetAnimClass(vehicleEditPresence.exiting)}`}>
             <div className="border-b border-zinc-200/60 px-5 py-5 dark:border-white/[0.07] sm:px-6">
               <h3 className="flex items-center gap-2 text-[17px] font-semibold text-zinc-900 dark:text-white">
-                <Pencil className="h-5 w-5 text-[#007AFF]" />
                 Editar veículo
               </h3>
               <p className="mt-1 text-[13px] leading-relaxed text-zinc-500 dark:text-zinc-400">Corrija o nome do veículo ou a placa, se estiver errado.</p>
@@ -10555,7 +10262,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   disabled={!!deletingBudgetId || !!verifyingBudgetId || !can('canEditBudgets') || !selectedCard}
                   className={budgetReadFooterBtnClass}
                 >
-                  <Pencil className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> Editar
+                  Editar
                 </button>
               </div>
             </div>

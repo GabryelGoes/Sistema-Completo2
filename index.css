@@ -2,6 +2,60 @@
 @tailwind components;
 @tailwind utilities;
 
+/**
+ * SF Pro embutido — garante a mesma tipografia no PC (Windows) e na Apple.
+ * Text = corpo; Display = títulos. Cards de veículo continuam com `.font-vehicle`.
+ */
+@font-face {
+  font-family: "SF Pro Text";
+  src: url("/fonts/sf-pro/sf-pro-text_light.woff") format("woff");
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "SF Pro Text";
+  src: url("/fonts/sf-pro/sf-pro-text_regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "SF Pro Text";
+  src: url("/fonts/sf-pro/sf-pro-text_semibold.woff2") format("woff2");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "SF Pro Display";
+  src: url("/fonts/sf-pro/sf-pro-display_regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "SF Pro Display";
+  src: url("/fonts/sf-pro/sf-pro-display_medium.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "SF Pro Display";
+  src: url("/fonts/sf-pro/sf-pro-display_semibold.woff2") format("woff2");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "SF Pro Display";
+  src: url("/fonts/sf-pro/sf-pro-display_bold.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
   --app-accent: #f5d00b;
   --app-accent-rgb: 245 208 11;
@@ -29,6 +83,7 @@ body {
   background-color: #f2f2f7;
   color: #1c1c1e;
   font-family:
+    "SF Pro Text",
     -apple-system,
     BlinkMacSystemFont,
     "Segoe UI",
@@ -40,6 +95,28 @@ body {
   transition:
     background-color 0.3s ease,
     color 0.3s ease;
+}
+
+/**
+ * Títulos da interface → SF Pro Display.
+ * Nomes de carro nos cards usam `.font-vehicle` e não herdam Display.
+ */
+@layer base {
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family:
+      "SF Pro Display",
+      "SF Pro Text",
+      -apple-system,
+      BlinkMacSystemFont,
+      "Segoe UI",
+      Roboto,
+      Helvetica,
+      Arial,
+      sans-serif;
+  }
 }
 
 #root {
@@ -334,7 +411,16 @@ html[data-desktop-shell='true'] .desktop-shell-content .budgets-hub-col-scroll {
   cursor: pointer;
 }
 
+/** Nomes de veículo nos cards — mantém stack anterior (não usa SF Pro Display). */
 .font-vehicle {
+  font-family:
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    Roboto,
+    Helvetica,
+    Arial,
+    sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }

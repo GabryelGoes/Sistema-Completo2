@@ -552,6 +552,376 @@ export function createApiApp() {
       });
   }
 
+  const SO_PHOTO_FOLDER_ENTRADA_SLUG = "entrada";
+  const SO_PHOTO_FOLDER_ENTRADA_NAME = "Entrada do veículo";
+  const SO_PHOTO_FOLDER_OUTRAS_SLUG = "outras";
+  /** Álbum principal (legado: "Outras fotos"). */
+  const SO_PHOTO_FOLDER_OUTRAS_NAME = "Biblioteca";
+  const SO_PHOTO_FOLDER_OUTRAS_LEGACY_NAMES = ["Outras fotos", "outras fotos"];
+
+  function isServiceOrderImageFileName(name: string): boolean {
+    return /\.(jpe?g|png|gif|webp|heic|heif|bmp)$/i.test(String(name || ""));
+  }
+
+  function isEntradaIntakePhotoFileName(name: string): boolean {
+    // Storage grava como `{timestamp}_entrada_{osId}_…jpg` (upload-init) ou `entrada_…` (legado).
+    const base = String(name || "").trim().split("/").pop() || "";
+    return /(^|_)entrada_/i.test(base);
+  }
+
+  type ServiceOrderPhotoFolderRow = {
+    id: string;
+    workshop_id: string;
+    service_order_id: string;
+    name: string;
+    slug: string | null;
+    is_system: boolean;
+    sort_order: number;
+    created_at: string;
+    updated_at: string;
+  };
+
+  type ServiceOrderPhotoItemRow = {
+    id: string;
+    workshop_id: string;
+    service_order_id: string;
+    folder_id: string;
+    storage_path: string;
+    file_name: string;
+    kind: string;
+    created_at: string;
+  };
+
+  async function insertServiceOrderPhotoFolder(params: {
+    serviceOrderId: string;
+    name: string;
+    slug?: string | null;
+    isSystem?: boolean;
+    sortOrder?: number;
+  }): Promise<ServiceOrderPhotoFolderRow | null> {
+    if (!supabaseAdmin || !WORKSHOP_ID) return null;
+    const name = String(params.name || "").trim().replace(/\s+/g, " ");
+    if (!name) return null;
+    const { data, error } = await supabaseAdmin
+      .from("service_order_photo_folders")
+      .insert({
+        workshop_id: WORKSHOP_ID,
+        service_order_id: params.serviceOrderId,
+        name,
+        slug: params.slug ?? null,
+        is_system: !!params.isSystem,
+        sort_order: params.sortOrder ?? 100,
+      })
+      .select("*")
+      .single();
+    if (error) {
+      console.error("[API] insertServiceOrderPhotoFolder:", error.message);
+      return null;
+    }
+    return data as ServiceOrderPhotoFolderRow;
+  }
+
+  async function getOrCreateNamedPhotoFolder(params: {
+    serviceOrderId: string;
+    name: string;
+    slug: string;
+    isSystem: boolean;
+    sortOrder: number;
+  }): Promise<ServiceOrderPhotoFolderRow | null> {
+    if (!supabaseAdmin || !WORKSHOP_ID) return null;
+    const { data: bySlug } = await supabaseAdmin
+      .from("service_order_photo_folders")
+      .select("*")
+      .eq("service_order_id", params.serviceOrderId)
+      .eq("workshop_id", WORKSHOP_ID)
+      .eq("slug", params.slug)
+      .maybeSingle();
+    if (bySlug) {
+      const row = bySlug as ServiceOrderPhotoFolderRow;
+      if (row.name !== params.name) {
+        await supabaseAdmin
+          .from("service_order_photo_folders")
+          .update({
+            name: params.name,
+            is_system: params.isSystem || row.is_system,
+            sort_order: params.sortOrder,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", row.id);
+        return {
+          ...row,
+          name: params.name,
+          is_system: params.isSystem || row.is_system,
+          sort_order: params.sortOrder,
+        };
+      }
+      return row;
+    }
+
+    const { data: byName } = await supabaseAdmin
+      .from("service_order_photo_folders")
+      .select("*")
+      .eq("service_order_id", params.serviceOrderId)
+      .eq("workshop_id", WORKSHOP_ID)
+      .ilike("name", params.name)
+      .maybeSingle();
+    if (byName) {
+      if (!(byName as ServiceOrderPhotoFolderRow).slug) {
+        await supabaseAdmin
+          .from("service_order_photo_folders")
+          .update({
+            slug: params.slug,
+            is_system: params.isSystem || (byName as ServiceOrderPhotoFolderRow).is_system,
+            sort_order: params.sortOrder,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", (byName as ServiceOrderPhotoFolderRow).id);
+      }
+      return {
+        ...(byName as ServiceOrderPhotoFolderRow),
+        slug: params.slug,
+        is_system: params.isSystem || (byName as ServiceOrderPhotoFolderRow).is_system,
+        sort_order: params.sortOrder,
+      };
+    }
+
+    // Migra nome legado "Outras fotos" → "Biblioteca" (mesmo slug).
+    if (params.slug === SO_PHOTO_FOLDER_OUTRAS_SLUG) {
+      for (const legacy of SO_PHOTO_FOLDER_OUTRAS_LEGACY_NAMES) {
+        const { data: legacyRow } = await supabaseAdmin
+          .from("service_order_photo_folders")
+          .select("*")
+          .eq("service_order_id", params.serviceOrderId)
+          .eq("workshop_id", WORKSHOP_ID)
+          .ilike("name", legacy)
+          .maybeSingle();
+        if (legacyRow) {
+          const row = legacyRow as ServiceOrderPhotoFolderRow;
+          await supabaseAdmin
+            .from("service_order_photo_folders")
+            .update({
+              name: params.name,
+              slug: params.slug,
+              is_system: params.isSystem || row.is_system,
+              sort_order: params.sortOrder,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", row.id);
+          return {
+            ...row,
+            name: params.name,
+            slug: params.slug,
+            is_system: params.isSystem || row.is_system,
+            sort_order: params.sortOrder,
+          };
+        }
+      }
+    }
+
+    return insertServiceOrderPhotoFolder({
+      serviceOrderId: params.serviceOrderId,
+      name: params.name,
+      slug: params.slug,
+      isSystem: params.isSystem,
+      sortOrder: params.sortOrder,
+    });
+  }
+
+  async function upsertServiceOrderPhotoItem(params: {
+    serviceOrderId: string;
+    folderId: string;
+    storagePath: string;
+    fileName: string;
+    kind?: "photo" | "document";
+  }): Promise<void> {
+    if (!supabaseAdmin || !WORKSHOP_ID) return;
+    const { error } = await supabaseAdmin.from("service_order_photo_items").upsert(
+      {
+        workshop_id: WORKSHOP_ID,
+        service_order_id: params.serviceOrderId,
+        folder_id: params.folderId,
+        storage_path: params.storagePath,
+        file_name: params.fileName,
+        kind: params.kind ?? "photo",
+      },
+      { onConflict: "service_order_id,storage_path" }
+    );
+    if (error) {
+      console.error("[API] upsertServiceOrderPhotoItem:", error.message);
+    }
+  }
+
+  async function removeServiceOrderPhotoItemByPath(
+    serviceOrderId: string,
+    storagePath: string
+  ): Promise<void> {
+    if (!supabaseAdmin || !WORKSHOP_ID) return;
+    await supabaseAdmin
+      .from("service_order_photo_items")
+      .delete()
+      .eq("service_order_id", serviceOrderId)
+      .eq("workshop_id", WORKSHOP_ID)
+      .eq("storage_path", storagePath);
+  }
+
+  async function updateServiceOrderPhotoItemPath(
+    serviceOrderId: string,
+    oldPath: string,
+    newPath: string,
+    newFileName: string
+  ): Promise<void> {
+    if (!supabaseAdmin || !WORKSHOP_ID) return;
+    await supabaseAdmin
+      .from("service_order_photo_items")
+      .update({ storage_path: newPath, file_name: newFileName })
+      .eq("service_order_id", serviceOrderId)
+      .eq("workshop_id", WORKSHOP_ID)
+      .eq("storage_path", oldPath);
+  }
+
+  /** Garante pasta de sistema + sincroniza fotos órfãs do Storage para pastas. */
+  async function ensureAndSyncServiceOrderPhotoFolders(serviceOrderId: string): Promise<{
+    folders: ServiceOrderPhotoFolderRow[];
+    items: ServiceOrderPhotoItemRow[];
+  }> {
+    if (!supabaseAdmin || !WORKSHOP_ID || !serviceOrderId) {
+      return { folders: [], items: [] };
+    }
+
+    const entrada = await getOrCreateNamedPhotoFolder({
+      serviceOrderId,
+      name: SO_PHOTO_FOLDER_ENTRADA_NAME,
+      slug: SO_PHOTO_FOLDER_ENTRADA_SLUG,
+      isSystem: true,
+      sortOrder: 0,
+    });
+
+    const storagePhotos = await listServiceOrderStoragePhotos(serviceOrderId);
+    const imageFiles = storagePhotos.filter((p) => isServiceOrderImageFileName(p.name));
+
+    const { data: existingItems, error: itemsErr } = await supabaseAdmin
+      .from("service_order_photo_items")
+      .select("*")
+      .eq("service_order_id", serviceOrderId)
+      .eq("workshop_id", WORKSHOP_ID);
+    if (itemsErr) {
+      console.error("[API] list photo items:", itemsErr.message);
+    }
+    const itemsByPath = new Map(
+      ((existingItems ?? []) as ServiceOrderPhotoItemRow[]).map((row) => [row.storage_path, row])
+    );
+
+    const orphanImages = imageFiles.filter((p) => !itemsByPath.has(p.path));
+    let outras: ServiceOrderPhotoFolderRow | null = null;
+    if (orphanImages.some((p) => !isEntradaIntakePhotoFileName(p.name))) {
+      outras = await getOrCreateNamedPhotoFolder({
+        serviceOrderId,
+        name: SO_PHOTO_FOLDER_OUTRAS_NAME,
+        slug: SO_PHOTO_FOLDER_OUTRAS_SLUG,
+        isSystem: false,
+        sortOrder: 50,
+      });
+    }
+
+    for (const photo of orphanImages) {
+      const targetFolderId =
+        isEntradaIntakePhotoFileName(photo.name) && entrada
+          ? entrada.id
+          : outras?.id || entrada?.id;
+      if (!targetFolderId) continue;
+      await upsertServiceOrderPhotoItem({
+        serviceOrderId,
+        folderId: targetFolderId,
+        storagePath: photo.path,
+        fileName: photo.name,
+        kind: "photo",
+      });
+    }
+
+    const storagePaths = new Set(storagePhotos.map((p) => p.path));
+
+    // Corrige itens já cadastrados com o prefixo `{timestamp}_entrada_…` que
+    // antes caíam em "Outras fotos" / pasta errada.
+    if (entrada) {
+      const entradaFolderId = entrada.id;
+      for (const row of (existingItems ?? []) as ServiceOrderPhotoItemRow[]) {
+        if (!storagePaths.has(row.storage_path)) continue;
+        if (!isEntradaIntakePhotoFileName(row.file_name)) continue;
+        if (row.folder_id === entradaFolderId) continue;
+        await upsertServiceOrderPhotoItem({
+          serviceOrderId,
+          folderId: entradaFolderId,
+          storagePath: row.storage_path,
+          fileName: row.file_name,
+          kind: "photo",
+        });
+      }
+    }
+
+    // Remove metadados de paths que sumiram do Storage
+    for (const row of (existingItems ?? []) as ServiceOrderPhotoItemRow[]) {
+      if (!storagePaths.has(row.storage_path)) {
+        await removeServiceOrderPhotoItemByPath(serviceOrderId, row.storage_path);
+      }
+    }
+
+    const { data: folders } = await supabaseAdmin
+      .from("service_order_photo_folders")
+      .select("*")
+      .eq("service_order_id", serviceOrderId)
+      .eq("workshop_id", WORKSHOP_ID)
+      .order("sort_order", { ascending: true })
+      .order("created_at", { ascending: true });
+
+    const { data: items } = await supabaseAdmin
+      .from("service_order_photo_items")
+      .select("*")
+      .eq("service_order_id", serviceOrderId)
+      .eq("workshop_id", WORKSHOP_ID)
+      .order("created_at", { ascending: false });
+
+    return {
+      folders: (folders ?? []) as ServiceOrderPhotoFolderRow[],
+      items: (items ?? []) as ServiceOrderPhotoItemRow[],
+    };
+  }
+
+  function publicUrlForStoragePath(storagePath: string): string {
+    if (!supabaseAdmin) return "";
+    const {
+      data: { publicUrl },
+    } = supabaseAdmin.storage.from(VEHICLE_PHOTOS_BUCKET).getPublicUrl(storagePath);
+    return publicUrl;
+  }
+
+  function serializePhotoFoldersPayload(
+    folders: ServiceOrderPhotoFolderRow[],
+    items: ServiceOrderPhotoItemRow[]
+  ) {
+    const photosOnly = items.filter((i) => i.kind === "photo" || isServiceOrderImageFileName(i.file_name));
+    return folders.map((folder) => {
+      const folderPhotos = photosOnly.filter((i) => i.folder_id === folder.id);
+      const photos = folderPhotos.map((p) => ({
+        id: p.id,
+        url: publicUrlForStoragePath(p.storage_path),
+        name: p.file_name,
+        path: p.storage_path,
+        createdAt: p.created_at,
+      }));
+      return {
+        id: folder.id,
+        name: folder.name,
+        slug: folder.slug,
+        isSystem: folder.is_system,
+        sortOrder: folder.sort_order,
+        photoCount: photos.length,
+        coverUrls: photos.slice(0, 4).map((p) => p.url),
+        photos,
+        createdAt: folder.created_at,
+      };
+    });
+  }
+
   async function findSourcePatioOrderForLabModule(labOrderId: string): Promise<{
     id: string;
     os_number: number | null;
@@ -3840,6 +4210,10 @@ export function createApiApp() {
       const completeBody = parseRequestJsonBody(req);
       const objectPath =
         typeof completeBody.path === "string" ? completeBody.path.trim() : "";
+      const folderIdRaw =
+        typeof completeBody.folderId === "string" ? completeBody.folderId.trim() : "";
+      const folderSlugRaw =
+        typeof completeBody.folderSlug === "string" ? completeBody.folderSlug.trim() : "";
 
       if (!serviceOrderId) {
         return res.status(400).json({ error: "ID da OS inválido." });
@@ -3863,12 +4237,58 @@ export function createApiApp() {
         data: { publicUrl },
       } = supabaseAdmin.storage.from(bucket).getPublicUrl(objectPath);
 
+      if (isServiceOrderImageFileName(storedName) && !isDiagnosticAuthorizationSignatureFileName(storedName)) {
+        let targetFolderId = folderIdRaw;
+        if (!targetFolderId && folderSlugRaw) {
+          const synced = await ensureAndSyncServiceOrderPhotoFolders(serviceOrderId);
+          const bySlug = synced.folders.find((f) => f.slug === folderSlugRaw);
+          targetFolderId = bySlug?.id || "";
+        }
+        if (!targetFolderId) {
+          const synced = await ensureAndSyncServiceOrderPhotoFolders(serviceOrderId);
+          if (isEntradaIntakePhotoFileName(storedName)) {
+            targetFolderId =
+              synced.folders.find((f) => f.slug === SO_PHOTO_FOLDER_ENTRADA_SLUG)?.id || "";
+          } else {
+            const outras =
+              synced.folders.find((f) => f.slug === SO_PHOTO_FOLDER_OUTRAS_SLUG) ||
+              (await getOrCreateNamedPhotoFolder({
+                serviceOrderId,
+                name: SO_PHOTO_FOLDER_OUTRAS_NAME,
+                slug: SO_PHOTO_FOLDER_OUTRAS_SLUG,
+                isSystem: false,
+                sortOrder: 50,
+              }));
+            targetFolderId = outras?.id || "";
+          }
+        }
+        if (targetFolderId) {
+          const { data: folderOk } = await supabaseAdmin
+            .from("service_order_photo_folders")
+            .select("id")
+            .eq("id", targetFolderId)
+            .eq("service_order_id", serviceOrderId)
+            .eq("workshop_id", WORKSHOP_ID)
+            .maybeSingle();
+          if (folderOk) {
+            await upsertServiceOrderPhotoItem({
+              serviceOrderId,
+              folderId: targetFolderId,
+              storagePath: objectPath,
+              fileName: storedName,
+              kind: "photo",
+            });
+          }
+        }
+      }
+
       await touchServiceOrderUpdatedAt(serviceOrderId);
 
       return res.status(201).json({
         url: publicUrl,
         path: objectPath,
         name: storedName,
+        folderId: folderIdRaw || null,
       });
     } catch (err: any) {
       console.error("[API] POST /api/service-orders/:id/photos/upload-complete:", err);
@@ -3952,6 +4372,47 @@ export function createApiApp() {
         const {
           data: { publicUrl },
         } = supabaseAdmin.storage.from(bucket).getPublicUrl(pathInBucket);
+
+        if (isServiceOrderImageFileName(safeName) && !isDiagnosticAuthorizationSignatureFileName(safeName)) {
+          const folderIdForm =
+            typeof (req.body as { folderId?: unknown })?.folderId === "string"
+              ? String((req.body as { folderId?: string }).folderId).trim()
+              : "";
+          const folderSlugForm =
+            typeof (req.body as { folderSlug?: unknown })?.folderSlug === "string"
+              ? String((req.body as { folderSlug?: string }).folderSlug).trim()
+              : "";
+          let targetFolderId = folderIdForm;
+          if (!targetFolderId) {
+            const synced = await ensureAndSyncServiceOrderPhotoFolders(serviceOrderId);
+            if (folderSlugForm) {
+              targetFolderId = synced.folders.find((f) => f.slug === folderSlugForm)?.id || "";
+            } else if (isEntradaIntakePhotoFileName(safeName)) {
+              targetFolderId =
+                synced.folders.find((f) => f.slug === SO_PHOTO_FOLDER_ENTRADA_SLUG)?.id || "";
+            } else {
+              const outras =
+                synced.folders.find((f) => f.slug === SO_PHOTO_FOLDER_OUTRAS_SLUG) ||
+                (await getOrCreateNamedPhotoFolder({
+                  serviceOrderId,
+                  name: SO_PHOTO_FOLDER_OUTRAS_NAME,
+                  slug: SO_PHOTO_FOLDER_OUTRAS_SLUG,
+                  isSystem: false,
+                  sortOrder: 50,
+                }));
+              targetFolderId = outras?.id || "";
+            }
+          }
+          if (targetFolderId) {
+            await upsertServiceOrderPhotoItem({
+              serviceOrderId,
+              folderId: targetFolderId,
+              storagePath: pathInBucket,
+              fileName: safeName,
+              kind: "photo",
+            });
+          }
+        }
 
         await touchServiceOrderUpdatedAt(serviceOrderId);
 
@@ -4154,6 +4615,379 @@ export function createApiApp() {
     }
   });
 
+  /** Lista pastas de fotos (álbuns) da OS, sincronizando órfãos do Storage. */
+  app.get("/api/service-orders/:id/photo-folders", async (req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({
+          error:
+            "Supabase ou WORKSHOP_ID não configurados. Verifique variáveis de ambiente.",
+        });
+      }
+      const serviceOrderId = reqOrderId(req);
+      if (!serviceOrderId) {
+        return res.status(400).json({ error: "ID da OS inválido." });
+      }
+      if (!(await assertServiceOrderInWorkshop(serviceOrderId))) {
+        return res.status(404).json({ error: "Ordem de serviço não encontrada." });
+      }
+      const { folders, items } = await ensureAndSyncServiceOrderPhotoFolders(serviceOrderId);
+      return res.json({ folders: serializePhotoFoldersPayload(folders, items) });
+    } catch (err: any) {
+      const msg = String(err?.message ?? err ?? "");
+      if (/service_order_photo_folders|does not exist|schema cache/i.test(msg)) {
+        return res.status(503).json({
+          error:
+            "Pastas de fotos ainda não estão no banco. Rode a migration service_order_photo_folders no Supabase.",
+        });
+      }
+      console.error("[API] GET /api/service-orders/:id/photo-folders:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+    }
+  });
+
+  /** Detalhe de uma pasta com fotos. */
+  app.get("/api/service-orders/:id/photo-folders/:folderId", async (req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({
+          error:
+            "Supabase ou WORKSHOP_ID não configurados. Verifique variáveis de ambiente.",
+        });
+      }
+      const serviceOrderId = reqOrderId(req);
+      const folderId = typeof req.params.folderId === "string" ? req.params.folderId : "";
+      if (!serviceOrderId || !folderId) {
+        return res.status(400).json({ error: "Parâmetros inválidos." });
+      }
+      if (!(await assertServiceOrderInWorkshop(serviceOrderId))) {
+        return res.status(404).json({ error: "Ordem de serviço não encontrada." });
+      }
+
+      // Sem sync pesado aqui: a listagem já sincroniza. Detalhe deve abrir rápido.
+      const { data: folder, error: folderErr } = await supabaseAdmin
+        .from("service_order_photo_folders")
+        .select("*")
+        .eq("id", folderId)
+        .eq("service_order_id", serviceOrderId)
+        .eq("workshop_id", WORKSHOP_ID)
+        .maybeSingle();
+      if (folderErr || !folder) {
+        return res.status(404).json({ error: "Pasta não encontrada." });
+      }
+
+      const { data: itemRows } = await supabaseAdmin
+        .from("service_order_photo_items")
+        .select("*")
+        .eq("folder_id", folderId)
+        .eq("service_order_id", serviceOrderId)
+        .eq("workshop_id", WORKSHOP_ID)
+        .order("created_at", { ascending: false });
+
+      const photos = ((itemRows ?? []) as ServiceOrderPhotoItemRow[])
+        .filter((i) => i.kind === "photo" || isServiceOrderImageFileName(i.file_name))
+        .map((i) => ({
+          id: i.id,
+          url: publicUrlForStoragePath(i.storage_path),
+          name: i.file_name,
+          path: i.storage_path,
+          createdAt: i.created_at,
+        }));
+
+      const f = folder as ServiceOrderPhotoFolderRow;
+      return res.json({
+        folder: {
+          id: f.id,
+          name: f.name,
+          slug: f.slug,
+          isSystem: f.is_system,
+          sortOrder: f.sort_order,
+          photoCount: photos.length,
+          coverUrls: photos.slice(0, 4).map((p) => p.url),
+          createdAt: f.created_at,
+        },
+        photos,
+      });
+    } catch (err: any) {
+      console.error("[API] GET /api/service-orders/:id/photo-folders/:folderId:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+    }
+  });
+
+  /** Cria pasta de fotos (álbum). */
+  app.post("/api/service-orders/:id/photo-folders", async (req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({
+          error:
+            "Supabase ou WORKSHOP_ID não configurados. Verifique variáveis de ambiente.",
+        });
+      }
+      const serviceOrderId = reqOrderId(req);
+      const body = parseRequestJsonBody(req);
+      const name = typeof body.name === "string" ? body.name.trim().replace(/\s+/g, " ") : "";
+      if (!serviceOrderId) {
+        return res.status(400).json({ error: "ID da OS inválido." });
+      }
+      if (!name || name.length > 80) {
+        return res.status(400).json({ error: "Informe um nome de pasta válido (até 80 caracteres)." });
+      }
+      if (!(await assertServiceOrderInWorkshop(serviceOrderId))) {
+        return res.status(404).json({ error: "Ordem de serviço não encontrada." });
+      }
+
+      await ensureAndSyncServiceOrderPhotoFolders(serviceOrderId);
+
+      const { data: existing } = await supabaseAdmin
+        .from("service_order_photo_folders")
+        .select("id")
+        .eq("service_order_id", serviceOrderId)
+        .eq("workshop_id", WORKSHOP_ID)
+        .ilike("name", name)
+        .maybeSingle();
+      if (existing) {
+        return res.status(409).json({ error: "Já existe uma pasta com este nome." });
+      }
+
+      const { data: maxSort } = await supabaseAdmin
+        .from("service_order_photo_folders")
+        .select("sort_order")
+        .eq("service_order_id", serviceOrderId)
+        .eq("workshop_id", WORKSHOP_ID)
+        .order("sort_order", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      const nextSort = Math.max(100, Number((maxSort as { sort_order?: number } | null)?.sort_order ?? 100) + 10);
+
+      const created = await insertServiceOrderPhotoFolder({
+        serviceOrderId,
+        name,
+        slug: null,
+        isSystem: false,
+        sortOrder: nextSort,
+      });
+      if (!created) {
+        return res.status(500).json({ error: "Não foi possível criar a pasta." });
+      }
+
+      await touchServiceOrderUpdatedAt(serviceOrderId);
+
+      return res.status(201).json({
+        id: created.id,
+        name: created.name,
+        slug: created.slug,
+        isSystem: created.is_system,
+        sortOrder: created.sort_order,
+        photoCount: 0,
+        coverUrls: [],
+        createdAt: created.created_at,
+      });
+    } catch (err: any) {
+      console.error("[API] POST /api/service-orders/:id/photo-folders:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+    }
+  });
+
+  /** Renomeia pasta (não sistema). */
+  app.patch("/api/service-orders/:id/photo-folders/:folderId", async (req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({
+          error:
+            "Supabase ou WORKSHOP_ID não configurados. Verifique variáveis de ambiente.",
+        });
+      }
+      const serviceOrderId = reqOrderId(req);
+      const folderId = typeof req.params.folderId === "string" ? req.params.folderId : "";
+      const body = parseRequestJsonBody(req);
+      const name = typeof body.name === "string" ? body.name.trim().replace(/\s+/g, " ") : "";
+      if (!serviceOrderId || !folderId) {
+        return res.status(400).json({ error: "Parâmetros inválidos." });
+      }
+      if (!name || name.length > 80) {
+        return res.status(400).json({ error: "Informe um nome de pasta válido." });
+      }
+      if (!(await assertServiceOrderInWorkshop(serviceOrderId))) {
+        return res.status(404).json({ error: "Ordem de serviço não encontrada." });
+      }
+
+      const { data: folder } = await supabaseAdmin
+        .from("service_order_photo_folders")
+        .select("*")
+        .eq("id", folderId)
+        .eq("service_order_id", serviceOrderId)
+        .eq("workshop_id", WORKSHOP_ID)
+        .maybeSingle();
+      if (!folder) {
+        return res.status(404).json({ error: "Pasta não encontrada." });
+      }
+      if ((folder as ServiceOrderPhotoFolderRow).is_system) {
+        return res.status(403).json({ error: "Pastas do sistema não podem ser renomeadas." });
+      }
+
+      const { data: clash } = await supabaseAdmin
+        .from("service_order_photo_folders")
+        .select("id")
+        .eq("service_order_id", serviceOrderId)
+        .eq("workshop_id", WORKSHOP_ID)
+        .ilike("name", name)
+        .neq("id", folderId)
+        .maybeSingle();
+      if (clash) {
+        return res.status(409).json({ error: "Já existe uma pasta com este nome." });
+      }
+
+      const { data: updated, error } = await supabaseAdmin
+        .from("service_order_photo_folders")
+        .update({ name, updated_at: new Date().toISOString() })
+        .eq("id", folderId)
+        .select("*")
+        .single();
+      if (error || !updated) {
+        return res.status(500).json({ error: error?.message ?? "Falha ao renomear pasta." });
+      }
+
+      await touchServiceOrderUpdatedAt(serviceOrderId);
+      const f = updated as ServiceOrderPhotoFolderRow;
+      return res.json({
+        id: f.id,
+        name: f.name,
+        slug: f.slug,
+        isSystem: f.is_system,
+        sortOrder: f.sort_order,
+        createdAt: f.created_at,
+      });
+    } catch (err: any) {
+      console.error("[API] PATCH /api/service-orders/:id/photo-folders/:folderId:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+    }
+  });
+
+  /** Exclui pasta (não sistema). Fotos vão para a Biblioteca. */
+  app.delete("/api/service-orders/:id/photo-folders/:folderId", async (req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({
+          error:
+            "Supabase ou WORKSHOP_ID não configurados. Verifique variáveis de ambiente.",
+        });
+      }
+      const serviceOrderId = reqOrderId(req);
+      const folderId = typeof req.params.folderId === "string" ? req.params.folderId : "";
+      if (!serviceOrderId || !folderId) {
+        return res.status(400).json({ error: "Parâmetros inválidos." });
+      }
+      if (!(await assertServiceOrderInWorkshop(serviceOrderId))) {
+        return res.status(404).json({ error: "Ordem de serviço não encontrada." });
+      }
+
+      const { data: folder } = await supabaseAdmin
+        .from("service_order_photo_folders")
+        .select("*")
+        .eq("id", folderId)
+        .eq("service_order_id", serviceOrderId)
+        .eq("workshop_id", WORKSHOP_ID)
+        .maybeSingle();
+      if (!folder) {
+        return res.status(404).json({ error: "Pasta não encontrada." });
+      }
+      if ((folder as ServiceOrderPhotoFolderRow).is_system) {
+        return res.status(403).json({ error: "Pastas do sistema não podem ser excluídas." });
+      }
+
+      const { count } = await supabaseAdmin
+        .from("service_order_photo_items")
+        .select("id", { count: "exact", head: true })
+        .eq("folder_id", folderId)
+        .eq("service_order_id", serviceOrderId);
+
+      if ((count ?? 0) > 0) {
+        const outras = await getOrCreateNamedPhotoFolder({
+          serviceOrderId,
+          name: SO_PHOTO_FOLDER_OUTRAS_NAME,
+          slug: SO_PHOTO_FOLDER_OUTRAS_SLUG,
+          isSystem: false,
+          sortOrder: 50,
+        });
+        if (!outras || outras.id === folderId) {
+          return res.status(400).json({
+            error: "Esvazie a pasta antes de excluí-la, ou mova as fotos para outra pasta.",
+          });
+        }
+        await supabaseAdmin
+          .from("service_order_photo_items")
+          .update({ folder_id: outras.id })
+          .eq("folder_id", folderId)
+          .eq("service_order_id", serviceOrderId);
+      }
+
+      const { error: delErr } = await supabaseAdmin
+        .from("service_order_photo_folders")
+        .delete()
+        .eq("id", folderId)
+        .eq("service_order_id", serviceOrderId);
+      if (delErr) {
+        return res.status(500).json({ error: delErr.message });
+      }
+
+      await touchServiceOrderUpdatedAt(serviceOrderId);
+      return res.status(204).send();
+    } catch (err: any) {
+      console.error("[API] DELETE /api/service-orders/:id/photo-folders/:folderId:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+    }
+  });
+
+  /** Move foto entre pastas. */
+  app.patch("/api/service-orders/:id/photo-items/move", async (req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({
+          error:
+            "Supabase ou WORKSHOP_ID não configurados. Verifique variáveis de ambiente.",
+        });
+      }
+      const serviceOrderId = reqOrderId(req);
+      const body = parseRequestJsonBody(req);
+      const storagePath = typeof body.path === "string" ? body.path.trim() : "";
+      const folderId = typeof body.folderId === "string" ? body.folderId.trim() : "";
+      if (!serviceOrderId || !storagePath || !folderId) {
+        return res.status(400).json({ error: "Envie path e folderId." });
+      }
+      if (!(await assertServiceOrderInWorkshop(serviceOrderId))) {
+        return res.status(404).json({ error: "Ordem de serviço não encontrada." });
+      }
+      if (!assertServiceOrderPhotoPath(serviceOrderId, storagePath)) {
+        return res.status(403).json({ error: "Arquivo não pertence a esta ordem de serviço." });
+      }
+
+      const { data: folder } = await supabaseAdmin
+        .from("service_order_photo_folders")
+        .select("id")
+        .eq("id", folderId)
+        .eq("service_order_id", serviceOrderId)
+        .eq("workshop_id", WORKSHOP_ID)
+        .maybeSingle();
+      if (!folder) {
+        return res.status(404).json({ error: "Pasta de destino não encontrada." });
+      }
+
+      const fileName = storagePath.split("/").pop() || "foto.jpg";
+      await upsertServiceOrderPhotoItem({
+        serviceOrderId,
+        folderId,
+        storagePath,
+        fileName,
+        kind: "photo",
+      });
+      await touchServiceOrderUpdatedAt(serviceOrderId);
+      return res.json({ ok: true, path: storagePath, folderId });
+    } catch (err: any) {
+      console.error("[API] PATCH /api/service-orders/:id/photo-items/move:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+    }
+  });
+
   /** OS do pátio que originou este produto do laboratório + anexos dela. */
   app.get("/api/service-orders/:id/source-patio", async (req, res) => {
     try {
@@ -4291,6 +5125,11 @@ export function createApiApp() {
 
       if (copied.length > 0) {
         await touchServiceOrderUpdatedAt(destOrderId);
+        try {
+          await ensureAndSyncServiceOrderPhotoFolders(destOrderId);
+        } catch (syncErr) {
+          console.warn("[API] sync photo folders after copy-from:", syncErr);
+        }
       }
 
       if (copied.length === 0) {
@@ -4370,6 +5209,8 @@ export function createApiApp() {
         console.error("[API] Erro ao renomear anexo no Storage:", moveError);
         return res.status(500).json({ error: moveError.message });
       }
+
+      await updateServiceOrderPhotoItemPath(serviceOrderId, currentPath, newPath, safeName);
 
       const { data: { publicUrl } } = supabaseAdmin.storage
         .from(bucket)
@@ -4524,6 +5365,8 @@ export function createApiApp() {
         console.error("[API] Erro ao excluir anexo no Storage:", removeError);
         return res.status(500).json({ error: removeError.message });
       }
+
+      await removeServiceOrderPhotoItemByPath(serviceOrderId, objectPath);
 
       await touchServiceOrderUpdatedAt(serviceOrderId);
 

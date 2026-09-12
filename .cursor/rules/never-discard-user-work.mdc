@@ -1,0 +1,13 @@
+---
+description: Nunca descartar alterações em andamento do usuário ao fazer pedidos pequenos
+alwaysApply: true
+---
+
+# Nunca descartar o trabalho em andamento
+
+Quando o usuário pedir uma alteração **aditiva** (ex.: trocar fonte, ajuste visual pontual):
+
+1. **Continue no branch que já tem as alterações dele** (ou faça cherry-pick / rebase em cima desse tip).
+2. **Não** abra um branch novo a partir de `main` ou de uma base antiga que **omitiria** commits/PRs já feitos nesta conversa.
+3. Se precisar de branch novo, parta do tip atual do trabalho em andamento e preserve o histórico de layout (`95d91e2` / branch de layout).
+4. Nunca substitua um PR completo por outro “limpo” que retire mudanças já pedidas e aprovadas na sessão.
