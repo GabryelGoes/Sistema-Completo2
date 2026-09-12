@@ -343,6 +343,7 @@ html[data-desktop-shell='true'] .desktop-shell-topbar-title {
   min-width: 0;
   margin: 0;
   padding: 0;
+  font-family: "SF Pro Display", "SF Pro Text", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   font-size: 13px;
   font-weight: 700;
   letter-spacing: 0.06em;
