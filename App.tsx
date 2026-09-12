@@ -168,6 +168,7 @@ export default function App() {
   // Theme State
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
   const [patioActiveCount, setPatioActiveCount] = useState(0);
+  const [vehicleModalOsLabel, setVehicleModalOsLabel] = useState<string | null>(null);
   const [laboratorioActiveCount, setLaboratorioActiveCount] = useState(0);
 
   const notificationCenterProps = useMemo((): Omit<NotificationCenterProps, 'placement'> | undefined => {
@@ -304,6 +305,7 @@ export default function App() {
 
   const desktopTopbarCountLabel = useMemo(() => {
     if (!isDesktopShell || shellOverlayTopbar) return undefined;
+    if (vehicleModalOsLabel) return vehicleModalOsLabel;
     if (activeAppTab === 'patio') {
       return patioActiveCount === 1 ? '1 veículo' : `${patioActiveCount} veículos`;
     }
@@ -311,7 +313,7 @@ export default function App() {
       return laboratorioActiveCount === 1 ? '1 módulo' : `${laboratorioActiveCount} módulos`;
     }
     return undefined;
-  }, [isDesktopShell, shellOverlayTopbar, activeAppTab, patioActiveCount, laboratorioActiveCount]);
+  }, [isDesktopShell, shellOverlayTopbar, activeAppTab, patioActiveCount, laboratorioActiveCount, vehicleModalOsLabel]);
 
   const patioBudgetsHub = usePatioBudgetsHubNotifier({
     enabled: Boolean(authSession),
@@ -909,6 +911,7 @@ export default function App() {
               suppressVehiclePortals={isDesktopShell && shellOverlayTopbar !== null}
               onOpenLaboratoryOrder={handleOpenLaboratoryOrderFromPatio}
               onActiveCardsCountChange={setPatioActiveCount}
+              onVehicleModalOsLabelChange={setVehicleModalOsLabel}
               onClosePage={isDesktopShell ? undefined : navigateToHomeApp}
               actorOptions={{ actor: 'technician', actorTechnicianSlug: authSession.userId, actorTechnicianName: authSession.displayName ?? authSession.username }}
               patioPermissions={patioPerms}
@@ -935,6 +938,7 @@ export default function App() {
               openServiceOrderSection={null}
               onOpenServiceOrderHandled={handleLaboratoryOrderHandled}
               onActiveCardsCountChange={setLaboratorioActiveCount}
+              onVehicleModalOsLabelChange={setVehicleModalOsLabel}
               onClosePage={isDesktopShell ? undefined : navigateToHomeApp}
               actorOptions={{ actor: 'technician', actorTechnicianSlug: authSession.userId, actorTechnicianName: authSession.displayName ?? authSession.username }}
               patioPermissions={patioPerms}
@@ -1232,6 +1236,7 @@ export default function App() {
             suppressVehiclePortals={isDesktopShell && shellOverlayTopbar !== null}
             onOpenLaboratoryOrder={handleOpenLaboratoryOrderFromPatio}
             onActiveCardsCountChange={setPatioActiveCount}
+              onVehicleModalOsLabelChange={setVehicleModalOsLabel}
             onClosePage={isDesktopShell ? undefined : navigateToHomeApp}
             canVerifyBudgets={canVerifyBudgetsApp}
             canApproveBudgetItems={canApproveBudgetItemsApp}
@@ -1256,6 +1261,7 @@ export default function App() {
             isAppTabActive={currentTab === 'laboratorio'}
             suppressVehiclePortals={isDesktopShell && shellOverlayTopbar !== null}
             onActiveCardsCountChange={setLaboratorioActiveCount}
+              onVehicleModalOsLabelChange={setVehicleModalOsLabel}
             onClosePage={isDesktopShell ? undefined : navigateToHomeApp}
             openServiceOrderId={laboratorioPendingOrderId}
             openServiceOrderSection={null}

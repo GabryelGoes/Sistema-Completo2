@@ -302,7 +302,7 @@ export function getPatioVehicleModalLayout(
     header:
       'patio-vm-desktop-header shrink-0 border-b border-zinc-300/80 bg-white/95 px-6 py-4 dark:border-white/[0.08] dark:bg-zinc-900/95 xl:px-8 xl:py-4',
     headerInner: 'mx-auto flex w-full min-w-0 max-w-[1680px] flex-col gap-3',
-    headerTitlePad: 'min-w-0 pr-20 xl:pr-24',
+    headerTitlePad: 'min-w-0',
     headerMeta:
       'patio-vm-header-meta patio-vm-header-meta--pc mt-2 grid w-full min-w-0 grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4',
     title:
@@ -331,8 +331,8 @@ export function getPatioVehicleModalLayout(
       'custom-scrollbar max-h-none space-y-4 overflow-visible bg-[#F2F2F7]/80 p-3.5 dark:bg-black/25 sm:space-y-4',
     customerMetaLabel: 'Cliente',
     technicianMetaLabel: 'Técnico',
-    deliveryDateMetaLabel: 'Entrega',
-    hideOsBadge: false,
+    deliveryDateMetaLabel: 'Criação',
+    hideOsBadge: true,
     showStageRing: true,
     isMetaPcLike: true,
     compact: COMPACT_DESKTOP,

@@ -11,8 +11,8 @@ export type MercosulPlateMockupSize =
   | 'modalMobile';
 
 /**
- * Miniatura da placa Mercosul (proporção ~400×130 mm).
- * Visual reforçado para grade mobile/tablet: borda, faixa azul e tipografia condensada.
+ * Miniatura da placa Mercosul BR (400×130 mm).
+ * Cantos mais retos, faixa azul oficial, tipografia condensada e bandeira realista.
  */
 export function MercosulPlateMockup(props: {
   plate: string;
@@ -30,97 +30,96 @@ export function MercosulPlateMockup(props: {
   const isModalTablet = size === 'modalTablet';
   const isModalMobile = size === 'modalMobile';
 
+  // Larguras um pouco menores + aspect um pouco mais alta → leitura mais “quadrada”
   const w = isCompact
-    ? 'w-[112px]'
+    ? 'w-[104px]'
     : isCardGrid
-      ? 'w-[128px] sm:w-[138px]'
+      ? 'w-[118px] sm:w-[126px]'
       : isModalMobile
-        ? 'w-[118px]'
+        ? 'w-[112px]'
         : isModalTablet
-          ? 'w-[156px]'
+          ? 'w-[148px]'
           : isModalPc
-            ? 'w-[152px] xl:w-[166px]'
+            ? 'w-[144px] xl:w-[156px]'
             : isModal
-              ? 'w-[188px] sm:w-[210px]'
-              : 'w-[160px] sm:w-[172px]';
+              ? 'w-[176px] sm:w-[196px]'
+              : 'w-[148px] sm:w-[160px]';
 
   const bandText = isCompact
-    ? 'text-[5.5px] tracking-[0.18em]'
+    ? 'text-[5px] tracking-[0.2em]'
     : isCardGrid
-      ? 'text-[7px] tracking-[0.2em] sm:text-[7.5px]'
+      ? 'text-[6.5px] tracking-[0.22em] sm:text-[7px]'
       : isModalMobile
-        ? 'text-[7px] tracking-[0.18em]'
+        ? 'text-[6.5px] tracking-[0.2em]'
         : isModalTablet
-          ? 'text-[8.5px] tracking-[0.2em]'
+          ? 'text-[8px] tracking-[0.22em]'
           : isModalPc
-            ? 'text-[7.5px] tracking-[0.2em] xl:text-[8px]'
-            : 'text-[8px] tracking-[0.22em] sm:text-[9px]';
+            ? 'text-[7px] tracking-[0.22em] xl:text-[7.5px]'
+            : 'text-[7.5px] tracking-[0.24em] sm:text-[8.5px]';
 
-  const flagW = isCompact
-    ? 11
-    : isCardGrid
-      ? 13
-      : isModalMobile
-        ? 11
-        : isModalTablet
-          ? 14
-          : isModalPc
-            ? 12
-            : 15;
-  const flagH = isCompact
-    ? 8
-    : isCardGrid
-      ? 9
-      : isModalMobile
-        ? 8
-        : isModalTablet
-          ? 9
-          : isModalPc
-            ? 8
-            : 10;
+  const flagW = isCompact ? 12 : isCardGrid ? 14 : isModalMobile ? 12 : isModalTablet ? 15 : isModalPc ? 13 : 16;
+  const flagH = isCompact ? 8 : isCardGrid ? 10 : isModalMobile ? 8 : isModalTablet ? 10 : isModalPc ? 9 : 11;
 
   const plateText = isCompact
-    ? 'text-[19px] tracking-[0.08em]'
+    ? 'text-[17px] tracking-[0.12em]'
     : isCardGrid
-      ? 'text-[24px] tracking-[0.1em] sm:text-[26px]'
+      ? 'text-[22px] tracking-[0.14em] sm:text-[24px]'
       : isModalMobile
-        ? 'text-[19px] tracking-[0.08em]'
+        ? 'text-[18px] tracking-[0.12em]'
         : isModalTablet
-          ? 'text-[26px] tracking-[0.1em]'
+          ? 'text-[24px] tracking-[0.14em]'
           : isModalPc
-            ? 'text-[26px] tracking-[0.1em] xl:text-[28px]'
+            ? 'text-[24px] tracking-[0.14em] xl:text-[26px]'
             : isModal
-              ? 'text-[30px] tracking-[0.1em] sm:text-[34px]'
-              : 'text-[30px] tracking-[0.1em] sm:text-[34px]';
+              ? 'text-[28px] tracking-[0.14em] sm:text-[32px]'
+              : 'text-[28px] tracking-[0.14em] sm:text-[32px]';
+
+  const qrSize =
+    isCompact || isModalMobile
+      ? 'h-[7px] w-[7px]'
+      : isCardGrid || isModalPc
+        ? 'h-[9px] w-[9px]'
+        : 'h-[10px] w-[10px]';
 
   const mockup = (
     <div
-      className={`${w} aspect-[400/130] relative grid grid-rows-[22%_78%] overflow-hidden rounded-[8px] border-[1.5px] border-[#1a1a1a] bg-white shadow-[0_2px_6px_-1px_rgba(0,0,0,0.28),0_1px_2px_rgba(0,0,0,0.12),inset_0_1px_0_rgba(255,255,255,0.85)] sm:rounded-[9px] ${selectable ? 'select-text' : 'select-none'}`}
+      className={`${w} aspect-[400/140] relative grid grid-rows-[24%_76%] overflow-hidden rounded-[3px] border-[1.75px] border-[#1a1a1a] bg-white shadow-[0_2px_5px_-1px_rgba(0,0,0,0.3),0_1px_2px_rgba(0,0,0,0.14),inset_0_1px_0_rgba(255,255,255,0.9)] ${selectable ? 'select-text' : 'select-none'}`}
       aria-hidden
     >
-      {/* Filete interno metálico */}
-      <div className="pointer-events-none absolute inset-[1.5px] z-10 rounded-[6.5px] border border-black/15 sm:rounded-[7.5px]" />
+      <div className="pointer-events-none absolute inset-[1.25px] z-10 rounded-[2px] border border-black/20" />
 
       <div
         className={`relative z-[1] flex min-h-0 items-center justify-between bg-[#003399] ${
-          isCompact || isModalMobile ? 'px-1.5' : 'px-2 sm:px-2.5'
+          isCompact || isModalMobile ? 'px-1' : 'px-1.5 sm:px-2'
         }`}
       >
-        <span className={`font-semibold uppercase leading-none text-white ${bandText}`}>BRASIL</span>
+        <div className="flex min-w-0 items-center gap-1">
+          <span
+            className={`${qrSize} shrink-0 rounded-[1px] bg-white/95 shadow-sm`}
+            style={{
+              backgroundImage:
+                'repeating-linear-gradient(0deg,#003399 0 1px,transparent 1px 2px),repeating-linear-gradient(90deg,#003399 0 1px,transparent 1px 2px)',
+              backgroundSize: '100% 100%',
+            }}
+          />
+          <span className={`font-semibold uppercase leading-none text-white ${bandText}`}>BRASIL</span>
+        </div>
         <BrazilFlagIcon
           width={flagW}
           height={flagH}
-          className="shrink-0 rounded-[2px] border border-white/40 shadow-sm"
+          className="shrink-0 rounded-[1px] border border-white/50 shadow-sm"
         />
       </div>
 
       <div
-        className={`relative z-[1] flex min-h-0 items-center justify-center bg-gradient-to-b from-white to-[#f3f3f3] ${
+        className={`relative z-[1] flex min-h-0 items-center justify-center bg-gradient-to-b from-[#fafafa] via-white to-[#ececec] ${
           isCompact || isModalMobile ? 'px-0.5' : 'px-1'
         }`}
       >
+        <span className="pointer-events-none absolute left-[4%] top-1/2 h-[5px] w-[5px] -translate-y-1/2 rounded-full bg-gradient-to-br from-zinc-300 to-zinc-500 shadow-inner sm:h-[6px] sm:w-[6px]" />
+        <span className="pointer-events-none absolute right-[4%] top-1/2 h-[5px] w-[5px] -translate-y-1/2 rounded-full bg-gradient-to-br from-zinc-300 to-zinc-500 shadow-inner sm:h-[6px] sm:w-[6px]" />
         <span
-          className={`font-plate max-w-[100%] text-center font-extrabold uppercase leading-none text-[#111] antialiased [text-shadow:0_0.5px_0_rgba(255,255,255,0.8)] ${plateText} ${
+          className={`font-plate max-w-[100%] text-center font-extrabold uppercase leading-none text-[#0a0a0a] antialiased [text-shadow:0_0.5px_0_rgba(255,255,255,0.85)] ${plateText} ${
             blurPlates ? 'blur-plate' : ''
           }`}
         >

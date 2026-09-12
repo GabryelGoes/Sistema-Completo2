@@ -373,6 +373,8 @@ interface PatioViewProps {
   onOpenLaboratoryOrder?: (serviceOrderId: string) => void;
   /** Atualiza contagem de veículos/módulos ativos (ex.: barra superior no modo PC). */
   onActiveCardsCountChange?: (count: number) => void;
+  /** PC: exibe o nº da OS na barra amarela superior enquanto o modal do veículo estiver aberto. */
+  onVehicleModalOsLabelChange?: (label: string | null) => void;
   /** Fecha a página e volta ao Início (botão X no cabeçalho mobile/tablet). */
   onClosePage?: () => void;
 }
@@ -530,6 +532,25 @@ function mapArchivedOrdersToCards(
     }
   }
   return cards;
+}
+
+
+function formatServiceOrderPresence(iso: string | null | undefined): string {
+  if (!iso?.trim()) return 'Tempo no pátio indisponível';
+  const start = new Date(iso).getTime();
+  if (Number.isNaN(start)) return 'Tempo no pátio indisponível';
+  const ms = Date.now() - start;
+  if (ms < 0) return 'Há pouco no pátio';
+  const hours = Math.floor(ms / (1000 * 60 * 60));
+  if (hours < 1) {
+    const mins = Math.max(1, Math.floor(ms / (1000 * 60)));
+    return mins === 1 ? 'Há 1 minuto no pátio' : `Há ${mins} minutos no pátio`;
+  }
+  if (hours < 24) {
+    return hours === 1 ? 'Há 1 hora no pátio' : `Há ${hours} horas no pátio`;
+  }
+  const days = Math.floor(hours / 24);
+  return days === 1 ? 'Há 1 dia no pátio' : `Há ${days} dias no pátio`;
 }
 
 function formatServiceOrderCreatedAt(iso: string | null | undefined): string {
@@ -1122,6 +1143,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
   suppressVehiclePortals = false,
   onOpenLaboratoryOrder,
   onActiveCardsCountChange,
+  onVehicleModalOsLabelChange,
   onClosePage,
 }) => {
   /** Admin: sem patioPermissions = tudo permitido. Usuário do sistema: só o que for explicitamente true. */
@@ -1690,6 +1712,25 @@ export const PatioView: React.FC<PatioViewProps> = ({
   /** Celular e tablet vertical compartilham o layout compacto do modal de veículo. */
   const isPatioTabletLikeModal =
     !isPatioPcModal && (isPatioTabletPortrait || patioVehicleVm.mode === 'mobile');
+
+  useEffect(() => {
+    if (!onVehicleModalOsLabelChange) return;
+    if (!isPatioPcModal || !selectedCard) {
+      onVehicleModalOsLabelChange(null);
+      return;
+    }
+    const os = serviceOrderDetail?.os_number ?? selectedCard.osNumber;
+    onVehicleModalOsLabelChange(os != null ? `OS #${os}` : null);
+    return () => onVehicleModalOsLabelChange(null);
+  }, [
+    onVehicleModalOsLabelChange,
+    isPatioPcModal,
+    selectedCard,
+    selectedCard?.id,
+    selectedCard?.osNumber,
+    serviceOrderDetail?.os_number,
+  ]);
+
   const isPatioVmMetaPcLike = patioVehicleVm.isMetaPcLike;
   const patioVmInsetCard = patioVehicleVm.insetCard;
   const patioVmInputClass = patioVehicleVm.input;
@@ -5099,9 +5140,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
           />
         </div>
         <Loader2 className="h-6 w-6 text-zinc-400 animate-spin dark:text-zinc-500" strokeWidth={2} aria-hidden />
-        <p className="text-center text-[15px] leading-snug text-zinc-500 dark:text-zinc-400">
-          {isModuleMode ? 'Carregando Laboratório…' : 'Carregando Pátio…'}
-        </p>
+
       </div>
     );
   }
@@ -5394,7 +5433,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   : 'grid grid-cols-1 items-center md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]'
               }`}
             >
-              <div className="flex min-w-0 items-center md:justify-self-start">{patioActiveCountBadge}</div>
+              <div className="flex min-w-0 items-center md:justify-self-start" aria-hidden />
               <div className={`flex justify-center md:justify-self-center md:px-2 ${headerActionsOneLine ? 'hidden' : ''}`}>
                 <button
                   type="button"
@@ -6026,15 +6065,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             aria-hidden
                           />
                         </div>
-                      ) : canAssignMember ? (
-                        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl border-0 bg-[#007AFF]/[0.12] dark:bg-[#007AFF]/18 portrait:h-[1.45rem] portrait:w-[1.45rem] portrait:rounded-lg">
-                          <Wrench className="h-3.5 w-3.5 text-[#007AFF] dark:text-[#7ab8ff] portrait:h-[0.75rem] portrait:w-[0.75rem]" strokeWidth={2.35} aria-hidden />
-                        </div>
-                      ) : (
-                        <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl border-0 bg-zinc-100 dark:bg-white/[0.08] portrait:h-[1.45rem] portrait:w-[1.45rem] portrait:rounded-lg">
-                          <Wrench className="h-3.5 w-3.5 text-zinc-400 dark:text-zinc-500 portrait:h-[0.75rem] portrait:w-[0.75rem]" strokeWidth={2.35} aria-hidden />
-                        </div>
-                      )}
+                      ) : null}
                       <span
                         className={`truncate font-bold ${
                           boardPanoramic ? 'text-[0.95rem] portrait:text-[0.78rem]' : 'text-[1.05rem] portrait:text-[0.88rem]'
@@ -7256,6 +7287,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
         <div className={withModalExitOverlayClass(patioVehicleModalOverlayClass, primaryModalExiting)}>
            <div className={`${patioVehicleVm.shell} ${modalWpAppAnimClass(primaryModalExiting)} ${modalRingClass}`}>
               
+{!isPatioPcModal ? (
               <div className={`absolute z-20 flex items-center gap-2 ${
                 isPatioPcModal
                   ? 'top-4 right-5 xl:right-6'
@@ -7293,6 +7325,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   <X className="h-5 w-5" />
                 </button>
               </div>
+              ) : null}
 
               {can('canDeleteCards') && isDeleteVehicleOpen && (
                 <div className={`absolute inset-0 z-30 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm ${isPatioPcModal || patioVehicleVm.mode === 'mobile' || patioVehicleVm.mode === 'tabletPortrait' ? 'rounded-none' : 'rounded-[1.5rem] sm:rounded-[1.625rem]'}`}>
@@ -7467,6 +7500,12 @@ export const PatioView: React.FC<PatioViewProps> = ({
                               size={patioVehicleVm.brandLogoSize}
                             />
                           ) : null}
+                          {!isModuleMode && isPatioPcModal ? (
+                            <VehicleBrandLogo
+                              brand={serviceOrderDetail?.vehicle_brand || selectedCard.vehicleBrand}
+                              size={patioVehicleVm.brandLogoSize}
+                            />
+                          ) : null}
                           <h1
                             className={`${patioVehicleVm.title} min-w-0 flex-1 ${vehicleModalTitleShadow}`}
                             title={selectedCardTitleParts?.vehicle}
@@ -7480,19 +7519,46 @@ export const PatioView: React.FC<PatioViewProps> = ({
                           ) : null}
                           {!isModuleMode && isPatioPcModal ? (
                             <div className="inline-flex shrink-0 items-center justify-center gap-2.5">
-                              <VehicleBrandLogo
-                                brand={serviceOrderDetail?.vehicle_brand || selectedCard.vehicleBrand}
-                                size={patioVehicleVm.brandLogoSize}
-                              />
-                              <div className="inline-flex items-center gap-2.5">
-                                {modalOriginIcon}
-                                <MercosulPlateMockup
+                              {modalOriginIcon}
+                              <MercosulPlateMockup
                                   plate={selectedCardTitleParts?.plateOrModule || '---'}
                                   blurPlates={blurPlates}
                                   size={patioVehicleVm.plateMockupSize}
                                   selectable
                                 />
-                              </div>
+                            </div>
+                          ) : null}
+                          {isPatioPcModal ? (
+                            <div className="inline-flex shrink-0 items-center gap-2 pl-1">
+                              {isModuleMode && serviceOrderDetail && !loadingDetails ? (
+                                <button
+                                  type="button"
+                                  onClick={handlePrintLabModuleFicha}
+                                  className={`${patioVehicleVm.closeBtn} !border-violet-500/40 !bg-violet-600 !text-white shadow-md shadow-violet-500/25 hover:!bg-violet-500 dark:!bg-violet-600 dark:hover:!bg-violet-500`}
+                                  title="Imprimir ficha do produto"
+                                  aria-label="Imprimir ficha do produto"
+                                >
+                                  <Printer className="h-5 w-5" />
+                                </button>
+                              ) : null}
+                              {can('canDeleteCards') ? (
+                                <button
+                                  type="button"
+                                  onClick={() => { setDeleteVehicleError(null); setDeleteVehiclePassword(''); setDeleteVehiclePasswordReadonly(true); setIsDeleteVehicleOpen(true);  }}
+                                  className={`${patioVehicleVm.closeBtn} hover:bg-red-500/15 hover:text-red-600 dark:hover:bg-red-500/20`}
+                                  title={isModuleMode ? 'Excluir produto do laboratório' : 'Excluir veículo do sistema'}
+                                >
+                                  <Trash2 className="h-5 w-5" />
+                                </button>
+                              ) : null}
+                              <button
+                                type="button"
+                                onClick={() => closePatioPrimaryOverlays()}
+                                className={patioVehicleVm.closeBtn}
+                                aria-label="Fechar"
+                              >
+                                <X className="h-5 w-5" />
+                              </button>
                             </div>
                           ) : null}
                           {!isModuleMode && isPatioTabletLikeModal ? (
@@ -7747,32 +7813,23 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                 )}
                               </div>
                               <div className={`${c.fieldRow} flex-nowrap`}>
-                                <input
-                                  id={isPatioPcModal ? 'patio-delivery-date-input' : undefined}
-                                  type="date"
-                                  value={deliveryDateEditValue}
-                                  onChange={(e) => setDeliveryDateEditValue(e.target.value)}
-                                  aria-label="Data de entrega"
-                                  className={c.dateInput}
-                                />
                                 <button
                                   type="button"
-                                  onClick={handleSaveDeliveryDate}
-                                  disabled={savingDeliveryDate || deliveryDateEditValue === lastSavedDeliveryDate}
-                                  aria-label="Salvar data de entrega"
-                                  title="Salvar data de entrega"
-                                  className={`${c.saveBtn} ${
-                                    deliveryDateEditValue !== lastSavedDeliveryDate
-                                      ? 'bg-[#007AFF] shadow-blue-500/20 hover:opacity-95 active:scale-[0.98]'
-                                      : 'bg-zinc-600 shadow-none dark:bg-zinc-700'
-                                  }`}
+                                  className="group/presence relative min-w-0 flex-1 rounded-md px-1 py-0.5 text-left transition-colors hover:bg-[#007AFF]/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#007AFF]/35 dark:hover:bg-[#007AFF]/18"
+                                  title={formatServiceOrderPresence(serviceOrderDetail?.created_at ?? selectedCard.createdAt)}
+                                  aria-label={formatServiceOrderPresence(serviceOrderDetail?.created_at ?? selectedCard.createdAt)}
                                 >
-                                  {savingDeliveryDate ? <RefreshCw className={`${c.saveIcon} animate-spin`} /> : <Save className={c.saveIcon} />}
-                                  {!isPatioVmMetaPcLike ? ' Salvar' : null}
+                                  <span className={`${c.bodyText} tabular-nums`}>
+                                    {loadingDetails && !serviceOrderDetail?.created_at
+                                      ? 'Carregando…'
+                                      : formatServiceOrderCreatedAt(
+                                          serviceOrderDetail?.created_at ?? selectedCard.createdAt
+                                        )}
+                                  </span>
+                                  <span className="pointer-events-none absolute left-0 top-full z-20 mt-1 hidden min-w-[12rem] rounded-md border border-zinc-200/90 bg-white px-2.5 py-1.5 text-[12px] font-semibold text-zinc-700 shadow-lg group-hover/presence:block group-focus/presence:block dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-200">
+                                    {formatServiceOrderPresence(serviceOrderDetail?.created_at ?? selectedCard.createdAt)}
+                                  </span>
                                 </button>
-                                {deliveryDateSavedMessage && !isPatioVmMetaPcLike ? (
-                                  <span className={`${c.salvo} shrink-0`}>Salvo!</span>
-                                ) : null}
                               </div>
                             </div>
                           </div>
