@@ -14,7 +14,9 @@ export default {
   theme: {
     extend: {
       fontFamily: {
+        /** Corpo da UI — SF Pro Text (fallback sistema / Segoe fora da Apple). */
         sans: [
+          '"SF Pro Text"',
           "-apple-system",
           "BlinkMacSystemFont",
           '"Segoe UI"',
@@ -23,6 +25,22 @@ export default {
           "Arial",
           "sans-serif",
         ],
+        /** Títulos (h1–h4 / font-display) — SF Pro Display. */
+        display: [
+          '"SF Pro Display"',
+          '"SF Pro Text"',
+          "-apple-system",
+          "BlinkMacSystemFont",
+          '"Segoe UI"',
+          "Roboto",
+          "Helvetica",
+          "Arial",
+          "sans-serif",
+        ],
+        /**
+         * Nomes de veículo nos cards — stack anterior (não migrar para SF Pro nomeado).
+         * Mantém a aparência atual; `font-vehicle` sobrescreve Display em <h3> dos cards.
+         */
         vehicle: [
           "-apple-system",
           "BlinkMacSystemFont",
