@@ -1,7 +1,7 @@
 /**
  * Tipografia da interface:
- * - Corpo: `font-sans` → SF Pro Text
- * - Títulos: `font-display` / h1–h4 → SF Pro Display
+ * - Corpo: `font-sans` → SFProText (SF Pro Text webfont; PC/Windows incluso)
+ * - Títulos: `font-display` / h1–h4 → SFProDisplay
  * - Nomes de veículo nos cards: `font-vehicle` (stack anterior, sem mudar)
  */
 export const fontUi = "font-sans antialiased";

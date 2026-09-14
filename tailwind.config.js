@@ -14,8 +14,9 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        /** Corpo da UI — SF Pro Text (fallback sistema / Segoe fora da Apple). */
+        /** Corpo — SF Pro (SFProText webfont; funciona no Windows/Chrome). */
         sans: [
+          "SFProText",
           '"SF Pro Text"',
           "-apple-system",
           "BlinkMacSystemFont",
@@ -25,9 +26,11 @@ export default {
           "Arial",
           "sans-serif",
         ],
-        /** Títulos (h1–h4 / font-display) — SF Pro Display. */
+        /** Títulos — SF Pro Display. */
         display: [
+          "SFProDisplay",
           '"SF Pro Display"',
+          "SFProText",
           '"SF Pro Text"',
           "-apple-system",
           "BlinkMacSystemFont",

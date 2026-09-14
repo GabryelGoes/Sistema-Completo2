@@ -1,0 +1,138 @@
+/**
+ * SF Pro — webfonts embutidos (Windows/Chrome inclusive).
+ * Famílias sem espaço (SFProText / SFProDisplay) evitam falha de matching no Chrome.
+ * URLs relativas → Vite inclui os arquivos no bundle com hash.
+ */
+
+/* ——— Text (corpo) ——— */
+@font-face {
+  font-family: "SFProText";
+  src: url("../assets/fonts/sf-pro/sf-pro-text_light.woff") format("woff");
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "SFProText";
+  src: url("../assets/fonts/sf-pro/sf-pro-text_regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "SFProText";
+  src: url("../assets/fonts/sf-pro/sf-pro-text_semibold.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "SFProText";
+  src: url("../assets/fonts/sf-pro/sf-pro-text_semibold.woff2") format("woff2");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "SFProText";
+  src: url("../assets/fonts/sf-pro/sf-pro-text_semibold.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Alias com espaços (mesmo arquivo) */
+@font-face {
+  font-family: "SF Pro Text";
+  src: url("../assets/fonts/sf-pro/sf-pro-text_light.woff") format("woff");
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "SF Pro Text";
+  src: url("../assets/fonts/sf-pro/sf-pro-text_regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "SF Pro Text";
+  src: url("../assets/fonts/sf-pro/sf-pro-text_semibold.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "SF Pro Text";
+  src: url("../assets/fonts/sf-pro/sf-pro-text_semibold.woff2") format("woff2");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "SF Pro Text";
+  src: url("../assets/fonts/sf-pro/sf-pro-text_semibold.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* ——— Display (títulos) ——— */
+@font-face {
+  font-family: "SFProDisplay";
+  src: url("../assets/fonts/sf-pro/sf-pro-display_regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "SFProDisplay";
+  src: url("../assets/fonts/sf-pro/sf-pro-display_medium.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "SFProDisplay";
+  src: url("../assets/fonts/sf-pro/sf-pro-display_semibold.woff2") format("woff2");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "SFProDisplay";
+  src: url("../assets/fonts/sf-pro/sf-pro-display_bold.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "SF Pro Display";
+  src: url("../assets/fonts/sf-pro/sf-pro-display_regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "SF Pro Display";
+  src: url("../assets/fonts/sf-pro/sf-pro-display_medium.woff2") format("woff2");
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "SF Pro Display";
+  src: url("../assets/fonts/sf-pro/sf-pro-display_semibold.woff2") format("woff2");
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "SF Pro Display";
+  src: url("../assets/fonts/sf-pro/sf-pro-display_bold.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
