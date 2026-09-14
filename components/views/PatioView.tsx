@@ -10718,32 +10718,23 @@ export const PatioView: React.FC<PatioViewProps> = ({
             </button>
 
             <div className="shrink-0 border-b border-zinc-200/60 px-6 pb-5 pt-7 dark:border-white/[0.07] sm:px-8 sm:pt-8">
-              <div className="flex items-start gap-3 pr-10">
-                <IosAccentIconSquircle variant="modal" strokeWidth={2.2}>
-                  {patioOrLabModuleIcon}
-                </IosAccentIconSquircle>
-                <div className="min-w-0 flex-1">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400">
-                    {isModuleMode ? 'Laboratório' : 'Pátio'}
-                  </p>
-                  <h2
-                    className={`font-semibold leading-tight tracking-tight text-zinc-900 dark:text-white ${
-                      isSmartphone ? 'text-[18px]' : 'text-[22px] sm:text-[24px]'
-                    }`}
+              <div className="min-w-0 flex-1 pr-10">
+                <h2
+                  className={`font-semibold leading-tight tracking-tight text-zinc-900 dark:text-white ${
+                    isSmartphone ? 'text-[18px]' : 'text-[22px] sm:text-[24px]'
+                  }`}
+                >
+                  Alterar etapa
+                </h2>
+                <p className="mt-1 flex flex-wrap items-center gap-1.5 text-[13px] text-zinc-500 dark:text-zinc-400">
+                  <span
+                    className={`font-vehicle min-w-0 truncate font-medium text-zinc-700 dark:text-zinc-200 ${vehicleModalSubtitleNameShadow}`}
                   >
-                    Alterar etapa
-                  </h2>
-                  <p className="mt-1 flex flex-wrap items-center gap-1.5 text-[13px] text-zinc-500 dark:text-zinc-400">
-                    <Sparkles className="h-3.5 w-3.5 shrink-0 text-brand-yellow" strokeWidth={2} />
-                    <span
-                      className={`font-vehicle min-w-0 truncate font-medium text-zinc-700 dark:text-zinc-200 ${vehicleModalSubtitleNameShadow}`}
-                    >
-                      {cardInTransitionTitleParts?.vehicle}
-                    </span>
-                    <span className="text-zinc-400 dark:text-zinc-500">—</span>
-                    <span>Toque na etapa de destino.</span>
-                  </p>
-                </div>
+                    {cardInTransitionTitleParts?.vehicle}
+                  </span>
+                  <span className="text-zinc-400 dark:text-zinc-500">—</span>
+                  <span>Toque na etapa de destino.</span>
+                </p>
               </div>
             </div>
 
@@ -10760,7 +10751,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   ref={(el) => {
                     moveModalCurrentStageRef.current = el;
                   }}
-                  className={`mb-3 flex items-center justify-between gap-3 rounded-[16px] border-2 px-4 py-3 ${
+                  className={`mb-3 flex items-center justify-between gap-3 rounded-[16px] border-0 px-4 py-3 shadow-none ${
                     isSmartphone ? 'min-h-[44px]' : 'min-h-[54px] sm:min-h-[56px] sm:px-5 sm:py-3.5'
                   } ${EXTERNAL_REPAIR_STAGE.style}`}
                 >
@@ -10795,12 +10786,12 @@ export const PatioView: React.FC<PatioViewProps> = ({
                       onClick={() => handleMoveCard(list.id)}
                       disabled={isCurrent || isMoving}
                       className={`
-                        group flex w-full items-center justify-between gap-3 rounded-[16px] border-2 text-left transition-all duration-200
+                        group flex w-full items-center justify-between gap-3 rounded-[16px] border-0 text-left shadow-none transition-all duration-200
                         ${isSmartphone ? 'min-h-[44px] px-3.5 py-2.5' : 'min-h-[54px] px-4 py-3.5 sm:min-h-[56px] sm:px-5'}
                         ${
                           isCurrent
-                            ? `${iosModalInsetCard} cursor-not-allowed border-zinc-200/80 opacity-75 shadow-none dark:border-white/[0.08]`
-                            : `border-0 ${config.style} shadow-none hover:brightness-110 active:scale-[0.99] disabled:opacity-55`
+                            ? `${iosModalInsetCard} cursor-not-allowed opacity-75`
+                            : `${config.style} hover:brightness-110 active:scale-[0.99] disabled:opacity-55`
                         }
                       `}
                     >
