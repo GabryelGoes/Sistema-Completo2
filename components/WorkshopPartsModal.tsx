@@ -75,6 +75,7 @@ import { WorkshopPartsAnalyticsView } from './WorkshopPartsAnalyticsView';
 import { WorkshopPartStockOutboundModal } from './WorkshopPartStockOutboundModal';
 import { WorkshopAbsModulesModal } from './WorkshopAbsModulesModal';
 import { WorkshopPartScanHubModal } from './WorkshopPartScanHubModal';
+import { useBarcodeWedgeListener } from '../hooks/useBarcodeWedgeListener';
 import {
   formValuesToApiPayload,
   purchaseDraftShouldSync,
@@ -215,6 +216,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
   const [outboundMode, setOutboundMode] = useState<WorkshopPartStockMovementType | null>(null);
   const [outboundInitialPart, setOutboundInitialPart] = useState<WorkshopPart | null>(null);
   const [scanHubOpen, setScanHubOpen] = useState(false);
+  const [scanHubExternal, setScanHubExternal] = useState<{ code: string; token: number } | null>(null);
   const [absModulesOpen, setAbsModulesOpen] = useState(false);
   const [absInitialPublicId, setAbsInitialPublicId] = useState<string | null>(null);
   const [absInitialMissingPublicId, setAbsInitialMissingPublicId] = useState<string | null>(null);
@@ -995,9 +997,27 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
       setAbsInitialPublicId(null);
       setAbsInitialMissingPublicId(null);
       setScanHubOpen(false);
+      setScanHubExternal(null);
       setOutboundInitialPart(null);
     }
   }, [isOpen]);
+
+  /** Pistola USB: com o estoque aberto, qualquer leitura abre/atualiza o modal do item. */
+  useBarcodeWedgeListener({
+    enabled:
+      Boolean(isOpen) &&
+      !registrationMode &&
+      !photoEditorFile &&
+      !isCategoriesModalOpen &&
+      !isAnalyticsOpen &&
+      !outboundMode &&
+      !absModulesOpen,
+    captureWhileFocused: true,
+    onScan: (code) => {
+      setScanHubExternal({ code, token: Date.now() });
+      setScanHubOpen(true);
+    },
+  });
 
   const handleOutboundStockChanged = useCallback(
     (updated: Pick<WorkshopPart, 'id' | 'stock_qty' | 'unit_price' | 'name'>) => {
@@ -2031,8 +2051,17 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
     {scanHubOpen ? (
       <WorkshopPartScanHubModal
         isOpen
-        onClose={() => setScanHubOpen(false)}
+        onClose={() => {
+          setScanHubOpen(false);
+          setScanHubExternal(null);
+        }}
         catalogParts={parts}
+        externalScanCode={scanHubExternal?.code ?? null}
+        externalScanToken={scanHubExternal?.token ?? null}
+        onExternalScanConsumed={() => setScanHubExternal(null)}
+        onEditProduct={(part) => {
+          void openEditRegistration(part);
+        }}
         onStockEntry={(part) => {
           void openEditRegistration(part);
         }}
@@ -2047,7 +2076,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
           setOutboundInitialPart(part);
           setOutboundMode('consumable');
         }}
-        onAbsModuleCode={(code, found) => {
+        onOpenAbsModule={(code, found) => {
           if (found) openAbsModules({ publicId: code });
           else openAbsModules({ missingPublicId: code });
         }}
