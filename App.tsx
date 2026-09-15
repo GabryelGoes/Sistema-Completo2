@@ -30,6 +30,7 @@ import {
   effectiveAccessOrcamentos,
   getWorkshopSettings,
   deleteAppointment,
+  getServiceOrderById,
 } from './services/apiService';
 import type { ServiceOrderStatus } from './constants/serviceOrderStages';
 import { KeepAliveTabPanel } from './components/KeepAliveTabPanel';
@@ -53,6 +54,8 @@ import {
   resolveActiveDesktopSidebarAction,
   resolveDesktopShellOverlayTopbar,
 } from './utils/desktopShellOverlayModules';
+import { useBarcodeWedgeListener } from './hooks/useBarcodeWedgeListener';
+import { parseLabOsQrPayload } from './utils/labOsQrCode';
 
 type ShellProfileModal = 'user' | 'admin' | null;
 
@@ -87,6 +90,7 @@ export default function App() {
   /** Visualizar orçamento a partir do hub (permanece na aba Orçamentos). */
   const [hubBudgetViewer, setHubBudgetViewer] = useState<{ serviceOrderId: string; budgetId: string } | null>(null);
   const [laboratorioPendingOrderId, setLaboratorioPendingOrderId] = useState<string | null>(null);
+  const [patioPendingOrderId, setPatioPendingOrderId] = useState<string | null>(null);
   const [vehicleAccompanimentOpen, setVehicleAccompanimentOpen] = useState(false);
   const [vehicleAccompanimentPresetId, setVehicleAccompanimentPresetId] = useState<string | null>(null);
   const [shellProfileModal, setShellProfileModal] = useState<ShellProfileModal>(null);
@@ -339,9 +343,48 @@ export default function App() {
     [isLimitedSystemUser, userAllowedTabs]
   );
 
+  const handleOpenPatioOrderFromScan = useCallback(
+    (serviceOrderId: string) => {
+      setPatioPendingOrderId(serviceOrderId);
+      if (isLimitedSystemUser) {
+        if (userAllowedTabs.includes('patio')) setUserTab('patio');
+        else setUserTab('home');
+      } else {
+        setCurrentTab('patio');
+      }
+    },
+    [isLimitedSystemUser, userAllowedTabs]
+  );
+
   const handleLaboratoryOrderHandled = useCallback(() => {
     setLaboratorioPendingOrderId(null);
   }, []);
+
+  const handlePatioOrderHandled = useCallback(() => {
+    setPatioPendingOrderId(null);
+  }, []);
+
+  /** Pistola USB em qualquer página: QR `RDA-OS:{id}` abre a OS. */
+  useBarcodeWedgeListener({
+    enabled: Boolean(authSession),
+    onScan: (code) => {
+      const osId = parseLabOsQrPayload(code);
+      if (!osId) return;
+      void (async () => {
+        try {
+          const detail = await getServiceOrderById(osId);
+          if (detail.order_type === 'module') {
+            handleOpenLaboratoryOrderFromPatio(osId);
+          } else {
+            handleOpenPatioOrderFromScan(osId);
+          }
+        } catch {
+          // Se a API falhar, ainda tenta abrir no Laboratório (origem das etiquetas).
+          handleOpenLaboratoryOrderFromPatio(osId);
+        }
+      })();
+    },
+  });
 
   const navigateToHomeApp = useCallback(() => {
     if (isLimitedSystemUser) {
@@ -909,6 +952,8 @@ export default function App() {
               blurPlates={cinematographicMode}
               isAppTabActive={userTab === 'patio'}
               suppressVehiclePortals={isDesktopShell && shellOverlayTopbar !== null}
+              openServiceOrderId={patioPendingOrderId}
+              onOpenServiceOrderHandled={handlePatioOrderHandled}
               onOpenLaboratoryOrder={handleOpenLaboratoryOrderFromPatio}
               onActiveCardsCountChange={setPatioActiveCount}
               onVehicleModalOsLabelChange={setVehicleModalOsLabel}
@@ -1234,6 +1279,8 @@ export default function App() {
             blurPlates={cinematographicMode}
             isAppTabActive={currentTab === 'patio'}
             suppressVehiclePortals={isDesktopShell && shellOverlayTopbar !== null}
+            openServiceOrderId={patioPendingOrderId}
+            onOpenServiceOrderHandled={handlePatioOrderHandled}
             onOpenLaboratoryOrder={handleOpenLaboratoryOrderFromPatio}
             onActiveCardsCountChange={setPatioActiveCount}
               onVehicleModalOsLabelChange={setVehicleModalOsLabel}

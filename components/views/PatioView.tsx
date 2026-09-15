@@ -155,6 +155,8 @@ import {
 } from '../../hooks/useModalExitAnimation';
 import { printBudgetMechanicWithDetail, printBudgetWithDetail } from '../../utils/budgetPrintWithDetail';
 import { printLabModuleFicha } from '../../utils/labModuleFichaPrint';
+import { LabOsLabelPrintModal } from '../LabOsLabelPrintModal';
+import type { LabOsLabelInput } from '../../utils/labOsLabelRender';
 import { PATIO_CARD_TITLE_SEP, parsePatioCardTitle } from '../../utils/patioCardTitle';
 import { formatLaborLabel } from '../../utils/workshopLaborFormat';
 import { moveItemInList } from '../../utils/moveItemInList';
@@ -1384,6 +1386,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const [isEditingDesc, setIsEditingDesc] = useState(false);
   const [descText, setDescText] = useState('');
   const [isSavingDesc, setIsSavingDesc] = useState(false);
+  const [labOsLabel, setLabOsLabel] = useState<LabOsLabelInput | null>(null);
   const isEditingDescRef = useRef(false);
   const selectedCardRef = useRef<TrelloCard | null>(null);
   isEditingDescRef.current = isEditingDesc;
@@ -4241,6 +4244,28 @@ export const PatioView: React.FC<PatioViewProps> = ({
       referenceLinks: parseReferenceLinksFromApi(serviceOrderDetail.reference_links),
     });
   }, [isModuleMode, serviceOrderDetail, selectedCard, cardDetails, lists]);
+
+  const handleOpenLabOsLabel = useCallback(() => {
+    if (!isModuleMode || !selectedCard) return;
+    const title = parsePatioCardTitle(selectedCard.name);
+    const customerName =
+      (serviceOrderDetail?.customers?.name ??
+        serviceOrderDetail?.customer_name ??
+        title.customer ??
+        '').trim() || 'Cliente';
+    const vehicleName =
+      (serviceOrderDetail?.vehicle_model ?? title.vehicle ?? '').trim() || 'Veículo';
+    const complaint = stripLegacyVehicleCategoryFromComplaint(
+      serviceOrderDetail?.issue_description ?? selectedCard.desc ?? ''
+    );
+    setLabOsLabel({
+      serviceOrderId: selectedCard.id,
+      customerName,
+      vehicleName,
+      complaint,
+      osNumber: serviceOrderDetail?.os_number ?? selectedCard.osNumber ?? null,
+    });
+  }, [isModuleMode, selectedCard, serviceOrderDetail]);
 
   const addServiceRow = () => {
     const newId = Date.now().toString();
@@ -7328,6 +7353,16 @@ export const PatioView: React.FC<PatioViewProps> = ({
                     : 'top-4 right-4'
               }`}>
                 {isModuleMode && serviceOrderDetail && !loadingDetails ? (
+                  <>
+                  <button
+                    type="button"
+                    onClick={handleOpenLabOsLabel}
+                    className={`${patioVehicleVm.closeBtn} !border-emerald-500/40 !bg-emerald-600 !text-white shadow-md shadow-emerald-500/25 hover:!bg-emerald-500 dark:!bg-emerald-600 dark:hover:!bg-emerald-500`}
+                    title="Gerar etiqueta da OS (QR)"
+                    aria-label="Gerar etiqueta da OS"
+                  >
+                    <Tag className="h-5 w-5" />
+                  </button>
                   <button
                     type="button"
                     onClick={handlePrintLabModuleFicha}
@@ -7337,6 +7372,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   >
                     <Printer className="h-5 w-5" />
                   </button>
+                  </>
                 ) : null}
                 {can('canDeleteCards') && (
                 <button
@@ -7563,6 +7599,16 @@ export const PatioView: React.FC<PatioViewProps> = ({
                           {isPatioPcModal ? (
                             <div className="inline-flex shrink-0 items-center gap-2 pl-1">
                               {isModuleMode && serviceOrderDetail && !loadingDetails ? (
+                                <>
+                                <button
+                                  type="button"
+                                  onClick={handleOpenLabOsLabel}
+                                  className={`${patioVehicleVm.closeBtn} !border-emerald-500/40 !bg-emerald-600 !text-white shadow-md shadow-emerald-500/25 hover:!bg-emerald-500 dark:!bg-emerald-600 dark:hover:!bg-emerald-500`}
+                                  title="Gerar etiqueta da OS (QR)"
+                                  aria-label="Gerar etiqueta da OS"
+                                >
+                                  <Tag className="h-5 w-5" />
+                                </button>
                                 <button
                                   type="button"
                                   onClick={handlePrintLabModuleFicha}
@@ -7572,6 +7618,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                 >
                                   <Printer className="h-5 w-5" />
                                 </button>
+                                </>
                               ) : null}
                               {can('canDeleteCards') ? (
                                 <button
@@ -8522,6 +8569,15 @@ export const PatioView: React.FC<PatioViewProps> = ({
                               </div>
                               <div className="relative z-[1] flex shrink-0 items-center gap-1.5">
                                 {isModuleMode && serviceOrderDetail && !loadingDetails ? (
+                                  <>
+                                  <button
+                                    type="button"
+                                    onClick={handleOpenLabOsLabel}
+                                    className="inline-flex items-center gap-1 rounded-xl border border-emerald-500/35 bg-emerald-600 px-2.5 py-1 text-[11px] font-semibold text-white shadow-sm shadow-emerald-500/20 transition-colors hover:bg-emerald-500"
+                                  >
+                                    <Tag className="h-3 w-3" aria-hidden strokeWidth={2.5} />
+                                    Etiqueta OS
+                                  </button>
                                   <button
                                     type="button"
                                     onClick={handlePrintLabModuleFicha}
@@ -8530,6 +8586,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                     <Printer className="h-3 w-3" aria-hidden strokeWidth={2.5} />
                                     Imprimir ficha
                                   </button>
+                                  </>
                                 ) : null}
                                 {can('canEditQueixa') && !isEditingDesc ? (
                                   <button
@@ -11175,6 +11232,12 @@ export const PatioView: React.FC<PatioViewProps> = ({
           onRegisterReturn={handleRegisterExternalReturn}
         />
       )}
+
+      <LabOsLabelPrintModal
+        open={!!labOsLabel}
+        label={labOsLabel}
+        onClose={() => setLabOsLabel(null)}
+      />
 
       {isModuleMode && benchFullscreenOpen && (
         <ModalPortal>
