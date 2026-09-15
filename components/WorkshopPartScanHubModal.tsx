@@ -38,6 +38,8 @@ export type WorkshopPartScanHubModalProps = {
   onRegisterProduct: (barcode: string) => void;
   onSaleOutbound: (part: WorkshopPart) => void;
   onConsumableOutbound: (part: WorkshopPart) => void;
+  /** Classe Tailwind de z-index do overlay (padrão: nested stock). */
+  overlayZClass?: string;
 };
 
 type ResolvedState =
@@ -61,6 +63,7 @@ export function WorkshopPartScanHubModal({
   onRegisterProduct,
   onSaleOutbound,
   onConsumableOutbound,
+  overlayZClass = NESTED_STOCK_OVERLAY_Z,
 }: WorkshopPartScanHubModalProps) {
   const isDesktopShell = useDesktopShellLayout();
   const [code, setCode] = useState('');
@@ -127,7 +130,7 @@ export function WorkshopPartScanHubModal({
 
   if (!isOpen) return null;
 
-  const overlayClass = resolveIosModalOverlayClass(isDesktopShell, NESTED_STOCK_OVERLAY_Z);
+  const overlayClass = resolveIosModalOverlayClass(isDesktopShell, overlayZClass);
   const hasResult = resolved.kind !== 'idle';
   const showingPart = resolved.kind === 'part';
 

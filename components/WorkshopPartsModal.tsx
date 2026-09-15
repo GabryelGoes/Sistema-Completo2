@@ -73,8 +73,6 @@ import { WorkshopPartDetailView } from './WorkshopPartDetailView';
 import { WorkshopPartsAnalyticsView } from './WorkshopPartsAnalyticsView';
 import { WorkshopPartStockOutboundModal } from './WorkshopPartStockOutboundModal';
 import { WorkshopPartScanHubModal } from './WorkshopPartScanHubModal';
-import { useBarcodeWedgeListener } from '../hooks/useBarcodeWedgeListener';
-import { isLabOsQrPayload } from '../utils/labOsQrCode';
 import {
   formValuesToApiPayload,
   purchaseDraftShouldSync,
@@ -101,7 +99,16 @@ import { WorkshopPartStockBadge } from './ui/WorkshopPartStockBadge';
 interface WorkshopPartsModalProps {
   isOpen: boolean;
   onClose: () => void;
+  /** Ação pedida de fora (ex.: leitura USB global). */
+  bootIntent?: WorkshopPartsBootIntent | null;
+  onBootIntentConsumed?: () => void;
 }
+
+export type WorkshopPartsBootIntent =
+  | { type: 'edit'; part: WorkshopPart }
+  | { type: 'create'; barcode: string }
+  | { type: 'view'; part: WorkshopPart }
+  | { type: 'outbound'; mode: WorkshopPartStockMovementType; part: WorkshopPart };
 
 type PendingPartPhoto = { id: string; file: File; previewUrl: string };
 
@@ -176,7 +183,12 @@ function normalizePartSearch(s: string): string {
     .trim();
 }
 
-export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, onClose }) => {
+export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
+  isOpen,
+  onClose,
+  bootIntent = null,
+  onBootIntentConsumed,
+}) => {
   const [parts, setParts] = useState<WorkshopPart[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -982,22 +994,29 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
     }
   }, [isOpen]);
 
-  /** Pistola USB: com o estoque aberto, qualquer leitura abre/atualiza o modal do item. */
-  useBarcodeWedgeListener({
-    enabled:
-      Boolean(isOpen) &&
-      !registrationMode &&
-      !photoEditorFile &&
-      !isCategoriesModalOpen &&
-      !isAnalyticsOpen &&
-      !outboundMode,
-    captureWhileFocused: true,
-    onScan: (code) => {
-      if (isLabOsQrPayload(code)) return;
-      setScanHubExternal({ code, token: Date.now() });
-      setScanHubOpen(true);
-    },
-  });
+  /** Intenção vinda da leitura USB global (editar / cadastrar / saída). */
+  useEffect(() => {
+    if (!isOpen || !bootIntent) return;
+    const intent = bootIntent;
+    onBootIntentConsumed?.();
+    if (intent.type === 'create') {
+      openCreateRegistration(intent.barcode);
+      return;
+    }
+    if (intent.type === 'edit') {
+      void openEditRegistration(intent.part);
+      return;
+    }
+    if (intent.type === 'view') {
+      void openProductView(intent.part);
+      return;
+    }
+    if (intent.type === 'outbound') {
+      setOutboundInitialPart(intent.part);
+      setOutboundMode(intent.mode);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- consome uma vez por bootIntent
+  }, [isOpen, bootIntent]);
 
   const handleOutboundStockChanged = useCallback(
     (updated: Pick<WorkshopPart, 'id' | 'stock_qty' | 'unit_price' | 'name'>) => {
