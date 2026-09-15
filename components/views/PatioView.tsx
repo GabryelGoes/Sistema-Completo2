@@ -4249,10 +4249,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
     if (!isModuleMode || !selectedCard) return;
     const title = parsePatioCardTitle(selectedCard.name);
     const customerName =
-      (serviceOrderDetail?.customers?.name ??
-        serviceOrderDetail?.customer_name ??
-        title.customer ??
-        '').trim() || 'Cliente';
+      (serviceOrderDetail?.customers?.name ?? title.customer ?? '').trim() || 'Cliente';
     const vehicleName =
       (serviceOrderDetail?.vehicle_model ?? title.vehicle ?? '').trim() || 'Veículo';
     const complaint = stripLegacyVehicleCategoryFromComplaint(
