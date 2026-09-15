@@ -1,8 +1,9 @@
 import React, { useMemo, useState } from 'react';
-import { Loader2, Pencil, Printer, Trash2, ZoomIn } from 'lucide-react';
+import { Loader2, Pencil, Printer, Tag, Trash2, ZoomIn } from 'lucide-react';
 import type { WorkshopPartLabContext } from '../services/apiService';
 import { printWorkshopPartSheet } from '../utils/workshopPartPrintSheet';
 import { Lightbox } from './Lightbox';
+import { NiimbotLabelPrintModal } from './NiimbotLabelPrintModal';
 import { PartPhotoImg } from './ui/PartPhotoImg';
 import { useBrowserBackLayer } from './ui/BackNavigationContext';
 import type { WorkshopPart, WorkshopPartCategory, WorkshopPartPurchase } from '../services/apiService';
@@ -112,6 +113,7 @@ export function WorkshopPartDetailView({
     urls: string[];
     currentIndex: number;
   } | null>(null);
+  const [labelPrintOpen, setLabelPrintOpen] = useState(false);
 
   useBrowserBackLayer(!!previewImages, () => setPreviewImages(null));
 
@@ -458,6 +460,15 @@ export function WorkshopPartDetailView({
       <div className="flex flex-col gap-3 border-t border-zinc-200/50 pt-5 dark:border-white/[0.06]">
         <button
           type="button"
+          onClick={() => setLabelPrintOpen(true)}
+          disabled={loading}
+          className="inline-flex w-full items-center justify-center gap-2 rounded-xl border-0 bg-amber-50 px-5 py-3 text-[15px] font-semibold text-amber-950 shadow-none hover:bg-amber-100 disabled:opacity-50 dark:bg-amber-950/40 dark:text-amber-100 dark:hover:bg-amber-950/60"
+        >
+          <Tag className="h-5 w-5" />
+          Imprimir etiqueta
+        </button>
+        <button
+          type="button"
           onClick={handlePrint}
           disabled={loading}
           className="inline-flex w-full items-center justify-center gap-2 rounded-xl border-0 bg-teal-50 px-5 py-3 text-[15px] font-semibold text-teal-900 shadow-none hover:bg-teal-100 disabled:opacity-50 dark:bg-teal-950/40 dark:text-teal-100 dark:hover:bg-teal-950/60"
@@ -495,6 +506,12 @@ export function WorkshopPartDetailView({
           onClose={() => setPreviewImages(null)}
         />
       ) : null}
+
+      <NiimbotLabelPrintModal
+        open={labelPrintOpen}
+        part={part}
+        onClose={() => setLabelPrintOpen(false)}
+      />
     </div>
   );
 }
