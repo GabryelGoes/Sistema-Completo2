@@ -181,6 +181,7 @@ export function WorkshopPartScanHubModal({
 
   const overlayClass = resolveIosModalOverlayClass(isDesktopShell, NESTED_STOCK_OVERLAY_Z);
   const hasResult = resolved.kind !== 'idle';
+  const showingPart = resolved.kind === 'part';
 
   return (
     <RegistrationPortal>
@@ -192,15 +193,29 @@ export function WorkshopPartScanHubModal({
         onClick={onClose}
       >
         <div
-          className="flex max-h-[min(920px,94vh)] w-full max-w-lg flex-col overflow-hidden rounded-[1.75rem] border-0 bg-zinc-50 shadow-none dark:bg-zinc-950"
+          className={`flex w-full flex-col overflow-hidden rounded-[1.75rem] border-0 bg-zinc-50 shadow-none dark:bg-zinc-950 ${
+            isDesktopShell
+              ? showingPart
+                ? 'max-h-[min(720px,92vh)] max-w-5xl'
+                : 'max-h-[min(640px,90vh)] max-w-3xl'
+              : 'max-h-[min(920px,94vh)] max-w-lg'
+          }`}
           onClick={(e) => e.stopPropagation()}
         >
-          <header className="flex shrink-0 items-start justify-between gap-3 border-b border-zinc-200/60 px-5 py-4 dark:border-white/[0.08]">
+          <header
+            className={`flex shrink-0 items-start justify-between gap-3 border-b border-zinc-200/60 dark:border-white/[0.08] ${
+              isDesktopShell ? 'px-6 py-3.5' : 'px-5 py-4'
+            }`}
+          >
             <div className="min-w-0">
               <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-700 dark:text-emerald-400">
                 Estoque de peças
               </p>
-              <h2 className="text-[18px] font-bold text-zinc-900 dark:text-white">
+              <h2
+                className={`font-bold text-zinc-900 dark:text-white ${
+                  isDesktopShell ? 'text-[20px]' : 'text-[18px]'
+                }`}
+              >
                 {hasResult ? 'Item identificado' : 'Leitura de código'}
               </h2>
               <p className="mt-0.5 text-[13px] text-zinc-500 dark:text-zinc-400">
@@ -219,7 +234,13 @@ export function WorkshopPartScanHubModal({
             </button>
           </header>
 
-          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-4">
+          <div
+            className={`min-h-0 flex-1 ${
+              isDesktopShell && showingPart
+                ? 'overflow-hidden px-6 py-4'
+                : `overflow-y-auto ${isDesktopShell ? 'px-6 py-4' : 'px-5 py-4'}`
+            } ${isDesktopShell && showingPart ? 'flex flex-col gap-3' : 'space-y-4'}`}
+          >
             <BarcodeScanField
               value={code}
               onChange={setCode}
@@ -227,6 +248,7 @@ export function WorkshopPartScanHubModal({
               disabled={lookingUp}
               autoFocus
               placeholder="Código de barras ou ABS-000001…"
+              className={isDesktopShell ? 'shrink-0' : undefined}
             />
 
             {lookingUp ? (
@@ -246,6 +268,7 @@ export function WorkshopPartScanHubModal({
               <PartQuickCard
                 part={resolved.part}
                 scannedCode={resolved.code}
+                desktopLayout={isDesktopShell}
                 onEdit={() => {
                   onEditProduct(resolved.part);
                   onClose();
@@ -344,6 +367,7 @@ export function WorkshopPartScanHubModal({
 function PartQuickCard({
   part,
   scannedCode,
+  desktopLayout = false,
   onEdit,
   onStockEntry,
   onSale,
@@ -351,6 +375,7 @@ function PartQuickCard({
 }: {
   part: WorkshopPart;
   scannedCode: string;
+  desktopLayout?: boolean;
   onEdit: () => void;
   onStockEntry: () => void;
   onSale: () => void;
@@ -370,100 +395,168 @@ function PartQuickCard({
   const stockHint =
     stockStatus === 'zero' ? 'Sem saldo' : stockStatus === 'low' ? 'Abaixo do mínimo' : 'Saldo ok';
 
+  const photo = (
+    <div
+      className={`relative shrink-0 overflow-hidden bg-gradient-to-br from-zinc-100 via-zinc-50 to-emerald-50/40 dark:from-zinc-800 dark:via-zinc-900 dark:to-emerald-950/30 ${
+        desktopLayout
+          ? 'h-[7.5rem] w-[7.5rem] rounded-[1.35rem] ring-1 ring-black/[0.04] dark:ring-white/[0.08]'
+          : 'h-20 w-20 rounded-xl'
+      }`}
+    >
+      {part.photo_url ? (
+        <>
+          <PartPhotoImg
+            src={part.photo_url}
+            alt=""
+            className={`h-full w-full object-cover ${desktopLayout ? 'scale-[1.02]' : ''}`}
+          />
+          {desktopLayout ? (
+            <div
+              className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-white/25"
+              aria-hidden
+            />
+          ) : null}
+        </>
+      ) : (
+        <div className="flex h-full w-full items-center justify-center text-[11px] font-bold text-zinc-400">
+          Sem foto
+        </div>
+      )}
+    </div>
+  );
+
+  const meta = (
+    <div className="min-w-0 flex-1">
+      <div className={`flex items-start gap-2 ${desktopLayout ? 'gap-3' : ''}`}>
+        <p
+          className={`min-w-0 flex-1 font-bold leading-snug text-zinc-900 dark:text-white ${
+            desktopLayout ? 'text-[18px]' : 'text-[16px]'
+          }`}
+        >
+          {part.name}
+        </p>
+        <button
+          type="button"
+          onClick={onEdit}
+          className="inline-flex shrink-0 items-center gap-1 rounded-lg px-1.5 py-1 text-[12px] font-medium text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-700 dark:text-zinc-500 dark:hover:bg-white/[0.06] dark:hover:text-zinc-200"
+          title="Editar cadastro"
+        >
+          <Pencil className="h-3.5 w-3.5" strokeWidth={2} />
+          Editar
+        </button>
+      </div>
+      <p className="mt-1 truncate text-[13px] text-zinc-500 dark:text-zinc-400">
+        {[part.brand, part.model].filter(Boolean).join(' · ') || '—'}
+      </p>
+      <p className="mt-1 truncate font-mono text-[12px] text-zinc-600 dark:text-zinc-300">{codeLine}</p>
+    </div>
+  );
+
+  const stockBanner = (
+    <div className={`rounded-2xl px-4 py-3.5 ${stockTone} ${desktopLayout ? 'py-4' : ''}`}>
+      <p className="text-[11px] font-bold uppercase tracking-[0.14em] opacity-90">Quantidade em estoque</p>
+      <p
+        className={`mt-1 font-bold tabular-nums leading-none tracking-tight ${
+          desktopLayout ? 'text-[2.35rem]' : 'text-[2rem]'
+        }`}
+      >
+        {qty}
+        <span className="ml-2 text-[1rem] font-semibold opacity-90">{unit}</span>
+      </p>
+      <p className="mt-2 text-[12px] font-semibold opacity-90">{stockHint}</p>
+    </div>
+  );
+
+  const details = (
+    <div className={`grid grid-cols-2 gap-x-4 gap-y-2.5 ${desktopLayout ? 'gap-y-3' : ''}`}>
+      <div>
+        <p className="text-[10px] font-bold uppercase tracking-wide text-zinc-400">Local</p>
+        <p className="text-[13px] font-semibold text-zinc-800 dark:text-zinc-100">
+          {[storageSiteLabel(part.storage_site), part.location].filter(Boolean).join(' · ') || '—'}
+        </p>
+      </div>
+      <div>
+        <p className="text-[10px] font-bold uppercase tracking-wide text-zinc-400">Preço unitário</p>
+        <p className="text-[13px] font-semibold tabular-nums text-zinc-800 dark:text-zinc-100">
+          {fmtMoney(part.unit_price)}
+        </p>
+      </div>
+      <div>
+        <p className="text-[10px] font-bold uppercase tracking-wide text-zinc-400">Mínimo</p>
+        <p className="text-[13px] font-semibold tabular-nums text-zinc-800 dark:text-zinc-100">
+          {formatWorkshopPartQty(part.min_stock_qty)} {unit}
+        </p>
+      </div>
+      <div>
+        <p className="text-[10px] font-bold uppercase tracking-wide text-zinc-400">NCM / origem fiscal</p>
+        <p className="truncate text-[13px] font-semibold text-zinc-800 dark:text-zinc-100">
+          {[part.ncm_code, part.fiscal_origin].filter(Boolean).join(' · ') || '—'}
+        </p>
+      </div>
+    </div>
+  );
+
+  const actions = (
+    <div className={`space-y-2 ${desktopLayout ? 'flex h-full flex-col justify-center space-y-2.5' : ''}`}>
+      <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500 dark:text-zinc-400">
+        Movimentações
+      </p>
+      <ActionButton
+        tone="emerald"
+        compact={desktopLayout}
+        icon={<PackagePlus className="h-5 w-5" />}
+        title="Registrar recebimento"
+        subtitle="Entrada, compra ou reposição de saldo"
+        onClick={onStockEntry}
+      />
+      <ActionButton
+        tone="violet"
+        compact={desktopLayout}
+        icon={<ShoppingCart className="h-5 w-5" />}
+        title="Registrar venda"
+        subtitle="Saída comercial avulsa ao cliente"
+        onClick={onSale}
+      />
+      <ActionButton
+        tone="sky"
+        compact={desktopLayout}
+        icon={<PackageMinus className="h-5 w-5" />}
+        title="Registrar consumo"
+        subtitle="Saída operacional / uso interno na oficina"
+        onClick={onConsumable}
+      />
+    </div>
+  );
+
+  if (desktopLayout) {
+    return (
+      <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,1.35fr)_minmax(17rem,0.9fr)] gap-4 overflow-hidden">
+        <div className="flex min-h-0 flex-col gap-3 overflow-hidden rounded-2xl border-0 bg-white p-4 shadow-none dark:bg-white/5">
+          <div className="flex items-start gap-4">
+            {photo}
+            {meta}
+          </div>
+          {stockBanner}
+          <div className="border-t border-zinc-100 pt-3 dark:border-white/[0.06]">{details}</div>
+        </div>
+        <div className="min-h-0 overflow-hidden rounded-2xl border-0 bg-white p-4 shadow-none dark:bg-white/5">
+          {actions}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-3">
       <div className="overflow-hidden rounded-2xl border-0 bg-white shadow-none dark:bg-white/5">
         <div className="flex gap-3 p-4">
-          <div className="h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-zinc-100 dark:bg-zinc-800">
-            {part.photo_url ? (
-              <PartPhotoImg src={part.photo_url} alt="" className="h-full w-full object-cover" />
-            ) : (
-              <div className="flex h-full w-full items-center justify-center text-[11px] font-bold text-zinc-400">
-                Sem foto
-              </div>
-            )}
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="text-[16px] font-bold leading-snug text-zinc-900 dark:text-white">{part.name}</p>
-            <p className="mt-1 truncate text-[13px] text-zinc-500 dark:text-zinc-400">
-              {[part.brand, part.model].filter(Boolean).join(' · ') || '—'}
-            </p>
-            <p className="mt-1 truncate font-mono text-[12px] text-zinc-600 dark:text-zinc-300">{codeLine}</p>
-          </div>
+          {photo}
+          {meta}
         </div>
-
-        <div className={`mx-4 mb-4 rounded-2xl px-4 py-4 ${stockTone}`}>
-          <p className="text-[11px] font-bold uppercase tracking-[0.14em] opacity-90">Quantidade em estoque</p>
-          <p className="mt-1 text-[2rem] font-bold tabular-nums leading-none tracking-tight">
-            {qty}
-            <span className="ml-2 text-[1rem] font-semibold opacity-90">{unit}</span>
-          </p>
-          <p className="mt-2 text-[12px] font-semibold opacity-90">{stockHint}</p>
-        </div>
-
-        <div className="grid grid-cols-2 gap-3 border-t border-zinc-100 px-4 py-3 dark:border-white/[0.06]">
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-wide text-zinc-400">Local</p>
-            <p className="text-[13px] font-semibold text-zinc-800 dark:text-zinc-100">
-              {[storageSiteLabel(part.storage_site), part.location].filter(Boolean).join(' · ') || '—'}
-            </p>
-          </div>
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-wide text-zinc-400">Preço unitário</p>
-            <p className="text-[13px] font-semibold tabular-nums text-zinc-800 dark:text-zinc-100">
-              {fmtMoney(part.unit_price)}
-            </p>
-          </div>
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-wide text-zinc-400">Mínimo</p>
-            <p className="text-[13px] font-semibold tabular-nums text-zinc-800 dark:text-zinc-100">
-              {formatWorkshopPartQty(part.min_stock_qty)} {unit}
-            </p>
-          </div>
-          <div>
-            <p className="text-[10px] font-bold uppercase tracking-wide text-zinc-400">NCM / origem fiscal</p>
-            <p className="truncate text-[13px] font-semibold text-zinc-800 dark:text-zinc-100">
-              {[part.ncm_code, part.fiscal_origin].filter(Boolean).join(' · ') || '—'}
-            </p>
-          </div>
-        </div>
+        <div className="mx-4 mb-4">{stockBanner}</div>
+        <div className="border-t border-zinc-100 px-4 py-3 dark:border-white/[0.06]">{details}</div>
       </div>
-
-      <button
-        type="button"
-        onClick={onEdit}
-        className="flex w-full items-center justify-center gap-2 rounded-2xl border-0 bg-zinc-900 px-4 py-3.5 text-[15px] font-semibold text-white shadow-none transition hover:bg-zinc-800 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-100"
-      >
-        <Pencil className="h-4 w-4" />
-        Editar cadastro
-      </button>
-
-      <div className="space-y-2">
-        <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500 dark:text-zinc-400">
-          Movimentações
-        </p>
-        <ActionButton
-          tone="emerald"
-          icon={<PackagePlus className="h-5 w-5" />}
-          title="Registrar recebimento"
-          subtitle="Entrada, compra ou reposição de saldo"
-          onClick={onStockEntry}
-        />
-        <ActionButton
-          tone="violet"
-          icon={<ShoppingCart className="h-5 w-5" />}
-          title="Registrar venda"
-          subtitle="Saída comercial avulsa ao cliente"
-          onClick={onSale}
-        />
-        <ActionButton
-          tone="sky"
-          icon={<PackageMinus className="h-5 w-5" />}
-          title="Registrar consumo"
-          subtitle="Saída operacional / uso interno na oficina"
-          onClick={onConsumable}
-        />
-      </div>
+      {actions}
     </div>
   );
 }
@@ -547,12 +640,14 @@ function ActionButton({
   title,
   subtitle,
   onClick,
+  compact = false,
 }: {
   tone: 'emerald' | 'violet' | 'sky';
   icon: React.ReactNode;
   title: string;
   subtitle: string;
   onClick: () => void;
+  compact?: boolean;
 }) {
   const tones = {
     emerald: {
@@ -579,7 +674,9 @@ function ActionButton({
     <button
       type="button"
       onClick={onClick}
-      className={`flex w-full items-center gap-3 rounded-2xl border-0 px-4 py-3.5 text-left shadow-none transition ${tones.row}`}
+      className={`flex w-full items-center gap-3 rounded-2xl border-0 text-left shadow-none transition ${tones.row} ${
+        compact ? 'px-3.5 py-3' : 'px-4 py-3.5'
+      }`}
     >
       <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${tones.icon}`}>{icon}</span>
       <span className="min-w-0">
