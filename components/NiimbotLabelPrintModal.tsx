@@ -164,11 +164,20 @@ export function NiimbotLabelPrintModal({ open, part, onClose }: NiimbotLabelPrin
             <IosModalHeader
               icon={<Tag className="h-5 w-5 text-zinc-800" />}
               title="Imprimir etiqueta"
-              subtitle={`${NIIMBOT_MODEL_LABEL} · ${NIIMBOT_SIZE_LABEL}`}
+              subtitle={`${NIIMBOT_MODEL_LABEL} · Bluetooth · ${NIIMBOT_SIZE_LABEL}`}
             />
           </div>
 
           <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-4 custom-scrollbar">
+            <div className="rounded-xl bg-sky-50 px-3 py-2.5 text-[12px] leading-snug text-sky-950 dark:bg-sky-950/35 dark:text-sky-100">
+              <p className="font-semibold">Usa Bluetooth (não USB).</p>
+              <p className="mt-1 opacity-90">
+                O cabo USB não serve neste app. Ligue o Bluetooth do PC, ligue a B1 e
+                toque em <span className="font-semibold">Conectar</span> — escolha a
+                impressora no seletor do Chrome/Edge (HTTPS).
+              </p>
+            </div>
+
             <div>
               <p className="text-[13px] font-semibold text-zinc-900 dark:text-zinc-100">
                 {part.name}

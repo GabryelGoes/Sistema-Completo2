@@ -129,9 +129,23 @@ class NiimbotService {
       const label = info?.label || NIIMBOT_MODEL_LABEL;
       this.setState('connected', `Conectado: ${label}`);
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Falha ao conectar à impressora';
+      const raw = err instanceof Error ? err.message : 'Falha ao conectar à impressora';
+      const lower = raw.toLowerCase();
+      let msg = raw;
+      if (
+        lower.includes('user cancelled') ||
+        lower.includes('canceled') ||
+        lower.includes('cancelled')
+      ) {
+        msg = 'Conexão cancelada. Toque em Conectar e escolha a B1 no seletor Bluetooth.';
+      } else if (lower.includes('not found') || lower.includes('no devices')) {
+        msg =
+          'Nenhuma B1 encontrada por Bluetooth. USB não funciona aqui — ligue o Bluetooth da impressora e do PC.';
+      } else if (lower.includes('gatt') || lower.includes('bluetooth')) {
+        msg = `${raw} — use Bluetooth (não o cabo USB) no Chrome/Edge.`;
+      }
       this.setState('disconnected', msg);
-      throw err;
+      throw new Error(msg);
     }
   }
 
