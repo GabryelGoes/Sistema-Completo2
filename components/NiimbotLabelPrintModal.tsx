@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Bluetooth, BluetoothConnected, Loader2, Printer, Tag, X } from 'lucide-react';
 import {
   NIIMBOT_MODEL_LABEL,
@@ -6,21 +6,25 @@ import {
   niimbotService,
   type NiimbotServiceSnapshot,
 } from '../services/niimbotService';
+import { updateWorkshopPart, type WorkshopPart } from '../services/apiService';
 import {
   renderNiimbotPartLabelDataUrl,
   renderNiimbotTestLabelDataUrl,
   resolveWorkshopPartLabelCode,
+  workshopPartNeedsGeneratedLabelCode,
 } from '../utils/niimbotLabelRender';
+import { generateInternalEan13 } from '../utils/workshopPartLabelCode';
 import { ModalPortal } from './ui/ModalPortal';
 import { IosModalHeader } from './ui/IosModalHeader';
 import { iosModalClose, iosModalShell } from './ui/iosModalStyles';
 import { useBrowserBackLayer } from './ui/BackNavigationContext';
-import type { WorkshopPart } from '../services/apiService';
 
 export type NiimbotLabelPrintModalProps = {
   open: boolean;
   part: WorkshopPart | null;
   onClose: () => void;
+  /** Quando um código é gerado e salvo no produto. */
+  onPartUpdated?: (part: WorkshopPart) => void;
 };
 
 function statusTone(status: NiimbotServiceSnapshot['status']): string {
@@ -55,12 +59,22 @@ function statusLabel(snap: NiimbotServiceSnapshot): string {
   }
 }
 
-export function NiimbotLabelPrintModal({ open, part, onClose }: NiimbotLabelPrintModalProps) {
+export function NiimbotLabelPrintModal({
+  open,
+  part,
+  onClose,
+  onPartUpdated,
+}: NiimbotLabelPrintModalProps) {
   const [snap, setSnap] = useState<NiimbotServiceSnapshot>(() => niimbotService.snapshot());
   const [copies, setCopies] = useState(1);
   const [busy, setBusy] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [localError, setLocalError] = useState<string | null>(null);
+  const [labelCode, setLabelCode] = useState('');
+  const [codeWasGenerated, setCodeWasGenerated] = useState(false);
+  const [ensuringCode, setEnsuringCode] = useState(false);
+  const onPartUpdatedRef = useRef(onPartUpdated);
+  onPartUpdatedRef.current = onPartUpdated;
 
   useBrowserBackLayer(open, onClose);
 
@@ -69,40 +83,102 @@ export function NiimbotLabelPrintModal({ open, part, onClose }: NiimbotLabelPrin
     return niimbotService.subscribe(setSnap);
   }, [open]);
 
-  const code = useMemo(
-    () => (part ? resolveWorkshopPartLabelCode(part) : ''),
-    [part]
-  );
+  const partId = part?.id;
+  const needsGenerated = part ? workshopPartNeedsGeneratedLabelCode(part) : false;
 
   useEffect(() => {
-    if (!open || !part) {
+    if (!open || !part || !partId) {
       setPreviewUrl(null);
+      setLabelCode('');
+      setCodeWasGenerated(false);
+      setEnsuringCode(false);
       return;
     }
-    try {
-      if (!code) {
-        setPreviewUrl(null);
-        setLocalError('Produto sem código interno (numérico, barras ou original).');
+
+    let cancelled = false;
+
+    const run = async () => {
+      setLocalError(null);
+      if (!workshopPartNeedsGeneratedLabelCode(part)) {
+        const existing = resolveWorkshopPartLabelCode(part);
+        if (cancelled) return;
+        setLabelCode(existing);
+        setCodeWasGenerated(false);
+        setPreviewUrl(
+          renderNiimbotPartLabelDataUrl({
+            name: part.name || 'Produto',
+            code: existing,
+          })
+        );
         return;
       }
-      setLocalError(null);
-      setPreviewUrl(
-        renderNiimbotPartLabelDataUrl({
-          name: part.name || 'Produto',
-          code,
-        })
-      );
-    } catch (err) {
-      setPreviewUrl(null);
-      setLocalError(err instanceof Error ? err.message : 'Falha ao montar a etiqueta');
-    }
-  }, [open, part, code]);
+
+      setEnsuringCode(true);
+      try {
+        let saved: WorkshopPart | null = null;
+        let lastErr: unknown = null;
+        for (let attempt = 0; attempt < 6; attempt++) {
+          const code = generateInternalEan13(partId, attempt);
+          try {
+            saved = await updateWorkshopPart(partId, { barcode: code });
+            break;
+          } catch (err) {
+            lastErr = err;
+            const msg = err instanceof Error ? err.message : '';
+            if (/já existe|duplicate|23505|conflito|409/i.test(msg)) continue;
+            throw err;
+          }
+        }
+        if (!saved) {
+          throw lastErr instanceof Error
+            ? lastErr
+            : new Error('Não foi possível gerar um código único para a etiqueta.');
+        }
+        if (cancelled) return;
+        const code = resolveWorkshopPartLabelCode(saved);
+        setLabelCode(code);
+        setCodeWasGenerated(true);
+        setPreviewUrl(
+          renderNiimbotPartLabelDataUrl({
+            name: saved.name || part.name || 'Produto',
+            code,
+          })
+        );
+        onPartUpdatedRef.current?.(saved);
+      } catch (err) {
+        if (cancelled) return;
+        const fallback = generateInternalEan13(partId);
+        setLabelCode(fallback);
+        setCodeWasGenerated(true);
+        setPreviewUrl(
+          renderNiimbotPartLabelDataUrl({
+            name: part.name || 'Produto',
+            code: fallback,
+          })
+        );
+        setLocalError(
+          err instanceof Error
+            ? `Código gerado só na etiqueta (não salvo: ${err.message})`
+            : 'Código gerado só na etiqueta (não foi possível salvar no produto).'
+        );
+      } finally {
+        if (!cancelled) setEnsuringCode(false);
+      }
+    };
+
+    void run();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- partId + needsGenerated
+  }, [open, partId, needsGenerated]);
 
   if (!open || !part) return null;
 
   const unsupported = snap.status === 'unsupported';
-  const printing = snap.status === 'printing' || busy;
+  const printing = snap.status === 'printing' || busy || ensuringCode;
   const connected = snap.status === 'connected' || snap.status === 'printing';
+  const code = labelCode;
 
   const run = async (fn: () => Promise<void>) => {
     setBusy(true);
@@ -164,26 +240,18 @@ export function NiimbotLabelPrintModal({ open, part, onClose }: NiimbotLabelPrin
             <IosModalHeader
               icon={<Tag className="h-5 w-5 text-zinc-800" />}
               title="Imprimir etiqueta"
-              subtitle={`${NIIMBOT_MODEL_LABEL} · Bluetooth · ${NIIMBOT_SIZE_LABEL}`}
+              subtitle={`${NIIMBOT_MODEL_LABEL} · ${NIIMBOT_SIZE_LABEL}`}
             />
           </div>
 
           <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-4 custom-scrollbar">
-            <div className="rounded-xl bg-sky-50 px-3 py-2.5 text-[12px] leading-snug text-sky-950 dark:bg-sky-950/35 dark:text-sky-100">
-              <p className="font-semibold">Usa Bluetooth (não USB).</p>
-              <p className="mt-1 opacity-90">
-                O cabo USB não serve neste app. Ligue o Bluetooth do PC, ligue a B1 e
-                toque em <span className="font-semibold">Conectar</span> — escolha a
-                impressora no seletor do Chrome/Edge (HTTPS).
-              </p>
-            </div>
-
             <div>
               <p className="text-[13px] font-semibold text-zinc-900 dark:text-zinc-100">
                 {part.name}
               </p>
               <p className="mt-0.5 text-[12px] text-zinc-500 dark:text-zinc-400">
-                Código: {code || '—'}
+                Código: {ensuringCode ? 'Gerando…' : code || '—'}
+                {codeWasGenerated && code ? ' · gerado automaticamente' : ''}
               </p>
             </div>
 
@@ -195,6 +263,11 @@ export function NiimbotLabelPrintModal({ open, part, onClose }: NiimbotLabelPrin
                   className="mx-auto h-auto w-full max-w-[320px] image-rendering-pixelated"
                   style={{ imageRendering: 'pixelated' }}
                 />
+              </div>
+            ) : ensuringCode ? (
+              <div className="flex items-center justify-center gap-2 rounded-xl bg-zinc-100 py-10 text-[13px] text-zinc-500 dark:bg-white/[0.04]">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Gerando código…
               </div>
             ) : null}
 

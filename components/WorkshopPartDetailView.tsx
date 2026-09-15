@@ -78,6 +78,8 @@ export type WorkshopPartDetailViewProps = {
   readOnly?: boolean;
   /** Ações extras no rodapé (ex.: usar peça no orçamento). */
   footerExtra?: React.ReactNode;
+  /** Atualiza o produto na lista (ex.: código gerado na etiqueta). */
+  onPartUpdated?: (part: WorkshopPart) => void;
 };
 
 export function WorkshopPartDetailView({
@@ -92,6 +94,7 @@ export function WorkshopPartDetailView({
   onDelete,
   readOnly = false,
   footerExtra,
+  onPartUpdated,
 }: WorkshopPartDetailViewProps) {
   const unit = part.unit_of_measure ?? 'UN';
   const stockStatus = getWorkshopPartStockStatus(part);
@@ -511,6 +514,7 @@ export function WorkshopPartDetailView({
         open={labelPrintOpen}
         part={part}
         onClose={() => setLabelPrintOpen(false)}
+        onPartUpdated={onPartUpdated}
       />
     </div>
   );

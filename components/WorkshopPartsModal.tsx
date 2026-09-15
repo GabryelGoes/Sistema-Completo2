@@ -1913,6 +1913,10 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
                 loading={loadingViewPart}
                 onEdit={handleEditFromView}
                 onDelete={() => void handleDelete(viewPart.id)}
+                onPartUpdated={(updated) => {
+                  setParts((prev) => prev.map((p) => (p.id === updated.id ? { ...p, ...updated } : p)));
+                  setViewPart((prev) => (prev && prev.id === updated.id ? { ...prev, ...updated } : prev));
+                }}
               />
             </div>
           </div>

@@ -1,4 +1,5 @@
 import { drawCode128B } from './niimbotCode128';
+import { generateInternalEan13 } from './workshopPartLabelCode';
 
 export const NIIMBOT_LABEL_W_PX = 384;
 export const NIIMBOT_LABEL_H_PX = 240;
@@ -15,14 +16,31 @@ export type NiimbotPartLabelInput = {
 
 /**
  * Prioridade do código na etiqueta: numeric_code → barcode → original_code.
+ * Se nenhum existir e houver `id`, gera EAN-13 interno (não persiste).
  */
 export function resolveWorkshopPartLabelCode(part: {
+  id?: string;
   numeric_code?: string | null;
   barcode?: string | null;
   original_code?: string | null;
 }): string {
   const pick = (v: string | null | undefined) => String(v ?? '').trim();
-  return pick(part.numeric_code) || pick(part.barcode) || pick(part.original_code) || '';
+  const existing =
+    pick(part.numeric_code) || pick(part.barcode) || pick(part.original_code);
+  if (existing) return existing;
+  const id = pick(part.id);
+  if (!id) return '';
+  return generateInternalEan13(id);
+}
+
+/** True se o código veio gerado (produto sem códigos cadastrados). */
+export function workshopPartNeedsGeneratedLabelCode(part: {
+  numeric_code?: string | null;
+  barcode?: string | null;
+  original_code?: string | null;
+}): boolean {
+  const pick = (v: string | null | undefined) => String(v ?? '').trim();
+  return !(pick(part.numeric_code) || pick(part.barcode) || pick(part.original_code));
 }
 
 function truncateToWidth(
