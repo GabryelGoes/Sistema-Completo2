@@ -123,7 +123,7 @@ export function PatioKeyLabelPrintModal({ open, label, onClose }: PatioKeyLabelP
                   />
                 </div>
                 <p className="text-center text-[11px] text-zinc-500 dark:text-zinc-400">
-                  Duas faces na mesma etiqueta (2ª cópia rotacionada 180°)
+                  Texto na vertical (eixo 50 mm) · 2ª cópia rotacionada 180°
                 </p>
               </div>
             ) : null}

@@ -7,8 +7,8 @@ export type PatioKeyLabelInput = {
   plate: string;
 };
 
-const MARGIN = 5;
-const HALF_GAP = 2; // folga mínima entre as duas cópias
+const MARGIN = 4;
+const HALF_GAP = 2;
 
 function fitLine(
   ctx: CanvasRenderingContext2D,
@@ -24,24 +24,27 @@ function fitLine(
   return `${s}…`;
 }
 
-/** Desenha o bloco único (Cliente / Carro / Cor / Placa) em um canvas halfH. */
+/**
+ * Bloco de texto na orientação de leitura da chave:
+ * largura = 30 mm (240 px), altura de meia etiqueta ao longo dos 50 mm.
+ */
 function renderKeyBlock(
-  w: number,
-  halfH: number,
+  blockW: number,
+  blockH: number,
   input: PatioKeyLabelInput
 ): HTMLCanvasElement {
   const canvas = document.createElement('canvas');
-  canvas.width = w;
-  canvas.height = halfH;
+  canvas.width = blockW;
+  canvas.height = blockH;
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('Canvas 2D indisponível');
 
   ctx.fillStyle = '#ffffff';
-  ctx.fillRect(0, 0, w, halfH);
+  ctx.fillRect(0, 0, blockW, blockH);
   ctx.fillStyle = '#000000';
   ctx.textBaseline = 'top';
 
-  const contentW = w - MARGIN * 2;
+  const contentW = blockW - MARGIN * 2;
   const lines: Array<{ label: string; value: string }> = [
     { label: 'Cliente:', value: input.customerName || '—' },
     { label: 'Carro:', value: input.vehicleModel || '—' },
@@ -49,27 +52,21 @@ function renderKeyBlock(
     { label: 'Placa:', value: (input.plate || '—').toUpperCase() },
   ];
 
-  // Fonte o maior possível que caiba 4 linhas com margem
-  const usableH = halfH - MARGIN * 2;
+  const usableH = blockH - MARGIN * 2;
   const lineSlot = usableH / 4;
-  let fontPx = Math.floor(lineSlot * 0.78);
-  fontPx = Math.max(11, Math.min(fontPx, 22));
+  let fontPx = Math.floor(lineSlot * 0.72);
+  fontPx = Math.max(10, Math.min(fontPx, 20));
 
-  const labelFont = `bold ${fontPx}px Arial, Helvetica, sans-serif`;
-  const valueFont = `bold ${fontPx}px Arial, Helvetica, sans-serif`;
-
-  // Centraliza o bloco verticalmente na meia etiqueta
-  const blockH = lineSlot * 4;
-  let y = MARGIN + Math.max(0, (usableH - blockH) / 2);
+  const font = `bold ${fontPx}px Arial, Helvetica, sans-serif`;
+  const blockTextH = lineSlot * 4;
+  let y = MARGIN + Math.max(0, (usableH - blockTextH) / 2);
 
   for (const row of lines) {
-    ctx.font = labelFont;
+    ctx.font = font;
     const labelText = `${row.label} `;
     const labelW = ctx.measureText(labelText).width;
     ctx.fillText(labelText, MARGIN, y);
-
-    ctx.font = valueFont;
-    const valueMax = Math.max(20, contentW - labelW);
+    const valueMax = Math.max(16, contentW - labelW);
     ctx.fillText(fitLine(ctx, row.value, valueMax), MARGIN + labelW, y);
     y += lineSlot;
   }
@@ -78,33 +75,59 @@ function renderKeyBlock(
 }
 
 /**
- * Etiqueta de chave do Pátio — exatamente 50×30 mm (384×240 @ 203 dpi).
- * Duas cópias do mesmo bloco: superior normal, inferior rotacionada 180°.
+ * Etiqueta de chave — impressão B1 exatamente 50×30 mm (384×240).
+ *
+ * Conteúdo em orientação VERTICAL (leitura com a etiqueta na chave):
+ * - eixo longo 50 mm = altura de leitura
+ * - eixo curto 30 mm = largura de leitura
+ * - duas cópias empilhadas; a de baixo é rotação visual 180°
+ *
+ * O bitmap final é rotacionado 90° para o buffer da impressora (50 mm × 30 mm).
  */
 export function renderPatioKeyLabelDataUrl(input: PatioKeyLabelInput): string {
-  const w = NIIMBOT_LABEL_W_PX;
-  const h = NIIMBOT_LABEL_H_PX;
-  const halfH = Math.floor((h - HALF_GAP) / 2);
+  // Retrato lógico: 30 mm × 50 mm
+  const portraitW = NIIMBOT_LABEL_H_PX; // 240
+  const portraitH = NIIMBOT_LABEL_W_PX; // 384
+  const halfH = Math.floor((portraitH - HALF_GAP) / 2);
 
+  const portrait = document.createElement('canvas');
+  portrait.width = portraitW;
+  portrait.height = portraitH;
+  const pctx = portrait.getContext('2d');
+  if (!pctx) throw new Error('Canvas 2D indisponível');
+
+  pctx.fillStyle = '#ffffff';
+  pctx.fillRect(0, 0, portraitW, portraitH);
+
+  const block = renderKeyBlock(portraitW, halfH, input);
+
+  // Cópia 1 — topo (orientação normal na vertical)
+  pctx.drawImage(block, 0, 0);
+
+  // Cópia 2 — base, rotação visual completa 180°
+  pctx.save();
+  pctx.translate(portraitW, portraitH);
+  pctx.rotate(Math.PI);
+  pctx.drawImage(block, 0, 0);
+  pctx.restore();
+
+  // Buffer da B1: 50 mm (largura) × 30 mm (altura)
+  const printW = NIIMBOT_LABEL_W_PX; // 384
+  const printH = NIIMBOT_LABEL_H_PX; // 240
   const canvas = document.createElement('canvas');
-  canvas.width = w;
-  canvas.height = h;
+  canvas.width = printW;
+  canvas.height = printH;
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('Canvas 2D indisponível');
 
   ctx.fillStyle = '#ffffff';
-  ctx.fillRect(0, 0, w, h);
+  ctx.fillRect(0, 0, printW, printH);
 
-  const block = renderKeyBlock(w, halfH, input);
-
-  // Cópia 1 — orientação normal (metade superior)
-  ctx.drawImage(block, 0, 0);
-
-  // Cópia 2 — rotação visual completa de 180° (metade inferior)
+  // 90° horário: texto vertical na etiqueta física 50×30
   ctx.save();
-  ctx.translate(w, h);
-  ctx.rotate(Math.PI);
-  ctx.drawImage(block, 0, 0);
+  ctx.translate(printW, 0);
+  ctx.rotate(Math.PI / 2);
+  ctx.drawImage(portrait, 0, 0);
   ctx.restore();
 
   return canvas.toDataURL('image/png');
