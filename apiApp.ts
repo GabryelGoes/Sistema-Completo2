@@ -7663,7 +7663,7 @@ export function createApiApp() {
     return { patch, errors };
   }
 
-  const WORKSHOP_PART_PHOTOS_MAX = 3;
+  const WORKSHOP_PART_PHOTOS_MAX = 8;
 
   async function loadWorkshopPartPhotosMap(partIds: string[]) {
     const map = new Map<
