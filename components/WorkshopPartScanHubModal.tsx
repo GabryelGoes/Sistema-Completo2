@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  ClipboardList,
   Loader2,
   PackageMinus,
   PackagePlus,
@@ -8,6 +9,7 @@ import {
   X,
 } from 'lucide-react';
 import {
+  getWorkshopPartPurchases,
   lookupWorkshopPartByCode,
   type WorkshopPart,
 } from '../services/apiService';
@@ -16,6 +18,7 @@ import {
   formatWorkshopPartQty,
   getWorkshopPartStockStatus,
 } from '../utils/workshopPartStock';
+import { purchasePipelineBannerText } from '../utils/workshopPartStockMovementNotes';
 import { BarcodeScanField } from './BarcodeScanField';
 import { PartPhotoImg } from './ui/PartPhotoImg';
 import { RegistrationPortal } from './ui/RegistrationPortal';
@@ -70,6 +73,7 @@ export function WorkshopPartScanHubModal({
   const [lookingUp, setLookingUp] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [resolved, setResolved] = useState<ResolvedState>({ kind: 'idle' });
+  const [purchaseBanner, setPurchaseBanner] = useState<string | null>(null);
   const lastExternalTokenRef = useRef<number | null>(null);
   const lookupSeqRef = useRef(0);
 
@@ -81,9 +85,29 @@ export function WorkshopPartScanHubModal({
     setError(null);
     setResolved({ kind: 'idle' });
     setLookingUp(false);
+    setPurchaseBanner(null);
     lastExternalTokenRef.current = null;
     lookupSeqRef.current = 0;
   }, [isOpen]);
+
+  useEffect(() => {
+    if (resolved.kind !== 'part') {
+      setPurchaseBanner(null);
+      return;
+    }
+    let cancelled = false;
+    void getWorkshopPartPurchases(resolved.part.id)
+      .then((rows) => {
+        if (cancelled) return;
+        setPurchaseBanner(purchasePipelineBannerText(rows.map((r) => r.status)));
+      })
+      .catch(() => {
+        if (!cancelled) setPurchaseBanner(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [resolved]);
 
   useEffect(() => {
     if (resolved.kind !== 'part' || catalogParts.length === 0) return;
@@ -220,6 +244,7 @@ export function WorkshopPartScanHubModal({
                 part={resolved.part}
                 scannedCode={resolved.code}
                 desktopLayout={isDesktopShell}
+                purchaseBanner={purchaseBanner}
                 onEdit={() => {
                   onEditProduct(resolved.part);
                   onClose();
@@ -279,6 +304,7 @@ function PartQuickCard({
   part,
   scannedCode,
   desktopLayout = false,
+  purchaseBanner = null,
   onEdit,
   onStockEntry,
   onSale,
@@ -287,6 +313,7 @@ function PartQuickCard({
   part: WorkshopPart;
   scannedCode: string;
   desktopLayout?: boolean;
+  purchaseBanner?: string | null;
   onEdit: () => void;
   onStockEntry: () => void;
   onSale: () => void;
@@ -378,6 +405,20 @@ function PartQuickCard({
     </div>
   );
 
+  const purchaseNotice = purchaseBanner ? (
+    <div className="flex items-start gap-2.5 rounded-2xl border-0 bg-amber-50 px-3.5 py-3 text-amber-950 shadow-none dark:bg-amber-950/40 dark:text-amber-100">
+      <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-amber-500/20 text-amber-800 dark:text-amber-200">
+        <ClipboardList className="h-4 w-4" />
+      </span>
+      <div className="min-w-0">
+        <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-amber-800/80 dark:text-amber-200/80">
+          Aquisição em andamento
+        </p>
+        <p className="mt-0.5 text-[13px] font-medium leading-snug">{purchaseBanner}</p>
+      </div>
+    </div>
+  ) : null;
+
   const details = (
     <div className={`grid grid-cols-2 gap-x-4 gap-y-2.5 ${desktopLayout ? 'gap-y-3' : ''}`}>
       <div>
@@ -448,6 +489,7 @@ function PartQuickCard({
             {meta}
           </div>
           {stockBanner}
+          {purchaseNotice}
           <div className="border-t border-zinc-100 pt-3 dark:border-white/[0.06]">{details}</div>
         </div>
         <div className="min-h-0 overflow-hidden rounded-2xl border-0 bg-white p-4 shadow-none dark:bg-white/5">
@@ -464,7 +506,10 @@ function PartQuickCard({
           {photo}
           {meta}
         </div>
-        <div className="mx-4 mb-4">{stockBanner}</div>
+        <div className="mx-4 mb-4 space-y-3">
+          {stockBanner}
+          {purchaseNotice}
+        </div>
         <div className="border-t border-zinc-100 px-4 py-3 dark:border-white/[0.06]">{details}</div>
       </div>
       {actions}

@@ -239,8 +239,8 @@ export function formValuesToApiPayload(values: WorkshopPartFormValues): Record<s
     notes: values.notes.trim() || null,
     ncm_code: values.ncm_code.trim() || null,
     unit_of_measure: values.unit_of_measure.trim() || 'UN',
-    min_stock_qty: parseDecimalInput(values.min_stock_qty, 0),
-    max_stock_qty: maxQtyRaw ? parseDecimalInput(maxQtyRaw, 0) : null,
+    min_stock_qty: Math.max(0, Math.round(parseDecimalInput(values.min_stock_qty, 0))),
+    max_stock_qty: maxQtyRaw ? Math.max(0, Math.round(parseDecimalInput(maxQtyRaw, 0))) : null,
     fiscal_origin: values.fiscal_origin || '0',
     unit_price: parseDecimalInput(values.unit_price, 0),
     premium_amount: parseDecimalInput(values.premium_amount, 0),
@@ -249,7 +249,7 @@ export function formValuesToApiPayload(values: WorkshopPartFormValues): Record<s
     km_limit: kmRaw ? parseDecimalInput(kmRaw, 0) : null,
     validity_months: monthsRaw ? Math.max(0, Math.round(parseDecimalInput(monthsRaw, 0))) : null,
     unit_cost: parseDecimalInput(values.unit_cost, 0),
-    stock_qty: parseDecimalInput(values.stock_qty, 0),
+    stock_qty: Math.max(0, Math.round(parseDecimalInput(values.stock_qty, 0))),
     fiscal_extra: values.fiscal_extra ?? {},
     primary_category_id: values.category_ids[0] ?? null,
   };
@@ -278,7 +278,7 @@ export function purchaseDraftToPayload(d: WorkshopPartPurchaseDraft): {
 } {
   return {
     supplier_name: d.supplier_name.trim() || null,
-    quantity: Math.max(0, parseDecimalInput(d.quantity, 1)),
+    quantity: Math.max(0, Math.round(parseDecimalInput(d.quantity, 1))),
     unit_cost: Math.max(0, parseDecimalInput(d.unit_cost, 0)),
     expected_date: d.expected_date.trim() || null,
     notes: d.notes.trim() || null,
