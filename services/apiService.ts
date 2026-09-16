@@ -3014,6 +3014,46 @@ export async function createWorkshopPartStockMovement(input: {
   };
 }
 
+/** Valida senha da Gerência ou senha dedicada de proteção do estoque. */
+export async function verifyStockGuardPassword(password: string): Promise<void> {
+  const response = await fetch(`${API_BASE}/workshop-parts/verify-stock-guard`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ password }),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || 'Senha incorreta.');
+  }
+}
+
+/** Cancela uma baixa e devolve a quantidade ao estoque (exige senha). */
+export async function cancelWorkshopPartStockMovement(
+  movementId: string,
+  password: string
+): Promise<WorkshopPartStockOutboundResult['part']> {
+  const qs = new URLSearchParams({ password });
+  const response = await fetch(
+    `${API_BASE}/workshop-parts/movements/${encodeURIComponent(movementId)}?${qs.toString()}`,
+    {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password }),
+    }
+  );
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao cancelar movimentação (${response.status})`);
+  }
+  const data = (await response.json()) as { part?: WorkshopPartStockOutboundResult['part'] };
+  if (!data.part) throw new Error('Resposta inválida ao cancelar movimentação.');
+  return {
+    ...data.part,
+    stock_qty: Number(data.part.stock_qty ?? 0),
+    unit_price: Number(data.part.unit_price ?? 0),
+  };
+}
+
 // ----------------- MÓDULOS ABS (inventário individual + QR) -----------------
 
 function normalizeAbsModuleRow(row: Record<string, unknown>): WorkshopAbsModule {
@@ -3919,6 +3959,8 @@ export interface WorkshopSettings {
   adminDisplayName?: string;
   adminPhotoUrl?: string | null;
   vehicleDeletePassword?: string;
+  /** True se existe senha dedicada de proteção do estoque (além da Gerência). */
+  stockGuardPasswordConfigured?: boolean;
   /** Configuração visual da oficina (cor de destaque, wallpapers); null se nunca salvo. */
   appAppearance?: WorkshopAppAppearance | null;
   /** Tipos de produto do laboratório configuráveis (id + rótulo). */
@@ -3949,6 +3991,7 @@ export async function updateWorkshopSettings(
     adminDisplayName?: string;
     adminPhotoUrl?: string | null;
     vehicleDeletePassword?: string;
+    stockGuardPassword?: string;
     appAppearance?: WorkshopAppAppearance | null;
     labProductKinds?: { id: string; label: string }[];
     labQuickServices?: {

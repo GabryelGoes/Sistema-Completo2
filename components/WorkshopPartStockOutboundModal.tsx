@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, Loader2, PackageMinus, Search, ShoppingBag, X } from 'lucide-react';
+import { ArrowLeft, Loader2, PackageMinus, Search, ShoppingBag, Trash2, X } from 'lucide-react';
 import {
+  cancelWorkshopPartStockMovement,
   createWorkshopPartStockMovement,
   getServiceOrders,
   getSystemUsersDirectory,
@@ -26,6 +27,7 @@ import { RegistrationPortal } from './ui/RegistrationPortal';
 import { resolveIosModalOverlayClass, NESTED_STOCK_OVERLAY_Z } from './ui/iosModalStyles';
 import { useDesktopShellLayout } from './ui/DesktopShellContext';
 import { useBrowserBackLayer } from './ui/BackNavigationContext';
+import { StockGuardPasswordModal } from './StockGuardPasswordModal';
 
 export type WorkshopPartStockOutboundModalProps = {
   isOpen: boolean;
@@ -101,6 +103,9 @@ export function WorkshopPartStockOutboundModal({
   const [saving, setSaving] = useState(false);
   const [history, setHistory] = useState<WorkshopPartStockMovement[]>([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
+  const [cancelTarget, setCancelTarget] = useState<WorkshopPartStockMovement | null>(null);
+  const [cancelBusy, setCancelBusy] = useState(false);
+  const [cancelError, setCancelError] = useState<string | null>(null);
 
   useBrowserBackLayer(isOpen, onClose);
 
@@ -368,10 +373,46 @@ export function WorkshopPartStockOutboundModal({
   const overlayClass = resolveIosModalOverlayClass(isDesktopShell, NESTED_STOCK_OVERLAY_Z);
   const showNameList = nameQuery.trim().length > 0 && (!part || nameQuery.trim() !== part.name);
 
+  const handleCancelMovement = async (password: string) => {
+    if (!cancelTarget) return;
+    setCancelBusy(true);
+    setCancelError(null);
+    try {
+      const updatedPart = await cancelWorkshopPartStockMovement(cancelTarget.id, password);
+      if (part && part.id === updatedPart.id) {
+        const next = { ...part, stock_qty: Number(updatedPart.stock_qty) };
+        setPart(next);
+        onStockChanged(next);
+      } else {
+        onStockChanged({
+          id: updatedPart.id,
+          name: updatedPart.name,
+          stock_qty: Number(updatedPart.stock_qty),
+          unit_price: Number(updatedPart.unit_price ?? 0),
+        });
+      }
+      setCancelTarget(null);
+      setSuccessMsg(
+        isSale
+          ? `Venda cancelada · estoque restaurado`
+          : `Consumo cancelado · estoque restaurado`
+      );
+      await loadHistory();
+    } catch (e) {
+      setCancelError(e instanceof Error ? e.message : 'Não foi possível cancelar.');
+    } finally {
+      setCancelBusy(false);
+    }
+  };
+
   return (
     <RegistrationPortal>
       <div className={overlayClass} role="dialog" aria-modal="true" aria-label={title}>
-        <div className="flex max-h-[min(940px,96vh)] w-full max-w-2xl flex-col overflow-hidden rounded-[1.75rem] border-0 bg-zinc-50 shadow-none dark:bg-zinc-950">
+        <div
+          className={`flex max-h-[min(940px,96vh)] w-full flex-col overflow-hidden rounded-[1.75rem] border-0 bg-zinc-50 shadow-none dark:bg-zinc-950 ${
+            isDesktopShell ? 'max-w-4xl' : 'max-w-lg'
+          }`}
+        >
           <div className="flex items-start justify-between gap-3 border-b border-zinc-200/80 px-5 py-4 dark:border-white/10">
             <div className="flex min-w-0 items-start gap-3">
               <button
@@ -396,7 +437,7 @@ export function WorkshopPartStockOutboundModal({
                 <p className="mt-1 text-[13px] text-zinc-500 dark:text-zinc-400">
                   {isSale
                     ? 'Baixa por venda · todos os dados ficam no histórico'
-                    : 'Baixa por consumo · vincule OS e quem retirou'}
+                    : 'Baixa por consumo interno · vincule OS e quem retirou'}
                 </p>
               </div>
             </div>
@@ -777,17 +818,19 @@ export function WorkshopPartStockOutboundModal({
                   </p>
                 ) : null}
 
-                <button
-                  type="button"
-                  disabled={saving}
-                  onClick={() => void handleConfirm()}
-                  className={`mt-4 inline-flex w-full items-center justify-center gap-2 rounded-2xl px-4 py-3.5 text-[15px] font-semibold text-white shadow-none disabled:opacity-60 ${
-                    isSale ? 'bg-violet-600 hover:bg-violet-500' : 'bg-sky-600 hover:bg-sky-500'
-                  }`}
-                >
-                  {saving ? <Loader2 className="h-5 w-5 animate-spin" /> : null}
-                  {isSale ? 'Confirmar venda e baixar estoque' : 'Confirmar consumo e baixar estoque'}
-                </button>
+                <div className="mt-4 flex justify-end">
+                  <button
+                    type="button"
+                    disabled={saving}
+                    onClick={() => void handleConfirm()}
+                    className={`inline-flex w-auto items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-[13px] font-semibold text-white shadow-none disabled:opacity-60 ${
+                      isSale ? 'bg-violet-600 hover:bg-violet-500' : 'bg-sky-600 hover:bg-sky-500'
+                    }`}
+                  >
+                    {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+                    {isSale ? 'Confirmar venda' : 'Confirmar consumo'}
+                  </button>
+                </div>
               </section>
             ) : (
               <p className="rounded-2xl border-0 bg-zinc-100 px-4 py-8 text-center text-[14px] text-zinc-500 shadow-none dark:bg-white/5 dark:text-zinc-400">
@@ -809,7 +852,7 @@ export function WorkshopPartStockOutboundModal({
                   {history.map((row) => (
                     <li
                       key={row.id}
-                      className="rounded-xl border-0 bg-white/80 px-3 py-2.5 text-[13px] dark:bg-white/5"
+                      className="rounded-xl border-0 bg-white px-3 py-3 text-[13px] shadow-none ring-1 ring-zinc-100 dark:bg-white/5 dark:ring-white/[0.06]"
                     >
                       <div className="flex flex-wrap items-start justify-between gap-2">
                         <span className="min-w-0">
@@ -821,14 +864,31 @@ export function WorkshopPartStockOutboundModal({
                             {row.recorded_by_name ? ` · ${row.recorded_by_name}` : ''}
                           </span>
                         </span>
-                        <span className="shrink-0 text-right font-semibold tabular-nums text-zinc-800 dark:text-zinc-100">
-                          −{formatWorkshopPartQty(row.quantity)}
-                          {isSale && row.total_amount != null ? (
-                            <span className="block text-[12px] font-medium text-violet-700 dark:text-violet-300">
-                              {moneyBRL(Number(row.total_amount))}
-                            </span>
+                        <div className="flex shrink-0 items-start gap-2">
+                          <span className="text-right font-semibold tabular-nums text-zinc-800 dark:text-zinc-100">
+                            −{formatWorkshopPartQty(row.quantity)}
+                            {isSale && row.total_amount != null ? (
+                              <span className="block text-[12px] font-medium text-violet-700 dark:text-violet-300">
+                                {moneyBRL(Number(row.total_amount))}
+                              </span>
+                            ) : null}
+                          </span>
+                          {!isSale ? (
+                            <button
+                              type="button"
+                              title="Cancelar consumo"
+                              onClick={() => {
+                                setCancelError(null);
+                                setCancelTarget(row);
+                              }}
+                              className="inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-[12px] font-semibold text-red-600 hover:bg-red-500/10"
+                              aria-label="Cancelar consumo"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                              Cancelar
+                            </button>
                           ) : null}
-                        </span>
+                        </div>
                       </div>
                       {row.notes?.trim() ? (
                         <p className="mt-1.5 whitespace-pre-line rounded-lg bg-zinc-50 px-2.5 py-1.5 text-[12px] leading-snug text-zinc-600 dark:bg-white/[0.04] dark:text-zinc-300">
@@ -843,6 +903,21 @@ export function WorkshopPartStockOutboundModal({
           </div>
         </div>
       </div>
+
+      <StockGuardPasswordModal
+        open={Boolean(cancelTarget)}
+        title="Cancelar consumo"
+        subtitle="A quantidade voltará ao estoque. Informe a senha da Gerência ou a senha de proteção do estoque."
+        confirmLabel="Cancelar consumo"
+        busy={cancelBusy}
+        error={cancelError}
+        onClose={() => {
+          if (cancelBusy) return;
+          setCancelTarget(null);
+          setCancelError(null);
+        }}
+        onConfirm={handleCancelMovement}
+      />
     </RegistrationPortal>
   );
 }

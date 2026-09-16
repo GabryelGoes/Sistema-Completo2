@@ -6,7 +6,6 @@ import {
   Minus,
   PackagePlus,
   Plus,
-  Save,
   Trash2,
   X,
 } from 'lucide-react';
@@ -119,7 +118,6 @@ export function WorkshopPartStockInboundModal({
   const isDesktopShell = useDesktopShellLayout();
   const [part, setPart] = useState<WorkshopPart>(initialPart);
   const [receiveQty, setReceiveQty] = useState(1);
-  const [manualStock, setManualStock] = useState(() => parseWorkshopPartQtyInt(initialPart.stock_qty));
   const [purchases, setPurchases] = useState<WorkshopPartPurchase[]>([]);
   const [loadingPurchases, setLoadingPurchases] = useState(false);
   const [savingStock, setSavingStock] = useState(false);
@@ -155,7 +153,6 @@ export function WorkshopPartStockInboundModal({
     if (!isOpen) return;
     setPart(initialPart);
     setReceiveQty(1);
-    setManualStock(parseWorkshopPartQtyInt(initialPart.stock_qty));
     setError(null);
     setSuccess(null);
     setNewSupplier('');
@@ -168,7 +165,6 @@ export function WorkshopPartStockInboundModal({
   const applyPartUpdate = useCallback(
     (updated: WorkshopPart) => {
       setPart(updated);
-      setManualStock(parseWorkshopPartQtyInt(updated.stock_qty));
       onStockChanged(updated);
     },
     [onStockChanged]
@@ -195,22 +191,6 @@ export function WorkshopPartStockInboundModal({
       setSavingStock(false);
     }
   }, [applyPartUpdate, part.id, part.stock_qty, receiveQty, unit]);
-
-  const handleSetStock = useCallback(async () => {
-    setSavingStock(true);
-    setError(null);
-    setSuccess(null);
-    try {
-      const nextQty = Math.max(0, Math.round(manualStock));
-      const updated = await updateWorkshopPart(part.id, { stock_qty: nextQty });
-      applyPartUpdate(updated);
-      setSuccess(`Estoque ajustado para ${formatWorkshopPartQty(updated.stock_qty)} ${unit}`);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Falha ao ajustar estoque.');
-    } finally {
-      setSavingStock(false);
-    }
-  }, [applyPartUpdate, manualStock, part.id, unit]);
 
   const refreshPartFromServer = useCallback(async () => {
     const all = await getWorkshopParts();
@@ -297,7 +277,11 @@ export function WorkshopPartStockInboundModal({
   return (
     <RegistrationPortal>
       <div className={overlayClass} role="dialog" aria-modal="true" aria-label="Registrar recebimento">
-        <div className="flex max-h-[min(940px,96vh)] w-full max-w-3xl flex-col overflow-hidden rounded-[1.75rem] border-0 bg-zinc-50 shadow-none dark:bg-zinc-950">
+        <div
+          className={`flex max-h-[min(940px,96vh)] w-full flex-col overflow-hidden rounded-[1.75rem] border-0 bg-zinc-50 shadow-none dark:bg-zinc-950 ${
+            isDesktopShell ? 'max-w-4xl' : 'max-w-lg'
+          }`}
+        >
           <div className="flex shrink-0 items-start justify-between gap-3 border-b border-zinc-200/80 px-5 py-4 dark:border-white/10">
             <div className="flex min-w-0 items-start gap-3">
               <button
@@ -332,7 +316,12 @@ export function WorkshopPartStockInboundModal({
             </button>
           </div>
 
-          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-4 custom-scrollbar">
+          <div
+            className={`min-h-0 flex-1 overflow-y-auto px-5 py-4 custom-scrollbar ${
+              isDesktopShell ? 'grid grid-cols-2 gap-4' : 'space-y-4'
+            }`}
+          >
+            <div className="space-y-4">
             <section className="rounded-2xl border-0 bg-white p-4 dark:bg-white/5">
               <div className="flex gap-3">
                 <div className="h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-zinc-100 dark:bg-zinc-800">
@@ -362,7 +351,7 @@ export function WorkshopPartStockInboundModal({
                     onClick={() => onOpenFullEdit(part)}
                     className="shrink-0 self-start rounded-lg px-2 py-1 text-[12px] font-semibold text-zinc-500 hover:bg-zinc-100 hover:text-zinc-800 dark:hover:bg-white/10"
                   >
-                    Ficha completa
+                    Ficha
                   </button>
                 ) : null}
               </div>
@@ -400,35 +389,19 @@ export function WorkshopPartStockInboundModal({
                   {formatWorkshopPartQty(projectedAfterReceive)} {unit}
                 </span>
               </p>
-              <button
-                type="button"
-                disabled={busy || receiveQty <= 0}
-                onClick={() => void handleReceive()}
-                className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 py-3.5 text-[15px] font-semibold text-white hover:bg-emerald-500 disabled:opacity-50"
-              >
-                {savingStock ? <Loader2 className="h-5 w-5 animate-spin" /> : <PackagePlus className="h-5 w-5" />}
-                Confirmar recebimento
-              </button>
-
-              <div className="border-t border-zinc-100 pt-3 dark:border-white/[0.06]">
-                <IntStepper
-                  label="Ajuste manual do estoque"
-                  value={manualStock}
-                  onChange={setManualStock}
-                  min={0}
-                  disabled={busy}
-                />
+              <div className="flex justify-end">
                 <button
                   type="button"
-                  disabled={busy}
-                  onClick={() => void handleSetStock()}
-                  className="mt-3 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-zinc-900 px-4 py-3 text-[14px] font-semibold text-white hover:bg-zinc-800 disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900"
+                  disabled={busy || receiveQty <= 0}
+                  onClick={() => void handleReceive()}
+                  className="inline-flex w-auto items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-[13px] font-semibold text-white hover:bg-emerald-500 disabled:opacity-50"
                 >
-                  {savingStock ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-                  Salvar quantidade em estoque
+                  {savingStock ? <Loader2 className="h-4 w-4 animate-spin" /> : <PackagePlus className="h-4 w-4" />}
+                  Confirmar entrada
                 </button>
               </div>
             </section>
+            </div>
 
             <section className="space-y-3 rounded-2xl border-0 bg-white p-4 dark:bg-white/5">
               <div className="flex items-center justify-between gap-2">
@@ -497,15 +470,17 @@ export function WorkshopPartStockInboundModal({
                   </select>
                 </label>
               </div>
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() => void handleAddPurchase()}
-                className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-amber-600 px-4 py-3 text-[14px] font-semibold text-white hover:bg-amber-500 disabled:opacity-50"
-              >
-                {savingPurchase ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-                Adicionar à lista de compras
-              </button>
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  disabled={busy}
+                  onClick={() => void handleAddPurchase()}
+                  className="inline-flex w-auto items-center justify-center gap-2 rounded-xl bg-amber-600 px-4 py-2.5 text-[13px] font-semibold text-white hover:bg-amber-500 disabled:opacity-50"
+                >
+                  {savingPurchase ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                  Adicionar à lista
+                </button>
+              </div>
 
               {purchases.length === 0 ? (
                 <p className="py-2 text-center text-[13px] text-zinc-500">Nenhuma compra na lista.</p>
@@ -561,16 +536,20 @@ export function WorkshopPartStockInboundModal({
               )}
             </section>
 
-            {error ? (
-              <p className="rounded-xl bg-red-50 px-3 py-2 text-[13px] text-red-800 dark:bg-red-950/40 dark:text-red-200">
-                {error}
-              </p>
-            ) : null}
-            {success ? (
-              <p className="rounded-xl bg-emerald-50 px-3 py-2 text-[13px] text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200">
-                {success}
-              </p>
-            ) : null}
+            {(error || success) && (
+              <div className={isDesktopShell ? 'col-span-2' : undefined}>
+                {error ? (
+                  <p className="rounded-xl bg-red-50 px-3 py-2 text-[13px] text-red-800 dark:bg-red-950/40 dark:text-red-200">
+                    {error}
+                  </p>
+                ) : null}
+                {success ? (
+                  <p className="rounded-xl bg-emerald-50 px-3 py-2 text-[13px] text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200">
+                    {success}
+                  </p>
+                ) : null}
+              </div>
+            )}
           </div>
         </div>
       </div>

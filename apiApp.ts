@@ -1229,6 +1229,26 @@ export function createApiApp() {
     return safeStringEqual(provided, stored); // env/legado em texto puro
   }
 
+  /**
+   * Senha de proteção do estoque: senha dedicada (se configurada) ou senha da Gerência.
+   * Usada para editar produto já cadastrado e cancelar baixas de consumo.
+   */
+  async function verifyStockGuardPassword(password: string): Promise<boolean> {
+    const provided = String(password ?? "").trim();
+    if (!provided) return false;
+    if (await verifyAdminPasswordOnly(provided)) return true;
+    if (!supabaseAdmin || !WORKSHOP_ID) return false;
+    const { data } = await supabaseAdmin
+      .from("workshop_settings")
+      .select("value")
+      .eq("workshop_id", WORKSHOP_ID)
+      .eq("key", "stock_guard_password")
+      .maybeSingle();
+    const expected = String(data?.value ?? "").trim();
+    if (!expected) return false;
+    return safeStringEqual(provided, expected);
+  }
+
   const DEFAULT_SYSTEM_NOTIFICATION_TYPES: string[] = [...SYSTEM_NOTIFICATION_IDS];
 
   type SystemNotificationSubscriberRow = {
@@ -1911,6 +1931,7 @@ export function createApiApp() {
         adminDisplayName: map.admin_display_name || "Rei do ABS",
         adminPhotoUrl: map.admin_photo_url || null,
         vehicleDeletePassword: map.vehicle_delete_password || "",
+        stockGuardPasswordConfigured: Boolean(String(map.stock_guard_password || "").trim()),
         appAppearance,
         labProductKinds: parseLabProductKindsValue(map.lab_product_kinds),
         labQuickServices: parseLabQuickServicesValue(map.lab_quick_services),
@@ -2026,6 +2047,7 @@ export function createApiApp() {
         technicianAccessAgenda,
         technicianAccessPatio,
         vehicleDeletePassword,
+        stockGuardPassword,
         appAppearance,
         labProductKinds,
         labQuickServices,
@@ -2038,6 +2060,7 @@ export function createApiApp() {
         (typeof adminPassword === "string" && adminPassword.trim()) ||
         typeof patioPin === "string" ||
         typeof vehicleDeletePassword === "string" ||
+        typeof stockGuardPassword === "string" ||
         typeof adminDisplayName === "string" ||
         typeof adminPhotoUrl === "string" ||
         typeof patioLoginEnabled === "boolean" ||
@@ -2076,6 +2099,13 @@ export function createApiApp() {
       }
       if (typeof vehicleDeletePassword === "string") {
         updates.push({ key: "vehicle_delete_password", value: vehicleDeletePassword.trim(), updated_at: new Date().toISOString() });
+      }
+      if (typeof stockGuardPassword === "string") {
+        updates.push({
+          key: "stock_guard_password",
+          value: stockGuardPassword.trim(),
+          updated_at: new Date().toISOString(),
+        });
       }
       if (appAppearance !== undefined && appAppearance !== null && typeof appAppearance === "object") {
         updates.push({
@@ -2124,6 +2154,7 @@ export function createApiApp() {
           "admin_display_name",
           "admin_photo_url",
           "vehicle_delete_password",
+          "stock_guard_password",
           "app_appearance",
           "lab_product_kinds",
           "lab_quick_services",
@@ -2150,6 +2181,7 @@ export function createApiApp() {
         adminDisplayName: map.admin_display_name || "Rei do ABS",
         adminPhotoUrl: map.admin_photo_url || null,
         vehicleDeletePassword: map.vehicle_delete_password || "",
+        stockGuardPasswordConfigured: Boolean(String(map.stock_guard_password || "").trim()),
         appAppearance: appAppearanceOut,
         labProductKinds: parseLabProductKindsValue(map.lab_product_kinds),
         labQuickServices: parseLabQuickServicesValue(map.lab_quick_services),
@@ -8450,6 +8482,109 @@ export function createApiApp() {
       }
     } catch (err: any) {
       console.error("[API] Erro em POST /api/workshop-parts/movements:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+    }
+  });
+
+  /** Confere senha de proteção do estoque (Gerência ou senha dedicada). */
+  app.post("/api/workshop-parts/verify-stock-guard", async (req, res) => {
+    try {
+      const pwd = String((req.body || {}).password ?? "").trim();
+      if (!pwd) return res.status(400).json({ error: "Informe a senha." });
+      const ok = await verifyStockGuardPassword(pwd);
+      if (!ok) {
+        return res.status(401).json({
+          error:
+            "Senha incorreta. Use a senha da Gerência ou a senha de proteção do estoque em Alterar senhas.",
+        });
+      }
+      return res.json({ ok: true });
+    } catch (err: any) {
+      console.error("[API] Erro em POST /api/workshop-parts/verify-stock-guard:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+    }
+  });
+
+  /** Cancela uma baixa (consumo/venda): devolve a quantidade ao estoque. Exige senha. */
+  app.delete("/api/workshop-parts/movements/:movementId", async (req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({ error: "Supabase não configurado." });
+      }
+      const movementId = String(req.params.movementId || "").trim();
+      const pwd = String((req.body || {}).password ?? req.query.password ?? "").trim();
+      if (!movementId) return res.status(400).json({ error: "ID da movimentação ausente." });
+      if (!pwd) return res.status(400).json({ error: "Informe a senha." });
+      if (!(await verifyStockGuardPassword(pwd))) {
+        return res.status(401).json({
+          error:
+            "Senha incorreta. Use a senha da Gerência ou a senha de proteção do estoque em Alterar senhas.",
+        });
+      }
+
+      const { data: movement, error: fetchErr } = await supabaseAdmin
+        .from("workshop_part_stock_movements")
+        .select(MOVEMENT_SELECT)
+        .eq("id", movementId)
+        .eq("workshop_id", WORKSHOP_ID)
+        .maybeSingle();
+      if (fetchErr) return res.status(500).json({ error: fetchErr.message });
+      if (!movement) return res.status(404).json({ error: "Movimentação não encontrada." });
+
+      const partId = String((movement as { part_id?: string }).part_id || "");
+      const qty = Math.round(Number((movement as { quantity?: number }).quantity ?? 0) * 1000) / 1000;
+      if (!partId || !(qty > 0)) {
+        return res.status(400).json({ error: "Movimentação inválida." });
+      }
+
+      const { data: partRow, error: partErr } = await supabaseAdmin
+        .from("workshop_parts")
+        .select(workshopPartSelect())
+        .eq("id", partId)
+        .eq("workshop_id", WORKSHOP_ID)
+        .maybeSingle();
+      if (partErr) return res.status(500).json({ error: partErr.message });
+      if (!partRow) return res.status(404).json({ error: "Produto não encontrado." });
+
+      const before = Math.round(Number((partRow as { stock_qty?: number }).stock_qty ?? 0) * 1000) / 1000;
+      const after = Math.round((before + qty) * 1000) / 1000;
+
+      const { error: updErr } = await supabaseAdmin
+        .from("workshop_parts")
+        .update({ stock_qty: after })
+        .eq("id", partId)
+        .eq("workshop_id", WORKSHOP_ID);
+      if (updErr) return res.status(500).json({ error: updErr.message });
+
+      const { error: delErr } = await supabaseAdmin
+        .from("workshop_part_stock_movements")
+        .delete()
+        .eq("id", movementId)
+        .eq("workshop_id", WORKSHOP_ID);
+      if (delErr) {
+        await supabaseAdmin
+          .from("workshop_parts")
+          .update({ stock_qty: before })
+          .eq("id", partId)
+          .eq("workshop_id", WORKSHOP_ID);
+        return res.status(500).json({ error: delErr.message });
+      }
+
+      const part = partRow as Record<string, unknown>;
+      return res.json({
+        ok: true,
+        part: {
+          id: part.id,
+          name: part.name,
+          stock_qty: after,
+          unit_price: part.unit_price,
+          unit_of_measure: part.unit_of_measure ?? "UN",
+          photo_url: part.photo_url ?? null,
+          barcode: part.barcode ?? null,
+        },
+      });
+    } catch (err: any) {
+      console.error("[API] Erro em DELETE /api/workshop-parts/movements/:movementId:", err);
       return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
     }
   });

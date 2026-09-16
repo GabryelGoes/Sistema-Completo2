@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, KeyRound, Loader2, Check, Trash2, Eye, EyeOff } from 'lucide-react';
+import { KeyRound, Loader2, Check, Trash2, Eye, EyeOff, Package, X } from 'lucide-react';
 import { iosModalShell, iosModalClose, iosModalInsetCard, iosInput, resolveIosModalOverlayClass } from './ui/iosModalStyles';
 import { ModalPortal } from './ui/ModalPortal';
 import { useDesktopShellLayout } from './ui/DesktopShellContext';
@@ -21,6 +21,10 @@ export const ChangePasswordsModal: React.FC<ChangePasswordsModalProps> = ({ isOp
   const [vehicleDeletePassword, setVehicleDeletePassword] = useState('');
   const [vehicleDeleteConfirm, setVehicleDeleteConfirm] = useState('');
   const [savingVehicleDelete, setSavingVehicleDelete] = useState(false);
+  const [stockGuardPassword, setStockGuardPassword] = useState('');
+  const [stockGuardConfirm, setStockGuardConfirm] = useState('');
+  const [savingStockGuard, setSavingStockGuard] = useState(false);
+  const [stockGuardConfigured, setStockGuardConfigured] = useState(false);
   const [message, setMessage] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
   const [showPatioPin, setShowPatioPin] = useState(false);
 
@@ -28,9 +32,14 @@ export const ChangePasswordsModal: React.FC<ChangePasswordsModalProps> = ({ isOp
     if (isOpen) {
       setMessage(null);
       setShowPatioPin(false);
+      setStockGuardPassword('');
+      setStockGuardConfirm('');
       setLoadingSettings(true);
       getWorkshopSettings()
-        .then((s) => setPatioPin(s.patioPin || '4366'))
+        .then((s) => {
+          setPatioPin(s.patioPin || '4366');
+          setStockGuardConfigured(Boolean(s.stockGuardPasswordConfigured));
+        })
         .catch(() => setPatioPin('4366'))
         .finally(() => setLoadingSettings(false));
     }
@@ -80,6 +89,31 @@ export const ChangePasswordsModal: React.FC<ChangePasswordsModalProps> = ({ isOp
     }
   };
 
+  const handleSaveStockGuard = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setMessage(null);
+    if (stockGuardPassword.trim().length < 4) {
+      setMessage({ type: 'err', text: 'A senha deve ter pelo menos 4 caracteres.' });
+      return;
+    }
+    if (stockGuardPassword !== stockGuardConfirm) {
+      setMessage({ type: 'err', text: 'As senhas não coincidem.' });
+      return;
+    }
+    setSavingStockGuard(true);
+    try {
+      await updateWorkshopSettings({ stockGuardPassword: stockGuardPassword.trim() });
+      setStockGuardConfigured(true);
+      setMessage({ type: 'ok', text: 'Senha de proteção do estoque salva!' });
+      setStockGuardPassword('');
+      setStockGuardConfirm('');
+    } catch (e) {
+      setMessage({ type: 'err', text: e instanceof Error ? e.message : 'Erro ao salvar.' });
+    } finally {
+      setSavingStockGuard(false);
+    }
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -95,7 +129,7 @@ export const ChangePasswordsModal: React.FC<ChangePasswordsModalProps> = ({ isOp
             <IosModalHeader
               icon={<img src="/icons/senhas-ios.png" alt="" className="h-full w-full min-h-0 object-cover" />}
               title="Alterar senhas"
-              subtitle="PIN do pátio e exclusão de veículos"
+              subtitle="PIN do pátio, exclusão de veículos e proteção do estoque"
               gradientClass="from-slate-600 to-zinc-800"
             />
           </div>
@@ -195,6 +229,51 @@ export const ChangePasswordsModal: React.FC<ChangePasswordsModalProps> = ({ isOp
               >
                 {savingVehicleDelete ? <Loader2 className="w-5 h-5 animate-spin" /> : <Check className="w-5 h-5" />}
                 Salvar senha para excluir veículos
+              </button>
+            </form>
+          </section>
+
+          {/* Senha de proteção do estoque */}
+          <section className={`${iosModalInsetCard} p-4 sm:p-5`}>
+            <div className="flex items-center gap-2 mb-3">
+              <Package className="w-5 h-5 text-amber-500" />
+              <h3 className="text-[13px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+                Senha de proteção do estoque
+              </h3>
+            </div>
+            <p className="text-[13px] text-zinc-600 dark:text-zinc-400 mb-4">
+              Exigida ao editar um produto já cadastrado e ao cancelar baixas de consumo. Por padrão vale a
+              senha da Gerência
+              {stockGuardConfigured
+                ? '; já existe uma senha dedicada configurada.'
+                : ' — você pode definir uma senha dedicada aqui.'}
+            </p>
+            <form onSubmit={handleSaveStockGuard} className="space-y-3">
+              <input
+                type="password"
+                value={stockGuardPassword}
+                onChange={(e) => setStockGuardPassword(e.target.value)}
+                placeholder="Nova senha do estoque"
+                className={iosInput}
+              />
+              <input
+                type="password"
+                value={stockGuardConfirm}
+                onChange={(e) => setStockGuardConfirm(e.target.value)}
+                placeholder="Confirmar senha"
+                className={iosInput}
+              />
+              <button
+                type="submit"
+                disabled={
+                  savingStockGuard ||
+                  !stockGuardPassword.trim() ||
+                  stockGuardPassword !== stockGuardConfirm
+                }
+                className="w-full py-3 rounded-xl bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white font-semibold text-[15px] flex items-center justify-center gap-2"
+              >
+                {savingStockGuard ? <Loader2 className="w-5 h-5 animate-spin" /> : <Check className="w-5 h-5" />}
+                Salvar senha de proteção do estoque
               </button>
             </form>
           </section>

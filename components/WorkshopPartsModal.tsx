@@ -56,12 +56,14 @@ import {
   updateWorkshopPartPurchase,
   deleteWorkshopPartPurchase,
   getWorkshopPartPendingReservations,
+  verifyStockGuardPassword,
   type WorkshopPart,
   type WorkshopPartCategory,
   type WorkshopPartPurchase,
   type WorkshopPartLabContext,
   type WorkshopPartPendingReservation,
   type WorkshopPartStockMovementType,
+  type WorkshopPartWriteInput,
 } from '../services/apiService';
 import { printWorkshopPartSheet } from '../utils/workshopPartPrintSheet';
 import { TechnicianPhotoEditorModal } from './TechnicianPhotoEditorModal';
@@ -74,6 +76,7 @@ import { WorkshopPartsAnalyticsView } from './WorkshopPartsAnalyticsView';
 import { WorkshopPartStockOutboundModal } from './WorkshopPartStockOutboundModal';
 import { WorkshopPartStockInboundModal } from './WorkshopPartStockInboundModal';
 import { WorkshopPartScanHubModal } from './WorkshopPartScanHubModal';
+import { StockGuardPasswordModal } from './StockGuardPasswordModal';
 import {
   formValuesToApiPayload,
   purchaseDraftShouldSync,
@@ -240,6 +243,9 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
   const [categoryEditingName, setCategoryEditingName] = useState('');
   const [photoEditorContext, setPhotoEditorContext] = useState<PhotoEditorContext | null>(null);
   const [photoEditorFile, setPhotoEditorFile] = useState<File | null>(null);
+  const [stockGuardOpen, setStockGuardOpen] = useState(false);
+  const [stockGuardError, setStockGuardError] = useState<string | null>(null);
+  const [stockGuardBusy, setStockGuardBusy] = useState(false);
   const createPhotoInputRef = useRef<HTMLInputElement>(null);
   const createCameraInputRef = useRef<HTMLInputElement>(null);
   const categoryFilterDropdownRef = useRef<HTMLDivElement>(null);
@@ -247,6 +253,8 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
   const suspendRegistrationBackRef = useRef(false);
   /** Evita clique fantasma no overlay ao voltar do seletor de arquivo. */
   const blockRegistrationBackdropUntilRef = useRef(0);
+  /** Ação protegida a executar após validar a senha do estoque. */
+  const pendingStockGuardActionRef = useRef<null | (() => Promise<void>)>(null);
 
   const [categoryFilterMenuOpen, setCategoryFilterMenuOpen] = useState(false);
 
@@ -254,6 +262,35 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
     const n = Number(String(value).replace(',', '.'));
     return Number.isFinite(n) ? n : 0;
   };
+
+  const requestStockGuard = useCallback((action: () => Promise<void>) => {
+    pendingStockGuardActionRef.current = action;
+    setStockGuardError(null);
+    setStockGuardOpen(true);
+  }, []);
+
+  const closeStockGuard = useCallback(() => {
+    if (stockGuardBusy) return;
+    pendingStockGuardActionRef.current = null;
+    setStockGuardOpen(false);
+    setStockGuardError(null);
+  }, [stockGuardBusy]);
+
+  const handleStockGuardConfirm = useCallback(async (_password: string) => {
+    setStockGuardBusy(true);
+    setStockGuardError(null);
+    try {
+      await verifyStockGuardPassword(_password);
+      const action = pendingStockGuardActionRef.current;
+      pendingStockGuardActionRef.current = null;
+      setStockGuardOpen(false);
+      if (action) await action();
+    } catch (e) {
+      setStockGuardError(e instanceof Error ? e.message : 'Senha incorreta.');
+    } finally {
+      setStockGuardBusy(false);
+    }
+  }, []);
 
   const registrationPhotoCount =
     registrationMode === 'create' ? pendingPhotos.length : registrationPhotos.length;
@@ -528,39 +565,53 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
     purchases: WorkshopPartPurchaseDraft[];
   }) => {
     if (!values.name.trim() || adding) return;
-    setAdding(true);
-    setError(null);
-    try {
-      const payload = formValuesToApiPayload(values);
-      const categoryIds = values.category_ids ?? [];
 
-      if (registrationMode === 'create') {
-        let created = await createWorkshopPart(payload);
-        created = await setWorkshopPartCategories(created.id, categoryIds);
-        for (const photo of pendingPhotos) {
-          created = await uploadWorkshopPartPhoto(created.id, photo.file, photo.file.name);
-        }
-        for (const draft of purchaseDrafts) {
-          if (purchaseDraftShouldSync(draft)) {
-            await createWorkshopPartPurchase(created.id, purchaseDraftToPayload(draft));
+    const mode = registrationMode;
+    const editPartId = registrationPart?.id ?? null;
+    const photosSnapshot = [...pendingPhotos];
+
+    const runSave = async () => {
+      setAdding(true);
+      setError(null);
+      try {
+        const payload = formValuesToApiPayload(values) as WorkshopPartWriteInput;
+        const categoryIds = values.category_ids ?? [];
+
+        if (mode === 'create') {
+          let created = await createWorkshopPart(payload);
+          created = await setWorkshopPartCategories(created.id, categoryIds);
+          for (const photo of photosSnapshot) {
+            created = await uploadWorkshopPartPhoto(created.id, photo.file, photo.file.name);
           }
+          for (const draft of purchaseDrafts) {
+            if (purchaseDraftShouldSync(draft)) {
+              await createWorkshopPartPurchase(created.id, purchaseDraftToPayload(draft));
+            }
+          }
+          setParts((prev) =>
+            [...prev, created].sort((a, b) => a.sort_order - b.sort_order || a.name.localeCompare(b.name))
+          );
+        } else if (mode === 'edit' && editPartId) {
+          await updateWorkshopPart(editPartId, payload);
+          await setWorkshopPartCategories(editPartId, categoryIds);
+          await syncPurchasesForPart(editPartId, purchaseDrafts);
         }
-        setParts((prev) =>
-          [...prev, created].sort((a, b) => a.sort_order - b.sort_order || a.name.localeCompare(b.name))
-        );
-      } else if (registrationMode === 'edit' && registrationPart) {
-        await updateWorkshopPart(registrationPart.id, payload);
-        await setWorkshopPartCategories(registrationPart.id, categoryIds);
-        await syncPurchasesForPart(registrationPart.id, purchaseDrafts);
-      }
 
-      closeRegistration();
-      await fetchParts();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Erro ao salvar peça.');
-    } finally {
-      setAdding(false);
+        closeRegistration();
+        await fetchParts();
+      } catch (e) {
+        setError(e instanceof Error ? e.message : 'Erro ao salvar peça.');
+      } finally {
+        setAdding(false);
+      }
+    };
+
+    if (mode === 'edit' && editPartId) {
+      requestStockGuard(runSave);
+      return;
     }
+
+    await runSave();
   };
 
   const startEdit = (p: WorkshopPart) => {
@@ -588,18 +639,24 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
       setError('Preço e estoque devem ser valores positivos.');
       return;
     }
-    setError(null);
-    try {
-      const updated = await updateWorkshopPart(editingId, {
-        name: editingName.trim(),
-        unit_price,
-        stock_qty,
-      });
-      setParts((prev) => prev.map((p) => (p.id === editingId ? updated : p)));
-      cancelEdit();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Erro ao salvar peça.');
-    }
+
+    const partId = editingId;
+    const name = editingName.trim();
+
+    requestStockGuard(async () => {
+      setError(null);
+      try {
+        const updated = await updateWorkshopPart(partId, {
+          name,
+          unit_price,
+          stock_qty,
+        });
+        setParts((prev) => prev.map((p) => (p.id === partId ? updated : p)));
+        cancelEdit();
+      } catch (e) {
+        setError(e instanceof Error ? e.message : 'Erro ao salvar peça.');
+      }
+    });
   };
 
   const handleDelete = async (id: string) => {
@@ -656,25 +713,33 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
     }
 
     if (ctx.kind === 'remote-add' || ctx.kind === 'remote-replace') {
-      setUploadingPhotoId(ctx.partId);
-      setError(null);
-      try {
-        const replaceId =
-          ctx.kind === 'remote-replace' && ctx.photoId !== WORKSHOP_PART_LEGACY_COVER_ID
-            ? ctx.photoId
-            : undefined;
-        const updated = await uploadWorkshopPartPhoto(ctx.partId, file, file.name, {
-          replacePhotoId: replaceId,
-        });
-        setParts((prev) => prev.map((p) => (p.id === ctx.partId ? updated : p)));
-        if (registrationPart?.id === ctx.partId) {
-          refreshRegistrationPhotosFromPart(updated);
+      const applyRemotePhoto = async () => {
+        setUploadingPhotoId(ctx.partId);
+        setError(null);
+        try {
+          const replaceId =
+            ctx.kind === 'remote-replace' && ctx.photoId !== WORKSHOP_PART_LEGACY_COVER_ID
+              ? ctx.photoId
+              : undefined;
+          const updated = await uploadWorkshopPartPhoto(ctx.partId, file, file.name, {
+            replacePhotoId: replaceId,
+          });
+          setParts((prev) => prev.map((p) => (p.id === ctx.partId ? updated : p)));
+          if (registrationPart?.id === ctx.partId) {
+            refreshRegistrationPhotosFromPart(updated);
+          }
+        } catch (e) {
+          setError(e instanceof Error ? e.message : 'Erro ao enviar foto da peça.');
+        } finally {
+          setUploadingPhotoId(null);
         }
-      } catch (e) {
-        setError(e instanceof Error ? e.message : 'Erro ao enviar foto da peça.');
-      } finally {
-        setUploadingPhotoId(null);
+      };
+
+      if (registrationMode === 'edit') {
+        requestStockGuard(applyRemotePhoto);
+        return;
       }
+      await applyRemotePhoto();
     }
   };
 
@@ -693,24 +758,34 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
       return;
     }
     if (!registrationPart) return;
-    setUploadingPhotoId(registrationPart.id);
-    setError(null);
-    try {
-      if (photoId === WORKSHOP_PART_LEGACY_COVER_ID) {
-        const updated = await updateWorkshopPart(registrationPart.id, { photo_url: null });
+
+    const applyRemove = async () => {
+      if (!registrationPart) return;
+      setUploadingPhotoId(registrationPart.id);
+      setError(null);
+      try {
+        if (photoId === WORKSHOP_PART_LEGACY_COVER_ID) {
+          const updated = await updateWorkshopPart(registrationPart.id, { photo_url: null });
+          setParts((prev) => prev.map((p) => (p.id === registrationPart.id ? updated : p)));
+          setRegistrationPhotos([]);
+          setRegistrationPart(updated);
+          return;
+        }
+        const updated = await deleteWorkshopPartPhoto(registrationPart.id, photoId);
         setParts((prev) => prev.map((p) => (p.id === registrationPart.id ? updated : p)));
-        setRegistrationPhotos([]);
-        setRegistrationPart(updated);
-        return;
+        refreshRegistrationPhotosFromPart(updated);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : 'Erro ao remover foto.');
+      } finally {
+        setUploadingPhotoId(null);
       }
-      const updated = await deleteWorkshopPartPhoto(registrationPart.id, photoId);
-      setParts((prev) => prev.map((p) => (p.id === registrationPart.id ? updated : p)));
-      refreshRegistrationPhotosFromPart(updated);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Erro ao remover foto.');
-    } finally {
-      setUploadingPhotoId(null);
+    };
+
+    if (registrationMode === 'edit') {
+      requestStockGuard(applyRemove);
+      return;
     }
+    await applyRemove();
   };
 
   const handleEditRegistrationPhoto = (photoId: string) => {
@@ -2117,6 +2192,17 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
         onRegisterMissingProduct={openRegisterFromMissingBarcode}
       />
     ) : null}
+
+    <StockGuardPasswordModal
+      open={stockGuardOpen}
+      title="Confirmar alteração do produto"
+      subtitle="Use a senha da Gerência ou a senha de proteção do estoque (Alterar senhas)."
+      confirmLabel="Autorizar alteração"
+      error={stockGuardError}
+      busy={stockGuardBusy}
+      onClose={closeStockGuard}
+      onConfirm={handleStockGuardConfirm}
+    />
     </ModalPortal>
     </>
   );

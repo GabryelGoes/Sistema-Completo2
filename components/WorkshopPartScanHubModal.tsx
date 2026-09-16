@@ -454,6 +454,14 @@ function PartQuickCard({
         Movimentações
       </p>
       <ActionButton
+        tone="sky"
+        compact={desktopLayout}
+        icon={<PackageMinus className="h-5 w-5" />}
+        title="Registrar consumo"
+        subtitle="Saída operacional / uso interno na oficina"
+        onClick={onConsumable}
+      />
+      <ActionButton
         tone="emerald"
         compact={desktopLayout}
         icon={<PackagePlus className="h-5 w-5" />}
@@ -468,14 +476,6 @@ function PartQuickCard({
         title="Registrar venda"
         subtitle="Saída comercial avulsa ao cliente"
         onClick={onSale}
-      />
-      <ActionButton
-        tone="sky"
-        compact={desktopLayout}
-        icon={<PackageMinus className="h-5 w-5" />}
-        title="Registrar consumo"
-        subtitle="Saída operacional / uso interno na oficina"
-        onClick={onConsumable}
       />
     </div>
   );
