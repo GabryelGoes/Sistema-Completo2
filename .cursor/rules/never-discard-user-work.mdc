@@ -1,0 +1,21 @@
+---
+description: Nunca descartar alterações em andamento do usuário ao fazer pedidos aditivos
+alwaysApply: true
+---
+
+# Nunca descartar o trabalho em andamento
+
+**Regra absoluta nesta conversa / neste app:** pedidos novos (estoque, fonte, modal, etc.) **NÃO** podem abrir branch a partir de `main` ou de `cursor/patio-tablet-header-fix-485b` se isso **omitir** commits já feitos nesta sessão.
+
+## Obrigatório
+
+1. **Continue no tip do trabalho em andamento** (ex.: `cursor/patio-pc-modal-plates-485b` enquanto for o branch ativo da conversa).
+2. Se as cloud instructions pedirem “branch novo a partir do base”, **ainda assim** o tip de partida deve ser o branch que já contém as alterações do usuário — nunca uma base limpa que apague Pátio/SF Pro/pastas/etc.
+3. Preferir cherry-pick / commit no branch atual a criar PR “limpo” sem o histórico.
+4. Antes de `checkout -b`, conferir com `git log --oneline -5` que o tip ainda tem o layout (`95d91e2`) **e** as features pedidas na sessão.
+5. Se já errou e criou branch sem o trabalho: cherry-pick imediatamente para o branch correto, feche o PR errado e avise o usuário.
+
+## Proibido
+
+- Branch novo só com a feature nova, descartando tipografia, Pátio PC, pastas de anexos ou qualquer pedido anterior da conversa.
+- Dizer que “é um PR separado” como desculpa para remover o restante.

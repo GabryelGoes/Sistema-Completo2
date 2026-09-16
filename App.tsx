@@ -30,6 +30,7 @@ import {
   effectiveAccessOrcamentos,
   getWorkshopSettings,
   deleteAppointment,
+  getServiceOrderById,
 } from './services/apiService';
 import type { ServiceOrderStatus } from './constants/serviceOrderStages';
 import { KeepAliveTabPanel } from './components/KeepAliveTabPanel';
@@ -53,6 +54,11 @@ import {
   resolveActiveDesktopSidebarAction,
   resolveDesktopShellOverlayTopbar,
 } from './utils/desktopShellOverlayModules';
+import { useBarcodeWedgeListener } from './hooks/useBarcodeWedgeListener';
+import { parseLabOsQrPayload } from './utils/labOsQrCode';
+import { WorkshopPartScanHubModal } from './components/WorkshopPartScanHubModal';
+import type { WorkshopPartsBootIntent } from './components/WorkshopPartsModal';
+import type { WorkshopPart } from './services/apiService';
 
 type ShellProfileModal = 'user' | 'admin' | null;
 
@@ -87,10 +93,13 @@ export default function App() {
   /** Visualizar orçamento a partir do hub (permanece na aba Orçamentos). */
   const [hubBudgetViewer, setHubBudgetViewer] = useState<{ serviceOrderId: string; budgetId: string } | null>(null);
   const [laboratorioPendingOrderId, setLaboratorioPendingOrderId] = useState<string | null>(null);
+  const [patioPendingOrderId, setPatioPendingOrderId] = useState<string | null>(null);
   const [vehicleAccompanimentOpen, setVehicleAccompanimentOpen] = useState(false);
   const [vehicleAccompanimentPresetId, setVehicleAccompanimentPresetId] = useState<string | null>(null);
   const [shellProfileModal, setShellProfileModal] = useState<ShellProfileModal>(null);
   const [isPartsModalOpen, setIsPartsModalOpen] = useState(false);
+  const [partsBootIntent, setPartsBootIntent] = useState<WorkshopPartsBootIntent | null>(null);
+  const [globalPartScan, setGlobalPartScan] = useState<{ code: string; token: number } | null>(null);
   const [isTvPatioModalOpen, setIsTvPatioModalOpen] = useState(false);
   const [settingsHubOpen, setSettingsHubOpen] = useState(false);
   const homeSettingsHubOpenerRef = useRef<(() => void) | null>(null);
@@ -168,6 +177,7 @@ export default function App() {
   // Theme State
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
   const [patioActiveCount, setPatioActiveCount] = useState(0);
+  const [vehicleModalOsLabel, setVehicleModalOsLabel] = useState<string | null>(null);
   const [laboratorioActiveCount, setLaboratorioActiveCount] = useState(0);
 
   const notificationCenterProps = useMemo((): Omit<NotificationCenterProps, 'placement'> | undefined => {
@@ -304,6 +314,7 @@ export default function App() {
 
   const desktopTopbarCountLabel = useMemo(() => {
     if (!isDesktopShell || shellOverlayTopbar) return undefined;
+    if (vehicleModalOsLabel) return vehicleModalOsLabel;
     if (activeAppTab === 'patio') {
       return patioActiveCount === 1 ? '1 veículo' : `${patioActiveCount} veículos`;
     }
@@ -311,7 +322,7 @@ export default function App() {
       return laboratorioActiveCount === 1 ? '1 módulo' : `${laboratorioActiveCount} módulos`;
     }
     return undefined;
-  }, [isDesktopShell, shellOverlayTopbar, activeAppTab, patioActiveCount, laboratorioActiveCount]);
+  }, [isDesktopShell, shellOverlayTopbar, activeAppTab, patioActiveCount, laboratorioActiveCount, vehicleModalOsLabel]);
 
   const patioBudgetsHub = usePatioBudgetsHubNotifier({
     enabled: Boolean(authSession),
@@ -337,9 +348,78 @@ export default function App() {
     [isLimitedSystemUser, userAllowedTabs]
   );
 
+  const handleOpenPatioOrderFromScan = useCallback(
+    (serviceOrderId: string) => {
+      setPatioPendingOrderId(serviceOrderId);
+      if (isLimitedSystemUser) {
+        if (userAllowedTabs.includes('patio')) setUserTab('patio');
+        else setUserTab('home');
+      } else {
+        setCurrentTab('patio');
+      }
+    },
+    [isLimitedSystemUser, userAllowedTabs]
+  );
+
   const handleLaboratoryOrderHandled = useCallback(() => {
     setLaboratorioPendingOrderId(null);
   }, []);
+
+  const handlePatioOrderHandled = useCallback(() => {
+    setPatioPendingOrderId(null);
+  }, []);
+
+  /** Pistola USB em qualquer página: QR da OS abre a OS; demais códigos abrem peça. */
+  useBarcodeWedgeListener({
+    enabled: Boolean(authSession),
+    onScan: (code) => {
+      const osId = parseLabOsQrPayload(code);
+      if (osId) {
+        setGlobalPartScan(null);
+        void (async () => {
+          try {
+            const detail = await getServiceOrderById(osId);
+            if (detail.order_type === 'module') {
+              handleOpenLaboratoryOrderFromPatio(osId);
+            } else {
+              handleOpenPatioOrderFromScan(osId);
+            }
+          } catch {
+            handleOpenLaboratoryOrderFromPatio(osId);
+          }
+        })();
+        return;
+      }
+      setGlobalPartScan({ code, token: Date.now() });
+    },
+  });
+
+  const openPartsWithIntent = useCallback((intent: WorkshopPartsBootIntent) => {
+    setGlobalPartScan(null);
+    setPartsBootIntent(intent);
+    setIsPartsModalOpen(true);
+  }, []);
+
+  const handleGlobalPartEdit = useCallback(
+    (part: WorkshopPart) => openPartsWithIntent({ type: 'edit', part }),
+    [openPartsWithIntent]
+  );
+  const handleGlobalPartStockEntry = useCallback(
+    (part: WorkshopPart) => openPartsWithIntent({ type: 'edit', part }),
+    [openPartsWithIntent]
+  );
+  const handleGlobalPartRegister = useCallback(
+    (barcode: string) => openPartsWithIntent({ type: 'create', barcode }),
+    [openPartsWithIntent]
+  );
+  const handleGlobalPartSale = useCallback(
+    (part: WorkshopPart) => openPartsWithIntent({ type: 'outbound', mode: 'sale', part }),
+    [openPartsWithIntent]
+  );
+  const handleGlobalPartConsumable = useCallback(
+    (part: WorkshopPart) => openPartsWithIntent({ type: 'outbound', mode: 'consumable', part }),
+    [openPartsWithIntent]
+  );
 
   const navigateToHomeApp = useCallback(() => {
     if (isLimitedSystemUser) {
@@ -907,8 +987,11 @@ export default function App() {
               blurPlates={cinematographicMode}
               isAppTabActive={userTab === 'patio'}
               suppressVehiclePortals={isDesktopShell && shellOverlayTopbar !== null}
+              openServiceOrderId={patioPendingOrderId}
+              onOpenServiceOrderHandled={handlePatioOrderHandled}
               onOpenLaboratoryOrder={handleOpenLaboratoryOrderFromPatio}
               onActiveCardsCountChange={setPatioActiveCount}
+              onVehicleModalOsLabelChange={setVehicleModalOsLabel}
               onClosePage={isDesktopShell ? undefined : navigateToHomeApp}
               actorOptions={{ actor: 'technician', actorTechnicianSlug: authSession.userId, actorTechnicianName: authSession.displayName ?? authSession.username }}
               patioPermissions={patioPerms}
@@ -935,6 +1018,7 @@ export default function App() {
               openServiceOrderSection={null}
               onOpenServiceOrderHandled={handleLaboratoryOrderHandled}
               onActiveCardsCountChange={setLaboratorioActiveCount}
+              onVehicleModalOsLabelChange={setVehicleModalOsLabel}
               onClosePage={isDesktopShell ? undefined : navigateToHomeApp}
               actorOptions={{ actor: 'technician', actorTechnicianSlug: authSession.userId, actorTechnicianName: authSession.displayName ?? authSession.username }}
               patioPermissions={patioPerms}
@@ -989,8 +1073,31 @@ export default function App() {
         />
         {isPartsModalOpen ? (
           <Suspense fallback={null}>
-            <LazyWorkshopPartsModal isOpen={isPartsModalOpen} onClose={() => setIsPartsModalOpen(false)} />
+            <LazyWorkshopPartsModal
+              isOpen={isPartsModalOpen}
+              onClose={() => {
+                setIsPartsModalOpen(false);
+                setPartsBootIntent(null);
+              }}
+              bootIntent={partsBootIntent}
+              onBootIntentConsumed={() => setPartsBootIntent(null)}
+            />
           </Suspense>
+        ) : null}
+        {globalPartScan ? (
+          <WorkshopPartScanHubModal
+            isOpen
+            overlayZClass="z-[230]"
+            externalScanCode={globalPartScan.code}
+            externalScanToken={globalPartScan.token}
+            onExternalScanConsumed={() => {}}
+            onClose={() => setGlobalPartScan(null)}
+            onEditProduct={handleGlobalPartEdit}
+            onStockEntry={handleGlobalPartStockEntry}
+            onRegisterProduct={handleGlobalPartRegister}
+            onSaleOutbound={handleGlobalPartSale}
+            onConsumableOutbound={handleGlobalPartConsumable}
+          />
         ) : null}
         {isTvPatioModalOpen ? (
           <Suspense fallback={null}>
@@ -1230,8 +1337,11 @@ export default function App() {
             blurPlates={cinematographicMode}
             isAppTabActive={currentTab === 'patio'}
             suppressVehiclePortals={isDesktopShell && shellOverlayTopbar !== null}
+            openServiceOrderId={patioPendingOrderId}
+            onOpenServiceOrderHandled={handlePatioOrderHandled}
             onOpenLaboratoryOrder={handleOpenLaboratoryOrderFromPatio}
             onActiveCardsCountChange={setPatioActiveCount}
+              onVehicleModalOsLabelChange={setVehicleModalOsLabel}
             onClosePage={isDesktopShell ? undefined : navigateToHomeApp}
             canVerifyBudgets={canVerifyBudgetsApp}
             canApproveBudgetItems={canApproveBudgetItemsApp}
@@ -1256,6 +1366,7 @@ export default function App() {
             isAppTabActive={currentTab === 'laboratorio'}
             suppressVehiclePortals={isDesktopShell && shellOverlayTopbar !== null}
             onActiveCardsCountChange={setLaboratorioActiveCount}
+              onVehicleModalOsLabelChange={setVehicleModalOsLabel}
             onClosePage={isDesktopShell ? undefined : navigateToHomeApp}
             openServiceOrderId={laboratorioPendingOrderId}
             openServiceOrderSection={null}
@@ -1293,8 +1404,31 @@ export default function App() {
       />
       {isPartsModalOpen ? (
         <Suspense fallback={null}>
-          <LazyWorkshopPartsModal isOpen={isPartsModalOpen} onClose={() => setIsPartsModalOpen(false)} />
+          <LazyWorkshopPartsModal
+            isOpen={isPartsModalOpen}
+            onClose={() => {
+              setIsPartsModalOpen(false);
+              setPartsBootIntent(null);
+            }}
+            bootIntent={partsBootIntent}
+            onBootIntentConsumed={() => setPartsBootIntent(null)}
+          />
         </Suspense>
+      ) : null}
+      {globalPartScan ? (
+        <WorkshopPartScanHubModal
+          isOpen
+          overlayZClass="z-[230]"
+          externalScanCode={globalPartScan.code}
+          externalScanToken={globalPartScan.token}
+          onExternalScanConsumed={() => {}}
+          onClose={() => setGlobalPartScan(null)}
+          onEditProduct={handleGlobalPartEdit}
+          onStockEntry={handleGlobalPartStockEntry}
+          onRegisterProduct={handleGlobalPartRegister}
+          onSaleOutbound={handleGlobalPartSale}
+          onConsumableOutbound={handleGlobalPartConsumable}
+        />
       ) : null}
       {isTvPatioModalOpen ? (
         <Suspense fallback={null}>

@@ -874,7 +874,8 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
           await uploadServiceOrderPhoto(
             serviceOrder.id,
             shot.file,
-            `entrada_${serviceOrder.id}_${i + 1}_${Date.now()}.jpg`
+            `entrada_${serviceOrder.id}_${i + 1}_${Date.now()}.jpg`,
+            { folderSlug: 'entrada' }
           );
         }
       }

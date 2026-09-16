@@ -11,7 +11,7 @@ export function ViewLoadingFallback({ label }: { label?: string }) {
       aria-busy="true"
     >
       <Loader2 className="h-7 w-7 animate-spin text-[#007AFF]" aria-hidden />
-      <p className="text-[14px] font-medium">{label ? `Abrindo ${label}…` : 'Carregando…'}</p>
+      <p className="text-[14px] font-medium">{label ? `Carregando ${label}…` : 'Carregando…'}</p>
     </div>
   );
 }

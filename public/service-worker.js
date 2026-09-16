@@ -4,7 +4,7 @@
  * - HTML: rede primeiro; cache só como fallback offline.
  * - Nome do cache versionado para limpar caches antigos após deploy.
  */
-const CACHE_VERSION = 'rei-do-abs-v9';
+const CACHE_VERSION = 'rei-do-abs-v10';
 const CACHE_NAME = `static-${CACHE_VERSION}`;
 
 /** Só pré-cache de assets que não mudam o shell do app; evita travar index.html antigo. */
@@ -83,19 +83,20 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // JS/CSS: rede primeiro (iPhone PWA costuma ficar com bundle antigo em cache-first)
-  let isScriptOrStyle = false;
+  // JS/CSS/fontes: rede primeiro (evita bundle/fonte antiga no PWA / Chrome Windows)
+  let isScriptStyleOrFont = false;
   try {
     const dest = event.request.destination;
-    isScriptOrStyle =
+    isScriptStyleOrFont =
       dest === 'script' ||
       dest === 'style' ||
-      /\.(js|mjs|css)(\?|$)/i.test(new URL(url).pathname);
+      dest === 'font' ||
+      /\.(js|mjs|css|woff2?|ttf|otf)(\?|$)/i.test(new URL(url).pathname);
   } catch {
-    isScriptOrStyle = /\.(js|mjs|css)(\?|$)/i.test(url);
+    isScriptStyleOrFont = /\.(js|mjs|css|woff2?|ttf|otf)(\?|$)/i.test(url);
   }
 
-  if (isScriptOrStyle) {
+  if (isScriptStyleOrFont) {
     event.respondWith(
       fetch(event.request)
         .then((response) => {
@@ -110,7 +111,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Demais recursos estáticos (imagens, fontes): cache primeiro, depois rede
+  // Demais recursos estáticos (imagens): cache primeiro, depois rede
   event.respondWith(
     caches.match(event.request).then((response) => {
       return (
