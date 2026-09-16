@@ -438,15 +438,24 @@ export function WorkshopPartRegistrationForm({
 
       <div className="space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <FieldLabel hint="A primeira foto é a capa na lista do estoque. Até 3 imagens.">
+          <FieldLabel
+            hint={`A primeira foto é a capa na lista do estoque. Até ${maxPhotos} imagens.`}
+          >
             Fotos do produto
           </FieldLabel>
           <span className="text-[12px] font-semibold tabular-nums text-zinc-500 dark:text-zinc-400">
             {photos.length}/{maxPhotos}
           </span>
         </div>
-        <div className="grid grid-cols-3 gap-3 max-w-[min(100%,420px)]">
-          {Array.from({ length: maxPhotos }, (_, index) => {
+        <div className="grid max-w-[min(100%,520px)] grid-cols-3 gap-3 sm:grid-cols-4">
+          {Array.from(
+            {
+              length:
+                photos.length >= maxPhotos
+                  ? maxPhotos
+                  : Math.max(photos.length + 1, 1),
+            },
+            (_, index) => {
             const slot = photos[index] ?? null;
             const isAddSlot = !slot && photos.length === index && photos.length < maxPhotos;
             return (
