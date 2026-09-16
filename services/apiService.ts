@@ -2768,7 +2768,8 @@ export interface WorkshopPartPhoto {
   sort_order: number;
 }
 
-export const WORKSHOP_PART_PHOTOS_MAX = 3;
+/** Máximo de fotos por produto do estoque (capa + galeria). */
+export const WORKSHOP_PART_PHOTOS_MAX = 8;
 
 export interface WorkshopPart {
   id: string;
