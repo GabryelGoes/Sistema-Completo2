@@ -10,6 +10,26 @@ export type PatioKeyLabelInput = {
 const MARGIN = 4;
 const HALF_GAP = 2;
 
+function toUpperClean(raw: string): string {
+  return String(raw ?? '')
+    .trim()
+    .replace(/\s+/g, ' ')
+    .toLocaleUpperCase('pt-BR');
+}
+
+/** Apenas o primeiro nome, em maiúsculas. */
+export function formatKeyLabelCustomerName(fullName: string): string {
+  const parts = toUpperClean(fullName).split(' ').filter(Boolean);
+  return parts[0] || '—';
+}
+
+/** No máximo 2 palavras/nomes do modelo, em maiúsculas. */
+export function formatKeyLabelVehicleModel(model: string): string {
+  const parts = toUpperClean(model).split(' ').filter(Boolean);
+  if (parts.length === 0) return '—';
+  return parts.slice(0, 2).join(' ');
+}
+
 function fitLine(
   ctx: CanvasRenderingContext2D,
   text: string,
@@ -46,16 +66,17 @@ function renderKeyBlock(
 
   const contentW = blockW - MARGIN * 2;
   const lines: Array<{ label: string; value: string }> = [
-    { label: 'Cliente:', value: input.customerName || '—' },
-    { label: 'Carro:', value: input.vehicleModel || '—' },
-    { label: 'Cor:', value: input.vehicleColor || '—' },
-    { label: 'Placa:', value: (input.plate || '—').toUpperCase() },
+    { label: 'Cliente:', value: formatKeyLabelCustomerName(input.customerName) },
+    { label: 'Carro:', value: formatKeyLabelVehicleModel(input.vehicleModel) },
+    { label: 'Cor:', value: toUpperClean(input.vehicleColor) || '—' },
+    { label: 'Placa:', value: toUpperClean(input.plate) || '—' },
   ];
 
   const usableH = blockH - MARGIN * 2;
   const lineSlot = usableH / 4;
-  let fontPx = Math.floor(lineSlot * 0.72);
-  fontPx = Math.max(10, Math.min(fontPx, 20));
+  // Fonte +30% em relação ao tamanho anterior (0.72 → 0.936 do slot)
+  let fontPx = Math.floor(lineSlot * 0.72 * 1.3);
+  fontPx = Math.max(12, Math.min(fontPx, 26));
 
   const font = `bold ${fontPx}px Arial, Helvetica, sans-serif`;
   const blockTextH = lineSlot * 4;
