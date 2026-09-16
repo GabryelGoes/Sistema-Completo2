@@ -2,14 +2,22 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, Loader2, PackageMinus, Search, ShoppingBag, X } from 'lucide-react';
 import {
   createWorkshopPartStockMovement,
+  getServiceOrders,
+  getSystemUsersDirectory,
   getWorkshopPartStockMovements,
   lookupWorkshopPartByCode,
+  type ServiceOrderListItem,
+  type SystemUserDirectoryEntry,
   type WorkshopPart,
   type WorkshopPartStockMovement,
   type WorkshopPartStockMovementType,
 } from '../services/apiService';
-import { formatWorkshopPartQty } from '../utils/workshopPartStock';
+import { formatWorkshopPartQty, parseWorkshopPartQtyInt } from '../utils/workshopPartStock';
 import { stockMovementTypeLabel } from '../utils/workshopPartStockOutbound';
+import {
+  formatConsumableMovementNotes,
+  formatSaleMovementNotes,
+} from '../utils/workshopPartStockMovementNotes';
 import { searchWorkshopPartsByText } from '../utils/workshopPartBarcode';
 import { getStoredAuth } from './views/LoginView';
 import { BarcodeScanField } from './BarcodeScanField';
@@ -31,6 +39,8 @@ export type WorkshopPartStockOutboundModalProps = {
   onRegisterMissingProduct?: (barcode: string) => void;
 };
 
+const PAYMENT_OPTIONS = ['PIX', 'Dinheiro', 'Cartão de crédito', 'Cartão de débito', 'Transferência', 'Outro'];
+
 function moneyBRL(n: number): string {
   return n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
 }
@@ -46,6 +56,13 @@ function formatWhen(iso: string): string {
   } catch {
     return iso;
   }
+}
+
+function osDisplayLabel(os: ServiceOrderListItem): string {
+  const num = os.os_number != null ? `OS #${os.os_number}` : 'OS';
+  const plate = os.plate?.trim();
+  const model = os.vehicle_model?.trim() || os.module_identification?.trim();
+  return [num, plate, model].filter(Boolean).join(' · ');
 }
 
 export function WorkshopPartStockOutboundModal({
@@ -67,6 +84,15 @@ export function WorkshopPartStockOutboundModal({
   const [qty, setQty] = useState('1');
   const [unitPrice, setUnitPrice] = useState('');
   const [notes, setNotes] = useState('');
+  const [customerName, setCustomerName] = useState('');
+  const [invoiceRef, setInvoiceRef] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState('');
+  const [osScope, setOsScope] = useState<'patio' | 'lab' | ''>('');
+  const [osQuery, setOsQuery] = useState('');
+  const [selectedOs, setSelectedOs] = useState<ServiceOrderListItem | null>(null);
+  const [serviceOrders, setServiceOrders] = useState<ServiceOrderListItem[]>([]);
+  const [employees, setEmployees] = useState<SystemUserDirectoryEntry[]>([]);
+  const [withdrawnBy, setWithdrawnBy] = useState('');
   const [lookupError, setLookupError] = useState<string | null>(null);
   const [missingBarcode, setMissingBarcode] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -99,6 +125,13 @@ export function WorkshopPartStockOutboundModal({
     setSubmitError(null);
     setSuccessMsg(null);
     setNotes('');
+    setCustomerName('');
+    setInvoiceRef('');
+    setPaymentMethod('');
+    setOsScope('');
+    setOsQuery('');
+    setSelectedOs(null);
+    setWithdrawnBy('');
     setQty('1');
     if (initialPart) {
       setPart(initialPart);
@@ -109,6 +142,23 @@ export function WorkshopPartStockOutboundModal({
     }
     void loadHistory();
   }, [isOpen, mode, initialPart, loadHistory]);
+
+  useEffect(() => {
+    if (!isOpen || isSale) return;
+    let cancelled = false;
+    void Promise.all([
+      getServiceOrders(undefined, 'vehicle').catch(() => [] as ServiceOrderListItem[]),
+      getServiceOrders(undefined, 'module').catch(() => [] as ServiceOrderListItem[]),
+      getSystemUsersDirectory().catch(() => [] as SystemUserDirectoryEntry[]),
+    ]).then(([patio, lab, users]) => {
+      if (cancelled) return;
+      setServiceOrders([...patio, ...lab]);
+      setEmployees(users);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, isSale]);
 
   /** Mantém o produto selecionado sincronizado com o catálogo (estoque atualizado). */
   useEffect(() => {
@@ -125,10 +175,7 @@ export function WorkshopPartStockOutboundModal({
     }
   }, [catalogParts, part]);
 
-  const qtyNumber = useMemo(() => {
-    const n = Number(String(qty).replace(',', '.'));
-    return Number.isFinite(n) ? n : 0;
-  }, [qty]);
+  const qtyNumber = useMemo(() => parseWorkshopPartQtyInt(qty), [qty]);
 
   const priceNumber = useMemo(() => {
     const n = Number(String(unitPrice).replace(',', '.'));
@@ -141,6 +188,29 @@ export function WorkshopPartStockOutboundModal({
     () => searchWorkshopPartsByText(catalogParts, nameQuery, 15),
     [catalogParts, nameQuery]
   );
+
+  const osMatches = useMemo(() => {
+    if (!osScope) return [];
+    const wantType = osScope === 'lab' ? 'module' : 'vehicle';
+    const q = osQuery.trim().toLowerCase();
+    return serviceOrders
+      .filter((o) => (o.order_type || 'vehicle') === wantType)
+      .filter((o) => {
+        if (!q) return true;
+        const hay = [
+          o.os_number != null ? String(o.os_number) : '',
+          o.plate,
+          o.vehicle_model,
+          o.module_identification,
+          o.issue_description,
+        ]
+          .filter(Boolean)
+          .join(' ')
+          .toLowerCase();
+        return hay.includes(q);
+      })
+      .slice(0, 12);
+  }, [osQuery, osScope, serviceOrders]);
 
   const selectPart = useCallback((p: WorkshopPart) => {
     setPart(p);
@@ -165,7 +235,6 @@ export function WorkshopPartStockOutboundModal({
           selectPart(found);
           return;
         }
-        // Fallback: se digitou texto (não só dígitos), tenta achar por nome no catálogo.
         const byName = searchWorkshopPartsByText(catalogParts, rawCode, 8);
         if (byName.length === 1) {
           selectPart(byName[0]);
@@ -191,6 +260,18 @@ export function WorkshopPartStockOutboundModal({
     },
     [catalogParts, selectPart]
   );
+
+  const resetMovementFields = () => {
+    setNotes('');
+    setCustomerName('');
+    setInvoiceRef('');
+    setPaymentMethod('');
+    setOsScope('');
+    setOsQuery('');
+    setSelectedOs(null);
+    setWithdrawnBy('');
+    setQty('1');
+  };
 
   const handleConfirm = useCallback(async () => {
     if (!part) {
@@ -220,12 +301,26 @@ export function WorkshopPartStockOutboundModal({
         auth?.username?.trim() ||
         (auth?.role === 'admin' ? 'Gerência' : null);
 
+      const composedNotes = isSale
+        ? formatSaleMovementNotes({
+            customerName,
+            invoiceRef,
+            paymentMethod,
+            notes,
+          })
+        : formatConsumableMovementNotes({
+            osScope,
+            osLabel: selectedOs ? osDisplayLabel(selectedOs) : osQuery.trim() || undefined,
+            withdrawnBy,
+            notes,
+          });
+
       const result = await createWorkshopPartStockMovement({
         movement_type: mode,
         part_id: part.id,
         quantity: qtyNumber,
         unit_price: isSale ? priceNumber : null,
-        notes: notes.trim() || null,
+        notes: composedNotes,
         barcode_scanned: code.trim() || part.barcode || null,
         recorded_by_name: recordedBy,
       });
@@ -242,8 +337,7 @@ export function WorkshopPartStockOutboundModal({
           ? `Venda registrada · estoque agora ${formatWorkshopPartQty(updated.stock_qty)}`
           : `Consumo registrado · estoque agora ${formatWorkshopPartQty(updated.stock_qty)}`
       );
-      setQty('1');
-      setNotes('');
+      resetMovementFields();
       await loadHistory();
     } catch (e) {
       setSubmitError(e instanceof Error ? e.message : 'Não foi possível registrar.');
@@ -252,14 +346,21 @@ export function WorkshopPartStockOutboundModal({
     }
   }, [
     code,
+    customerName,
+    invoiceRef,
     isSale,
     loadHistory,
     mode,
     notes,
     onStockChanged,
+    osQuery,
+    osScope,
     part,
+    paymentMethod,
     priceNumber,
     qtyNumber,
+    selectedOs,
+    withdrawnBy,
   ]);
 
   if (!isOpen) return null;
@@ -270,7 +371,7 @@ export function WorkshopPartStockOutboundModal({
   return (
     <RegistrationPortal>
       <div className={overlayClass} role="dialog" aria-modal="true" aria-label={title}>
-        <div className="flex max-h-[min(920px,94vh)] w-full max-w-2xl flex-col overflow-hidden rounded-[1.75rem] border-0 bg-zinc-50 shadow-none dark:bg-zinc-950">
+        <div className="flex max-h-[min(940px,96vh)] w-full max-w-2xl flex-col overflow-hidden rounded-[1.75rem] border-0 bg-zinc-50 shadow-none dark:bg-zinc-950">
           <div className="flex items-start justify-between gap-3 border-b border-zinc-200/80 px-5 py-4 dark:border-white/10">
             <div className="flex min-w-0 items-start gap-3">
               <button
@@ -285,7 +386,7 @@ export function WorkshopPartStockOutboundModal({
                 <div className="flex items-center gap-2">
                   <span
                     className={`inline-flex h-9 w-9 items-center justify-center rounded-xl ${
-                      isSale ? 'bg-emerald-600 text-white' : 'bg-sky-600 text-white'
+                      isSale ? 'bg-violet-600 text-white' : 'bg-sky-600 text-white'
                     }`}
                   >
                     {isSale ? <ShoppingBag className="h-5 w-5" /> : <PackageMinus className="h-5 w-5" />}
@@ -294,8 +395,8 @@ export function WorkshopPartStockOutboundModal({
                 </div>
                 <p className="mt-1 text-[13px] text-zinc-500 dark:text-zinc-400">
                   {isSale
-                    ? 'Baixa por venda · código, nome ou lista'
-                    : 'Baixa por consumo interno · código, nome ou lista'}
+                    ? 'Baixa por venda · todos os dados ficam no histórico'
+                    : 'Baixa por consumo · vincule OS e quem retirou'}
                 </p>
               </div>
             </div>
@@ -310,113 +411,117 @@ export function WorkshopPartStockOutboundModal({
           </div>
 
           <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-4 custom-scrollbar">
-            <section className="space-y-2">
-              <h3 className="text-[13px] font-bold uppercase tracking-wide text-zinc-500">
-                Por código de barras
-              </h3>
-              <BarcodeScanField
-                value={code}
-                onChange={setCode}
-                onSubmitCode={handleLookup}
-                disabled={lookingUp || saving}
-                autoFocus={!initialPart}
-              />
-              {lookingUp ? (
-                <p className="flex items-center gap-2 text-[13px] text-zinc-500">
-                  <Loader2 className="h-4 w-4 animate-spin" /> Buscando…
-                </p>
-              ) : null}
-              {lookupError ? (
-                <div className="space-y-2 rounded-xl border-0 bg-red-50 shadow-none px-3 py-2.5 dark:border-red-900/50 dark:bg-red-950/40">
-                  <p className="text-[13px] font-semibold text-red-700 dark:text-red-300">
-                    {lookupError}
-                    {missingBarcode ? (
-                      <span className="mt-0.5 block font-normal tabular-nums opacity-90">
-                        Código: {missingBarcode}
-                      </span>
-                    ) : null}
-                  </p>
-                  {missingBarcode && onRegisterMissingProduct ? (
-                    <button
-                      type="button"
-                      onClick={() => onRegisterMissingProduct(missingBarcode)}
-                      className="inline-flex items-center justify-center rounded-xl bg-emerald-600 px-3 py-2 text-[13px] font-semibold text-white hover:bg-emerald-500"
-                    >
-                      Cadastrar produto
-                    </button>
+            {!initialPart ? (
+              <>
+                <section className="space-y-2">
+                  <h3 className="text-[13px] font-bold uppercase tracking-wide text-zinc-500">
+                    Por código de barras
+                  </h3>
+                  <BarcodeScanField
+                    value={code}
+                    onChange={setCode}
+                    onSubmitCode={handleLookup}
+                    disabled={lookingUp || saving}
+                    autoFocus={!initialPart}
+                  />
+                  {lookingUp ? (
+                    <p className="flex items-center gap-2 text-[13px] text-zinc-500">
+                      <Loader2 className="h-4 w-4 animate-spin" /> Buscando…
+                    </p>
                   ) : null}
-                </div>
-              ) : null}
-            </section>
+                  {lookupError ? (
+                    <div className="space-y-2 rounded-xl border-0 bg-red-50 shadow-none px-3 py-2.5 dark:border-red-900/50 dark:bg-red-950/40">
+                      <p className="text-[13px] font-semibold text-red-700 dark:text-red-300">
+                        {lookupError}
+                        {missingBarcode ? (
+                          <span className="mt-0.5 block font-normal tabular-nums opacity-90">
+                            Código: {missingBarcode}
+                          </span>
+                        ) : null}
+                      </p>
+                      {missingBarcode && onRegisterMissingProduct ? (
+                        <button
+                          type="button"
+                          onClick={() => onRegisterMissingProduct(missingBarcode)}
+                          className="inline-flex items-center justify-center rounded-xl bg-emerald-600 px-3 py-2 text-[13px] font-semibold text-white hover:bg-emerald-500"
+                        >
+                          Cadastrar produto
+                        </button>
+                      ) : null}
+                    </div>
+                  ) : null}
+                </section>
 
-            <section className="space-y-2">
-              <h3 className="text-[13px] font-bold uppercase tracking-wide text-zinc-500">
-                Por nome do produto
-              </h3>
-              <div className="relative">
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
-                <input
-                  type="search"
-                  value={nameQuery}
-                  onChange={(e) => {
-                    setNameQuery(e.target.value);
-                    setLookupError(null);
-                    setSuccessMsg(null);
-                  }}
-                  disabled={saving}
-                  placeholder="Digite o nome, marca ou modelo…"
-                  className="w-full rounded-2xl border-0 bg-zinc-100 py-3 pl-10 pr-3 text-[15px] text-zinc-900 outline-none ring-emerald-500/30 focus:ring-2 dark:bg-white/5 dark:text-white"
-                  aria-label="Buscar produto por nome"
-                  autoComplete="off"
-                />
-              </div>
+                <section className="space-y-2">
+                  <h3 className="text-[13px] font-bold uppercase tracking-wide text-zinc-500">
+                    Por nome do produto
+                  </h3>
+                  <div className="relative">
+                    <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+                    <input
+                      type="search"
+                      value={nameQuery}
+                      onChange={(e) => {
+                        setNameQuery(e.target.value);
+                        setLookupError(null);
+                        setSuccessMsg(null);
+                      }}
+                      disabled={saving}
+                      placeholder="Digite o nome, marca ou modelo…"
+                      className="w-full rounded-2xl border-0 bg-zinc-100 py-3 pl-10 pr-3 text-[15px] text-zinc-900 outline-none ring-emerald-500/30 focus:ring-2 dark:bg-white/5 dark:text-white"
+                      aria-label="Buscar produto por nome"
+                      autoComplete="off"
+                    />
+                  </div>
 
-              {showNameList ? (
-                nameMatches.length > 0 ? (
-                  <ul className="max-h-[min(240px,32vh)] space-y-1 overflow-y-auto rounded-2xl border-0 bg-white p-1.5 dark:bg-white/5 custom-scrollbar">
-                    {nameMatches.map((p) => {
-                      const selected = part?.id === p.id;
-                      return (
-                        <li key={p.id}>
-                          <button
-                            type="button"
-                            onClick={() => selectPart(p)}
-                            disabled={saving}
-                            className={`flex w-full items-center justify-between gap-3 rounded-xl px-3 py-2.5 text-left transition-colors ${
-                              selected
-                                ? 'bg-emerald-500/15 text-emerald-950 dark:text-emerald-100'
-                                : 'hover:bg-zinc-100 dark:hover:bg-white/10'
-                            }`}
-                          >
-                            <span className="min-w-0">
-                              <span className="block truncate text-[14px] font-semibold text-zinc-900 dark:text-white">
-                                {p.name}
-                              </span>
-                              <span className="block truncate text-[12px] text-zinc-500">
-                                {[p.brand, p.original_code || p.numeric_code || p.barcode]
-                                  .filter(Boolean)
-                                  .join(' · ') || 'Sem código'}
-                              </span>
-                            </span>
-                            <span className="shrink-0 text-[12px] font-semibold tabular-nums text-zinc-600 dark:text-zinc-300">
-                              {formatWorkshopPartQty(p.stock_qty)} {p.unit_of_measure || 'UN'}
-                            </span>
-                          </button>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                ) : (
-                  <p className="rounded-xl border border-dashed border-zinc-300 px-3 py-3 text-[13px] text-zinc-500 dark:border-white/15 dark:text-zinc-400">
-                    Nenhum produto com “{nameQuery.trim()}”.
-                  </p>
-                )
-              ) : catalogParts.length > 0 && !part ? (
-                <p className="text-[13px] text-zinc-500">
-                  Digite parte do nome para ver sugestões ({catalogParts.length} no estoque).
-                </p>
-              ) : null}
-            </section>
+                  {showNameList ? (
+                    nameMatches.length > 0 ? (
+                      <ul className="max-h-[min(240px,32vh)] space-y-1 overflow-y-auto rounded-2xl border-0 bg-white p-1.5 dark:bg-white/5 custom-scrollbar">
+                        {nameMatches.map((p) => {
+                          const selected = part?.id === p.id;
+                          return (
+                            <li key={p.id}>
+                              <button
+                                type="button"
+                                onClick={() => selectPart(p)}
+                                disabled={saving}
+                                className={`flex w-full items-center justify-between gap-3 rounded-xl px-3 py-2.5 text-left transition-colors ${
+                                  selected
+                                    ? 'bg-emerald-500/15 text-emerald-950 dark:text-emerald-100'
+                                    : 'hover:bg-zinc-100 dark:hover:bg-white/10'
+                                }`}
+                              >
+                                <span className="min-w-0">
+                                  <span className="block truncate text-[14px] font-semibold text-zinc-900 dark:text-white">
+                                    {p.name}
+                                  </span>
+                                  <span className="block truncate text-[12px] text-zinc-500">
+                                    {[p.brand, p.original_code || p.numeric_code || p.barcode]
+                                      .filter(Boolean)
+                                      .join(' · ') || 'Sem código'}
+                                  </span>
+                                </span>
+                                <span className="shrink-0 text-[12px] font-semibold tabular-nums text-zinc-600 dark:text-zinc-300">
+                                  {formatWorkshopPartQty(p.stock_qty)} {p.unit_of_measure || 'UN'}
+                                </span>
+                              </button>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    ) : (
+                      <p className="rounded-xl border border-dashed border-zinc-300 px-3 py-3 text-[13px] text-zinc-500 dark:border-white/15 dark:text-zinc-400">
+                        Nenhum produto com “{nameQuery.trim()}”.
+                      </p>
+                    )
+                  ) : catalogParts.length > 0 && !part ? (
+                    <p className="text-[13px] text-zinc-500">
+                      Digite parte do nome para ver sugestões ({catalogParts.length} no estoque).
+                    </p>
+                  ) : null}
+                </section>
+              </>
+            ) : null}
 
             {part ? (
               <section className="rounded-2xl border-0 bg-white p-4 dark:bg-white/5">
@@ -441,21 +546,23 @@ export function WorkshopPartStockOutboundModal({
                       Estoque: {formatWorkshopPartQty(part.stock_qty)} {part.unit_of_measure || 'UN'}
                     </p>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setPart(null);
-                      setNameQuery('');
-                      setCode('');
-                      setSuccessMsg(null);
-                      setSubmitError(null);
-                    }}
-                    className="shrink-0 self-start rounded-lg p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-white/10"
-                    aria-label="Trocar produto"
-                    title="Trocar produto"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
+                  {!initialPart ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPart(null);
+                        setNameQuery('');
+                        setCode('');
+                        setSuccessMsg(null);
+                        setSubmitError(null);
+                      }}
+                      className="shrink-0 self-start rounded-lg p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-white/10"
+                      aria-label="Trocar produto"
+                      title="Trocar produto"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  ) : null}
                 </div>
 
                 <div className="mt-4 grid gap-3 sm:grid-cols-2">
@@ -465,10 +572,11 @@ export function WorkshopPartStockOutboundModal({
                     </span>
                     <input
                       type="number"
-                      min="0.001"
-                      step="0.001"
+                      inputMode="numeric"
+                      min="1"
+                      step="1"
                       value={qty}
-                      onChange={(e) => setQty(e.target.value)}
+                      onChange={(e) => setQty(String(parseWorkshopPartQtyInt(e.target.value) || ''))}
                       className="w-full rounded-xl border-0 bg-zinc-100 px-3 py-2.5 text-[15px] tabular-nums outline-none focus:ring-2 focus:ring-emerald-500/30 dark:bg-black/20 dark:text-white"
                     />
                   </label>
@@ -495,16 +603,166 @@ export function WorkshopPartStockOutboundModal({
                   </p>
                 ) : null}
 
+                {isSale ? (
+                  <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                    <label className="block space-y-1.5 sm:col-span-2">
+                      <span className="text-[12px] font-semibold text-zinc-600 dark:text-zinc-300">
+                        Cliente
+                      </span>
+                      <input
+                        type="text"
+                        value={customerName}
+                        onChange={(e) => setCustomerName(e.target.value)}
+                        placeholder="Nome do cliente"
+                        className="w-full rounded-xl border-0 bg-zinc-100 px-3 py-2.5 text-[15px] outline-none focus:ring-2 focus:ring-emerald-500/30 dark:bg-black/20 dark:text-white"
+                      />
+                    </label>
+                    <label className="block space-y-1.5">
+                      <span className="text-[12px] font-semibold text-zinc-600 dark:text-zinc-300">
+                        NF / documento
+                      </span>
+                      <input
+                        type="text"
+                        value={invoiceRef}
+                        onChange={(e) => setInvoiceRef(e.target.value)}
+                        placeholder="Número da NF…"
+                        className="w-full rounded-xl border-0 bg-zinc-100 px-3 py-2.5 text-[15px] outline-none focus:ring-2 focus:ring-emerald-500/30 dark:bg-black/20 dark:text-white"
+                      />
+                    </label>
+                    <label className="block space-y-1.5">
+                      <span className="text-[12px] font-semibold text-zinc-600 dark:text-zinc-300">
+                        Forma de pagamento
+                      </span>
+                      <select
+                        value={paymentMethod}
+                        onChange={(e) => setPaymentMethod(e.target.value)}
+                        className="w-full rounded-xl border-0 bg-zinc-100 px-3 py-2.5 text-[15px] outline-none focus:ring-2 focus:ring-emerald-500/30 dark:bg-black/20 dark:text-white"
+                      >
+                        <option value="">Selecionar…</option>
+                        {PAYMENT_OPTIONS.map((opt) => (
+                          <option key={opt} value={opt}>
+                            {opt}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  </div>
+                ) : (
+                  <div className="mt-3 space-y-3">
+                    <div className="space-y-1.5">
+                      <span className="text-[12px] font-semibold text-zinc-600 dark:text-zinc-300">
+                        OS de utilização
+                      </span>
+                      <div className="flex gap-1 rounded-xl bg-zinc-100 p-1 dark:bg-black/20">
+                        {(
+                          [
+                            { value: '', label: 'Nenhuma' },
+                            { value: 'patio', label: 'Pátio' },
+                            { value: 'lab', label: 'Laboratório' },
+                          ] as const
+                        ).map((opt) => (
+                          <button
+                            key={opt.value || 'none'}
+                            type="button"
+                            disabled={saving}
+                            onClick={() => {
+                              setOsScope(opt.value);
+                              setSelectedOs(null);
+                              setOsQuery('');
+                            }}
+                            className={`flex-1 rounded-lg px-2 py-2 text-[12px] font-semibold transition ${
+                              osScope === opt.value
+                                ? 'bg-white text-zinc-900 shadow-sm dark:bg-zinc-800 dark:text-white'
+                                : 'text-zinc-600 dark:text-zinc-300'
+                            }`}
+                          >
+                            {opt.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {osScope ? (
+                      <div className="space-y-2">
+                        <input
+                          type="search"
+                          value={osQuery}
+                          onChange={(e) => {
+                            setOsQuery(e.target.value);
+                            setSelectedOs(null);
+                          }}
+                          disabled={saving}
+                          placeholder={
+                            osScope === 'lab'
+                              ? 'Buscar OS do laboratório (nº, módulo…)…'
+                              : 'Buscar OS do pátio (nº, placa…)…'
+                          }
+                          className="w-full rounded-xl border-0 bg-zinc-100 px-3 py-2.5 text-[14px] outline-none focus:ring-2 focus:ring-sky-500/30 dark:bg-black/20 dark:text-white"
+                        />
+                        {selectedOs ? (
+                          <p className="rounded-xl bg-sky-50 px-3 py-2 text-[13px] font-semibold text-sky-900 dark:bg-sky-950/40 dark:text-sky-100">
+                            {osDisplayLabel(selectedOs)}
+                          </p>
+                        ) : osMatches.length > 0 ? (
+                          <ul className="max-h-40 space-y-1 overflow-y-auto rounded-xl bg-zinc-50 p-1 dark:bg-white/[0.04] custom-scrollbar">
+                            {osMatches.map((os) => (
+                              <li key={os.id}>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedOs(os);
+                                    setOsQuery(osDisplayLabel(os));
+                                  }}
+                                  className="w-full rounded-lg px-3 py-2 text-left text-[13px] font-medium text-zinc-800 hover:bg-white dark:text-zinc-100 dark:hover:bg-white/10"
+                                >
+                                  {osDisplayLabel(os)}
+                                </button>
+                              </li>
+                            ))}
+                          </ul>
+                        ) : (
+                          <p className="text-[12px] text-zinc-500">
+                            Digite para filtrar ou deixe em branco e confirme sem OS.
+                          </p>
+                        )}
+                      </div>
+                    ) : null}
+
+                    <label className="block space-y-1.5">
+                      <span className="text-[12px] font-semibold text-zinc-600 dark:text-zinc-300">
+                        Funcionário que retirou
+                      </span>
+                      <select
+                        value={withdrawnBy}
+                        onChange={(e) => setWithdrawnBy(e.target.value)}
+                        disabled={saving}
+                        className="w-full rounded-xl border-0 bg-zinc-100 px-3 py-2.5 text-[15px] outline-none focus:ring-2 focus:ring-sky-500/30 dark:bg-black/20 dark:text-white"
+                      >
+                        <option value="">Selecionar…</option>
+                        {employees.map((u) => {
+                          const label = u.display_name?.trim() || u.username;
+                          return (
+                            <option key={u.id} value={label}>
+                              {label}
+                              {u.job_title ? ` · ${u.job_title}` : ''}
+                            </option>
+                          );
+                        })}
+                      </select>
+                    </label>
+                  </div>
+                )}
+
                 <label className="mt-3 block space-y-1.5">
                   <span className="text-[12px] font-semibold text-zinc-600 dark:text-zinc-300">
-                    Observação (opcional)
+                    Observação {isSale ? '(opcional)' : ''}
                   </span>
-                  <input
-                    type="text"
+                  <textarea
                     value={notes}
                     onChange={(e) => setNotes(e.target.value)}
-                    placeholder={isSale ? 'Cliente, NF…' : 'Bancada, OS interna…'}
-                    className="w-full rounded-xl border-0 bg-zinc-100 px-3 py-2.5 text-[15px] outline-none focus:ring-2 focus:ring-emerald-500/30 dark:bg-black/20 dark:text-white"
+                    rows={2}
+                    placeholder={isSale ? 'Detalhes da venda…' : 'Detalhes do consumo…'}
+                    className="w-full resize-y rounded-xl border-0 bg-zinc-100 px-3 py-2.5 text-[15px] outline-none focus:ring-2 focus:ring-emerald-500/30 dark:bg-black/20 dark:text-white"
                   />
                 </label>
 
@@ -524,9 +782,7 @@ export function WorkshopPartStockOutboundModal({
                   disabled={saving}
                   onClick={() => void handleConfirm()}
                   className={`mt-4 inline-flex w-full items-center justify-center gap-2 rounded-2xl px-4 py-3.5 text-[15px] font-semibold text-white shadow-none disabled:opacity-60 ${
-                    isSale
-                      ? 'bg-emerald-600 hover:bg-emerald-500'
-                      : 'bg-sky-600 hover:bg-sky-500'
+                    isSale ? 'bg-violet-600 hover:bg-violet-500' : 'bg-sky-600 hover:bg-sky-500'
                   }`}
                 >
                   {saving ? <Loader2 className="h-5 w-5 animate-spin" /> : null}
@@ -553,25 +809,32 @@ export function WorkshopPartStockOutboundModal({
                   {history.map((row) => (
                     <li
                       key={row.id}
-                      className="flex flex-wrap items-center justify-between gap-2 rounded-xl border-0 bg-white/80 px-3 py-2.5 text-[13px] dark:bg-white/5"
+                      className="rounded-xl border-0 bg-white/80 px-3 py-2.5 text-[13px] dark:bg-white/5"
                     >
-                      <span className="min-w-0">
-                        <span className="block font-semibold text-zinc-900 dark:text-white">
-                          {row.part_name || 'Produto'}
-                        </span>
-                        <span className="block text-[12px] text-zinc-500">
-                          {formatWhen(row.created_at)}
-                          {row.recorded_by_name ? ` · ${row.recorded_by_name}` : ''}
-                        </span>
-                      </span>
-                      <span className="shrink-0 text-right font-semibold tabular-nums text-zinc-800 dark:text-zinc-100">
-                        −{formatWorkshopPartQty(row.quantity)}
-                        {isSale && row.total_amount != null ? (
-                          <span className="block text-[12px] font-medium text-emerald-700 dark:text-emerald-300">
-                            {moneyBRL(Number(row.total_amount))}
+                      <div className="flex flex-wrap items-start justify-between gap-2">
+                        <span className="min-w-0">
+                          <span className="block font-semibold text-zinc-900 dark:text-white">
+                            {row.part_name || 'Produto'}
                           </span>
-                        ) : null}
-                      </span>
+                          <span className="block text-[12px] text-zinc-500">
+                            {formatWhen(row.created_at)}
+                            {row.recorded_by_name ? ` · ${row.recorded_by_name}` : ''}
+                          </span>
+                        </span>
+                        <span className="shrink-0 text-right font-semibold tabular-nums text-zinc-800 dark:text-zinc-100">
+                          −{formatWorkshopPartQty(row.quantity)}
+                          {isSale && row.total_amount != null ? (
+                            <span className="block text-[12px] font-medium text-violet-700 dark:text-violet-300">
+                              {moneyBRL(Number(row.total_amount))}
+                            </span>
+                          ) : null}
+                        </span>
+                      </div>
+                      {row.notes?.trim() ? (
+                        <p className="mt-1.5 whitespace-pre-line rounded-lg bg-zinc-50 px-2.5 py-1.5 text-[12px] leading-snug text-zinc-600 dark:bg-white/[0.04] dark:text-zinc-300">
+                          {row.notes.trim()}
+                        </p>
+                      ) : null}
                     </li>
                   ))}
                 </ul>

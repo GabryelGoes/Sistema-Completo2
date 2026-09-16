@@ -72,6 +72,7 @@ import {
 import { WorkshopPartDetailView } from './WorkshopPartDetailView';
 import { WorkshopPartsAnalyticsView } from './WorkshopPartsAnalyticsView';
 import { WorkshopPartStockOutboundModal } from './WorkshopPartStockOutboundModal';
+import { WorkshopPartStockInboundModal } from './WorkshopPartStockInboundModal';
 import { WorkshopPartScanHubModal } from './WorkshopPartScanHubModal';
 import {
   formValuesToApiPayload,
@@ -108,6 +109,7 @@ export type WorkshopPartsBootIntent =
   | { type: 'edit'; part: WorkshopPart }
   | { type: 'create'; barcode: string }
   | { type: 'view'; part: WorkshopPart }
+  | { type: 'inbound'; part: WorkshopPart }
   | { type: 'outbound'; mode: WorkshopPartStockMovementType; part: WorkshopPart };
 
 type PendingPartPhoto = { id: string; file: File; previewUrl: string };
@@ -226,6 +228,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
   const [isAnalyticsOpen, setIsAnalyticsOpen] = useState(false);
   const [outboundMode, setOutboundMode] = useState<WorkshopPartStockMovementType | null>(null);
   const [outboundInitialPart, setOutboundInitialPart] = useState<WorkshopPart | null>(null);
+  const [inboundPart, setInboundPart] = useState<WorkshopPart | null>(null);
   const [scanHubOpen, setScanHubOpen] = useState(false);
   const [scanHubExternal, setScanHubExternal] = useState<{ code: string; token: number } | null>(null);
   const [registrationPrefillBarcode, setRegistrationPrefillBarcode] = useState<string | null>(null);
@@ -991,6 +994,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
       setScanHubOpen(false);
       setScanHubExternal(null);
       setOutboundInitialPart(null);
+      setInboundPart(null);
     }
   }, [isOpen]);
 
@@ -1011,6 +1015,10 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
       void openProductView(intent.part);
       return;
     }
+    if (intent.type === 'inbound') {
+      setInboundPart(intent.part);
+      return;
+    }
     if (intent.type === 'outbound') {
       setOutboundInitialPart(intent.part);
       setOutboundMode(intent.mode);
@@ -1028,6 +1036,11 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
         )
       );
       setViewPart((prev) =>
+        prev && prev.id === updated.id
+          ? { ...prev, stock_qty: Number(updated.stock_qty), unit_price: Number(updated.unit_price ?? prev.unit_price) }
+          : prev
+      );
+      setInboundPart((prev) =>
         prev && prev.id === updated.id
           ? { ...prev, stock_qty: Number(updated.stock_qty), unit_price: Number(updated.unit_price ?? prev.unit_price) }
           : prev
@@ -2058,7 +2071,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
           void openEditRegistration(part);
         }}
         onStockEntry={(part) => {
-          void openEditRegistration(part);
+          setInboundPart(part);
         }}
         onRegisterProduct={(barcode) => {
           openCreateRegistration(barcode);
@@ -2070,6 +2083,22 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
         onConsumableOutbound={(part) => {
           setOutboundInitialPart(part);
           setOutboundMode('consumable');
+        }}
+      />
+    ) : null}
+
+    {inboundPart ? (
+      <WorkshopPartStockInboundModal
+        isOpen
+        part={inboundPart}
+        onClose={() => setInboundPart(null)}
+        onStockChanged={(updated) => {
+          handleOutboundStockChanged(updated);
+          setInboundPart(updated);
+        }}
+        onOpenFullEdit={(part) => {
+          setInboundPart(null);
+          void openEditRegistration(part);
         }}
       />
     ) : null}

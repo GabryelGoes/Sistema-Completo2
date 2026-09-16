@@ -405,7 +405,7 @@ export default function App() {
     [openPartsWithIntent]
   );
   const handleGlobalPartStockEntry = useCallback(
-    (part: WorkshopPart) => openPartsWithIntent({ type: 'edit', part }),
+    (part: WorkshopPart) => openPartsWithIntent({ type: 'inbound', part }),
     [openPartsWithIntent]
   );
   const handleGlobalPartRegister = useCallback(
