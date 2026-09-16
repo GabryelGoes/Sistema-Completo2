@@ -144,10 +144,10 @@ export function renderPatioKeyLabelDataUrl(input: PatioKeyLabelInput): string {
   ctx.fillStyle = '#ffffff';
   ctx.fillRect(0, 0, printW, printH);
 
-  // 90° horário: texto vertical na etiqueta física 50×30
+  // 90° horário + 180°: texto vertical na etiqueta física 50×30
   ctx.save();
-  ctx.translate(printW, 0);
-  ctx.rotate(Math.PI / 2);
+  ctx.translate(0, printH);
+  ctx.rotate(-Math.PI / 2);
   ctx.drawImage(portrait, 0, 0);
   ctx.restore();
 
