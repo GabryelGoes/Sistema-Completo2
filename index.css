@@ -6,6 +6,8 @@
   --app-accent: #f5d00b;
   --app-accent-rgb: 245 208 11;
   --app-accent-hover: #fcd61e;
+  --app-font-sans: "SFProText", "SF Pro Text", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --app-font-display: "SFProDisplay", "SF Pro Display", "SFProText", "SF Pro Text", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
 
 /**
@@ -18,6 +20,7 @@ html {
   margin: 0;
   overflow: hidden;
   overscroll-behavior: none;
+  font-family: var(--app-font-sans);
 }
 
 body {
@@ -28,18 +31,24 @@ body {
   overscroll-behavior: none;
   background-color: #f2f2f7;
   color: #1c1c1e;
-  font-family:
-    -apple-system,
-    BlinkMacSystemFont,
-    "Segoe UI",
-    Roboto,
-    Helvetica,
-    Arial,
-    sans-serif;
+  font-family: var(--app-font-sans);
   -webkit-font-smoothing: antialiased;
   transition:
     background-color 0.3s ease,
     color 0.3s ease;
+}
+
+/**
+ * Títulos da interface → SF Pro Display.
+ * Nomes de carro nos cards usam `.font-vehicle` e não herdam Display.
+ */
+@layer base {
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--app-font-display);
+  }
 }
 
 #root {
@@ -47,6 +56,7 @@ body {
   min-height: 0;
   overflow: hidden;
   overscroll-behavior: none;
+  font-family: var(--app-font-sans);
 }
 
 .dark body {
@@ -334,7 +344,16 @@ html[data-desktop-shell='true'] .desktop-shell-content .budgets-hub-col-scroll {
   cursor: pointer;
 }
 
+/** Nomes de veículo nos cards — mantém stack anterior (não usa SF Pro Display). */
 .font-vehicle {
+  font-family:
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    Roboto,
+    Helvetica,
+    Arial,
+    sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }

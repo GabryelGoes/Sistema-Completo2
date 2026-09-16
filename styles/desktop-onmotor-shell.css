@@ -5,6 +5,7 @@
 
 html[data-desktop-shell='true'] {
   font-size: 14px;
+  font-family: var(--app-font-sans, "SFProText", "SF Pro Text", "Segoe UI", sans-serif);
   /* Faixa dos cards e indicador da sidebar — azul (não usa o amarelo global da oficina). */
   --desktop-shell-accent: #2563eb;
   --desktop-shell-accent-rgb: 37 99 235;
@@ -31,6 +32,7 @@ html[data-desktop-shell='true'] .desktop-shell-viewport-overlay {
 html[data-desktop-shell='true'] body,
 html[data-desktop-shell='true'] #root {
   background: #ececec;
+  font-family: var(--app-font-sans, "SFProText", "SF Pro Text", "Segoe UI", sans-serif);
 }
 
 html[data-desktop-shell='true'] .desktop-shell-root {
@@ -40,6 +42,7 @@ html[data-desktop-shell='true'] .desktop-shell-root {
   overflow: hidden;
   background: #ececec;
   color: #1a1a1a;
+  font-family: var(--app-font-sans, "SFProText", "SF Pro Text", "Segoe UI", sans-serif);
 }
 
 html[data-desktop-shell='true'] .desktop-shell-sidebar {
@@ -343,6 +346,7 @@ html[data-desktop-shell='true'] .desktop-shell-topbar-title {
   min-width: 0;
   margin: 0;
   padding: 0;
+  font-family: var(--app-font-display, "SFProDisplay", "SF Pro Display", "SFProText", "Segoe UI", sans-serif);
   font-size: 13px;
   font-weight: 700;
   letter-spacing: 0.06em;

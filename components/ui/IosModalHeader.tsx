@@ -19,7 +19,7 @@ export const IosModalHeader: React.FC<IosModalHeaderProps> = ({ icon, title, sub
       </div>
     </div>
     <div className="min-w-0">
-      <h2 className="text-[22px] sm:text-[26px] font-semibold tracking-tight text-zinc-900 dark:text-white leading-tight">
+      <h2 className="font-display text-[22px] sm:text-[26px] font-semibold tracking-tight text-zinc-900 dark:text-white leading-tight">
         {title}
       </h2>
       {subtitle ? (

@@ -1,12 +1,12 @@
 import React, { useMemo, useState } from 'react';
-import { Loader2, Pencil, Printer, Trash2, ZoomIn } from 'lucide-react';
+import { Loader2, Pencil, Printer, Tag, Trash2, ZoomIn } from 'lucide-react';
 import type { WorkshopPartLabContext } from '../services/apiService';
 import { printWorkshopPartSheet } from '../utils/workshopPartPrintSheet';
 import { Lightbox } from './Lightbox';
+import { NiimbotLabelPrintModal } from './NiimbotLabelPrintModal';
 import { PartPhotoImg } from './ui/PartPhotoImg';
 import { useBrowserBackLayer } from './ui/BackNavigationContext';
 import type { WorkshopPart, WorkshopPartCategory, WorkshopPartPurchase } from '../services/apiService';
-import { WORKSHOP_PART_PHOTOS_MAX } from '../services/apiService';
 import {
   PART_ORIGIN_OPTIONS,
   UNIT_OF_MEASURE_OPTIONS,
@@ -77,6 +77,8 @@ export type WorkshopPartDetailViewProps = {
   readOnly?: boolean;
   /** Ações extras no rodapé (ex.: usar peça no orçamento). */
   footerExtra?: React.ReactNode;
+  /** Atualiza o produto na lista (ex.: código gerado na etiqueta). */
+  onPartUpdated?: (part: WorkshopPart) => void;
 };
 
 export function WorkshopPartDetailView({
@@ -91,6 +93,7 @@ export function WorkshopPartDetailView({
   onDelete,
   readOnly = false,
   footerExtra,
+  onPartUpdated,
 }: WorkshopPartDetailViewProps) {
   const unit = part.unit_of_measure ?? 'UN';
   const stockStatus = getWorkshopPartStockStatus(part);
@@ -112,6 +115,7 @@ export function WorkshopPartDetailView({
     urls: string[];
     currentIndex: number;
   } | null>(null);
+  const [labelPrintOpen, setLabelPrintOpen] = useState(false);
 
   useBrowserBackLayer(!!previewImages, () => setPreviewImages(null));
 
@@ -191,7 +195,7 @@ export function WorkshopPartDetailView({
                 <p className="text-[12px] text-zinc-500 dark:text-zinc-400">
                   Toque em uma foto para ampliar · pinça ou toque duplo para zoom
                 </p>
-                <div className="grid grid-cols-3 gap-3 max-w-[min(100%,420px)]">
+                <div className="grid max-w-[min(100%,520px)] grid-cols-3 gap-3 sm:grid-cols-4">
                 {photos.map((slot, index) => {
                   const url = (slot.remoteUrl ?? slot.previewUrl)?.trim();
                   const canPreview = !!url;
@@ -236,15 +240,6 @@ export function WorkshopPartDetailView({
                   </div>
                   );
                 })}
-                {photos.length < WORKSHOP_PART_PHOTOS_MAX
-                  ? Array.from({ length: WORKSHOP_PART_PHOTOS_MAX - photos.length }).map((_, i) => (
-                      <div
-                        key={`empty-${i}`}
-                        className="aspect-square rounded-xl border border-dashed border-zinc-200/70 bg-zinc-50/50 dark:border-white/10 dark:bg-white/[0.02]"
-                        aria-hidden
-                      />
-                    ))
-                  : null}
                 </div>
               </>
             ) : (
@@ -458,6 +453,15 @@ export function WorkshopPartDetailView({
       <div className="flex flex-col gap-3 border-t border-zinc-200/50 pt-5 dark:border-white/[0.06]">
         <button
           type="button"
+          onClick={() => setLabelPrintOpen(true)}
+          disabled={loading}
+          className="inline-flex w-full items-center justify-center gap-2 rounded-xl border-0 bg-amber-50 px-5 py-3 text-[15px] font-semibold text-amber-950 shadow-none hover:bg-amber-100 disabled:opacity-50 dark:bg-amber-950/40 dark:text-amber-100 dark:hover:bg-amber-950/60"
+        >
+          <Tag className="h-5 w-5" />
+          Imprimir etiqueta
+        </button>
+        <button
+          type="button"
           onClick={handlePrint}
           disabled={loading}
           className="inline-flex w-full items-center justify-center gap-2 rounded-xl border-0 bg-teal-50 px-5 py-3 text-[15px] font-semibold text-teal-900 shadow-none hover:bg-teal-100 disabled:opacity-50 dark:bg-teal-950/40 dark:text-teal-100 dark:hover:bg-teal-950/60"
@@ -495,6 +499,13 @@ export function WorkshopPartDetailView({
           onClose={() => setPreviewImages(null)}
         />
       ) : null}
+
+      <NiimbotLabelPrintModal
+        open={labelPrintOpen}
+        part={part}
+        onClose={() => setLabelPrintOpen(false)}
+        onPartUpdated={onPartUpdated}
+      />
     </div>
   );
 }

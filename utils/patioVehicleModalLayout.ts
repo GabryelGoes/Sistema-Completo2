@@ -119,7 +119,7 @@ const COMPACT_DESKTOP: PatioVehicleModalCompact = {
     'flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-zinc-200/95 bg-gradient-to-b from-white to-zinc-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_2px_8px_-4px_rgba(0,0,0,0.1)] dark:border-white/[0.1] dark:from-white/[0.12] dark:to-white/[0.04]',
   iconGlyph: 'h-3.5 w-3.5 text-[#007AFF] dark:text-[#7ab8ff]',
   titleText:
-    'truncate text-[11px] font-bold uppercase tracking-[0.12em] text-zinc-500 dark:text-zinc-400',
+    'whitespace-nowrap text-[11px] font-bold uppercase tracking-[0.12em] text-zinc-500 dark:text-zinc-400',
   bodyText: 'mt-0.5 truncate text-[12px] font-semibold leading-tight text-zinc-900 dark:text-white',
   assignHint: 'mt-0.5 truncate text-[12px] font-semibold leading-tight text-[#007AFF] dark:text-[#7ab8ff]',
   chevron: 'relative z-[1] h-3.5 w-3.5 shrink-0',
@@ -300,14 +300,14 @@ export function getPatioVehicleModalLayout(
       'patio-vehicle-modal__shell relative flex h-[100dvh] max-h-[100dvh] w-full min-h-0 flex-col overflow-hidden rounded-none border-0 bg-[#F2F2F7] shadow-none dark:bg-[#0a0a0a] dark:shadow-none',
     scroll: 'patio-vm-scroll min-h-0 flex-1 overflow-y-auto overscroll-y-auto custom-scrollbar',
     header:
-      'patio-vm-desktop-header shrink-0 border-b border-zinc-300/80 bg-white/95 px-6 py-4 dark:border-white/[0.08] dark:bg-zinc-900/95 xl:px-8 xl:py-4',
-    headerInner: 'mx-auto flex w-full min-w-0 max-w-[1680px] flex-col gap-3',
-    headerTitlePad: 'min-w-0 pr-20 xl:pr-24',
+      'patio-vm-desktop-header shrink-0 border-b border-zinc-300/80 bg-white/95 px-6 py-2 dark:border-white/[0.08] dark:bg-zinc-900/95 xl:px-8 xl:py-2.5',
+    headerInner: 'mx-auto flex w-full min-w-0 max-w-[1680px] flex-col gap-1.5',
+    headerTitlePad: 'min-w-0',
     headerMeta:
       'patio-vm-header-meta patio-vm-header-meta--pc mt-2 grid w-full min-w-0 grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4',
     title:
       'patio-vehicle-modal__title font-vehicle min-w-0 flex-1 truncate text-[2rem] font-bold uppercase leading-none tracking-tight text-zinc-900 dark:text-white xl:text-[2.35rem]',
-    titlePlateRow: 'mt-1 flex min-w-0 items-center gap-3',
+    titlePlateRow: 'mt-0 flex min-w-0 items-center gap-3',
     brandSubtitle: 'text-[12px] font-bold uppercase tracking-[0.18em] text-zinc-500 dark:text-zinc-400',
     stagePill: `${STAGE_PILL_BASE} rounded-[16px] px-4 py-2 text-[15px] tracking-widest`,
     brandLogoSize: 'modalPc',
@@ -331,8 +331,8 @@ export function getPatioVehicleModalLayout(
       'custom-scrollbar max-h-none space-y-4 overflow-visible bg-[#F2F2F7]/80 p-3.5 dark:bg-black/25 sm:space-y-4',
     customerMetaLabel: 'Cliente',
     technicianMetaLabel: 'Técnico',
-    deliveryDateMetaLabel: 'Entrega',
-    hideOsBadge: false,
+    deliveryDateMetaLabel: 'Entrada',
+    hideOsBadge: true,
     showStageRing: true,
     isMetaPcLike: true,
     compact: COMPACT_DESKTOP,

@@ -1,0 +1,32 @@
+{
+  "models": {
+    "b1": {
+      "label": "Niimbot B1",
+      "id": 4096,
+      "dpi": 203,
+      "protocol": "v4",
+      "task": "b1",
+      "density": 3,
+      "label_type": 1,
+      "speed": 1,
+      "name_prefixes": [
+        "B1"
+      ]
+    }
+  },
+  "sizes": {
+    "T50x30_b1": {
+      "label": "50 × 30 mm (B1)",
+      "code": "T50*30",
+      "w_mm": 50,
+      "h_mm": 30,
+      "w_px": 384,
+      "h_px": 240,
+      "margin": 8,
+      "offset_y_px": 4,
+      "dpi": 203
+    }
+  },
+  "default_model": "b1",
+  "default_size": "T50x30_b1"
+}
