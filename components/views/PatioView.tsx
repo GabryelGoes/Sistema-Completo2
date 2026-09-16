@@ -157,6 +157,8 @@ import { printBudgetMechanicWithDetail, printBudgetWithDetail } from '../../util
 import { printLabModuleFicha } from '../../utils/labModuleFichaPrint';
 import { LabOsLabelPrintModal } from '../LabOsLabelPrintModal';
 import type { LabOsLabelInput } from '../../utils/labOsLabelRender';
+import { PatioKeyLabelPrintModal } from '../PatioKeyLabelPrintModal';
+import type { PatioKeyLabelInput } from '../../utils/patioKeyLabelRender';
 import { PATIO_CARD_TITLE_SEP, parsePatioCardTitle } from '../../utils/patioCardTitle';
 import { formatLaborLabel } from '../../utils/workshopLaborFormat';
 import { moveItemInList } from '../../utils/moveItemInList';
@@ -1387,6 +1389,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const [descText, setDescText] = useState('');
   const [isSavingDesc, setIsSavingDesc] = useState(false);
   const [labOsLabel, setLabOsLabel] = useState<LabOsLabelInput | null>(null);
+  const [patioKeyLabel, setPatioKeyLabel] = useState<PatioKeyLabelInput | null>(null);
   const isEditingDescRef = useRef(false);
   const selectedCardRef = useRef<TrelloCard | null>(null);
   isEditingDescRef.current = isEditingDesc;
@@ -4261,6 +4264,30 @@ export const PatioView: React.FC<PatioViewProps> = ({
       vehicleName,
       complaint,
       osNumber: serviceOrderDetail?.os_number ?? selectedCard.osNumber ?? null,
+    });
+  }, [isModuleMode, selectedCard, serviceOrderDetail]);
+
+  const handleOpenPatioKeyLabel = useCallback(() => {
+    if (isModuleMode || !selectedCard) return;
+    const title = parsePatioCardTitle(selectedCard.name);
+    const customerName =
+      (serviceOrderDetail?.customers?.name ?? title.customer ?? '').trim() || '—';
+    const vehicleModel =
+      (serviceOrderDetail?.vehicle_model ?? title.vehicle ?? '').trim() || '—';
+    const vehicleColor =
+      (serviceOrderDetail?.vehicle_color ?? selectedCard.vehicleColor ?? '').trim() || '—';
+    const plate = (
+      serviceOrderDetail?.plate ??
+      title.plateOrModule ??
+      ''
+    )
+      .trim()
+      .toUpperCase() || '—';
+    setPatioKeyLabel({
+      customerName,
+      vehicleModel,
+      vehicleColor,
+      plate,
     });
   }, [isModuleMode, selectedCard, serviceOrderDetail]);
 
@@ -7371,6 +7398,17 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   </button>
                   </>
                 ) : null}
+                {!isModuleMode && selectedCard && !loadingDetails ? (
+                  <button
+                    type="button"
+                    onClick={handleOpenPatioKeyLabel}
+                    className={`${patioVehicleVm.closeBtn} !border-emerald-500/40 !bg-emerald-600 !text-white shadow-md shadow-emerald-500/25 hover:!bg-emerald-500 dark:!bg-emerald-600 dark:hover:!bg-emerald-500`}
+                    title="Imprimir etiqueta da chave"
+                    aria-label="Imprimir etiqueta"
+                  >
+                    <Tag className="h-5 w-5" />
+                  </button>
+                ) : null}
                 {can('canDeleteCards') && (
                 <button
                   type="button"
@@ -7616,6 +7654,17 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                   <Printer className="h-5 w-5" />
                                 </button>
                                 </>
+                              ) : null}
+                              {!isModuleMode && selectedCard && !loadingDetails ? (
+                                <button
+                                  type="button"
+                                  onClick={handleOpenPatioKeyLabel}
+                                  className={`${patioVehicleVm.closeBtn} !border-emerald-500/40 !bg-emerald-600 !text-white shadow-md shadow-emerald-500/25 hover:!bg-emerald-500 dark:!bg-emerald-600 dark:hover:!bg-emerald-500`}
+                                  title="Imprimir etiqueta da chave"
+                                  aria-label="Imprimir etiqueta"
+                                >
+                                  <Tag className="h-5 w-5" />
+                                </button>
                               ) : null}
                               {can('canDeleteCards') ? (
                                 <button
@@ -8584,6 +8633,16 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                     Imprimir ficha
                                   </button>
                                   </>
+                                ) : null}
+                                {!isModuleMode && selectedCard && !loadingDetails ? (
+                                  <button
+                                    type="button"
+                                    onClick={handleOpenPatioKeyLabel}
+                                    className="inline-flex items-center gap-1 rounded-xl border border-emerald-500/35 bg-emerald-600 px-2.5 py-1 text-[11px] font-semibold text-white shadow-sm shadow-emerald-500/20 transition-colors hover:bg-emerald-500"
+                                  >
+                                    <Tag className="h-3 w-3" aria-hidden strokeWidth={2.5} />
+                                    Imprimir etiqueta
+                                  </button>
                                 ) : null}
                                 {can('canEditQueixa') && !isEditingDesc ? (
                                   <button
@@ -11234,6 +11293,12 @@ export const PatioView: React.FC<PatioViewProps> = ({
         open={!!labOsLabel}
         label={labOsLabel}
         onClose={() => setLabOsLabel(null)}
+      />
+
+      <PatioKeyLabelPrintModal
+        open={!!patioKeyLabel}
+        label={patioKeyLabel}
+        onClose={() => setPatioKeyLabel(null)}
       />
 
       {isModuleMode && benchFullscreenOpen && (
