@@ -135,7 +135,6 @@ export function PatioKeyLabelPrintModal({ open, label, onClose }: PatioKeyLabelP
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [localError, setLocalError] = useState<string | null>(null);
   const [style, setStyle] = useState<PatioKeyLabelStyle>(() => loadPatioKeyLabelStyle());
-  const [showEditor, setShowEditor] = useState(true);
 
   useBrowserBackLayer(open, onClose);
 
@@ -155,7 +154,6 @@ export function PatioKeyLabelPrintModal({ open, label, onClose }: PatioKeyLabelP
     try {
       setLocalError(null);
       setPreviewUrl(renderPatioKeyLabelDataUrl(label, normalizedStyle));
-      savePatioKeyLabelStyle(normalizedStyle);
     } catch (err) {
       setPreviewUrl(null);
       setLocalError(err instanceof Error ? err.message : 'Falha ao montar etiqueta');
@@ -169,7 +167,17 @@ export function PatioKeyLabelPrintModal({ open, label, onClose }: PatioKeyLabelP
   const connected = snap.status === 'connected' || snap.status === 'printing';
 
   const patchStyle = (partial: Partial<PatioKeyLabelStyle>) => {
-    setStyle((prev) => normalizePatioKeyLabelStyle({ ...prev, ...partial }));
+    setStyle((prev) => {
+      const next = normalizePatioKeyLabelStyle({ ...prev, ...partial });
+      savePatioKeyLabelStyle(next);
+      return next;
+    });
+  };
+
+  const resetStyle = () => {
+    const next = { ...DEFAULT_PATIO_KEY_LABEL_STYLE };
+    savePatioKeyLabelStyle(next);
+    setStyle(next);
   };
 
   const run = async (fn: () => Promise<void>) => {
@@ -187,12 +195,12 @@ export function PatioKeyLabelPrintModal({ open, label, onClose }: PatioKeyLabelP
   return (
     <ModalPortal>
       <div
-        className="fixed inset-0 z-[240] flex items-center justify-center bg-black/50 p-3 sm:p-4"
+        className="fixed inset-0 z-[240] flex items-center justify-center bg-black/50 p-2 sm:p-4"
         onClick={onClose}
         role="presentation"
       >
         <div
-          className={`${iosModalShell} relative flex max-h-[min(94dvh,860px)] w-full max-w-lg flex-col overflow-hidden`}
+          className={`${iosModalShell} relative flex h-[min(98dvh,980px)] w-full max-w-5xl flex-col overflow-hidden`}
           onClick={(e) => e.stopPropagation()}
           role="dialog"
           aria-modal="true"
@@ -202,7 +210,7 @@ export function PatioKeyLabelPrintModal({ open, label, onClose }: PatioKeyLabelP
             <X className="h-5 w-5" />
           </button>
 
-          <div className="shrink-0 border-b border-zinc-200/70 bg-white px-5 pb-4 pt-8 pr-24 dark:border-white/[0.06] dark:bg-transparent">
+          <div className="shrink-0 border-b border-zinc-200/70 bg-white px-5 pb-3 pt-8 pr-24 dark:border-white/[0.06] dark:bg-transparent sm:px-6">
             <IosModalHeader
               icon={<Tag className="h-5 w-5 text-zinc-800" />}
               title="Imprimir etiqueta"
@@ -210,63 +218,69 @@ export function PatioKeyLabelPrintModal({ open, label, onClose }: PatioKeyLabelP
             />
           </div>
 
-          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-4 custom-scrollbar">
-            <div>
-              <p className="text-[13px] font-semibold text-zinc-900 dark:text-zinc-100">
-                {label.customerName}
-              </p>
-              <p className="mt-0.5 text-[12px] text-zinc-500 dark:text-zinc-400">
-                {[label.vehicleModel, label.vehicleColor, label.plate].filter(Boolean).join(' · ')}
-              </p>
-            </div>
-
-            {previewUrl ? (
-              <div className="space-y-2">
-                <p className="text-[11px] font-bold uppercase tracking-wide text-zinc-500">
-                  Pré-visualização 50 × 30 mm
+          <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
+            {/* Prévia fixa — não rola com os ajustes */}
+            <div className="shrink-0 space-y-2 border-b border-zinc-200/60 bg-white px-5 py-3 dark:border-white/[0.06] dark:bg-transparent sm:px-6 lg:w-[min(42%,460px)] lg:border-b-0 lg:border-r lg:py-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="truncate text-[13px] font-semibold text-zinc-900 dark:text-zinc-100">
+                    {label.customerName}
+                  </p>
+                  <p className="mt-0.5 truncate text-[12px] text-zinc-500 dark:text-zinc-400">
+                    {[label.vehicleModel, label.vehicleColor, label.plate].filter(Boolean).join(' · ')}
+                  </p>
+                </div>
+                <p className="shrink-0 text-right text-[11px] font-medium leading-snug text-emerald-700 dark:text-emerald-300">
+                  Salvo
+                  <br />
+                  permanentemente
                 </p>
-                <div className="flex justify-center rounded-xl bg-zinc-100 p-4 dark:bg-white/[0.04]">
+              </div>
+              <p className="text-[11px] font-bold uppercase tracking-wide text-zinc-500">
+                Pré-visualização 50 × 30 mm
+              </p>
+              <div className="flex justify-center rounded-xl bg-zinc-100 px-4 py-3 dark:bg-white/[0.04]">
+                {previewUrl ? (
                   <img
                     src={previewUrl}
                     alt="Prévia da etiqueta de chave 50×30 mm"
                     width={NIIMBOT_LABEL_W_PX}
                     height={NIIMBOT_LABEL_H_PX}
-                    className="h-auto w-full max-w-[320px] border border-zinc-300 bg-white dark:border-white/20"
+                    className="h-auto w-full max-w-[420px] border border-zinc-300 bg-white dark:border-white/20"
                     style={{
                       aspectRatio: `${NIIMBOT_LABEL_W_PX} / ${NIIMBOT_LABEL_H_PX}`,
                       imageRendering: 'pixelated',
                     }}
                   />
-                </div>
+                ) : (
+                  <div className="flex h-[120px] w-full max-w-[420px] items-center justify-center text-[13px] text-zinc-500">
+                    Montando prévia…
+                  </div>
+                )}
               </div>
-            ) : null}
-
-            <div className="flex items-center justify-between">
-              <p className="text-[11px] font-bold uppercase tracking-wide text-zinc-500">
-                Editor da etiqueta
+              <p className="text-center text-[11px] text-zinc-500 dark:text-zinc-400">
+                Qualquer ajuste é guardado neste dispositivo e reutilizado nas próximas impressões.
               </p>
-              <div className="flex items-center gap-2">
+            </div>
+
+            {/* Só os ajustes rolam */}
+            <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-5 py-4 custom-scrollbar sm:px-6">
+              <div className="flex items-center justify-between">
+                <p className="text-[11px] font-bold uppercase tracking-wide text-zinc-500">
+                  Editor da etiqueta
+                </p>
                 <button
                   type="button"
                   disabled={printing}
-                  onClick={() => setStyle({ ...DEFAULT_PATIO_KEY_LABEL_STYLE })}
+                  onClick={resetStyle}
                   className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[12px] font-semibold text-zinc-600 hover:bg-zinc-100 disabled:opacity-40 dark:text-zinc-300 dark:hover:bg-white/10"
                 >
                   <RotateCcw className="h-3.5 w-3.5" />
-                  Resetar
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowEditor((v) => !v)}
-                  className="rounded-lg px-2 py-1 text-[12px] font-semibold text-emerald-700 hover:bg-emerald-50 dark:text-emerald-300 dark:hover:bg-emerald-950/40"
-                >
-                  {showEditor ? 'Ocultar' : 'Mostrar'}
+                  Resetar padrão
                 </button>
               </div>
-            </div>
 
-            {showEditor ? (
-              <div className="space-y-3 rounded-2xl border-0 bg-zinc-50 p-3 dark:bg-white/[0.03]">
+              <div className="space-y-3 rounded-2xl border-0 bg-zinc-50 p-3.5 dark:bg-white/[0.03] sm:p-4">
                 <label className="block space-y-1.5">
                   <span className="text-[11px] font-bold uppercase tracking-wide text-zinc-500">
                     Fonte
@@ -316,10 +330,14 @@ export function PatioKeyLabelPrintModal({ open, label, onClose }: PatioKeyLabelP
                   display={`${normalizedStyle.letterSpacing.toFixed(1)}`}
                   disabled={printing}
                   onDec={() =>
-                    patchStyle({ letterSpacing: Math.round((normalizedStyle.letterSpacing - 0.5) * 10) / 10 })
+                    patchStyle({
+                      letterSpacing: Math.round((normalizedStyle.letterSpacing - 0.5) * 10) / 10,
+                    })
                   }
                   onInc={() =>
-                    patchStyle({ letterSpacing: Math.round((normalizedStyle.letterSpacing + 0.5) * 10) / 10 })
+                    patchStyle({
+                      letterSpacing: Math.round((normalizedStyle.letterSpacing + 0.5) * 10) / 10,
+                    })
                   }
                 />
 
@@ -413,78 +431,79 @@ export function PatioKeyLabelPrintModal({ open, label, onClose }: PatioKeyLabelP
                   />
                 </label>
               </div>
-            ) : null}
 
-            <div className="flex items-center justify-between gap-3 rounded-xl bg-zinc-50 px-3 py-2.5 dark:bg-white/[0.03]">
-              <div className="flex min-w-0 items-center gap-2">
-                {connected ? (
-                  <BluetoothConnected className="h-4 w-4 shrink-0 text-emerald-600" />
-                ) : (
-                  <Bluetooth className="h-4 w-4 shrink-0 text-zinc-500" />
-                )}
-                <p className="truncate text-[13px] font-medium text-zinc-700 dark:text-zinc-300">
-                  {snap.message ||
-                    (connected
-                      ? snap.printerLabel || 'Conectada'
-                      : unsupported
-                        ? 'Web Bluetooth indisponível'
-                        : 'Desconectada')}
-                </p>
+              <div className="flex items-center justify-between gap-3 rounded-xl bg-zinc-50 px-3 py-2.5 dark:bg-white/[0.03]">
+                <div className="flex min-w-0 items-center gap-2">
+                  {connected ? (
+                    <BluetoothConnected className="h-4 w-4 shrink-0 text-emerald-600" />
+                  ) : (
+                    <Bluetooth className="h-4 w-4 shrink-0 text-zinc-500" />
+                  )}
+                  <p className="truncate text-[13px] font-medium text-zinc-700 dark:text-zinc-300">
+                    {snap.message ||
+                      (connected
+                        ? snap.printerLabel || 'Conectada'
+                        : unsupported
+                          ? 'Web Bluetooth indisponível'
+                          : 'Desconectada')}
+                  </p>
+                </div>
+                {!unsupported ? (
+                  connected && snap.status !== 'printing' ? (
+                    <button
+                      type="button"
+                      onClick={() => run(() => niimbotService.disconnect())}
+                      disabled={printing}
+                      className="shrink-0 rounded-lg px-2.5 py-1.5 text-[12px] font-semibold text-zinc-600 hover:bg-zinc-200/60 disabled:opacity-50 dark:text-zinc-300"
+                    >
+                      Desconectar
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => run(() => niimbotService.connect())}
+                      disabled={printing}
+                      className="shrink-0 rounded-lg bg-zinc-900 px-2.5 py-1.5 text-[12px] font-semibold text-white disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900"
+                    >
+                      Conectar
+                    </button>
+                  )
+                ) : null}
               </div>
-              {!unsupported ? (
-                connected && snap.status !== 'printing' ? (
-                  <button
-                    type="button"
-                    onClick={() => run(() => niimbotService.disconnect())}
-                    disabled={printing}
-                    className="shrink-0 rounded-lg px-2.5 py-1.5 text-[12px] font-semibold text-zinc-600 hover:bg-zinc-200/60 disabled:opacity-50 dark:text-zinc-300"
-                  >
-                    Desconectar
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => run(() => niimbotService.connect())}
-                    disabled={printing}
-                    className="shrink-0 rounded-lg bg-zinc-900 px-2.5 py-1.5 text-[12px] font-semibold text-white disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900"
-                  >
-                    Conectar
-                  </button>
-                )
-              ) : null}
+
+              <label className="block">
+                <span className="text-[11px] font-bold uppercase tracking-wide text-zinc-500">
+                  Quantidade
+                </span>
+                <input
+                  type="number"
+                  min={1}
+                  max={99}
+                  value={copies}
+                  onChange={(e) => {
+                    const n = Number(e.target.value);
+                    setCopies(Number.isFinite(n) ? Math.max(1, Math.min(99, Math.floor(n))) : 1);
+                  }}
+                  disabled={printing}
+                  className="mt-1 w-full rounded-xl border-0 bg-zinc-100 px-3 py-2.5 text-[15px] tabular-nums text-zinc-900 outline-none disabled:opacity-50 dark:bg-white/[0.06] dark:text-zinc-100"
+                />
+              </label>
+
+              {(localError || unsupported) && (
+                <p className="rounded-xl bg-red-50 px-3 py-2 text-[13px] text-red-800 dark:bg-red-950/40 dark:text-red-200">
+                  {localError || snap.message}
+                </p>
+              )}
             </div>
-
-            <label className="block">
-              <span className="text-[11px] font-bold uppercase tracking-wide text-zinc-500">
-                Quantidade
-              </span>
-              <input
-                type="number"
-                min={1}
-                max={99}
-                value={copies}
-                onChange={(e) => {
-                  const n = Number(e.target.value);
-                  setCopies(Number.isFinite(n) ? Math.max(1, Math.min(99, Math.floor(n))) : 1);
-                }}
-                disabled={printing}
-                className="mt-1 w-full rounded-xl border-0 bg-zinc-100 px-3 py-2.5 text-[15px] tabular-nums text-zinc-900 outline-none disabled:opacity-50 dark:bg-white/[0.06] dark:text-zinc-100"
-              />
-            </label>
-
-            {(localError || unsupported) && (
-              <p className="rounded-xl bg-red-50 px-3 py-2 text-[13px] text-red-800 dark:bg-red-950/40 dark:text-red-200">
-                {localError || snap.message}
-              </p>
-            )}
           </div>
 
-          <div className="shrink-0 border-t border-zinc-200/60 px-5 py-4 dark:border-white/[0.06]">
+          <div className="shrink-0 border-t border-zinc-200/60 px-5 py-4 dark:border-white/[0.06] sm:px-6">
             <button
               type="button"
               disabled={printing || unsupported || !previewUrl}
               onClick={() =>
                 run(async () => {
+                  savePatioKeyLabelStyle(normalizedStyle);
                   const url = renderPatioKeyLabelDataUrl(label, normalizedStyle);
                   await niimbotService.printLabelImageUrl(url, { copies });
                 })
