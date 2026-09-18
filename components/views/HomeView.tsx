@@ -689,6 +689,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
     order: visibleQuickOrder,
     onReorder: handleQuickReorder,
     onActivate: handleQuickActivate,
+    getItemSpan: (id) => ((quickLayout.sizes[id] ?? 'normal') === 'wide' ? 2 : 1),
   });
 
   useEffect(() => {
