@@ -42,8 +42,6 @@ import { BackNavigationProvider, useBrowserBackLayer } from './components/ui/Bac
 import { DesktopEscapeCloseBridge } from './components/ui/DesktopEscapeCloseBridge';
 import { AuthenticatedAppFrame } from './components/layout/AuthenticatedAppFrame';
 import { useDesktopShell } from './hooks/useDesktopShell';
-import { PublicVehicleAccompanimentPage } from './components/public/PublicVehicleAccompanimentPage';
-import { VehicleAccompanimentModal } from './components/VehicleAccompanimentModal';
 import { AdminProfileModal } from './components/AdminProfileModal';
 import { UserProfileModal } from './components/UserProfileModal';
 import {
@@ -94,8 +92,6 @@ export default function App() {
   const [hubBudgetViewer, setHubBudgetViewer] = useState<{ serviceOrderId: string; budgetId: string } | null>(null);
   const [laboratorioPendingOrderId, setLaboratorioPendingOrderId] = useState<string | null>(null);
   const [patioPendingOrderId, setPatioPendingOrderId] = useState<string | null>(null);
-  const [vehicleAccompanimentOpen, setVehicleAccompanimentOpen] = useState(false);
-  const [vehicleAccompanimentPresetId, setVehicleAccompanimentPresetId] = useState<string | null>(null);
   const [shellProfileModal, setShellProfileModal] = useState<ShellProfileModal>(null);
   const [isPartsModalOpen, setIsPartsModalOpen] = useState(false);
   const [partsBootIntent, setPartsBootIntent] = useState<WorkshopPartsBootIntent | null>(null);
@@ -105,24 +101,14 @@ export default function App() {
   const homeSettingsHubOpenerRef = useRef<(() => void) | null>(null);
   const homeSettingsHubCloserRef = useRef<(() => void) | null>(null);
 
-  const openVehicleAccompaniment = useCallback((serviceOrderId?: string | null) => {
-    setVehicleAccompanimentPresetId(serviceOrderId ?? null);
-    setVehicleAccompanimentOpen(true);
-  }, []);
-
-  const closeVehicleAccompaniment = useCallback(() => {
-    setVehicleAccompanimentOpen(false);
-    setVehicleAccompanimentPresetId(null);
-  }, []);
 
   /** Fecha modais/hubs abertos pelos atalhos da sidebar (modo PC). */
   const dismissDesktopShellOverlays = useCallback(() => {
-    closeVehicleAccompaniment();
     setIsPartsModalOpen(false);
     setIsTvPatioModalOpen(false);
     setIsSettingsOpen(false);
     setSettingsHubOpen(false);
-  }, [closeVehicleAccompaniment]);
+  }, []);
 
   const desktopSidebarAccess = useMemo(
     () =>
@@ -135,11 +121,6 @@ export default function App() {
 
   const handleDesktopSidebarAction = useCallback(
     (action: DesktopSidebarActionId) => {
-      if (action === 'centro_atendimento') {
-        dismissDesktopShellOverlays();
-        openVehicleAccompaniment(null);
-        return;
-      }
       if (action === 'estoque_pecas') {
         dismissDesktopShellOverlays();
         setIsPartsModalOpen(true);
@@ -151,14 +132,13 @@ export default function App() {
         return;
       }
       if (action === 'configuracoes') {
-        closeVehicleAccompaniment();
-        setIsPartsModalOpen(false);
+            setIsPartsModalOpen(false);
         setIsSettingsOpen(false);
         setSettingsHubOpen(true);
         return;
       }
     },
-    [dismissDesktopShellOverlays, openVehicleAccompaniment]
+[dismissDesktopShellOverlays]
   );
 
   const handleDesktopTabChange = useCallback(
@@ -201,7 +181,6 @@ export default function App() {
   const shellOverlayTopbar = useMemo(() => {
     if (!isDesktopShell) return null;
     return resolveDesktopShellOverlayTopbar(
-      vehicleAccompanimentOpen,
       isPartsModalOpen,
       isTvPatioModalOpen,
       isSettingsOpen,
@@ -209,7 +188,6 @@ export default function App() {
     );
   }, [
     isDesktopShell,
-    vehicleAccompanimentOpen,
     isPartsModalOpen,
     isTvPatioModalOpen,
     isSettingsOpen,
@@ -219,7 +197,6 @@ export default function App() {
   const activeDesktopSidebarAction = useMemo(() => {
     if (!isDesktopShell) return null;
     return resolveActiveDesktopSidebarAction(
-      vehicleAccompanimentOpen,
       isPartsModalOpen,
       isTvPatioModalOpen,
       isSettingsOpen,
@@ -227,7 +204,6 @@ export default function App() {
     );
   }, [
     isDesktopShell,
-    vehicleAccompanimentOpen,
     isPartsModalOpen,
     isTvPatioModalOpen,
     isSettingsOpen,
@@ -752,16 +728,6 @@ export default function App() {
   useBrowserBackLayer(isUserChangePasswordsOpen, () => setIsUserChangePasswordsOpen(false));
   useBrowserBackLayer(!!hubBudgetViewer, () => setHubBudgetViewer(null));
 
-  const publicAccompToken =
-    typeof window !== 'undefined'
-      ? (() => {
-          const m = window.location.pathname.match(/^\/acompanhamento\/([^/]+)\/?$/);
-          return m?.[1] ? decodeURIComponent(m[1]) : null;
-        })()
-      : null;
-  if (publicAccompToken) {
-    return <PublicVehicleAccompanimentPage token={publicAccompToken} />;
-  }
 
   // Tela de login (antes de entrar no app)
   if (!authSession) {
@@ -877,7 +843,6 @@ export default function App() {
               onOpenChangePasswords={() => setIsUserChangePasswordsOpen(true)}
               globalOverlayModalOpen={isUserChangePasswordsOpen || isSettingsOpen || isTvPatioModalOpen}
               patioBudgetsHubBadge={patioBudgetsHub.badgeCount}
-              onOpenVehicleAccompaniment={openVehicleAccompaniment}
             />
           </KeepAliveTabPanel>
           <KeepAliveTabPanel
@@ -1066,11 +1031,6 @@ export default function App() {
             actorOptions={budgetHubActorOptions}
           />
         ) : null}
-        <VehicleAccompanimentModal
-          isOpen={vehicleAccompanimentOpen}
-          onClose={closeVehicleAccompaniment}
-          initialServiceOrderId={vehicleAccompanimentPresetId}
-        />
         {isPartsModalOpen ? (
           <Suspense fallback={null}>
             <LazyWorkshopPartsModal
@@ -1216,7 +1176,6 @@ export default function App() {
             onOpenSettings={() => setIsSettingsOpen(true)}
             globalOverlayModalOpen={isUserChangePasswordsOpen || isSettingsOpen || isTvPatioModalOpen}
             patioBudgetsHubBadge={patioBudgetsHub.badgeCount}
-            onOpenVehicleAccompaniment={openVehicleAccompaniment}
           />
         </KeepAliveTabPanel>
 
@@ -1397,11 +1356,6 @@ export default function App() {
           actorOptions={budgetHubActorOptions}
         />
       ) : null}
-      <VehicleAccompanimentModal
-        isOpen={vehicleAccompanimentOpen}
-        onClose={closeVehicleAccompaniment}
-        initialServiceOrderId={vehicleAccompanimentPresetId}
-      />
       {isPartsModalOpen ? (
         <Suspense fallback={null}>
           <LazyWorkshopPartsModal
