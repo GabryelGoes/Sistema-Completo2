@@ -52,7 +52,7 @@ function handleUnauthorized(): void {
     /* ignore */
   }
   // Evita loop: só redireciona se não estiver já na tela de login pública.
-  if (typeof window !== "undefined" && !window.location.pathname.startsWith("/acompanhamento/")) {
+  if (typeof window !== "undefined") {
     window.location.reload();
   }
 }

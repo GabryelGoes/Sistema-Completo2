@@ -82,8 +82,6 @@ interface HomeViewProps {
   systemUserPermissions?: SystemUserPermissions;
   onOpenSettings?: () => void;
   onOpenChangePasswords?: () => void;
-  /** Abre a Central do atendimento em tela cheia (opcional: OS já selecionada). */
-  onOpenVehicleAccompaniment?: (serviceOrderId?: string | null) => void;
   /** Modais no App (ex.: preferências, senhas) que devem ficar acima do hub de configurações */
   globalOverlayModalOpen?: boolean;
   /** Badge vermelho no ícone Orçamentos (hub do pátio). */
@@ -149,7 +147,6 @@ type QuickTileSize = 'normal' | 'wide';
 type QuickTileId =
   | HomeAppId
   | 'tv_patio'
-  | 'centro_atendimento'
   | 'parts_stock'
   | 'settings_hub';
 type QuickLayoutState = {
@@ -161,7 +158,6 @@ const DEFAULT_QUICK_ORDER: QuickTileId[] = [...OPERATIONAL_APPS.map((app) => app
 const ALL_QUICK_TILE_IDS: QuickTileId[] = [
   ...DEFAULT_QUICK_ORDER,
   'tv_patio',
-  'centro_atendimento',
   'parts_stock',
   'relatorios',
   'boletim_erros',
@@ -224,7 +220,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
   onOpenChangePasswords,
   globalOverlayModalOpen = false,
   patioBudgetsHubBadge = 0,
-  onOpenVehicleAccompaniment,
   desktopShell = false,
   settingsHubOpenerRef,
   settingsHubCloserRef,
@@ -345,7 +340,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
   const hasRichQuickGrid =
     showFullAdminHub ||
     !!perms.access_tv_patio ||
-    !!perms.access_centro_atendimento ||
     !!perms.access_estoque_pecas ||
     !!perms.access_relatorios;
   const hasToolsAccess = isSystemUser && (perms.access_settings || perms.access_change_passwords || perms.access_technicians);
@@ -569,14 +563,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
         onOpen: () => (onOpenTvPatio ? onOpenTvPatio() : setIsTvPatioOpen(true)),
       });
     }
-    if (showFullAdminHub || !!perms.access_centro_atendimento) {
-      extraTiles.push({
-        id: 'centro_atendimento',
-        label: 'Central do atendimento',
-        icon: <img src="/icons/recepcao-ios.png" alt="Central do atendimento" className="h-full w-full object-cover" />,
-        onOpen: () => onOpenVehicleAccompaniment?.(null),
-      });
-    }
     if (showFullAdminHub || !!perms.access_estoque_pecas) {
       extraTiles.push({
         id: 'parts_stock',
@@ -618,7 +604,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
     return [...baseTiles, ...extraTiles, settingsTile];
   }, [
     onOpenApp,
-    onOpenVehicleAccompaniment,
     onOpenPartsStock,
     onOpenTvPatio,
     openSettingsHubOnly,
