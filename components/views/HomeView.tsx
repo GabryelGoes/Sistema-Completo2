@@ -36,6 +36,7 @@ import { ModalPortal } from '../ui/ModalPortal';
 import { iosSquircleBackgroundFromHex } from '../ui/iosModalStyles';
 import { desktopHomeHubCard } from '../ui/desktopCardStyles';
 import { useModalExitPresence } from '../../hooks/useModalExitAnimation';
+import { useIosHomeAppReorder } from '../../hooks/useIosHomeAppReorder';
 
 /** Portal no body: evita TabBar (z-40) cobrir o hub dentro do `main` (z-10). */
 function SettingsHubShell({ children }: { children: React.ReactNode }) {
@@ -116,11 +117,6 @@ const iosSectionTitle =
 
 const iosSectionHint = 'text-[13px] text-zinc-950 dark:text-zinc-400 mb-4 leading-relaxed';
 const QUICK_APPS_LAYOUT_KEY = 'app_home_quick_apps_layout_v1';
-const LONG_PRESS_MS = 420;
-const QUICK_REORDER_HYSTERESIS_HITS = 2;
-const QUICK_TARGET_PADDING_PX = 18;
-/** Distância mínima (px) para tratar o gesto como rolagem em vez de toque no módulo. */
-const QUICK_TAP_MOVE_THRESHOLD_PX = 10;
 
 const OPERATIONAL_APPS: {
   id: HomeAppId;
@@ -159,15 +155,6 @@ type QuickTileId =
 type QuickLayoutState = {
   order: QuickTileId[];
   sizes: Partial<Record<QuickTileId, QuickTileSize>>;
-};
-type QuickDragVisual = {
-  id: QuickTileId;
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  offsetX: number;
-  offsetY: number;
 };
 
 const DEFAULT_QUICK_ORDER: QuickTileId[] = [...OPERATIONAL_APPS.map((app) => app.id), 'settings_hub'];
@@ -336,25 +323,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
       return { order: DEFAULT_QUICK_ORDER, sizes: {} };
     }
   });
-  const [isQuickEditMode, setIsQuickEditMode] = useState(false);
-  const [draggingQuickId, setDraggingQuickId] = useState<QuickTileId | null>(null);
-  const [quickDragVisual, setQuickDragVisual] = useState<QuickDragVisual | null>(null);
-  const longPressTimerRef = useRef<number | null>(null);
-  const longPressTriggeredRef = useRef(false);
-  const quickTapSessionRef = useRef<{
-    appId: QuickTileId;
-    startX: number;
-    startY: number;
-    moved: boolean;
-    pointerId: number;
-  } | null>(null);
-  const quickTapMoveCleanupRef = useRef<(() => void) | null>(null);
-  const lastQuickReorderTargetRef = useRef<QuickTileId | null>(null);
-  const quickReorderCandidateRef = useRef<QuickTileId | null>(null);
-  const quickReorderCandidateHitsRef = useRef(0);
-  const dragFrameRef = useRef<number | null>(null);
-  /** Limita o reorder ao grid desta home — nunca usa `document` inteiro. */
-  const quickAppsGridRef = useRef<HTMLDivElement>(null);
 
   const perms = systemUserPermissions || {};
   const isLimitedSystem = isSystemUser && !perms.full_access;
@@ -675,109 +643,54 @@ export const HomeView: React.FC<HomeViewProps> = ({
     return fromSaved.map((id) => operationalById[id]).filter(Boolean);
   }, [operationalById, quickTilesForView, quickLayout.order]);
 
+  const visibleQuickOrder = useMemo(
+    () => orderedOperationalApps.map((app) => app.id),
+    [orderedOperationalApps]
+  );
+
   useEffect(() => {
     try {
       localStorage.setItem(QUICK_APPS_LAYOUT_KEY, JSON.stringify(quickLayout));
     } catch (_) {}
   }, [quickLayout]);
 
-  const endQuickDrag = useCallback(() => {
-    setDraggingQuickId(null);
-    setQuickDragVisual(null);
-    lastQuickReorderTargetRef.current = null;
-    quickReorderCandidateRef.current = null;
-    quickReorderCandidateHitsRef.current = 0;
-    if (dragFrameRef.current != null) {
-      window.cancelAnimationFrame(dragFrameRef.current);
-      dragFrameRef.current = null;
-    }
-  }, []);
+  const handleQuickActivate = useCallback(
+    (id: QuickTileId) => {
+      const tile = operationalById[id];
+      if (!tile) return;
+      if (launchTimerRef.current) clearTimeout(launchTimerRef.current);
+      setLaunchingQuickId(id);
+      launchTimerRef.current = setTimeout(() => {
+        launchTimerRef.current = null;
+        setLaunchingQuickId(null);
+        openHomeHubSafely(() => tile.onOpen());
+      }, 180);
+    },
+    [operationalById]
+  );
 
-  const moveQuickApp = useCallback((sourceId: QuickTileId, targetId: QuickTileId) => {
-    if (sourceId === targetId) return;
+  const handleQuickReorder = useCallback((nextVisibleOrder: QuickTileId[]) => {
     setQuickLayout((prev) => {
-      const order = [...prev.order];
-      const from = order.indexOf(sourceId);
-      const to = order.indexOf(targetId);
-      if (from === -1 || to === -1) return prev;
-      order.splice(from, 1);
-      order.splice(to, 0, sourceId);
-      return { ...prev, order };
+      const visible = new Set(nextVisibleOrder);
+      const hiddenTail = prev.order.filter((id) => !visible.has(id));
+      return { ...prev, order: [...nextVisibleOrder, ...hiddenTail] };
     });
   }, []);
 
-  useEffect(() => {
-    if (!draggingQuickId) return;
-
-    const handlePointerMove = (event: PointerEvent) => {
-      setQuickDragVisual((prev) => {
-        if (!prev) return prev;
-        return {
-          ...prev,
-          x: event.clientX - prev.offsetX,
-          y: event.clientY - prev.offsetY,
-        };
-      });
-
-      if (dragFrameRef.current != null) return;
-      dragFrameRef.current = window.requestAnimationFrame(() => {
-        dragFrameRef.current = null;
-        const gridRoot = quickAppsGridRef.current;
-        if (!gridRoot) return;
-        const tileNodes = Array.from(gridRoot.querySelectorAll<HTMLElement>('[data-quick-app-id]'));
-        if (tileNodes.length === 0) return;
-        let bestId: QuickTileId | null = null;
-        let bestDistance = Number.POSITIVE_INFINITY;
-        for (const node of tileNodes) {
-          const id = node.dataset.quickAppId as QuickTileId | undefined;
-          if (!id || id === draggingQuickId) continue;
-          const rect = node.getBoundingClientRect();
-          const withinExpandedRect =
-            event.clientX >= rect.left - QUICK_TARGET_PADDING_PX &&
-            event.clientX <= rect.right + QUICK_TARGET_PADDING_PX &&
-            event.clientY >= rect.top - QUICK_TARGET_PADDING_PX &&
-            event.clientY <= rect.bottom + QUICK_TARGET_PADDING_PX;
-          if (!withinExpandedRect) continue;
-          const cx = rect.left + rect.width / 2;
-          const cy = rect.top + rect.height / 2;
-          const dx = cx - event.clientX;
-          const dy = cy - event.clientY;
-          const distance = dx * dx + dy * dy;
-          if (distance < bestDistance) {
-            bestDistance = distance;
-            bestId = id;
-          }
-        }
-        if (!bestId || bestId === lastQuickReorderTargetRef.current) {
-          quickReorderCandidateRef.current = null;
-          quickReorderCandidateHitsRef.current = 0;
-          return;
-        }
-        if (quickReorderCandidateRef.current !== bestId) {
-          quickReorderCandidateRef.current = bestId;
-          quickReorderCandidateHitsRef.current = 1;
-          return;
-        }
-        quickReorderCandidateHitsRef.current += 1;
-        if (quickReorderCandidateHitsRef.current < QUICK_REORDER_HYSTERESIS_HITS) return;
-        quickReorderCandidateRef.current = null;
-        quickReorderCandidateHitsRef.current = 0;
-        lastQuickReorderTargetRef.current = bestId;
-        moveQuickApp(draggingQuickId, bestId);
-      });
-    };
-
-    const stopDrag = () => endQuickDrag();
-
-    window.addEventListener('pointermove', handlePointerMove, { passive: true });
-    window.addEventListener('pointerup', stopDrag);
-    window.addEventListener('pointercancel', stopDrag);
-    return () => {
-      window.removeEventListener('pointermove', handlePointerMove);
-      window.removeEventListener('pointerup', stopDrag);
-      window.removeEventListener('pointercancel', stopDrag);
-    };
-  }, [draggingQuickId, endQuickDrag, moveQuickApp]);
+  const {
+    isEditMode: isQuickEditMode,
+    draggingId: draggingQuickId,
+    ghostMeta: quickGhostMeta,
+    gridRef: quickAppsGridRef,
+    ghostElRef: quickGhostElRef,
+    bindTile: bindQuickTile,
+    finishEditMode: finishQuickEditMode,
+  } = useIosHomeAppReorder<QuickTileId>({
+    order: visibleQuickOrder,
+    onReorder: handleQuickReorder,
+    onActivate: handleQuickActivate,
+    getItemSpan: (id) => ((quickLayout.sizes[id] ?? 'normal') === 'wide' ? 2 : 1),
+  });
 
   useEffect(() => {
     if (!isHomeSettingsHubOpen) return;
@@ -792,140 +705,16 @@ export const HomeView: React.FC<HomeViewProps> = ({
     return () => window.removeEventListener('keydown', onKey);
   }, [isHomeSettingsHubOpen, childModalStackActive]);
 
-  const clearLongPressTimer = useCallback(() => {
-    if (longPressTimerRef.current != null) {
-      window.clearTimeout(longPressTimerRef.current);
-      longPressTimerRef.current = null;
-    }
-  }, []);
-
-  const beginQuickDrag = useCallback(
-    (
-      appId: QuickTileId,
-      rect: DOMRect,
-      pointer: { clientX: number; clientY: number }
-    ) => {
-      setDraggingQuickId(appId);
-      setQuickDragVisual({
-        id: appId,
-        x: rect.left,
-        y: rect.top,
-        width: rect.width,
-        height: rect.height,
-        offsetX: pointer.clientX - rect.left,
-        offsetY: pointer.clientY - rect.top,
-      });
-    },
-    []
-  );
-
-  const detachQuickTapMoveListener = useCallback(() => {
-    quickTapMoveCleanupRef.current?.();
-    quickTapMoveCleanupRef.current = null;
-  }, []);
-
-  const resetQuickTapSession = useCallback(() => {
-    detachQuickTapMoveListener();
-    quickTapSessionRef.current = null;
-  }, [detachQuickTapMoveListener]);
-
-  const attachQuickTapMoveListener = useCallback(() => {
-    detachQuickTapMoveListener();
-    const onPointerMove = (event: PointerEvent) => {
-      const session = quickTapSessionRef.current;
-      if (!session || session.moved || session.pointerId !== event.pointerId) return;
-      const dx = event.clientX - session.startX;
-      const dy = event.clientY - session.startY;
-      if (
-        Math.abs(dx) > QUICK_TAP_MOVE_THRESHOLD_PX ||
-        Math.abs(dy) > QUICK_TAP_MOVE_THRESHOLD_PX
-      ) {
-        session.moved = true;
-        clearLongPressTimer();
-        detachQuickTapMoveListener();
-      }
+  useEffect(() => {
+    if (!isQuickEditMode || isHomeSettingsHubOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      e.preventDefault();
+      finishQuickEditMode();
     };
-    const onEnd = () => detachQuickTapMoveListener();
-    window.addEventListener('pointermove', onPointerMove, { passive: true });
-    window.addEventListener('pointerup', onEnd, { once: true });
-    window.addEventListener('pointercancel', onEnd, { once: true });
-    quickTapMoveCleanupRef.current = () => {
-      window.removeEventListener('pointermove', onPointerMove);
-      window.removeEventListener('pointerup', onEnd);
-      window.removeEventListener('pointercancel', onEnd);
-    };
-  }, [clearLongPressTimer, detachQuickTapMoveListener]);
-
-  const handleQuickCardPointerDown = useCallback(
-    (appId: QuickTileId, event: React.PointerEvent<HTMLButtonElement>) => {
-      if (event.pointerType === 'mouse' && event.button !== 0) return;
-
-      longPressTriggeredRef.current = false;
-      clearLongPressTimer();
-      const rect = event.currentTarget.getBoundingClientRect();
-      const pointer = { clientX: event.clientX, clientY: event.clientY };
-
-      quickTapSessionRef.current = {
-        appId,
-        startX: pointer.clientX,
-        startY: pointer.clientY,
-        moved: false,
-        pointerId: event.pointerId,
-      };
-
-      if (isQuickEditMode) {
-        event.currentTarget.setPointerCapture(event.pointerId);
-        beginQuickDrag(appId, rect, pointer);
-        return;
-      }
-
-      attachQuickTapMoveListener();
-
-      longPressTimerRef.current = window.setTimeout(() => {
-        longPressTriggeredRef.current = true;
-        setIsQuickEditMode(true);
-        beginQuickDrag(appId, rect, pointer);
-      }, LONG_PRESS_MS);
-    },
-    [attachQuickTapMoveListener, beginQuickDrag, clearLongPressTimer, isQuickEditMode]
-  );
-
-  const handleQuickCardPointerUp = useCallback(
-    (app: { id: QuickTileId; onOpen: () => void }) => {
-      clearLongPressTimer();
-      const session = quickTapSessionRef.current;
-      const shouldOpen =
-        !isQuickEditMode &&
-        !longPressTriggeredRef.current &&
-        session?.appId === app.id &&
-        !session.moved;
-      if (shouldOpen) {
-        if (launchTimerRef.current) clearTimeout(launchTimerRef.current);
-        setLaunchingQuickId(app.id);
-        // Micro-animação de “lançamento” antes de abrir o módulo / hub
-        launchTimerRef.current = setTimeout(() => {
-          launchTimerRef.current = null;
-          setLaunchingQuickId(null);
-          openHomeHubSafely(() => app.onOpen());
-        }, 180);
-      }
-      if (!longPressTriggeredRef.current) {
-        endQuickDrag();
-      }
-      longPressTriggeredRef.current = false;
-      resetQuickTapSession();
-    },
-    [clearLongPressTimer, endQuickDrag, isQuickEditMode, resetQuickTapSession]
-  );
-
-  const handleQuickCardPointerCancel = useCallback(() => {
-    clearLongPressTimer();
-    resetQuickTapSession();
-    if (!longPressTriggeredRef.current) {
-      endQuickDrag();
-    }
-    longPressTriggeredRef.current = false;
-  }, [clearLongPressTimer, endQuickDrag, resetQuickTapSession]);
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [finishQuickEditMode, isHomeSettingsHubOpen, isQuickEditMode]);
 
   const toggleQuickTileSize = useCallback((appId: QuickTileId) => {
     setQuickLayout((prev) => {
@@ -1104,15 +893,14 @@ export const HomeView: React.FC<HomeViewProps> = ({
               </p>
               <div className="mb-3 flex items-center justify-between gap-3">
                 <p className={`${iosSectionHint} mb-0`}>
-                  {isQuickEditMode ? 'Arraste para reorganizar. Toque em 2x para cartão largo.' : 'Acesso rápido aos módulos do dia a dia'}
+                  {isQuickEditMode
+                    ? 'Segure e arraste para reorganizar. Toque em 2x para cartão largo.'
+                    : 'Acesso rápido aos módulos do dia a dia'}
                 </p>
                 {isQuickEditMode ? (
                   <button
                     type="button"
-                    onClick={() => {
-                      setIsQuickEditMode(false);
-                      endQuickDrag();
-                    }}
+                    onClick={() => finishQuickEditMode()}
                     className="shrink-0 rounded-full border border-[#007AFF]/45 bg-[#007AFF]/15 px-3 py-1.5 text-[12px] font-semibold text-[#007AFF] transition-all hover:bg-[#007AFF]/20 dark:border-[#64B5FF]/45 dark:bg-[#64B5FF]/14 dark:text-[#8cc8ff]"
                   >
                     Concluir
@@ -1122,37 +910,34 @@ export const HomeView: React.FC<HomeViewProps> = ({
 
               <div
                 ref={quickAppsGridRef}
-                onPointerUp={() => endQuickDrag()}
                 className={`relative isolate z-0 grid gap-3 ${quickGridColsClass} ${isQuickEditMode ? 'touch-none select-none' : 'touch-pan-y'}`}
               >
                 {orderedOperationalApps.map((app, tileIndex) => {
                   const isWide = (quickLayout.sizes[app.id] ?? 'normal') === 'wide';
                   const isDragging = draggingQuickId === app.id;
                   const isLaunching = launchingQuickId === app.id;
+                  const tileBind = bindQuickTile(app.id, app.label);
+                  const { ref: tileRef, ...tilePointerProps } = tileBind;
                   return (
                     <button
                       key={app.id}
-                      data-quick-app-id={app.id}
+                      ref={tileRef}
                       type="button"
                       style={{
-                        touchAction: isQuickEditMode ? 'none' : 'pan-y',
-                        animationDelay: `${Math.min(tileIndex, 8) * 45}ms`,
+                        touchAction: isQuickEditMode || isDragging ? 'none' : 'pan-y',
+                        animationDelay: isQuickEditMode
+                          ? `${(tileIndex % 5) * 35}ms`
+                          : `${Math.min(tileIndex, 8) * 45}ms`,
+                        ['--wiggle-delay' as string]: `${(tileIndex % 7) * 40}ms`,
                       }}
-                      onPointerDown={(event) => handleQuickCardPointerDown(app.id, event)}
-                      onPointerUp={() => handleQuickCardPointerUp(app)}
-                      onPointerCancel={handleQuickCardPointerCancel}
-                      onPointerLeave={clearLongPressTimer}
-                      onContextMenu={(event) => {
-                        event.preventDefault();
-                        setIsQuickEditMode(true);
-                      }}
-                      className={`group relative flex w-full flex-col items-center gap-3 p-3 sm:p-4 text-center select-none animate-home-tile-in ${hubCardClass} border-[#007AFF]/0 hover:border-[#007AFF]/15 dark:hover:border-[#0A84FF]/20 hover:shadow-none transition-all duration-300 active:scale-[0.99] ${
+                      {...tilePointerProps}
+                      className={`group relative flex w-full flex-col items-center gap-3 p-3 sm:p-4 text-center select-none will-change-transform ${
+                        isQuickEditMode ? '' : 'animate-home-tile-in'
+                      } ${hubCardClass} border-[#007AFF]/0 hover:border-[#007AFF]/15 dark:hover:border-[#0A84FF]/20 hover:shadow-none transition-[border-color,box-shadow,opacity] duration-300 ${
                         isWide ? 'col-span-2' : ''
-                      } ${isQuickEditMode ? 'animate-[pulse_2.8s_ease-in-out_infinite]' : ''} ${
-                        isDragging ? 'scale-[1.02] border-[#007AFF]/35 shadow-[0_18px_48px_-18px_rgba(0,122,255,0.38)]' : ''
-                      } ${isQuickEditMode ? 'touch-none select-none' : ''} ${isDragging ? 'opacity-30' : ''} ${
-                        isLaunching ? 'animate-home-tile-launch z-[1]' : ''
-                      }`}
+                      } ${isDragging ? 'opacity-25 scale-[0.98]' : ''} ${
+                        isQuickEditMode ? 'touch-none select-none' : 'active:scale-[0.99]'
+                      } ${isLaunching ? 'animate-home-tile-launch z-[1]' : ''}`}
                     >
                       {isQuickEditMode && (
                         <span
@@ -1176,7 +961,16 @@ export const HomeView: React.FC<HomeViewProps> = ({
                       )}
                       {/* pointer-events-none: toque registra no <button> inteiro (cartão + squircle), evita área morta em imagens/WebKit */}
                       <span className="pointer-events-none flex w-full flex-col items-center gap-3">
-                        <span className="relative inline-flex shrink-0">
+                        <span
+                          className={`relative inline-flex shrink-0 ${
+                            isQuickEditMode && !isDragging ? 'home-tile-wiggle' : ''
+                          } ${isDragging ? 'home-tile-lift' : ''}`}
+                          style={
+                            isQuickEditMode
+                              ? { animationDelay: `var(--wiggle-delay, ${(tileIndex % 7) * 40}ms)` }
+                              : undefined
+                          }
+                        >
                           <IosAccentIconSquircle
                             variant="tile"
                             className="pointer-events-none shrink-0 transition-transform duration-300 group-hover:scale-105"
@@ -1198,28 +992,28 @@ export const HomeView: React.FC<HomeViewProps> = ({
                   );
                 })}
               </div>
-              {quickDragVisual && operationalById[quickDragVisual.id] && (
+              {quickGhostMeta && operationalById[quickGhostMeta.id as QuickTileId] ? (
                 <div
-                  className="pointer-events-none fixed z-[80]"
+                  ref={quickGhostElRef}
+                  className="pointer-events-none fixed left-0 top-0 z-[80] will-change-transform"
                   style={{
-                    left: `${quickDragVisual.x}px`,
-                    top: `${quickDragVisual.y}px`,
-                    width: `${quickDragVisual.width}px`,
-                    height: `${quickDragVisual.height}px`,
+                    width: `${quickGhostMeta.width}px`,
+                    height: `${quickGhostMeta.height}px`,
+                    transform: 'translate3d(-9999px,-9999px,0)',
                   }}
                 >
                   <div
-                    className={`group relative flex h-full w-full flex-col items-center gap-3 p-3 sm:p-4 text-center ${hubCardClass} border-[#007AFF]/45 shadow-none scale-[1.03]`}
+                    className={`group relative flex h-full w-full flex-col items-center gap-3 p-3 sm:p-4 text-center ${hubCardClass} border-[#007AFF]/40 shadow-[0_22px_50px_-18px_rgba(0,0,0,0.45)] scale-[1.05] home-tile-lift`}
                   >
                     <IosAccentIconSquircle variant="tile" className="scale-105" strokeWidth={2.2}>
-                      {operationalById[quickDragVisual.id].icon}
+                      {operationalById[quickGhostMeta.id as QuickTileId].icon}
                     </IosAccentIconSquircle>
                     <span className="text-[15px] font-semibold text-zinc-900 dark:text-white leading-tight">
-                      {operationalById[quickDragVisual.id].label}
+                      {operationalById[quickGhostMeta.id as QuickTileId].label}
                     </span>
                   </div>
                 </div>
-              )}
+              ) : null}
             </section>
       </main>
 
