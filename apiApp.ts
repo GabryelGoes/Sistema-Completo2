@@ -552,6 +552,376 @@ export function createApiApp() {
       });
   }
 
+  const SO_PHOTO_FOLDER_ENTRADA_SLUG = "entrada";
+  const SO_PHOTO_FOLDER_ENTRADA_NAME = "Entrada do veículo";
+  const SO_PHOTO_FOLDER_OUTRAS_SLUG = "outras";
+  /** Álbum principal (legado: "Outras fotos"). */
+  const SO_PHOTO_FOLDER_OUTRAS_NAME = "Biblioteca";
+  const SO_PHOTO_FOLDER_OUTRAS_LEGACY_NAMES = ["Outras fotos", "outras fotos"];
+
+  function isServiceOrderImageFileName(name: string): boolean {
+    return /\.(jpe?g|png|gif|webp|heic|heif|bmp)$/i.test(String(name || ""));
+  }
+
+  function isEntradaIntakePhotoFileName(name: string): boolean {
+    // Storage grava como `{timestamp}_entrada_{osId}_…jpg` (upload-init) ou `entrada_…` (legado).
+    const base = String(name || "").trim().split("/").pop() || "";
+    return /(^|_)entrada_/i.test(base);
+  }
+
+  type ServiceOrderPhotoFolderRow = {
+    id: string;
+    workshop_id: string;
+    service_order_id: string;
+    name: string;
+    slug: string | null;
+    is_system: boolean;
+    sort_order: number;
+    created_at: string;
+    updated_at: string;
+  };
+
+  type ServiceOrderPhotoItemRow = {
+    id: string;
+    workshop_id: string;
+    service_order_id: string;
+    folder_id: string;
+    storage_path: string;
+    file_name: string;
+    kind: string;
+    created_at: string;
+  };
+
+  async function insertServiceOrderPhotoFolder(params: {
+    serviceOrderId: string;
+    name: string;
+    slug?: string | null;
+    isSystem?: boolean;
+    sortOrder?: number;
+  }): Promise<ServiceOrderPhotoFolderRow | null> {
+    if (!supabaseAdmin || !WORKSHOP_ID) return null;
+    const name = String(params.name || "").trim().replace(/\s+/g, " ");
+    if (!name) return null;
+    const { data, error } = await supabaseAdmin
+      .from("service_order_photo_folders")
+      .insert({
+        workshop_id: WORKSHOP_ID,
+        service_order_id: params.serviceOrderId,
+        name,
+        slug: params.slug ?? null,
+        is_system: !!params.isSystem,
+        sort_order: params.sortOrder ?? 100,
+      })
+      .select("*")
+      .single();
+    if (error) {
+      console.error("[API] insertServiceOrderPhotoFolder:", error.message);
+      return null;
+    }
+    return data as ServiceOrderPhotoFolderRow;
+  }
+
+  async function getOrCreateNamedPhotoFolder(params: {
+    serviceOrderId: string;
+    name: string;
+    slug: string;
+    isSystem: boolean;
+    sortOrder: number;
+  }): Promise<ServiceOrderPhotoFolderRow | null> {
+    if (!supabaseAdmin || !WORKSHOP_ID) return null;
+    const { data: bySlug } = await supabaseAdmin
+      .from("service_order_photo_folders")
+      .select("*")
+      .eq("service_order_id", params.serviceOrderId)
+      .eq("workshop_id", WORKSHOP_ID)
+      .eq("slug", params.slug)
+      .maybeSingle();
+    if (bySlug) {
+      const row = bySlug as ServiceOrderPhotoFolderRow;
+      if (row.name !== params.name) {
+        await supabaseAdmin
+          .from("service_order_photo_folders")
+          .update({
+            name: params.name,
+            is_system: params.isSystem || row.is_system,
+            sort_order: params.sortOrder,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", row.id);
+        return {
+          ...row,
+          name: params.name,
+          is_system: params.isSystem || row.is_system,
+          sort_order: params.sortOrder,
+        };
+      }
+      return row;
+    }
+
+    const { data: byName } = await supabaseAdmin
+      .from("service_order_photo_folders")
+      .select("*")
+      .eq("service_order_id", params.serviceOrderId)
+      .eq("workshop_id", WORKSHOP_ID)
+      .ilike("name", params.name)
+      .maybeSingle();
+    if (byName) {
+      if (!(byName as ServiceOrderPhotoFolderRow).slug) {
+        await supabaseAdmin
+          .from("service_order_photo_folders")
+          .update({
+            slug: params.slug,
+            is_system: params.isSystem || (byName as ServiceOrderPhotoFolderRow).is_system,
+            sort_order: params.sortOrder,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", (byName as ServiceOrderPhotoFolderRow).id);
+      }
+      return {
+        ...(byName as ServiceOrderPhotoFolderRow),
+        slug: params.slug,
+        is_system: params.isSystem || (byName as ServiceOrderPhotoFolderRow).is_system,
+        sort_order: params.sortOrder,
+      };
+    }
+
+    // Migra nome legado "Outras fotos" → "Biblioteca" (mesmo slug).
+    if (params.slug === SO_PHOTO_FOLDER_OUTRAS_SLUG) {
+      for (const legacy of SO_PHOTO_FOLDER_OUTRAS_LEGACY_NAMES) {
+        const { data: legacyRow } = await supabaseAdmin
+          .from("service_order_photo_folders")
+          .select("*")
+          .eq("service_order_id", params.serviceOrderId)
+          .eq("workshop_id", WORKSHOP_ID)
+          .ilike("name", legacy)
+          .maybeSingle();
+        if (legacyRow) {
+          const row = legacyRow as ServiceOrderPhotoFolderRow;
+          await supabaseAdmin
+            .from("service_order_photo_folders")
+            .update({
+              name: params.name,
+              slug: params.slug,
+              is_system: params.isSystem || row.is_system,
+              sort_order: params.sortOrder,
+              updated_at: new Date().toISOString(),
+            })
+            .eq("id", row.id);
+          return {
+            ...row,
+            name: params.name,
+            slug: params.slug,
+            is_system: params.isSystem || row.is_system,
+            sort_order: params.sortOrder,
+          };
+        }
+      }
+    }
+
+    return insertServiceOrderPhotoFolder({
+      serviceOrderId: params.serviceOrderId,
+      name: params.name,
+      slug: params.slug,
+      isSystem: params.isSystem,
+      sortOrder: params.sortOrder,
+    });
+  }
+
+  async function upsertServiceOrderPhotoItem(params: {
+    serviceOrderId: string;
+    folderId: string;
+    storagePath: string;
+    fileName: string;
+    kind?: "photo" | "document";
+  }): Promise<void> {
+    if (!supabaseAdmin || !WORKSHOP_ID) return;
+    const { error } = await supabaseAdmin.from("service_order_photo_items").upsert(
+      {
+        workshop_id: WORKSHOP_ID,
+        service_order_id: params.serviceOrderId,
+        folder_id: params.folderId,
+        storage_path: params.storagePath,
+        file_name: params.fileName,
+        kind: params.kind ?? "photo",
+      },
+      { onConflict: "service_order_id,storage_path" }
+    );
+    if (error) {
+      console.error("[API] upsertServiceOrderPhotoItem:", error.message);
+    }
+  }
+
+  async function removeServiceOrderPhotoItemByPath(
+    serviceOrderId: string,
+    storagePath: string
+  ): Promise<void> {
+    if (!supabaseAdmin || !WORKSHOP_ID) return;
+    await supabaseAdmin
+      .from("service_order_photo_items")
+      .delete()
+      .eq("service_order_id", serviceOrderId)
+      .eq("workshop_id", WORKSHOP_ID)
+      .eq("storage_path", storagePath);
+  }
+
+  async function updateServiceOrderPhotoItemPath(
+    serviceOrderId: string,
+    oldPath: string,
+    newPath: string,
+    newFileName: string
+  ): Promise<void> {
+    if (!supabaseAdmin || !WORKSHOP_ID) return;
+    await supabaseAdmin
+      .from("service_order_photo_items")
+      .update({ storage_path: newPath, file_name: newFileName })
+      .eq("service_order_id", serviceOrderId)
+      .eq("workshop_id", WORKSHOP_ID)
+      .eq("storage_path", oldPath);
+  }
+
+  /** Garante pasta de sistema + sincroniza fotos órfãs do Storage para pastas. */
+  async function ensureAndSyncServiceOrderPhotoFolders(serviceOrderId: string): Promise<{
+    folders: ServiceOrderPhotoFolderRow[];
+    items: ServiceOrderPhotoItemRow[];
+  }> {
+    if (!supabaseAdmin || !WORKSHOP_ID || !serviceOrderId) {
+      return { folders: [], items: [] };
+    }
+
+    const entrada = await getOrCreateNamedPhotoFolder({
+      serviceOrderId,
+      name: SO_PHOTO_FOLDER_ENTRADA_NAME,
+      slug: SO_PHOTO_FOLDER_ENTRADA_SLUG,
+      isSystem: true,
+      sortOrder: 0,
+    });
+
+    const storagePhotos = await listServiceOrderStoragePhotos(serviceOrderId);
+    const imageFiles = storagePhotos.filter((p) => isServiceOrderImageFileName(p.name));
+
+    const { data: existingItems, error: itemsErr } = await supabaseAdmin
+      .from("service_order_photo_items")
+      .select("*")
+      .eq("service_order_id", serviceOrderId)
+      .eq("workshop_id", WORKSHOP_ID);
+    if (itemsErr) {
+      console.error("[API] list photo items:", itemsErr.message);
+    }
+    const itemsByPath = new Map(
+      ((existingItems ?? []) as ServiceOrderPhotoItemRow[]).map((row) => [row.storage_path, row])
+    );
+
+    const orphanImages = imageFiles.filter((p) => !itemsByPath.has(p.path));
+    let outras: ServiceOrderPhotoFolderRow | null = null;
+    if (orphanImages.some((p) => !isEntradaIntakePhotoFileName(p.name))) {
+      outras = await getOrCreateNamedPhotoFolder({
+        serviceOrderId,
+        name: SO_PHOTO_FOLDER_OUTRAS_NAME,
+        slug: SO_PHOTO_FOLDER_OUTRAS_SLUG,
+        isSystem: false,
+        sortOrder: 50,
+      });
+    }
+
+    for (const photo of orphanImages) {
+      const targetFolderId =
+        isEntradaIntakePhotoFileName(photo.name) && entrada
+          ? entrada.id
+          : outras?.id || entrada?.id;
+      if (!targetFolderId) continue;
+      await upsertServiceOrderPhotoItem({
+        serviceOrderId,
+        folderId: targetFolderId,
+        storagePath: photo.path,
+        fileName: photo.name,
+        kind: "photo",
+      });
+    }
+
+    const storagePaths = new Set(storagePhotos.map((p) => p.path));
+
+    // Corrige itens já cadastrados com o prefixo `{timestamp}_entrada_…` que
+    // antes caíam em "Outras fotos" / pasta errada.
+    if (entrada) {
+      const entradaFolderId = entrada.id;
+      for (const row of (existingItems ?? []) as ServiceOrderPhotoItemRow[]) {
+        if (!storagePaths.has(row.storage_path)) continue;
+        if (!isEntradaIntakePhotoFileName(row.file_name)) continue;
+        if (row.folder_id === entradaFolderId) continue;
+        await upsertServiceOrderPhotoItem({
+          serviceOrderId,
+          folderId: entradaFolderId,
+          storagePath: row.storage_path,
+          fileName: row.file_name,
+          kind: "photo",
+        });
+      }
+    }
+
+    // Remove metadados de paths que sumiram do Storage
+    for (const row of (existingItems ?? []) as ServiceOrderPhotoItemRow[]) {
+      if (!storagePaths.has(row.storage_path)) {
+        await removeServiceOrderPhotoItemByPath(serviceOrderId, row.storage_path);
+      }
+    }
+
+    const { data: folders } = await supabaseAdmin
+      .from("service_order_photo_folders")
+      .select("*")
+      .eq("service_order_id", serviceOrderId)
+      .eq("workshop_id", WORKSHOP_ID)
+      .order("sort_order", { ascending: true })
+      .order("created_at", { ascending: true });
+
+    const { data: items } = await supabaseAdmin
+      .from("service_order_photo_items")
+      .select("*")
+      .eq("service_order_id", serviceOrderId)
+      .eq("workshop_id", WORKSHOP_ID)
+      .order("created_at", { ascending: false });
+
+    return {
+      folders: (folders ?? []) as ServiceOrderPhotoFolderRow[],
+      items: (items ?? []) as ServiceOrderPhotoItemRow[],
+    };
+  }
+
+  function publicUrlForStoragePath(storagePath: string): string {
+    if (!supabaseAdmin) return "";
+    const {
+      data: { publicUrl },
+    } = supabaseAdmin.storage.from(VEHICLE_PHOTOS_BUCKET).getPublicUrl(storagePath);
+    return publicUrl;
+  }
+
+  function serializePhotoFoldersPayload(
+    folders: ServiceOrderPhotoFolderRow[],
+    items: ServiceOrderPhotoItemRow[]
+  ) {
+    const photosOnly = items.filter((i) => i.kind === "photo" || isServiceOrderImageFileName(i.file_name));
+    return folders.map((folder) => {
+      const folderPhotos = photosOnly.filter((i) => i.folder_id === folder.id);
+      const photos = folderPhotos.map((p) => ({
+        id: p.id,
+        url: publicUrlForStoragePath(p.storage_path),
+        name: p.file_name,
+        path: p.storage_path,
+        createdAt: p.created_at,
+      }));
+      return {
+        id: folder.id,
+        name: folder.name,
+        slug: folder.slug,
+        isSystem: folder.is_system,
+        sortOrder: folder.sort_order,
+        photoCount: photos.length,
+        coverUrls: photos.slice(0, 4).map((p) => p.url),
+        photos,
+        createdAt: folder.created_at,
+      };
+    });
+  }
+
   async function findSourcePatioOrderForLabModule(labOrderId: string): Promise<{
     id: string;
     os_number: number | null;
@@ -607,13 +977,11 @@ export function createApiApp() {
   /**
    * Rotas públicas (sem token de sessão):
    * - healthcheck e login (emite o token);
-   * - acompanhamento público do cliente (via share token na própria URL).
    * Todo o resto exige um token de sessão válido (staff logado).
    */
   function isPublicApiRoute(method: string, urlPath: string): boolean {
     if (urlPath === "/api/health") return true;
     if (urlPath === "/api/auth/login" && method === "POST") return true;
-    if (/^\/api\/public\/vehicle-accompaniment\/[^/]+\/?$/.test(urlPath)) return true;
     return false;
   }
 
@@ -857,6 +1225,26 @@ export function createApiApp() {
     if (!provided) return false;
     if (looksHashed(stored)) return verifyPassword(provided, stored);
     return safeStringEqual(provided, stored); // env/legado em texto puro
+  }
+
+  /**
+   * Senha de proteção do estoque: senha dedicada (se configurada) ou senha da Gerência.
+   * Usada para editar produto já cadastrado e cancelar baixas de consumo.
+   */
+  async function verifyStockGuardPassword(password: string): Promise<boolean> {
+    const provided = String(password ?? "").trim();
+    if (!provided) return false;
+    if (await verifyAdminPasswordOnly(provided)) return true;
+    if (!supabaseAdmin || !WORKSHOP_ID) return false;
+    const { data } = await supabaseAdmin
+      .from("workshop_settings")
+      .select("value")
+      .eq("workshop_id", WORKSHOP_ID)
+      .eq("key", "stock_guard_password")
+      .maybeSingle();
+    const expected = String(data?.value ?? "").trim();
+    if (!expected) return false;
+    return safeStringEqual(provided, expected);
   }
 
   const DEFAULT_SYSTEM_NOTIFICATION_TYPES: string[] = [...SYSTEM_NOTIFICATION_IDS];
@@ -1541,6 +1929,7 @@ export function createApiApp() {
         adminDisplayName: map.admin_display_name || "Rei do ABS",
         adminPhotoUrl: map.admin_photo_url || null,
         vehicleDeletePassword: map.vehicle_delete_password || "",
+        stockGuardPasswordConfigured: Boolean(String(map.stock_guard_password || "").trim()),
         appAppearance,
         labProductKinds: parseLabProductKindsValue(map.lab_product_kinds),
         labQuickServices: parseLabQuickServicesValue(map.lab_quick_services),
@@ -1656,6 +2045,7 @@ export function createApiApp() {
         technicianAccessAgenda,
         technicianAccessPatio,
         vehicleDeletePassword,
+        stockGuardPassword,
         appAppearance,
         labProductKinds,
         labQuickServices,
@@ -1668,6 +2058,7 @@ export function createApiApp() {
         (typeof adminPassword === "string" && adminPassword.trim()) ||
         typeof patioPin === "string" ||
         typeof vehicleDeletePassword === "string" ||
+        typeof stockGuardPassword === "string" ||
         typeof adminDisplayName === "string" ||
         typeof adminPhotoUrl === "string" ||
         typeof patioLoginEnabled === "boolean" ||
@@ -1706,6 +2097,13 @@ export function createApiApp() {
       }
       if (typeof vehicleDeletePassword === "string") {
         updates.push({ key: "vehicle_delete_password", value: vehicleDeletePassword.trim(), updated_at: new Date().toISOString() });
+      }
+      if (typeof stockGuardPassword === "string") {
+        updates.push({
+          key: "stock_guard_password",
+          value: stockGuardPassword.trim(),
+          updated_at: new Date().toISOString(),
+        });
       }
       if (appAppearance !== undefined && appAppearance !== null && typeof appAppearance === "object") {
         updates.push({
@@ -1754,6 +2152,7 @@ export function createApiApp() {
           "admin_display_name",
           "admin_photo_url",
           "vehicle_delete_password",
+          "stock_guard_password",
           "app_appearance",
           "lab_product_kinds",
           "lab_quick_services",
@@ -1780,6 +2179,7 @@ export function createApiApp() {
         adminDisplayName: map.admin_display_name || "Rei do ABS",
         adminPhotoUrl: map.admin_photo_url || null,
         vehicleDeletePassword: map.vehicle_delete_password || "",
+        stockGuardPasswordConfigured: Boolean(String(map.stock_guard_password || "").trim()),
         appAppearance: appAppearanceOut,
         labProductKinds: parseLabProductKindsValue(map.lab_product_kinds),
         labQuickServices: parseLabQuickServicesValue(map.lab_quick_services),
@@ -3840,6 +4240,10 @@ export function createApiApp() {
       const completeBody = parseRequestJsonBody(req);
       const objectPath =
         typeof completeBody.path === "string" ? completeBody.path.trim() : "";
+      const folderIdRaw =
+        typeof completeBody.folderId === "string" ? completeBody.folderId.trim() : "";
+      const folderSlugRaw =
+        typeof completeBody.folderSlug === "string" ? completeBody.folderSlug.trim() : "";
 
       if (!serviceOrderId) {
         return res.status(400).json({ error: "ID da OS inválido." });
@@ -3863,12 +4267,58 @@ export function createApiApp() {
         data: { publicUrl },
       } = supabaseAdmin.storage.from(bucket).getPublicUrl(objectPath);
 
+      if (isServiceOrderImageFileName(storedName) && !isDiagnosticAuthorizationSignatureFileName(storedName)) {
+        let targetFolderId = folderIdRaw;
+        if (!targetFolderId && folderSlugRaw) {
+          const synced = await ensureAndSyncServiceOrderPhotoFolders(serviceOrderId);
+          const bySlug = synced.folders.find((f) => f.slug === folderSlugRaw);
+          targetFolderId = bySlug?.id || "";
+        }
+        if (!targetFolderId) {
+          const synced = await ensureAndSyncServiceOrderPhotoFolders(serviceOrderId);
+          if (isEntradaIntakePhotoFileName(storedName)) {
+            targetFolderId =
+              synced.folders.find((f) => f.slug === SO_PHOTO_FOLDER_ENTRADA_SLUG)?.id || "";
+          } else {
+            const outras =
+              synced.folders.find((f) => f.slug === SO_PHOTO_FOLDER_OUTRAS_SLUG) ||
+              (await getOrCreateNamedPhotoFolder({
+                serviceOrderId,
+                name: SO_PHOTO_FOLDER_OUTRAS_NAME,
+                slug: SO_PHOTO_FOLDER_OUTRAS_SLUG,
+                isSystem: false,
+                sortOrder: 50,
+              }));
+            targetFolderId = outras?.id || "";
+          }
+        }
+        if (targetFolderId) {
+          const { data: folderOk } = await supabaseAdmin
+            .from("service_order_photo_folders")
+            .select("id")
+            .eq("id", targetFolderId)
+            .eq("service_order_id", serviceOrderId)
+            .eq("workshop_id", WORKSHOP_ID)
+            .maybeSingle();
+          if (folderOk) {
+            await upsertServiceOrderPhotoItem({
+              serviceOrderId,
+              folderId: targetFolderId,
+              storagePath: objectPath,
+              fileName: storedName,
+              kind: "photo",
+            });
+          }
+        }
+      }
+
       await touchServiceOrderUpdatedAt(serviceOrderId);
 
       return res.status(201).json({
         url: publicUrl,
         path: objectPath,
         name: storedName,
+        folderId: folderIdRaw || null,
       });
     } catch (err: any) {
       console.error("[API] POST /api/service-orders/:id/photos/upload-complete:", err);
@@ -3952,6 +4402,47 @@ export function createApiApp() {
         const {
           data: { publicUrl },
         } = supabaseAdmin.storage.from(bucket).getPublicUrl(pathInBucket);
+
+        if (isServiceOrderImageFileName(safeName) && !isDiagnosticAuthorizationSignatureFileName(safeName)) {
+          const folderIdForm =
+            typeof (req.body as { folderId?: unknown })?.folderId === "string"
+              ? String((req.body as { folderId?: string }).folderId).trim()
+              : "";
+          const folderSlugForm =
+            typeof (req.body as { folderSlug?: unknown })?.folderSlug === "string"
+              ? String((req.body as { folderSlug?: string }).folderSlug).trim()
+              : "";
+          let targetFolderId = folderIdForm;
+          if (!targetFolderId) {
+            const synced = await ensureAndSyncServiceOrderPhotoFolders(serviceOrderId);
+            if (folderSlugForm) {
+              targetFolderId = synced.folders.find((f) => f.slug === folderSlugForm)?.id || "";
+            } else if (isEntradaIntakePhotoFileName(safeName)) {
+              targetFolderId =
+                synced.folders.find((f) => f.slug === SO_PHOTO_FOLDER_ENTRADA_SLUG)?.id || "";
+            } else {
+              const outras =
+                synced.folders.find((f) => f.slug === SO_PHOTO_FOLDER_OUTRAS_SLUG) ||
+                (await getOrCreateNamedPhotoFolder({
+                  serviceOrderId,
+                  name: SO_PHOTO_FOLDER_OUTRAS_NAME,
+                  slug: SO_PHOTO_FOLDER_OUTRAS_SLUG,
+                  isSystem: false,
+                  sortOrder: 50,
+                }));
+              targetFolderId = outras?.id || "";
+            }
+          }
+          if (targetFolderId) {
+            await upsertServiceOrderPhotoItem({
+              serviceOrderId,
+              folderId: targetFolderId,
+              storagePath: pathInBucket,
+              fileName: safeName,
+              kind: "photo",
+            });
+          }
+        }
 
         await touchServiceOrderUpdatedAt(serviceOrderId);
 
@@ -4154,6 +4645,379 @@ export function createApiApp() {
     }
   });
 
+  /** Lista pastas de fotos (álbuns) da OS, sincronizando órfãos do Storage. */
+  app.get("/api/service-orders/:id/photo-folders", async (req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({
+          error:
+            "Supabase ou WORKSHOP_ID não configurados. Verifique variáveis de ambiente.",
+        });
+      }
+      const serviceOrderId = reqOrderId(req);
+      if (!serviceOrderId) {
+        return res.status(400).json({ error: "ID da OS inválido." });
+      }
+      if (!(await assertServiceOrderInWorkshop(serviceOrderId))) {
+        return res.status(404).json({ error: "Ordem de serviço não encontrada." });
+      }
+      const { folders, items } = await ensureAndSyncServiceOrderPhotoFolders(serviceOrderId);
+      return res.json({ folders: serializePhotoFoldersPayload(folders, items) });
+    } catch (err: any) {
+      const msg = String(err?.message ?? err ?? "");
+      if (/service_order_photo_folders|does not exist|schema cache/i.test(msg)) {
+        return res.status(503).json({
+          error:
+            "Pastas de fotos ainda não estão no banco. Rode a migration service_order_photo_folders no Supabase.",
+        });
+      }
+      console.error("[API] GET /api/service-orders/:id/photo-folders:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+    }
+  });
+
+  /** Detalhe de uma pasta com fotos. */
+  app.get("/api/service-orders/:id/photo-folders/:folderId", async (req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({
+          error:
+            "Supabase ou WORKSHOP_ID não configurados. Verifique variáveis de ambiente.",
+        });
+      }
+      const serviceOrderId = reqOrderId(req);
+      const folderId = typeof req.params.folderId === "string" ? req.params.folderId : "";
+      if (!serviceOrderId || !folderId) {
+        return res.status(400).json({ error: "Parâmetros inválidos." });
+      }
+      if (!(await assertServiceOrderInWorkshop(serviceOrderId))) {
+        return res.status(404).json({ error: "Ordem de serviço não encontrada." });
+      }
+
+      // Sem sync pesado aqui: a listagem já sincroniza. Detalhe deve abrir rápido.
+      const { data: folder, error: folderErr } = await supabaseAdmin
+        .from("service_order_photo_folders")
+        .select("*")
+        .eq("id", folderId)
+        .eq("service_order_id", serviceOrderId)
+        .eq("workshop_id", WORKSHOP_ID)
+        .maybeSingle();
+      if (folderErr || !folder) {
+        return res.status(404).json({ error: "Pasta não encontrada." });
+      }
+
+      const { data: itemRows } = await supabaseAdmin
+        .from("service_order_photo_items")
+        .select("*")
+        .eq("folder_id", folderId)
+        .eq("service_order_id", serviceOrderId)
+        .eq("workshop_id", WORKSHOP_ID)
+        .order("created_at", { ascending: false });
+
+      const photos = ((itemRows ?? []) as ServiceOrderPhotoItemRow[])
+        .filter((i) => i.kind === "photo" || isServiceOrderImageFileName(i.file_name))
+        .map((i) => ({
+          id: i.id,
+          url: publicUrlForStoragePath(i.storage_path),
+          name: i.file_name,
+          path: i.storage_path,
+          createdAt: i.created_at,
+        }));
+
+      const f = folder as ServiceOrderPhotoFolderRow;
+      return res.json({
+        folder: {
+          id: f.id,
+          name: f.name,
+          slug: f.slug,
+          isSystem: f.is_system,
+          sortOrder: f.sort_order,
+          photoCount: photos.length,
+          coverUrls: photos.slice(0, 4).map((p) => p.url),
+          createdAt: f.created_at,
+        },
+        photos,
+      });
+    } catch (err: any) {
+      console.error("[API] GET /api/service-orders/:id/photo-folders/:folderId:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+    }
+  });
+
+  /** Cria pasta de fotos (álbum). */
+  app.post("/api/service-orders/:id/photo-folders", async (req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({
+          error:
+            "Supabase ou WORKSHOP_ID não configurados. Verifique variáveis de ambiente.",
+        });
+      }
+      const serviceOrderId = reqOrderId(req);
+      const body = parseRequestJsonBody(req);
+      const name = typeof body.name === "string" ? body.name.trim().replace(/\s+/g, " ") : "";
+      if (!serviceOrderId) {
+        return res.status(400).json({ error: "ID da OS inválido." });
+      }
+      if (!name || name.length > 80) {
+        return res.status(400).json({ error: "Informe um nome de pasta válido (até 80 caracteres)." });
+      }
+      if (!(await assertServiceOrderInWorkshop(serviceOrderId))) {
+        return res.status(404).json({ error: "Ordem de serviço não encontrada." });
+      }
+
+      await ensureAndSyncServiceOrderPhotoFolders(serviceOrderId);
+
+      const { data: existing } = await supabaseAdmin
+        .from("service_order_photo_folders")
+        .select("id")
+        .eq("service_order_id", serviceOrderId)
+        .eq("workshop_id", WORKSHOP_ID)
+        .ilike("name", name)
+        .maybeSingle();
+      if (existing) {
+        return res.status(409).json({ error: "Já existe uma pasta com este nome." });
+      }
+
+      const { data: maxSort } = await supabaseAdmin
+        .from("service_order_photo_folders")
+        .select("sort_order")
+        .eq("service_order_id", serviceOrderId)
+        .eq("workshop_id", WORKSHOP_ID)
+        .order("sort_order", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      const nextSort = Math.max(100, Number((maxSort as { sort_order?: number } | null)?.sort_order ?? 100) + 10);
+
+      const created = await insertServiceOrderPhotoFolder({
+        serviceOrderId,
+        name,
+        slug: null,
+        isSystem: false,
+        sortOrder: nextSort,
+      });
+      if (!created) {
+        return res.status(500).json({ error: "Não foi possível criar a pasta." });
+      }
+
+      await touchServiceOrderUpdatedAt(serviceOrderId);
+
+      return res.status(201).json({
+        id: created.id,
+        name: created.name,
+        slug: created.slug,
+        isSystem: created.is_system,
+        sortOrder: created.sort_order,
+        photoCount: 0,
+        coverUrls: [],
+        createdAt: created.created_at,
+      });
+    } catch (err: any) {
+      console.error("[API] POST /api/service-orders/:id/photo-folders:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+    }
+  });
+
+  /** Renomeia pasta (não sistema). */
+  app.patch("/api/service-orders/:id/photo-folders/:folderId", async (req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({
+          error:
+            "Supabase ou WORKSHOP_ID não configurados. Verifique variáveis de ambiente.",
+        });
+      }
+      const serviceOrderId = reqOrderId(req);
+      const folderId = typeof req.params.folderId === "string" ? req.params.folderId : "";
+      const body = parseRequestJsonBody(req);
+      const name = typeof body.name === "string" ? body.name.trim().replace(/\s+/g, " ") : "";
+      if (!serviceOrderId || !folderId) {
+        return res.status(400).json({ error: "Parâmetros inválidos." });
+      }
+      if (!name || name.length > 80) {
+        return res.status(400).json({ error: "Informe um nome de pasta válido." });
+      }
+      if (!(await assertServiceOrderInWorkshop(serviceOrderId))) {
+        return res.status(404).json({ error: "Ordem de serviço não encontrada." });
+      }
+
+      const { data: folder } = await supabaseAdmin
+        .from("service_order_photo_folders")
+        .select("*")
+        .eq("id", folderId)
+        .eq("service_order_id", serviceOrderId)
+        .eq("workshop_id", WORKSHOP_ID)
+        .maybeSingle();
+      if (!folder) {
+        return res.status(404).json({ error: "Pasta não encontrada." });
+      }
+      if ((folder as ServiceOrderPhotoFolderRow).is_system) {
+        return res.status(403).json({ error: "Pastas do sistema não podem ser renomeadas." });
+      }
+
+      const { data: clash } = await supabaseAdmin
+        .from("service_order_photo_folders")
+        .select("id")
+        .eq("service_order_id", serviceOrderId)
+        .eq("workshop_id", WORKSHOP_ID)
+        .ilike("name", name)
+        .neq("id", folderId)
+        .maybeSingle();
+      if (clash) {
+        return res.status(409).json({ error: "Já existe uma pasta com este nome." });
+      }
+
+      const { data: updated, error } = await supabaseAdmin
+        .from("service_order_photo_folders")
+        .update({ name, updated_at: new Date().toISOString() })
+        .eq("id", folderId)
+        .select("*")
+        .single();
+      if (error || !updated) {
+        return res.status(500).json({ error: error?.message ?? "Falha ao renomear pasta." });
+      }
+
+      await touchServiceOrderUpdatedAt(serviceOrderId);
+      const f = updated as ServiceOrderPhotoFolderRow;
+      return res.json({
+        id: f.id,
+        name: f.name,
+        slug: f.slug,
+        isSystem: f.is_system,
+        sortOrder: f.sort_order,
+        createdAt: f.created_at,
+      });
+    } catch (err: any) {
+      console.error("[API] PATCH /api/service-orders/:id/photo-folders/:folderId:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+    }
+  });
+
+  /** Exclui pasta (não sistema). Fotos vão para a Biblioteca. */
+  app.delete("/api/service-orders/:id/photo-folders/:folderId", async (req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({
+          error:
+            "Supabase ou WORKSHOP_ID não configurados. Verifique variáveis de ambiente.",
+        });
+      }
+      const serviceOrderId = reqOrderId(req);
+      const folderId = typeof req.params.folderId === "string" ? req.params.folderId : "";
+      if (!serviceOrderId || !folderId) {
+        return res.status(400).json({ error: "Parâmetros inválidos." });
+      }
+      if (!(await assertServiceOrderInWorkshop(serviceOrderId))) {
+        return res.status(404).json({ error: "Ordem de serviço não encontrada." });
+      }
+
+      const { data: folder } = await supabaseAdmin
+        .from("service_order_photo_folders")
+        .select("*")
+        .eq("id", folderId)
+        .eq("service_order_id", serviceOrderId)
+        .eq("workshop_id", WORKSHOP_ID)
+        .maybeSingle();
+      if (!folder) {
+        return res.status(404).json({ error: "Pasta não encontrada." });
+      }
+      if ((folder as ServiceOrderPhotoFolderRow).is_system) {
+        return res.status(403).json({ error: "Pastas do sistema não podem ser excluídas." });
+      }
+
+      const { count } = await supabaseAdmin
+        .from("service_order_photo_items")
+        .select("id", { count: "exact", head: true })
+        .eq("folder_id", folderId)
+        .eq("service_order_id", serviceOrderId);
+
+      if ((count ?? 0) > 0) {
+        const outras = await getOrCreateNamedPhotoFolder({
+          serviceOrderId,
+          name: SO_PHOTO_FOLDER_OUTRAS_NAME,
+          slug: SO_PHOTO_FOLDER_OUTRAS_SLUG,
+          isSystem: false,
+          sortOrder: 50,
+        });
+        if (!outras || outras.id === folderId) {
+          return res.status(400).json({
+            error: "Esvazie a pasta antes de excluí-la, ou mova as fotos para outra pasta.",
+          });
+        }
+        await supabaseAdmin
+          .from("service_order_photo_items")
+          .update({ folder_id: outras.id })
+          .eq("folder_id", folderId)
+          .eq("service_order_id", serviceOrderId);
+      }
+
+      const { error: delErr } = await supabaseAdmin
+        .from("service_order_photo_folders")
+        .delete()
+        .eq("id", folderId)
+        .eq("service_order_id", serviceOrderId);
+      if (delErr) {
+        return res.status(500).json({ error: delErr.message });
+      }
+
+      await touchServiceOrderUpdatedAt(serviceOrderId);
+      return res.status(204).send();
+    } catch (err: any) {
+      console.error("[API] DELETE /api/service-orders/:id/photo-folders/:folderId:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+    }
+  });
+
+  /** Move foto entre pastas. */
+  app.patch("/api/service-orders/:id/photo-items/move", async (req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({
+          error:
+            "Supabase ou WORKSHOP_ID não configurados. Verifique variáveis de ambiente.",
+        });
+      }
+      const serviceOrderId = reqOrderId(req);
+      const body = parseRequestJsonBody(req);
+      const storagePath = typeof body.path === "string" ? body.path.trim() : "";
+      const folderId = typeof body.folderId === "string" ? body.folderId.trim() : "";
+      if (!serviceOrderId || !storagePath || !folderId) {
+        return res.status(400).json({ error: "Envie path e folderId." });
+      }
+      if (!(await assertServiceOrderInWorkshop(serviceOrderId))) {
+        return res.status(404).json({ error: "Ordem de serviço não encontrada." });
+      }
+      if (!assertServiceOrderPhotoPath(serviceOrderId, storagePath)) {
+        return res.status(403).json({ error: "Arquivo não pertence a esta ordem de serviço." });
+      }
+
+      const { data: folder } = await supabaseAdmin
+        .from("service_order_photo_folders")
+        .select("id")
+        .eq("id", folderId)
+        .eq("service_order_id", serviceOrderId)
+        .eq("workshop_id", WORKSHOP_ID)
+        .maybeSingle();
+      if (!folder) {
+        return res.status(404).json({ error: "Pasta de destino não encontrada." });
+      }
+
+      const fileName = storagePath.split("/").pop() || "foto.jpg";
+      await upsertServiceOrderPhotoItem({
+        serviceOrderId,
+        folderId,
+        storagePath,
+        fileName,
+        kind: "photo",
+      });
+      await touchServiceOrderUpdatedAt(serviceOrderId);
+      return res.json({ ok: true, path: storagePath, folderId });
+    } catch (err: any) {
+      console.error("[API] PATCH /api/service-orders/:id/photo-items/move:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+    }
+  });
+
   /** OS do pátio que originou este produto do laboratório + anexos dela. */
   app.get("/api/service-orders/:id/source-patio", async (req, res) => {
     try {
@@ -4291,6 +5155,11 @@ export function createApiApp() {
 
       if (copied.length > 0) {
         await touchServiceOrderUpdatedAt(destOrderId);
+        try {
+          await ensureAndSyncServiceOrderPhotoFolders(destOrderId);
+        } catch (syncErr) {
+          console.warn("[API] sync photo folders after copy-from:", syncErr);
+        }
       }
 
       if (copied.length === 0) {
@@ -4370,6 +5239,8 @@ export function createApiApp() {
         console.error("[API] Erro ao renomear anexo no Storage:", moveError);
         return res.status(500).json({ error: moveError.message });
       }
+
+      await updateServiceOrderPhotoItemPath(serviceOrderId, currentPath, newPath, safeName);
 
       const { data: { publicUrl } } = supabaseAdmin.storage
         .from(bucket)
@@ -4524,6 +5395,8 @@ export function createApiApp() {
         console.error("[API] Erro ao excluir anexo no Storage:", removeError);
         return res.status(500).json({ error: removeError.message });
       }
+
+      await removeServiceOrderPhotoItemByPath(serviceOrderId, objectPath);
 
       await touchServiceOrderUpdatedAt(serviceOrderId);
 
@@ -6820,7 +7693,7 @@ export function createApiApp() {
     return { patch, errors };
   }
 
-  const WORKSHOP_PART_PHOTOS_MAX = 3;
+  const WORKSHOP_PART_PHOTOS_MAX = 8;
 
   async function loadWorkshopPartPhotosMap(partIds: string[]) {
     const map = new Map<
@@ -7607,6 +8480,109 @@ export function createApiApp() {
       }
     } catch (err: any) {
       console.error("[API] Erro em POST /api/workshop-parts/movements:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+    }
+  });
+
+  /** Confere senha de proteção do estoque (Gerência ou senha dedicada). */
+  app.post("/api/workshop-parts/verify-stock-guard", async (req, res) => {
+    try {
+      const pwd = String((req.body || {}).password ?? "").trim();
+      if (!pwd) return res.status(400).json({ error: "Informe a senha." });
+      const ok = await verifyStockGuardPassword(pwd);
+      if (!ok) {
+        return res.status(401).json({
+          error:
+            "Senha incorreta. Use a senha da Gerência ou a senha de proteção do estoque em Alterar senhas.",
+        });
+      }
+      return res.json({ ok: true });
+    } catch (err: any) {
+      console.error("[API] Erro em POST /api/workshop-parts/verify-stock-guard:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+    }
+  });
+
+  /** Cancela uma baixa (consumo/venda): devolve a quantidade ao estoque. Exige senha. */
+  app.delete("/api/workshop-parts/movements/:movementId", async (req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({ error: "Supabase não configurado." });
+      }
+      const movementId = String(req.params.movementId || "").trim();
+      const pwd = String((req.body || {}).password ?? req.query.password ?? "").trim();
+      if (!movementId) return res.status(400).json({ error: "ID da movimentação ausente." });
+      if (!pwd) return res.status(400).json({ error: "Informe a senha." });
+      if (!(await verifyStockGuardPassword(pwd))) {
+        return res.status(401).json({
+          error:
+            "Senha incorreta. Use a senha da Gerência ou a senha de proteção do estoque em Alterar senhas.",
+        });
+      }
+
+      const { data: movement, error: fetchErr } = await supabaseAdmin
+        .from("workshop_part_stock_movements")
+        .select(MOVEMENT_SELECT)
+        .eq("id", movementId)
+        .eq("workshop_id", WORKSHOP_ID)
+        .maybeSingle();
+      if (fetchErr) return res.status(500).json({ error: fetchErr.message });
+      if (!movement) return res.status(404).json({ error: "Movimentação não encontrada." });
+
+      const partId = String((movement as { part_id?: string }).part_id || "");
+      const qty = Math.round(Number((movement as { quantity?: number }).quantity ?? 0) * 1000) / 1000;
+      if (!partId || !(qty > 0)) {
+        return res.status(400).json({ error: "Movimentação inválida." });
+      }
+
+      const { data: partRow, error: partErr } = await supabaseAdmin
+        .from("workshop_parts")
+        .select(workshopPartSelect())
+        .eq("id", partId)
+        .eq("workshop_id", WORKSHOP_ID)
+        .maybeSingle();
+      if (partErr) return res.status(500).json({ error: partErr.message });
+      if (!partRow) return res.status(404).json({ error: "Produto não encontrado." });
+
+      const before = Math.round(Number((partRow as { stock_qty?: number }).stock_qty ?? 0) * 1000) / 1000;
+      const after = Math.round((before + qty) * 1000) / 1000;
+
+      const { error: updErr } = await supabaseAdmin
+        .from("workshop_parts")
+        .update({ stock_qty: after })
+        .eq("id", partId)
+        .eq("workshop_id", WORKSHOP_ID);
+      if (updErr) return res.status(500).json({ error: updErr.message });
+
+      const { error: delErr } = await supabaseAdmin
+        .from("workshop_part_stock_movements")
+        .delete()
+        .eq("id", movementId)
+        .eq("workshop_id", WORKSHOP_ID);
+      if (delErr) {
+        await supabaseAdmin
+          .from("workshop_parts")
+          .update({ stock_qty: before })
+          .eq("id", partId)
+          .eq("workshop_id", WORKSHOP_ID);
+        return res.status(500).json({ error: delErr.message });
+      }
+
+      const part = partRow as Record<string, unknown>;
+      return res.json({
+        ok: true,
+        part: {
+          id: part.id,
+          name: part.name,
+          stock_qty: after,
+          unit_price: part.unit_price,
+          unit_of_measure: part.unit_of_measure ?? "UN",
+          photo_url: part.photo_url ?? null,
+          barcode: part.barcode ?? null,
+        },
+      });
+    } catch (err: any) {
+      console.error("[API] Erro em DELETE /api/workshop-parts/movements/:movementId:", err);
       return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
     }
   });
@@ -9803,508 +10779,6 @@ export function createApiApp() {
     } catch (err: any) {
       console.error("[API] Erro em PATCH /api/service-orders/:id/checklist-state:", err);
       return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
-    }
-  });
-
-  function publicVehiclePhotoUrl(objectPath: string): string {
-    const base = String(process.env.SUPABASE_URL || "").replace(/\/$/, "");
-    const bucket = VEHICLE_PHOTOS_BUCKET;
-    const enc = String(objectPath)
-      .split("/")
-      .map((s) => encodeURIComponent(s))
-      .join("/");
-    return `${base}/storage/v1/object/public/${bucket}/${enc}`;
-  }
-
-  /** Garante token de partilha (registos antigos ou migração incompleta). */
-  async function ensureAccompanimentShareToken<T extends { id?: string; share_token?: string | null }>(
-    row: T | null
-  ): Promise<T | null> {
-    if (!row || !supabaseAdmin) return row;
-    const existing = typeof row.share_token === "string" ? row.share_token.trim() : "";
-    if (existing) return row;
-    const id = typeof row.id === "string" ? row.id : "";
-    if (!id) return row;
-    const shareToken = crypto.randomUUID();
-    const { data, error } = await supabaseAdmin
-      .from("workshop_vehicle_accompaniment")
-      .update({ share_token: shareToken, updated_at: new Date().toISOString() })
-      .eq("id", id)
-      .select("*")
-      .single();
-    if (error || !data) {
-      console.error("[API] ensure share_token vehicle-accompaniment:", error);
-      return row;
-    }
-    return data as T;
-  }
-
-  function accompanimentBudgetHasApproved(b: { services?: unknown; parts?: unknown }): boolean {
-    const sv = Array.isArray(b.services) ? b.services : [];
-    const pt = Array.isArray(b.parts) ? b.parts : [];
-    const svcHit = sv.some((s: { approved?: unknown }) => s && s.approved === true);
-    const partHit = pt.some((p: { approved?: unknown }) => p && p.approved === true);
-    return svcHit || partHit;
-  }
-
-  function parseBudgetPublicSettings(raw: unknown): Record<string, { visible: boolean; allow_client_approval: boolean }> {
-    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
-    const out: Record<string, { visible: boolean; allow_client_approval: boolean }> = {};
-    Object.entries(raw as Record<string, unknown>).forEach(([budgetId, value]) => {
-      if (!value || typeof value !== "object" || Array.isArray(value)) return;
-      const v = value as Record<string, unknown>;
-      out[budgetId] = {
-        visible: v.visible !== false,
-        allow_client_approval: v.allow_client_approval === true,
-      };
-    });
-    return out;
-  }
-
-  function parseClientBudgetChoices(raw: unknown): Record<
-    string,
-    {
-      submitted_at: string;
-      diagnosis_note: string;
-      services: { index: number; approved: boolean }[];
-      parts: { index: number; approved: boolean }[];
-    }
-  > {
-    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
-    const out: Record<
-      string,
-      {
-        submitted_at: string;
-        diagnosis_note: string;
-        services: { index: number; approved: boolean }[];
-        parts: { index: number; approved: boolean }[];
-      }
-    > = {};
-    Object.entries(raw as Record<string, unknown>).forEach(([budgetId, value]) => {
-      if (!value || typeof value !== "object" || Array.isArray(value)) return;
-      const v = value as Record<string, unknown>;
-      const servicesRaw = Array.isArray(v.services) ? v.services : [];
-      const partsRaw = Array.isArray(v.parts) ? v.parts : [];
-      const services = servicesRaw
-        .map((it: unknown) => {
-          if (!it || typeof it !== "object") return null;
-          const row = it as Record<string, unknown>;
-          const index = Number(row.index);
-          if (!Number.isInteger(index) || index < 0) return null;
-          return { index, approved: row.approved === true };
-        })
-        .filter(Boolean) as { index: number; approved: boolean }[];
-      const parts = partsRaw
-        .map((it: unknown) => {
-          if (!it || typeof it !== "object") return null;
-          const row = it as Record<string, unknown>;
-          const index = Number(row.index);
-          if (!Number.isInteger(index) || index < 0) return null;
-          return { index, approved: row.approved === true };
-        })
-        .filter(Boolean) as { index: number; approved: boolean }[];
-      out[budgetId] = {
-        submitted_at:
-          typeof v.submitted_at === "string" && v.submitted_at.trim()
-            ? v.submitted_at
-            : new Date().toISOString(),
-        diagnosis_note:
-          typeof v.diagnosis_note === "string" ? v.diagnosis_note.trim().slice(0, 4000) : "",
-        services,
-        parts,
-      };
-    });
-    return out;
-  }
-
-  function accompanimentOrderFinalized(status: string): boolean {
-    return (
-      status === "FINALIZADO" ||
-      status === "GARANTIA" ||
-      status === CANCELLED_STATUS ||
-      status === "ORCAMENTO_NAO_APROVADO"
-    );
-  }
-
-  /** Central do atendimento — carregar registo por OS (pode não existir). */
-  app.get("/api/vehicle-accompaniment/by-order/:serviceOrderId", async (req, res) => {
-    try {
-      if (!supabaseAdmin || !WORKSHOP_ID) {
-        return res.status(500).json({ error: "Servidor não configurado." });
-      }
-      const { serviceOrderId } = req.params;
-      if (!serviceOrderId) {
-        return res.status(400).json({ error: "ID da OS inválido." });
-      }
-      const { data: so } = await supabaseAdmin
-        .from("service_orders")
-        .select("id, order_type")
-        .eq("id", serviceOrderId)
-      .eq("workshop_id", WORKSHOP_ID)
-        .single();
-      if (!so) {
-        return res.status(404).json({ error: "Ordem de serviço não encontrada." });
-      }
-      if (so.order_type === "module") {
-        return res.status(400).json({ error: "Central do atendimento é apenas para OS de veículo." });
-      }
-      const { data: row, error } = await supabaseAdmin
-        .from("workshop_vehicle_accompaniment")
-        .select("*")
-        .eq("service_order_id", serviceOrderId)
-        .eq("workshop_id", WORKSHOP_ID)
-        .maybeSingle();
-      if (error) {
-        console.error("[API] GET vehicle-accompaniment:", error);
-        return res.status(500).json({ error: error.message });
-      }
-      const withToken = row ? await ensureAccompanimentShareToken(row) : null;
-      return res.json(withToken ?? null);
-    } catch (err: any) {
-      console.error("[API] GET /api/vehicle-accompaniment/by-order/:id:", err);
-      return res.status(500).json({ error: err?.message ?? "Erro" });
-    }
-  });
-
-  /** Cria registo com token de partilha se ainda não existir. */
-  app.post("/api/vehicle-accompaniment/bootstrap", async (req, res) => {
-    try {
-      if (!supabaseAdmin || !WORKSHOP_ID) {
-        return res.status(500).json({ error: "Servidor não configurado." });
-      }
-      const serviceOrderId = typeof req.body?.serviceOrderId === "string" ? req.body.serviceOrderId.trim() : "";
-      if (!serviceOrderId) {
-        return res.status(400).json({ error: "serviceOrderId é obrigatório." });
-      }
-      const { data: so } = await supabaseAdmin
-        .from("service_orders")
-        .select("id, order_type")
-        .eq("id", serviceOrderId)
-        .eq("workshop_id", WORKSHOP_ID)
-        .single();
-      if (!so) {
-        return res.status(404).json({ error: "Ordem de serviço não encontrada." });
-      }
-      if (so.order_type === "module") {
-        return res.status(400).json({ error: "Apenas OS de veículo." });
-      }
-      const { data: existing } = await supabaseAdmin
-        .from("workshop_vehicle_accompaniment")
-        .select("*")
-        .eq("service_order_id", serviceOrderId)
-        .eq("workshop_id", WORKSHOP_ID)
-        .maybeSingle();
-      if (existing) {
-        const withToken = await ensureAccompanimentShareToken(existing);
-        return res.json(withToken ?? existing);
-      }
-      const shareToken = crypto.randomUUID();
-      const { data: inserted, error } = await supabaseAdmin
-        .from("workshop_vehicle_accompaniment")
-        .insert({
-          workshop_id: WORKSHOP_ID,
-          service_order_id: serviceOrderId,
-          share_token: shareToken,
-          intake_observations: "",
-          intake_photos: [],
-        })
-        .select("*")
-        .single();
-      if (error || !inserted) {
-        console.error("[API] bootstrap vehicle-accompaniment:", error);
-        return res.status(500).json({ error: error?.message ?? "Falha ao criar registo." });
-      }
-      return res.json(inserted);
-    } catch (err: any) {
-      console.error("[API] POST /api/vehicle-accompaniment/bootstrap:", err);
-      return res.status(500).json({ error: err?.message ?? "Erro" });
-    }
-  });
-
-  /** Atualiza observações e fotos (JSON validado levemente). */
-  app.put("/api/vehicle-accompaniment/by-order/:serviceOrderId", async (req, res) => {
-    try {
-      if (!supabaseAdmin || !WORKSHOP_ID) {
-        return res.status(500).json({ error: "Servidor não configurado." });
-      }
-      const { serviceOrderId } = req.params;
-      const obs = typeof req.body?.intake_observations === "string" ? req.body.intake_observations : "";
-      const photosRaw = req.body?.intake_photos;
-      const budgetSettings = parseBudgetPublicSettings(req.body?.budget_public_settings);
-      if (!Array.isArray(photosRaw)) {
-        return res.status(400).json({ error: "intake_photos deve ser um array." });
-      }
-      const photos = photosRaw.map((p: unknown, i: number) => {
-        if (!p || typeof p !== "object") return null;
-        const o = p as Record<string, unknown>;
-        const id = typeof o.id === "string" && o.id.trim() ? o.id.trim() : `ph_${i}`;
-        const path = typeof o.path === "string" && o.path.trim() ? o.path.trim() : "";
-        if (!path) return null;
-        const serviceId = typeof o.service_id === "string" && o.service_id.trim() ? o.service_id.trim().slice(0, 120) : "";
-        const serviceName =
-          typeof o.service_name === "string" && o.service_name.trim() ? o.service_name.trim().slice(0, 240) : "";
-        const phaseRaw = typeof o.phase === "string" ? o.phase.trim().toLowerCase() : "";
-        const phase = phaseRaw === "before" || phaseRaw === "after" ? phaseRaw : null;
-        const markersRaw = Array.isArray(o.markers) ? o.markers : [];
-        const markers = markersRaw
-          .map((m: unknown, j: number) => {
-            if (!m || typeof m !== "object") return null;
-            const mm = m as Record<string, unknown>;
-            const mid = typeof mm.id === "string" && mm.id.trim() ? mm.id.trim() : `mk_${j}`;
-            const xPct = Number(mm.xPct);
-            const yPct = Number(mm.yPct);
-            const note = typeof mm.note === "string" ? mm.note.slice(0, 500) : "";
-            if (!Number.isFinite(xPct) || !Number.isFinite(yPct)) return null;
-            return { id: mid, xPct, yPct, note };
-          })
-          .filter(Boolean);
-        return {
-          id,
-          path,
-          markers,
-          ...(serviceId ? { service_id: serviceId } : {}),
-          ...(serviceName ? { service_name: serviceName } : {}),
-          ...(phase ? { phase } : {}),
-        };
-      }).filter(Boolean);
-
-      const { data: row } = await supabaseAdmin
-        .from("workshop_vehicle_accompaniment")
-        .select("id")
-        .eq("service_order_id", serviceOrderId)
-        .eq("workshop_id", WORKSHOP_ID)
-        .maybeSingle();
-      if (!row) {
-        return res.status(404).json({ error: "Crie primeiro a central (bootstrap) para esta OS." });
-      }
-      let updateErr: any = null;
-      const firstUpdate = await supabaseAdmin
-        .from("workshop_vehicle_accompaniment")
-        .update({
-          intake_observations: obs,
-          intake_photos: photos,
-          budget_public_settings: budgetSettings,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("service_order_id", serviceOrderId)
-        .eq("workshop_id", WORKSHOP_ID);
-      updateErr = firstUpdate.error;
-      if (updateErr && /budget_public_settings/i.test(String(updateErr.message || ""))) {
-        const fallback = await supabaseAdmin
-          .from("workshop_vehicle_accompaniment")
-          .update({
-            intake_observations: obs,
-            intake_photos: photos,
-            updated_at: new Date().toISOString(),
-          })
-          .eq("service_order_id", serviceOrderId)
-          .eq("workshop_id", WORKSHOP_ID);
-        updateErr = fallback.error;
-      }
-      if (updateErr) {
-        console.error("[API] PUT vehicle-accompaniment:", updateErr);
-        return res.status(500).json({ error: updateErr.message });
-      }
-      const { data: out } = await supabaseAdmin
-        .from("workshop_vehicle_accompaniment")
-        .select("*")
-        .eq("service_order_id", serviceOrderId)
-        .eq("workshop_id", WORKSHOP_ID)
-        .single();
-      const withToken = out ? await ensureAccompanimentShareToken(out) : null;
-      return res.json(withToken ?? out);
-    } catch (err: any) {
-      console.error("[API] PUT /api/vehicle-accompaniment/by-order/:id:", err);
-      return res.status(500).json({ error: err?.message ?? "Erro" });
-    }
-  });
-
-  /** Página pública (cliente): dados da OS, fotos com URLs, orçamentos aprovados, estado de avaliação. */
-  app.get("/api/public/vehicle-accompaniment/:token", async (req, res) => {
-    try {
-      if (!supabaseAdmin) {
-        return res.status(500).json({ error: "Servidor não configurado." });
-      }
-      const token = String(req.params.token || "").trim();
-      if (!token || token.length > 80) {
-        return res.status(400).json({ error: "Link inválido." });
-      }
-      const { data: acc, error: accErr } = await supabaseAdmin
-        .from("workshop_vehicle_accompaniment")
-        .select("*")
-        .eq("share_token", token)
-        .maybeSingle();
-      if (accErr || !acc) {
-        return res.status(404).json({ error: "Página não encontrada ou link expirado." });
-      }
-      const { data: so, error: soErr } = await supabaseAdmin
-        .from("service_orders")
-        .select(
-          "id, os_number, plate, vehicle_brand, vehicle_model, vehicle_color, vehicle_year, mileage_km, status, order_type, issue_description, customers(name, phone, email)"
-        )
-        .eq("id", acc.service_order_id)
-        .eq("workshop_id", acc.workshop_id)
-        .single();
-      if (soErr || !so) {
-        return res.status(404).json({ error: "Ordem não encontrada." });
-      }
-      let workshopName: string | null = null;
-      const { data: ws } = await supabaseAdmin.from("workshops").select("name").eq("id", acc.workshop_id).maybeSingle();
-      if (ws && typeof (ws as { name?: string }).name === "string") {
-        workshopName = (ws as { name: string }).name;
-      }
-      const { data: budgetsRaw } = await supabaseAdmin
-        .from("budgets")
-        .select("id, diagnosis, services, parts, observations, created_at, updated_at")
-        .eq("service_order_id", acc.service_order_id)
-        .eq("workshop_id", acc.workshop_id);
-      const budgetSettings = parseBudgetPublicSettings((acc as { budget_public_settings?: unknown }).budget_public_settings);
-      const clientChoices = parseClientBudgetChoices((acc as { client_budget_choices?: unknown }).client_budget_choices);
-      const budgets = (budgetsRaw ?? [])
-        .filter((b) => {
-          const cfg = budgetSettings[String(b.id)] ?? {
-            visible: accompanimentBudgetHasApproved(b as { services?: unknown; parts?: unknown }),
-            allow_client_approval: false,
-          };
-          return cfg.visible === true;
-        })
-        .map((b) => ({
-          id: b.id,
-          diagnosis: b.diagnosis,
-          services: b.services,
-          parts: b.parts,
-          observations: b.observations,
-          created_at: b.created_at,
-          updated_at: b.updated_at,
-          allow_client_approval: (budgetSettings[String(b.id)]?.allow_client_approval ?? false) === true,
-          client_choice: clientChoices[String(b.id)] ?? null,
-        }));
-      const photos = Array.isArray(acc.intake_photos)
-        ? acc.intake_photos.map((p: { path?: string; markers?: unknown; id?: string }) => ({
-            id: p.id,
-            path: p.path,
-            url: p.path ? publicVehiclePhotoUrl(String(p.path)) : "",
-            markers: Array.isArray(p.markers) ? p.markers : [],
-          }))
-        : [];
-      const finalized = accompanimentOrderFinalized(String(so.status || ""));
-      return res.json({
-        workshopName,
-        serviceOrder: {
-          os_number: so.os_number,
-          plate: so.plate,
-          vehicle_brand: so.vehicle_brand,
-          vehicle_model: so.vehicle_model,
-          vehicle_color: so.vehicle_color,
-          vehicle_year: so.vehicle_year,
-          mileage_km: so.mileage_km,
-          status: so.status,
-          progressLabel: finalized ? "Finalizado" : "Em andamento",
-          finalized,
-          issue_description: so.issue_description,
-          customer: so.customers,
-        },
-        intake_observations: acc.intake_observations ?? "",
-        intake_photos: photos,
-        budgets,
-        ratings: {
-          attendance: acc.client_rating_attendance,
-          service: acc.client_rating_service,
-          recommend: acc.client_rating_recommend,
-          comment: acc.client_rating_comment,
-          submittedAt: acc.client_rating_at,
-        },
-      });
-    } catch (err: any) {
-      console.error("[API] GET public vehicle-accompaniment:", err);
-      return res.status(500).json({ error: err?.message ?? "Erro" });
-    }
-  });
-
-  /** Cliente submete avaliação e/ou escolhas de orçamento (aprova/reprova). */
-  app.patch("/api/public/vehicle-accompaniment/:token", async (req, res) => {
-    try {
-      if (!supabaseAdmin) {
-        return res.status(500).json({ error: "Servidor não configurado." });
-      }
-      const token = String(req.params.token || "").trim();
-      if (!token || token.length > 80) {
-        return res.status(400).json({ error: "Link inválido." });
-      }
-      const { data: acc } = await supabaseAdmin
-        .from("workshop_vehicle_accompaniment")
-        .select("id, client_rating_at, client_budget_choices")
-        .eq("share_token", token)
-        .maybeSingle();
-      if (!acc) {
-        return res.status(404).json({ error: "Link inválido." });
-      }
-      const wantsRating =
-        req.body?.client_rating_attendance != null ||
-        req.body?.client_rating_service != null ||
-        req.body?.client_rating_recommend != null;
-      const wantsBudgetChoices = req.body?.budget_choices && typeof req.body.budget_choices === "object";
-      if (!wantsRating && !wantsBudgetChoices) {
-        return res.status(400).json({ error: "Envie avaliação e/ou escolhas do orçamento." });
-      }
-      const now = new Date().toISOString();
-      const updatePayload: Record<string, unknown> = {
-        updated_at: now,
-      };
-
-      if (wantsRating) {
-        if (acc.client_rating_at) {
-          return res.status(409).json({ error: "Avaliação já foi enviada." });
-        }
-        const a = Number(req.body?.client_rating_attendance);
-        const s = Number(req.body?.client_rating_service);
-        const r = Number(req.body?.client_rating_recommend);
-        const comment =
-          typeof req.body?.client_rating_comment === "string"
-            ? req.body.client_rating_comment.trim().slice(0, 2000)
-            : "";
-        if (![1, 2, 3, 4, 5].includes(a) || ![1, 2, 3, 4, 5].includes(s) || ![1, 2, 3, 4, 5].includes(r)) {
-          return res.status(400).json({ error: "Informe as três avaliações de 1 a 5 estrelas." });
-        }
-        updatePayload.client_rating_attendance = a;
-        updatePayload.client_rating_service = s;
-        updatePayload.client_rating_recommend = r;
-        updatePayload.client_rating_comment = comment || null;
-        updatePayload.client_rating_at = now;
-      }
-
-      if (wantsBudgetChoices) {
-        const currentChoices = parseClientBudgetChoices(acc.client_budget_choices);
-        const incoming = parseClientBudgetChoices(req.body?.budget_choices);
-        updatePayload.client_budget_choices = {
-          ...currentChoices,
-          ...incoming,
-        };
-      }
-
-      let updateErr: any = null;
-      const firstUpdate = await supabaseAdmin
-        .from("workshop_vehicle_accompaniment")
-        .update(updatePayload)
-        .eq("id", acc.id);
-      updateErr = firstUpdate.error;
-      if (updateErr && /client_budget_choices/i.test(String(updateErr.message || ""))) {
-        const fallbackPayload = { ...updatePayload };
-        delete fallbackPayload.client_budget_choices;
-        const fallback = await supabaseAdmin
-          .from("workshop_vehicle_accompaniment")
-          .update(fallbackPayload)
-          .eq("id", acc.id);
-        updateErr = fallback.error;
-      }
-      if (updateErr) {
-        console.error("[API] PATCH public vehicle-accompaniment:", updateErr);
-        return res.status(500).json({ error: updateErr.message });
-      }
-      return res.json({ ok: true });
-    } catch (err: any) {
-      console.error("[API] PATCH public vehicle-accompaniment:", err);
-      return res.status(500).json({ error: err?.message ?? "Erro" });
     }
   });
 

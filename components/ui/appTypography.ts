@@ -1,8 +1,13 @@
 /**
- * Tipografia única da interface (font-sans no index.html = stack Apple/Segoe).
- * Nomes de veículo nos cards/modais usam `font-vehicle` (= stack sistema / SF no Apple, ver index.html).
+ * Tipografia da interface:
+ * - Corpo: `font-sans` → SFProText (SF Pro Text webfont; PC/Windows incluso)
+ * - Títulos: `font-display` / h1–h4 → SFProDisplay
+ * - Nomes de veículo nos cards: `font-vehicle` (stack anterior, sem mudar)
  */
 export const fontUi = "font-sans antialiased";
+
+/** Títulos (páginas, modais, headings) — SF Pro Display */
+export const fontDisplay = "font-display antialiased";
 
 /** Labels de seção (Queixa, Orçamentos, Anexos, etc.) */
 export const uiModalSectionLabel =

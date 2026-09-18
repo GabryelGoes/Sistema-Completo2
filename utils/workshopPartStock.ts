@@ -59,6 +59,16 @@ export function formatWorkshopPartQty(n: number | null | undefined): string {
   return v.toFixed(3).replace(/\.?0+$/, '');
 }
 
+/** Quantidades de estoque/movimentação como inteiros (≥ 0). */
+export function parseWorkshopPartQtyInt(raw: string | number | null | undefined): number {
+  if (typeof raw === 'number') {
+    return Number.isFinite(raw) ? Math.max(0, Math.round(raw)) : 0;
+  }
+  const n = Number(String(raw ?? '').trim().replace(',', '.'));
+  if (!Number.isFinite(n)) return 0;
+  return Math.max(0, Math.round(n));
+}
+
 export function getWorkshopPartStockStatus(part: WorkshopPart): WorkshopPartStockStatus {
   const stock = Number(part.stock_qty ?? 0);
   const min = Number(part.min_stock_qty ?? 0);

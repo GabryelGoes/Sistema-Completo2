@@ -1,5 +1,6 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
+import './styles/sf-pro-fonts.css';
 import './index.css';
 import './lightModeContrast.css';
 import './styles/patio-vehicle-modal-desktop.css';
@@ -8,6 +9,9 @@ import './styles/ios-switch.css';
 import App from './App';
 import { AppErrorBoundary } from './components/AppErrorBoundary';
 import { DeviceTypeProvider } from './components/ui/DeviceTypeContext';
+import { ensureSfProFonts } from './utils/ensureSfProFonts';
+
+void ensureSfProFonts();
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {

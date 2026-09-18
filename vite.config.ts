@@ -4,7 +4,7 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig(() => {
     return {
-      /** Raiz absoluta: obrigatório para rotas SPA (/acompanhamento/:token) na Vercel. */
+      /** Raiz absoluta do app na Vercel. */
       base: '/',
       server: {
         port: 3000,
@@ -13,10 +13,6 @@ export default defineConfig(() => {
           port: 24679,
           clientPort: 24679,
         },
-      },
-      // SPA: rota pública de acompanhamento (mesmo comportamento que vercel.json em produção)
-      historyApiFallback: {
-        rewrites: [{ from: /^\/acompanhamento\/[^/]+$/, to: '/index.html' }],
       },
       plugins: [react()],
       resolve: {

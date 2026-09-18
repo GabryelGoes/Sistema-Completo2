@@ -176,13 +176,6 @@ const HOME_MODULE_ACCESS: {
     iconAlt: 'Radar de Qualidade',
   },
   { key: 'access_tv_patio', label: 'TV do Pátio', description: 'Modal na home e link do painel externo nas configurações', icon: '/icons/tv-patio-ios.png', iconAlt: 'TV do Pátio' },
-  {
-    key: 'access_centro_atendimento',
-    label: 'Central do atendimento',
-    description: 'Acompanhamento de OS em tela cheia',
-    icon: '/icons/recepcao-ios.png',
-    iconAlt: 'Central do atendimento',
-  },
   { key: 'access_estoque_pecas', label: 'Estoque de peças', description: 'Catálogo e estoque na home', icon: '/icons/estoque-ios.png', iconAlt: 'Estoque de peças' },
   {
     key: 'access_settings',

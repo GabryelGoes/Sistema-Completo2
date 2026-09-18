@@ -17,7 +17,6 @@ import {
   BarChart3,
   Printer,
   ScanLine,
-  QrCode,
 } from 'lucide-react';
 import { iosModalShell, iosModalClose, iosModalInsetCard, SETTINGS_CHILD_MODAL_Z, NESTED_STOCK_OVERLAY_Z } from './ui/iosModalStyles';
 import { IosAccentIconSquircle } from './ui/IosAccentIconSquircle';
@@ -57,12 +56,14 @@ import {
   updateWorkshopPartPurchase,
   deleteWorkshopPartPurchase,
   getWorkshopPartPendingReservations,
+  verifyStockGuardPassword,
   type WorkshopPart,
   type WorkshopPartCategory,
   type WorkshopPartPurchase,
   type WorkshopPartLabContext,
   type WorkshopPartPendingReservation,
   type WorkshopPartStockMovementType,
+  type WorkshopPartWriteInput,
 } from '../services/apiService';
 import { printWorkshopPartSheet } from '../utils/workshopPartPrintSheet';
 import { TechnicianPhotoEditorModal } from './TechnicianPhotoEditorModal';
@@ -73,8 +74,9 @@ import {
 import { WorkshopPartDetailView } from './WorkshopPartDetailView';
 import { WorkshopPartsAnalyticsView } from './WorkshopPartsAnalyticsView';
 import { WorkshopPartStockOutboundModal } from './WorkshopPartStockOutboundModal';
-import { WorkshopAbsModulesModal } from './WorkshopAbsModulesModal';
+import { WorkshopPartStockInboundModal } from './WorkshopPartStockInboundModal';
 import { WorkshopPartScanHubModal } from './WorkshopPartScanHubModal';
+import { StockGuardPasswordModal } from './StockGuardPasswordModal';
 import {
   formValuesToApiPayload,
   purchaseDraftShouldSync,
@@ -101,7 +103,17 @@ import { WorkshopPartStockBadge } from './ui/WorkshopPartStockBadge';
 interface WorkshopPartsModalProps {
   isOpen: boolean;
   onClose: () => void;
+  /** Ação pedida de fora (ex.: leitura USB global). */
+  bootIntent?: WorkshopPartsBootIntent | null;
+  onBootIntentConsumed?: () => void;
 }
+
+export type WorkshopPartsBootIntent =
+  | { type: 'edit'; part: WorkshopPart }
+  | { type: 'create'; barcode: string }
+  | { type: 'view'; part: WorkshopPart }
+  | { type: 'inbound'; part: WorkshopPart }
+  | { type: 'outbound'; mode: WorkshopPartStockMovementType; part: WorkshopPart };
 
 type PendingPartPhoto = { id: string; file: File; previewUrl: string };
 
@@ -176,7 +188,12 @@ function normalizePartSearch(s: string): string {
     .trim();
 }
 
-export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, onClose }) => {
+export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
+  isOpen,
+  onClose,
+  bootIntent = null,
+  onBootIntentConsumed,
+}) => {
   const [parts, setParts] = useState<WorkshopPart[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -214,10 +231,9 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
   const [isAnalyticsOpen, setIsAnalyticsOpen] = useState(false);
   const [outboundMode, setOutboundMode] = useState<WorkshopPartStockMovementType | null>(null);
   const [outboundInitialPart, setOutboundInitialPart] = useState<WorkshopPart | null>(null);
+  const [inboundPart, setInboundPart] = useState<WorkshopPart | null>(null);
   const [scanHubOpen, setScanHubOpen] = useState(false);
-  const [absModulesOpen, setAbsModulesOpen] = useState(false);
-  const [absInitialPublicId, setAbsInitialPublicId] = useState<string | null>(null);
-  const [absInitialMissingPublicId, setAbsInitialMissingPublicId] = useState<string | null>(null);
+  const [scanHubExternal, setScanHubExternal] = useState<{ code: string; token: number } | null>(null);
   const [registrationPrefillBarcode, setRegistrationPrefillBarcode] = useState<string | null>(null);
   const [categories, setCategories] = useState<WorkshopPartCategory[]>([]);
   const [isCategoriesModalOpen, setIsCategoriesModalOpen] = useState(false);
@@ -227,6 +243,9 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
   const [categoryEditingName, setCategoryEditingName] = useState('');
   const [photoEditorContext, setPhotoEditorContext] = useState<PhotoEditorContext | null>(null);
   const [photoEditorFile, setPhotoEditorFile] = useState<File | null>(null);
+  const [stockGuardOpen, setStockGuardOpen] = useState(false);
+  const [stockGuardError, setStockGuardError] = useState<string | null>(null);
+  const [stockGuardBusy, setStockGuardBusy] = useState(false);
   const createPhotoInputRef = useRef<HTMLInputElement>(null);
   const createCameraInputRef = useRef<HTMLInputElement>(null);
   const categoryFilterDropdownRef = useRef<HTMLDivElement>(null);
@@ -234,6 +253,8 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
   const suspendRegistrationBackRef = useRef(false);
   /** Evita clique fantasma no overlay ao voltar do seletor de arquivo. */
   const blockRegistrationBackdropUntilRef = useRef(0);
+  /** Ação protegida a executar após validar a senha do estoque. */
+  const pendingStockGuardActionRef = useRef<null | (() => Promise<void>)>(null);
 
   const [categoryFilterMenuOpen, setCategoryFilterMenuOpen] = useState(false);
 
@@ -241,6 +262,35 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
     const n = Number(String(value).replace(',', '.'));
     return Number.isFinite(n) ? n : 0;
   };
+
+  const requestStockGuard = useCallback((action: () => Promise<void>) => {
+    pendingStockGuardActionRef.current = action;
+    setStockGuardError(null);
+    setStockGuardOpen(true);
+  }, []);
+
+  const closeStockGuard = useCallback(() => {
+    if (stockGuardBusy) return;
+    pendingStockGuardActionRef.current = null;
+    setStockGuardOpen(false);
+    setStockGuardError(null);
+  }, [stockGuardBusy]);
+
+  const handleStockGuardConfirm = useCallback(async (_password: string) => {
+    setStockGuardBusy(true);
+    setStockGuardError(null);
+    try {
+      await verifyStockGuardPassword(_password);
+      const action = pendingStockGuardActionRef.current;
+      pendingStockGuardActionRef.current = null;
+      setStockGuardOpen(false);
+      if (action) await action();
+    } catch (e) {
+      setStockGuardError(e instanceof Error ? e.message : 'Senha incorreta.');
+    } finally {
+      setStockGuardBusy(false);
+    }
+  }, []);
 
   const registrationPhotoCount =
     registrationMode === 'create' ? pendingPhotos.length : registrationPhotos.length;
@@ -390,19 +440,6 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
     [openCreateRegistration]
   );
 
-  const openAbsModules = useCallback((opts?: { publicId?: string; missingPublicId?: string }) => {
-    setOutboundMode(null);
-    setAbsInitialPublicId(opts?.publicId || null);
-    setAbsInitialMissingPublicId(opts?.missingPublicId || null);
-    setAbsModulesOpen(true);
-  }, []);
-
-  const closeAbsModules = useCallback(() => {
-    setAbsModulesOpen(false);
-    setAbsInitialPublicId(null);
-    setAbsInitialMissingPublicId(null);
-  }, []);
-
   const openProductView = useCallback(async (part: WorkshopPart) => {
     const latest = parts.find((p) => p.id === part.id) ?? part;
     setViewPart(latest);
@@ -528,39 +565,53 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
     purchases: WorkshopPartPurchaseDraft[];
   }) => {
     if (!values.name.trim() || adding) return;
-    setAdding(true);
-    setError(null);
-    try {
-      const payload = formValuesToApiPayload(values);
-      const categoryIds = values.category_ids ?? [];
 
-      if (registrationMode === 'create') {
-        let created = await createWorkshopPart(payload);
-        created = await setWorkshopPartCategories(created.id, categoryIds);
-        for (const photo of pendingPhotos) {
-          created = await uploadWorkshopPartPhoto(created.id, photo.file, photo.file.name);
-        }
-        for (const draft of purchaseDrafts) {
-          if (purchaseDraftShouldSync(draft)) {
-            await createWorkshopPartPurchase(created.id, purchaseDraftToPayload(draft));
+    const mode = registrationMode;
+    const editPartId = registrationPart?.id ?? null;
+    const photosSnapshot = [...pendingPhotos];
+
+    const runSave = async () => {
+      setAdding(true);
+      setError(null);
+      try {
+        const payload = formValuesToApiPayload(values) as WorkshopPartWriteInput;
+        const categoryIds = values.category_ids ?? [];
+
+        if (mode === 'create') {
+          let created = await createWorkshopPart(payload);
+          created = await setWorkshopPartCategories(created.id, categoryIds);
+          for (const photo of photosSnapshot) {
+            created = await uploadWorkshopPartPhoto(created.id, photo.file, photo.file.name);
           }
+          for (const draft of purchaseDrafts) {
+            if (purchaseDraftShouldSync(draft)) {
+              await createWorkshopPartPurchase(created.id, purchaseDraftToPayload(draft));
+            }
+          }
+          setParts((prev) =>
+            [...prev, created].sort((a, b) => a.sort_order - b.sort_order || a.name.localeCompare(b.name))
+          );
+        } else if (mode === 'edit' && editPartId) {
+          await updateWorkshopPart(editPartId, payload);
+          await setWorkshopPartCategories(editPartId, categoryIds);
+          await syncPurchasesForPart(editPartId, purchaseDrafts);
         }
-        setParts((prev) =>
-          [...prev, created].sort((a, b) => a.sort_order - b.sort_order || a.name.localeCompare(b.name))
-        );
-      } else if (registrationMode === 'edit' && registrationPart) {
-        await updateWorkshopPart(registrationPart.id, payload);
-        await setWorkshopPartCategories(registrationPart.id, categoryIds);
-        await syncPurchasesForPart(registrationPart.id, purchaseDrafts);
-      }
 
-      closeRegistration();
-      await fetchParts();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Erro ao salvar peça.');
-    } finally {
-      setAdding(false);
+        closeRegistration();
+        await fetchParts();
+      } catch (e) {
+        setError(e instanceof Error ? e.message : 'Erro ao salvar peça.');
+      } finally {
+        setAdding(false);
+      }
+    };
+
+    if (mode === 'edit' && editPartId) {
+      requestStockGuard(runSave);
+      return;
     }
+
+    await runSave();
   };
 
   const startEdit = (p: WorkshopPart) => {
@@ -588,18 +639,24 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
       setError('Preço e estoque devem ser valores positivos.');
       return;
     }
-    setError(null);
-    try {
-      const updated = await updateWorkshopPart(editingId, {
-        name: editingName.trim(),
-        unit_price,
-        stock_qty,
-      });
-      setParts((prev) => prev.map((p) => (p.id === editingId ? updated : p)));
-      cancelEdit();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Erro ao salvar peça.');
-    }
+
+    const partId = editingId;
+    const name = editingName.trim();
+
+    requestStockGuard(async () => {
+      setError(null);
+      try {
+        const updated = await updateWorkshopPart(partId, {
+          name,
+          unit_price,
+          stock_qty,
+        });
+        setParts((prev) => prev.map((p) => (p.id === partId ? updated : p)));
+        cancelEdit();
+      } catch (e) {
+        setError(e instanceof Error ? e.message : 'Erro ao salvar peça.');
+      }
+    });
   };
 
   const handleDelete = async (id: string) => {
@@ -656,25 +713,33 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
     }
 
     if (ctx.kind === 'remote-add' || ctx.kind === 'remote-replace') {
-      setUploadingPhotoId(ctx.partId);
-      setError(null);
-      try {
-        const replaceId =
-          ctx.kind === 'remote-replace' && ctx.photoId !== WORKSHOP_PART_LEGACY_COVER_ID
-            ? ctx.photoId
-            : undefined;
-        const updated = await uploadWorkshopPartPhoto(ctx.partId, file, file.name, {
-          replacePhotoId: replaceId,
-        });
-        setParts((prev) => prev.map((p) => (p.id === ctx.partId ? updated : p)));
-        if (registrationPart?.id === ctx.partId) {
-          refreshRegistrationPhotosFromPart(updated);
+      const applyRemotePhoto = async () => {
+        setUploadingPhotoId(ctx.partId);
+        setError(null);
+        try {
+          const replaceId =
+            ctx.kind === 'remote-replace' && ctx.photoId !== WORKSHOP_PART_LEGACY_COVER_ID
+              ? ctx.photoId
+              : undefined;
+          const updated = await uploadWorkshopPartPhoto(ctx.partId, file, file.name, {
+            replacePhotoId: replaceId,
+          });
+          setParts((prev) => prev.map((p) => (p.id === ctx.partId ? updated : p)));
+          if (registrationPart?.id === ctx.partId) {
+            refreshRegistrationPhotosFromPart(updated);
+          }
+        } catch (e) {
+          setError(e instanceof Error ? e.message : 'Erro ao enviar foto da peça.');
+        } finally {
+          setUploadingPhotoId(null);
         }
-      } catch (e) {
-        setError(e instanceof Error ? e.message : 'Erro ao enviar foto da peça.');
-      } finally {
-        setUploadingPhotoId(null);
+      };
+
+      if (registrationMode === 'edit') {
+        requestStockGuard(applyRemotePhoto);
+        return;
       }
+      await applyRemotePhoto();
     }
   };
 
@@ -693,24 +758,34 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
       return;
     }
     if (!registrationPart) return;
-    setUploadingPhotoId(registrationPart.id);
-    setError(null);
-    try {
-      if (photoId === WORKSHOP_PART_LEGACY_COVER_ID) {
-        const updated = await updateWorkshopPart(registrationPart.id, { photo_url: null });
+
+    const applyRemove = async () => {
+      if (!registrationPart) return;
+      setUploadingPhotoId(registrationPart.id);
+      setError(null);
+      try {
+        if (photoId === WORKSHOP_PART_LEGACY_COVER_ID) {
+          const updated = await updateWorkshopPart(registrationPart.id, { photo_url: null });
+          setParts((prev) => prev.map((p) => (p.id === registrationPart.id ? updated : p)));
+          setRegistrationPhotos([]);
+          setRegistrationPart(updated);
+          return;
+        }
+        const updated = await deleteWorkshopPartPhoto(registrationPart.id, photoId);
         setParts((prev) => prev.map((p) => (p.id === registrationPart.id ? updated : p)));
-        setRegistrationPhotos([]);
-        setRegistrationPart(updated);
-        return;
+        refreshRegistrationPhotosFromPart(updated);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : 'Erro ao remover foto.');
+      } finally {
+        setUploadingPhotoId(null);
       }
-      const updated = await deleteWorkshopPartPhoto(registrationPart.id, photoId);
-      setParts((prev) => prev.map((p) => (p.id === registrationPart.id ? updated : p)));
-      refreshRegistrationPhotosFromPart(updated);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Erro ao remover foto.');
-    } finally {
-      setUploadingPhotoId(null);
+    };
+
+    if (registrationMode === 'edit') {
+      requestStockGuard(applyRemove);
+      return;
     }
+    await applyRemove();
   };
 
   const handleEditRegistrationPhoto = (photoId: string) => {
@@ -991,13 +1066,40 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
     if (!isOpen) {
       setIsAnalyticsOpen(false);
       setOutboundMode(null);
-      setAbsModulesOpen(false);
-      setAbsInitialPublicId(null);
-      setAbsInitialMissingPublicId(null);
       setScanHubOpen(false);
+      setScanHubExternal(null);
       setOutboundInitialPart(null);
+      setInboundPart(null);
     }
   }, [isOpen]);
+
+  /** Intenção vinda da leitura USB global (editar / cadastrar / saída). */
+  useEffect(() => {
+    if (!isOpen || !bootIntent) return;
+    const intent = bootIntent;
+    onBootIntentConsumed?.();
+    if (intent.type === 'create') {
+      openCreateRegistration(intent.barcode);
+      return;
+    }
+    if (intent.type === 'edit') {
+      void openEditRegistration(intent.part);
+      return;
+    }
+    if (intent.type === 'view') {
+      void openProductView(intent.part);
+      return;
+    }
+    if (intent.type === 'inbound') {
+      setInboundPart(intent.part);
+      return;
+    }
+    if (intent.type === 'outbound') {
+      setOutboundInitialPart(intent.part);
+      setOutboundMode(intent.mode);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- consome uma vez por bootIntent
+  }, [isOpen, bootIntent]);
 
   const handleOutboundStockChanged = useCallback(
     (updated: Pick<WorkshopPart, 'id' | 'stock_qty' | 'unit_price' | 'name'>) => {
@@ -1009,6 +1111,11 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
         )
       );
       setViewPart((prev) =>
+        prev && prev.id === updated.id
+          ? { ...prev, stock_qty: Number(updated.stock_qty), unit_price: Number(updated.unit_price ?? prev.unit_price) }
+          : prev
+      );
+      setInboundPart((prev) =>
         prev && prev.id === updated.id
           ? { ...prev, stock_qty: Number(updated.stock_qty), unit_price: Number(updated.unit_price ?? prev.unit_price) }
           : prev
@@ -1139,14 +1246,6 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
               >
                 <ScanLine className="w-5 h-5" />
                 Escanear código
-              </button>
-              <button
-                type="button"
-                onClick={() => openAbsModules()}
-                className="inline-flex items-center justify-center gap-2 rounded-2xl border-0 bg-amber-50 dark:bg-amber-950/40 px-4 py-3 text-[15px] font-semibold text-amber-950 dark:text-amber-100 hover:bg-amber-100/90 dark:hover:bg-amber-900/50 transition-colors shadow-none"
-              >
-                <QrCode className="w-5 h-5" />
-                Módulos ABS
               </button>
               <button
                 type="button"
@@ -1893,6 +1992,10 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
                 loading={loadingViewPart}
                 onEdit={handleEditFromView}
                 onDelete={() => void handleDelete(viewPart.id)}
+                onPartUpdated={(updated) => {
+                  setParts((prev) => prev.map((p) => (p.id === updated.id ? { ...p, ...updated } : p)));
+                  setViewPart((prev) => (prev && prev.id === updated.id ? { ...prev, ...updated } : prev));
+                }}
               />
             </div>
           </div>
@@ -2031,10 +2134,19 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
     {scanHubOpen ? (
       <WorkshopPartScanHubModal
         isOpen
-        onClose={() => setScanHubOpen(false)}
+        onClose={() => {
+          setScanHubOpen(false);
+          setScanHubExternal(null);
+        }}
         catalogParts={parts}
-        onStockEntry={(part) => {
+        externalScanCode={scanHubExternal?.code ?? null}
+        externalScanToken={scanHubExternal?.token ?? null}
+        onExternalScanConsumed={() => setScanHubExternal(null)}
+        onEditProduct={(part) => {
           void openEditRegistration(part);
+        }}
+        onStockEntry={(part) => {
+          setInboundPart(part);
         }}
         onRegisterProduct={(barcode) => {
           openCreateRegistration(barcode);
@@ -2047,9 +2159,21 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
           setOutboundInitialPart(part);
           setOutboundMode('consumable');
         }}
-        onAbsModuleCode={(code, found) => {
-          if (found) openAbsModules({ publicId: code });
-          else openAbsModules({ missingPublicId: code });
+      />
+    ) : null}
+
+    {inboundPart ? (
+      <WorkshopPartStockInboundModal
+        isOpen
+        part={inboundPart}
+        onClose={() => setInboundPart(null)}
+        onStockChanged={(updated) => {
+          handleOutboundStockChanged(updated);
+          setInboundPart(updated);
+        }}
+        onOpenFullEdit={(part) => {
+          setInboundPart(null);
+          void openEditRegistration(part);
         }}
       />
     ) : null}
@@ -2066,21 +2190,19 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({ isOpen, 
         onStockChanged={handleOutboundStockChanged}
         catalogParts={parts}
         onRegisterMissingProduct={openRegisterFromMissingBarcode}
-        onAbsModuleCode={(code, found) => {
-          if (found) openAbsModules({ publicId: code });
-          else openAbsModules({ missingPublicId: code });
-        }}
       />
     ) : null}
 
-    {absModulesOpen ? (
-      <WorkshopAbsModulesModal
-        isOpen
-        onClose={closeAbsModules}
-        initialPublicId={absInitialPublicId}
-        initialMissingPublicId={absInitialMissingPublicId}
-      />
-    ) : null}
+    <StockGuardPasswordModal
+      open={stockGuardOpen}
+      title="Confirmar alteração do produto"
+      subtitle="Use a senha da Gerência ou a senha de proteção do estoque (Alterar senhas)."
+      confirmLabel="Autorizar alteração"
+      error={stockGuardError}
+      busy={stockGuardBusy}
+      onClose={closeStockGuard}
+      onConfirm={handleStockGuardConfirm}
+    />
     </ModalPortal>
     </>
   );

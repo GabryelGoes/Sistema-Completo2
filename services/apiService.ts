@@ -1483,11 +1483,14 @@ async function readServiceOrderPhotoApiError(response: Response, fallback: strin
 async function uploadServiceOrderPhotoMultipart(
   id: string,
   uploadBlob: Blob,
-  name: string
+  name: string,
+  folderOptions?: { folderId?: string; folderSlug?: string }
 ): Promise<ServiceOrderPhoto> {
   const formData = new FormData();
   // Safari iOS: não usar `new File([blob])` — append Blob + nome evita envio vazio.
   formData.append("file", uploadBlob, name);
+  if (folderOptions?.folderId) formData.append("folderId", folderOptions.folderId);
+  if (folderOptions?.folderSlug) formData.append("folderSlug", folderOptions.folderSlug);
   const path = `/service-orders/${id}/photos`;
   const url =
     API_BASE.startsWith("/") && typeof window !== "undefined"
@@ -1535,7 +1538,8 @@ async function uploadServiceOrderPhotoDirect(
   uploadBlob: Blob,
   name: string,
   replacePath?: string,
-  contentTypeHint?: string
+  contentTypeHint?: string,
+  folderOptions?: { folderId?: string; folderSlug?: string }
 ): Promise<ServiceOrderPhoto> {
   let initResponse: Response;
   try {
@@ -1561,7 +1565,7 @@ async function uploadServiceOrderPhotoDirect(
   }
 
   if (initResponse.status === 404 && import.meta.env.DEV) {
-    return uploadServiceOrderPhotoMultipart(id, uploadBlob, name);
+    return uploadServiceOrderPhotoMultipart(id, uploadBlob, name, folderOptions);
   }
   if (!initResponse.ok) {
     throw new Error(
@@ -1623,7 +1627,11 @@ async function uploadServiceOrderPhotoDirect(
     completeResponse = await fetch(`${API_BASE}/service-orders/${id}/photos/upload-complete`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ path: init.path }),
+      body: JSON.stringify({
+        path: init.path,
+        ...(folderOptions?.folderId ? { folderId: folderOptions.folderId } : {}),
+        ...(folderOptions?.folderSlug ? { folderSlug: folderOptions.folderSlug } : {}),
+      }),
       cache: "no-store",
     });
   } catch (e) {
@@ -1650,7 +1658,8 @@ async function uploadServiceOrderPhotoDirect(
 export async function uploadServiceOrderPhoto(
   id: string,
   file: Blob,
-  fileName: string
+  fileName: string,
+  options?: { folderId?: string; folderSlug?: string }
 ): Promise<ServiceOrderPhoto> {
   const { blob, name, contentType } = await prepareServiceOrderUploadPayload(
     file,
@@ -1666,7 +1675,117 @@ export async function uploadServiceOrderPhoto(
     );
   }
 
-  return uploadServiceOrderPhotoDirect(id, blob, name, undefined, contentType);
+  return uploadServiceOrderPhotoDirect(id, blob, name, undefined, contentType, options);
+}
+
+export type ServiceOrderPhotoFolder = {
+  id: string;
+  name: string;
+  slug: string | null;
+  isSystem: boolean;
+  sortOrder: number;
+  photoCount: number;
+  coverUrls: string[];
+  createdAt?: string;
+  /** Fotos da pasta (quando a listagem já inclui). */
+  photos?: ServiceOrderPhoto[];
+};
+
+export type ServiceOrderPhotoFolderDetail = {
+  folder: ServiceOrderPhotoFolder;
+  photos: ServiceOrderPhoto[];
+};
+
+export async function getServiceOrderPhotoFolders(
+  serviceOrderId: string
+): Promise<ServiceOrderPhotoFolder[]> {
+  const response = await fetch(`${API_BASE}/service-orders/${serviceOrderId}/photo-folders`);
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({} as { error?: string }));
+    throw new Error(err.error || `Falha ao carregar pastas de fotos (${response.status})`);
+  }
+  const data = (await response.json()) as { folders?: ServiceOrderPhotoFolder[] };
+  return Array.isArray(data.folders) ? data.folders : [];
+}
+
+export async function getServiceOrderPhotoFolderDetail(
+  serviceOrderId: string,
+  folderId: string
+): Promise<ServiceOrderPhotoFolderDetail> {
+  const response = await fetch(
+    `${API_BASE}/service-orders/${serviceOrderId}/photo-folders/${folderId}`
+  );
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({} as { error?: string }));
+    throw new Error(err.error || `Falha ao abrir pasta (${response.status})`);
+  }
+  return response.json();
+}
+
+export async function createServiceOrderPhotoFolder(
+  serviceOrderId: string,
+  name: string
+): Promise<ServiceOrderPhotoFolder> {
+  const response = await fetch(`${API_BASE}/service-orders/${serviceOrderId}/photo-folders`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name }),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({} as { error?: string }));
+    throw new Error(err.error || `Falha ao criar pasta (${response.status})`);
+  }
+  return response.json();
+}
+
+export async function renameServiceOrderPhotoFolder(
+  serviceOrderId: string,
+  folderId: string,
+  name: string
+): Promise<ServiceOrderPhotoFolder> {
+  const response = await fetch(
+    `${API_BASE}/service-orders/${serviceOrderId}/photo-folders/${folderId}`,
+    {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name }),
+    }
+  );
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({} as { error?: string }));
+    throw new Error(err.error || `Falha ao renomear pasta (${response.status})`);
+  }
+  return response.json();
+}
+
+export async function deleteServiceOrderPhotoFolder(
+  serviceOrderId: string,
+  folderId: string
+): Promise<void> {
+  const response = await fetch(
+    `${API_BASE}/service-orders/${serviceOrderId}/photo-folders/${folderId}`,
+    { method: "DELETE" }
+  );
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({} as { error?: string }));
+    throw new Error(err.error || `Falha ao excluir pasta (${response.status})`);
+  }
+}
+
+export async function moveServiceOrderPhotoToFolder(
+  serviceOrderId: string,
+  path: string,
+  folderId: string
+): Promise<void> {
+  const response = await fetch(`${API_BASE}/service-orders/${serviceOrderId}/photo-items/move`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ path, folderId }),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({} as { error?: string }));
+    throw new Error(err.error || `Falha ao mover foto (${response.status})`);
+  }
 }
 
 export async function renameServiceOrderPhoto(
@@ -2649,7 +2768,8 @@ export interface WorkshopPartPhoto {
   sort_order: number;
 }
 
-export const WORKSHOP_PART_PHOTOS_MAX = 3;
+/** Máximo de fotos por produto do estoque (capa + galeria). */
+export const WORKSHOP_PART_PHOTOS_MAX = 8;
 
 export interface WorkshopPart {
   id: string;
@@ -2892,6 +3012,46 @@ export async function createWorkshopPartStockMovement(input: {
       stock_qty: Number(data.part?.stock_qty ?? 0),
       unit_price: Number(data.part?.unit_price ?? 0),
     },
+  };
+}
+
+/** Valida senha da Gerência ou senha dedicada de proteção do estoque. */
+export async function verifyStockGuardPassword(password: string): Promise<void> {
+  const response = await fetch(`${API_BASE}/workshop-parts/verify-stock-guard`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ password }),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || 'Senha incorreta.');
+  }
+}
+
+/** Cancela uma baixa e devolve a quantidade ao estoque (exige senha). */
+export async function cancelWorkshopPartStockMovement(
+  movementId: string,
+  password: string
+): Promise<WorkshopPartStockOutboundResult['part']> {
+  const qs = new URLSearchParams({ password });
+  const response = await fetch(
+    `${API_BASE}/workshop-parts/movements/${encodeURIComponent(movementId)}?${qs.toString()}`,
+    {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password }),
+    }
+  );
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao cancelar movimentação (${response.status})`);
+  }
+  const data = (await response.json()) as { part?: WorkshopPartStockOutboundResult['part'] };
+  if (!data.part) throw new Error('Resposta inválida ao cancelar movimentação.');
+  return {
+    ...data.part,
+    stock_qty: Number(data.part.stock_qty ?? 0),
+    unit_price: Number(data.part.unit_price ?? 0),
   };
 }
 
@@ -3465,8 +3625,6 @@ export interface SystemUserPermissions {
   access_orcamentos?: boolean;
   /** Tile e modal TV do Pátio; link externo do painel no hub de configurações. */
   access_tv_patio?: boolean;
-  /** Tile «Central do atendimento» (acompanhamento de OS). */
-  access_centro_atendimento?: boolean;
   /** Tile «Estoque de peças» e catálogo de peças. */
   access_estoque_pecas?: boolean;
   /** Centro de relatórios (módulo na página inicial). */
@@ -3800,6 +3958,8 @@ export interface WorkshopSettings {
   adminDisplayName?: string;
   adminPhotoUrl?: string | null;
   vehicleDeletePassword?: string;
+  /** True se existe senha dedicada de proteção do estoque (além da Gerência). */
+  stockGuardPasswordConfigured?: boolean;
   /** Configuração visual da oficina (cor de destaque, wallpapers); null se nunca salvo. */
   appAppearance?: WorkshopAppAppearance | null;
   /** Tipos de produto do laboratório configuráveis (id + rótulo). */
@@ -3830,6 +3990,7 @@ export async function updateWorkshopSettings(
     adminDisplayName?: string;
     adminPhotoUrl?: string | null;
     vehicleDeletePassword?: string;
+    stockGuardPassword?: string;
     appAppearance?: WorkshopAppAppearance | null;
     labProductKinds?: { id: string; label: string }[];
     labQuickServices?: {
@@ -4296,145 +4457,6 @@ export async function deleteTvMedia(id: string): Promise<void> {
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
     throw new Error((err as { error?: string }).error || "Falha ao excluir mídia.");
-  }
-}
-
-/** Marcador em foto de entrada (% da largura/altura da imagem). */
-export type VehicleAccompanimentMarker = { id: string; xPct: number; yPct: number; note: string };
-
-/** Foto de entrada com caminho no Storage da OS. */
-export type VehicleAccompanimentPhoto = {
-  id: string;
-  path: string;
-  markers: VehicleAccompanimentMarker[];
-  /** Serviço vinculado à foto (antes/depois). */
-  service_id?: string;
-  service_name?: string;
-  phase?: "before" | "after";
-};
-
-export type WorkshopVehicleAccompanimentRow = {
-  id: string;
-  workshop_id: string;
-  service_order_id: string;
-  share_token: string;
-  intake_observations: string | null;
-  intake_photos: VehicleAccompanimentPhoto[];
-  client_rating_attendance: number | null;
-  client_rating_service: number | null;
-  client_rating_recommend: number | null;
-  client_rating_comment: string | null;
-  client_rating_at: string | null;
-  created_at: string;
-  updated_at: string;
-};
-
-export async function getVehicleAccompanimentByOrder(
-  serviceOrderId: string
-): Promise<WorkshopVehicleAccompanimentRow | null> {
-  const response = await fetch(`${API_BASE}/vehicle-accompaniment/by-order/${encodeURIComponent(serviceOrderId)}`);
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    throw new Error((data as { error?: string }).error || "Falha ao carregar central do atendimento.");
-  }
-  return data as WorkshopVehicleAccompanimentRow | null;
-}
-
-export async function bootstrapVehicleAccompaniment(serviceOrderId: string): Promise<WorkshopVehicleAccompanimentRow> {
-  const response = await fetch(`${API_BASE}/vehicle-accompaniment/bootstrap`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ serviceOrderId }),
-  });
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    throw new Error((data as { error?: string }).error || "Falha ao criar central.");
-  }
-  return data as WorkshopVehicleAccompanimentRow;
-}
-
-export async function putVehicleAccompaniment(
-  serviceOrderId: string,
-  payload: {
-    intake_observations: string;
-    intake_photos: VehicleAccompanimentPhoto[];
-    budget_public_settings?: Record<string, { visible: boolean; allow_client_approval: boolean }>;
-  }
-): Promise<WorkshopVehicleAccompanimentRow> {
-  const response = await fetch(`${API_BASE}/vehicle-accompaniment/by-order/${encodeURIComponent(serviceOrderId)}`, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    throw new Error((data as { error?: string }).error || "Falha ao guardar.");
-  }
-  return data as WorkshopVehicleAccompanimentRow;
-}
-
-export type PublicVehicleAccompanimentPayload = {
-  workshopName: string | null;
-  serviceOrder: {
-    os_number?: number | null;
-    plate: string | null;
-    vehicle_brand?: string | null;
-    vehicle_model?: string | null;
-    vehicle_color?: string | null;
-    vehicle_year?: string | null;
-    mileage_km?: string | null;
-    status: string;
-    progressLabel: string;
-    finalized: boolean;
-    issue_description?: string | null;
-    customer: { name?: string; phone?: string | null; email?: string | null } | null;
-  };
-  intake_observations: string;
-  intake_photos: { id?: string; path?: string; url: string; markers: VehicleAccompanimentMarker[] }[];
-  budgets: {
-    id: string;
-    diagnosis?: string | null;
-    services: unknown;
-    parts: unknown;
-    observations?: string | null;
-    created_at?: string;
-    updated_at?: string;
-  }[];
-  ratings: {
-    attendance: number | null;
-    service: number | null;
-    recommend: number | null;
-    comment: string | null;
-    submittedAt: string | null;
-  };
-};
-
-export async function getPublicVehicleAccompaniment(token: string): Promise<PublicVehicleAccompanimentPayload> {
-  const response = await fetch(`${API_BASE}/public/vehicle-accompaniment/${encodeURIComponent(token)}`);
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    throw new Error((data as { error?: string }).error || "Não foi possível carregar a página.");
-  }
-  return data as PublicVehicleAccompanimentPayload;
-}
-
-export async function submitPublicVehicleAccompanimentRatings(
-  token: string,
-  payload: {
-    client_rating_attendance: number;
-    client_rating_service: number;
-    client_rating_recommend: number;
-    client_rating_comment?: string;
-  }
-): Promise<void> {
-  const response = await fetch(`${API_BASE}/public/vehicle-accompaniment/${encodeURIComponent(token)}`, {
-    method: "PATCH",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    throw new Error((data as { error?: string }).error || "Não foi possível enviar a avaliação.");
   }
 }
 

@@ -10,11 +10,7 @@ export type DesktopNavItem = {
   sidebar?: boolean;
 };
 
-export type DesktopSidebarActionId =
-  | 'centro_atendimento'
-  | 'estoque_pecas'
-  | 'tvs_oficina'
-  | 'configuracoes';
+export type DesktopSidebarActionId = 'estoque_pecas' | 'tvs_oficina' | 'configuracoes';
 
 export type DesktopSidebarActionItem = {
   id: DesktopSidebarActionId;
@@ -45,12 +41,6 @@ export const DESKTOP_NAV_ITEMS: DesktopNavItem[] = [
 /** Atalhos da sidebar que abrem modais / hubs (sem aba própria). */
 export const DESKTOP_SIDEBAR_ACTIONS: DesktopSidebarActionItem[] = [
   {
-    id: 'centro_atendimento',
-    label: 'Central do atendimento',
-    shortLabel: 'Central',
-    iconSrc: '/icons/recepcao-ios.png',
-  },
-  {
     id: 'estoque_pecas',
     label: 'Estoque de peças',
     shortLabel: 'Estoque',
@@ -71,7 +61,6 @@ export const DESKTOP_SIDEBAR_ACTIONS: DesktopSidebarActionItem[] = [
 ];
 
 export type DesktopSidebarAccess = {
-  centroAtendimento: boolean;
   estoquePecas: boolean;
   tvsOficina: boolean;
   configuracoes: boolean;
@@ -82,16 +71,15 @@ export function resolveDesktopSidebarAccess(
   perms: SystemUserPermissions | undefined
 ): DesktopSidebarAccess {
   if (role === 'admin') {
-    return { centroAtendimento: true, estoquePecas: true, tvsOficina: true, configuracoes: true };
+    return { estoquePecas: true, tvsOficina: true, configuracoes: true };
   }
   if (role !== 'user' || !perms) {
-    return { centroAtendimento: false, estoquePecas: false, tvsOficina: false, configuracoes: false };
+    return { estoquePecas: false, tvsOficina: false, configuracoes: false };
   }
   if (perms.full_access) {
-    return { centroAtendimento: true, estoquePecas: true, tvsOficina: true, configuracoes: true };
+    return { estoquePecas: true, tvsOficina: true, configuracoes: true };
   }
   return {
-    centroAtendimento: !!perms.access_centro_atendimento,
     estoquePecas: !!perms.access_estoque_pecas,
     tvsOficina: !!perms.access_tv_patio,
     configuracoes: !!(
@@ -110,7 +98,6 @@ export function filterDesktopNav(items: DesktopNavItem[], allowedTabs: TabId[] |
 
 export function filterDesktopSidebarActions(access: DesktopSidebarAccess): DesktopSidebarActionItem[] {
   return DESKTOP_SIDEBAR_ACTIONS.filter((item) => {
-    if (item.id === 'centro_atendimento') return access.centroAtendimento;
     if (item.id === 'estoque_pecas') return access.estoquePecas;
     if (item.id === 'tvs_oficina') return access.tvsOficina;
     if (item.id === 'configuracoes') return access.configuracoes;

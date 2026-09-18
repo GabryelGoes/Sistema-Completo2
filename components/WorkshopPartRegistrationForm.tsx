@@ -68,20 +68,33 @@ function QtyWithUnit({
   value,
   onChange,
   unit,
+  emphasize,
 }: {
   value: string;
   onChange: (v: string) => void;
   unit: string;
+  emphasize?: boolean;
 }) {
   return (
     <div className="flex gap-2">
       <input
         type="number"
+        inputMode="numeric"
         min="0"
-        step="0.001"
+        step="1"
         value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className={`${inputCls} flex-1 tabular-nums`}
+        onChange={(e) => {
+          const raw = e.target.value;
+          if (raw === '') {
+            onChange('');
+            return;
+          }
+          const n = Math.max(0, Math.round(Number(raw)));
+          onChange(Number.isFinite(n) ? String(n) : '');
+        }}
+        className={`${inputCls} flex-1 tabular-nums ${
+          emphasize ? 'bg-emerald-50 font-semibold ring-1 ring-emerald-500/20 dark:bg-emerald-950/30' : ''
+        }`}
       />
       <span
         className={`flex shrink-0 items-center rounded-lg border-0 bg-zinc-200/80 dark:bg-white/[0.04] px-2.5 text-[12px] font-bold text-zinc-600 dark:text-zinc-300 ${lightFieldShadow}`}
@@ -425,15 +438,24 @@ export function WorkshopPartRegistrationForm({
 
       <div className="space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <FieldLabel hint="A primeira foto é a capa na lista do estoque. Até 3 imagens.">
+          <FieldLabel
+            hint={`A primeira foto é a capa na lista do estoque. Até ${maxPhotos} imagens.`}
+          >
             Fotos do produto
           </FieldLabel>
           <span className="text-[12px] font-semibold tabular-nums text-zinc-500 dark:text-zinc-400">
             {photos.length}/{maxPhotos}
           </span>
         </div>
-        <div className="grid grid-cols-3 gap-3 max-w-[min(100%,420px)]">
-          {Array.from({ length: maxPhotos }, (_, index) => {
+        <div className="grid max-w-[min(100%,520px)] grid-cols-3 gap-3 sm:grid-cols-4">
+          {Array.from(
+            {
+              length:
+                photos.length >= maxPhotos
+                  ? maxPhotos
+                  : Math.max(photos.length + 1, 1),
+            },
+            (_, index) => {
             const slot = photos[index] ?? null;
             const isAddSlot = !slot && photos.length === index && photos.length < maxPhotos;
             return (
@@ -630,15 +652,15 @@ export function WorkshopPartRegistrationForm({
                 value={values.content_qty}
                 onChange={(e) => patch({ content_qty: e.target.value })}
                 placeholder="Ex.: 500"
-                className={`${inputCls} flex-1 tabular-nums`}
+                className={`${inputCls} min-w-0 flex-[1.6] tabular-nums`}
               />
               <select
                 value={values.content_unit}
                 onChange={(e) => patch({ content_unit: e.target.value })}
-                className={`${inputCls} w-36 shrink-0`}
+                className={`${inputCls} w-[5.5rem] shrink-0 px-2`}
                 aria-label="Unidade do conteúdo"
               >
-                <option value="">Unidade</option>
+                <option value="">Un.</option>
                 {CONTENT_UNIT_OPTIONS.map((o) => (
                   <option key={o.value} value={o.value}>
                     {o.label}
@@ -727,17 +749,6 @@ export function WorkshopPartRegistrationForm({
             value={values.unit_of_measure}
             onChange={(code) => patch({ unit_of_measure: code })}
           />
-        </div>
-        <div className="space-y-1.5">
-          <FieldLabel>Quantidade mínima</FieldLabel>
-          <QtyWithUnit
-            value={values.min_stock_qty}
-            onChange={(v) => patch({ min_stock_qty: v })}
-            unit={unit}
-          />
-          <p className="text-[12px] text-zinc-500 dark:text-zinc-400">
-            Quando o estoque ficar neste valor ou abaixo, o produto aparecerá com alerta &quot;Acabando&quot; na lista.
-          </p>
         </div>
         <div className="space-y-1.5 sm:col-span-2">
           <FieldLabel>Origem da peça</FieldLabel>
@@ -834,13 +845,43 @@ export function WorkshopPartRegistrationForm({
             aria-label="Custo unitário"
           />
         </div>
-        <div className="space-y-1.5">
-          <FieldLabel>Quantidade em estoque</FieldLabel>
-          <QtyWithUnit value={values.stock_qty} onChange={(v) => patch({ stock_qty: v })} unit={unit} />
-        </div>
-        <div className="space-y-1.5">
-          <FieldLabel>Quantidade máxima</FieldLabel>
-          <QtyWithUnit value={values.max_stock_qty} onChange={(v) => patch({ max_stock_qty: v })} unit={unit} />
+      </div>
+
+      <div
+        className={`rounded-xl border-0 bg-emerald-50/70 p-4 dark:bg-emerald-950/25 ${lightCardShadow}`}
+      >
+        <p className="mb-3 text-[11px] font-bold uppercase tracking-[0.12em] text-emerald-800 dark:text-emerald-300">
+          Controle de estoque
+        </p>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <div className="space-y-1.5">
+            <FieldLabel>Quantidade em estoque</FieldLabel>
+            <QtyWithUnit
+              value={values.stock_qty}
+              onChange={(v) => patch({ stock_qty: v })}
+              unit={unit}
+              emphasize
+            />
+          </div>
+          <div className="space-y-1.5">
+            <FieldLabel>Quantidade mínima</FieldLabel>
+            <QtyWithUnit
+              value={values.min_stock_qty}
+              onChange={(v) => patch({ min_stock_qty: v })}
+              unit={unit}
+            />
+            <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
+              Abaixo ou igual → alerta &quot;Acabando&quot;.
+            </p>
+          </div>
+          <div className="space-y-1.5">
+            <FieldLabel>Quantidade máxima</FieldLabel>
+            <QtyWithUnit
+              value={values.max_stock_qty}
+              onChange={(v) => patch({ max_stock_qty: v })}
+              unit={unit}
+            />
+          </div>
         </div>
       </div>
 
@@ -903,12 +944,23 @@ export function WorkshopPartRegistrationForm({
                   <span className={labelCls}>Qtd</span>
                   <input
                     type="number"
+                    inputMode="numeric"
                     min="0"
-                    step="0.001"
+                    step="1"
                     value={row.quantity}
                     onChange={(e) =>
                       setPurchases((list) =>
-                        list.map((r, i) => (i === idx ? { ...r, quantity: e.target.value } : r))
+                        list.map((r, i) =>
+                          i === idx
+                            ? {
+                                ...r,
+                                quantity:
+                                  e.target.value === ''
+                                    ? ''
+                                    : String(Math.max(0, Math.round(Number(e.target.value)) || 0)),
+                              }
+                            : r
+                        )
                       )
                     }
                     className={`${inputCls} tabular-nums`}

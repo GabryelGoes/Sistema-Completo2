@@ -6,6 +6,8 @@
   --app-accent: #f5d00b;
   --app-accent-rgb: 245 208 11;
   --app-accent-hover: #fcd61e;
+  --app-font-sans: "SFProText", "SF Pro Text", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --app-font-display: "SFProDisplay", "SF Pro Display", "SFProText", "SF Pro Text", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
 
 /**
@@ -18,6 +20,7 @@ html {
   margin: 0;
   overflow: hidden;
   overscroll-behavior: none;
+  font-family: var(--app-font-sans);
 }
 
 body {
@@ -28,18 +31,24 @@ body {
   overscroll-behavior: none;
   background-color: #f2f2f7;
   color: #1c1c1e;
-  font-family:
-    -apple-system,
-    BlinkMacSystemFont,
-    "Segoe UI",
-    Roboto,
-    Helvetica,
-    Arial,
-    sans-serif;
+  font-family: var(--app-font-sans);
   -webkit-font-smoothing: antialiased;
   transition:
     background-color 0.3s ease,
     color 0.3s ease;
+}
+
+/**
+ * Títulos da interface → SF Pro Display.
+ * Nomes de carro nos cards usam `.font-vehicle` e não herdam Display.
+ */
+@layer base {
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--app-font-display);
+  }
 }
 
 #root {
@@ -47,6 +56,7 @@ body {
   min-height: 0;
   overflow: hidden;
   overscroll-behavior: none;
+  font-family: var(--app-font-sans);
 }
 
 .dark body {
@@ -334,7 +344,16 @@ html[data-desktop-shell='true'] .desktop-shell-content .budgets-hub-col-scroll {
   cursor: pointer;
 }
 
+/** Nomes de veículo nos cards — mantém stack anterior (não usa SF Pro Display). */
 .font-vehicle {
+  font-family:
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    Roboto,
+    Helvetica,
+    Arial,
+    sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -519,6 +538,39 @@ html[data-desktop-shell='true'] .desktop-shell-content .budgets-hub-col-scroll {
   animation: home-tile-launch 0.26s cubic-bezier(0.32, 0.72, 0, 1) forwards;
 }
 
+/** Tremor sutil estilo Home Screen iOS — só no ícone, não no cartão inteiro. */
+@keyframes home-tile-wiggle {
+  0%,
+  100% {
+    transform: rotate(-0.55deg) scale(1);
+  }
+
+  50% {
+    transform: rotate(0.55deg) scale(1);
+  }
+}
+
+.home-tile-wiggle {
+  animation: home-tile-wiggle 0.32s ease-in-out infinite;
+  transform-origin: 50% 60%;
+  will-change: transform;
+}
+
+@keyframes home-tile-lift-in {
+  from {
+    transform: scale(1);
+  }
+
+  to {
+    transform: scale(1.06);
+  }
+}
+
+.home-tile-lift {
+  animation: home-tile-lift-in 0.18s cubic-bezier(0.22, 1, 0.36, 1) both;
+  transform-origin: center;
+}
+
 .animate-modal-wp-app {
   transform-origin: center 86%;
   animation: modal-wp-app-in 0.48s cubic-bezier(0.2, 0.85, 0.22, 1) both;
@@ -549,7 +601,9 @@ html[data-desktop-shell='true'] .desktop-shell-content .budgets-hub-col-scroll {
   .animate-home-hub-in,
   .animate-home-hub-out,
   .animate-home-tile-in,
-  .animate-home-tile-launch {
+  .animate-home-tile-launch,
+  .home-tile-wiggle,
+  .home-tile-lift {
     animation: none !important;
     filter: none !important;
     opacity: 1 !important;

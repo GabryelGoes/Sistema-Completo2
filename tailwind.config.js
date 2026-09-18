@@ -14,7 +14,10 @@ export default {
   theme: {
     extend: {
       fontFamily: {
+        /** Corpo — SF Pro (SFProText webfont; funciona no Windows/Chrome). */
         sans: [
+          "SFProText",
+          '"SF Pro Text"',
           "-apple-system",
           "BlinkMacSystemFont",
           '"Segoe UI"',
@@ -23,6 +26,24 @@ export default {
           "Arial",
           "sans-serif",
         ],
+        /** Títulos — SF Pro Display. */
+        display: [
+          "SFProDisplay",
+          '"SF Pro Display"',
+          "SFProText",
+          '"SF Pro Text"',
+          "-apple-system",
+          "BlinkMacSystemFont",
+          '"Segoe UI"',
+          "Roboto",
+          "Helvetica",
+          "Arial",
+          "sans-serif",
+        ],
+        /**
+         * Nomes de veículo nos cards — stack anterior (não migrar para SF Pro nomeado).
+         * Mantém a aparência atual; `font-vehicle` sobrescreve Display em <h3> dos cards.
+         */
         vehicle: [
           "-apple-system",
           "BlinkMacSystemFont",
