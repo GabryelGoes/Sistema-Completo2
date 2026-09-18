@@ -108,7 +108,7 @@ export function isLikelyBarcodeWedgeKeystroke(opts: {
   const { elapsedMs, length } = opts;
   if (length < 4) return false;
   const avg = elapsedMs / Math.max(1, length - 1);
-  // Leitores USB/BT variam: tolerar média até ~150ms e rajadas longas (EAN/Code128/NF-e).
+  // Leitores USB/BT variam: tolerar média até ~150ms e rajadas longas (EAN/Code128).
   if (avg <= 150 && elapsedMs <= 3500) return true;
   // Códigos só numéricos curtos/médios (EAN-8/13, UPC) com leitura um pouco mais lenta.
   if (length >= 8 && length <= 18 && avg <= 200 && elapsedMs <= 4000) return true;

@@ -13,7 +13,7 @@ export type UseBarcodeWedgeListenerOptions = {
    * Se true, ainda captura mesmo com focus em INPUT/TEXTAREA
    * (útil na Home/estoque — a pistola não depende do foco).
    * Campos lentos (digitação humana) continuam ignorados pela heurística de timing.
-   * Use `data-wedge-local` no campo para o listener global não interceptar (ex.: NF-e).
+   * Use `data-wedge-local` no campo para o listener global não interceptar (ex.: senha).
    */
   captureWhileFocused?: boolean;
 };
@@ -38,6 +38,16 @@ function isLocalWedgeTarget(target: EventTarget | null): boolean {
   if (target.closest('[data-wedge-local]')) return true;
   if (target instanceof HTMLInputElement && target.type === 'password') return true;
   return false;
+}
+
+function setNativeInputValue(el: HTMLInputElement | HTMLTextAreaElement, next: string) {
+  const proto =
+    el instanceof HTMLTextAreaElement
+      ? HTMLTextAreaElement.prototype
+      : HTMLInputElement.prototype;
+  const desc = Object.getOwnPropertyDescriptor(proto, 'value');
+  desc?.set?.call(el, next);
+  el.dispatchEvent(new Event('input', { bubbles: true }));
 }
 
 /**
@@ -76,7 +86,7 @@ export function useBarcodeWedgeListener({
       const focusedEditable = isEditableTarget(e.target);
       const localWedge = isLocalWedgeTarget(e.target);
 
-      // Campo local (NF-e, senha…): não interfere — deixa o input receber tudo.
+      // Campo local (senha / data-wedge-local): não interfere — deixa o input receber tudo.
       if (localWedge) {
         reset();
         return;
@@ -98,13 +108,15 @@ export function useBarcodeWedgeListener({
         ) {
           e.preventDefault();
           e.stopPropagation();
-          // Se a pistola digitou no input focado, limpa o lixo injetado.
-          if (focusedEditable && e.target instanceof HTMLInputElement) {
+          // Remove o texto que a pistola injetou no input focado (incl. controlled React).
+          if (
+            focusedEditable &&
+            (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement)
+          ) {
             const el = e.target;
             const v = el.value || '';
             if (v === code || v.endsWith(code)) {
-              el.value = v === code ? '' : v.slice(0, Math.max(0, v.length - code.length));
-              el.dispatchEvent(new Event('input', { bubbles: true }));
+              setNativeInputValue(el, v === code ? '' : v.slice(0, Math.max(0, v.length - code.length)));
             }
           }
           onScanRef.current(code);
@@ -117,7 +129,6 @@ export function useBarcodeWedgeListener({
         return;
       }
 
-      // Aceita caractere imprimível (e.key) ou dígitos do teclado numérico via e.code.
       let ch = '';
       if (e.key.length === 1) {
         ch = e.key;
@@ -131,16 +142,25 @@ export function useBarcodeWedgeListener({
       if (!bufferRef.current) {
         startedAtRef.current = now;
         lastKeyAtRef.current = now;
-      } else {
-        const gap = now - lastKeyAtRef.current;
-        // Pausa longa = nova leitura (não misturar com digitação anterior).
-        if (gap > 180) {
-          bufferRef.current = '';
-          startedAtRef.current = now;
-        }
-        lastKeyAtRef.current = now;
+        bufferRef.current = ch;
+        return;
       }
+
+      const gap = now - lastKeyAtRef.current;
+      if (gap > 180) {
+        bufferRef.current = ch;
+        startedAtRef.current = now;
+        lastKeyAtRef.current = now;
+        return;
+      }
+
+      lastKeyAtRef.current = now;
       bufferRef.current += ch;
+
+      // Rajada rápida com foco em input: não deixa a pistola digitar no campo.
+      if (focusedEditable && captureWhileFocused && gap <= 120 && bufferRef.current.length >= 2) {
+        e.preventDefault();
+      }
     };
 
     window.addEventListener('keydown', onKeyDown, true);
