@@ -387,6 +387,7 @@ export function NfeStockInboundModal({
                     inputMode="numeric"
                     autoComplete="off"
                     autoFocus
+                    data-wedge-local
                     disabled={phase === 'loading'}
                     value={accessKeyInput}
                     onChange={(e) => setAccessKeyInput(e.target.value)}

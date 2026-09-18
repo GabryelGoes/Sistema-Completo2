@@ -348,6 +348,7 @@ export default function App() {
   /** Pistola USB em qualquer página: QR da OS abre a OS; demais códigos abrem peça. */
   useBarcodeWedgeListener({
     enabled: Boolean(authSession),
+    captureWhileFocused: true,
     onScan: (code) => {
       const osId = parseLabOsQrPayload(code);
       if (osId) {
