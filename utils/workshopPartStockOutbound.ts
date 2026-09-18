@@ -1,4 +1,4 @@
-export type WorkshopPartStockMovementType = 'sale' | 'consumable';
+export type WorkshopPartStockMovementType = 'sale' | 'consumable' | 'inbound_nfe';
 
 export type WorkshopPartStockMovement = {
   id: string;
@@ -124,5 +124,7 @@ export function applyWorkshopPartStockOutboundInMemory(
 }
 
 export function stockMovementTypeLabel(type: WorkshopPartStockMovementType): string {
-  return type === 'sale' ? 'Baixa por venda' : 'Baixa por consumo interno';
+  if (type === 'sale') return 'Baixa por venda';
+  if (type === 'inbound_nfe') return 'Entrada por NF-e';
+  return 'Baixa por consumo interno';
 }

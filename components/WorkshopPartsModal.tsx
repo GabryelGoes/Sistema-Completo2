@@ -17,6 +17,7 @@ import {
   BarChart3,
   Printer,
   ScanLine,
+  FileText,
 } from 'lucide-react';
 import { iosModalShell, iosModalClose, iosModalInsetCard, SETTINGS_CHILD_MODAL_Z, NESTED_STOCK_OVERLAY_Z } from './ui/iosModalStyles';
 import { IosAccentIconSquircle } from './ui/IosAccentIconSquircle';
@@ -76,6 +77,7 @@ import { WorkshopPartsAnalyticsView } from './WorkshopPartsAnalyticsView';
 import { WorkshopPartStockOutboundModal } from './WorkshopPartStockOutboundModal';
 import { WorkshopPartStockInboundModal } from './WorkshopPartStockInboundModal';
 import { WorkshopPartScanHubModal } from './WorkshopPartScanHubModal';
+import { NfeStockInboundModal } from './NfeStockInboundModal';
 import { StockGuardPasswordModal } from './StockGuardPasswordModal';
 import {
   formValuesToApiPayload,
@@ -234,6 +236,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
   const [inboundPart, setInboundPart] = useState<WorkshopPart | null>(null);
   const [scanHubOpen, setScanHubOpen] = useState(false);
   const [scanHubExternal, setScanHubExternal] = useState<{ code: string; token: number } | null>(null);
+  const [nfeInboundOpen, setNfeInboundOpen] = useState(false);
   const [registrationPrefillBarcode, setRegistrationPrefillBarcode] = useState<string | null>(null);
   const [categories, setCategories] = useState<WorkshopPartCategory[]>([]);
   const [isCategoriesModalOpen, setIsCategoriesModalOpen] = useState(false);
@@ -1241,6 +1244,14 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
             <div className="flex flex-wrap gap-2 justify-end shrink-0">
               <button
                 type="button"
+                onClick={() => setNfeInboundOpen(true)}
+                className="inline-flex items-center justify-center gap-2 rounded-2xl border-0 bg-sky-50 dark:bg-sky-950/40 px-4 py-3 text-[15px] font-semibold text-sky-900 dark:text-sky-100 hover:bg-sky-100/90 dark:hover:bg-sky-900/50 transition-colors shadow-none"
+              >
+                <FileText className="w-5 h-5" />
+                Entrada por NF-e
+              </button>
+              <button
+                type="button"
                 onClick={() => setScanHubOpen(true)}
                 className="inline-flex items-center justify-center gap-2 rounded-2xl border-0 bg-emerald-50 dark:bg-emerald-950/40 px-4 py-3 text-[15px] font-semibold text-emerald-900 dark:text-emerald-100 hover:bg-emerald-100/90 dark:hover:bg-emerald-900/50 transition-colors shadow-none"
               >
@@ -2158,6 +2169,16 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
         onConsumableOutbound={(part) => {
           setOutboundInitialPart(part);
           setOutboundMode('consumable');
+        }}
+      />
+    ) : null}
+
+    {nfeInboundOpen ? (
+      <NfeStockInboundModal
+        isOpen
+        onClose={() => setNfeInboundOpen(false)}
+        onStockChanged={() => {
+          void fetchParts();
         }}
       />
     ) : null}

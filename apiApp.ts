@@ -52,6 +52,7 @@ import {
 } from "./utils/workshopPartDevMemory.js";
 import type { WorkshopPartStockMovementType } from "./utils/workshopPartStockOutbound.js";
 import { registerAbsModuleRoutes } from "./utils/absModuleApiRoutes.js";
+import { registerNfeStockInboundRoutes } from "./utils/nfeStockInboundRoutes.js";
 
 const PBKDF2_ITERATIONS = 100000;
 const SALT_LEN = 16;
@@ -9489,6 +9490,17 @@ export function createApiApp() {
 
   // ----------------- MÓDULOS ABS (inventário individual + QR) -----------------
   registerAbsModuleRoutes(app, { WORKSHOP_ID, supabaseAdmin });
+
+  // ----------------- ENTRADA DE ESTOQUE POR NF-e -----------------
+  registerNfeStockInboundRoutes(app, {
+    supabaseAdmin,
+    workshopId: WORKSHOP_ID || null,
+    workshopPartSelect,
+    ensureWorkshopPartBarcodeCapability,
+    stripUnsupportedWorkshopPartPatch,
+    respondWorkshopPart,
+    parseWorkshopPartBody,
+  });
 
   // ----------------- TÉCNICOS DA OFICINA (atribuição nos cards) -----------------
   const capitalizeTechnicianName = (s: string) =>
