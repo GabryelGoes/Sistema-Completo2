@@ -441,7 +441,7 @@ export function WorkshopPartRegistrationForm({
           <FieldLabel
             hint={`A primeira foto é a capa na lista do estoque. Até ${maxPhotos} imagens.`}
           >
-            Fotos do produto
+            Fotos da peça
           </FieldLabel>
           <span className="text-[12px] font-semibold tabular-nums text-zinc-500 dark:text-zinc-400">
             {photos.length}/{maxPhotos}
@@ -617,7 +617,7 @@ export function WorkshopPartRegistrationForm({
             </div>
           </div>
           <div className="space-y-1.5">
-            <FieldLabel hint="Barracão onde o produto está guardado">Empresa / barracão</FieldLabel>
+            <FieldLabel hint="Barracão onde a peça está guardada">Empresa / barracão</FieldLabel>
             <select
               value={values.storage_site}
               onChange={(e) =>
@@ -674,7 +674,7 @@ export function WorkshopPartRegistrationForm({
             <textarea
               value={values.description}
               onChange={(e) => patch({ description: e.target.value })}
-              placeholder="Descrição do produto…"
+              placeholder="Descrição da peça…"
               className={textareaCls}
               rows={3}
             />
@@ -914,7 +914,7 @@ export function WorkshopPartRegistrationForm({
         </div>
         <p className="px-4 pb-2 text-[12px] text-zinc-500 dark:text-zinc-400">
           Com status <span className="font-semibold text-emerald-700 dark:text-emerald-400">Recebido</span>, a
-          quantidade da compra é somada ao estoque do produto ao salvar.
+          quantidade da compra é somada ao estoque da peça ao salvar.
         </p>
         {purchases.length === 0 ? (
           <p className="px-4 py-6 text-center text-[13px] text-zinc-500 dark:text-zinc-400">
@@ -1120,7 +1120,7 @@ export function WorkshopPartRegistrationForm({
           setBarcodeScannerOpen(false);
           patch({ barcode: normalizeBarcodeInput(code) });
         }}
-        title="Ler código de barras do produto"
+        title="Ler código de barras da peça"
       />
     </div>
   );

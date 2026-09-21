@@ -308,7 +308,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
     (source: 'gallery' | 'camera') => {
       if (!registrationMode) return;
       if (registrationPhotoCount >= WORKSHOP_PART_PHOTOS_MAX) {
-        setError(`Máximo de ${WORKSHOP_PART_PHOTOS_MAX} fotos por produto.`);
+        setError(`Máximo de ${WORKSHOP_PART_PHOTOS_MAX} fotos por peça.`);
         return;
       }
       setError(null);
@@ -329,7 +329,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
     if (!f || !f.type.startsWith('image/')) return;
     if (!registrationMode) return;
     if (registrationPhotoCount >= WORKSHOP_PART_PHOTOS_MAX) {
-      setError(`Máximo de ${WORKSHOP_PART_PHOTOS_MAX} fotos por produto.`);
+      setError(`Máximo de ${WORKSHOP_PART_PHOTOS_MAX} fotos por peça.`);
       return;
     }
     if (registrationMode === 'create') {
@@ -951,7 +951,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
   };
 
   const handleDeleteCategory = async (id: string) => {
-    if (!window.confirm('Excluir esta categoria? Os produtos não serão apagados; apenas o vínculo com a categoria.')) return;
+    if (!window.confirm('Excluir esta categoria? As peças não serão apagadas; apenas o vínculo com a categoria.')) return;
     setError(null);
     try {
       await deleteWorkshopPartCategory(id);
@@ -1026,7 +1026,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
 
   const categoryFilterLabel = useMemo(() => {
     const fmt = (label: string, count: number) => `${label} (${count})`;
-    if (categoryFilter === 'all') return fmt('Todos os produtos', categoryCounts.total);
+    if (categoryFilter === 'all') return fmt('Todas as peças', categoryCounts.total);
     if (categoryFilter === 'uncategorized') return fmt('Sem categoria', categoryCounts.uncategorized);
     const name = categories.find((c) => c.id === categoryFilter)?.name ?? 'Categoria';
     return fmt(name, categoryCounts.counts.get(categoryFilter) ?? 0);
@@ -1035,7 +1035,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
   const categoryFilterOptions = useMemo(() => {
     const fmt = (label: string, count: number) => ({ label, countLabel: `${label} (${count})` });
     return [
-      { value: 'all' as const, ...fmt('Todos os produtos', categoryCounts.total) },
+      { value: 'all' as const, ...fmt('Todas as peças', categoryCounts.total) },
       { value: 'uncategorized' as const, ...fmt('Sem categoria', categoryCounts.uncategorized) },
       ...categories.map((c) => ({
         value: c.id,
@@ -1138,7 +1138,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
       cropShape="square"
     />
 
-    <ModalPortal>
+    <ModalPortal manageBackLayer={false}>
     <div
       className={`${desktopShellViewportOverlayClass(isDesktopShell, SETTINGS_CHILD_MODAL_Z)} flex min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden bg-white dark:bg-zinc-950 p-0${isDesktopShell ? '' : ' h-[100dvh] max-h-[100dvh]'}`}
     >
@@ -1159,7 +1159,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
           <div className="px-6 sm:px-8 pt-[max(2rem,env(safe-area-inset-top)+0.75rem)] pb-4 pr-14 shrink-0">
             <IosModalHeader
               icon={<img src="/icons/estoque-ios.png" alt="" className="h-full w-full min-h-0 object-cover" />}
-              title="Estoque de peças"
+              title="Inventário de Peças"
               subtitle="Preço, quantidade e foto para orçamentos"
               gradientClass="from-emerald-500 to-teal-700"
             />
@@ -1230,7 +1230,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
                     </ul>
                   ) : (
                     <p className="border-t border-amber-200/70 px-4 py-3 text-[13px] text-amber-900/80 dark:border-amber-500/20 dark:text-amber-200/80">
-                      Nenhum produto em orçamento aguardando baixa.
+                      Nenhuma peça em orçamento aguardando baixa.
                     </p>
                   )
                 ) : null}
@@ -1269,7 +1269,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
                 className="inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 py-3 text-[15px] font-semibold text-white shadow-none hover:bg-emerald-500 transition-colors"
               >
                 <Plus className="w-5 h-5" />
-                Adicionar produto
+                Adicionar peça
               </button>
             </div>
           </div>
@@ -1419,7 +1419,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
                 <div className="flex flex-col gap-2.5 pt-0.5">
                   <p className="text-[14px] font-semibold text-zinc-800 dark:text-zinc-200">
                     <span className="tabular-nums">{categoryCounts.total}</span>{' '}
-                    {categoryCounts.total === 1 ? 'produto no estoque' : 'produtos no estoque'}
+                    {categoryCounts.total === 1 ? 'peça no estoque' : 'peças no estoque'}
                     {categoryFilter !== 'all' || stockAlertFilter !== 'all' || partsSearchQuery.trim() ? (
                       <span className="font-medium text-zinc-500 dark:text-zinc-400">
                         {' '}
@@ -1568,13 +1568,13 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
               <div className="py-10 px-4 text-center">
                 <p className="text-[15px] text-zinc-500 dark:text-zinc-400">Nenhuma peça cadastrada.</p>
                 <p className="text-[13px] text-zinc-400 dark:text-zinc-500 mt-1">
-                  Toque em <span className="font-medium text-zinc-600 dark:text-zinc-300">Adicionar produto</span> para incluir a primeira
+                  Toque em <span className="font-medium text-zinc-600 dark:text-zinc-300">Adicionar peça</span> para incluir a primeira
                   peça.
                 </p>
               </div>
             ) : partsInCategoryScope.length === 0 ? (
               <div className="py-10 px-4 text-center">
-                <p className="text-[15px] text-zinc-500 dark:text-zinc-400">Nenhum produto nesta seleção.</p>
+                <p className="text-[15px] text-zinc-500 dark:text-zinc-400">Nenhuma peça nesta seleção.</p>
                 <p className="text-[13px] text-zinc-400 dark:text-zinc-500 mt-1">
                   Escolha{' '}
                   <button
@@ -1586,9 +1586,9 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
                       setCategoryFilterMenuOpen(false);
                     }}
                   >
-                    Todos os produtos
+                    Todas as peças
                   </button>{' '}
-                  no filtro acima, ou outra categoria, ou vincule produtos em{' '}
+                  no filtro acima, ou outra categoria, ou vincule peças em{' '}
                   <button
                     type="button"
                     className="font-medium text-emerald-600 dark:text-emerald-400 underline hover:brightness-110"
@@ -1607,20 +1607,20 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
                     setCategoryFilterMenuOpen(false);
                   }}
                 >
-                  Ver todos os produtos
+                  Ver todas as peças
                 </button>
               </div>
             ) : partsAfterStockFilter.length === 0 && stockAlertFilter !== 'all' ? (
               <div className="py-10 px-4 text-center">
                 <p className="text-[15px] text-zinc-500 dark:text-zinc-400">
-                  Nenhum produto com este alerta nesta seleção.
+                  Nenhuma peça com este alerta nesta seleção.
                 </p>
                 <button
                   type="button"
                   className="mt-3 text-[14px] font-semibold text-emerald-600 dark:text-emerald-400 underline hover:brightness-110"
                   onClick={() => setStockAlertFilter('all')}
                 >
-                  Mostrar todos os produtos
+                  Mostrar todas as peças
                 </button>
               </div>
             ) : filteredParts.length === 0 ? (
@@ -1710,7 +1710,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
                           type="button"
                           onClick={() => void openProductView(p)}
                           className="w-full min-w-0 flex flex-[1_1_100%] items-center gap-3 text-left rounded-xl -my-1 -ml-2 pl-2 pr-2 py-1.5 hover:bg-zinc-200/70 dark:hover:bg-white/[0.07] transition-colors cursor-pointer md:col-span-1 md:flex-[unset] md:w-auto"
-                          title="Ver detalhes do produto"
+                          title="Ver detalhes da peça"
                         >
                           <div className="isolate w-10 h-10 shrink-0 overflow-hidden rounded-lg border-0 bg-zinc-100 pointer-events-none dark:bg-white/5">
                             {p.photo_url ? (
@@ -2027,13 +2027,13 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
             <IosModalHeader
               icon={<img src="/icons/estoque-ios.png" alt="" className="h-full w-full min-h-0 object-cover" />}
               title="Categorias do estoque"
-              subtitle="Grupos para filtrar e organizar produtos"
+              subtitle="Grupos para filtrar e organizar peças"
               gradientClass="from-emerald-500 to-teal-700"
             />
           </div>
           <div className="flex-1 min-h-0 overflow-y-auto px-6 sm:px-8 py-5 space-y-4">
             <p className="text-[13px] text-zinc-500 dark:text-zinc-400">
-              Crie categorias e depois vincule cada produto pelo detalhe do item ou ao cadastrar. Excluir uma categoria não apaga produtos.
+              Crie categorias e depois vincule cada peça pelo detalhe do item ou ao cadastrar. Excluir uma categoria não apaga peças.
             </p>
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
               <input
@@ -2195,7 +2195,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
 
     <StockGuardPasswordModal
       open={stockGuardOpen}
-      title="Confirmar alteração do produto"
+      title="Confirmar alteração da peça"
       subtitle="Use a senha da Gerência ou a senha de proteção do estoque (Alterar senhas)."
       confirmLabel="Autorizar alteração"
       error={stockGuardError}

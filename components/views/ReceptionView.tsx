@@ -560,6 +560,14 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
       setCustomer((prev) => ({ ...prev, mileageKm: onlyDigits(value).slice(0, 7) }));
       return;
     }
+    if (name === 'name') {
+      if (intakeExistingCustomerId) setIntakeExistingCustomerId(null);
+      setCustomer((prev) => ({ ...prev, name: value }));
+      setIntakeCustomerSearch(value);
+      const q = value.trim();
+      setIntakeCustomerSearchOpen(q.length > 0);
+      return;
+    }
     setCustomer((prev) => ({ ...prev, [name]: value }));
   };
 
@@ -767,21 +775,21 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
       if (!moduleKind) {
         setStatus({
           step: 'error',
-          message: 'Selecione o produto.',
+          message: 'Selecione a peça.',
         });
         return;
       }
       if (moduleKind === 'outro' && !(moduleProductOther ?? '').trim()) {
         setStatus({
           step: 'error',
-          message: 'Descreva qual produto entrou (campo "Outro produto").',
+          message: 'Descreva qual peça entrou (campo "Outra peça").',
         });
         return;
       }
       if (!moduleVehicleKind) {
         setStatus({
           step: 'error',
-          message: 'Informe se o produto é de automóvel ou de motocicleta.',
+          message: 'Informe se a peça é de automóvel ou de motocicleta.',
         });
         return;
       }
@@ -790,7 +798,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
       if (!vm && !mid) {
         setStatus({
           step: 'error',
-          message: 'Preencha ao menos o veículo ou a identificação do produto.',
+          message: 'Preencha ao menos o veículo ou a identificação da peça.',
         });
         return;
       }
@@ -842,7 +850,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
       const intakeCustomer: Customer = {
         ...customer,
         issueDescription: isModule
-          ? issueTrim || 'Produto recebido — aguardando avaliação técnica.'
+          ? issueTrim || 'Peça recebida — aguardando avaliação técnica.'
           : customer.issueDescription,
         moduleKind: isModule && moduleKind ? moduleKind : undefined,
         moduleVehicleKind: isModule && moduleVehicleKind ? moduleVehicleKind : undefined,
@@ -1285,7 +1293,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
             />
           </IosAccentIconSquircle>
           <h1 className="min-w-0 truncate text-[22px] font-semibold leading-none tracking-tight text-zinc-900 dark:text-white sm:text-[28px]">
-            {receptionMode === 'module' ? 'Cadastro de Produtos' : 'Cadastro de Veículos'}
+            {receptionMode === 'module' ? 'Cadastro de Peças' : 'Cadastro de Veículos'}
           </h1>
         </div>
 
@@ -1344,6 +1352,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                       placeholder="Ex: João da Silva"
                       value={customer.name}
                       onChange={handleInputChange}
+                      autoComplete="off"
                       icon={<User className="w-4 h-4" />}
                       required
                     />
@@ -1353,7 +1362,10 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                     onClick={() =>
                       setIntakeCustomerSearchOpen((o) => {
                         const next = !o;
-                        if (next) setIntakeCustomerSearch((customer.name ?? '').trim());
+                        if (next) {
+                          const q = (customer.name ?? '').trim();
+                          setIntakeCustomerSearch(q);
+                        }
                         return next;
                       })
                     }
@@ -1368,7 +1380,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                 {intakeExistingCustomerId ? (
                   <div className="mt-2 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-zinc-200/70 bg-zinc-50/70 px-3 py-2 dark:border-white/[0.08] dark:bg-zinc-950/30">
                     <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
-                      Cliente selecionado — os dados do veículo ou produto ao lado são mantidos.
+                      Cliente selecionado — os dados do veículo ou peça ao lado são mantidos.
                     </p>
                     <button
                       type="button"
@@ -1380,34 +1392,21 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                   </div>
                 ) : null}
                 {intakeCustomerSearchOpen ? (
-                  <div className="absolute left-0 right-0 z-30 mt-2 space-y-2 rounded-xl border-0 bg-white/95 p-2 shadow-none backdrop-blur dark:bg-zinc-900/95">
-                    <Input
-                      autoFocus
-                      className="[&>label]:sr-only"
-                      label="Buscar cliente"
-                      autoComplete="off"
-                      value={intakeCustomerSearch}
-                      onChange={(e) => setIntakeCustomerSearch(e.target.value)}
-                      placeholder="Digite o nome, telefone ou CPF…"
-                      icon={<Search className="h-4 w-4" />}
-                    />
-                    <p className="px-1 text-[12px] text-zinc-500 dark:text-zinc-400">
-                      Opcional: nova OS no mesmo cadastro. Digite para filtrar ou role a lista.
-                    </p>
+                  <div className="absolute left-0 right-0 z-30 mt-1.5 overflow-hidden rounded-xl border border-zinc-200/80 bg-white/98 shadow-[0_12px_28px_-10px_rgba(0,0,0,0.18),0_4px_12px_-4px_rgba(0,0,0,0.08)] backdrop-blur dark:border-white/[0.1] dark:bg-zinc-900/98 dark:shadow-[0_12px_28px_-12px_rgba(0,0,0,0.55)]">
                     {intakeCustomerDirectoryLoading ? (
-                      <p className="flex items-center gap-2 px-1 text-xs text-zinc-500 dark:text-zinc-400">
+                      <p className="flex items-center gap-2 px-3 py-3 text-xs text-zinc-500 dark:text-zinc-400">
                         <Loader2 className="h-3.5 w-3.5 animate-spin shrink-0" />
                         Carregando lista de clientes…
                       </p>
                     ) : null}
                     {intakeCustomerDirectoryError ? (
-                      <p className="px-1 text-xs text-red-600 dark:text-red-400">{intakeCustomerDirectoryError}</p>
+                      <p className="px-3 py-3 text-xs text-red-600 dark:text-red-400">{intakeCustomerDirectoryError}</p>
                     ) : null}
                     {!intakeCustomerDirectoryLoading && intakeCustomerDirectory ? (
-                      <div className="max-h-56 overflow-y-auto rounded-md border border-zinc-200/70 shadow-[0_4px_12px_-6px_rgba(0,0,0,0.08),0_1px_4px_-2px_rgba(0,0,0,0.05)] dark:border-white/[0.08] dark:shadow-none">
+                      <div className="max-h-56 overflow-y-auto">
                         {intakeExistingCustomerFiltered.length === 0 ? (
                           <p className="p-3 text-xs text-zinc-500 dark:text-zinc-400">
-                            Nenhum cliente encontrado. Ajuste a busca.
+                            Nenhum cliente encontrado para “{intakeCustomerSearch.trim()}”.
                           </p>
                         ) : (
                           <ul className="divide-y divide-zinc-100 dark:divide-white/[0.06]">
@@ -1554,7 +1553,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                     ? receptionPortraitVertical
                       ? 'Dados do veículo'
                       : 'Veículo e atendimento'
-                    : 'Produto e atendimento'}
+                    : 'Peça e atendimento'}
                 </h2>
                 {receptionPortraitVertical ? (
                   <button
@@ -1683,7 +1682,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                     icon={<Package className="w-4 h-4" />}
                   />
                   <Input 
-                    label="Identificação do produto"
+                    label="Identificação da peça"
                     name="moduleIdentification"
                     placeholder="Ex: ABS dianteiro, pinça LD, código da peça…"
                     value={customer.moduleIdentification ?? ''}
@@ -1693,7 +1692,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                   <div className="sm:col-span-2 space-y-4">
                     <div>
                       <label className={`${iosLabel} ml-1`} id="reception-module-kind-label">
-                        Tipo de produto <span className="text-red-500">*</span>
+                        Tipo de peça <span className="text-red-500">*</span>
                       </label>
                       <select
                         id="reception-module-kind-select"
@@ -1716,7 +1715,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                       {moduleKind === 'outro' && (
                         <div className="mt-3">
                           <Input
-                            label="Qual produto entrou?"
+                            label="Qual peça entrou?"
                             name="moduleProductOther"
                             required
                             placeholder="Ex: bomba de direção, atuador, válvula solenoide…"
@@ -1729,7 +1728,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                     </div>
                     <div>
                       <label className={`${iosLabel} ml-1`}>
-                        Produto de <span className="text-red-500">*</span>
+                        Peça de <span className="text-red-500">*</span>
                       </label>
                       <p className="mb-2 ml-1 text-[12px] text-zinc-500 dark:text-zinc-400">
                         Informe se o item é de automóvel ou de motocicleta.
@@ -1841,7 +1840,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                         ) : null}
                       </div>
                       <p className="mt-1.5 text-[12px] text-zinc-500 dark:text-zinc-400">
-                        Use <strong>Envio conserto</strong> quando o produto já vai direto para conserto externo, sem passar pelas etapas anteriores.
+                        Use <strong>Envio conserto</strong> quando a peça já vai direto para conserto externo, sem passar pelas etapas anteriores.
                       </p>
                     </div>
                     <LabBenchIntakeHint
@@ -2067,7 +2066,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                 title={receptionMode === 'module' ? 'Histórico do laboratório' : 'Histórico de veículos'}
                 subtitle={
                   receptionMode === 'module'
-                    ? 'Produtos do laboratório arquivados — mesmo padrão visual da página Orçamentos'
+                    ? 'Peças do laboratório arquivadas — mesmo padrão visual da página Orçamentos'
                     : 'Veículos arquivados — mesmo padrão visual da página Orçamentos'
                 }
               />
@@ -2105,7 +2104,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                 </div>
               ) : archivedOrders.length === 0 ? (
                 <div className="py-16 text-center text-zinc-500">
-                  {receptionMode === 'module' ? 'Nenhum produto arquivado encontrado.' : 'Nenhum veículo arquivado encontrado.'}
+                  {receptionMode === 'module' ? 'Nenhuma peça arquivada encontrada.' : 'Nenhum veículo arquivado encontrado.'}
                 </div>
               ) : (
                 <div className="mx-auto max-w-3xl space-y-4 px-4 py-5 sm:px-6">
@@ -2304,7 +2303,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                           {isModuleDetail && (
                             <>
                               <div className="rounded-xl border border-zinc-300 dark:border-white/15 bg-zinc-100/80 dark:bg-white/[0.06] px-4 py-3">
-                                <span className="text-[10px] uppercase font-bold text-zinc-500 dark:text-zinc-400">Identificação do produto</span>
+                                <span className="text-[10px] uppercase font-bold text-zinc-500 dark:text-zinc-400">Identificação da peça</span>
                                 <p className="text-lg font-mono font-bold text-zinc-900 dark:text-white mt-1">
                                   {(d.module_identification || '—').trim()}
                                 </p>

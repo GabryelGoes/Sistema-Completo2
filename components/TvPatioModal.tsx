@@ -1186,7 +1186,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
   const iosLabel = 'text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500 mb-2';
 
   return (
-    <ModalPortal>
+    <ModalPortal manageBackLayer={false}>
       <div className="fixed inset-0 z-[120] flex items-stretch justify-stretch bg-black/45 backdrop-blur-[20px]">
       {chimeBanner && (
         <div className="pointer-events-none fixed inset-0 z-[125] flex items-center justify-center bg-black/55 p-3 sm:p-6">
@@ -1234,7 +1234,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
             </IosAccentIconSquircle>
             <div>
               <h2 className="text-[22px] sm:text-[26px] font-semibold tracking-tight text-zinc-900 leading-tight">
-                TVs da oficina
+                Painéis de TV
               </h2>
               <p className="text-[13px] text-zinc-500 mt-0.5 flex items-center gap-1.5">
                 <Sparkles className={`w-3.5 h-3.5 ${tvScope === 'laboratorio' ? 'text-violet-500' : 'text-brand-yellow'}`} />

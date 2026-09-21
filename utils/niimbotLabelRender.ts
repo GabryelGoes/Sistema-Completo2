@@ -64,7 +64,7 @@ export function renderNiimbotPartLabelDataUrl(input: NiimbotPartLabelInput): str
   if (!code) throw new Error('Código interno ausente para a etiqueta.');
 
   const brand = (input.brand ?? 'REI DO ABS').trim() || 'REI DO ABS';
-  const name = String(input.name ?? '').trim() || 'Produto';
+  const name = String(input.name ?? '').trim() || 'Peça';
 
   const w = NIIMBOT_LABEL_W_PX;
   const h = NIIMBOT_LABEL_H_PX;

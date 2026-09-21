@@ -34,7 +34,7 @@ import {
 } from './services/apiService';
 import type { ServiceOrderStatus } from './constants/serviceOrderStages';
 import { KeepAliveTabPanel } from './components/KeepAliveTabPanel';
-import { applyAccentToRoot, DEFAULT_ACCENT } from './utils/appAppearance';
+import { applyAccentToRoot, DEFAULT_ACCENT, moduleAccentColor } from './utils/appAppearance';
 import { setLabProductKinds } from './utils/moduleMetadata';
 import { setLabQuickServices } from './utils/labQuickServices';
 import { ModalLayerProvider } from './components/ui/ModalLayerContext';
@@ -178,22 +178,6 @@ export default function App() {
   const orientation = useOrientation();
   const isDesktopShell = useDesktopShell();
 
-  const shellOverlayTopbar = useMemo(() => {
-    if (!isDesktopShell) return null;
-    return resolveDesktopShellOverlayTopbar(
-      isPartsModalOpen,
-      isTvPatioModalOpen,
-      isSettingsOpen,
-      settingsHubOpen
-    );
-  }, [
-    isDesktopShell,
-    isPartsModalOpen,
-    isTvPatioModalOpen,
-    isSettingsOpen,
-    settingsHubOpen,
-  ]);
-
   const activeDesktopSidebarAction = useMemo(() => {
     if (!isDesktopShell) return null;
     return resolveActiveDesktopSidebarAction(
@@ -216,6 +200,7 @@ export default function App() {
   // Estado para transferir dados do Histórico (Pátio) para a Recepção
   const [prefillData, setPrefillData] = useState<Customer | null>(null);
   const [receptionForcedMode, setReceptionForcedMode] = useState<'vehicle' | 'module' | null>(null);
+  const [receptionUiMode, setReceptionUiMode] = useState<'vehicle' | 'module'>('vehicle');
   const [receptionInitialModuleStatus, setReceptionInitialModuleStatus] =
     useState<ServiceOrderStatus | null>(null);
   /** Ao fechar a Recepção aberta a partir do Pátio/Lab (criar veículo/módulo ou “usar dados”), voltar para esta aba em vez do Início. */
@@ -271,6 +256,33 @@ export default function App() {
   const activeAppTab: TabId = isLimitedSystemUser ? userTab : currentTab;
   const showMobileBackgroundNotifications =
     !isDesktopShell && activeAppTab !== 'patio' && activeAppTab !== 'laboratorio';
+
+  const shellOverlayTopbar = useMemo(() => {
+    if (!isDesktopShell) return null;
+    const moduleBar = resolveDesktopShellOverlayTopbar(
+      isPartsModalOpen,
+      isTvPatioModalOpen,
+      isSettingsOpen,
+      settingsHubOpen
+    );
+    if (moduleBar) return moduleBar;
+    if (activeAppTab === 'reception') {
+      return {
+        title: receptionUiMode === 'module' ? 'Cadastro de Peças' : 'Cadastro de Veículos',
+        accent: moduleAccentColor('reception'),
+        tone: 'light' as const,
+      };
+    }
+    return null;
+  }, [
+    isDesktopShell,
+    isPartsModalOpen,
+    isTvPatioModalOpen,
+    isSettingsOpen,
+    settingsHubOpen,
+    activeAppTab,
+    receptionUiMode,
+  ]);
 
   useEffect(() => {
     if (!authSession || isDesktopShell) return;
@@ -483,6 +495,7 @@ export default function App() {
 
   /** Enquanto existir “volta para Pátio/Lab”, o modo veículo/módulo define qual aba ao usar voltar. */
   const syncReturnTabFromReceptionMode = useCallback((mode: ServiceOrderType) => {
+    setReceptionUiMode(mode === 'module' ? 'module' : 'vehicle');
     setReturnTabAfterReception((prev) => {
       if (prev === null) return null;
       if (prev === 'agenda') return 'agenda';
@@ -730,6 +743,11 @@ export default function App() {
   useBrowserBackLayer(isSettingsOpen, () => setIsSettingsOpen(false));
   useBrowserBackLayer(isUserChangePasswordsOpen, () => setIsUserChangePasswordsOpen(false));
   useBrowserBackLayer(!!hubBudgetViewer, () => setHubBudgetViewer(null));
+  useBrowserBackLayer(isPartsModalOpen, () => {
+    setIsPartsModalOpen(false);
+    setPartsBootIntent(null);
+  });
+  useBrowserBackLayer(isTvPatioModalOpen, () => setIsTvPatioModalOpen(false));
 
 
   // Tela de login (antes de entrar no app)

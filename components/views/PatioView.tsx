@@ -3445,15 +3445,15 @@ export const PatioView: React.FC<PatioViewProps> = ({
     if (loadingDetails || serviceOrderDetail.customers.id === SERVICE_ORDER_PLACEHOLDER_CUSTOMER_ID) return;
     if (isModuleMode) {
       if (!editFichaForm.moduleKind) {
-        alert('Selecione o tipo de produto.');
+        alert('Selecione o tipo de peça.');
         return;
       }
       if (editFichaForm.moduleKind === 'outro' && !editFichaForm.moduleProductOther.trim()) {
-        alert('Descreva qual produto entrou (campo "Outro produto").');
+        alert('Descreva qual peça entrou (campo "Outra peça").');
         return;
       }
       if (!editFichaForm.moduleVehicleKind) {
-        alert('Selecione se o produto é de automóvel ou de motocicleta.');
+        alert('Selecione se a peça é de automóvel ou de motocicleta.');
         return;
       }
     }
@@ -3665,7 +3665,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
         await updateServiceOrderExternalRepair(cardId, repairPayload);
       } else {
         alert(
-          'Abra o produto, preencha a seção Conserto externo (fornecedor, tipo de produto, etc.) e tente novamente.'
+          'Abra a peça, preencha a seção Conserto externo (fornecedor, tipo de peça, etc.) e tente novamente.'
         );
         return;
       }
@@ -3881,7 +3881,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
       return;
     }
     if (newLabProductKind === OTHER_MODULE_KIND_ID && !newLabProductOther.trim()) {
-      alert("Informe o nome do produto.");
+      alert("Informe o nome da peça.");
       return;
     }
 
@@ -4018,7 +4018,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
     }
     if (
       !window.confirm(
-        'Excluir os dados de conserto externo deste produto?\n\nEssa ação remove fornecedor, serviço e demais informações registradas nesta seção.'
+        'Excluir os dados de conserto externo desta peça?\n\nEssa ação remove fornecedor, serviço e demais informações registradas nesta seção.'
       )
     ) {
       return;
@@ -6250,10 +6250,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
                         e.stopPropagation();
                         const msg = showDeliverButton
                           ? isModuleMode
-                            ? 'Confirmar entrega deste produto? Ele será arquivado e irá para o histórico.'
+                            ? 'Confirmar entrega desta peça? Ele será arquivado e irá para o histórico.'
                             : 'Confirmar entrega deste veículo finalizado? Ele será arquivado e irá para o histórico.'
                           : isModuleMode
-                            ? 'Confirmar entrega deste produto não aprovado? Ele será arquivado e irá para o histórico.'
+                            ? 'Confirmar entrega desta peça não aprovada? Ele será arquivado e irá para o histórico.'
                             : 'Confirmar entrega deste veículo não aprovado? Ele será arquivado e irá para o histórico.';
                         if (archivingId === card.id) return;
                         if (window.confirm(msg)) {
@@ -6339,8 +6339,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                   onCreateRegistration('module', stage.id as ServiceOrderStatus);
                                 }}
                                 className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-black/15 text-black/90 transition hover:bg-black/25 dark:bg-white/15 dark:text-white dark:hover:bg-white/25"
-                                title={`Cadastrar produto em ${stage.name}`}
-                                aria-label={`Cadastrar produto em ${stage.name}`}
+                                title={`Cadastrar peça em ${stage.name}`}
+                                aria-label={`Cadastrar peça em ${stage.name}`}
                               >
                                 <Plus className="h-3.5 w-3.5" strokeWidth={2.5} aria-hidden />
                               </button>
@@ -7159,7 +7159,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             {!isExternalRepairStatus(serviceOrderDetail?.status) ? (
                               <p className="border-t border-zinc-200/60 bg-purple-50/50 px-3 py-2 text-[11px] leading-snug text-purple-900/90 dark:border-white/[0.06] dark:bg-purple-950/20 dark:text-purple-200/90 sm:px-4">
                                 Para marcar como <strong>Em conserto</strong>, preencha os dados abaixo e use{' '}
-                                <strong>Registrar envio</strong>. O produto sai do quadro e aparece em Conserto externo.
+                                <strong>Registrar envio</strong>. A peça sai do quadro e aparece em Conserto externo.
                               </p>
                             ) : null}
 
@@ -7237,7 +7237,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                   />
                                 </div>
                                 <div>
-                                  <label className={`${iosLabel} !mb-1`}>Identificação do produto</label>
+                                  <label className={`${iosLabel} !mb-1`}>Identificação da peça</label>
                                   <input
                                     value={externalRepairDraft.productIdentification}
                                     onChange={(e) => setExternalRepairDraft((p) => ({ ...p, productIdentification: e.target.value }))}
@@ -7246,7 +7246,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                   />
                                 </div>
                                 <div>
-                                  <label className={`${iosLabel} !mb-1`}>Tipo de produto</label>
+                                  <label className={`${iosLabel} !mb-1`}>Tipo de peça</label>
                                   <select
                                     value={externalRepairDraft.productType}
                                     onChange={(e) => {
@@ -7269,7 +7269,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                 </div>
                                 {externalRepairDraft.productType === OTHER_MODULE_KIND_ID && (
                                   <div>
-                                    <label className={`${iosLabel} !mb-1`}>Qual produto?</label>
+                                    <label className={`${iosLabel} !mb-1`}>Qual peça?</label>
                                     <input
                                       value={externalRepairDraft.productTypeOther}
                                       onChange={(e) => setExternalRepairDraft((p) => ({ ...p, productTypeOther: e.target.value }))}
@@ -7303,7 +7303,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                       onClick={() => void handleSendToExternalRepair(selectedCard.id)}
                                       disabled={loadingDetails}
                                       className="inline-flex items-center gap-2 rounded-xl bg-purple-700 px-5 py-2.5 text-[14px] font-semibold text-white transition hover:bg-purple-600 disabled:opacity-60"
-                                      title="Salva os dados e marca o produto como em conserto externo"
+                                      title="Salva os dados e marca a peça como em conserto externo"
                                     >
                                       <Truck className="h-4 w-4" strokeWidth={2.2} />
                                       Registrar Envio
@@ -7391,8 +7391,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
                     type="button"
                     onClick={handlePrintLabModuleFicha}
                     className={`${patioVehicleVm.closeBtn} !border-violet-500/40 !bg-violet-600 !text-white shadow-md shadow-violet-500/25 hover:!bg-violet-500 dark:!bg-violet-600 dark:hover:!bg-violet-500`}
-                    title="Imprimir ficha do produto"
-                    aria-label="Imprimir ficha do produto"
+                    title="Imprimir ficha da peça"
+                    aria-label="Imprimir ficha da peça"
                   >
                     <Printer className="h-5 w-5" />
                   </button>
@@ -7414,7 +7414,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   type="button"
                   onClick={() => { setDeleteVehicleError(null); setDeleteVehiclePassword(''); setDeleteVehiclePasswordReadonly(true); setIsDeleteVehicleOpen(true); }}
                   className={`${patioVehicleVm.closeBtn} hover:bg-red-500/15 hover:text-red-600 dark:hover:bg-red-500/20`}
-                  title={isModuleMode ? 'Excluir produto do laboratório' : 'Excluir veículo do sistema'}
+                  title={isModuleMode ? 'Excluir peça do laboratório' : 'Excluir veículo do sistema'}
                 >
                   <Trash2 className="h-5 w-5" />
                 </button>
@@ -7435,11 +7435,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   <div className={`${vi} w-full max-w-sm p-6 shadow-xl`}>
                     <h3 className="mb-2 flex items-center gap-2 text-[17px] font-semibold text-zinc-900 dark:text-white">
                       <Trash2 className="h-5 w-5 text-red-500" />
-                      {isModuleMode ? 'Excluir produto do laboratório' : 'Excluir veículo do sistema'}
+                      {isModuleMode ? 'Excluir peça do laboratório' : 'Excluir veículo do sistema'}
                     </h3>
                     <p className="mb-4 text-[14px] leading-relaxed text-zinc-600 dark:text-zinc-400">
                       {isModuleMode
-                        ? 'Este produto será arquivado (OS cancelada). Use a mesma senha do login Gerência ou a senha em "Alterar senhas" (excluir veículos).'
+                        ? 'Esta peça será arquivada (OS cancelada). Use a mesma senha do login Gerência ou a senha em "Alterar senhas" (excluir veículos).'
                         : 'Este veículo será arquivado (OS cancelada). Use a mesma senha do login Gerência ou a senha em "Alterar senhas" (excluir veículos).'}
                     </p>
                     <form
@@ -7648,8 +7648,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                   type="button"
                                   onClick={handlePrintLabModuleFicha}
                                   className={`${patioVehicleVm.closeBtn} !border-violet-500/40 !bg-violet-600 !text-white shadow-md shadow-violet-500/25 hover:!bg-violet-500 dark:!bg-violet-600 dark:hover:!bg-violet-500`}
-                                  title="Imprimir ficha do produto"
-                                  aria-label="Imprimir ficha do produto"
+                                  title="Imprimir ficha da peça"
+                                  aria-label="Imprimir ficha da peça"
                                 >
                                   <Printer className="h-5 w-5" />
                                 </button>
@@ -7671,7 +7671,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                   type="button"
                                   onClick={() => { setDeleteVehicleError(null); setDeleteVehiclePassword(''); setDeleteVehiclePasswordReadonly(true); setIsDeleteVehicleOpen(true);  }}
                                   className={`${patioVehicleVm.closeBtn} hover:bg-red-500/15 hover:text-red-600 dark:hover:bg-red-500/20`}
-                                  title={isModuleMode ? 'Excluir produto do laboratório' : 'Excluir veículo do sistema'}
+                                  title={isModuleMode ? 'Excluir peça do laboratório' : 'Excluir veículo do sistema'}
                                 >
                                   <Trash2 className="h-5 w-5" />
                                 </button>
@@ -8221,11 +8221,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                         <input value={editFichaForm.vehicleModel} onChange={(e) => setEditFichaForm(f => ({ ...f, vehicleModel: e.target.value }))} className={vin} placeholder="Ex: BMW 320i" />
                                       </div>
                                       <div>
-                                        <label className={iosLabel}>Identificação do produto</label>
+                                        <label className={iosLabel}>Identificação da peça</label>
                                         <input value={editFichaForm.moduleIdentification} onChange={(e) => setEditFichaForm(f => ({ ...f, moduleIdentification: e.target.value }))} className={vin} placeholder="Ex: Módulo ABS XYZ" />
                                       </div>
                                       <div>
-                                        <label className={iosLabel}>Tipo de produto</label>
+                                        <label className={iosLabel}>Tipo de peça</label>
                                         <select
                                           value={editFichaForm.moduleKind}
                                           onChange={(e) => {
@@ -8248,7 +8248,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                       </div>
                                       {editFichaForm.moduleKind === 'outro' && (
                                         <div>
-                                          <label className={iosLabel}>Qual produto entrou?</label>
+                                          <label className={iosLabel}>Qual peça entrou?</label>
                                           <input
                                             value={editFichaForm.moduleProductOther}
                                             onChange={(e) => setEditFichaForm((f) => ({ ...f, moduleProductOther: e.target.value }))}
@@ -8258,7 +8258,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                         </div>
                                       )}
                                       <div>
-                                        <label className={iosLabel}>Produto de</label>
+                                        <label className={iosLabel}>Peça de</label>
                                         <div className="grid grid-cols-2 gap-2">
                                           {MODULE_VEHICLE_KIND_OPTIONS.map((opt) => {
                                             const selected = editFichaForm.moduleVehicleKind === opt.value;
@@ -8407,7 +8407,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                     <div className="flex items-center gap-3 px-4 py-3.5 sm:px-5">
                                       <Tag className="h-[18px] w-[18px] shrink-0 text-violet-600/90 dark:text-violet-300" />
                                       <div className="min-w-0 flex-1">
-                                        <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Tipo de produto</p>
+                                        <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Tipo de peça</p>
                                         <p className="mt-0.5 text-[15px] portrait:text-[17.55px] font-medium text-zinc-900 dark:text-white">
                                           {labProductDisplayLabel(
                                             serviceOrderDetail.module_kind,
@@ -8421,7 +8421,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                     <div className="flex items-center gap-3 px-4 py-3.5 sm:px-5">
                                       <Wrench className="h-[18px] w-[18px] shrink-0 text-violet-600/90 dark:text-violet-300" />
                                       <div className="min-w-0 flex-1">
-                                        <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Produto de</p>
+                                        <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Peça de</p>
                                         <p className="mt-0.5 text-[15px] portrait:text-[17.55px] font-medium text-zinc-900 dark:text-white">
                                           {moduleVehicleKindLabel(serviceOrderDetail.module_vehicle_kind)}
                                         </p>
@@ -9647,7 +9647,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   {labSourcePatio.osNumber != null ? ` #${labSourcePatio.osNumber}` : ''}
                 </h2>
                 <p className="mt-1 text-[13px] text-zinc-500 dark:text-zinc-400">
-                  Selecione fotos ou documentos da OS do veículo para copiar para este produto.
+                  Selecione fotos ou documentos da OS do veículo para copiar para esta peça.
                 </p>
               </div>
               <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-[#F2F2F7] px-4 py-4 dark:bg-black/25 custom-scrollbar sm:px-6">
@@ -10947,7 +10947,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                     <Truck className="h-5 w-5 shrink-0 text-white/90" strokeWidth={2.2} />
                   </button>
                   <p className="mt-2 text-[12px] leading-snug text-zinc-500 dark:text-zinc-400">
-                    Exige dados salvos em Conserto externo no cadastro do produto.
+                    Exige dados salvos em Conserto externo no cadastro da peça.
                   </p>
                 </div>
               ) : null}

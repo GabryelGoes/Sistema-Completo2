@@ -14,12 +14,12 @@ export const DESKTOP_SHELL_MODULE_TOPBARS: Record<
   DesktopShellOverlayTopbar
 > = {
   estoque_pecas: {
-    title: 'Estoque de peças',
+    title: 'Inventário de Peças',
     accent: '#16A34A',
     tone: 'light',
   },
   tvs_oficina: {
-    title: 'TVs da oficina',
+    title: 'Painéis de TV',
     accent: '#0EA5E9',
     tone: 'light',
   },

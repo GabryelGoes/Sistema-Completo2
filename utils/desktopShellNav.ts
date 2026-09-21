@@ -26,9 +26,10 @@ export type DesktopSidebarEntry =
 
 /**
  * Ordem dos ícones da barra lateral no modo PC:
- * Agenda → Pátio → Laboratório → Estoque → Orçamentos → TVs → Boletins → Relatórios → Radar → Configurações
+ * Início → Agenda → Pátio → Laboratório → Inventário → Orçamentos → Painéis → Boletins → Relatórios → Radar → Configurações
  */
 export const DESKTOP_SIDEBAR_ORDER: DesktopSidebarEntry[] = [
+  { kind: 'tab', id: 'home' },
   { kind: 'tab', id: 'agenda' },
   { kind: 'tab', id: 'patio' },
   { kind: 'tab', id: 'laboratorio' },
@@ -43,7 +44,7 @@ export const DESKTOP_SIDEBAR_ORDER: DesktopSidebarEntry[] = [
 
 /** Navegação do modo PC (estilo OnMotor) — módulos com aba dedicada. */
 export const DESKTOP_NAV_ITEMS: DesktopNavItem[] = [
-  { id: 'home', label: 'Resumo', shortLabel: 'Resumo', sidebar: false },
+  { id: 'home', label: 'Início', shortLabel: 'Início' },
   {
     id: 'reception',
     label: 'Recepção',
@@ -64,14 +65,14 @@ export const DESKTOP_NAV_ITEMS: DesktopNavItem[] = [
 export const DESKTOP_SIDEBAR_ACTIONS: DesktopSidebarActionItem[] = [
   {
     id: 'estoque_pecas',
-    label: 'Estoque de peças',
-    shortLabel: 'Estoque',
+    label: 'Inventário de Peças',
+    shortLabel: 'Inventário',
     iconSrc: '/icons/estoque-ios.png',
   },
   {
     id: 'tvs_oficina',
-    label: 'TVs da oficina',
-    shortLabel: 'TVs',
+    label: 'Painéis de TV',
+    shortLabel: 'Painéis',
     iconSrc: '/icons/tv-patio-ios.png',
   },
   {

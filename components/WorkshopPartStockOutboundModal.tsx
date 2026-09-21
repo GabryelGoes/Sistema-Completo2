@@ -250,13 +250,13 @@ export function WorkshopPartStockOutboundModal({
           setPart(null);
           setNameQuery(rawCode);
           setLookupError(
-            `Nenhum código exato. ${byName.length} produtos com nome parecido — escolha na lista abaixo.`
+            `Nenhum código exato. ${byName.length} peças com nome parecido — escolha na lista abaixo.`
           );
           return;
         }
         setPart(null);
         setMissingBarcode(rawCode);
-        setLookupError('Produto não cadastrado');
+        setLookupError('Peça não cadastrada');
       } catch (e) {
         setLookupError(e instanceof Error ? e.message : 'Falha na busca.');
       } finally {
@@ -280,7 +280,7 @@ export function WorkshopPartStockOutboundModal({
 
   const handleConfirm = useCallback(async () => {
     if (!part) {
-      setSubmitError('Leia o código ou escolha o produto pelo nome.');
+      setSubmitError('Leia o código ou escolha a peça pelo nome.');
       return;
     }
     if (!(qtyNumber > 0)) {
@@ -486,7 +486,7 @@ export function WorkshopPartStockOutboundModal({
                           onClick={() => onRegisterMissingProduct(missingBarcode)}
                           className="inline-flex items-center justify-center rounded-xl bg-emerald-600 px-3 py-2 text-[13px] font-semibold text-white hover:bg-emerald-500"
                         >
-                          Cadastrar produto
+                          Cadastrar peça
                         </button>
                       ) : null}
                     </div>
@@ -495,7 +495,7 @@ export function WorkshopPartStockOutboundModal({
 
                 <section className="space-y-2">
                   <h3 className="text-[13px] font-bold uppercase tracking-wide text-zinc-500">
-                    Por nome do produto
+                    Por nome da peça
                   </h3>
                   <div className="relative">
                     <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
@@ -510,7 +510,7 @@ export function WorkshopPartStockOutboundModal({
                       disabled={saving}
                       placeholder="Digite o nome, marca ou modelo…"
                       className="w-full rounded-2xl border-0 bg-zinc-100 py-3 pl-10 pr-3 text-[15px] text-zinc-900 outline-none ring-emerald-500/30 focus:ring-2 dark:bg-white/5 dark:text-white"
-                      aria-label="Buscar produto por nome"
+                      aria-label="Buscar peça por nome"
                       autoComplete="off"
                     />
                   </div>
@@ -552,7 +552,7 @@ export function WorkshopPartStockOutboundModal({
                       </ul>
                     ) : (
                       <p className="rounded-xl border border-dashed border-zinc-300 px-3 py-3 text-[13px] text-zinc-500 dark:border-white/15 dark:text-zinc-400">
-                        Nenhum produto com “{nameQuery.trim()}”.
+                        Nenhuma peça com “{nameQuery.trim()}”.
                       </p>
                     )
                   ) : catalogParts.length > 0 && !part ? (
@@ -598,8 +598,8 @@ export function WorkshopPartStockOutboundModal({
                         setSubmitError(null);
                       }}
                       className="shrink-0 self-start rounded-lg p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-white/10"
-                      aria-label="Trocar produto"
-                      title="Trocar produto"
+                      aria-label="Trocar peça"
+                      title="Trocar peça"
                     >
                       <X className="h-4 w-4" />
                     </button>
@@ -834,7 +834,7 @@ export function WorkshopPartStockOutboundModal({
               </section>
             ) : (
               <p className="rounded-2xl border-0 bg-zinc-100 px-4 py-8 text-center text-[14px] text-zinc-500 shadow-none dark:bg-white/5 dark:text-zinc-400">
-                Use o código de barras, digite o nome do produto ou escolha na lista de sugestões.
+                Use o código de barras, digite o nome da peça ou escolha na lista de sugestões.
               </p>
             )}
 
@@ -857,7 +857,7 @@ export function WorkshopPartStockOutboundModal({
                       <div className="flex flex-wrap items-start justify-between gap-2">
                         <span className="min-w-0">
                           <span className="block font-semibold text-zinc-900 dark:text-white">
-                            {row.part_name || 'Produto'}
+                            {row.part_name || 'Peça'}
                           </span>
                           <span className="block text-[12px] text-zinc-500">
                             {formatWhen(row.created_at)}

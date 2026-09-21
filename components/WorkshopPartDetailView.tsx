@@ -256,7 +256,7 @@ export function WorkshopPartDetailView({
               <DetailRow label="Marca" value={displayText(part.brand)} />
               <DetailRow label="Modelo" value={displayText(part.model)} />
               <DetailRow
-                label="Produto"
+                label="Peça"
                 value={
                   <span className="text-[18px] font-extrabold leading-tight text-zinc-900 dark:text-white">
                     {displayText(part.name)}
@@ -351,7 +351,7 @@ export function WorkshopPartDetailView({
                 }`}
               >
                 {stockStatus === 'zero'
-                  ? 'Este produto está sem estoque. Reposição necessária.'
+                  ? 'Esta peça está sem estoque. Reposição necessária.'
                   : `Estoque na ou abaixo do mínimo (${fmtQty(part.min_stock_qty ?? 0, unit)}). Considere repor.`}
               </p>
             ) : null}
@@ -486,7 +486,7 @@ export function WorkshopPartDetailView({
             className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-8 py-3 text-[15px] font-semibold text-white hover:bg-emerald-500"
           >
             <Pencil className="h-5 w-5" />
-            Editar produto
+            Editar peça
           </button>
         </div>
         ) : null}
