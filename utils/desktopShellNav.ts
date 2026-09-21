@@ -19,9 +19,31 @@ export type DesktopSidebarActionItem = {
   iconSrc: string;
 };
 
+/** Entrada unificada da sidebar PC (abas + atalhos). */
+export type DesktopSidebarEntry =
+  | { kind: 'tab'; id: TabId }
+  | { kind: 'action'; id: DesktopSidebarActionId };
+
+/**
+ * Ordem dos ícones da barra lateral no modo PC:
+ * Agenda → Pátio → Laboratório → Estoque → Orçamentos → TVs → Boletins → Relatórios → Radar → Configurações
+ */
+export const DESKTOP_SIDEBAR_ORDER: DesktopSidebarEntry[] = [
+  { kind: 'tab', id: 'agenda' },
+  { kind: 'tab', id: 'patio' },
+  { kind: 'tab', id: 'laboratorio' },
+  { kind: 'action', id: 'estoque_pecas' },
+  { kind: 'tab', id: 'orcamentos' },
+  { kind: 'action', id: 'tvs_oficina' },
+  { kind: 'tab', id: 'boletim_erros' },
+  { kind: 'tab', id: 'relatorios' },
+  { kind: 'tab', id: 'radar_qualidade' },
+  { kind: 'action', id: 'configuracoes' },
+];
+
 /** Navegação do modo PC (estilo OnMotor) — módulos com aba dedicada. */
 export const DESKTOP_NAV_ITEMS: DesktopNavItem[] = [
-  { id: 'home', label: 'Resumo', shortLabel: 'Resumo' },
+  { id: 'home', label: 'Resumo', shortLabel: 'Resumo', sidebar: false },
   {
     id: 'reception',
     label: 'Recepção',
@@ -33,8 +55,8 @@ export const DESKTOP_NAV_ITEMS: DesktopNavItem[] = [
   { id: 'patio', label: 'Pátio', shortLabel: 'Pátio', iconSrc: '/icons/patio-ios.png' },
   { id: 'laboratorio', label: 'Laboratório', shortLabel: 'Lab.', iconSrc: '/icons/laboratorio-ios.png' },
   { id: 'orcamentos', label: 'Orçamentos', shortLabel: 'Orçamentos', iconSrc: '/icons/orcamentos-ios.png' },
-  { id: 'relatorios', label: 'Relatórios', shortLabel: 'Relatórios', iconSrc: '/icons/relatorios-ios.svg' },
   { id: 'boletim_erros', label: 'Boletins Técnicos', shortLabel: 'Boletins', iconSrc: '/icons/boletins-tecnicos-ios.png' },
+  { id: 'relatorios', label: 'Relatórios', shortLabel: 'Relatórios', iconSrc: '/icons/relatorios-ios.svg' },
   { id: 'radar_qualidade', label: 'Radar de qualidade', shortLabel: 'Radar', iconSrc: '/icons/radar-qualidade-ios.png' },
 ];
 
@@ -103,6 +125,44 @@ export function filterDesktopSidebarActions(access: DesktopSidebarAccess): Deskt
     if (item.id === 'configuracoes') return access.configuracoes;
     return false;
   });
+}
+
+/**
+ * Monta a lista final da sidebar na ordem fixa do modo PC,
+ * respeitando permissões de abas e atalhos.
+ */
+export function buildDesktopSidebarEntries(
+  allowedTabs: TabId[] | undefined,
+  access: DesktopSidebarAccess | undefined
+): Array<
+  | { kind: 'tab'; item: DesktopNavItem }
+  | { kind: 'action'; item: DesktopSidebarActionItem }
+> {
+  const navById = new Map(
+    filterDesktopNav(DESKTOP_NAV_ITEMS, allowedTabs)
+      .filter((i) => i.sidebar !== false)
+      .map((i) => [i.id, i])
+  );
+  const actionsById = new Map(
+    (access ? filterDesktopSidebarActions(access) : []).map((i) => [i.id, i])
+  );
+
+  const out: Array<
+    | { kind: 'tab'; item: DesktopNavItem }
+    | { kind: 'action'; item: DesktopSidebarActionItem }
+  > = [];
+
+  for (const entry of DESKTOP_SIDEBAR_ORDER) {
+    if (entry.kind === 'tab') {
+      const item = navById.get(entry.id);
+      if (item) out.push({ kind: 'tab', item });
+      continue;
+    }
+    const item = actionsById.get(entry.id);
+    if (item) out.push({ kind: 'action', item });
+  }
+
+  return out;
 }
 
 export function desktopNavLabel(tab: TabId, items: DesktopNavItem[]): string {
