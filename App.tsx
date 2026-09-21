@@ -346,29 +346,31 @@ export default function App() {
   }, []);
 
   /** Pistola USB em qualquer página: QR da OS abre a OS; demais códigos abrem peça. */
+  const handleGlobalBarcodeScan = useCallback((code: string) => {
+    const osId = parseLabOsQrPayload(code);
+    if (osId) {
+      setGlobalPartScan(null);
+      void (async () => {
+        try {
+          const detail = await getServiceOrderById(osId);
+          if (detail.order_type === 'module') {
+            handleOpenLaboratoryOrderFromPatio(osId);
+          } else {
+            handleOpenPatioOrderFromScan(osId);
+          }
+        } catch {
+          handleOpenLaboratoryOrderFromPatio(osId);
+        }
+      })();
+      return;
+    }
+    setGlobalPartScan({ code, token: Date.now() });
+  }, [handleOpenLaboratoryOrderFromPatio, handleOpenPatioOrderFromScan]);
+
   useBarcodeWedgeListener({
     enabled: Boolean(authSession),
     captureWhileFocused: true,
-    onScan: (code) => {
-      const osId = parseLabOsQrPayload(code);
-      if (osId) {
-        setGlobalPartScan(null);
-        void (async () => {
-          try {
-            const detail = await getServiceOrderById(osId);
-            if (detail.order_type === 'module') {
-              handleOpenLaboratoryOrderFromPatio(osId);
-            } else {
-              handleOpenPatioOrderFromScan(osId);
-            }
-          } catch {
-            handleOpenLaboratoryOrderFromPatio(osId);
-          }
-        })();
-        return;
-      }
-      setGlobalPartScan({ code, token: Date.now() });
-    },
+    onScan: handleGlobalBarcodeScan,
   });
 
   const openPartsWithIntent = useCallback((intent: WorkshopPartsBootIntent) => {

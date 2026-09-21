@@ -100,7 +100,7 @@ export function searchWorkshopPartsByText<T extends WorkshopPartCodeFields>(
   return scored.slice(0, Math.max(1, limit)).map((s) => s.part);
 }
 
-/** Heurística de pistola USB: sequência rápida terminando em Enter. */
+/** Heurística de pistola USB: sequência rápida terminando em Enter/Tab. */
 export function isLikelyBarcodeWedgeKeystroke(opts: {
   elapsedMs: number;
   length: number;
@@ -108,9 +108,8 @@ export function isLikelyBarcodeWedgeKeystroke(opts: {
   const { elapsedMs, length } = opts;
   if (length < 4) return false;
   const avg = elapsedMs / Math.max(1, length - 1);
-  // Leitores USB/BT variam: tolerar média até ~150ms e rajadas longas (EAN/Code128).
-  if (avg <= 150 && elapsedMs <= 3500) return true;
-  // Códigos só numéricos curtos/médios (EAN-8/13, UPC) com leitura um pouco mais lenta.
-  if (length >= 8 && length <= 18 && avg <= 200 && elapsedMs <= 4000) return true;
+  // Leitores USB/BT variam bastante; tolerar rajadas e códigos longos (EAN/Code128/QR texto).
+  if (avg <= 180 && elapsedMs <= 5000) return true;
+  if (length >= 8 && avg <= 220 && elapsedMs <= 6000) return true;
   return false;
 }

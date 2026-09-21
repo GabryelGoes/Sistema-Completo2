@@ -80,14 +80,17 @@ export function WorkshopPartScanHubModal({
   useBrowserBackLayer(isOpen, onClose);
 
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen) {
+      lastExternalTokenRef.current = null;
+      return;
+    }
     setCode('');
     setError(null);
     setResolved({ kind: 'idle' });
     setLookingUp(false);
     setPurchaseBanner(null);
-    lastExternalTokenRef.current = null;
-    lookupSeqRef.current = 0;
+    // Não zera lastExternalTokenRef aqui: o efeito de externalScan consome na abertura.
+    lookupSeqRef.current += 1;
   }, [isOpen]);
 
   useEffect(() => {
