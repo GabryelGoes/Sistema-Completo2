@@ -10,18 +10,16 @@ export type UseBarcodeWedgeListenerOptions = {
   /** Chamado ao detectar sequência de pistola USB (termina em Enter/Tab). */
   onScan: (code: string) => void;
   /**
-   * Se true, ainda captura mesmo com focus em INPUT/TEXTAREA.
-   * Digitação humana continua filtrada pela heurística de timing.
+   * Se true, ainda observa teclas com focus em INPUT/TEXTAREA.
+   * Digitação humana NÃO é engolida — só remove o código do campo se a
+   * sequência for confirmada como pistola no Enter/Tab.
    * Use `data-wedge-local` (ou type=password) para não interceptar o campo.
    */
   captureWhileFocused?: boolean;
 };
 
-/** Pausa máxima entre teclas da mesma leitura (ms). */
-const MAX_INTER_KEY_GAP_MS = 400;
-/** A partir deste tamanho + rajada rápida, engole teclas do input focado. */
-const SWALLOW_AFTER_LEN = 2;
-const SWALLOW_GAP_MS = 160;
+/** Pausa máxima entre teclas da mesma leitura (ms). Acima disso, reinicia o buffer. */
+const MAX_INTER_KEY_GAP_MS = 120;
 
 function isEditableTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
@@ -80,6 +78,8 @@ function charFromKeyEvent(e: KeyboardEvent): string | null {
 /**
  * Listener global para pistola USB (HID keyboard wedge).
  * Funciona em qualquer tela autenticada, inclusive com campo de busca focado.
+ * Nunca chama preventDefault em teclas de caractere com campo editável focado
+ * (evita “comer” letras de quem digita rápido).
  */
 export function useBarcodeWedgeListener({
   enabled,
@@ -174,6 +174,7 @@ export function useBarcodeWedgeListener({
 
       const gap = now - lastKeyAtRef.current;
       if (gap > MAX_INTER_KEY_GAP_MS) {
+        // Digitação humana / pausa: descarta buffer anterior e recomeça.
         bufferRef.current = ch;
         startedAtRef.current = now;
         lastKeyAtRef.current = now;
@@ -182,15 +183,7 @@ export function useBarcodeWedgeListener({
 
       lastKeyAtRef.current = now;
       bufferRef.current += ch;
-
-      if (
-        focusedEditable &&
-        captureWhileFocused &&
-        gap <= SWALLOW_GAP_MS &&
-        bufferRef.current.length >= SWALLOW_AFTER_LEN
-      ) {
-        e.preventDefault();
-      }
+      // Importante: NÃO preventDefault aqui — engolir teclas quebrava digitação rápida.
     };
 
     window.addEventListener('keydown', onKeyDown, true);

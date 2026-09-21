@@ -509,7 +509,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
   useBrowserBackLayer(isHomeSettingsHubOpen, () => setSettingsHubOpen(false));
   useBrowserBackLayer(isAdminProfileOpen, () => setIsAdminProfileOpen(false));
   useBrowserBackLayer(isChangePasswordsOpen, () => setIsChangePasswordsOpen(false));
-  useBrowserBackLayer(isPartsModalOpen, () => setIsPartsModalOpen(false));
+  // Inventário: ESC via ModalPortal.onRequestClose
   useBrowserBackLayer(isPatioChecklistsOpen, () => setIsPatioChecklistsOpen(false));
   useBrowserBackLayer(isServicesModalOpen, () => setIsServicesModalOpen(false));
   useBrowserBackLayer(isLabProductTypesOpen, () => setIsLabProductTypesOpen(false));

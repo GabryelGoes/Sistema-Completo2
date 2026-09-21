@@ -9,7 +9,6 @@ import {
   type SupportChatMessage,
 } from '../services/apiService';
 import { ModalPortal } from './ui/ModalPortal';
-import { useBrowserBackLayer } from './ui/BackNavigationContext';
 import { useRegisterModalOpen } from './ui/ModalLayerContext';
 import { resolveIosModalOverlayClass } from './ui/iosModalStyles';
 import { useDesktopShellLayout } from './ui/DesktopShellContext';
@@ -78,7 +77,6 @@ export function SupportBugsChatModal({ isOpen, onClose, onUnreadChange }: Suppor
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   useRegisterModalOpen(isOpen);
-  useBrowserBackLayer(isOpen, onClose);
 
   const scrollToBottom = useCallback((smooth = true) => {
     endRef.current?.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto', block: 'end' });
@@ -191,7 +189,7 @@ export function SupportBugsChatModal({ isOpen, onClose, onUnreadChange }: Suppor
     : 'Descreva o bug ou erro do sistema…';
 
   return (
-    <ModalPortal manageBackLayer={false}>
+    <ModalPortal manageBackLayer onRequestClose={onClose}>
       <div
         className={resolveIosModalOverlayClass(isDesktopShell, 'z-[130]')}
         role="dialog"

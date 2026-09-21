@@ -1186,7 +1186,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
   const iosLabel = 'text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500 mb-2';
 
   return (
-    <ModalPortal manageBackLayer={false}>
+    <ModalPortal manageBackLayer onRequestClose={onClose}>
       <div className="fixed inset-0 z-[120] flex items-stretch justify-stretch bg-black/45 backdrop-blur-[20px]">
       {chimeBanner && (
         <div className="pointer-events-none fixed inset-0 z-[125] flex items-center justify-center bg-black/55 p-3 sm:p-6">

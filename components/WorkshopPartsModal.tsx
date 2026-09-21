@@ -1138,7 +1138,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
       cropShape="square"
     />
 
-    <ModalPortal manageBackLayer={false}>
+    <ModalPortal manageBackLayer onRequestClose={onClose}>
     <div
       className={`${desktopShellViewportOverlayClass(isDesktopShell, SETTINGS_CHILD_MODAL_Z)} flex min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden bg-white dark:bg-zinc-950 p-0${isDesktopShell ? '' : ' h-[100dvh] max-h-[100dvh]'}`}
     >

@@ -748,11 +748,17 @@ export default function App() {
   useBrowserBackLayer(isSettingsOpen, () => setIsSettingsOpen(false));
   useBrowserBackLayer(isUserChangePasswordsOpen, () => setIsUserChangePasswordsOpen(false));
   useBrowserBackLayer(!!hubBudgetViewer, () => setHubBudgetViewer(null));
-  useBrowserBackLayer(isPartsModalOpen, () => {
+  // Inventário / TVs: ESC via ModalPortal.onRequestClose (evita pilha duplicada).
+
+  const closePartsModalToHome = useCallback(() => {
     setIsPartsModalOpen(false);
     setPartsBootIntent(null);
-  });
-  useBrowserBackLayer(isTvPatioModalOpen, () => setIsTvPatioModalOpen(false));
+    navigateToHomeApp();
+  }, [navigateToHomeApp]);
+
+  const closeTvPatioModal = useCallback(() => {
+    setIsTvPatioModalOpen(false);
+  }, []);
 
   useEffect(() => {
     if (!authSession || !isDesktopShell) {
@@ -1090,10 +1096,7 @@ export default function App() {
           <Suspense fallback={null}>
             <LazyWorkshopPartsModal
               isOpen={isPartsModalOpen}
-              onClose={() => {
-                setIsPartsModalOpen(false);
-                setPartsBootIntent(null);
-              }}
+              onClose={closePartsModalToHome}
               bootIntent={partsBootIntent}
               onBootIntentConsumed={() => setPartsBootIntent(null)}
             />
@@ -1116,7 +1119,7 @@ export default function App() {
         ) : null}
         {isTvPatioModalOpen ? (
           <Suspense fallback={null}>
-            <LazyTvPatioModal isOpen={isTvPatioModalOpen} onClose={() => setIsTvPatioModalOpen(false)} />
+            <LazyTvPatioModal isOpen={isTvPatioModalOpen} onClose={closeTvPatioModal} />
           </Suspense>
         ) : null}
         <SupportBugsChatModal
@@ -1422,10 +1425,7 @@ export default function App() {
         <Suspense fallback={null}>
           <LazyWorkshopPartsModal
             isOpen={isPartsModalOpen}
-            onClose={() => {
-              setIsPartsModalOpen(false);
-              setPartsBootIntent(null);
-            }}
+            onClose={closePartsModalToHome}
             bootIntent={partsBootIntent}
             onBootIntentConsumed={() => setPartsBootIntent(null)}
           />
@@ -1448,7 +1448,7 @@ export default function App() {
       ) : null}
       {isTvPatioModalOpen ? (
         <Suspense fallback={null}>
-          <LazyTvPatioModal isOpen={isTvPatioModalOpen} onClose={() => setIsTvPatioModalOpen(false)} />
+          <LazyTvPatioModal isOpen={isTvPatioModalOpen} onClose={closeTvPatioModal} />
         </Suspense>
       ) : null}
       <SupportBugsChatModal
