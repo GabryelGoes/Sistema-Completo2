@@ -513,13 +513,13 @@ html[data-desktop-shell='true'] .desktop-shell-support {
   gap: 0.45rem;
   padding: 0.5rem 0.75rem;
   border-radius: 9999px;
-  border: 1px solid #e4e4e7;
-  background: #fafafa;
+  border: none;
+  background: #dcfce7;
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.05em;
   text-transform: uppercase;
-  color: #52525b;
+  color: #166534;
   text-decoration: none;
   cursor: pointer;
   box-shadow: none;
@@ -527,12 +527,12 @@ html[data-desktop-shell='true'] .desktop-shell-support {
 }
 
 html[data-desktop-shell='true'] .desktop-shell-support:hover {
-  background: #f4f4f5;
-  border-color: #d4d4d8;
+  background: #bbf7d0;
+  border: none;
 }
 
 html[data-desktop-shell='true'] .desktop-shell-support:focus-visible {
-  box-shadow: 0 0 0 2px rgba(113, 113, 122, 0.28);
+  box-shadow: 0 0 0 2px rgba(22, 101, 52, 0.28);
 }
 
 html[data-desktop-shell='true'] .desktop-shell-support-badge {
@@ -551,7 +551,7 @@ html[data-desktop-shell='true'] .desktop-shell-support-badge {
   font-size: 9px;
   font-weight: 800;
   line-height: 1;
-  box-shadow: 0 0 0 2px #fafafa;
+  box-shadow: 0 0 0 2px #dcfce7;
 }
 
 /* ——— Modo escuro (html.dark) ——— */
@@ -659,14 +659,14 @@ html.dark[data-desktop-shell='true'] .desktop-shell-theme-toggle-icon {
 }
 
 html.dark[data-desktop-shell='true'] .desktop-shell-support {
-  border-color: rgba(255, 255, 255, 0.1);
-  background: #27272a;
-  color: #d4d4d8;
+  border: none;
+  background: rgba(22, 163, 74, 0.22);
+  color: #86efac;
 }
 
 html.dark[data-desktop-shell='true'] .desktop-shell-support:hover {
-  background: #3f3f46;
-  border-color: rgba(255, 255, 255, 0.14);
+  background: rgba(22, 163, 74, 0.32);
+  border: none;
 }
 
 html.dark[data-desktop-shell='true'] .desktop-shell-support-badge {

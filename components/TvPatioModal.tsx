@@ -45,6 +45,9 @@ import { TvChimeBannerCard } from './TvChimeBannerCard';
 import { TvPatioPreview } from './TvPatioPreview';
 import { ModalPortal } from './ui/ModalPortal';
 import { IosAccentIconSquircle } from './ui/IosAccentIconSquircle';
+import { useDesktopShellLayout } from './ui/DesktopShellContext';
+import { SETTINGS_CHILD_MODAL_Z } from './ui/iosModalStyles';
+import { desktopShellViewportOverlayClass } from '../utils/desktopShellOverlay';
 import { isTvImageFile, isTvVideoFile, TV_VIDEO_ACCEPT } from '../utils/tvMediaFile';
 import {
   isLocalVideoMediaUrl,
@@ -325,6 +328,7 @@ interface TvPatioModalProps {
 }
 
 export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) => {
+  const isDesktopShell = useDesktopShellLayout();
   const [tvScope, setTvScope] = useState<TvScope>('patio');
   const [dataReady, setDataReady] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -1187,9 +1191,17 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
 
   return (
     <ModalPortal manageBackLayer onRequestClose={onClose}>
-      <div className="fixed inset-0 z-[120] flex items-stretch justify-stretch bg-black/45 backdrop-blur-[20px]">
+      <div
+        className={`${desktopShellViewportOverlayClass(isDesktopShell, SETTINGS_CHILD_MODAL_Z)} flex min-h-0 w-full min-w-0 flex-1 flex-col items-stretch justify-stretch overflow-hidden bg-black/45 backdrop-blur-[20px]${
+          isDesktopShell ? '' : ' inset-0 h-[100dvh]'
+        }`}
+      >
       {chimeBanner && (
-        <div className="pointer-events-none fixed inset-0 z-[125] flex items-center justify-center bg-black/55 p-3 sm:p-6">
+        <div
+          className={`pointer-events-none z-[125] flex items-center justify-center bg-black/55 p-3 sm:p-6 ${
+            isDesktopShell ? 'absolute inset-0' : 'fixed inset-0'
+          }`}
+        >
           <TvChimeBannerCard
             variant="display"
             phase={chimeBanner.phase}
@@ -1208,22 +1220,31 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
         </div>
       )}
       <div
-        className={`relative flex h-[100dvh] w-screen max-w-none min-h-0 flex-1 flex-col overflow-hidden text-zinc-900 max-lg:portrait:overflow-y-auto max-lg:portrait:overflow-x-hidden max-lg:landscape:flex-col lg:grid lg:min-h-0 ${
+        className={`relative flex min-h-0 flex-1 flex-col overflow-hidden text-zinc-900 max-lg:portrait:overflow-y-auto max-lg:portrait:overflow-x-hidden max-lg:landscape:flex-col lg:grid lg:min-h-0 ${
+          isDesktopShell ? 'h-full w-full max-w-none' : 'h-[100dvh] w-screen max-w-none'
+        } ${
           dataReady ? 'lg:grid-cols-[minmax(0,1fr)_min(420px,100%)]' : 'lg:grid-cols-1'
         } lg:grid-rows-[auto_minmax(0,1fr)] ${tvPatioShellBg} rounded-none border-0 shadow-none`}
         style={{ colorScheme: 'light' }}
       >
-        <button
-          type="button"
-          onClick={onClose}
-          className="absolute top-4 right-4 z-20 flex h-10 w-10 items-center justify-center rounded-full bg-black/5 text-zinc-600 hover:bg-black/10 transition-colors"
-          aria-label="Fechar"
-        >
-          <X className="w-5 h-5" />
-        </button>
+        {!isDesktopShell ? (
+          <button
+            type="button"
+            onClick={onClose}
+            className="absolute top-4 right-4 z-20 flex h-10 w-10 items-center justify-center rounded-full bg-black/5 text-zinc-600 hover:bg-black/10 transition-colors"
+            aria-label="Fechar"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        ) : null}
 
         {/* Cabeçalho: em portrait fica no topo; em telas largas, canto superior esquerdo do grid */}
-        <header className="shrink-0 px-6 pt-8 pb-6 sm:px-8 max-lg:landscape:order-2 lg:col-start-1 lg:row-start-1 lg:pr-12">
+        <header
+          className={`shrink-0 px-6 sm:px-8 max-lg:landscape:order-2 lg:col-start-1 lg:row-start-1 lg:pr-12 ${
+            isDesktopShell ? 'pt-4 pb-4' : 'pt-8 pb-6'
+          }`}
+        >
+          {!isDesktopShell ? (
           <div className="flex items-center gap-3 mb-1">
             <IosAccentIconSquircle variant="modal" strokeWidth={2.2}>
               <img
@@ -1244,7 +1265,8 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
               </p>
             </div>
           </div>
-          <div className="mt-4 flex max-w-md gap-1 rounded-2xl bg-zinc-200/70 p-1">
+          ) : null}
+          <div className={`flex max-w-md gap-1 rounded-2xl bg-zinc-200/70 p-1 ${isDesktopShell ? '' : 'mt-4'}`}>
             <button
               type="button"
               onClick={() => {

@@ -14,7 +14,7 @@ export const DESKTOP_SHELL_MODULE_TOPBARS: Record<
   DesktopShellOverlayTopbar
 > = {
   estoque_pecas: {
-    title: 'Inventário de Peças',
+    title: 'Estoque',
     accent: '#16A34A',
     tone: 'light',
   },

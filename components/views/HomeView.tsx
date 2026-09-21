@@ -566,8 +566,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
     if (showFullAdminHub || !!perms.access_estoque_pecas) {
       extraTiles.push({
         id: 'parts_stock',
-        label: 'Inventário de Peças',
-        icon: <img src="/icons/estoque-ios.png" alt="Inventário de Peças" className="h-full w-full object-cover" />,
+        label: 'Estoque',
+        icon: <img src="/icons/estoque-ios.png" alt="Estoque" className="h-full w-full object-cover" />,
         onOpen: () => (onOpenPartsStock ? onOpenPartsStock() : setIsPartsModalOpen(true)),
       });
     }

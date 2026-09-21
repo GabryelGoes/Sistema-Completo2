@@ -176,7 +176,7 @@ const HOME_MODULE_ACCESS: {
     iconAlt: 'Radar de Qualidade',
   },
   { key: 'access_tv_patio', label: 'Painéis de TV', description: 'Modal na home e link do painel externo nas configurações', icon: '/icons/tv-patio-ios.png', iconAlt: 'Painéis de TV' },
-  { key: 'access_estoque_pecas', label: 'Inventário de Peças', description: 'Catálogo e estoque na home', icon: '/icons/estoque-ios.png', iconAlt: 'Inventário de Peças' },
+  { key: 'access_estoque_pecas', label: 'Estoque', description: 'Catálogo e estoque na home', icon: '/icons/estoque-ios.png', iconAlt: 'Estoque' },
   {
     key: 'access_settings',
     label: 'Preferências da oficina',

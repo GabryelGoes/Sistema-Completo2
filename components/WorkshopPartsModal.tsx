@@ -1159,7 +1159,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
           <div className="px-6 sm:px-8 pt-[max(2rem,env(safe-area-inset-top)+0.75rem)] pb-4 pr-14 shrink-0">
             <IosModalHeader
               icon={<img src="/icons/estoque-ios.png" alt="" className="h-full w-full min-h-0 object-cover" />}
-              title="Inventário de Peças"
+              title="Estoque"
               subtitle="Preço, quantidade e foto para orçamentos"
               gradientClass="from-emerald-500 to-teal-700"
             />

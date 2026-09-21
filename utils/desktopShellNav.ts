@@ -26,7 +26,7 @@ export type DesktopSidebarEntry =
 
 /**
  * Ordem dos ícones da barra lateral no modo PC:
- * Início → Agenda → Pátio → Laboratório → Inventário → Orçamentos → Painéis → Boletins → Relatórios → Radar → Configurações
+ * Início → Agenda → Pátio → Laboratório → Estoque → Orçamentos → Painéis → Boletins → Relatórios → Radar → Configurações
  */
 export const DESKTOP_SIDEBAR_ORDER: DesktopSidebarEntry[] = [
   { kind: 'tab', id: 'home' },
@@ -65,8 +65,8 @@ export const DESKTOP_NAV_ITEMS: DesktopNavItem[] = [
 export const DESKTOP_SIDEBAR_ACTIONS: DesktopSidebarActionItem[] = [
   {
     id: 'estoque_pecas',
-    label: 'Inventário de Peças',
-    shortLabel: 'Inventário',
+    label: 'Estoque',
+    shortLabel: 'Estoque',
     iconSrc: '/icons/estoque-ios.png',
   },
   {

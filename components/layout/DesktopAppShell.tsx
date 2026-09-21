@@ -242,11 +242,11 @@ export function DesktopAppShell({
         <button
           type="button"
           className="desktop-shell-support"
-          title="Bugs e erros do sistema"
+          title="Registro de Bugs"
           aria-label={
             supportUnreadBadge > 0
-              ? `Suporte, ${supportUnreadBadge} não lidas`
-              : 'Suporte — bugs e erros'
+              ? `Registro de Bugs, ${supportUnreadBadge} não lidas`
+              : 'Registro de Bugs'
           }
           onClick={() => onOpenSupport?.()}
         >

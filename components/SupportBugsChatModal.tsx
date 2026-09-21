@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Bug, Loader2, Send, Trash2, X } from 'lucide-react';
+import { Loader2, Send, Trash2, X } from 'lucide-react';
 import {
   deleteSupportChatMessage,
   getSupportChatMessages,
@@ -194,7 +194,7 @@ export function SupportBugsChatModal({ isOpen, onClose, onUnreadChange }: Suppor
         className={resolveIosModalOverlayClass(isDesktopShell, 'z-[130]')}
         role="dialog"
         aria-modal="true"
-        aria-label="Bugs e erros do sistema"
+        aria-label="Registro de Bugs"
         onClick={onClose}
       >
         <div
@@ -206,12 +206,9 @@ export function SupportBugsChatModal({ isOpen, onClose, onUnreadChange }: Suppor
           onClick={(e) => e.stopPropagation()}
         >
           <header className="flex shrink-0 items-center gap-3 border-b border-black/5 bg-[#075E54] px-4 py-3.5 text-white dark:border-white/10 dark:bg-emerald-950">
-            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-white/15">
-              <Bug className="h-5 w-5" strokeWidth={2.2} aria-hidden />
-            </span>
             <div className="min-w-0 flex-1">
               <h2 className="truncate text-[17px] font-semibold leading-tight tracking-tight">
-                Bugs e erros
+                Registro de Bugs
               </h2>
               <p className="truncate text-[12px] text-white/75">
                 {canReply
@@ -382,10 +379,6 @@ export function SupportBugsChatModal({ isOpen, onClose, onUnreadChange }: Suppor
                 {sending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
               </button>
             </div>
-            <p className="mt-1.5 px-1 text-[10px] text-zinc-500 dark:text-zinc-400">
-              Enter envia · Shift+Enter quebra linha
-              {me?.canDelete ? ' · Passe o mouse na mensagem para apagar' : ''}
-            </p>
           </form>
         </div>
       </div>

@@ -187,7 +187,7 @@ export function WorkshopPartScanHubModal({
           >
             <div className="min-w-0">
               <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-700 dark:text-emerald-400">
-                Inventário de Peças
+                Estoque
               </p>
               <h2
                 className={`font-bold text-zinc-900 dark:text-white ${
