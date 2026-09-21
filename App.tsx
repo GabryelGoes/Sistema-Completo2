@@ -31,6 +31,7 @@ import {
   getWorkshopSettings,
   deleteAppointment,
   getServiceOrderById,
+  getSupportUnreadCount,
 } from './services/apiService';
 import type { ServiceOrderStatus } from './constants/serviceOrderStages';
 import { KeepAliveTabPanel } from './components/KeepAliveTabPanel';
@@ -44,6 +45,7 @@ import { AuthenticatedAppFrame } from './components/layout/AuthenticatedAppFrame
 import { useDesktopShell } from './hooks/useDesktopShell';
 import { AdminProfileModal } from './components/AdminProfileModal';
 import { UserProfileModal } from './components/UserProfileModal';
+import { SupportBugsChatModal } from './components/SupportBugsChatModal';
 import {
   resolveDesktopSidebarAccess,
   type DesktopSidebarActionId,
@@ -98,6 +100,8 @@ export default function App() {
   const [globalPartScan, setGlobalPartScan] = useState<{ code: string; token: number } | null>(null);
   const [isTvPatioModalOpen, setIsTvPatioModalOpen] = useState(false);
   const [settingsHubOpen, setSettingsHubOpen] = useState(false);
+  const [isSupportChatOpen, setIsSupportChatOpen] = useState(false);
+  const [supportUnreadBadge, setSupportUnreadBadge] = useState(0);
   const homeSettingsHubOpenerRef = useRef<(() => void) | null>(null);
   const homeSettingsHubCloserRef = useRef<(() => void) | null>(null);
 
@@ -108,6 +112,7 @@ export default function App() {
     setIsTvPatioModalOpen(false);
     setIsSettingsOpen(false);
     setSettingsHubOpen(false);
+    setIsSupportChatOpen(false);
   }, []);
 
   const desktopSidebarAccess = useMemo(
@@ -749,6 +754,33 @@ export default function App() {
   });
   useBrowserBackLayer(isTvPatioModalOpen, () => setIsTvPatioModalOpen(false));
 
+  useEffect(() => {
+    if (!authSession || !isDesktopShell) {
+      setSupportUnreadBadge(0);
+      return;
+    }
+    let cancelled = false;
+    const refresh = () => {
+      if (isSupportChatOpen) {
+        if (!cancelled) setSupportUnreadBadge(0);
+        return;
+      }
+      void getSupportUnreadCount()
+        .then((n) => {
+          if (!cancelled) setSupportUnreadBadge(n);
+        })
+        .catch(() => {
+          /* tabela pode ainda não existir / rede */
+        });
+    };
+    refresh();
+    const timer = window.setInterval(refresh, 20000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [authSession, isDesktopShell, isSupportChatOpen]);
+
 
   // Tela de login (antes de entrar no app)
   if (!authSession) {
@@ -795,6 +827,8 @@ export default function App() {
         onOpenSettings={() => setSettingsHubOpen(true)}
         onOpenProfileEditor={openShellProfileEditor}
         onLogout={handleLogout}
+        onOpenSupport={() => setIsSupportChatOpen(true)}
+        supportUnreadBadge={supportUnreadBadge}
         orcamentosBadge={patioBudgetsHub.badgeCount}
         notificationCenter={isDesktopShell ? notificationCenterProps : undefined}
         shellOverlayTopbar={shellOverlayTopbar}
@@ -1085,6 +1119,11 @@ export default function App() {
             <LazyTvPatioModal isOpen={isTvPatioModalOpen} onClose={() => setIsTvPatioModalOpen(false)} />
           </Suspense>
         ) : null}
+        <SupportBugsChatModal
+          isOpen={isSupportChatOpen}
+          onClose={() => setIsSupportChatOpen(false)}
+          onUnreadChange={setSupportUnreadBadge}
+        />
         {authSession.role === 'user' ? (
           <UserProfileModal
             isOpen={shellProfileModal === 'user'}
@@ -1144,6 +1183,8 @@ export default function App() {
       }
       onOpenProfileEditor={openShellProfileEditor}
       onLogout={handleLogout}
+      onOpenSupport={() => setIsSupportChatOpen(true)}
+      supportUnreadBadge={supportUnreadBadge}
       orcamentosBadge={patioBudgetsHub.badgeCount}
       notificationCenter={isDesktopShell ? notificationCenterProps : undefined}
       shellOverlayTopbar={shellOverlayTopbar}
@@ -1410,6 +1451,11 @@ export default function App() {
           <LazyTvPatioModal isOpen={isTvPatioModalOpen} onClose={() => setIsTvPatioModalOpen(false)} />
         </Suspense>
       ) : null}
+      <SupportBugsChatModal
+        isOpen={isSupportChatOpen}
+        onClose={() => setIsSupportChatOpen(false)}
+        onUnreadChange={setSupportUnreadBadge}
+      />
       {authSession?.role === 'admin' ? (
         <AdminProfileModal
           isOpen={shellProfileModal === 'admin'}

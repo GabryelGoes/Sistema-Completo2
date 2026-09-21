@@ -286,6 +286,19 @@ html[data-desktop-shell='true'] .desktop-shell-sidebar--collapsed .desktop-shell
   justify-content: center;
 }
 
+html[data-desktop-shell='true'] .desktop-shell-sidebar--collapsed .desktop-shell-support-badge {
+  top: -0.15rem;
+  right: -0.1rem;
+  min-width: 0.95rem;
+  height: 0.95rem;
+  font-size: 8px;
+  box-shadow: 0 0 0 1.5px #ffffff;
+}
+
+html.dark[data-desktop-shell='true'] .desktop-shell-sidebar--collapsed .desktop-shell-support-badge {
+  box-shadow: 0 0 0 1.5px #18181b;
+}
+
 html[data-desktop-shell='true'] .desktop-shell-nav-icon {
   width: 1.35rem;
   height: 1.35rem;
@@ -492,6 +505,7 @@ html[data-desktop-shell='true'] .desktop-shell-content .ios-page-glass-desktop-o
 }
 
 html[data-desktop-shell='true'] .desktop-shell-support {
+  position: relative;
   margin: 0.5rem 0.65rem 0.75rem;
   display: flex;
   align-items: center;
@@ -499,18 +513,45 @@ html[data-desktop-shell='true'] .desktop-shell-support {
   gap: 0.45rem;
   padding: 0.5rem 0.75rem;
   border-radius: 9999px;
-  border: 1px solid #bbf7d0;
-  background: #f0fdf4;
+  border: 1px solid #e4e4e7;
+  background: #fafafa;
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.05em;
   text-transform: uppercase;
-  color: #166534;
+  color: #52525b;
   text-decoration: none;
+  cursor: pointer;
+  box-shadow: none;
+  outline: none;
 }
 
 html[data-desktop-shell='true'] .desktop-shell-support:hover {
-  background: #dcfce7;
+  background: #f4f4f5;
+  border-color: #d4d4d8;
+}
+
+html[data-desktop-shell='true'] .desktop-shell-support:focus-visible {
+  box-shadow: 0 0 0 2px rgba(113, 113, 122, 0.28);
+}
+
+html[data-desktop-shell='true'] .desktop-shell-support-badge {
+  position: absolute;
+  top: -0.2rem;
+  right: -0.15rem;
+  min-width: 1.05rem;
+  height: 1.05rem;
+  padding: 0 0.28rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  background: #ef4444;
+  color: #fff;
+  font-size: 9px;
+  font-weight: 800;
+  line-height: 1;
+  box-shadow: 0 0 0 2px #fafafa;
 }
 
 /* ——— Modo escuro (html.dark) ——— */
@@ -618,13 +659,18 @@ html.dark[data-desktop-shell='true'] .desktop-shell-theme-toggle-icon {
 }
 
 html.dark[data-desktop-shell='true'] .desktop-shell-support {
-  border-color: rgba(34, 197, 94, 0.35);
-  background: rgba(22, 163, 74, 0.12);
-  color: #86efac;
+  border-color: rgba(255, 255, 255, 0.1);
+  background: #27272a;
+  color: #d4d4d8;
 }
 
 html.dark[data-desktop-shell='true'] .desktop-shell-support:hover {
-  background: rgba(22, 163, 74, 0.2);
+  background: #3f3f46;
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
+html.dark[data-desktop-shell='true'] .desktop-shell-support-badge {
+  box-shadow: 0 0 0 2px #18181b;
 }
 
 /* Topbar: módulos com fundo claro (Resumo, Pátio, Orçamentos) */

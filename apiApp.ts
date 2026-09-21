@@ -7298,6 +7298,325 @@ export function createApiApp() {
     }
   });
 
+  // ----------------- SUPORTE / BUGS (chat estilo WhatsApp) -----------------
+  const SUPPORT_AUTHOR_PALETTE = [
+    "#0EA5E9",
+    "#8B5CF6",
+    "#F59E0B",
+    "#EC4899",
+    "#14B8A6",
+    "#F97316",
+    "#6366F1",
+    "#84CC16",
+    "#EF4444",
+    "#06B6D4",
+  ];
+
+  const SUPPORT_ACCENT_HEX: Record<string, string> = {
+    blue: "#2563EB",
+    emerald: "#059669",
+    violet: "#7C3AED",
+    amber: "#D97706",
+    rose: "#E11D48",
+    cyan: "#0891B2",
+    orange: "#EA580C",
+    zinc: "#52525B",
+  };
+
+  function supportColorFromKey(key: string): string {
+    let h = 0;
+    const s = String(key || "x");
+    for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0;
+    return SUPPORT_AUTHOR_PALETTE[h % SUPPORT_AUTHOR_PALETTE.length];
+  }
+
+  function normalizeSupportHexColor(value: unknown, fallbackKey: string): string {
+    const raw = typeof value === "string" ? value.trim() : "";
+    if (/^#[0-9A-Fa-f]{6}$/.test(raw)) return raw;
+    const named = SUPPORT_ACCENT_HEX[raw.toLowerCase()];
+    if (named) return named;
+    return supportColorFromKey(fallbackKey);
+  }
+
+  type SupportActor = {
+    kind: "admin" | "user";
+    userId: string | null;
+    name: string;
+    color: string;
+    photoUrl: string | null;
+    readerKey: string;
+    canDelete: boolean;
+    canReply: boolean;
+  };
+
+  async function resolveSupportActor(req: express.Request): Promise<SupportActor | null> {
+    const auth = (req as unknown as { auth?: SessionPayload }).auth;
+    if (!auth) return null;
+    if (auth.r === "admin") {
+      return {
+        kind: "admin",
+        userId: null,
+        name: "Gerência",
+        color: "#16A34A",
+        photoUrl: null,
+        readerKey: "admin",
+        canDelete: true,
+        canReply: true,
+      };
+    }
+    if (auth.r !== "user" || !auth.u || !supabaseAdmin || !WORKSHOP_ID) return null;
+    const { data, error } = await supabaseAdmin
+      .from("workshop_system_users")
+      .select("id, username, display_name, accent_color, photo_url, permissions")
+      .eq("id", auth.u)
+      .eq("workshop_id", WORKSHOP_ID)
+      .maybeSingle();
+    if (error || !data) return null;
+    const perms = (data.permissions as Record<string, boolean> | null) || {};
+    const full = !!perms.full_access;
+    const name =
+      String(data.display_name || data.username || auth.n || "Usuário").trim() || "Usuário";
+    return {
+      kind: "user",
+      userId: data.id,
+      name,
+      color: normalizeSupportHexColor(data.accent_color, data.id),
+      photoUrl: typeof data.photo_url === "string" && data.photo_url.trim() ? data.photo_url.trim() : null,
+      readerKey: data.id,
+      canDelete: full,
+      canReply: full,
+    };
+  }
+
+  function mapSupportMessageRow(row: {
+    id: string;
+    body: string;
+    author_kind: string;
+    author_user_id: string | null;
+    author_name: string;
+    author_color: string;
+    author_photo_url: string | null;
+    is_staff_reply: boolean;
+    created_at: string;
+  }) {
+    return {
+      id: row.id,
+      body: row.body,
+      authorKind: row.author_kind === "admin" ? "admin" : "user",
+      authorUserId: row.author_user_id,
+      authorName: row.author_name || "Usuário",
+      authorColor: normalizeSupportHexColor(row.author_color, row.author_user_id || row.author_name || row.id),
+      authorPhotoUrl: row.author_photo_url,
+      isStaffReply: !!row.is_staff_reply,
+      createdAt: row.created_at,
+    };
+  }
+
+  app.get("/api/support/messages", async (req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({ error: "Servidor não configurado." });
+      }
+      const actor = await resolveSupportActor(req);
+      if (!actor) return res.status(401).json({ error: "Sessão inválida." });
+
+      const limitRaw = Number(req.query.limit ?? 200);
+      const limit = Number.isFinite(limitRaw) ? Math.min(Math.max(Math.floor(limitRaw), 1), 500) : 200;
+
+      const { data, error } = await supabaseAdmin
+        .from("workshop_support_messages")
+        .select(
+          "id, body, author_kind, author_user_id, author_name, author_color, author_photo_url, is_staff_reply, created_at"
+        )
+        .eq("workshop_id", WORKSHOP_ID)
+        .order("created_at", { ascending: true })
+        .limit(limit);
+
+      if (error) {
+        console.error("[API] GET /api/support/messages:", error);
+        return res.status(500).json({ error: error.message });
+      }
+
+      return res.json({
+        messages: (data ?? []).map((row) => mapSupportMessageRow(row as any)),
+        me: {
+          readerKey: actor.readerKey,
+          name: actor.name,
+          color: actor.color,
+          photoUrl: actor.photoUrl,
+          canDelete: actor.canDelete,
+          canReply: actor.canReply,
+        },
+      });
+    } catch (err: any) {
+      console.error("[API] GET /api/support/messages:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+    }
+  });
+
+  app.get("/api/support/unread-count", async (req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({ error: "Servidor não configurado." });
+      }
+      const actor = await resolveSupportActor(req);
+      if (!actor) return res.status(401).json({ error: "Sessão inválida." });
+
+      const { data: readRow } = await supabaseAdmin
+        .from("workshop_support_reads")
+        .select("last_read_at")
+        .eq("workshop_id", WORKSHOP_ID)
+        .eq("reader_key", actor.readerKey)
+        .maybeSingle();
+
+      const lastReadAt =
+        typeof readRow?.last_read_at === "string" && readRow.last_read_at
+          ? readRow.last_read_at
+          : "1970-01-01T00:00:00.000Z";
+
+      let query = supabaseAdmin
+        .from("workshop_support_messages")
+        .select("id", { count: "exact", head: true })
+        .eq("workshop_id", WORKSHOP_ID)
+        .gt("created_at", lastReadAt);
+
+      if (actor.kind === "admin") {
+        query = query.neq("author_kind", "admin");
+      } else if (actor.userId) {
+        query = query.or(`author_user_id.is.null,author_user_id.neq.${actor.userId}`);
+      }
+
+      const { count, error } = await query;
+      if (error) {
+        console.error("[API] GET /api/support/unread-count:", error);
+        return res.status(500).json({ error: error.message });
+      }
+      return res.json({ count: count ?? 0 });
+    } catch (err: any) {
+      console.error("[API] GET /api/support/unread-count:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+    }
+  });
+
+  app.post("/api/support/read", async (req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({ error: "Servidor não configurado." });
+      }
+      const actor = await resolveSupportActor(req);
+      if (!actor) return res.status(401).json({ error: "Sessão inválida." });
+
+      const now = new Date().toISOString();
+      const { error } = await supabaseAdmin.from("workshop_support_reads").upsert(
+        {
+          workshop_id: WORKSHOP_ID,
+          reader_key: actor.readerKey,
+          last_read_at: now,
+        },
+        { onConflict: "workshop_id,reader_key" }
+      );
+      if (error) {
+        console.error("[API] POST /api/support/read:", error);
+        return res.status(500).json({ error: error.message });
+      }
+      return res.json({ ok: true, lastReadAt: now });
+    } catch (err: any) {
+      console.error("[API] POST /api/support/read:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+    }
+  });
+
+  app.post("/api/support/messages", async (req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({ error: "Servidor não configurado." });
+      }
+      const actor = await resolveSupportActor(req);
+      if (!actor) return res.status(401).json({ error: "Sessão inválida." });
+
+      const body = typeof req.body?.body === "string" ? req.body.body.trim() : "";
+      if (!body) {
+        return res.status(400).json({ error: "Escreva a mensagem." });
+      }
+      if (body.length > 4000) {
+        return res.status(400).json({ error: "Mensagem muito longa (máx. 4000 caracteres)." });
+      }
+
+      // Acesso total / gerência: resposta da equipe. Demais: registro de bug.
+      const isStaffReply = actor.canReply;
+
+      const { data, error } = await supabaseAdmin
+        .from("workshop_support_messages")
+        .insert({
+          workshop_id: WORKSHOP_ID,
+          body,
+          author_kind: actor.kind,
+          author_user_id: actor.userId,
+          author_name: actor.name,
+          author_color: actor.color,
+          author_photo_url: actor.photoUrl,
+          is_staff_reply: isStaffReply,
+        })
+        .select(
+          "id, body, author_kind, author_user_id, author_name, author_color, author_photo_url, is_staff_reply, created_at"
+        )
+        .single();
+
+      if (error) {
+        console.error("[API] POST /api/support/messages:", error);
+        return res.status(500).json({ error: error.message });
+      }
+
+      // Quem envia já “leu” até esta mensagem.
+      await supabaseAdmin.from("workshop_support_reads").upsert(
+        {
+          workshop_id: WORKSHOP_ID,
+          reader_key: actor.readerKey,
+          last_read_at: new Date().toISOString(),
+        },
+        { onConflict: "workshop_id,reader_key" }
+      );
+
+      return res.status(201).json(mapSupportMessageRow(data as any));
+    } catch (err: any) {
+      console.error("[API] POST /api/support/messages:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+    }
+  });
+
+  app.delete("/api/support/messages/:id", async (req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({ error: "Servidor não configurado." });
+      }
+      const actor = await resolveSupportActor(req);
+      if (!actor) return res.status(401).json({ error: "Sessão inválida." });
+      if (!actor.canDelete) {
+        return res.status(403).json({ error: "Somente quem tem acesso total pode apagar registros." });
+      }
+
+      const { id } = req.params;
+      const { data, error } = await supabaseAdmin
+        .from("workshop_support_messages")
+        .delete()
+        .eq("id", id)
+        .eq("workshop_id", WORKSHOP_ID)
+        .select("id");
+
+      if (error) {
+        console.error("[API] DELETE /api/support/messages/:id:", error);
+        return res.status(500).json({ error: error.message });
+      }
+      if (!data?.length) {
+        return res.status(404).json({ error: "Mensagem não encontrada." });
+      }
+      return res.status(204).send();
+    } catch (err: any) {
+      console.error("[API] DELETE /api/support/messages/:id:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+    }
+  });
+
   // ----------------- SERVIÇOS DA OFICINA (para orçamentos) -----------------
   app.get("/api/workshop-services", async (_req, res) => {
     try {

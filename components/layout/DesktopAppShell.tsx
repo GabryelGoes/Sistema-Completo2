@@ -38,6 +38,10 @@ export type DesktopAppShellProps = {
   onOpenSettings?: () => void;
   onOpenProfileEditor?: () => void;
   onLogout?: () => void;
+  /** Abre o chat de bugs/erros (botão Suporte). */
+  onOpenSupport?: () => void;
+  /** Quantidade de mensagens novas no chat de suporte. */
+  supportUnreadBadge?: number;
   orcamentosBadge?: number;
   notificationCenter?: Omit<NotificationCenterProps, 'placement'>;
   shellOverlayTopbar?: DesktopShellOverlayTopbar | null;
@@ -91,6 +95,8 @@ export function DesktopAppShell({
   onOpenSettings,
   onOpenProfileEditor,
   onLogout,
+  onOpenSupport,
+  supportUnreadBadge = 0,
   orcamentosBadge = 0,
   notificationCenter,
   shellOverlayTopbar = null,
@@ -233,16 +239,25 @@ export function DesktopAppShell({
           </div>
         ) : null}
 
-        <a
-          href="https://wa.me/"
-          target="_blank"
-          rel="noopener noreferrer"
+        <button
+          type="button"
           className="desktop-shell-support"
-          title="Suporte"
+          title="Bugs e erros do sistema"
+          aria-label={
+            supportUnreadBadge > 0
+              ? `Suporte, ${supportUnreadBadge} não lidas`
+              : 'Suporte — bugs e erros'
+          }
+          onClick={() => onOpenSupport?.()}
         >
           <Headphones className="desktop-shell-support-icon h-4 w-4 shrink-0" strokeWidth={2.25} aria-hidden />
           <span className="desktop-shell-support-label">Suporte</span>
-        </a>
+          {supportUnreadBadge > 0 ? (
+            <span className="desktop-shell-support-badge" aria-hidden>
+              {supportUnreadBadge > 99 ? '99+' : supportUnreadBadge}
+            </span>
+          ) : null}
+        </button>
       </aside>
 
       <div className="desktop-shell-main">
