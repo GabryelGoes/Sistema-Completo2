@@ -5973,6 +5973,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
           if (variant === 'hscroll' && isPortraitOrientation) {
             z *= BOARD_PORTRAIT_HSCROLL_ZOOM_MULT;
           }
+          // Modo PC: zoom out de 10% na grade inicial do Pátio.
+          if (desktopShell) {
+            z *= 0.9;
+          }
           return z;
         };
         const zoomWrap = (node: React.ReactNode, variant: 'grid' | 'hscroll' = 'grid') => (
