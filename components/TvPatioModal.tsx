@@ -24,6 +24,7 @@ import {
 import type { TvMediaObjectFit, TvMediaItem, TvScope, TvSlide, TvSlideType } from '../services/apiService';
 import {
   getTvManage,
+  getServiceOrders,
   normalizeTvMediaObjectFit,
   putTvWeeklyGoal,
   putTvChimeSchedule,
@@ -43,7 +44,8 @@ import { playTvChimePreSound, playTvChimeSound } from '../utils/tvChimeAudio';
 import { useTvChimeSchedule, type TvChimeFirePayload } from '../hooks/useTvChimeSchedule';
 import { TvChimeBannerCard } from './TvChimeBannerCard';
 import { TvPatioPreview } from './TvPatioPreview';
-import { useTvLiveSlideRotation } from '../hooks/useTvLiveSlideRotation';
+import { useTvLiveBoardRotation } from '../hooks/useTvLiveBoardRotation';
+import { mapServiceOrdersToTvBoard, type TvBoardItem } from '../utils/tvBoardPreview';
 import { ModalPortal } from './ui/ModalPortal';
 import { IosAccentIconSquircle } from './ui/IosAccentIconSquircle';
 import { useDesktopShellLayout } from './ui/DesktopShellContext';
@@ -360,8 +362,10 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
   const [newMediaFullscreen, setNewMediaFullscreen] = useState(true);
   const [newMediaObjectFit, setNewMediaObjectFit] = useState<TvMediaObjectFit>('cover');
 
-  const [previewTab, setPreviewTab] = useState<'live' | 'draft' | 'library' | 'chimes'>('live');
+  const [previewTab, setPreviewTab] = useState<'live' | 'draft' | 'library'>('live');
   const [libraryPreviewId, setLibraryPreviewId] = useState<string | null>(null);
+  const [boardItems, setBoardItems] = useState<TvBoardItem[]>([]);
+  const [boardLoading, setBoardLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const editFileInputRef = useRef<HTMLInputElement>(null);
 
@@ -397,14 +401,6 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
     kind: TvChimeKind;
     phase: 'pre' | 'main';
   } | null>(null);
-  /** Pré-visualização da faixa dentro do frame “TV” (aba Horários). */
-  const [chimeFiringPreviewInTv, setChimeFiringPreviewInTv] = useState<{
-    phase: 'pre' | 'main';
-    kind: TvChimeKind;
-    title: string;
-    message: string;
-  } | null>(null);
-  const [chimePreviewPickId, setChimePreviewPickId] = useState<string | null>(null);
   /** Secção de avisos programados: minimizada por defeito. */
   const [chimeSectionExpanded, setChimeSectionExpanded] = useState(false);
   const chimeConfigRef = useRef(chimeConfig);
@@ -423,7 +419,20 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
     }
   };
 
-  const load = async () => {
+  const loadBoard = useCallback(async () => {
+    setBoardLoading(true);
+    try {
+      const orderType = tvScope === 'laboratorio' ? 'module' : 'vehicle';
+      const rows = await getServiceOrders(undefined, orderType);
+      setBoardItems(mapServiceOrdersToTvBoard(rows, tvScope));
+    } catch {
+      setBoardItems([]);
+    } finally {
+      setBoardLoading(false);
+    }
+  }, [tvScope]);
+
+  const load = async (preferSlideId?: string | null) => {
     setLoading(true);
     setError(null);
     try {
@@ -438,9 +447,11 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
         setShowWeeklyBar(data.weeklyGoal.showWeeklyBar !== false);
       }
       setDataReady(true);
-      if (data.slides.length > 0) {
-        setLibraryPreviewId(data.slides[0].id);
-      }
+      const prefer =
+        preferSlideId && data.slides.some((s) => s.id === preferSlideId)
+          ? preferSlideId
+          : data.slides[0]?.id ?? null;
+      if (prefer) setLibraryPreviewId(prefer);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Erro ao carregar.');
       setDataReady(false);
@@ -453,14 +464,13 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
     if (!isOpen) {
       setDataReady(false);
       setError(null);
-      setPreviewTab('draft');
+      setPreviewTab('live');
       setEditingSlideId(null);
       setEditForm(null);
       setChimeBanner(null);
-      setChimeFiringPreviewInTv(null);
-      setChimePreviewPickId(null);
       setChimeSectionExpanded(false);
       setUploadFeedback(null);
+      setBoardItems([]);
       if (chimeBannerTimerRef.current) {
         window.clearTimeout(chimeBannerTimerRef.current);
         chimeBannerTimerRef.current = null;
@@ -469,7 +479,16 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
     }
     void load();
     void loadMediaLibrary();
-  }, [isOpen, tvScope]);
+    void loadBoard();
+  }, [isOpen, tvScope, loadBoard]);
+
+  /** Atualiza o quadro ao vivo enquanto o preview "Ao vivo" está aberto. */
+  useEffect(() => {
+    if (!isOpen || !dataReady || previewTab !== 'live') return;
+    void loadBoard();
+    const t = window.setInterval(() => void loadBoard(), 15_000);
+    return () => window.clearInterval(t);
+  }, [isOpen, dataReady, previewTab, loadBoard]);
 
   const draftSlide = useMemo((): TvSlide | null => {
     if (newType === 'goal') {
@@ -598,14 +617,18 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
   }, [weeklyTargetStr]);
 
   /** No preview: barra só quando simula lista de veículos (não quando há slide em tela cheia). */
-  const liveRotation = useTvLiveSlideRotation(slides, isOpen && dataReady && previewTab === 'live');
+  const liveBoard = useTvLiveBoardRotation(
+    boardItems,
+    slides,
+    isOpen && dataReady && previewTab === 'live'
+  );
 
   const previewShowsWeeklyStrip = useMemo(
     () =>
       showWeeklyBar &&
       weeklyTargetNum > 0 &&
       !(
-        (previewTab === 'live' && liveRotation.current !== null) ||
+        (previewTab === 'live' && liveBoard.frame?.kind === 'slide') ||
         (previewTab === 'draft' && draftSlide !== null) ||
         (previewTab === 'library' && librarySlide !== null)
       ),
@@ -613,7 +636,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
       showWeeklyBar,
       weeklyTargetNum,
       previewTab,
-      liveRotation.current,
+      liveBoard.frame,
       draftSlide,
       librarySlide,
     ]
@@ -664,13 +687,6 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
     () => chimeConfig.alerts.filter((a) => a.enabled),
     [chimeConfig.alerts]
   );
-
-  const chimePreviewEffectiveAlertId = useMemo(() => {
-    if (chimePreviewPickId && enabledChimeAlerts.some((a) => a.id === chimePreviewPickId)) {
-      return chimePreviewPickId;
-    }
-    return enabledChimeAlerts[0]?.id ?? null;
-  }, [chimePreviewPickId, enabledChimeAlerts]);
 
   const cloudVideos = useMemo(
     () => mediaLibrary.filter((m) => m.mediaType === 'video'),
@@ -788,6 +804,8 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
         setEditForm((f) => (f ? { ...f, mediaPlaylist: next, slideType: 'video' } : f));
       }
       await saveVideoPlaylist(slideId, next, successText);
+      setLibraryPreviewId(slideId);
+      setPreviewTab('library');
       return;
     }
     setNewMediaPlaylist((list) => addVideoToPlaylist(list, url));
@@ -798,10 +816,6 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
       text: successText ?? 'Vídeo adicionado. Toque em «Adicionar à rotação» para criar o slide.',
     });
   };
-
-  useEffect(() => {
-    if (previewTab !== 'chimes') setChimeFiringPreviewInTv(null);
-  }, [previewTab]);
 
   if (!isOpen) return null;
 
@@ -874,7 +888,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
     setError(null);
     try {
       const videoMedia = newType === 'video' ? mediaPlaylistForSave(newMediaPlaylist) : null;
-      await createTvSlide(
+      const createdId = await createTvSlide(
         {
           slideType: newType,
           title: newTitle,
@@ -900,7 +914,11 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
       setNewMediaPlaylist([]);
       setNewMediaFullscreen(true);
       setNewMediaObjectFit('cover');
-      await load();
+      await load(createdId || null);
+      if (createdId) {
+        setLibraryPreviewId(createdId);
+        setPreviewTab('library');
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Erro');
     } finally {
@@ -984,8 +1002,13 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
     try {
       const { url } = await uploadTvPatioMedia(file, tvScope);
       setNewMediaUrl(url);
-      if (isTvVideoFile(file)) setNewType('video');
-      else if (isTvImageFile(file)) setNewType('image');
+      if (isTvVideoFile(file)) {
+        setNewType('video');
+        setNewMediaPlaylist((list) => (list.includes(url) ? list : [...list, url]));
+      } else if (isTvImageFile(file)) {
+        setNewType('image');
+      }
+      setPreviewTab('draft');
       await loadMediaLibrary();
       setUploadFeedback({ tone: 'success', text: `Arquivo enviado: ${file.name}` });
     } catch (err) {
@@ -1208,10 +1231,16 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
 
   const livePreviewSlide =
     previewTab === 'live'
-      ? liveRotation.current
-      : previewTab === 'chimes'
-        ? null
-        : previewSlide;
+      ? liveBoard.frame?.kind === 'slide'
+        ? liveBoard.frame.slide
+        : null
+      : previewSlide;
+
+  const liveBoardFrame = previewTab === 'live' && liveBoard.frame?.kind === 'board' ? liveBoard.frame : null;
+  const liveBoardPageLabel =
+    liveBoardFrame && liveBoard.totalPages > 0
+      ? `PÁGINA ${liveBoard.page + 1} · ${liveBoard.totalPages}`
+      : null;
 
   return (
     <ModalPortal manageBackLayer onRequestClose={onClose}>
@@ -1342,14 +1371,15 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                 <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400">
                   Preview ao vivo
                 </span>
-                {previewTab === 'live' && liveRotation.queueLength > 0 ? (
+                {previewTab === 'live' && liveBoard.queueLength > 0 ? (
                   <span className="ml-auto rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-bold tabular-nums text-emerald-700 dark:text-emerald-400">
-                    {liveRotation.index + 1}/{liveRotation.queueLength}
+                    {liveBoard.page + 1}/{liveBoard.totalPages}
+                    {boardLoading ? ' · …' : ''}
                   </span>
                 ) : null}
               </div>
 
-              <div className={`grid grid-cols-4 gap-1 rounded-2xl bg-zinc-200/60 dark:bg-zinc-800/70 p-1 ${isDesktopShell ? 'mb-3' : 'mb-5'}`}>
+              <div className={`grid grid-cols-3 gap-1 rounded-2xl bg-zinc-200/60 dark:bg-zinc-800/70 p-1 ${isDesktopShell ? 'mb-3' : 'mb-5'}`}>
                 <button
                   type="button"
                   onClick={() => setPreviewTab('live')}
@@ -1387,101 +1417,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                   <ListVideo className="h-3.5 w-3.5 shrink-0" />
                   <span className="truncate">Na fila</span>
                 </button>
-                <button
-                  type="button"
-                  onClick={() => setPreviewTab('chimes')}
-                  className={`flex flex-1 items-center justify-center gap-1 rounded-xl py-2 text-[10px] font-semibold transition-all sm:text-[11px] ${
-                    previewTab === 'chimes'
-                      ? 'bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 shadow-md'
-                      : 'text-zinc-500 dark:text-zinc-400'
-                  }`}
-                >
-                  <Clock className="h-3.5 w-3.5 shrink-0" />
-                  <span className="truncate">Horários</span>
-                </button>
               </div>
-
-              {previewTab === 'chimes' && (
-                <div className="mb-4 space-y-3 rounded-2xl border border-amber-200/80 dark:border-amber-500/30 bg-amber-50/40 dark:bg-amber-950/30 px-3 py-3">
-                  <p className={`${iosLabel} mb-0 text-amber-900/90 dark:text-amber-200`}>Pré-visualizar faixa no painel</p>
-                  <p className="text-[12px] leading-snug text-zinc-600 dark:text-zinc-400">
-                    Mesma aparência da faixa quando o horário disparar (pré-aviso ou no horário). Opcional: toca o som conforme a configuração.
-                  </p>
-                  {enabledChimeAlerts.length === 0 ? (
-                    <p className="text-[12px] text-zinc-500 dark:text-zinc-400">
-                      Ative pelo menos um aviso na lista desta secção para simular.
-                    </p>
-                  ) : (
-                    <>
-                      <label className={`${iosLabel} text-zinc-600 dark:text-zinc-400`}>Aviso</label>
-                      <select
-                        value={chimePreviewEffectiveAlertId ?? ''}
-                        onChange={(e) => setChimePreviewPickId(e.target.value || null)}
-                        className={`${iosInput} text-[13px]`}
-                      >
-                        {enabledChimeAlerts.map((a) => (
-                          <option key={a.id} value={a.id}>
-                            {a.label || 'Sem nome'} ({a.time})
-                          </option>
-                        ))}
-                      </select>
-                      <div className="flex flex-wrap gap-2 pt-1">
-                        <button
-                          type="button"
-                          disabled={chimeConfig.preNotifyMinutes <= 0}
-                          onClick={() => {
-                            const id = chimePreviewEffectiveAlertId;
-                            if (!id || chimeConfig.preNotifyMinutes <= 0) return;
-                            const alert = enabledChimeAlerts.find((x) => x.id === id);
-                            if (!alert) return;
-                            setChimeFiringPreviewInTv({
-                              phase: 'pre',
-                              kind: 'info',
-                              title: `Em ${chimeConfig.preNotifyMinutes} min`,
-                              message: `${alert.label} · ${alert.time}`,
-                            });
-                            if (chimeConfig.preNotifyPlaySound) {
-                              void playTvChimePreSound(chimeConfig.soundVolume);
-                            }
-                          }}
-                          className="inline-flex items-center gap-1.5 rounded-xl border border-zinc-200/90 dark:border-white/[0.12] bg-white dark:bg-zinc-900 px-3 py-2 text-[12px] font-semibold text-zinc-800 dark:text-zinc-200 shadow-sm hover:border-[#007AFF]/40 disabled:cursor-not-allowed disabled:opacity-40"
-                        >
-                          Pré-aviso
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const id = chimePreviewEffectiveAlertId;
-                            if (!id) return;
-                            const alert = enabledChimeAlerts.find((x) => x.id === id);
-                            if (!alert) return;
-                            setChimeFiringPreviewInTv({
-                              phase: 'main',
-                              kind: alert.kind,
-                              title: alert.label,
-                              message: alert.message?.trim() || '—',
-                            });
-                            if (alert.playSound) {
-                              void playTvChimeSound(chimeConfig.soundPreset, chimeConfig.soundVolume);
-                            }
-                          }}
-                          className="inline-flex items-center gap-1.5 rounded-xl border border-[#007AFF]/35 bg-[#007AFF] px-3 py-2 text-[12px] font-semibold text-white shadow-sm shadow-blue-500/20 hover:opacity-95"
-                        >
-                          No horário
-                        </button>
-                        <button
-                          type="button"
-                          disabled={!chimeFiringPreviewInTv}
-                          onClick={() => setChimeFiringPreviewInTv(null)}
-                          className="rounded-xl border border-zinc-200/90 dark:border-white/[0.12] bg-zinc-100 dark:bg-zinc-800/90 px-3 py-2 text-[12px] font-semibold text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200/80 dark:hover:bg-white/[0.1] disabled:cursor-not-allowed disabled:opacity-35"
-                        >
-                          Ocultar
-                        </button>
-                      </div>
-                    </>
-                  )}
-                </div>
-              )}
 
               {previewTab === 'library' && slides.length > 0 && (
                 <select
@@ -1508,28 +1444,35 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                 showVehiclesPlaceholder={
                   previewTab === 'live' || (previewTab === 'draft' && !draftSlide)
                 }
+                boardItems={
+                  previewTab === 'live'
+                    ? liveBoardFrame?.items ?? []
+                    : previewTab === 'draft' && !draftSlide
+                      ? boardItems.slice(0, 6)
+                      : []
+                }
+                tvScope={tvScope}
+                boardTotalCount={boardItems.length}
+                boardPageLabel={previewTab === 'live' ? liveBoardPageLabel : null}
                 live={previewTab === 'live'}
                 vehiclesHint={
-                  previewTab === 'live'
-                    ? liveRotation.queueLength === 0
-                      ? 'Ao vivo · quadro de veículos (sem slides ativos)'
-                      : null
+                  previewTab === 'live' && boardItems.length === 0 && !boardLoading
+                    ? tvScope === 'laboratorio'
+                      ? 'Nenhuma peça/módulo no Laboratório no momento'
+                      : 'Nenhum veículo no Pátio no momento'
                     : null
-                }
-                chimeSchedulePreview={previewTab === 'chimes' ? chimeConfig : null}
-                chimeFiringPreview={previewTab === 'chimes' ? chimeFiringPreviewInTv : null}
-                onChimeFiringPreviewDismiss={
-                  previewTab === 'chimes' ? () => setChimeFiringPreviewInTv(null) : undefined
                 }
               />
             </div>
 
             <p className={`portrait:order-3 px-1 text-center leading-relaxed text-zinc-500 dark:text-zinc-400 lg:order-3 ${isDesktopShell ? 'mt-3 text-[10px]' : 'mt-5 text-[11px]'}`}>
               {previewTab === 'live'
-                ? 'Espelha a fila ativa da TV (duração e pin). Alterações salvas atualizam este preview.'
-                : previewTab === 'chimes'
-                  ? 'Lista de horários + botões acima para ver a faixa como no disparo. Salve na secção abaixo para enviar ao painel.'
-                  : 'Rascunho / fila: simulação do slide selecionado. Use “Ao vivo” para ver a rotação real.'}
+                ? tvScope === 'laboratorio'
+                  ? 'Espelha a TV do Laboratório: páginas de peças/módulos + slides da rotação.'
+                  : 'Espelha a TV do Pátio: páginas de veículos + slides da rotação.'
+                : previewTab === 'library'
+                  ? 'Mostra o slide selecionado na fila. Ao adicionar mídia à rotação, ele aparece aqui.'
+                  : 'Rascunho do novo slide antes de adicionar à rotação.'}
             </p>
           </div>
         )}

@@ -1,7 +1,15 @@
 import React, { useEffect, useState } from 'react';
-import type { TvMediaObjectFit, TvSlide } from '../services/apiService';
+import type { TvMediaObjectFit, TvScope, TvSlide } from '../services/apiService';
 import { normalizeTvMediaObjectFit } from '../services/apiService';
 import type { TvChimeAlert, TvChimeKind, TvChimeScheduleConfig } from '../utils/tvChimeSchedule';
+import {
+  TV_BOARD_CARS_PER_PAGE,
+  tvBoardBrandAccentClass,
+  tvBoardCountText,
+  tvBoardSectionLabel,
+  tvBoardStageColorClass,
+  type TvBoardItem,
+} from '../utils/tvBoardPreview';
 import { TvChimeBannerCard } from './TvChimeBannerCard';
 import { TvUploadedVideoPlayer } from './tv/TvUploadedVideoPlayer';
 
@@ -87,9 +95,17 @@ interface TvPatioPreviewProps {
   /** Se false, não desenha a faixa da meta semanal (ex.: preview de slide). */
   showWeeklyStrip?: boolean;
   slide: TvSlide | null;
-  /** Quando não há slide, mostra placeholder dos veículos */
+  /** Quando não há slide, mostra o quadro (veículos/peças). */
   showVehiclesPlaceholder?: boolean;
-  /** Simula na área da TV a faixa dos avisos por horário (aba Horários no modal). */
+  /** Itens reais do quadro (página atual), como na TV física. */
+  boardItems?: TvBoardItem[];
+  /** Escopo do painel — afeta rótulos e cores do quadro. */
+  tvScope?: TvScope;
+  /** Total de itens no quadro (para o contador do cabeçalho). */
+  boardTotalCount?: number;
+  /** Rótulo de página do quadro (ex.: "PÁGINA 1 - 3"). */
+  boardPageLabel?: string | null;
+  /** Simula na área da TV a faixa dos avisos por horário. */
   chimeSchedulePreview?: TvChimeScheduleConfig | null;
   /** Sobreposição: aparência da faixa quando dispara (pré-aviso ou no horário). */
   chimeFiringPreview?: {
@@ -104,7 +120,7 @@ interface TvPatioPreviewProps {
    * espelhando o que a TV está passando.
    */
   live?: boolean;
-  /** Rótulo opcional sob o placeholder de veículos (ex.: "Ao vivo · quadro"). */
+  /** Rótulo opcional sob o quadro vazio. */
   vehiclesHint?: string | null;
 }
 
@@ -118,6 +134,10 @@ export const TvPatioPreview: React.FC<TvPatioPreviewProps> = ({
   showWeeklyStrip = true,
   slide,
   showVehiclesPlaceholder = true,
+  boardItems = [],
+  tvScope = 'patio',
+  boardTotalCount,
+  boardPageLabel = null,
   chimeSchedulePreview = null,
   chimeFiringPreview = null,
   onChimeFiringPreviewDismiss,
@@ -137,6 +157,10 @@ export const TvPatioPreview: React.FC<TvPatioPreviewProps> = ({
     return () => window.clearInterval(t);
   }, [live]);
 
+  const sectionLabel = tvBoardSectionLabel(tvScope);
+  const brandAccent = tvBoardBrandAccentClass(tvScope);
+  const totalCount = boardTotalCount ?? boardItems.length;
+
   const pct =
     weeklyTarget > 0 && Number.isFinite(weeklyCurrent / weeklyTarget)
       ? Math.max(0, Math.min(130, (weeklyCurrent / weeklyTarget) * 100))
@@ -151,6 +175,70 @@ export const TvPatioPreview: React.FC<TvPatioPreviewProps> = ({
     (slide.slideType === 'image' || slide.slideType === 'video');
   const showBrandBar = !isImmersiveMedia;
   const showGoalStrip = hasGoal && !isImmersiveMedia;
+
+  const renderBoard = () => {
+    const rows: Array<TvBoardItem | null> = [...boardItems];
+    while (rows.length < TV_BOARD_CARS_PER_PAGE) rows.push(null);
+    const emptyClass =
+      tvScope === 'laboratorio'
+        ? 'border-violet-500/10 bg-violet-500/[0.03] text-violet-200/25'
+        : 'border-white/5 bg-white/[0.02] text-white/15';
+
+    return (
+      <div className="flex min-h-0 flex-1 flex-col gap-1 px-2 py-1.5">
+        <div className="flex shrink-0 items-center justify-between gap-2 px-0.5">
+          <p
+            className={`truncate text-[6px] font-black uppercase tracking-[0.14em] ${
+              tvScope === 'laboratorio' ? 'text-violet-400/70' : 'text-yellow-500/55'
+            }`}
+          >
+            {tvBoardCountText(tvScope, totalCount)}
+          </p>
+          {boardPageLabel ? (
+            <p className="shrink-0 text-[6px] font-bold uppercase tracking-wider text-white/30">
+              {boardPageLabel}
+            </p>
+          ) : null}
+        </div>
+        <div className="flex min-h-0 flex-1 flex-col gap-[3px]">
+          {rows.map((item, i) =>
+            item ? (
+              <div
+                key={item.id}
+                className={`flex min-h-0 flex-1 items-center gap-1.5 overflow-hidden rounded-md border border-transparent px-1.5 ${tvBoardStageColorClass(item.stage, tvScope)}`}
+              >
+                <span className="w-[28%] truncate text-[7px] font-black uppercase italic leading-tight">
+                  {item.primary}
+                </span>
+                <span className="w-[16%] truncate border-l border-current/15 pl-1.5 text-[6px] font-black uppercase leading-tight">
+                  {item.client}
+                </span>
+                <span className="min-w-0 flex-1 truncate border-l border-current/15 pl-1.5 text-[6px] font-black uppercase italic leading-tight">
+                  {item.stage}
+                </span>
+                <span className="w-[14%] truncate border-l border-current/15 pl-1 text-center font-mono text-[6px] font-black tabular-nums">
+                  {item.fourth}
+                </span>
+                <span className="w-[16%] truncate border-l border-current/15 pl-1 text-[5px] font-bold uppercase leading-tight opacity-90">
+                  {item.fifth}
+                </span>
+              </div>
+            ) : (
+              <div
+                key={`empty-${i}`}
+                className={`flex min-h-0 flex-1 items-center justify-center rounded-md border border-dashed text-[6px] font-bold uppercase tracking-[0.16em] ${emptyClass}`}
+              >
+                {tvScope === 'laboratorio' ? 'Vaga livre' : 'Box livre'}
+              </div>
+            )
+          )}
+        </div>
+        {vehiclesHint ? (
+          <p className="shrink-0 text-center text-[6px] font-medium text-white/30">{vehiclesHint}</p>
+        ) : null}
+      </div>
+    );
+  };
 
   const renderChimePreview = () => {
     const cfg = chimeSchedulePreview;
@@ -215,23 +303,7 @@ export const TvPatioPreview: React.FC<TvPatioPreviewProps> = ({
           </div>
         );
       }
-      return (
-        <div className="flex-1 flex flex-col justify-center gap-1.5 px-3 py-2">
-          {[0, 1, 2].map((i) => (
-            <div
-              key={i}
-              className="h-7 rounded-lg bg-white/[0.06] border border-white/[0.06] flex items-center px-2 gap-2"
-            >
-              <div className="h-2 w-16 rounded bg-white/10" />
-              <div className="h-2 flex-1 rounded bg-white/5" />
-              <div className="h-2 w-10 rounded bg-yellow-500/20" />
-            </div>
-          ))}
-          <p className="text-[9px] text-center text-white/30 mt-1 font-medium">
-            {vehiclesHint || (live ? 'Ao vivo · lista de veículos' : 'Lista de veículos (exemplo)')}
-          </p>
-        </div>
-      );
+      return renderBoard();
     }
 
     const t = slide.slideType;
@@ -331,8 +403,12 @@ export const TvPatioPreview: React.FC<TvPatioPreviewProps> = ({
         {showBrandBar && (
           <div className="flex shrink-0 items-end justify-between gap-2 border-b border-white/[0.06] px-3 pb-1.5 pt-2.5">
             <div className="flex min-w-0 flex-col gap-0.5">
-              <span className="truncate text-[13px] font-black italic leading-none text-yellow-400">REI DO ABS</span>
-              <span className="text-[6px] font-bold uppercase tracking-[0.2em] text-white/35">Pátio</span>
+              <span className={`truncate text-[13px] font-black italic leading-none ${brandAccent}`}>
+                REI DO ABS
+              </span>
+              <span className="text-[6px] font-bold uppercase tracking-[0.2em] text-white/35">
+                {sectionLabel}
+              </span>
             </div>
             <span className="font-mono text-[7px] tabular-nums text-white/40">{live ? clock : '12:00'}</span>
           </div>
