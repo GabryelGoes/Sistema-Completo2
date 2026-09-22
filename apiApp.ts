@@ -31,15 +31,11 @@ import { SYSTEM_NOTIFICATION_IDS } from "./constants/systemNotificationTypes.js"
 import { buildWorkshopPartsAnalytics } from "./utils/workshopPartsAnalytics.js";
 import { resolveTvUploadMime } from "./utils/tvMediaFile.js";
 import {
-  aggregateFinalizeStockParts,
   collectApprovedPartsFromBudgets,
   collectApprovedServicesFromBudgets,
   mergeFinalizeStockDraftLines,
   mergeServiceTechnicianDraftLines,
-  parseFinalizePartQuantity,
   validateServiceTechnicianLines,
-  finalizeStockAggKeyPartId,
-  finalizeStockAggKeyPartName,
 } from "./utils/serviceOrderServiceTechnicians.js";
 import { collectPendingStockReservations } from "./utils/workshopPartReservations.js";
 import { normalizeBarcodeInput } from "./utils/workshopPartBarcode.js";
@@ -1047,92 +1043,6 @@ export function createApiApp() {
       .eq("is_technician", true);
     if (error) return [];
     return (data || []).map((r: { id: string }) => r.id);
-  }
-
-  function normalizePartName(value: string): string {
-    return String(value || "")
-      .trim()
-      .toLowerCase()
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "");
-  }
-
-  function parsePartQuantity(value: unknown): number {
-    const raw = String(value ?? "").replace(",", ".").trim();
-    const qty = Number(raw);
-    if (!Number.isFinite(qty) || qty <= 0) return 1;
-    return qty;
-  }
-
-  function aggregateBudgetParts(parts: unknown): Map<string, number> {
-    const agg = new Map<string, number>();
-    if (!Array.isArray(parts)) return agg;
-    for (const item of parts as Array<{ description?: unknown; quantity?: unknown }>) {
-      const description = typeof item?.description === "string" ? item.description.trim() : "";
-      if (!description) continue;
-      const key = normalizePartName(description);
-      const prev = agg.get(key) ?? 0;
-      agg.set(key, prev + parsePartQuantity(item?.quantity));
-    }
-    return agg;
-  }
-
-  function invertDeltaMap(input: Map<string, number>): Map<string, number> {
-    const result = new Map<string, number>();
-    input.forEach((value, key) => result.set(key, value * -1));
-    return result;
-  }
-
-  async function applyStockDeltaByPartName(deltaByPart: Map<string, number>): Promise<void> {
-    if (!supabaseAdmin || !WORKSHOP_ID) return;
-    const nonZero = Array.from(deltaByPart.entries()).filter(([, value]) => Math.abs(value) > 0);
-    if (nonZero.length === 0) return;
-
-    const { data: partsRows, error: partsError } = await supabaseAdmin
-      .from("workshop_parts")
-      .select("id, name, stock_qty")
-      .eq("workshop_id", WORKSHOP_ID);
-
-    if (partsError) {
-      throw new Error(`Falha ao carregar estoque de peças: ${partsError.message}`);
-    }
-
-    const byId = new Map<string, { id: string; name: string; stock_qty: number }>();
-    const byNormalized = new Map<string, { id: string; name: string; stock_qty: number }>();
-    for (const row of (partsRows || []) as Array<{ id: string; name: string; stock_qty: number | null }>) {
-      const entry = {
-        id: row.id,
-        name: row.name,
-        stock_qty: Number(row.stock_qty ?? 0),
-      };
-      byId.set(row.id, entry);
-      byNormalized.set(normalizePartName(row.name), entry);
-    }
-
-    // Chaves novas: id:UUID / name:normalized — e legado: só o nome normalizado.
-    for (const [key, delta] of nonZero) {
-      const partId = finalizeStockAggKeyPartId(key);
-      const partNameKey = finalizeStockAggKeyPartName(key);
-      const part =
-        (partId ? byId.get(partId) : undefined) ??
-        (partNameKey ? byNormalized.get(partNameKey) : undefined) ??
-        byNormalized.get(key);
-      if (!part) continue;
-      const nextStock = part.stock_qty - delta;
-      if (nextStock < 0) {
-        throw new Error(`Estoque insuficiente para "${part.name}". Disponível: ${part.stock_qty}.`);
-      }
-      const { error: updateErr } = await supabaseAdmin
-        .from("workshop_parts")
-        .update({ stock_qty: Number(nextStock.toFixed(3)) })
-        .eq("id", part.id)
-        .eq("workshop_id", WORKSHOP_ID);
-      if (updateErr) {
-        throw new Error(`Falha ao atualizar estoque da peça "${part.name}": ${updateErr.message}`);
-      }
-      // Mantém o mapa local coerente se o mesmo produto aparecer por id e por nome.
-      part.stock_qty = nextStock;
-    }
   }
 
   function isMissingRpcFunctionError(message: string): boolean {
@@ -5818,11 +5728,9 @@ export function createApiApp() {
       const recordedByName =
         typeof req.body?.recordedByName === "string" ? req.body.recordedByName.trim().slice(0, 200) : "";
 
-      const rawStockParts = Array.isArray(req.body?.stockParts) ? req.body.stockParts : [];
-
       const { data: so } = await supabaseAdmin
         .from("service_orders")
-        .select("id, order_type, finalize_stock_applied_at")
+        .select("id, order_type")
         .eq("id", serviceOrderId)
         .eq("workshop_id", WORKSHOP_ID)
         .single();
@@ -5852,40 +5760,6 @@ export function createApiApp() {
           };
         })
         .filter(Boolean) as { description: string; technicianId: string; budgetId: string | null }[];
-
-      const stockParts = rawStockParts
-        .map((row: unknown) => {
-          if (!row || typeof row !== "object") return null;
-          const r = row as Record<string, unknown>;
-          const description = typeof r.description === "string" ? r.description.trim() : "";
-          if (!description) return null;
-          const quantityRaw =
-            typeof r.quantity === "string" || typeof r.quantity === "number"
-              ? r.quantity
-              : "1";
-          return {
-            description,
-            quantity: String(parseFinalizePartQuantity(quantityRaw)),
-            workshopPartId:
-              typeof r.workshopPartId === "string"
-                ? r.workshopPartId
-                : typeof r.workshop_part_id === "string"
-                  ? r.workshop_part_id
-                  : null,
-            budgetId:
-              typeof r.budgetId === "string"
-                ? r.budgetId
-                : typeof r.budget_id === "string"
-                  ? r.budget_id
-                  : null,
-          };
-        })
-        .filter(Boolean) as {
-        description: string;
-        quantity: string;
-        workshopPartId: string | null;
-        budgetId: string | null;
-      }[];
 
       const approved = await loadApprovedServicesForOrder(serviceOrderId);
       const validation = validateServiceTechnicianLines(lines, approved);
@@ -5931,45 +5805,8 @@ export function createApiApp() {
         .eq("workshop_id", WORKSHOP_ID);
       if (delStockError) throw delStockError;
 
-      const stockPayload = stockParts.map((line, index) => ({
-        workshop_id: WORKSHOP_ID,
-        service_order_id: serviceOrderId,
-        description: line.description,
-        quantity: parseFinalizePartQuantity(line.quantity),
-        workshop_part_id: line.workshopPartId,
-        budget_id: line.budgetId,
-        sort_order: index,
-      }));
-
-      if (stockPayload.length > 0) {
-        const { error: insStockError } = await supabaseAdmin
-          .from("service_order_finalize_stock_lines")
-          .insert(stockPayload);
-        if (insStockError) throw insStockError;
-      }
-
-      const stockAlreadyApplied = Boolean(
-        (so as { finalize_stock_applied_at?: string | null }).finalize_stock_applied_at
-      );
-      if (!stockAlreadyApplied && stockParts.length > 0) {
-        const stockDelta = aggregateFinalizeStockParts(stockParts);
-        await applyStockDeltaByPartName(stockDelta);
-        const { error: markStockError } = await supabaseAdmin
-          .from("service_orders")
-          .update({ finalize_stock_applied_at: now })
-          .eq("id", serviceOrderId)
-          .eq("workshop_id", WORKSHOP_ID);
-        if (markStockError) throw markStockError;
-      } else if (!stockAlreadyApplied && stockParts.length === 0) {
-        const { error: markStockError } = await supabaseAdmin
-          .from("service_orders")
-          .update({ finalize_stock_applied_at: now })
-          .eq("id", serviceOrderId)
-          .eq("workshop_id", WORKSHOP_ID);
-        if (markStockError) throw markStockError;
-      }
-
-      return res.json({ ok: true, stockApplied: !stockAlreadyApplied });
+      // Baixa automática ao finalizar desativada: estoque só via leitor ou baixa manual.
+      return res.json({ ok: true, stockApplied: false });
     } catch (err: unknown) {
       console.error("[API] PUT service-technicians:", err);
       const msg = err instanceof Error ? err.message : "Erro";
@@ -5982,9 +5819,6 @@ export function createApiApp() {
         return res.status(500).json({
           error: "Tabela de peças do fechamento não configurada. Aplique a migration no Supabase.",
         });
-      }
-      if (msg.toLowerCase().includes("estoque insuficiente")) {
-        return res.status(400).json({ error: msg });
       }
       return res.status(500).json({ error: msg });
     }
@@ -8636,17 +8470,13 @@ export function createApiApp() {
 
       const { data: serviceOrders, error: soError } = await supabaseAdmin
         .from("service_orders")
-        .select("id, plate, vehicle_model, os_number, status, finalize_stock_applied_at")
+        .select("id, plate, vehicle_model, os_number, status")
         .eq("workshop_id", WORKSHOP_ID)
         .eq("order_type", "vehicle")
-        .is("finalize_stock_applied_at", null)
-        .neq("status", "CANCELLED");
+        .neq("status", "CANCELLED")
+        .neq("status", "FINALIZADO");
 
       if (soError) {
-        // Coluna pode não existir se a migration de finalize ainda não foi aplicada.
-        if (/finalize_stock_applied_at/i.test(soError.message || "")) {
-          return res.json({ items: [], reservedQtyByPartId: {} });
-        }
         console.error("[API] Erro ao listar OS para reservas de estoque:", soError);
         return res.status(500).json({ error: soError.message });
       }
@@ -8657,7 +8487,6 @@ export function createApiApp() {
         vehicle_model?: string | null;
         os_number?: number | null;
         status?: string | null;
-        finalize_stock_applied_at?: string | null;
       }>;
       const orderIds = orders.map((o) => o.id);
       if (orderIds.length === 0) {

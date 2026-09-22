@@ -51,9 +51,9 @@ function isStockLinkedPart(part: BudgetPartForReservation): boolean {
 }
 
 /**
- * Extrai reservas de estoque ainda sem baixa (orçamentos de OS com
- * finalize_stock_applied_at nulo). Inclui peças do estoque mesmo sem aprovação —
- * o produto continua no catálogo; a baixa só ocorre no fechamento/finalizado.
+ * Extrai reservas de estoque em orçamentos de OS ainda abertas.
+ * Inclui peças do estoque mesmo sem aprovação — o produto continua no catálogo.
+ * A baixa do estoque não ocorre no fechamento; só via leitor ou baixa manual.
  */
 export function collectPendingStockReservations(input: {
   budgets: BudgetForReservation[];
@@ -70,9 +70,8 @@ export function collectPendingStockReservations(input: {
     const soId = String(budget.service_order_id ?? '').trim();
     const so = soId ? soById.get(soId) : undefined;
     if (!so) continue;
-    if (so.finalize_stock_applied_at) continue;
     const status = String(so.status ?? '').toUpperCase();
-    if (status === 'CANCELLED') continue;
+    if (status === 'CANCELLED' || status === 'FINALIZADO') continue;
 
     const parts = Array.isArray(budget.parts) ? budget.parts : [];
     for (const part of parts) {

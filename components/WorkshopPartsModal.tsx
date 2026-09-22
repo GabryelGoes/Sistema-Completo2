@@ -923,17 +923,6 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
     });
   }, [partsAfterStockFilter, partsSearchQuery, categories]);
 
-  const categoryLineForPart = useCallback(
-    (p: WorkshopPart) => {
-      const names = (p.category_ids ?? [])
-        .map((cid) => categories.find((c) => c.id === cid)?.name)
-        .filter(Boolean) as string[];
-      if (names.length === 0) return null;
-      return names.join(' · ');
-    },
-    [categories]
-  );
-
   const handleCreateCategory = async () => {
     const n = newCategoryName.trim();
     if (!n || categoryCreating) return;
@@ -1171,7 +1160,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
         {isAnalyticsOpen ? (
           <WorkshopPartsAnalyticsView onBack={() => setIsAnalyticsOpen(false)} />
         ) : (
-        <div className="flex-1 min-h-0 overflow-y-auto overscroll-y-auto touch-pan-y px-6 sm:px-8 pb-[max(2rem,env(safe-area-inset-bottom))] custom-scrollbar [scrollbar-gutter:stable]">
+        <div className="flex-1 min-h-0 overflow-y-auto overscroll-y-auto touch-pan-y px-6 sm:px-8 pb-[max(2rem,env(safe-area-inset-bottom))] custom-scrollbar [scrollbar-gutter:stable] [zoom:0.85]">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between mb-4">
             {!loading ? (
               <div className="min-w-0 w-full sm:max-w-xl overflow-hidden rounded-2xl border-0 bg-amber-50/90 shadow-none dark:bg-amber-950/35">
@@ -1548,8 +1537,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
                 </div>
               </div>
             )}
-            <div className="hidden md:grid md:grid-cols-[3rem_4fr_1fr_1fr_auto_auto] md:gap-3 px-4 pt-3 pb-2 text-[11px] font-bold uppercase tracking-wide text-zinc-500 dark:text-zinc-400 border-b border-zinc-200/40 dark:border-white/[0.06] bg-zinc-50/50 dark:bg-white/[0.03]">
-              <span className="text-center tabular-nums">#</span>
+            <div className="hidden md:grid md:grid-cols-[4fr_1fr_1fr_auto_auto] md:gap-3 px-4 pt-3 pb-2 text-[11px] font-bold uppercase tracking-wide text-zinc-500 dark:text-zinc-400 border-b border-zinc-200/40 dark:border-white/[0.06] bg-zinc-50/50 dark:bg-white/[0.03]">
               <span className="min-w-0">Nome da peça</span>
               <span className="text-right tabular-nums">Preço</span>
               <span className="text-right tabular-nums">Quantidade</span>
@@ -1641,7 +1629,6 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
             ) : (
               <div className="divide-y divide-zinc-200/50 dark:divide-white/[0.06]">
                 {filteredParts.map((p) => {
-                  const catLine = categoryLineForPart(p);
                   const originalCode = (p.original_code ?? '').trim() || null;
                   const partNum = partNumberById.get(p.id);
                   const stockStatus = getWorkshopPartStockStatus(p);
@@ -1654,7 +1641,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
                   return (
                   <div
                     key={p.id}
-                    className={`min-h-[52px] flex flex-wrap items-center gap-3 px-4 py-3 hover:bg-zinc-100/60 dark:hover:bg-white/[0.04] transition-colors md:grid md:grid-cols-[3rem_4fr_1fr_1fr_auto_auto] md:flex-nowrap md:gap-3 md:items-center ${rowAlertCls}`}
+                    className={`min-h-[52px] flex flex-wrap items-center gap-3 px-4 py-3 hover:bg-zinc-100/60 dark:hover:bg-white/[0.04] transition-colors md:grid md:grid-cols-[4fr_1fr_1fr_auto_auto] md:flex-nowrap md:gap-3 md:items-center ${rowAlertCls}`}
                   >
                     {editingId === p.id ? (
                       <>
@@ -1699,13 +1686,9 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
                             <X className="w-4 h-4" />
                           </button>
                         </div>
-                        <span className="hidden md:block" aria-hidden />
                       </>
                     ) : (
                       <>
-                        <span className="hidden items-center justify-center text-[13px] font-bold tabular-nums text-zinc-500 dark:text-zinc-400 md:flex">
-                          {partNum != null ? `#${partNum}` : '—'}
-                        </span>
                         <button
                           type="button"
                           onClick={() => void openProductView(p)}
@@ -1748,9 +1731,6 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
                               >
                                 {originalCode}
                               </span>
-                            ) : null}
-                            {catLine ? (
-                              <span className="text-[12px] text-zinc-500 dark:text-zinc-400 truncate">{catLine}</span>
                             ) : null}
                           </span>
                         </button>
