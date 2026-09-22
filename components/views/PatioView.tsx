@@ -6323,6 +6323,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
               {/* Em Trello/por mecânico: sem botão de alterar etapa (arraste/coluna ou ficha). */}
               {boardLayoutMode === 'trello' || boardLayoutMode === 'by_mechanic' ? (
+                boardLayoutMode === 'by_mechanic' ||
+                (can('canArchiveCard') && (showDeliverButton || showNotApprovedDeliverButton)) ? (
                 <div
                   className={`relative w-full shrink-0 ${
                     boardPanoramic ? 'space-y-[calc(0.375rem*1.6146)]' : 'space-y-2'
@@ -6380,6 +6382,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                     </button>
                   ) : null}
                 </div>
+                ) : null
               ) : (
               <div
                 className={`relative w-full shrink-0 ${
