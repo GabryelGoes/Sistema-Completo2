@@ -42,6 +42,8 @@ import {
   addServiceOrderComment,
   deleteServiceOrderComment,
   updateServiceOrderComment,
+  getServiceOrderCommentUnreadCounts,
+  markServiceOrderCommentsRead,
   getWorkshopServices,
   getWorkshopParts,
   getSystemUserTechnicians,
@@ -370,6 +372,8 @@ interface PatioViewProps {
     canAddComments?: boolean;
     canArchiveCard?: boolean;
   };
+  /** Admin ou full_access: badge de comentários só some ao marcar como lida. */
+  requiresExplicitCommentRead?: boolean;
   /** Admin ou usuário com acesso total — conferir orçamentos e aplicar selo. */
   canVerifyBudgets?: boolean;
   /** Aprovar/reprovar itens do orçamento (modal de aprovação). */
@@ -1143,6 +1147,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
   orderType = 'vehicle',
   patioPermissions,
   canVerifyBudgets = false,
+  requiresExplicitCommentRead = false,
   canApproveBudgetItems = false,
   isAppTabActive = true,
   suppressVehiclePortals = false,
@@ -1158,8 +1163,12 @@ export const PatioView: React.FC<PatioViewProps> = ({
     patioPermissions === undefined ? true : canVerifyBudgets === true;
   const canApproveBudgetItemsEffective =
     patioPermissions === undefined ? true : canApproveBudgetItems === true;
+  const requiresExplicitCommentReadEffective = requiresExplicitCommentRead === true;
   const [lists, setLists] = useState<TrelloList[]>([]);
   const [cards, setCards] = useState<TrelloCard[]>([]);
+  /** Comentários não lidos por OS — badges no quadro (tempo real via polling). */
+  const [commentUnreadByOrderId, setCommentUnreadByOrderId] = useState<Record<string, number>>({});
+  const [markingCommentsReadId, setMarkingCommentsReadId] = useState<string | null>(null);
   const commentsSectionRef = useRef<HTMLDivElement>(null);
   const commentsListRef = useRef<HTMLDivElement>(null);
   const customerDataSectionRef = useRef<HTMLDivElement>(null);
@@ -1984,6 +1993,63 @@ export const PatioView: React.FC<PatioViewProps> = ({
     }, 12000);
     return () => window.clearInterval(id);
   }, [isAppTabActive]);
+
+  const refreshCommentUnreadCounts = useCallback(async () => {
+    try {
+      const data = await getServiceOrderCommentUnreadCounts(orderType);
+      setCommentUnreadByOrderId(data.counts);
+    } catch {
+      /* tabela pode ainda não existir */
+    }
+  }, [orderType]);
+
+  const refreshCommentUnreadCountsRef = useRef(refreshCommentUnreadCounts);
+  refreshCommentUnreadCountsRef.current = refreshCommentUnreadCounts;
+
+  useEffect(() => {
+    if (!isAppTabActive) return;
+    void refreshCommentUnreadCounts();
+    const id = window.setInterval(() => {
+      if (document.visibilityState === 'visible') void refreshCommentUnreadCountsRef.current();
+    }, 8000);
+    return () => window.clearInterval(id);
+  }, [isAppTabActive, refreshCommentUnreadCounts]);
+
+  const markSelectedCommentsRead = useCallback(
+    async (orderId: string, opts?: { silent?: boolean }) => {
+      if (!orderId) return;
+      if (!opts?.silent) setMarkingCommentsReadId(orderId);
+      try {
+        await markServiceOrderCommentsRead(orderId);
+        setCommentUnreadByOrderId((prev) => {
+          if (!prev[orderId]) return prev;
+          const next = { ...prev };
+          delete next[orderId];
+          return next;
+        });
+      } catch (err) {
+        if (!opts?.silent) {
+          alert(err instanceof Error ? err.message : 'Erro ao marcar como lida.');
+        }
+      } finally {
+        if (!opts?.silent) setMarkingCommentsReadId(null);
+      }
+    },
+    []
+  );
+
+  /** Usuários sem acesso total: ao abrir o modal, marca comentários como lidos. */
+  useEffect(() => {
+    if (!selectedCard?.id) return;
+    if (requiresExplicitCommentReadEffective) return;
+    if (!(commentUnreadByOrderId[selectedCard.id] > 0)) return;
+    void markSelectedCommentsRead(selectedCard.id, { silent: true });
+  }, [
+    selectedCard?.id,
+    requiresExplicitCommentReadEffective,
+    commentUnreadByOrderId,
+    markSelectedCommentsRead,
+  ]);
 
   useEffect(() => {
     if (isRemindersOpen) fetchReminders();
@@ -3356,6 +3422,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
         ...prev,
         actions: comments.map(commentToAction),
       } : null);
+      void refreshCommentUnreadCounts();
     } catch (err: any) {
       alert(err?.message ?? 'Erro ao enviar comentário.');
       setNewComment(text);
@@ -6034,6 +6101,27 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   ${cardRingClass}
                 `}
               >
+              {(() => {
+                const unread = commentUnreadByOrderId[card.id] ?? 0;
+                if (unread <= 0) return null;
+                return (
+                  <span
+                    className="absolute right-2.5 top-2.5 z-20 inline-flex min-h-[1.35rem] min-w-[1.35rem] items-center justify-center rounded-full bg-[#FF3B30] px-1.5 text-[10px] font-bold tabular-nums leading-none text-white shadow-[0_4px_12px_rgba(255,59,48,0.45)] ring-2 ring-white dark:ring-zinc-900"
+                    title={
+                      unread === 1
+                        ? '1 comentário não lido'
+                        : `${unread} comentários não lidos`
+                    }
+                    aria-label={
+                      unread === 1
+                        ? '1 comentário não lido'
+                        : `${unread} comentários não lidos`
+                    }
+                  >
+                    {unread > 99 ? '99+' : unread}
+                  </span>
+                );
+              })()}
               {/* Filtro só por dentro do card + borda colorida acima */}
               {originTint ? (
                 <div
@@ -9445,7 +9533,39 @@ export const PatioView: React.FC<PatioViewProps> = ({
                            <h3 className={isPatioPcModal ? patioVehicleVm.sectionTitle : `${uiSectionTitleRow} lg:mb-2`}>
                              <MessageSquare className="h-3.5 w-3.5 shrink-0" />
                              Comentários
+                             {selectedCard && (commentUnreadByOrderId[selectedCard.id] ?? 0) > 0 ? (
+                               <span className="ml-2 inline-flex min-h-[1.15rem] min-w-[1.15rem] items-center justify-center rounded-full bg-[#FF3B30] px-1.5 text-[10px] font-bold tabular-nums text-white">
+                                 {(commentUnreadByOrderId[selectedCard.id] ?? 0) > 99
+                                   ? '99+'
+                                   : commentUnreadByOrderId[selectedCard.id]}
+                               </span>
+                             ) : null}
                           </h3>
+
+                          {requiresExplicitCommentReadEffective &&
+                          selectedCard &&
+                          (commentUnreadByOrderId[selectedCard.id] ?? 0) > 0 ? (
+                            <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-200/80 bg-amber-50/70 px-3 py-2 dark:border-amber-500/30 dark:bg-amber-950/30">
+                              <p className="text-[12px] font-medium text-amber-900/90 dark:text-amber-200">
+                                {(commentUnreadByOrderId[selectedCard.id] ?? 0) === 1
+                                  ? '1 mensagem não lida'
+                                  : `${commentUnreadByOrderId[selectedCard.id]} mensagens não lidas`}
+                              </p>
+                              <button
+                                type="button"
+                                disabled={markingCommentsReadId === selectedCard.id}
+                                onClick={() => void markSelectedCommentsRead(selectedCard.id)}
+                                className="inline-flex items-center gap-1.5 rounded-lg bg-[#007AFF] px-3 py-1.5 text-[12px] font-semibold text-white shadow-sm hover:opacity-95 disabled:opacity-50"
+                              >
+                                {markingCommentsReadId === selectedCard.id ? (
+                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                ) : (
+                                  <Check className="h-3.5 w-3.5" />
+                                )}
+                                Marcar como lida
+                              </button>
+                            </div>
+                          ) : null}
 
                           <div className={`${vi} overflow-hidden shadow-none`}>
                              <div ref={commentsListRef} className={patioVehicleVm.commentsList}>

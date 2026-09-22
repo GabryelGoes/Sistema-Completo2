@@ -1934,6 +1934,48 @@ export async function deleteServiceOrderComment(
   }
 }
 
+/** Contagem de comentários não lidos por OS (Pátio / Laboratório). */
+export async function getServiceOrderCommentUnreadCounts(
+  orderType?: ServiceOrderType
+): Promise<{
+  counts: Record<string, number>;
+  requiresExplicitRead: boolean;
+  readerKey: string;
+}> {
+  const params = new URLSearchParams();
+  if (orderType === "vehicle" || orderType === "module") params.set("orderType", orderType);
+  const qs = params.toString();
+  const response = await fetch(
+    `${API_BASE}/service-orders/comment-unread-counts${qs ? `?${qs}` : ""}`
+  );
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao carregar não lidas (${response.status})`);
+  }
+  const data = (await response.json()) as {
+    counts?: Record<string, number>;
+    requiresExplicitRead?: boolean;
+    readerKey?: string;
+  };
+  return {
+    counts: data.counts && typeof data.counts === "object" ? data.counts : {},
+    requiresExplicitRead: data.requiresExplicitRead === true,
+    readerKey: typeof data.readerKey === "string" ? data.readerKey : "",
+  };
+}
+
+/** Marca os comentários da OS como lidos para o usuário atual. */
+export async function markServiceOrderCommentsRead(serviceOrderId: string): Promise<void> {
+  const response = await fetch(
+    `${API_BASE}/service-orders/${encodeURIComponent(serviceOrderId)}/comments/read`,
+    { method: "POST" }
+  );
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || "Falha ao marcar comentários como lidos.");
+  }
+}
+
 export async function updateServiceOrderComment(
   serviceOrderId: string,
   commentId: string,

@@ -3670,6 +3670,136 @@ export function createApiApp() {
     throw lastErr ?? new Error("Falha ao listar ordens de serviço.");
   }
 
+  // Comentários do modal do veículo (autor = "Rei do ABS" ou nome do técnico)
+  app.get("/api/service-orders/comment-unread-counts", async (req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({ error: "Servidor não configurado." });
+      }
+      const actor = await resolveSupportActor(req);
+      if (!actor) return res.status(401).json({ error: "Sessão inválida." });
+
+      const orderTypeRaw = String(req.query.orderType ?? "").trim();
+      const orderType =
+        orderTypeRaw === "module" || orderTypeRaw === "vehicle" ? orderTypeRaw : undefined;
+
+      let ordersQuery = supabaseAdmin
+        .from("service_orders")
+        .select("id")
+        .eq("workshop_id", WORKSHOP_ID)
+        .neq("status", CANCELLED_STATUS);
+      if (orderType) ordersQuery = ordersQuery.eq("order_type", orderType);
+
+      const { data: orders, error: ordersErr } = await ordersQuery;
+      if (ordersErr) {
+        console.error("[API] comment-unread-counts orders:", ordersErr);
+        return res.status(500).json({ error: ordersErr.message });
+      }
+      const orderIds = (orders ?? []).map((o: { id: string }) => o.id).filter(Boolean);
+      if (orderIds.length === 0) {
+        return res.json({
+          counts: {},
+          requiresExplicitRead: actor.requiresExplicitRead,
+          readerKey: actor.readerKey,
+        });
+      }
+
+      let adminDisplayName = "Rei do ABS";
+      if (actor.kind === "admin") {
+        const { data: setting } = await supabaseAdmin
+          .from("workshop_settings")
+          .select("value")
+          .eq("workshop_id", WORKSHOP_ID)
+          .eq("key", "admin_display_name")
+          .maybeSingle();
+        const v = typeof setting?.value === "string" ? setting.value.trim() : "";
+        if (v) adminDisplayName = v;
+      }
+
+      const ownNames = new Set<string>();
+      const pushOwn = (n: string) => {
+        const t = n.trim().toLowerCase();
+        if (t) ownNames.add(t);
+      };
+      if (actor.kind === "admin") {
+        pushOwn(adminDisplayName);
+        pushOwn("Rei do ABS");
+        pushOwn("Gerência");
+      } else {
+        pushOwn(actor.name);
+      }
+
+      const isOwnAuthor = (author: string) => {
+        const a = String(author || "").trim().toLowerCase();
+        if (!a) return false;
+        if (ownNames.has(a)) return true;
+        if (actor.kind === "admin" && /rei\s*do\s*abs/i.test(author)) return true;
+        return false;
+      };
+
+      const { data: comments, error: commentsErr } = await supabaseAdmin
+        .from("service_order_comments")
+        .select("service_order_id, created_at, author_display_name")
+        .in("service_order_id", orderIds);
+
+      if (commentsErr) {
+        console.error("[API] comment-unread-counts comments:", commentsErr);
+        return res.status(500).json({ error: commentsErr.message });
+      }
+
+      const { data: reads, error: readsErr } = await supabaseAdmin
+        .from("service_order_comment_reads")
+        .select("service_order_id, last_read_at")
+        .eq("workshop_id", WORKSHOP_ID)
+        .eq("reader_key", actor.readerKey)
+        .in("service_order_id", orderIds);
+
+      if (readsErr) {
+        // Tabela pode ainda não existir — devolve vazio sem quebrar o board.
+        if (
+          /does not exist|schema cache|Could not find the table/i.test(String(readsErr.message || ""))
+        ) {
+          return res.json({
+            counts: {},
+            requiresExplicitRead: actor.requiresExplicitRead,
+            readerKey: actor.readerKey,
+          });
+        }
+        console.error("[API] comment-unread-counts reads:", readsErr);
+        return res.status(500).json({ error: readsErr.message });
+      }
+
+      const lastReadByOrder = new Map<string, number>();
+      for (const row of reads ?? []) {
+        const id = String((row as { service_order_id?: string }).service_order_id || "");
+        const ts = Date.parse(String((row as { last_read_at?: string }).last_read_at || ""));
+        if (id && Number.isFinite(ts)) lastReadByOrder.set(id, ts);
+      }
+
+      const counts: Record<string, number> = {};
+      for (const row of comments ?? []) {
+        const sid = String((row as { service_order_id?: string }).service_order_id || "");
+        if (!sid) continue;
+        const author = String((row as { author_display_name?: string }).author_display_name || "");
+        if (isOwnAuthor(author)) continue;
+        const created = Date.parse(String((row as { created_at?: string }).created_at || ""));
+        if (!Number.isFinite(created)) continue;
+        const lastRead = lastReadByOrder.get(sid) ?? 0;
+        if (created <= lastRead) continue;
+        counts[sid] = (counts[sid] ?? 0) + 1;
+      }
+
+      return res.json({
+        counts,
+        requiresExplicitRead: actor.requiresExplicitRead,
+        readerKey: actor.readerKey,
+      });
+    } catch (err: any) {
+      console.error("[API] GET /api/service-orders/comment-unread-counts:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+    }
+  });
+
   app.get("/api/service-orders", async (req, res) => {
     try {
       if (!supabaseAdmin || !WORKSHOP_ID) {
@@ -6838,6 +6968,51 @@ export function createApiApp() {
     }
   });
 
+  app.post("/api/service-orders/:id/comments/read", async (req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({ error: "Servidor não configurado." });
+      }
+      const actor = await resolveSupportActor(req);
+      if (!actor) return res.status(401).json({ error: "Sessão inválida." });
+
+      const serviceOrderId = String(req.params.id || "").trim();
+      if (!serviceOrderId) {
+        return res.status(400).json({ error: "ID da ordem de serviço é obrigatório." });
+      }
+
+      const { data: so } = await supabaseAdmin
+        .from("service_orders")
+        .select("id")
+        .eq("id", serviceOrderId)
+        .eq("workshop_id", WORKSHOP_ID)
+        .maybeSingle();
+      if (!so) {
+        return res.status(404).json({ error: "Ordem de serviço não encontrada." });
+      }
+
+      const now = new Date().toISOString();
+      const { error } = await supabaseAdmin.from("service_order_comment_reads").upsert(
+        {
+          workshop_id: WORKSHOP_ID,
+          service_order_id: serviceOrderId,
+          reader_key: actor.readerKey,
+          last_read_at: now,
+          updated_at: now,
+        },
+        { onConflict: "workshop_id,service_order_id,reader_key" }
+      );
+      if (error) {
+        console.error("[API] POST comments/read:", error);
+        return res.status(500).json({ error: error.message });
+      }
+      return res.json({ ok: true, lastReadAt: now });
+    } catch (err: any) {
+      console.error("[API] POST /api/service-orders/:id/comments/read:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+    }
+  });
+
   app.delete("/api/service-orders/:id/comments/:commentId", async (req, res) => {
     try {
       if (!supabaseAdmin || !WORKSHOP_ID) {
@@ -7347,6 +7522,8 @@ export function createApiApp() {
     readerKey: string;
     canDelete: boolean;
     canReply: boolean;
+    /** Admin ou usuário com full_access — badge só some ao marcar como lida. */
+    requiresExplicitRead: boolean;
   };
 
   async function resolveSupportActor(req: express.Request): Promise<SupportActor | null> {
@@ -7362,6 +7539,7 @@ export function createApiApp() {
         readerKey: "admin",
         canDelete: true,
         canReply: true,
+        requiresExplicitRead: true,
       };
     }
     if (auth.r !== "user" || !auth.u || !supabaseAdmin || !WORKSHOP_ID) return null;
@@ -7385,6 +7563,7 @@ export function createApiApp() {
       readerKey: data.id,
       canDelete: full,
       canReply: full,
+      requiresExplicitRead: full,
     };
   }
 

@@ -1368,6 +1368,7 @@ export default function App() {
               onVehicleModalOsLabelChange={setVehicleModalOsLabel}
             onClosePage={isDesktopShell ? undefined : navigateToHomeApp}
             canVerifyBudgets={canVerifyBudgetsApp}
+            requiresExplicitCommentRead={canVerifyBudgetsApp}
             canApproveBudgetItems={canApproveBudgetItemsApp}
             actorOptions={authSession?.role === 'admin' ? { actor: 'admin' } : { actor: 'technician', actorTechnicianSlug: authSession?.userId, actorTechnicianName: authSession?.displayName ?? authSession?.username }}
             />
@@ -1395,6 +1396,9 @@ export default function App() {
             openServiceOrderId={laboratorioPendingOrderId}
             openServiceOrderSection={null}
             onOpenServiceOrderHandled={handleLaboratoryOrderHandled}
+            canVerifyBudgets={canVerifyBudgetsApp}
+            requiresExplicitCommentRead={canVerifyBudgetsApp}
+            canApproveBudgetItems={canApproveBudgetItemsApp}
             actorOptions={authSession?.role === 'admin' ? { actor: 'admin' } : { actor: 'technician', actorTechnicianSlug: authSession?.userId, actorTechnicianName: authSession?.displayName ?? authSession?.username }}
             />
           </LazyTabBoundary>
