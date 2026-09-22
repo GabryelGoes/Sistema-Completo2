@@ -31,10 +31,11 @@ import {
   getWorkshopSettings,
   deleteAppointment,
   getServiceOrderById,
+  getSupportUnreadCount,
 } from './services/apiService';
 import type { ServiceOrderStatus } from './constants/serviceOrderStages';
 import { KeepAliveTabPanel } from './components/KeepAliveTabPanel';
-import { applyAccentToRoot, DEFAULT_ACCENT } from './utils/appAppearance';
+import { applyAccentToRoot, DEFAULT_ACCENT, moduleAccentColor } from './utils/appAppearance';
 import { setLabProductKinds } from './utils/moduleMetadata';
 import { setLabQuickServices } from './utils/labQuickServices';
 import { ModalLayerProvider } from './components/ui/ModalLayerContext';
@@ -44,6 +45,7 @@ import { AuthenticatedAppFrame } from './components/layout/AuthenticatedAppFrame
 import { useDesktopShell } from './hooks/useDesktopShell';
 import { AdminProfileModal } from './components/AdminProfileModal';
 import { UserProfileModal } from './components/UserProfileModal';
+import { SupportBugsChatModal } from './components/SupportBugsChatModal';
 import {
   resolveDesktopSidebarAccess,
   type DesktopSidebarActionId,
@@ -98,6 +100,8 @@ export default function App() {
   const [globalPartScan, setGlobalPartScan] = useState<{ code: string; token: number } | null>(null);
   const [isTvPatioModalOpen, setIsTvPatioModalOpen] = useState(false);
   const [settingsHubOpen, setSettingsHubOpen] = useState(false);
+  const [isSupportChatOpen, setIsSupportChatOpen] = useState(false);
+  const [supportUnreadBadge, setSupportUnreadBadge] = useState(0);
   const homeSettingsHubOpenerRef = useRef<(() => void) | null>(null);
   const homeSettingsHubCloserRef = useRef<(() => void) | null>(null);
 
@@ -108,6 +112,7 @@ export default function App() {
     setIsTvPatioModalOpen(false);
     setIsSettingsOpen(false);
     setSettingsHubOpen(false);
+    setIsSupportChatOpen(false);
   }, []);
 
   const desktopSidebarAccess = useMemo(
@@ -178,22 +183,6 @@ export default function App() {
   const orientation = useOrientation();
   const isDesktopShell = useDesktopShell();
 
-  const shellOverlayTopbar = useMemo(() => {
-    if (!isDesktopShell) return null;
-    return resolveDesktopShellOverlayTopbar(
-      isPartsModalOpen,
-      isTvPatioModalOpen,
-      isSettingsOpen,
-      settingsHubOpen
-    );
-  }, [
-    isDesktopShell,
-    isPartsModalOpen,
-    isTvPatioModalOpen,
-    isSettingsOpen,
-    settingsHubOpen,
-  ]);
-
   const activeDesktopSidebarAction = useMemo(() => {
     if (!isDesktopShell) return null;
     return resolveActiveDesktopSidebarAction(
@@ -216,6 +205,7 @@ export default function App() {
   // Estado para transferir dados do Histórico (Pátio) para a Recepção
   const [prefillData, setPrefillData] = useState<Customer | null>(null);
   const [receptionForcedMode, setReceptionForcedMode] = useState<'vehicle' | 'module' | null>(null);
+  const [receptionUiMode, setReceptionUiMode] = useState<'vehicle' | 'module'>('vehicle');
   const [receptionInitialModuleStatus, setReceptionInitialModuleStatus] =
     useState<ServiceOrderStatus | null>(null);
   /** Ao fechar a Recepção aberta a partir do Pátio/Lab (criar veículo/módulo ou “usar dados”), voltar para esta aba em vez do Início. */
@@ -271,6 +261,33 @@ export default function App() {
   const activeAppTab: TabId = isLimitedSystemUser ? userTab : currentTab;
   const showMobileBackgroundNotifications =
     !isDesktopShell && activeAppTab !== 'patio' && activeAppTab !== 'laboratorio';
+
+  const shellOverlayTopbar = useMemo(() => {
+    if (!isDesktopShell) return null;
+    const moduleBar = resolveDesktopShellOverlayTopbar(
+      isPartsModalOpen,
+      isTvPatioModalOpen,
+      isSettingsOpen,
+      settingsHubOpen
+    );
+    if (moduleBar) return moduleBar;
+    if (activeAppTab === 'reception') {
+      return {
+        title: receptionUiMode === 'module' ? 'Cadastro de Peças' : 'Cadastro de Veículos',
+        accent: moduleAccentColor('reception'),
+        tone: 'light' as const,
+      };
+    }
+    return null;
+  }, [
+    isDesktopShell,
+    isPartsModalOpen,
+    isTvPatioModalOpen,
+    isSettingsOpen,
+    settingsHubOpen,
+    activeAppTab,
+    receptionUiMode,
+  ]);
 
   useEffect(() => {
     if (!authSession || isDesktopShell) return;
@@ -346,29 +363,31 @@ export default function App() {
   }, []);
 
   /** Pistola USB em qualquer página: QR da OS abre a OS; demais códigos abrem peça. */
+  const handleGlobalBarcodeScan = useCallback((code: string) => {
+    const osId = parseLabOsQrPayload(code);
+    if (osId) {
+      setGlobalPartScan(null);
+      void (async () => {
+        try {
+          const detail = await getServiceOrderById(osId);
+          if (detail.order_type === 'module') {
+            handleOpenLaboratoryOrderFromPatio(osId);
+          } else {
+            handleOpenPatioOrderFromScan(osId);
+          }
+        } catch {
+          handleOpenLaboratoryOrderFromPatio(osId);
+        }
+      })();
+      return;
+    }
+    setGlobalPartScan({ code, token: Date.now() });
+  }, [handleOpenLaboratoryOrderFromPatio, handleOpenPatioOrderFromScan]);
+
   useBarcodeWedgeListener({
     enabled: Boolean(authSession),
     captureWhileFocused: true,
-    onScan: (code) => {
-      const osId = parseLabOsQrPayload(code);
-      if (osId) {
-        setGlobalPartScan(null);
-        void (async () => {
-          try {
-            const detail = await getServiceOrderById(osId);
-            if (detail.order_type === 'module') {
-              handleOpenLaboratoryOrderFromPatio(osId);
-            } else {
-              handleOpenPatioOrderFromScan(osId);
-            }
-          } catch {
-            handleOpenLaboratoryOrderFromPatio(osId);
-          }
-        })();
-        return;
-      }
-      setGlobalPartScan({ code, token: Date.now() });
-    },
+    onScan: handleGlobalBarcodeScan,
   });
 
   const openPartsWithIntent = useCallback((intent: WorkshopPartsBootIntent) => {
@@ -481,6 +500,7 @@ export default function App() {
 
   /** Enquanto existir “volta para Pátio/Lab”, o modo veículo/módulo define qual aba ao usar voltar. */
   const syncReturnTabFromReceptionMode = useCallback((mode: ServiceOrderType) => {
+    setReceptionUiMode(mode === 'module' ? 'module' : 'vehicle');
     setReturnTabAfterReception((prev) => {
       if (prev === null) return null;
       if (prev === 'agenda') return 'agenda';
@@ -728,6 +748,44 @@ export default function App() {
   useBrowserBackLayer(isSettingsOpen, () => setIsSettingsOpen(false));
   useBrowserBackLayer(isUserChangePasswordsOpen, () => setIsUserChangePasswordsOpen(false));
   useBrowserBackLayer(!!hubBudgetViewer, () => setHubBudgetViewer(null));
+  // Inventário / TVs: ESC via ModalPortal.onRequestClose (evita pilha duplicada).
+
+  const closePartsModalToHome = useCallback(() => {
+    setIsPartsModalOpen(false);
+    setPartsBootIntent(null);
+    navigateToHomeApp();
+  }, [navigateToHomeApp]);
+
+  const closeTvPatioModal = useCallback(() => {
+    setIsTvPatioModalOpen(false);
+  }, []);
+
+  useEffect(() => {
+    if (!authSession || !isDesktopShell) {
+      setSupportUnreadBadge(0);
+      return;
+    }
+    let cancelled = false;
+    const refresh = () => {
+      if (isSupportChatOpen) {
+        if (!cancelled) setSupportUnreadBadge(0);
+        return;
+      }
+      void getSupportUnreadCount()
+        .then((n) => {
+          if (!cancelled) setSupportUnreadBadge(n);
+        })
+        .catch(() => {
+          /* tabela pode ainda não existir / rede */
+        });
+    };
+    refresh();
+    const timer = window.setInterval(refresh, 20000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [authSession, isDesktopShell, isSupportChatOpen]);
 
 
   // Tela de login (antes de entrar no app)
@@ -775,6 +833,8 @@ export default function App() {
         onOpenSettings={() => setSettingsHubOpen(true)}
         onOpenProfileEditor={openShellProfileEditor}
         onLogout={handleLogout}
+        onOpenSupport={() => setIsSupportChatOpen(true)}
+        supportUnreadBadge={supportUnreadBadge}
         orcamentosBadge={patioBudgetsHub.badgeCount}
         notificationCenter={isDesktopShell ? notificationCenterProps : undefined}
         shellOverlayTopbar={shellOverlayTopbar}
@@ -1007,6 +1067,7 @@ export default function App() {
             notification={commentPopUpNotification}
             replyAuthorName={authSession.displayName ?? 'Rei do ABS'}
             replyActor="technician"
+            replyAuthorUserId={authSession.userId}
             blurPlates={cinematographicMode}
             onClose={() => setCommentPopUpNotification(null)}
           />
@@ -1036,10 +1097,7 @@ export default function App() {
           <Suspense fallback={null}>
             <LazyWorkshopPartsModal
               isOpen={isPartsModalOpen}
-              onClose={() => {
-                setIsPartsModalOpen(false);
-                setPartsBootIntent(null);
-              }}
+              onClose={closePartsModalToHome}
               bootIntent={partsBootIntent}
               onBootIntentConsumed={() => setPartsBootIntent(null)}
             />
@@ -1062,9 +1120,14 @@ export default function App() {
         ) : null}
         {isTvPatioModalOpen ? (
           <Suspense fallback={null}>
-            <LazyTvPatioModal isOpen={isTvPatioModalOpen} onClose={() => setIsTvPatioModalOpen(false)} />
+            <LazyTvPatioModal isOpen={isTvPatioModalOpen} onClose={closeTvPatioModal} />
           </Suspense>
         ) : null}
+        <SupportBugsChatModal
+          isOpen={isSupportChatOpen}
+          onClose={() => setIsSupportChatOpen(false)}
+          onUnreadChange={setSupportUnreadBadge}
+        />
         {authSession.role === 'user' ? (
           <UserProfileModal
             isOpen={shellProfileModal === 'user'}
@@ -1124,6 +1187,8 @@ export default function App() {
       }
       onOpenProfileEditor={openShellProfileEditor}
       onLogout={handleLogout}
+      onOpenSupport={() => setIsSupportChatOpen(true)}
+      supportUnreadBadge={supportUnreadBadge}
       orcamentosBadge={patioBudgetsHub.badgeCount}
       notificationCenter={isDesktopShell ? notificationCenterProps : undefined}
       shellOverlayTopbar={shellOverlayTopbar}
@@ -1304,6 +1369,7 @@ export default function App() {
               onVehicleModalOsLabelChange={setVehicleModalOsLabel}
             onClosePage={isDesktopShell ? undefined : navigateToHomeApp}
             canVerifyBudgets={canVerifyBudgetsApp}
+            requiresExplicitCommentRead={canVerifyBudgetsApp}
             canApproveBudgetItems={canApproveBudgetItemsApp}
             actorOptions={authSession?.role === 'admin' ? { actor: 'admin' } : { actor: 'technician', actorTechnicianSlug: authSession?.userId, actorTechnicianName: authSession?.displayName ?? authSession?.username }}
             />
@@ -1331,6 +1397,9 @@ export default function App() {
             openServiceOrderId={laboratorioPendingOrderId}
             openServiceOrderSection={null}
             onOpenServiceOrderHandled={handleLaboratoryOrderHandled}
+            canVerifyBudgets={canVerifyBudgetsApp}
+            requiresExplicitCommentRead={canVerifyBudgetsApp}
+            canApproveBudgetItems={canApproveBudgetItemsApp}
             actorOptions={authSession?.role === 'admin' ? { actor: 'admin' } : { actor: 'technician', actorTechnicianSlug: authSession?.userId, actorTechnicianName: authSession?.displayName ?? authSession?.username }}
             />
           </LazyTabBoundary>
@@ -1361,10 +1430,7 @@ export default function App() {
         <Suspense fallback={null}>
           <LazyWorkshopPartsModal
             isOpen={isPartsModalOpen}
-            onClose={() => {
-              setIsPartsModalOpen(false);
-              setPartsBootIntent(null);
-            }}
+            onClose={closePartsModalToHome}
             bootIntent={partsBootIntent}
             onBootIntentConsumed={() => setPartsBootIntent(null)}
           />
@@ -1387,9 +1453,14 @@ export default function App() {
       ) : null}
       {isTvPatioModalOpen ? (
         <Suspense fallback={null}>
-          <LazyTvPatioModal isOpen={isTvPatioModalOpen} onClose={() => setIsTvPatioModalOpen(false)} />
+          <LazyTvPatioModal isOpen={isTvPatioModalOpen} onClose={closeTvPatioModal} />
         </Suspense>
       ) : null}
+      <SupportBugsChatModal
+        isOpen={isSupportChatOpen}
+        onClose={() => setIsSupportChatOpen(false)}
+        onUnreadChange={setSupportUnreadBadge}
+      />
       {authSession?.role === 'admin' ? (
         <AdminProfileModal
           isOpen={shellProfileModal === 'admin'}
@@ -1428,6 +1499,7 @@ export default function App() {
           notification={commentPopUpNotification}
           replyAuthorName={authSession?.role === 'admin' ? adminDisplayName : (authSession?.displayName ?? authSession?.username ?? 'Rei do ABS')}
           replyActor={authSession?.role === 'admin' ? 'admin' : 'technician'}
+          replyAuthorUserId={authSession?.role === 'user' ? authSession.userId : null}
           blurPlates={cinematographicMode}
           onClose={() => setCommentPopUpNotification(null)}
         />

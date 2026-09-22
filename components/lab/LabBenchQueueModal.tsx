@@ -82,7 +82,7 @@ export const LabBenchQueueModal: React.FC<LabBenchQueueModalProps> = ({
                   Nenhum módulo na fila
                 </p>
                 <p className="mt-1 text-[13px] text-zinc-500 dark:text-zinc-400">
-                  Todos os produtos na bancada já têm compartimento ou não estão aguardando vaga.
+                  Todas as peças na bancada já têm compartimento ou não estão aguardando vaga.
                 </p>
               </div>
             ) : (

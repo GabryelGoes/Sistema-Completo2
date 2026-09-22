@@ -1901,13 +1901,22 @@ export async function addServiceOrderComment(
   serviceOrderId: string,
   text: string,
   authorDisplayName: string,
-  actor?: "admin" | "technician"
+  actor?: "admin" | "technician",
+  authorUserId?: string | null
 ): Promise<ServiceOrderComment> {
-  const body: { text: string; authorDisplayName: string; actor?: "admin" | "technician" } = {
+  const body: {
+    text: string;
+    authorDisplayName: string;
+    actor?: "admin" | "technician";
+    authorUserId?: string;
+  } = {
     text: text.trim(),
     authorDisplayName: authorDisplayName.trim(),
   };
   if (actor) body.actor = actor;
+  if (typeof authorUserId === "string" && authorUserId.trim()) {
+    body.authorUserId = authorUserId.trim();
+  }
   const response = await fetch(`${API_BASE}/service-orders/${serviceOrderId}/comments`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -1931,6 +1940,48 @@ export async function deleteServiceOrderComment(
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
     throw new Error(err.error || `Falha ao excluir comentário (${response.status})`);
+  }
+}
+
+/** Contagem de comentários não lidos por OS (Pátio / Laboratório). */
+export async function getServiceOrderCommentUnreadCounts(
+  orderType?: ServiceOrderType
+): Promise<{
+  counts: Record<string, number>;
+  requiresExplicitRead: boolean;
+  readerKey: string;
+}> {
+  const params = new URLSearchParams();
+  if (orderType === "vehicle" || orderType === "module") params.set("orderType", orderType);
+  const qs = params.toString();
+  const response = await fetch(
+    `${API_BASE}/service-orders/comment-unread-counts${qs ? `?${qs}` : ""}`
+  );
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao carregar não lidas (${response.status})`);
+  }
+  const data = (await response.json()) as {
+    counts?: Record<string, number>;
+    requiresExplicitRead?: boolean;
+    readerKey?: string;
+  };
+  return {
+    counts: data.counts && typeof data.counts === "object" ? data.counts : {},
+    requiresExplicitRead: data.requiresExplicitRead === true,
+    readerKey: typeof data.readerKey === "string" ? data.readerKey : "",
+  };
+}
+
+/** Marca os comentários da OS como lidos para o usuário atual. */
+export async function markServiceOrderCommentsRead(serviceOrderId: string): Promise<void> {
+  const response = await fetch(
+    `${API_BASE}/service-orders/${encodeURIComponent(serviceOrderId)}/comments/read`,
+    { method: "POST" }
+  );
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || "Falha ao marcar comentários como lidos.");
   }
 }
 
@@ -2194,6 +2245,84 @@ export async function deleteWorkshopReminderRemote(id: string, scope: WorkshopRe
   if (!response.ok && response.status !== 204) {
     const err = await response.json().catch(() => ({}));
     throw new Error(err.error || "Falha ao excluir lembrete.");
+  }
+}
+
+// ---------- Suporte / Bugs (chat) ----------
+
+export type SupportMessageAuthorKind = "admin" | "user";
+
+export interface SupportChatMessage {
+  id: string;
+  body: string;
+  authorKind: SupportMessageAuthorKind;
+  authorUserId: string | null;
+  authorName: string;
+  authorColor: string;
+  authorPhotoUrl: string | null;
+  isStaffReply: boolean;
+  createdAt: string;
+}
+
+export interface SupportChatMe {
+  readerKey: string;
+  name: string;
+  color: string;
+  photoUrl: string | null;
+  canDelete: boolean;
+  canReply: boolean;
+}
+
+export async function getSupportChatMessages(): Promise<{
+  messages: SupportChatMessage[];
+  me: SupportChatMe;
+}> {
+  const response = await fetch(`${API_BASE}/support/messages`);
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao carregar o chat de suporte (${response.status})`);
+  }
+  return response.json();
+}
+
+export async function getSupportUnreadCount(): Promise<number> {
+  const response = await fetch(`${API_BASE}/support/unread-count`);
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao consultar não lidas (${response.status})`);
+  }
+  const data = await response.json();
+  return typeof data?.count === "number" ? data.count : 0;
+}
+
+export async function markSupportChatRead(): Promise<void> {
+  const response = await fetch(`${API_BASE}/support/read`, { method: "POST" });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || "Falha ao marcar como lido.");
+  }
+}
+
+export async function postSupportChatMessage(body: string): Promise<SupportChatMessage> {
+  const response = await fetch(`${API_BASE}/support/messages`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ body }),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || "Falha ao enviar mensagem.");
+  }
+  return response.json();
+}
+
+export async function deleteSupportChatMessage(id: string): Promise<void> {
+  const response = await fetch(`${API_BASE}/support/messages/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+  });
+  if (!response.ok && response.status !== 204) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || "Falha ao excluir mensagem.");
   }
 }
 
@@ -4019,6 +4148,7 @@ export interface WorkshopUserOption {
   id: string;
   username: string;
   displayName: string;
+  fullAccess?: boolean;
 }
 
 export interface SystemNotificationsSubscriberRow {
@@ -4031,6 +4161,10 @@ export interface SystemNotificationsConfig {
   adminNotificationTypes: string[];
   subscribers: SystemNotificationsSubscriberRow[];
   availableUsers: WorkshopUserOption[];
+  /** Usuários com acesso total (para o modal imediato de comentários). */
+  fullAccessUsers: WorkshopUserOption[];
+  /** IDs de usuários full_access que também recebem o modal de chat ao vivo. */
+  commentPopupRecipientIds: string[];
 }
 
 export async function getSystemNotificationsConfig(): Promise<SystemNotificationsConfig> {
@@ -4039,13 +4173,21 @@ export async function getSystemNotificationsConfig(): Promise<SystemNotification
     const err = await response.json().catch(() => ({}));
     throw new Error(err.error || "Falha ao carregar notificações do sistema.");
   }
-  return response.json();
+  const data = (await response.json()) as SystemNotificationsConfig;
+  return {
+    adminNotificationTypes: data.adminNotificationTypes ?? [],
+    subscribers: data.subscribers ?? [],
+    availableUsers: data.availableUsers ?? [],
+    fullAccessUsers: data.fullAccessUsers ?? [],
+    commentPopupRecipientIds: data.commentPopupRecipientIds ?? [],
+  };
 }
 
 export async function saveSystemNotificationsConfig(body: {
-  adminPassword: string;
+  adminPassword?: string;
   adminNotificationTypes: string[];
   subscribers: { systemUserId: string; notificationTypes: string[] }[];
+  commentPopupRecipientIds?: string[];
 }): Promise<void> {
   const response = await fetch(`${API_BASE}/workshop/system-notifications`, {
     method: "PUT",

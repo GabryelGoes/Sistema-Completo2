@@ -24,6 +24,7 @@ import {
 import type { TvMediaObjectFit, TvMediaItem, TvScope, TvSlide, TvSlideType } from '../services/apiService';
 import {
   getTvManage,
+  getServiceOrders,
   normalizeTvMediaObjectFit,
   putTvWeeklyGoal,
   putTvChimeSchedule,
@@ -43,8 +44,13 @@ import { playTvChimePreSound, playTvChimeSound } from '../utils/tvChimeAudio';
 import { useTvChimeSchedule, type TvChimeFirePayload } from '../hooks/useTvChimeSchedule';
 import { TvChimeBannerCard } from './TvChimeBannerCard';
 import { TvPatioPreview } from './TvPatioPreview';
+import { useTvLiveBoardRotation } from '../hooks/useTvLiveBoardRotation';
+import { mapServiceOrdersToTvBoard, type TvBoardItem } from '../utils/tvBoardPreview';
 import { ModalPortal } from './ui/ModalPortal';
 import { IosAccentIconSquircle } from './ui/IosAccentIconSquircle';
+import { useDesktopShellLayout } from './ui/DesktopShellContext';
+import { SETTINGS_CHILD_MODAL_Z } from './ui/iosModalStyles';
+import { desktopShellViewportOverlayClass } from '../utils/desktopShellOverlay';
 import { isTvImageFile, isTvVideoFile, TV_VIDEO_ACCEPT } from '../utils/tvMediaFile';
 import {
   isLocalVideoMediaUrl,
@@ -95,7 +101,7 @@ const CHIME_WEEKDAY_OPTS: { v: number; short: string }[] = [
   { v: 6, short: 'Sáb' },
 ];
 
-const tvMediaLabel = 'text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500 mb-2';
+const tvMediaLabel = 'text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500 dark:text-zinc-400 mb-2';
 
 function formatMediaDate(iso: string): string {
   if (!iso) return '';
@@ -146,9 +152,9 @@ function TvVideoMediaBlock({
 
   return (
     <div className="space-y-3">
-      <div className="rounded-2xl border border-[#007AFF]/25 bg-blue-50/60 px-3 py-2.5">
-        <p className="text-[13px] font-semibold text-zinc-900">Vídeos na rotação desta página</p>
-        <p className="mt-1 text-[11px] leading-relaxed text-zinc-600">
+      <div className="rounded-2xl border border-[#007AFF]/25 bg-blue-50/60 dark:bg-blue-950/40 px-3 py-2.5">
+        <p className="text-[13px] font-semibold text-zinc-900 dark:text-zinc-100">Vídeos na rotação desta página</p>
+        <p className="mt-1 text-[11px] leading-relaxed text-zinc-600 dark:text-zinc-400">
           Adicione quantos vídeos quiser no mesmo slide. Na TV: páginas do pátio → slide de vídeo (1º arquivo) →
           páginas do pátio → mesmo slide (2º arquivo) → e assim por diante, alternando a cada volta.
         </p>
@@ -159,15 +165,15 @@ function TvVideoMediaBlock({
           {playlist.map((url, index) => (
             <li
               key={`${url}-${index}`}
-              className="flex items-center gap-2 rounded-2xl border border-zinc-200/90 bg-white px-2.5 py-2"
+              className="flex items-center gap-2 rounded-2xl border border-zinc-200/90 dark:border-white/[0.12] bg-white dark:bg-zinc-900 px-2.5 py-2"
             >
               <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-zinc-900 text-[11px] font-black text-white">
                 {index + 1}
               </span>
               <div className="min-w-0 flex-1">
-                <p className="truncate text-[13px] font-semibold text-zinc-900">{videoUrlLabel(url)}</p>
+                <p className="truncate text-[13px] font-semibold text-zinc-900 dark:text-zinc-100">{videoUrlLabel(url)}</p>
                 {isLocalVideoMediaUrl(url) && (
-                  <p className="truncate text-[10px] text-emerald-700">Pasta do PC · {localVideoMediaFileName(url)}</p>
+                  <p className="truncate text-[10px] text-emerald-700 dark:text-emerald-400">Pasta do PC · {localVideoMediaFileName(url)}</p>
                 )}
               </div>
               <div className="flex shrink-0 items-center gap-1">
@@ -175,7 +181,7 @@ function TvVideoMediaBlock({
                   type="button"
                   onClick={() => move(index, -1)}
                   disabled={index === 0}
-                  className="rounded-lg p-1.5 text-zinc-500 hover:bg-zinc-100 disabled:opacity-30"
+                  className="rounded-lg p-1.5 text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-white/[0.08] disabled:opacity-30"
                   title="Subir"
                 >
                   <ChevronUp className="h-4 w-4" />
@@ -184,7 +190,7 @@ function TvVideoMediaBlock({
                   type="button"
                   onClick={() => move(index, 1)}
                   disabled={index === playlist.length - 1}
-                  className="rounded-lg p-1.5 text-zinc-500 hover:bg-zinc-100 disabled:opacity-30"
+                  className="rounded-lg p-1.5 text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-white/[0.08] disabled:opacity-30"
                   title="Descer"
                 >
                   <ChevronDown className="h-4 w-4" />
@@ -202,7 +208,7 @@ function TvVideoMediaBlock({
           ))}
         </ul>
       ) : (
-        <p className="rounded-2xl border border-dashed border-zinc-300 bg-zinc-50 px-3 py-4 text-center text-[12px] text-zinc-500">
+        <p className="rounded-2xl border border-dashed border-zinc-300 bg-zinc-50 dark:bg-zinc-900/60 px-3 py-4 text-center text-[12px] text-zinc-500 dark:text-zinc-400">
           Nenhum vídeo na rotação. Adicione pelo botão abaixo ou pela nuvem.
         </p>
       )}
@@ -234,8 +240,8 @@ function TvVideoMediaBlock({
         </p>
       )}
 
-      <details className="rounded-2xl border border-zinc-200/80 bg-zinc-50/80 p-3">
-        <summary className="cursor-pointer text-[12px] font-semibold text-zinc-700">
+      <details className="rounded-2xl border border-zinc-200/80 dark:border-white/[0.1] bg-zinc-50/80 dark:bg-zinc-900/60 p-3">
+        <summary className="cursor-pointer text-[12px] font-semibold text-zinc-700 dark:text-zinc-300">
           Ou enviar vídeo curto na nuvem (até {TV_SHORT_VIDEO_MAX_MB} MB)
         </summary>
         <div className="mt-3 space-y-3">
@@ -257,7 +263,7 @@ function TvVideoMediaBlock({
             onChange={onCloudFileChange}
           />
           {libraryLoading ? (
-            <p className="text-[12px] text-zinc-500">Carregando biblioteca…</p>
+            <p className="text-[12px] text-zinc-500 dark:text-zinc-400">Carregando biblioteca…</p>
           ) : videos.length > 0 ? (
             <ul className="max-h-36 space-y-1.5 overflow-y-auto">
               {videos.map((v) => (
@@ -265,7 +271,7 @@ function TvVideoMediaBlock({
                   <button
                     type="button"
                     onClick={() => onPlaylistChange(addVideoToPlaylist(playlist, v.mediaUrl))}
-                    className="min-w-0 flex-1 rounded-xl border border-zinc-200/80 bg-white px-2.5 py-2 text-left text-[12px] font-medium text-zinc-800 truncate"
+                    className="min-w-0 flex-1 rounded-xl border border-zinc-200/80 dark:border-white/[0.1] bg-white dark:bg-zinc-900 px-2.5 py-2 text-left text-[12px] font-medium text-zinc-800 dark:text-zinc-200 truncate"
                   >
                     + {v.title || v.fileName}
                   </button>
@@ -285,15 +291,15 @@ function TvVideoMediaBlock({
         </div>
       </details>
 
-      <details className="rounded-2xl border border-zinc-200/80 bg-zinc-50/80 p-3">
-        <summary className="cursor-pointer text-[12px] font-semibold text-zinc-700">
+      <details className="rounded-2xl border border-zinc-200/80 dark:border-white/[0.1] bg-zinc-50/80 dark:bg-zinc-900/60 p-3">
+        <summary className="cursor-pointer text-[12px] font-semibold text-zinc-700 dark:text-zinc-300">
           Ou link da internet (YouTube, etc.)
         </summary>
         <div className="mt-3 flex gap-2">
           <input
             value={linkDraft}
             onChange={(e) => setLinkDraft(e.target.value)}
-            className="min-w-0 flex-1 rounded-2xl border border-zinc-200/90 bg-white px-4 py-3 text-[14px]"
+            className="min-w-0 flex-1 rounded-2xl border border-zinc-200/90 dark:border-white/[0.12] bg-white dark:bg-zinc-900 px-4 py-3 text-[14px]"
             placeholder="https://..."
           />
           <button
@@ -325,6 +331,7 @@ interface TvPatioModalProps {
 }
 
 export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) => {
+  const isDesktopShell = useDesktopShellLayout();
   const [tvScope, setTvScope] = useState<TvScope>('patio');
   const [dataReady, setDataReady] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -355,8 +362,10 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
   const [newMediaFullscreen, setNewMediaFullscreen] = useState(true);
   const [newMediaObjectFit, setNewMediaObjectFit] = useState<TvMediaObjectFit>('cover');
 
-  const [previewTab, setPreviewTab] = useState<'draft' | 'library' | 'chimes'>('draft');
+  const [previewTab, setPreviewTab] = useState<'live' | 'draft' | 'library'>('live');
   const [libraryPreviewId, setLibraryPreviewId] = useState<string | null>(null);
+  const [boardItems, setBoardItems] = useState<TvBoardItem[]>([]);
+  const [boardLoading, setBoardLoading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const editFileInputRef = useRef<HTMLInputElement>(null);
 
@@ -392,14 +401,6 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
     kind: TvChimeKind;
     phase: 'pre' | 'main';
   } | null>(null);
-  /** Pré-visualização da faixa dentro do frame “TV” (aba Horários). */
-  const [chimeFiringPreviewInTv, setChimeFiringPreviewInTv] = useState<{
-    phase: 'pre' | 'main';
-    kind: TvChimeKind;
-    title: string;
-    message: string;
-  } | null>(null);
-  const [chimePreviewPickId, setChimePreviewPickId] = useState<string | null>(null);
   /** Secção de avisos programados: minimizada por defeito. */
   const [chimeSectionExpanded, setChimeSectionExpanded] = useState(false);
   const chimeConfigRef = useRef(chimeConfig);
@@ -418,7 +419,20 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
     }
   };
 
-  const load = async () => {
+  const loadBoard = useCallback(async () => {
+    setBoardLoading(true);
+    try {
+      const orderType = tvScope === 'laboratorio' ? 'module' : 'vehicle';
+      const rows = await getServiceOrders(undefined, orderType);
+      setBoardItems(mapServiceOrdersToTvBoard(rows, tvScope));
+    } catch {
+      setBoardItems([]);
+    } finally {
+      setBoardLoading(false);
+    }
+  }, [tvScope]);
+
+  const load = async (preferSlideId?: string | null) => {
     setLoading(true);
     setError(null);
     try {
@@ -433,9 +447,11 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
         setShowWeeklyBar(data.weeklyGoal.showWeeklyBar !== false);
       }
       setDataReady(true);
-      if (data.slides.length > 0) {
-        setLibraryPreviewId(data.slides[0].id);
-      }
+      const prefer =
+        preferSlideId && data.slides.some((s) => s.id === preferSlideId)
+          ? preferSlideId
+          : data.slides[0]?.id ?? null;
+      if (prefer) setLibraryPreviewId(prefer);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Erro ao carregar.');
       setDataReady(false);
@@ -448,14 +464,13 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
     if (!isOpen) {
       setDataReady(false);
       setError(null);
-      setPreviewTab('draft');
+      setPreviewTab('live');
       setEditingSlideId(null);
       setEditForm(null);
       setChimeBanner(null);
-      setChimeFiringPreviewInTv(null);
-      setChimePreviewPickId(null);
       setChimeSectionExpanded(false);
       setUploadFeedback(null);
+      setBoardItems([]);
       if (chimeBannerTimerRef.current) {
         window.clearTimeout(chimeBannerTimerRef.current);
         chimeBannerTimerRef.current = null;
@@ -464,7 +479,16 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
     }
     void load();
     void loadMediaLibrary();
-  }, [isOpen, tvScope]);
+    void loadBoard();
+  }, [isOpen, tvScope, loadBoard]);
+
+  /** Atualiza o quadro ao vivo enquanto o preview "Ao vivo" está aberto. */
+  useEffect(() => {
+    if (!isOpen || !dataReady || previewTab !== 'live') return;
+    void loadBoard();
+    const t = window.setInterval(() => void loadBoard(), 15_000);
+    return () => window.clearInterval(t);
+  }, [isOpen, dataReady, previewTab, loadBoard]);
 
   const draftSlide = useMemo((): TvSlide | null => {
     if (newType === 'goal') {
@@ -593,15 +617,29 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
   }, [weeklyTargetStr]);
 
   /** No preview: barra só quando simula lista de veículos (não quando há slide em tela cheia). */
+  const liveBoard = useTvLiveBoardRotation(
+    boardItems,
+    slides,
+    isOpen && dataReady && previewTab === 'live'
+  );
+
   const previewShowsWeeklyStrip = useMemo(
     () =>
       showWeeklyBar &&
       weeklyTargetNum > 0 &&
       !(
+        (previewTab === 'live' && liveBoard.frame?.kind === 'slide') ||
         (previewTab === 'draft' && draftSlide !== null) ||
         (previewTab === 'library' && librarySlide !== null)
       ),
-    [showWeeklyBar, weeklyTargetNum, previewTab, draftSlide, librarySlide]
+    [
+      showWeeklyBar,
+      weeklyTargetNum,
+      previewTab,
+      liveBoard.frame,
+      draftSlide,
+      librarySlide,
+    ]
   );
 
   const currentTypeMeta = useMemo(
@@ -649,13 +687,6 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
     () => chimeConfig.alerts.filter((a) => a.enabled),
     [chimeConfig.alerts]
   );
-
-  const chimePreviewEffectiveAlertId = useMemo(() => {
-    if (chimePreviewPickId && enabledChimeAlerts.some((a) => a.id === chimePreviewPickId)) {
-      return chimePreviewPickId;
-    }
-    return enabledChimeAlerts[0]?.id ?? null;
-  }, [chimePreviewPickId, enabledChimeAlerts]);
 
   const cloudVideos = useMemo(
     () => mediaLibrary.filter((m) => m.mediaType === 'video'),
@@ -773,6 +804,8 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
         setEditForm((f) => (f ? { ...f, mediaPlaylist: next, slideType: 'video' } : f));
       }
       await saveVideoPlaylist(slideId, next, successText);
+      setLibraryPreviewId(slideId);
+      setPreviewTab('library');
       return;
     }
     setNewMediaPlaylist((list) => addVideoToPlaylist(list, url));
@@ -783,10 +816,6 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
       text: successText ?? 'Vídeo adicionado. Toque em «Adicionar à rotação» para criar o slide.',
     });
   };
-
-  useEffect(() => {
-    if (previewTab !== 'chimes') setChimeFiringPreviewInTv(null);
-  }, [previewTab]);
 
   if (!isOpen) return null;
 
@@ -859,7 +888,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
     setError(null);
     try {
       const videoMedia = newType === 'video' ? mediaPlaylistForSave(newMediaPlaylist) : null;
-      await createTvSlide(
+      const createdId = await createTvSlide(
         {
           slideType: newType,
           title: newTitle,
@@ -885,7 +914,11 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
       setNewMediaPlaylist([]);
       setNewMediaFullscreen(true);
       setNewMediaObjectFit('cover');
-      await load();
+      await load(createdId || null);
+      if (createdId) {
+        setLibraryPreviewId(createdId);
+        setPreviewTab('library');
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Erro');
     } finally {
@@ -969,8 +1002,13 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
     try {
       const { url } = await uploadTvPatioMedia(file, tvScope);
       setNewMediaUrl(url);
-      if (isTvVideoFile(file)) setNewType('video');
-      else if (isTvImageFile(file)) setNewType('image');
+      if (isTvVideoFile(file)) {
+        setNewType('video');
+        setNewMediaPlaylist((list) => (list.includes(url) ? list : [...list, url]));
+      } else if (isTvImageFile(file)) {
+        setNewType('image');
+      }
+      setPreviewTab('draft');
       await loadMediaLibrary();
       setUploadFeedback({ tone: 'success', text: `Arquivo enviado: ${file.name}` });
     } catch (err) {
@@ -1173,23 +1211,50 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
     }
   };
 
-  const iosCard =
-    'rounded-[22px] border-0 bg-white/70 backdrop-blur-2xl shadow-none';
+  const iosCard = isDesktopShell
+    ? 'rounded-xl border border-zinc-200/70 bg-white/85 shadow-none dark:border-white/[0.1] dark:bg-zinc-900/90'
+    : 'rounded-[22px] border-0 bg-white/70 dark:bg-zinc-900/80 backdrop-blur-2xl shadow-none';
 
-  /** Fundo único claro (igual à área do preview) em todo o painel da TV do pátio */
+  /** Fundo do painel acompanha tema claro/escuro do sistema */
   const tvPatioShellBg =
-    'bg-gradient-to-b from-zinc-100/90 via-white/95 to-zinc-50/90';
+    'bg-gradient-to-b from-zinc-100/90 via-white/95 to-zinc-50/90 dark:from-zinc-950 dark:via-zinc-950 dark:to-zinc-900';
 
-  const iosInput =
-    'w-full rounded-2xl border border-zinc-200/90 bg-white/90 px-4 py-3 text-[15px] text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/35 focus:border-[#007AFF]/50 transition-shadow';
+  const iosInput = isDesktopShell
+    ? 'w-full rounded-lg border border-zinc-200/90 dark:border-white/[0.12] bg-white dark:bg-zinc-950/60 px-2.5 py-1.5 text-[12px] text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/30 focus:border-[#007AFF]/45 transition-shadow'
+    : 'w-full rounded-2xl border border-zinc-200/90 dark:border-white/[0.12] bg-white/90 dark:bg-zinc-950/50 px-4 py-3 text-[15px] text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/35 focus:border-[#007AFF]/50 transition-shadow';
 
-  const iosLabel = 'text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500 mb-2';
+  const iosLabel = isDesktopShell
+    ? 'text-[9px] font-semibold uppercase tracking-[0.1em] text-zinc-500 mb-1 dark:text-zinc-400'
+    : 'text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500 mb-2 dark:text-zinc-400';
+
+  const sectionPad = isDesktopShell ? 'p-3' : 'p-5 sm:p-6';
+
+  const livePreviewSlide =
+    previewTab === 'live'
+      ? liveBoard.frame?.kind === 'slide'
+        ? liveBoard.frame.slide
+        : null
+      : previewSlide;
+
+  const liveBoardFrame = previewTab === 'live' && liveBoard.frame?.kind === 'board' ? liveBoard.frame : null;
+  const liveBoardPageLabel =
+    liveBoardFrame && liveBoard.totalPages > 0
+      ? `PÁGINA ${liveBoard.page + 1} · ${liveBoard.totalPages}`
+      : null;
 
   return (
-    <ModalPortal>
-      <div className="fixed inset-0 z-[120] flex items-stretch justify-stretch bg-black/45 backdrop-blur-[20px]">
+    <ModalPortal manageBackLayer onRequestClose={onClose}>
+      <div
+        className={`${desktopShellViewportOverlayClass(isDesktopShell, SETTINGS_CHILD_MODAL_Z)} flex min-h-0 w-full min-w-0 flex-1 flex-col items-stretch justify-stretch overflow-hidden bg-black/45 backdrop-blur-[20px]${
+          isDesktopShell ? '' : ' inset-0 h-[100dvh]'
+        }`}
+      >
       {chimeBanner && (
-        <div className="pointer-events-none fixed inset-0 z-[125] flex items-center justify-center bg-black/55 p-3 sm:p-6">
+        <div
+          className={`pointer-events-none z-[125] flex items-center justify-center bg-black/55 p-3 sm:p-6 ${
+            isDesktopShell ? 'absolute inset-0' : 'fixed inset-0'
+          }`}
+        >
           <TvChimeBannerCard
             variant="display"
             phase={chimeBanner.phase}
@@ -1208,22 +1273,34 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
         </div>
       )}
       <div
-        className={`relative flex h-[100dvh] w-screen max-w-none min-h-0 flex-1 flex-col overflow-hidden text-zinc-900 max-lg:portrait:overflow-y-auto max-lg:portrait:overflow-x-hidden max-lg:landscape:flex-col lg:grid lg:min-h-0 ${
-          dataReady ? 'lg:grid-cols-[minmax(0,1fr)_min(420px,100%)]' : 'lg:grid-cols-1'
+        className={`relative flex min-h-0 flex-1 flex-col overflow-hidden text-zinc-900 dark:text-zinc-100 max-lg:portrait:overflow-y-auto max-lg:portrait:overflow-x-hidden max-lg:landscape:flex-col lg:grid lg:min-h-0 ${
+          isDesktopShell ? 'h-full w-full max-w-none' : 'h-[100dvh] w-screen max-w-none'
+        } ${
+          dataReady
+            ? isDesktopShell
+              ? 'lg:grid-cols-[minmax(0,1.05fr)_minmax(320px,40%)]'
+              : 'lg:grid-cols-[minmax(0,1fr)_min(420px,100%)]'
+            : 'lg:grid-cols-1'
         } lg:grid-rows-[auto_minmax(0,1fr)] ${tvPatioShellBg} rounded-none border-0 shadow-none`}
-        style={{ colorScheme: 'light' }}
       >
-        <button
-          type="button"
-          onClick={onClose}
-          className="absolute top-4 right-4 z-20 flex h-10 w-10 items-center justify-center rounded-full bg-black/5 text-zinc-600 hover:bg-black/10 transition-colors"
-          aria-label="Fechar"
-        >
-          <X className="w-5 h-5" />
-        </button>
+        {!isDesktopShell ? (
+          <button
+            type="button"
+            onClick={onClose}
+            className="absolute top-4 right-4 z-20 flex h-10 w-10 items-center justify-center rounded-full bg-black/5 dark:bg-white/10 text-zinc-600 dark:text-zinc-400 hover:bg-black/10 dark:hover:bg-white/15 transition-colors"
+            aria-label="Fechar"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        ) : null}
 
         {/* Cabeçalho: em portrait fica no topo; em telas largas, canto superior esquerdo do grid */}
-        <header className="shrink-0 px-6 pt-8 pb-6 sm:px-8 max-lg:landscape:order-2 lg:col-start-1 lg:row-start-1 lg:pr-12">
+        <header
+          className={`shrink-0 px-6 sm:px-8 max-lg:landscape:order-2 lg:col-start-1 lg:row-start-1 lg:pr-12 ${
+            isDesktopShell ? 'pt-4 pb-4' : 'pt-8 pb-6'
+          }`}
+        >
+          {!isDesktopShell ? (
           <div className="flex items-center gap-3 mb-1">
             <IosAccentIconSquircle variant="modal" strokeWidth={2.2}>
               <img
@@ -1233,10 +1310,10 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
               />
             </IosAccentIconSquircle>
             <div>
-              <h2 className="text-[22px] sm:text-[26px] font-semibold tracking-tight text-zinc-900 leading-tight">
-                TVs da oficina
+              <h2 className="text-[22px] sm:text-[26px] font-semibold tracking-tight text-zinc-900 dark:text-zinc-100 leading-tight">
+                Painéis de TV
               </h2>
-              <p className="text-[13px] text-zinc-500 mt-0.5 flex items-center gap-1.5">
+              <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-0.5 flex items-center gap-1.5">
                 <Sparkles className={`w-3.5 h-3.5 ${tvScope === 'laboratorio' ? 'text-violet-500' : 'text-brand-yellow'}`} />
                 {tvScope === 'laboratorio'
                   ? 'Conteúdo entre as páginas de módulos (Laboratório)'
@@ -1244,19 +1321,20 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
               </p>
             </div>
           </div>
-          <div className="mt-4 flex max-w-md gap-1 rounded-2xl bg-zinc-200/70 p-1">
+          ) : null}
+          <div className={`flex max-w-md gap-1 rounded-2xl bg-zinc-200/70 dark:bg-zinc-800/80 p-1 ${isDesktopShell ? '' : 'mt-4'}`}>
             <button
               type="button"
               onClick={() => {
                 setTvScope('patio');
-                setPreviewTab('draft');
+                setPreviewTab('live');
                 setEditingSlideId(null);
                 setEditForm(null);
               }}
               className={`flex-1 rounded-xl py-2.5 text-[12px] font-semibold transition-all ${
                 tvScope === 'patio'
-                  ? 'bg-white text-zinc-900 shadow-md'
-                  : 'text-zinc-600 hover:text-zinc-900'
+                  ? 'bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 shadow-md'
+                  : 'text-zinc-600 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-zinc-200'
               }`}
             >
               TV Pátio
@@ -1265,14 +1343,14 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
               type="button"
               onClick={() => {
                 setTvScope('laboratorio');
-                setPreviewTab('draft');
+                setPreviewTab('live');
                 setEditingSlideId(null);
                 setEditForm(null);
               }}
               className={`flex-1 rounded-xl py-2.5 text-[12px] font-semibold transition-all ${
                 tvScope === 'laboratorio'
-                  ? 'bg-white text-violet-900 shadow-md ring-1 ring-violet-200'
-                  : 'text-zinc-600 hover:text-violet-900'
+                  ? 'bg-white dark:bg-zinc-900 text-violet-900 dark:text-violet-200 shadow-md ring-1 ring-violet-200 dark:ring-violet-500/40'
+                  : 'text-zinc-600 dark:text-zinc-400 hover:text-violet-900 dark:hover:text-violet-200'
               }`}
             >
               TV Laboratório
@@ -1282,23 +1360,45 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
 
         {/* Preview — em portrait: logo abaixo do cabeçalho; em lg: coluna direita */}
         {dataReady && (
-          <div className="flex max-lg:landscape:order-1 shrink-0 flex-col border-b border-zinc-200/60 bg-transparent px-5 py-8 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:border-b-0 lg:border-l lg:border-t-0 lg:border-zinc-200/50 lg:py-10">
+          <div
+            className={`flex max-lg:landscape:order-1 shrink-0 flex-col border-b border-zinc-200/60 dark:border-white/[0.08] bg-transparent lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:border-b-0 lg:border-l lg:border-t-0 lg:border-zinc-200/50 dark:lg:border-white/[0.08] ${
+              isDesktopShell ? 'px-4 py-4' : 'px-5 py-8 lg:py-10'
+            }`}
+          >
             <div className="portrait:order-2 lg:order-1 max-lg:portrait:mt-9">
-              <div className="mb-4 flex items-center gap-2 max-lg:portrait:mb-5">
+              <div className={`flex items-center gap-2 ${isDesktopShell ? 'mb-2' : 'mb-4 max-lg:portrait:mb-5'}`}>
                 <Eye className="h-4 w-4 text-[#007AFF]" />
-                <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-zinc-500">
+                <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400">
                   Preview ao vivo
                 </span>
+                {previewTab === 'live' && liveBoard.queueLength > 0 ? (
+                  <span className="ml-auto rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-bold tabular-nums text-emerald-700 dark:text-emerald-400">
+                    {liveBoard.page + 1}/{liveBoard.totalPages}
+                    {boardLoading ? ' · …' : ''}
+                  </span>
+                ) : null}
               </div>
 
-              <div className="mb-5 grid grid-cols-3 gap-1 rounded-2xl bg-zinc-200/60 p-1">
+              <div className={`grid grid-cols-3 gap-1 rounded-2xl bg-zinc-200/60 dark:bg-zinc-800/70 p-1 ${isDesktopShell ? 'mb-3' : 'mb-5'}`}>
+                <button
+                  type="button"
+                  onClick={() => setPreviewTab('live')}
+                  className={`flex flex-1 items-center justify-center gap-1 rounded-xl py-2 text-[10px] font-semibold transition-all sm:text-[11px] ${
+                    previewTab === 'live'
+                      ? 'bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 shadow-md'
+                      : 'text-zinc-500 dark:text-zinc-400'
+                  }`}
+                >
+                  <Eye className="h-3.5 w-3.5 shrink-0" />
+                  <span className="truncate">Ao vivo</span>
+                </button>
                 <button
                   type="button"
                   onClick={() => setPreviewTab('draft')}
-                  className={`flex flex-1 items-center justify-center gap-1 rounded-xl py-2.5 text-[11px] font-semibold transition-all sm:text-[12px] ${
+                  className={`flex flex-1 items-center justify-center gap-1 rounded-xl py-2 text-[10px] font-semibold transition-all sm:text-[11px] ${
                     previewTab === 'draft'
-                      ? 'bg-white text-zinc-900 shadow-md'
-                      : 'text-zinc-500'
+                      ? 'bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 shadow-md'
+                      : 'text-zinc-500 dark:text-zinc-400'
                   }`}
                 >
                   <Sparkles className="h-3.5 w-3.5 shrink-0" />
@@ -1308,110 +1408,16 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                   type="button"
                   onClick={() => setPreviewTab('library')}
                   disabled={slides.length === 0}
-                  className={`flex flex-1 items-center justify-center gap-1 rounded-xl py-2.5 text-[11px] font-semibold transition-all disabled:opacity-35 sm:text-[12px] ${
+                  className={`flex flex-1 items-center justify-center gap-1 rounded-xl py-2 text-[10px] font-semibold transition-all disabled:opacity-35 sm:text-[11px] ${
                     previewTab === 'library'
-                      ? 'bg-white text-zinc-900 shadow-md'
-                      : 'text-zinc-500'
+                      ? 'bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 shadow-md'
+                      : 'text-zinc-500 dark:text-zinc-400'
                   }`}
                 >
                   <ListVideo className="h-3.5 w-3.5 shrink-0" />
                   <span className="truncate">Na fila</span>
                 </button>
-                <button
-                  type="button"
-                  onClick={() => setPreviewTab('chimes')}
-                  className={`flex flex-1 items-center justify-center gap-1 rounded-xl py-2.5 text-[11px] font-semibold transition-all sm:text-[12px] ${
-                    previewTab === 'chimes'
-                      ? 'bg-white text-zinc-900 shadow-md'
-                      : 'text-zinc-500'
-                  }`}
-                >
-                  <Clock className="h-3.5 w-3.5 shrink-0" />
-                  <span className="truncate">Horários</span>
-                </button>
               </div>
-
-              {previewTab === 'chimes' && (
-                <div className="mb-4 space-y-3 rounded-2xl border border-amber-200/80 bg-amber-50/40 px-3 py-3">
-                  <p className={`${iosLabel} mb-0 text-amber-900/90`}>Pré-visualizar faixa no painel</p>
-                  <p className="text-[12px] leading-snug text-zinc-600">
-                    Mesma aparência da faixa quando o horário disparar (pré-aviso ou no horário). Opcional: toca o som conforme a configuração.
-                  </p>
-                  {enabledChimeAlerts.length === 0 ? (
-                    <p className="text-[12px] text-zinc-500">
-                      Ative pelo menos um aviso na lista desta secção para simular.
-                    </p>
-                  ) : (
-                    <>
-                      <label className={`${iosLabel} text-zinc-600`}>Aviso</label>
-                      <select
-                        value={chimePreviewEffectiveAlertId ?? ''}
-                        onChange={(e) => setChimePreviewPickId(e.target.value || null)}
-                        className={`${iosInput} text-[13px]`}
-                      >
-                        {enabledChimeAlerts.map((a) => (
-                          <option key={a.id} value={a.id}>
-                            {a.label || 'Sem nome'} ({a.time})
-                          </option>
-                        ))}
-                      </select>
-                      <div className="flex flex-wrap gap-2 pt-1">
-                        <button
-                          type="button"
-                          disabled={chimeConfig.preNotifyMinutes <= 0}
-                          onClick={() => {
-                            const id = chimePreviewEffectiveAlertId;
-                            if (!id || chimeConfig.preNotifyMinutes <= 0) return;
-                            const alert = enabledChimeAlerts.find((x) => x.id === id);
-                            if (!alert) return;
-                            setChimeFiringPreviewInTv({
-                              phase: 'pre',
-                              kind: 'info',
-                              title: `Em ${chimeConfig.preNotifyMinutes} min`,
-                              message: `${alert.label} · ${alert.time}`,
-                            });
-                            if (chimeConfig.preNotifyPlaySound) {
-                              void playTvChimePreSound(chimeConfig.soundVolume);
-                            }
-                          }}
-                          className="inline-flex items-center gap-1.5 rounded-xl border border-zinc-200/90 bg-white px-3 py-2 text-[12px] font-semibold text-zinc-800 shadow-sm hover:border-[#007AFF]/40 disabled:cursor-not-allowed disabled:opacity-40"
-                        >
-                          Pré-aviso
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const id = chimePreviewEffectiveAlertId;
-                            if (!id) return;
-                            const alert = enabledChimeAlerts.find((x) => x.id === id);
-                            if (!alert) return;
-                            setChimeFiringPreviewInTv({
-                              phase: 'main',
-                              kind: alert.kind,
-                              title: alert.label,
-                              message: alert.message?.trim() || '—',
-                            });
-                            if (alert.playSound) {
-                              void playTvChimeSound(chimeConfig.soundPreset, chimeConfig.soundVolume);
-                            }
-                          }}
-                          className="inline-flex items-center gap-1.5 rounded-xl border border-[#007AFF]/35 bg-[#007AFF] px-3 py-2 text-[12px] font-semibold text-white shadow-sm shadow-blue-500/20 hover:opacity-95"
-                        >
-                          No horário
-                        </button>
-                        <button
-                          type="button"
-                          disabled={!chimeFiringPreviewInTv}
-                          onClick={() => setChimeFiringPreviewInTv(null)}
-                          className="rounded-xl border border-zinc-200/90 bg-zinc-100/90 px-3 py-2 text-[12px] font-semibold text-zinc-700 hover:bg-zinc-200/80 disabled:cursor-not-allowed disabled:opacity-35"
-                        >
-                          Ocultar
-                        </button>
-                      </div>
-                    </>
-                  )}
-                </div>
-              )}
 
               {previewTab === 'library' && slides.length > 0 && (
                 <select
@@ -1434,30 +1440,54 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                 weeklyCurrent={weeklyCurrentNum}
                 weeklyTarget={weeklyTargetNum}
                 showWeeklyStrip={previewShowsWeeklyStrip}
-                slide={previewTab === 'chimes' ? null : previewSlide}
-                showVehiclesPlaceholder={previewTab === 'draft' && !draftSlide}
-                chimeSchedulePreview={previewTab === 'chimes' ? chimeConfig : null}
-                chimeFiringPreview={previewTab === 'chimes' ? chimeFiringPreviewInTv : null}
-                onChimeFiringPreviewDismiss={
-                  previewTab === 'chimes' ? () => setChimeFiringPreviewInTv(null) : undefined
+                slide={livePreviewSlide}
+                showVehiclesPlaceholder={
+                  previewTab === 'live' || (previewTab === 'draft' && !draftSlide)
+                }
+                boardItems={
+                  previewTab === 'live'
+                    ? liveBoardFrame?.items ?? []
+                    : previewTab === 'draft' && !draftSlide
+                      ? boardItems.slice(0, 6)
+                      : []
+                }
+                tvScope={tvScope}
+                boardTotalCount={boardItems.length}
+                boardPageLabel={previewTab === 'live' ? liveBoardPageLabel : null}
+                live={previewTab === 'live'}
+                vehiclesHint={
+                  previewTab === 'live' && boardItems.length === 0 && !boardLoading
+                    ? tvScope === 'laboratorio'
+                      ? 'Nenhuma peça/módulo no Laboratório no momento'
+                      : 'Nenhum veículo no Pátio no momento'
+                    : null
                 }
               />
             </div>
 
-            <p className="portrait:order-3 mt-5 px-1 text-center text-[11px] leading-relaxed text-zinc-500 lg:order-3">
-              {previewTab === 'chimes'
-                ? 'Lista de horários + botões acima para ver a faixa como no disparo. Salve na secção abaixo para enviar ao painel.'
-                : 'O preview simula o painel da TV. Imagens e vídeos enviados ficam no Storage da oficina.'}
+            <p className={`portrait:order-3 px-1 text-center leading-relaxed text-zinc-500 dark:text-zinc-400 lg:order-3 ${isDesktopShell ? 'mt-3 text-[10px]' : 'mt-5 text-[11px]'}`}>
+              {previewTab === 'live'
+                ? tvScope === 'laboratorio'
+                  ? 'Espelha a TV do Laboratório: páginas de peças/módulos + slides da rotação.'
+                  : 'Espelha a TV do Pátio: páginas de veículos + slides da rotação.'
+                : previewTab === 'library'
+                  ? 'Mostra o slide selecionado na fila. Ao adicionar mídia à rotação, ele aparece aqui.'
+                  : 'Rascunho do novo slide antes de adicionar à rotação.'}
             </p>
           </div>
         )}
 
         {/* Coluna principal (cards) — em portrait fica após o preview */}
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto overscroll-contain px-6 pb-8 sm:px-8 max-lg:portrait:flex-none max-lg:portrait:overflow-visible max-lg:landscape:order-3 lg:col-start-1 lg:row-start-2 lg:pr-12">
-          <div className="space-y-6">
+        <div
+          className={`flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto overscroll-contain max-lg:portrait:flex-none max-lg:portrait:overflow-visible max-lg:landscape:order-3 lg:col-start-1 lg:row-start-2 ${
+            isDesktopShell ? 'px-4 pb-4 lg:pr-6' : 'px-6 pb-8 sm:px-8 lg:pr-12'
+          }`}
+          style={isDesktopShell ? ({ zoom: 0.86 } as React.CSSProperties) : undefined}
+        >
+          <div className={isDesktopShell ? 'space-y-3' : 'space-y-6'}>
             {!dataReady &&
               (error ? (
-                <div className={`${iosCard} p-6 sm:p-8 space-y-4 text-center`}>
+                <div className={`${iosCard} ${isDesktopShell ? 'p-4' : 'p-6 sm:p-8'} space-y-4 text-center`}>
                   <p className="text-[14px] text-red-600">{error}</p>
                   <button
                     type="button"
@@ -1470,18 +1500,18 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
               ) : (
                 <div className="flex flex-col items-center justify-center py-16 gap-3">
                   <Loader2 className="w-10 h-10 animate-spin text-cyan-500" />
-                  <p className="text-[14px] text-zinc-500">Carregando configurações da TV…</p>
+                  <p className="text-[14px] text-zinc-500 dark:text-zinc-400">Carregando configurações da TV…</p>
                 </div>
               ))}
             {dataReady && (
               <>
                 {/* Meta semanal */}
-                <section className={`${iosCard} p-5 sm:p-6`}>
+                <section className={`${iosCard} ${sectionPad}`}>
                   <p className={iosLabel}>Meta semanal · barra superior na TV</p>
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4 p-3 rounded-2xl bg-zinc-100/80">
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4 p-3 rounded-2xl bg-zinc-100/80 dark:bg-zinc-800/50">
                     <div>
-                      <p className="text-[13px] font-semibold text-zinc-900">Exibir barra na TV</p>
-                      <p className="text-[11px] text-zinc-500 mt-0.5">Liga/desliga a faixa de meta (apenas nas páginas de veículos).</p>
+                      <p className="text-[13px] font-semibold text-zinc-900 dark:text-zinc-100">Exibir barra na TV</p>
+                      <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5">Liga/desliga a faixa de meta (apenas nas páginas de veículos).</p>
                     </div>
                     <button
                       type="button"
@@ -1493,7 +1523,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                       }`}
                     >
                       <span
-                        className={`absolute top-0.5 left-0.5 block h-7 w-7 rounded-full bg-white shadow-md transition-transform duration-200 ease-out ${
+                        className={`absolute top-0.5 left-0.5 block h-7 w-7 rounded-full bg-white dark:bg-zinc-900 shadow-md transition-transform duration-200 ease-out ${
                           showWeeklyBar ? 'translate-x-[22px]' : 'translate-x-0'
                         }`}
                       />
@@ -1501,7 +1531,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div>
-                      <label className="text-[12px] text-zinc-500 mb-1.5 block">Rótulo</label>
+                      <label className="text-[12px] text-zinc-500 dark:text-zinc-400 mb-1.5 block">Rótulo</label>
                       <input
                         value={weeklyLabel}
                         onChange={(e) => setWeeklyLabel(e.target.value)}
@@ -1509,7 +1539,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                       />
                     </div>
                     <div>
-                      <label className="text-[12px] text-zinc-500 mb-1.5 block">Atual (R$)</label>
+                      <label className="text-[12px] text-zinc-500 dark:text-zinc-400 mb-1.5 block">Atual (R$)</label>
                       <input
                         type="text"
                         inputMode="numeric"
@@ -1524,7 +1554,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                       />
                     </div>
                     <div>
-                      <label className="text-[12px] text-zinc-500 mb-1.5 block">Meta (R$)</label>
+                      <label className="text-[12px] text-zinc-500 dark:text-zinc-400 mb-1.5 block">Meta (R$)</label>
                       <input
                         type="text"
                         inputMode="numeric"
@@ -1550,12 +1580,12 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                 </section>
 
                 {/* Avisos por horário (rotina da oficina) — detalhe minimizado por defeito */}
-                <section className={`${iosCard} p-5 sm:p-6`}>
+                <section className={`${iosCard} ${sectionPad}`}>
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-stretch sm:justify-between sm:gap-4">
                     <button
                       type="button"
                       onClick={() => setChimeSectionExpanded((v) => !v)}
-                      className="flex min-w-0 flex-1 items-start gap-3 rounded-2xl border border-transparent p-1 text-left transition-colors hover:border-zinc-200/80 hover:bg-zinc-50/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#007AFF]/35 sm:items-center sm:py-0.5"
+                      className="flex min-w-0 flex-1 items-start gap-3 rounded-2xl border border-transparent p-1 text-left transition-colors hover:border-zinc-200/80 dark:hover:border-white/[0.14] hover:bg-zinc-50/60 dark:hover:bg-white/[0.05] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#007AFF]/35 sm:items-center sm:py-0.5"
                       aria-expanded={chimeSectionExpanded}
                       aria-controls="tv-chime-settings-panel"
                       id="tv-chime-settings-summary"
@@ -1565,8 +1595,8 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                       </div>
                       <div className="min-w-0 flex-1">
                         <p className={iosLabel}>Rotina inteligente · horários</p>
-                        <h3 className="text-[16px] font-semibold text-zinc-900">Avisos programados na TV</h3>
-                        <p className="mt-1 text-[12px] leading-snug text-zinc-500">
+                        <h3 className="text-[16px] font-semibold text-zinc-900 dark:text-zinc-100">Avisos programados na TV</h3>
+                        <p className="mt-1 text-[12px] leading-snug text-zinc-500 dark:text-zinc-400">
                           {chimeSectionExpanded
                             ? 'Toque de novo para minimizar as opções abaixo.'
                             : `${enabledChimeAlerts.length} aviso(s) ativo(s) · rotina ${
@@ -1581,8 +1611,8 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                         aria-hidden
                       />
                     </button>
-                    <div className="flex shrink-0 flex-row items-center justify-between gap-3 rounded-2xl border border-zinc-200/80 bg-zinc-50/90 px-3 py-2.5 sm:min-w-[9.5rem] sm:flex-col sm:items-end sm:justify-center sm:py-3">
-                      <span className="text-[12px] font-semibold text-zinc-700">Ativar rotina</span>
+                    <div className="flex shrink-0 flex-row items-center justify-between gap-3 rounded-2xl border border-zinc-200/80 dark:border-white/[0.1] bg-zinc-50/90 dark:bg-zinc-900/50 px-3 py-2.5 sm:min-w-[9.5rem] sm:flex-col sm:items-end sm:justify-center sm:py-3">
+                      <span className="text-[12px] font-semibold text-zinc-700 dark:text-zinc-300">Ativar rotina</span>
                       <button
                         type="button"
                         role="switch"
@@ -1594,7 +1624,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                         }`}
                       >
                         <span
-                          className={`absolute top-0.5 left-0.5 block h-7 w-7 rounded-full bg-white shadow-md transition-transform duration-200 ease-out ${
+                          className={`absolute top-0.5 left-0.5 block h-7 w-7 rounded-full bg-white dark:bg-zinc-900 shadow-md transition-transform duration-200 ease-out ${
                             chimeConfig.masterEnabled ? 'translate-x-[22px]' : 'translate-x-0'
                           }`}
                         />
@@ -1607,16 +1637,16 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                       id="tv-chime-settings-panel"
                       role="region"
                       aria-labelledby="tv-chime-settings-summary"
-                      className="mt-4 border-t border-zinc-200/70 pt-4"
+                      className="mt-4 border-t border-zinc-200/70 dark:border-white/[0.1] pt-4"
                     >
-                      <p className="mb-5 max-w-prose text-[12px] leading-relaxed text-zinc-500">
+                      <p className="mb-5 max-w-prose text-[12px] leading-relaxed text-zinc-500 dark:text-zinc-400">
                         Almoço, saída ou eventos personalizados: faixa no painel + som opcional. Os horários seguem o{' '}
-                        <span className="font-semibold text-zinc-700">relógio local do aparelho</span> que exibe a TV.
+                        <span className="font-semibold text-zinc-700 dark:text-zinc-300">relógio local do aparelho</span> que exibe a TV.
                         A configuração é salva na oficina e enviada na playlist pública (
                         <span className="font-mono text-[11px]">chimeSchedule</span>) para o painel Patio-View.
                       </p>
 
-                  <div className="mb-5 grid gap-4 rounded-2xl border border-zinc-200/70 bg-zinc-50/60 p-4 sm:grid-cols-2">
+                  <div className="mb-5 grid gap-4 rounded-2xl border border-zinc-200/70 dark:border-white/[0.1] bg-zinc-50/60 dark:bg-zinc-900/40 p-4 sm:grid-cols-2">
                     <div>
                       <label className={`${iosLabel} flex items-center gap-1.5`}>
                         <Volume2 className="h-3.5 w-3.5" aria-hidden />
@@ -1633,7 +1663,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                         }
                         className="mt-2 w-full accent-[#007AFF]"
                       />
-                      <p className="mt-1 text-[11px] text-zinc-500">{Math.round(chimeConfig.soundVolume * 100)}%</p>
+                      <p className="mt-1 text-[11px] text-zinc-500 dark:text-zinc-400">{Math.round(chimeConfig.soundVolume * 100)}%</p>
                     </div>
                     <div>
                       <label className={iosLabel}>Tom do bip</label>
@@ -1652,7 +1682,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                             className={`rounded-xl px-3 py-2 text-[12px] font-semibold shadow-sm transition-all ${
                               chimeConfig.soundPreset === p.id
                                 ? 'bg-[#007AFF] text-white shadow-blue-500/25'
-                                : 'border border-zinc-200/90 bg-white text-zinc-700 hover:border-[#007AFF]/35'
+                                : 'border border-zinc-200/90 dark:border-white/[0.12] bg-white dark:bg-zinc-900 text-zinc-700 dark:text-zinc-300 hover:border-[#007AFF]/35'
                             }`}
                           >
                             {p.label}
@@ -1691,7 +1721,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                         }
                         className={iosInput}
                       />
-                      <label className="mt-2 flex cursor-pointer items-center gap-2 text-[12px] text-zinc-600">
+                      <label className="mt-2 flex cursor-pointer items-center gap-2 text-[12px] text-zinc-600 dark:text-zinc-400">
                         <input
                           type="checkbox"
                           checked={chimeConfig.preNotifyPlaySound}
@@ -1704,7 +1734,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                       </label>
                     </div>
                     <div className="sm:col-span-2">
-                      <label className="flex cursor-pointer items-center gap-2 rounded-xl border border-zinc-200/80 bg-white/80 px-3 py-2.5 text-[13px] text-zinc-700 shadow-sm">
+                      <label className="flex cursor-pointer items-center gap-2 rounded-xl border border-zinc-200/80 dark:border-white/[0.1] bg-white/80 dark:bg-zinc-900/70 px-3 py-2.5 text-[13px] text-zinc-700 dark:text-zinc-300 shadow-sm">
                         <input
                           type="checkbox"
                           checked={chimeConfig.weekendsQuiet}
@@ -1722,7 +1752,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                     <button
                       type="button"
                       onClick={() => void playTvChimeSound(chimeConfig.soundPreset, chimeConfig.soundVolume)}
-                      className="inline-flex items-center gap-2 rounded-xl border border-zinc-200/90 bg-white px-3 py-2 text-[12px] font-semibold text-zinc-800 shadow-sm hover:border-[#007AFF]/40"
+                      className="inline-flex items-center gap-2 rounded-xl border border-zinc-200/90 dark:border-white/[0.12] bg-white dark:bg-zinc-900 px-3 py-2 text-[12px] font-semibold text-zinc-800 dark:text-zinc-200 shadow-sm hover:border-[#007AFF]/40"
                     >
                       <Bell className="h-4 w-4 text-[#007AFF]" />
                       Testar som agora
@@ -1730,7 +1760,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                     <button
                       type="button"
                       onClick={() => setChimeConfig(defaultTvChimeSchedule())}
-                      className="rounded-xl border border-zinc-200/90 bg-zinc-100/90 px-3 py-2 text-[12px] font-semibold text-zinc-700 hover:bg-zinc-200/80"
+                      className="rounded-xl border border-zinc-200/90 dark:border-white/[0.12] bg-zinc-100 dark:bg-zinc-800/90 px-3 py-2 text-[12px] font-semibold text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200/80 dark:hover:bg-white/[0.1]"
                     >
                       Restaurar modelo (almoço + saída)
                     </button>
@@ -1740,7 +1770,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                     {chimeConfig.alerts.map((a, idx) => (
                       <div
                         key={a.id}
-                        className="rounded-2xl border-0 bg-white/90 p-4 shadow-none"
+                        className="rounded-2xl border-0 bg-white/90 dark:bg-zinc-900/80 p-4 shadow-none"
                       >
                         <div className="mb-3 flex items-center justify-between gap-2">
                           <span className="text-[11px] font-bold uppercase tracking-[0.1em] text-zinc-400">
@@ -1808,7 +1838,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                           </div>
                         </div>
                         <div className="mt-3 flex flex-wrap items-center gap-3 border-t border-zinc-100 pt-3">
-                          <label className="flex cursor-pointer items-center gap-2 text-[12px] text-zinc-600">
+                          <label className="flex cursor-pointer items-center gap-2 text-[12px] text-zinc-600 dark:text-zinc-400">
                             <input
                               type="checkbox"
                               checked={a.enabled}
@@ -1824,7 +1854,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                             />
                             Ativo
                           </label>
-                          <label className="flex cursor-pointer items-center gap-2 text-[12px] text-zinc-600">
+                          <label className="flex cursor-pointer items-center gap-2 text-[12px] text-zinc-600 dark:text-zinc-400">
                             <input
                               type="checkbox"
                               checked={a.playSound}
@@ -1867,7 +1897,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                                   className={`rounded-lg px-2.5 py-1.5 text-[11px] font-semibold transition-all ${
                                     active
                                       ? 'bg-[#007AFF] text-white shadow-sm'
-                                      : 'border border-zinc-200/90 bg-zinc-50 text-zinc-500 hover:bg-zinc-100'
+                                      : 'border border-zinc-200/90 dark:border-white/[0.12] bg-zinc-50 dark:bg-zinc-900/60 text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-white/[0.08]'
                                   }`}
                                 >
                                   {d.short}
@@ -1928,7 +1958,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                         ],
                       }))
                     }
-                    className="mt-3 inline-flex items-center gap-2 rounded-xl border border-dashed border-zinc-300 bg-zinc-50/80 px-4 py-3 text-[13px] font-semibold text-zinc-700 hover:border-[#007AFF]/45 hover:bg-blue-50/40"
+                    className="mt-3 inline-flex items-center gap-2 rounded-xl border border-dashed border-zinc-300 bg-zinc-50/80 dark:bg-zinc-900/60 px-4 py-3 text-[13px] font-semibold text-zinc-700 dark:text-zinc-300 hover:border-[#007AFF]/45 hover:bg-blue-50/40"
                   >
                     <Plus className="h-4 w-4 text-[#007AFF]" />
                     Adicionar horário
@@ -1954,9 +1984,9 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                 </section>
 
                 {/* Configuração de vídeos */}
-                <section className={`${iosCard} p-5 sm:p-6`}>
+                <section className={`${iosCard} ${sectionPad}`}>
                   <p className={iosLabel}>Vídeos na paginação da TV</p>
-                  <p className="mb-3 text-[12px] leading-relaxed text-zinc-600">
+                  <p className="mb-3 text-[12px] leading-relaxed text-zinc-600 dark:text-zinc-400">
                     No modo padrão, existe <span className="font-semibold">apenas 1 página de vídeo</span> na rotação.
                     Vários arquivos entram na playlist desse slide e alternam a cada volta.
                   </p>
@@ -1968,11 +1998,11 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                       className={`rounded-2xl border px-3 py-3 text-left transition-all ${
                         isSingleVideoMode
                           ? 'border-[#007AFF] bg-blue-50 shadow-sm'
-                          : 'border-zinc-200 bg-zinc-50 hover:border-zinc-300'
+                          : 'border-zinc-200 dark:border-white/[0.1] bg-zinc-50 dark:bg-zinc-900/60 hover:border-zinc-300'
                       }`}
                     >
-                      <p className="text-[13px] font-semibold text-zinc-900">Um slide (recomendado)</p>
-                      <p className="mt-1 text-[11px] text-zinc-600">1 página na TV · vídeos alternam na playlist</p>
+                      <p className="text-[13px] font-semibold text-zinc-900 dark:text-zinc-100">Um slide (recomendado)</p>
+                      <p className="mt-1 text-[11px] text-zinc-600 dark:text-zinc-400">1 página na TV · vídeos alternam na playlist</p>
                     </button>
                     <button
                       type="button"
@@ -1981,11 +2011,11 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                       className={`rounded-2xl border px-3 py-3 text-left transition-all ${
                         !isSingleVideoMode
                           ? 'border-[#007AFF] bg-blue-50 shadow-sm'
-                          : 'border-zinc-200 bg-zinc-50 hover:border-zinc-300'
+                          : 'border-zinc-200 dark:border-white/[0.1] bg-zinc-50 dark:bg-zinc-900/60 hover:border-zinc-300'
                       }`}
                     >
-                      <p className="text-[13px] font-semibold text-zinc-900">Vários slides de vídeo</p>
-                      <p className="mt-1 text-[11px] text-zinc-600">Cada slide de vídeo é uma página separada na rotação</p>
+                      <p className="text-[13px] font-semibold text-zinc-900 dark:text-zinc-100">Vários slides de vídeo</p>
+                      <p className="mt-1 text-[11px] text-zinc-600 dark:text-zinc-400">Cada slide de vídeo é uma página separada na rotação</p>
                     </button>
                   </div>
                   {isSingleVideoMode && primaryVideoSlide && (
@@ -2008,17 +2038,17 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                     </p>
                   )}
                   {!isSingleVideoMode && videoSlides.length > 0 && (
-                    <p className="mt-3 text-[12px] text-zinc-600">
+                    <p className="mt-3 text-[12px] text-zinc-600 dark:text-zinc-400">
                       {videoSlides.length} slide(s) de vídeo na fila. Use as setas em cada slide para mudar a ordem das páginas.
                     </p>
                   )}
                 </section>
 
                 {/* Novo slide */}
-                <section className={`${iosCard} p-5 sm:p-6`}>
+                <section className={`${iosCard} ${sectionPad}`}>
                   <p className={iosLabel}>Novo slide</p>
-                  <div className="mb-4 rounded-2xl border border-zinc-200/80 bg-zinc-50/90 px-3 py-2.5 text-[12px] text-zinc-600">
-                    <span className="font-semibold text-zinc-800">Fluxo rápido:</span> escolha o tipo, preencha apenas o que aparecer e toque em <span className="font-semibold">Adicionar à rotação</span>.
+                  <div className="mb-4 rounded-2xl border border-zinc-200/80 dark:border-white/[0.1] bg-zinc-50/90 dark:bg-zinc-900/50 px-3 py-2.5 text-[12px] text-zinc-600 dark:text-zinc-400">
+                    <span className="font-semibold text-zinc-800 dark:text-zinc-200">Fluxo rápido:</span> escolha o tipo, preencha apenas o que aparecer e toque em <span className="font-semibold">Adicionar à rotação</span>.
                   </div>
                   <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 mb-4">
                     {SLIDE_TYPES.map((t) => {
@@ -2045,7 +2075,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                             ? 'bg-[#007AFF] text-white shadow-md shadow-blue-500/30'
                             : videoLocked
                               ? 'bg-emerald-50 text-emerald-800 border border-emerald-200 hover:bg-emerald-100'
-                              : 'bg-zinc-100/90 text-zinc-700 hover:bg-zinc-200/80'
+                              : 'bg-zinc-100 dark:bg-zinc-800/90 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200/80 dark:hover:bg-white/[0.1]'
                         }`}
                       >
                         <span className="block text-[12px] font-semibold leading-tight">
@@ -2053,7 +2083,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                         </span>
                         <span
                           className={`block text-[9px] mt-1 leading-tight ${
-                            newType === t.value ? 'text-white/80' : videoLocked ? 'text-emerald-700' : 'text-zinc-500'
+                            newType === t.value ? 'text-white/80' : videoLocked ? 'text-emerald-700 dark:text-emerald-400' : 'text-zinc-500 dark:text-zinc-400'
                           }`}
                         >
                           {videoLocked ? '1 slide · playlist' : t.hint}
@@ -2061,8 +2091,8 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                       </button>
                     );})}
                   </div>
-                  <div className="mb-4 rounded-2xl bg-zinc-100/80 px-3 py-2 text-[12px] text-zinc-600">
-                    <span className="font-semibold text-zinc-800">Tipo selecionado:</span>{' '}
+                  <div className="mb-4 rounded-2xl bg-zinc-100/80 dark:bg-zinc-800/50 px-3 py-2 text-[12px] text-zinc-600 dark:text-zinc-400">
+                    <span className="font-semibold text-zinc-800 dark:text-zinc-200">Tipo selecionado:</span>{' '}
                     {currentTypeMeta?.label} · {currentTypeMeta?.hint}
                   </div>
 
@@ -2137,7 +2167,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                               type="button"
                               onClick={() => fileInputRef.current?.click()}
                               disabled={uploading}
-                              className="flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-zinc-300/90 bg-zinc-50/80 py-8 text-[15px] font-medium text-zinc-600 hover:border-[#007AFF]/50 hover:bg-blue-50/50 transition-colors disabled:opacity-50"
+                              className="flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-zinc-300/90 bg-zinc-50/80 dark:bg-zinc-900/60 py-8 text-[15px] font-medium text-zinc-600 dark:text-zinc-400 hover:border-[#007AFF]/50 hover:bg-blue-50/50 transition-colors disabled:opacity-50"
                             >
                               {uploading ? (
                                 <Loader2 className="w-5 h-5 animate-spin" />
@@ -2157,10 +2187,10 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                             </div>
                           </>
                         )}
-                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 rounded-2xl bg-zinc-100/80">
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 rounded-2xl bg-zinc-100/80 dark:bg-zinc-800/50">
                           <div>
-                            <p className="text-[13px] font-semibold text-zinc-900">Mídia em tela cheia</p>
-                            <p className="text-[11px] text-zinc-500 mt-0.5">
+                            <p className="text-[13px] font-semibold text-zinc-900 dark:text-zinc-100">Mídia em tela cheia</p>
+                            <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5">
                               Preenche toda a área da TV (sem bordas). Ideal para imagens de fundo.
                             </p>
                           </div>
@@ -2174,7 +2204,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                             }`}
                           >
                             <span
-                              className={`absolute top-0.5 left-0.5 block h-7 w-7 rounded-full bg-white shadow-md transition-transform duration-200 ease-out ${
+                              className={`absolute top-0.5 left-0.5 block h-7 w-7 rounded-full bg-white dark:bg-zinc-900 shadow-md transition-transform duration-200 ease-out ${
                                 newMediaFullscreen ? 'translate-x-[22px]' : 'translate-x-0'
                               }`}
                             />
@@ -2182,8 +2212,8 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                         </div>
                         <div>
                           <p className={iosLabel}>Encaixe na TV</p>
-                          <p className="mb-2 text-[11px] text-zinc-500">
-                            Evita imagem esticada: use <span className="font-semibold text-zinc-700">Inteira</span> para ver tudo com
+                          <p className="mb-2 text-[11px] text-zinc-500 dark:text-zinc-400">
+                            Evita imagem esticada: use <span className="font-semibold text-zinc-700 dark:text-zinc-300">Inteira</span> para ver tudo com
                             proporção correta.
                           </p>
                           <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
@@ -2195,13 +2225,13 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                                 className={`rounded-2xl px-2 py-3 text-center transition-all ${
                                   newMediaObjectFit === o.value
                                     ? 'bg-[#007AFF] text-white shadow-md shadow-blue-500/30'
-                                    : 'bg-zinc-100/90 text-zinc-700'
+                                    : 'bg-zinc-100 dark:bg-zinc-800/90 text-zinc-700 dark:text-zinc-300'
                                 }`}
                               >
                                 <span className="block text-[12px] font-semibold leading-tight">{o.label}</span>
                                 <span
                                   className={`mt-1 block text-[9px] leading-tight ${
-                                    newMediaObjectFit === o.value ? 'text-white/85' : 'text-zinc-500'
+                                    newMediaObjectFit === o.value ? 'text-white/85' : 'text-zinc-500 dark:text-zinc-400'
                                   }`}
                                 >
                                   {o.hint}
@@ -2209,7 +2239,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                               </button>
                             ))}
                           </div>
-                          <p className="mt-2 text-[10px] text-zinc-500">
+                          <p className="mt-2 text-[10px] text-zinc-500 dark:text-zinc-400">
                             Vídeo do YouTube: o player usa a proporção padrão do serviço.
                           </p>
                         </div>
@@ -2233,10 +2263,10 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                       </div>
                     )}
 
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 rounded-2xl bg-zinc-100/80">
+                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 rounded-2xl bg-zinc-100/80 dark:bg-zinc-800/50">
                       <div>
-                        <p className="text-[13px] font-semibold text-zinc-900">Som ao exibir este slide</p>
-                        <p className="text-[11px] text-zinc-500 mt-0.5">
+                        <p className="text-[13px] font-semibold text-zinc-900 dark:text-zinc-100">Som ao exibir este slide</p>
+                        <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5">
                           Bip ao entrar neste slide na TV. Na TV o som do canto também precisa estar ligado.
                         </p>
                       </div>
@@ -2250,17 +2280,17 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                         }`}
                       >
                         <span
-                          className={`absolute top-0.5 left-0.5 block h-7 w-7 rounded-full bg-white shadow-md transition-transform duration-200 ease-out ${
+                          className={`absolute top-0.5 left-0.5 block h-7 w-7 rounded-full bg-white dark:bg-zinc-900 shadow-md transition-transform duration-200 ease-out ${
                             newPlaySound ? 'translate-x-[22px]' : 'translate-x-0'
                           }`}
                         />
                       </button>
                     </div>
                     {newType === 'goal' && (
-                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 rounded-2xl bg-zinc-100/80">
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 rounded-2xl bg-zinc-100/80 dark:bg-zinc-800/50">
                         <div>
-                          <p className="text-[13px] font-semibold text-zinc-900">Este slide meta: valores em R$</p>
-                          <p className="text-[11px] text-zinc-500 mt-0.5">
+                          <p className="text-[13px] font-semibold text-zinc-900 dark:text-zinc-100">Este slide meta: valores em R$</p>
+                          <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5">
                             Ligado mostra atual e meta em reais; desligado mostra só a porcentagem na TV.
                           </p>
                         </div>
@@ -2274,7 +2304,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                           }`}
                         >
                           <span
-                            className={`absolute top-0.5 left-0.5 block h-7 w-7 rounded-full bg-white shadow-md transition-transform duration-200 ease-out ${
+                            className={`absolute top-0.5 left-0.5 block h-7 w-7 rounded-full bg-white dark:bg-zinc-900 shadow-md transition-transform duration-200 ease-out ${
                               newGoalShowValues ? 'translate-x-[22px]' : 'translate-x-0'
                             }`}
                           />
@@ -2311,11 +2341,11 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                 </section>
 
                 {/* Lista */}
-                <section className={`${iosCard} p-5 sm:p-6`}>
+                <section className={`${iosCard} ${sectionPad}`}>
                   <p className={iosLabel}>Slides na fila ({slides.length})</p>
-                  <p className="text-[12px] text-zinc-500 mb-3">
-                    Toque em <span className="font-semibold text-zinc-600">Editar</span> para abrir os campos, use ↑ ↓ para ordenar e{' '}
-                    <span className="font-semibold text-zinc-600">Exibir imediatamente</span> para fixar 1 slide na TV.
+                  <p className="text-[12px] text-zinc-500 dark:text-zinc-400 mb-3">
+                    Toque em <span className="font-semibold text-zinc-600 dark:text-zinc-400">Editar</span> para abrir os campos, use ↑ ↓ para ordenar e{' '}
+                    <span className="font-semibold text-zinc-600 dark:text-zinc-400">Exibir imediatamente</span> para fixar 1 slide na TV.
                   </p>
                   <ul className="space-y-3">
                     {slides.map((s, idx) => (
@@ -2326,7 +2356,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                               ? 'border-amber-400/50 bg-amber-50/50 ring-1 ring-amber-400/35'
                               : libraryPreviewId === s.id && previewTab === 'library'
                                 ? 'border-transparent bg-[#007AFF]/12 ring-1 ring-[#007AFF]/30'
-                                : 'border-transparent bg-zinc-50/90'
+                                : 'border-transparent bg-zinc-50/90 dark:bg-zinc-900/50'
                           }`}
                         >
                           <button
@@ -2338,8 +2368,8 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                             className="min-w-0 flex-1 text-left py-1"
                           >
                             <span className="text-[10px] font-semibold uppercase tracking-wider text-zinc-400">{s.slideType}</span>
-                            <p className="font-medium text-zinc-900 truncate text-[15px]">{s.title || '(sem título)'}</p>
-                            <p className="text-[11px] text-zinc-500">
+                            <p className="font-medium text-zinc-900 dark:text-zinc-100 truncate text-[15px]">{s.title || '(sem título)'}</p>
+                            <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
                               {s.durationSeconds}s · ordem {s.sortOrder ?? idx} · {s.isActive === false ? 'pausado' : 'ativo'}
                               {s.slideType === 'video' && normalizeMediaPlaylist(s).length > 1
                                 ? ` · ${normalizeMediaPlaylist(s).length} vídeos na rotação`
@@ -2375,12 +2405,12 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                                 }`}
                               >
                                 <span
-                                  className={`absolute top-0.5 left-0.5 block h-6 w-6 rounded-full bg-white shadow-md transition-transform duration-200 ease-out ${
+                                  className={`absolute top-0.5 left-0.5 block h-6 w-6 rounded-full bg-white dark:bg-zinc-900 shadow-md transition-transform duration-200 ease-out ${
                                     s.pinImmediate ? 'translate-x-[18px]' : 'translate-x-0'
                                   }`}
                                 />
                               </button>
-                              <span className="text-[7px] font-bold uppercase tracking-tight text-zinc-500 text-center leading-tight">
+                              <span className="text-[7px] font-bold uppercase tracking-tight text-zinc-500 dark:text-zinc-400 text-center leading-tight">
                                 Exibir imediatamente
                               </span>
                             </div>
@@ -2389,7 +2419,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                               title="Subir"
                               disabled={idx === 0 || loading}
                               onClick={() => void moveSlide(idx, -1)}
-                              className="rounded-xl bg-zinc-200/80 p-2 text-zinc-700 disabled:opacity-35"
+                              className="rounded-xl bg-zinc-200 dark:bg-zinc-700/80 p-2 text-zinc-700 dark:text-zinc-300 disabled:opacity-35"
                             >
                               <ChevronUp className="w-4 h-4" />
                             </button>
@@ -2398,7 +2428,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                               title="Descer"
                               disabled={idx >= slides.length - 1 || loading}
                               onClick={() => void moveSlide(idx, 1)}
-                              className="rounded-xl bg-zinc-200/80 p-2 text-zinc-700 disabled:opacity-35"
+                              className="rounded-xl bg-zinc-200 dark:bg-zinc-700/80 p-2 text-zinc-700 dark:text-zinc-300 disabled:opacity-35"
                             >
                               <ChevronDown className="w-4 h-4" />
                             </button>
@@ -2406,8 +2436,8 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                               type="button"
                               title="Editar"
                               onClick={() => startEdit(s)}
-                              className={`rounded-xl px-3 py-2 text-[11px] font-semibold text-zinc-800 ${
-                                editingSlideId === s.id ? 'bg-[#007AFF] text-white' : 'bg-zinc-200/80'
+                              className={`rounded-xl px-3 py-2 text-[11px] font-semibold text-zinc-800 dark:text-zinc-200 ${
+                                editingSlideId === s.id ? 'bg-[#007AFF] text-white' : 'bg-zinc-200 dark:bg-zinc-700/80'
                               }`}
                             >
                               <span className="inline-flex items-center gap-1">
@@ -2419,7 +2449,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                               type="button"
                               onClick={() => void toggleActive(s)}
                               disabled={loading}
-                              className="rounded-xl bg-zinc-200/80 px-3 py-2 text-[11px] font-semibold text-zinc-800"
+                              className="rounded-xl bg-zinc-200 dark:bg-zinc-700/80 px-3 py-2 text-[11px] font-semibold text-zinc-800 dark:text-zinc-200"
                             >
                               {s.isActive === false ? 'Ativar' : 'Pausar'}
                             </button>
@@ -2455,7 +2485,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                                   className={`rounded-2xl px-2 py-2.5 text-center transition-all ${
                                     editForm.slideType === t.value
                                       ? 'bg-[#007AFF] text-white shadow-md shadow-blue-500/30'
-                                      : 'bg-zinc-100/90 text-zinc-700 hover:bg-zinc-200/80'
+                                      : 'bg-zinc-100 dark:bg-zinc-800/90 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200/80 dark:hover:bg-white/[0.1]'
                                   }`}
                                 >
                                   <span className="block text-[11px] font-semibold leading-tight">{t.label}</span>
@@ -2513,7 +2543,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                                       type="button"
                                       onClick={() => editFileInputRef.current?.click()}
                                       disabled={uploading}
-                                      className="flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-zinc-300/90 bg-zinc-50/80 py-6 text-[14px] font-medium text-zinc-600 hover:border-[#007AFF]/50 disabled:opacity-50"
+                                      className="flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-zinc-300/90 bg-zinc-50/80 dark:bg-zinc-900/60 py-6 text-[14px] font-medium text-zinc-600 dark:text-zinc-400 hover:border-[#007AFF]/50 disabled:opacity-50"
                                     >
                                       {uploading ? (
                                         <Loader2 className="w-5 h-5 animate-spin" />
@@ -2535,10 +2565,10 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                                     </div>
                                   </>
                                 )}
-                                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 rounded-2xl bg-zinc-100/80">
+                                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 rounded-2xl bg-zinc-100/80 dark:bg-zinc-800/50">
                                   <div>
-                                    <p className="text-[13px] font-semibold text-zinc-900">Mídia em tela cheia</p>
-                                    <p className="text-[11px] text-zinc-500 mt-0.5">
+                                    <p className="text-[13px] font-semibold text-zinc-900 dark:text-zinc-100">Mídia em tela cheia</p>
+                                    <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5">
                                       Ligado: imagem/vídeo ocupa toda a área da TV.
                                     </p>
                                   </div>
@@ -2554,7 +2584,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                                     }`}
                                   >
                                     <span
-                                      className={`absolute top-0.5 left-0.5 block h-7 w-7 rounded-full bg-white shadow-md transition-transform duration-200 ease-out ${
+                                      className={`absolute top-0.5 left-0.5 block h-7 w-7 rounded-full bg-white dark:bg-zinc-900 shadow-md transition-transform duration-200 ease-out ${
                                         editForm.mediaFullscreen ? 'translate-x-[22px]' : 'translate-x-0'
                                       }`}
                                     />
@@ -2562,8 +2592,8 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                                 </div>
                                 <div>
                                   <p className={iosLabel}>Encaixe na TV</p>
-                                  <p className="mb-2 text-[11px] text-zinc-500">
-                                    <span className="font-semibold text-zinc-700">Inteira</span> mostra a imagem inteira sem cortar nem
+                                  <p className="mb-2 text-[11px] text-zinc-500 dark:text-zinc-400">
+                                    <span className="font-semibold text-zinc-700 dark:text-zinc-300">Inteira</span> mostra a imagem inteira sem cortar nem
                                     esticar (faixas pretas se precisar).
                                   </p>
                                   <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
@@ -2577,13 +2607,13 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                                         className={`rounded-2xl px-2 py-3 text-center transition-all ${
                                           editForm.mediaObjectFit === o.value
                                             ? 'bg-[#007AFF] text-white shadow-md shadow-blue-500/30'
-                                            : 'bg-zinc-100/90 text-zinc-700'
+                                            : 'bg-zinc-100 dark:bg-zinc-800/90 text-zinc-700 dark:text-zinc-300'
                                         }`}
                                       >
                                         <span className="block text-[12px] font-semibold leading-tight">{o.label}</span>
                                         <span
                                           className={`mt-1 block text-[9px] leading-tight ${
-                                            editForm.mediaObjectFit === o.value ? 'text-white/85' : 'text-zinc-500'
+                                            editForm.mediaObjectFit === o.value ? 'text-white/85' : 'text-zinc-500 dark:text-zinc-400'
                                           }`}
                                         >
                                           {o.hint}
@@ -2622,15 +2652,15 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                                     className={iosInput}
                                   />
                                 </div>
-                                <p className="sm:col-span-3 text-[11px] text-zinc-500">
+                                <p className="sm:col-span-3 text-[11px] text-zinc-500 dark:text-zinc-400">
                                   Na TV: rótulo e barra; porcentagem ou valores em R$ conforme a opção abaixo.
                                 </p>
                               </div>
                             )}
-                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 rounded-2xl bg-zinc-100/80">
+                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 rounded-2xl bg-zinc-100/80 dark:bg-zinc-800/50">
                               <div>
-                                <p className="text-[13px] font-semibold text-zinc-900">Som ao exibir este slide</p>
-                                <p className="text-[11px] text-zinc-500 mt-0.5">
+                                <p className="text-[13px] font-semibold text-zinc-900 dark:text-zinc-100">Som ao exibir este slide</p>
+                                <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5">
                                   Bip ao entrar neste slide na TV (som do canto ligado).
                                 </p>
                               </div>
@@ -2646,17 +2676,17 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                                 }`}
                               >
                                 <span
-                                  className={`absolute top-0.5 left-0.5 block h-7 w-7 rounded-full bg-white shadow-md transition-transform duration-200 ease-out ${
+                                  className={`absolute top-0.5 left-0.5 block h-7 w-7 rounded-full bg-white dark:bg-zinc-900 shadow-md transition-transform duration-200 ease-out ${
                                     editForm.playSound ? 'translate-x-[22px]' : 'translate-x-0'
                                   }`}
                                 />
                               </button>
                             </div>
                             {editForm.slideType === 'goal' && (
-                              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 rounded-2xl bg-zinc-100/80">
+                              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 p-3 rounded-2xl bg-zinc-100/80 dark:bg-zinc-800/50">
                                 <div>
-                                  <p className="text-[13px] font-semibold text-zinc-900">Este slide meta: valores em R$</p>
-                                  <p className="text-[11px] text-zinc-500 mt-0.5">
+                                  <p className="text-[13px] font-semibold text-zinc-900 dark:text-zinc-100">Este slide meta: valores em R$</p>
+                                  <p className="text-[11px] text-zinc-500 dark:text-zinc-400 mt-0.5">
                                     Ligado mostra atual e meta em reais; desligado mostra só a porcentagem.
                                   </p>
                                 </div>
@@ -2672,7 +2702,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                                   }`}
                                 >
                                   <span
-                                    className={`absolute top-0.5 left-0.5 block h-7 w-7 rounded-full bg-white shadow-md transition-transform duration-200 ease-out ${
+                                    className={`absolute top-0.5 left-0.5 block h-7 w-7 rounded-full bg-white dark:bg-zinc-900 shadow-md transition-transform duration-200 ease-out ${
                                       editForm.goalShowValues ? 'translate-x-[22px]' : 'translate-x-0'
                                     }`}
                                   />
@@ -2721,7 +2751,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                                   type="button"
                                   onClick={cancelEdit}
                                   disabled={loading}
-                                  className="rounded-2xl border border-zinc-300/90 px-5 py-3 text-[14px] font-semibold text-zinc-700"
+                                  className="rounded-2xl border border-zinc-300/90 px-5 py-3 text-[14px] font-semibold text-zinc-700 dark:text-zinc-300"
                                 >
                                   Cancelar
                                 </button>
@@ -2733,7 +2763,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                     ))}
                   </ul>
                   {slides.length === 0 && (
-                    <p className="text-[13px] text-zinc-500 py-4 text-center">Nenhum slide — a TV mostra só os veículos.</p>
+                    <p className="text-[13px] text-zinc-500 dark:text-zinc-400 py-4 text-center">Nenhum slide — a TV mostra só os veículos.</p>
                   )}
                 </section>
 

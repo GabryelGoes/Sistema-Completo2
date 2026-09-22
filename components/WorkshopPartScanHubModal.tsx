@@ -80,14 +80,17 @@ export function WorkshopPartScanHubModal({
   useBrowserBackLayer(isOpen, onClose);
 
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen) {
+      lastExternalTokenRef.current = null;
+      return;
+    }
     setCode('');
     setError(null);
     setResolved({ kind: 'idle' });
     setLookingUp(false);
     setPurchaseBanner(null);
-    lastExternalTokenRef.current = null;
-    lookupSeqRef.current = 0;
+    // Não zera lastExternalTokenRef aqui: o efeito de externalScan consome na abertura.
+    lookupSeqRef.current += 1;
   }, [isOpen]);
 
   useEffect(() => {
@@ -164,7 +167,7 @@ export function WorkshopPartScanHubModal({
         className={overlayClass}
         role="dialog"
         aria-modal="true"
-        aria-label="Produto identificado"
+        aria-label="Peça identificada"
         onClick={onClose}
       >
         <div
@@ -184,7 +187,7 @@ export function WorkshopPartScanHubModal({
           >
             <div className="min-w-0">
               <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-700 dark:text-emerald-400">
-                Estoque de peças
+                Estoque
               </p>
               <h2
                 className={`font-bold text-zinc-900 dark:text-white ${
@@ -272,7 +275,7 @@ export function WorkshopPartScanHubModal({
                   </p>
                   <p className="mt-1 text-[13px] text-amber-900/80 dark:text-amber-200/80">
                     <span className="font-mono font-semibold">{resolved.code}</span>
-                    {' — '}cadastre o produto para liberar movimentações.
+                    {' — '}cadastre a peça para liberar movimentações.
                   </p>
                 </div>
                 <button
@@ -287,7 +290,7 @@ export function WorkshopPartScanHubModal({
                     <PackagePlus className="h-5 w-5" />
                   </span>
                   <span className="min-w-0">
-                    <span className="block text-[15px] font-semibold">Cadastrar produto</span>
+                    <span className="block text-[15px] font-semibold">Cadastrar peça</span>
                     <span className="block text-[12px] text-white/80">Abrir ficha com este código</span>
                   </span>
                 </button>

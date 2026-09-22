@@ -20,6 +20,8 @@ interface CommentPopUpProps {
   replyAuthorName: string;
   /** Quem está respondendo: define para quem a notificação vai (admin → técnico do veículo; técnico → admin) */
   replyActor?: 'admin' | 'technician';
+  /** Id do system user quando replyActor é technician (evita notificar o próprio autor). */
+  replyAuthorUserId?: string | null;
   /** Tema do sistema (preto, amarelo, branco) */
   theme?: 'light' | 'dark';
   /** Modo cinematográfico: embaçar placa no rótulo do veículo */
@@ -39,7 +41,16 @@ function normalizeAuthorName(name: string | null | undefined): string {
     .replace(/\u0300-\u036f/g, '');
 }
 
-export const CommentPopUp: React.FC<CommentPopUpProps> = ({ notification, onClose, onReplySent, replyAuthorName, replyActor, theme = 'dark', blurPlates = false }) => {
+export const CommentPopUp: React.FC<CommentPopUpProps> = ({
+  notification,
+  onClose,
+  onReplySent,
+  replyAuthorName,
+  replyActor,
+  replyAuthorUserId = null,
+  theme = 'dark',
+  blurPlates = false,
+}) => {
   const [reply, setReply] = useState('');
   const [sending, setSending] = useState(false);
   const [conversation, setConversation] = useState<ServiceOrderComment[]>([]);
@@ -105,7 +116,13 @@ export const CommentPopUp: React.FC<CommentPopUpProps> = ({ notification, onClos
     if (!orderId || !reply.trim() || sending) return;
     setSending(true);
     try {
-      await addServiceOrderComment(orderId, reply.trim(), replyAuthorName.trim() || 'Rei do ABS', replyActor);
+      await addServiceOrderComment(
+        orderId,
+        reply.trim(),
+        replyAuthorName.trim() || 'Rei do ABS',
+        replyActor,
+        replyActor === 'technician' ? replyAuthorUserId : null
+      );
       setReply('');
       onReplySent?.();
       const updated = await getServiceOrderComments(orderId);

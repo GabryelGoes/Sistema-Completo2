@@ -100,17 +100,17 @@ export function searchWorkshopPartsByText<T extends WorkshopPartCodeFields>(
   return scored.slice(0, Math.max(1, limit)).map((s) => s.part);
 }
 
-/** Heurística de pistola USB: sequência rápida terminando em Enter. */
+/** Heurística de pistola USB: sequência muito rápida terminando em Enter/Tab.
+ * Digitação humana (mesmo rápida) fica acima destes limiares. */
 export function isLikelyBarcodeWedgeKeystroke(opts: {
   elapsedMs: number;
   length: number;
 }): boolean {
   const { elapsedMs, length } = opts;
-  if (length < 4) return false;
+  if (length < 6) return false;
   const avg = elapsedMs / Math.max(1, length - 1);
-  // Leitores USB/BT variam: tolerar média até ~150ms e rajadas longas (EAN/Code128).
-  if (avg <= 150 && elapsedMs <= 3500) return true;
-  // Códigos só numéricos curtos/médios (EAN-8/13, UPC) com leitura um pouco mais lenta.
-  if (length >= 8 && length <= 18 && avg <= 200 && elapsedMs <= 4000) return true;
+  // Leitores HID costumam ficar bem abaixo de 50–60 ms/tecla.
+  if (avg <= 55 && elapsedMs <= 2500) return true;
+  if (length >= 10 && avg <= 75 && elapsedMs <= 4000) return true;
   return false;
 }

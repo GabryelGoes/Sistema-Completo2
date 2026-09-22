@@ -106,6 +106,8 @@ export const SystemNotificationsModal: React.FC<SystemNotificationsModalProps> =
   const [message, setMessage] = useState<{ type: "ok" | "err"; text: string } | null>(null);
 
   const [availableUsers, setAvailableUsers] = useState<WorkshopUserOption[]>([]);
+  const [fullAccessUsers, setFullAccessUsers] = useState<WorkshopUserOption[]>([]);
+  const [commentPopupRecipientIds, setCommentPopupRecipientIds] = useState<string[]>([]);
   const [systemAdminTypes, setSystemAdminTypes] = useState<string[]>([]);
   const [systemSubscribers, setSystemSubscribers] = useState<SystemUserDraft[]>([]);
   const [pickSystemUserId, setPickSystemUserId] = useState("");
@@ -119,6 +121,8 @@ export const SystemNotificationsModal: React.FC<SystemNotificationsModalProps> =
     getSystemNotificationsConfig()
       .then((sys) => {
         setAvailableUsers(sys.availableUsers || []);
+        setFullAccessUsers(sys.fullAccessUsers || []);
+        setCommentPopupRecipientIds(sys.commentPopupRecipientIds || []);
         setSystemAdminTypes(sys.adminNotificationTypes || []);
         setSystemSubscribers(
           (sys.subscribers || []).map((s) => ({
@@ -145,18 +149,15 @@ export const SystemNotificationsModal: React.FC<SystemNotificationsModalProps> =
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setMessage(null);
-    if (!adminPassword.trim()) {
-      setMessage({ type: "err", text: "Informe a senha da gerência." });
-      return;
-    }
     setSaving(true);
     try {
       await saveSystemNotificationsConfig({
-        adminPassword: adminPassword.trim(),
+        adminPassword: adminPassword.trim() || undefined,
         adminNotificationTypes: systemAdminTypes,
         subscribers: systemSubscribers
           .filter((s) => s.notificationTypes.length > 0)
           .map((s) => ({ systemUserId: s.systemUserId, notificationTypes: s.notificationTypes })),
+        commentPopupRecipientIds,
       });
       setMessage({ type: "ok", text: "Configuração de notificações salva." });
       setAdminPassword("");
@@ -231,6 +232,56 @@ export const SystemNotificationsModal: React.FC<SystemNotificationsModalProps> =
                       ))}
                     </div>
                   </div>
+
+                  <div className="rounded-xl border border-[#007AFF]/25 bg-[#007AFF]/[0.06] p-3 dark:border-[#007AFF]/30 dark:bg-[#007AFF]/10">
+                    <p className="text-[13px] font-semibold text-zinc-900 dark:text-white mb-1">
+                      Modal imediato de comentários
+                    </p>
+                    <p className="text-[12px] text-zinc-600 dark:text-zinc-400 mb-3 leading-relaxed">
+                      Além da Gerência (Rei do ABS), escolha logins com <span className="font-semibold">acesso total</span> que também recebem o chat na tela quando alguém comenta no veículo ou na peça.
+                    </p>
+                    {fullAccessUsers.length === 0 ? (
+                      <p className="text-[12px] text-zinc-500 dark:text-zinc-400">
+                        Nenhum usuário com acesso total cadastrado. Crie em Usuários do sistema e ative «Acesso completo».
+                      </p>
+                    ) : (
+                      <div className="divide-y divide-zinc-200/80 dark:divide-white/[0.08] rounded-xl overflow-hidden border border-zinc-200/60 dark:border-white/[0.08] bg-white/70 dark:bg-zinc-950/40">
+                        {fullAccessUsers.map((u) => {
+                          const checked = commentPopupRecipientIds.includes(u.id);
+                          const cid = `comment-popup-${u.id}`;
+                          return (
+                            <div
+                              key={u.id}
+                              className="flex items-center justify-between gap-3 px-3 py-3 sm:px-3.5 min-h-[3.25rem]"
+                            >
+                              <div className="min-w-0 flex-1 pr-1">
+                                <p className="text-[14px] font-medium text-zinc-900 dark:text-white truncate">
+                                  {u.displayName}
+                                </p>
+                                <p className="text-[12px] text-zinc-500 dark:text-zinc-400 truncate">
+                                  @{u.username} · acesso total
+                                </p>
+                              </div>
+                              <IosSwitch
+                                id={cid}
+                                checked={checked}
+                                onChange={() =>
+                                  setCommentPopupRecipientIds((prev) =>
+                                    checked ? prev.filter((id) => id !== u.id) : [...prev, u.id]
+                                  )
+                                }
+                                ariaLabel={
+                                  checked
+                                    ? `${u.displayName}: recebe modal de comentários`
+                                    : `${u.displayName}: não recebe modal`
+                                }
+                              />
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
 
@@ -243,7 +294,7 @@ export const SystemNotificationsModal: React.FC<SystemNotificationsModalProps> =
                   value={adminPassword}
                   onChange={(e) => setAdminPassword(e.target.value)}
                   className={iosInput}
-                  placeholder="Obrigatória para salvar"
+                  placeholder="Opcional se você já estiver logado como gerência ou acesso total"
                 />
               </div>
 

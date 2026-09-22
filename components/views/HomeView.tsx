@@ -98,7 +98,7 @@ interface HomeViewProps {
   onSettingsHubOpenChange?: (open: boolean) => void;
   /** Abre estoque de peças (modal global no App quando definido). */
   onOpenPartsStock?: () => void;
-  /** Abre TVs da oficina (modal global no App quando definido). */
+  /** Abre Painéis de TV (modal global no App quando definido). */
   onOpenTvPatio?: () => void;
 }
 
@@ -509,7 +509,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
   useBrowserBackLayer(isHomeSettingsHubOpen, () => setSettingsHubOpen(false));
   useBrowserBackLayer(isAdminProfileOpen, () => setIsAdminProfileOpen(false));
   useBrowserBackLayer(isChangePasswordsOpen, () => setIsChangePasswordsOpen(false));
-  useBrowserBackLayer(isPartsModalOpen, () => setIsPartsModalOpen(false));
+  // Inventário: ESC via ModalPortal.onRequestClose
   useBrowserBackLayer(isPatioChecklistsOpen, () => setIsPatioChecklistsOpen(false));
   useBrowserBackLayer(isServicesModalOpen, () => setIsServicesModalOpen(false));
   useBrowserBackLayer(isLabProductTypesOpen, () => setIsLabProductTypesOpen(false));
@@ -558,7 +558,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
     if (showFullAdminHub || !!perms.access_tv_patio) {
       extraTiles.push({
         id: 'tv_patio',
-        label: 'TVs da oficina',
+        label: 'Painéis de TV',
         icon: <img src="/icons/tv-patio-ios.png" alt="TVs Pátio e Laboratório" className="h-full w-full object-cover" />,
         onOpen: () => (onOpenTvPatio ? onOpenTvPatio() : setIsTvPatioOpen(true)),
       });
@@ -566,8 +566,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
     if (showFullAdminHub || !!perms.access_estoque_pecas) {
       extraTiles.push({
         id: 'parts_stock',
-        label: 'Estoque de peças',
-        icon: <img src="/icons/estoque-ios.png" alt="Estoque de peças" className="h-full w-full object-cover" />,
+        label: 'Estoque',
+        icon: <img src="/icons/estoque-ios.png" alt="Estoque" className="h-full w-full object-cover" />,
         onOpen: () => (onOpenPartsStock ? onOpenPartsStock() : setIsPartsModalOpen(true)),
       });
     }
@@ -1129,7 +1129,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                           {canManageLabProductTypes && (
                             <SettingsRow
                               onClick={() => setIsLabProductTypesOpen(true)}
-                              title="Tipos de produto do laboratório"
+                              title="Tipos de peça do laboratório"
                               subtitle="Adicionar, renomear ou excluir"
                               icon={
                                 <IosAccentIconSquircle variant="row" strokeWidth={2.2}>

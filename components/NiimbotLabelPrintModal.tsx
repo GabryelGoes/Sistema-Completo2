@@ -106,7 +106,7 @@ export function NiimbotLabelPrintModal({
         setCodeWasGenerated(false);
         setPreviewUrl(
           renderNiimbotPartLabelDataUrl({
-            name: part.name || 'Produto',
+            name: part.name || 'Peça',
             code: existing,
           })
         );
@@ -140,7 +140,7 @@ export function NiimbotLabelPrintModal({
         setCodeWasGenerated(true);
         setPreviewUrl(
           renderNiimbotPartLabelDataUrl({
-            name: saved.name || part.name || 'Produto',
+            name: saved.name || part.name || 'Peça',
             code,
           })
         );
@@ -152,14 +152,14 @@ export function NiimbotLabelPrintModal({
         setCodeWasGenerated(true);
         setPreviewUrl(
           renderNiimbotPartLabelDataUrl({
-            name: part.name || 'Produto',
+            name: part.name || 'Peça',
             code: fallback,
           })
         );
         setLocalError(
           err instanceof Error
             ? `Código gerado só na etiqueta (não salvo: ${err.message})`
-            : 'Código gerado só na etiqueta (não foi possível salvar no produto).'
+            : 'Código gerado só na etiqueta (não foi possível salvar na peça).'
         );
       } finally {
         if (!cancelled) setEnsuringCode(false);
@@ -206,7 +206,7 @@ export function NiimbotLabelPrintModal({
     run(async () => {
       if (!code) throw new Error('Código interno ausente');
       const url = renderNiimbotPartLabelDataUrl({
-        name: part.name || 'Produto',
+        name: part.name || 'Peça',
         code,
       });
       await niimbotService.printLabelImageUrl(url, { copies });

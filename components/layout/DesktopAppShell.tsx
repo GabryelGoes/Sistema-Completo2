@@ -8,8 +8,8 @@ import { moduleAccentColor, moduleTopbarTextTone } from '../../utils/appAppearan
 import {
   DESKTOP_NAV_ITEMS,
   desktopNavLabel,
+  buildDesktopSidebarEntries,
   filterDesktopNav,
-  filterDesktopSidebarActions,
   type DesktopNavItem,
   type DesktopSidebarAccess,
   type DesktopSidebarActionId,
@@ -38,6 +38,10 @@ export type DesktopAppShellProps = {
   onOpenSettings?: () => void;
   onOpenProfileEditor?: () => void;
   onLogout?: () => void;
+  /** Abre o chat de bugs/erros (botão Suporte). */
+  onOpenSupport?: () => void;
+  /** Quantidade de mensagens novas no chat de suporte. */
+  supportUnreadBadge?: number;
   orcamentosBadge?: number;
   notificationCenter?: Omit<NotificationCenterProps, 'placement'>;
   shellOverlayTopbar?: DesktopShellOverlayTopbar | null;
@@ -91,6 +95,8 @@ export function DesktopAppShell({
   onOpenSettings,
   onOpenProfileEditor,
   onLogout,
+  onOpenSupport,
+  supportUnreadBadge = 0,
   orcamentosBadge = 0,
   notificationCenter,
   shellOverlayTopbar = null,
@@ -128,8 +134,7 @@ export function DesktopAppShell({
   }, []);
 
   const nav = filterDesktopNav(DESKTOP_NAV_ITEMS, allowedTabs);
-  const sidebarItems = nav.filter((i) => i.sidebar !== false);
-  const sidebarActions = sidebarAccess ? filterDesktopSidebarActions(sidebarAccess) : [];
+  const sidebarEntries = buildDesktopSidebarEntries(allowedTabs, sidebarAccess);
   const pageTitle = shellOverlayTopbar?.title ?? desktopNavLabel(currentTab, nav);
   const topbarAccent = shellOverlayTopbar?.accent ?? moduleAccentColor(currentTab);
   const topbarTone = shellOverlayTopbar?.tone ?? moduleTopbarTextTone(currentTab);
@@ -164,41 +169,44 @@ export function DesktopAppShell({
         </div>
 
         <nav className="desktop-shell-sidebar-nav">
-          {sidebarItems.map((item) => {
-            const active = !activeSidebarAction && currentTab === item.id;
+          {sidebarEntries.map((entry) => {
+            if (entry.kind === 'tab') {
+              const item = entry.item;
+              const active = !activeSidebarAction && currentTab === item.id;
+              return (
+                <button
+                  key={`tab-${item.id}`}
+                  type="button"
+                  className={`desktop-shell-nav-item${active ? ' desktop-shell-nav-item--active' : ''}`}
+                  onClick={() => onTabChange(item.id)}
+                  aria-current={active ? 'page' : undefined}
+                  title={sidebarCollapsed ? item.label : undefined}
+                >
+                  <NavIcon item={item} />
+                  <span className="desktop-shell-nav-label min-w-0 truncate">{item.label}</span>
+                  {item.id === 'orcamentos' && orcamentosBadge > 0 ? (
+                    <span className="desktop-shell-nav-badge ml-auto rounded-full bg-red-500 px-1.5 py-0.5 text-[9px] font-bold text-white tabular-nums">
+                      {orcamentosBadge > 99 ? '99+' : orcamentosBadge}
+                    </span>
+                  ) : null}
+                </button>
+              );
+            }
+
+            const item = entry.item;
+            const active = activeSidebarAction === item.id;
             return (
               <button
-                key={item.id}
+                key={`action-${item.id}`}
                 type="button"
-                className={`desktop-shell-nav-item${active ? ' desktop-shell-nav-item--active' : ''}`}
-                onClick={() => onTabChange(item.id)}
+                className={`desktop-shell-nav-item desktop-shell-nav-item--action${active ? ' desktop-shell-nav-item--active' : ''}`}
+                onClick={() => onSidebarAction?.(item.id)}
                 aria-current={active ? 'page' : undefined}
                 title={sidebarCollapsed ? item.label : undefined}
               >
-                <NavIcon item={item} />
+                <ActionNavIcon item={item} />
                 <span className="desktop-shell-nav-label min-w-0 truncate">{item.label}</span>
-                {item.id === 'orcamentos' && orcamentosBadge > 0 ? (
-                  <span className="desktop-shell-nav-badge ml-auto rounded-full bg-red-500 px-1.5 py-0.5 text-[9px] font-bold text-white tabular-nums">
-                    {orcamentosBadge > 99 ? '99+' : orcamentosBadge}
-                  </span>
-                ) : null}
               </button>
-            );
-          })}
-          {sidebarActions.map((item) => {
-            const active = activeSidebarAction === item.id;
-            return (
-            <button
-              key={item.id}
-              type="button"
-              className={`desktop-shell-nav-item desktop-shell-nav-item--action${active ? ' desktop-shell-nav-item--active' : ''}`}
-              onClick={() => onSidebarAction?.(item.id)}
-              aria-current={active ? 'page' : undefined}
-              title={sidebarCollapsed ? item.label : undefined}
-            >
-              <ActionNavIcon item={item} />
-              <span className="desktop-shell-nav-label min-w-0 truncate">{item.label}</span>
-            </button>
             );
           })}
         </nav>
@@ -231,16 +239,25 @@ export function DesktopAppShell({
           </div>
         ) : null}
 
-        <a
-          href="https://wa.me/"
-          target="_blank"
-          rel="noopener noreferrer"
+        <button
+          type="button"
           className="desktop-shell-support"
-          title="Suporte"
+          title="Registro de Bugs"
+          aria-label={
+            supportUnreadBadge > 0
+              ? `Registro de Bugs, ${supportUnreadBadge} não lidas`
+              : 'Registro de Bugs'
+          }
+          onClick={() => onOpenSupport?.()}
         >
           <Headphones className="desktop-shell-support-icon h-4 w-4 shrink-0" strokeWidth={2.25} aria-hidden />
           <span className="desktop-shell-support-label">Suporte</span>
-        </a>
+          {supportUnreadBadge > 0 ? (
+            <span className="desktop-shell-support-badge" aria-hidden>
+              {supportUnreadBadge > 99 ? '99+' : supportUnreadBadge}
+            </span>
+          ) : null}
+        </button>
       </aside>
 
       <div className="desktop-shell-main">

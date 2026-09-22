@@ -21,6 +21,8 @@ export type AuthenticatedAppFrameProps = {
   onOpenSettings?: () => void;
   onOpenProfileEditor?: () => void;
   onLogout?: () => void;
+  onOpenSupport?: () => void;
+  supportUnreadBadge?: number;
   orcamentosBadge?: number;
   notificationCenter?: Omit<NotificationCenterProps, 'placement'>;
   /** Título/cor da barra superior quando um módulo da sidebar está aberto (PC). */
@@ -46,6 +48,8 @@ export function AuthenticatedAppFrame({
   onOpenSettings,
   onOpenProfileEditor,
   onLogout,
+  onOpenSupport,
+  supportUnreadBadge,
   orcamentosBadge,
   notificationCenter,
   shellOverlayTopbar = null,
@@ -72,6 +76,8 @@ export function AuthenticatedAppFrame({
             onOpenSettings={onOpenSettings}
             onOpenProfileEditor={onOpenProfileEditor}
             onLogout={onLogout}
+            onOpenSupport={onOpenSupport}
+            supportUnreadBadge={supportUnreadBadge}
             orcamentosBadge={orcamentosBadge}
             notificationCenter={notificationCenter}
             shellOverlayTopbar={shellOverlayTopbar}
