@@ -5977,6 +5977,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
           if (desktopShell) {
             z *= 0.9;
           }
+          // Trello / por mecânico: zoom out de 15% nos cartões (Pátio e Laboratório).
+          if (boardLayoutMode === 'trello' || boardLayoutMode === 'by_mechanic') {
+            z *= 0.85;
+          }
           return z;
         };
         const zoomWrap = (node: React.ReactNode, variant: 'grid' | 'hscroll' = 'grid') => (
@@ -6317,7 +6321,66 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 ) : null}
               </div>
 
-              {/* Botões de Ação Inferiores */}
+              {/* Em Trello/por mecânico: sem botão de alterar etapa (arraste/coluna ou ficha). */}
+              {boardLayoutMode === 'trello' || boardLayoutMode === 'by_mechanic' ? (
+                <div
+                  className={`relative w-full shrink-0 ${
+                    boardPanoramic ? 'space-y-[calc(0.375rem*1.6146)]' : 'space-y-2'
+                  }`}
+                >
+                  {boardLayoutMode === 'by_mechanic' ? (
+                    <div
+                      className={`
+                        flex w-full items-center gap-2 rounded-2xl border-0 shadow-none pointer-events-none
+                        ${
+                          boardPanoramic
+                            ? 'min-h-[calc(40px*1.6146)] py-[calc(0.4rem*1.6146)] pl-3.5 pr-2.5 text-[13px]'
+                            : 'min-h-[44px] py-2 pl-5 pr-3'
+                        }
+                        ${statusConfig.style}
+                      `}
+                      aria-label={`Etapa: ${statusConfig.label}`}
+                    >
+                      <span className="min-w-0 flex-1 truncate text-left text-[15px] font-semibold uppercase leading-snug tracking-wide !text-black dark:!text-black sm:text-[16px] portrait:text-[12px]">
+                        {statusConfig.label}
+                      </span>
+                    </div>
+                  ) : null}
+                  {can('canArchiveCard') && (showDeliverButton || showNotApprovedDeliverButton) ? (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        const msg = showDeliverButton
+                          ? isModuleMode
+                            ? 'Confirmar entrega desta peça? Ele será arquivado e irá para o histórico.'
+                            : 'Confirmar entrega deste veículo finalizado? Ele será arquivado e irá para o histórico.'
+                          : isModuleMode
+                            ? 'Confirmar entrega desta peça não aprovada? Ele será arquivado e irá para o histórico.'
+                            : 'Confirmar entrega deste veículo não aprovado? Ele será arquivado e irá para o histórico.';
+                        if (archivingId === card.id) return;
+                        if (window.confirm(msg)) {
+                          handleDeliverVehicle(card.id);
+                        }
+                      }}
+                      onPointerDown={(e) => e.stopPropagation()}
+                      className={`inline-flex w-full cursor-pointer items-center justify-center gap-1.5 rounded-2xl border border-emerald-500/70 bg-white/90 font-semibold text-emerald-700 shadow-sm transition-colors hover:bg-emerald-50 hover:text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200 ${
+                        boardPanoramic
+                          ? 'min-h-[calc(40px*1.6146)] px-3 py-2 text-[11px]'
+                          : 'min-h-[44px] px-3 py-2.5 text-[12px]'
+                      }`}
+                    >
+                      {archivingId === card.id ? (
+                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                      )}
+                      ENTREGAR
+                    </button>
+                  ) : null}
+                </div>
+              ) : (
               <div
                 className={`relative w-full shrink-0 ${
                   boardPanoramic ? 'space-y-[calc(0.375rem*1.6146)]' : 'space-y-2'
@@ -6379,6 +6442,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   />
                 </button>
               </div>
+              )}
 
               </div>
               </div>
