@@ -1901,13 +1901,22 @@ export async function addServiceOrderComment(
   serviceOrderId: string,
   text: string,
   authorDisplayName: string,
-  actor?: "admin" | "technician"
+  actor?: "admin" | "technician",
+  authorUserId?: string | null
 ): Promise<ServiceOrderComment> {
-  const body: { text: string; authorDisplayName: string; actor?: "admin" | "technician" } = {
+  const body: {
+    text: string;
+    authorDisplayName: string;
+    actor?: "admin" | "technician";
+    authorUserId?: string;
+  } = {
     text: text.trim(),
     authorDisplayName: authorDisplayName.trim(),
   };
   if (actor) body.actor = actor;
+  if (typeof authorUserId === "string" && authorUserId.trim()) {
+    body.authorUserId = authorUserId.trim();
+  }
   const response = await fetch(`${API_BASE}/service-orders/${serviceOrderId}/comments`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -4139,6 +4148,7 @@ export interface WorkshopUserOption {
   id: string;
   username: string;
   displayName: string;
+  fullAccess?: boolean;
 }
 
 export interface SystemNotificationsSubscriberRow {
@@ -4151,6 +4161,10 @@ export interface SystemNotificationsConfig {
   adminNotificationTypes: string[];
   subscribers: SystemNotificationsSubscriberRow[];
   availableUsers: WorkshopUserOption[];
+  /** Usuários com acesso total (para o modal imediato de comentários). */
+  fullAccessUsers: WorkshopUserOption[];
+  /** IDs de usuários full_access que também recebem o modal de chat ao vivo. */
+  commentPopupRecipientIds: string[];
 }
 
 export async function getSystemNotificationsConfig(): Promise<SystemNotificationsConfig> {
@@ -4159,13 +4173,21 @@ export async function getSystemNotificationsConfig(): Promise<SystemNotification
     const err = await response.json().catch(() => ({}));
     throw new Error(err.error || "Falha ao carregar notificações do sistema.");
   }
-  return response.json();
+  const data = (await response.json()) as SystemNotificationsConfig;
+  return {
+    adminNotificationTypes: data.adminNotificationTypes ?? [],
+    subscribers: data.subscribers ?? [],
+    availableUsers: data.availableUsers ?? [],
+    fullAccessUsers: data.fullAccessUsers ?? [],
+    commentPopupRecipientIds: data.commentPopupRecipientIds ?? [],
+  };
 }
 
 export async function saveSystemNotificationsConfig(body: {
-  adminPassword: string;
+  adminPassword?: string;
   adminNotificationTypes: string[];
   subscribers: { systemUserId: string; notificationTypes: string[] }[];
+  commentPopupRecipientIds?: string[];
 }): Promise<void> {
   const response = await fetch(`${API_BASE}/workshop/system-notifications`, {
     method: "PUT",

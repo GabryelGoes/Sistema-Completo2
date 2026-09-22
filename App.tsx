@@ -1067,6 +1067,7 @@ export default function App() {
             notification={commentPopUpNotification}
             replyAuthorName={authSession.displayName ?? 'Rei do ABS'}
             replyActor="technician"
+            replyAuthorUserId={authSession.userId}
             blurPlates={cinematographicMode}
             onClose={() => setCommentPopUpNotification(null)}
           />
@@ -1498,6 +1499,7 @@ export default function App() {
           notification={commentPopUpNotification}
           replyAuthorName={authSession?.role === 'admin' ? adminDisplayName : (authSession?.displayName ?? authSession?.username ?? 'Rei do ABS')}
           replyActor={authSession?.role === 'admin' ? 'admin' : 'technician'}
+          replyAuthorUserId={authSession?.role === 'user' ? authSession.userId : null}
           blurPlates={cinematographicMode}
           onClose={() => setCommentPopUpNotification(null)}
         />

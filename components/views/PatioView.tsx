@@ -3416,7 +3416,13 @@ export const PatioView: React.FC<PatioViewProps> = ({
     setNewComment('');
     setSendingComment(true);
     try {
-      await addServiceOrderComment(selectedCard.id, text, commentAuthorName, actorOptions?.actor);
+      await addServiceOrderComment(
+        selectedCard.id,
+        text,
+        commentAuthorName,
+        actorOptions?.actor,
+        actorOptions?.actor === 'technician' ? actorOptions?.actorTechnicianSlug ?? null : null
+      );
       const comments = await getServiceOrderComments(selectedCard.id);
       setCardDetails(prev => prev ? {
         ...prev,

@@ -1282,12 +1282,14 @@ export function createApiApp() {
   async function getSystemNotificationConfig(): Promise<{
     adminNotificationTypes: string[];
     subscribers: SystemNotificationSubscriberRow[];
+    commentPopupRecipientIds: string[];
     hasExplicitConfig: boolean;
   }> {
     if (!supabaseAdmin || !WORKSHOP_ID) {
       return {
         adminNotificationTypes: [...DEFAULT_SYSTEM_NOTIFICATION_TYPES],
         subscribers: [],
+        commentPopupRecipientIds: [],
         hasExplicitConfig: false,
       };
     }
@@ -1295,7 +1297,11 @@ export function createApiApp() {
       .from("workshop_settings")
       .select("key, value")
       .eq("workshop_id", WORKSHOP_ID)
-      .in("key", ["system_notifications_admin_types", "system_notifications_user_subscribers"]);
+      .in("key", [
+        "system_notifications_admin_types",
+        "system_notifications_user_subscribers",
+        "comment_popup_recipient_ids",
+      ]);
 
     const map = (data || []).reduce((acc: Record<string, string>, row: { key: string; value: string | null }) => {
       acc[row.key] = row.value ?? "";
@@ -1326,7 +1332,21 @@ export function createApiApp() {
       }
     }
 
-    return { adminNotificationTypes, subscribers, hasExplicitConfig };
+    let commentPopupRecipientIds: string[] = [];
+    if (map.comment_popup_recipient_ids) {
+      try {
+        const parsed = JSON.parse(map.comment_popup_recipient_ids);
+        if (Array.isArray(parsed)) {
+          commentPopupRecipientIds = parsed
+            .filter((x: unknown): x is string => typeof x === "string" && x.trim().length > 0)
+            .map((x) => x.trim());
+        }
+      } catch {
+        commentPopupRecipientIds = [];
+      }
+    }
+
+    return { adminNotificationTypes, subscribers, commentPopupRecipientIds, hasExplicitConfig };
   }
 
   async function shouldNotifyAdminForSystemType(type: string): Promise<boolean> {
@@ -1340,6 +1360,32 @@ export function createApiApp() {
     return cfg.subscribers
       .filter((s) => s.notificationTypes.includes(type))
       .map((s) => s.systemUserId);
+  }
+
+  /**
+   * Usuários com acesso total escolhidos para o modal imediato de comentários
+   * (mesmo comportamento da Gerência / Rei do ABS).
+   */
+  async function getCommentPopupRecipientIds(excludeUserId?: string | null): Promise<string[]> {
+    if (!supabaseAdmin || !WORKSHOP_ID) return [];
+    const cfg = await getSystemNotificationConfig();
+    const wanted = new Set(cfg.commentPopupRecipientIds);
+    if (wanted.size === 0) return [];
+
+    const { data: users } = await supabaseAdmin
+      .from("workshop_system_users")
+      .select("id, permissions")
+      .eq("workshop_id", WORKSHOP_ID)
+      .in("id", [...wanted]);
+
+    const exclude = typeof excludeUserId === "string" ? excludeUserId.trim() : "";
+    return (users || [])
+      .filter((u: { id: string; permissions?: Record<string, boolean> | null }) => {
+        if (!u?.id || (exclude && u.id === exclude)) return false;
+        const perms = (u.permissions as Record<string, boolean> | null) || {};
+        return !!perms.full_access;
+      })
+      .map((u: { id: string }) => u.id);
   }
 
   // Rate limit simples por IP para o login (mitiga brute force). Em memória (por instância).
@@ -1949,16 +1995,24 @@ export function createApiApp() {
       const cfg = await getSystemNotificationConfig();
       const { data: users } = await supabaseAdmin
         .from("workshop_system_users")
-        .select("id, username, display_name")
+        .select("id, username, display_name, permissions")
         .eq("workshop_id", WORKSHOP_ID)
         .order("display_name", { ascending: true })
         .order("username");
 
-      const availableUsers = (users || []).map((u: { id: string; username: string; display_name: string | null }) => ({
+      const availableUsers = (users || []).map(
+        (u: {
+          id: string;
+          username: string;
+          display_name: string | null;
+          permissions?: Record<string, boolean> | null;
+        }) => ({
           id: u.id,
           username: u.username,
           displayName: u.display_name || u.username,
-      }));
+          fullAccess: !!(u.permissions as Record<string, boolean> | null)?.full_access,
+        })
+      );
 
       const userMap = new Map(availableUsers.map((u) => [u.id, u]));
       const subscribers = cfg.hasExplicitConfig
@@ -1979,12 +2033,19 @@ export function createApiApp() {
             displayName: u.displayName,
           }));
 
+      const fullAccessUsers = availableUsers.filter((u) => u.fullAccess);
+      const commentPopupRecipientIds = cfg.commentPopupRecipientIds.filter((id) =>
+        fullAccessUsers.some((u) => u.id === id)
+      );
+
       return res.json({
         adminNotificationTypes: cfg.hasExplicitConfig
           ? cfg.adminNotificationTypes
           : [...DEFAULT_SYSTEM_NOTIFICATION_TYPES],
         subscribers,
         availableUsers,
+        fullAccessUsers,
+        commentPopupRecipientIds,
       });
     } catch (err: any) {
       console.error("[API] Erro em GET /api/workshop/system-notifications:", err);
@@ -1994,11 +2055,35 @@ export function createApiApp() {
 
   app.put("/api/workshop/system-notifications", async (req, res) => {
     try {
-      const { adminPassword, adminNotificationTypes, subscribers } = req.body || {};
-      if (!WORKSHOP_ID || !(await verifyAdmin(ADMIN_USERNAME, adminPassword))) {
-        return res.status(403).json({ error: "Acesso negado." });
+      const { adminPassword, adminNotificationTypes, subscribers, commentPopupRecipientIds } =
+        req.body || {};
+      if (!WORKSHOP_ID || !supabaseAdmin) {
+        return res.status(500).json({ error: "Servidor não configurado." });
       }
-      if (!supabaseAdmin) return res.status(500).json({ error: "Servidor não configurado." });
+
+      const auth = (req as unknown as { auth?: SessionPayload }).auth;
+      let allowed = false;
+      if (auth?.r === "admin") {
+        allowed = true;
+      } else if (auth?.r === "user" && auth.u) {
+        const { data: me } = await supabaseAdmin
+          .from("workshop_system_users")
+          .select("permissions")
+          .eq("id", auth.u)
+          .eq("workshop_id", WORKSHOP_ID)
+          .maybeSingle();
+        allowed = !!(me?.permissions as Record<string, boolean> | null)?.full_access;
+      }
+      if (!allowed) {
+        if (!(await verifyAdmin(ADMIN_USERNAME, adminPassword))) {
+          return res.status(403).json({ error: "Acesso negado." });
+        }
+      } else if (typeof adminPassword === "string" && adminPassword.trim()) {
+        // Senha informada: valida mesmo com sessão (evita salvar com senha errada por engano).
+        if (!(await verifyAdmin(ADMIN_USERNAME, adminPassword))) {
+          return res.status(403).json({ error: "Senha da gerência incorreta." });
+        }
+      }
 
       const normalizedAdmin = Array.isArray(adminNotificationTypes)
         ? adminNotificationTypes
@@ -2006,6 +2091,27 @@ export function createApiApp() {
             .filter((x) => isValidSystemNotificationType(x))
         : [];
       const normalizedSubscribers = parseSystemNotificationSubscribers(subscribers);
+
+      const requestedPopupIds = Array.isArray(commentPopupRecipientIds)
+        ? commentPopupRecipientIds
+            .filter((x: unknown): x is string => typeof x === "string" && x.trim().length > 0)
+            .map((x) => x.trim())
+        : [];
+      let normalizedPopupIds: string[] = [];
+      if (requestedPopupIds.length > 0) {
+        const { data: fullUsers } = await supabaseAdmin
+          .from("workshop_system_users")
+          .select("id, permissions")
+          .eq("workshop_id", WORKSHOP_ID)
+          .in("id", requestedPopupIds);
+        normalizedPopupIds = (fullUsers || [])
+          .filter((u: { id: string; permissions?: Record<string, boolean> | null }) => {
+            const perms = (u.permissions as Record<string, boolean> | null) || {};
+            return !!perms.full_access;
+          })
+          .map((u: { id: string }) => u.id);
+      }
+
       const nowIso = new Date().toISOString();
       const rows = [
         {
@@ -2018,6 +2124,12 @@ export function createApiApp() {
           workshop_id: WORKSHOP_ID,
           key: "system_notifications_user_subscribers",
           value: JSON.stringify(normalizedSubscribers),
+          updated_at: nowIso,
+        },
+        {
+          workshop_id: WORKSHOP_ID,
+          key: "comment_popup_recipient_ids",
+          value: JSON.stringify(normalizedPopupIds),
           updated_at: nowIso,
         },
       ];
@@ -6921,17 +7033,49 @@ export function createApiApp() {
         customer_name: customerName || null,
       };
 
-      // Comentário de técnico → notificar só o admin (admin não recebe notificação do próprio comentário)
+      // Comentário de técnico / usuário → notificar admin + usuários com acesso total escolhidos para o modal
       if (!isAdminComment) {
         const shouldAdmin = await shouldNotifyAdminForSystemType("comment");
         if (shouldAdmin) {
-        await supabaseAdmin.from("notifications").insert({
-          workshop_id: WORKSHOP_ID,
-          type: "comment",
-          payload: commentPayload,
-          target_type: "admin",
-          target_slug: null,
-        }).then(({ error: notifErr }) => { if (notifErr) console.error("[API] Erro ao criar notificação de comentário (admin):", notifErr); });
+          await supabaseAdmin.from("notifications").insert({
+            workshop_id: WORKSHOP_ID,
+            type: "comment",
+            payload: commentPayload,
+            target_type: "admin",
+            target_slug: null,
+          }).then(({ error: notifErr }) => { if (notifErr) console.error("[API] Erro ao criar notificação de comentário (admin):", notifErr); });
+        }
+
+        const authorUserId =
+          actor === "technician" && typeof (req.body as { authorUserId?: unknown })?.authorUserId === "string"
+            ? String((req.body as { authorUserId?: string }).authorUserId).trim()
+            : null;
+        // Preferência: excluir pelo id do autor se enviado; senão tenta casar com display_name.
+        let excludeId = authorUserId || null;
+        if (!excludeId && author) {
+          const authorTrim = author.trim().toLowerCase();
+          const { data: maybeAuthor } = await supabaseAdmin
+            .from("workshop_system_users")
+            .select("id, display_name, username")
+            .eq("workshop_id", WORKSHOP_ID);
+          const match = (maybeAuthor || []).find(
+            (t: { id: string; display_name?: string | null; username?: string | null }) =>
+              (t.display_name && String(t.display_name).trim().toLowerCase() === authorTrim) ||
+              (t.username && String(t.username).trim().toLowerCase() === authorTrim)
+          );
+          if (match?.id) excludeId = match.id;
+        }
+        const popupRecipients = await getCommentPopupRecipientIds(excludeId);
+        for (const userId of popupRecipients) {
+          await supabaseAdmin.from("notifications").insert({
+            workshop_id: WORKSHOP_ID,
+            type: "comment",
+            payload: commentPayload,
+            target_type: "technician",
+            target_slug: userId,
+          }).then(({ error: notifErr }) => {
+            if (notifErr) console.error("[API] Erro ao criar notificação de comentário (popup full_access):", notifErr);
+          });
         }
       }
       // Comentário do admin → notificar o mecânico responsável do veículo; se não houver, notificar todos os técnicos
