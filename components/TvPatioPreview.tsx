@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import type { TvMediaObjectFit, TvSlide } from '../services/apiService';
 import { normalizeTvMediaObjectFit } from '../services/apiService';
 import type { TvChimeAlert, TvChimeKind, TvChimeScheduleConfig } from '../utils/tvChimeSchedule';
@@ -39,9 +39,9 @@ function extractYoutubeId(url: string): string | null {
 }
 
 /** Preview no modal: sem autoplay com som (evita áudio ao abrir); mesma aparência sem controles. */
-function buildYoutubePreviewEmbedUrl(videoId: string): string {
+function buildYoutubePreviewEmbedUrl(videoId: string, live: boolean): string {
   const q = new URLSearchParams({
-    autoplay: '0',
+    autoplay: live ? '1' : '0',
     mute: '1',
     controls: '0',
     modestbranding: '1',
@@ -99,6 +99,13 @@ interface TvPatioPreviewProps {
     message: string;
   } | null;
   onChimeFiringPreviewDismiss?: () => void;
+  /**
+   * Modo ao vivo: autoplay mudo de vídeos/YouTube e relógio atualizado,
+   * espelhando o que a TV está passando.
+   */
+  live?: boolean;
+  /** Rótulo opcional sob o placeholder de veículos (ex.: "Ao vivo · quadro"). */
+  vehiclesHint?: string | null;
 }
 
 /**
@@ -114,7 +121,22 @@ export const TvPatioPreview: React.FC<TvPatioPreviewProps> = ({
   chimeSchedulePreview = null,
   chimeFiringPreview = null,
   onChimeFiringPreviewDismiss,
+  live = false,
+  vehiclesHint = null,
 }) => {
+  const [clock, setClock] = useState(() =>
+    new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+  );
+
+  useEffect(() => {
+    if (!live) return;
+    const tick = () =>
+      setClock(new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }));
+    tick();
+    const t = window.setInterval(tick, 15_000);
+    return () => window.clearInterval(t);
+  }, [live]);
+
   const pct =
     weeklyTarget > 0 && Number.isFinite(weeklyCurrent / weeklyTarget)
       ? Math.max(0, Math.min(130, (weeklyCurrent / weeklyTarget) * 100))
@@ -205,7 +227,9 @@ export const TvPatioPreview: React.FC<TvPatioPreviewProps> = ({
               <div className="h-2 w-10 rounded bg-yellow-500/20" />
             </div>
           ))}
-          <p className="text-[9px] text-center text-white/30 mt-1 font-medium">Lista de veículos (exemplo)</p>
+          <p className="text-[9px] text-center text-white/30 mt-1 font-medium">
+            {vehiclesHint || (live ? 'Ao vivo · lista de veículos' : 'Lista de veículos (exemplo)')}
+          </p>
         </div>
       );
     }
@@ -239,7 +263,7 @@ export const TvPatioPreview: React.FC<TvPatioPreviewProps> = ({
       const yt = /youtube\.com|youtu\.be/.test(slide.mediaUrl);
       if (yt) {
         const id = extractYoutubeId(slide.mediaUrl);
-        const embed = id ? buildYoutubePreviewEmbedUrl(id) : slide.mediaUrl;
+        const embed = id ? buildYoutubePreviewEmbedUrl(id, live) : slide.mediaUrl;
         return (
           <div className="relative min-h-[88px] w-full flex-1 overflow-hidden bg-black">
             <iframe title="preview" src={embed} className="absolute inset-0 h-full w-full border-0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" />
@@ -249,10 +273,11 @@ export const TvPatioPreview: React.FC<TvPatioPreviewProps> = ({
       return (
         <div className="flex min-h-0 flex-1 items-center justify-center bg-black p-0">
           <TvUploadedVideoPlayer
+            key={`${slide.id}-${slide.mediaUrl}-${live ? 'live' : 'edit'}`}
             src={slide.mediaUrl}
             className="h-full w-full rounded-none"
             objectFit={normalizeTvMediaObjectFit(slide.mediaObjectFit)}
-            preview
+            preview={!live}
           />
         </div>
       );
@@ -309,7 +334,7 @@ export const TvPatioPreview: React.FC<TvPatioPreviewProps> = ({
               <span className="truncate text-[13px] font-black italic leading-none text-yellow-400">REI DO ABS</span>
               <span className="text-[6px] font-bold uppercase tracking-[0.2em] text-white/35">Pátio</span>
             </div>
-            <span className="font-mono text-[7px] tabular-nums text-white/40">12:00</span>
+            <span className="font-mono text-[7px] tabular-nums text-white/40">{live ? clock : '12:00'}</span>
           </div>
         )}
 

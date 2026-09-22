@@ -43,6 +43,7 @@ import { playTvChimePreSound, playTvChimeSound } from '../utils/tvChimeAudio';
 import { useTvChimeSchedule, type TvChimeFirePayload } from '../hooks/useTvChimeSchedule';
 import { TvChimeBannerCard } from './TvChimeBannerCard';
 import { TvPatioPreview } from './TvPatioPreview';
+import { useTvLiveSlideRotation } from '../hooks/useTvLiveSlideRotation';
 import { ModalPortal } from './ui/ModalPortal';
 import { IosAccentIconSquircle } from './ui/IosAccentIconSquircle';
 import { useDesktopShellLayout } from './ui/DesktopShellContext';
@@ -359,7 +360,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
   const [newMediaFullscreen, setNewMediaFullscreen] = useState(true);
   const [newMediaObjectFit, setNewMediaObjectFit] = useState<TvMediaObjectFit>('cover');
 
-  const [previewTab, setPreviewTab] = useState<'draft' | 'library' | 'chimes'>('draft');
+  const [previewTab, setPreviewTab] = useState<'live' | 'draft' | 'library' | 'chimes'>('live');
   const [libraryPreviewId, setLibraryPreviewId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const editFileInputRef = useRef<HTMLInputElement>(null);
@@ -597,15 +598,25 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
   }, [weeklyTargetStr]);
 
   /** No preview: barra só quando simula lista de veículos (não quando há slide em tela cheia). */
+  const liveRotation = useTvLiveSlideRotation(slides, isOpen && dataReady && previewTab === 'live');
+
   const previewShowsWeeklyStrip = useMemo(
     () =>
       showWeeklyBar &&
       weeklyTargetNum > 0 &&
       !(
+        (previewTab === 'live' && liveRotation.current !== null) ||
         (previewTab === 'draft' && draftSlide !== null) ||
         (previewTab === 'library' && librarySlide !== null)
       ),
-    [showWeeklyBar, weeklyTargetNum, previewTab, draftSlide, librarySlide]
+    [
+      showWeeklyBar,
+      weeklyTargetNum,
+      previewTab,
+      liveRotation.current,
+      draftSlide,
+      librarySlide,
+    ]
   );
 
   const currentTypeMeta = useMemo(
@@ -1177,17 +1188,30 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
     }
   };
 
-  const iosCard =
-    'rounded-[22px] border-0 bg-white/70 backdrop-blur-2xl shadow-none';
+  const iosCard = isDesktopShell
+    ? 'rounded-xl border border-zinc-200/70 bg-white/85 shadow-none'
+    : 'rounded-[22px] border-0 bg-white/70 backdrop-blur-2xl shadow-none';
 
   /** Fundo único claro (igual à área do preview) em todo o painel da TV do pátio */
   const tvPatioShellBg =
     'bg-gradient-to-b from-zinc-100/90 via-white/95 to-zinc-50/90';
 
-  const iosInput =
-    'w-full rounded-2xl border border-zinc-200/90 bg-white/90 px-4 py-3 text-[15px] text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/35 focus:border-[#007AFF]/50 transition-shadow';
+  const iosInput = isDesktopShell
+    ? 'w-full rounded-lg border border-zinc-200/90 bg-white px-2.5 py-1.5 text-[12px] text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/30 focus:border-[#007AFF]/45 transition-shadow'
+    : 'w-full rounded-2xl border border-zinc-200/90 bg-white/90 px-4 py-3 text-[15px] text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/35 focus:border-[#007AFF]/50 transition-shadow';
 
-  const iosLabel = 'text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500 mb-2';
+  const iosLabel = isDesktopShell
+    ? 'text-[9px] font-semibold uppercase tracking-[0.1em] text-zinc-500 mb-1'
+    : 'text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500 mb-2';
+
+  const sectionPad = isDesktopShell ? 'p-3' : 'p-5 sm:p-6';
+
+  const livePreviewSlide =
+    previewTab === 'live'
+      ? liveRotation.current
+      : previewTab === 'chimes'
+        ? null
+        : previewSlide;
 
   return (
     <ModalPortal manageBackLayer onRequestClose={onClose}>
@@ -1223,7 +1247,11 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
         className={`relative flex min-h-0 flex-1 flex-col overflow-hidden text-zinc-900 max-lg:portrait:overflow-y-auto max-lg:portrait:overflow-x-hidden max-lg:landscape:flex-col lg:grid lg:min-h-0 ${
           isDesktopShell ? 'h-full w-full max-w-none' : 'h-[100dvh] w-screen max-w-none'
         } ${
-          dataReady ? 'lg:grid-cols-[minmax(0,1fr)_min(420px,100%)]' : 'lg:grid-cols-1'
+          dataReady
+            ? isDesktopShell
+              ? 'lg:grid-cols-[minmax(0,1.05fr)_minmax(320px,40%)]'
+              : 'lg:grid-cols-[minmax(0,1fr)_min(420px,100%)]'
+            : 'lg:grid-cols-1'
         } lg:grid-rows-[auto_minmax(0,1fr)] ${tvPatioShellBg} rounded-none border-0 shadow-none`}
         style={{ colorScheme: 'light' }}
       >
@@ -1271,7 +1299,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
               type="button"
               onClick={() => {
                 setTvScope('patio');
-                setPreviewTab('draft');
+                setPreviewTab('live');
                 setEditingSlideId(null);
                 setEditForm(null);
               }}
@@ -1287,7 +1315,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
               type="button"
               onClick={() => {
                 setTvScope('laboratorio');
-                setPreviewTab('draft');
+                setPreviewTab('live');
                 setEditingSlideId(null);
                 setEditForm(null);
               }}
@@ -1304,20 +1332,41 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
 
         {/* Preview — em portrait: logo abaixo do cabeçalho; em lg: coluna direita */}
         {dataReady && (
-          <div className="flex max-lg:landscape:order-1 shrink-0 flex-col border-b border-zinc-200/60 bg-transparent px-5 py-8 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:border-b-0 lg:border-l lg:border-t-0 lg:border-zinc-200/50 lg:py-10">
+          <div
+            className={`flex max-lg:landscape:order-1 shrink-0 flex-col border-b border-zinc-200/60 bg-transparent lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:border-b-0 lg:border-l lg:border-t-0 lg:border-zinc-200/50 ${
+              isDesktopShell ? 'px-4 py-4' : 'px-5 py-8 lg:py-10'
+            }`}
+          >
             <div className="portrait:order-2 lg:order-1 max-lg:portrait:mt-9">
-              <div className="mb-4 flex items-center gap-2 max-lg:portrait:mb-5">
+              <div className={`flex items-center gap-2 ${isDesktopShell ? 'mb-2' : 'mb-4 max-lg:portrait:mb-5'}`}>
                 <Eye className="h-4 w-4 text-[#007AFF]" />
                 <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-zinc-500">
                   Preview ao vivo
                 </span>
+                {previewTab === 'live' && liveRotation.queueLength > 0 ? (
+                  <span className="ml-auto rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-bold tabular-nums text-emerald-700">
+                    {liveRotation.index + 1}/{liveRotation.queueLength}
+                  </span>
+                ) : null}
               </div>
 
-              <div className="mb-5 grid grid-cols-3 gap-1 rounded-2xl bg-zinc-200/60 p-1">
+              <div className={`grid grid-cols-4 gap-1 rounded-2xl bg-zinc-200/60 p-1 ${isDesktopShell ? 'mb-3' : 'mb-5'}`}>
+                <button
+                  type="button"
+                  onClick={() => setPreviewTab('live')}
+                  className={`flex flex-1 items-center justify-center gap-1 rounded-xl py-2 text-[10px] font-semibold transition-all sm:text-[11px] ${
+                    previewTab === 'live'
+                      ? 'bg-white text-zinc-900 shadow-md'
+                      : 'text-zinc-500'
+                  }`}
+                >
+                  <Eye className="h-3.5 w-3.5 shrink-0" />
+                  <span className="truncate">Ao vivo</span>
+                </button>
                 <button
                   type="button"
                   onClick={() => setPreviewTab('draft')}
-                  className={`flex flex-1 items-center justify-center gap-1 rounded-xl py-2.5 text-[11px] font-semibold transition-all sm:text-[12px] ${
+                  className={`flex flex-1 items-center justify-center gap-1 rounded-xl py-2 text-[10px] font-semibold transition-all sm:text-[11px] ${
                     previewTab === 'draft'
                       ? 'bg-white text-zinc-900 shadow-md'
                       : 'text-zinc-500'
@@ -1330,7 +1379,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                   type="button"
                   onClick={() => setPreviewTab('library')}
                   disabled={slides.length === 0}
-                  className={`flex flex-1 items-center justify-center gap-1 rounded-xl py-2.5 text-[11px] font-semibold transition-all disabled:opacity-35 sm:text-[12px] ${
+                  className={`flex flex-1 items-center justify-center gap-1 rounded-xl py-2 text-[10px] font-semibold transition-all disabled:opacity-35 sm:text-[11px] ${
                     previewTab === 'library'
                       ? 'bg-white text-zinc-900 shadow-md'
                       : 'text-zinc-500'
@@ -1342,7 +1391,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                 <button
                   type="button"
                   onClick={() => setPreviewTab('chimes')}
-                  className={`flex flex-1 items-center justify-center gap-1 rounded-xl py-2.5 text-[11px] font-semibold transition-all sm:text-[12px] ${
+                  className={`flex flex-1 items-center justify-center gap-1 rounded-xl py-2 text-[10px] font-semibold transition-all sm:text-[11px] ${
                     previewTab === 'chimes'
                       ? 'bg-white text-zinc-900 shadow-md'
                       : 'text-zinc-500'
@@ -1456,8 +1505,18 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                 weeklyCurrent={weeklyCurrentNum}
                 weeklyTarget={weeklyTargetNum}
                 showWeeklyStrip={previewShowsWeeklyStrip}
-                slide={previewTab === 'chimes' ? null : previewSlide}
-                showVehiclesPlaceholder={previewTab === 'draft' && !draftSlide}
+                slide={livePreviewSlide}
+                showVehiclesPlaceholder={
+                  previewTab === 'live' || (previewTab === 'draft' && !draftSlide)
+                }
+                live={previewTab === 'live'}
+                vehiclesHint={
+                  previewTab === 'live'
+                    ? liveRotation.queueLength === 0
+                      ? 'Ao vivo · quadro de veículos (sem slides ativos)'
+                      : null
+                    : null
+                }
                 chimeSchedulePreview={previewTab === 'chimes' ? chimeConfig : null}
                 chimeFiringPreview={previewTab === 'chimes' ? chimeFiringPreviewInTv : null}
                 onChimeFiringPreviewDismiss={
@@ -1466,20 +1525,27 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
               />
             </div>
 
-            <p className="portrait:order-3 mt-5 px-1 text-center text-[11px] leading-relaxed text-zinc-500 lg:order-3">
-              {previewTab === 'chimes'
-                ? 'Lista de horários + botões acima para ver a faixa como no disparo. Salve na secção abaixo para enviar ao painel.'
-                : 'O preview simula o painel da TV. Imagens e vídeos enviados ficam no Storage da oficina.'}
+            <p className={`portrait:order-3 px-1 text-center leading-relaxed text-zinc-500 lg:order-3 ${isDesktopShell ? 'mt-3 text-[10px]' : 'mt-5 text-[11px]'}`}>
+              {previewTab === 'live'
+                ? 'Espelha a fila ativa da TV (duração e pin). Alterações salvas atualizam este preview.'
+                : previewTab === 'chimes'
+                  ? 'Lista de horários + botões acima para ver a faixa como no disparo. Salve na secção abaixo para enviar ao painel.'
+                  : 'Rascunho / fila: simulação do slide selecionado. Use “Ao vivo” para ver a rotação real.'}
             </p>
           </div>
         )}
 
         {/* Coluna principal (cards) — em portrait fica após o preview */}
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto overscroll-contain px-6 pb-8 sm:px-8 max-lg:portrait:flex-none max-lg:portrait:overflow-visible max-lg:landscape:order-3 lg:col-start-1 lg:row-start-2 lg:pr-12">
-          <div className="space-y-6">
+        <div
+          className={`flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto overscroll-contain max-lg:portrait:flex-none max-lg:portrait:overflow-visible max-lg:landscape:order-3 lg:col-start-1 lg:row-start-2 ${
+            isDesktopShell ? 'px-4 pb-4 lg:pr-6' : 'px-6 pb-8 sm:px-8 lg:pr-12'
+          }`}
+          style={isDesktopShell ? ({ zoom: 0.86 } as React.CSSProperties) : undefined}
+        >
+          <div className={isDesktopShell ? 'space-y-3' : 'space-y-6'}>
             {!dataReady &&
               (error ? (
-                <div className={`${iosCard} p-6 sm:p-8 space-y-4 text-center`}>
+                <div className={`${iosCard} ${isDesktopShell ? 'p-4' : 'p-6 sm:p-8'} space-y-4 text-center`}>
                   <p className="text-[14px] text-red-600">{error}</p>
                   <button
                     type="button"
@@ -1498,7 +1564,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
             {dataReady && (
               <>
                 {/* Meta semanal */}
-                <section className={`${iosCard} p-5 sm:p-6`}>
+                <section className={`${iosCard} ${sectionPad}`}>
                   <p className={iosLabel}>Meta semanal · barra superior na TV</p>
                   <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4 p-3 rounded-2xl bg-zinc-100/80">
                     <div>
@@ -1572,7 +1638,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                 </section>
 
                 {/* Avisos por horário (rotina da oficina) — detalhe minimizado por defeito */}
-                <section className={`${iosCard} p-5 sm:p-6`}>
+                <section className={`${iosCard} ${sectionPad}`}>
                   <div className="flex flex-col gap-3 sm:flex-row sm:items-stretch sm:justify-between sm:gap-4">
                     <button
                       type="button"
@@ -1976,7 +2042,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                 </section>
 
                 {/* Configuração de vídeos */}
-                <section className={`${iosCard} p-5 sm:p-6`}>
+                <section className={`${iosCard} ${sectionPad}`}>
                   <p className={iosLabel}>Vídeos na paginação da TV</p>
                   <p className="mb-3 text-[12px] leading-relaxed text-zinc-600">
                     No modo padrão, existe <span className="font-semibold">apenas 1 página de vídeo</span> na rotação.
@@ -2037,7 +2103,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                 </section>
 
                 {/* Novo slide */}
-                <section className={`${iosCard} p-5 sm:p-6`}>
+                <section className={`${iosCard} ${sectionPad}`}>
                   <p className={iosLabel}>Novo slide</p>
                   <div className="mb-4 rounded-2xl border border-zinc-200/80 bg-zinc-50/90 px-3 py-2.5 text-[12px] text-zinc-600">
                     <span className="font-semibold text-zinc-800">Fluxo rápido:</span> escolha o tipo, preencha apenas o que aparecer e toque em <span className="font-semibold">Adicionar à rotação</span>.
@@ -2333,7 +2399,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                 </section>
 
                 {/* Lista */}
-                <section className={`${iosCard} p-5 sm:p-6`}>
+                <section className={`${iosCard} ${sectionPad}`}>
                   <p className={iosLabel}>Slides na fila ({slides.length})</p>
                   <p className="text-[12px] text-zinc-500 mb-3">
                     Toque em <span className="font-semibold text-zinc-600">Editar</span> para abrir os campos, use ↑ ↓ para ordenar e{' '}
