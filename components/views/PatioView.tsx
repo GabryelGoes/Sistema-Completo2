@@ -440,6 +440,7 @@ function serviceOrderDetailToListItem(detail: ServiceOrderDetail): ServiceOrderL
   const d = detail as ServiceOrderDetail & {
     assigned_technician?: string | null;
     garantia_tag?: boolean;
+    agenda_tag?: boolean;
   };
   return {
     id: detail.id,
@@ -456,6 +457,7 @@ function serviceOrderDetailToListItem(detail: ServiceOrderDetail): ServiceOrderL
     status: detail.status as ServiceOrderStatus,
     assigned_technician: d.assigned_technician ?? null,
     garantia_tag: d.garantia_tag,
+    agenda_tag: d.agenda_tag,
     order_type: detail.order_type,
     vehicle_category: detail.vehicle_category,
     vehicle_brand: detail.vehicle_brand ?? null,
@@ -505,6 +507,7 @@ function orderToCard(o: ServiceOrderListItem, technicianNameMap?: Record<string,
     members: techName ? [{ id: techId!, fullName: capitalizeFirst(techName), username: '' }] : [],
     checklists: [],
     garantiaTag: o.garantia_tag === true,
+    agendaTag: o.agenda_tag === true,
     mileageKm: o.mileage_km ?? null,
     deliveryDate: o.delivery_date ?? null,
     vehicleObservations: o.vehicle_observations ?? null,
@@ -7652,17 +7655,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   </button>
                   </>
                 ) : null}
-                {!isModuleMode && selectedCard && !loadingDetails ? (
-                  <button
-                    type="button"
-                    onClick={handleOpenPatioKeyLabel}
-                    className={`${patioVehicleVm.closeBtn} !border-emerald-500/40 !bg-emerald-600 !text-white shadow-md shadow-emerald-500/25 hover:!bg-emerald-500 dark:!bg-emerald-600 dark:hover:!bg-emerald-500`}
-                    title="Imprimir etiqueta da chave"
-                    aria-label="Imprimir etiqueta"
-                  >
-                    <Tag className="h-5 w-5" />
-                  </button>
-                ) : null}
                 {can('canDeleteCards') && (
                 <button
                   type="button"
@@ -7761,7 +7753,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                               className={`flex min-h-10 w-full min-w-0 items-center gap-2 ${
                                 isModuleMode
                                   ? 'pr-[calc(9.75rem+env(safe-area-inset-right,0px))]'
-                                  : 'pr-[calc(5.75rem+env(safe-area-inset-right,0px))]'
+                                  : 'pr-[calc(4.25rem+env(safe-area-inset-right,0px))]'
                               }`}
                             >
                               {isModuleMode &&
@@ -7770,8 +7762,16 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                   OS #{serviceOrderDetail?.os_number ?? selectedCard.osNumber}
                                 </span>
                               ) : null}
+                              {!isModuleMode && selectedCard.agendaTag ? (
+                                <span
+                                  className="inline-flex items-center rounded-md border border-sky-500/30 bg-sky-500/[0.08] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-sky-700 dark:border-sky-400/25 dark:bg-sky-400/10 dark:text-sky-300"
+                                  title="Veículo originado da Agenda"
+                                >
+                                  Agendado
+                                </span>
+                              ) : null}
                               {!isModuleMode && selectedCard.garantiaTag ? (
-                                <span className="inline-flex max-w-full items-center gap-2 rounded-full border-2 border-red-500/50 bg-red-500/15 px-4 py-2 text-sm font-bold uppercase tracking-wide text-red-600 dark:bg-red-500/20 dark:text-red-400">
+                                <span className="inline-flex max-w-full items-center gap-1 rounded-md border border-red-500/35 bg-red-500/[0.08] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-red-600 dark:border-red-400/30 dark:bg-red-500/10 dark:text-red-300">
                                   Garantia
                                   <button
                                     type="button"
@@ -7780,13 +7780,13 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                       handleRemoveGarantia();
                                     }}
                                     disabled={removingGarantiaId === selectedCard.id}
-                                    className="flex h-6 w-6 items-center justify-center rounded-full bg-red-500/30 text-red-700 transition-colors hover:bg-red-500/50 disabled:opacity-50 dark:text-red-300"
+                                    className="flex h-4 w-4 items-center justify-center rounded-full bg-red-500/20 text-red-700 transition-colors hover:bg-red-500/35 disabled:opacity-50 dark:text-red-300"
                                     title="Remover etiqueta Garantia"
                                   >
                                     {removingGarantiaId === selectedCard.id ? (
-                                      <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                                      <RefreshCw className="h-2.5 w-2.5 animate-spin" />
                                     ) : (
-                                      <X className="h-3.5 w-3.5" />
+                                      <X className="h-2.5 w-2.5" />
                                     )}
                                   </button>
                                 </span>
@@ -7794,11 +7794,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             </div>
                           ) : (
                           <div
-                            className={`flex flex-wrap items-center gap-2${
+                            className={`flex flex-wrap items-center gap-1.5${
                               !isPatioPcModal
                                 ? isModuleMode
                                   ? ' pr-[calc(9.75rem+env(safe-area-inset-right,0px))]'
-                                  : ' pr-[calc(5.75rem+env(safe-area-inset-right,0px))]'
+                                  : ' pr-[calc(4.25rem+env(safe-area-inset-right,0px))]'
                                 : ''
                             }`}
                           >
@@ -7826,17 +7826,25 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             />
                           </button>
                           ) : null}
+                          {!isModuleMode && selectedCard.agendaTag ? (
+                            <span
+                              className="inline-flex items-center rounded-md border border-sky-500/30 bg-sky-500/[0.08] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-sky-700 dark:border-sky-400/25 dark:bg-sky-400/10 dark:text-sky-300"
+                              title="Veículo originado da Agenda"
+                            >
+                              Agendado
+                            </span>
+                          ) : null}
                           {selectedCard.garantiaTag && (
-                            <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold uppercase tracking-wide bg-red-500/15 dark:bg-red-500/20 text-red-600 dark:text-red-400 border-2 border-red-500/50">
+                            <span className="inline-flex items-center gap-1 rounded-md border border-red-500/35 bg-red-500/[0.08] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-red-600 dark:border-red-400/30 dark:bg-red-500/10 dark:text-red-300">
                               Garantia
                               <button
                                 type="button"
                                 onClick={(e) => { e.stopPropagation(); handleRemoveGarantia(); }}
                                 disabled={removingGarantiaId === selectedCard.id}
-                                className="w-6 h-6 rounded-full flex items-center justify-center bg-red-500/30 hover:bg-red-500/50 text-red-700 dark:text-red-300 transition-colors disabled:opacity-50"
+                                className="flex h-4 w-4 items-center justify-center rounded-full bg-red-500/20 text-red-700 transition-colors hover:bg-red-500/35 disabled:opacity-50 dark:text-red-300"
                                 title="Remover etiqueta Garantia"
                               >
-                                {removingGarantiaId === selectedCard.id ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <X className="w-3.5 h-3.5" />}
+                                {removingGarantiaId === selectedCard.id ? <RefreshCw className="h-2.5 w-2.5 animate-spin" /> : <X className="h-2.5 w-2.5" />}
                               </button>
                             </span>
                           )}
@@ -7908,17 +7916,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                   <Printer className="h-5 w-5" />
                                 </button>
                                 </>
-                              ) : null}
-                              {!isModuleMode && selectedCard && !loadingDetails ? (
-                                <button
-                                  type="button"
-                                  onClick={handleOpenPatioKeyLabel}
-                                  className={`${patioVehicleVm.closeBtn} !border-emerald-500/40 !bg-emerald-600 !text-white shadow-md shadow-emerald-500/25 hover:!bg-emerald-500 dark:!bg-emerald-600 dark:hover:!bg-emerald-500`}
-                                  title="Imprimir etiqueta da chave"
-                                  aria-label="Imprimir etiqueta"
-                                >
-                                  <Tag className="h-5 w-5" />
-                                </button>
                               ) : null}
                               {can('canDeleteCards') ? (
                                 <button

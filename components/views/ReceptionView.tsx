@@ -133,6 +133,8 @@ interface ReceptionViewProps {
   isReceptionTabActive?: boolean;
   /** Embutido no modal "Chegou ao pátio" (agenda): oculta o cabeçalho da página Recepção. */
   hidePageChrome?: boolean;
+  /** Fluxo Agenda → Chegou ao pátio: marca a OS com etiqueta Agendado. */
+  markAsFromAgenda?: boolean;
 }
 
 function attachmentMimeType(name: string): string {
@@ -185,6 +187,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
   onReceptionModeChangeForBack,
   isReceptionTabActive = true,
   hidePageChrome = false,
+  markAsFromAgenda = false,
 }) => {
   const desktopShell = useDesktopShellLayout();
   const { isSmartphone } = useDeviceTypeContext();
@@ -857,17 +860,21 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
         moduleProductOther:
           isModule && moduleKind === 'outro' ? moduleProductOther.trim() : undefined,
       };
+      const agendaOpts =
+        !isModule && markAsFromAgenda ? { agendaTag: true as const } : undefined;
       const { serviceOrder } = useExistingFlow
         ? await saveReceptionIntakeForExistingCustomer(
             intakeExistingCustomerId!,
             intakeCustomer,
             receptionMode,
-            receptionMode === 'module' ? moduleIntakeStatus : undefined
+            receptionMode === 'module' ? moduleIntakeStatus : undefined,
+            agendaOpts
           )
         : await saveReceptionIntake(
             intakeCustomer,
             receptionMode,
-            receptionMode === 'module' ? moduleIntakeStatus : undefined
+            receptionMode === 'module' ? moduleIntakeStatus : undefined,
+            agendaOpts
           );
 
       if (isModule && moduleKind) {

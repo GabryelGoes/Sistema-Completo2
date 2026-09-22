@@ -3560,18 +3560,18 @@ export function createApiApp() {
 
   // ----------------- ORDENS DE SERVIÇO -----------------
   const SERVICE_ORDERS_LIST_SELECT =
-    "id, os_number, customer_id, vehicle_model, vehicle_brand, module_identification, module_kind, module_vehicle_kind, module_product_other, plate, mileage_km, delivery_date, vehicle_observations, issue_description, ai_analysis, status, assigned_technician, garantia_tag, order_type, vehicle_category, vehicle_color, vehicle_year, vehicle_engine_info, reference_links, lab_service_links, lab_evaluated_service, lab_evaluated_at, lab_evaluated_by_name, bench_slot, bench_slot_at, bench_queued_at, external_repair, diagnostic_authorization_signed_at, diagnostic_authorization_signature_path, created_at, updated_at";
+    "id, os_number, customer_id, vehicle_model, vehicle_brand, module_identification, module_kind, module_vehicle_kind, module_product_other, plate, mileage_km, delivery_date, vehicle_observations, issue_description, ai_analysis, status, assigned_technician, garantia_tag, agenda_tag, order_type, vehicle_category, vehicle_color, vehicle_year, vehicle_engine_info, reference_links, lab_service_links, lab_evaluated_service, lab_evaluated_at, lab_evaluated_by_name, bench_slot, bench_slot_at, bench_queued_at, external_repair, diagnostic_authorization_signed_at, diagnostic_authorization_signature_path, created_at, updated_at";
   /** Fallback quando migrações recentes ainda não foram aplicadas no projeto Supabase. */
   const SERVICE_ORDERS_LIST_SELECT_MINIMAL =
-    "id, os_number, customer_id, vehicle_model, vehicle_brand, module_identification, plate, mileage_km, delivery_date, issue_description, ai_analysis, status, assigned_technician, garantia_tag, order_type, vehicle_category, vehicle_color, vehicle_year, vehicle_engine_info, reference_links, diagnostic_authorization_signed_at, diagnostic_authorization_signature_path, created_at, updated_at";
+    "id, os_number, customer_id, vehicle_model, vehicle_brand, module_identification, plate, mileage_km, delivery_date, issue_description, ai_analysis, status, assigned_technician, garantia_tag, agenda_tag, order_type, vehicle_category, vehicle_color, vehicle_year, vehicle_engine_info, reference_links, diagnostic_authorization_signed_at, diagnostic_authorization_signature_path, created_at, updated_at";
   /** Último fallback — só colunas essenciais quando migrações parciais quebram o select reduzido. */
   const SERVICE_ORDERS_LIST_SELECT_CORE =
     "id, os_number, customer_id, vehicle_model, vehicle_brand, plate, mileage_km, delivery_date, issue_description, status, assigned_technician, order_type, vehicle_category, created_at, updated_at";
   /** Histórico arquivado — sem textos/JSON pesados (ai_analysis, anexos, etc.). */
   const SERVICE_ORDERS_ARCHIVE_LIST_SELECT =
-    "id, os_number, customer_id, vehicle_model, vehicle_brand, module_identification, module_kind, module_vehicle_kind, module_product_other, plate, status, assigned_technician, garantia_tag, order_type, vehicle_category, created_at, updated_at";
+    "id, os_number, customer_id, vehicle_model, vehicle_brand, module_identification, module_kind, module_vehicle_kind, module_product_other, plate, status, assigned_technician, garantia_tag, agenda_tag, order_type, vehicle_category, created_at, updated_at";
   const SERVICE_ORDERS_ARCHIVE_LIST_SELECT_MINIMAL =
-    "id, os_number, customer_id, vehicle_model, vehicle_brand, module_identification, plate, status, assigned_technician, garantia_tag, order_type, vehicle_category, created_at, updated_at";
+    "id, os_number, customer_id, vehicle_model, vehicle_brand, module_identification, plate, status, assigned_technician, garantia_tag, agenda_tag, order_type, vehicle_category, created_at, updated_at";
   const SERVICE_ORDERS_PAGE_SIZE = 1000;
   /** Evita URL gigante no PostgREST ao enriquecer nomes (histórico com centenas de OS). */
   const IN_FILTER_CHUNK_SIZE = 75;
@@ -4145,6 +4145,7 @@ export function createApiApp() {
         moduleVehicleKind: bodyModuleVehicleKind,
         moduleProductOther: bodyModuleProductOther,
         status: bodyStatus,
+        agendaTag: bodyAgendaTag,
       } = req.body;
 
       const orderType = bodyOrderType === "module" ? "module" : "vehicle";
@@ -4261,6 +4262,7 @@ export function createApiApp() {
           bench_slot: benchFields.bench_slot,
           bench_slot_at: benchFields.bench_slot_at,
           bench_queued_at: benchFields.bench_queued_at,
+          agenda_tag: orderType === "vehicle" && bodyAgendaTag === true,
         })
         .select("*")
         .single();

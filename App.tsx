@@ -973,6 +973,7 @@ export default function App() {
               onIntakeSuccess={handleReceptionIntakeSuccess}
               onReceptionModeChangeForBack={syncReturnTabFromReceptionMode}
               isReceptionTabActive={userTab === 'reception'}
+              markAsFromAgenda={Boolean(agendaIntakeSourceAppointmentId)}
               actorOptions={{
                 actor: 'technician',
                 actorTechnicianSlug: authSession.userId,
@@ -1316,6 +1317,7 @@ export default function App() {
             onIntakeSuccess={handleReceptionIntakeSuccess}
             onReceptionModeChangeForBack={syncReturnTabFromReceptionMode}
             isReceptionTabActive={currentTab === 'reception'}
+            markAsFromAgenda={Boolean(agendaIntakeSourceAppointmentId)}
             actorOptions={
               authSession?.role === 'admin'
                 ? { actor: 'admin' }

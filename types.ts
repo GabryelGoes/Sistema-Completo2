@@ -129,6 +129,8 @@ export interface BoardCard {
   actions?: BoardAction[];
   attachments?: BoardAttachment[];
   garantiaTag?: boolean;
+  /** Veículo veio da Agenda (Chegou ao pátio). */
+  agendaTag?: boolean;
   mileageKm?: string | null;
   deliveryDate?: string | null;
   /** Observações internas da oficina sobre o veículo (modal Pátio). */
