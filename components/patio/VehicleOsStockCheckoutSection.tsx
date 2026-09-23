@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Camera, Loader2, PackageMinus, Trash2 } from 'lucide-react';
+import { Camera, ClipboardList, Loader2, PackageMinus, Trash2 } from 'lucide-react';
 import {
   cancelWorkshopPartStockMovement,
   createWorkshopPartStockMovement,
@@ -15,6 +15,7 @@ import { setActiveBarcodeScanClaim } from '../../utils/activeBarcodeScanClaim';
 import { PartPhotoImg } from '../ui/PartPhotoImg';
 import { BarcodeScanner } from '../BarcodeScanner';
 import { StockGuardPasswordModal } from '../StockGuardPasswordModal';
+import { VehicleOsBudgetPartsScanModal } from './VehicleOsBudgetPartsScanModal';
 import {
   uiOsModalCardSectionTitle,
   uiOsModalSectionAppIcon,
@@ -91,6 +92,7 @@ export const VehicleOsStockCheckoutSection: React.FC<VehicleOsStockCheckoutSecti
   const [cancelTarget, setCancelTarget] = useState<WorkshopPartStockMovement | null>(null);
   const [cancelBusy, setCancelBusy] = useState(false);
   const [cancelError, setCancelError] = useState<string | null>(null);
+  const [budgetScanOpen, setBudgetScanOpen] = useState(false);
   const scanLockRef = useRef(false);
   const registerRef = useRef<(code: string) => Promise<boolean>>(async () => false);
   const sectionRef = useRef<HTMLDivElement | null>(null);
@@ -198,13 +200,14 @@ export const VehicleOsStockCheckoutSection: React.FC<VehicleOsStockCheckoutSecti
   registerRef.current = registerCode;
 
   useEffect(() => {
-    if (!claimUsbScanner) {
-      setActiveBarcodeScanClaim(null);
+    // Enquanto o modal do orçamento estiver aberto, ele reivindica o leitor.
+    if (!claimUsbScanner || budgetScanOpen) {
+      if (!budgetScanOpen) setActiveBarcodeScanClaim(null);
       return;
     }
     setActiveBarcodeScanClaim((code) => registerRef.current(code));
     return () => setActiveBarcodeScanClaim(null);
-  }, [claimUsbScanner, serviceOrderId]);
+  }, [budgetScanOpen, claimUsbScanner, serviceOrderId]);
 
   const handleCancel = async (password: string) => {
     if (!cancelTarget) return;
@@ -255,6 +258,24 @@ export const VehicleOsStockCheckoutSection: React.FC<VehicleOsStockCheckoutSecti
       </div>
 
       <div className="space-y-3 border-t border-zinc-200/60 bg-zinc-50/90 px-3 py-3 dark:border-white/[0.06] dark:bg-white/[0.02] sm:px-4 sm:py-4">
+        <button
+          type="button"
+          onClick={() => setBudgetScanOpen(true)}
+          className="flex w-full items-center gap-3 rounded-2xl border border-emerald-500/25 bg-gradient-to-br from-emerald-50 to-white px-3.5 py-3 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] transition hover:border-emerald-500/40 hover:from-emerald-100/80 active:scale-[0.99] dark:border-emerald-400/25 dark:from-emerald-500/15 dark:to-zinc-950/40"
+        >
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-emerald-500/20 bg-white dark:border-emerald-400/20 dark:bg-zinc-950/50">
+            <ClipboardList className="h-5 w-5 text-emerald-700 dark:text-emerald-300" strokeWidth={2.2} />
+          </div>
+          <span className="min-w-0 flex-1">
+            <span className="block text-[13px] font-bold text-emerald-950 dark:text-emerald-100">
+              Peças do orçamento
+            </span>
+            <span className="mt-0.5 block text-[11px] font-medium text-emerald-800/75 dark:text-emerald-200/70">
+              Ver aprovadas e bipar para dar baixa
+            </span>
+          </span>
+        </button>
+
         {busyCode ? (
           <div className="flex items-center gap-2 text-[13px] font-medium text-zinc-600 dark:text-zinc-300">
             <Loader2 className="h-4 w-4 animate-spin text-[#007AFF]" />
@@ -358,6 +379,25 @@ export const VehicleOsStockCheckoutSection: React.FC<VehicleOsStockCheckoutSecti
           }}
         />
       ) : null}
+
+      <VehicleOsBudgetPartsScanModal
+        isOpen={budgetScanOpen}
+        onClose={() => setBudgetScanOpen(false)}
+        serviceOrderId={serviceOrderId}
+        osLabel={osLabel}
+        osScope={osScope}
+        recordedByName={recordedByName}
+        showCameraButton={showCameraButton}
+        onMovementCreated={(movement) => {
+          setItems((prev) => [movement, ...prev.filter((m) => m.id !== movement.id)]);
+          setFlashId(movement.id);
+          setLastOk(
+            `${movement.part_name || 'Peça'} · estoque ${formatWorkshopPartQty(movement.stock_after)}`
+          );
+          scrollToRegisteredProducts();
+          window.setTimeout(() => setFlashId((id) => (id === movement.id ? null : id)), 1200);
+        }}
+      />
 
       <StockGuardPasswordModal
         open={!!cancelTarget}
