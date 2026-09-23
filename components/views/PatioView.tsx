@@ -191,6 +191,7 @@ import { LabBenchQueueModal } from '../lab/LabBenchQueueModal';
 import { LabExternalRepairModal } from '../lab/LabExternalRepairModal';
 import { PatioOsModalPcTabBar, type PatioOsModalPcTab } from '../patio/PatioOsModalPcTabBar';
 import { PatioOsModalLabServicesSection } from '../patio/PatioOsModalLabServicesSection';
+import { VehicleObservationsSection } from '../patio/VehicleObservationsSection';
 import {
   PatioOriginAttachmentsPicker,
   PatioOriginAttachmentsSection,
@@ -2179,11 +2180,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
       if (!isEditingDescRef.current) {
         setDescText(stripLegacyVehicleCategoryFromComplaint(order.issue_description || ""));
       }
-      if (!isEditingVehicleObservationsRef.current) {
-        const obs = order.vehicle_observations ?? '';
-        setVehicleObservationsEditValue(obs);
-        setLastSavedVehicleObservations(obs);
-      }
       void fetchReminders();
     } catch (e) {
       console.error("syncOpenVehicleModalFromServer", e);
@@ -2208,11 +2204,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
         getServiceOrderBudgets(card.id),
       ]);
       setHistoryServiceOrderDetail(order);
-      if (!isEditingVehicleObservationsRef.current && !selectedCardRef.current) {
-        const obs = order.vehicle_observations ?? '';
-        setVehicleObservationsEditValue(obs);
-        setLastSavedVehicleObservations(obs);
-      }
       setHistorySavedBudgets(budgets);
       setHistoryCardDetails({
         actions: (comments ?? []).map(commentToAction),
@@ -2279,13 +2270,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const [savingDeliveryDate, setSavingDeliveryDate] = useState(false);
   const [deliveryDateSavedMessage, setDeliveryDateSavedMessage] = useState(false);
 
-  // Observações internas do veículo (modal Pátio)
-  const [vehicleObservationsEditValue, setVehicleObservationsEditValue] = useState('');
-  const [lastSavedVehicleObservations, setLastSavedVehicleObservations] = useState('');
+  // Observações internas do veículo (modal Pátio) — lista serializada em vehicle_observations
   const [savingVehicleObservations, setSavingVehicleObservations] = useState(false);
-  const [isEditingVehicleObservations, setIsEditingVehicleObservations] = useState(false);
-  const isEditingVehicleObservationsRef = useRef(false);
-  isEditingVehicleObservationsRef.current = isEditingVehicleObservations;
 
   // Modal editar nome do veículo / placa
   const [isVehicleEditOpen, setIsVehicleEditOpen] = useState(false);
@@ -2647,13 +2633,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
       setDeliveryDateEditValue(dd);
       setLastSavedDeliveryDate(dd);
       setDeliveryDateSavedMessage(false);
-      if (!isEditingVehicleObservationsRef.current) {
-        const obs = selectedCard.vehicleObservations ?? '';
-        setVehicleObservationsEditValue(obs);
-        setLastSavedVehicleObservations(obs);
-      }
     }
-  }, [selectedCard?.id, selectedCard?.mileageKm, selectedCard?.deliveryDate, selectedCard?.vehicleObservations]);
+  }, [selectedCard?.id, selectedCard?.mileageKm, selectedCard?.deliveryDate]);
 
   /** Etapa do modal acompanha o card (Realtime/quadro) mesmo se o detail estiver defasado. */
   useEffect(() => {
@@ -2666,32 +2647,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
         : prev
     );
   }, [selectedCard?.id, selectedCard?.idList, serviceOrderDetail?.id, serviceOrderDetail?.status]);
-
-  useEffect(() => {
-    if (selectedCard || !selectedHistoryCard) return;
-    if (!isEditingVehicleObservationsRef.current) {
-      const obs = historyServiceOrderDetail?.vehicle_observations ?? '';
-      setVehicleObservationsEditValue(obs);
-      setLastSavedVehicleObservations(obs);
-    }
-  }, [
-    selectedCard,
-    selectedHistoryCard?.id,
-    historyServiceOrderDetail?.id,
-    historyServiceOrderDetail?.vehicle_observations,
-  ]);
-
-  useEffect(() => {
-    setIsEditingVehicleObservations(false);
-  }, [selectedCard?.id, selectedHistoryCard?.id]);
-
-  useEffect(() => {
-    if (!selectedCard || serviceOrderDetail?.id !== selectedCard.id) return;
-    if (isEditingVehicleObservationsRef.current) return;
-    const obs = serviceOrderDetail.vehicle_observations ?? '';
-    setVehicleObservationsEditValue(obs);
-    setLastSavedVehicleObservations(obs);
-  }, [selectedCard?.id, serviceOrderDetail?.id, serviceOrderDetail?.vehicle_observations]);
 
   useEffect(() => {
     onActiveCardsCountChange?.(cards.length);
@@ -3030,9 +2985,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const handleOpenHistoryCardDetails = (card: TrelloCard) => {
     setSelectedHistoryCard(card);
     setUnarchiveError(null);
-    setVehicleObservationsEditValue('');
-    setLastSavedVehicleObservations('');
-    setIsEditingVehicleObservations(false);
     const cached = vehicleCardDetailsCacheRef.current.get(card.id);
     setHistoryCardDetails(
       cached
@@ -3054,11 +3006,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
       .then(([order, photos, comments, budgets]) => {
         if (selectedHistoryCardRef.current?.id !== order.id) return;
         setHistoryServiceOrderDetail(order);
-        if (!isEditingVehicleObservationsRef.current) {
-          const obs = order.vehicle_observations ?? '';
-          setVehicleObservationsEditValue(obs);
-          setLastSavedVehicleObservations(obs);
-        }
         setHistorySavedBudgets(budgets);
         setHistoryCardDetails({
           actions: (comments ?? []).map(commentToAction),
@@ -3325,35 +3272,29 @@ export const PatioView: React.FC<PatioViewProps> = ({
       : (historyServiceOrderDetail?.vehicle_observations ?? '')
   ).trim();
 
-  const vehicleObservationsDirty =
-    isEditingVehicleObservations &&
-    vehicleObservationsEditValue.trim() !== lastSavedVehicleObservations.trim();
-
-  const handleSaveVehicleObservations = async () => {
+  const handleSaveVehicleObservationsList = async (serialized: string | null) => {
     const orderId = selectedCard?.id ?? selectedHistoryCard?.id;
     if (!orderId) return;
-    const value = vehicleObservationsEditValue.trim();
     setSavingVehicleObservations(true);
     try {
-      await updateServiceOrderVehicleObservations(orderId, value || null, actorOptions);
-      setLastSavedVehicleObservations(value);
-      setIsEditingVehicleObservations(false);
+      await updateServiceOrderVehicleObservations(orderId, serialized, actorOptions);
       if (selectedCard?.id === orderId) {
-        const updated = { ...selectedCard, vehicleObservations: value || null };
+        const updated = { ...selectedCard, vehicleObservations: serialized };
         setSelectedCard(updated);
         setCards((prev) => prev.map((c) => (c.id === orderId ? updated : c)));
         setServiceOrderDetail((prev) =>
-          prev?.id === orderId ? { ...prev, vehicle_observations: value || null } : prev
+          prev?.id === orderId ? { ...prev, vehicle_observations: serialized } : prev
         );
       }
       if (selectedHistoryCard?.id === orderId) {
         setHistoryServiceOrderDetail((prev) =>
-          prev?.id === orderId ? { ...prev, vehicle_observations: value || null } : prev
+          prev?.id === orderId ? { ...prev, vehicle_observations: serialized } : prev
         );
       }
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : 'Erro ao salvar observações do veículo.';
       alert(message);
+      throw e instanceof Error ? e : new Error(message);
     } finally {
       setSavingVehicleObservations(false);
     }
@@ -6960,78 +6901,14 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
                         {!isModuleMode ? (
                           <div>
-                            <div className={`${patioVmInsetCard} min-w-0 overflow-hidden shadow-none`}>
-                              <div className="relative min-w-0">
-                                <div
-                                  className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.07),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.08),transparent_50%)] dark:bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.11),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.1),transparent_52%)]"
-                                  aria-hidden
-                                />
-                                <div
-                                  className="pointer-events-none absolute -right-10 top-8 h-24 w-24 rounded-full bg-gradient-to-br from-[#007AFF]/14 to-transparent opacity-80 blur-2xl dark:from-[#007AFF]/22"
-                                  aria-hidden
-                                />
-                                <div className="relative flex items-center justify-between gap-2 border-b border-black/[0.06] bg-white/85 px-2.5 py-2 pl-3 backdrop-blur-[2px] dark:border-white/[0.08] dark:bg-zinc-950/35 sm:gap-3 sm:px-3 sm:py-2.5 sm:pl-4">
-                                  <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-2.5">
-                                    <div className={uiOsModalSectionAppIcon}>
-                                      <img src="/icons/observacoes-veiculo-ios.png" alt="" className="h-full w-full object-cover" />
-                                    </div>
-                                    <p className={uiOsModalCardSectionTitle}>Observações do veículo</p>
-                                  </div>
-                                  {can('canEditFicha') && !isEditingVehicleObservations ? (
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        setIsEditingVehicleObservations(true);
-                                        setVehicleObservationsEditValue(lastSavedVehicleObservations);
-                                      }}
-                                      className="inline-flex shrink-0 items-center gap-1 rounded-xl border border-[#007AFF]/25 bg-[#007AFF]/[0.09] px-2.5 py-1 text-[11px] font-semibold text-[#007AFF] shadow-[inset_0_1px_0_rgba(255,255,255,0.35)] transition-colors hover:border-[#007AFF]/40 hover:bg-[#007AFF]/15 dark:border-[#007AFF]/35 dark:bg-[#007AFF]/15 dark:text-[#b8d9ff] dark:hover:bg-[#007AFF]/22"
-                                    >
-                                      Editar
-                                    </button>
-                                  ) : null}
-                                </div>
-                                {isEditingVehicleObservations && can('canEditFicha') ? (
-                                  <div className="animate-in fade-in duration-200 flex flex-col gap-3 bg-zinc-50/90 px-3 py-3 pl-3 dark:bg-white/[0.02] sm:px-4 sm:py-4 sm:pl-4">
-                                    <textarea
-                                      value={vehicleObservationsEditValue}
-                                      onChange={(e) => setVehicleObservationsEditValue(e.target.value)}
-                                      className={`${patioVmInputClass} relative z-[2] min-h-[180px] resize-none cursor-text text-[15px] leading-relaxed !caret-[#007AFF] dark:text-white dark:!caret-[#93c5fd]`}
-                                      placeholder="Observações"
-                                    />
-                                    <div className="flex justify-end gap-1.5">
-                                      <button
-                                        type="button"
-                                        onClick={() => {
-                                          setIsEditingVehicleObservations(false);
-                                          setVehicleObservationsEditValue(lastSavedVehicleObservations);
-                                        }}
-                                        disabled={savingVehicleObservations}
-                                        className="rounded-lg px-2.5 py-1.5 text-[12px] font-semibold text-zinc-500 transition-colors hover:bg-black/5 hover:text-zinc-900 disabled:opacity-50 dark:text-zinc-400 dark:hover:bg-white/[0.06] dark:hover:text-white"
-                                      >
-                                        Cancelar
-                                      </button>
-                                      {vehicleObservationsDirty ? (
-                                        <button
-                                          type="button"
-                                          onClick={handleSaveVehicleObservations}
-                                          disabled={savingVehicleObservations}
-                                          className="inline-flex items-center gap-1 rounded-lg bg-[#007AFF] px-2.5 py-1.5 text-[12px] font-semibold text-white shadow-sm shadow-blue-500/20 transition-all hover:opacity-95 active:scale-[0.98] disabled:opacity-45"
-                                        >
-                                          {savingVehicleObservations ? <RefreshCw className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
-                                          Salvar
-                                        </button>
-                                      ) : null}
-                                    </div>
-                                  </div>
-                                ) : (
-                                  <div className="border-t border-zinc-200/60 bg-zinc-50/90 px-3 py-3 pl-3 dark:border-white/[0.06] dark:bg-white/[0.02] sm:px-4 sm:py-4 sm:pl-4">
-                                    <p className={`${uiReadBody} whitespace-pre-wrap text-[15px] leading-relaxed`}>
-                                      {displayedVehicleObservations || 'Nenhuma observação registrada para este veículo.'}
-                                    </p>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
+                            <VehicleObservationsSection
+                              insetCardClass={patioVmInsetCard}
+                              inputClass={patioVmInputClass}
+                              rawValue={displayedVehicleObservations}
+                              canEdit={can('canEditFicha')}
+                              saving={savingVehicleObservations}
+                              onSave={handleSaveVehicleObservationsList}
+                            />
                           </div>
                         ) : null}
 
@@ -8982,78 +8859,14 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
                         {!isModuleMode ? (
                           <div>
-                            <div className={`${vi} min-w-0 overflow-hidden shadow-none`}>
-                              <div className="relative min-w-0">
-                                <div
-                                  className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.07),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.08),transparent_50%)] dark:bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.11),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.1),transparent_52%)]"
-                                  aria-hidden
-                                />
-                                <div
-                                  className="pointer-events-none absolute -right-10 top-8 h-24 w-24 rounded-full bg-gradient-to-br from-[#007AFF]/14 to-transparent opacity-80 blur-2xl dark:from-[#007AFF]/22"
-                                  aria-hidden
-                                />
-                                <div className="relative flex items-center justify-between gap-2 border-b border-black/[0.06] bg-white/85 px-2.5 py-2 pl-3 backdrop-blur-[2px] dark:border-white/[0.08] dark:bg-zinc-950/35 sm:gap-3 sm:px-3 sm:py-2.5 sm:pl-4">
-                                  <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-2.5">
-                                    <div className={uiOsModalSectionAppIcon}>
-                                      <img src="/icons/observacoes-veiculo-ios.png" alt="" className="h-full w-full object-cover" />
-                                    </div>
-                                    <p className={uiOsModalCardSectionTitle}>Observações do veículo</p>
-                                  </div>
-                                  {can('canEditFicha') && !isEditingVehicleObservations ? (
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        setIsEditingVehicleObservations(true);
-                                        setVehicleObservationsEditValue(lastSavedVehicleObservations);
-                                      }}
-                                      className="inline-flex shrink-0 items-center gap-1 rounded-xl border border-[#007AFF]/25 bg-[#007AFF]/[0.09] px-2.5 py-1 text-[11px] font-semibold text-[#007AFF] shadow-[inset_0_1px_0_rgba(255,255,255,0.35)] transition-colors hover:border-[#007AFF]/40 hover:bg-[#007AFF]/15 dark:border-[#007AFF]/35 dark:bg-[#007AFF]/15 dark:text-[#b8d9ff] dark:hover:bg-[#007AFF]/22"
-                                    >
-                                      Editar
-                                    </button>
-                                  ) : null}
-                                </div>
-                                {isEditingVehicleObservations && can('canEditFicha') ? (
-                                  <div className="animate-in fade-in duration-200 flex flex-col gap-3 bg-zinc-50/90 px-3 py-3 pl-3 dark:bg-white/[0.02] sm:px-4 sm:py-4 sm:pl-4">
-                                    <textarea
-                                      value={vehicleObservationsEditValue}
-                                      onChange={(e) => setVehicleObservationsEditValue(e.target.value)}
-                                      className={`${patioVehicleVm.input} relative z-[2] min-h-[180px] resize-none cursor-text text-[15px] leading-relaxed !caret-[#007AFF] dark:text-white dark:!caret-[#93c5fd]`}
-                                      placeholder="Observações"
-                                    />
-                                    <div className="flex justify-end gap-1.5">
-                                      <button
-                                        type="button"
-                                        onClick={() => {
-                                          setIsEditingVehicleObservations(false);
-                                          setVehicleObservationsEditValue(lastSavedVehicleObservations);
-                                        }}
-                                        disabled={savingVehicleObservations}
-                                        className="rounded-lg px-2.5 py-1.5 text-[12px] font-semibold text-zinc-500 transition-colors hover:bg-black/5 hover:text-zinc-900 disabled:opacity-50 dark:text-zinc-400 dark:hover:bg-white/[0.06] dark:hover:text-white"
-                                      >
-                                        Cancelar
-                                      </button>
-                                      {vehicleObservationsDirty ? (
-                                        <button
-                                          type="button"
-                                          onClick={handleSaveVehicleObservations}
-                                          disabled={savingVehicleObservations}
-                                          className="inline-flex items-center gap-1 rounded-lg bg-[#007AFF] px-2.5 py-1.5 text-[12px] font-semibold text-white shadow-sm shadow-blue-500/20 transition-all hover:opacity-95 active:scale-[0.98] disabled:opacity-45"
-                                        >
-                                          {savingVehicleObservations ? <RefreshCw className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
-                                          Salvar
-                                        </button>
-                                      ) : null}
-                                    </div>
-                                  </div>
-                                ) : (
-                                  <div className="border-t border-zinc-200/60 bg-zinc-50/90 px-3 py-3 pl-3 dark:border-white/[0.06] dark:bg-white/[0.02] sm:px-4 sm:py-4 sm:pl-4">
-                                    <p className={`${uiReadBody} whitespace-pre-wrap text-[15px] leading-relaxed`}>
-                                      {displayedVehicleObservations || 'Nenhuma observação registrada para este veículo.'}
-                                    </p>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
+                            <VehicleObservationsSection
+                              insetCardClass={vi}
+                              inputClass={vin}
+                              rawValue={displayedVehicleObservations}
+                              canEdit={can('canEditFicha')}
+                              saving={savingVehicleObservations}
+                              onSave={handleSaveVehicleObservationsList}
+                            />
                           </div>
                         ) : null}
 
