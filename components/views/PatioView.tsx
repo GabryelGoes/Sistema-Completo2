@@ -9062,32 +9062,50 @@ export const PatioView: React.FC<PatioViewProps> = ({
                         selectedCard &&
                         !selectedHistoryCard &&
                         diagnosticAuthSheetContext ? (
-                          <div className="min-w-0">
-                            <h3 className={patioVehicleVm.sectionTitle}>
-                              <img src="/icons/autorizacao-diagnostico-ios.png" alt="" className="h-3.5 w-3.5 shrink-0 rounded-[0.25rem] object-cover" />
-                              Autorização de diagnóstico
-                            </h3>
-                            <button
-                              type="button"
-                              onClick={() => setDiagnosticAuthSheetOpen(true)}
-                              className="group relative w-full overflow-hidden rounded-xl border border-zinc-200/85 bg-gradient-to-br from-white via-white to-zinc-50/95 text-left shadow-[0_4px_22px_-10px_rgba(0,122,255,0.22),inset_0_1px_0_rgba(255,255,255,0.92)] transition-all hover:border-[#007AFF]/40 hover:shadow-[0_10px_32px_-12px_rgba(0,122,255,0.32)] active:scale-[0.99] dark:border-white/[0.1] dark:from-zinc-900 dark:via-zinc-900 dark:to-zinc-950 dark:shadow-[0_6px_28px_-14px_rgba(0,0,0,0.55)] dark:hover:border-[#007AFF]/35"
-                            >
-                              <span className="flex items-center gap-3.5 px-4 py-3.5">
-                                <span className="min-w-0 flex-1">
-                                  <span className="block text-[14px] font-bold leading-tight tracking-tight text-zinc-900 dark:text-white">
-                                    Ver autorização de diagnóstico
+                          <div className={`${vi} min-w-0 overflow-hidden shadow-none`}>
+                            <div className="relative min-w-0">
+                              <div
+                                className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.07),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.08),transparent_50%)] dark:bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.11),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.1),transparent_52%)]"
+                                aria-hidden
+                              />
+                              <div className="relative flex items-center justify-between gap-2 border-b border-black/[0.06] bg-white/85 px-2.5 py-2 pl-3 backdrop-blur-[2px] dark:border-white/[0.08] dark:bg-zinc-950/35 sm:gap-3 sm:px-3 sm:py-2.5 sm:pl-4">
+                                <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-2.5">
+                                  <div className={uiOsModalSectionAppIcon}>
+                                    <img
+                                      src="/icons/autorizacao-diagnostico-ios.png"
+                                      alt=""
+                                      className="h-full w-full object-cover"
+                                    />
+                                  </div>
+                                  <p className={uiOsModalCardSectionTitle}>
+                                    Autorização de diagnóstico
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="relative border-t border-zinc-200/60 bg-zinc-50/90 px-3 py-3 dark:border-white/[0.06] dark:bg-white/[0.02] sm:px-4 sm:py-4">
+                                <button
+                                  type="button"
+                                  onClick={() => setDiagnosticAuthSheetOpen(true)}
+                                  className="group relative w-full overflow-hidden rounded-xl border border-zinc-200/85 bg-gradient-to-br from-white via-white to-zinc-50/95 text-left shadow-[0_4px_22px_-10px_rgba(0,122,255,0.22),inset_0_1px_0_rgba(255,255,255,0.92)] transition-all hover:border-[#007AFF]/40 hover:shadow-[0_10px_32px_-12px_rgba(0,122,255,0.32)] active:scale-[0.99] dark:border-white/[0.1] dark:from-zinc-900 dark:via-zinc-900 dark:to-zinc-950 dark:shadow-[0_6px_28px_-14px_rgba(0,0,0,0.55)] dark:hover:border-[#007AFF]/35"
+                                >
+                                  <span className="flex items-center gap-3.5 px-4 py-3.5">
+                                    <span className="min-w-0 flex-1">
+                                      <span className="block text-[14px] font-bold leading-tight tracking-tight text-zinc-900 dark:text-white">
+                                        Ver autorização de diagnóstico
+                                      </span>
+                                      <span className="mt-1 block text-[11px] font-medium leading-snug text-zinc-500 dark:text-zinc-400">
+                                        Documento assinado pelo cliente
+                                      </span>
+                                    </span>
+                                    <ChevronRight
+                                      className="h-5 w-5 shrink-0 text-zinc-300 transition-transform group-hover:translate-x-0.5 group-hover:text-[#007AFF] dark:text-zinc-500 dark:group-hover:text-[#7ab8ff]"
+                                      strokeWidth={2.25}
+                                      aria-hidden
+                                    />
                                   </span>
-                                  <span className="mt-1 block text-[11px] font-medium leading-snug text-zinc-500 dark:text-zinc-400">
-                                    Documento assinado pelo cliente
-                                  </span>
-                                </span>
-                                <ChevronRight
-                                  className="h-5 w-5 shrink-0 text-zinc-300 transition-transform group-hover:translate-x-0.5 group-hover:text-[#007AFF] dark:text-zinc-500 dark:group-hover:text-[#7ab8ff]"
-                                  strokeWidth={2.25}
-                                  aria-hidden
-                                />
-                              </span>
-                            </button>
+                                </button>
+                              </div>
+                            </div>
                           </div>
                         ) : null}
 
