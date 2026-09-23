@@ -609,7 +609,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
       }
     };
 
-    if (mode === 'edit' && editPartId) {
+    if (mode === 'create' || (mode === 'edit' && editPartId)) {
       requestStockGuard(runSave);
       return;
     }
