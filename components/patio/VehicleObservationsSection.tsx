@@ -134,21 +134,21 @@ export const VehicleObservationsSection: React.FC<VehicleObservationsSectionProp
           ) : null}
         </div>
 
-        <div className="relative space-y-2.5 border-t border-zinc-200/60 bg-zinc-50/90 px-3 py-3 dark:border-white/[0.06] dark:bg-white/[0.02] sm:px-4 sm:py-4">
+        <div className="relative space-y-2 border-t border-zinc-200/60 bg-zinc-50/90 px-3 py-2.5 dark:border-white/[0.06] dark:bg-white/[0.02] sm:px-4 sm:py-3">
           {composing && canEdit ? (
-            <div className="animate-in fade-in duration-200 rounded-xl border border-[#007AFF]/25 bg-white p-3 shadow-sm dark:border-[#007AFF]/30 dark:bg-zinc-950/70">
-              <div className="mb-2 flex items-center justify-between gap-2">
-                <p className="text-[12px] font-bold uppercase tracking-[0.1em] text-[#007AFF] dark:text-[#7ab8ff]">
+            <div className="animate-in fade-in duration-200 rounded-lg border border-[#007AFF]/25 bg-white p-2.5 shadow-sm dark:border-[#007AFF]/30 dark:bg-zinc-950/70">
+              <div className="mb-1.5 flex items-center justify-between gap-2">
+                <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-[#007AFF] dark:text-[#7ab8ff]">
                   {composer.kind === 'add' ? 'Nova observação' : 'Editar observação'}
                 </p>
                 <button
                   type="button"
                   onClick={closeComposer}
                   disabled={saving}
-                  className="inline-flex h-7 w-7 items-center justify-center rounded-full text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-700 disabled:opacity-50 dark:hover:bg-white/10 dark:hover:text-zinc-200"
+                  className="inline-flex h-6 w-6 items-center justify-center rounded-full text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-700 disabled:opacity-50 dark:hover:bg-white/10 dark:hover:text-zinc-200"
                   aria-label="Fechar"
                 >
-                  <X className="h-4 w-4" />
+                  <X className="h-3.5 w-3.5" />
                 </button>
               </div>
               <textarea
@@ -165,25 +165,25 @@ export const VehicleObservationsSection: React.FC<VehicleObservationsSectionProp
                   }
                 }}
                 autoFocus
-                rows={4}
+                rows={3}
                 maxLength={4000}
                 disabled={saving}
                 placeholder="Descreva a observação do veículo…"
-                className={`${inputClass} min-h-[110px] resize-y text-[14px] leading-relaxed disabled:opacity-55`}
+                className={`${inputClass} min-h-[72px] resize-y text-[13px] leading-snug disabled:opacity-55`}
               />
-              <div className="mt-2.5 flex items-center justify-between gap-2">
-                <p className="text-[11px] tabular-nums text-zinc-400 dark:text-zinc-500">
+              <div className="mt-2 flex items-center justify-between gap-2">
+                <p className="text-[10px] tabular-nums text-zinc-400 dark:text-zinc-500">
                   {draftLen}/4000
-                  <span className="ml-2 hidden text-zinc-400 sm:inline dark:text-zinc-500">
+                  <span className="ml-1.5 hidden text-zinc-400 sm:inline dark:text-zinc-500">
                     Ctrl+Enter para salvar
                   </span>
                 </p>
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1">
                   <button
                     type="button"
                     onClick={closeComposer}
                     disabled={saving}
-                    className="rounded-lg px-2.5 py-1.5 text-[12px] font-semibold text-zinc-500 transition-colors hover:bg-black/5 hover:text-zinc-900 disabled:opacity-50 dark:text-zinc-400 dark:hover:bg-white/[0.06] dark:hover:text-white"
+                    className="rounded-md px-2 py-1 text-[11px] font-semibold text-zinc-500 transition-colors hover:bg-black/5 hover:text-zinc-900 disabled:opacity-50 dark:text-zinc-400 dark:hover:bg-white/[0.06] dark:hover:text-white"
                   >
                     Cancelar
                   </button>
@@ -191,12 +191,12 @@ export const VehicleObservationsSection: React.FC<VehicleObservationsSectionProp
                     type="button"
                     onClick={() => void handleSaveComposer()}
                     disabled={!canSubmit}
-                    className="inline-flex items-center gap-1 rounded-lg bg-[#007AFF] px-2.5 py-1.5 text-[12px] font-semibold text-white shadow-sm shadow-blue-500/20 transition-all hover:opacity-95 active:scale-[0.98] disabled:opacity-45"
+                    className="inline-flex items-center gap-1 rounded-md bg-[#007AFF] px-2 py-1 text-[11px] font-semibold text-white shadow-sm shadow-blue-500/20 transition-all hover:opacity-95 active:scale-[0.98] disabled:opacity-45"
                   >
                     {saving ? (
-                      <RefreshCw className="h-3 w-3 animate-spin" />
+                      <RefreshCw className="h-2.5 w-2.5 animate-spin" />
                     ) : (
-                      <Check className="h-3.5 w-3.5" strokeWidth={2.5} />
+                      <Check className="h-3 w-3" strokeWidth={2.5} />
                     )}
                     Salvar
                   </button>
@@ -206,76 +206,58 @@ export const VehicleObservationsSection: React.FC<VehicleObservationsSectionProp
           ) : null}
 
           {isEmpty && !composing ? (
-            <div className="rounded-xl border border-dashed border-zinc-300/90 bg-white/70 px-4 py-7 text-center dark:border-white/[0.12] dark:bg-white/[0.03]">
-              <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-[#007AFF]/10 ring-1 ring-[#007AFF]/15 dark:bg-[#007AFF]/15 dark:ring-[#007AFF]/25">
-                <img
-                  src="/icons/observacoes-veiculo-ios.png"
-                  alt=""
-                  className="h-8 w-8 rounded-[0.65rem] object-cover"
-                />
-              </div>
-              <p className="text-[14px] font-semibold text-zinc-800 dark:text-zinc-100">
-                Nenhuma observação
-              </p>
-              <p className="mx-auto mt-1 max-w-[22rem] text-[12px] leading-relaxed text-zinc-500 dark:text-zinc-400">
-                Registre detalhes do veículo em forma de lista — cada nota fica separada e pode ser editada depois.
-              </p>
-              {canEdit ? (
-                <button
-                  type="button"
-                  onClick={openAdd}
-                  className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-[#007AFF] px-3.5 py-2 text-[12px] font-bold uppercase tracking-[0.06em] text-white shadow-sm shadow-blue-500/25 transition-[filter] hover:brightness-110"
-                >
-                  <Plus className="h-3.5 w-3.5" strokeWidth={2.5} />
-                  Adicionar
-                </button>
-              ) : null}
-            </div>
+            <p className="px-0.5 py-1 text-[13px] text-zinc-500 dark:text-zinc-400">
+              Nenhuma observação
+            </p>
           ) : null}
 
           {!isEmpty ? (
-            <ul className="space-y-2" aria-label="Lista de observações do veículo">
+            <ul className="divide-y divide-zinc-200/70 dark:divide-white/[0.06]" aria-label="Lista de observações do veículo">
               {items.map((item, index) => {
                 const isEditingThis = composer.kind === 'edit' && composer.id === item.id;
                 if (isEditingThis) return null;
                 return (
                   <li
                     key={item.id}
-                    className="group flex gap-2.5 rounded-xl border border-zinc-200/80 bg-white p-3 shadow-[0_4px_14px_-10px_rgba(0,0,0,0.12)] transition-colors hover:border-[#007AFF]/25 dark:border-white/[0.1] dark:bg-zinc-950/65 dark:shadow-none dark:hover:border-[#007AFF]/30"
+                    className="group flex items-start gap-1.5 py-1.5 first:pt-0 last:pb-0"
                   >
-                    <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-[#007AFF]/12 text-[11px] font-bold tabular-nums text-[#007AFF] dark:bg-[#007AFF]/20 dark:text-[#7ab8ff]">
-                      {index + 1}
+                    <span className="mt-px w-4 shrink-0 text-right text-[11px] font-semibold tabular-nums leading-5 text-zinc-400 dark:text-zinc-500">
+                      {index + 1}.
                     </span>
                     <div className="min-w-0 flex-1">
-                      <p className="whitespace-pre-wrap text-[14px] leading-relaxed text-zinc-900 dark:text-zinc-100">
-                        {item.text}
-                      </p>
-                      <p className="mt-1.5 text-[11px] font-medium text-zinc-400 dark:text-zinc-500">
+                      <div className="flex items-start gap-1">
+                        <p className="min-w-0 flex-1 whitespace-pre-wrap text-[13px] leading-5 text-zinc-900 dark:text-zinc-100">
+                          {item.text}
+                        </p>
+                        {canEdit ? (
+                          <div className="flex shrink-0 items-center gap-0.5 pt-px">
+                            <button
+                              type="button"
+                              onClick={() => openEdit(item)}
+                              disabled={saving || composing}
+                              className="inline-flex h-5 w-5 items-center justify-center rounded text-[#007AFF]/80 transition-colors hover:bg-[#007AFF]/10 hover:text-[#007AFF] disabled:opacity-40 dark:text-[#7ab8ff]/85 dark:hover:bg-[#007AFF]/15"
+                              aria-label="Editar observação"
+                              title="Editar"
+                            >
+                              <Pencil className="h-2.5 w-2.5" strokeWidth={2.25} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => void handleDelete(item.id)}
+                              disabled={saving || composing}
+                              className="inline-flex h-5 w-5 items-center justify-center rounded text-red-500/75 transition-colors hover:bg-red-50 hover:text-red-600 disabled:opacity-40 dark:text-red-400/75 dark:hover:bg-red-950/40 dark:hover:text-red-400"
+                              aria-label="Excluir observação"
+                              title="Excluir"
+                            >
+                              <Trash2 className="h-2.5 w-2.5" strokeWidth={2.25} />
+                            </button>
+                          </div>
+                        ) : null}
+                      </div>
+                      <p className="mt-0.5 text-[10px] leading-4 text-zinc-400 dark:text-zinc-500">
                         {formatObservationWhen(item.updatedAt || item.createdAt)}
                         {item.updatedAt ? ' · editada' : ''}
                       </p>
-                      {canEdit ? (
-                        <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
-                          <button
-                            type="button"
-                            onClick={() => openEdit(item)}
-                            disabled={saving || composing}
-                            className="inline-flex items-center gap-1 rounded-lg border border-[#007AFF]/20 bg-[#007AFF]/[0.08] px-2 py-1 text-[11px] font-semibold text-[#007AFF] transition-colors hover:border-[#007AFF]/35 hover:bg-[#007AFF]/15 disabled:opacity-40 dark:border-[#007AFF]/30 dark:bg-[#007AFF]/15 dark:text-[#7ab8ff] dark:hover:bg-[#007AFF]/22"
-                          >
-                            <Pencil className="h-3 w-3" strokeWidth={2.25} aria-hidden />
-                            Editar
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => void handleDelete(item.id)}
-                            disabled={saving || composing}
-                            className="inline-flex items-center gap-1 rounded-lg border border-transparent px-2 py-1 text-[11px] font-semibold text-red-600/85 transition-colors hover:border-red-200 hover:bg-red-50 hover:text-red-600 disabled:opacity-40 dark:text-red-400/90 dark:hover:border-red-900/50 dark:hover:bg-red-950/40 dark:hover:text-red-400"
-                          >
-                            <Trash2 className="h-3 w-3" strokeWidth={2.25} aria-hidden />
-                            Excluir
-                          </button>
-                        </div>
-                      ) : null}
                     </div>
                   </li>
                 );
