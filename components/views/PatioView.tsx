@@ -2,7 +2,7 @@ import React, { useEffect, useLayoutEffect, useState, useRef, useCallback, useMe
 import { createPortal } from 'react-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkBreaks from 'remark-breaks';
-import { RefreshCw, AlertCircle, ChevronDown, ChevronRight, ChevronLeft, User, X, Check, CheckCircle2, Circle, Plus, FileText, Calendar, Clock, MessageSquare, Send, Paperclip, ExternalLink, ZoomIn, ZoomOut, Trash2, DollarSign, Hash, Minus, Pencil, Save, Eye, History, Search, Copy, ArrowRight, Camera, Image as ImageIcon, FolderOpen, Upload, FilePlus, ArchiveRestore, Printer, Smartphone, Mail, MapPin, Share2, Sparkles, Loader2, Tag, Link2, Wrench, Gauge, MoreHorizontal, LayoutGrid, Columns3, Users, SortDesc, ListOrdered, Truck, RotateCw, RotateCcw, ClipboardList } from 'lucide-react';
+import { RefreshCw, AlertCircle, ChevronDown, ChevronRight, ChevronLeft, User, X, Check, CheckCircle2, Circle, Plus, FileText, Calendar, Clock, Send, Paperclip, ExternalLink, ZoomIn, ZoomOut, Trash2, DollarSign, Hash, Minus, Pencil, Save, Eye, History, Search, Copy, ArrowRight, Camera, Image as ImageIcon, FolderOpen, Upload, FilePlus, ArchiveRestore, Printer, Smartphone, Mail, MapPin, Share2, Sparkles, Loader2, Tag, Link2, Wrench, Gauge, MoreHorizontal, LayoutGrid, Columns3, Users, SortDesc, ListOrdered, Truck, RotateCw, RotateCcw, ClipboardList } from 'lucide-react';
 import { PdfViewerModal } from '../PdfViewerModal';
 import { MechanicIcon } from '../ui/MechanicIcon';
 import { ReminderIcon } from '../ui/ReminderIcon';
@@ -1175,6 +1175,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const [markingCommentsReadId, setMarkingCommentsReadId] = useState<string | null>(null);
   const commentsSectionRef = useRef<HTMLDivElement>(null);
   const commentsListRef = useRef<HTMLDivElement>(null);
+  const commentComposerRef = useRef<HTMLTextAreaElement>(null);
   const customerDataSectionRef = useRef<HTMLDivElement>(null);
   const customerNameInputRef = useRef<HTMLInputElement>(null);
   const descriptionSectionRef = useRef<HTMLDivElement>(null);
@@ -3455,6 +3456,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
     if (!selectedCard || !newComment.trim()) return;
     const text = newComment.trim();
     setNewComment('');
+    if (commentComposerRef.current) {
+      commentComposerRef.current.style.height = '44px';
+    }
     setSendingComment(true);
     try {
       await addServiceOrderComment(
@@ -9693,23 +9697,27 @@ export const PatioView: React.FC<PatioViewProps> = ({
                          </div>
                         ) : null}
 
-                        <div ref={commentsSectionRef}>
-                           <h3 className={isPatioPcModal ? patioVehicleVm.sectionTitle : `${uiSectionTitleRow} lg:mb-2`}>
-                             <MessageSquare className="h-3.5 w-3.5 shrink-0" />
-                             Comentários
-                             {selectedCard && (commentUnreadByOrderId[selectedCard.id] ?? 0) > 0 ? (
-                               <span className="ml-2 inline-flex min-h-[1.15rem] min-w-[1.15rem] items-center justify-center rounded-full bg-[#FF3B30] px-1.5 text-[10px] font-bold tabular-nums text-white">
-                                 {(commentUnreadByOrderId[selectedCard.id] ?? 0) > 99
-                                   ? '99+'
-                                   : commentUnreadByOrderId[selectedCard.id]}
-                               </span>
-                             ) : null}
-                          </h3>
+                        <div ref={commentsSectionRef} className={`${vi} overflow-hidden shadow-none`}>
+                          <div className="relative flex items-center justify-between gap-2 border-b border-black/[0.06] bg-white/85 px-2.5 py-2 pl-3 backdrop-blur-[2px] dark:border-white/[0.08] dark:bg-zinc-950/35 sm:gap-3 sm:px-3 sm:py-2.5 sm:pl-4">
+                            <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-2.5">
+                              <div className={uiOsModalSectionAppIcon}>
+                                <img src="/icons/comentarios-ios.png" alt="" className="h-full w-full object-cover" />
+                              </div>
+                              <p className={uiOsModalCardSectionTitle}>Comentários</p>
+                              {selectedCard && (commentUnreadByOrderId[selectedCard.id] ?? 0) > 0 ? (
+                                <span className="inline-flex min-h-[1.15rem] min-w-[1.15rem] items-center justify-center rounded-full bg-[#FF3B30] px-1.5 text-[10px] font-bold tabular-nums text-white">
+                                  {(commentUnreadByOrderId[selectedCard.id] ?? 0) > 99
+                                    ? '99+'
+                                    : commentUnreadByOrderId[selectedCard.id]}
+                                </span>
+                              ) : null}
+                            </div>
+                          </div>
 
                           {requiresExplicitCommentReadEffective &&
                           selectedCard &&
                           (commentUnreadByOrderId[selectedCard.id] ?? 0) > 0 ? (
-                            <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-200/80 bg-amber-50/70 px-3 py-2 dark:border-amber-500/30 dark:bg-amber-950/30">
+                            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-amber-200/80 bg-amber-50/70 px-3 py-2 dark:border-amber-500/30 dark:bg-amber-950/30">
                               <p className="text-[12px] font-medium text-amber-900/90 dark:text-amber-200">
                                 {(commentUnreadByOrderId[selectedCard.id] ?? 0) === 1
                                   ? '1 mensagem não lida'
@@ -9731,44 +9739,60 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             </div>
                           ) : null}
 
-                          <div className={`${vi} overflow-hidden shadow-none`}>
-                             <div ref={commentsListRef} className={patioVehicleVm.commentsList}>
+                             <div
+                               ref={commentsListRef}
+                               className={`${patioVehicleVm.commentsList} !bg-[#E5DDD5]/55 dark:!bg-zinc-950/80`}
+                             >
                                 {cardDetails?.actions && cardDetails.actions.length > 0 ? (
                                    cardDetails.actions.map(action => {
+                                      const mine = isAuthorOfComment(action.memberCreator.fullName);
                                       const avatar = getCommentAuthorAvatar(action.memberCreator.fullName, action.memberCreator.avatarUrl);
                                       return (
-                                      <div key={action.id} className="flex gap-3 group/comment lg:gap-2">
-                                         <div className={`relative flex h-10 w-10 shrink-0 flex-shrink-0 overflow-hidden rounded-full lg:h-8 lg:w-8 ${avatar.useLogo ? 'bg-brand-yellow' : ''}`}>
+                                      <div
+                                        key={action.id}
+                                        className={`group/comment flex w-full gap-2 ${mine ? 'flex-row-reverse' : 'flex-row'}`}
+                                      >
+                                         {!mine ? (
+                                         <div className={`relative mt-0.5 flex h-8 w-8 shrink-0 overflow-hidden rounded-full ${avatar.useLogo ? 'bg-brand-yellow' : ''}`}>
                                             {avatar.useLogo ? (
                                                <img src="/logo.png" alt="Rei do ABS" className="absolute inset-0 size-full min-h-0 min-w-0 object-cover object-center" />
                                             ) : avatar.photoUrl ? (
                                                <img src={avatar.photoUrl} alt={action.memberCreator.fullName} className="absolute inset-0 size-full min-h-0 min-w-0 object-cover object-center" />
                                             ) : (
-                                               <div className={`relative z-[1] flex size-full items-center justify-center rounded-full text-sm font-bold ${avatar.avatarClass}`}>
+                                               <div className={`relative z-[1] flex size-full items-center justify-center rounded-full text-[11px] font-bold ${avatar.avatarClass}`}>
                                                   {avatar.initial}
                                                </div>
                                             )}
                                          </div>
-                                         <div className="flex-1 space-y-1">
-                                            <div className="flex items-center justify-between">
-                                               <span className="font-bold text-zinc-900 dark:text-white text-sm">{action.memberCreator.fullName}</span>
-                                               <span className="text-xs text-zinc-500">
-                                                  {new Date(action.date).toLocaleString('pt-BR')}
-                                                  {action.data.edited_at && (
-                                                    <span className="ml-1.5 text-zinc-400 dark:text-zinc-500 italic">editada</span>
-                                                  )}
-                                               </span>
-                                            </div>
+                                         ) : (
+                                           <div className="w-1 shrink-0" aria-hidden />
+                                         )}
+                                         <div className={`flex min-w-0 max-w-[min(100%,22rem)] flex-1 flex-col ${mine ? 'items-end' : 'items-start'}`}>
+                                            {!mine ? (
+                                              <div className="mb-0.5 flex max-w-full items-baseline gap-2 px-1">
+                                                 <span className="truncate text-[12px] font-semibold text-zinc-700 dark:text-zinc-200">{action.memberCreator.fullName}</span>
+                                                 <span className="shrink-0 text-[10px] text-zinc-500 dark:text-zinc-400">
+                                                    {new Date(action.date).toLocaleString('pt-BR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                                                 </span>
+                                              </div>
+                                            ) : (
+                                              <span className="mb-0.5 px-1 text-[10px] text-zinc-500 dark:text-zinc-400">
+                                                {new Date(action.date).toLocaleString('pt-BR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                                                {action.data.edited_at ? (
+                                                  <span className="ml-1 italic">editada</span>
+                                                ) : null}
+                                              </span>
+                                            )}
                                             
                                             {editingActionId === action.id ? (
-                                               <div className="animate-in fade-in duration-200">
+                                               <div className="w-full animate-in fade-in duration-200">
                                                   <textarea 
-                                                    className={`${vin} mb-2 min-h-[100px] resize-y text-sm`}
+                                                    className={`${vin} mb-2 min-h-[100px] w-full max-w-full resize-y break-words text-sm [overflow-wrap:anywhere]`}
                                                     value={editingText}
                                                     onChange={(e) => setEditingText(e.target.value)}
                                                     autoFocus
                                                   />
-                                                  <div className="flex items-center gap-2">
+                                                  <div className={`flex items-center gap-2 ${mine ? 'justify-end' : ''}`}>
                                                      <button 
                                                         onClick={() => handleUpdateComment(action.id)}
                                                         disabled={actionLoadingId === action.id}
@@ -9788,15 +9812,20 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                                </div>
                                             ) : (
                                               <>
-                                                <div className={`${iosVehicleModalCommentBubble} p-3.5 text-sm leading-relaxed text-zinc-800 dark:text-zinc-200`}>
+                                                <div
+                                                  className={`max-w-full break-words px-3 py-2 text-[14px] leading-relaxed [overflow-wrap:anywhere] ${
+                                                    mine
+                                                      ? 'rounded-2xl rounded-br-md bg-[#DCF8C6] text-zinc-900 shadow-sm dark:bg-[#005C4B] dark:text-zinc-50'
+                                                      : 'rounded-2xl rounded-bl-md bg-zinc-500 text-white shadow-sm dark:bg-zinc-700 dark:text-zinc-50'
+                                                  }`}
+                                                >
                                                    <ReactMarkdown remarkPlugins={[remarkBreaks]} components={markdownComponentsApp}>
                                                       {action.data.text}
                                                    </ReactMarkdown>
                                                 </div>
                                                 
-                                                {/* Editar/Excluir: apenas o autor da mensagem */}
-                                                {isAuthorOfComment(action.memberCreator.fullName) && (
-                                                <div className="flex items-center gap-3 mt-1 ml-1 opacity-0 group-hover/comment:opacity-100 transition-opacity duration-200">
+                                                {mine ? (
+                                                <div className="mt-1 flex items-center gap-3 px-1 opacity-0 transition-opacity duration-200 group-hover/comment:opacity-100">
                                                    <button 
                                                       type="button"
                                                       onClick={() => handleStartEdit(action.id, action.data.text)}
@@ -9814,7 +9843,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                                       {actionLoadingId === action.id ? 'Excluindo…' : 'Excluir'}
                                                    </button>
                                                 </div>
-                                                )}
+                                                ) : null}
                                               </>
                                             )}
                                          </div>
@@ -9825,33 +9854,44 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                       <RefreshCw className="h-6 w-6 animate-spin text-[#007AFF] lg:h-5 lg:w-5" />
                                    </div>
                                 ) : (
-                                   <div className="text-center py-8 text-zinc-600 italic">
-                                      Nenhum comentário registrado.
+                                   <div className="py-8 text-center text-[13px] italic text-zinc-500">
+                                      Nenhuma mensagem ainda. Envie a primeira.
                                    </div>
                                 )}
                              </div>
 
                              {can('canAddComments') && (
-                             <div className="flex items-end gap-2 border-t border-zinc-200/60 bg-white p-3 dark:border-white/[0.06] dark:bg-zinc-950/30 sm:p-4">
-                                <input 
-                                   type="text" 
+                             <div className="flex items-end gap-2 border-t border-zinc-200/60 bg-white p-2.5 dark:border-white/[0.06] dark:bg-zinc-950/40 sm:p-3">
+                                <textarea
+                                   ref={commentComposerRef}
                                    value={newComment}
-                                   onChange={(e) => setNewComment(e.target.value)}
-                                   placeholder="Escreva um comentário..."
-                                   className={`${vin} min-h-[48px] flex-1 py-3 text-[15px]`}
-                                   onKeyDown={(e) => { if(e.key === 'Enter' && !e.shiftKey) handleSendComment() }}
+                                   onChange={(e) => {
+                                     setNewComment(e.target.value);
+                                     const el = e.currentTarget;
+                                     el.style.height = 'auto';
+                                     el.style.height = `${Math.min(el.scrollHeight, 140)}px`;
+                                   }}
+                                   placeholder="Mensagem"
+                                   rows={1}
+                                   className={`${vin} max-h-[140px] min-h-[44px] min-w-0 flex-1 resize-none overflow-y-auto whitespace-pre-wrap break-words py-2.5 text-[15px] leading-snug [overflow-wrap:anywhere]`}
+                                   onKeyDown={(e) => {
+                                     if (e.key === 'Enter' && !e.shiftKey) {
+                                       e.preventDefault();
+                                       void handleSendComment();
+                                     }
+                                   }}
                                 />
                                 <button 
                                    type="button"
-                                   onClick={handleSendComment}
+                                   onClick={() => void handleSendComment()}
                                    disabled={sendingComment || !newComment.trim()}
                                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#007AFF] text-white shadow-lg shadow-blue-500/25 transition-all duration-200 hover:opacity-95 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
+                                   aria-label="Enviar mensagem"
                                 >
                                    {sendingComment ? <RefreshCw className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" strokeWidth={2.2} />}
                                 </button>
                              </div>
                              )}
-                          </div>
                         </div>
 
                         {isPatioPcModal ? (
