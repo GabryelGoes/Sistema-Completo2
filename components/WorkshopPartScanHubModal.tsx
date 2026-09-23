@@ -271,11 +271,12 @@ export function WorkshopPartScanHubModal({
               <div className="space-y-3">
                 <div className="rounded-2xl border-0 bg-amber-50 p-4 shadow-none dark:bg-amber-950/35">
                   <p className="text-[14px] font-semibold text-amber-950 dark:text-amber-100">
-                    Código não cadastrado
+                    Produto não cadastrado
                   </p>
-                  <p className="mt-1 text-[13px] text-amber-900/80 dark:text-amber-200/80">
-                    <span className="font-mono font-semibold">{resolved.code}</span>
-                    {' — '}cadastre a peça para liberar movimentações.
+                  <p className="mt-1 text-[13px] leading-relaxed text-amber-900/85 dark:text-amber-200/85">
+                    O código{' '}
+                    <span className="font-mono font-semibold">{resolved.code}</span> não existe no
+                    estoque. Deseja cadastrar este produto agora?
                   </p>
                 </div>
                 <button
@@ -290,9 +291,16 @@ export function WorkshopPartScanHubModal({
                     <PackagePlus className="h-5 w-5" />
                   </span>
                   <span className="min-w-0">
-                    <span className="block text-[15px] font-semibold">Cadastrar peça</span>
+                    <span className="block text-[15px] font-semibold">Sim, cadastrar</span>
                     <span className="block text-[12px] text-white/80">Abrir ficha com este código</span>
                   </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="flex w-full items-center justify-center rounded-2xl border-0 bg-zinc-100 px-4 py-3 text-[14px] font-semibold text-zinc-800 transition hover:bg-zinc-200/90 dark:bg-white/10 dark:text-zinc-100 dark:hover:bg-white/15"
+                >
+                  Não agora
                 </button>
               </div>
             ) : null}

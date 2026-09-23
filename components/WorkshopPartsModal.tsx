@@ -76,6 +76,9 @@ import { WorkshopPartsAnalyticsView } from './WorkshopPartsAnalyticsView';
 import { WorkshopPartStockOutboundModal } from './WorkshopPartStockOutboundModal';
 import { WorkshopPartStockInboundModal } from './WorkshopPartStockInboundModal';
 import { WorkshopPartScanHubModal } from './WorkshopPartScanHubModal';
+import { setActiveBarcodeScanClaim } from '../utils/activeBarcodeScanClaim';
+import { isLabOsQrPayload } from '../utils/labOsQrCode';
+import { normalizeBarcodeInput } from '../utils/workshopPartBarcode';
 import { StockGuardPasswordModal } from './StockGuardPasswordModal';
 import {
   formValuesToApiPayload,
@@ -1061,6 +1064,32 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
       setInboundPart(null);
     }
   }, [isOpen]);
+
+  /**
+   * Com o módulo de estoque aberto, a pistola USB abre o hub de leitura:
+   * produto existente → ficha rápida; código novo → pergunta de cadastro.
+   * Não reivindica se ficha/entrada/saída/cadastro já estiver aberto (campo local).
+   */
+  const stockUsbClaimBlocked =
+    !!registrationMode ||
+    !!outboundMode ||
+    !!inboundPart ||
+    !!viewPart ||
+    stockGuardOpen ||
+    !!photoEditorFile;
+
+  useEffect(() => {
+    if (!isOpen || stockUsbClaimBlocked) return;
+    setActiveBarcodeScanClaim((raw) => {
+      const code = normalizeBarcodeInput(raw);
+      if (!code) return false;
+      if (isLabOsQrPayload(code)) return false;
+      setScanHubOpen(true);
+      setScanHubExternal({ code, token: Date.now() });
+      return true;
+    });
+    return () => setActiveBarcodeScanClaim(null);
+  }, [isOpen, stockUsbClaimBlocked]);
 
   /** Intenção vinda da leitura USB global (editar / cadastrar / saída). */
   useEffect(() => {
