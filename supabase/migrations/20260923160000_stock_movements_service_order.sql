@@ -10,7 +10,16 @@ CREATE INDEX IF NOT EXISTS idx_wpsm_service_order_created
 COMMENT ON COLUMN public.workshop_part_stock_movements.service_order_id IS
   'OS (pátio/lab) para a qual a peça foi retirada — caixa do modal do veículo.';
 
-CREATE OR REPLACE FUNCTION public.apply_workshop_part_stock_outbound(
+-- Remove overloads antigas (assinatura sem/com p_service_order_id) para evitar
+-- ERROR 42725: function name is not unique.
+DROP FUNCTION IF EXISTS public.apply_workshop_part_stock_outbound(
+  UUID, UUID, TEXT, NUMERIC, NUMERIC, TEXT, TEXT, TEXT
+);
+DROP FUNCTION IF EXISTS public.apply_workshop_part_stock_outbound(
+  UUID, UUID, TEXT, NUMERIC, NUMERIC, TEXT, TEXT, TEXT, UUID
+);
+
+CREATE FUNCTION public.apply_workshop_part_stock_outbound(
   p_workshop_id UUID,
   p_part_id UUID,
   p_movement_type TEXT,
@@ -121,5 +130,7 @@ BEGIN
 END;
 $$;
 
-COMMENT ON FUNCTION public.apply_workshop_part_stock_outbound IS
+COMMENT ON FUNCTION public.apply_workshop_part_stock_outbound(
+  UUID, UUID, TEXT, NUMERIC, NUMERIC, TEXT, TEXT, TEXT, UUID
+) IS
   'Registra venda avulsa ou consumo de insumo e abate o estoque atomicamente (opcionalmente vinculado a uma OS).';

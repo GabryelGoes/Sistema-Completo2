@@ -8620,7 +8620,9 @@ export function createApiApp() {
     );
 
     if (!rpcError && rpcData) {
-      if (opts.serviceOrderId) movementsHaveServiceOrderId = true;
+      if (opts.serviceOrderId && rpcPayload.p_service_order_id) {
+        movementsHaveServiceOrderId = true;
+      }
       return rpcData as { movement: Record<string, unknown>; part: Record<string, unknown> };
     }
 
@@ -8861,7 +8863,8 @@ export function createApiApp() {
         .order("created_at", { ascending: false })
         .limit(limit);
       if (movementType) query = query.eq("movement_type", movementType);
-      if (serviceOrderId && movementsHaveServiceOrderId !== false) {
+      // Só filtra pela coluna depois de confirmada — senão PostgREST quebra o cancelamento/listagem.
+      if (serviceOrderId && movementsHaveServiceOrderId === true) {
         query = query.eq("service_order_id", serviceOrderId);
       }
 
@@ -8885,8 +8888,8 @@ export function createApiApp() {
       }
 
       let rows = (data ?? []) as Array<Record<string, unknown>>;
-      // Sem coluna service_order_id: filtra por marcador nas notes (fallback).
-      if (serviceOrderId && movementsHaveServiceOrderId === false) {
+      // Sem coluna (ou ainda não confirmada): filtra pelo marcador nas notes.
+      if (serviceOrderId && movementsHaveServiceOrderId !== true) {
         const marker = `OS_ID:${serviceOrderId}`;
         rows = rows.filter((r) => String(r.notes ?? "").includes(marker));
       }
