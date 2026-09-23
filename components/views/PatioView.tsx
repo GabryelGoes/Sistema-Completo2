@@ -7158,8 +7158,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
                       <div className="space-y-8">
                          <div>
                             <p className={uiSectionTitleRow}>
-                              <Paperclip className="h-3.5 w-3.5" />
-                              Anexos
+                              <img src="/icons/arquivos-ios.png" alt="" className="h-3.5 w-3.5 rounded-[0.25rem] object-cover" />
+                              Arquivos
                             </p>
                             <div className="space-y-3 pb-5 sm:pb-6">
                                {historyCardDetails?.attachments && historyCardDetails.attachments.length > 0 ? (
@@ -9269,16 +9269,16 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
                         {showPcOsTab('arquivos') ? (
                         <>
-                         {/* Anexos (fotos) + Documentos (arquivos) */}
+                         {/* Arquivos (fotos) + Documentos */}
                          <div className={`${vi} flex flex-col overflow-hidden shadow-none`}>
                             <div className="relative border-b border-zinc-200/70 bg-white/85 px-3 py-3 dark:border-white/[0.08] dark:bg-zinc-950/35 sm:px-4 sm:py-3.5">
                             <div className="flex items-center justify-between gap-2 sm:gap-3">
                                 <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-2.5">
-                                    <div className={uiOsModalSectionIconWrap}>
-                                      <Paperclip className="h-4 w-4 text-[#007AFF] dark:text-[#7ab8ff]" strokeWidth={2.25} aria-hidden />
+                                    <div className={`${uiOsModalSectionIconWrap} overflow-hidden p-0`}>
+                                      <img src="/icons/arquivos-ios.png" alt="" className="h-full w-full object-cover" />
                                     </div>
                                     <p className={uiOsModalCardSectionTitle}>
-                                      Anexos
+                                      Arquivos
                                     </p>
                                 </div>
                                 <div className="relative shrink-0" ref={anexosAddMenuRef}>

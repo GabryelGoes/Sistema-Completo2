@@ -9,7 +9,7 @@ export const fontUi = "font-sans antialiased";
 /** Títulos (páginas, modais, headings) — SF Pro Display */
 export const fontDisplay = "font-display antialiased";
 
-/** Labels de seção (Queixa, Orçamentos, Anexos, etc.) */
+/** Labels de seção (Queixa, Orçamentos, Arquivos, etc.) */
 export const uiModalSectionLabel =
   "block text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-950 dark:text-zinc-400 mb-2";
 
