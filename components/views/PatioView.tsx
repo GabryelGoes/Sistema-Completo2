@@ -2,7 +2,7 @@ import React, { useEffect, useLayoutEffect, useState, useRef, useCallback, useMe
 import { createPortal } from 'react-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkBreaks from 'remark-breaks';
-import { RefreshCw, AlertCircle, ChevronDown, ChevronRight, ChevronLeft, User, X, Check, CheckCircle2, Circle, Plus, FileText, Calendar, Clock, MessageSquare, Send, Paperclip, ExternalLink, ZoomIn, ZoomOut, Calculator, Trash2, DollarSign, Hash, Minus, Pencil, Save, Eye, History, Search, Copy, ArrowRight, Camera, Image as ImageIcon, FolderOpen, Upload, FilePlus, ArchiveRestore, Printer, Smartphone, Mail, MapPin, Share2, Sparkles, Loader2, Tag, Link2, Wrench, Gauge, MoreHorizontal, LayoutGrid, Columns3, Users, SortDesc, ListOrdered, Truck, RotateCw, RotateCcw, ClipboardList } from 'lucide-react';
+import { RefreshCw, AlertCircle, ChevronDown, ChevronRight, ChevronLeft, User, X, Check, CheckCircle2, Circle, Plus, FileText, Calendar, Clock, MessageSquare, Send, Paperclip, ExternalLink, ZoomIn, ZoomOut, Trash2, DollarSign, Hash, Minus, Pencil, Save, Eye, History, Search, Copy, ArrowRight, Camera, Image as ImageIcon, FolderOpen, Upload, FilePlus, ArchiveRestore, Printer, Smartphone, Mail, MapPin, Share2, Sparkles, Loader2, Tag, Link2, Wrench, Gauge, MoreHorizontal, LayoutGrid, Columns3, Users, SortDesc, ListOrdered, Truck, RotateCw, RotateCcw, ClipboardList } from 'lucide-react';
 import { PdfViewerModal } from '../PdfViewerModal';
 import { MechanicIcon } from '../ui/MechanicIcon';
 import { ReminderIcon } from '../ui/ReminderIcon';
@@ -7110,7 +7110,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
                         <div>
                           <p className={uiSectionTitleRow}>
-                            <Calculator className="h-3.5 w-3.5" />
+                            <img src="/icons/novo-orcamento-ios.png" alt="" className="h-3.5 w-3.5 rounded-[0.25rem] object-cover" />
                             Orçamentos
                           </p>
                           <div className={`${iosModalInsetCard} p-4 sm:p-5`}>
@@ -9100,8 +9100,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
                               <div className="relative flex items-center justify-between gap-2 border-b border-black/[0.06] bg-white/85 px-2.5 py-2 pl-3 backdrop-blur-[2px] dark:border-white/[0.08] dark:bg-zinc-950/35 sm:gap-3 sm:px-3 sm:py-2.5 sm:pl-4">
                                 <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-2.5">
-                                  <div className={uiOsModalSectionIconWrap}>
-                                    <Calculator className="h-4 w-4 text-[#007AFF] dark:text-[#7ab8ff]" strokeWidth={2.25} aria-hidden />
+                                  <div className={`${uiOsModalSectionIconWrap} overflow-hidden p-0`}>
+                                    <img src="/icons/novo-orcamento-ios.png" alt="" className="h-full w-full object-cover" />
                                   </div>
                                   <p className={uiOsModalCardSectionTitle}>
                                     Orçamentos
@@ -9187,7 +9187,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                 })}
                               {savedBudgets.filter((b) => b.serviceOrderId === selectedCard.id).length === 0 && (
                                 <div className={`rounded-xl border border-dashed border-zinc-300/95 bg-zinc-50/90 p-5 text-center dark:border-white/[0.12] dark:bg-white/[0.04]${isPatioTabletLikeModal ? ' col-span-2' : ''}`}>
-                                  <Calculator className="mx-auto mb-2 h-9 w-9 text-[#007AFF]/75 dark:text-[#7ab8ff]" />
+                                  <img src="/icons/novo-orcamento-ios.png" alt="" className="mx-auto mb-2 h-9 w-9 rounded-[0.65rem] object-cover" />
                                   <p className="mt-0.5 text-sm font-semibold text-zinc-900 dark:text-zinc-100">Nenhum orçamento</p>
                                   <p className="mt-0.5 text-xs text-zinc-600 dark:text-zinc-400">Crie um orçamento pelo botão acima</p>
                                 </div>
@@ -11071,7 +11071,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
             });
           }}
           actorOptions={actorOptions}
-          headerIcon={<Calculator className="h-5 w-5" />}
+          headerIcon={<img src="/icons/novo-orcamento-ios.png" alt="" className="h-full w-full object-cover" />}
         />
       ) : null}
 

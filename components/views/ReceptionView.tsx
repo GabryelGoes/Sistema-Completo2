@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkBreaks from 'remark-breaks';
-import { Car, User, Smartphone, Mail, FileText, ArrowRight, MapPin, Hash, ShieldCheck, Map, Building2, X, Check, MessageSquare, Paperclip, Download, ZoomIn, Eye, ExternalLink, Eraser, Camera, Image as ImageIcon, Calendar, Package, History, Search, RefreshCw, Calculator, ArchiveRestore, Copy, Sparkles, Loader2, ChevronDown } from 'lucide-react';
+import { Car, User, Smartphone, Mail, FileText, ArrowRight, MapPin, Hash, ShieldCheck, Map, Building2, X, Check, MessageSquare, Paperclip, Download, ZoomIn, Eye, ExternalLink, Eraser, Camera, Image as ImageIcon, Calendar, Package, History, Search, RefreshCw, ArchiveRestore, Copy, Sparkles, Loader2, ChevronDown } from 'lucide-react';
 import {
   iosModalShell,
   iosModalClose,
@@ -2566,7 +2566,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
               <div className="min-w-0">
                 <div className="flex items-center gap-3 text-zinc-900 dark:text-white">
                   <IosAccentIconSquircle variant="row" strokeWidth={2.2}>
-                    <Calculator />
+                    <img src="/icons/novo-orcamento-ios.png" alt="" className="h-full w-full object-cover" />
                   </IosAccentIconSquircle>
                   <div>
                   <h2 className="text-[20px] sm:text-[22px] font-semibold tracking-tight truncate">Orçamento</h2>
