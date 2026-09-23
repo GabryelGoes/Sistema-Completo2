@@ -6967,7 +6967,13 @@ export const PatioView: React.FC<PatioViewProps> = ({
                              Atividades e comentários
                           </p>
                           <div className={`${iosVehicleModalInsetCard} overflow-hidden shadow-none`}>
-                             <div className="max-h-[min(260px,34vh)] space-y-3 overflow-y-auto bg-[#F2F2F7]/80 p-4 dark:bg-black/25 custom-scrollbar sm:p-5 sm:space-y-3">
+                             <div
+                               className={`space-y-2.5 bg-[#F2F2F7]/80 p-3 dark:bg-black/25 custom-scrollbar sm:p-3.5 ${
+                                 (historyCardDetails?.actions?.length ?? 0) >= 4
+                                   ? 'max-h-[15.5rem] overflow-y-auto overscroll-contain sm:max-h-[16.5rem]'
+                                   : ''
+                               }`}
+                             >
                                 {historyCardDetails?.actions && historyCardDetails.actions.length > 0 ? (
                                    historyCardDetails.actions.map(action => {
                                       const avatar = getCommentAuthorAvatar(action.memberCreator.fullName, action.memberCreator.avatarUrl);
@@ -9635,7 +9641,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
                              <div
                                ref={commentsListRef}
-                               className={`${patioVehicleVm.commentsList} !bg-[#E5DDD5]/55 dark:!bg-zinc-950/80`}
+                               className={`${patioVehicleVm.commentsList} !bg-[#E5DDD5]/55 dark:!bg-zinc-950/80 ${
+                                 (cardDetails?.actions?.length ?? 0) >= 4
+                                   ? 'max-h-[15.5rem] overflow-y-auto overscroll-contain custom-scrollbar sm:max-h-[16.5rem]'
+                                   : ''
+                               }`}
                              >
                                 {cardDetails?.actions && cardDetails.actions.length > 0 ? (
                                    cardDetails.actions.map(action => {
