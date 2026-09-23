@@ -6967,7 +6967,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                              Atividades e comentários
                           </p>
                           <div className={`${iosVehicleModalInsetCard} overflow-hidden shadow-none`}>
-                             <div className="max-h-[500px] space-y-4 overflow-y-auto bg-[#F2F2F7]/80 p-4 dark:bg-black/25 custom-scrollbar sm:p-5 sm:space-y-5">
+                             <div className="max-h-[min(260px,34vh)] space-y-3 overflow-y-auto bg-[#F2F2F7]/80 p-4 dark:bg-black/25 custom-scrollbar sm:p-5 sm:space-y-3">
                                 {historyCardDetails?.actions && historyCardDetails.actions.length > 0 ? (
                                    historyCardDetails.actions.map(action => {
                                       const avatar = getCommentAuthorAvatar(action.memberCreator.fullName, action.memberCreator.avatarUrl);
