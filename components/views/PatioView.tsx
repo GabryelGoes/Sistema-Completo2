@@ -168,7 +168,7 @@ import { moveItemInList } from '../../utils/moveItemInList';
 import { BudgetPartStockBadge } from '../ui/BudgetPartStockBadge';
 import { resolveBudgetPartStockFlags, type BudgetPartFields } from '../../utils/budgetPartStock';
 import { buildBudgetServiceTechnicianNames } from '../../utils/budgetServiceTechnicians';
-import { parseReferenceLinksFromApi } from '../../utils/vehicleReferenceLinks';
+import { parseReferenceLinksFromApi, formatReferenceLinkDisplay } from '../../utils/vehicleReferenceLinks';
 import { capitalizeFirst, firstTwoNames } from '../../utils/personNameFormat';
 import { getPatioBoardModelTitleClass } from '../../utils/patioBoardModelTitle';
 import {
@@ -7265,14 +7265,14 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                  );
                                }
                                return (
-                                 <ul className="space-y-2">
+                                 <ul className="space-y-1.5">
                                    {links.map((link) => (
                                      <li
                                        key={link.id}
-                                       className="flex items-center justify-between gap-2 rounded-xl border border-zinc-200/70 bg-zinc-50/50 px-3 py-2.5 dark:border-white/[0.08] dark:bg-white/[0.03]"
+                                       className="flex min-w-0 items-center justify-between gap-2 rounded-xl border border-zinc-200/70 bg-zinc-50/50 px-3 py-2 dark:border-white/[0.08] dark:bg-white/[0.03]"
                                      >
-                                       <span className="min-w-0 truncate text-[14px] font-medium text-zinc-900 dark:text-white">
-                                         {link.label?.trim() || link.url}
+                                       <span className="min-w-0 truncate text-[13px] font-medium text-zinc-900 dark:text-white" title={formatReferenceLinkDisplay(link)}>
+                                         {formatReferenceLinkDisplay(link)}
                                        </span>
                                        {link.url?.trim() ? (
                                          <a
@@ -7283,7 +7283,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                            }
                                            target="_blank"
                                            rel="noopener noreferrer"
-                                           className="inline-flex shrink-0 items-center gap-1 text-[13px] font-semibold text-[#007AFF] hover:underline dark:text-[#64B5FF]"
+                                           className="inline-flex shrink-0 items-center gap-1 text-[12px] font-semibold text-[#007AFF] hover:underline dark:text-[#64B5FF]"
                                          >
                                            Abrir <ExternalLink className="h-3.5 w-3.5" />
                                          </a>
@@ -8595,7 +8595,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                         </div>
                                         <div>
                                           <label className={iosLabel}>Quilometragem</label>
-                                          <input value={editFichaForm.mileageKm} onChange={(e) => setEditFichaForm(f => ({ ...f, mileageKm: e.target.value }))} className={vin} placeholder="45000" />
+                                          <input value={editFichaForm.mileageKm} onChange={(e) => setEditFichaForm(f => ({ ...f, mileageKm: e.target.value }))} className={vin} placeholder="Km" />
                                         </div>
                                       </div>
                                       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -8605,7 +8605,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                         </div>
                                         <div>
                                           <label className={iosLabel}>Ano</label>
-                                          <input value={editFichaForm.vehicleYear} onChange={(e) => setEditFichaForm(f => ({ ...f, vehicleYear: e.target.value }))} className={vin} placeholder="2010 / 2010" />
+                                          <input value={editFichaForm.vehicleYear} onChange={(e) => setEditFichaForm(f => ({ ...f, vehicleYear: e.target.value }))} className={vin} placeholder="Ano" />
                                         </div>
                                         <div>
                                           <label className={iosLabel}>Motor</label>
@@ -9448,33 +9448,35 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                     Links
                                   </h3>
                                   {referenceLinksDraft.length > 0 ? (
-                                    <ul className="space-y-2">
+                                    <ul className="space-y-1.5">
                                       {referenceLinksDraft.map((link) => {
                                         const href = link.url.trim().match(/^https?:\/\//i)
                                           ? link.url.trim()
                                           : `https://${link.url.trim().replace(/^\/+/, '')}`;
+                                        const display = formatReferenceLinkDisplay(link);
                                         return (
                                           <li
                                             key={link.id}
-                                            className="flex flex-col gap-2.5 rounded-xl border border-zinc-200/70 bg-zinc-50/50 p-3 dark:border-white/[0.08] dark:bg-white/[0.03] sm:flex-row sm:items-center sm:justify-between"
+                                            className="flex min-w-0 items-center gap-2 rounded-xl border border-zinc-200/70 bg-zinc-50/50 px-3 py-2 dark:border-white/[0.08] dark:bg-white/[0.03]"
                                           >
-                                            <div className="min-w-0 flex-1">
-                                              <p className="text-[15px] font-semibold leading-snug text-zinc-900 dark:text-white">
-                                                {link.label?.trim() || link.url}
-                                              </p>
-                                              <p className="mt-1 break-all text-[13px] font-medium text-[#007AFF] dark:text-[#64B5FF]">
-                                                {link.url}
-                                              </p>
-                                            </div>
-                                            <div className="flex shrink-0 gap-2">
+                                            <a
+                                              href={href}
+                                              target="_blank"
+                                              rel="noopener noreferrer"
+                                              title={display}
+                                              className="min-w-0 flex-1 truncate text-[13px] font-medium text-zinc-900 hover:text-[#007AFF] dark:text-white dark:hover:text-[#64B5FF]"
+                                            >
+                                              {display}
+                                            </a>
+                                            <div className="flex shrink-0 items-center gap-1.5">
                                               <a
                                                 href={href}
                                                 target="_blank"
                                                 rel="noopener noreferrer"
-                                                className="inline-flex items-center justify-center gap-1 rounded-xl border border-zinc-200/90 px-3 py-2 text-[13px] font-semibold text-zinc-700 transition-colors hover:bg-white dark:border-white/[0.12] dark:text-zinc-200 dark:hover:bg-white/[0.06]"
+                                                className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-[#007AFF] transition-colors hover:bg-[#007AFF]/10 dark:text-[#64B5FF] dark:hover:bg-[#007AFF]/15"
+                                                aria-label="Abrir link"
                                               >
-                                                <ExternalLink className="h-4 w-4" />
-                                                Abrir
+                                                <ExternalLink className="h-3.5 w-3.5" />
                                               </a>
                                               {can('canEditFicha') ? (
                                                 <button
@@ -9485,10 +9487,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                                     loadingDetails ||
                                                     serviceOrderDetail?.customers?.id === SERVICE_ORDER_PLACEHOLDER_CUSTOMER_ID
                                                   }
-                                                  className="inline-flex items-center justify-center gap-1 rounded-xl border border-red-200/90 px-3 py-2 text-[13px] font-semibold text-red-600 transition-colors hover:bg-red-50 disabled:opacity-50 dark:border-red-500/30 dark:text-red-400 dark:hover:bg-red-950/40"
+                                                  className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-red-600 transition-colors hover:bg-red-50 disabled:opacity-50 dark:text-red-400 dark:hover:bg-red-950/40"
+                                                  aria-label="Excluir link"
                                                 >
-                                                  <Trash2 className="h-4 w-4" />
-                                                  Excluir
+                                                  <Trash2 className="h-3.5 w-3.5" />
                                                 </button>
                                               ) : null}
                                             </div>
