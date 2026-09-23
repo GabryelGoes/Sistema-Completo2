@@ -6948,6 +6948,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                       <div className="space-y-10 lg:col-span-2">
                         <div>
                            <p className={uiSectionTitleRow}>
+                              <img src="/icons/queixa-ios.png" alt="" className="h-3.5 w-3.5 rounded-[0.25rem] object-cover" />
                               Queixa do cliente
                            </p>
                            <div className={`${iosModalInsetCard} p-5 ${uiReadBody} sm:p-6`}>
@@ -8865,6 +8866,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
                             <div className="relative flex items-center justify-between gap-2 border-b border-black/[0.06] bg-white/85 px-2.5 py-2 pl-3 backdrop-blur-[2px] dark:border-white/[0.08] dark:bg-zinc-950/35 sm:gap-3 sm:px-3 sm:py-2.5 sm:pl-4">
                               <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-2.5">
+                                <div className={uiOsModalSectionAppIcon}>
+                                  <img src="/icons/queixa-ios.png" alt="" className="h-full w-full object-cover" />
+                                </div>
                                 <p className={uiOsModalCardSectionTitle}>
                                   Queixa do cliente
                                 </p>

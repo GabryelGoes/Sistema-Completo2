@@ -71,7 +71,7 @@ export function printLabModuleFicha(opts: {
           <ul class="links">${referenceLinks
             .map(
               (l) =>
-                `<li><strong>${esc(displayText(l.label))}</strong> — ${esc(displayText(l.url))}</li>`
+                `<li><a href="${esc(l.url)}">${esc(formatReferenceLinkDisplay(l))}</a></li>`
             )
             .join('')}</ul>
         </section>`
