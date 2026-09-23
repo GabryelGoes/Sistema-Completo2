@@ -44,7 +44,7 @@ export const DESKTOP_SIDEBAR_ORDER: DesktopSidebarEntry[] = [
 
 /** Navegação do modo PC (estilo OnMotor) — módulos com aba dedicada. */
 export const DESKTOP_NAV_ITEMS: DesktopNavItem[] = [
-  { id: 'home', label: 'Início', shortLabel: 'Início' },
+  { id: 'home', label: 'Início', shortLabel: 'Início', iconSrc: '/icons/inicio-ios.png' },
   {
     id: 'reception',
     label: 'Recepção',
