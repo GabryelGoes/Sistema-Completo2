@@ -1,4 +1,5 @@
 import React from 'react';
+import { isModuleLoadError, reloadOnceOnModuleLoadError } from '../utils/lazyWithRetry';
 
 const AUTH_STORAGE_KEY = 'rei_do_abs_auth';
 
@@ -28,6 +29,9 @@ export class AppErrorBoundary extends React.Component<Props, State> {
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     console.error('[AppErrorBoundary]', error, errorInfo);
+    if (isModuleLoadError(error)) {
+      reloadOnceOnModuleLoadError(error);
+    }
   }
 
   handleBackToLogin = () => {
@@ -40,25 +44,38 @@ export class AppErrorBoundary extends React.Component<Props, State> {
   render() {
     if (this.state.hasError) {
       const msg = this.state.error?.message ?? '';
+      const isChunk = isModuleLoadError(this.state.error);
       const shortMsg = msg.length > 200 ? msg.slice(0, 200) + '…' : msg;
       return (
         <div className="h-full min-h-0 flex flex-col items-center justify-center bg-black text-white p-6">
           <div className="max-w-sm w-full text-center space-y-6">
             <p className="text-zinc-400 text-sm">
-              Algo deu errado ao carregar o app.
+              {isChunk
+                ? 'A versão do app foi atualizada. Recarregue a página para continuar.'
+                : 'Algo deu errado ao carregar o app.'}
             </p>
             {shortMsg && (
               <pre className="text-left text-xs text-red-400 bg-zinc-900 p-3 rounded-lg overflow-auto max-h-24 w-full">
                 {shortMsg}
               </pre>
             )}
-            <button
-              type="button"
-              onClick={this.handleBackToLogin}
-              className="w-full py-3.5 rounded-xl bg-[#F5D00B] text-black font-semibold text-[15px] uppercase tracking-wider"
-            >
-              Voltar ao login
-            </button>
+            {isChunk ? (
+              <button
+                type="button"
+                onClick={() => window.location.reload()}
+                className="w-full py-3.5 rounded-xl bg-[#F5D00B] text-black font-semibold text-[15px] uppercase tracking-wider"
+              >
+                Recarregar
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={this.handleBackToLogin}
+                className="w-full py-3.5 rounded-xl bg-[#F5D00B] text-black font-semibold text-[15px] uppercase tracking-wider"
+              >
+                Voltar ao login
+              </button>
+            )}
           </div>
         </div>
       );

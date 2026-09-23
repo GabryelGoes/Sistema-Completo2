@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef, Suspense, lazy } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef, Suspense } from 'react';
 import { Customer, Appointment } from './types';
 import { SettingsModal } from './components/SettingsModal';
 import { ChangePasswordsModal } from './components/ChangePasswordsModal';
@@ -59,12 +59,14 @@ import { parseLabOsQrPayload } from './utils/labOsQrCode';
 import type { WorkshopPartsBootIntent } from './components/WorkshopPartsModal';
 import { LabOsScanQuickModal } from './components/LabOsScanQuickModal';
 
+import { lazyWithRetry } from './utils/lazyWithRetry';
+
 type ShellProfileModal = 'user' | 'admin' | null;
 
-const LazyWorkshopPartsModal = lazy(() =>
+const LazyWorkshopPartsModal = lazyWithRetry(() =>
   import('./components/WorkshopPartsModal').then((m) => ({ default: m.WorkshopPartsModal }))
 );
-const LazyTvPatioModal = lazy(() =>
+const LazyTvPatioModal = lazyWithRetry(() =>
   import('./components/TvPatioModal').then((m) => ({ default: m.TvPatioModal }))
 );
 
