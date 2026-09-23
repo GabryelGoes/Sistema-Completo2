@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Camera, Loader2, PackageMinus, ScanBarcode, Trash2 } from 'lucide-react';
+import { Camera, Loader2, PackageMinus, Trash2 } from 'lucide-react';
 import {
   cancelWorkshopPartStockMovement,
   createWorkshopPartStockMovement,
@@ -17,7 +17,7 @@ import { BarcodeScanner } from '../BarcodeScanner';
 import { StockGuardPasswordModal } from '../StockGuardPasswordModal';
 import {
   uiOsModalCardSectionTitle,
-  uiOsModalSectionIconWrap,
+  uiOsModalSectionAppIcon,
 } from '../ui/appTypography';
 
 export type VehicleOsStockCheckoutSectionProps = {
@@ -93,6 +93,20 @@ export const VehicleOsStockCheckoutSection: React.FC<VehicleOsStockCheckoutSecti
   const [cancelError, setCancelError] = useState<string | null>(null);
   const scanLockRef = useRef(false);
   const registerRef = useRef<(code: string) => Promise<boolean>>(async () => false);
+  const sectionRef = useRef<HTMLDivElement | null>(null);
+  const listAnchorRef = useRef<HTMLDivElement | null>(null);
+
+  const scrollToRegisteredProducts = useCallback(() => {
+    const run = () => {
+      const target = listAnchorRef.current ?? sectionRef.current;
+      if (!target) return;
+      target.scrollIntoView({ behavior: 'smooth', block: 'start', inline: 'nearest' });
+    };
+    // setState do item novo ainda não pintou — espera o próximo frame + tick.
+    window.requestAnimationFrame(() => {
+      window.setTimeout(run, 40);
+    });
+  }, []);
 
   const loadItems = useCallback(async () => {
     setLoading(true);
@@ -166,6 +180,7 @@ export const VehicleOsStockCheckoutSection: React.FC<VehicleOsStockCheckoutSecti
         setFlashId(movement.id);
         setLastOk(`${result.part.name} · estoque ${formatWorkshopPartQty(result.part.stock_qty)}`);
         playCheckoutBeep(true);
+        scrollToRegisteredProducts();
         window.setTimeout(() => setFlashId((id) => (id === movement.id ? null : id)), 1200);
         return true;
       } catch (e) {
@@ -177,7 +192,7 @@ export const VehicleOsStockCheckoutSection: React.FC<VehicleOsStockCheckoutSecti
         setBusyCode(null);
       }
     },
-    [osLabel, osScope, recordedByName, serviceOrderId]
+    [osLabel, osScope, recordedByName, scrollToRegisteredProducts, serviceOrderId]
   );
 
   registerRef.current = registerCode;
@@ -210,11 +225,14 @@ export const VehicleOsStockCheckoutSection: React.FC<VehicleOsStockCheckoutSecti
   const totalUnits = items.reduce((acc, m) => acc + Number(m.quantity || 0), 0);
 
   return (
-    <div className={`${insetCardClass} min-w-0 overflow-hidden shadow-none`}>
+    <div
+      ref={sectionRef}
+      className={`${insetCardClass} min-w-0 overflow-hidden shadow-none`}
+    >
       <div className="relative flex items-center justify-between gap-2 border-b border-black/[0.06] bg-white/85 px-2.5 py-2 pl-3 backdrop-blur-[2px] dark:border-white/[0.08] dark:bg-zinc-950/35 sm:gap-3 sm:px-3 sm:py-2.5 sm:pl-4">
         <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-2.5">
-          <div className={uiOsModalSectionIconWrap}>
-            <PackageMinus className="h-4 w-4 text-amber-700 dark:text-amber-400" strokeWidth={2.25} aria-hidden />
+          <div className={uiOsModalSectionAppIcon}>
+            <img src="/icons/estoque-ios.png" alt="" className="h-full w-full object-cover" />
           </div>
           <div className="min-w-0">
             <p className={uiOsModalCardSectionTitle}>Peças do estoque</p>
@@ -237,14 +255,6 @@ export const VehicleOsStockCheckoutSection: React.FC<VehicleOsStockCheckoutSecti
       </div>
 
       <div className="space-y-3 border-t border-zinc-200/60 bg-zinc-50/90 px-3 py-3 dark:border-white/[0.06] dark:bg-white/[0.02] sm:px-4 sm:py-4">
-        <div className="flex items-start gap-2.5 rounded-xl border border-amber-500/20 bg-amber-50/80 px-3 py-2.5 dark:border-amber-400/20 dark:bg-amber-500/10">
-          <ScanBarcode className="mt-0.5 h-4 w-4 shrink-0 text-amber-700 dark:text-amber-300" strokeWidth={2.2} aria-hidden />
-          <p className="text-[12px] leading-relaxed text-amber-950/85 dark:text-amber-100/85">
-            Passe o código de barras no leitor USB para registrar e abater do estoque — como um caixa de
-            supermercado. Cada bip = 1 unidade.
-          </p>
-        </div>
-
         {busyCode ? (
           <div className="flex items-center gap-2 text-[13px] font-medium text-zinc-600 dark:text-zinc-300">
             <Loader2 className="h-4 w-4 animate-spin text-[#007AFF]" />
@@ -264,7 +274,10 @@ export const VehicleOsStockCheckoutSection: React.FC<VehicleOsStockCheckoutSecti
           </p>
         ) : null}
 
-        <div className="flex items-center justify-between gap-2">
+        <div
+          ref={listAnchorRef}
+          className="flex items-center justify-between gap-2"
+        >
           <p className="text-[12px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
             Retiradas desta OS
           </p>
