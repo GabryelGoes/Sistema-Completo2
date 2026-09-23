@@ -9879,6 +9879,33 @@ export const PatioView: React.FC<PatioViewProps> = ({
                              )}
                         </div>
 
+                        <div className={isPatioPcModal ? 'mt-1' : 'mt-3'}>
+                          <VehicleOsStockCheckoutSection
+                            serviceOrderId={selectedCard.id}
+                            osLabel={(() => {
+                              const osNum = serviceOrderDetail?.os_number ?? selectedCard.osNumber;
+                              const title = parsePatioCardTitle(selectedCard.name);
+                              return [
+                                osNum != null ? `OS #${osNum}` : null,
+                                title.plateOrModule || null,
+                                title.vehicle || null,
+                              ]
+                                .filter(Boolean)
+                                .join(' · ');
+                            })()}
+                            osScope={isModuleMode ? 'lab' : 'patio'}
+                            insetCardClass={vi}
+                            recordedByName={(commentAuthorName && commentAuthorName.trim()) || (isModuleMode ? 'Laboratório' : 'Pátio')}
+                            claimUsbScanner={
+                              !!selectedCard &&
+                              patioPortalsVisible &&
+                              !isBudgetOpen &&
+                              !checklistModalOpen
+                            }
+                            showCameraButton={!isPatioPcModal}
+                          />
+                        </div>
+
                         {isPatioPcModal ? (
                          <>
                          <div className="h-px bg-zinc-200 dark:bg-zinc-800"></div>
@@ -9914,33 +9941,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
                          </div>
                          </>
                         ) : null}
-
-                        <div className={isPatioPcModal ? 'mt-1' : 'mt-3'}>
-                          <VehicleOsStockCheckoutSection
-                            serviceOrderId={selectedCard.id}
-                            osLabel={(() => {
-                              const osNum = serviceOrderDetail?.os_number ?? selectedCard.osNumber;
-                              const title = parsePatioCardTitle(selectedCard.name);
-                              return [
-                                osNum != null ? `OS #${osNum}` : null,
-                                title.plateOrModule || null,
-                                title.vehicle || null,
-                              ]
-                                .filter(Boolean)
-                                .join(' · ');
-                            })()}
-                            osScope={isModuleMode ? 'lab' : 'patio'}
-                            insetCardClass={vi}
-                            recordedByName={(commentAuthorName && commentAuthorName.trim()) || (isModuleMode ? 'Laboratório' : 'Pátio')}
-                            claimUsbScanner={
-                              !!selectedCard &&
-                              patioPortalsVisible &&
-                              !isBudgetOpen &&
-                              !checklistModalOpen
-                            }
-                            showCameraButton={!isPatioPcModal}
-                          />
-                        </div>
 
                       </div>
                   </div>
