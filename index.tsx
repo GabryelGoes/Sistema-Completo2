@@ -13,6 +13,18 @@ import { ensureSfProFonts } from './utils/ensureSfProFonts';
 
 void ensureSfProFonts();
 
+/** Após deploy, chunks antigos somem — recarrega uma vez em vez de travar a aba. */
+window.addEventListener('vite:preloadError', (event) => {
+  event.preventDefault();
+  try {
+    if (sessionStorage.getItem('rda_chunk_reload_once') === '1') return;
+    sessionStorage.setItem('rda_chunk_reload_once', '1');
+  } catch {
+    /* ignore */
+  }
+  window.location.reload();
+});
+
 const rootElement = document.getElementById('root');
 if (!rootElement) {
   throw new Error("Could not find root element to mount to");

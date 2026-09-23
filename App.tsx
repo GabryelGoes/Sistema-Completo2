@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef, Suspense, lazy } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef, Suspense } from 'react';
 import { Customer, Appointment } from './types';
 import { SettingsModal } from './components/SettingsModal';
 import { ChangePasswordsModal } from './components/ChangePasswordsModal';
@@ -54,16 +54,19 @@ import {
   resolveDesktopShellOverlayTopbar,
 } from './utils/desktopShellOverlayModules';
 import { useBarcodeWedgeListener } from './hooks/useBarcodeWedgeListener';
+import { tryActiveBarcodeScanClaim } from './utils/activeBarcodeScanClaim';
 import { parseLabOsQrPayload } from './utils/labOsQrCode';
 import type { WorkshopPartsBootIntent } from './components/WorkshopPartsModal';
 import { LabOsScanQuickModal } from './components/LabOsScanQuickModal';
 
+import { lazyWithRetry } from './utils/lazyWithRetry';
+
 type ShellProfileModal = 'user' | 'admin' | null;
 
-const LazyWorkshopPartsModal = lazy(() =>
+const LazyWorkshopPartsModal = lazyWithRetry(() =>
   import('./components/WorkshopPartsModal').then((m) => ({ default: m.WorkshopPartsModal }))
 );
-const LazyTvPatioModal = lazy(() =>
+const LazyTvPatioModal = lazyWithRetry(() =>
   import('./components/TvPatioModal').then((m) => ({ default: m.TvPatioModal }))
 );
 
@@ -372,19 +375,22 @@ export default function App() {
   }, []);
 
   /**
-   * Pistola USB em qualquer página: QR de OS do Laboratório (RDA-OS) abre
-   * o modal rápido da peça (resumo + etapas + etiqueta + Abrir OS).
+   * Pistola USB: se o modal da OS reivindicar (caixa de estoque), trata lá;
+   * senão, QR de OS do Laboratório (RDA-OS) abre o modal rápido.
    */
   const handleGlobalBarcodeScan = useCallback((code: string) => {
-    const osId = parseLabOsQrPayload(code);
-    if (!osId) return;
-    setIsPartsModalOpen(false);
-    setPartsBootIntent(null);
-    setIsTvPatioModalOpen(false);
-    setSettingsHubOpen(false);
-    setIsSettingsOpen(false);
-    setIsSupportChatOpen(false);
-    setLabOsScanQuick({ id: osId, token: Date.now() });
+    void (async () => {
+      if (await tryActiveBarcodeScanClaim(code)) return;
+      const osId = parseLabOsQrPayload(code);
+      if (!osId) return;
+      setIsPartsModalOpen(false);
+      setPartsBootIntent(null);
+      setIsTvPatioModalOpen(false);
+      setSettingsHubOpen(false);
+      setIsSettingsOpen(false);
+      setIsSupportChatOpen(false);
+      setLabOsScanQuick({ id: osId, token: Date.now() });
+    })();
   }, []);
 
   useBarcodeWedgeListener({

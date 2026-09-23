@@ -3073,6 +3073,7 @@ export type WorkshopPartStockMovement = {
   stock_before: number;
   stock_after: number;
   created_at: string;
+  service_order_id?: string | null;
   part_name?: string | null;
   part_unit_of_measure?: string | null;
   part_photo_url?: string | null;
@@ -3107,10 +3108,12 @@ export async function lookupWorkshopPartByCode(code: string): Promise<WorkshopPa
 export async function getWorkshopPartStockMovements(opts?: {
   type?: WorkshopPartStockMovementType;
   limit?: number;
+  serviceOrderId?: string;
 }): Promise<WorkshopPartStockMovement[]> {
   const params = new URLSearchParams();
   if (opts?.type) params.set('type', opts.type);
   if (opts?.limit) params.set('limit', String(opts.limit));
+  if (opts?.serviceOrderId) params.set('service_order_id', opts.serviceOrderId);
   const qs = params.toString();
   const response = await fetch(
     `${API_BASE}/workshop-parts/movements${qs ? `?${qs}` : ''}`
@@ -3132,6 +3135,7 @@ export async function createWorkshopPartStockMovement(input: {
   notes?: string | null;
   barcode_scanned?: string | null;
   recorded_by_name?: string | null;
+  service_order_id?: string | null;
 }): Promise<WorkshopPartStockOutboundResult> {
   const response = await fetch(`${API_BASE}/workshop-parts/movements`, {
     method: 'POST',

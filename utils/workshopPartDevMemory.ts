@@ -242,10 +242,14 @@ export function createDevMemoryPart(input: Partial<DevMemoryPart> & { name: stri
 export function listDevMemoryMovements(opts?: {
   movementType?: WorkshopPartStockMovementType;
   limit?: number;
+  serviceOrderId?: string;
 }): WorkshopPartStockMovement[] {
   let list = [...movements];
   if (opts?.movementType) {
     list = list.filter((m) => m.movement_type === opts.movementType);
+  }
+  if (opts?.serviceOrderId) {
+    list = list.filter((m) => m.service_order_id === opts.serviceOrderId);
   }
   list.sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
   const limit = Math.min(200, Math.max(1, opts?.limit ?? 50));

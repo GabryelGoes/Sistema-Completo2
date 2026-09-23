@@ -192,6 +192,7 @@ import { LabExternalRepairModal } from '../lab/LabExternalRepairModal';
 import { PatioOsModalPcTabBar, type PatioOsModalPcTab } from '../patio/PatioOsModalPcTabBar';
 import { PatioOsModalLabServicesSection } from '../patio/PatioOsModalLabServicesSection';
 import { VehicleObservationsSection } from '../patio/VehicleObservationsSection';
+import { VehicleOsStockCheckoutSection } from '../patio/VehicleOsStockCheckoutSection';
 import {
   PatioOriginAttachmentsPicker,
   PatioOriginAttachmentsSection,
@@ -9417,133 +9418,135 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             </div>
                             </div>
 
-                            {serviceOrderDetail && (referenceLinksDraft.length > 0 || pendingReferenceLink) ? (
-                              <div className={`order-1 px-4 sm:px-5 ${isPatioPcModal ? 'py-3 sm:py-3.5' : 'pb-3 pt-5 sm:pb-3.5 sm:pt-6'}`}>
-                                <div
-                                  className={`${vi} overflow-hidden px-4 py-3.5 shadow-[0_8px_32px_-12px_rgba(0,0,0,0.08)] dark:shadow-[0_12px_40px_-16px_rgba(0,0,0,0.45)] sm:px-5 sm:py-4`}
-                                >
-                                  <h3 className="mb-2.5 text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500 dark:text-zinc-400">
-                                    Links
-                                  </h3>
-                                  {referenceLinksDraft.length > 0 ? (
-                                    <ul className="space-y-1.5">
-                                      {referenceLinksDraft.map((link) => {
-                                        const href = link.url.trim().match(/^https?:\/\//i)
-                                          ? link.url.trim()
-                                          : `https://${link.url.trim().replace(/^\/+/, '')}`;
-                                        const display = formatReferenceLinkDisplay(link);
-                                        return (
-                                          <li
-                                            key={link.id}
-                                            className="flex min-w-0 items-center gap-2 rounded-xl border border-zinc-200/70 bg-zinc-50/50 px-3 py-2 dark:border-white/[0.08] dark:bg-white/[0.03]"
-                                          >
-                                            <a
-                                              href={href}
-                                              target="_blank"
-                                              rel="noopener noreferrer"
-                                              title={display}
-                                              className="min-w-0 flex-1 truncate text-[13px] font-medium text-zinc-900 hover:text-[#007AFF] dark:text-white dark:hover:text-[#64B5FF]"
-                                            >
-                                              {display}
-                                            </a>
-                                            <div className="flex shrink-0 items-center gap-1.5">
-                                              <a
-                                                href={href}
-                                                target="_blank"
-                                                rel="noopener noreferrer"
-                                                className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-[#007AFF] transition-colors hover:bg-[#007AFF]/10 dark:text-[#64B5FF] dark:hover:bg-[#007AFF]/15"
-                                                aria-label="Abrir link"
-                                              >
-                                                <ExternalLink className="h-3.5 w-3.5" />
-                                              </a>
-                                              {can('canEditFicha') ? (
-                                                <button
-                                                  type="button"
-                                                  onClick={() => void handleDeleteReferenceLink(link.id)}
-                                                  disabled={
-                                                    referenceLinksSaving ||
-                                                    loadingDetails ||
-                                                    serviceOrderDetail?.customers?.id === SERVICE_ORDER_PLACEHOLDER_CUSTOMER_ID
-                                                  }
-                                                  className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-red-600 transition-colors hover:bg-red-50 disabled:opacity-50 dark:text-red-400 dark:hover:bg-red-950/40"
-                                                  aria-label="Excluir link"
-                                                >
-                                                  <Trash2 className="h-3.5 w-3.5" />
-                                                </button>
-                                              ) : null}
-                                            </div>
-                                          </li>
-                                        );
-                                      })}
-                                    </ul>
-                                  ) : null}
-                                  {can('canEditFicha') && pendingReferenceLink ? (
-                                    <div
-                                      className={`space-y-2 ${referenceLinksDraft.length > 0 ? 'mt-3 border-t border-zinc-200/60 pt-3 dark:border-white/[0.06]' : ''}`}
-                                    >
-                                      <div>
-                                        <label className={`${iosLabel} !mb-1`}>Título</label>
-                                        <input
-                                          value={pendingReferenceLink.label}
-                                          onChange={(e) =>
-                                            setPendingReferenceLink((prev) =>
-                                              prev ? { ...prev, label: e.target.value } : prev
-                                            )
-                                          }
-                                          placeholder="Nome do documento"
-                                          className={vin}
-                                        />
-                                      </div>
-                                      <div>
-                                        <label className={`${iosLabel} !mb-1`}>URL</label>
-                                        <input
-                                          value={pendingReferenceLink.url}
-                                          onChange={(e) =>
-                                            setPendingReferenceLink((prev) =>
-                                              prev ? { ...prev, url: e.target.value } : prev
-                                            )
-                                          }
-                                          placeholder="https://..."
-                                          inputMode="url"
-                                          autoComplete="off"
-                                          className={vin}
-                                        />
-                                      </div>
-                                      <div className="flex flex-wrap justify-end gap-2">
-                                        <button
-                                          type="button"
-                                          onClick={() => setPendingReferenceLink(null)}
-                                          className="inline-flex items-center rounded-xl border border-zinc-200/90 px-3 py-2 text-[13px] font-semibold text-zinc-600 transition-colors hover:bg-zinc-100 dark:border-white/[0.12] dark:text-zinc-300 dark:hover:bg-white/[0.06]"
-                                        >
-                                          Cancelar
-                                        </button>
-                                        {pendingReferenceLink.url.trim() ? (
-                                          <button
-                                            type="button"
-                                            onClick={() => void handleSaveReferenceLinks()}
-                                            disabled={
-                                              referenceLinksSaving ||
-                                              loadingDetails ||
-                                              serviceOrderDetail?.customers?.id === SERVICE_ORDER_PLACEHOLDER_CUSTOMER_ID
-                                            }
-                                            className={`${iosPrimaryButton} inline-flex items-center gap-2 px-6 py-2.5`}
-                                          >
-                                            {referenceLinksSaving ? (
-                                              <RefreshCw className="h-4 w-4 animate-spin" />
-                                            ) : (
-                                              <Save className="h-4 w-4" />
-                                            )}
-                                            Salvar link
-                                          </button>
-                                        ) : null}
-                                      </div>
-                                    </div>
-                                  ) : null}
-                                </div>
-                              </div>
-                            ) : null}
+                            <div className={`order-2 space-y-3 px-4 sm:px-5 ${isPatioPcModal ? 'pb-8 pt-3 sm:pb-10 sm:pt-3.5' : 'pb-8 pt-5 sm:pb-10 sm:pt-6'}`}>
+                               {serviceOrderDetail && (referenceLinksDraft.length > 0 || pendingReferenceLink) ? (
+                                 <div
+                                   className={
+                                     isPatioPcModal
+                                       ? undefined
+                                       : `${vi} overflow-hidden px-4 py-3.5 shadow-[0_8px_32px_-12px_rgba(0,0,0,0.08)] dark:shadow-[0_12px_40px_-16px_rgba(0,0,0,0.45)] sm:px-5 sm:py-4`
+                                   }
+                                 >
+                                   <div className="mb-2 flex min-w-0 items-center">
+                                     <p className={uiOsModalCardSectionTitle}>Links</p>
+                                   </div>
+                                   {referenceLinksDraft.length > 0 ? (
+                                     <ul className="space-y-1.5">
+                                       {referenceLinksDraft.map((link) => {
+                                         const href = link.url.trim().match(/^https?:\/\//i)
+                                           ? link.url.trim()
+                                           : `https://${link.url.trim().replace(/^\/+/, '')}`;
+                                         const display = formatReferenceLinkDisplay(link);
+                                         return (
+                                           <li
+                                             key={link.id}
+                                             className="flex min-w-0 items-center gap-2 rounded-xl border border-zinc-200/70 bg-zinc-50/50 px-3 py-2 dark:border-white/[0.08] dark:bg-white/[0.03]"
+                                           >
+                                             <a
+                                               href={href}
+                                               target="_blank"
+                                               rel="noopener noreferrer"
+                                               title={display}
+                                               className="min-w-0 flex-1 truncate text-[13px] font-medium text-zinc-900 hover:text-[#007AFF] dark:text-white dark:hover:text-[#64B5FF]"
+                                             >
+                                               {display}
+                                             </a>
+                                             <div className="flex shrink-0 items-center gap-1.5">
+                                               <a
+                                                 href={href}
+                                                 target="_blank"
+                                                 rel="noopener noreferrer"
+                                                 className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-[#007AFF] transition-colors hover:bg-[#007AFF]/10 dark:text-[#64B5FF] dark:hover:bg-[#007AFF]/15"
+                                                 aria-label="Abrir link"
+                                               >
+                                                 <ExternalLink className="h-3.5 w-3.5" />
+                                               </a>
+                                               {can('canEditFicha') ? (
+                                                 <button
+                                                   type="button"
+                                                   onClick={() => void handleDeleteReferenceLink(link.id)}
+                                                   disabled={
+                                                     referenceLinksSaving ||
+                                                     loadingDetails ||
+                                                     serviceOrderDetail?.customers?.id === SERVICE_ORDER_PLACEHOLDER_CUSTOMER_ID
+                                                   }
+                                                   className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-red-600 transition-colors hover:bg-red-50 disabled:opacity-50 dark:text-red-400 dark:hover:bg-red-950/40"
+                                                   aria-label="Excluir link"
+                                                 >
+                                                   <Trash2 className="h-3.5 w-3.5" />
+                                                 </button>
+                                               ) : null}
+                                             </div>
+                                           </li>
+                                         );
+                                       })}
+                                     </ul>
+                                   ) : null}
+                                   {can('canEditFicha') && pendingReferenceLink ? (
+                                     <div
+                                       className={`space-y-2 ${referenceLinksDraft.length > 0 ? 'mt-3 border-t border-zinc-200/60 pt-3 dark:border-white/[0.06]' : ''}`}
+                                     >
+                                       <div>
+                                         <label className={`${iosLabel} !mb-1`}>Título</label>
+                                         <input
+                                           value={pendingReferenceLink.label}
+                                           onChange={(e) =>
+                                             setPendingReferenceLink((prev) =>
+                                               prev ? { ...prev, label: e.target.value } : prev
+                                             )
+                                           }
+                                           placeholder="Nome do documento"
+                                           className={vin}
+                                         />
+                                       </div>
+                                       <div>
+                                         <label className={`${iosLabel} !mb-1`}>URL</label>
+                                         <input
+                                           value={pendingReferenceLink.url}
+                                           onChange={(e) =>
+                                             setPendingReferenceLink((prev) =>
+                                               prev ? { ...prev, url: e.target.value } : prev
+                                             )
+                                           }
+                                           placeholder="https://..."
+                                           inputMode="url"
+                                           autoComplete="off"
+                                           className={vin}
+                                         />
+                                       </div>
+                                       <div className="flex flex-wrap justify-end gap-2">
+                                         <button
+                                           type="button"
+                                           onClick={() => setPendingReferenceLink(null)}
+                                           className="inline-flex items-center rounded-xl border border-zinc-200/90 px-3 py-2 text-[13px] font-semibold text-zinc-600 transition-colors hover:bg-zinc-100 dark:border-white/[0.12] dark:text-zinc-300 dark:hover:bg-white/[0.06]"
+                                         >
+                                           Cancelar
+                                         </button>
+                                         {pendingReferenceLink.url.trim() ? (
+                                           <button
+                                             type="button"
+                                             onClick={() => void handleSaveReferenceLinks()}
+                                             disabled={
+                                               referenceLinksSaving ||
+                                               loadingDetails ||
+                                               serviceOrderDetail?.customers?.id === SERVICE_ORDER_PLACEHOLDER_CUSTOMER_ID
+                                             }
+                                             className={`${iosPrimaryButton} inline-flex items-center gap-2 px-6 py-2.5`}
+                                           >
+                                             {referenceLinksSaving ? (
+                                               <RefreshCw className="h-4 w-4 animate-spin" />
+                                             ) : (
+                                               <Save className="h-4 w-4" />
+                                             )}
+                                             Salvar link
+                                           </button>
+                                         ) : null}
+                                       </div>
+                                     </div>
+                                   ) : null}
+                                 </div>
+                               ) : null}
 
-                            <div className={`order-2 space-y-3 px-4 sm:px-5 ${isPatioPcModal ? 'pb-8 sm:pb-10' : 'pb-8 pt-5 sm:pb-10 sm:pt-6'}`}>
                                {isUploading && (
                                   <div className="flex justify-center p-4">
                                      <RefreshCw className="w-4 h-4 text-brand-yellow animate-spin" />
@@ -9876,6 +9879,33 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                 </button>
                              </div>
                              )}
+                        </div>
+
+                        <div className={isPatioPcModal ? 'mt-1' : 'mt-3'}>
+                          <VehicleOsStockCheckoutSection
+                            serviceOrderId={selectedCard.id}
+                            osLabel={(() => {
+                              const osNum = serviceOrderDetail?.os_number ?? selectedCard.osNumber;
+                              const title = parsePatioCardTitle(selectedCard.name);
+                              return [
+                                osNum != null ? `OS #${osNum}` : null,
+                                title.plateOrModule || null,
+                                title.vehicle || null,
+                              ]
+                                .filter(Boolean)
+                                .join(' · ');
+                            })()}
+                            osScope={isModuleMode ? 'lab' : 'patio'}
+                            insetCardClass={vi}
+                            recordedByName={(commentAuthorName && commentAuthorName.trim()) || (isModuleMode ? 'Laboratório' : 'Pátio')}
+                            claimUsbScanner={
+                              !!selectedCard &&
+                              patioPortalsVisible &&
+                              !isBudgetOpen &&
+                              !checklistModalOpen
+                            }
+                            showCameraButton={!isPatioPcModal}
+                          />
                         </div>
 
                         {isPatioPcModal ? (
