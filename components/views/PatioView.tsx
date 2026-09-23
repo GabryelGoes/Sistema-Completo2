@@ -7088,6 +7088,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                         {!isModuleMode && selectedHistoryCard && diagnosticAuthSheetContext ? (
                           <div>
                             <p className={uiSectionTitleRow}>
+                              <img src="/icons/autorizacao-diagnostico-ios.png" alt="" className="h-3.5 w-3.5 rounded-[0.25rem] object-cover" />
                               Autorização de diagnóstico
                             </p>
                             <button
@@ -9057,7 +9058,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                         diagnosticAuthSheetContext ? (
                           <div className="min-w-0">
                             <h3 className={patioVehicleVm.sectionTitle}>
-                              <FileText className="h-3.5 w-3.5 shrink-0" />
+                              <img src="/icons/autorizacao-diagnostico-ios.png" alt="" className="h-3.5 w-3.5 shrink-0 rounded-[0.25rem] object-cover" />
                               Autorização de diagnóstico
                             </h3>
                             <button
