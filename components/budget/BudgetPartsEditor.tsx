@@ -239,7 +239,7 @@ export const BudgetPartsEditor: React.FC<BudgetPartsEditorProps> = ({
                   <input
                     ref={isFocusedPart ? focusedPartInputRef : undefined}
                     type="text"
-                    placeholder="Nome da peça…"
+                    placeholder="Peça"
                     className={`${inputClass} min-w-0 w-full shadow-none`}
                     value={item.description}
                     data-budget-parts-editor-id={item.id}

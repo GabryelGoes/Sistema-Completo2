@@ -657,7 +657,7 @@ function BudgetServiceDescriptionTextarea({
       rows={1}
       spellCheck={false}
       data-budget-service-id={dataBudgetServiceId}
-      placeholder="Digite ou escolha um serviço…"
+      placeholder="Serviço"
       className={`${inputClassName} shadow-none block min-h-[52px] w-full min-w-0 resize-none overflow-hidden break-words leading-snug [overflow-wrap:anywhere] [scrollbar-width:none] [&::-webkit-scrollbar]:w-0 [&::-webkit-scrollbar]:bg-transparent`}
       value={value}
       onChange={(e) => {
@@ -6738,7 +6738,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   <div className="relative min-w-0 flex-1">
                     <input
                       type="text"
-                      placeholder="Placa, nome, CPF, telefone ou CEP…"
+                      placeholder="Buscar"
                       value={historySearchPlate}
                       onChange={(e) => setHistorySearchPlate(e.target.value)}
                       onKeyDown={(e) => e.key === 'Enter' && handleSearchHistory()}
@@ -6992,7 +6992,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                       value={vehicleObservationsEditValue}
                                       onChange={(e) => setVehicleObservationsEditValue(e.target.value)}
                                       className={`${patioVmInputClass} relative z-[2] min-h-[180px] resize-none cursor-text text-[15px] leading-relaxed !caret-[#007AFF] dark:text-white dark:!caret-[#93c5fd]`}
-                                      placeholder="Digite observações sobre o veículo…"
+                                      placeholder="Observações"
                                     />
                                     <div className="flex justify-end gap-1.5">
                                       <button
@@ -7494,7 +7494,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                   <input
                                     value={externalRepairDraft.vehicleRef}
                                     onChange={(e) => setExternalRepairDraft((p) => ({ ...p, vehicleRef: e.target.value }))}
-                                    placeholder="Ex.: BMW 320i ou referência do pátio"
+                                    placeholder="Referência do veículo"
                                     className={vin}
                                   />
                                 </div>
@@ -7503,7 +7503,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                   <input
                                     value={externalRepairDraft.productIdentification}
                                     onChange={(e) => setExternalRepairDraft((p) => ({ ...p, productIdentification: e.target.value }))}
-                                    placeholder="Ex.: Módulo ABS XYZ, nº de série…"
+                                    placeholder="Identificação do módulo"
                                     className={vin}
                                   />
                                 </div>
@@ -7535,7 +7535,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                     <input
                                       value={externalRepairDraft.productTypeOther}
                                       onChange={(e) => setExternalRepairDraft((p) => ({ ...p, productTypeOther: e.target.value }))}
-                                      placeholder="Ex.: bomba de direção, atuador…"
+                                      placeholder="Peça / item"
                                       className={vin}
                                     />
                                   </div>
@@ -7545,7 +7545,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                   <input
                                     value={externalRepairDraft.service}
                                     onChange={(e) => setExternalRepairDraft((p) => ({ ...p, service: e.target.value }))}
-                                    placeholder="Serviço do pátio ou descrição do reparo"
+                                    placeholder="Descrição do reparo"
                                     className={vin}
                                   />
                                 </div>
@@ -7554,7 +7554,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                   <input
                                     value={externalRepairDraft.vendor}
                                     onChange={(e) => setExternalRepairDraft((p) => ({ ...p, vendor: e.target.value }))}
-                                    placeholder="Ex.: Eletrônica do João"
+                                    placeholder="Oficina / responsável"
                                     className={vin}
                                   />
                                 </div>
@@ -8122,7 +8122,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                     inputMode="numeric"
                                     value={mileageEditValue}
                                     onChange={(e) => setMileageEditValue(e.target.value)}
-                                    placeholder={isPatioVmMetaPcLike ? '45000' : 'Ex: 45000'}
+                                    placeholder="Km"
                                     className={`${c.numericInput}${isPatioVmMetaPcLike ? '' : ' sm:max-w-none portrait:w-[51%] portrait:flex-none'}`}
                                   />
                                   <button
@@ -8415,28 +8415,28 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                   <div className={`${vi} space-y-4 p-4 sm:p-5`}>
                                     <div>
                                       <label className={iosLabel}>Nome</label>
-                                      <input ref={customerNameInputRef} value={editFichaForm.name} onChange={(e) => setEditFichaForm(f => ({ ...f, name: e.target.value }))} className={vin} placeholder="Nome do cliente" />
+                                      <input ref={customerNameInputRef} value={editFichaForm.name} onChange={(e) => setEditFichaForm(f => ({ ...f, name: e.target.value }))} className={vin} placeholder="Nome" />
                                     </div>
                                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                                       <div>
                                         <label className={iosLabel}>Telefone</label>
-                                        <input value={editFichaForm.phone} onChange={(e) => setEditFichaForm(f => ({ ...f, phone: e.target.value }))} className={vin} placeholder="(11) 99999-9999" />
+                                        <input value={editFichaForm.phone} onChange={(e) => setEditFichaForm(f => ({ ...f, phone: e.target.value }))} className={vin} placeholder="Telefone" />
                                       </div>
                                       <div>
                                         <label className={iosLabel}>E-mail</label>
-                                        <input type="email" value={editFichaForm.email} onChange={(e) => setEditFichaForm(f => ({ ...f, email: e.target.value }))} className={vin} placeholder="email@exemplo.com" />
+                                        <input type="email" value={editFichaForm.email} onChange={(e) => setEditFichaForm(f => ({ ...f, email: e.target.value }))} className={vin} placeholder="E-mail" />
                                       </div>
                                     </div>
                                     <div>
                                       <label className={iosLabel}>CPF</label>
-                                      <input value={editFichaForm.cpf} onChange={(e) => setEditFichaForm(f => ({ ...f, cpf: e.target.value }))} className={vin} placeholder="000.000.000-00" />
+                                      <input value={editFichaForm.cpf} onChange={(e) => setEditFichaForm(f => ({ ...f, cpf: e.target.value }))} className={vin} placeholder="CPF" />
                                     </div>
                                   </div>
                                   <p className={`${iosLabel} ml-0.5`}>Endereço</p>
                                   <div className={`${vi} space-y-4 p-4 sm:p-5`}>
                                     <div>
                                       <label className={iosLabel}>Logradouro</label>
-                                      <input value={editFichaForm.address} onChange={(e) => setEditFichaForm(f => ({ ...f, address: e.target.value }))} className={vin} placeholder="Rua, bairro..." />
+                                      <input value={editFichaForm.address} onChange={(e) => setEditFichaForm(f => ({ ...f, address: e.target.value }))} className={vin} placeholder="Endereço" />
                                     </div>
                                     <div className="grid grid-cols-2 gap-3 sm:gap-4">
                                       <div>
@@ -8445,7 +8445,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                       </div>
                                       <div>
                                         <label className={iosLabel}>CEP</label>
-                                        <input value={editFichaForm.cep} onChange={(e) => setEditFichaForm(f => ({ ...f, cep: e.target.value }))} className={vin} placeholder="00000-000" />
+                                        <input value={editFichaForm.cep} onChange={(e) => setEditFichaForm(f => ({ ...f, cep: e.target.value }))} className={vin} placeholder="CEP" />
                                       </div>
                                     </div>
                                   </div>
@@ -8462,11 +8462,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                                       <div>
                                         <label className={iosLabel}>Marca / montadora</label>
-                                        <input value={editFichaForm.vehicleBrand} onChange={(e) => setEditFichaForm(f => ({ ...f, vehicleBrand: e.target.value }))} className={vin} placeholder="Ex: Renault" />
+                                        <input value={editFichaForm.vehicleBrand} onChange={(e) => setEditFichaForm(f => ({ ...f, vehicleBrand: e.target.value }))} className={vin} placeholder="Marca" />
                                       </div>
                                       <div>
                                         <label className={iosLabel}>Modelo (no card)</label>
-                                        <input value={editFichaForm.vehicleModel} onChange={(e) => setEditFichaForm(f => ({ ...f, vehicleModel: e.target.value }))} className={vin} placeholder="Ex: Logan 1.6" />
+                                        <input value={editFichaForm.vehicleModel} onChange={(e) => setEditFichaForm(f => ({ ...f, vehicleModel: e.target.value }))} className={vin} placeholder="Modelo" />
                                       </div>
                                     </div>
                                   )}
@@ -8474,11 +8474,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                     <>
                                       <div>
                                         <label className={iosLabel}>Veículo / referência</label>
-                                        <input value={editFichaForm.vehicleModel} onChange={(e) => setEditFichaForm(f => ({ ...f, vehicleModel: e.target.value }))} className={vin} placeholder="Ex: BMW 320i" />
+                                        <input value={editFichaForm.vehicleModel} onChange={(e) => setEditFichaForm(f => ({ ...f, vehicleModel: e.target.value }))} className={vin} placeholder="Modelo" />
                                       </div>
                                       <div>
                                         <label className={iosLabel}>Identificação da peça</label>
-                                        <input value={editFichaForm.moduleIdentification} onChange={(e) => setEditFichaForm(f => ({ ...f, moduleIdentification: e.target.value }))} className={vin} placeholder="Ex: Módulo ABS XYZ" />
+                                        <input value={editFichaForm.moduleIdentification} onChange={(e) => setEditFichaForm(f => ({ ...f, moduleIdentification: e.target.value }))} className={vin} placeholder="Módulo" />
                                       </div>
                                       <div>
                                         <label className={iosLabel}>Tipo de peça</label>
@@ -8509,7 +8509,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                             value={editFichaForm.moduleProductOther}
                                             onChange={(e) => setEditFichaForm((f) => ({ ...f, moduleProductOther: e.target.value }))}
                                             className={vin}
-                                            placeholder="Ex: bomba de direção, atuador…"
+                                            placeholder="Peça / item"
                                           />
                                         </div>
                                       )}
@@ -8601,7 +8601,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                                         <div>
                                           <label className={iosLabel}>Cor</label>
-                                          <input value={editFichaForm.vehicleColor} onChange={(e) => setEditFichaForm(f => ({ ...f, vehicleColor: e.target.value }))} className={vin} placeholder="Ex: Branca" />
+                                          <input value={editFichaForm.vehicleColor} onChange={(e) => setEditFichaForm(f => ({ ...f, vehicleColor: e.target.value }))} className={vin} placeholder="Cor" />
                                         </div>
                                         <div>
                                           <label className={iosLabel}>Ano</label>
@@ -8609,7 +8609,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                         </div>
                                         <div>
                                           <label className={iosLabel}>Motor</label>
-                                          <input value={editFichaForm.vehicleEngineInfo} onChange={(e) => setEditFichaForm(f => ({ ...f, vehicleEngineInfo: e.target.value }))} className={vin} placeholder="Cilindradas / combustível" />
+                                          <input value={editFichaForm.vehicleEngineInfo} onChange={(e) => setEditFichaForm(f => ({ ...f, vehicleEngineInfo: e.target.value }))} className={vin} placeholder="Motor" />
                                         </div>
                                       </div>
                                     </>
@@ -8922,7 +8922,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                   value={descText}
                                   onChange={(e) => setDescText(e.target.value)}
                                   className={`${vin} relative z-[2] min-h-[180px] resize-none cursor-text text-[15px] leading-relaxed !caret-[#007AFF] dark:text-white dark:!caret-[#93c5fd]`}
-                                  placeholder="Digite a queixa do cliente..."
+                                  placeholder="Queixa"
                                 />
                                 <div className="flex justify-end gap-1.5">
                                   <button
@@ -9007,7 +9007,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                       value={vehicleObservationsEditValue}
                                       onChange={(e) => setVehicleObservationsEditValue(e.target.value)}
                                       className={`${patioVehicleVm.input} relative z-[2] min-h-[180px] resize-none cursor-text text-[15px] leading-relaxed !caret-[#007AFF] dark:text-white dark:!caret-[#93c5fd]`}
-                                      placeholder="Digite observações sobre o veículo…"
+                                      placeholder="Observações"
                                     />
                                     <div className="flex justify-end gap-1.5">
                                       <button
@@ -9510,7 +9510,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                               prev ? { ...prev, label: e.target.value } : prev
                                             )
                                           }
-                                          placeholder="Ex.: Manual do proprietário"
+                                          placeholder="Nome do documento"
                                           className={vin}
                                         />
                                       </div>
@@ -9815,8 +9815,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                                 <div
                                                   className={`max-w-full break-words px-3 py-2 text-[14px] leading-relaxed [overflow-wrap:anywhere] ${
                                                     mine
-                                                      ? 'rounded-2xl rounded-br-md bg-[#DCF8C6] text-zinc-900 shadow-sm dark:bg-[#005C4B] dark:text-zinc-50'
-                                                      : 'rounded-2xl rounded-bl-md bg-zinc-500 text-white shadow-sm dark:bg-zinc-700 dark:text-zinc-50'
+                                                      ? 'rounded-2xl rounded-br-md bg-[#D6EBFF] text-zinc-900 shadow-sm dark:bg-[#0A84FF] dark:text-white'
+                                                      : 'rounded-2xl rounded-bl-md bg-slate-500 text-white shadow-sm dark:bg-slate-600 dark:text-zinc-50'
                                                   }`}
                                                 >
                                                    <ReactMarkdown remarkPlugins={[remarkBreaks]} components={markdownComponentsApp}>
@@ -10399,7 +10399,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                       onKeyDown={(e) => {
                         if (e.key === 'Enter') void handlePatioPlateSearch();
                       }}
-                      placeholder="Ex.: ABC1D23"
+                      placeholder="Placa"
                       maxLength={8}
                       className={`${iosInput} font-mono text-[16px] font-bold uppercase tracking-wider`}
                       aria-label="Digite a placa"
@@ -10529,7 +10529,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   type="text"
                   value={vehicleEditModel}
                   onChange={(e) => setVehicleEditModel(e.target.value)}
-                  placeholder="Ex: Gol 1.0"
+                  placeholder="Modelo"
                   className="w-full px-4 py-3 rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-brand-yellow/40"
                 />
               </div>
@@ -10539,7 +10539,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   type="text"
                   value={vehicleEditPlate}
                   onChange={(e) => setVehicleEditPlate(e.target.value.toUpperCase())}
-                  placeholder="Ex: ABC1D23"
+                  placeholder="Placa"
                   maxLength={8}
                   className="w-full px-4 py-3 rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-brand-yellow/40 uppercase"
                 />
@@ -10782,7 +10782,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                       <div className={`${budgetModalPaperInset} overflow-hidden p-0`}>
                         <textarea
                           className={`${budgetModalInput} min-h-[120px] resize-y border-0 py-3.5 text-[15px] leading-relaxed shadow-none focus:ring-2`}
-                          placeholder="Descreva o diagnóstico técnico…"
+                          placeholder="Diagnóstico"
                           value={budgetDiagnosis}
                           onChange={(e) => setBudgetDiagnosis(e.target.value)}
                         />
@@ -10948,7 +10948,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                   {item.fromStock ? <BudgetPartStockBadge className="self-start" /> : null}
                                   <input
                                     type="text"
-                                    placeholder="Nome da peça…"
+                                    placeholder="Peça"
                                     className={`${budgetModalInput} min-w-0 w-full shadow-none`}
                                     value={item.description}
                                     data-budget-part-id={item.id}
@@ -11048,7 +11048,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                       <div className={`${budgetModalPaperInset} overflow-hidden p-0`}>
                         <textarea
                           className={`${budgetModalInput} min-h-[88px] resize-y border-0 py-3.5 text-[15px] leading-relaxed shadow-none focus:ring-2`}
-                          placeholder="Prazos, condições, etc."
+                          placeholder="Observações"
                           value={budgetObservations}
                           onChange={(e) => setBudgetObservations(e.target.value)}
                         />
@@ -11565,7 +11565,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                         type="text"
                         value={photoUploadLabel}
                         onChange={(e) => setPhotoUploadLabel(e.target.value)}
-                        placeholder="Ex.: Frente, placa, detalhe do freio…"
+                        placeholder="Legenda"
                         className="mt-1.5 w-full rounded-xl border border-white/15 bg-zinc-900/90 px-3 py-2.5 text-[15px] font-normal normal-case text-white placeholder:text-zinc-500 focus:border-brand-yellow/50 focus:outline-none focus:ring-2 focus:ring-brand-yellow/30"
                       />
                     </label>

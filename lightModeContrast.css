@@ -20,11 +20,17 @@ html.light .text-zinc-500\/90 {
   color: rgb(9 9 11) !important;
 }
 
-/* Placeholders: mantêm cinza (exemplos dos campos) */
+/* Placeholders: cinza mais discreto (exemplos modestos) */
 html.light input::placeholder,
 html.light textarea::placeholder {
+  color: rgb(161 161 170) !important;
+  opacity: 0.85;
+}
+
+html.dark input::placeholder,
+html.dark textarea::placeholder {
   color: rgb(113 113 122) !important;
-  opacity: 1;
+  opacity: 0.9;
 }
 
 /* Pátio — edição da queixa: cursor de texto (caret) bem visível no modo claro */

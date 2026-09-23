@@ -654,7 +654,7 @@ export function WorkshopPartStockOutboundModal({
                         type="text"
                         value={customerName}
                         onChange={(e) => setCustomerName(e.target.value)}
-                        placeholder="Nome do cliente"
+                        placeholder="Nome"
                         className="w-full rounded-xl border-0 bg-zinc-100 px-3 py-2.5 text-[15px] outline-none focus:ring-2 focus:ring-emerald-500/30 dark:bg-black/20 dark:text-white"
                       />
                     </label>

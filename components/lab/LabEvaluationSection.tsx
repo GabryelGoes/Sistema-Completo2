@@ -284,7 +284,7 @@ export const LabEvaluationSection: React.FC<LabEvaluationSectionProps> = ({
                 <input
                   value={otherService}
                   onChange={(e) => setOtherService(e.target.value)}
-                  placeholder="Ex.: troca de componente, reparo específico…"
+                  placeholder="troca de componente"
                   className={`${inputClass} !h-11 min-w-0 flex-1 !py-0 text-[13px]`}
                   disabled={saving}
                   onKeyDown={(e) => {
@@ -367,7 +367,7 @@ export const LabEvaluationSection: React.FC<LabEvaluationSectionProps> = ({
                           <input
                             value={draft.suggestedValueInput}
                             onChange={(e) => updateDraft(draft.id, { suggestedValueInput: e.target.value })}
-                            placeholder="Ex.: 450,00"
+                            placeholder="450,00"
                             className={`${inputClass} !h-10 !py-0 text-[13px]`}
                             disabled={saving}
                           />

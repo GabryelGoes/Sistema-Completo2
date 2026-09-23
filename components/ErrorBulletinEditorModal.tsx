@@ -498,7 +498,7 @@ export const ErrorBulletinEditorModal: React.FC<Props> = ({
                 <div className={`grid gap-4 sm:grid-cols-2 ${isDesktopShell ? 'lg:grid-cols-3' : ''}`}>
                   <div className="sm:col-span-2 lg:col-span-3">
                     <label className={labelClass}>Título do registro</label>
-                    <input className={inputClass} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Ex.: Falha ABS — Corolla 2018" />
+                    <input className={inputClass} value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Falha ABS" />
                   </div>
 
                   <div className="sm:col-span-2 lg:col-span-3 rounded-2xl border border-zinc-200/90 bg-zinc-50/80 p-4 dark:border-white/[0.1] dark:bg-zinc-950/50">
@@ -610,7 +610,7 @@ export const ErrorBulletinEditorModal: React.FC<Props> = ({
                   </div>
                   <div className="sm:col-span-2 lg:col-span-3">
                     <label className={labelClass}>Motor / sistema</label>
-                    <input className={inputClass} value={engineInfo} onChange={(e) => setEngineInfo(e.target.value)} placeholder="Ex.: 2.0 flex, módulo ABS" />
+                    <input className={inputClass} value={engineInfo} onChange={(e) => setEngineInfo(e.target.value)} placeholder="2.0 flex" />
                   </div>
                   <div className="sm:col-span-2 lg:col-span-3">
                     <label className={labelClass}>Status</label>
@@ -651,7 +651,7 @@ export const ErrorBulletinEditorModal: React.FC<Props> = ({
                       className={`${inputClass} min-h-[100px]`}
                       value={possibleCauses}
                       onChange={(e) => setPossibleCauses(e.target.value)}
-                      placeholder="Ex.: falha intermitente no circuito do sensor ABS dianteiro esquerdo…"
+                      placeholder="falha intermitente no circui"
                     />
                   </div>
                   <div className="sm:col-span-2 lg:col-span-3">
@@ -664,7 +664,7 @@ export const ErrorBulletinEditorModal: React.FC<Props> = ({
                       className={`${inputClass} min-h-[100px]`}
                       value={probableCauses}
                       onChange={(e) => setProbableCauses(e.target.value)}
-                      placeholder="Ex.: sensor de roda com falha, chicote rompido, módulo com umidade…"
+                      placeholder="sensor de roda com falha"
                     />
                   </div>
                   <div className="sm:col-span-2 lg:col-span-3">

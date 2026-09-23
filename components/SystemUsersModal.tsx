@@ -514,7 +514,7 @@ export const SystemUsersModal: React.FC<SystemUsersModalProps> = ({ isOpen, onCl
                         type="text"
                         value={formUsername}
                         onChange={(e) => setFormUsername(e.target.value)}
-                        placeholder="Ex: joao"
+                        placeholder="joao"
                         disabled={editingId !== 'new'}
                         className="w-full rounded-xl border border-zinc-200/90 bg-white px-3 py-2.5 text-[15px] text-zinc-900 shadow-sm focus:border-[#007AFF]/50 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/25 disabled:opacity-60 dark:border-white/[0.08] dark:bg-zinc-950/50 dark:text-white"
                       />
@@ -538,7 +538,7 @@ export const SystemUsersModal: React.FC<SystemUsersModalProps> = ({ isOpen, onCl
                       type="text"
                       value={formDisplayName}
                       onChange={(e) => setFormDisplayName(e.target.value)}
-                      placeholder="Ex: João Silva"
+                      placeholder="João Silva"
                       className="w-full rounded-xl border border-zinc-200/90 bg-white px-3 py-2.5 text-[15px] text-zinc-900 shadow-sm focus:border-[#007AFF]/50 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/25 dark:border-white/[0.08] dark:bg-zinc-950/50 dark:text-white"
                     />
                   </div>
@@ -548,7 +548,7 @@ export const SystemUsersModal: React.FC<SystemUsersModalProps> = ({ isOpen, onCl
                       type="text"
                       value={formJobTitle}
                       onChange={(e) => setFormJobTitle(e.target.value)}
-                      placeholder="Ex: Mecânico, Recepcionista"
+                      placeholder="Mecânico"
                       className="w-full rounded-xl border border-zinc-200/90 bg-white px-3 py-2.5 text-[15px] text-zinc-900 shadow-sm focus:border-[#007AFF]/50 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/25 dark:border-white/[0.08] dark:bg-zinc-950/50 dark:text-white"
                     />
                   </div>

@@ -181,7 +181,7 @@ export const AdminProfileModal: React.FC<AdminProfileModalProps> = ({ isOpen, on
                   value={displayName}
                   onChange={(e) => setDisplayName(e.target.value)}
                   className={iosInput}
-                  placeholder="Ex.: Rei do ABS"
+                  placeholder="Rei do ABS"
                 />
               </div>
 

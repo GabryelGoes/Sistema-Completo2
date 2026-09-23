@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { Plus, Loader2, Trash2, ArrowRight, ChevronDown, ChevronRight, X, Zap, Check, Pencil, Paperclip } from 'lucide-react';
+import { Plus, Loader2, Trash2, ArrowRight, ChevronDown, ChevronRight, X, Check, Pencil, Paperclip } from 'lucide-react';
 import type { LabServiceLink } from '../../types';
 import type { ServiceOrderDetail } from '../../services/apiService';
 import {
@@ -351,14 +351,10 @@ export const PatioOsModalLabServicesSection: React.FC<PatioOsModalLabServicesSec
 
         {isOpen ? (
         <div className="space-y-3 border-t border-zinc-200/60 bg-zinc-50/90 px-3 py-3 dark:border-white/[0.06] dark:bg-white/[0.02] sm:px-4 sm:py-4">
-          {/* 1. Serviços já enviados — logo abaixo do título */}
+          {/* 1. Serviços já enviados — logo abaixo do título (sem empty state) */}
+          {sentLinksNewestFirst.length > 0 ? (
           <div className="space-y-2">
-            {sentLinksNewestFirst.length === 0 ? (
-              <p className="rounded-xl border border-dashed border-zinc-300/95 bg-zinc-50/90 p-4 text-[13px] text-zinc-600 dark:border-white/[0.12] dark:bg-white/[0.04] dark:text-zinc-400">
-                Nenhum serviço enviado ao laboratório.
-              </p>
-            ) : (
-              sentLinksNewestFirst.map((link) => {
+            {sentLinksNewestFirst.map((link) => {
                 const linkedOrder = labOrdersLookup[link.laboratoryOrderId];
                 const statusLabel = linkedOrder ? getStageName(linkedOrder.status) : 'Não localizado';
                 const statusStyle = linkedOrder
@@ -424,81 +420,97 @@ export const PatioOsModalLabServicesSection: React.FC<PatioOsModalLabServicesSec
                     </div>
                   </div>
                 );
-              })
-            )}
+              })}
           </div>
+          ) : null}
 
-          {/* 2. Item a enviar — lista em janelinha */}
+          {/* 2+3. Item a enviar + Arquivos do pátio (PC: lado a lado e menores) */}
           <div className="space-y-2">
             <label className="mb-1.5 block text-[12px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
               Item a enviar
             </label>
-            <button
-              type="button"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                setItemPickerOpen(true);
-              }}
-              disabled={busy}
-              className={`${inputClass} relative z-[1] !flex !h-11 w-full !cursor-pointer items-center justify-between gap-2 !py-0 text-left text-[13px] disabled:opacity-55`}
+            <div
+              className={
+                !collapsible
+                  ? 'flex flex-row items-stretch gap-2'
+                  : 'flex flex-col gap-2'
+              }
             >
-              <span
-                className={`min-w-0 flex-1 truncate ${
-                  selectedItemLabel
-                    ? 'font-medium text-zinc-900 dark:text-zinc-100'
-                    : 'text-zinc-400 dark:text-zinc-500'
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setItemPickerOpen(true);
+                }}
+                disabled={busy}
+                className={`${inputClass} relative z-[1] !flex min-w-0 flex-1 !cursor-pointer items-center justify-between gap-2 text-left disabled:opacity-55 ${
+                  !collapsible
+                    ? '!h-9 !rounded-lg !px-2.5 !py-0 text-[12px]'
+                    : '!h-11 !py-0 text-[13px]'
                 }`}
               >
-                {selectedItemLabel || 'Selecione o item'}
-              </span>
-              <ChevronDown className="h-4 w-4 shrink-0 text-zinc-400 dark:text-zinc-500" aria-hidden />
-            </button>
+                <span
+                  className={`min-w-0 flex-1 truncate ${
+                    selectedItemLabel
+                      ? 'font-medium text-zinc-900 dark:text-zinc-100'
+                      : 'text-zinc-400 dark:text-zinc-500'
+                  }`}
+                >
+                  {selectedItemLabel || 'Selecione o item'}
+                </span>
+                <ChevronDown
+                  className={`shrink-0 text-zinc-400 dark:text-zinc-500 ${!collapsible ? 'h-3.5 w-3.5' : 'h-4 w-4'}`}
+                  aria-hidden
+                />
+              </button>
+
+              {onSelectedPatioAttachmentPathsChange && patioAttachments.length > 0 ? (
+                <button
+                  type="button"
+                  onClick={() => setPatioFilesPanelOpen((v) => !v)}
+                  disabled={busy}
+                  aria-expanded={patioFilesPanelOpen}
+                  className={`inline-flex shrink-0 items-center justify-center gap-1.5 border-0 bg-[#007AFF] font-bold uppercase tracking-[0.05em] text-white transition-[filter] hover:brightness-110 disabled:opacity-55 dark:bg-[#0A84FF] ${
+                    !collapsible
+                      ? 'h-9 rounded-lg px-2.5 text-[10px]'
+                      : 'h-11 w-full rounded-xl px-3 text-[12px]'
+                  }`}
+                >
+                  <Plus className={!collapsible ? 'h-3.5 w-3.5' : 'h-4 w-4'} strokeWidth={2.5} aria-hidden />
+                  Arquivos do Pátio
+                  {selectedPatioAttachmentPaths.length > 0 ? (
+                    <span className="rounded-full bg-white/25 px-1.5 py-0.5 text-[10px] font-bold tabular-nums text-white">
+                      {selectedPatioAttachmentPaths.length}
+                    </span>
+                  ) : null}
+                </button>
+              ) : null}
+            </div>
 
             {manualProductName ? (
               <input
                 value={newLabProductOther}
                 onChange={(e) => onLabProductOtherChange(e.target.value)}
-                placeholder="Digite o nome do item…"
+                placeholder="Nome do item"
                 className={`${inputClass} !h-11 !py-0 text-[13px]`}
                 autoFocus
               />
             ) : null}
-          </div>
 
-          {/* 3. Arquivos do pátio — só abrem ao clicar */}
-          {onSelectedPatioAttachmentPathsChange && patioAttachments.length > 0 ? (
-            <div className="space-y-2">
-              <button
-                type="button"
-                onClick={() => setPatioFilesPanelOpen((v) => !v)}
-                disabled={busy}
-                aria-expanded={patioFilesPanelOpen}
-                className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-[#007AFF]/30 bg-[#007AFF]/10 px-3 py-2.5 text-[12px] font-bold uppercase tracking-[0.06em] text-[#007AFF] transition-colors hover:bg-[#007AFF]/16 disabled:opacity-55 dark:border-[#7ab8ff]/35 dark:bg-[#007AFF]/18 dark:text-[#7ab8ff]"
-              >
-                <Plus className="h-4 w-4" strokeWidth={2.5} aria-hidden />
-                Arquivos do Pátio
-                {selectedPatioAttachmentPaths.length > 0 ? (
-                  <span className="rounded-full bg-[#007AFF] px-1.5 py-0.5 text-[10px] font-bold tabular-nums text-white">
-                    {selectedPatioAttachmentPaths.length}
-                  </span>
-                ) : null}
-              </button>
-              {patioFilesPanelOpen ? (
-                <div className="rounded-xl border border-zinc-200/80 bg-white/95 p-3 dark:border-white/[0.1] dark:bg-zinc-950/60">
-                  <p className="mb-2 text-[12px] leading-snug text-zinc-500 dark:text-zinc-400">
-                    Opcional. Selecione antes de enviar: as cópias vão para a OS do laboratório.
-                  </p>
-                  <PatioOriginAttachmentsPicker
-                    attachments={patioAttachments}
-                    selectedPaths={selectedPatioAttachmentPaths}
-                    onChange={onSelectedPatioAttachmentPathsChange}
-                    disabled={busy}
-                  />
-                </div>
-              ) : null}
-            </div>
-          ) : null}
+            {patioFilesPanelOpen &&
+            onSelectedPatioAttachmentPathsChange &&
+            patioAttachments.length > 0 ? (
+              <div className="rounded-xl border border-zinc-200/80 bg-white/95 p-3 dark:border-white/[0.1] dark:bg-zinc-950/60">
+                <PatioOriginAttachmentsPicker
+                  attachments={patioAttachments}
+                  selectedPaths={selectedPatioAttachmentPaths}
+                  onChange={onSelectedPatioAttachmentPathsChange}
+                  disabled={busy}
+                />
+              </div>
+            ) : null}
+          </div>
 
           {/* 4. Serviço (orçamento / manual) + Enviar */}
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-[180px_minmax(0,1fr)_auto]">
@@ -527,7 +539,7 @@ export const PatioOsModalLabServicesSection: React.FC<PatioOsModalLabServicesSec
               <input
                 value={newLabManualLabel}
                 onChange={(e) => onLabManualLabelChange(e.target.value)}
-                placeholder="Ex.: reparo de módulo ABS"
+                placeholder="Descrição do serviço"
                 className={`${inputClass} !h-11 !py-0 text-[13px]`}
               />
             )}
@@ -557,7 +569,7 @@ export const PatioOsModalLabServicesSection: React.FC<PatioOsModalLabServicesSec
               id="new-lab-service-details"
               value={newLabServiceDetails}
               onChange={(e) => onLabServiceDetailsChange(e.target.value)}
-              placeholder="Ex.: sintomas, peça avariada, prazo combinado com o cliente..."
+              placeholder="Observações"
               rows={3}
               maxLength={2000}
               disabled={busy}
@@ -573,8 +585,8 @@ export const PatioOsModalLabServicesSection: React.FC<PatioOsModalLabServicesSec
               disabled={busy}
               className="group flex w-full items-center gap-3 rounded-xl border-0 bg-white px-3.5 py-3 text-left shadow-none transition-colors hover:bg-zinc-50 dark:bg-zinc-950/55 dark:hover:bg-zinc-900 disabled:opacity-55"
             >
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#007AFF]/12 text-[#007AFF] dark:bg-[#007AFF]/22 dark:text-[#7ab8ff]">
-                <Zap className="h-5 w-5" strokeWidth={2.25} aria-hidden />
+              <span className="h-10 w-10 shrink-0 overflow-hidden rounded-[0.65rem]">
+                <img src="/icons/envio-rapido-ios.png" alt="" className="h-full w-full object-cover" />
               </span>
               <span className="min-w-0 flex-1">
                 <span className="block text-[14px] font-semibold text-zinc-900 dark:text-white">
@@ -624,8 +636,8 @@ export const PatioOsModalLabServicesSection: React.FC<PatioOsModalLabServicesSec
 
             <div className="shrink-0 border-b border-zinc-200/70 px-6 pb-5 pt-7 dark:border-white/[0.07] sm:px-8 sm:pt-8">
               <div className="flex items-start gap-3 pr-10">
-                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#007AFF]/12 text-[#007AFF] dark:bg-[#007AFF]/22 dark:text-[#7ab8ff]">
-                  <Zap className="h-5 w-5" strokeWidth={2.25} aria-hidden />
+                <span className="h-11 w-11 shrink-0 overflow-hidden rounded-[0.7rem]">
+                  <img src="/icons/envio-rapido-ios.png" alt="" className="h-full w-full object-cover" />
                 </span>
                 <div className="min-w-0 flex-1">
                   <h2

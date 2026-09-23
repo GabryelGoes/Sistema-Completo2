@@ -619,7 +619,7 @@ export function WorkshopAbsModulesModal({
                         className={inputClass}
                         value={form.location || ''}
                         onChange={(e) => setForm((f) => ({ ...f, location: e.target.value }))}
-                        placeholder="Ex.: Prateleira B3"
+                        placeholder="Prateleira B3"
                       />
                     </Field>
                   </div>
@@ -831,7 +831,7 @@ export function WorkshopAbsModulesModal({
                               className={inputClass}
                               value={exitRef}
                               onChange={(e) => setExitRef(e.target.value)}
-                              placeholder="Ex.: OS #1842"
+                              placeholder="OS #1842"
                             />
                           </Field>
                           <Field label="Observações">
@@ -908,7 +908,7 @@ export function WorkshopAbsModulesModal({
                           className={inputClass}
                           value={transferLocation}
                           onChange={(e) => setTransferLocation(e.target.value)}
-                          placeholder="Ex.: Prateleira C2"
+                          placeholder="Prateleira C2"
                         />
                       </Field>
                       <button

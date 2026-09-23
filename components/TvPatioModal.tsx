@@ -1803,7 +1803,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                                 }));
                               }}
                               className={iosInput}
-                              placeholder="Ex.: Almoço"
+                              placeholder="Almoço"
                             />
                           </div>
                           <div>
@@ -2099,7 +2099,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
                   <div className="space-y-4">
                     <div>
                       <label className={iosLabel}>Título</label>
-                      <input value={newTitle} onChange={(e) => setNewTitle(e.target.value)} className={iosInput} placeholder="Ex.: Promoção do mês" />
+                      <input value={newTitle} onChange={(e) => setNewTitle(e.target.value)} className={iosInput} placeholder="Promoção do mês" />
                     </div>
 
                     {(newType === 'notice' || newType === 'alert') && (

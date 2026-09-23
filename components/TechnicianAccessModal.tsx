@@ -164,7 +164,7 @@ export const TechnicianAccessModal: React.FC<TechnicianAccessModalProps> = ({ is
                     inputMode="numeric"
                     value={patioPin}
                     onChange={(e) => setPatioPin(e.target.value.replace(/\D/g, '').slice(0, 8))}
-                    placeholder="Ex: 1234"
+                    placeholder="1234"
                     className="w-full px-4 py-2.5 pr-12 rounded-xl bg-white dark:bg-zinc-800/50 border border-zinc-200 dark:border-white/10 text-zinc-900 dark:text-white placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 text-[15px]"
                   />
                   <button

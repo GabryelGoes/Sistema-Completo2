@@ -1261,7 +1261,7 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
                             <label className={iosLabel}>Título do serviço</label>
                             <input 
                                 type="text" 
-                                placeholder="Ex.: Revisão geral"
+                                placeholder="Revisão geral"
                                 autoComplete="off"
                                 className={agendaModalInput}
                                 value={newAppointment.title}
@@ -1480,7 +1480,7 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
                                           <Mail className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
                                           <input
                                             type="email"
-                                            placeholder="email@exemplo.com"
+                                            placeholder="E-mail"
                                             autoComplete="off"
                                             className={`${agendaModalInput} pl-10`}
                                             value={newAppointment.email || ''}
@@ -1499,7 +1499,7 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
                                             <Car className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
                                             <input
                                               type="text"
-                                              placeholder="Ex.: Civic LXR"
+                                              placeholder="Civic LXR"
                                               autoComplete="off"
                                               className={`${agendaModalInput} pl-10`}
                                               value={newAppointment.vehicleModel}
@@ -1546,7 +1546,7 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
                                 <User className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
                                 <input
                                   type="text"
-                                  placeholder="Nome do cliente"
+                                  placeholder="Nome"
                                   autoComplete="off"
                                   className={`${agendaModalInput} pl-10`}
                                   value={newAppointment.customerName}
@@ -1580,7 +1580,7 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
                                   <Mail className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
                                   <input
                                     type="email"
-                                    placeholder="email@exemplo.com"
+                                    placeholder="E-mail"
                                     autoComplete="off"
                                     className={`${agendaModalInput} pl-10`}
                                     value={newAppointment.email || ''}
