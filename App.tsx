@@ -56,9 +56,7 @@ import {
 } from './utils/desktopShellOverlayModules';
 import { useBarcodeWedgeListener } from './hooks/useBarcodeWedgeListener';
 import { parseLabOsQrPayload } from './utils/labOsQrCode';
-import { WorkshopPartScanHubModal } from './components/WorkshopPartScanHubModal';
 import type { WorkshopPartsBootIntent } from './components/WorkshopPartsModal';
-import type { WorkshopPart } from './services/apiService';
 
 type ShellProfileModal = 'user' | 'admin' | null;
 
@@ -97,7 +95,6 @@ export default function App() {
   const [shellProfileModal, setShellProfileModal] = useState<ShellProfileModal>(null);
   const [isPartsModalOpen, setIsPartsModalOpen] = useState(false);
   const [partsBootIntent, setPartsBootIntent] = useState<WorkshopPartsBootIntent | null>(null);
-  const [globalPartScan, setGlobalPartScan] = useState<{ code: string; token: number } | null>(null);
   const [isTvPatioModalOpen, setIsTvPatioModalOpen] = useState(false);
   const [settingsHubOpen, setSettingsHubOpen] = useState(false);
   const [isSupportChatOpen, setIsSupportChatOpen] = useState(false);
@@ -332,23 +329,22 @@ export default function App() {
     (serviceOrderId: string) => {
       setLaboratorioPendingOrderId(serviceOrderId);
       if (isLimitedSystemUser) {
+        setVisitedUserTabs((prev) => {
+          if (prev.has('laboratorio')) return prev;
+          const next = new Set(prev);
+          next.add('laboratorio');
+          return next;
+        });
         if (userAllowedTabs.includes('laboratorio')) setUserTab('laboratorio');
         else setUserTab('home');
       } else {
+        setVisitedTabs((prev) => {
+          if (prev.has('laboratorio')) return prev;
+          const next = new Set(prev);
+          next.add('laboratorio');
+          return next;
+        });
         setCurrentTab('laboratorio');
-      }
-    },
-    [isLimitedSystemUser, userAllowedTabs]
-  );
-
-  const handleOpenPatioOrderFromScan = useCallback(
-    (serviceOrderId: string) => {
-      setPatioPendingOrderId(serviceOrderId);
-      if (isLimitedSystemUser) {
-        if (userAllowedTabs.includes('patio')) setUserTab('patio');
-        else setUserTab('home');
-      } else {
-        setCurrentTab('patio');
       }
     },
     [isLimitedSystemUser, userAllowedTabs]
@@ -362,60 +358,37 @@ export default function App() {
     setPatioPendingOrderId(null);
   }, []);
 
-  /** Pistola USB em qualquer página: QR da OS abre a OS; demais códigos abrem peça. */
-  const handleGlobalBarcodeScan = useCallback((code: string) => {
-    const osId = parseLabOsQrPayload(code);
-    if (osId) {
-      setGlobalPartScan(null);
+  /**
+   * Pistola USB em qualquer página: só QR de OS do Laboratório (RDA-OS → módulo/peça).
+   * Códigos de produtos do estoque NÃO abrem nada globalmente — só dentro do Inventário.
+   */
+  const handleGlobalBarcodeScan = useCallback(
+    (code: string) => {
+      const osId = parseLabOsQrPayload(code);
+      if (!osId) return;
+      setIsPartsModalOpen(false);
+      setPartsBootIntent(null);
       void (async () => {
         try {
           const detail = await getServiceOrderById(osId);
           if (detail.order_type === 'module') {
             handleOpenLaboratoryOrderFromPatio(osId);
-          } else {
-            handleOpenPatioOrderFromScan(osId);
           }
+          // Demais tipos (ex.: veículo): ignorar no scan global.
         } catch {
+          // Etiquetas RDA-OS vêm do Laboratório; tenta abrir mesmo se a API falhar.
           handleOpenLaboratoryOrderFromPatio(osId);
         }
       })();
-      return;
-    }
-    setGlobalPartScan({ code, token: Date.now() });
-  }, [handleOpenLaboratoryOrderFromPatio, handleOpenPatioOrderFromScan]);
+    },
+    [handleOpenLaboratoryOrderFromPatio]
+  );
 
   useBarcodeWedgeListener({
     enabled: Boolean(authSession),
     captureWhileFocused: true,
     onScan: handleGlobalBarcodeScan,
   });
-
-  const openPartsWithIntent = useCallback((intent: WorkshopPartsBootIntent) => {
-    setGlobalPartScan(null);
-    setPartsBootIntent(intent);
-    setIsPartsModalOpen(true);
-  }, []);
-
-  const handleGlobalPartEdit = useCallback(
-    (part: WorkshopPart) => openPartsWithIntent({ type: 'edit', part }),
-    [openPartsWithIntent]
-  );
-  const handleGlobalPartStockEntry = useCallback(
-    (part: WorkshopPart) => openPartsWithIntent({ type: 'inbound', part }),
-    [openPartsWithIntent]
-  );
-  const handleGlobalPartRegister = useCallback(
-    (barcode: string) => openPartsWithIntent({ type: 'create', barcode }),
-    [openPartsWithIntent]
-  );
-  const handleGlobalPartSale = useCallback(
-    (part: WorkshopPart) => openPartsWithIntent({ type: 'outbound', mode: 'sale', part }),
-    [openPartsWithIntent]
-  );
-  const handleGlobalPartConsumable = useCallback(
-    (part: WorkshopPart) => openPartsWithIntent({ type: 'outbound', mode: 'consumable', part }),
-    [openPartsWithIntent]
-  );
 
   const navigateToHomeApp = useCallback(() => {
     if (isLimitedSystemUser) {
@@ -1104,21 +1077,6 @@ export default function App() {
             />
           </Suspense>
         ) : null}
-        {globalPartScan ? (
-          <WorkshopPartScanHubModal
-            isOpen
-            overlayZClass="z-[230]"
-            externalScanCode={globalPartScan.code}
-            externalScanToken={globalPartScan.token}
-            onExternalScanConsumed={() => {}}
-            onClose={() => setGlobalPartScan(null)}
-            onEditProduct={handleGlobalPartEdit}
-            onStockEntry={handleGlobalPartStockEntry}
-            onRegisterProduct={handleGlobalPartRegister}
-            onSaleOutbound={handleGlobalPartSale}
-            onConsumableOutbound={handleGlobalPartConsumable}
-          />
-        ) : null}
         {isTvPatioModalOpen ? (
           <Suspense fallback={null}>
             <LazyTvPatioModal isOpen={isTvPatioModalOpen} onClose={closeTvPatioModal} />
@@ -1437,21 +1395,6 @@ export default function App() {
             onBootIntentConsumed={() => setPartsBootIntent(null)}
           />
         </Suspense>
-      ) : null}
-      {globalPartScan ? (
-        <WorkshopPartScanHubModal
-          isOpen
-          overlayZClass="z-[230]"
-          externalScanCode={globalPartScan.code}
-          externalScanToken={globalPartScan.token}
-          onExternalScanConsumed={() => {}}
-          onClose={() => setGlobalPartScan(null)}
-          onEditProduct={handleGlobalPartEdit}
-          onStockEntry={handleGlobalPartStockEntry}
-          onRegisterProduct={handleGlobalPartRegister}
-          onSaleOutbound={handleGlobalPartSale}
-          onConsumableOutbound={handleGlobalPartConsumable}
-        />
       ) : null}
       {isTvPatioModalOpen ? (
         <Suspense fallback={null}>

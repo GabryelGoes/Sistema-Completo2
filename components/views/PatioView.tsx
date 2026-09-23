@@ -2652,11 +2652,17 @@ export const PatioView: React.FC<PatioViewProps> = ({
     onActiveCardsCountChange?.(cards.length);
   }, [cards.length, onActiveCardsCountChange]);
 
-  // Abrir modal do veículo ao clicar em notificação (navegação da central de notificações)
+  // Abrir modal ao escanear QR / notificação (navegação externa)
   useEffect(() => {
     if (!openServiceOrderIdProp || openServiceOrderHandledRef.current) return;
-    if (cards.length === 0) return;
-    const card = cards.find((c) => c.id === openServiceOrderIdProp);
+    // Espera a 1ª carga do quadro para não descartar o id cedo demais.
+    if (initialLoading) return;
+
+    const card =
+      cards.find((c) => c.id === openServiceOrderIdProp) ??
+      externalRepairCards.find((c) => c.id === openServiceOrderIdProp) ??
+      null;
+
     if (card) {
       setSelectedCard(card);
       // Sem seção para rolar: libera o pedido já (senão o id fica preso no pai e cada refresh da lista reabre o modal).
@@ -2664,11 +2670,55 @@ export const PatioView: React.FC<PatioViewProps> = ({
         openServiceOrderHandledRef.current = true;
         onOpenServiceOrderHandled?.();
       }
-    } else {
-      openServiceOrderHandledRef.current = true;
-      onOpenServiceOrderHandled?.();
+      return;
     }
-  }, [openServiceOrderIdProp, cards, onOpenServiceOrderHandled, openServiceOrderSection]);
+
+    let cancelled = false;
+    void (async () => {
+      try {
+        const detail = await getServiceOrderById(openServiceOrderIdProp);
+        if (cancelled) return;
+        if (detail.order_type && detail.order_type !== orderType) {
+          openServiceOrderHandledRef.current = true;
+          onOpenServiceOrderHandled?.();
+          return;
+        }
+        const listItem = serviceOrderDetailToListItem(detail);
+        const nameMap = buildTechnicianNameMap(systemTechnicians);
+        const nextCard = orderToCard(
+          {
+            ...listItem,
+            status: normalizeStatusForFlow(listItem.status, flowKind),
+          },
+          nameMap,
+          orderType
+        );
+        setSelectedCard(nextCard);
+        if (!openServiceOrderSection) {
+          openServiceOrderHandledRef.current = true;
+          onOpenServiceOrderHandled?.();
+        }
+      } catch {
+        if (cancelled) return;
+        openServiceOrderHandledRef.current = true;
+        onOpenServiceOrderHandled?.();
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    openServiceOrderIdProp,
+    cards,
+    externalRepairCards,
+    initialLoading,
+    onOpenServiceOrderHandled,
+    openServiceOrderSection,
+    orderType,
+    flowKind,
+    systemTechnicians,
+  ]);
 
   // Rolar à seção (comentários, orçamentos, queixa) após abrir o modal e carregar detalhes
   useEffect(() => {
