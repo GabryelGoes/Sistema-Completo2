@@ -8541,7 +8541,9 @@ export function createApiApp() {
   }
 
   function movementSelectColumns(): string {
-    return movementsHaveServiceOrderId === false ? MOVEMENT_SELECT_LEGACY : MOVEMENT_SELECT;
+    // Só inclui service_order_id depois de confirmar que a coluna existe
+    // (evita quebrar cancelamento/listagem antes da migration).
+    return movementsHaveServiceOrderId === true ? MOVEMENT_SELECT : MOVEMENT_SELECT_LEGACY;
   }
 
   async function lookupWorkshopPartRowByCode(codeRaw: string): Promise<Record<string, unknown> | null> {
@@ -9089,12 +9091,20 @@ export function createApiApp() {
         });
       }
 
-      const { data: movement, error: fetchErr } = await supabaseAdmin
+      let { data: movement, error: fetchErr } = await supabaseAdmin
         .from("workshop_part_stock_movements")
         .select(movementSelectColumns())
         .eq("id", movementId)
         .eq("workshop_id", WORKSHOP_ID)
         .maybeSingle();
+      if (fetchErr && markMovementsServiceOrderMissingFromError(fetchErr.message)) {
+        ({ data: movement, error: fetchErr } = await supabaseAdmin
+          .from("workshop_part_stock_movements")
+          .select(movementSelectColumns())
+          .eq("id", movementId)
+          .eq("workshop_id", WORKSHOP_ID)
+          .maybeSingle());
+      }
       if (fetchErr) return res.status(500).json({ error: fetchErr.message });
       if (!movement) return res.status(404).json({ error: "Movimentação não encontrada." });
 
