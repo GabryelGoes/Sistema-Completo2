@@ -56,6 +56,7 @@ import {
 import { useBarcodeWedgeListener } from './hooks/useBarcodeWedgeListener';
 import { parseLabOsQrPayload } from './utils/labOsQrCode';
 import type { WorkshopPartsBootIntent } from './components/WorkshopPartsModal';
+import { LabOsScanQuickModal } from './components/LabOsScanQuickModal';
 
 type ShellProfileModal = 'user' | 'admin' | null;
 
@@ -92,6 +93,8 @@ export default function App() {
   const [laboratorioPendingOrderId, setLaboratorioPendingOrderId] = useState<string | null>(null);
   /** Token para forçar reabertura do modal ao reescanear a mesma OS. */
   const [laboratorioPendingScanToken, setLaboratorioPendingScanToken] = useState(0);
+  /** Modal rápido ao escanear QR da peça do laboratório (qualquer tela). */
+  const [labOsScanQuick, setLabOsScanQuick] = useState<{ id: string; token: number } | null>(null);
   const [patioPendingOrderId, setPatioPendingOrderId] = useState<string | null>(null);
   const [shellProfileModal, setShellProfileModal] = useState<ShellProfileModal>(null);
   const [isPartsModalOpen, setIsPartsModalOpen] = useState(false);
@@ -328,6 +331,7 @@ export default function App() {
 
   const handleOpenLaboratoryOrderFromPatio = useCallback(
     (serviceOrderId: string) => {
+      setLabOsScanQuick(null);
       setLaboratorioPendingOrderId(serviceOrderId);
       setLaboratorioPendingScanToken(Date.now());
       // Fecha overlays que cobririam o modal da OS.
@@ -369,16 +373,19 @@ export default function App() {
 
   /**
    * Pistola USB em qualquer página: QR de OS do Laboratório (RDA-OS) abre
-   * imediatamente o modal da peça — sem esperar a API.
+   * o modal rápido da peça (resumo + etapas + etiqueta + Abrir OS).
    */
-  const handleGlobalBarcodeScan = useCallback(
-    (code: string) => {
-      const osId = parseLabOsQrPayload(code);
-      if (!osId) return;
-      handleOpenLaboratoryOrderFromPatio(osId);
-    },
-    [handleOpenLaboratoryOrderFromPatio]
-  );
+  const handleGlobalBarcodeScan = useCallback((code: string) => {
+    const osId = parseLabOsQrPayload(code);
+    if (!osId) return;
+    setIsPartsModalOpen(false);
+    setPartsBootIntent(null);
+    setIsTvPatioModalOpen(false);
+    setSettingsHubOpen(false);
+    setIsSettingsOpen(false);
+    setIsSupportChatOpen(false);
+    setLabOsScanQuick({ id: osId, token: Date.now() });
+  }, []);
 
   useBarcodeWedgeListener({
     enabled: Boolean(authSession),
@@ -1064,6 +1071,13 @@ export default function App() {
             actorOptions={budgetHubActorOptions}
           />
         ) : null}
+        <LabOsScanQuickModal
+          serviceOrderId={labOsScanQuick?.id ?? null}
+          scanToken={labOsScanQuick?.token ?? 0}
+          onClose={() => setLabOsScanQuick(null)}
+          onOpenFullOs={handleOpenLaboratoryOrderFromPatio}
+          actorOptions={budgetHubActorOptions}
+        />
         {isPartsModalOpen ? (
           <Suspense fallback={null}>
             <LazyWorkshopPartsModal
@@ -1384,6 +1398,13 @@ export default function App() {
           actorOptions={budgetHubActorOptions}
         />
       ) : null}
+      <LabOsScanQuickModal
+        serviceOrderId={labOsScanQuick?.id ?? null}
+        scanToken={labOsScanQuick?.token ?? 0}
+        onClose={() => setLabOsScanQuick(null)}
+        onOpenFullOs={handleOpenLaboratoryOrderFromPatio}
+        actorOptions={budgetHubActorOptions}
+      />
       {isPartsModalOpen ? (
         <Suspense fallback={null}>
           <LazyWorkshopPartsModal
