@@ -1514,6 +1514,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
     setBudgetParts([{ id: String(Date.now() + 1), description: '', quantity: '1' }]);
     setBudgetObservations('');
   }, []);
+  /** Enquanto o modal de orçamento está aberto, o live-sync não deve rehidratar a OS (trava a digitação). */
+  const isBudgetOpenRef = useRef(false);
+  isBudgetOpenRef.current = isBudgetOpen;
 
   const [workshopServices, setWorkshopServices] = useState<WorkshopService[]>([]);
   const [workshopParts, setWorkshopParts] = useState<WorkshopPart[]>([]);
@@ -2139,6 +2142,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const syncOpenVehicleModalFromServer = React.useCallback(async () => {
     const id = selectedCardRef.current?.id;
     if (!id) return;
+    // Evita refetch + setState em massa enquanto o usuário edita o orçamento (lab/pátio).
+    if (isBudgetOpenRef.current) return;
     try {
       const [order, photos, budgets, comments] = await Promise.all([
         getServiceOrderById(id),
@@ -2146,6 +2151,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
         getServiceOrderBudgets(id),
         getServiceOrderComments(id),
       ]);
+      if (isBudgetOpenRef.current) return;
       setServiceOrderDetail(order);
       const listItem = serviceOrderDetailToListItem(order);
       const nameMap = buildTechnicianNameMap(systemTechnicians);
@@ -2196,6 +2202,16 @@ export const PatioView: React.FC<PatioViewProps> = ({
     realtimeCustomerId: serviceOrderDetail?.customer_id,
     realtimeWorkshopId: serviceOrderDetail?.workshop_id,
   });
+
+  /** Após fechar o orçamento, aplica um sync que ficou em espera (Realtime/poll). */
+  const wasBudgetOpenRef = useRef(false);
+  useEffect(() => {
+    const wasOpen = wasBudgetOpenRef.current;
+    wasBudgetOpenRef.current = isBudgetOpen;
+    if (!wasOpen || isBudgetOpen) return;
+    if (!selectedCard?.id) return;
+    void syncOpenVehicleModalFromServer();
+  }, [isBudgetOpen, selectedCard?.id, syncOpenVehicleModalFromServer]);
 
   const syncHistoryDetailFromServer = React.useCallback(async () => {
     const card = selectedHistoryCardRef.current;
@@ -4514,13 +4530,32 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const getServiceSuggestions = (description: string) => {
     const q = normalizeText(description.trim());
     if (!q) return [];
-    return workshopServices.filter(s => normalizeText(s.name).includes(q)).slice(0, 12);
+    const out: WorkshopService[] = [];
+    for (const s of workshopServices) {
+      if (normalizeText(s.name).includes(q)) {
+        out.push(s);
+        if (out.length >= 12) break;
+      }
+    }
+    return out;
   };
+
+  const workshopPartsSearchIndex = useMemo(
+    () => workshopParts.map((p) => ({ part: p, key: normalizeText(p.name) })),
+    [workshopParts]
+  );
 
   const getPartSuggestions = (description: string) => {
     const q = normalizeText(description.trim());
     if (!q) return [];
-    return workshopParts.filter(p => normalizeText(p.name).includes(q)).slice(0, 12);
+    const out: WorkshopPart[] = [];
+    for (const entry of workshopPartsSearchIndex) {
+      if (entry.key.includes(q)) {
+        out.push(entry.part);
+        if (out.length >= 12) break;
+      }
+    }
+    return out;
   };
 
   const budgetPartQuickViewCatalogNumber = useMemo(() => {
@@ -4529,11 +4564,20 @@ export const PatioView: React.FC<PatioViewProps> = ({
     return idx >= 0 ? idx + 1 : undefined;
   }, [budgetPartQuickView, workshopParts]);
 
+  const focusedServiceDescription = suggestionsForServiceId
+    ? budgetServices.find((s) => s.id === suggestionsForServiceId)?.description
+    : undefined;
+
   useEffect(() => {
     const update = () => {
       if (suggestionsForServiceId && focusedServiceInputRef.current) {
         const rect = focusedServiceInputRef.current.getBoundingClientRect();
-        setSuggestionBoxPosition({ top: rect.bottom + 4, left: rect.left, width: rect.width });
+        const next = { top: rect.bottom + 4, left: rect.left, width: rect.width };
+        setSuggestionBoxPosition((prev) =>
+          prev && prev.top === next.top && prev.left === next.left && prev.width === next.width
+            ? prev
+            : next
+        );
       } else {
         setSuggestionBoxPosition(null);
       }
@@ -4545,13 +4589,30 @@ export const PatioView: React.FC<PatioViewProps> = ({
       window.removeEventListener('resize', update);
       window.removeEventListener('scroll', update, true);
     };
-  }, [suggestionsForServiceId, budgetServices]);
+  }, [suggestionsForServiceId]);
+
+  // Textarea de serviço cresce com o texto — só reposiciona a janela, sem rebind a cada tecla na lista.
+  useLayoutEffect(() => {
+    if (!suggestionsForServiceId || !focusedServiceInputRef.current) return;
+    const rect = focusedServiceInputRef.current.getBoundingClientRect();
+    const next = { top: rect.bottom + 4, left: rect.left, width: rect.width };
+    setSuggestionBoxPosition((prev) =>
+      prev && prev.top === next.top && prev.left === next.left && prev.width === next.width
+        ? prev
+        : next
+    );
+  }, [suggestionsForServiceId, focusedServiceDescription]);
 
   useEffect(() => {
     const update = () => {
       if (suggestionsForPartId && focusedPartInputRef.current) {
         const rect = focusedPartInputRef.current.getBoundingClientRect();
-        setPartSuggestionBoxPosition({ top: rect.bottom + 4, left: rect.left, width: rect.width });
+        const next = { top: rect.bottom + 4, left: rect.left, width: rect.width };
+        setPartSuggestionBoxPosition((prev) =>
+          prev && prev.top === next.top && prev.left === next.left && prev.width === next.width
+            ? prev
+            : next
+        );
       } else {
         setPartSuggestionBoxPosition(null);
       }
@@ -4563,7 +4624,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
       window.removeEventListener('resize', update);
       window.removeEventListener('scroll', update, true);
     };
-  }, [suggestionsForPartId, budgetParts]);
+  }, [suggestionsForPartId]);
 
   useEffect(() => {
     if (!scrollBudgetServicesAddRef.current) return;

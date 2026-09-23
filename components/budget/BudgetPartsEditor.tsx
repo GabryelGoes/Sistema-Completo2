@@ -111,10 +111,22 @@ export const BudgetPartsEditor: React.FC<BudgetPartsEditorProps> = ({
     );
   };
 
+  const workshopPartsSearchIndex = useMemo(
+    () => workshopParts.map((p) => ({ part: p, key: normalizeText(p.name) })),
+    [workshopParts]
+  );
+
   const getPartSuggestions = (description: string) => {
     const q = normalizeText(description.trim());
     if (!q) return [];
-    return workshopParts.filter((p) => normalizeText(p.name).includes(q)).slice(0, 12);
+    const out: WorkshopPart[] = [];
+    for (const entry of workshopPartsSearchIndex) {
+      if (entry.key.includes(q)) {
+        out.push(entry.part);
+        if (out.length >= 12) break;
+      }
+    }
+    return out;
   };
 
   const applyPartSuggestion = (partId: string, part: WorkshopPart) => {
@@ -158,7 +170,12 @@ export const BudgetPartsEditor: React.FC<BudgetPartsEditorProps> = ({
     const update = () => {
       if (suggestionsForPartId && focusedPartInputRef.current) {
         const rect = focusedPartInputRef.current.getBoundingClientRect();
-        setPartSuggestionBoxPosition({ top: rect.bottom + 4, left: rect.left, width: rect.width });
+        const next = { top: rect.bottom + 4, left: rect.left, width: rect.width };
+        setPartSuggestionBoxPosition((prev) =>
+          prev && prev.top === next.top && prev.left === next.left && prev.width === next.width
+            ? prev
+            : next
+        );
       } else {
         setPartSuggestionBoxPosition(null);
       }
@@ -170,7 +187,7 @@ export const BudgetPartsEditor: React.FC<BudgetPartsEditorProps> = ({
       window.removeEventListener('resize', update);
       window.removeEventListener('scroll', update, true);
     };
-  }, [suggestionsForPartId, parts]);
+  }, [suggestionsForPartId]);
 
   useEffect(() => {
     const focusId = pendingFocusPartIdRef.current;
@@ -178,7 +195,7 @@ export const BudgetPartsEditor: React.FC<BudgetPartsEditorProps> = ({
     if (!parts.some((p) => p.id === focusId)) return;
     pendingFocusPartIdRef.current = null;
     setFocusPartId(focusId);
-  }, [parts]);
+  }, [parts.length]);
 
   useLayoutEffect(() => {
     if (!focusPartId) return;
