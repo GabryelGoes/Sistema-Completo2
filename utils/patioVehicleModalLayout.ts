@@ -236,7 +236,7 @@ export function getPatioVehicleModalLayout(
       openHintLabel: 'Toque para abrir',
       sectionTitle: '',
       commentsList:
-        'patio-vm-scroll--minimal max-h-[min(380px,48vh)] space-y-4 overflow-y-auto bg-[#F2F2F7]/80 p-3.5 dark:bg-black/25 sm:space-y-4',
+        'patio-vm-scroll--minimal space-y-2.5 bg-[#F2F2F7]/80 p-3 dark:bg-black/25',
       customerMetaLabel: 'Dados da ficha',
       technicianMetaLabel: 'Técnico',
       deliveryDateMetaLabel: 'ENTREGA',
@@ -281,7 +281,7 @@ export function getPatioVehicleModalLayout(
       openHintLabel: 'Toque para abrir',
       sectionTitle: '',
       commentsList:
-        'patio-vm-scroll--minimal max-h-[min(380px,48vh)] space-y-4 overflow-y-auto bg-[#F2F2F7]/80 p-3.5 dark:bg-black/25 sm:space-y-4',
+        'patio-vm-scroll--minimal space-y-2.5 bg-[#F2F2F7]/80 p-3 dark:bg-black/25',
       customerMetaLabel: 'Dados da ficha',
       technicianMetaLabel: 'Técnico',
       deliveryDateMetaLabel: 'ENTREGA',
@@ -327,8 +327,8 @@ export function getPatioVehicleModalLayout(
     openHintLabel: 'Clique para abrir',
     sectionTitle:
       'text-[12px] font-bold uppercase tracking-[0.12em] text-zinc-500 dark:text-zinc-400 mb-2 flex items-center gap-1.5',
-    commentsList:
-      'custom-scrollbar max-h-none space-y-4 overflow-visible bg-[#F2F2F7]/80 p-3.5 dark:bg-black/25 sm:space-y-4',
+      commentsList:
+        'custom-scrollbar space-y-2.5 bg-[#F2F2F7]/80 p-3 dark:bg-black/25',
     customerMetaLabel: 'Cliente',
     technicianMetaLabel: 'Técnico',
     deliveryDateMetaLabel: 'Entrada',

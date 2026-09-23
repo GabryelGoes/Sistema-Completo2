@@ -987,7 +987,7 @@ export function PatioPhotoAlbums({
                     void handleCreateFolder();
                   }
                 }}
-                placeholder="Ex.: Diagnóstico, Entrega, Peças"
+                placeholder="Diagnóstico"
                 maxLength={80}
                 autoFocus
                 className="w-full rounded-2xl bg-zinc-100 px-4 py-3 text-[15px] font-medium text-zinc-900 outline-none ring-0 placeholder:text-zinc-400 focus:bg-zinc-50 focus:ring-2 focus:ring-[#007AFF]/30 dark:bg-white/[0.06] dark:text-white dark:placeholder:text-zinc-500 dark:focus:bg-white/[0.08]"

@@ -9,7 +9,7 @@ export const fontUi = "font-sans antialiased";
 /** Títulos (páginas, modais, headings) — SF Pro Display */
 export const fontDisplay = "font-display antialiased";
 
-/** Labels de seção (Queixa, Orçamentos, Anexos, etc.) */
+/** Labels de seção (Queixa, Orçamentos, Arquivos, etc.) */
 export const uiModalSectionLabel =
   "block text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-950 dark:text-zinc-400 mb-2";
 
@@ -20,6 +20,10 @@ export const uiSectionTitleRow =
 /** Ícone nos cabeçalhos de seção do modal de OS (Queixa, Orçamentos, etc.) */
 export const uiOsModalSectionIconWrap =
   "flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-zinc-200/95 bg-gradient-to-b from-white to-zinc-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_2px_8px_-4px_rgba(0,0,0,0.1)] dark:border-white/[0.1] dark:from-white/[0.12] dark:to-white/[0.04]";
+
+/** PNG de app icon (squircle + alpha) nos cabeçalhos de seção — sem chrome branco. */
+export const uiOsModalSectionAppIcon =
+  "h-8 w-8 shrink-0 overflow-hidden rounded-[0.55rem]";
 
 /** Título no cabeçalho de card de seção do modal de OS */
 export const uiOsModalCardSectionTitle =

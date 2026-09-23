@@ -1,14 +1,13 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { Wrench, Plus, Loader2, Trash2, ArrowRight, ChevronDown, ChevronRight, X, Zap, Check, Pencil, Paperclip } from 'lucide-react';
+import { Plus, Loader2, Trash2, ArrowRight, ChevronDown, ChevronRight, X, Check, Pencil, Paperclip } from 'lucide-react';
 import type { LabServiceLink } from '../../types';
 import type { ServiceOrderDetail } from '../../services/apiService';
 import {
   PatioOriginAttachmentsPicker,
-  PatioOriginAttachmentsSection,
   type PatioOriginAttachmentItem,
 } from './PatioOriginAttachmentsPicker';
-import { uiOsModalCardSectionTitle, uiOsModalSectionIconWrap } from '../ui/appTypography';
+import { uiOsModalCardSectionTitle, uiOsModalSectionAppIcon } from '../ui/appTypography';
 import { IosNotificationBadge } from '../ui/IosNotificationBadge';
 import { ModalPortal } from '../ui/ModalPortal';
 import { iosModalClose, iosModalShell } from '../ui/iosModalStyles';
@@ -111,10 +110,21 @@ export const PatioOsModalLabServicesSection: React.FC<PatioOsModalLabServicesSec
   const [quickSendModalOpen, setQuickSendModalOpen] = useState(false);
   const [attachToLabOrderId, setAttachToLabOrderId] = useState<string | null>(null);
   const [attachToLabPaths, setAttachToLabPaths] = useState<string[]>([]);
+  /** Arquivos do pátio só abrem ao clicar no botão — não ficam expostos por padrão. */
+  const [patioFilesPanelOpen, setPatioFilesPanelOpen] = useState(false);
   const isOpen = !collapsible || expanded;
   const listProductKindOptions = productKindOptions.filter((opt) => opt.value !== otherProductKindId);
   const linkedCount = labServiceLinksDraft.length;
   const busy = creatingLabService || labServiceLinksSaving || quickSendingServiceId != null;
+  /** Mais recentes primeiro — ficam logo abaixo do título. */
+  const sentLinksNewestFirst = useMemo(() => {
+    return [...labServiceLinksDraft].sort((a, b) => {
+      const ta = Date.parse(a.createdAt ?? '') || 0;
+      const tb = Date.parse(b.createdAt ?? '') || 0;
+      if (ta !== tb) return tb - ta;
+      return String(b.id).localeCompare(String(a.id));
+    });
+  }, [labServiceLinksDraft]);
 
   const selectedItemLabel = manualProductName
     ? newLabProductOther.trim() || 'Item não está na lista'
@@ -294,8 +304,8 @@ export const PatioOsModalLabServicesSection: React.FC<PatioOsModalLabServicesSec
   const headerInner = (
     <>
       <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-2.5">
-        <div className={uiOsModalSectionIconWrap}>
-          <Wrench className="h-4 w-4 text-[#007AFF] dark:text-[#7ab8ff]" strokeWidth={2.25} aria-hidden />
+        <div className={uiOsModalSectionAppIcon}>
+          <img src="/icons/laboratorio-ios.png" alt="" className="h-full w-full object-cover" />
         </div>
         <div className="relative min-w-0">
           <p className={uiOsModalCardSectionTitle}>Serviços Laboratório</p>
@@ -341,158 +351,10 @@ export const PatioOsModalLabServicesSection: React.FC<PatioOsModalLabServicesSec
 
         {isOpen ? (
         <div className="space-y-3 border-t border-zinc-200/60 bg-zinc-50/90 px-3 py-3 dark:border-white/[0.06] dark:bg-white/[0.02] sm:px-4 sm:py-4">
-          {/* 1. Item a enviar — lista em janelinha */}
+          {/* 1. Serviços já enviados — logo abaixo do título (sem empty state) */}
+          {sentLinksNewestFirst.length > 0 ? (
           <div className="space-y-2">
-            <label className="mb-1.5 block text-[12px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-              Item a enviar
-            </label>
-            <button
-              type="button"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                setItemPickerOpen(true);
-              }}
-              disabled={busy}
-              className={`${inputClass} relative z-[1] !flex !h-11 w-full !cursor-pointer items-center justify-between gap-2 !py-0 text-left text-[13px] disabled:opacity-55`}
-            >
-              <span
-                className={`min-w-0 flex-1 truncate ${
-                  selectedItemLabel
-                    ? 'font-medium text-zinc-900 dark:text-zinc-100'
-                    : 'text-zinc-400 dark:text-zinc-500'
-                }`}
-              >
-                {selectedItemLabel || 'Selecione o item'}
-              </span>
-              <ChevronDown className="h-4 w-4 shrink-0 text-zinc-400 dark:text-zinc-500" aria-hidden />
-            </button>
-
-            {manualProductName ? (
-              <input
-                value={newLabProductOther}
-                onChange={(e) => onLabProductOtherChange(e.target.value)}
-                placeholder="Digite o nome do item…"
-                className={`${inputClass} !h-11 !py-0 text-[13px]`}
-                autoFocus
-              />
-            ) : null}
-          </div>
-
-          {/* 2. Anexos da OS do pátio */}
-          {onSelectedPatioAttachmentPathsChange && patioAttachments.length > 0 ? (
-            <PatioOriginAttachmentsSection
-              hint="Opcional. Selecione antes de enviar: as cópias vão para a OS do laboratório."
-            >
-              <PatioOriginAttachmentsPicker
-                attachments={patioAttachments}
-                selectedPaths={selectedPatioAttachmentPaths}
-                onChange={onSelectedPatioAttachmentPathsChange}
-                disabled={busy}
-              />
-            </PatioOriginAttachmentsSection>
-          ) : null}
-
-          {/* 3. Serviço (orçamento / manual) + Enviar */}
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-[180px_minmax(0,1fr)_auto]">
-            <select
-              value={newLabServiceMode}
-              onChange={(e) => onLabServiceModeChange(e.target.value === 'manual' ? 'manual' : 'budget')}
-              className={`${inputClass} !h-11 !py-0 text-[13px]`}
-            >
-              <option value="budget">Do orçamento</option>
-              <option value="manual">Manual</option>
-            </select>
-            {newLabServiceMode === 'budget' ? (
-              <select
-                value={newLabBudgetRef}
-                onChange={(e) => onLabBudgetRefChange(e.target.value)}
-                className={`${inputClass} !h-11 !py-0 text-[13px]`}
-              >
-                <option value="">Selecione o serviço do orçamento</option>
-                {budgetServiceOptions.map((opt) => (
-                  <option key={opt.key} value={opt.key}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
-            ) : (
-              <input
-                value={newLabManualLabel}
-                onChange={(e) => onLabManualLabelChange(e.target.value)}
-                placeholder="Ex.: reparo de módulo ABS"
-                className={`${inputClass} !h-11 !py-0 text-[13px]`}
-              />
-            )}
-            <button
-              type="button"
-              onClick={onCreateLabService}
-              disabled={busy}
-              className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#007AFF] px-3 py-2 text-[13px] font-semibold text-white disabled:opacity-55"
-            >
-              {creatingLabService ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-              Enviar
-            </button>
-          </div>
-
-          {/* 4. Detalhes */}
-          <div>
-            <label
-              htmlFor="new-lab-service-details"
-              className="mb-1.5 block text-[12px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400"
-            >
-              Detalhes do serviço{' '}
-              <span className="font-normal normal-case tracking-normal text-zinc-400 dark:text-zinc-500">
-                (opcional)
-              </span>
-            </label>
-            <textarea
-              id="new-lab-service-details"
-              value={newLabServiceDetails}
-              onChange={(e) => onLabServiceDetailsChange(e.target.value)}
-              placeholder="Ex.: sintomas, peça avariada, prazo combinado com o cliente..."
-              rows={3}
-              maxLength={2000}
-              disabled={busy}
-              className={`${inputClass} min-h-[88px] resize-y text-[13px] leading-relaxed disabled:opacity-55`}
-            />
-          </div>
-
-          {/* 4. Envios rápidos → abre modal com lista */}
-          {onQuickSendService && quickServices.length > 0 ? (
-            <button
-              type="button"
-              onClick={() => setQuickSendModalOpen(true)}
-              disabled={busy}
-              className="group flex w-full items-center gap-3 rounded-xl border-0 bg-white px-3.5 py-3 text-left shadow-none transition-colors hover:bg-zinc-50 dark:bg-zinc-950/55 dark:hover:bg-zinc-900 disabled:opacity-55"
-            >
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#007AFF]/12 text-[#007AFF] dark:bg-[#007AFF]/22 dark:text-[#7ab8ff]">
-                <Zap className="h-5 w-5" strokeWidth={2.25} aria-hidden />
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="block text-[14px] font-semibold text-zinc-900 dark:text-white">
-                  Envios rápidos
-                </span>
-                <span className="mt-0.5 block text-[12px] text-zinc-500 dark:text-zinc-400">
-                  {quickServices.length} {quickServices.length === 1 ? 'serviço' : 'serviços'} · selecione o item antes
-                </span>
-              </span>
-              <ChevronRight
-                className="h-5 w-5 shrink-0 text-zinc-400 transition-transform group-hover:translate-x-0.5 group-hover:text-[#007AFF] dark:text-zinc-500"
-                strokeWidth={2.25}
-                aria-hidden
-              />
-            </button>
-          ) : null}
-
-          {/* 5. Serviços já enviados */}
-          <div className="space-y-2">
-            {labServiceLinksDraft.length === 0 ? (
-              <p className="rounded-xl border border-dashed border-zinc-300/95 bg-zinc-50/90 p-4 text-[13px] text-zinc-600 dark:border-white/[0.12] dark:bg-white/[0.04] dark:text-zinc-400">
-                Nenhum serviço enviado ao laboratório.
-              </p>
-            ) : (
-              labServiceLinksDraft.map((link) => {
+            {sentLinksNewestFirst.map((link) => {
                 const linkedOrder = labOrdersLookup[link.laboratoryOrderId];
                 const statusLabel = linkedOrder ? getStageName(linkedOrder.status) : 'Não localizado';
                 const statusStyle = linkedOrder
@@ -558,9 +420,189 @@ export const PatioOsModalLabServicesSection: React.FC<PatioOsModalLabServicesSec
                     </div>
                   </div>
                 );
-              })
-            )}
+              })}
           </div>
+          ) : null}
+
+          {/* 2+3. Item a enviar + Arquivos do pátio (PC: lado a lado e menores) */}
+          <div className="space-y-2">
+            <label className="mb-1.5 block text-[12px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+              Item a enviar
+            </label>
+            <div
+              className={
+                !collapsible
+                  ? 'flex flex-row items-stretch gap-2'
+                  : 'flex flex-col gap-2'
+              }
+            >
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setItemPickerOpen(true);
+                }}
+                disabled={busy}
+                className={`${inputClass} relative z-[1] !flex min-w-0 flex-1 !cursor-pointer items-center justify-between gap-2 text-left disabled:opacity-55 ${
+                  !collapsible
+                    ? '!h-9 !rounded-lg !px-2.5 !py-0 text-[12px]'
+                    : '!h-11 !py-0 text-[13px]'
+                }`}
+              >
+                <span
+                  className={`min-w-0 flex-1 truncate ${
+                    selectedItemLabel
+                      ? 'font-medium text-zinc-900 dark:text-zinc-100'
+                      : 'text-zinc-400 dark:text-zinc-500'
+                  }`}
+                >
+                  {selectedItemLabel || 'Selecione o item'}
+                </span>
+                <ChevronDown
+                  className={`shrink-0 text-zinc-400 dark:text-zinc-500 ${!collapsible ? 'h-3.5 w-3.5' : 'h-4 w-4'}`}
+                  aria-hidden
+                />
+              </button>
+
+              {onSelectedPatioAttachmentPathsChange && patioAttachments.length > 0 ? (
+                <button
+                  type="button"
+                  onClick={() => setPatioFilesPanelOpen((v) => !v)}
+                  disabled={busy}
+                  aria-expanded={patioFilesPanelOpen}
+                  className={`inline-flex shrink-0 items-center justify-center gap-1.5 border-0 bg-[#007AFF] font-bold uppercase tracking-[0.05em] text-white transition-[filter] hover:brightness-110 disabled:opacity-55 dark:bg-[#0A84FF] ${
+                    !collapsible
+                      ? 'h-9 rounded-lg px-2.5 text-[10px]'
+                      : 'h-11 w-full rounded-xl px-3 text-[12px]'
+                  }`}
+                >
+                  <Plus className={!collapsible ? 'h-3.5 w-3.5' : 'h-4 w-4'} strokeWidth={2.5} aria-hidden />
+                  Arquivos do Pátio
+                  {selectedPatioAttachmentPaths.length > 0 ? (
+                    <span className="rounded-full bg-white/25 px-1.5 py-0.5 text-[10px] font-bold tabular-nums text-white">
+                      {selectedPatioAttachmentPaths.length}
+                    </span>
+                  ) : null}
+                </button>
+              ) : null}
+            </div>
+
+            {manualProductName ? (
+              <input
+                value={newLabProductOther}
+                onChange={(e) => onLabProductOtherChange(e.target.value)}
+                placeholder="Nome do item"
+                className={`${inputClass} !h-11 !py-0 text-[13px]`}
+                autoFocus
+              />
+            ) : null}
+
+            {patioFilesPanelOpen &&
+            onSelectedPatioAttachmentPathsChange &&
+            patioAttachments.length > 0 ? (
+              <div className="rounded-xl border border-zinc-200/80 bg-white/95 p-3 dark:border-white/[0.1] dark:bg-zinc-950/60">
+                <PatioOriginAttachmentsPicker
+                  attachments={patioAttachments}
+                  selectedPaths={selectedPatioAttachmentPaths}
+                  onChange={onSelectedPatioAttachmentPathsChange}
+                  disabled={busy}
+                />
+              </div>
+            ) : null}
+          </div>
+
+          {/* 4. Serviço (orçamento / manual) + Enviar */}
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-[180px_minmax(0,1fr)_auto]">
+            <select
+              value={newLabServiceMode}
+              onChange={(e) => onLabServiceModeChange(e.target.value === 'manual' ? 'manual' : 'budget')}
+              className={`${inputClass} !h-11 !py-0 text-[13px]`}
+            >
+              <option value="budget">Do orçamento</option>
+              <option value="manual">Manual</option>
+            </select>
+            {newLabServiceMode === 'budget' ? (
+              <select
+                value={newLabBudgetRef}
+                onChange={(e) => onLabBudgetRefChange(e.target.value)}
+                className={`${inputClass} !h-11 !py-0 text-[13px]`}
+              >
+                <option value="">Selecione o serviço do orçamento</option>
+                {budgetServiceOptions.map((opt) => (
+                  <option key={opt.key} value={opt.key}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <input
+                value={newLabManualLabel}
+                onChange={(e) => onLabManualLabelChange(e.target.value)}
+                placeholder="Descrição do serviço"
+                className={`${inputClass} !h-11 !py-0 text-[13px]`}
+              />
+            )}
+            <button
+              type="button"
+              onClick={onCreateLabService}
+              disabled={busy}
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#007AFF] px-3 py-2 text-[13px] font-semibold text-white disabled:opacity-55"
+            >
+              {creatingLabService ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+              Enviar
+            </button>
+          </div>
+
+          {/* 5. Detalhes */}
+          <div>
+            <label
+              htmlFor="new-lab-service-details"
+              className="mb-1.5 block text-[12px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400"
+            >
+              Detalhes do serviço{' '}
+              <span className="font-normal normal-case tracking-normal text-zinc-400 dark:text-zinc-500">
+                (opcional)
+              </span>
+            </label>
+            <textarea
+              id="new-lab-service-details"
+              value={newLabServiceDetails}
+              onChange={(e) => onLabServiceDetailsChange(e.target.value)}
+              placeholder="Observações"
+              rows={3}
+              maxLength={2000}
+              disabled={busy}
+              className={`${inputClass} min-h-[88px] resize-y text-[13px] leading-relaxed disabled:opacity-55`}
+            />
+          </div>
+
+          {/* 6. Envios rápidos → abre modal com lista */}
+          {onQuickSendService && quickServices.length > 0 ? (
+            <button
+              type="button"
+              onClick={() => setQuickSendModalOpen(true)}
+              disabled={busy}
+              className="group flex w-full items-center gap-3 rounded-xl border-0 bg-white px-3.5 py-3 text-left shadow-none transition-colors hover:bg-zinc-50 dark:bg-zinc-950/55 dark:hover:bg-zinc-900 disabled:opacity-55"
+            >
+              <span className="h-10 w-10 shrink-0 overflow-hidden rounded-[0.65rem]">
+                <img src="/icons/envio-rapido-ios.png" alt="" className="h-full w-full object-cover" />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-[14px] font-semibold text-zinc-900 dark:text-white">
+                  Envios rápidos
+                </span>
+                <span className="mt-0.5 block text-[12px] text-zinc-500 dark:text-zinc-400">
+                  {quickServices.length} {quickServices.length === 1 ? 'serviço' : 'serviços'} · selecione o item antes
+                </span>
+              </span>
+              <ChevronRight
+                className="h-5 w-5 shrink-0 text-zinc-400 transition-transform group-hover:translate-x-0.5 group-hover:text-[#007AFF] dark:text-zinc-500"
+                strokeWidth={2.25}
+                aria-hidden
+              />
+            </button>
+          ) : null}
         </div>
         ) : null}
       </div>
@@ -594,8 +636,8 @@ export const PatioOsModalLabServicesSection: React.FC<PatioOsModalLabServicesSec
 
             <div className="shrink-0 border-b border-zinc-200/70 px-6 pb-5 pt-7 dark:border-white/[0.07] sm:px-8 sm:pt-8">
               <div className="flex items-start gap-3 pr-10">
-                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#007AFF]/12 text-[#007AFF] dark:bg-[#007AFF]/22 dark:text-[#7ab8ff]">
-                  <Zap className="h-5 w-5" strokeWidth={2.25} aria-hidden />
+                <span className="h-11 w-11 shrink-0 overflow-hidden rounded-[0.7rem]">
+                  <img src="/icons/envio-rapido-ios.png" alt="" className="h-full w-full object-cover" />
                 </span>
                 <div className="min-w-0 flex-1">
                   <h2

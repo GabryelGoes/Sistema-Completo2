@@ -3,6 +3,7 @@ import {
   isLikelyBarcodeWedgeKeystroke,
   normalizeBarcodeInput,
 } from '../utils/workshopPartBarcode';
+import { isLabOsQrPayload } from '../utils/labOsQrCode';
 
 export type UseBarcodeWedgeListenerOptions = {
   /** Quando false, não captura teclas. */
@@ -20,6 +21,12 @@ export type UseBarcodeWedgeListenerOptions = {
 
 /** Pausa máxima entre teclas da mesma leitura (ms). Acima disso, reinicia o buffer. */
 const MAX_INTER_KEY_GAP_MS = 120;
+/** QR de OS do lab é longo (RDA-OS + UUID); leitores Bluetooth/HID lentos precisam de folga. */
+const MAX_INTER_KEY_GAP_LAB_OS_MS = 220;
+
+function looksLikeLabOsBuffer(buf: string): boolean {
+  return /^RDA/i.test(String(buf ?? '').replace(/\s+/g, ''));
+}
 
 function isEditableTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false;
@@ -111,8 +118,13 @@ export function useBarcodeWedgeListener({
       const elapsed = startedAtRef.current ? Date.now() - startedAtRef.current : 0;
       const code = normalizeBarcodeInput(raw);
       reset();
+      if (!code) return false;
+
+      // QR de OS do Laboratório: aceita mesmo se o leitor for um pouco mais lento
+      // (heurística de “pistola” padrão rejeitaria e o modal nunca abriria).
+      const labOs = isLabOsQrPayload(code);
       if (
-        !code ||
+        !labOs &&
         !isLikelyBarcodeWedgeKeystroke({ elapsedMs: elapsed || 1, length: code.length })
       ) {
         return false;
@@ -173,7 +185,10 @@ export function useBarcodeWedgeListener({
       }
 
       const gap = now - lastKeyAtRef.current;
-      if (gap > MAX_INTER_KEY_GAP_MS) {
+      const gapLimit = looksLikeLabOsBuffer(bufferRef.current)
+        ? MAX_INTER_KEY_GAP_LAB_OS_MS
+        : MAX_INTER_KEY_GAP_MS;
+      if (gap > gapLimit) {
         // Digitação humana / pausa: descarta buffer anterior e recomeça.
         bufferRef.current = ch;
         startedAtRef.current = now;

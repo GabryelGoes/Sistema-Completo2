@@ -54,6 +54,7 @@ export const ReceptionModal: React.FC<ReceptionModalProps> = ({
           <ReceptionView
             key={remountKey ?? 'agenda-intake'}
             hidePageChrome
+            markAsFromAgenda
             initialData={initialData}
             forcedMode="vehicle"
             blurPlates={blurPlates}

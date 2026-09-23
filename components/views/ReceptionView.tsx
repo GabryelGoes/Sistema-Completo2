@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkBreaks from 'remark-breaks';
-import { Car, User, Smartphone, Mail, FileText, ArrowRight, MapPin, Hash, ShieldCheck, Map, Building2, X, Check, MessageSquare, Paperclip, Download, ZoomIn, Eye, ExternalLink, Eraser, Camera, Image as ImageIcon, Calendar, Package, History, Search, RefreshCw, Calculator, ArchiveRestore, Copy, Sparkles, Loader2, ChevronDown } from 'lucide-react';
+import { Car, User, Smartphone, Mail, FileText, ArrowRight, MapPin, Hash, ShieldCheck, Map, Building2, X, Check, MessageSquare, Paperclip, Download, ZoomIn, Eye, ExternalLink, Eraser, Camera, Image as ImageIcon, Calendar, Package, History, Search, RefreshCw, ArchiveRestore, Copy, Sparkles, Loader2, ChevronDown } from 'lucide-react';
 import {
   iosModalShell,
   iosModalClose,
@@ -133,6 +133,8 @@ interface ReceptionViewProps {
   isReceptionTabActive?: boolean;
   /** Embutido no modal "Chegou ao pátio" (agenda): oculta o cabeçalho da página Recepção. */
   hidePageChrome?: boolean;
+  /** Fluxo Agenda → Chegou ao pátio: marca a OS com etiqueta Agendado. */
+  markAsFromAgenda?: boolean;
 }
 
 function attachmentMimeType(name: string): string {
@@ -185,6 +187,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
   onReceptionModeChangeForBack,
   isReceptionTabActive = true,
   hidePageChrome = false,
+  markAsFromAgenda = false,
 }) => {
   const desktopShell = useDesktopShellLayout();
   const { isSmartphone } = useDeviceTypeContext();
@@ -857,17 +860,21 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
         moduleProductOther:
           isModule && moduleKind === 'outro' ? moduleProductOther.trim() : undefined,
       };
+      const agendaOpts =
+        !isModule && markAsFromAgenda ? { agendaTag: true as const } : undefined;
       const { serviceOrder } = useExistingFlow
         ? await saveReceptionIntakeForExistingCustomer(
             intakeExistingCustomerId!,
             intakeCustomer,
             receptionMode,
-            receptionMode === 'module' ? moduleIntakeStatus : undefined
+            receptionMode === 'module' ? moduleIntakeStatus : undefined,
+            agendaOpts
           )
         : await saveReceptionIntake(
             intakeCustomer,
             receptionMode,
-            receptionMode === 'module' ? moduleIntakeStatus : undefined
+            receptionMode === 'module' ? moduleIntakeStatus : undefined,
+            agendaOpts
           );
 
       if (isModule && moduleKind) {
@@ -1349,7 +1356,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                     <Input
                       label="Nome Completo"
                       name="name"
-                      placeholder="Ex: João da Silva"
+                      placeholder="Nome"
                       value={customer.name}
                       onChange={handleInputChange}
                       autoComplete="off"
@@ -1443,7 +1450,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                 <Input
                   label="Telefone"
                   name="phone"
-                  placeholder="(11) 99999-9999"
+                  placeholder="Telefone"
                   value={customer.phone}
                   onChange={handleInputChange}
                   icon={<Smartphone className="w-4 h-4" />}
@@ -1487,7 +1494,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                 <Input
                   label="E-mail"
                   name="email"
-                  placeholder="exemplo@email.com"
+                  placeholder="E-mail"
                   value={customer.email}
                   onChange={handleInputChange}
                   icon={<Mail className="w-4 h-4" />}
@@ -1495,7 +1502,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                 <Input
                   label="CEP"
                   name="cep"
-                  placeholder="00000-000"
+                  placeholder="CEP"
                   value={customer.cep}
                   onChange={handleInputChange}
                   icon={<MapPin className="w-4 h-4" />}
@@ -1505,7 +1512,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                 <Input
                   label="Endereço"
                   name="address"
-                  placeholder="Rua, Avenida, Bairro..."
+                  placeholder="Endereço"
                   value={customer.address}
                   onChange={handleInputChange}
                   icon={<Map className="w-4 h-4" />}
@@ -1523,7 +1530,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                 <Input
                   label="Cidade"
                   name="city"
-                  placeholder="Ex: São Paulo"
+                  placeholder="Cidade"
                   value={customer.city ?? ''}
                   onChange={handleInputChange}
                   icon={<Building2 className="w-4 h-4" />}
@@ -1615,7 +1622,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                         label="Km"
                         name="mileageKm"
                         inputMode="numeric"
-                        placeholder="Ex: 45000"
+                        placeholder="Km"
                         value={customer.mileageKm ?? ''}
                         onChange={handleInputChange}
                         icon={<Hash className="w-4 h-4" />}
@@ -1629,7 +1636,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                       <Input
                         label="Marca / montadora"
                         name="vehicleBrand"
-                        placeholder="Ex: Renault"
+                        placeholder="Marca"
                         value={customer.vehicleBrand ?? ''}
                         onChange={handleInputChange}
                         icon={<FileText className="w-4 h-4" />}
@@ -1637,7 +1644,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                       <Input
                         label="Modelo (aparece no card)"
                         name="vehicleModel"
-                        placeholder="Ex: Logan 1.6 — ou preencha pela placa"
+                        placeholder="Modelo"
                         value={customer.vehicleModel}
                         onChange={handleInputChange}
                         icon={<Car className="w-4 h-4" />}
@@ -1647,7 +1654,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                       <Input
                         label="Cor"
                         name="vehicleColor"
-                        placeholder="Ex: Branca"
+                        placeholder="Cor"
                         value={customer.vehicleColor ?? ''}
                         onChange={handleInputChange}
                         icon={<Sparkles className="w-4 h-4" />}
@@ -1655,7 +1662,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                       <Input
                         label="Ano / ano modelo"
                         name="vehicleYear"
-                        placeholder="Ex: 2010 / 2010"
+                        placeholder="Ano"
                         value={customer.vehicleYear ?? ''}
                         onChange={handleInputChange}
                         icon={<Calendar className="w-4 h-4" />}
@@ -1663,7 +1670,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                       <Input
                         label="Motor (cilindradas / combustível)"
                         name="vehicleEngineInfo"
-                        placeholder="Ex: 1598 cc · Flex"
+                        placeholder="Motor"
                         value={customer.vehicleEngineInfo ?? ''}
                         onChange={handleInputChange}
                         icon={<Car className="w-4 h-4" />}
@@ -1676,7 +1683,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                   <Input 
                     label="Veículo"
                     name="vehicleModel"
-                    placeholder="Ex: BMW 320i"
+                    placeholder="Modelo"
                     value={customer.vehicleModel}
                     onChange={handleInputChange}
                     icon={<Package className="w-4 h-4" />}
@@ -1684,7 +1691,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                   <Input 
                     label="Identificação da peça"
                     name="moduleIdentification"
-                    placeholder="Ex: ABS dianteiro, pinça LD, código da peça…"
+                    placeholder="Identificação"
                     value={customer.moduleIdentification ?? ''}
                     onChange={handleInputChange}
                     icon={<Package className="w-4 h-4" />}
@@ -1718,7 +1725,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                             label="Qual peça entrou?"
                             name="moduleProductOther"
                             required
-                            placeholder="Ex: bomba de direção, atuador, válvula solenoide…"
+                            placeholder="Peça / item"
                             value={moduleProductOther}
                             onChange={(e) => setModuleProductOther(e.target.value)}
                             icon={<Package className="w-4 h-4" />}
@@ -1758,7 +1765,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                       <TextArea
                         label="Motivo da entrada (opcional)"
                         name="issueDescription"
-                        placeholder="Ex.: cliente relatou falha no ABS, peça veio de outra oficina… Se vazio, fica aguardando avaliação técnica."
+                        placeholder="Observações"
                         value={customer.issueDescription}
                         onChange={handleInputChange}
                       />
@@ -1905,7 +1912,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                   <TextArea
                     label="Queixa do cliente"
                     name="issueDescription"
-                    placeholder="Descreva o problema relatado pelo cliente..."
+                    placeholder="Queixa"
                     value={customer.issueDescription}
                     onChange={handleInputChange}
                     required
@@ -2406,7 +2413,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                             {!isModuleDetail && archivedDiagAuthSignatureSrc ? (
                               <div>
                                 <h3 className="text-zinc-700 dark:text-zinc-300 text-sm font-bold uppercase tracking-widest mb-4 flex items-center gap-2">
-                                  <FileText className="w-4 h-4" />
+                                  <img src="/icons/autorizacao-diagnostico-ios.png" alt="" className="h-4 w-4 rounded-[0.25rem] object-cover" />
                                   Autorização de diagnóstico
                                 </h3>
                                 <button
@@ -2559,7 +2566,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
               <div className="min-w-0">
                 <div className="flex items-center gap-3 text-zinc-900 dark:text-white">
                   <IosAccentIconSquircle variant="row" strokeWidth={2.2}>
-                    <Calculator />
+                    <img src="/icons/novo-orcamento-ios.png" alt="" className="h-full w-full object-cover" />
                   </IosAccentIconSquircle>
                   <div>
                   <h2 className="text-[20px] sm:text-[22px] font-semibold tracking-tight truncate">Orçamento</h2>

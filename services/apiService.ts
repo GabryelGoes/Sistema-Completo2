@@ -107,6 +107,8 @@ export interface ServiceOrderListItem {
   /** Preenchido pelo backend na listagem. */
   assigned_technician_name?: string | null;
   garantia_tag?: boolean;
+  /** Veículo criado pelo fluxo Chegou ao pátio (Agenda). */
+  agenda_tag?: boolean;
   order_type?: ServiceOrderType;
   /** Recepção — veículo: Compacto, Médio/SUV, Pick-Up, Premium */
   vehicle_category?: string | null;
@@ -848,6 +850,8 @@ export async function createServiceOrder(params: {
   vehicleColor?: string | null;
   vehicleYear?: string | null;
   vehicleEngineInfo?: string | null;
+  /** Marca OS criada a partir da Agenda (Chegou ao pátio). */
+  agendaTag?: boolean;
 }): Promise<ApiServiceOrder> {
   const orderType = params.orderType === "module" ? "module" : "vehicle";
   const body: Record<string, unknown> = {
@@ -865,6 +869,7 @@ export async function createServiceOrder(params: {
     if (params.vehicleYear !== undefined) body.vehicleYear = params.vehicleYear?.trim() || null;
     if (params.vehicleEngineInfo !== undefined)
       body.vehicleEngineInfo = params.vehicleEngineInfo?.trim() || null;
+    if (params.agendaTag === true) body.agendaTag = true;
   } else {
     body.plate = null;
     body.mileageKm = null;
@@ -896,7 +901,8 @@ export async function createServiceOrder(params: {
 export async function saveReceptionIntake(
   customer: Customer,
   orderType: ServiceOrderType = "vehicle",
-  moduleInitialStatus?: ServiceOrderStatus
+  moduleInitialStatus?: ServiceOrderStatus,
+  options?: { agendaTag?: boolean }
 ) {
   const createdCustomer = await createCustomer(customer);
 
@@ -921,6 +927,7 @@ export async function saveReceptionIntake(
     vehicleEngineInfo:
       orderType === "vehicle" ? customer.vehicleEngineInfo?.trim() || null : undefined,
     status: orderType === "module" ? moduleInitialStatus : undefined,
+    agendaTag: orderType === "vehicle" && options?.agendaTag === true ? true : undefined,
   });
 
   return {
@@ -934,7 +941,8 @@ export async function saveReceptionIntakeForExistingCustomer(
   customerId: string,
   customer: Customer,
   orderType: ServiceOrderType = "vehicle",
-  moduleInitialStatus?: ServiceOrderStatus
+  moduleInitialStatus?: ServiceOrderStatus,
+  options?: { agendaTag?: boolean }
 ) {
   const createdServiceOrder = await createServiceOrder({
     customerId,
@@ -956,6 +964,7 @@ export async function saveReceptionIntakeForExistingCustomer(
     vehicleYear: orderType === "vehicle" ? customer.vehicleYear?.trim() || null : undefined,
     vehicleEngineInfo: orderType === "vehicle" ? customer.vehicleEngineInfo?.trim() || null : undefined,
     status: orderType === "module" ? moduleInitialStatus : undefined,
+    agendaTag: orderType === "vehicle" && options?.agendaTag === true ? true : undefined,
   });
   const all = await getCustomers();
   const row = all.find((c) => c.id === customerId);

@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { ChevronLeft, ChevronRight, Headphones, Moon, Settings } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Moon, Settings } from 'lucide-react';
 import { NotificationCenter, type NotificationCenterProps } from '../NotificationCenter';
 import { DesktopShellAccountMenu } from './DesktopShellAccountMenu';
 import { IosSwitch } from '../ui/IosSwitch';
@@ -250,7 +250,7 @@ export function DesktopAppShell({
           }
           onClick={() => onOpenSupport?.()}
         >
-          <Headphones className="desktop-shell-support-icon h-4 w-4 shrink-0" strokeWidth={2.25} aria-hidden />
+          <NavIconImg iconSrc="/icons/suporte-ios.png" />
           <span className="desktop-shell-support-label">Suporte</span>
           {supportUnreadBadge > 0 ? (
             <span className="desktop-shell-support-badge" aria-hidden>

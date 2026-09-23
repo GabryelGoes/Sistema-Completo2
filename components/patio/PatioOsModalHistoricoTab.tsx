@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Clock, MessageSquare, Calculator, Truck, FileText } from 'lucide-react';
+import { Clock, MessageSquare, Truck, FileText } from 'lucide-react';
 import type { ServiceOrderDetail, SavedBudgetFromApi } from '../../services/apiService';
 import type { TrelloAction } from '../../types';
 import type { ExternalRepairDraft } from '../../utils/externalRepair';
@@ -40,7 +40,13 @@ function IconFor({ kind }: { kind: HistoryEvent['icon'] }) {
     case 'comment':
       return <MessageSquare className={cls} strokeWidth={2.2} />;
     case 'budget':
-      return <Calculator className={cls} strokeWidth={2.2} />;
+      return (
+        <img
+          src="/icons/novo-orcamento-ios.png"
+          alt=""
+          className="h-4 w-4 shrink-0 rounded-[0.25rem] object-cover"
+        />
+      );
     case 'truck':
       return <Truck className={cls} strokeWidth={2.2} />;
     case 'file':

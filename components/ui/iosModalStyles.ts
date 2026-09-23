@@ -73,7 +73,7 @@ export const iosVehicleModalCommentBubble =
 
 /** Campos dentro do modal de veículo — chapados. */
 export const iosVehicleModalInput =
-  'w-full rounded-xl border-0 bg-zinc-100/90 px-4 py-3 text-[15px] text-zinc-950 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/30 transition-shadow dark:bg-zinc-950/60 dark:text-white dark:placeholder:text-zinc-500';
+  'w-full rounded-xl border-0 bg-zinc-100/90 px-4 py-3 text-[15px] text-zinc-950 placeholder:text-zinc-400/70 transition-shadow focus:outline-none focus:ring-2 focus:ring-[#007AFF]/30 dark:bg-zinc-950/60 dark:text-white dark:placeholder:text-zinc-500/80';
 
 /** Modais da Agenda — chapados, sem aro. */
 export const agendaModalShell =

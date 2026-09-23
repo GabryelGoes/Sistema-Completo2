@@ -184,7 +184,13 @@ export const BudgetApprovalModal: React.FC<BudgetApprovalModalProps> = ({
 
           <div className="shrink-0 border-b border-sky-100/90 bg-gradient-to-b from-white to-[#f5fbff] px-5 pb-4 pt-6 sm:px-7 sm:pb-5 sm:pt-7 lg:px-9 dark:border-sky-500/20 dark:from-zinc-900 dark:to-zinc-950">
             <div className="flex items-start gap-3 pr-10">
-              <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-[14px] border border-sky-200/80 bg-gradient-to-b from-sky-50 to-white shadow-sm dark:border-sky-500/30 dark:from-sky-950/80 dark:to-zinc-900">
+              <div
+                className={
+                  React.isValidElement(headerIcon) && headerIcon.type === 'img'
+                    ? 'h-11 w-11 shrink-0 overflow-hidden rounded-[14px] bg-transparent'
+                    : 'flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-[14px] border border-sky-200/80 bg-gradient-to-b from-sky-50 to-white shadow-sm dark:border-sky-500/30 dark:from-sky-950/80 dark:to-zinc-900'
+                }
+              >
                 {headerIcon ?? <CheckCircle2 className="h-5 w-5 text-sky-600 dark:text-sky-400" strokeWidth={2.2} />}
               </div>
               <div className="min-w-0 flex-1">

@@ -552,7 +552,7 @@ export function WorkshopPartRegistrationForm({
               type="text"
               value={values.name}
               onChange={(e) => patch({ name: e.target.value })}
-              placeholder="Ex.: Pastilha de freio dianteira"
+              placeholder="Nome da peça"
               className={inputCls}
             />
           </div>
@@ -562,7 +562,7 @@ export function WorkshopPartRegistrationForm({
               type="text"
               value={values.brand}
               onChange={(e) => patch({ brand: e.target.value })}
-              placeholder="Ex.: Bosch, TRW, Cofap"
+              placeholder="Marca"
               className={inputCls}
             />
           </div>
@@ -572,7 +572,7 @@ export function WorkshopPartRegistrationForm({
               type="text"
               value={values.model}
               onChange={(e) => patch({ model: e.target.value })}
-              placeholder="Ex.: ABS 8.1, DOT 4"
+              placeholder="ABS 8.1, DOT 4"
               className={inputCls}
             />
           </div>
@@ -601,7 +601,7 @@ export function WorkshopPartRegistrationForm({
                 type="text"
                 value={values.barcode}
                 onChange={(e) => patch({ barcode: e.target.value })}
-                placeholder="Ex.: 7891234567890"
+                placeholder="7891234567890"
                 className={`${inputCls} flex-1 tabular-nums`}
                 autoComplete="off"
               />
@@ -651,7 +651,7 @@ export function WorkshopPartRegistrationForm({
                 step="0.001"
                 value={values.content_qty}
                 onChange={(e) => patch({ content_qty: e.target.value })}
-                placeholder="Ex.: 500"
+                placeholder="500"
                 className={`${inputCls} min-w-0 flex-[1.6] tabular-nums`}
               />
               <select

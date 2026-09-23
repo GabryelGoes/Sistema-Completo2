@@ -171,7 +171,7 @@ export const ChangePasswordsModal: React.FC<ChangePasswordsModalProps> = ({ isOp
                     autoComplete="off"
                     value={patioPin}
                     onChange={(e) => setPatioPin(e.target.value.replace(/\D/g, '').slice(0, 8))}
-                    placeholder="Ex: 4366"
+                    placeholder="4366"
                     className={`${iosInput} pr-12`}
                     aria-label="PIN dos técnicos"
                   />

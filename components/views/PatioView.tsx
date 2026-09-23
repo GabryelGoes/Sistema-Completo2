@@ -2,7 +2,7 @@ import React, { useEffect, useLayoutEffect, useState, useRef, useCallback, useMe
 import { createPortal } from 'react-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkBreaks from 'remark-breaks';
-import { RefreshCw, AlertCircle, ChevronDown, ChevronRight, ChevronLeft, User, X, Check, CheckCircle2, Circle, Plus, FileText, Calendar, Clock, MessageSquare, Send, Paperclip, ExternalLink, ZoomIn, ZoomOut, Calculator, Trash2, DollarSign, Hash, Minus, Pencil, Save, Eye, History, Search, Copy, ArrowRight, Camera, Image as ImageIcon, FolderOpen, Upload, FilePlus, ArchiveRestore, Printer, Smartphone, Mail, MapPin, Share2, Sparkles, Loader2, Tag, Link2, Wrench, Gauge, MoreHorizontal, LayoutGrid, Columns3, Users, SortDesc, ListOrdered, Truck, RotateCw, RotateCcw, ClipboardList } from 'lucide-react';
+import { RefreshCw, AlertCircle, ChevronDown, ChevronRight, ChevronLeft, User, X, Check, CheckCircle2, Circle, Plus, FileText, Calendar, Clock, Send, Paperclip, ExternalLink, ZoomIn, ZoomOut, Trash2, DollarSign, Hash, Minus, Pencil, Save, Eye, History, Search, Copy, ArrowRight, Camera, Image as ImageIcon, FolderOpen, Upload, FilePlus, ArchiveRestore, Printer, Smartphone, Mail, MapPin, Share2, Sparkles, Loader2, Tag, Link2, Wrench, Gauge, MoreHorizontal, LayoutGrid, Columns3, Users, SortDesc, ListOrdered, Truck, RotateCw, RotateCcw, ClipboardList } from 'lucide-react';
 import { PdfViewerModal } from '../PdfViewerModal';
 import { MechanicIcon } from '../ui/MechanicIcon';
 import { ReminderIcon } from '../ui/ReminderIcon';
@@ -140,6 +140,7 @@ import { IosAccentIconSquircle } from '../ui/IosAccentIconSquircle';
 import { markdownComponentsApp } from '../ui/markdownUi';
 import {
   uiOsModalCardSectionTitle,
+  uiOsModalSectionAppIcon,
   uiOsModalSectionIconWrap,
   uiReadBody,
   uiSectionTitleRow,
@@ -167,7 +168,7 @@ import { moveItemInList } from '../../utils/moveItemInList';
 import { BudgetPartStockBadge } from '../ui/BudgetPartStockBadge';
 import { resolveBudgetPartStockFlags, type BudgetPartFields } from '../../utils/budgetPartStock';
 import { buildBudgetServiceTechnicianNames } from '../../utils/budgetServiceTechnicians';
-import { parseReferenceLinksFromApi } from '../../utils/vehicleReferenceLinks';
+import { parseReferenceLinksFromApi, formatReferenceLinkDisplay } from '../../utils/vehicleReferenceLinks';
 import { capitalizeFirst, firstTwoNames } from '../../utils/personNameFormat';
 import { getPatioBoardModelTitleClass } from '../../utils/patioBoardModelTitle';
 import {
@@ -190,6 +191,7 @@ import { LabBenchQueueModal } from '../lab/LabBenchQueueModal';
 import { LabExternalRepairModal } from '../lab/LabExternalRepairModal';
 import { PatioOsModalPcTabBar, type PatioOsModalPcTab } from '../patio/PatioOsModalPcTabBar';
 import { PatioOsModalLabServicesSection } from '../patio/PatioOsModalLabServicesSection';
+import { VehicleObservationsSection } from '../patio/VehicleObservationsSection';
 import {
   PatioOriginAttachmentsPicker,
   PatioOriginAttachmentsSection,
@@ -339,6 +341,8 @@ interface PatioViewProps {
   commentAuthorName?: string;
   /** Se definido, abre o modal do veículo com esta OS (vindo ex.: da central de notificações). */
   openServiceOrderId?: string | null;
+  /** Muda a cada scan USB para reabrir o modal mesmo se o id da OS for o mesmo. */
+  openServiceOrderScanToken?: number;
   /** Seção do modal para rolar após abrir (comentários, orçamentos, queixa). */
   openServiceOrderSection?: OpenServiceOrderSection;
   /** Após carregar orçamentos, abre o modal de leitura deste id. */
@@ -440,6 +444,7 @@ function serviceOrderDetailToListItem(detail: ServiceOrderDetail): ServiceOrderL
   const d = detail as ServiceOrderDetail & {
     assigned_technician?: string | null;
     garantia_tag?: boolean;
+    agenda_tag?: boolean;
   };
   return {
     id: detail.id,
@@ -456,6 +461,7 @@ function serviceOrderDetailToListItem(detail: ServiceOrderDetail): ServiceOrderL
     status: detail.status as ServiceOrderStatus,
     assigned_technician: d.assigned_technician ?? null,
     garantia_tag: d.garantia_tag,
+    agenda_tag: d.agenda_tag,
     order_type: detail.order_type,
     vehicle_category: detail.vehicle_category,
     vehicle_brand: detail.vehicle_brand ?? null,
@@ -505,6 +511,7 @@ function orderToCard(o: ServiceOrderListItem, technicianNameMap?: Record<string,
     members: techName ? [{ id: techId!, fullName: capitalizeFirst(techName), username: '' }] : [],
     checklists: [],
     garantiaTag: o.garantia_tag === true,
+    agendaTag: o.agenda_tag === true,
     mileageKm: o.mileage_km ?? null,
     deliveryDate: o.delivery_date ?? null,
     vehicleObservations: o.vehicle_observations ?? null,
@@ -653,7 +660,7 @@ function BudgetServiceDescriptionTextarea({
       rows={1}
       spellCheck={false}
       data-budget-service-id={dataBudgetServiceId}
-      placeholder="Digite ou escolha um serviço…"
+      placeholder="Serviço"
       className={`${inputClassName} shadow-none block min-h-[52px] w-full min-w-0 resize-none overflow-hidden break-words leading-snug [overflow-wrap:anywhere] [scrollbar-width:none] [&::-webkit-scrollbar]:w-0 [&::-webkit-scrollbar]:bg-transparent`}
       value={value}
       onChange={(e) => {
@@ -1138,6 +1145,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
   onCreateRegistration,
   commentAuthorName = 'Rei do ABS',
   openServiceOrderId: openServiceOrderIdProp,
+  openServiceOrderScanToken = 0,
   openServiceOrderSection,
   openBudgetIdAfterLoad = null,
   onOpenServiceOrderHandled,
@@ -1171,11 +1179,13 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const [markingCommentsReadId, setMarkingCommentsReadId] = useState<string | null>(null);
   const commentsSectionRef = useRef<HTMLDivElement>(null);
   const commentsListRef = useRef<HTMLDivElement>(null);
+  const commentComposerRef = useRef<HTMLTextAreaElement>(null);
   const customerDataSectionRef = useRef<HTMLDivElement>(null);
   const customerNameInputRef = useRef<HTMLInputElement>(null);
   const descriptionSectionRef = useRef<HTMLDivElement>(null);
   const budgetsSectionRef = useRef<HTMLDivElement>(null);
   const openServiceOrderHandledRef = useRef(false);
+  const lastOpenServiceOrderScanTokenRef = useRef(0);
   /** OS id: após mover para "Orçamento aprovado", abre o modal de aprovação quando os orçamentos terminarem de carregar. */
   const [allMembers, setAllMembers] = useState<TrelloMember[]>([]);
   const [initialLoading, setInitialLoading] = useState(true);
@@ -1504,6 +1514,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
     setBudgetParts([{ id: String(Date.now() + 1), description: '', quantity: '1' }]);
     setBudgetObservations('');
   }, []);
+  /** Enquanto o modal de orçamento está aberto, o live-sync não deve rehidratar a OS (trava a digitação). */
+  const isBudgetOpenRef = useRef(false);
+  isBudgetOpenRef.current = isBudgetOpen;
 
   const [workshopServices, setWorkshopServices] = useState<WorkshopService[]>([]);
   const [workshopParts, setWorkshopParts] = useState<WorkshopPart[]>([]);
@@ -1836,6 +1849,13 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const [trelloDragCardId, setTrelloDragCardId] = useState<string | null>(null);
   const [trelloDragOverListId, setTrelloDragOverListId] = useState<string | null>(null);
   const patioTrelloSkipClickRef = useRef(false);
+  /** Fonte de verdade do card em arraste (MIME custom falha em alguns browsers). */
+  const trelloDragCardIdRef = useRef<string | null>(null);
+  const trelloDragOriginListIdRef = useRef<string | null>(null);
+  const cardsRef = useRef<TrelloCard[]>([]);
+  cardsRef.current = cards;
+  /** Evita Realtime/poll sobrescrever etapa otimista no meio do PUT. */
+  const stageChangingCardIdRef = useRef<string | null>(null);
 
   useLayoutEffect(() => {
     if (!isPatioHeaderToolsOpen) return;
@@ -2122,6 +2142,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const syncOpenVehicleModalFromServer = React.useCallback(async () => {
     const id = selectedCardRef.current?.id;
     if (!id) return;
+    // Evita refetch + setState em massa enquanto o usuário edita o orçamento (lab/pátio).
+    if (isBudgetOpenRef.current) return;
     try {
       const [order, photos, budgets, comments] = await Promise.all([
         getServiceOrderById(id),
@@ -2129,6 +2151,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
         getServiceOrderBudgets(id),
         getServiceOrderComments(id),
       ]);
+      if (isBudgetOpenRef.current) return;
       setServiceOrderDetail(order);
       const listItem = serviceOrderDetailToListItem(order);
       const nameMap = buildTechnicianNameMap(systemTechnicians);
@@ -2167,11 +2190,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
       if (!isEditingDescRef.current) {
         setDescText(stripLegacyVehicleCategoryFromComplaint(order.issue_description || ""));
       }
-      if (!isEditingVehicleObservationsRef.current) {
-        const obs = order.vehicle_observations ?? '';
-        setVehicleObservationsEditValue(obs);
-        setLastSavedVehicleObservations(obs);
-      }
       void fetchReminders();
     } catch (e) {
       console.error("syncOpenVehicleModalFromServer", e);
@@ -2185,6 +2203,16 @@ export const PatioView: React.FC<PatioViewProps> = ({
     realtimeWorkshopId: serviceOrderDetail?.workshop_id,
   });
 
+  /** Após fechar o orçamento, aplica um sync que ficou em espera (Realtime/poll). */
+  const wasBudgetOpenRef = useRef(false);
+  useEffect(() => {
+    const wasOpen = wasBudgetOpenRef.current;
+    wasBudgetOpenRef.current = isBudgetOpen;
+    if (!wasOpen || isBudgetOpen) return;
+    if (!selectedCard?.id) return;
+    void syncOpenVehicleModalFromServer();
+  }, [isBudgetOpen, selectedCard?.id, syncOpenVehicleModalFromServer]);
+
   const syncHistoryDetailFromServer = React.useCallback(async () => {
     const card = selectedHistoryCardRef.current;
     if (!card?.id) return;
@@ -2196,11 +2224,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
         getServiceOrderBudgets(card.id),
       ]);
       setHistoryServiceOrderDetail(order);
-      if (!isEditingVehicleObservationsRef.current && !selectedCardRef.current) {
-        const obs = order.vehicle_observations ?? '';
-        setVehicleObservationsEditValue(obs);
-        setLastSavedVehicleObservations(obs);
-      }
       setHistorySavedBudgets(budgets);
       setHistoryCardDetails({
         actions: (comments ?? []).map(commentToAction),
@@ -2267,13 +2290,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const [savingDeliveryDate, setSavingDeliveryDate] = useState(false);
   const [deliveryDateSavedMessage, setDeliveryDateSavedMessage] = useState(false);
 
-  // Observações internas do veículo (modal Pátio)
-  const [vehicleObservationsEditValue, setVehicleObservationsEditValue] = useState('');
-  const [lastSavedVehicleObservations, setLastSavedVehicleObservations] = useState('');
+  // Observações internas do veículo (modal Pátio) — lista serializada em vehicle_observations
   const [savingVehicleObservations, setSavingVehicleObservations] = useState(false);
-  const [isEditingVehicleObservations, setIsEditingVehicleObservations] = useState(false);
-  const isEditingVehicleObservationsRef = useRef(false);
-  isEditingVehicleObservationsRef.current = isEditingVehicleObservations;
 
   // Modal editar nome do veículo / placa
   const [isVehicleEditOpen, setIsVehicleEditOpen] = useState(false);
@@ -2411,12 +2429,28 @@ export const PatioView: React.FC<PatioViewProps> = ({
       const nextBoardCards = [...byId.values()].sort(
         (a, b) => new Date(b.dateLastActivity).getTime() - new Date(a.dateLastActivity).getTime()
       );
+      const movingId = stageChangingCardIdRef.current;
+      const mergedBoardCards =
+        movingId
+          ? nextBoardCards.map((c) => {
+              if (c.id !== movingId) return c;
+              const local = cardsRef.current.find((x) => x.id === movingId);
+              if (!local || local.idList === c.idList) return c;
+              // Mantém a etapa otimista até o PUT concluir.
+              return {
+                ...c,
+                idList: local.idList,
+                garantiaTag: local.garantiaTag,
+                dateLastActivity: local.dateLastActivity,
+              };
+            })
+          : nextBoardCards;
       const nextExternalCards = externalRepairOrders
         .map((o) =>
           orderToCard({ ...o, status: EXTERNAL_REPAIR_STATUS } as ServiceOrderListItem, nameMap, orderType)
         )
         .sort((a, b) => new Date(b.dateLastActivity).getTime() - new Date(a.dateLastActivity).getTime());
-      setCards(nextBoardCards);
+      setCards(mergedBoardCards);
       setExternalRepairCards(nextExternalCards);
       setAllMembers([]);
       setError(null);
@@ -2425,7 +2459,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
       const openId = selectedCardRef.current?.id;
       if (openId) {
         const fresh =
-          nextBoardCards.find((c) => c.id === openId) ??
+          mergedBoardCards.find((c) => c.id === openId) ??
           nextExternalCards.find((c) => c.id === openId) ??
           null;
         if (fresh) {
@@ -2619,13 +2653,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
       setDeliveryDateEditValue(dd);
       setLastSavedDeliveryDate(dd);
       setDeliveryDateSavedMessage(false);
-      if (!isEditingVehicleObservationsRef.current) {
-        const obs = selectedCard.vehicleObservations ?? '';
-        setVehicleObservationsEditValue(obs);
-        setLastSavedVehicleObservations(obs);
-      }
     }
-  }, [selectedCard?.id, selectedCard?.mileageKm, selectedCard?.deliveryDate, selectedCard?.vehicleObservations]);
+  }, [selectedCard?.id, selectedCard?.mileageKm, selectedCard?.deliveryDate]);
 
   /** Etapa do modal acompanha o card (Realtime/quadro) mesmo se o detail estiver defasado. */
   useEffect(() => {
@@ -2640,52 +2669,91 @@ export const PatioView: React.FC<PatioViewProps> = ({
   }, [selectedCard?.id, selectedCard?.idList, serviceOrderDetail?.id, serviceOrderDetail?.status]);
 
   useEffect(() => {
-    if (selectedCard || !selectedHistoryCard) return;
-    if (!isEditingVehicleObservationsRef.current) {
-      const obs = historyServiceOrderDetail?.vehicle_observations ?? '';
-      setVehicleObservationsEditValue(obs);
-      setLastSavedVehicleObservations(obs);
-    }
-  }, [
-    selectedCard,
-    selectedHistoryCard?.id,
-    historyServiceOrderDetail?.id,
-    historyServiceOrderDetail?.vehicle_observations,
-  ]);
-
-  useEffect(() => {
-    setIsEditingVehicleObservations(false);
-  }, [selectedCard?.id, selectedHistoryCard?.id]);
-
-  useEffect(() => {
-    if (!selectedCard || serviceOrderDetail?.id !== selectedCard.id) return;
-    if (isEditingVehicleObservationsRef.current) return;
-    const obs = serviceOrderDetail.vehicle_observations ?? '';
-    setVehicleObservationsEditValue(obs);
-    setLastSavedVehicleObservations(obs);
-  }, [selectedCard?.id, serviceOrderDetail?.id, serviceOrderDetail?.vehicle_observations]);
-
-  useEffect(() => {
     onActiveCardsCountChange?.(cards.length);
   }, [cards.length, onActiveCardsCountChange]);
 
-  // Abrir modal do veículo ao clicar em notificação (navegação da central de notificações)
+  // Abrir modal ao escanear QR / notificação (navegação externa)
   useEffect(() => {
-    if (!openServiceOrderIdProp || openServiceOrderHandledRef.current) return;
-    if (cards.length === 0) return;
-    const card = cards.find((c) => c.id === openServiceOrderIdProp);
+    if (!openServiceOrderIdProp) return;
+
+    // Novo scan USB (mesmo id ou outro): libera o pedido para abrir de novo.
+    if (
+      openServiceOrderScanToken > 0 &&
+      openServiceOrderScanToken !== lastOpenServiceOrderScanTokenRef.current
+    ) {
+      lastOpenServiceOrderScanTokenRef.current = openServiceOrderScanToken;
+      openServiceOrderHandledRef.current = false;
+    }
+
+    if (openServiceOrderHandledRef.current) return;
+    // Espera a 1ª carga do quadro para não descartar o id cedo demais.
+    if (initialLoading) return;
+
+    const card =
+      cards.find((c) => c.id === openServiceOrderIdProp) ??
+      externalRepairCards.find((c) => c.id === openServiceOrderIdProp) ??
+      null;
+
     if (card) {
+      setSelectedHistoryCard(null);
       setSelectedCard(card);
       // Sem seção para rolar: libera o pedido já (senão o id fica preso no pai e cada refresh da lista reabre o modal).
       if (!openServiceOrderSection) {
         openServiceOrderHandledRef.current = true;
         onOpenServiceOrderHandled?.();
       }
-    } else {
-      openServiceOrderHandledRef.current = true;
-      onOpenServiceOrderHandled?.();
+      return;
     }
-  }, [openServiceOrderIdProp, cards, onOpenServiceOrderHandled, openServiceOrderSection]);
+
+    let cancelled = false;
+    void (async () => {
+      try {
+        const detail = await getServiceOrderById(openServiceOrderIdProp);
+        if (cancelled) return;
+        // Scan de etiqueta do lab: se a OS for de outro tipo, libera o pedido neste quadro.
+        if (detail.order_type && detail.order_type !== orderType) {
+          openServiceOrderHandledRef.current = true;
+          onOpenServiceOrderHandled?.();
+          return;
+        }
+        const listItem = serviceOrderDetailToListItem(detail);
+        const nameMap = buildTechnicianNameMap(systemTechnicians);
+        const nextCard = orderToCard(
+          {
+            ...listItem,
+            status: normalizeStatusForFlow(listItem.status, flowKind),
+          },
+          nameMap,
+          orderType
+        );
+        setSelectedHistoryCard(null);
+        setSelectedCard(nextCard);
+        if (!openServiceOrderSection) {
+          openServiceOrderHandledRef.current = true;
+          onOpenServiceOrderHandled?.();
+        }
+      } catch {
+        if (cancelled) return;
+        openServiceOrderHandledRef.current = true;
+        onOpenServiceOrderHandled?.();
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    openServiceOrderIdProp,
+    openServiceOrderScanToken,
+    cards,
+    externalRepairCards,
+    initialLoading,
+    onOpenServiceOrderHandled,
+    openServiceOrderSection,
+    orderType,
+    flowKind,
+    systemTechnicians,
+  ]);
 
   // Rolar à seção (comentários, orçamentos, queixa) após abrir o modal e carregar detalhes
   useEffect(() => {
@@ -3002,9 +3070,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const handleOpenHistoryCardDetails = (card: TrelloCard) => {
     setSelectedHistoryCard(card);
     setUnarchiveError(null);
-    setVehicleObservationsEditValue('');
-    setLastSavedVehicleObservations('');
-    setIsEditingVehicleObservations(false);
     const cached = vehicleCardDetailsCacheRef.current.get(card.id);
     setHistoryCardDetails(
       cached
@@ -3026,11 +3091,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
       .then(([order, photos, comments, budgets]) => {
         if (selectedHistoryCardRef.current?.id !== order.id) return;
         setHistoryServiceOrderDetail(order);
-        if (!isEditingVehicleObservationsRef.current) {
-          const obs = order.vehicle_observations ?? '';
-          setVehicleObservationsEditValue(obs);
-          setLastSavedVehicleObservations(obs);
-        }
         setHistorySavedBudgets(budgets);
         setHistoryCardDetails({
           actions: (comments ?? []).map(commentToAction),
@@ -3177,36 +3237,50 @@ export const PatioView: React.FC<PatioViewProps> = ({
       return;
     }
 
-    setStageChangingCardId(card.id);
-    setIsMoving(true);
-    try {
-      await updateServiceOrderStatus(card.id, newListId as ServiceOrderStatus, actorOptions);
-      const updatedCard: BoardCard = {
-        ...card,
-        idList: newListId,
-        garantiaTag: newListId === 'GARANTIA' || card.garantiaTag,
-      };
+    const previousListId = card.idList;
+    const previousGarantiaTag = Boolean(card.garantiaTag);
+    const nextGarantiaTag = newListId === 'GARANTIA' || previousGarantiaTag;
+    const movedAt = new Date().toISOString();
+
+    const applyLocalStage = (listId: string, garantiaTag: boolean, activityAt: string) => {
       setCards((prev) =>
         prev.map((c) =>
-          c.id === card.id ? { ...c, idList: newListId, garantiaTag: newListId === 'GARANTIA' || c.garantiaTag } : c
+          c.id === card.id
+            ? { ...c, idList: listId, garantiaTag, dateLastActivity: activityAt }
+            : c
         )
       );
       const sel = selectedCardRef.current;
       if (sel?.id === card.id) {
-        setSelectedCard(updatedCard);
+        setSelectedCard({
+          ...sel,
+          idList: listId,
+          garantiaTag,
+          dateLastActivity: activityAt,
+        });
         setServiceOrderDetail((prev) =>
           prev?.id === card.id
-            ? { ...prev, status: newListId as ServiceOrderStatus, updated_at: new Date().toISOString() }
+            ? { ...prev, status: listId as ServiceOrderStatus, updated_at: activityAt }
             : prev
         );
       }
-    } catch (err: any) {
+    };
+
+    // Atualização otimista: a coluna do Kanban deriva de `card.idList` (= status da OS).
+    applyLocalStage(newListId, nextGarantiaTag, movedAt);
+    stageChangingCardIdRef.current = card.id;
+    setStageChangingCardId(card.id);
+    setIsMoving(true);
+    try {
+      await updateServiceOrderStatus(card.id, newListId as ServiceOrderStatus, actorOptions);
+    } catch (err: unknown) {
       console.error('Failed to move', err);
-      alert(err?.message ?? 'Erro ao mover.');
+      applyLocalStage(previousListId, previousGarantiaTag, card.dateLastActivity || movedAt);
+      alert((err as Error)?.message ?? 'Erro ao mover. O card voltou para a etapa anterior.');
     } finally {
+      stageChangingCardIdRef.current = null;
       setIsMoving(false);
       setStageChangingCardId(null);
-      fetchData(true);
     }
   };
 
@@ -3283,35 +3357,29 @@ export const PatioView: React.FC<PatioViewProps> = ({
       : (historyServiceOrderDetail?.vehicle_observations ?? '')
   ).trim();
 
-  const vehicleObservationsDirty =
-    isEditingVehicleObservations &&
-    vehicleObservationsEditValue.trim() !== lastSavedVehicleObservations.trim();
-
-  const handleSaveVehicleObservations = async () => {
+  const handleSaveVehicleObservationsList = async (serialized: string | null) => {
     const orderId = selectedCard?.id ?? selectedHistoryCard?.id;
     if (!orderId) return;
-    const value = vehicleObservationsEditValue.trim();
     setSavingVehicleObservations(true);
     try {
-      await updateServiceOrderVehicleObservations(orderId, value || null, actorOptions);
-      setLastSavedVehicleObservations(value);
-      setIsEditingVehicleObservations(false);
+      await updateServiceOrderVehicleObservations(orderId, serialized, actorOptions);
       if (selectedCard?.id === orderId) {
-        const updated = { ...selectedCard, vehicleObservations: value || null };
+        const updated = { ...selectedCard, vehicleObservations: serialized };
         setSelectedCard(updated);
         setCards((prev) => prev.map((c) => (c.id === orderId ? updated : c)));
         setServiceOrderDetail((prev) =>
-          prev?.id === orderId ? { ...prev, vehicle_observations: value || null } : prev
+          prev?.id === orderId ? { ...prev, vehicle_observations: serialized } : prev
         );
       }
       if (selectedHistoryCard?.id === orderId) {
         setHistoryServiceOrderDetail((prev) =>
-          prev?.id === orderId ? { ...prev, vehicle_observations: value || null } : prev
+          prev?.id === orderId ? { ...prev, vehicle_observations: serialized } : prev
         );
       }
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : 'Erro ao salvar observações do veículo.';
       alert(message);
+      throw e instanceof Error ? e : new Error(message);
     } finally {
       setSavingVehicleObservations(false);
     }
@@ -3414,6 +3482,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
     if (!selectedCard || !newComment.trim()) return;
     const text = newComment.trim();
     setNewComment('');
+    if (commentComposerRef.current) {
+      commentComposerRef.current.style.height = '44px';
+    }
     setSendingComment(true);
     try {
       await addServiceOrderComment(
@@ -4459,13 +4530,32 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const getServiceSuggestions = (description: string) => {
     const q = normalizeText(description.trim());
     if (!q) return [];
-    return workshopServices.filter(s => normalizeText(s.name).includes(q)).slice(0, 12);
+    const out: WorkshopService[] = [];
+    for (const s of workshopServices) {
+      if (normalizeText(s.name).includes(q)) {
+        out.push(s);
+        if (out.length >= 12) break;
+      }
+    }
+    return out;
   };
+
+  const workshopPartsSearchIndex = useMemo(
+    () => workshopParts.map((p) => ({ part: p, key: normalizeText(p.name) })),
+    [workshopParts]
+  );
 
   const getPartSuggestions = (description: string) => {
     const q = normalizeText(description.trim());
     if (!q) return [];
-    return workshopParts.filter(p => normalizeText(p.name).includes(q)).slice(0, 12);
+    const out: WorkshopPart[] = [];
+    for (const entry of workshopPartsSearchIndex) {
+      if (entry.key.includes(q)) {
+        out.push(entry.part);
+        if (out.length >= 12) break;
+      }
+    }
+    return out;
   };
 
   const budgetPartQuickViewCatalogNumber = useMemo(() => {
@@ -4474,11 +4564,20 @@ export const PatioView: React.FC<PatioViewProps> = ({
     return idx >= 0 ? idx + 1 : undefined;
   }, [budgetPartQuickView, workshopParts]);
 
+  const focusedServiceDescription = suggestionsForServiceId
+    ? budgetServices.find((s) => s.id === suggestionsForServiceId)?.description
+    : undefined;
+
   useEffect(() => {
     const update = () => {
       if (suggestionsForServiceId && focusedServiceInputRef.current) {
         const rect = focusedServiceInputRef.current.getBoundingClientRect();
-        setSuggestionBoxPosition({ top: rect.bottom + 4, left: rect.left, width: rect.width });
+        const next = { top: rect.bottom + 4, left: rect.left, width: rect.width };
+        setSuggestionBoxPosition((prev) =>
+          prev && prev.top === next.top && prev.left === next.left && prev.width === next.width
+            ? prev
+            : next
+        );
       } else {
         setSuggestionBoxPosition(null);
       }
@@ -4490,13 +4589,30 @@ export const PatioView: React.FC<PatioViewProps> = ({
       window.removeEventListener('resize', update);
       window.removeEventListener('scroll', update, true);
     };
-  }, [suggestionsForServiceId, budgetServices]);
+  }, [suggestionsForServiceId]);
+
+  // Textarea de serviço cresce com o texto — só reposiciona a janela, sem rebind a cada tecla na lista.
+  useLayoutEffect(() => {
+    if (!suggestionsForServiceId || !focusedServiceInputRef.current) return;
+    const rect = focusedServiceInputRef.current.getBoundingClientRect();
+    const next = { top: rect.bottom + 4, left: rect.left, width: rect.width };
+    setSuggestionBoxPosition((prev) =>
+      prev && prev.top === next.top && prev.left === next.left && prev.width === next.width
+        ? prev
+        : next
+    );
+  }, [suggestionsForServiceId, focusedServiceDescription]);
 
   useEffect(() => {
     const update = () => {
       if (suggestionsForPartId && focusedPartInputRef.current) {
         const rect = focusedPartInputRef.current.getBoundingClientRect();
-        setPartSuggestionBoxPosition({ top: rect.bottom + 4, left: rect.left, width: rect.width });
+        const next = { top: rect.bottom + 4, left: rect.left, width: rect.width };
+        setPartSuggestionBoxPosition((prev) =>
+          prev && prev.top === next.top && prev.left === next.left && prev.width === next.width
+            ? prev
+            : next
+        );
       } else {
         setPartSuggestionBoxPosition(null);
       }
@@ -4508,7 +4624,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
       window.removeEventListener('resize', update);
       window.removeEventListener('scroll', update, true);
     };
-  }, [suggestionsForPartId, budgetParts]);
+  }, [suggestionsForPartId]);
 
   useEffect(() => {
     if (!scrollBudgetServicesAddRef.current) return;
@@ -5973,6 +6089,14 @@ export const PatioView: React.FC<PatioViewProps> = ({
           if (variant === 'hscroll' && isPortraitOrientation) {
             z *= BOARD_PORTRAIT_HSCROLL_ZOOM_MULT;
           }
+          // Modo PC: zoom out de 10% na grade inicial do Pátio.
+          if (desktopShell) {
+            z *= 0.9;
+          }
+          // Trello / por mecânico: zoom out de 15% nos cartões (Pátio e Laboratório).
+          if (boardLayoutMode === 'trello' || boardLayoutMode === 'by_mechanic') {
+            z *= 0.85;
+          }
           return z;
         };
         const zoomWrap = (node: React.ReactNode, variant: 'grid' | 'hscroll' = 'grid') => (
@@ -6064,25 +6188,44 @@ export const PatioView: React.FC<PatioViewProps> = ({
               onDragStart={
                 trelloDrag
                   ? (e) => {
+                      const target = e.target as HTMLElement | null;
+                      if (
+                        target?.closest?.(
+                          'button, a, input, textarea, select, [role="button"], [contenteditable="true"]'
+                        )
+                      ) {
+                        e.preventDefault();
+                        return;
+                      }
                       e.stopPropagation();
+                      trelloDragCardIdRef.current = card.id;
+                      trelloDragOriginListIdRef.current = card.idList;
                       e.dataTransfer.effectAllowed = 'move';
+                      // text/plain: Safari/Firefox; MIME custom: Chrome.
+                      e.dataTransfer.setData('text/plain', card.id);
                       e.dataTransfer.setData('application/x-patio-card-id', card.id);
                       setTrelloDragCardId(card.id);
+                      patioTrelloSkipClickRef.current = false;
                     }
                   : undefined
               }
               onDragEnd={
                 trelloDrag
                   ? () => {
+                      trelloDragCardIdRef.current = null;
+                      trelloDragOriginListIdRef.current = null;
                       setTrelloDragCardId(null);
                       setTrelloDragOverListId(null);
                       patioTrelloSkipClickRef.current = true;
+                      window.setTimeout(() => {
+                        patioTrelloSkipClickRef.current = false;
+                      }, 120);
                     }
                   : undefined
               }
-              className={`h-auto w-full self-start transition-opacity duration-300 ease-out ${
-                trelloDrag && trelloDragCardId === card.id ? 'opacity-55' : ''
-              }`}
+              className={`h-auto w-full self-start transition-opacity duration-200 ease-out ${
+                trelloDrag && trelloDragCardId === card.id ? 'opacity-50' : ''
+              } ${trelloDrag && trelloDragCardId && trelloDragCardId !== card.id ? 'pointer-events-none' : ''}`}
             >
               <div
                 onClick={() => {
@@ -6313,7 +6456,69 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 ) : null}
               </div>
 
-              {/* Botões de Ação Inferiores */}
+              {/* Em Trello/por mecânico: sem botão de alterar etapa (arraste/coluna ou ficha). */}
+              {boardLayoutMode === 'trello' || boardLayoutMode === 'by_mechanic' ? (
+                boardLayoutMode === 'by_mechanic' ||
+                (can('canArchiveCard') && (showDeliverButton || showNotApprovedDeliverButton)) ? (
+                <div
+                  className={`relative w-full shrink-0 ${
+                    boardPanoramic ? 'space-y-[calc(0.375rem*1.6146)]' : 'space-y-2'
+                  }`}
+                >
+                  {boardLayoutMode === 'by_mechanic' ? (
+                    <div
+                      className={`
+                        flex w-full items-center gap-2 rounded-2xl border-0 shadow-none pointer-events-none
+                        ${
+                          boardPanoramic
+                            ? 'min-h-[calc(40px*1.6146)] py-[calc(0.4rem*1.6146)] pl-3.5 pr-2.5 text-[13px]'
+                            : 'min-h-[44px] py-2 pl-5 pr-3'
+                        }
+                        ${statusConfig.style}
+                      `}
+                      aria-label={`Etapa: ${statusConfig.label}`}
+                    >
+                      <span className="min-w-0 flex-1 truncate text-left text-[15px] font-semibold uppercase leading-snug tracking-wide !text-black dark:!text-black sm:text-[16px] portrait:text-[12px]">
+                        {statusConfig.label}
+                      </span>
+                    </div>
+                  ) : null}
+                  {can('canArchiveCard') && (showDeliverButton || showNotApprovedDeliverButton) ? (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        const msg = showDeliverButton
+                          ? isModuleMode
+                            ? 'Confirmar entrega desta peça? Ele será arquivado e irá para o histórico.'
+                            : 'Confirmar entrega deste veículo finalizado? Ele será arquivado e irá para o histórico.'
+                          : isModuleMode
+                            ? 'Confirmar entrega desta peça não aprovada? Ele será arquivado e irá para o histórico.'
+                            : 'Confirmar entrega deste veículo não aprovado? Ele será arquivado e irá para o histórico.';
+                        if (archivingId === card.id) return;
+                        if (window.confirm(msg)) {
+                          handleDeliverVehicle(card.id);
+                        }
+                      }}
+                      onPointerDown={(e) => e.stopPropagation()}
+                      className={`inline-flex w-full cursor-pointer items-center justify-center gap-1.5 rounded-2xl border border-emerald-500/70 bg-white/90 font-semibold text-emerald-700 shadow-sm transition-colors hover:bg-emerald-50 hover:text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200 ${
+                        boardPanoramic
+                          ? 'min-h-[calc(40px*1.6146)] px-3 py-2 text-[11px]'
+                          : 'min-h-[44px] px-3 py-2.5 text-[12px]'
+                      }`}
+                    >
+                      {archivingId === card.id ? (
+                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      ) : (
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                      )}
+                      ENTREGAR
+                    </button>
+                  ) : null}
+                </div>
+                ) : null
+              ) : (
               <div
                 className={`relative w-full shrink-0 ${
                   boardPanoramic ? 'space-y-[calc(0.375rem*1.6146)]' : 'space-y-2'
@@ -6375,6 +6580,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   />
                 </button>
               </div>
+              )}
 
               </div>
               </div>
@@ -6385,38 +6591,67 @@ export const PatioView: React.FC<PatioViewProps> = ({
         const layoutMotion =
           'motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-1 motion-safe:duration-300 motion-safe:ease-out';
 
+        const resolveTrelloDragCardId = (e: React.DragEvent): string => {
+          const fromMime = (e.dataTransfer.getData('application/x-patio-card-id') || '').trim();
+          const fromText = (e.dataTransfer.getData('text/plain') || '').trim();
+          const fromRef = (trelloDragCardIdRef.current || '').trim();
+          return fromMime || fromText || fromRef;
+        };
+
+        const handleTrelloColumnDragOver = (e: React.DragEvent, stageId: string) => {
+          e.preventDefault();
+          e.stopPropagation();
+          try {
+            e.dataTransfer.dropEffect = 'move';
+          } catch {
+            /* ignore */
+          }
+          setTrelloDragOverListId((prev) => (prev === stageId ? prev : stageId));
+        };
+
+        const handleTrelloColumnDrop = (e: React.DragEvent, stageId: string) => {
+          e.preventDefault();
+          e.stopPropagation();
+          const id = resolveTrelloDragCardId(e);
+          trelloDragCardIdRef.current = null;
+          trelloDragOriginListIdRef.current = null;
+          setTrelloDragOverListId(null);
+          setTrelloDragCardId(null);
+          patioTrelloSkipClickRef.current = true;
+          window.setTimeout(() => {
+            patioTrelloSkipClickRef.current = false;
+          }, 120);
+          if (!id) return;
+          const c = cardsRef.current.find((x) => x.id === id);
+          if (!c || c.idList === stageId) return;
+          void performStageChangeForCard(c, stageId);
+        };
+
         return (
           <div key={boardLayoutMode} className={layoutMotion}>
             {boardLayoutMode === 'trello'
               ? zoomWrap(
-                  <div ref={boardDragScrollRef} className="patio-board-hscroll flex max-w-full cursor-grab gap-3 overflow-x-auto overflow-y-hidden overscroll-x-contain pb-2 pt-1 [-webkit-overflow-scrolling:touch] scroll-smooth portrait:gap-2 portrait:pb-1.5 sm:gap-4 sm:pb-2.5">
+                  <div ref={boardDragScrollRef} className={`patio-board-hscroll flex max-w-full cursor-grab gap-3 overflow-x-auto overflow-y-hidden overscroll-x-contain pb-2 pt-1 [-webkit-overflow-scrolling:touch] portrait:gap-2 portrait:pb-1.5 sm:gap-4 sm:pb-2.5 ${trelloDragCardId ? '' : 'scroll-smooth'}`}>
                     {stageColumnsSorted.map((stage) => (
                       <div
                         key={stage.id}
+                        data-patio-kanban-column={stage.id}
                         className={`flex w-[min(18.5rem,calc(100vw-2.5rem))] shrink-0 snap-start snap-always portrait:w-[min(15.25rem,calc(92vw-1.25rem))] flex-col ${boardColumnShellClass} ${
                           trelloDragOverListId === stage.id
                             ? 'scale-[1.01] ring-2 ring-[#007AFF]/55 ring-offset-2 ring-offset-zinc-100/80 dark:ring-[#64B5FF]/60 dark:ring-offset-zinc-950/90'
                             : ''
                         }`}
-                        onDragOver={(e) => {
+                        onDragEnter={(e) => {
                           e.preventDefault();
-                          e.dataTransfer.dropEffect = 'move';
                           setTrelloDragOverListId(stage.id);
                         }}
+                        onDragOver={(e) => handleTrelloColumnDragOver(e, stage.id)}
                         onDragLeave={(e) => {
                           const rel = e.relatedTarget as Node | null;
                           if (rel && e.currentTarget.contains(rel)) return;
                           setTrelloDragOverListId((prev) => (prev === stage.id ? null : prev));
                         }}
-                        onDrop={(e) => {
-                          e.preventDefault();
-                          const id = e.dataTransfer.getData('application/x-patio-card-id');
-                          setTrelloDragOverListId(null);
-                          setTrelloDragCardId(null);
-                          if (!id) return;
-                          const c = cards.find((x) => x.id === id);
-                          if (c && c.idList !== stage.id) void performStageChangeForCard(c, stage.id);
-                        }}
+                        onDrop={(e) => handleTrelloColumnDrop(e, stage.id)}
                       >
                         <div
                           className={`sticky top-0 z-[1] flex shrink-0 items-center justify-between gap-2 ${boardColumnHeaderTopClass} border-b border-zinc-200/60 px-3 py-2.5 dark:border-white/[0.08] sm:px-3.5 ${stage.style}`}
@@ -6444,7 +6679,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             </span>
                           </div>
                         </div>
-                        <div className="flex min-h-[min(12rem,40vh)] flex-1 flex-col gap-3 p-2.5 portrait:gap-2.5 portrait:p-2 sm:min-h-[14rem] sm:gap-3.5 sm:p-3">
+                        <div
+                          className="flex min-h-[min(12rem,40vh)] flex-1 flex-col gap-3 p-2.5 portrait:gap-2.5 portrait:p-2 sm:min-h-[14rem] sm:gap-3.5 sm:p-3"
+                          onDragOver={(e) => handleTrelloColumnDragOver(e, stage.id)}
+                          onDrop={(e) => handleTrelloColumnDrop(e, stage.id)}
+                        >
                           {cardsForStageColumn(stage.id).map((c) => renderPatioBoardCard(c, true))}
                         </div>
                       </div>
@@ -6570,7 +6809,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   <div className="relative min-w-0 flex-1">
                     <input
                       type="text"
-                      placeholder="Placa, nome, CPF, telefone ou CEP…"
+                      placeholder="Buscar"
                       value={historySearchPlate}
                       onChange={(e) => setHistorySearchPlate(e.target.value)}
                       onKeyDown={(e) => e.key === 'Enter' && handleSearchHistory()}
@@ -6780,6 +7019,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                       <div className="space-y-10 lg:col-span-2">
                         <div>
                            <p className={uiSectionTitleRow}>
+                              <img src="/icons/queixa-ios.png" alt="" className="h-3.5 w-3.5 rounded-[0.25rem] object-cover" />
                               Queixa do cliente
                            </p>
                            <div className={`${iosModalInsetCard} p-5 ${uiReadBody} sm:p-6`}>
@@ -6791,75 +7031,14 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
                         {!isModuleMode ? (
                           <div>
-                            <div className={`${patioVmInsetCard} min-w-0 overflow-hidden shadow-none`}>
-                              <div className="relative min-w-0">
-                                <div
-                                  className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.07),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.08),transparent_50%)] dark:bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.11),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.1),transparent_52%)]"
-                                  aria-hidden
-                                />
-                                <div
-                                  className="pointer-events-none absolute -right-10 top-8 h-24 w-24 rounded-full bg-gradient-to-br from-[#007AFF]/14 to-transparent opacity-80 blur-2xl dark:from-[#007AFF]/22"
-                                  aria-hidden
-                                />
-                                <div className="relative flex items-center justify-between gap-2 border-b border-black/[0.06] bg-white/85 px-2.5 py-2 pl-3 backdrop-blur-[2px] dark:border-white/[0.08] dark:bg-zinc-950/35 sm:gap-3 sm:px-3 sm:py-2.5 sm:pl-4">
-                                  <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-2.5">
-                                    <p className={uiOsModalCardSectionTitle}>Observações do veículo</p>
-                                  </div>
-                                  {can('canEditFicha') && !isEditingVehicleObservations ? (
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        setIsEditingVehicleObservations(true);
-                                        setVehicleObservationsEditValue(lastSavedVehicleObservations);
-                                      }}
-                                      className="inline-flex shrink-0 items-center gap-1 rounded-xl border border-[#007AFF]/25 bg-[#007AFF]/[0.09] px-2.5 py-1 text-[11px] font-semibold text-[#007AFF] shadow-[inset_0_1px_0_rgba(255,255,255,0.35)] transition-colors hover:border-[#007AFF]/40 hover:bg-[#007AFF]/15 dark:border-[#007AFF]/35 dark:bg-[#007AFF]/15 dark:text-[#b8d9ff] dark:hover:bg-[#007AFF]/22"
-                                    >
-                                      Editar
-                                    </button>
-                                  ) : null}
-                                </div>
-                                {isEditingVehicleObservations && can('canEditFicha') ? (
-                                  <div className="animate-in fade-in duration-200 flex flex-col gap-3 bg-zinc-50/90 px-3 py-3 pl-3 dark:bg-white/[0.02] sm:px-4 sm:py-4 sm:pl-4">
-                                    <textarea
-                                      value={vehicleObservationsEditValue}
-                                      onChange={(e) => setVehicleObservationsEditValue(e.target.value)}
-                                      className={`${patioVmInputClass} relative z-[2] min-h-[180px] resize-none cursor-text text-[15px] leading-relaxed !caret-[#007AFF] dark:text-white dark:!caret-[#93c5fd]`}
-                                      placeholder="Digite observações sobre o veículo…"
-                                    />
-                                    <div className="flex justify-end gap-1.5">
-                                      <button
-                                        type="button"
-                                        onClick={() => {
-                                          setIsEditingVehicleObservations(false);
-                                          setVehicleObservationsEditValue(lastSavedVehicleObservations);
-                                        }}
-                                        disabled={savingVehicleObservations}
-                                        className="rounded-lg px-2.5 py-1.5 text-[12px] font-semibold text-zinc-500 transition-colors hover:bg-black/5 hover:text-zinc-900 disabled:opacity-50 dark:text-zinc-400 dark:hover:bg-white/[0.06] dark:hover:text-white"
-                                      >
-                                        Cancelar
-                                      </button>
-                                      {vehicleObservationsDirty ? (
-                                        <button
-                                          type="button"
-                                          onClick={handleSaveVehicleObservations}
-                                          disabled={savingVehicleObservations}
-                                          className="inline-flex items-center gap-1 rounded-lg bg-[#007AFF] px-2.5 py-1.5 text-[12px] font-semibold text-white shadow-sm shadow-blue-500/20 transition-all hover:opacity-95 active:scale-[0.98] disabled:opacity-45"
-                                        >
-                                          {savingVehicleObservations ? <RefreshCw className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
-                                          Salvar
-                                        </button>
-                                      ) : null}
-                                    </div>
-                                  </div>
-                                ) : (
-                                  <div className="border-t border-zinc-200/60 bg-zinc-50/90 px-3 py-3 pl-3 dark:border-white/[0.06] dark:bg-white/[0.02] sm:px-4 sm:py-4 sm:pl-4">
-                                    <p className={`${uiReadBody} whitespace-pre-wrap text-[15px] leading-relaxed`}>
-                                      {displayedVehicleObservations || 'Nenhuma observação registrada para este veículo.'}
-                                    </p>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
+                            <VehicleObservationsSection
+                              insetCardClass={patioVmInsetCard}
+                              inputClass={patioVmInputClass}
+                              rawValue={displayedVehicleObservations}
+                              canEdit={can('canEditFicha')}
+                              saving={savingVehicleObservations}
+                              onSave={handleSaveVehicleObservationsList}
+                            />
                           </div>
                         ) : null}
 
@@ -6868,7 +7047,13 @@ export const PatioView: React.FC<PatioViewProps> = ({
                              Atividades e comentários
                           </p>
                           <div className={`${iosVehicleModalInsetCard} overflow-hidden shadow-none`}>
-                             <div className="max-h-[500px] space-y-4 overflow-y-auto bg-[#F2F2F7]/80 p-4 dark:bg-black/25 custom-scrollbar sm:p-5 sm:space-y-5">
+                             <div
+                               className={`space-y-2.5 bg-[#F2F2F7]/80 p-3 dark:bg-black/25 custom-scrollbar sm:p-3.5 ${
+                                 (historyCardDetails?.actions?.length ?? 0) >= 4
+                                   ? 'max-h-[15.5rem] overflow-y-auto overscroll-contain sm:max-h-[16.5rem]'
+                                   : ''
+                               }`}
+                             >
                                 {historyCardDetails?.actions && historyCardDetails.actions.length > 0 ? (
                                    historyCardDetails.actions.map(action => {
                                       const avatar = getCommentAuthorAvatar(action.memberCreator.fullName, action.memberCreator.avatarUrl);
@@ -6919,6 +7104,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                         {!isModuleMode && selectedHistoryCard && diagnosticAuthSheetContext ? (
                           <div>
                             <p className={uiSectionTitleRow}>
+                              <img src="/icons/autorizacao-diagnostico-ios.png" alt="" className="h-3.5 w-3.5 rounded-[0.25rem] object-cover" />
                               Autorização de diagnóstico
                             </p>
                             <button
@@ -6947,7 +7133,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
                         <div>
                           <p className={uiSectionTitleRow}>
-                            <Calculator className="h-3.5 w-3.5" />
+                            <img src="/icons/novo-orcamento-ios.png" alt="" className="h-3.5 w-3.5 rounded-[0.25rem] object-cover" />
                             Orçamentos
                           </p>
                           <div className={`${iosModalInsetCard} p-4 sm:p-5`}>
@@ -6995,8 +7181,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
                       <div className="space-y-8">
                          <div>
                             <p className={uiSectionTitleRow}>
-                              <Paperclip className="h-3.5 w-3.5" />
-                              Anexos
+                              <img src="/icons/arquivos-ios.png" alt="" className="h-3.5 w-3.5 rounded-[0.25rem] object-cover" />
+                              Arquivos
                             </p>
                             <div className="space-y-3 pb-5 sm:pb-6">
                                {historyCardDetails?.attachments && historyCardDetails.attachments.length > 0 ? (
@@ -7097,14 +7283,14 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                  );
                                }
                                return (
-                                 <ul className="space-y-2">
+                                 <ul className="space-y-1.5">
                                    {links.map((link) => (
                                      <li
                                        key={link.id}
-                                       className="flex items-center justify-between gap-2 rounded-xl border border-zinc-200/70 bg-zinc-50/50 px-3 py-2.5 dark:border-white/[0.08] dark:bg-white/[0.03]"
+                                       className="flex min-w-0 items-center justify-between gap-2 rounded-xl border border-zinc-200/70 bg-zinc-50/50 px-3 py-2 dark:border-white/[0.08] dark:bg-white/[0.03]"
                                      >
-                                       <span className="min-w-0 truncate text-[14px] font-medium text-zinc-900 dark:text-white">
-                                         {link.label?.trim() || link.url}
+                                       <span className="min-w-0 truncate text-[13px] font-medium text-zinc-900 dark:text-white" title={formatReferenceLinkDisplay(link)}>
+                                         {formatReferenceLinkDisplay(link)}
                                        </span>
                                        {link.url?.trim() ? (
                                          <a
@@ -7115,7 +7301,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                            }
                                            target="_blank"
                                            rel="noopener noreferrer"
-                                           className="inline-flex shrink-0 items-center gap-1 text-[13px] font-semibold text-[#007AFF] hover:underline dark:text-[#64B5FF]"
+                                           className="inline-flex shrink-0 items-center gap-1 text-[12px] font-semibold text-[#007AFF] hover:underline dark:text-[#64B5FF]"
                                          >
                                            Abrir <ExternalLink className="h-3.5 w-3.5" />
                                          </a>
@@ -7326,7 +7512,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                   <input
                                     value={externalRepairDraft.vehicleRef}
                                     onChange={(e) => setExternalRepairDraft((p) => ({ ...p, vehicleRef: e.target.value }))}
-                                    placeholder="Ex.: BMW 320i ou referência do pátio"
+                                    placeholder="Referência do veículo"
                                     className={vin}
                                   />
                                 </div>
@@ -7335,7 +7521,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                   <input
                                     value={externalRepairDraft.productIdentification}
                                     onChange={(e) => setExternalRepairDraft((p) => ({ ...p, productIdentification: e.target.value }))}
-                                    placeholder="Ex.: Módulo ABS XYZ, nº de série…"
+                                    placeholder="Identificação do módulo"
                                     className={vin}
                                   />
                                 </div>
@@ -7367,7 +7553,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                     <input
                                       value={externalRepairDraft.productTypeOther}
                                       onChange={(e) => setExternalRepairDraft((p) => ({ ...p, productTypeOther: e.target.value }))}
-                                      placeholder="Ex.: bomba de direção, atuador…"
+                                      placeholder="Peça / item"
                                       className={vin}
                                     />
                                   </div>
@@ -7377,7 +7563,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                   <input
                                     value={externalRepairDraft.service}
                                     onChange={(e) => setExternalRepairDraft((p) => ({ ...p, service: e.target.value }))}
-                                    placeholder="Serviço do pátio ou descrição do reparo"
+                                    placeholder="Descrição do reparo"
                                     className={vin}
                                   />
                                 </div>
@@ -7386,7 +7572,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                   <input
                                     value={externalRepairDraft.vendor}
                                     onChange={(e) => setExternalRepairDraft((p) => ({ ...p, vendor: e.target.value }))}
-                                    placeholder="Ex.: Eletrônica do João"
+                                    placeholder="Oficina / responsável"
                                     className={vin}
                                   />
                                 </div>
@@ -7492,17 +7678,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   </button>
                   </>
                 ) : null}
-                {!isModuleMode && selectedCard && !loadingDetails ? (
-                  <button
-                    type="button"
-                    onClick={handleOpenPatioKeyLabel}
-                    className={`${patioVehicleVm.closeBtn} !border-emerald-500/40 !bg-emerald-600 !text-white shadow-md shadow-emerald-500/25 hover:!bg-emerald-500 dark:!bg-emerald-600 dark:hover:!bg-emerald-500`}
-                    title="Imprimir etiqueta da chave"
-                    aria-label="Imprimir etiqueta"
-                  >
-                    <Tag className="h-5 w-5" />
-                  </button>
-                ) : null}
                 {can('canDeleteCards') && (
                 <button
                   type="button"
@@ -7601,7 +7776,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                               className={`flex min-h-10 w-full min-w-0 items-center gap-2 ${
                                 isModuleMode
                                   ? 'pr-[calc(9.75rem+env(safe-area-inset-right,0px))]'
-                                  : 'pr-[calc(5.75rem+env(safe-area-inset-right,0px))]'
+                                  : 'pr-[calc(4.25rem+env(safe-area-inset-right,0px))]'
                               }`}
                             >
                               {isModuleMode &&
@@ -7610,8 +7785,16 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                   OS #{serviceOrderDetail?.os_number ?? selectedCard.osNumber}
                                 </span>
                               ) : null}
+                              {!isModuleMode && selectedCard.agendaTag ? (
+                                <span
+                                  className="inline-flex items-center rounded-md border border-sky-500/30 bg-sky-500/[0.08] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-sky-700 dark:border-sky-400/25 dark:bg-sky-400/10 dark:text-sky-300"
+                                  title="Veículo originado da Agenda"
+                                >
+                                  Agendado
+                                </span>
+                              ) : null}
                               {!isModuleMode && selectedCard.garantiaTag ? (
-                                <span className="inline-flex max-w-full items-center gap-2 rounded-full border-2 border-red-500/50 bg-red-500/15 px-4 py-2 text-sm font-bold uppercase tracking-wide text-red-600 dark:bg-red-500/20 dark:text-red-400">
+                                <span className="inline-flex max-w-full items-center gap-1 rounded-md border border-red-500/35 bg-red-500/[0.08] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-red-600 dark:border-red-400/30 dark:bg-red-500/10 dark:text-red-300">
                                   Garantia
                                   <button
                                     type="button"
@@ -7620,13 +7803,13 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                       handleRemoveGarantia();
                                     }}
                                     disabled={removingGarantiaId === selectedCard.id}
-                                    className="flex h-6 w-6 items-center justify-center rounded-full bg-red-500/30 text-red-700 transition-colors hover:bg-red-500/50 disabled:opacity-50 dark:text-red-300"
+                                    className="flex h-4 w-4 items-center justify-center rounded-full bg-red-500/20 text-red-700 transition-colors hover:bg-red-500/35 disabled:opacity-50 dark:text-red-300"
                                     title="Remover etiqueta Garantia"
                                   >
                                     {removingGarantiaId === selectedCard.id ? (
-                                      <RefreshCw className="h-3.5 w-3.5 animate-spin" />
+                                      <RefreshCw className="h-2.5 w-2.5 animate-spin" />
                                     ) : (
-                                      <X className="h-3.5 w-3.5" />
+                                      <X className="h-2.5 w-2.5" />
                                     )}
                                   </button>
                                 </span>
@@ -7634,11 +7817,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             </div>
                           ) : (
                           <div
-                            className={`flex flex-wrap items-center gap-2${
+                            className={`flex flex-wrap items-center gap-1.5${
                               !isPatioPcModal
                                 ? isModuleMode
                                   ? ' pr-[calc(9.75rem+env(safe-area-inset-right,0px))]'
-                                  : ' pr-[calc(5.75rem+env(safe-area-inset-right,0px))]'
+                                  : ' pr-[calc(4.25rem+env(safe-area-inset-right,0px))]'
                                 : ''
                             }`}
                           >
@@ -7666,17 +7849,25 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             />
                           </button>
                           ) : null}
+                          {!isModuleMode && selectedCard.agendaTag ? (
+                            <span
+                              className="inline-flex items-center rounded-md border border-sky-500/30 bg-sky-500/[0.08] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-sky-700 dark:border-sky-400/25 dark:bg-sky-400/10 dark:text-sky-300"
+                              title="Veículo originado da Agenda"
+                            >
+                              Agendado
+                            </span>
+                          ) : null}
                           {selectedCard.garantiaTag && (
-                            <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold uppercase tracking-wide bg-red-500/15 dark:bg-red-500/20 text-red-600 dark:text-red-400 border-2 border-red-500/50">
+                            <span className="inline-flex items-center gap-1 rounded-md border border-red-500/35 bg-red-500/[0.08] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-red-600 dark:border-red-400/30 dark:bg-red-500/10 dark:text-red-300">
                               Garantia
                               <button
                                 type="button"
                                 onClick={(e) => { e.stopPropagation(); handleRemoveGarantia(); }}
                                 disabled={removingGarantiaId === selectedCard.id}
-                                className="w-6 h-6 rounded-full flex items-center justify-center bg-red-500/30 hover:bg-red-500/50 text-red-700 dark:text-red-300 transition-colors disabled:opacity-50"
+                                className="flex h-4 w-4 items-center justify-center rounded-full bg-red-500/20 text-red-700 transition-colors hover:bg-red-500/35 disabled:opacity-50 dark:text-red-300"
                                 title="Remover etiqueta Garantia"
                               >
-                                {removingGarantiaId === selectedCard.id ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <X className="w-3.5 h-3.5" />}
+                                {removingGarantiaId === selectedCard.id ? <RefreshCw className="h-2.5 w-2.5 animate-spin" /> : <X className="h-2.5 w-2.5" />}
                               </button>
                             </span>
                           )}
@@ -7748,17 +7939,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                   <Printer className="h-5 w-5" />
                                 </button>
                                 </>
-                              ) : null}
-                              {!isModuleMode && selectedCard && !loadingDetails ? (
-                                <button
-                                  type="button"
-                                  onClick={handleOpenPatioKeyLabel}
-                                  className={`${patioVehicleVm.closeBtn} !border-emerald-500/40 !bg-emerald-600 !text-white shadow-md shadow-emerald-500/25 hover:!bg-emerald-500 dark:!bg-emerald-600 dark:hover:!bg-emerald-500`}
-                                  title="Imprimir etiqueta da chave"
-                                  aria-label="Imprimir etiqueta"
-                                >
-                                  <Tag className="h-5 w-5" />
-                                </button>
                               ) : null}
                               {can('canDeleteCards') ? (
                                 <button
@@ -7960,7 +8140,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                     inputMode="numeric"
                                     value={mileageEditValue}
                                     onChange={(e) => setMileageEditValue(e.target.value)}
-                                    placeholder={isPatioVmMetaPcLike ? '45000' : 'Ex: 45000'}
+                                    placeholder="Km"
                                     className={`${c.numericInput}${isPatioVmMetaPcLike ? '' : ' sm:max-w-none portrait:w-[51%] portrait:flex-none'}`}
                                   />
                                   <button
@@ -8253,28 +8433,28 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                   <div className={`${vi} space-y-4 p-4 sm:p-5`}>
                                     <div>
                                       <label className={iosLabel}>Nome</label>
-                                      <input ref={customerNameInputRef} value={editFichaForm.name} onChange={(e) => setEditFichaForm(f => ({ ...f, name: e.target.value }))} className={vin} placeholder="Nome do cliente" />
+                                      <input ref={customerNameInputRef} value={editFichaForm.name} onChange={(e) => setEditFichaForm(f => ({ ...f, name: e.target.value }))} className={vin} placeholder="Nome" />
                                     </div>
                                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                                       <div>
                                         <label className={iosLabel}>Telefone</label>
-                                        <input value={editFichaForm.phone} onChange={(e) => setEditFichaForm(f => ({ ...f, phone: e.target.value }))} className={vin} placeholder="(11) 99999-9999" />
+                                        <input value={editFichaForm.phone} onChange={(e) => setEditFichaForm(f => ({ ...f, phone: e.target.value }))} className={vin} placeholder="Telefone" />
                                       </div>
                                       <div>
                                         <label className={iosLabel}>E-mail</label>
-                                        <input type="email" value={editFichaForm.email} onChange={(e) => setEditFichaForm(f => ({ ...f, email: e.target.value }))} className={vin} placeholder="email@exemplo.com" />
+                                        <input type="email" value={editFichaForm.email} onChange={(e) => setEditFichaForm(f => ({ ...f, email: e.target.value }))} className={vin} placeholder="E-mail" />
                                       </div>
                                     </div>
                                     <div>
                                       <label className={iosLabel}>CPF</label>
-                                      <input value={editFichaForm.cpf} onChange={(e) => setEditFichaForm(f => ({ ...f, cpf: e.target.value }))} className={vin} placeholder="000.000.000-00" />
+                                      <input value={editFichaForm.cpf} onChange={(e) => setEditFichaForm(f => ({ ...f, cpf: e.target.value }))} className={vin} placeholder="CPF" />
                                     </div>
                                   </div>
                                   <p className={`${iosLabel} ml-0.5`}>Endereço</p>
                                   <div className={`${vi} space-y-4 p-4 sm:p-5`}>
                                     <div>
                                       <label className={iosLabel}>Logradouro</label>
-                                      <input value={editFichaForm.address} onChange={(e) => setEditFichaForm(f => ({ ...f, address: e.target.value }))} className={vin} placeholder="Rua, bairro..." />
+                                      <input value={editFichaForm.address} onChange={(e) => setEditFichaForm(f => ({ ...f, address: e.target.value }))} className={vin} placeholder="Endereço" />
                                     </div>
                                     <div className="grid grid-cols-2 gap-3 sm:gap-4">
                                       <div>
@@ -8283,7 +8463,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                       </div>
                                       <div>
                                         <label className={iosLabel}>CEP</label>
-                                        <input value={editFichaForm.cep} onChange={(e) => setEditFichaForm(f => ({ ...f, cep: e.target.value }))} className={vin} placeholder="00000-000" />
+                                        <input value={editFichaForm.cep} onChange={(e) => setEditFichaForm(f => ({ ...f, cep: e.target.value }))} className={vin} placeholder="CEP" />
                                       </div>
                                     </div>
                                   </div>
@@ -8300,11 +8480,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                                       <div>
                                         <label className={iosLabel}>Marca / montadora</label>
-                                        <input value={editFichaForm.vehicleBrand} onChange={(e) => setEditFichaForm(f => ({ ...f, vehicleBrand: e.target.value }))} className={vin} placeholder="Ex: Renault" />
+                                        <input value={editFichaForm.vehicleBrand} onChange={(e) => setEditFichaForm(f => ({ ...f, vehicleBrand: e.target.value }))} className={vin} placeholder="Marca" />
                                       </div>
                                       <div>
                                         <label className={iosLabel}>Modelo (no card)</label>
-                                        <input value={editFichaForm.vehicleModel} onChange={(e) => setEditFichaForm(f => ({ ...f, vehicleModel: e.target.value }))} className={vin} placeholder="Ex: Logan 1.6" />
+                                        <input value={editFichaForm.vehicleModel} onChange={(e) => setEditFichaForm(f => ({ ...f, vehicleModel: e.target.value }))} className={vin} placeholder="Modelo" />
                                       </div>
                                     </div>
                                   )}
@@ -8312,11 +8492,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                     <>
                                       <div>
                                         <label className={iosLabel}>Veículo / referência</label>
-                                        <input value={editFichaForm.vehicleModel} onChange={(e) => setEditFichaForm(f => ({ ...f, vehicleModel: e.target.value }))} className={vin} placeholder="Ex: BMW 320i" />
+                                        <input value={editFichaForm.vehicleModel} onChange={(e) => setEditFichaForm(f => ({ ...f, vehicleModel: e.target.value }))} className={vin} placeholder="Modelo" />
                                       </div>
                                       <div>
                                         <label className={iosLabel}>Identificação da peça</label>
-                                        <input value={editFichaForm.moduleIdentification} onChange={(e) => setEditFichaForm(f => ({ ...f, moduleIdentification: e.target.value }))} className={vin} placeholder="Ex: Módulo ABS XYZ" />
+                                        <input value={editFichaForm.moduleIdentification} onChange={(e) => setEditFichaForm(f => ({ ...f, moduleIdentification: e.target.value }))} className={vin} placeholder="Módulo" />
                                       </div>
                                       <div>
                                         <label className={iosLabel}>Tipo de peça</label>
@@ -8347,7 +8527,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                             value={editFichaForm.moduleProductOther}
                                             onChange={(e) => setEditFichaForm((f) => ({ ...f, moduleProductOther: e.target.value }))}
                                             className={vin}
-                                            placeholder="Ex: bomba de direção, atuador…"
+                                            placeholder="Peça / item"
                                           />
                                         </div>
                                       )}
@@ -8433,21 +8613,21 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                         </div>
                                         <div>
                                           <label className={iosLabel}>Quilometragem</label>
-                                          <input value={editFichaForm.mileageKm} onChange={(e) => setEditFichaForm(f => ({ ...f, mileageKm: e.target.value }))} className={vin} placeholder="45000" />
+                                          <input value={editFichaForm.mileageKm} onChange={(e) => setEditFichaForm(f => ({ ...f, mileageKm: e.target.value }))} className={vin} placeholder="Km" />
                                         </div>
                                       </div>
                                       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                                         <div>
                                           <label className={iosLabel}>Cor</label>
-                                          <input value={editFichaForm.vehicleColor} onChange={(e) => setEditFichaForm(f => ({ ...f, vehicleColor: e.target.value }))} className={vin} placeholder="Ex: Branca" />
+                                          <input value={editFichaForm.vehicleColor} onChange={(e) => setEditFichaForm(f => ({ ...f, vehicleColor: e.target.value }))} className={vin} placeholder="Cor" />
                                         </div>
                                         <div>
                                           <label className={iosLabel}>Ano</label>
-                                          <input value={editFichaForm.vehicleYear} onChange={(e) => setEditFichaForm(f => ({ ...f, vehicleYear: e.target.value }))} className={vin} placeholder="2010 / 2010" />
+                                          <input value={editFichaForm.vehicleYear} onChange={(e) => setEditFichaForm(f => ({ ...f, vehicleYear: e.target.value }))} className={vin} placeholder="Ano" />
                                         </div>
                                         <div>
                                           <label className={iosLabel}>Motor</label>
-                                          <input value={editFichaForm.vehicleEngineInfo} onChange={(e) => setEditFichaForm(f => ({ ...f, vehicleEngineInfo: e.target.value }))} className={vin} placeholder="Cilindradas / combustível" />
+                                          <input value={editFichaForm.vehicleEngineInfo} onChange={(e) => setEditFichaForm(f => ({ ...f, vehicleEngineInfo: e.target.value }))} className={vin} placeholder="Motor" />
                                         </div>
                                       </div>
                                     </>
@@ -8703,6 +8883,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
                             <div className="relative flex items-center justify-between gap-2 border-b border-black/[0.06] bg-white/85 px-2.5 py-2 pl-3 backdrop-blur-[2px] dark:border-white/[0.08] dark:bg-zinc-950/35 sm:gap-3 sm:px-3 sm:py-2.5 sm:pl-4">
                               <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-2.5">
+                                <div className={uiOsModalSectionAppIcon}>
+                                  <img src="/icons/queixa-ios.png" alt="" className="h-full w-full object-cover" />
+                                </div>
                                 <p className={uiOsModalCardSectionTitle}>
                                   Queixa do cliente
                                 </p>
@@ -8760,7 +8943,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                   value={descText}
                                   onChange={(e) => setDescText(e.target.value)}
                                   className={`${vin} relative z-[2] min-h-[180px] resize-none cursor-text text-[15px] leading-relaxed !caret-[#007AFF] dark:text-white dark:!caret-[#93c5fd]`}
-                                  placeholder="Digite a queixa do cliente..."
+                                  placeholder="Queixa"
                                 />
                                 <div className="flex justify-end gap-1.5">
                                   <button
@@ -8812,75 +8995,14 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
                         {!isModuleMode ? (
                           <div>
-                            <div className={`${vi} min-w-0 overflow-hidden shadow-none`}>
-                              <div className="relative min-w-0">
-                                <div
-                                  className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.07),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.08),transparent_50%)] dark:bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.11),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.1),transparent_52%)]"
-                                  aria-hidden
-                                />
-                                <div
-                                  className="pointer-events-none absolute -right-10 top-8 h-24 w-24 rounded-full bg-gradient-to-br from-[#007AFF]/14 to-transparent opacity-80 blur-2xl dark:from-[#007AFF]/22"
-                                  aria-hidden
-                                />
-                                <div className="relative flex items-center justify-between gap-2 border-b border-black/[0.06] bg-white/85 px-2.5 py-2 pl-3 backdrop-blur-[2px] dark:border-white/[0.08] dark:bg-zinc-950/35 sm:gap-3 sm:px-3 sm:py-2.5 sm:pl-4">
-                                  <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-2.5">
-                                    <p className={uiOsModalCardSectionTitle}>Observações do veículo</p>
-                                  </div>
-                                  {can('canEditFicha') && !isEditingVehicleObservations ? (
-                                    <button
-                                      type="button"
-                                      onClick={() => {
-                                        setIsEditingVehicleObservations(true);
-                                        setVehicleObservationsEditValue(lastSavedVehicleObservations);
-                                      }}
-                                      className="inline-flex shrink-0 items-center gap-1 rounded-xl border border-[#007AFF]/25 bg-[#007AFF]/[0.09] px-2.5 py-1 text-[11px] font-semibold text-[#007AFF] shadow-[inset_0_1px_0_rgba(255,255,255,0.35)] transition-colors hover:border-[#007AFF]/40 hover:bg-[#007AFF]/15 dark:border-[#007AFF]/35 dark:bg-[#007AFF]/15 dark:text-[#b8d9ff] dark:hover:bg-[#007AFF]/22"
-                                    >
-                                      Editar
-                                    </button>
-                                  ) : null}
-                                </div>
-                                {isEditingVehicleObservations && can('canEditFicha') ? (
-                                  <div className="animate-in fade-in duration-200 flex flex-col gap-3 bg-zinc-50/90 px-3 py-3 pl-3 dark:bg-white/[0.02] sm:px-4 sm:py-4 sm:pl-4">
-                                    <textarea
-                                      value={vehicleObservationsEditValue}
-                                      onChange={(e) => setVehicleObservationsEditValue(e.target.value)}
-                                      className={`${patioVehicleVm.input} relative z-[2] min-h-[180px] resize-none cursor-text text-[15px] leading-relaxed !caret-[#007AFF] dark:text-white dark:!caret-[#93c5fd]`}
-                                      placeholder="Digite observações sobre o veículo…"
-                                    />
-                                    <div className="flex justify-end gap-1.5">
-                                      <button
-                                        type="button"
-                                        onClick={() => {
-                                          setIsEditingVehicleObservations(false);
-                                          setVehicleObservationsEditValue(lastSavedVehicleObservations);
-                                        }}
-                                        disabled={savingVehicleObservations}
-                                        className="rounded-lg px-2.5 py-1.5 text-[12px] font-semibold text-zinc-500 transition-colors hover:bg-black/5 hover:text-zinc-900 disabled:opacity-50 dark:text-zinc-400 dark:hover:bg-white/[0.06] dark:hover:text-white"
-                                      >
-                                        Cancelar
-                                      </button>
-                                      {vehicleObservationsDirty ? (
-                                        <button
-                                          type="button"
-                                          onClick={handleSaveVehicleObservations}
-                                          disabled={savingVehicleObservations}
-                                          className="inline-flex items-center gap-1 rounded-lg bg-[#007AFF] px-2.5 py-1.5 text-[12px] font-semibold text-white shadow-sm shadow-blue-500/20 transition-all hover:opacity-95 active:scale-[0.98] disabled:opacity-45"
-                                        >
-                                          {savingVehicleObservations ? <RefreshCw className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
-                                          Salvar
-                                        </button>
-                                      ) : null}
-                                    </div>
-                                  </div>
-                                ) : (
-                                  <div className="border-t border-zinc-200/60 bg-zinc-50/90 px-3 py-3 pl-3 dark:border-white/[0.06] dark:bg-white/[0.02] sm:px-4 sm:py-4 sm:pl-4">
-                                    <p className={`${uiReadBody} whitespace-pre-wrap text-[15px] leading-relaxed`}>
-                                      {displayedVehicleObservations || 'Nenhuma observação registrada para este veículo.'}
-                                    </p>
-                                  </div>
-                                )}
-                              </div>
-                            </div>
+                            <VehicleObservationsSection
+                              insetCardClass={vi}
+                              inputClass={vin}
+                              rawValue={displayedVehicleObservations}
+                              canEdit={can('canEditFicha')}
+                              saving={savingVehicleObservations}
+                              onSave={handleSaveVehicleObservationsList}
+                            />
                           </div>
                         ) : null}
 
@@ -8889,32 +9011,50 @@ export const PatioView: React.FC<PatioViewProps> = ({
                         selectedCard &&
                         !selectedHistoryCard &&
                         diagnosticAuthSheetContext ? (
-                          <div className="min-w-0">
-                            <h3 className={patioVehicleVm.sectionTitle}>
-                              <FileText className="h-3.5 w-3.5 shrink-0" />
-                              Autorização de diagnóstico
-                            </h3>
-                            <button
-                              type="button"
-                              onClick={() => setDiagnosticAuthSheetOpen(true)}
-                              className="group relative w-full overflow-hidden rounded-xl border border-zinc-200/85 bg-gradient-to-br from-white via-white to-zinc-50/95 text-left shadow-[0_4px_22px_-10px_rgba(0,122,255,0.22),inset_0_1px_0_rgba(255,255,255,0.92)] transition-all hover:border-[#007AFF]/40 hover:shadow-[0_10px_32px_-12px_rgba(0,122,255,0.32)] active:scale-[0.99] dark:border-white/[0.1] dark:from-zinc-900 dark:via-zinc-900 dark:to-zinc-950 dark:shadow-[0_6px_28px_-14px_rgba(0,0,0,0.55)] dark:hover:border-[#007AFF]/35"
-                            >
-                              <span className="flex items-center gap-3.5 px-4 py-3.5">
-                                <span className="min-w-0 flex-1">
-                                  <span className="block text-[14px] font-bold leading-tight tracking-tight text-zinc-900 dark:text-white">
-                                    Ver autorização de diagnóstico
+                          <div className={`${vi} min-w-0 overflow-hidden shadow-none`}>
+                            <div className="relative min-w-0">
+                              <div
+                                className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.07),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.08),transparent_50%)] dark:bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.11),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.1),transparent_52%)]"
+                                aria-hidden
+                              />
+                              <div className="relative flex items-center justify-between gap-2 border-b border-black/[0.06] bg-white/85 px-2.5 py-2 pl-3 backdrop-blur-[2px] dark:border-white/[0.08] dark:bg-zinc-950/35 sm:gap-3 sm:px-3 sm:py-2.5 sm:pl-4">
+                                <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-2.5">
+                                  <div className={uiOsModalSectionAppIcon}>
+                                    <img
+                                      src="/icons/autorizacao-diagnostico-ios.png"
+                                      alt=""
+                                      className="h-full w-full object-cover"
+                                    />
+                                  </div>
+                                  <p className={uiOsModalCardSectionTitle}>
+                                    Autorização de diagnóstico
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="relative border-t border-zinc-200/60 bg-zinc-50/90 px-3 py-3 dark:border-white/[0.06] dark:bg-white/[0.02] sm:px-4 sm:py-4">
+                                <button
+                                  type="button"
+                                  onClick={() => setDiagnosticAuthSheetOpen(true)}
+                                  className="group relative w-full overflow-hidden rounded-xl border border-zinc-200/85 bg-gradient-to-br from-white via-white to-zinc-50/95 text-left shadow-[0_4px_22px_-10px_rgba(0,122,255,0.22),inset_0_1px_0_rgba(255,255,255,0.92)] transition-all hover:border-[#007AFF]/40 hover:shadow-[0_10px_32px_-12px_rgba(0,122,255,0.32)] active:scale-[0.99] dark:border-white/[0.1] dark:from-zinc-900 dark:via-zinc-900 dark:to-zinc-950 dark:shadow-[0_6px_28px_-14px_rgba(0,0,0,0.55)] dark:hover:border-[#007AFF]/35"
+                                >
+                                  <span className="flex items-center gap-3.5 px-4 py-3.5">
+                                    <span className="min-w-0 flex-1">
+                                      <span className="block text-[14px] font-bold leading-tight tracking-tight text-zinc-900 dark:text-white">
+                                        Ver autorização de diagnóstico
+                                      </span>
+                                      <span className="mt-1 block text-[11px] font-medium leading-snug text-zinc-500 dark:text-zinc-400">
+                                        Documento assinado pelo cliente
+                                      </span>
+                                    </span>
+                                    <ChevronRight
+                                      className="h-5 w-5 shrink-0 text-zinc-300 transition-transform group-hover:translate-x-0.5 group-hover:text-[#007AFF] dark:text-zinc-500 dark:group-hover:text-[#7ab8ff]"
+                                      strokeWidth={2.25}
+                                      aria-hidden
+                                    />
                                   </span>
-                                  <span className="mt-1 block text-[11px] font-medium leading-snug text-zinc-500 dark:text-zinc-400">
-                                    Documento assinado pelo cliente
-                                  </span>
-                                </span>
-                                <ChevronRight
-                                  className="h-5 w-5 shrink-0 text-zinc-300 transition-transform group-hover:translate-x-0.5 group-hover:text-[#007AFF] dark:text-zinc-500 dark:group-hover:text-[#7ab8ff]"
-                                  strokeWidth={2.25}
-                                  aria-hidden
-                                />
-                              </span>
-                            </button>
+                                </button>
+                              </div>
+                            </div>
                           </div>
                         ) : null}
 
@@ -8943,8 +9083,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
                               <div className="relative flex items-center justify-between gap-2 border-b border-black/[0.06] bg-white/85 px-2.5 py-2 pl-3 backdrop-blur-[2px] dark:border-white/[0.08] dark:bg-zinc-950/35 sm:gap-3 sm:px-3 sm:py-2.5 sm:pl-4">
                                 <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-2.5">
-                                  <div className={uiOsModalSectionIconWrap}>
-                                    <Calculator className="h-4 w-4 text-[#007AFF] dark:text-[#7ab8ff]" strokeWidth={2.25} aria-hidden />
+                                  <div className={uiOsModalSectionAppIcon}>
+                                    <img src="/icons/novo-orcamento-ios.png" alt="" className="h-full w-full object-cover" />
                                   </div>
                                   <p className={uiOsModalCardSectionTitle}>
                                     Orçamentos
@@ -9030,7 +9170,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                 })}
                               {savedBudgets.filter((b) => b.serviceOrderId === selectedCard.id).length === 0 && (
                                 <div className={`rounded-xl border border-dashed border-zinc-300/95 bg-zinc-50/90 p-5 text-center dark:border-white/[0.12] dark:bg-white/[0.04]${isPatioTabletLikeModal ? ' col-span-2' : ''}`}>
-                                  <Calculator className="mx-auto mb-2 h-9 w-9 text-[#007AFF]/75 dark:text-[#7ab8ff]" />
+                                  <img src="/icons/novo-orcamento-ios.png" alt="" className="mx-auto mb-2 h-9 w-9 rounded-[0.65rem] object-cover" />
                                   <p className="mt-0.5 text-sm font-semibold text-zinc-900 dark:text-zinc-100">Nenhum orçamento</p>
                                   <p className="mt-0.5 text-xs text-zinc-600 dark:text-zinc-400">Crie um orçamento pelo botão acima</p>
                                 </div>
@@ -9112,16 +9252,16 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
                         {showPcOsTab('arquivos') ? (
                         <>
-                         {/* Anexos (fotos) + Documentos (arquivos) */}
+                         {/* Arquivos (fotos) + Documentos */}
                          <div className={`${vi} flex flex-col overflow-hidden shadow-none`}>
                             <div className="relative border-b border-zinc-200/70 bg-white/85 px-3 py-3 dark:border-white/[0.08] dark:bg-zinc-950/35 sm:px-4 sm:py-3.5">
                             <div className="flex items-center justify-between gap-2 sm:gap-3">
                                 <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-2.5">
-                                    <div className={uiOsModalSectionIconWrap}>
-                                      <Paperclip className="h-4 w-4 text-[#007AFF] dark:text-[#7ab8ff]" strokeWidth={2.25} aria-hidden />
+                                    <div className={uiOsModalSectionAppIcon}>
+                                      <img src="/icons/arquivos-ios.png" alt="" className="h-full w-full object-cover" />
                                     </div>
                                     <p className={uiOsModalCardSectionTitle}>
-                                      Anexos
+                                      Arquivos
                                     </p>
                                 </div>
                                 <div className="relative shrink-0" ref={anexosAddMenuRef}>
@@ -9286,33 +9426,35 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                     Links
                                   </h3>
                                   {referenceLinksDraft.length > 0 ? (
-                                    <ul className="space-y-2">
+                                    <ul className="space-y-1.5">
                                       {referenceLinksDraft.map((link) => {
                                         const href = link.url.trim().match(/^https?:\/\//i)
                                           ? link.url.trim()
                                           : `https://${link.url.trim().replace(/^\/+/, '')}`;
+                                        const display = formatReferenceLinkDisplay(link);
                                         return (
                                           <li
                                             key={link.id}
-                                            className="flex flex-col gap-2.5 rounded-xl border border-zinc-200/70 bg-zinc-50/50 p-3 dark:border-white/[0.08] dark:bg-white/[0.03] sm:flex-row sm:items-center sm:justify-between"
+                                            className="flex min-w-0 items-center gap-2 rounded-xl border border-zinc-200/70 bg-zinc-50/50 px-3 py-2 dark:border-white/[0.08] dark:bg-white/[0.03]"
                                           >
-                                            <div className="min-w-0 flex-1">
-                                              <p className="text-[15px] font-semibold leading-snug text-zinc-900 dark:text-white">
-                                                {link.label?.trim() || link.url}
-                                              </p>
-                                              <p className="mt-1 break-all text-[13px] font-medium text-[#007AFF] dark:text-[#64B5FF]">
-                                                {link.url}
-                                              </p>
-                                            </div>
-                                            <div className="flex shrink-0 gap-2">
+                                            <a
+                                              href={href}
+                                              target="_blank"
+                                              rel="noopener noreferrer"
+                                              title={display}
+                                              className="min-w-0 flex-1 truncate text-[13px] font-medium text-zinc-900 hover:text-[#007AFF] dark:text-white dark:hover:text-[#64B5FF]"
+                                            >
+                                              {display}
+                                            </a>
+                                            <div className="flex shrink-0 items-center gap-1.5">
                                               <a
                                                 href={href}
                                                 target="_blank"
                                                 rel="noopener noreferrer"
-                                                className="inline-flex items-center justify-center gap-1 rounded-xl border border-zinc-200/90 px-3 py-2 text-[13px] font-semibold text-zinc-700 transition-colors hover:bg-white dark:border-white/[0.12] dark:text-zinc-200 dark:hover:bg-white/[0.06]"
+                                                className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-[#007AFF] transition-colors hover:bg-[#007AFF]/10 dark:text-[#64B5FF] dark:hover:bg-[#007AFF]/15"
+                                                aria-label="Abrir link"
                                               >
-                                                <ExternalLink className="h-4 w-4" />
-                                                Abrir
+                                                <ExternalLink className="h-3.5 w-3.5" />
                                               </a>
                                               {can('canEditFicha') ? (
                                                 <button
@@ -9323,10 +9465,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                                     loadingDetails ||
                                                     serviceOrderDetail?.customers?.id === SERVICE_ORDER_PLACEHOLDER_CUSTOMER_ID
                                                   }
-                                                  className="inline-flex items-center justify-center gap-1 rounded-xl border border-red-200/90 px-3 py-2 text-[13px] font-semibold text-red-600 transition-colors hover:bg-red-50 disabled:opacity-50 dark:border-red-500/30 dark:text-red-400 dark:hover:bg-red-950/40"
+                                                  className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-red-600 transition-colors hover:bg-red-50 disabled:opacity-50 dark:text-red-400 dark:hover:bg-red-950/40"
+                                                  aria-label="Excluir link"
                                                 >
-                                                  <Trash2 className="h-4 w-4" />
-                                                  Excluir
+                                                  <Trash2 className="h-3.5 w-3.5" />
                                                 </button>
                                               ) : null}
                                             </div>
@@ -9348,7 +9490,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                               prev ? { ...prev, label: e.target.value } : prev
                                             )
                                           }
-                                          placeholder="Ex.: Manual do proprietário"
+                                          placeholder="Nome do documento"
                                           className={vin}
                                         />
                                       </div>
@@ -9535,23 +9677,27 @@ export const PatioView: React.FC<PatioViewProps> = ({
                          </div>
                         ) : null}
 
-                        <div ref={commentsSectionRef}>
-                           <h3 className={isPatioPcModal ? patioVehicleVm.sectionTitle : `${uiSectionTitleRow} lg:mb-2`}>
-                             <MessageSquare className="h-3.5 w-3.5 shrink-0" />
-                             Comentários
-                             {selectedCard && (commentUnreadByOrderId[selectedCard.id] ?? 0) > 0 ? (
-                               <span className="ml-2 inline-flex min-h-[1.15rem] min-w-[1.15rem] items-center justify-center rounded-full bg-[#FF3B30] px-1.5 text-[10px] font-bold tabular-nums text-white">
-                                 {(commentUnreadByOrderId[selectedCard.id] ?? 0) > 99
-                                   ? '99+'
-                                   : commentUnreadByOrderId[selectedCard.id]}
-                               </span>
-                             ) : null}
-                          </h3>
+                        <div ref={commentsSectionRef} className={`${vi} overflow-hidden shadow-none`}>
+                          <div className="relative flex items-center justify-between gap-2 border-b border-black/[0.06] bg-white/85 px-2.5 py-2 pl-3 backdrop-blur-[2px] dark:border-white/[0.08] dark:bg-zinc-950/35 sm:gap-3 sm:px-3 sm:py-2.5 sm:pl-4">
+                            <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-2.5">
+                              <div className={uiOsModalSectionAppIcon}>
+                                <img src="/icons/comentarios-ios.png" alt="" className="h-full w-full object-cover" />
+                              </div>
+                              <p className={uiOsModalCardSectionTitle}>Comentários</p>
+                              {selectedCard && (commentUnreadByOrderId[selectedCard.id] ?? 0) > 0 ? (
+                                <span className="inline-flex min-h-[1.15rem] min-w-[1.15rem] items-center justify-center rounded-full bg-[#FF3B30] px-1.5 text-[10px] font-bold tabular-nums text-white">
+                                  {(commentUnreadByOrderId[selectedCard.id] ?? 0) > 99
+                                    ? '99+'
+                                    : commentUnreadByOrderId[selectedCard.id]}
+                                </span>
+                              ) : null}
+                            </div>
+                          </div>
 
                           {requiresExplicitCommentReadEffective &&
                           selectedCard &&
                           (commentUnreadByOrderId[selectedCard.id] ?? 0) > 0 ? (
-                            <div className="mb-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-amber-200/80 bg-amber-50/70 px-3 py-2 dark:border-amber-500/30 dark:bg-amber-950/30">
+                            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-amber-200/80 bg-amber-50/70 px-3 py-2 dark:border-amber-500/30 dark:bg-amber-950/30">
                               <p className="text-[12px] font-medium text-amber-900/90 dark:text-amber-200">
                                 {(commentUnreadByOrderId[selectedCard.id] ?? 0) === 1
                                   ? '1 mensagem não lida'
@@ -9573,44 +9719,64 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             </div>
                           ) : null}
 
-                          <div className={`${vi} overflow-hidden shadow-none`}>
-                             <div ref={commentsListRef} className={patioVehicleVm.commentsList}>
+                             <div
+                               ref={commentsListRef}
+                               className={`${patioVehicleVm.commentsList} !bg-[#E5DDD5]/55 dark:!bg-zinc-950/80 ${
+                                 (cardDetails?.actions?.length ?? 0) >= 4
+                                   ? 'max-h-[15.5rem] overflow-y-auto overscroll-contain custom-scrollbar sm:max-h-[16.5rem]'
+                                   : ''
+                               }`}
+                             >
                                 {cardDetails?.actions && cardDetails.actions.length > 0 ? (
                                    cardDetails.actions.map(action => {
+                                      const mine = isAuthorOfComment(action.memberCreator.fullName);
                                       const avatar = getCommentAuthorAvatar(action.memberCreator.fullName, action.memberCreator.avatarUrl);
                                       return (
-                                      <div key={action.id} className="flex gap-3 group/comment lg:gap-2">
-                                         <div className={`relative flex h-10 w-10 shrink-0 flex-shrink-0 overflow-hidden rounded-full lg:h-8 lg:w-8 ${avatar.useLogo ? 'bg-brand-yellow' : ''}`}>
+                                      <div
+                                        key={action.id}
+                                        className={`group/comment flex w-full gap-2 ${mine ? 'flex-row-reverse' : 'flex-row'}`}
+                                      >
+                                         {!mine ? (
+                                         <div className={`relative mt-0.5 flex h-8 w-8 shrink-0 overflow-hidden rounded-full ${avatar.useLogo ? 'bg-brand-yellow' : ''}`}>
                                             {avatar.useLogo ? (
                                                <img src="/logo.png" alt="Rei do ABS" className="absolute inset-0 size-full min-h-0 min-w-0 object-cover object-center" />
                                             ) : avatar.photoUrl ? (
                                                <img src={avatar.photoUrl} alt={action.memberCreator.fullName} className="absolute inset-0 size-full min-h-0 min-w-0 object-cover object-center" />
                                             ) : (
-                                               <div className={`relative z-[1] flex size-full items-center justify-center rounded-full text-sm font-bold ${avatar.avatarClass}`}>
+                                               <div className={`relative z-[1] flex size-full items-center justify-center rounded-full text-[11px] font-bold ${avatar.avatarClass}`}>
                                                   {avatar.initial}
                                                </div>
                                             )}
                                          </div>
-                                         <div className="flex-1 space-y-1">
-                                            <div className="flex items-center justify-between">
-                                               <span className="font-bold text-zinc-900 dark:text-white text-sm">{action.memberCreator.fullName}</span>
-                                               <span className="text-xs text-zinc-500">
-                                                  {new Date(action.date).toLocaleString('pt-BR')}
-                                                  {action.data.edited_at && (
-                                                    <span className="ml-1.5 text-zinc-400 dark:text-zinc-500 italic">editada</span>
-                                                  )}
-                                               </span>
-                                            </div>
+                                         ) : (
+                                           <div className="w-1 shrink-0" aria-hidden />
+                                         )}
+                                         <div className={`flex min-w-0 max-w-[min(100%,22rem)] flex-1 flex-col ${mine ? 'items-end' : 'items-start'}`}>
+                                            {!mine ? (
+                                              <div className="mb-0.5 flex max-w-full items-baseline gap-2 px-1">
+                                                 <span className="truncate text-[12px] font-semibold text-zinc-700 dark:text-zinc-200">{action.memberCreator.fullName}</span>
+                                                 <span className="shrink-0 text-[10px] text-zinc-500 dark:text-zinc-400">
+                                                    {new Date(action.date).toLocaleString('pt-BR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                                                 </span>
+                                              </div>
+                                            ) : (
+                                              <span className="mb-0.5 px-1 text-[10px] text-zinc-500 dark:text-zinc-400">
+                                                {new Date(action.date).toLocaleString('pt-BR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                                                {action.data.edited_at ? (
+                                                  <span className="ml-1 italic">editada</span>
+                                                ) : null}
+                                              </span>
+                                            )}
                                             
                                             {editingActionId === action.id ? (
-                                               <div className="animate-in fade-in duration-200">
+                                               <div className="w-full animate-in fade-in duration-200">
                                                   <textarea 
-                                                    className={`${vin} mb-2 min-h-[100px] resize-y text-sm`}
+                                                    className={`${vin} mb-2 min-h-[100px] w-full max-w-full resize-y break-words text-sm [overflow-wrap:anywhere]`}
                                                     value={editingText}
                                                     onChange={(e) => setEditingText(e.target.value)}
                                                     autoFocus
                                                   />
-                                                  <div className="flex items-center gap-2">
+                                                  <div className={`flex items-center gap-2 ${mine ? 'justify-end' : ''}`}>
                                                      <button 
                                                         onClick={() => handleUpdateComment(action.id)}
                                                         disabled={actionLoadingId === action.id}
@@ -9630,15 +9796,20 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                                </div>
                                             ) : (
                                               <>
-                                                <div className={`${iosVehicleModalCommentBubble} p-3.5 text-sm leading-relaxed text-zinc-800 dark:text-zinc-200`}>
+                                                <div
+                                                  className={`max-w-full break-words px-3 py-2 text-[14px] leading-relaxed [overflow-wrap:anywhere] ${
+                                                    mine
+                                                      ? 'rounded-2xl rounded-br-md bg-[#D6EBFF] text-zinc-900 shadow-sm dark:bg-[#0A84FF] dark:text-white'
+                                                      : 'rounded-2xl rounded-bl-md bg-slate-500 text-white shadow-sm dark:bg-slate-600 dark:text-zinc-50'
+                                                  }`}
+                                                >
                                                    <ReactMarkdown remarkPlugins={[remarkBreaks]} components={markdownComponentsApp}>
                                                       {action.data.text}
                                                    </ReactMarkdown>
                                                 </div>
                                                 
-                                                {/* Editar/Excluir: apenas o autor da mensagem */}
-                                                {isAuthorOfComment(action.memberCreator.fullName) && (
-                                                <div className="flex items-center gap-3 mt-1 ml-1 opacity-0 group-hover/comment:opacity-100 transition-opacity duration-200">
+                                                {mine ? (
+                                                <div className="mt-1 flex items-center gap-3 px-1 opacity-0 transition-opacity duration-200 group-hover/comment:opacity-100">
                                                    <button 
                                                       type="button"
                                                       onClick={() => handleStartEdit(action.id, action.data.text)}
@@ -9656,7 +9827,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                                       {actionLoadingId === action.id ? 'Excluindo…' : 'Excluir'}
                                                    </button>
                                                 </div>
-                                                )}
+                                                ) : null}
                                               </>
                                             )}
                                          </div>
@@ -9667,33 +9838,44 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                       <RefreshCw className="h-6 w-6 animate-spin text-[#007AFF] lg:h-5 lg:w-5" />
                                    </div>
                                 ) : (
-                                   <div className="text-center py-8 text-zinc-600 italic">
-                                      Nenhum comentário registrado.
+                                   <div className="py-8 text-center text-[13px] italic text-zinc-500">
+                                      Nenhuma mensagem ainda. Envie a primeira.
                                    </div>
                                 )}
                              </div>
 
                              {can('canAddComments') && (
-                             <div className="flex items-end gap-2 border-t border-zinc-200/60 bg-white p-3 dark:border-white/[0.06] dark:bg-zinc-950/30 sm:p-4">
-                                <input 
-                                   type="text" 
+                             <div className="flex items-end gap-2 border-t border-zinc-200/60 bg-white p-2.5 dark:border-white/[0.06] dark:bg-zinc-950/40 sm:p-3">
+                                <textarea
+                                   ref={commentComposerRef}
                                    value={newComment}
-                                   onChange={(e) => setNewComment(e.target.value)}
-                                   placeholder="Escreva um comentário..."
-                                   className={`${vin} min-h-[48px] flex-1 py-3 text-[15px]`}
-                                   onKeyDown={(e) => { if(e.key === 'Enter' && !e.shiftKey) handleSendComment() }}
+                                   onChange={(e) => {
+                                     setNewComment(e.target.value);
+                                     const el = e.currentTarget;
+                                     el.style.height = 'auto';
+                                     el.style.height = `${Math.min(el.scrollHeight, 140)}px`;
+                                   }}
+                                   placeholder="Mensagem"
+                                   rows={1}
+                                   className={`${vin} max-h-[140px] min-h-[44px] min-w-0 flex-1 resize-none overflow-y-auto whitespace-pre-wrap break-words py-2.5 text-[15px] leading-snug [overflow-wrap:anywhere]`}
+                                   onKeyDown={(e) => {
+                                     if (e.key === 'Enter' && !e.shiftKey) {
+                                       e.preventDefault();
+                                       void handleSendComment();
+                                     }
+                                   }}
                                 />
                                 <button 
                                    type="button"
-                                   onClick={handleSendComment}
+                                   onClick={() => void handleSendComment()}
                                    disabled={sendingComment || !newComment.trim()}
                                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#007AFF] text-white shadow-lg shadow-blue-500/25 transition-all duration-200 hover:opacity-95 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
+                                   aria-label="Enviar mensagem"
                                 >
                                    {sendingComment ? <RefreshCw className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" strokeWidth={2.2} />}
                                 </button>
                              </div>
                              )}
-                          </div>
                         </div>
 
                         {isPatioPcModal ? (
@@ -10201,7 +10383,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                       onKeyDown={(e) => {
                         if (e.key === 'Enter') void handlePatioPlateSearch();
                       }}
-                      placeholder="Ex.: ABC1D23"
+                      placeholder="Placa"
                       maxLength={8}
                       className={`${iosInput} font-mono text-[16px] font-bold uppercase tracking-wider`}
                       aria-label="Digite a placa"
@@ -10331,7 +10513,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   type="text"
                   value={vehicleEditModel}
                   onChange={(e) => setVehicleEditModel(e.target.value)}
-                  placeholder="Ex: Gol 1.0"
+                  placeholder="Modelo"
                   className="w-full px-4 py-3 rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-brand-yellow/40"
                 />
               </div>
@@ -10341,7 +10523,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   type="text"
                   value={vehicleEditPlate}
                   onChange={(e) => setVehicleEditPlate(e.target.value.toUpperCase())}
-                  placeholder="Ex: ABC1D23"
+                  placeholder="Placa"
                   maxLength={8}
                   className="w-full px-4 py-3 rounded-xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-white/5 text-zinc-900 dark:text-white placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-brand-yellow/40 uppercase"
                 />
@@ -10584,7 +10766,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                       <div className={`${budgetModalPaperInset} overflow-hidden p-0`}>
                         <textarea
                           className={`${budgetModalInput} min-h-[120px] resize-y border-0 py-3.5 text-[15px] leading-relaxed shadow-none focus:ring-2`}
-                          placeholder="Descreva o diagnóstico técnico…"
+                          placeholder="Diagnóstico"
                           value={budgetDiagnosis}
                           onChange={(e) => setBudgetDiagnosis(e.target.value)}
                         />
@@ -10750,7 +10932,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                   {item.fromStock ? <BudgetPartStockBadge className="self-start" /> : null}
                                   <input
                                     type="text"
-                                    placeholder="Nome da peça…"
+                                    placeholder="Peça"
                                     className={`${budgetModalInput} min-w-0 w-full shadow-none`}
                                     value={item.description}
                                     data-budget-part-id={item.id}
@@ -10850,7 +11032,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                       <div className={`${budgetModalPaperInset} overflow-hidden p-0`}>
                         <textarea
                           className={`${budgetModalInput} min-h-[88px] resize-y border-0 py-3.5 text-[15px] leading-relaxed shadow-none focus:ring-2`}
-                          placeholder="Prazos, condições, etc."
+                          placeholder="Observações"
                           value={budgetObservations}
                           onChange={(e) => setBudgetObservations(e.target.value)}
                         />
@@ -10914,7 +11096,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
             });
           }}
           actorOptions={actorOptions}
-          headerIcon={<Calculator className="h-5 w-5" />}
+          headerIcon={<img src="/icons/novo-orcamento-ios.png" alt="" className="h-full w-full object-cover" />}
         />
       ) : null}
 
@@ -11367,7 +11549,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                         type="text"
                         value={photoUploadLabel}
                         onChange={(e) => setPhotoUploadLabel(e.target.value)}
-                        placeholder="Ex.: Frente, placa, detalhe do freio…"
+                        placeholder="Legenda"
                         className="mt-1.5 w-full rounded-xl border border-white/15 bg-zinc-900/90 px-3 py-2.5 text-[15px] font-normal normal-case text-white placeholder:text-zinc-500 focus:border-brand-yellow/50 focus:outline-none focus:ring-2 focus:ring-brand-yellow/30"
                       />
                     </label>

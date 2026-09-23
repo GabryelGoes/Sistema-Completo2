@@ -2,6 +2,7 @@ import type { ServiceOrderDetail } from '../services/apiService';
 import type { VehicleReferenceLink } from '../types';
 import { labProductDisplayLabel, moduleVehicleKindLabel } from './moduleMetadata';
 import { printHtmlDocument } from './printHtml';
+import { formatReferenceLinkDisplay } from './vehicleReferenceLinks';
 
 function esc(s: string) {
   return String(s ?? '')
@@ -70,7 +71,7 @@ export function printLabModuleFicha(opts: {
           <ul class="links">${referenceLinks
             .map(
               (l) =>
-                `<li><strong>${esc(displayText(l.label))}</strong> — ${esc(displayText(l.url))}</li>`
+                `<li><a href="${esc(l.url)}">${esc(formatReferenceLinkDisplay(l))}</a></li>`
             )
             .join('')}</ul>
         </section>`

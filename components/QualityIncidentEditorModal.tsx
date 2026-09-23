@@ -371,7 +371,7 @@ export const QualityIncidentEditorModal: React.FC<Props> = ({
                       className={inputClass}
                       value={title}
                       onChange={(e) => setTitle(e.target.value)}
-                      placeholder="Ex.: Retrabalho na pastilha dianteira"
+                      placeholder="Retrabalho na pastilha diant"
                     />
                   </div>
                   <div>
@@ -493,7 +493,7 @@ export const QualityIncidentEditorModal: React.FC<Props> = ({
                       className={inputClass}
                       value={vehicleSummary}
                       onChange={(e) => setVehicleSummary(e.target.value)}
-                      placeholder="Ex.: HB20 1.0 — OS #1240"
+                      placeholder="HB20 1.0"
                     />
                   </div>
                   <div className="sm:col-span-2">
