@@ -2204,9 +2204,13 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
 
     <StockGuardPasswordModal
       open={stockGuardOpen}
-      title="Confirmar alteração da peça"
+      title={
+        registrationMode === 'create'
+          ? 'Confirmar cadastro da peça'
+          : 'Confirmar alteração da peça'
+      }
       subtitle="Use a senha da Gerência ou a senha de proteção do estoque (Alterar senhas)."
-      confirmLabel="Autorizar alteração"
+      confirmLabel={registrationMode === 'create' ? 'Autorizar cadastro' : 'Autorizar alteração'}
       error={stockGuardError}
       busy={stockGuardBusy}
       onClose={closeStockGuard}
