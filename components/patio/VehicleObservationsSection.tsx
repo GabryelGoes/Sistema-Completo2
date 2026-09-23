@@ -111,11 +111,7 @@ export const VehicleObservationsSection: React.FC<VehicleObservationsSectionProp
                 <p className="mt-0.5 text-[11px] font-medium text-zinc-500 dark:text-zinc-400">
                   {items.length} {items.length === 1 ? 'registro' : 'registros'}
                 </p>
-              ) : (
-                <p className="mt-0.5 text-[11px] font-medium text-zinc-500 dark:text-zinc-400">
-                  Nenhum registro ainda
-                </p>
-              )}
+              ) : null}
             </div>
           </div>
           {canEdit && !composing ? (

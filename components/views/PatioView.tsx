@@ -341,6 +341,8 @@ interface PatioViewProps {
   commentAuthorName?: string;
   /** Se definido, abre o modal do veículo com esta OS (vindo ex.: da central de notificações). */
   openServiceOrderId?: string | null;
+  /** Muda a cada scan USB para reabrir o modal mesmo se o id da OS for o mesmo. */
+  openServiceOrderScanToken?: number;
   /** Seção do modal para rolar após abrir (comentários, orçamentos, queixa). */
   openServiceOrderSection?: OpenServiceOrderSection;
   /** Após carregar orçamentos, abre o modal de leitura deste id. */
@@ -1143,6 +1145,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
   onCreateRegistration,
   commentAuthorName = 'Rei do ABS',
   openServiceOrderId: openServiceOrderIdProp,
+  openServiceOrderScanToken = 0,
   openServiceOrderSection,
   openBudgetIdAfterLoad = null,
   onOpenServiceOrderHandled,
@@ -1182,6 +1185,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const descriptionSectionRef = useRef<HTMLDivElement>(null);
   const budgetsSectionRef = useRef<HTMLDivElement>(null);
   const openServiceOrderHandledRef = useRef(false);
+  const lastOpenServiceOrderScanTokenRef = useRef(0);
   /** OS id: após mover para "Orçamento aprovado", abre o modal de aprovação quando os orçamentos terminarem de carregar. */
   const [allMembers, setAllMembers] = useState<TrelloMember[]>([]);
   const [initialLoading, setInitialLoading] = useState(true);
@@ -2654,7 +2658,18 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
   // Abrir modal ao escanear QR / notificação (navegação externa)
   useEffect(() => {
-    if (!openServiceOrderIdProp || openServiceOrderHandledRef.current) return;
+    if (!openServiceOrderIdProp) return;
+
+    // Novo scan USB (mesmo id ou outro): libera o pedido para abrir de novo.
+    if (
+      openServiceOrderScanToken > 0 &&
+      openServiceOrderScanToken !== lastOpenServiceOrderScanTokenRef.current
+    ) {
+      lastOpenServiceOrderScanTokenRef.current = openServiceOrderScanToken;
+      openServiceOrderHandledRef.current = false;
+    }
+
+    if (openServiceOrderHandledRef.current) return;
     // Espera a 1ª carga do quadro para não descartar o id cedo demais.
     if (initialLoading) return;
 
@@ -2664,6 +2679,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
       null;
 
     if (card) {
+      setSelectedHistoryCard(null);
       setSelectedCard(card);
       // Sem seção para rolar: libera o pedido já (senão o id fica preso no pai e cada refresh da lista reabre o modal).
       if (!openServiceOrderSection) {
@@ -2678,6 +2694,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
       try {
         const detail = await getServiceOrderById(openServiceOrderIdProp);
         if (cancelled) return;
+        // Scan de etiqueta do lab: se a OS for de outro tipo, libera o pedido neste quadro.
         if (detail.order_type && detail.order_type !== orderType) {
           openServiceOrderHandledRef.current = true;
           onOpenServiceOrderHandled?.();
@@ -2693,6 +2710,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
           nameMap,
           orderType
         );
+        setSelectedHistoryCard(null);
         setSelectedCard(nextCard);
         if (!openServiceOrderSection) {
           openServiceOrderHandledRef.current = true;
@@ -2710,6 +2728,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
     };
   }, [
     openServiceOrderIdProp,
+    openServiceOrderScanToken,
     cards,
     externalRepairCards,
     initialLoading,

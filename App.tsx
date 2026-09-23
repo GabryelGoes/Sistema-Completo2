@@ -30,7 +30,6 @@ import {
   effectiveAccessOrcamentos,
   getWorkshopSettings,
   deleteAppointment,
-  getServiceOrderById,
   getSupportUnreadCount,
 } from './services/apiService';
 import type { ServiceOrderStatus } from './constants/serviceOrderStages';
@@ -91,6 +90,8 @@ export default function App() {
   /** Visualizar orçamento a partir do hub (permanece na aba Orçamentos). */
   const [hubBudgetViewer, setHubBudgetViewer] = useState<{ serviceOrderId: string; budgetId: string } | null>(null);
   const [laboratorioPendingOrderId, setLaboratorioPendingOrderId] = useState<string | null>(null);
+  /** Token para forçar reabertura do modal ao reescanear a mesma OS. */
+  const [laboratorioPendingScanToken, setLaboratorioPendingScanToken] = useState(0);
   const [patioPendingOrderId, setPatioPendingOrderId] = useState<string | null>(null);
   const [shellProfileModal, setShellProfileModal] = useState<ShellProfileModal>(null);
   const [isPartsModalOpen, setIsPartsModalOpen] = useState(false);
@@ -328,6 +329,14 @@ export default function App() {
   const handleOpenLaboratoryOrderFromPatio = useCallback(
     (serviceOrderId: string) => {
       setLaboratorioPendingOrderId(serviceOrderId);
+      setLaboratorioPendingScanToken(Date.now());
+      // Fecha overlays que cobririam o modal da OS.
+      setIsPartsModalOpen(false);
+      setPartsBootIntent(null);
+      setIsTvPatioModalOpen(false);
+      setSettingsHubOpen(false);
+      setIsSettingsOpen(false);
+      setIsSupportChatOpen(false);
       if (isLimitedSystemUser) {
         setVisitedUserTabs((prev) => {
           if (prev.has('laboratorio')) return prev;
@@ -359,27 +368,14 @@ export default function App() {
   }, []);
 
   /**
-   * Pistola USB em qualquer página: só QR de OS do Laboratório (RDA-OS → módulo/peça).
-   * Códigos de produtos do estoque NÃO abrem nada globalmente — só dentro do Inventário.
+   * Pistola USB em qualquer página: QR de OS do Laboratório (RDA-OS) abre
+   * imediatamente o modal da peça — sem esperar a API.
    */
   const handleGlobalBarcodeScan = useCallback(
     (code: string) => {
       const osId = parseLabOsQrPayload(code);
       if (!osId) return;
-      setIsPartsModalOpen(false);
-      setPartsBootIntent(null);
-      void (async () => {
-        try {
-          const detail = await getServiceOrderById(osId);
-          if (detail.order_type === 'module') {
-            handleOpenLaboratoryOrderFromPatio(osId);
-          }
-          // Demais tipos (ex.: veículo): ignorar no scan global.
-        } catch {
-          // Etiquetas RDA-OS vêm do Laboratório; tenta abrir mesmo se a API falhar.
-          handleOpenLaboratoryOrderFromPatio(osId);
-        }
-      })();
+      handleOpenLaboratoryOrderFromPatio(osId);
     },
     [handleOpenLaboratoryOrderFromPatio]
   );
@@ -1015,6 +1011,7 @@ export default function App() {
               isAppTabActive={userTab === 'laboratorio'}
               suppressVehiclePortals={isDesktopShell && shellOverlayTopbar !== null}
               openServiceOrderId={laboratorioPendingOrderId}
+              openServiceOrderScanToken={laboratorioPendingScanToken}
               openServiceOrderSection={null}
               onOpenServiceOrderHandled={handleLaboratoryOrderHandled}
               onActiveCardsCountChange={setLaboratorioActiveCount}
@@ -1355,6 +1352,7 @@ export default function App() {
               onVehicleModalOsLabelChange={setVehicleModalOsLabel}
             onClosePage={isDesktopShell ? undefined : navigateToHomeApp}
             openServiceOrderId={laboratorioPendingOrderId}
+            openServiceOrderScanToken={laboratorioPendingScanToken}
             openServiceOrderSection={null}
             onOpenServiceOrderHandled={handleLaboratoryOrderHandled}
             canVerifyBudgets={canVerifyBudgetsApp}
