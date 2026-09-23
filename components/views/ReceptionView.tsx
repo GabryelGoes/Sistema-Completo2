@@ -2413,7 +2413,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                             {!isModuleDetail && archivedDiagAuthSignatureSrc ? (
                               <div>
                                 <h3 className="text-zinc-700 dark:text-zinc-300 text-sm font-bold uppercase tracking-widest mb-4 flex items-center gap-2">
-                                  <FileText className="w-4 h-4" />
+                                  <img src="/icons/autorizacao-diagnostico-ios.png" alt="" className="h-4 w-4 rounded-[0.25rem] object-cover" />
                                   Autorização de diagnóstico
                                 </h3>
                                 <button
