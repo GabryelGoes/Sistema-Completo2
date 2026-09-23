@@ -54,6 +54,7 @@ import {
   resolveDesktopShellOverlayTopbar,
 } from './utils/desktopShellOverlayModules';
 import { useBarcodeWedgeListener } from './hooks/useBarcodeWedgeListener';
+import { tryActiveBarcodeScanClaim } from './utils/activeBarcodeScanClaim';
 import { parseLabOsQrPayload } from './utils/labOsQrCode';
 import type { WorkshopPartsBootIntent } from './components/WorkshopPartsModal';
 import { LabOsScanQuickModal } from './components/LabOsScanQuickModal';
@@ -372,19 +373,22 @@ export default function App() {
   }, []);
 
   /**
-   * Pistola USB em qualquer página: QR de OS do Laboratório (RDA-OS) abre
-   * o modal rápido da peça (resumo + etapas + etiqueta + Abrir OS).
+   * Pistola USB: se o modal da OS reivindicar (caixa de estoque), trata lá;
+   * senão, QR de OS do Laboratório (RDA-OS) abre o modal rápido.
    */
   const handleGlobalBarcodeScan = useCallback((code: string) => {
-    const osId = parseLabOsQrPayload(code);
-    if (!osId) return;
-    setIsPartsModalOpen(false);
-    setPartsBootIntent(null);
-    setIsTvPatioModalOpen(false);
-    setSettingsHubOpen(false);
-    setIsSettingsOpen(false);
-    setIsSupportChatOpen(false);
-    setLabOsScanQuick({ id: osId, token: Date.now() });
+    void (async () => {
+      if (await tryActiveBarcodeScanClaim(code)) return;
+      const osId = parseLabOsQrPayload(code);
+      if (!osId) return;
+      setIsPartsModalOpen(false);
+      setPartsBootIntent(null);
+      setIsTvPatioModalOpen(false);
+      setSettingsHubOpen(false);
+      setIsSettingsOpen(false);
+      setIsSupportChatOpen(false);
+      setLabOsScanQuick({ id: osId, token: Date.now() });
+    })();
   }, []);
 
   useBarcodeWedgeListener({

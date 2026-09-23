@@ -14,6 +14,8 @@ export type WorkshopPartStockMovement = {
   stock_before: number;
   stock_after: number;
   created_at: string;
+  /** OS (pátio/lab) vinculada à retirada no modal do veículo. */
+  service_order_id?: string | null;
   part_name?: string | null;
   part_unit_of_measure?: string | null;
   part_photo_url?: string | null;
@@ -38,6 +40,7 @@ export type ApplyStockOutboundInput = {
   notes?: string | null;
   barcodeScanned?: string | null;
   recordedByName?: string | null;
+  serviceOrderId?: string | null;
   nowIso?: string;
   movementId?: string;
 };
@@ -104,6 +107,7 @@ export function applyWorkshopPartStockOutboundInMemory(
     stock_before: before,
     stock_after: after,
     created_at: input.nowIso ?? new Date().toISOString(),
+    service_order_id: input.serviceOrderId?.trim() ? input.serviceOrderId.trim() : null,
     part_name: part.name,
     part_unit_of_measure: part.unit_of_measure || 'UN',
     part_photo_url: part.photo_url ?? null,

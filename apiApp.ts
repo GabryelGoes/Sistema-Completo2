@@ -8525,7 +8525,24 @@ export function createApiApp() {
 
   const MOVEMENT_SELECT =
     "id, workshop_id, part_id, movement_type, quantity, unit_price, total_amount, notes, " +
+    "barcode_scanned, recorded_by_name, stock_before, stock_after, created_at, service_order_id";
+  const MOVEMENT_SELECT_LEGACY =
+    "id, workshop_id, part_id, movement_type, quantity, unit_price, total_amount, notes, " +
     "barcode_scanned, recorded_by_name, stock_before, stock_after, created_at";
+  let movementsHaveServiceOrderId: boolean | null = null;
+
+  function markMovementsServiceOrderMissingFromError(message: string | undefined): boolean {
+    if (!message) return false;
+    if (/service_order_id/i.test(message)) {
+      movementsHaveServiceOrderId = false;
+      return true;
+    }
+    return false;
+  }
+
+  function movementSelectColumns(): string {
+    return movementsHaveServiceOrderId === false ? MOVEMENT_SELECT_LEGACY : MOVEMENT_SELECT;
+  }
 
   async function lookupWorkshopPartRowByCode(codeRaw: string): Promise<Record<string, unknown> | null> {
     if (!supabaseAdmin || !WORKSHOP_ID) return null;
@@ -8575,26 +8592,33 @@ export function createApiApp() {
     notes: string | null;
     barcodeScanned: string | null;
     recordedByName: string | null;
+    serviceOrderId?: string | null;
   }) {
     if (!supabaseAdmin || !WORKSHOP_ID) {
       throw new Error("Supabase ou WORKSHOP_ID não configurados.");
     }
 
+    const rpcPayload: Record<string, unknown> = {
+      p_workshop_id: WORKSHOP_ID,
+      p_part_id: opts.partId,
+      p_movement_type: opts.movementType,
+      p_quantity: opts.quantity,
+      p_unit_price: opts.unitPrice,
+      p_notes: opts.notes,
+      p_barcode_scanned: opts.barcodeScanned,
+      p_recorded_by_name: opts.recordedByName,
+    };
+    if (opts.serviceOrderId && movementsHaveServiceOrderId !== false) {
+      rpcPayload.p_service_order_id = opts.serviceOrderId;
+    }
+
     const { data: rpcData, error: rpcError } = await supabaseAdmin.rpc(
       "apply_workshop_part_stock_outbound",
-      {
-        p_workshop_id: WORKSHOP_ID,
-        p_part_id: opts.partId,
-        p_movement_type: opts.movementType,
-        p_quantity: opts.quantity,
-        p_unit_price: opts.unitPrice,
-        p_notes: opts.notes,
-        p_barcode_scanned: opts.barcodeScanned,
-        p_recorded_by_name: opts.recordedByName,
-      }
+      rpcPayload
     );
 
     if (!rpcError && rpcData) {
+      if (opts.serviceOrderId) movementsHaveServiceOrderId = true;
       return rpcData as { movement: Record<string, unknown>; part: Record<string, unknown> };
     }
 
@@ -8604,7 +8628,37 @@ export function createApiApp() {
         rpcError.code === "PGRST202" ||
         rpcError.code === "42883");
 
-    if (rpcError && !rpcMissing) {
+    // RPC antiga sem p_service_order_id — tenta de novo sem o parâmetro.
+    if (
+      rpcError &&
+      opts.serviceOrderId &&
+      /p_service_order_id|service_order_id/i.test(rpcError.message || "")
+    ) {
+      movementsHaveServiceOrderId = false;
+      const { data: rpcRetry, error: rpcRetryErr } = await supabaseAdmin.rpc(
+        "apply_workshop_part_stock_outbound",
+        {
+          p_workshop_id: WORKSHOP_ID,
+          p_part_id: opts.partId,
+          p_movement_type: opts.movementType,
+          p_quantity: opts.quantity,
+          p_unit_price: opts.unitPrice,
+          p_notes: opts.notes,
+          p_barcode_scanned: opts.barcodeScanned,
+          p_recorded_by_name: opts.recordedByName,
+        }
+      );
+      if (!rpcRetryErr && rpcRetry) {
+        return rpcRetry as { movement: Record<string, unknown>; part: Record<string, unknown> };
+      }
+      if (rpcRetryErr && !rpcMissing) {
+        // continua para fallback tabular
+      } else if (!rpcRetryErr) {
+        return rpcRetry as { movement: Record<string, unknown>; part: Record<string, unknown> };
+      }
+    }
+
+    if (rpcError && !rpcMissing && !/p_service_order_id|service_order_id/i.test(rpcError.message || "")) {
       throw new Error(rpcError.message);
     }
 
@@ -8656,7 +8710,7 @@ export function createApiApp() {
       .eq("workshop_id", WORKSHOP_ID);
     if (updErr) throw new Error(updErr.message);
 
-    const insertPayload = {
+    const insertPayload: Record<string, unknown> = {
       workshop_id: WORKSHOP_ID,
       part_id: opts.partId,
       movement_type: opts.movementType,
@@ -8669,12 +8723,24 @@ export function createApiApp() {
       stock_before: before,
       stock_after: after,
     };
+    if (opts.serviceOrderId && movementsHaveServiceOrderId !== false) {
+      insertPayload.service_order_id = opts.serviceOrderId;
+    }
 
-    const { data: movement, error: movErr } = await supabaseAdmin
+    let { data: movement, error: movErr } = await supabaseAdmin
       .from("workshop_part_stock_movements")
       .insert(insertPayload)
-      .select(MOVEMENT_SELECT)
+      .select(movementSelectColumns())
       .single();
+
+    if (movErr && markMovementsServiceOrderMissingFromError(movErr.message)) {
+      delete insertPayload.service_order_id;
+      ({ data: movement, error: movErr } = await supabaseAdmin
+        .from("workshop_part_stock_movements")
+        .insert(insertPayload)
+        .select(movementSelectColumns())
+        .single());
+    }
 
     if (movErr) {
       // Tenta reverter a baixa se o histórico falhar.
@@ -8689,6 +8755,10 @@ export function createApiApp() {
         );
       }
       throw new Error(movErr.message);
+    }
+
+    if (opts.serviceOrderId && movementsHaveServiceOrderId !== false) {
+      movementsHaveServiceOrderId = true;
     }
 
     const part = partRow as Record<string, unknown>;
@@ -8763,12 +8833,14 @@ export function createApiApp() {
           ? (typeRaw as WorkshopPartStockMovementType)
           : null;
       const limit = Math.min(200, Math.max(1, Number(req.query.limit ?? 40) || 40));
+      const serviceOrderId = String(req.query.service_order_id ?? "").trim() || null;
 
       if (isWorkshopPartDevMemoryActive(!!(supabaseAdmin && WORKSHOP_ID))) {
         return res.json({
           items: listDevMemoryMovements({
             movementType: movementType ?? undefined,
             limit,
+            serviceOrderId: serviceOrderId ?? undefined,
           }),
         });
       }
@@ -8782,13 +8854,26 @@ export function createApiApp() {
 
       let query = supabaseAdmin
         .from("workshop_part_stock_movements")
-        .select(MOVEMENT_SELECT)
+        .select(movementSelectColumns())
         .eq("workshop_id", WORKSHOP_ID)
         .order("created_at", { ascending: false })
         .limit(limit);
       if (movementType) query = query.eq("movement_type", movementType);
+      if (serviceOrderId && movementsHaveServiceOrderId !== false) {
+        query = query.eq("service_order_id", serviceOrderId);
+      }
 
-      const { data, error } = await query;
+      let { data, error } = await query;
+      if (error && markMovementsServiceOrderMissingFromError(error.message)) {
+        let retry = supabaseAdmin
+          .from("workshop_part_stock_movements")
+          .select(movementSelectColumns())
+          .eq("workshop_id", WORKSHOP_ID)
+          .order("created_at", { ascending: false })
+          .limit(limit);
+        if (movementType) retry = retry.eq("movement_type", movementType);
+        ({ data, error } = await retry);
+      }
       if (error) {
         if (/workshop_part_stock_movements/i.test(error.message || "")) {
           return res.json({ items: [] });
@@ -8797,7 +8882,12 @@ export function createApiApp() {
         return res.status(500).json({ error: error.message });
       }
 
-      const rows = (data ?? []) as Array<Record<string, unknown>>;
+      let rows = (data ?? []) as Array<Record<string, unknown>>;
+      // Sem coluna service_order_id: filtra por marcador nas notes (fallback).
+      if (serviceOrderId && movementsHaveServiceOrderId === false) {
+        const marker = `OS_ID:${serviceOrderId}`;
+        rows = rows.filter((r) => String(r.notes ?? "").includes(marker));
+      }
       const partIds = [...new Set(rows.map((r) => String(r.part_id)).filter(Boolean))];
       let nameById = new Map<string, { name: string; unit_of_measure: string; photo_url: string | null }>();
       if (partIds.length > 0) {
@@ -8870,6 +8960,10 @@ export function createApiApp() {
         typeof body.recorded_by_name === "string" && body.recorded_by_name.trim()
           ? body.recorded_by_name.trim()
           : null;
+      const serviceOrderId =
+        typeof body.service_order_id === "string" && body.service_order_id.trim()
+          ? body.service_order_id.trim()
+          : null;
 
       let unitPrice: number | null = null;
       if (body.unit_price !== undefined && body.unit_price !== null && body.unit_price !== "") {
@@ -8900,6 +8994,7 @@ export function createApiApp() {
             notes,
             barcodeScanned,
             recordedByName,
+            serviceOrderId,
           });
           return res.status(201).json(result);
         } catch (e: any) {
@@ -8940,6 +9035,7 @@ export function createApiApp() {
           notes,
           barcodeScanned,
           recordedByName,
+          serviceOrderId,
         });
         return res.status(201).json(result);
       } catch (e: any) {
@@ -8995,7 +9091,7 @@ export function createApiApp() {
 
       const { data: movement, error: fetchErr } = await supabaseAdmin
         .from("workshop_part_stock_movements")
-        .select(MOVEMENT_SELECT)
+        .select(movementSelectColumns())
         .eq("id", movementId)
         .eq("workshop_id", WORKSHOP_ID)
         .maybeSingle();

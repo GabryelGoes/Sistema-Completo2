@@ -192,6 +192,7 @@ import { LabExternalRepairModal } from '../lab/LabExternalRepairModal';
 import { PatioOsModalPcTabBar, type PatioOsModalPcTab } from '../patio/PatioOsModalPcTabBar';
 import { PatioOsModalLabServicesSection } from '../patio/PatioOsModalLabServicesSection';
 import { VehicleObservationsSection } from '../patio/VehicleObservationsSection';
+import { VehicleOsStockCheckoutSection } from '../patio/VehicleOsStockCheckoutSection';
 import {
   PatioOriginAttachmentsPicker,
   PatioOriginAttachmentsSection,
@@ -9913,6 +9914,33 @@ export const PatioView: React.FC<PatioViewProps> = ({
                          </div>
                          </>
                         ) : null}
+
+                        <div className={isPatioPcModal ? 'mt-1' : 'mt-3'}>
+                          <VehicleOsStockCheckoutSection
+                            serviceOrderId={selectedCard.id}
+                            osLabel={(() => {
+                              const osNum = serviceOrderDetail?.os_number ?? selectedCard.osNumber;
+                              const title = parsePatioCardTitle(selectedCard.name);
+                              return [
+                                osNum != null ? `OS #${osNum}` : null,
+                                title.plateOrModule || null,
+                                title.vehicle || null,
+                              ]
+                                .filter(Boolean)
+                                .join(' · ');
+                            })()}
+                            osScope={isModuleMode ? 'lab' : 'patio'}
+                            insetCardClass={vi}
+                            recordedByName={(commentAuthorName && commentAuthorName.trim()) || (isModuleMode ? 'Laboratório' : 'Pátio')}
+                            claimUsbScanner={
+                              !!selectedCard &&
+                              patioPortalsVisible &&
+                              !isBudgetOpen &&
+                              !checklistModalOpen
+                            }
+                            showCameraButton={!isPatioPcModal}
+                          />
+                        </div>
 
                       </div>
                   </div>
