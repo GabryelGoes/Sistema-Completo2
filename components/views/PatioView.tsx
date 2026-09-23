@@ -140,6 +140,7 @@ import { IosAccentIconSquircle } from '../ui/IosAccentIconSquircle';
 import { markdownComponentsApp } from '../ui/markdownUi';
 import {
   uiOsModalCardSectionTitle,
+  uiOsModalSectionAppIcon,
   uiOsModalSectionIconWrap,
   uiReadBody,
   uiSectionTitleRow,
@@ -9100,7 +9101,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
                               <div className="relative flex items-center justify-between gap-2 border-b border-black/[0.06] bg-white/85 px-2.5 py-2 pl-3 backdrop-blur-[2px] dark:border-white/[0.08] dark:bg-zinc-950/35 sm:gap-3 sm:px-3 sm:py-2.5 sm:pl-4">
                                 <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-2.5">
-                                  <div className={`${uiOsModalSectionIconWrap} overflow-hidden p-0`}>
+                                  <div className={uiOsModalSectionAppIcon}>
                                     <img src="/icons/novo-orcamento-ios.png" alt="" className="h-full w-full object-cover" />
                                   </div>
                                   <p className={uiOsModalCardSectionTitle}>
@@ -9274,7 +9275,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             <div className="relative border-b border-zinc-200/70 bg-white/85 px-3 py-3 dark:border-white/[0.08] dark:bg-zinc-950/35 sm:px-4 sm:py-3.5">
                             <div className="flex items-center justify-between gap-2 sm:gap-3">
                                 <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-2.5">
-                                    <div className={`${uiOsModalSectionIconWrap} overflow-hidden p-0`}>
+                                    <div className={uiOsModalSectionAppIcon}>
                                       <img src="/icons/arquivos-ios.png" alt="" className="h-full w-full object-cover" />
                                     </div>
                                     <p className={uiOsModalCardSectionTitle}>
