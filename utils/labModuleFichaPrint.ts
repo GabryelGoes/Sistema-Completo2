@@ -2,6 +2,7 @@ import type { ServiceOrderDetail } from '../services/apiService';
 import type { VehicleReferenceLink } from '../types';
 import { labProductDisplayLabel, moduleVehicleKindLabel } from './moduleMetadata';
 import { printHtmlDocument } from './printHtml';
+import { formatReferenceLinkDisplay } from './vehicleReferenceLinks';
 
 function esc(s: string) {
   return String(s ?? '')
