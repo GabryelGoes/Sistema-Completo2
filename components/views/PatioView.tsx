@@ -167,6 +167,11 @@ import { formatLaborLabel } from '../../utils/workshopLaborFormat';
 import { moveItemInList } from '../../utils/moveItemInList';
 import { BudgetPartStockBadge } from '../ui/BudgetPartStockBadge';
 import { resolveBudgetPartStockFlags, type BudgetPartFields } from '../../utils/budgetPartStock';
+import {
+  PatioBudgetEditForm,
+  mapPatioBudgetPartToPayload,
+  type PatioBudgetEditDraft,
+} from '../budget/PatioBudgetEditForm';
 import { buildBudgetServiceTechnicianNames } from '../../utils/budgetServiceTechnicians';
 import { parseReferenceLinksFromApi, formatReferenceLinkDisplay } from '../../utils/vehicleReferenceLinks';
 import { capitalizeFirst, firstTwoNames } from '../../utils/personNameFormat';
@@ -1533,6 +1538,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
   /** Enquanto o modal de orçamento está aberto, o live-sync não deve rehidratar a OS (trava a digitação). */
   const isBudgetOpenRef = useRef(false);
   isBudgetOpenRef.current = isBudgetOpen;
+  /** Remonta o formulário isolado a cada abertura (estado de digitação fora do PatioView). */
+  const [budgetEditSessionId, setBudgetEditSessionId] = useState(0);
 
   const [workshopServices, setWorkshopServices] = useState<WorkshopService[]>([]);
   const [workshopParts, setWorkshopParts] = useState<WorkshopPart[]>([]);
@@ -2074,7 +2081,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
   useEffect(() => {
     if (!isAppTabActive) return;
     const id = window.setInterval(() => {
-      if (document.visibilityState === 'visible') fetchRemindersRef.current();
+      if (document.visibilityState !== 'visible') return;
+      if (isBudgetOpenRef.current) return;
+      fetchRemindersRef.current();
     }, 12000);
     return () => window.clearInterval(id);
   }, [isAppTabActive]);
@@ -2095,7 +2104,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
     if (!isAppTabActive) return;
     void refreshCommentUnreadCounts();
     const id = window.setInterval(() => {
-      if (document.visibilityState === 'visible') void refreshCommentUnreadCountsRef.current();
+      if (document.visibilityState !== 'visible') return;
+      if (isBudgetOpenRef.current) return;
+      void refreshCommentUnreadCountsRef.current();
     }, 8000);
     return () => window.clearInterval(id);
   }, [isAppTabActive, refreshCommentUnreadCounts]);
@@ -2457,6 +2468,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const hasLoadedBoardOnceRef = useRef(false);
 
   const fetchDataImpl = async (isBackground = false) => {
+    // Evita setState em massa no quadro enquanto o usuário digita o orçamento (PC trava).
+    if (isBackground && isBudgetOpenRef.current) return;
     if (!isBackground) {
       setError(null);
       setInitialLoading(true);
@@ -3000,6 +3013,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
     fetchDataRef.current(softRefresh);
     const intervalId = window.setInterval(() => {
       if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
+      if (isBudgetOpenRef.current) return;
       fetchDataRef.current(true);
     }, 15000);
     return () => window.clearInterval(intervalId);
@@ -4002,6 +4016,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
   useEffect(() => {
     if (isModuleMode) return;
     const id = window.setInterval(() => {
+      if (isBudgetOpenRef.current) return;
       setLabLinkedStatusRefreshTick((v) => v + 1);
     }, 8000);
     return () => window.clearInterval(id);
@@ -4328,6 +4343,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
       setBudgetDiagnosis('');
       setBudgetObservations('');
     }
+    setBudgetEditSessionId((n) => n + 1);
     setIsBudgetOpen(true);
     getWorkshopServices().then(setWorkshopServices).catch(() => setWorkshopServices([]));
     void getWorkshopParts()
@@ -4847,20 +4863,20 @@ export const PatioView: React.FC<PatioViewProps> = ({
     setSuggestionsForPartId(null);
   };
 
-  const handleCreateBudget = async () => {
+  const handleCreateBudget = async (draft: PatioBudgetEditDraft) => {
     if (!selectedCard) return;
 
-    const validServices = budgetServices.filter(s => s.description.trim());
-    const validParts = budgetParts.filter(p => p.description.trim());
+    const validServices = draft.services.filter((s) => s.description.trim());
+    const validParts = draft.parts.filter((p) => p.description.trim());
 
-    if (validServices.length === 0 && validParts.length === 0 && !budgetDiagnosis.trim()) {
+    if (validServices.length === 0 && validParts.length === 0 && !draft.diagnosis.trim()) {
       alert("Adicione pelo menos um serviço, peça ou diagnóstico.");
       return;
     }
 
     const payload = {
       cardName: selectedCard.name,
-      diagnosis: budgetDiagnosis.trim(),
+      diagnosis: draft.diagnosis.trim(),
       services: editingBudget
         ? validServices.map((s, i) => ({
             description: s.description.trim(),
@@ -4873,11 +4889,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
           })),
       parts: editingBudget
         ? validParts.map((p, i) => ({
-            ...mapBudgetPartToPayload(p),
+            ...mapPatioBudgetPartToPayload(p),
             approved: editingBudget.parts[i]?.approved,
           }))
-        : validParts.map(mapBudgetPartToPayload),
-      observations: budgetObservations.trim(),
+        : validParts.map(mapPatioBudgetPartToPayload),
+      observations: draft.observations.trim(),
     };
 
     setSendingBudget(true);
@@ -6120,7 +6136,14 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
       {/* Grid — mesma ordem dos estágios; cartões em vidro iOS. (z-0 para dropdown do cabeçalho z-50 ficar acima) */}
       <div className="relative z-0 mx-auto w-full max-w-[128rem] px-0.5 sm:px-1 md:px-2 lg:px-3">
-      {(() => {
+      {/* Enquanto edita orçamento: não reconcilia centenas de cards (trava digitação no PC). */}
+      {isBudgetOpen ? (
+        <div
+          className="min-h-[min(50vh,28rem)] rounded-2xl bg-zinc-100/70 dark:bg-zinc-900/35"
+          aria-hidden
+        />
+      ) : (
+      (() => {
         const stageOrder = boardStages.map((s) => s.id);
         const byStage = (a: TrelloCard, b: TrelloCard) => {
           const ia = stageOrder.indexOf(a.idList);
@@ -6843,9 +6866,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   )}
           </div>
         );
-      })()}
+      })()
+      )}
 
-      {cards.length === 0 && (
+      {cards.length === 0 && !isBudgetOpen && (
           <div className={`${iosPageGlass} !border-0 !shadow-none ring-0 flex flex-col items-center justify-center py-16 text-center sm:py-20`}>
             <div className="mb-5">
               {isModuleMode ? (
@@ -10842,359 +10866,28 @@ export const PatioView: React.FC<PatioViewProps> = ({
         />
       ) : null}
 
-      {/* MODAL CRIAR/EDITAR ORÇAMENTO — tela cheia, sempre visual de tema claro */}
+      {/* MODAL CRIAR/EDITAR ORÇAMENTO — estado de digitação isolado do PatioView (evita trava no PC) */}
       {isBudgetOpen && selectedCard && patioPortalsVisible && (
-        <ModalPortal>
-        <div
-          className={`budget-modal-light-chrome fixed inset-0 z-[200] flex h-[100dvh] max-h-[100dvh] w-full min-w-0 flex-col ${!isPatioPcModal ? 'budget-modal--compact overflow-y-hidden' : 'overflow-hidden'} ${budgetModalPaperShell} ${modalBackdropAnimClass(budgetModalExiting)}`}
-          style={{ colorScheme: 'light' }}
-        >
-            <div className={`relative z-[1] flex min-h-0 flex-1 flex-col ${budgetModalExiting ? 'animate-modal-sheet-out pointer-events-none' : ''}`}>
-            <button type="button" onClick={requestCloseBudgetModal} className="absolute right-3 top-[max(0.5rem,env(safe-area-inset-top))] z-20 flex h-9 w-9 items-center justify-center rounded-full bg-sky-900/10 text-sky-900 transition-colors hover:bg-sky-200/90 hover:text-sky-950 sm:right-4 sm:h-10 sm:w-10" aria-label="Fechar orçamento">
-              <X className="h-5 w-5" />
-            </button>
-
-            <div className={`budget-modal-compact-header shrink-0 border-b border-zinc-200/80 bg-zinc-200 px-6 pb-5 pt-[max(1.25rem,env(safe-area-inset-top))] sm:px-8 sm:pt-8`}>
-              <div className="flex items-start gap-3 pr-10">
-                <IosAccentIconSquircle variant="modal" strokeWidth={2.2} lightChrome>
-                  <img src="/icons/novo-orcamento-ios.png" alt="" className="h-full w-full object-cover" />
-                </IosAccentIconSquircle>
-                <div className="min-w-0 flex-1">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-sky-700/90">
-                    Orçamento
-                  </p>
-                  <h2 className={`font-semibold leading-tight tracking-tight text-slate-900 ${!isPatioPcModal ? 'text-[18px]' : 'text-[22px] sm:text-[26px]'}`}>
-                    {editingBudget ? 'Editar orçamento' : 'Novo orçamento'}
-                  </h2>
-                  <p className={`mt-1 flex flex-wrap items-center gap-1.5 text-sky-900/75 ${!isPatioPcModal ? 'text-[12px]' : 'text-[13px]'}`}>
-                    <Sparkles className="h-3.5 w-3.5 shrink-0 text-sky-500" strokeWidth={2} />
-                    <span className="min-w-0 break-words">
-                      {(selectedCard.vehicleBrand ?? '').trim() ? (
-                        <span className="text-sky-800/80">
-                          {(selectedCard.vehicleBrand ?? '').trim()}
-                          {' · '}
-                        </span>
-                      ) : null}
-                      {(selectedCard.vehicleColor ?? '').trim() ? (
-                        <span className="text-sky-800/80">
-                          {(selectedCard.vehicleColor ?? '').trim()}
-                          {' · '}
-                        </span>
-                      ) : null}
-                      {blurPlates ? (() => {
-                        const p = selectedCard.name.split(' - ');
-                        return p.length >= 3 ? (
-                          <>
-                            {p[0]} <span className="blur-plate">{p[1]}</span> {p.slice(2).join(' - ')}
-                          </>
-                        ) : (
-                          selectedCard.name
-                        );
-                      })() : (
-                        selectedCard.name
-                      )}
-                    </span>
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className={`budget-modal-compact-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-5 text-slate-800 custom-scrollbar sm:px-8 ${budgetModalCanvasBg}`}>
-                  <div className={`budget-modal-compact-stack ${!isPatioPcModal ? 'space-y-3' : 'space-y-5'}`}>
-                    <div>
-                      <p className={budgetModalFieldLabel}>Descrição do diagnóstico</p>
-                      <div className={`${budgetModalPaperInset} overflow-hidden p-0`}>
-                        <textarea
-                          className={`${budgetModalInput} min-h-[120px] resize-y border-0 py-3.5 text-[15px] leading-relaxed shadow-none focus:ring-2`}
-                          placeholder="Diagnóstico"
-                          value={budgetDiagnosis}
-                          onChange={(e) => setBudgetDiagnosis(e.target.value)}
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                        <p className={`${budgetModalFieldLabel} mb-0`}>Serviços</p>
-                        {workshopServices.length > 0 && (
-                          <button
-                            type="button"
-                            onClick={() => setIsServiceListOpen(true)}
-                            className="inline-flex items-center gap-1.5 rounded-xl border border-sky-200/80 bg-white px-3 py-2 text-[13px] font-semibold text-slate-800 shadow-sm transition-colors hover:border-sky-300 hover:bg-sky-50"
-                          >
-                            Inserir da lista
-                            <ChevronDown className="h-4 w-4 opacity-80" />
-                          </button>
-                        )}
-                      </div>
-                      <div className={`${budgetModalPaperInset} p-3.5 sm:p-4`}>
-                      <div className="space-y-2.5">
-                        {budgetServices.map((item, serviceIndex) => {
-                          const isFocused = suggestionsForServiceId === item.id;
-                          return (
-                            <div key={item.id} className="relative">
-                              <div className="flex items-start gap-2 sm:gap-3">
-                                <BudgetLinePositionControl
-                                  position={serviceIndex + 1}
-                                  total={budgetServices.length}
-                                  onMoveTo={(toIndex) => moveServiceRowToIndex(item.id, toIndex)}
-                                  ariaLabelPrefix="Serviço"
-                                />
-                                <div
-                                  className="min-w-0 flex-1 space-y-1"
-                                  ref={
-                                    isFocused
-                                      ? (node: HTMLDivElement | null) => {
-                                          focusedServiceInputRef.current = node;
-                                        }
-                                      : undefined
-                                  }
-                                >
-                                  <BudgetServiceDescriptionTextarea
-                                    value={item.description}
-                                    onChange={(v) => updateServiceDescription(item.id, v)}
-                                    onFocus={() => handleServiceInputFocus(item.id)}
-                                    onBlur={handleServiceInputBlur}
-                                    onEnterAdd={addServiceRow}
-                                    autoFocus={focusServiceId === item.id}
-                                    dataBudgetServiceId={item.id}
-                                    inputClassName={budgetModalInput}
-                                  />
-                                  {item.laborHours != null && Number.isFinite(Number(item.laborHours)) ? (
-                                    <p className="text-[12px] font-semibold tabular-nums text-sky-700/75">
-                                      Duração: {formatLaborLabel(Number(item.laborHours))}
-                                    </p>
-                                  ) : null}
-                                </div>
-                                <button
-                                  type="button"
-                                  onClick={() => removeServiceRow(item.id)}
-                                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-red-200/60 bg-red-50/40 text-red-500/85 transition-colors hover:border-red-400 hover:bg-red-100/80 hover:text-red-600"
-                                  aria-label="Remover serviço"
-                                >
-                                  <Trash2 className="h-5 w-5" />
-                                </button>
-                              </div>
-                            </div>
-                          );
-                        })}
-                        <button
-                          ref={budgetServicesAddRef}
-                          type="button"
-                          onClick={addServiceRow}
-                          className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-sky-300/90 bg-sky-50/50 px-3 py-2.5 text-[13px] font-semibold text-sky-800/90 transition-colors hover:border-sky-400 hover:bg-sky-50 hover:text-sky-950"
-                        >
-                          <Plus className="h-4 w-4" strokeWidth={2.2} />
-                          Adicionar
-                        </button>
-                      </div>
-                      </div>
-                    </div>
-
-                    {/* Modal: lista de serviços cadastrados */}
-                    {isServiceListOpen && (
-                      <div className="fixed inset-0 z-[220] flex items-center justify-center bg-slate-900/35 p-4 backdrop-blur-sm" onClick={() => setIsServiceListOpen(false)}>
-                        <div
-                          className={`flex max-h-[70vh] w-full max-w-lg flex-col overflow-hidden rounded-[1.5rem] border border-sky-200 text-slate-800 shadow-xl ${budgetModalCanvasBg}`}
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <div className="flex items-center justify-between border-b border-sky-200 px-5 py-4">
-                            <span className="text-[17px] font-semibold tracking-tight text-slate-900">Serviços cadastrados</span>
-                            <button
-                              type="button"
-                              onClick={() => setIsServiceListOpen(false)}
-                              className="flex h-10 w-10 items-center justify-center rounded-full bg-sky-200 text-sky-900 transition-colors hover:bg-sky-300"
-                              aria-label="Fechar"
-                            >
-                              <X className="h-5 w-5" />
-                            </button>
-                          </div>
-                          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain py-2">
-                            {workshopServices.map((s) => (
-                              <button
-                                key={s.id}
-                                type="button"
-                                onClick={() => addServiceFromList(s)}
-                                className="flex w-full items-start justify-between gap-3 border-b border-sky-200/60 px-5 py-3.5 text-left text-[15px] text-slate-800 transition-colors last:border-0 hover:bg-sky-100"
-                              >
-                                <span className="min-w-0 flex-1 leading-snug">{s.name}</span>
-                                {s.labor_hours != null && Number.isFinite(Number(s.labor_hours)) ? (
-                                  <span className="shrink-0 text-[13px] font-semibold tabular-nums text-sky-800/75">
-                                    {formatLaborLabel(Number(s.labor_hours))}
-                                  </span>
-                                ) : null}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Sugestões ao digitar serviço */}
-                    <BudgetServiceSuggestionDropdown
-                      open={!!suggestionsForServiceId}
-                      position={suggestionBoxPosition}
-                      suggestions={
-                        suggestionsForServiceId
-                          ? getServiceSuggestions(
-                              budgetServices.find((i) => i.id === suggestionsForServiceId)?.description ?? ''
-                            )
-                          : []
-                      }
-                      onClose={() => setSuggestionsForServiceId(null)}
-                      onKeepOpen={keepServiceSuggestionsOpen}
-                      onSelect={(svc) => {
-                        if (suggestionsForServiceId) applySuggestion(suggestionsForServiceId, svc);
-                      }}
-                    />
-
-                    <div>
-                      <div className="mb-2">
-                        <p className={`${budgetModalFieldLabel} mb-0`}>Peças</p>
-                      </div>
-                      <div className="space-y-2.5">
-                        {budgetParts.map((item, partIndex) => {
-                          const isFocusedPart = suggestionsForPartId === item.id;
-                          return (
-                            <div
-                              key={item.id}
-                              ref={isFocusedPart ? focusedPartInputRef : undefined}
-                              className={`${budgetModalPaperInset} flex flex-col gap-2.5 p-3.5 sm:flex-row sm:items-center sm:gap-3`}
-                            >
-                              <div className="flex min-w-0 flex-1 items-start gap-2 sm:items-center">
-                                <BudgetLinePositionControl
-                                  position={partIndex + 1}
-                                  total={budgetParts.length}
-                                  onMoveTo={(toIndex) => movePartRowToIndex(item.id, toIndex)}
-                                  ariaLabelPrefix="Peça"
-                                />
-                                <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-                                  {item.fromStock ? <BudgetPartStockBadge className="self-start" /> : null}
-                                  <input
-                                    type="text"
-                                    placeholder="Peça"
-                                    className={`${budgetModalInput} min-w-0 w-full shadow-none`}
-                                    value={item.description}
-                                    data-budget-part-id={item.id}
-                                    autoFocus={focusPartId === item.id}
-                                    onChange={(e) => updatePartDescription(item.id, e.target.value)}
-                                    onFocus={() => handlePartInputFocus(item.id)}
-                                    onBlur={handlePartInputBlur}
-                                    onKeyDown={(e) => {
-                                      if (e.key !== 'Enter' || e.shiftKey || e.nativeEvent.isComposing) return;
-                                      e.preventDefault();
-                                      addPartRow();
-                                    }}
-                                  />
-                                </div>
-                              </div>
-                              <div className="flex shrink-0 items-center justify-end gap-2 pl-12 sm:justify-start sm:pl-0">
-                                <div className="flex items-center overflow-hidden rounded-lg border border-sky-200/80 bg-white">
-                                  <button
-                                    type="button"
-                                    onClick={() => updatePartQuantity(item.id, -1)}
-                                    className="flex h-8 w-7 items-center justify-center text-sky-800/80 transition-colors hover:bg-sky-100"
-                                    aria-label="Diminuir quantidade"
-                                  >
-                                    <Minus className="h-3.5 w-3.5" />
-                                  </button>
-                                  <span className="min-w-[1.5rem] px-0.5 text-center text-[12px] font-semibold tabular-nums text-slate-900">
-                                    {item.quantity}
-                                  </span>
-                                  <button
-                                    type="button"
-                                    onClick={() => updatePartQuantity(item.id, 1)}
-                                    className="flex h-8 w-7 items-center justify-center text-sky-800/80 transition-colors hover:bg-sky-100"
-                                    aria-label="Aumentar quantidade"
-                                  >
-                                    <Plus className="h-3.5 w-3.5" />
-                                  </button>
-                                </div>
-                                <button
-                                  type="button"
-                                  onClick={() => removePartRow(item.id)}
-                                  className="flex h-10 w-10 items-center justify-center rounded-xl border border-red-200/60 bg-red-50/40 text-red-500/85 transition-colors hover:border-red-400 hover:bg-red-100/80 hover:text-red-600"
-                                  aria-label="Remover peça"
-                                >
-                                  <Trash2 className="h-5 w-5" />
-                                </button>
-                              </div>
-                            </div>
-                          );
-                        })}
-                        <button
-                          ref={budgetPartsAddRef}
-                          type="button"
-                          onClick={addPartRow}
-                          className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-sky-300/90 bg-sky-50/50 px-3 py-2.5 text-[13px] font-semibold text-sky-800/90 transition-colors hover:border-sky-400 hover:bg-sky-50 hover:text-sky-950"
-                        >
-                          <Plus className="h-4 w-4" strokeWidth={2.2} />
-                          Adicionar
-                        </button>
-                      </div>
-                    </div>
-
-                    <BudgetPartSuggestionDropdown
-                      open={!!suggestionsForPartId}
-                      position={partSuggestionBoxPosition}
-                      suggestions={
-                        suggestionsForPartId
-                          ? getPartSuggestions(
-                              budgetParts.find((i) => i.id === suggestionsForPartId)?.description ?? ''
-                            )
-                          : []
-                      }
-                      onClose={() => setSuggestionsForPartId(null)}
-                      onKeepOpen={keepPartSuggestionsOpen}
-                      onOpenPartDetails={(part) => {
-                        keepPartSuggestionsOpen();
-                        setBudgetPartQuickView(part);
-                      }}
-                      onSelect={(part) => {
-                        if (suggestionsForPartId) applyPartSuggestion(suggestionsForPartId, part);
-                      }}
-                    />
-
-                    {budgetPartQuickView ? (
-                      <WorkshopPartQuickViewModal
-                        part={budgetPartQuickView}
-                        catalogNumber={budgetPartQuickViewCatalogNumber}
-                        onClose={() => setBudgetPartQuickView(null)}
-                        onUseInBudget={(part) => {
-                          if (suggestionsForPartId) applyPartSuggestion(suggestionsForPartId, part);
-                          setBudgetPartQuickView(null);
-                        }}
-                      />
-                    ) : null}
-
-                    <div>
-                      <p className={budgetModalFieldLabel}>Observações</p>
-                      <div className={`${budgetModalPaperInset} overflow-hidden p-0`}>
-                        <textarea
-                          className={`${budgetModalInput} min-h-[88px] resize-y border-0 py-3.5 text-[15px] leading-relaxed shadow-none focus:ring-2`}
-                          placeholder="Observações"
-                          value={budgetObservations}
-                          onChange={(e) => setBudgetObservations(e.target.value)}
-                        />
-                      </div>
-                    </div>
-                  </div>
-            </div>
-
-            <div className={`budget-modal-compact-footer shrink-0 px-5 pb-[max(1rem,env(safe-area-inset-bottom))] pt-3 sm:px-8 sm:pt-4 ${budgetModalPaperFooter}`}>
-              <button
-                type="button"
-                onClick={handleCreateBudget}
-                disabled={sendingBudget}
-                className={`${budgetModalCreateBudgetButton} flex w-full items-center justify-center gap-2 px-5 ${!isPatioPcModal ? 'py-3 text-[14px]' : 'px-6 py-3.5'}`}
-              >
-                {sendingBudget ? <Loader2 className="h-5 w-5 animate-spin" strokeWidth={2.2} /> : <CheckCircle2 className="h-5 w-5" strokeWidth={2} />}
-                {sendingBudget ? 'Salvando…' : editingBudget ? 'Salvar alterações' : 'Criar orçamento'}
-              </button>
-            </div>
-            </div>
-        </div>
-        </ModalPortal>
+        <PatioBudgetEditForm
+          key={budgetEditSessionId}
+          exiting={budgetModalExiting}
+          isPatioPcModal={isPatioPcModal}
+          blurPlates={blurPlates}
+          cardName={selectedCard.name}
+          vehicleBrand={selectedCard.vehicleBrand}
+          vehicleColor={selectedCard.vehicleColor}
+          isEditing={!!editingBudget}
+          initialDiagnosis={budgetDiagnosis}
+          initialServices={budgetServices}
+          initialParts={budgetParts}
+          initialObservations={budgetObservations}
+          workshopServices={workshopServices}
+          workshopParts={workshopParts}
+          sending={sendingBudget}
+          onClose={requestCloseBudgetModal}
+          onSave={handleCreateBudget}
+          backdropAnimClass={modalBackdropAnimClass(budgetModalExiting)}
+        />
       )}
 
       {/* Fechamento: técnicos por serviço antes de FINALIZADO */}
