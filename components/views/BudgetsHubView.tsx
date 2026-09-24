@@ -143,7 +143,9 @@ export const BudgetsHubView: React.FC<BudgetsHubViewProps> = ({
         setPulseByBudgetId((p) => ({ ...p, ...merged }));
         setPendingBudgetHighlightIds((prev) => {
           const next = new Set(prev);
-          for (const k of Object.keys(merged)) next.add(k);
+          for (const [k, kind] of Object.entries(merged)) {
+            if (kind === 'created') next.add(k);
+          }
           return next;
         });
       }

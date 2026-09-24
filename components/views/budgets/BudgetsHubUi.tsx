@@ -1,6 +1,7 @@
 import React, { useLayoutEffect, useRef, useState } from 'react';
 import {
   CheckCircle2,
+  ChevronDown,
   Clock,
   Columns3,
   FileText,
@@ -148,20 +149,20 @@ export function BudgetsHubViewSwitcher({
   desktopShell?: boolean;
   /** Conteúdo à esquerda dos atalhos (ex.: toggle Pátio/Lab). */
   startSlot?: React.ReactNode;
-  /** Conteúdo à direita do "?" (ex.: botão atualizar). */
+  /** Conteúdo à direita (ex.: botão atualizar). */
   endSlot?: React.ReactNode;
 }) {
   const activeMeta = BUDGETS_HUB_VIEW_MODES.find((m) => m.id === mode);
-  const [helpOpen, setHelpOpen] = React.useState(false);
-  const helpRef = React.useRef<HTMLDivElement | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement | null>(null);
 
   React.useEffect(() => {
-    if (!helpOpen) return;
+    if (!menuOpen) return;
     const onDocClick = (e: MouseEvent) => {
-      if (helpRef.current && !helpRef.current.contains(e.target as Node)) setHelpOpen(false);
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenuOpen(false);
     };
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setHelpOpen(false);
+      if (e.key === 'Escape') setMenuOpen(false);
     };
     document.addEventListener('mousedown', onDocClick);
     document.addEventListener('keydown', onKey);
@@ -169,57 +170,66 @@ export function BudgetsHubViewSwitcher({
       document.removeEventListener('mousedown', onDocClick);
       document.removeEventListener('keydown', onKey);
     };
-  }, [helpOpen]);
+  }, [menuOpen]);
 
   return (
     <div className={desktopShell ? '' : ''}>
       <div className="flex items-center gap-2">
         {startSlot ? <div className="shrink-0 self-center">{startSlot}</div> : null}
-        <div className="budgets-hub-no-scrollbar flex min-w-0 flex-1 items-center gap-2 overflow-x-auto [-webkit-overflow-scrolling:touch]">
-          {BUDGETS_HUB_VIEW_MODES.map((m) => {
-            const active = mode === m.id;
-            return (
-              <button
-                key={m.id}
-                type="button"
-                onClick={() => onModeChange(m.id)}
-                title={m.description}
-                className={`inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border-0 px-3 text-[11px] font-bold uppercase tracking-[0.06em] transition-all shadow-none ${
-                  active
-                    ? 'bg-zinc-900 text-white dark:bg-white dark:text-zinc-900'
-                    : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200/80 dark:bg-zinc-900/80 dark:text-zinc-300 dark:hover:bg-zinc-800'
-                }`}
-              >
-                {VIEW_ICONS[m.id]}
-                <span className="hidden sm:inline">{m.label}</span>
-                <span className="sm:hidden">{m.shortLabel}</span>
-              </button>
-            );
-          })}
-        </div>
-        {activeMeta ? (
-          <div ref={helpRef} className="relative shrink-0 self-center">
-            <button
-              type="button"
-              onClick={() => setHelpOpen((o) => !o)}
-              aria-label="O que é esta visualização?"
-              aria-expanded={helpOpen}
-              className="flex h-9 w-9 items-center justify-center rounded-full bg-[#007AFF] text-[13px] font-bold text-white shadow-none transition-colors hover:bg-[#0058c7] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#007AFF]/45 focus-visible:ring-offset-1"
+        <div ref={menuRef} className="relative min-w-0 flex-1">
+          <button
+            type="button"
+            onClick={() => setMenuOpen((o) => !o)}
+            aria-expanded={menuOpen}
+            aria-haspopup="listbox"
+            title={activeMeta?.description}
+            className="inline-flex h-9 max-w-full items-center gap-1.5 rounded-full border-0 bg-zinc-900 px-3 text-[11px] font-bold uppercase tracking-[0.06em] text-white shadow-none transition-colors hover:bg-zinc-800 dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-100"
+          >
+            {activeMeta ? VIEW_ICONS[activeMeta.id] : <Columns3 className="h-3.5 w-3.5" strokeWidth={2.2} />}
+            <span className="truncate">{activeMeta?.label ?? 'Visualização'}</span>
+            <ChevronDown
+              className={`h-3.5 w-3.5 shrink-0 opacity-80 transition-transform ${menuOpen ? 'rotate-180' : ''}`}
+              strokeWidth={2.4}
+              aria-hidden
+            />
+          </button>
+          {menuOpen ? (
+            <div
+              role="listbox"
+              aria-label="Modos de visualização"
+              className="absolute left-0 z-40 mt-2 min-w-[14.5rem] overflow-hidden rounded-xl border-0 bg-white py-1 shadow-[0_16px_40px_-12px_rgba(0,0,0,0.28)] dark:bg-zinc-900 dark:shadow-[0_16px_40px_-12px_rgba(0,0,0,0.65)]"
             >
-              ?
-            </button>
-            {helpOpen ? (
-              <div className="absolute right-0 z-30 mt-2 w-64 rounded-xl border-0 bg-white p-3 text-left shadow-none dark:bg-zinc-900">
-                <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-zinc-500 dark:text-zinc-400">
-                  {activeMeta.label}
-                </p>
-                <p className="mt-1 text-[12px] leading-relaxed text-zinc-700 dark:text-zinc-300">
-                  {activeMeta.description}
-                </p>
-              </div>
-            ) : null}
-          </div>
-        ) : null}
+              {BUDGETS_HUB_VIEW_MODES.map((m) => {
+                const active = mode === m.id;
+                return (
+                  <button
+                    key={m.id}
+                    type="button"
+                    role="option"
+                    aria-selected={active}
+                    onClick={() => {
+                      onModeChange(m.id);
+                      setMenuOpen(false);
+                    }}
+                    className={`flex w-full items-start gap-2.5 px-3 py-2.5 text-left transition-colors ${
+                      active
+                        ? 'bg-[#007AFF]/10 text-[#0058c7] dark:bg-[#0A84FF]/15 dark:text-[#8cc8ff]'
+                        : 'text-zinc-800 hover:bg-zinc-50 dark:text-zinc-100 dark:hover:bg-white/[0.06]'
+                    }`}
+                  >
+                    <span className="mt-0.5 shrink-0">{VIEW_ICONS[m.id]}</span>
+                    <span className="min-w-0">
+                      <span className="block text-[12px] font-bold uppercase tracking-[0.05em]">{m.label}</span>
+                      <span className="mt-0.5 block text-[11px] font-medium leading-snug text-zinc-500 dark:text-zinc-400">
+                        {m.description}
+                      </span>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          ) : null}
+        </div>
         {endSlot ? <div className="shrink-0 self-center">{endSlot}</div> : null}
       </div>
     </div>
@@ -253,15 +263,17 @@ export function BudgetHubCardsGrid({
       }`}
     >
       {groups.map((group) => {
-        const needsAttention = group.items.some((row) =>
-          pendingBudgetHighlightIds.has(String(row.budgetId).trim())
+        const pendingNew = new Set(
+          group.items
+            .map((row) => String(row.budgetId).trim())
+            .filter((id) => pendingBudgetHighlightIds.has(id))
         );
         return (
           <BudgetHubPatioStyleCard
             key={group.orderId}
             group={group}
             pulseByBudgetId={pulseByBudgetId}
-            needsAttention={needsAttention}
+            pendingNewBudgetIds={pendingNew}
             blurPlates={blurPlates}
             desktopShell={desktopShell}
             compact={compact}
@@ -460,11 +472,8 @@ export function BudgetHubStageBoard({
             data-budgets-hub-col
             className={`${colMin} flex h-full min-h-0 shrink-0 flex-col overflow-hidden ${columnShell}`}
           >
-            <div className={`z-[1] shrink-0 border-b border-zinc-200/80 px-2.5 py-2 ${headerTop} ${col.style}`}>
+            <div className={`z-[1] shrink-0 border-b border-zinc-200/80 px-2.5 py-2.5 ${headerTop} ${col.style}`}>
               <p className="text-[10px] font-bold uppercase tracking-[0.06em]">{col.name}</p>
-              <p className="mt-0.5 text-[9px] font-semibold opacity-90">
-                {col.groups.length} veíc. · {col.budgetCount} orç.
-              </p>
             </div>
             <div className="budgets-hub-col-scroll budgets-hub-no-scrollbar min-h-0 flex-1 space-y-1.5 p-1.5">
               {col.groups.length === 0 ? (
@@ -473,15 +482,17 @@ export function BudgetHubStageBoard({
                 </p>
               ) : (
                 col.groups.map((group) => {
-                  const needsAttention = group.items.some((row) =>
-                    pendingBudgetHighlightIds.has(String(row.budgetId).trim())
+                  const pendingNew = new Set(
+                    group.items
+                      .map((row) => String(row.budgetId).trim())
+                      .filter((id) => pendingBudgetHighlightIds.has(id))
                   );
                   return (
                     <BudgetHubPatioStyleCard
                       key={group.orderId}
                       group={group}
                       pulseByBudgetId={pulseByBudgetId}
-                      needsAttention={needsAttention}
+                      pendingNewBudgetIds={pendingNew}
                       blurPlates={blurPlates}
                       desktopShell={desktopShell}
                       compact

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { CalendarDays, ChevronRight, User } from 'lucide-react';
+import { ChevronRight, User } from 'lucide-react';
 import {
   budgetChronologicalNumber,
 } from '../../../services/apiService';
@@ -17,7 +17,6 @@ import {
 } from '../../../utils/patioBoardGlassCard';
 import {
   budgetOrderFlow,
-  isBudgetRecentlyCreated,
   type VehicleBudgetGroup,
 } from '../../../utils/budgetsHubViews';
 import { BudgetHubBudgetPickerModal } from './BudgetHubBudgetPickerModal';
@@ -47,7 +46,8 @@ function formatBudgetCreated(iso: string): string {
 export type BudgetHubPatioStyleCardProps = {
   group: VehicleBudgetGroup;
   pulseByBudgetId?: Record<string, 'created' | 'edited'>;
-  needsAttention?: boolean;
+  /** IDs de orçamentos novos ainda não abertos — badge no card. */
+  pendingNewBudgetIds?: Set<string>;
   blurPlates?: boolean;
   desktopShell?: boolean;
   compact?: boolean;
@@ -62,12 +62,12 @@ export type BudgetHubPatioStyleCardProps = {
 
 /**
  * Card de veículo/módulo no hub: um card por OS, com a lista de orçamentos
- * e status evidentes (verificado, aprovado, novo, pendente).
+ * e status evidentes (verificado, aprovado, pendente).
  */
 export function BudgetHubPatioStyleCard({
   group,
   pulseByBudgetId = {},
-  needsAttention,
+  pendingNewBudgetIds,
   blurPlates = false,
   desktopShell,
   compact,
@@ -102,23 +102,15 @@ export function BudgetHubPatioStyleCard({
   const plate = (head.plate ?? '').trim() || '---';
   const moduleId = (head.moduleIdentification ?? head.vehicleModel ?? '').trim() || '—';
   const chrono = items.map((x) => ({ id: x.budgetId, createdAt: x.createdAt }));
-  const latestCreated = items.reduce((best, it) => {
-    const t = new Date(it.createdAt).getTime();
-    return t > best ? t : best;
-  }, 0);
-  const createdLabel = formatBudgetCreated(
-    Number.isFinite(latestCreated) && latestCreated > 0
-      ? new Date(latestCreated).toISOString()
-      : head.createdAt
-  );
   const anyVerified = items.some((i) => i.isVerified);
+  const newBudgetCount = items.filter((row) =>
+    pendingNewBudgetIds?.has(String(row.budgetId).trim())
+  ).length;
   const radius = getPatioBoardCardRadiusClass(Boolean(desktopShell), dense);
   const pad = dense ? 'gap-1.5 px-2.5 py-2.5' : 'gap-3 p-4 sm:p-5';
   /** Por etapa: fonte um pouco menor que a grade / Pátio. */
   const titleClass = getPatioBoardModelTitleClass(model, Boolean(trelloScale), true);
   const titleScaleClass = trelloScale ? 'origin-top-left scale-[0.86]' : '';
-
-  const ringClass = needsAttention ? 'border-2 border-red-400/70 dark:border-red-400/55' : 'border-0';
 
   const shellClass = `
     group relative flex min-h-0 w-full cursor-pointer flex-col overflow-hidden bg-white text-left
@@ -126,7 +118,7 @@ export function BudgetHubPatioStyleCard({
     ${patioBoardGlassCardShadow}
     ${radius}
     ${pad}
-    ${ringClass}
+    border-0
   `;
 
   const openPicker = () => setPickerOpen(true);
@@ -153,18 +145,28 @@ export function BudgetHubPatioStyleCard({
         }}
         className={shellClass}
       >
-        {needsAttention ? (
-          <div
-            className="pointer-events-none absolute inset-0 z-[1] rounded-[inherit] bg-red-500/[0.08] dark:bg-red-400/[0.12]"
-            aria-hidden
-          />
+        {newBudgetCount > 0 ? (
+          <span
+            className={`absolute z-20 inline-flex items-center justify-center rounded-full bg-[#007AFF] font-bold uppercase tracking-[0.06em] text-white shadow-[0_4px_12px_-2px_rgba(0,122,255,0.55)] ${
+              dense
+                ? 'right-1.5 top-1.5 min-w-[1.35rem] px-1.5 py-0.5 text-[9px]'
+                : 'right-2.5 top-2.5 min-w-[1.5rem] px-2 py-0.5 text-[10px]'
+            }`}
+            aria-label={
+              newBudgetCount === 1
+                ? '1 orçamento novo'
+                : `${newBudgetCount} orçamentos novos`
+            }
+          >
+            {newBudgetCount > 1 ? newBudgetCount : 'Novo'}
+          </span>
         ) : null}
 
         <div className={`relative z-10 flex min-h-0 w-full flex-col ${dense ? 'gap-1.5' : 'gap-2.5'}`}>
           <div className="min-w-0">
             <div className={`flex min-w-0 items-start gap-1.5 ${dense ? 'mb-0.5' : 'mb-1.5'}`}>
               <div className="min-w-0 flex-1">
-                <div className="flex min-w-0 items-center gap-1.5">
+                <div className="flex min-w-0 items-center gap-1.5 pr-8">
                   <h3
                     className={`font-vehicle ${titleClass} ${titleScaleClass} min-w-0 font-bold uppercase leading-[0.9] tracking-tight text-zinc-900 break-words dark:text-white ${vehicleCardTitleShadow}`}
                   >
@@ -187,15 +189,6 @@ export function BudgetHubPatioStyleCard({
                   >
                     {items.length} orç.
                   </span>
-                  {head.osNumber != null ? (
-                    <span
-                      className={`rounded-full bg-zinc-100 font-semibold text-zinc-600 dark:bg-white/[0.06] dark:text-zinc-400 ${
-                        dense ? 'px-1.5 py-0.5 text-[9px]' : 'px-2 py-0.5 text-[10px]'
-                      }`}
-                    >
-                      OS #{head.osNumber}
-                    </span>
-                  ) : null}
                 </div>
               </div>
               {!isLab ? (
@@ -226,30 +219,7 @@ export function BudgetHubPatioStyleCard({
               </div>
             ) : null}
 
-            <div className={`flex min-w-0 items-center justify-between gap-1.5 ${hasCustomer ? 'mt-1.5' : 'mt-1'}`}>
-              <div className="flex min-w-0 items-center gap-1">
-                <CalendarDays
-                  className={`shrink-0 text-zinc-400 dark:text-zinc-500 ${dense ? 'h-3 w-3' : 'h-3.5 w-3.5'}`}
-                  strokeWidth={2.2}
-                  aria-hidden
-                />
-                <div className="min-w-0">
-                  <p
-                    className={`font-semibold uppercase tracking-[0.12em] text-zinc-500 dark:text-zinc-400 ${
-                      dense ? 'text-[8px]' : 'text-[9px]'
-                    }`}
-                  >
-                    Último orç.
-                  </p>
-                  <p
-                    className={`truncate font-semibold tabular-nums text-zinc-800 dark:text-zinc-200 ${
-                      dense ? 'text-[11px]' : 'text-[12px]'
-                    }`}
-                  >
-                    {createdLabel}
-                  </p>
-                </div>
-              </div>
+            <div className={`flex min-w-0 items-center justify-end ${hasCustomer ? 'mt-1.5' : 'mt-1'}`}>
               {!isLab ? (
                 <MercosulPlateMockup
                   plate={plate}
@@ -258,7 +228,7 @@ export function BudgetHubPatioStyleCard({
                 />
               ) : (
                 <div
-                  className={`max-w-[55%] border-0 bg-zinc-100/90 dark:bg-white/[0.06] ${
+                  className={`max-w-[70%] border-0 bg-zinc-100/90 dark:bg-white/[0.06] ${
                     dense ? 'rounded-xl px-2 py-1' : 'rounded-2xl px-2.5 py-1.5'
                   }`}
                 >
@@ -277,7 +247,6 @@ export function BudgetHubPatioStyleCard({
               const bid = String(row.budgetId).trim();
               const budgetNum = budgetChronologicalNumber(chrono, row.budgetId);
               const pulse = pulseByBudgetId[bid];
-              const isNew = pulse === 'created' || isBudgetRecentlyCreated(row);
               return (
                 <li key={row.budgetId}>
                   <button
@@ -320,11 +289,6 @@ export function BudgetHubPatioStyleCard({
                         Sem aprov.
                       </span>
                     )}
-                    {isNew ? (
-                      <span className="shrink-0 rounded-full bg-emerald-500/20 px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-[0.06em] text-emerald-800 dark:text-emerald-300">
-                        Novo
-                      </span>
-                    ) : null}
                     {pulse === 'edited' ? (
                       <span className="shrink-0 rounded-full bg-amber-500/20 px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-[0.06em] text-amber-900 dark:text-amber-200">
                         Editado
@@ -368,7 +332,6 @@ export function BudgetHubPatioStyleCard({
       <BudgetHubBudgetPickerModal
         open={pickerOpen}
         group={group}
-        pulseByBudgetId={pulseByBudgetId}
         blurPlates={blurPlates}
         onClose={() => setPickerOpen(false)}
         onOpenBudget={onOpenBudget}
