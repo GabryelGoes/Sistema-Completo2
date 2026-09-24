@@ -440,10 +440,10 @@ export function createApiApp() {
       .normalize("NFD")
       .replace(/\p{M}/gu, "");
     s = s.replace(/[/\\]/g, "_").replace(/[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]/g, "");
-    s = s.replace(/[^\w\s.-]/g, "_");
-    s = s.replace(/\s+/g, " ").trim();
+    // Storage rejeita espaços e vários símbolos — manter só chave segura.
+    s = s.replace(/[^\w.-]/g, "_");
     s = s.replace(/_+/g, "_");
-    s = s.replace(/^[\s_]+|[\s_]+$/g, "");
+    s = s.replace(/^[\s._]+|[\s._]+$/g, "");
     return s || "arquivo";
   }
 
@@ -5373,21 +5373,54 @@ export function createApiApp() {
       }
 
       // Preservar extensão do arquivo original (Storage exige key válida)
-      const currentFileName = currentPath.slice(folderPath.length + 1);
+      const relative = currentPath.slice(folderPath.length + 1);
+      const slashIdx = relative.lastIndexOf("/");
+      const dirPrefix = slashIdx >= 0 ? relative.slice(0, slashIdx + 1) : "";
+      const currentFileName = slashIdx >= 0 ? relative.slice(slashIdx + 1) : relative;
       const lastDot = currentFileName.lastIndexOf(".");
       const ext = lastDot > 0 ? currentFileName.slice(lastDot) : "";
       if (ext && !trimmedNewName.toLowerCase().endsWith(ext.toLowerCase())) {
         trimmedNewName = trimmedNewName + ext;
       }
 
-      const safeName = sanitizeVehiclePhotoFileName(trimmedNewName);
+      let safeName = sanitizeVehiclePhotoFileName(trimmedNewName);
+      if (ext) {
+        const safeBase = safeName.toLowerCase().endsWith(ext.toLowerCase())
+          ? safeName.slice(0, -ext.length)
+          : safeName;
+        safeName = `${safeBase || "arquivo"}${ext.toLowerCase()}`;
+      }
 
-      const newPath = `${folderPath}/${safeName}`;
+      let newPath = `${folderPath}/${dirPrefix}${safeName}`;
+      if (newPath === currentPath) {
+        const {
+          data: { publicUrl },
+        } = supabaseAdmin.storage.from(VEHICLE_PHOTOS_BUCKET).getPublicUrl(currentPath);
+        return res.json({
+          url: publicUrl,
+          name: currentFileName,
+          path: currentPath,
+        });
+      }
+
+      // Evita colisão: se o destino já existir, tenta de novo com sufixo único.
       const bucket = VEHICLE_PHOTOS_BUCKET;
 
-      const { error: moveError } = await supabaseAdmin.storage
+      let { error: moveError } = await supabaseAdmin.storage
         .from(bucket)
         .move(currentPath, newPath);
+
+      if (moveError && /exist|duplicate|already|taken/i.test(String(moveError.message || ""))) {
+        const baseNoExt =
+          ext && safeName.toLowerCase().endsWith(ext.toLowerCase())
+            ? safeName.slice(0, -ext.length)
+            : safeName;
+        safeName = `${baseNoExt}_${Date.now()}${ext.toLowerCase() || ""}`;
+        newPath = `${folderPath}/${dirPrefix}${safeName}`;
+        ({ error: moveError } = await supabaseAdmin.storage
+          .from(bucket)
+          .move(currentPath, newPath));
+      }
 
       if (moveError) {
         console.error("[API] Erro ao renomear anexo no Storage:", moveError);
