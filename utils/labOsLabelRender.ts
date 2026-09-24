@@ -8,15 +8,17 @@ export type LabOsLabelInput = {
   vehicleName: string;
   /** Queixa do cliente (várias linhas). */
   complaint: string;
-  osNumber?: number | null;
+  /** Compartimento da bancada do laboratório (1–24). */
+  benchSlot?: number | null;
 };
 
 /** +30% sobre as fontes anteriores (QR permanece 168 px). */
-const FONT_OS = Math.round(13 * 1.3); // 17
+const FONT_SLOT_LABEL = Math.round(11 * 1.3); // 14
+const FONT_SLOT_NUM = Math.round(28 * 1.3); // 36 — vaga bem evidente
 const FONT_LABEL = Math.round(12 * 1.3); // 16
 const FONT_VALUE = Math.round(15 * 1.3); // 20
 const FONT_COMPLAINT = Math.round(13 * 1.3); // 17
-const LINE_OS = Math.round(18 * 1.3); // 23
+const LINE_SLOT = Math.round(34 * 1.3); // 44
 const LINE_VALUE = Math.round(22 * 1.3); // 29
 const LINE_COMPLAINT = Math.round(17 * 1.3); // 22
 
@@ -129,6 +131,45 @@ function drawLabeledBlock(
   return y + used * lineHeight;
 }
 
+/**
+ * Bloco destacado da vaga: faixa preta com "VAGA" + número grande em branco
+ * (máximo contraste na impressão térmica).
+ */
+function drawBenchSlotBanner(
+  ctx: CanvasRenderingContext2D,
+  slot: number | null | undefined,
+  x: number,
+  y: number,
+  maxWidth: number
+): number {
+  const slotLabelFont = `bold ${FONT_SLOT_LABEL}px Arial, Helvetica, sans-serif`;
+  const slotNumFont = `bold ${FONT_SLOT_NUM}px Arial, Helvetica, sans-serif`;
+  const padX = 6;
+  const padY = 3;
+  const bannerH = LINE_SLOT;
+  const hasSlot = typeof slot === 'number' && Number.isFinite(slot);
+
+  ctx.fillStyle = '#000000';
+  ctx.fillRect(x, y, maxWidth, bannerH);
+
+  ctx.fillStyle = '#ffffff';
+  ctx.textBaseline = 'middle';
+  const midY = y + bannerH / 2;
+
+  ctx.font = slotLabelFont;
+  const tag = 'VAGA';
+  ctx.fillText(tag, x + padX, midY);
+
+  const tagW = ctx.measureText(tag).width;
+  ctx.font = slotNumFont;
+  const numText = hasSlot ? String(Math.trunc(slot)) : '—';
+  ctx.fillText(numText, x + padX + tagW + 8, midY);
+
+  ctx.fillStyle = '#000000';
+  ctx.textBaseline = 'top';
+  return y + bannerH + padY;
+}
+
 /** Renderiza etiqueta 50×30 mm (384×240): QR à esquerda + textos à direita. */
 export async function renderLabOsLabelDataUrl(input: LabOsLabelInput): Promise<string> {
   const payload = buildLabOsQrPayload(input.serviceOrderId);
@@ -163,16 +204,10 @@ export async function renderLabOsLabelDataUrl(input: LabOsLabelInput): Promise<s
   const labelFont = `bold ${FONT_LABEL}px Arial, Helvetica, sans-serif`;
   const valueFont = `bold ${FONT_VALUE}px Arial, Helvetica, sans-serif`;
   const complaintFont = `${FONT_COMPLAINT}px Arial, Helvetica, sans-serif`;
-  const osFont = `bold ${FONT_OS}px Arial, Helvetica, sans-serif`;
 
-  let y = 6;
+  let y = 4;
 
-  if (input.osNumber != null) {
-    ctx.font = osFont;
-    const osLine = wrapTextLines(ctx, `OS #${input.osNumber}`, textMax, 1)[0] ?? '';
-    ctx.fillText(osLine, textX, y);
-    y += LINE_OS;
-  }
+  y = drawBenchSlotBanner(ctx, input.benchSlot, textX, y, textMax);
 
   y = drawLabeledBlock(
     ctx,

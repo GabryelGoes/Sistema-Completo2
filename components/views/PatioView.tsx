@@ -4472,7 +4472,12 @@ export const PatioView: React.FC<PatioViewProps> = ({
       customerName,
       vehicleName,
       complaint,
-      osNumber: serviceOrderDetail?.os_number ?? selectedCard.osNumber ?? null,
+      benchSlot:
+        typeof serviceOrderDetail?.bench_slot === 'number'
+          ? serviceOrderDetail.bench_slot
+          : typeof selectedCard.benchSlot === 'number'
+            ? selectedCard.benchSlot
+            : null,
     });
   }, [isModuleMode, selectedCard, serviceOrderDetail]);
 
@@ -4516,7 +4521,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
         customerName,
         vehicleName,
         complaint,
-        osNumber: linked?.os_number ?? null,
+        benchSlot: typeof linked?.bench_slot === 'number' ? linked.bench_slot : null,
       });
     },
     [

@@ -110,7 +110,9 @@ export function LabOsLabelPrintModal({ open, label, onClose }: LabOsLabelPrintMo
               </p>
               <p className="mt-0.5 text-[12px] text-zinc-500 dark:text-zinc-400">
                 {label.vehicleName}
-                {label.osNumber != null ? ` · OS #${label.osNumber}` : ''}
+                {typeof label.benchSlot === 'number'
+                  ? ` · Vaga ${label.benchSlot}`
+                  : ' · Sem vaga na bancada'}
               </p>
             </div>
 
