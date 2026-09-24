@@ -4,9 +4,7 @@ import {
   budgetChronologicalNumber,
 } from '../../../services/apiService';
 import { BudgetVerifiedSeal } from '../../budget/BudgetVerifiedSeal';
-import { PatioBoardOriginIcon } from '../../patio/PatioBoardOriginIcon';
 import { MercosulPlateMockup } from '../../ui/MercosulPlateMockup';
-import { VehicleBrandLogo } from '../../ui/VehicleBrandLogo';
 import { getStageConfig, getStageStyle } from '../../../constants/serviceOrderStages';
 import { firstTwoNames } from '../../../utils/personNameFormat';
 import { getPatioBoardModelTitleClass } from '../../../utils/patioBoardModelTitle';
