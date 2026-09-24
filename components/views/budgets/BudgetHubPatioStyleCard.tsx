@@ -60,6 +60,8 @@ export type BudgetHubPatioStyleCardProps = {
   gridScale?: boolean;
   /** No Trello a etapa já está na coluna — não repetir no card. */
   hideStageFooter?: boolean;
+  /** Preferência de zoom do usuário (multiplicador). */
+  userZoomScale?: number;
   onOpenBudget: (serviceOrderId: string, budgetId: string) => void;
 };
 
@@ -77,17 +79,19 @@ export function BudgetHubPatioStyleCard({
   trelloScale,
   gridScale,
   hideStageFooter,
+  userZoomScale = 1,
   onOpenBudget,
 }: BudgetHubPatioStyleCardProps) {
   const [pickerOpen, setPickerOpen] = useState(false);
   const dense = Boolean(trelloScale || compact || gridScale);
-  const cardZoom = trelloScale
+  const baseZoom = trelloScale
     ? BUDGET_HUB_TRELLO_CARD_ZOOM
     : gridScale
       ? desktopShell
         ? BUDGET_HUB_GRID_CARD_ZOOM_PC
         : BUDGET_HUB_GRID_CARD_ZOOM
-      : undefined;
+      : 1;
+  const cardZoom = baseZoom * (Number.isFinite(userZoomScale) && userZoomScale > 0 ? userZoomScale : 1);
 
   const head = group.head;
   const items = [...group.items].sort(
@@ -131,9 +135,7 @@ export function BudgetHubPatioStyleCard({
     <div
       className="h-auto w-full self-start"
       style={
-        cardZoom != null
-          ? ({ zoom: cardZoom } as React.CSSProperties & { zoom?: number })
-          : undefined
+        ({ zoom: cardZoom } as React.CSSProperties & { zoom?: number })
       }
     >
       <div

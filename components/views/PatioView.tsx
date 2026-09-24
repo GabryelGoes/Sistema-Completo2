@@ -178,13 +178,21 @@ import {
 import {
   patioBoardGlassCardShadow,
   vehicleCardTitleShadow,
-  BOARD_PANORAMIC_ZOOM,
   BOARD_PORTRAIT_HSCROLL_ZOOM_MULT,
   DESKTOP_LANDSCAPE_CARD_ZOOM,
   getPatioBoardCardRadiusClass,
   getPatioBoardColumnHeaderTopClass,
   getPatioBoardColumnShellClass,
 } from '../../utils/patioBoardGlassCard';
+import {
+  boardCardZoomPrefersDenseGrid,
+  boardCardZoomValueFromStep,
+  getDefaultBoardCardZoomStepIndex,
+  readBoardCardZoomStepIndex,
+  storeBoardCardZoomStepIndex,
+  type BoardCardZoomScope,
+} from '../../utils/boardCardZoomPrefs';
+import { BoardCardZoomMenuSection } from '../ui/BoardCardZoomMenuSection';
 import { LAB_BENCH_SLOT_COUNT, statusUsesBench } from '../../constants/labBench';
 import LabBenchPanel from '../lab/LabBenchPanel';
 import { LabBenchQueueModal } from '../lab/LabBenchQueueModal';
@@ -1697,9 +1705,14 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const remindersScopeApi = orderType === 'module' ? ('module' as const) : ('vehicle' as const);
   const remindersBadgeCount = reminders.length;
 
-  /** Visão panorâmica: cartões menores para caber mais na tela (Pátio / Laboratório independentes). */
-  const boardPanoramicStorageKey = isModuleMode ? 'patio-board-panoramic-module' : 'patio-board-panoramic-vehicle';
-  const [boardPanoramic, setBoardPanoramic] = useState(false);
+  type PatioBoardLayoutMode = 'standard' | 'trello' | 'by_mechanic' | 'recent_first';
+  /** Zoom dos cartões por modo de visualização (padrão / trello / mecânico / recentes). */
+  const patioZoomScope: BoardCardZoomScope = isModuleMode ? 'patio-module' : 'patio-vehicle';
+  const [boardLayoutMode, setBoardLayoutMode] = useState<PatioBoardLayoutMode>('standard');
+  const [cardZoomStep, setCardZoomStep] = useState(() =>
+    readBoardCardZoomStepIndex(isModuleMode ? 'patio-module' : 'patio-vehicle', 'standard')
+  );
+  const boardPanoramic = boardCardZoomPrefersDenseGrid(boardCardZoomValueFromStep(cardZoomStep));
   const { isDesktop, isTablet, isSmartphone, viewportWidth } = useDeviceTypeContext();
   const desktopShell = useDesktopShellLayout();
   /** Visualização da bancada em tela cheia. */
@@ -1819,33 +1832,51 @@ export const PatioView: React.FC<PatioViewProps> = ({
     });
   }, []);
   useEffect(() => {
+    // Migração: se o usuário tinha “encolher cartões” antigo e ainda não salvou zoom por modo.
     try {
-      setBoardPanoramic(localStorage.getItem(boardPanoramicStorageKey) === '1');
+      const legacyKey = isModuleMode ? 'patio-board-panoramic-module' : 'patio-board-panoramic-vehicle';
+      const legacy = localStorage.getItem(legacyKey) === '1';
+      const storeRaw = localStorage.getItem('rda_board_card_zoom_v1');
+      const store = storeRaw ? (JSON.parse(storeRaw) as Record<string, number>) : {};
+      const key = `${patioZoomScope}::${boardLayoutMode}`;
+      if (legacy && typeof store[key] !== 'number') {
+        const idx = storeBoardCardZoomStepIndex(patioZoomScope, boardLayoutMode, 2);
+        setCardZoomStep(idx);
+      }
     } catch {
-      setBoardPanoramic(false);
+      /* ignore */
     }
-  }, [boardPanoramicStorageKey]);
+  }, [isModuleMode, patioZoomScope, boardLayoutMode]);
 
-  type PatioBoardLayoutMode = 'standard' | 'trello' | 'by_mechanic' | 'recent_first';
   const boardLayoutStorageKey = `patio-board-layout-${isModuleMode ? 'module' : 'vehicle'}`;
-  const [boardLayoutMode, setBoardLayoutMode] = useState<PatioBoardLayoutMode>('standard');
   useEffect(() => {
     try {
       const raw = localStorage.getItem(boardLayoutStorageKey);
-      if (raw === 'trello' || raw === 'by_mechanic' || raw === 'recent_first') setBoardLayoutMode(raw);
-      else setBoardLayoutMode('standard');
+      const mode: PatioBoardLayoutMode =
+        raw === 'trello' || raw === 'by_mechanic' || raw === 'recent_first' ? raw : 'standard';
+      setBoardLayoutMode(mode);
+      setCardZoomStep(readBoardCardZoomStepIndex(patioZoomScope, mode));
     } catch {
       setBoardLayoutMode('standard');
+      setCardZoomStep(getDefaultBoardCardZoomStepIndex(patioZoomScope, 'standard'));
     }
-  }, [boardLayoutStorageKey]);
+  }, [boardLayoutStorageKey, patioZoomScope]);
   const setBoardLayoutModePersist = React.useCallback(
     (mode: PatioBoardLayoutMode) => {
       setBoardLayoutMode(mode);
+      setCardZoomStep(readBoardCardZoomStepIndex(patioZoomScope, mode));
       try {
         localStorage.setItem(boardLayoutStorageKey, mode);
       } catch (_) {}
     },
-    [boardLayoutStorageKey]
+    [boardLayoutStorageKey, patioZoomScope]
+  );
+  const handlePatioCardZoomStepChange = React.useCallback(
+    (nextIndex: number) => {
+      const saved = storeBoardCardZoomStepIndex(patioZoomScope, boardLayoutMode, nextIndex);
+      setCardZoomStep(saved);
+    },
+    [patioZoomScope, boardLayoutMode]
   );
   const [trelloDragCardId, setTrelloDragCardId] = useState<string | null>(null);
   const [trelloDragOverListId, setTrelloDragOverListId] = useState<string | null>(null);
@@ -5531,51 +5562,20 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 </button>
               </div>
             )}
-            <div className="border-b border-zinc-100 px-3 pb-2 dark:border-white/[0.07]">
-              <p className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-zinc-400 dark:text-zinc-500">Tamanho dos cartões</p>
-              <button
-                type="button"
-                role="menuitem"
-                aria-pressed={boardPanoramic}
-                className={`flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left transition-colors hover:bg-zinc-100/90 dark:hover:bg-white/[0.08] ${
-                  boardPanoramic ? 'text-[#007AFF] dark:text-[#64B5FF]' : 'text-zinc-800 dark:text-zinc-100'
-                }`}
-                onClick={() => {
-                  setBoardPanoramic((prev) => {
-                    const next = !prev;
-                    try {
-                      localStorage.setItem(boardPanoramicStorageKey, next ? '1' : '0');
-                    } catch (_) {}
-                    return next;
-                  });
-                  setIsPatioHeaderToolsOpen(false);
-                }}
-              >
-                <span
-                  className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border shadow-sm ${
-                    boardPanoramic
-                      ? 'border-[#007AFF]/45 bg-[#007AFF]/15 dark:border-[#0A84FF]/45 dark:bg-[#0A84FF]/18'
-                      : 'border-zinc-200/80 bg-zinc-50 dark:border-white/[0.1] dark:bg-white/[0.06]'
-                  }`}
-                >
-                  {boardPanoramic ? (
-                    <ZoomIn className="h-5 w-5 drop-shadow-sm" strokeWidth={2.2} aria-hidden />
-                  ) : (
-                    <ZoomOut className="h-5 w-5 drop-shadow-sm" strokeWidth={2.2} aria-hidden />
-                  )}
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block text-[14px] font-semibold leading-snug">
-                    {boardPanoramic ? 'Ampliar cartões' : 'Encolher cartões'}
-                  </span>
-                  <span className="mt-0.5 block text-[11px] font-normal leading-snug text-zinc-500 dark:text-zinc-400">
-                    {boardPanoramic
-                      ? 'Voltar ao tamanho padrão da grade'
-                      : 'Modo compacto: 3 colunas em retrato; em paisagem larga, até 5 por fileira'}
-                  </span>
-                </span>
-              </button>
-            </div>
+            <BoardCardZoomMenuSection
+              scope={patioZoomScope}
+              modeLabel={
+                boardLayoutMode === 'trello'
+                  ? 'Estilo Trello'
+                  : boardLayoutMode === 'by_mechanic'
+                    ? 'Por mecânico'
+                    : boardLayoutMode === 'recent_first'
+                      ? 'Recentes primeiro'
+                      : 'Padrão'
+              }
+              stepIndex={cardZoomStep}
+              onStepChange={handlePatioCardZoomStepChange}
+            />
             <div className="border-b border-zinc-100 px-3 pb-2 dark:border-white/[0.07]">
               <p className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-zinc-400 dark:text-zinc-500">Visualização do quadro</p>
               <div className="flex flex-col gap-1">
@@ -6085,18 +6085,16 @@ export const PatioView: React.FC<PatioViewProps> = ({
         const zoomOuterClass =
           'origin-top will-change-[zoom] motion-safe:transition-[zoom] motion-safe:duration-500 motion-safe:ease-[cubic-bezier(0.34,1.35,0.25,1)]';
         const patioBoardZoomFor = (variant: 'grid' | 'hscroll') => {
-          let z =
-            boardPanoramic || isPortraitOrientation ? BOARD_PANORAMIC_ZOOM : 1;
+          let z = boardCardZoomValueFromStep(cardZoomStep);
+          // Retrato: limita o tamanho máximo para caber mais cartões.
+          if (isPortraitOrientation) {
+            z = Math.min(z, 0.78);
+          }
           if (variant === 'hscroll' && isPortraitOrientation) {
             z *= BOARD_PORTRAIT_HSCROLL_ZOOM_MULT;
           }
-          // Modo PC: zoom out de 10% na grade inicial do Pátio.
           if (desktopShell) {
             z *= 0.9;
-          }
-          // Trello / por mecânico: zoom out de 15% nos cartões (Pátio e Laboratório).
-          if (boardLayoutMode === 'trello' || boardLayoutMode === 'by_mechanic') {
-            z *= 0.85;
           }
           return z;
         };
