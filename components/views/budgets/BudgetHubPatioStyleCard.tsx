@@ -151,7 +151,7 @@ export function BudgetHubPatioStyleCard({
       >
         {newBudgetCount > 0 ? (
           <span
-            className={`absolute z-20 inline-flex items-center justify-center rounded-full bg-[#007AFF] font-bold uppercase tracking-[0.06em] text-white shadow-[0_4px_12px_-2px_rgba(0,122,255,0.55)] ${
+            className={`absolute z-20 inline-flex items-center justify-center rounded-full bg-[#FF3B30] font-bold uppercase tracking-[0.06em] text-white shadow-[0_4px_12px_-2px_rgba(255,59,48,0.55)] ${
               dense
                 ? 'right-1.5 top-1.5 min-w-[1.35rem] px-1.5 py-0.5 text-[9px]'
                 : 'right-2.5 top-2.5 min-w-[1.5rem] px-2 py-0.5 text-[10px]'
@@ -168,23 +168,14 @@ export function BudgetHubPatioStyleCard({
 
         <div className={`relative z-10 flex min-h-0 w-full flex-col ${dense ? 'gap-1.5' : 'gap-2.5'}`}>
           <div className={`flex min-w-0 flex-col ${dense ? 'gap-1' : 'gap-1.5'}`}>
-            {/* Linha 1 — só o nome do veículo (+ logo à direita, sem empurrar/cortar) */}
-            <div className="flex min-w-0 items-center gap-1.5">
+            {/* Linha 1 — só o nome do veículo */}
+            <div className="flex min-w-0 items-center">
               <h3
                 title={modelFull !== model ? modelFull : undefined}
-                className={`font-vehicle ${titleClass} ${titleScaleClass} min-w-0 flex-1 truncate whitespace-nowrap font-bold uppercase leading-none tracking-tight text-zinc-900 dark:text-white ${vehicleCardTitleShadow}`}
+                className={`font-vehicle ${titleClass} ${titleScaleClass} min-w-0 w-full truncate whitespace-nowrap font-bold uppercase leading-none tracking-tight text-zinc-900 dark:text-white ${vehicleCardTitleShadow}`}
               >
                 {model}
               </h3>
-              {!isLab ? (
-                <VehicleBrandLogo
-                  brand={head.vehicleBrand}
-                  size={dense ? 'card' : desktopShell ? 'cardPc' : 'card'}
-                  className={`shrink-0 ${dense ? 'scale-90' : ''}`}
-                />
-              ) : (
-                <PatioBoardOriginIcon kind="laboratorio" size={dense ? 'cardCompact' : 'card'} className="shrink-0" />
-              )}
             </div>
 
             {/* Linha 2 — cliente */}
