@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Minus, Plus, Trash2 } from 'lucide-react';
 import type { WorkshopPart } from '../../services/apiService';
-import { resolveBudgetPartStockFlags } from '../../utils/budgetPartStock';
+import { resolveBudgetPartStockFlags, buildWorkshopPartNameIndex } from '../../utils/budgetPartStock';
 import { BudgetLineReorderButtons } from './BudgetLineReorderButtons';
 import { BudgetPartStockBadge } from '../ui/BudgetPartStockBadge';
 import { BudgetPartSuggestionDropdown } from './BudgetPartSuggestionDropdown';
@@ -95,8 +95,8 @@ export const BudgetPartsEditor: React.FC<BudgetPartsEditorProps> = ({
     onChange(
       parts.map((item) => {
         if (item.id !== id) return item;
-        const flags = resolveBudgetPartStockFlags(value, workshopParts, item);
-        return { ...item, description: value, ...flags };
+        // Só o texto na digitação — flags de estoque no blur / sugestão (evita varrer catálogo a cada tecla).
+        return { ...item, description: value };
       })
     );
   };
@@ -116,6 +116,11 @@ export const BudgetPartsEditor: React.FC<BudgetPartsEditorProps> = ({
     [workshopParts]
   );
 
+  const workshopPartsNameIndex = useMemo(
+    () => buildWorkshopPartNameIndex(workshopParts),
+    [workshopParts]
+  );
+
   const getPartSuggestions = (description: string) => {
     const q = normalizeText(description.trim());
     if (!q) return [];
@@ -127,6 +132,23 @@ export const BudgetPartsEditor: React.FC<BudgetPartsEditorProps> = ({
       }
     }
     return out;
+  };
+
+  const resolvePartStockOnBlur = (id: string) => {
+    const item = parts.find((p) => p.id === id);
+    if (!item) return;
+    const flags = resolveBudgetPartStockFlags(
+      item.description,
+      workshopParts,
+      item,
+      workshopPartsNameIndex
+    );
+    if (flags.fromStock === item.fromStock && flags.workshopPartId === item.workshopPartId) {
+      return;
+    }
+    onChange(
+      parts.map((row) => (row.id === id ? { ...row, ...flags } : row))
+    );
   };
 
   const applyPartSuggestion = (partId: string, part: WorkshopPart) => {
@@ -156,7 +178,8 @@ export const BudgetPartsEditor: React.FC<BudgetPartsEditorProps> = ({
     setSuggestionsForPartId(id);
   };
 
-  const handlePartInputBlur = () => {
+  const handlePartInputBlur = (id: string) => {
+    resolvePartStockOnBlur(id);
     partSuggestionCloseTimerRef.current = setTimeout(() => setSuggestionsForPartId(null), 180);
   };
 
@@ -262,7 +285,7 @@ export const BudgetPartsEditor: React.FC<BudgetPartsEditorProps> = ({
                     data-budget-parts-editor-id={item.id}
                     onChange={(e) => updatePartDescription(item.id, e.target.value)}
                     onFocus={() => handlePartInputFocus(item.id)}
-                    onBlur={handlePartInputBlur}
+                    onBlur={() => handlePartInputBlur(item.id)}
                     onKeyDown={(e) => {
                       if (e.key !== 'Enter' || e.shiftKey || e.nativeEvent.isComposing) return;
                       e.preventDefault();

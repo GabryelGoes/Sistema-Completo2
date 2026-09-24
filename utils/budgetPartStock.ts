@@ -17,28 +17,43 @@ export function normalizeBudgetPartName(value: string): string {
     .replace(/[\u0300-\u036f]/g, '');
 }
 
+/** Índice O(1) por nome normalizado — evita varrer o catálogo a cada tecla. */
+export function buildWorkshopPartNameIndex(
+  catalog: WorkshopPart[]
+): Map<string, WorkshopPart> {
+  const map = new Map<string, WorkshopPart>();
+  for (const p of catalog) {
+    const key = normalizeBudgetPartName(p.name);
+    if (key && !map.has(key)) map.set(key, p);
+  }
+  return map;
+}
+
 export function findWorkshopPartByDescription(
   description: string,
-  catalog: WorkshopPart[]
+  catalog: WorkshopPart[],
+  nameIndex?: Map<string, WorkshopPart>
 ): WorkshopPart | undefined {
   const key = normalizeBudgetPartName(description);
   if (!key) return undefined;
+  if (nameIndex) return nameIndex.get(key);
   return catalog.find((p) => normalizeBudgetPartName(p.name) === key);
 }
 
 export function resolveBudgetPartStockFlags(
   description: string,
   catalog: WorkshopPart[],
-  existing?: Pick<BudgetPartFields, 'fromStock' | 'workshopPartId'>
+  existing?: Pick<BudgetPartFields, 'fromStock' | 'workshopPartId'>,
+  nameIndex?: Map<string, WorkshopPart>
 ): Pick<BudgetPartFields, 'fromStock' | 'workshopPartId'> {
   if (existing?.fromStock === true) {
     const byId = existing.workshopPartId
       ? catalog.find((p) => p.id === existing.workshopPartId)
       : undefined;
-    const match = byId ?? findWorkshopPartByDescription(description, catalog);
+    const match = byId ?? findWorkshopPartByDescription(description, catalog, nameIndex);
     if (match) return { fromStock: true, workshopPartId: match.id };
   }
-  const match = findWorkshopPartByDescription(description, catalog);
+  const match = findWorkshopPartByDescription(description, catalog, nameIndex);
   if (match) return { fromStock: true, workshopPartId: match.id };
   return { fromStock: false, workshopPartId: undefined };
 }
