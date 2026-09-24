@@ -31,9 +31,9 @@ export function MercosulPlateMockup(props: {
   const isModalMobile = size === 'modalMobile';
 
   const w = isCompact
-    ? 'w-[104px]'
+    ? 'w-[118px]'
     : isCardGrid
-      ? 'w-[118px] sm:w-[126px]'
+      ? 'w-[132px] sm:w-[140px]'
       : isModalMobile
         ? 'w-[112px]'
         : isModalTablet
@@ -60,22 +60,22 @@ export function MercosulPlateMockup(props: {
   const flagH = isCompact ? 8 : isCardGrid ? 10 : isModalMobile ? 8 : isModalTablet ? 10 : isModalPc ? 9 : 11;
 
   const plateText = isCompact
-    ? 'text-[17px] tracking-[0.12em]'
+    ? 'text-[22px] tracking-[0.08em]'
     : isCardGrid
-      ? 'text-[22px] tracking-[0.14em] sm:text-[24px]'
+      ? 'text-[26px] tracking-[0.1em] sm:text-[28px]'
       : isModalMobile
-        ? 'text-[18px] tracking-[0.12em]'
+        ? 'text-[20px] tracking-[0.1em]'
         : isModalTablet
-          ? 'text-[24px] tracking-[0.14em]'
+          ? 'text-[26px] tracking-[0.12em]'
           : isModalPc
-            ? 'text-[24px] tracking-[0.14em] xl:text-[26px]'
+            ? 'text-[26px] tracking-[0.12em] xl:text-[28px]'
             : isModal
-              ? 'text-[28px] tracking-[0.14em] sm:text-[32px]'
-              : 'text-[28px] tracking-[0.14em] sm:text-[32px]';
+              ? 'text-[30px] tracking-[0.12em] sm:text-[34px]'
+              : 'text-[30px] tracking-[0.12em] sm:text-[34px]';
 
   const mockup = (
     <div
-      className={`${w} aspect-[400/140] relative grid grid-rows-[24%_76%] overflow-hidden rounded-[3px] border-[1.75px] border-[#1a1a1a] bg-white shadow-[0_2px_5px_-1px_rgba(0,0,0,0.3),0_1px_2px_rgba(0,0,0,0.14),inset_0_1px_0_rgba(255,255,255,0.9)] ${selectable ? 'select-text' : 'select-none'}`}
+      className={`${w} aspect-[400/140] relative grid grid-rows-[22%_78%] overflow-hidden rounded-[3px] border-[1.75px] border-[#1a1a1a] bg-white shadow-[0_2px_5px_-1px_rgba(0,0,0,0.3),0_1px_2px_rgba(0,0,0,0.14),inset_0_1px_0_rgba(255,255,255,0.9)] ${selectable ? 'select-text' : 'select-none'}`}
       aria-hidden
     >
       <div className="pointer-events-none absolute inset-[1.25px] z-10 rounded-[2px] border border-black/20" />
@@ -90,12 +90,12 @@ export function MercosulPlateMockup(props: {
       </div>
 
       <div
-        className={`relative z-[1] flex min-h-0 items-center justify-center bg-gradient-to-b from-[#fafafa] via-white to-[#ececec] ${
-          isCompact || isModalMobile ? 'px-0.5' : 'px-1'
+        className={`relative z-[1] flex min-h-0 items-center justify-center overflow-hidden bg-gradient-to-b from-[#fafafa] via-white to-[#ececec] ${
+          isCompact || isModalMobile ? 'px-0' : 'px-0.5'
         }`}
       >
         <span
-          className={`font-plate max-w-[100%] text-center font-extrabold uppercase leading-none text-[#0a0a0a] antialiased ${plateText} ${
+          className={`font-plate max-w-[100%] scale-x-[0.96] text-center font-extrabold uppercase leading-none text-[#0a0a0a] antialiased ${plateText} ${
             blurPlates ? 'blur-plate' : ''
           }`}
         >

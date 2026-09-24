@@ -53,7 +53,7 @@ export type BudgetsHubViewMode =
   | 'activity'
   | 'by_stage';
 
-export const BUDGETS_HUB_VIEW_STORAGE_KEY = 'rda_budgets_hub_view_v1';
+export const BUDGETS_HUB_VIEW_STORAGE_KEY = 'rda_budgets_hub_view_v2';
 
 export const BUDGETS_HUB_VIEW_MODES: {
   id: BudgetsHubViewMode;
@@ -61,6 +61,12 @@ export const BUDGETS_HUB_VIEW_MODES: {
   shortLabel: string;
   description: string;
 }[] = [
+  {
+    id: 'by_stage',
+    label: 'Por etapa',
+    shortLabel: 'Etapas',
+    description: 'Quadro estilo Trello: colunas por etapa do veículo no pátio',
+  },
   {
     id: 'vehicles',
     label: 'Por veículo',
@@ -96,12 +102,6 @@ export const BUDGETS_HUB_VIEW_MODES: {
     label: 'Em execução',
     shortLabel: 'Em serviço',
     description: 'Veículos na etapa Em serviço — trabalho em andamento na oficina',
-  },
-  {
-    id: 'by_stage',
-    label: 'Por etapa',
-    shortLabel: 'Etapas',
-    description: 'Quadro estilo Trello: colunas por etapa do veículo no pátio',
   },
 ];
 
@@ -390,7 +390,7 @@ export function readStoredBudgetsHubView(): BudgetsHubViewMode {
   } catch {
     /* ignore */
   }
-  return 'vehicles';
+  return 'by_stage';
 }
 
 export function storeBudgetsHubView(mode: BudgetsHubViewMode): void {

@@ -1,13 +1,28 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { RefreshCw, Sparkles } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { MoreHorizontal, RefreshCw, Sparkles } from 'lucide-react';
 import {
   getPatioVehicleBudgetsAggregate,
   type PatioVehicleBudgetAggregateItem,
 } from '../../services/apiService';
 import { iosPageGlass } from '../ui/iosModalStyles';
 import { IosAccentIconSquircle } from '../ui/IosAccentIconSquircle';
+import { BoardCardZoomMenuSection } from '../ui/BoardCardZoomMenuSection';
 import { usePatioBudgetsHubLiveSync } from '../../hooks/usePatioBudgetsHubLiveSync';
 import { useDesktopShellLayout } from '../ui/DesktopShellContext';
+import {
+  boardCardZoomValueFromStep,
+  getDefaultBoardCardZoomStepIndex,
+  isTrelloLikeBoardMode,
+  readBoardCardZoomStepIndex,
+  readGridColumnCountStepIndex,
+  readTrelloColumnWidthStepIndex,
+  storeBoardCardZoomStepIndex,
+  storeGridColumnCountStepIndex,
+  storeTrelloColumnWidthStepIndex,
+  gridColumnCountFromStep,
+  trelloColumnWidthRemFromStep,
+} from '../../utils/boardCardZoomPrefs';
 import {
   BUDGETS_HUB_VIEW_MODES,
   buildStageKanbanColumns,
@@ -71,6 +86,19 @@ export const BudgetsHubView: React.FC<BudgetsHubViewProps> = ({
   const [refreshing, setRefreshing] = useState(false);
   const [viewMode, setViewMode] = useState<BudgetsHubViewMode>(() => readStoredBudgetsHubView());
   const [hubScope, setHubScope] = useState<BudgetsHubScope>(() => readStoredBudgetsHubScope());
+  const [cardZoomStep, setCardZoomStep] = useState(() =>
+    readBoardCardZoomStepIndex('budgets', readStoredBudgetsHubView())
+  );
+  const [trelloColStep, setTrelloColStep] = useState(() =>
+    readTrelloColumnWidthStepIndex('budgets', readStoredBudgetsHubView())
+  );
+  const [gridColStep, setGridColStep] = useState(() =>
+    readGridColumnCountStepIndex('budgets', readStoredBudgetsHubView())
+  );
+  const [toolsOpen, setToolsOpen] = useState(false);
+  const toolsTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const toolsPanelRef = useRef<HTMLDivElement | null>(null);
+  const [toolsPos, setToolsPos] = useState<React.CSSProperties>({});
   const [pendingBudgetHighlightIds, setPendingBudgetHighlightIds] = useState<Set<string>>(() => new Set());
   const [pulseByBudgetId, setPulseByBudgetId] = useState<Record<string, 'created' | 'edited'>>({});
   const prevSigByBudgetRef = useRef<Map<string, string>>(new Map());
@@ -87,7 +115,74 @@ export const BudgetsHubView: React.FC<BudgetsHubViewProps> = ({
   const handleViewModeChange = useCallback((mode: BudgetsHubViewMode) => {
     setViewMode(mode);
     storeBudgetsHubView(mode);
+    setCardZoomStep(readBoardCardZoomStepIndex('budgets', mode));
+    setTrelloColStep(readTrelloColumnWidthStepIndex('budgets', mode));
+    setGridColStep(readGridColumnCountStepIndex('budgets', mode));
   }, []);
+
+  const handleCardZoomStepChange = useCallback(
+    (nextIndex: number) => {
+      const saved = storeBoardCardZoomStepIndex('budgets', viewMode, nextIndex);
+      setCardZoomStep(saved);
+    },
+    [viewMode]
+  );
+
+  const handleTrelloColStepChange = useCallback(
+    (nextIndex: number) => {
+      setTrelloColStep(storeTrelloColumnWidthStepIndex('budgets', viewMode, nextIndex));
+    },
+    [viewMode]
+  );
+
+  const handleGridColStepChange = useCallback(
+    (nextIndex: number) => {
+      setGridColStep(storeGridColumnCountStepIndex('budgets', viewMode, nextIndex));
+    },
+    [viewMode]
+  );
+
+  const updateToolsPos = useCallback(() => {
+    const btn = toolsTriggerRef.current;
+    if (!btn || typeof window === 'undefined') return;
+    const rect = btn.getBoundingClientRect();
+    const vw = window.innerWidth;
+    const menuWidth = Math.min(vw - 24, 17.75 * 16);
+    let left = rect.right - menuWidth;
+    left = Math.max(12, Math.min(left, vw - menuWidth - 12));
+    setToolsPos({
+      position: 'fixed',
+      top: rect.bottom + 8,
+      left,
+      width: menuWidth,
+      zIndex: 99999,
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!toolsOpen) return;
+    updateToolsPos();
+    const onDoc = (e: MouseEvent) => {
+      const t = e.target as Node;
+      if (toolsTriggerRef.current?.contains(t)) return;
+      if (toolsPanelRef.current?.contains(t)) return;
+      setToolsOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setToolsOpen(false);
+    };
+    const onRepo = () => updateToolsPos();
+    document.addEventListener('mousedown', onDoc);
+    document.addEventListener('keydown', onKey);
+    window.addEventListener('resize', onRepo);
+    window.addEventListener('scroll', onRepo, true);
+    return () => {
+      document.removeEventListener('mousedown', onDoc);
+      document.removeEventListener('keydown', onKey);
+      window.removeEventListener('resize', onRepo);
+      window.removeEventListener('scroll', onRepo, true);
+    };
+  }, [toolsOpen, updateToolsPos]);
 
   const handleHubScopeChange = useCallback((scope: BudgetsHubScope) => {
     setHubScope(scope);
@@ -143,7 +238,9 @@ export const BudgetsHubView: React.FC<BudgetsHubViewProps> = ({
         setPulseByBudgetId((p) => ({ ...p, ...merged }));
         setPendingBudgetHighlightIds((prev) => {
           const next = new Set(prev);
-          for (const k of Object.keys(merged)) next.add(k);
+          for (const [k, kind] of Object.entries(merged)) {
+            if (kind === 'created') next.add(k);
+          }
           return next;
         });
       }
@@ -208,6 +305,12 @@ export const BudgetsHubView: React.FC<BudgetsHubViewProps> = ({
   const kanbanColumns = useMemo(() => buildStageKanbanColumns(allGroups), [allGroups]);
 
   const activeViewMeta = BUDGETS_HUB_VIEW_MODES.find((m) => m.id === viewMode);
+  /** Multiplicador em relação ao zoom padrão do modo (1 = aparência atual). */
+  const userZoomScale = useMemo(() => {
+    const current = boardCardZoomValueFromStep(cardZoomStep);
+    const baseline = boardCardZoomValueFromStep(getDefaultBoardCardZoomStepIndex('budgets', viewMode));
+    return baseline > 0 ? current / baseline : 1;
+  }, [cardZoomStep, viewMode]);
 
   const openBudgetFromHub = (serviceOrderId: string, budgetId: string) => {
     const bid = String(budgetId).trim();
@@ -225,7 +328,10 @@ export const BudgetsHubView: React.FC<BudgetsHubViewProps> = ({
   };
 
   const isTrelloMode = viewMode === 'by_stage';
-  const mainMaxW = desktopShell || isTrelloMode ? 'max-w-none' : 'max-w-5xl';
+  const trelloColumnWidthRem = trelloColumnWidthRemFromStep(trelloColStep);
+  const gridColumnCount = gridColumnCountFromStep(gridColStep);
+  const mainMaxW =
+    desktopShell || isTrelloMode || gridColumnCount >= 5 ? 'max-w-none' : 'max-w-5xl';
   const mainPad = desktopShell ? 'px-6 py-5 pb-8' : 'px-4 py-5 pb-[max(5.5rem,env(safe-area-inset-bottom)+3rem)]';
 
   const renderContent = () => {
@@ -261,6 +367,8 @@ export const BudgetsHubView: React.FC<BudgetsHubViewProps> = ({
           onOpenBudget={openBudgetFromHub}
           blurPlates={blurPlates}
           desktopShell={desktopShell}
+          userZoomScale={userZoomScale}
+          columnWidthRem={trelloColumnWidthRem}
         />
       );
     }
@@ -282,6 +390,8 @@ export const BudgetsHubView: React.FC<BudgetsHubViewProps> = ({
         onOpenBudget={openBudgetFromHub}
         blurPlates={blurPlates}
         desktopShell={desktopShell}
+        userZoomScale={userZoomScale}
+        gridColumnCount={gridColumnCount}
       />
     );
   };
@@ -324,15 +434,51 @@ export const BudgetsHubView: React.FC<BudgetsHubViewProps> = ({
             desktopShell={desktopShell}
             startSlot={<BudgetsHubScopeToggle scope={hubScope} onChange={handleHubScopeChange} />}
             endSlot={
-              <button
-                type="button"
-                onClick={() => void load({ silent: true })}
-                disabled={refreshing || loading}
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-0 bg-zinc-100 text-zinc-700 shadow-none transition-colors hover:bg-zinc-200/80 disabled:opacity-50 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
-                aria-label="Atualizar"
-              >
-                <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
-              </button>
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => void load({ silent: true })}
+                  disabled={refreshing || loading}
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-0 bg-zinc-100 text-zinc-700 shadow-none transition-colors hover:bg-zinc-200/80 disabled:opacity-50 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
+                  aria-label="Atualizar"
+                >
+                  <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+                </button>
+                <button
+                  type="button"
+                  ref={toolsTriggerRef}
+                  onClick={() => setToolsOpen((o) => !o)}
+                  aria-expanded={toolsOpen}
+                  aria-haspopup="menu"
+                  aria-label="Mais opções"
+                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-0 bg-zinc-100 text-zinc-700 shadow-none transition-colors hover:bg-zinc-200/80 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
+                >
+                  <MoreHorizontal className="h-4 w-4" strokeWidth={2.2} aria-hidden />
+                </button>
+                {toolsOpen && typeof document !== 'undefined'
+                  ? createPortal(
+                      <div
+                        ref={toolsPanelRef}
+                        role="menu"
+                        style={toolsPos}
+                        className="overflow-hidden rounded-2xl border border-zinc-200/90 bg-white py-2 text-zinc-900 shadow-[0_12px_40px_-8px_rgba(0,0,0,0.25)] dark:border-white/[0.12] dark:bg-zinc-900 dark:text-zinc-100"
+                      >
+                        <BoardCardZoomMenuSection
+                          scope="budgets"
+                          modeLabel={activeViewMeta?.label ?? 'Visualização'}
+                          stepIndex={cardZoomStep}
+                          onStepChange={handleCardZoomStepChange}
+                          trelloMode={isTrelloLikeBoardMode(viewMode)}
+                          trelloColStepIndex={trelloColStep}
+                          onTrelloColStepChange={handleTrelloColStepChange}
+                          gridColStepIndex={gridColStep}
+                          onGridColStepChange={handleGridColStepChange}
+                        />
+                      </div>,
+                      document.body
+                    )
+                  : null}
+              </div>
             }
           />
         </div>

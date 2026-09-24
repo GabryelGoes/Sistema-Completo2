@@ -1,14 +1,13 @@
 import React, { useMemo } from 'react';
-import { CalendarDays, ChevronRight, FileText, X } from 'lucide-react';
+import { ChevronRight, X } from 'lucide-react';
 import {
   budgetChronologicalNumber,
   type PatioVehicleBudgetAggregateItem,
 } from '../../../services/apiService';
-import { BudgetVerifiedSeal } from '../../budget/BudgetVerifiedSeal';
 import { ModalPortal } from '../../ui/ModalPortal';
 import { iosModalClose, iosModalShell } from '../../ui/iosModalStyles';
 import { MercosulPlateMockup } from '../../ui/MercosulPlateMockup';
-import { isBudgetRecentlyCreated, type VehicleBudgetGroup } from '../../../utils/budgetsHubViews';
+import type { VehicleBudgetGroup } from '../../../utils/budgetsHubViews';
 
 function formatBudgetCreated(iso: string): string {
   try {
@@ -17,6 +16,7 @@ function formatBudgetCreated(iso: string): string {
     return d.toLocaleString('pt-BR', {
       day: '2-digit',
       month: 'short',
+      year: 'numeric',
       hour: '2-digit',
       minute: '2-digit',
     });
@@ -25,10 +25,17 @@ function formatBudgetCreated(iso: string): string {
   }
 }
 
+function budgetPreviewText(row: PatioVehicleBudgetAggregateItem): string {
+  const diagnosis = (row.diagnosisPreview ?? '').trim();
+  if (diagnosis) return diagnosis.slice(0, 80);
+  const name = (row.cardName ?? '').trim();
+  if (name) return name.slice(0, 80);
+  return 'Orçamento';
+}
+
 export type BudgetHubBudgetPickerModalProps = {
   open: boolean;
   group: VehicleBudgetGroup | null;
-  pulseByBudgetId?: Record<string, 'created' | 'edited'>;
   blurPlates?: boolean;
   onClose: () => void;
   onOpenBudget: (serviceOrderId: string, budgetId: string) => void;
@@ -36,11 +43,11 @@ export type BudgetHubBudgetPickerModalProps = {
 
 /**
  * Modal compacto: lista os orçamentos do veículo/OS para o usuário escolher qual abrir.
+ * Prévia alinhada à lista do modal do veículo.
  */
 export function BudgetHubBudgetPickerModal({
   open,
   group,
-  pulseByBudgetId = {},
   blurPlates = false,
   onClose,
   onOpenBudget,
@@ -74,7 +81,7 @@ export function BudgetHubBudgetPickerModal({
           role="dialog"
           aria-modal="true"
           aria-labelledby="budget-hub-picker-title"
-          className={`${iosModalShell} max-h-[min(72dvh,32rem)] w-full max-w-[24rem] animate-modal-sheet sm:max-w-[26rem]`}
+          className={`${iosModalShell} max-h-[min(72dvh,34rem)] w-full max-w-[24rem] animate-modal-sheet sm:max-w-[26rem]`}
           onClick={(e) => e.stopPropagation()}
         >
           <button type="button" onClick={onClose} className={iosModalClose} aria-label="Fechar">
@@ -82,38 +89,33 @@ export function BudgetHubBudgetPickerModal({
           </button>
 
           <div className="shrink-0 border-b border-zinc-200/70 px-5 pb-3.5 pt-5 dark:border-white/[0.08] sm:px-6 sm:pt-6">
-            <div className="flex items-start gap-3 pr-10">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] border-0 bg-zinc-100 shadow-none dark:bg-zinc-900/70">
-                <FileText className="h-5 w-5 text-[#007AFF]" strokeWidth={2.1} aria-hidden />
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500 dark:text-zinc-400">
-                  Escolher orçamento
-                </p>
-                <h2
-                  id="budget-hub-picker-title"
-                  className="truncate text-[17px] font-bold leading-tight tracking-tight text-zinc-900 dark:text-white"
-                >
-                  {model}
-                </h2>
-                <div className="mt-2 flex flex-wrap items-center gap-2">
-                  {head.osNumber != null ? (
-                    <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-semibold text-zinc-600 dark:bg-white/[0.08] dark:text-zinc-300">
-                      OS #{head.osNumber}
-                    </span>
-                  ) : null}
-                  <span className="rounded-full bg-zinc-200/90 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.06em] text-zinc-700 dark:bg-white/[0.1] dark:text-zinc-300">
-                    {items.length} orç.
-                  </span>
-                  {!isLab ? (
-                    <MercosulPlateMockup plate={plate} blurPlates={blurPlates} size="cardCompact" />
-                  ) : (
-                    <span className="truncate rounded-lg border-0 bg-zinc-100 px-2 py-0.5 font-mono text-[11px] font-bold text-zinc-800 dark:bg-zinc-950/50 dark:text-zinc-200">
-                      {moduleId}
-                    </span>
-                  )}
-                </div>
-              </div>
+            <p className="pr-10 text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500 dark:text-zinc-400">
+              Escolher orçamento
+            </p>
+            <div className="mt-2 flex min-w-0 items-center gap-3 pr-10">
+              <h2
+                id="budget-hub-picker-title"
+                className="min-w-0 flex-1 truncate text-[17px] font-bold leading-tight tracking-tight text-zinc-900 dark:text-white"
+              >
+                {model}
+              </h2>
+              {!isLab ? (
+                <MercosulPlateMockup plate={plate} blurPlates={blurPlates} size="cardCompact" />
+              ) : (
+                <span className="max-w-[45%] shrink-0 truncate rounded-lg border-0 bg-zinc-100 px-2 py-1 font-mono text-[11px] font-bold text-zinc-800 dark:bg-zinc-950/50 dark:text-zinc-200">
+                  {moduleId}
+                </span>
+              )}
+            </div>
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              {head.osNumber != null ? (
+                <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-semibold text-zinc-600 dark:bg-white/[0.08] dark:text-zinc-300">
+                  OS #{head.osNumber}
+                </span>
+              ) : null}
+              <span className="rounded-full bg-zinc-200/90 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.06em] text-zinc-700 dark:bg-white/[0.1] dark:text-zinc-300">
+                {items.length} orçamento{items.length !== 1 ? 's' : ''}
+              </span>
             </div>
           </div>
 
@@ -123,13 +125,12 @@ export function BudgetHubBudgetPickerModal({
                 Nenhum orçamento neste veículo.
               </p>
             ) : (
-              <ul className="space-y-2">
+              <ul className="space-y-2.5">
                 {items.map((row) => {
-                  const bid = String(row.budgetId).trim();
                   const budgetNum = budgetChronologicalNumber(chrono, row.budgetId);
-                  const pulse = pulseByBudgetId[bid];
-                  const isNew = pulse === 'created' || isBudgetRecentlyCreated(row);
-                  const name = (row.cardName ?? '').trim();
+                  const preview = budgetPreviewText(row);
+                  const services = row.servicesCount ?? 0;
+                  const parts = row.partsCount ?? 0;
                   return (
                     <li key={row.budgetId}>
                       <button
@@ -138,82 +139,54 @@ export function BudgetHubBudgetPickerModal({
                           onOpenBudget(row.serviceOrderId, row.budgetId);
                           onClose();
                         }}
-                        className={`flex w-full items-start gap-2 rounded-2xl border-0 px-3 py-2.5 text-left shadow-none transition-colors active:scale-[0.99] ${
-                          row.hasApprovedItems
-                            ? 'bg-sky-50/90 hover:bg-sky-100/90 dark:bg-sky-500/10 dark:hover:bg-sky-500/15'
-                            : row.isVerified
-                              ? 'bg-emerald-50/80 hover:bg-emerald-100/80 dark:bg-emerald-500/10 dark:hover:bg-emerald-500/15'
-                              : 'bg-amber-50/70 hover:bg-amber-100/80 dark:bg-amber-500/10 dark:hover:bg-amber-500/15'
-                        }`}
+                        className="group relative w-full overflow-hidden rounded-[16px] border border-zinc-200/80 bg-white/95 p-3 text-left shadow-[0_6px_16px_-8px_rgba(0,0,0,0.18)] transition-[border-color,box-shadow] hover:border-[#007AFF]/35 hover:shadow-[0_10px_22px_-8px_rgba(0,122,255,0.28)] dark:border-white/[0.08] dark:bg-zinc-950/85 dark:hover:border-[#93c5fd]/35"
                       >
-                        <div className="min-w-0 flex-1">
-                          <div className="flex flex-wrap items-center gap-1.5">
-                            <span className="text-[13px] font-bold uppercase tracking-[0.05em] text-zinc-800 dark:text-zinc-100">
-                              Orç. {budgetNum}
+                        <div className="mb-2 flex items-center justify-between gap-1.5">
+                          <span className="text-xs font-bold uppercase tracking-wider text-zinc-800 dark:text-zinc-100">
+                            Orçamento {budgetNum}
+                          </span>
+                          {row.isVerified ? (
+                            <span
+                              className="inline-flex shrink-0 items-center rounded-full bg-emerald-500/12 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em] text-emerald-700 dark:bg-emerald-500/18 dark:text-emerald-300"
+                              title={
+                                row.verifiedByName
+                                  ? `Verificado por ${row.verifiedByName}${row.verifiedAt ? ` · ${formatBudgetCreated(row.verifiedAt)}` : ''}`
+                                  : undefined
+                              }
+                            >
+                              Verificado
                             </span>
-                            {row.isVerified ? (
-                              <BudgetVerifiedSeal
-                                variant="social"
-                                size="md"
-                                verifiedAt={row.verifiedAt}
-                                verifiedByName={row.verifiedByName}
-                              />
-                            ) : (
-                              <span className="rounded-full border-0 bg-amber-100/80 px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-[0.06em] text-amber-900 shadow-none dark:bg-amber-500/15 dark:text-amber-200">
-                                Não verif.
-                              </span>
-                            )}
-                            {row.hasApprovedItems ? (
-                              <span className="rounded-full bg-sky-600/15 px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-[0.06em] text-sky-800 dark:bg-sky-400/20 dark:text-sky-200">
-                                Aprovado
-                              </span>
-                            ) : (
-                              <span className="rounded-full bg-zinc-500/10 px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-[0.06em] text-zinc-600 dark:bg-white/10 dark:text-zinc-300">
-                                Sem aprov.
-                              </span>
-                            )}
-                            {isNew ? (
-                              <span className="rounded-full bg-emerald-500/20 px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-[0.06em] text-emerald-800 dark:text-emerald-300">
-                                Novo
-                              </span>
-                            ) : null}
-                            {pulse === 'edited' ? (
-                              <span className="rounded-full bg-amber-500/20 px-1.5 py-0.5 text-[8px] font-bold uppercase tracking-[0.06em] text-amber-900 dark:text-amber-200">
-                                Editado
-                              </span>
-                            ) : null}
-                          </div>
-                          {name ? (
-                            <p className="mt-1 truncate text-[13px] font-medium text-zinc-700 dark:text-zinc-200">
-                              {name}
-                            </p>
-                          ) : null}
-                          <p className="mt-1 flex items-center gap-1 text-[11px] font-medium tabular-nums text-zinc-500 dark:text-zinc-400">
-                            <CalendarDays className="h-3 w-3 shrink-0" strokeWidth={2.2} aria-hidden />
-                            {formatBudgetCreated(row.createdAt)}
-                          </p>
+                          ) : (
+                            <span className="inline-flex shrink-0 items-center rounded-full bg-amber-500/12 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em] text-amber-800 dark:bg-amber-500/18 dark:text-amber-200">
+                              Aguardando
+                            </span>
+                          )}
                         </div>
-                        <ChevronRight
-                          className="mt-0.5 h-4 w-4 shrink-0 text-zinc-400"
-                          strokeWidth={2.4}
-                          aria-hidden
-                        />
+                        <p className="mb-2 line-clamp-2 text-[13px] font-semibold leading-snug text-zinc-900 dark:text-zinc-100">
+                          {preview}
+                        </p>
+                        <div className="mb-2 flex items-center gap-2 text-[11px] text-zinc-600 dark:text-zinc-400">
+                          <span>
+                            {services} serviço{services !== 1 ? 's' : ''}
+                          </span>
+                          <span>·</span>
+                          <span>
+                            {parts} peça{parts !== 1 ? 's' : ''}
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-between gap-1 border-t border-zinc-200/80 pt-2 text-[10px] font-semibold uppercase tracking-[0.08em] text-zinc-500 dark:border-white/[0.08] dark:text-zinc-400">
+                          <span className="min-w-0 truncate">{formatBudgetCreated(row.createdAt)}</span>
+                          <span className="inline-flex shrink-0 items-center gap-0.5 text-[#007AFF] dark:text-[#93c5fd]">
+                            Abrir
+                            <ChevronRight className="h-3.5 w-3.5" strokeWidth={2.4} aria-hidden />
+                          </span>
+                        </div>
                       </button>
                     </li>
                   );
                 })}
               </ul>
             )}
-          </div>
-
-          <div className="shrink-0 border-t border-zinc-200/70 px-4 py-3 dark:border-white/[0.08] sm:px-5">
-            <button
-              type="button"
-              onClick={onClose}
-              className="w-full rounded-xl border-0 bg-zinc-100 py-2.5 text-[14px] font-semibold text-zinc-700 transition-colors hover:bg-zinc-200/80 dark:bg-zinc-900 dark:text-zinc-200 dark:hover:bg-zinc-800"
-            >
-              Cancelar
-            </button>
           </div>
         </div>
       </div>

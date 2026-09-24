@@ -1,6 +1,8 @@
 import React, { useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   CheckCircle2,
+  ChevronDown,
   Clock,
   Columns3,
   FileText,
@@ -148,78 +150,121 @@ export function BudgetsHubViewSwitcher({
   desktopShell?: boolean;
   /** Conteúdo à esquerda dos atalhos (ex.: toggle Pátio/Lab). */
   startSlot?: React.ReactNode;
-  /** Conteúdo à direita do "?" (ex.: botão atualizar). */
+  /** Conteúdo à direita (ex.: botão atualizar / ⋯). */
   endSlot?: React.ReactNode;
 }) {
   const activeMeta = BUDGETS_HUB_VIEW_MODES.find((m) => m.id === mode);
-  const [helpOpen, setHelpOpen] = React.useState(false);
-  const helpRef = React.useRef<HTMLDivElement | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const menuPanelRef = useRef<HTMLDivElement | null>(null);
+  const [menuPos, setMenuPos] = useState<{ top: number; left: number; width: number } | null>(null);
+
+  const updateMenuPos = React.useCallback(() => {
+    const btn = triggerRef.current;
+    if (!btn || typeof window === 'undefined') return;
+    const rect = btn.getBoundingClientRect();
+    const vw = window.innerWidth;
+    const width = Math.min(Math.max(rect.width, 16 * 16), vw - 24);
+    let left = rect.left;
+    left = Math.max(12, Math.min(left, vw - width - 12));
+    setMenuPos({ top: rect.bottom + 8, left, width });
+  }, []);
 
   React.useEffect(() => {
-    if (!helpOpen) return;
+    if (!menuOpen) return;
+    updateMenuPos();
     const onDocClick = (e: MouseEvent) => {
-      if (helpRef.current && !helpRef.current.contains(e.target as Node)) setHelpOpen(false);
+      const t = e.target as Node;
+      if (triggerRef.current?.contains(t)) return;
+      if (menuPanelRef.current?.contains(t)) return;
+      setMenuOpen(false);
     };
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setHelpOpen(false);
+      if (e.key === 'Escape') setMenuOpen(false);
     };
+    const onReposition = () => updateMenuPos();
     document.addEventListener('mousedown', onDocClick);
     document.addEventListener('keydown', onKey);
+    window.addEventListener('resize', onReposition);
+    window.addEventListener('scroll', onReposition, true);
     return () => {
       document.removeEventListener('mousedown', onDocClick);
       document.removeEventListener('keydown', onKey);
+      window.removeEventListener('resize', onReposition);
+      window.removeEventListener('scroll', onReposition, true);
     };
-  }, [helpOpen]);
+  }, [menuOpen, updateMenuPos]);
 
   return (
     <div className={desktopShell ? '' : ''}>
       <div className="flex items-center gap-2">
         {startSlot ? <div className="shrink-0 self-center">{startSlot}</div> : null}
-        <div className="budgets-hub-no-scrollbar flex min-w-0 flex-1 items-center gap-2 overflow-x-auto [-webkit-overflow-scrolling:touch]">
-          {BUDGETS_HUB_VIEW_MODES.map((m) => {
-            const active = mode === m.id;
-            return (
-              <button
-                key={m.id}
-                type="button"
-                onClick={() => onModeChange(m.id)}
-                title={m.description}
-                className={`inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border-0 px-3 text-[11px] font-bold uppercase tracking-[0.06em] transition-all shadow-none ${
-                  active
-                    ? 'bg-zinc-900 text-white dark:bg-white dark:text-zinc-900'
-                    : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200/80 dark:bg-zinc-900/80 dark:text-zinc-300 dark:hover:bg-zinc-800'
-                }`}
-              >
-                {VIEW_ICONS[m.id]}
-                <span className="hidden sm:inline">{m.label}</span>
-                <span className="sm:hidden">{m.shortLabel}</span>
-              </button>
-            );
-          })}
+        <div className="relative min-w-0 flex-1">
+          <button
+            ref={triggerRef}
+            type="button"
+            onClick={() => setMenuOpen((o) => !o)}
+            aria-expanded={menuOpen}
+            aria-haspopup="listbox"
+            title={activeMeta?.description}
+            className="inline-flex h-9 max-w-full items-center gap-1.5 rounded-full border-0 bg-zinc-900 px-3 text-[11px] font-bold uppercase tracking-[0.06em] text-white shadow-none transition-colors hover:bg-zinc-800 dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-100"
+          >
+            {activeMeta ? VIEW_ICONS[activeMeta.id] : <Columns3 className="h-3.5 w-3.5" strokeWidth={2.2} />}
+            <span className="truncate">{activeMeta?.label ?? 'Visualização'}</span>
+            <ChevronDown
+              className={`h-3.5 w-3.5 shrink-0 opacity-80 transition-transform ${menuOpen ? 'rotate-180' : ''}`}
+              strokeWidth={2.4}
+              aria-hidden
+            />
+          </button>
+          {menuOpen && menuPos && typeof document !== 'undefined'
+            ? createPortal(
+                <div
+                  ref={menuPanelRef}
+                  role="listbox"
+                  aria-label="Modos de visualização"
+                  style={{
+                    position: 'fixed',
+                    top: menuPos.top,
+                    left: menuPos.left,
+                    width: menuPos.width,
+                    zIndex: 99999,
+                  }}
+                  className="max-h-[min(70vh,24rem)] overflow-y-auto overscroll-contain rounded-xl border border-zinc-200/90 bg-white py-1 shadow-[0_16px_40px_-12px_rgba(0,0,0,0.28)] dark:border-white/[0.12] dark:bg-zinc-900 dark:shadow-[0_16px_40px_-12px_rgba(0,0,0,0.65)]"
+                >
+                  {BUDGETS_HUB_VIEW_MODES.map((m) => {
+                    const active = mode === m.id;
+                    return (
+                      <button
+                        key={m.id}
+                        type="button"
+                        role="option"
+                        aria-selected={active}
+                        onClick={() => {
+                          onModeChange(m.id);
+                          setMenuOpen(false);
+                        }}
+                        className={`flex w-full items-start gap-2.5 px-3 py-2.5 text-left transition-colors ${
+                          active
+                            ? 'bg-[#007AFF]/10 text-[#0058c7] dark:bg-[#0A84FF]/15 dark:text-[#8cc8ff]'
+                            : 'text-zinc-800 hover:bg-zinc-50 dark:text-zinc-100 dark:hover:bg-white/[0.06]'
+                        }`}
+                      >
+                        <span className="mt-0.5 shrink-0">{VIEW_ICONS[m.id]}</span>
+                        <span className="min-w-0">
+                          <span className="block text-[12px] font-bold uppercase tracking-[0.05em]">{m.label}</span>
+                          <span className="mt-0.5 block text-[11px] font-medium leading-snug text-zinc-500 dark:text-zinc-400">
+                            {m.description}
+                          </span>
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>,
+                document.body
+              )
+            : null}
         </div>
-        {activeMeta ? (
-          <div ref={helpRef} className="relative shrink-0 self-center">
-            <button
-              type="button"
-              onClick={() => setHelpOpen((o) => !o)}
-              aria-label="O que é esta visualização?"
-              aria-expanded={helpOpen}
-              className="flex h-9 w-9 items-center justify-center rounded-full bg-[#007AFF] text-[13px] font-bold text-white shadow-none transition-colors hover:bg-[#0058c7] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#007AFF]/45 focus-visible:ring-offset-1"
-            >
-              ?
-            </button>
-            {helpOpen ? (
-              <div className="absolute right-0 z-30 mt-2 w-64 rounded-xl border-0 bg-white p-3 text-left shadow-none dark:bg-zinc-900">
-                <p className="text-[11px] font-bold uppercase tracking-[0.08em] text-zinc-500 dark:text-zinc-400">
-                  {activeMeta.label}
-                </p>
-                <p className="mt-1 text-[12px] leading-relaxed text-zinc-700 dark:text-zinc-300">
-                  {activeMeta.description}
-                </p>
-              </div>
-            ) : null}
-          </div>
-        ) : null}
         {endSlot ? <div className="shrink-0 self-center">{endSlot}</div> : null}
       </div>
     </div>
@@ -235,6 +280,8 @@ export function BudgetHubCardsGrid({
   blurPlates,
   desktopShell,
   compact,
+  userZoomScale = 1,
+  gridColumnCount = 4,
 }: {
   groups: VehicleBudgetGroup[];
   pulseByBudgetId: Record<string, 'created' | 'edited'>;
@@ -243,29 +290,41 @@ export function BudgetHubCardsGrid({
   blurPlates?: boolean;
   desktopShell?: boolean;
   compact?: boolean;
+  userZoomScale?: number;
+  /** Colunas na grade (PC / telas largas). */
+  gridColumnCount?: number;
 }) {
+  const cols = Math.max(3, Math.min(6, Math.round(gridColumnCount)));
   return (
     <div
       className={`grid gap-3 ${
         desktopShell
-          ? 'grid-cols-4'
+          ? ''
           : 'grid-cols-1 sm:grid-cols-2'
       }`}
+      style={
+        desktopShell
+          ? ({ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` } as React.CSSProperties)
+          : undefined
+      }
     >
       {groups.map((group) => {
-        const needsAttention = group.items.some((row) =>
-          pendingBudgetHighlightIds.has(String(row.budgetId).trim())
+        const pendingNew = new Set(
+          group.items
+            .map((row) => String(row.budgetId).trim())
+            .filter((id) => pendingBudgetHighlightIds.has(id))
         );
         return (
           <BudgetHubPatioStyleCard
             key={group.orderId}
             group={group}
             pulseByBudgetId={pulseByBudgetId}
-            needsAttention={needsAttention}
+            pendingNewBudgetIds={pendingNew}
             blurPlates={blurPlates}
             desktopShell={desktopShell}
             compact={compact}
             gridScale
+            userZoomScale={userZoomScale}
             onOpenBudget={onOpenBudget}
           />
         );
@@ -285,6 +344,8 @@ export function BudgetHubStageBoard({
   onOpenBudget,
   blurPlates,
   desktopShell,
+  userZoomScale = 1,
+  columnWidthRem,
 }: {
   columns: StageKanbanColumn[];
   pendingBudgetHighlightIds: Set<string>;
@@ -292,8 +353,11 @@ export function BudgetHubStageBoard({
   onOpenBudget: (serviceOrderId: string, budgetId: string) => void;
   blurPlates?: boolean;
   desktopShell?: boolean;
+  userZoomScale?: number;
+  /** Largura preferida das colunas Trello (rem). */
+  columnWidthRem?: number;
 }) {
-  const colMin = desktopShell ? 'min-w-[15.5rem] w-[15.5rem]' : 'min-w-[13.25rem] w-[13.25rem]';
+  const colW = columnWidthRem ?? (desktopShell ? 15.5 : 13.25);
   const boardRef = useRef<HTMLDivElement | null>(null);
   const boardWrapRef = useRef<HTMLDivElement | null>(null);
   const [boardHeight, setBoardHeight] = useState<number>(0);
@@ -458,13 +522,11 @@ export function BudgetHubStageBoard({
           <div
             key={col.status}
             data-budgets-hub-col
-            className={`${colMin} flex h-full min-h-0 shrink-0 flex-col overflow-hidden ${columnShell}`}
+            className={`flex h-full min-h-0 shrink-0 flex-col overflow-hidden ${columnShell}`}
+            style={{ width: `${colW}rem`, minWidth: `${colW}rem` }}
           >
-            <div className={`z-[1] shrink-0 border-b border-zinc-200/80 px-2.5 py-2 ${headerTop} ${col.style}`}>
+            <div className={`z-[1] shrink-0 border-b border-zinc-200/80 px-2.5 py-2.5 ${headerTop} ${col.style}`}>
               <p className="text-[10px] font-bold uppercase tracking-[0.06em]">{col.name}</p>
-              <p className="mt-0.5 text-[9px] font-semibold opacity-90">
-                {col.groups.length} veíc. · {col.budgetCount} orç.
-              </p>
             </div>
             <div className="budgets-hub-col-scroll budgets-hub-no-scrollbar min-h-0 flex-1 space-y-1.5 p-1.5">
               {col.groups.length === 0 ? (
@@ -473,20 +535,23 @@ export function BudgetHubStageBoard({
                 </p>
               ) : (
                 col.groups.map((group) => {
-                  const needsAttention = group.items.some((row) =>
-                    pendingBudgetHighlightIds.has(String(row.budgetId).trim())
+                  const pendingNew = new Set(
+                    group.items
+                      .map((row) => String(row.budgetId).trim())
+                      .filter((id) => pendingBudgetHighlightIds.has(id))
                   );
                   return (
                     <BudgetHubPatioStyleCard
                       key={group.orderId}
                       group={group}
                       pulseByBudgetId={pulseByBudgetId}
-                      needsAttention={needsAttention}
+                      pendingNewBudgetIds={pendingNew}
                       blurPlates={blurPlates}
                       desktopShell={desktopShell}
                       compact
                       trelloScale
                       hideStageFooter
+                      userZoomScale={userZoomScale}
                       onOpenBudget={onOpenBudget}
                     />
                   );
