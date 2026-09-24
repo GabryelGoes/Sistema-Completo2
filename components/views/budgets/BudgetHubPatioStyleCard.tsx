@@ -28,19 +28,22 @@ export const BUDGET_HUB_GRID_CARD_ZOOM = 0.7;
 /** Zoom um pouco menos agressivo no PC. */
 export const BUDGET_HUB_GRID_CARD_ZOOM_PC = 0.82;
 
-function formatBudgetCreated(iso: string): string {
-  try {
-    const d = new Date(iso);
-    if (Number.isNaN(d.getTime())) return '—';
-    return d.toLocaleString('pt-BR', {
-      day: '2-digit',
-      month: 'short',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  } catch {
-    return '—';
+/** Abrevia modelo longo para caber em uma linha sem empurrar a logo. */
+function abbreviateVehicleModelName(name: string, maxChars: number): string {
+  const t = name.trim().replace(/\s+/g, ' ');
+  if (!t || t.length <= maxChars) return t;
+  const words = t.split(' ');
+  if (words.length === 1) {
+    return `${t.slice(0, Math.max(4, maxChars - 1)).trimEnd()}…`;
   }
+  let out = words[0];
+  for (let i = 1; i < words.length; i++) {
+    const next = `${out} ${words[i]}`;
+    if (next.length > maxChars) break;
+    out = next;
+  }
+  if (out.length >= t.length) return t;
+  return `${out}…`;
 }
 
 export type BudgetHubPatioStyleCardProps = {
@@ -94,15 +97,16 @@ export function BudgetHubPatioStyleCard({
   const flow = budgetOrderFlow(head.orderType);
   const stage = getStageConfig(head.orderStatus, flow);
   const stageStyle = getStageStyle(head.orderStatus, flow);
-  const model =
+  const modelFull =
     (head.vehicleModel ?? '').trim() ||
     (isLab ? (head.moduleIdentification ?? '').trim() || 'Módulo' : 'Veículo');
+  const modelMaxChars = dense ? 16 : desktopShell ? 22 : 20;
+  const model = abbreviateVehicleModelName(modelFull, modelMaxChars);
   const customerLine = firstTwoNames((head.customerName ?? '').trim());
   const hasCustomer = Boolean(customerLine);
   const plate = (head.plate ?? '').trim() || '---';
   const moduleId = (head.moduleIdentification ?? head.vehicleModel ?? '').trim() || '—';
   const chrono = items.map((x) => ({ id: x.budgetId, createdAt: x.createdAt }));
-  const anyVerified = items.some((i) => i.isVerified);
   const newBudgetCount = items.filter((row) =>
     pendingNewBudgetIds?.has(String(row.budgetId).trim())
   ).length;
@@ -135,7 +139,7 @@ export function BudgetHubPatioStyleCard({
       <div
         role="button"
         tabIndex={0}
-        aria-label={`Abrir lista de orçamentos de ${model}`}
+        aria-label={`Abrir lista de orçamentos de ${modelFull}`}
         onClick={openPicker}
         onKeyDown={(e) => {
           if (e.key === 'Enter' || e.key === ' ') {
@@ -163,34 +167,15 @@ export function BudgetHubPatioStyleCard({
         ) : null}
 
         <div className={`relative z-10 flex min-h-0 w-full flex-col ${dense ? 'gap-1.5' : 'gap-2.5'}`}>
-          <div className="min-w-0">
-            <div className={`flex min-w-0 items-start gap-1.5 ${dense ? 'mb-0.5' : 'mb-1.5'}`}>
-              <div className="min-w-0 flex-1">
-                <div className="flex min-w-0 items-center gap-1.5 pr-8">
-                  <h3
-                    className={`font-vehicle ${titleClass} ${titleScaleClass} min-w-0 font-bold uppercase leading-[0.9] tracking-tight text-zinc-900 break-words dark:text-white ${vehicleCardTitleShadow}`}
-                  >
-                    {model}
-                  </h3>
-                  {anyVerified ? (
-                    <BudgetVerifiedSeal
-                      variant="social"
-                      size={dense ? 'lg' : 'xl'}
-                      verifiedAt={items.find((i) => i.isVerified)?.verifiedAt}
-                      verifiedByName={items.find((i) => i.isVerified)?.verifiedByName}
-                    />
-                  ) : null}
-                </div>
-                <div className={`mt-1 flex flex-wrap items-center ${dense ? 'gap-1' : 'gap-1.5'}`}>
-                  <span
-                    className={`rounded-full bg-zinc-200/90 font-bold uppercase tracking-[0.06em] text-zinc-700 dark:bg-white/[0.1] dark:text-zinc-300 ${
-                      dense ? 'px-1.5 py-0.5 text-[9px]' : 'px-2 py-0.5 text-[10px]'
-                    }`}
-                  >
-                    {items.length} orç.
-                  </span>
-                </div>
-              </div>
+          <div className={`flex min-w-0 flex-col ${dense ? 'gap-1' : 'gap-1.5'}`}>
+            {/* Linha 1 — só o nome do veículo (+ logo à direita, sem empurrar/cortar) */}
+            <div className="flex min-w-0 items-center gap-1.5">
+              <h3
+                title={modelFull !== model ? modelFull : undefined}
+                className={`font-vehicle ${titleClass} ${titleScaleClass} min-w-0 flex-1 truncate whitespace-nowrap font-bold uppercase leading-none tracking-tight text-zinc-900 dark:text-white ${vehicleCardTitleShadow}`}
+              >
+                {model}
+              </h3>
               {!isLab ? (
                 <VehicleBrandLogo
                   brand={head.vehicleBrand}
@@ -198,13 +183,14 @@ export function BudgetHubPatioStyleCard({
                   className={`shrink-0 ${dense ? 'scale-90' : ''}`}
                 />
               ) : (
-                <PatioBoardOriginIcon kind="laboratorio" size={dense ? 'cardCompact' : 'card'} />
+                <PatioBoardOriginIcon kind="laboratorio" size={dense ? 'cardCompact' : 'card'} className="shrink-0" />
               )}
             </div>
 
+            {/* Linha 2 — cliente */}
             {hasCustomer ? (
               <div
-                className={`mb-0 flex max-w-full items-center gap-1.5 border-0 bg-zinc-100/90 dark:bg-white/[0.06] ${
+                className={`flex max-w-full items-center gap-1.5 border-0 bg-zinc-100/90 dark:bg-white/[0.06] ${
                   dense ? 'rounded-xl px-2 py-1.5' : 'rounded-2xl px-3 py-2.5'
                 }`}
               >
@@ -219,7 +205,15 @@ export function BudgetHubPatioStyleCard({
               </div>
             ) : null}
 
-            <div className={`flex min-w-0 items-center justify-end ${hasCustomer ? 'mt-1.5' : 'mt-1'}`}>
+            {/* Linha 3 — qtd. orçamentos | placa */}
+            <div className="flex min-w-0 items-center justify-between gap-2">
+              <span
+                className={`shrink-0 rounded-full bg-zinc-200/90 font-bold uppercase tracking-[0.06em] text-zinc-700 dark:bg-white/[0.1] dark:text-zinc-300 ${
+                  dense ? 'px-1.5 py-0.5 text-[9px]' : 'px-2 py-0.5 text-[10px]'
+                }`}
+              >
+                {items.length} orç.
+              </span>
               {!isLab ? (
                 <MercosulPlateMockup
                   plate={plate}
@@ -228,7 +222,7 @@ export function BudgetHubPatioStyleCard({
                 />
               ) : (
                 <div
-                  className={`max-w-[70%] border-0 bg-zinc-100/90 dark:bg-white/[0.06] ${
+                  className={`min-w-0 max-w-[70%] border-0 bg-zinc-100/90 dark:bg-white/[0.06] ${
                     dense ? 'rounded-xl px-2 py-1' : 'rounded-2xl px-2.5 py-1.5'
                   }`}
                 >
@@ -294,10 +288,7 @@ export function BudgetHubPatioStyleCard({
                         Editado
                       </span>
                     ) : null}
-                    <span className="ml-auto shrink-0 text-[10px] font-medium tabular-nums text-zinc-500 dark:text-zinc-400">
-                      {formatBudgetCreated(row.createdAt)}
-                    </span>
-                    <ChevronRight className="h-3.5 w-3.5 shrink-0 text-zinc-400" strokeWidth={2.4} aria-hidden />
+                    <ChevronRight className="ml-auto h-3.5 w-3.5 shrink-0 text-zinc-400" strokeWidth={2.4} aria-hidden />
                   </button>
                 </li>
               );
