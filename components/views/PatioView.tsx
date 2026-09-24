@@ -4476,6 +4476,57 @@ export const PatioView: React.FC<PatioViewProps> = ({
     });
   }, [isModuleMode, selectedCard, serviceOrderDetail]);
 
+  /** Etiqueta da OS do laboratório a partir de um vínculo na aba Serviços Laboratório do veículo. */
+  const handlePrintLabServiceLinkLabel = useCallback(
+    async (laboratoryOrderId: string) => {
+      if (!laboratoryOrderId) return;
+      const link = labServiceLinksDraft.find((l) => l.laboratoryOrderId === laboratoryOrderId);
+      let linked = labOrdersLookup[laboratoryOrderId] ?? null;
+      if (!linked) {
+        try {
+          linked = await getServiceOrderById(laboratoryOrderId);
+          setLabOrdersLookup((prev) => ({ ...prev, [laboratoryOrderId]: linked! }));
+        } catch {
+          linked = null;
+        }
+      }
+      const title = selectedCard ? parsePatioCardTitle(selectedCard.name) : null;
+      const customerName =
+        (
+          linked?.customers?.name ??
+          serviceOrderDetail?.customers?.name ??
+          title?.customer ??
+          ''
+        ).trim() || 'Cliente';
+      const vehicleFromPatio = [serviceOrderDetail?.vehicle_brand, serviceOrderDetail?.vehicle_model]
+        .map((s) => String(s ?? '').trim())
+        .filter(Boolean)
+        .join(' ');
+      const vehicleName =
+        (linked?.vehicle_model?.trim() ||
+          vehicleFromPatio ||
+          title?.vehicle?.trim() ||
+          '').trim() || 'Veículo';
+      const complaint =
+        stripLegacyVehicleCategoryFromComplaint(linked?.issue_description ?? '') ||
+        [link?.serviceLabel, link?.serviceDetails?.trim()].filter(Boolean).join('\n\n') ||
+        'Serviço de laboratório';
+      setLabOsLabel({
+        serviceOrderId: laboratoryOrderId,
+        customerName,
+        vehicleName,
+        complaint,
+        osNumber: linked?.os_number ?? null,
+      });
+    },
+    [
+      labServiceLinksDraft,
+      labOrdersLookup,
+      serviceOrderDetail,
+      selectedCard,
+    ]
+  );
+
   const handleOpenPatioKeyLabel = useCallback(() => {
     if (isModuleMode || !selectedCard) return;
     const title = parsePatioCardTitle(selectedCard.name);
@@ -7456,6 +7507,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
               getStageName={(status) => getStageConfig(status, 'module')?.name ?? status}
               getStageStyleClass={(status) => getStageStyle(status, 'module')}
               onOpenLaboratoryOrder={onOpenLaboratoryOrder}
+              onPrintLabOsLabel={(laboratoryOrderId) => {
+                void handlePrintLabServiceLinkLabel(laboratoryOrderId);
+              }}
               onRemoveLabServiceLink={(linkId) => void handleRemoveLabServiceLink(linkId)}
               patioAttachments={patioOriginAttachments}
               selectedPatioAttachmentPaths={selectedPatioOriginAttachmentPaths}

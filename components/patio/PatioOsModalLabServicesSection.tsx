@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { Plus, Loader2, Trash2, ArrowRight, ChevronDown, ChevronRight, X, Check, Pencil, Paperclip } from 'lucide-react';
+import { Plus, Loader2, Trash2, ArrowRight, ChevronDown, ChevronRight, X, Check, Pencil, Paperclip, Tag } from 'lucide-react';
 import type { LabServiceLink } from '../../types';
 import type { ServiceOrderDetail } from '../../services/apiService';
 import {
@@ -49,6 +49,8 @@ export type PatioOsModalLabServicesSectionProps = {
   getStageName: (status: string) => string;
   getStageStyleClass: (status: string) => string;
   onOpenLaboratoryOrder?: (laboratoryOrderId: string) => void;
+  /** Abre impressão da etiqueta da OS do laboratório vinculada. */
+  onPrintLabOsLabel?: (laboratoryOrderId: string) => void;
   onRemoveLabServiceLink: (linkId: string) => void;
   /** Envio rápido com rótulo de um preset configurado. */
   onQuickSendService?: (preset: LabQuickService) => void;
@@ -92,6 +94,7 @@ export const PatioOsModalLabServicesSection: React.FC<PatioOsModalLabServicesSec
   getStageName,
   getStageStyleClass,
   onOpenLaboratoryOrder,
+  onPrintLabOsLabel,
   onRemoveLabServiceLink,
   onQuickSendService,
   quickSendingServiceId = null,
@@ -385,6 +388,19 @@ export const PatioOsModalLabServicesSection: React.FC<PatioOsModalLabServicesSec
                       >
                         {statusLabel}
                       </span>
+                      {onPrintLabOsLabel ? (
+                        <button
+                          type="button"
+                          onClick={() => onPrintLabOsLabel(link.laboratoryOrderId)}
+                          disabled={busy}
+                          title="Imprimir etiqueta da OS do laboratório"
+                          aria-label={`Imprimir etiqueta de ${link.serviceLabel}`}
+                          className="inline-flex items-center gap-1 rounded-lg border border-emerald-500/35 bg-emerald-600 px-2.5 py-1.5 text-[12px] font-semibold text-white shadow-sm shadow-emerald-500/20 transition-colors hover:bg-emerald-500 disabled:opacity-60"
+                        >
+                          <Tag className="h-3.5 w-3.5" strokeWidth={2.5} aria-hidden />
+                          Imprimir etiqueta
+                        </button>
+                      ) : null}
                       {onCopyPatioAttachmentsToLab && patioAttachments.length > 0 ? (
                         <button
                           type="button"
