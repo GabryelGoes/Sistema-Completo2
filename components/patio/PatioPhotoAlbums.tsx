@@ -22,6 +22,7 @@ import {
   getServiceOrderPhotoFolders,
   moveServiceOrderPhotoToFolder,
   renameServiceOrderPhotoFolder,
+  renameServiceOrderPhoto,
   uploadServiceOrderPhoto,
   type ServiceOrderPhoto,
   type ServiceOrderPhotoFolder,
@@ -30,6 +31,14 @@ import {
 function attachmentDisplayName(fileName: string): string {
   const base = String(fileName || '').split('/').pop() || fileName;
   return base.replace(/^\d{10,}_/, '').replace(/^entrada_[^_]+_\d+_/, 'Entrada · ');
+}
+
+/** Nome editável (sem extensão) para o campo de renomear. */
+function attachmentEditableBaseName(fileName: string): string {
+  const label = attachmentDisplayName(fileName);
+  const lastDot = label.lastIndexOf('.');
+  if (lastDot > 0) return label.slice(0, lastDot);
+  return label;
 }
 
 /** Storage costuma gravar `{timestamp}_entrada_{osId}_….jpg`. */
@@ -197,6 +206,9 @@ export function PatioPhotoAlbums({
   const [busyFolderId, setBusyFolderId] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [deletingPath, setDeletingPath] = useState<string | null>(null);
+  const [renamingPhotoPath, setRenamingPhotoPath] = useState<string | null>(null);
+  const [renamePhotoValue, setRenamePhotoValue] = useState('');
+  const [renamingPhotoBusy, setRenamingPhotoBusy] = useState(false);
   const cameraRef = useRef<HTMLInputElement>(null);
   const galleryRef = useRef<HTMLInputElement>(null);
 
@@ -605,6 +617,40 @@ export function PatioPhotoAlbums({
     }
   };
 
+  const startRenamePhoto = (photo: ServiceOrderPhoto) => {
+    if (!canEdit) return;
+    setRenamingPhotoPath(photo.path);
+    setRenamePhotoValue(attachmentEditableBaseName(photo.name));
+  };
+
+  const cancelRenamePhoto = () => {
+    setRenamingPhotoPath(null);
+    setRenamePhotoValue('');
+    setRenamingPhotoBusy(false);
+  };
+
+  const handleRenamePhoto = async (photo: ServiceOrderPhoto) => {
+    const name = renamePhotoValue.trim();
+    if (!name || renamingPhotoBusy) return;
+    setRenamingPhotoBusy(true);
+    try {
+      const updated = await renameServiceOrderPhoto(serviceOrderId, photo.path, name);
+      setPhotos((prev) =>
+        prev.map((p) =>
+          p.path === photo.path
+            ? { ...p, path: updated.path, name: updated.name, url: updated.url }
+            : p
+        )
+      );
+      cancelRenamePhoto();
+      await onPhotosChanged?.();
+      await loadFolders();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Erro ao renomear foto.');
+      setRenamingPhotoBusy(false);
+    }
+  };
+
   if (loading && folders.length === 0) {
     return (
       <div className="flex items-center justify-center py-10">
@@ -719,6 +765,8 @@ export function PatioPhotoAlbums({
             {photos.map((photo, photoIndex) => {
               const label = attachmentDisplayName(photo.name);
               const isDeleting = deletingPath === photo.path;
+              const isEditingName = renamingPhotoPath === photo.path;
+              const isRenamingThis = isEditingName && renamingPhotoBusy;
               return (
                 <div key={photo.path} className="group flex min-w-0 flex-col gap-1.5">
                   <div className="relative aspect-square overflow-hidden rounded-2xl bg-zinc-100 dark:bg-zinc-900">
@@ -739,7 +787,7 @@ export function PatioPhotoAlbums({
                       />
                       <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-transparent opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
                     </button>
-                    <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+                    <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between gap-1 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
                       {onSharePhoto ? (
                         <button
                           type="button"
@@ -753,26 +801,87 @@ export function PatioPhotoAlbums({
                         <span />
                       )}
                       {canEdit ? (
-                        <button
-                          type="button"
-                          disabled={isDeleting}
-                          onClick={() => void handleDeletePhoto(photo)}
-                          className="rounded-full bg-black/45 p-1.5 text-white backdrop-blur-sm disabled:opacity-50"
-                          title="Excluir"
-                          aria-label="Excluir foto"
-                        >
-                          {isDeleting ? (
-                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                          ) : (
-                            <Trash2 className="h-3.5 w-3.5" />
-                          )}
-                        </button>
+                        <div className="flex items-center gap-1">
+                          <button
+                            type="button"
+                            disabled={isDeleting || renamingPhotoBusy}
+                            onClick={() => startRenamePhoto(photo)}
+                            className="rounded-full bg-black/45 p-1.5 text-white backdrop-blur-sm disabled:opacity-50"
+                            title="Renomear"
+                            aria-label="Renomear foto"
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            disabled={isDeleting || renamingPhotoBusy}
+                            onClick={() => void handleDeletePhoto(photo)}
+                            className="rounded-full bg-black/45 p-1.5 text-white backdrop-blur-sm disabled:opacity-50"
+                            title="Excluir"
+                            aria-label="Excluir foto"
+                          >
+                            {isDeleting ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <Trash2 className="h-3.5 w-3.5" />
+                            )}
+                          </button>
+                        </div>
                       ) : null}
                     </div>
                   </div>
-                  <p className="truncate px-0.5 text-[11px] font-medium text-zinc-500 dark:text-zinc-400" title={label}>
-                    {label}
-                  </p>
+                  {isEditingName ? (
+                    <div className="rounded-xl border border-zinc-200/90 bg-white p-1.5 dark:border-white/[0.12] dark:bg-zinc-950">
+                      <input
+                        type="text"
+                        value={renamePhotoValue}
+                        onChange={(e) => setRenamePhotoValue(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            void handleRenamePhoto(photo);
+                          }
+                          if (e.key === 'Escape') {
+                            e.preventDefault();
+                            cancelRenamePhoto();
+                          }
+                        }}
+                        className="w-full rounded-lg border-0 bg-transparent px-1.5 py-1 text-[12px] font-medium text-zinc-800 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/35 dark:text-zinc-100"
+                        placeholder="Nome da foto"
+                        autoFocus
+                        disabled={isRenamingThis}
+                      />
+                      <div className="mt-1 flex justify-end gap-1">
+                        <button
+                          type="button"
+                          onClick={cancelRenamePhoto}
+                          disabled={isRenamingThis}
+                          className="rounded-lg px-2 py-0.5 text-[11px] font-semibold text-zinc-500 hover:bg-zinc-100 dark:hover:bg-white/[0.08]"
+                        >
+                          Cancelar
+                        </button>
+                        <button
+                          type="button"
+                          disabled={isRenamingThis || !renamePhotoValue.trim()}
+                          onClick={() => void handleRenamePhoto(photo)}
+                          className="inline-flex items-center gap-1 rounded-lg bg-[#007AFF] px-2 py-0.5 text-[11px] font-semibold text-white disabled:opacity-50"
+                        >
+                          {isRenamingThis ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}
+                          OK
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      disabled={!canEdit}
+                      onClick={() => startRenamePhoto(photo)}
+                      className="truncate px-0.5 text-left text-[11px] font-medium text-zinc-500 transition-colors hover:text-[#007AFF] disabled:hover:text-zinc-500 dark:text-zinc-400 dark:hover:text-[#7ab8ff]"
+                      title={canEdit ? `Renomear: ${label}` : label}
+                    >
+                      {label}
+                    </button>
+                  )}
                 </div>
               );
             })}

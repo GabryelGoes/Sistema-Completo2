@@ -5278,21 +5278,26 @@ export const PatioView: React.FC<PatioViewProps> = ({
     }
   };
 
-  const handleDeleteAttachment = async (path: string, attId: string, url: string) => {
+  const handleDeleteAttachment = async (att: { id: string; url: string; name?: string }) => {
     if (!selectedCard) return;
+    const path = String(att.id || '');
+    if (!path || /^\d+$/.test(path)) {
+      alert('Não foi possível localizar este arquivo para excluir.');
+      return;
+    }
     if (!window.confirm("Excluir este anexo permanentemente?")) return;
-    setDeletingAttachmentId(attId);
+    setDeletingAttachmentId(att.id);
     try {
       await deleteServiceOrderPhoto(selectedCard.id, path);
       const photos = await getServiceOrderPhotos(selectedCard.id);
       setCardDetails((prev) => (prev ? { ...prev, attachments: mapPhotosToAttachments(photos) } : null));
-      if (renameAttachmentId === attId) {
+      if (renameAttachmentId === att.id) {
         setRenameAttachmentId(null);
         setRenameAttachmentNewName("");
       }
       setPreviewImages((prev) => {
         if (!prev) return null;
-        const urlBase = url.split('?')[0];
+        const urlBase = att.url.split('?')[0];
         const newItems = prev.items.filter((it) => it.url.split('?')[0] !== urlBase);
         if (newItems.length === 0) return null;
         const oldIdx = prev.items.findIndex((it) => it.url.split('?')[0] === urlBase);
@@ -5302,11 +5307,36 @@ export const PatioView: React.FC<PatioViewProps> = ({
         else if (oldIdx === prev.currentIndex) newIndex = Math.min(prev.currentIndex, newItems.length - 1);
         return { items: newItems, currentIndex: newIndex };
       });
-      setPreviewPdf((prev) => (prev === url ? null : prev));
+      setPreviewPdf((prev) => (prev === att.url ? null : prev));
     } catch (err: any) {
       alert(err?.message ?? "Erro ao excluir anexo.");
     } finally {
       setDeletingAttachmentId(null);
+    }
+  };
+
+  const handleRenameAttachment = async (att: { id: string; name: string }) => {
+    if (!selectedCard) return;
+    const path = String(att.id || '');
+    const newName = renameAttachmentNewName.trim();
+    if (!path || /^\d+$/.test(path)) {
+      alert('Não foi possível localizar este arquivo para renomear.');
+      return;
+    }
+    if (!newName) return;
+    setRenamingAttachmentId(att.id);
+    try {
+      await renameServiceOrderPhoto(selectedCard.id, path, newName);
+      const photos = await getServiceOrderPhotos(selectedCard.id);
+      setCardDetails((prev) =>
+        prev ? { ...prev, attachments: mapPhotosToAttachments(photos) } : null
+      );
+      setRenameAttachmentId(null);
+      setRenameAttachmentNewName('');
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : 'Erro ao renomear.');
+    } finally {
+      setRenamingAttachmentId(null);
     }
   };
 
@@ -9748,29 +9778,107 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                      <div className="flex flex-wrap gap-2">
                                        {others.map((att) => {
                                          const isDeletingThis = deletingAttachmentId === att.id;
+                                         const isRenamingThis = renamingAttachmentId === att.id;
+                                         const isEditingName = renameAttachmentId === att.id;
+                                         const attachmentPath = String(att.id || '');
+                                         const canRename =
+                                           !!attachmentPath && !/^\d+$/.test(attachmentPath) && can('canEditFicha');
                                          return (
                                            <div
                                              key={att.id}
-                                             className="inline-flex max-w-full items-center gap-2 rounded-xl border border-zinc-200/80 bg-white px-3 py-2 text-[13px] font-medium text-zinc-800 shadow-sm dark:border-white/[0.1] dark:bg-zinc-900 dark:text-zinc-100"
+                                             className="inline-flex max-w-full min-w-0 items-center gap-2 rounded-xl border border-zinc-200/80 bg-white px-3 py-2 text-[13px] font-medium text-zinc-800 shadow-sm dark:border-white/[0.1] dark:bg-zinc-900 dark:text-zinc-100"
                                            >
-                                             <button
-                                               type="button"
-                                               onClick={() => window.open(att.url, '_blank')}
-                                               className="min-w-0 truncate text-left hover:text-[#007AFF]"
-                                             >
-                                               {attachmentDisplayName(att.name)}
-                                             </button>
-                                             {can('canEditFicha') ? (
-                                               <button
-                                                 type="button"
-                                                 disabled={isDeletingThis}
-                                                 onClick={() => void handleDeleteAttachment(att)}
-                                                 className="shrink-0 text-zinc-400 hover:text-red-500"
-                                                 aria-label="Excluir anexo"
-                                               >
-                                                 <Trash2 className="h-3.5 w-3.5" />
-                                               </button>
-                                             ) : null}
+                                             {isEditingName ? (
+                                               <>
+                                                 <FileText className="h-4 w-4 shrink-0 text-zinc-400" />
+                                                 <input
+                                                   type="text"
+                                                   value={renameAttachmentNewName}
+                                                   onChange={(e) => setRenameAttachmentNewName(e.target.value)}
+                                                   onKeyDown={(e) => {
+                                                     if (e.key === 'Enter') {
+                                                       e.preventDefault();
+                                                       void handleRenameAttachment(att);
+                                                     }
+                                                     if (e.key === 'Escape') {
+                                                       e.preventDefault();
+                                                       setRenameAttachmentId(null);
+                                                       setRenameAttachmentNewName('');
+                                                     }
+                                                   }}
+                                                   className="min-w-0 flex-1 bg-transparent text-[13px] font-medium text-zinc-800 outline-none dark:text-zinc-100"
+                                                   placeholder="Novo nome do arquivo"
+                                                   autoFocus
+                                                   disabled={isRenamingThis}
+                                                 />
+                                                 <button
+                                                   type="button"
+                                                   disabled={isRenamingThis || !renameAttachmentNewName.trim()}
+                                                   onClick={() => void handleRenameAttachment(att)}
+                                                   className="shrink-0 text-[#007AFF] disabled:opacity-50"
+                                                   title="Confirmar"
+                                                   aria-label="Confirmar novo nome"
+                                                 >
+                                                   {isRenamingThis ? (
+                                                     <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                                   ) : (
+                                                     <Check className="h-3.5 w-3.5" />
+                                                   )}
+                                                 </button>
+                                                 <button
+                                                   type="button"
+                                                   disabled={isRenamingThis}
+                                                   onClick={() => {
+                                                     setRenameAttachmentId(null);
+                                                     setRenameAttachmentNewName('');
+                                                   }}
+                                                   className="shrink-0 text-zinc-400 hover:text-zinc-600"
+                                                   title="Cancelar"
+                                                   aria-label="Cancelar renomeação"
+                                                 >
+                                                   <X className="h-3.5 w-3.5" />
+                                                 </button>
+                                               </>
+                                             ) : (
+                                               <>
+                                                 <button
+                                                   type="button"
+                                                   onClick={() => window.open(att.url, '_blank')}
+                                                   className="min-w-0 truncate text-left hover:text-[#007AFF]"
+                                                 >
+                                                   {attachmentDisplayName(att.name)}
+                                                 </button>
+                                                 {canRename ? (
+                                                   <button
+                                                     type="button"
+                                                     onClick={() => {
+                                                       setRenameAttachmentId(att.id);
+                                                       setRenameAttachmentNewName(attachmentDisplayName(att.name));
+                                                     }}
+                                                     className="shrink-0 text-zinc-400 hover:text-[#007AFF]"
+                                                     title="Renomear"
+                                                     aria-label="Renomear anexo"
+                                                   >
+                                                     <Pencil className="h-3.5 w-3.5" />
+                                                   </button>
+                                                 ) : null}
+                                                 {can('canEditFicha') ? (
+                                                   <button
+                                                     type="button"
+                                                     disabled={isDeletingThis}
+                                                     onClick={() => void handleDeleteAttachment(att)}
+                                                     className="shrink-0 text-zinc-400 hover:text-red-500"
+                                                     aria-label="Excluir anexo"
+                                                   >
+                                                     {isDeletingThis ? (
+                                                       <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                                     ) : (
+                                                       <Trash2 className="h-3.5 w-3.5" />
+                                                     )}
+                                                   </button>
+                                                 ) : null}
+                                               </>
+                                             )}
                                            </div>
                                          );
                                        })}
