@@ -13,8 +13,15 @@ import { useDesktopShellLayout } from '../ui/DesktopShellContext';
 import {
   boardCardZoomValueFromStep,
   getDefaultBoardCardZoomStepIndex,
+  isTrelloLikeBoardMode,
   readBoardCardZoomStepIndex,
+  readGridColumnCountStepIndex,
+  readTrelloColumnWidthStepIndex,
   storeBoardCardZoomStepIndex,
+  storeGridColumnCountStepIndex,
+  storeTrelloColumnWidthStepIndex,
+  gridColumnCountFromStep,
+  trelloColumnWidthRemFromStep,
 } from '../../utils/boardCardZoomPrefs';
 import {
   BUDGETS_HUB_VIEW_MODES,
@@ -82,6 +89,12 @@ export const BudgetsHubView: React.FC<BudgetsHubViewProps> = ({
   const [cardZoomStep, setCardZoomStep] = useState(() =>
     readBoardCardZoomStepIndex('budgets', readStoredBudgetsHubView())
   );
+  const [trelloColStep, setTrelloColStep] = useState(() =>
+    readTrelloColumnWidthStepIndex('budgets', readStoredBudgetsHubView())
+  );
+  const [gridColStep, setGridColStep] = useState(() =>
+    readGridColumnCountStepIndex('budgets', readStoredBudgetsHubView())
+  );
   const [toolsOpen, setToolsOpen] = useState(false);
   const toolsTriggerRef = useRef<HTMLButtonElement | null>(null);
   const toolsPanelRef = useRef<HTMLDivElement | null>(null);
@@ -103,12 +116,28 @@ export const BudgetsHubView: React.FC<BudgetsHubViewProps> = ({
     setViewMode(mode);
     storeBudgetsHubView(mode);
     setCardZoomStep(readBoardCardZoomStepIndex('budgets', mode));
+    setTrelloColStep(readTrelloColumnWidthStepIndex('budgets', mode));
+    setGridColStep(readGridColumnCountStepIndex('budgets', mode));
   }, []);
 
   const handleCardZoomStepChange = useCallback(
     (nextIndex: number) => {
       const saved = storeBoardCardZoomStepIndex('budgets', viewMode, nextIndex);
       setCardZoomStep(saved);
+    },
+    [viewMode]
+  );
+
+  const handleTrelloColStepChange = useCallback(
+    (nextIndex: number) => {
+      setTrelloColStep(storeTrelloColumnWidthStepIndex('budgets', viewMode, nextIndex));
+    },
+    [viewMode]
+  );
+
+  const handleGridColStepChange = useCallback(
+    (nextIndex: number) => {
+      setGridColStep(storeGridColumnCountStepIndex('budgets', viewMode, nextIndex));
     },
     [viewMode]
   );
@@ -299,7 +328,10 @@ export const BudgetsHubView: React.FC<BudgetsHubViewProps> = ({
   };
 
   const isTrelloMode = viewMode === 'by_stage';
-  const mainMaxW = desktopShell || isTrelloMode ? 'max-w-none' : 'max-w-5xl';
+  const trelloColumnWidthRem = trelloColumnWidthRemFromStep(trelloColStep);
+  const gridColumnCount = gridColumnCountFromStep(gridColStep);
+  const mainMaxW =
+    desktopShell || isTrelloMode || gridColumnCount >= 5 ? 'max-w-none' : 'max-w-5xl';
   const mainPad = desktopShell ? 'px-6 py-5 pb-8' : 'px-4 py-5 pb-[max(5.5rem,env(safe-area-inset-bottom)+3rem)]';
 
   const renderContent = () => {
@@ -336,6 +368,7 @@ export const BudgetsHubView: React.FC<BudgetsHubViewProps> = ({
           blurPlates={blurPlates}
           desktopShell={desktopShell}
           userZoomScale={userZoomScale}
+          columnWidthRem={trelloColumnWidthRem}
         />
       );
     }
@@ -358,6 +391,7 @@ export const BudgetsHubView: React.FC<BudgetsHubViewProps> = ({
         blurPlates={blurPlates}
         desktopShell={desktopShell}
         userZoomScale={userZoomScale}
+        gridColumnCount={gridColumnCount}
       />
     );
   };
@@ -434,6 +468,11 @@ export const BudgetsHubView: React.FC<BudgetsHubViewProps> = ({
                           modeLabel={activeViewMeta?.label ?? 'Visualização'}
                           stepIndex={cardZoomStep}
                           onStepChange={handleCardZoomStepChange}
+                          trelloMode={isTrelloLikeBoardMode(viewMode)}
+                          trelloColStepIndex={trelloColStep}
+                          onTrelloColStepChange={handleTrelloColStepChange}
+                          gridColStepIndex={gridColStep}
+                          onGridColStepChange={handleGridColStepChange}
                         />
                       </div>,
                       document.body

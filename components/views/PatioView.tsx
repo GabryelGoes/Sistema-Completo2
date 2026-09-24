@@ -2,7 +2,7 @@ import React, { useEffect, useLayoutEffect, useState, useRef, useCallback, useMe
 import { createPortal } from 'react-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkBreaks from 'remark-breaks';
-import { RefreshCw, AlertCircle, ChevronDown, ChevronRight, ChevronLeft, User, X, Check, CheckCircle2, Circle, Plus, FileText, Calendar, Clock, Send, Paperclip, ExternalLink, ZoomIn, ZoomOut, Trash2, DollarSign, Hash, Minus, Pencil, Save, Eye, History, Search, Copy, ArrowRight, Camera, Image as ImageIcon, FolderOpen, Upload, FilePlus, ArchiveRestore, Printer, Smartphone, Mail, MapPin, Share2, Sparkles, Loader2, Tag, Link2, Wrench, Gauge, MoreHorizontal, LayoutGrid, Columns3, Users, SortDesc, ListOrdered, Truck, RotateCw, RotateCcw, ClipboardList } from 'lucide-react';
+import { RefreshCw, AlertCircle, ChevronDown, ChevronRight, ChevronLeft, User, X, Check, CheckCircle2, Circle, Plus, FileText, Calendar, Clock, Send, Paperclip, ExternalLink, Trash2, DollarSign, Hash, Minus, Pencil, Save, Eye, History, Search, Copy, ArrowRight, Camera, Image as ImageIcon, FolderOpen, Upload, FilePlus, ArchiveRestore, Printer, Smartphone, Mail, MapPin, Share2, Sparkles, Loader2, Tag, Link2, Wrench, Gauge, MoreHorizontal, LayoutGrid, Columns3, Users, SortDesc, ListOrdered, Truck, RotateCw, RotateCcw, ClipboardList } from 'lucide-react';
 import { PdfViewerModal } from '../PdfViewerModal';
 import { MechanicIcon } from '../ui/MechanicIcon';
 import { ReminderIcon } from '../ui/ReminderIcon';
@@ -188,8 +188,15 @@ import {
   boardCardZoomPrefersDenseGrid,
   boardCardZoomValueFromStep,
   getDefaultBoardCardZoomStepIndex,
+  gridColumnCountFromStep,
+  isTrelloLikeBoardMode,
   readBoardCardZoomStepIndex,
+  readGridColumnCountStepIndex,
+  readTrelloColumnWidthStepIndex,
   storeBoardCardZoomStepIndex,
+  storeGridColumnCountStepIndex,
+  storeTrelloColumnWidthStepIndex,
+  trelloColumnWidthRemFromStep,
   type BoardCardZoomScope,
 } from '../../utils/boardCardZoomPrefs';
 import { BoardCardZoomMenuSection } from '../ui/BoardCardZoomMenuSection';
@@ -1712,7 +1719,15 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const [cardZoomStep, setCardZoomStep] = useState(() =>
     readBoardCardZoomStepIndex(isModuleMode ? 'patio-module' : 'patio-vehicle', 'standard')
   );
+  const [trelloColStep, setTrelloColStep] = useState(() =>
+    readTrelloColumnWidthStepIndex(isModuleMode ? 'patio-module' : 'patio-vehicle', 'standard')
+  );
+  const [gridColStep, setGridColStep] = useState(() =>
+    readGridColumnCountStepIndex(isModuleMode ? 'patio-module' : 'patio-vehicle', 'standard')
+  );
   const boardPanoramic = boardCardZoomPrefersDenseGrid(boardCardZoomValueFromStep(cardZoomStep));
+  const patioGridColumnCount = gridColumnCountFromStep(gridColStep);
+  const patioTrelloColumnRem = trelloColumnWidthRemFromStep(trelloColStep);
   const { isDesktop, isTablet, isSmartphone, viewportWidth } = useDeviceTypeContext();
   const desktopShell = useDesktopShellLayout();
   /** Visualização da bancada em tela cheia. */
@@ -1856,15 +1871,21 @@ export const PatioView: React.FC<PatioViewProps> = ({
         raw === 'trello' || raw === 'by_mechanic' || raw === 'recent_first' ? raw : 'standard';
       setBoardLayoutMode(mode);
       setCardZoomStep(readBoardCardZoomStepIndex(patioZoomScope, mode));
+      setTrelloColStep(readTrelloColumnWidthStepIndex(patioZoomScope, mode));
+      setGridColStep(readGridColumnCountStepIndex(patioZoomScope, mode));
     } catch {
       setBoardLayoutMode('standard');
       setCardZoomStep(getDefaultBoardCardZoomStepIndex(patioZoomScope, 'standard'));
+      setTrelloColStep(readTrelloColumnWidthStepIndex(patioZoomScope, 'standard'));
+      setGridColStep(readGridColumnCountStepIndex(patioZoomScope, 'standard'));
     }
   }, [boardLayoutStorageKey, patioZoomScope]);
   const setBoardLayoutModePersist = React.useCallback(
     (mode: PatioBoardLayoutMode) => {
       setBoardLayoutMode(mode);
       setCardZoomStep(readBoardCardZoomStepIndex(patioZoomScope, mode));
+      setTrelloColStep(readTrelloColumnWidthStepIndex(patioZoomScope, mode));
+      setGridColStep(readGridColumnCountStepIndex(patioZoomScope, mode));
       try {
         localStorage.setItem(boardLayoutStorageKey, mode);
       } catch (_) {}
@@ -1875,6 +1896,18 @@ export const PatioView: React.FC<PatioViewProps> = ({
     (nextIndex: number) => {
       const saved = storeBoardCardZoomStepIndex(patioZoomScope, boardLayoutMode, nextIndex);
       setCardZoomStep(saved);
+    },
+    [patioZoomScope, boardLayoutMode]
+  );
+  const handlePatioTrelloColStepChange = React.useCallback(
+    (nextIndex: number) => {
+      setTrelloColStep(storeTrelloColumnWidthStepIndex(patioZoomScope, boardLayoutMode, nextIndex));
+    },
+    [patioZoomScope, boardLayoutMode]
+  );
+  const handlePatioGridColStepChange = React.useCallback(
+    (nextIndex: number) => {
+      setGridColStep(storeGridColumnCountStepIndex(patioZoomScope, boardLayoutMode, nextIndex));
     },
     [patioZoomScope, boardLayoutMode]
   );
@@ -5575,6 +5608,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
               }
               stepIndex={cardZoomStep}
               onStepChange={handlePatioCardZoomStepChange}
+              trelloMode={isTrelloLikeBoardMode(boardLayoutMode)}
+              trelloColStepIndex={trelloColStep}
+              onTrelloColStepChange={handlePatioTrelloColStepChange}
+              gridColStepIndex={gridColStep}
+              onGridColStepChange={handlePatioGridColStepChange}
             />
             <div className="border-b border-zinc-100 px-3 pb-2 dark:border-white/[0.07]">
               <p className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-zinc-400 dark:text-zinc-500">Visualização do quadro</p>
@@ -6077,11 +6115,18 @@ export const PatioView: React.FC<PatioViewProps> = ({
         const cardsForStageColumn = (listId: string) =>
           [...cards].filter((c) => c.idList === listId).sort(byStage);
 
-        const gridClassName = `relative z-0 grid items-start perspective-[1400px] transition-[gap] duration-500 ease-[cubic-bezier(0.34,1.35,0.25,1)] ${
-          boardPanoramic
-            ? 'grid-cols-2 gap-2.5 portrait:grid-cols-3 portrait:gap-2 sm:gap-3 md:portrait:grid-cols-3 md:landscape:grid-cols-5 md:gap-3 lg:gap-3.5 2xl:gap-4'
-            : 'grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3 lg:gap-5 landscape:lg:grid-cols-4'
+        const gridCols = Math.max(3, Math.min(6, patioGridColumnCount));
+        const gridClassName = `relative z-0 grid items-start perspective-[1400px] transition-[gap] duration-500 ease-[cubic-bezier(0.34,1.35,0.25,1)] gap-3 sm:gap-3.5 ${
+          isPortraitOrientation
+            ? boardPanoramic
+              ? 'grid-cols-2 portrait:grid-cols-3'
+              : 'grid-cols-1 sm:grid-cols-2'
+            : ''
         }`;
+        const gridTemplateStyle =
+          !isPortraitOrientation || isPcLayout
+            ? ({ gridTemplateColumns: `repeat(${gridCols}, minmax(0, 1fr))` } as React.CSSProperties)
+            : undefined;
         const zoomOuterClass =
           'origin-top will-change-[zoom] motion-safe:transition-[zoom] motion-safe:duration-500 motion-safe:ease-[cubic-bezier(0.34,1.35,0.25,1)]';
         const patioBoardZoomFor = (variant: 'grid' | 'hscroll') => {
@@ -6635,11 +6680,15 @@ export const PatioView: React.FC<PatioViewProps> = ({
                       <div
                         key={stage.id}
                         data-patio-kanban-column={stage.id}
-                        className={`flex w-[min(18.5rem,calc(100vw-2.5rem))] shrink-0 snap-start snap-always portrait:w-[min(15.25rem,calc(92vw-1.25rem))] flex-col ${boardColumnShellClass} ${
+                        className={`flex shrink-0 snap-start snap-always flex-col ${boardColumnShellClass} ${
                           trelloDragOverListId === stage.id
                             ? 'scale-[1.01] ring-2 ring-[#007AFF]/55 ring-offset-2 ring-offset-zinc-100/80 dark:ring-[#64B5FF]/60 dark:ring-offset-zinc-950/90'
                             : ''
                         }`}
+                        style={{
+                          width: `min(${patioTrelloColumnRem}rem, calc(100vw - 2.5rem))`,
+                          minWidth: `min(${Math.max(11, patioTrelloColumnRem - 2)}rem, calc(92vw - 1.25rem))`,
+                        }}
                         onDragEnter={(e) => {
                           e.preventDefault();
                           setTrelloDragOverListId(stage.id);
@@ -6696,7 +6745,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
                       {mechanicColumns.map((col) => (
                         <div
                           key={col.key}
-                          className={`flex w-[min(18.5rem,calc(100vw-2.5rem))] shrink-0 snap-start snap-always portrait:w-[min(15.25rem,calc(92vw-1.25rem))] flex-col ${boardColumnShellClass}`}
+                          className={`flex shrink-0 snap-start snap-always flex-col ${boardColumnShellClass}`}
+                          style={{
+                            width: `min(${patioTrelloColumnRem}rem, calc(100vw - 2.5rem))`,
+                            minWidth: `min(${Math.max(11, patioTrelloColumnRem - 2)}rem, calc(92vw - 1.25rem))`,
+                          }}
                         >
                           <div className={`flex shrink-0 items-center gap-2 ${boardColumnHeaderTopClass} border-b border-zinc-200/60 bg-white/60 px-3 py-2.5 dark:border-white/[0.08] dark:bg-zinc-950/50 sm:px-3.5`}>
                             {col.photo ? (
@@ -6728,7 +6781,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                     'hscroll'
                   )
                 : zoomWrap(
-                    <div className={gridClassName}>
+                    <div className={gridClassName} style={gridTemplateStyle}>
                       {sortedCardsList.map((c) => renderPatioBoardCard(c, false))}
                     </div>
                   )}
