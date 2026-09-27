@@ -8039,13 +8039,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
                           </div>
                           )}
                         </div>
-                        {!isModuleMode &&
-                        !isPatioPcModal &&
-                        (serviceOrderDetail?.vehicle_brand || selectedCard.vehicleBrand)?.trim() ? (
-                          <p className={patioVehicleVm.brandSubtitle}>
-                            {(serviceOrderDetail?.vehicle_brand || selectedCard.vehicleBrand || '').trim()}
-                          </p>
-                        ) : null}
                         <div className={`${patioVehicleVm.titlePlateRow}`}>
                           {!isModuleMode && isPatioTabletLikeModal ? (
                             <VehicleBrandLogo
