@@ -8367,18 +8367,18 @@ export const PatioView: React.FC<PatioViewProps> = ({
                               <div className={`${c.fieldRow} flex-nowrap`}>
                                 <button
                                   type="button"
-                                  className="group/presence relative min-w-0 flex-1 rounded-md px-1 py-0.5 text-left transition-colors hover:bg-[#007AFF]/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#007AFF]/35 dark:hover:bg-[#007AFF]/18"
+                                  className="group/presence relative flex min-w-0 flex-1 items-center justify-center rounded-md px-1 py-0.5 text-center transition-colors hover:bg-[#007AFF]/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#007AFF]/35 dark:hover:bg-[#007AFF]/18"
                                   title={formatServiceOrderPresence(serviceOrderDetail?.created_at ?? selectedCard.createdAt)}
                                   aria-label={formatServiceOrderPresence(serviceOrderDetail?.created_at ?? selectedCard.createdAt)}
                                 >
-                                  <span className={`${c.bodyText} tabular-nums`}>
+                                  <span className={`${c.bodyText} !mt-0 block w-full text-center tabular-nums`}>
                                     {loadingDetails && !serviceOrderDetail?.created_at
                                       ? 'Carregando…'
                                       : formatServiceOrderCreatedAt(
                                           serviceOrderDetail?.created_at ?? selectedCard.createdAt
                                         )}
                                   </span>
-                                  <span className="pointer-events-none absolute left-0 top-full z-20 mt-1 hidden min-w-[12rem] rounded-md border border-zinc-200/90 bg-white px-2.5 py-1.5 text-[12px] font-semibold text-zinc-700 shadow-lg group-hover/presence:block group-focus/presence:block dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-200">
+                                  <span className="pointer-events-none absolute left-1/2 top-full z-20 mt-1 hidden min-w-[12rem] -translate-x-1/2 rounded-md border border-zinc-200/90 bg-white px-2.5 py-1.5 text-[12px] font-semibold text-zinc-700 shadow-lg group-hover/presence:block group-focus/presence:block dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-200">
                                     {formatServiceOrderPresence(serviceOrderDetail?.created_at ?? selectedCard.createdAt)}
                                   </span>
                                 </button>
