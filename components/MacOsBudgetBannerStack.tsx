@@ -1,14 +1,19 @@
 import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { FileText, Pencil, X } from 'lucide-react';
-import type { Notification } from '../services/apiService';
 
-const AUTO_DISMISS_MS = 6500;
+const AUTO_DISMISS_MS = 7000;
 const MAX_VISIBLE = 3;
 
 export type MacOsBudgetBannerItem = {
   id: string;
-  notification: Notification;
+  kind: 'budget_created' | 'budget_edited';
+  serviceOrderId: string;
+  budgetId: string;
+  vehicleModel?: string | null;
+  vehiclePlate?: string | null;
+  authorName?: string | null;
+  budgetNumber?: number | null;
 };
 
 function plateLabel(plate: string | null | undefined): string | null {
@@ -16,39 +21,20 @@ function plateLabel(plate: string | null | undefined): string | null {
   return p || null;
 }
 
-function vehicleLine(n: Notification): string {
-  const p = n.payload;
-  const model = (typeof p.vehicle_model === 'string' && p.vehicle_model.trim()) || 'Veículo';
-  const plate = plateLabel(p.vehicle_plate as string | null | undefined);
+function vehicleLine(item: MacOsBudgetBannerItem): string {
+  const model = (item.vehicleModel && item.vehicleModel.trim()) || 'Veículo';
+  const plate = plateLabel(item.vehiclePlate);
   return plate ? `${model} · ${plate}` : model;
 }
 
-function authorLine(n: Notification): string {
-  const p = n.payload;
-  const who =
-    (typeof p.author_display_name === 'string' && p.author_display_name.trim()) ||
-    (typeof p.technician_name === 'string' && p.technician_name.trim()) ||
-    'Alguém';
-  return who;
-}
-
-function ordinalHint(n: Notification): string | null {
-  if (n.type !== 'budget_created') return null;
-  const raw = pOrdinal(n);
-  if (raw == null || raw < 2) return null;
-  return `${raw}º orçamento deste veículo`;
-}
-
-function pOrdinal(n: Notification): number | null {
-  const v = n.payload.budget_number ?? n.payload.budget_ordinal;
-  const num = typeof v === 'number' ? v : typeof v === 'string' ? Number(v) : NaN;
-  return Number.isFinite(num) && num >= 1 ? Math.floor(num) : null;
-}
-
-function titleFor(n: Notification): string {
-  if (n.type === 'budget_edited') return 'Orçamento editado';
-  const ord = pOrdinal(n);
-  if (ord != null && ord >= 2) return `${ord}º orçamento criado`;
+function titleFor(item: MacOsBudgetBannerItem): string {
+  if (item.kind === 'budget_edited') {
+    const n = item.budgetNumber;
+    if (n != null && n >= 2) return `${n}º orçamento editado`;
+    return 'Orçamento editado';
+  }
+  const n = item.budgetNumber;
+  if (n != null && n >= 2) return `${n}º orçamento criado`;
   return 'Orçamento criado';
 }
 
@@ -59,23 +45,22 @@ type BannerCardProps = {
 };
 
 function BannerCard({ item, onDismiss, onActivate }: BannerCardProps) {
-  const [entered, setEntered] = useState(false);
   const [leaving, setLeaving] = useState(false);
-  const n = item.notification;
-  const isEdit = n.type === 'budget_edited';
-  const hint = ordinalHint(n);
+  const isEdit = item.kind === 'budget_edited';
+  const hint =
+    item.kind === 'budget_created' && item.budgetNumber != null && item.budgetNumber >= 2
+      ? `${item.budgetNumber}º orçamento deste veículo`
+      : null;
+  const author = item.authorName?.trim() || null;
 
   useEffect(() => {
-    const enter = requestAnimationFrame(() => setEntered(true));
     const timer = window.setTimeout(() => beginLeave(), AUTO_DISMISS_MS);
-    return () => {
-      cancelAnimationFrame(enter);
-      window.clearTimeout(timer);
-    };
+    return () => window.clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- dismiss once per mount
   }, []);
 
   const beginLeave = () => {
+    if (leaving) return;
     setLeaving(true);
     window.setTimeout(() => onDismiss(item.id), 280);
   };
@@ -95,10 +80,8 @@ function BannerCard({ item, onDismiss, onActivate }: BannerCardProps) {
           beginLeave();
         }
       }}
-      className={`group pointer-events-auto relative w-full cursor-pointer overflow-hidden rounded-[18px] border border-white/55 bg-white/82 shadow-[0_12px_40px_-12px_rgba(0,0,0,0.35),0_0_0_0.5px_rgba(0,0,0,0.06)] backdrop-blur-2xl transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] dark:border-white/12 dark:bg-zinc-900/90 dark:shadow-[0_16px_48px_-12px_rgba(0,0,0,0.65)] ${
-        entered && !leaving
-          ? 'translate-x-0 opacity-100'
-          : 'translate-x-[110%] opacity-0'
+      className={`group pointer-events-auto relative w-full cursor-pointer overflow-hidden rounded-[18px] border border-white/55 bg-white/85 shadow-[0_12px_40px_-12px_rgba(0,0,0,0.35),0_0_0_0.5px_rgba(0,0,0,0.06)] backdrop-blur-2xl transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] dark:border-white/12 dark:bg-zinc-900/92 dark:shadow-[0_16px_48px_-12px_rgba(0,0,0,0.65)] ${
+        leaving ? 'translate-x-[110%] opacity-0' : 'translate-x-0 opacity-100'
       }`}
       style={{ WebkitBackdropFilter: 'blur(28px)' }}
     >
@@ -124,21 +107,24 @@ function BannerCard({ item, onDismiss, onActivate }: BannerCardProps) {
             <span className="text-[11px] tabular-nums text-zinc-400 dark:text-zinc-500">agora</span>
           </div>
           <p className="mt-0.5 text-[14px] font-semibold leading-snug tracking-tight text-zinc-900 dark:text-white">
-            {titleFor(n)}
+            {titleFor(item)}
           </p>
           <p className="mt-0.5 text-[13px] leading-snug text-zinc-600 dark:text-zinc-300">
-            {vehicleLine(n)}
+            {vehicleLine(item)}
           </p>
-          <p className="mt-0.5 text-[12px] leading-snug text-zinc-500 dark:text-zinc-400">
-            por {authorLine(n)}
-            {hint ? <span className="text-zinc-400 dark:text-zinc-500"> · {hint}</span> : null}
-          </p>
+          {author || hint ? (
+            <p className="mt-0.5 text-[12px] leading-snug text-zinc-500 dark:text-zinc-400">
+              {author ? <>por {author}</> : null}
+              {author && hint ? <span className="text-zinc-400 dark:text-zinc-500"> · </span> : null}
+              {hint ? <span>{hint}</span> : null}
+            </p>
+          ) : null}
         </div>
       </div>
       <button
         type="button"
         aria-label="Dispensar"
-        className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full text-zinc-400 opacity-0 transition hover:bg-black/5 hover:text-zinc-700 group-hover:opacity-100 dark:hover:bg-white/10 dark:hover:text-zinc-200"
+        className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full text-zinc-400 opacity-70 transition hover:bg-black/5 hover:text-zinc-700 group-hover:opacity-100 dark:hover:bg-white/10 dark:hover:text-zinc-200"
         onClick={(e) => {
           e.stopPropagation();
           beginLeave();
@@ -156,7 +142,7 @@ export type MacOsBudgetBannerStackProps = {
   onActivate: (item: MacOsBudgetBannerItem) => void;
 };
 
-/** Banners estilo macOS (canto superior direito). */
+/** Banners estilo macOS (canto superior direito) — apenas PC. */
 export function MacOsBudgetBannerStack({ items, onDismiss, onActivate }: MacOsBudgetBannerStackProps) {
   if (typeof document === 'undefined') return null;
   const visible = items.slice(0, MAX_VISIBLE);
@@ -164,7 +150,7 @@ export function MacOsBudgetBannerStack({ items, onDismiss, onActivate }: MacOsBu
 
   return createPortal(
     <div
-      className="pointer-events-none fixed right-3 top-[max(0.75rem,env(safe-area-inset-top))] z-[100050] flex w-[min(380px,calc(100vw-1.5rem))] flex-col gap-2.5 sm:right-4"
+      className="pointer-events-none fixed right-3 top-[max(0.75rem,env(safe-area-inset-top))] z-[100050] flex w-[min(380px,calc(100vw-1.5rem))] flex-col gap-2.5 sm:right-5 sm:top-4"
       aria-live="polite"
     >
       {visible.map((item) => (

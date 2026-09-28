@@ -183,7 +183,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       Banners de orçamento
                     </label>
                     <p className="text-[12px] text-zinc-500 dark:text-zinc-400 mt-0.5">
-                      Mostra alertas no canto da tela (estilo macOS) quando um orçamento é criado ou editado
+                      No modo PC, mostra alertas no canto da tela (estilo macOS) quando um orçamento é criado ou editado
                     </p>
                   </div>
                   <IosSwitch

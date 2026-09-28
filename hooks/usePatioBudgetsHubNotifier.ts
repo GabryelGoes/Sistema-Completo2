@@ -25,16 +25,29 @@ function countDiffEvents(
   return { created, edited };
 }
 
+export type PatioBudgetHubEvent = {
+  kind: "created" | "edited";
+  item: PatioVehicleBudgetAggregateItem;
+  /** Nº cronológico do orçamento nesta OS (1 = primeiro). */
+  budgetNumber: number;
+};
+
 export function usePatioBudgetsHubNotifier(opts: {
   enabled: boolean;
   activeTab: TabId;
   pollMs?: number;
+  /** Chamado quando detecta orçamento novo/editado (após o baseline inicial). */
+  onBudgetEvents?: (events: PatioBudgetHubEvent[]) => void;
 }) {
-  const { enabled, activeTab, pollMs = 60000 } = opts;
+  const { enabled, activeTab, pollMs = 60000, onBudgetEvents } = opts;
   const [badgeCount, setBadgeCount] = useState(0);
   const snapshotRef = useRef<string | null>(null);
   /** Orçamentos que geraram notificação na Home — consumidos pelo hub ao focar a aba (aro âmbar até abrir no pátio). */
   const pendingHubBudgetMetaRef = useRef<Map<string, "created" | "edited">>(new Map());
+  const onBudgetEventsRef = useRef(onBudgetEvents);
+  onBudgetEventsRef.current = onBudgetEvents;
+  const activeTabRef = useRef(activeTab);
+  activeTabRef.current = activeTab;
 
   const pollFn = useCallback(async () => {
     if (!enabled) return;
@@ -50,24 +63,45 @@ export function usePatioBudgetsHubNotifier(opts: {
       if (snapshotRef.current === stable) return;
       const prevRows = JSON.parse(snapshotRef.current) as { id: string; sig: string }[];
       const prevMap = new Map(prevRows.map((x) => [x.id, x.sig]));
+      const bySo = new Map<string, PatioVehicleBudgetAggregateItem[]>();
+      for (const it of items) {
+        const list = bySo.get(it.serviceOrderId) ?? [];
+        list.push(it);
+        bySo.set(it.serviceOrderId, list);
+      }
+      const events: PatioBudgetHubEvent[] = [];
       for (const row of compact) {
         const o = prevMap.get(row.id);
-        if (o === undefined) pendingHubBudgetMetaRef.current.set(row.id, "created");
-        else if (o !== row.sig) pendingHubBudgetMetaRef.current.set(row.id, "edited");
+        const item = items.find((i) => i.budgetId === row.id);
+        if (!item) continue;
+        const soBudgets = [...(bySo.get(item.serviceOrderId) ?? [])].sort(
+          (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+        );
+        const budgetNumber = Math.max(1, soBudgets.findIndex((b) => b.budgetId === item.budgetId) + 1);
+        if (o === undefined) {
+          pendingHubBudgetMetaRef.current.set(row.id, "created");
+          events.push({ kind: "created", item, budgetNumber });
+        } else if (o !== row.sig) {
+          pendingHubBudgetMetaRef.current.set(row.id, "edited");
+          events.push({ kind: "edited", item, budgetNumber });
+        }
       }
       snapshotRef.current = stable;
       const { created, edited } = countDiffEvents(prevRows, compact);
       const n = created + edited;
       if (n > 0) {
-        if (activeTab !== "orcamentos") {
+        if (activeTabRef.current !== "orcamentos") {
           playBudgetCreatedOrEditedSound();
         }
         setBadgeCount((c) => Math.min(999, c + n));
+        if (events.length > 0) {
+          onBudgetEventsRef.current?.(events);
+        }
       }
     } catch {
       // falha de rede — próximo poll
     }
-  }, [enabled, activeTab]);
+  }, [enabled]);
 
   useEffect(() => {
     if (!enabled) return;

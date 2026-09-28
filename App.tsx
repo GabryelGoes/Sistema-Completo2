@@ -318,13 +318,6 @@ export default function App() {
     return undefined;
   }, [isDesktopShell, shellOverlayTopbar, activeAppTab, patioActiveCount, laboratorioActiveCount, vehicleModalOsLabel]);
 
-  const patioBudgetsHub = usePatioBudgetsHubNotifier({
-    enabled: Boolean(authSession),
-    activeTab: activeAppTab,
-    /** ≥60s — badge Home sem polling agressivo (custo Vercel). */
-    pollMs: 60000,
-  });
-
   const handleOpenBudgetFromHub = useCallback((serviceOrderId: string, budgetId: string) => {
     setHubBudgetViewer({ serviceOrderId, budgetId });
   }, []);
@@ -349,44 +342,112 @@ export default function App() {
     }
   }, [isLimitedSystemUser]);
 
-  const openBudgetFromNotification = useCallback(
+  const openBudgetFromBanner = useCallback(
+    (item: MacOsBudgetBannerItem) => {
+      const soId = item.serviceOrderId?.trim() || '';
+      const budgetId = item.budgetId?.trim() || '';
+      if (!soId || !budgetId) return;
+      goToOrcamentosTab();
+      setHubBudgetViewer({ serviceOrderId: soId, budgetId });
+    },
+    [goToOrcamentosTab]
+  );
+
+  const pushBudgetBanner = useCallback(
+    (item: MacOsBudgetBannerItem) => {
+      if (!isDesktopShell || !budgetBannerNotifications) return;
+      setBudgetBannerItems((prev) => {
+        if (prev.some((x) => x.id === item.id || (x.budgetId === item.budgetId && x.kind === item.kind))) {
+          return prev;
+        }
+        return [item, ...prev].slice(0, 5);
+      });
+    },
+    [isDesktopShell, budgetBannerNotifications]
+  );
+
+  const handleBudgetHubEvents = useCallback(
+    (events: import('./hooks/usePatioBudgetsHubNotifier').PatioBudgetHubEvent[]) => {
+      if (!isDesktopShell || !budgetBannerNotifications) return;
+      for (const ev of events) {
+        pushBudgetBanner({
+          id: `${ev.kind}-${ev.item.budgetId}-${ev.item.contentSignature.slice(0, 12)}`,
+          kind: ev.kind === 'created' ? 'budget_created' : 'budget_edited',
+          serviceOrderId: ev.item.serviceOrderId,
+          budgetId: ev.item.budgetId,
+          vehicleModel: ev.item.vehicleModel || ev.item.cardName,
+          vehiclePlate: ev.item.plate,
+          authorName: null,
+          budgetNumber: ev.budgetNumber,
+        });
+      }
+    },
+    [isDesktopShell, budgetBannerNotifications, pushBudgetBanner]
+  );
+
+  const patioBudgetsHub = usePatioBudgetsHubNotifier({
+    enabled: Boolean(authSession),
+    activeTab: activeAppTab,
+    /** No PC com banners: poll mais rápido para aparecer o alerta. */
+    pollMs: isDesktopShell && budgetBannerNotifications ? 8000 : 60000,
+    onBudgetEvents: isDesktopShell && budgetBannerNotifications ? handleBudgetHubEvents : undefined,
+  });
+
+  const handleBudgetBannerNotification = useCallback(
     (n: Notification) => {
+      if (!isDesktopShell || !budgetBannerNotifications) return;
+      if (n.type !== 'budget_created' && n.type !== 'budget_edited') return;
       const soId =
         typeof n.payload.service_order_id === 'string' ? n.payload.service_order_id.trim() : '';
       const budgetId =
         typeof n.payload.budget_id === 'string' ? n.payload.budget_id.trim() : '';
       if (!soId || !budgetId) return;
-      goToOrcamentosTab();
-      setHubBudgetViewer({ serviceOrderId: soId, budgetId });
-      void markNotificationRead(
-        n.id,
-        authSession?.role === 'user' && authSession.userId
-          ? { for: 'technician', technicianSlug: authSession.userId }
-          : undefined
-      ).catch(() => {});
-    },
-    [authSession, goToOrcamentosTab]
-  );
-
-  const handleBudgetBannerNotification = useCallback(
-    (n: Notification) => {
-      if (!budgetBannerNotifications) return;
-      if (n.type !== 'budget_created' && n.type !== 'budget_edited') return;
-      setBudgetBannerItems((prev) => {
-        if (prev.some((x) => x.id === n.id)) return prev;
-        return [{ id: n.id, notification: n }, ...prev].slice(0, 5);
+      const numRaw = n.payload.budget_number;
+      const budgetNumber =
+        typeof numRaw === 'number' && numRaw >= 1
+          ? Math.floor(numRaw)
+          : typeof numRaw === 'string' && Number(numRaw) >= 1
+            ? Math.floor(Number(numRaw))
+            : null;
+      const author =
+        (typeof n.payload.author_display_name === 'string' && n.payload.author_display_name.trim()) ||
+        (typeof n.payload.technician_name === 'string' && n.payload.technician_name.trim()) ||
+        null;
+      pushBudgetBanner({
+        id: n.id,
+        kind: n.type,
+        serviceOrderId: soId,
+        budgetId,
+        vehicleModel:
+          typeof n.payload.vehicle_model === 'string' ? n.payload.vehicle_model : null,
+        vehiclePlate:
+          typeof n.payload.vehicle_plate === 'string' ? n.payload.vehicle_plate : null,
+        authorName: author,
+        budgetNumber,
       });
     },
-    [budgetBannerNotifications]
+    [isDesktopShell, budgetBannerNotifications, pushBudgetBanner]
   );
 
   const handleNotificationClick = useCallback(
     (n: Notification) => {
       if (n.type === 'budget_created' || n.type === 'budget_edited') {
-        openBudgetFromNotification(n);
+        const soId =
+          typeof n.payload.service_order_id === 'string' ? n.payload.service_order_id.trim() : '';
+        const budgetId =
+          typeof n.payload.budget_id === 'string' ? n.payload.budget_id.trim() : '';
+        if (!soId || !budgetId) return;
+        goToOrcamentosTab();
+        setHubBudgetViewer({ serviceOrderId: soId, budgetId });
+        void markNotificationRead(
+          n.id,
+          authSession?.role === 'user' && authSession.userId
+            ? { for: 'technician', technicianSlug: authSession.userId }
+            : undefined
+        ).catch(() => {});
       }
     },
-    [openBudgetFromNotification]
+    [authSession, goToOrcamentosTab]
   );
 
   const notificationCenterProps = useMemo((): Omit<NotificationCenterProps, 'placement'> | undefined => {
@@ -605,6 +666,10 @@ export default function App() {
     localStorage.setItem('app_budget_banner_notifications', String(budgetBannerNotifications));
     if (!budgetBannerNotifications) setBudgetBannerItems([]);
   }, [budgetBannerNotifications]);
+
+  useEffect(() => {
+    if (!isDesktopShell) setBudgetBannerItems([]);
+  }, [isDesktopShell]);
 
   // Configurações da oficina (nome do admin + aparência global) após login
   useEffect(() => {
@@ -1165,11 +1230,13 @@ export default function App() {
             actorOptions={budgetHubActorOptions}
           />
         ) : null}
-        <MacOsBudgetBannerStack
-          items={budgetBannerItems}
-          onDismiss={(id) => setBudgetBannerItems((prev) => prev.filter((x) => x.id !== id))}
-          onActivate={(item) => openBudgetFromNotification(item.notification)}
-        />
+        {isDesktopShell ? (
+          <MacOsBudgetBannerStack
+            items={budgetBannerItems}
+            onDismiss={(id) => setBudgetBannerItems((prev) => prev.filter((x) => x.id !== id))}
+            onActivate={(item) => openBudgetFromBanner(item)}
+          />
+        ) : null}
         <LabOsScanQuickModal
           serviceOrderId={labOsScanQuick?.id ?? null}
           scanToken={labOsScanQuick?.token ?? 0}
@@ -1505,11 +1572,13 @@ export default function App() {
           actorOptions={budgetHubActorOptions}
         />
       ) : null}
-      <MacOsBudgetBannerStack
-        items={budgetBannerItems}
-        onDismiss={(id) => setBudgetBannerItems((prev) => prev.filter((x) => x.id !== id))}
-        onActivate={(item) => openBudgetFromNotification(item.notification)}
-      />
+      {isDesktopShell ? (
+        <MacOsBudgetBannerStack
+          items={budgetBannerItems}
+          onDismiss={(id) => setBudgetBannerItems((prev) => prev.filter((x) => x.id !== id))}
+          onActivate={(item) => openBudgetFromBanner(item)}
+        />
+      ) : null}
       <LabOsScanQuickModal
         serviceOrderId={labOsScanQuick?.id ?? null}
         scanToken={labOsScanQuick?.token ?? 0}
