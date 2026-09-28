@@ -1054,6 +1054,48 @@ export function createApiApp() {
     return (data || []).map((r: { id: string }) => r.id);
   }
 
+  /** Payload enriquecido p/ banners de orçamento (placa, autor, nº do orçamento na OS). */
+  async function buildBudgetNotifyPayload(params: {
+    serviceOrderId: string;
+    budgetId?: string | null;
+    vehiclePlate?: string | null;
+    vehicleModel?: string | null;
+    customerName?: string | null;
+    authorDisplayName?: string | null;
+    source?: string;
+  }): Promise<Record<string, unknown>> {
+    let budgetNumber: number | null = null;
+    if (supabaseAdmin && WORKSHOP_ID) {
+      const { data: rows, error } = await supabaseAdmin
+        .from("budgets")
+        .select("id, created_at")
+        .eq("workshop_id", WORKSHOP_ID)
+        .eq("service_order_id", params.serviceOrderId)
+        .order("created_at", { ascending: true });
+      if (!error && Array.isArray(rows) && rows.length > 0) {
+        const bid = (params.budgetId || "").trim();
+        if (bid) {
+          const idx = rows.findIndex((r: { id?: string }) => String(r.id) === bid);
+          budgetNumber = idx >= 0 ? idx + 1 : rows.length;
+        } else {
+          budgetNumber = rows.length;
+        }
+      }
+    }
+    const author = (params.authorDisplayName || "").trim() || null;
+    return {
+      service_order_id: params.serviceOrderId,
+      budget_id: params.budgetId ?? null,
+      vehicle_plate: params.vehiclePlate ?? null,
+      vehicle_model: params.vehicleModel ?? null,
+      customer_name: params.customerName ?? null,
+      author_display_name: author,
+      technician_name: author,
+      budget_number: budgetNumber,
+      ...(params.source ? { source: params.source } : {}),
+    };
+  }
+
   function isMissingRpcFunctionError(message: string): boolean {
     const m = (message || "").toLowerCase();
     return m.includes("does not exist") || m.includes("function") || m.includes("pgrst202");
@@ -6163,14 +6205,15 @@ export function createApiApp() {
         }
       }
 
-      const budgetNotifyPayload = {
-        service_order_id: serviceOrderId,
-        vehicle_plate: so?.plate ?? null,
-        vehicle_model: so?.vehicle_model ?? null,
-        customer_name: customerNameBudget || null,
-        budget_id: budgetId,
+      const budgetNotifyPayload = await buildBudgetNotifyPayload({
+        serviceOrderId,
+        budgetId,
+        vehiclePlate: so?.plate ?? null,
+        vehicleModel: so?.vehicle_model ?? null,
+        customerName: customerNameBudget || null,
+        authorDisplayName: "Rei do ABS",
         source: "lab_evaluation",
-      };
+      });
       const technicianIds = await getTechnicianRecipientIdsForSystemType("budget_created");
       for (const techId of technicianIds) {
         await supabaseAdmin
@@ -6552,21 +6595,34 @@ export function createApiApp() {
         return res.status(500).json({ error: message });
       }
 
-      const budgetPayload = {
-        service_order_id: serviceOrderId,
-        vehicle_plate: so?.plate ?? null,
-        vehicle_model: so?.vehicle_model ?? null,
-        customer_name: customerNameBudget || null,
-      };
-      const isTechnicianActor = actor === "technician" && (typeof actorTechnicianSlug === "string" || typeof actorTechnicianName === "string");
+      const created = Array.isArray(data) ? data[0] : data;
+      const createdBudgetId =
+        created && typeof created === "object" && "id" in created
+          ? String((created as { id?: string }).id || "")
+          : "";
+      const isTechnicianActor =
+        actor === "technician" &&
+        (typeof actorTechnicianSlug === "string" || typeof actorTechnicianName === "string");
+      const authorLabel = isTechnicianActor
+        ? typeof actorTechnicianName === "string" && actorTechnicianName.trim()
+          ? actorTechnicianName.trim()
+          : actorTechnicianSlug || "Técnico"
+        : "Rei do ABS";
+      const budgetPayload = await buildBudgetNotifyPayload({
+        serviceOrderId,
+        budgetId: createdBudgetId || null,
+        vehiclePlate: so?.plate ?? null,
+        vehicleModel: so?.vehicle_model ?? null,
+        customerName: customerNameBudget || null,
+        authorDisplayName: authorLabel,
+      });
       if (isTechnicianActor) {
         const shouldAdmin = await shouldNotifyAdminForSystemType("budget_created");
         if (shouldAdmin) {
-        const technicianLabel = typeof actorTechnicianName === "string" && actorTechnicianName.trim() ? actorTechnicianName.trim() : (actorTechnicianSlug || "Técnico");
         await supabaseAdmin.from("notifications").insert({
           workshop_id: WORKSHOP_ID,
           type: "budget_created",
-          payload: { ...budgetPayload, technician_name: technicianLabel },
+          payload: budgetPayload,
           target_type: "admin",
           target_slug: null,
         }).then(({ error: e }) => { if (e) console.error("[API] Notificação budget_created:", e); });
@@ -6584,7 +6640,6 @@ export function createApiApp() {
         }
       }
 
-      const created = Array.isArray(data) ? data[0] : data;
       return res.status(201).json(withBudgetVerifyDefaults((created ?? {}) as Record<string, unknown>));
     } catch (err: any) {
       console.error("[API] Erro em POST /api/service-orders/:id/budgets:", err);
@@ -6718,21 +6773,29 @@ export function createApiApp() {
         }
       }
 
-      const budgetEditPayload = {
-        service_order_id: serviceOrderId,
-        vehicle_plate: so?.plate ?? null,
-        vehicle_model: so?.vehicle_model ?? null,
-        customer_name: customerNameBudgetEdit || null,
-      };
-      const isTechnicianActor = actor === "technician" && (typeof actorTechnicianSlug === "string" || typeof actorTechnicianName === "string");
+      const isTechnicianActor =
+        actor === "technician" &&
+        (typeof actorTechnicianSlug === "string" || typeof actorTechnicianName === "string");
+      const authorLabel = isTechnicianActor
+        ? typeof actorTechnicianName === "string" && actorTechnicianName.trim()
+          ? actorTechnicianName.trim()
+          : actorTechnicianSlug || "Técnico"
+        : "Rei do ABS";
+      const budgetEditPayload = await buildBudgetNotifyPayload({
+        serviceOrderId,
+        budgetId,
+        vehiclePlate: so?.plate ?? null,
+        vehicleModel: so?.vehicle_model ?? null,
+        customerName: customerNameBudgetEdit || null,
+        authorDisplayName: authorLabel,
+      });
       if (isTechnicianActor) {
         const shouldAdmin = await shouldNotifyAdminForSystemType("budget_edited");
         if (shouldAdmin) {
-        const technicianLabel = typeof actorTechnicianName === "string" && actorTechnicianName.trim() ? actorTechnicianName.trim() : (actorTechnicianSlug || "Técnico");
         await supabaseAdmin.from("notifications").insert({
           workshop_id: WORKSHOP_ID,
           type: "budget_edited",
-          payload: { ...budgetEditPayload, technician_name: technicianLabel },
+          payload: budgetEditPayload,
           target_type: "admin",
           target_slug: null,
         }).then(({ error: e }) => { if (e) console.error("[API] Notificação budget_edited:", e); });

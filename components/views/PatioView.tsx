@@ -365,6 +365,12 @@ interface PatioViewProps {
   onCreateRegistration?: (mode: ServiceOrderType, initialModuleStatus?: ServiceOrderStatus) => void;
   /** Nome exibido nos comentários: "Rei do ABS" (admin) ou nome do técnico. */
   commentAuthorName?: string;
+  /** Banner macOS: orçamento criado/editado. */
+  onBudgetBannerNotification?: (notification: import('../../services/apiService').Notification) => void;
+  /** Clique em notificação (ex.: abrir orçamento no hub). */
+  onNotificationClick?: (notification: import('../../services/apiService').Notification) => void;
+  /** Callback quando há novo comentário (pop-up). */
+  onNewCommentNotification?: (notification: import('../../services/apiService').Notification) => void;
   /** Se definido, abre o modal do veículo com esta OS (vindo ex.: da central de notificações). */
   openServiceOrderId?: string | null;
   /** Muda a cada scan USB para reabrir o modal mesmo se o id da OS for o mesmo. */
@@ -1192,6 +1198,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
   onUseCustomerData,
   onCreateRegistration,
   commentAuthorName = 'Rei do ABS',
+  onBudgetBannerNotification,
+  onNotificationClick,
+  onNewCommentNotification,
   openServiceOrderId: openServiceOrderIdProp,
   openServiceOrderScanToken = 0,
   openServiceOrderSection,
@@ -6239,6 +6248,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
                           ? actorOptions?.actorTechnicianSlug
                           : undefined
                       }
+                      onBudgetBannerNotification={onBudgetBannerNotification}
+                      onNotificationClick={onNotificationClick}
+                      onNewCommentNotification={onNewCommentNotification}
                     />
                   </div>
                 ) : null}

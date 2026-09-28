@@ -63,17 +63,29 @@ function formatNotificationTitle(n: Notification, forTechnician?: boolean): stri
   const cfg = TYPE_CONFIG[n.type] || { label: n.type };
   const p = n.payload;
   const vehicle = formatVehicleLabel(p);
+  const plate = typeof p.vehicle_plate === 'string' && p.vehicle_plate.trim() ? p.vehicle_plate.trim().toUpperCase() : '';
+  const vehicleWithPlate = plate ? `${vehicle} · ${plate}` : vehicle;
   const who = p.author_display_name || p.technician_name || (forTechnician ? ADMIN_DISPLAY_NAME : 'Alguém');
   const adminLabel = ADMIN_DISPLAY_NAME;
+  const budgetNum =
+    typeof p.budget_number === 'number' && p.budget_number >= 1
+      ? p.budget_number
+      : typeof p.budget_number === 'string' && Number(p.budget_number) >= 1
+        ? Math.floor(Number(p.budget_number))
+        : null;
   switch (n.type) {
     case 'comment':
       return `${who} comentou em ${vehicle}`;
     case 'stage_change':
       return forTechnician ? `${adminLabel} alterou etapa · ${vehicle}` : `${who} alterou etapa · ${vehicle}`;
     case 'budget_created':
-      return `${who} criou orçamento · ${vehicle}`;
+      return budgetNum != null && budgetNum >= 2
+        ? `${who} criou o ${budgetNum}º orçamento · ${vehicleWithPlate}`
+        : `${who} criou orçamento · ${vehicleWithPlate}`;
     case 'budget_edited':
-      return `${who} editou orçamento · ${vehicle}`;
+      return budgetNum != null && budgetNum >= 2
+        ? `${who} editou o ${budgetNum}º orçamento · ${vehicleWithPlate}`
+        : `${who} editou orçamento · ${vehicleWithPlate}`;
     case 'vehicle_finalized':
       return `${who} finalizou · ${vehicle}`;
     case 'vehicle_scheduled':
@@ -129,6 +141,8 @@ export type NotificationCenterPlacement = 'floating' | 'desktopTopbar';
 export interface NotificationCenterProps {
   /** Callback quando há novo comentário (para pop-up + som) */
   onNewCommentNotification?: (notification: Notification) => void;
+  /** Callback para banners macOS de orçamento criado/editado */
+  onBudgetBannerNotification?: (notification: Notification) => void;
   /** Callback ao clicar numa notificação (ex.: ir ao veículo/comentários no Pátio) */
   onNotificationClick?: (notification: Notification) => void;
   /** Se true, usa API de notificações do técnico (for=technician&slug=...) */
@@ -143,6 +157,7 @@ export interface NotificationCenterProps {
 
 export const NotificationCenter: React.FC<NotificationCenterProps> = ({
   onNewCommentNotification,
+  onBudgetBannerNotification,
   onNotificationClick,
   forTechnician,
   technicianSlug,
@@ -180,8 +195,8 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
       : undefined;
 
   /** Pausa em segundo plano: ver checks em pollNewOnly / fetchNotifications. */
-  const POLL_QUICK_MS = 60000;   // mín. 60s — reduz invocações Vercel / Supabase
-  const POLL_FULL_MS = 120000;   // lista completa menos frequente
+  const POLL_QUICK_MS = 15000; // banners de orçamento + sino — 15s
+  const POLL_FULL_MS = 90000;
 
   const fetchNotifications = async (since?: string, silent = false) => {
     if (forTechnician && !technicianSlug) return;
@@ -213,6 +228,9 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
             const shownNative = showNativeDeviceNotification(n, !!forTechnician);
             if (n.type === 'comment') {
               onNewCommentNotification?.(n);
+            } else if (n.type === 'budget_created' || n.type === 'budget_edited') {
+              onBudgetBannerNotification?.(n);
+              if (!shownNative) playOtherNotificationSound();
             } else if (!shownNative) {
               playOtherNotificationSound();
             }
@@ -252,6 +270,9 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
           const shownNative = showNativeDeviceNotification(n, !!forTechnician);
           if (n.type === 'comment') {
             onNewCommentNotification?.(n);
+          } else if (n.type === 'budget_created' || n.type === 'budget_edited') {
+            onBudgetBannerNotification?.(n);
+            if (!shownNative) playOtherNotificationSound();
           } else if (!shownNative) {
             playOtherNotificationSound();
           }

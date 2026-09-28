@@ -4,6 +4,10 @@ import { SettingsModal } from './components/SettingsModal';
 import { ChangePasswordsModal } from './components/ChangePasswordsModal';
 import { type TabId } from './components/TabBar';
 import { NotificationCenter, type NotificationCenterProps } from './components/NotificationCenter';
+import {
+  MacOsBudgetBannerStack,
+  type MacOsBudgetBannerItem,
+} from './components/MacOsBudgetBannerStack';
 import { CommentPopUp } from './components/CommentPopUp';
 import { playNotificationSound } from './utils/notificationSound';
 import { HomeView, type HomeAppId } from './components/views/HomeView';
@@ -31,6 +35,7 @@ import {
   getWorkshopSettings,
   deleteAppointment,
   getSupportUnreadCount,
+  markNotificationRead,
 } from './services/apiService';
 import type { ServiceOrderStatus } from './constants/serviceOrderStages';
 import { KeepAliveTabPanel } from './components/KeepAliveTabPanel';
@@ -169,19 +174,11 @@ export default function App() {
   const [vehicleModalOsLabel, setVehicleModalOsLabel] = useState<string | null>(null);
   const [laboratorioActiveCount, setLaboratorioActiveCount] = useState(0);
 
-  const notificationCenterProps = useMemo((): Omit<NotificationCenterProps, 'placement'> | undefined => {
-    if (!authSession) return undefined;
-    return {
-      theme,
-      onNewCommentNotification: handleNewCommentNotification,
-      forTechnician: authSession.role === 'user' && !!authSession.userId,
-      technicianSlug: authSession.role === 'user' ? authSession.userId : undefined,
-    };
-  }, [authSession, theme]);
-
-
   // Modo cinematográfico: embaçar placas em todo o app (para gravar tela / redes sociais)
   const [cinematographicMode, setCinematographicMode] = useState(false);
+  /** Banners macOS de orçamento (ligado por padrão). */
+  const [budgetBannerNotifications, setBudgetBannerNotifications] = useState(true);
+  const [budgetBannerItems, setBudgetBannerItems] = useState<MacOsBudgetBannerItem[]>([]);
 
   // Device Orientation
   const orientation = useOrientation();
@@ -331,6 +328,78 @@ export default function App() {
   const handleOpenBudgetFromHub = useCallback((serviceOrderId: string, budgetId: string) => {
     setHubBudgetViewer({ serviceOrderId, budgetId });
   }, []);
+
+  const goToOrcamentosTab = useCallback(() => {
+    if (isLimitedSystemUser) {
+      setVisitedUserTabs((prev) => {
+        if (prev.has('orcamentos')) return prev;
+        const next = new Set(prev);
+        next.add('orcamentos');
+        return next;
+      });
+      setUserTab('orcamentos');
+    } else {
+      setVisitedTabs((prev) => {
+        if (prev.has('orcamentos')) return prev;
+        const next = new Set(prev);
+        next.add('orcamentos');
+        return next;
+      });
+      setCurrentTab('orcamentos');
+    }
+  }, [isLimitedSystemUser]);
+
+  const openBudgetFromNotification = useCallback(
+    (n: Notification) => {
+      const soId =
+        typeof n.payload.service_order_id === 'string' ? n.payload.service_order_id.trim() : '';
+      const budgetId =
+        typeof n.payload.budget_id === 'string' ? n.payload.budget_id.trim() : '';
+      if (!soId || !budgetId) return;
+      goToOrcamentosTab();
+      setHubBudgetViewer({ serviceOrderId: soId, budgetId });
+      void markNotificationRead(
+        n.id,
+        authSession?.role === 'user' && authSession.userId
+          ? { for: 'technician', technicianSlug: authSession.userId }
+          : undefined
+      ).catch(() => {});
+    },
+    [authSession, goToOrcamentosTab]
+  );
+
+  const handleBudgetBannerNotification = useCallback(
+    (n: Notification) => {
+      if (!budgetBannerNotifications) return;
+      if (n.type !== 'budget_created' && n.type !== 'budget_edited') return;
+      setBudgetBannerItems((prev) => {
+        if (prev.some((x) => x.id === n.id)) return prev;
+        return [{ id: n.id, notification: n }, ...prev].slice(0, 5);
+      });
+    },
+    [budgetBannerNotifications]
+  );
+
+  const handleNotificationClick = useCallback(
+    (n: Notification) => {
+      if (n.type === 'budget_created' || n.type === 'budget_edited') {
+        openBudgetFromNotification(n);
+      }
+    },
+    [openBudgetFromNotification]
+  );
+
+  const notificationCenterProps = useMemo((): Omit<NotificationCenterProps, 'placement'> | undefined => {
+    if (!authSession) return undefined;
+    return {
+      theme,
+      onNewCommentNotification: handleNewCommentNotification,
+      onBudgetBannerNotification: handleBudgetBannerNotification,
+      onNotificationClick: handleNotificationClick,
+      forTechnician: authSession.role === 'user' && !!authSession.userId,
+      technicianSlug: authSession.role === 'user' ? authSession.userId : undefined,
+    };
+  }, [authSession, theme, handleBudgetBannerNotification, handleNotificationClick]);
 
   const handleOpenLaboratoryOrderFromPatio = useCallback(
     (serviceOrderId: string) => {
@@ -514,6 +583,10 @@ export default function App() {
     if (savedCinematographic !== null) {
       setCinematographicMode(savedCinematographic === 'true');
     }
+    const savedBudgetBanners = localStorage.getItem('app_budget_banner_notifications');
+    if (savedBudgetBanners !== null) {
+      setBudgetBannerNotifications(savedBudgetBanners === 'true');
+    }
   }, []);
 
   // Apply theme to document
@@ -527,6 +600,11 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('app_cinematographic_mode', String(cinematographicMode));
   }, [cinematographicMode]);
+
+  useEffect(() => {
+    localStorage.setItem('app_budget_banner_notifications', String(budgetBannerNotifications));
+    if (!budgetBannerNotifications) setBudgetBannerItems([]);
+  }, [budgetBannerNotifications]);
 
   // Configurações da oficina (nome do admin + aparência global) após login
   useEffect(() => {
@@ -993,6 +1071,9 @@ export default function App() {
               onUseCustomerData={handleUseCustomerData}
               onCreateRegistration={handleCreateRegistrationFromArea}
               commentAuthorName={authSession.displayName ?? 'Usuário'}
+              onBudgetBannerNotification={handleBudgetBannerNotification}
+              onNotificationClick={handleNotificationClick}
+              onNewCommentNotification={handleNewCommentNotification}
               blurPlates={cinematographicMode}
               isAppTabActive={userTab === 'patio'}
               suppressVehiclePortals={isDesktopShell && shellOverlayTopbar !== null}
@@ -1020,6 +1101,9 @@ export default function App() {
               onUseCustomerData={handleUseCustomerData}
               onCreateRegistration={handleCreateRegistrationFromArea}
               commentAuthorName={authSession.displayName ?? 'Usuário'}
+              onBudgetBannerNotification={handleBudgetBannerNotification}
+              onNotificationClick={handleNotificationClick}
+              onNewCommentNotification={handleNewCommentNotification}
               blurPlates={cinematographicMode}
               isAppTabActive={userTab === 'laboratorio'}
               suppressVehiclePortals={isDesktopShell && shellOverlayTopbar !== null}
@@ -1040,6 +1124,8 @@ export default function App() {
             <NotificationCenter
               theme={theme}
               onNewCommentNotification={handleNewCommentNotification}
+              onBudgetBannerNotification={handleBudgetBannerNotification}
+              onNotificationClick={handleNotificationClick}
               forTechnician={!!authSession.userId}
               technicianSlug={authSession.userId}
             />
@@ -1063,6 +1149,8 @@ export default function App() {
           onThemeChange={setTheme}
           cinematographicMode={cinematographicMode}
           onCinematographicModeChange={setCinematographicMode}
+          budgetBannerNotifications={budgetBannerNotifications}
+          onBudgetBannerNotificationsChange={setBudgetBannerNotifications}
           orientation={orientation}
           showPatioAccess={false}
         />
@@ -1077,6 +1165,11 @@ export default function App() {
             actorOptions={budgetHubActorOptions}
           />
         ) : null}
+        <MacOsBudgetBannerStack
+          items={budgetBannerItems}
+          onDismiss={(id) => setBudgetBannerItems((prev) => prev.filter((x) => x.id !== id))}
+          onActivate={(item) => openBudgetFromNotification(item.notification)}
+        />
         <LabOsScanQuickModal
           serviceOrderId={labOsScanQuick?.id ?? null}
           scanToken={labOsScanQuick?.token ?? 0}
@@ -1336,6 +1429,9 @@ export default function App() {
             onUseCustomerData={handleUseCustomerData}
             onCreateRegistration={handleCreateRegistrationFromArea}
             commentAuthorName={authSession?.role === 'admin' ? adminDisplayName : (authSession?.displayName ?? authSession?.username ?? 'Rei do ABS')}
+            onBudgetBannerNotification={handleBudgetBannerNotification}
+            onNotificationClick={handleNotificationClick}
+            onNewCommentNotification={handleNewCommentNotification}
             blurPlates={cinematographicMode}
             isAppTabActive={currentTab === 'patio'}
             suppressVehiclePortals={isDesktopShell && shellOverlayTopbar !== null}
@@ -1365,6 +1461,9 @@ export default function App() {
             onUseCustomerData={handleUseCustomerData}
             onCreateRegistration={handleCreateRegistrationFromArea}
             commentAuthorName={authSession?.role === 'admin' ? adminDisplayName : (authSession?.displayName ?? authSession?.username ?? 'Rei do ABS')}
+            onBudgetBannerNotification={handleBudgetBannerNotification}
+            onNotificationClick={handleNotificationClick}
+            onNewCommentNotification={handleNewCommentNotification}
             blurPlates={cinematographicMode}
             isAppTabActive={currentTab === 'laboratorio'}
             suppressVehiclePortals={isDesktopShell && shellOverlayTopbar !== null}
@@ -1391,6 +1490,8 @@ export default function App() {
         onThemeChange={setTheme}
         cinematographicMode={cinematographicMode}
         onCinematographicModeChange={setCinematographicMode}
+        budgetBannerNotifications={budgetBannerNotifications}
+        onBudgetBannerNotificationsChange={setBudgetBannerNotifications}
         orientation={orientation}
         showPatioAccess={authSession?.role === 'admin' || hasFullAccess}
       />
@@ -1404,6 +1505,11 @@ export default function App() {
           actorOptions={budgetHubActorOptions}
         />
       ) : null}
+      <MacOsBudgetBannerStack
+        items={budgetBannerItems}
+        onDismiss={(id) => setBudgetBannerItems((prev) => prev.filter((x) => x.id !== id))}
+        onActivate={(item) => openBudgetFromNotification(item.notification)}
+      />
       <LabOsScanQuickModal
         serviceOrderId={labOsScanQuick?.id ?? null}
         scanToken={labOsScanQuick?.token ?? 0}
@@ -1458,6 +1564,8 @@ export default function App() {
           <NotificationCenter
             theme={theme}
             onNewCommentNotification={handleNewCommentNotification}
+            onBudgetBannerNotification={handleBudgetBannerNotification}
+            onNotificationClick={handleNotificationClick}
             forTechnician={authSession?.role === 'user' && !!authSession?.userId}
             technicianSlug={authSession?.role === 'user' ? authSession.userId : undefined}
           />

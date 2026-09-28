@@ -2097,6 +2097,10 @@ export interface NotificationPayload {
   delivery_date?: string | null;
   technician_slug?: string;
   technician_name?: string;
+  /** ID do orçamento (hub) — banners / clique. */
+  budget_id?: string | null;
+  /** Nº cronológico do orçamento na OS (1 = primeiro). */
+  budget_number?: number | null;
   [key: string]: unknown;
 }
 
