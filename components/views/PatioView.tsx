@@ -3698,6 +3698,27 @@ export const PatioView: React.FC<PatioViewProps> = ({
     return commentUnreadByOrderId[selectedCard.id] ?? 0;
   })();
 
+  /** Alinha badge do quadro com o cálculo local (exclui próprias mensagens). */
+  useEffect(() => {
+    if (!selectedCard?.id || !requiresExplicitCommentReadEffective) return;
+    if (!cardDetails?.actions) return;
+    const orderId = selectedCard.id;
+    const local = selectedModalCommentsUnread;
+    setCommentUnreadByOrderId((prev) => {
+      const server = prev[orderId] ?? 0;
+      if (server === local) return prev;
+      const next = { ...prev };
+      if (local <= 0) delete next[orderId];
+      else next[orderId] = local;
+      return next;
+    });
+  }, [
+    selectedCard?.id,
+    selectedModalCommentsUnread,
+    requiresExplicitCommentReadEffective,
+    cardDetails?.actions,
+  ]);
+
   const handleUpdateComment = async (actionId: string) => {
     if (!selectedCard || !actionId || !editingText.trim()) {
       setEditingActionId(null);
