@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X, Send, Loader2, Sparkles } from 'lucide-react';
 import type { Notification } from '../services/apiService';
-import { addServiceOrderComment, getServiceOrderComments, getWorkshopSettings, type ServiceOrderComment } from '../services/apiService';
+import { addServiceOrderComment, getServiceOrderComments, getWorkshopSettings, markServiceOrderCommentsRead, type ServiceOrderComment } from '../services/apiService';
 import {
   iosModalClose,
   iosModalInsetCard,
@@ -123,6 +123,12 @@ export const CommentPopUp: React.FC<CommentPopUpProps> = ({
         replyActor,
         replyActor === 'technician' ? replyAuthorUserId : null
       );
+      // Responder marca as mensagens recebidas como visualizadas.
+      try {
+        await markServiceOrderCommentsRead(orderId);
+      } catch {
+        /* ignore */
+      }
       setReply('');
       onReplySent?.();
       const updated = await getServiceOrderComments(orderId);

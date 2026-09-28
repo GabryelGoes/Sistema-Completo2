@@ -3612,6 +3612,18 @@ export const PatioView: React.FC<PatioViewProps> = ({
         actorOptions?.actor,
         authorUserId
       );
+      // Responder = visualizar as mensagens recebidas (some botão/badge).
+      try {
+        await markServiceOrderCommentsRead(orderId);
+        setCommentUnreadByOrderId((prev) => {
+          if (!prev[orderId]) return prev;
+          const next = { ...prev };
+          delete next[orderId];
+          return next;
+        });
+      } catch {
+        /* envio já ok; recibo pode falhar sem bloquear */
+      }
       const comments = await getServiceOrderComments(orderId);
       setCardDetails(prev => prev ? {
         ...prev,
