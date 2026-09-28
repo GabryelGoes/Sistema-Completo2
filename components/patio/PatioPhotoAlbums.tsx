@@ -218,7 +218,7 @@ export function PatioPhotoAlbums({
   const [isLiveCameraOpen, setIsLiveCameraOpen] = useState(false);
   const [liveCameraCapturing, setLiveCameraCapturing] = useState(false);
   const [liveCameraFlash, setLiveCameraFlash] = useState(false);
-  const [liveCameraStarting, setLiveCameraStarting] = useState(false);
+  const [liveCameraUploadCount, setLiveCameraUploadCount] = useState(0);
 
   const foldersRef = useRef(folders);
   foldersRef.current = folders;
@@ -574,11 +574,16 @@ export function PatioPhotoAlbums({
     }
   };
 
-  const uploadIntoOpenFolder = async (files: FileList | File[]) => {
+  const uploadIntoOpenFolder = async (
+    files: FileList | File[],
+    opts?: { quiet?: boolean }
+  ) => {
     if (!openFolderId || !canEdit) return;
     const list = Array.from(files).filter((f) => f && f.size > 0);
     if (list.length === 0) return;
-    setUploading(true);
+    const quiet = opts?.quiet === true;
+    if (!quiet) setUploading(true);
+    else setLiveCameraUploadCount((n) => n + 1);
     try {
       const folderOpts = openFolderId.startsWith('__virtual_')
         ? {
@@ -595,17 +600,45 @@ export function PatioPhotoAlbums({
           openFolderId === VIRTUAL_ENTRADA_ID || openFolder?.slug === 'entrada'
             ? `entrada_${serviceOrderId}_${Date.now()}.jpg`
             : file.name;
-        await uploadServiceOrderPhoto(serviceOrderId, file, fileName, folderOpts);
+        const uploaded = await uploadServiceOrderPhoto(
+          serviceOrderId,
+          file,
+          fileName,
+          folderOpts
+        );
+        // Atualiza a grade na hora sem fechar a câmera / recarregar pastas.
+        if (quiet && uploaded) {
+          setPhotos((prev) => {
+            if (prev.some((p) => p.path === uploaded.path)) return prev;
+            return [...prev, uploaded];
+          });
+        }
       }
-      await onPhotosChanged?.();
-      await loadFolders();
-      if (openFolderId) await loadFolderDetail(openFolderId);
+      if (!quiet) {
+        await onPhotosChanged?.();
+        await loadFolders();
+        if (openFolderId) await loadFolderDetail(openFolderId);
+      } else {
+        void onPhotosChanged?.();
+        void getServiceOrderPhotoFolders(serviceOrderId)
+          .then((listFolders) => {
+            setFolders(listFolders);
+            setUsingVirtualFolders(false);
+          })
+          .catch(() => {
+            /* ignore — lista local já foi atualizada */
+          });
+      }
     } catch (err) {
       alert(err instanceof Error ? err.message : 'Erro ao enviar foto.');
     } finally {
-      setUploading(false);
-      if (cameraRef.current) cameraRef.current.value = '';
-      if (galleryRef.current) galleryRef.current.value = '';
+      if (!quiet) {
+        setUploading(false);
+        if (cameraRef.current) cameraRef.current.value = '';
+        if (galleryRef.current) galleryRef.current.value = '';
+      } else {
+        setLiveCameraUploadCount((n) => Math.max(0, n - 1));
+      }
     }
   };
 
@@ -623,74 +656,79 @@ export function PatioPhotoAlbums({
     setIsLiveCameraOpen(false);
     setLiveCameraCapturing(false);
     setLiveCameraFlash(false);
-    setLiveCameraStarting(false);
   }, []);
 
-  const openNativeCameraFallback = useCallback(() => {
-    const input = cameraRef.current;
-    if (!input) return;
-    input.value = '';
-    input.click();
-  }, []);
-
-  const openLiveCamera = useCallback(async () => {
-    if (!openFolderId || !canEdit || uploading || liveCameraStarting || isLiveCameraOpen) return;
-
+  /** Mesmo fluxo da recepção: abre overlay e pede stream no effect. */
+  const openLiveCamera = useCallback(() => {
+    if (!openFolderId || !canEdit || uploading) return;
     if (!navigator.mediaDevices?.getUserMedia) {
-      openNativeCameraFallback();
+      const input = cameraRef.current;
+      if (input) {
+        input.value = '';
+        input.click();
+      }
       return;
     }
-
-    // Abre o overlay imediatamente (feedback) e pede o stream em seguida.
-    setLiveCameraStarting(true);
     setIsLiveCameraOpen(true);
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: false,
-        video: { facingMode: { ideal: 'environment' } },
-      });
-      if (liveCameraStreamRef.current) {
-        liveCameraStreamRef.current.getTracks().forEach((track) => track.stop());
-      }
-      liveCameraStreamRef.current = stream;
-      const video = liveCameraVideoRef.current;
-      if (video) {
-        video.srcObject = stream;
-        void video.play().catch(() => {});
-      }
-    } catch (err) {
-      console.error('Erro ao acessar a câmera:', err);
-      setIsLiveCameraOpen(false);
-      setLiveCameraStarting(false);
-      // Novo gesto: usuário toca no botão de fallback abaixo seria ideal;
-      // tenta input nativo e, se o browser bloquear, o botão Galeria ainda funciona.
-      openNativeCameraFallback();
-      return;
-    } finally {
-      setLiveCameraStarting(false);
-    }
-  }, [
-    canEdit,
-    isLiveCameraOpen,
-    liveCameraStarting,
-    openFolderId,
-    openNativeCameraFallback,
-    uploading,
-  ]);
+  }, [canEdit, openFolderId, uploading]);
 
   useEffect(() => {
-    if (!isLiveCameraOpen) return;
-    const video = liveCameraVideoRef.current;
-    const stream = liveCameraStreamRef.current;
-    if (!video || !stream) return;
-    if (video.srcObject !== stream) {
-      video.srcObject = stream;
-      void video.play().catch(() => {});
+    if (!isLiveCameraOpen) {
+      if (liveCameraStreamRef.current) {
+        liveCameraStreamRef.current.getTracks().forEach((track) => track.stop());
+        liveCameraStreamRef.current = null;
+      }
+      return;
     }
+
+    let cancelled = false;
+    const init = async () => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: { ideal: 'environment' },
+            width: { ideal: 1920 },
+            height: { ideal: 1080 },
+          },
+          audio: false,
+        });
+        if (cancelled) {
+          stream.getTracks().forEach((track) => track.stop());
+          return;
+        }
+        liveCameraStreamRef.current = stream;
+        if (liveCameraVideoRef.current) {
+          liveCameraVideoRef.current.srcObject = stream;
+          try {
+            await liveCameraVideoRef.current.play();
+          } catch {
+            /* autoplay / playsInline */
+          }
+        }
+      } catch (err) {
+        console.error('Erro ao acessar a câmera:', err);
+        setIsLiveCameraOpen(false);
+        window.alert('Não foi possível abrir a câmera no app. Usando a câmera do sistema.');
+        const input = cameraRef.current;
+        if (input) {
+          input.value = '';
+          input.click();
+        }
+      }
+    };
+    void init();
+
+    return () => {
+      cancelled = true;
+      if (liveCameraStreamRef.current) {
+        liveCameraStreamRef.current.getTracks().forEach((track) => track.stop());
+        liveCameraStreamRef.current = null;
+      }
+    };
   }, [isLiveCameraOpen]);
 
   const captureLiveCameraPhoto = useCallback(() => {
-    if (liveCameraCapturing || uploading) return;
+    if (liveCameraCapturing) return;
     const video = liveCameraVideoRef.current;
     const canvas = liveCameraCanvasRef.current;
     if (!video || !canvas) return;
@@ -713,12 +751,13 @@ export function PatioPhotoAlbums({
         setLiveCameraCapturing(false);
         if (!blob) return;
         const file = new File([blob], `pasta_${Date.now()}.jpg`, { type: 'image/jpeg' });
-        void uploadIntoOpenFolderRef.current([file]);
+        // quiet: não bloqueia o shutter nem desmonta o overlay enquanto sobe.
+        void uploadIntoOpenFolderRef.current([file], { quiet: true });
       },
       'image/jpeg',
       0.88
     );
-  }, [liveCameraCapturing, uploading]);
+  }, [liveCameraCapturing]);
 
   useEffect(() => {
     if (!openFolderId && isLiveCameraOpen) stopLiveCamera();
@@ -736,14 +775,6 @@ export function PatioPhotoAlbums({
     window.addEventListener('keydown', onKey, true);
     return () => window.removeEventListener('keydown', onKey, true);
   }, [isLiveCameraOpen, stopLiveCamera]);
-
-  // Ao desmontar o componente, libera a câmera.
-  useEffect(() => () => {
-    if (liveCameraStreamRef.current) {
-      liveCameraStreamRef.current.getTracks().forEach((track) => track.stop());
-      liveCameraStreamRef.current = null;
-    }
-  }, []);
 
   const handleDeletePhoto = async (photo: ServiceOrderPhoto) => {
     if (!canEdit) return;
@@ -818,9 +849,67 @@ export function PatioPhotoAlbums({
     );
   }
 
+  const liveCameraOverlay = isLiveCameraOpen ? (
+    <ModalPortal manageBackLayer={false} onRequestClose={stopLiveCamera}>
+      <div
+        className="fixed inset-0 z-[220] flex flex-col bg-black"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Câmera"
+      >
+        <div className="relative min-h-0 flex-1 bg-black">
+          <video
+            ref={liveCameraVideoRef}
+            autoPlay
+            playsInline
+            muted
+            className="h-full w-full object-cover"
+          />
+          <canvas ref={liveCameraCanvasRef} className="hidden" />
+          {liveCameraFlash ? (
+            <div className="pointer-events-none absolute inset-0 bg-white" aria-hidden />
+          ) : null}
+          <button
+            type="button"
+            onClick={stopLiveCamera}
+            className="absolute right-[max(1rem,env(safe-area-inset-right))] top-[max(1rem,env(safe-area-inset-top))] z-10 flex h-10 w-10 items-center justify-center rounded-full text-white/95 drop-shadow-[0_1px_2px_rgba(0,0,0,0.65)]"
+            aria-label="Fechar câmera"
+          >
+            <X className="h-7 w-7" strokeWidth={1.75} />
+          </button>
+          {liveCameraUploadCount > 0 ? (
+            <div className="absolute left-1/2 top-[max(1rem,env(safe-area-inset-top))] z-10 flex -translate-x-1/2 items-center gap-2 rounded-full bg-black/55 px-3 py-1.5 text-[12px] font-semibold text-white">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              Salvando…
+            </div>
+          ) : null}
+          <div className="absolute inset-x-0 bottom-0 flex justify-center pb-[max(2rem,calc(env(safe-area-inset-bottom)+1.25rem))] pt-10">
+            <button
+              type="button"
+              onClick={captureLiveCameraPhoto}
+              disabled={liveCameraCapturing}
+              className="group relative flex h-[76px] w-[76px] items-center justify-center rounded-full disabled:opacity-40"
+              aria-label="Capturar foto"
+            >
+              <span
+                aria-hidden
+                className="absolute inset-0 rounded-full border-[4px] border-white"
+              />
+              <span
+                aria-hidden
+                className="h-[62px] w-[62px] rounded-full bg-white transition-transform duration-100 ease-out group-active:scale-[0.88]"
+              />
+            </button>
+          </div>
+        </div>
+      </div>
+    </ModalPortal>
+  ) : null;
+
   /* —— Interior da pasta —— */
   if (openFolderId) {
     return (
+      <>
       <div className="space-y-4">
         <div className="flex items-center gap-2">
           <button
@@ -863,13 +952,13 @@ export function PatioPhotoAlbums({
               />
               <button
                 type="button"
-                disabled={uploading || liveCameraStarting}
-                onClick={() => void openLiveCamera()}
+                disabled={uploading}
+                onClick={() => openLiveCamera()}
                 className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-[#007AFF] text-white transition-[filter,transform] hover:brightness-110 active:scale-[0.97] disabled:opacity-50"
                 title="Câmera"
                 aria-label="Adicionar pela câmera"
               >
-                {uploading || liveCameraStarting ? (
+                {uploading ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
                   <Camera className="h-4 w-4" strokeWidth={2.25} />
@@ -1036,6 +1125,8 @@ export function PatioPhotoAlbums({
           </div>
         )}
       </div>
+      {liveCameraOverlay}
+      </>
     );
   }
 
@@ -1361,62 +1452,7 @@ export function PatioPhotoAlbums({
         </div>
       ) : null}
 
-      {isLiveCameraOpen ? (
-        <ModalPortal manageBackLayer={false} onRequestClose={stopLiveCamera}>
-          <div
-            className="fixed inset-0 z-[220] flex flex-col bg-black"
-            role="dialog"
-            aria-modal="true"
-            aria-label="Câmera"
-          >
-            <div className="relative min-h-0 flex-1 bg-black">
-              <video
-                ref={liveCameraVideoRef}
-                autoPlay
-                playsInline
-                muted
-                className="h-full w-full object-cover"
-              />
-              <canvas ref={liveCameraCanvasRef} className="hidden" />
-              {liveCameraFlash ? (
-                <div className="pointer-events-none absolute inset-0 bg-white" aria-hidden />
-              ) : null}
-              <button
-                type="button"
-                onClick={stopLiveCamera}
-                className="absolute right-[max(1rem,env(safe-area-inset-right))] top-[max(1rem,env(safe-area-inset-top))] z-10 flex h-10 w-10 items-center justify-center rounded-full text-white/95 drop-shadow-[0_1px_2px_rgba(0,0,0,0.65)]"
-                aria-label="Fechar câmera"
-              >
-                <X className="h-7 w-7" strokeWidth={1.75} />
-              </button>
-              {uploading ? (
-                <div className="absolute left-1/2 top-[max(1rem,env(safe-area-inset-top))] z-10 flex -translate-x-1/2 items-center gap-2 rounded-full bg-black/55 px-3 py-1.5 text-[12px] font-semibold text-white">
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  Enviando…
-                </div>
-              ) : null}
-              <div className="absolute inset-x-0 bottom-0 flex justify-center pb-[max(2rem,calc(env(safe-area-inset-bottom)+1.25rem))] pt-10">
-                <button
-                  type="button"
-                  onClick={captureLiveCameraPhoto}
-                  disabled={liveCameraCapturing || uploading}
-                  className="group relative flex h-[76px] w-[76px] items-center justify-center rounded-full disabled:opacity-40"
-                  aria-label="Capturar foto"
-                >
-                  <span
-                    aria-hidden
-                    className="absolute inset-0 rounded-full border-[4px] border-white"
-                  />
-                  <span
-                    aria-hidden
-                    className="h-[62px] w-[62px] rounded-full bg-white transition-transform duration-100 ease-out group-active:scale-[0.88]"
-                  />
-                </button>
-              </div>
-            </div>
-          </div>
-        </ModalPortal>
-      ) : null}
+      {liveCameraOverlay}
     </div>
   );
 }
