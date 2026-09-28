@@ -83,6 +83,15 @@ function safeStringEqual(a: string, b: string): boolean {
   return crypto.timingSafeEqual(ba, bb);
 }
 
+/** Nome de autor/leitor de comentário — compara sem acento/caixa. */
+function normalizeCommentPersonName(value: string): string {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
 // ----------------- TOKENS DE SESSÃO (HMAC, sem estado) -----------------
 const SESSION_SECRET =
   process.env.SESSION_SECRET ||
@@ -3740,33 +3749,71 @@ export function createApiApp() {
 
       const ownNames = new Set<string>();
       const pushOwn = (n: string) => {
-        const t = n.trim().toLowerCase();
+        const t = normalizeCommentPersonName(n);
         if (t) ownNames.add(t);
       };
       if (actor.kind === "admin") {
         pushOwn(adminDisplayName);
         pushOwn("Rei do ABS");
         pushOwn("Gerência");
+        pushOwn(actor.name);
       } else {
         pushOwn(actor.name);
+        // Inclui username e display_name do system user para evitar falso "não lida" no próprio envio.
+        if (actor.userId) {
+          const { data: urow } = await supabaseAdmin
+            .from("workshop_system_users")
+            .select("username, display_name")
+            .eq("id", actor.userId)
+            .eq("workshop_id", WORKSHOP_ID)
+            .maybeSingle();
+          if (urow) {
+            pushOwn(String(urow.username || ""));
+            pushOwn(String(urow.display_name || ""));
+          }
+        }
       }
 
-      const isOwnAuthor = (author: string) => {
-        const a = String(author || "").trim().toLowerCase();
+      const isOwnAuthor = (author: string, authorKey?: string | null) => {
+        if (authorKey && authorKey === actor.readerKey) return true;
+        const a = normalizeCommentPersonName(author);
         if (!a) return false;
         if (ownNames.has(a)) return true;
         if (actor.kind === "admin" && /rei\s*do\s*abs/i.test(author)) return true;
         return false;
       };
 
-      const { data: comments, error: commentsErr } = await supabaseAdmin
-        .from("service_order_comments")
-        .select("id, service_order_id, created_at, author_display_name")
-        .in("service_order_id", orderIds);
+      let comments: {
+        id: string;
+        service_order_id?: string;
+        created_at?: string;
+        author_display_name?: string;
+        author_key?: string | null;
+      }[] = [];
+      {
+        const { data, error: commentsErr } = await supabaseAdmin
+          .from("service_order_comments")
+          .select("id, service_order_id, created_at, author_display_name, author_key")
+          .in("service_order_id", orderIds);
 
-      if (commentsErr) {
-        console.error("[API] comment-unread-counts comments:", commentsErr);
-        return res.status(500).json({ error: commentsErr.message });
+        if (commentsErr) {
+          if (/author_key|schema cache|column/i.test(String(commentsErr.message || ""))) {
+            const retry = await supabaseAdmin
+              .from("service_order_comments")
+              .select("id, service_order_id, created_at, author_display_name")
+              .in("service_order_id", orderIds);
+            if (retry.error) {
+              console.error("[API] comment-unread-counts comments:", retry.error);
+              return res.status(500).json({ error: retry.error.message });
+            }
+            comments = retry.data ?? [];
+          } else {
+            console.error("[API] comment-unread-counts comments:", commentsErr);
+            return res.status(500).json({ error: commentsErr.message });
+          }
+        } else {
+          comments = data ?? [];
+        }
       }
 
       const commentIds = (comments ?? []).map((c: { id: string }) => c.id).filter(Boolean);
@@ -3827,7 +3874,8 @@ export function createApiApp() {
         const cid = String((row as { id?: string }).id || "");
         if (!sid || !cid) continue;
         const author = String((row as { author_display_name?: string }).author_display_name || "");
-        if (isOwnAuthor(author)) continue;
+        const authorKey = (row as { author_key?: string | null }).author_key ?? null;
+        if (isOwnAuthor(author, authorKey)) continue;
         if (viewedCommentIds.has(cid)) continue;
         // Compat legado: sem nenhuma view deste leitor, o watermark por OS ainda vale.
         if (!readerHasAnyView) {
@@ -6825,11 +6873,32 @@ export function createApiApp() {
 
       const { data, error } = await supabaseAdmin
         .from("service_order_comments")
-        .select("id, author_display_name, text, created_at, author_photo_url, updated_at")
+        .select("id, author_display_name, text, created_at, author_photo_url, updated_at, author_key")
         .eq("service_order_id", serviceOrderId)
         .order("created_at", { ascending: true });
 
       if (error) {
+        // Compat: coluna author_key ainda não migrada.
+        if (/author_key|schema cache|column/i.test(String(error.message || ""))) {
+          const retry = await supabaseAdmin
+            .from("service_order_comments")
+            .select("id, author_display_name, text, created_at, author_photo_url, updated_at")
+            .eq("service_order_id", serviceOrderId)
+            .order("created_at", { ascending: true });
+          if (retry.error) {
+            console.error("[API] Erro ao listar comentários:", retry.error);
+            return res.status(500).json({ error: retry.error.message });
+          }
+          const commentsFallback = retry.data ?? [];
+          return res.json(
+            commentsFallback.map((c: { id: string }) => ({
+              ...c,
+              author_key: null,
+              views: [],
+              reactions: [],
+            }))
+          );
+        }
         console.error("[API] Erro ao listar comentários:", error);
         return res.status(500).json({ error: error.message });
       }
@@ -6957,6 +7026,19 @@ export function createApiApp() {
       // actor explícito evita bug: admin com nome diferente de "Rei do ABS" não receber notificação do próprio comentário
       const isAdminComment =
         actor === "admin" ? true : actor === "technician" ? false : /rei\s*do\s*abs/i.test(author);
+
+      // Chave estável do autor (mesma de reader_key) para recibos/badges.
+      const supportActor = await resolveSupportActor(req);
+      let authorKey: string | null = supportActor?.readerKey ?? null;
+      const bodyAuthorUserId =
+        typeof (req.body as { authorUserId?: unknown })?.authorUserId === "string"
+          ? String((req.body as { authorUserId?: string }).authorUserId).trim()
+          : "";
+      if (!authorKey) {
+        if (isAdminComment || bodyAuthorUserId === "admin") authorKey = "admin";
+        else if (bodyAuthorUserId) authorKey = bodyAuthorUserId;
+      }
+
       let authorPhotoUrl: string | null = null;
       if (isAdminComment) {
         const { data: setting } = await supabaseAdmin
@@ -6980,29 +7062,67 @@ export function createApiApp() {
         authorPhotoUrl = u?.photo_url?.trim() || null;
       }
 
-      const { data, error } = await supabaseAdmin
-        .from("service_order_comments")
-        .insert({
-          service_order_id: serviceOrderId,
-          author_display_name: author,
-          text: text.trim(),
-          author_photo_url: authorPhotoUrl,
-        })
-        .select("id, author_display_name, text, created_at, author_photo_url")
-        .single();
+      const insertPayload: Record<string, unknown> = {
+        service_order_id: serviceOrderId,
+        author_display_name: author,
+        text: text.trim(),
+        author_photo_url: authorPhotoUrl,
+      };
+      if (authorKey) insertPayload.author_key = authorKey;
 
-      if (error) {
-        console.error("[API] Erro ao criar comentário:", error);
-        return res.status(500).json({ error: error.message });
+      let createdComment: {
+        id: string;
+        author_display_name: string;
+        text: string;
+        created_at: string;
+        author_photo_url?: string | null;
+        author_key?: string | null;
+      } | null = null;
+
+      {
+        const { data, error } = await supabaseAdmin
+          .from("service_order_comments")
+          .insert(insertPayload)
+          .select("id, author_display_name, text, created_at, author_photo_url, author_key")
+          .single();
+
+        if (error) {
+          if (/author_key|schema cache|column/i.test(String(error.message || ""))) {
+            const retry = await supabaseAdmin
+              .from("service_order_comments")
+              .insert({
+                service_order_id: serviceOrderId,
+                author_display_name: author,
+                text: text.trim(),
+                author_photo_url: authorPhotoUrl,
+              })
+              .select("id, author_display_name, text, created_at, author_photo_url")
+              .single();
+            if (retry.error) {
+              console.error("[API] Erro ao criar comentário:", retry.error);
+              return res.status(500).json({ error: retry.error.message });
+            }
+            createdComment = retry.data;
+          } else {
+            console.error("[API] Erro ao criar comentário:", error);
+            return res.status(500).json({ error: error.message });
+          }
+        } else {
+          createdComment = data;
+        }
+      }
+
+      if (!createdComment) {
+        return res.status(500).json({ error: "Falha ao criar comentário." });
       }
 
       const customerName = so.customers && typeof so.customers === "object" && "name" in so.customers
         ? String((so.customers as { name: string }).name ?? "")
         : "";
-      const authorPhotoUrlForPayload = data?.author_photo_url ?? authorPhotoUrl;
+      const authorPhotoUrlForPayload = createdComment.author_photo_url ?? authorPhotoUrl;
       const commentPayload = {
         service_order_id: serviceOrderId,
-        comment_id: data.id,
+        comment_id: createdComment.id,
         author_display_name: author,
         author_photo_url: authorPhotoUrlForPayload,
         text: text.trim(),
@@ -7083,7 +7203,7 @@ export function createApiApp() {
         }
       }
 
-      return res.status(201).json(data);
+      return res.status(201).json(createdComment);
     } catch (err: any) {
       console.error("[API] Erro em POST /api/service-orders/:id/comments:", err);
       return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
@@ -7132,12 +7252,12 @@ export function createApiApp() {
       // Também grava recibo por mensagem (exceto as próprias).
       const { data: comments } = await supabaseAdmin
         .from("service_order_comments")
-        .select("id, author_display_name")
+        .select("id, author_display_name, author_key")
         .eq("service_order_id", serviceOrderId);
 
       const ownNames = new Set<string>();
       const pushOwn = (n: string) => {
-        const t = n.trim().toLowerCase();
+        const t = normalizeCommentPersonName(n);
         if (t) ownNames.add(t);
       };
       if (actor.kind === "admin") {
@@ -7146,9 +7266,22 @@ export function createApiApp() {
         pushOwn(actor.name);
       } else {
         pushOwn(actor.name);
+        if (actor.userId) {
+          const { data: urow } = await supabaseAdmin
+            .from("workshop_system_users")
+            .select("username, display_name")
+            .eq("id", actor.userId)
+            .eq("workshop_id", WORKSHOP_ID)
+            .maybeSingle();
+          if (urow) {
+            pushOwn(String(urow.username || ""));
+            pushOwn(String(urow.display_name || ""));
+          }
+        }
       }
-      const isOwnAuthor = (author: string) => {
-        const a = String(author || "").trim().toLowerCase();
+      const isOwnAuthor = (author: string, authorKey?: string | null) => {
+        if (authorKey && authorKey === actor.readerKey) return true;
+        const a = normalizeCommentPersonName(author);
         if (!a) return false;
         if (ownNames.has(a)) return true;
         if (actor.kind === "admin" && /rei\s*do\s*abs/i.test(author)) return true;
@@ -7156,7 +7289,10 @@ export function createApiApp() {
       };
 
       const viewRows = (comments ?? [])
-        .filter((c: { author_display_name?: string }) => !isOwnAuthor(String(c.author_display_name || "")))
+        .filter(
+          (c: { author_display_name?: string; author_key?: string | null }) =>
+            !isOwnAuthor(String(c.author_display_name || ""), c.author_key ?? null)
+        )
         .map((c: { id: string }) => ({
           comment_id: c.id,
           workshop_id: WORKSHOP_ID,
@@ -7204,7 +7340,7 @@ export function createApiApp() {
 
       const { data: comment, error: commentErr } = await supabaseAdmin
         .from("service_order_comments")
-        .select("id, service_order_id, author_display_name")
+        .select("id, service_order_id, author_display_name, author_key")
         .eq("id", commentId)
         .eq("service_order_id", serviceOrderId)
         .maybeSingle();
@@ -7219,6 +7355,23 @@ export function createApiApp() {
         .eq("workshop_id", WORKSHOP_ID)
         .maybeSingle();
       if (!so) return res.status(404).json({ error: "Ordem de serviço não encontrada." });
+
+      // Autor não marca a própria mensagem (nem gera badge/recibo para si).
+      const commentAuthorKey =
+        (comment as { author_key?: string | null }).author_key ?? null;
+      const commentAuthorName = String(
+        (comment as { author_display_name?: string }).author_display_name || ""
+      );
+      if (commentAuthorKey && commentAuthorKey === actor.readerKey) {
+        return res.json({ ok: true, skippedOwn: true });
+      }
+      if (
+        !commentAuthorKey &&
+        normalizeCommentPersonName(commentAuthorName) ===
+          normalizeCommentPersonName(actor.name)
+      ) {
+        return res.json({ ok: true, skippedOwn: true });
+      }
 
       const now = new Date().toISOString();
       const { data: viewRow, error } = await supabaseAdmin

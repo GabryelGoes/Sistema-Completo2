@@ -74,6 +74,7 @@ export interface BoardAction {
   data: {
     text: string;
     edited_at?: string | null; // Preenchido quando o comentário foi editado (exibe "editada")
+    author_key?: string | null;
     views?: {
       reader_key: string;
       reader_display_name: string;

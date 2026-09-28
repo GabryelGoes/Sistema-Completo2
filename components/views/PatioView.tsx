@@ -1154,6 +1154,7 @@ function commentToAction(c: {
   created_at: string;
   author_photo_url?: string | null;
   updated_at?: string | null;
+  author_key?: string | null;
   views?: { reader_key: string; reader_display_name: string; viewed_at: string }[];
   reactions?: {
     id: string;
@@ -1169,6 +1170,7 @@ function commentToAction(c: {
     data: {
       text: c.text,
       edited_at: c.updated_at ?? null,
+      author_key: c.author_key ?? null,
       views: c.views ?? [],
       reactions: c.reactions ?? [],
     },
@@ -2132,9 +2134,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
       if (document.visibilityState !== 'visible') return;
       if (isBudgetOpenRef.current) return;
       void refreshCommentUnreadCountsRef.current();
-    }, 8000);
+    }, selectedCard ? 3500 : 8000);
     return () => window.clearInterval(id);
-  }, [isAppTabActive, refreshCommentUnreadCounts]);
+  }, [isAppTabActive, refreshCommentUnreadCounts, selectedCard?.id]);
 
   const markSelectedCommentsRead = useCallback(
     async (orderId: string, opts?: { silent?: boolean }) => {
@@ -2292,6 +2294,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
         setDescText(stripLegacyVehicleCategoryFromComplaint(order.issue_description || ""));
       }
       void fetchReminders();
+      void refreshCommentUnreadCountsRef.current();
     } catch (e) {
       console.error("syncOpenVehicleModalFromServer", e);
     }
@@ -2300,6 +2303,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
   useServiceOrderLiveSync(selectedCard?.id ?? null, syncOpenVehicleModalFromServer, {
     enabled: !!selectedCard,
     subscribeWorkshopReminders: false,
+    /** Comentários/recibos: poll curto se Realtime falhar. */
+    fallbackPollMs: 4_000,
+    debounceMs: 150,
     realtimeCustomerId: serviceOrderDetail?.customer_id,
     realtimeWorkshopId: serviceOrderDetail?.workshop_id,
   });
@@ -3585,20 +3591,28 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const handleSendComment = async () => {
     if (!selectedCard || !newComment.trim()) return;
     const text = newComment.trim();
+    const orderId = selectedCard.id;
     setNewComment('');
     if (commentComposerRef.current) {
       commentComposerRef.current.style.height = '44px';
     }
     setSendingComment(true);
     try {
+      const authorUserId =
+        commentReaderKey ||
+        (actorOptions?.actor === 'technician'
+          ? actorOptions?.actorTechnicianSlug ?? null
+          : actorOptions?.actor === 'admin'
+            ? 'admin'
+            : null);
       await addServiceOrderComment(
-        selectedCard.id,
+        orderId,
         text,
         commentAuthorName,
         actorOptions?.actor,
-        actorOptions?.actor === 'technician' ? actorOptions?.actorTechnicianSlug ?? null : null
+        authorUserId
       );
-      const comments = await getServiceOrderComments(selectedCard.id);
+      const comments = await getServiceOrderComments(orderId);
       setCardDetails(prev => prev ? {
         ...prev,
         actions: comments.map(commentToAction),
@@ -3625,10 +3639,64 @@ export const PatioView: React.FC<PatioViewProps> = ({
   };
 
   /** Verifica se o usuário atual é o autor do comentário (para exibir Editar/Excluir só ao autor). */
-  const isAuthorOfComment = (authorDisplayName: string): boolean => {
-    const norm = (s: string) => (s ?? '').trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-    return norm(authorDisplayName) === norm(commentAuthorName ?? '');
+  const isAuthorOfComment = (
+    authorDisplayName: string,
+    authorKey?: string | null
+  ): boolean => {
+    // Chave estável (admin | uuid) — evita badge/botão no próprio envio.
+    if (commentReaderKey && authorKey && authorKey === commentReaderKey) return true;
+    const norm = (s: string) =>
+      (s ?? '')
+        .trim()
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '');
+    const author = norm(authorDisplayName);
+    if (!author) return false;
+    const me = norm(commentAuthorName ?? '');
+    if (me && author === me) return true;
+    // Admin / gerência: aliases comuns (display name configurável ≠ "Rei do ABS")
+    const meIsAdminAlias =
+      me.includes('rei do abs') ||
+      me.includes('gerencia') ||
+      me === 'admin' ||
+      commentReaderKey === 'admin' ||
+      actorOptions?.actor === 'admin';
+    if (meIsAdminAlias) {
+      if (
+        author.includes('rei do abs') ||
+        author.includes('gerencia') ||
+        author === 'admin'
+      ) {
+        return true;
+      }
+    }
+    if (author.includes('rei do abs') && (me.includes('rei do abs') || !me)) return true;
+    // Técnico: slug/username às vezes difere do display_name salvo no comentário
+    if (
+      actorOptions?.actor === 'technician' &&
+      actorOptions.actorTechnicianName &&
+      author === norm(actorOptions.actorTechnicianName)
+    ) {
+      return true;
+    }
+    return false;
   };
+
+  /** Badge/banner do modal: nunca conta mensagem do próprio usuário. */
+  const selectedModalCommentsUnread = (() => {
+    if (!selectedCard) return 0;
+    const actions = cardDetails?.actions;
+    if (actions && requiresExplicitCommentReadEffective) {
+      return actions.filter((action) => {
+        if (isAuthorOfComment(action.memberCreator.fullName, action.data.author_key)) return false;
+        const views = action.data.views ?? [];
+        if (!commentReaderKey) return true;
+        return !views.some((v) => v.reader_key === commentReaderKey);
+      }).length;
+    }
+    return commentUnreadByOrderId[selectedCard.id] ?? 0;
+  })();
 
   const handleUpdateComment = async (actionId: string) => {
     if (!selectedCard || !actionId || !editingText.trim()) {
@@ -9983,11 +10051,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                 <img src="/icons/comentarios-ios.png" alt="" className="h-full w-full object-cover" />
                               </div>
                               <p className={uiOsModalCardSectionTitle}>Comentários</p>
-                              {selectedCard && (commentUnreadByOrderId[selectedCard.id] ?? 0) > 0 ? (
+                              {selectedCard && selectedModalCommentsUnread > 0 ? (
                                 <span className="inline-flex min-h-[1.15rem] min-w-[1.15rem] items-center justify-center rounded-full bg-[#FF3B30] px-1.5 text-[10px] font-bold tabular-nums text-white">
-                                  {(commentUnreadByOrderId[selectedCard.id] ?? 0) > 99
+                                  {selectedModalCommentsUnread > 99
                                     ? '99+'
-                                    : commentUnreadByOrderId[selectedCard.id]}
+                                    : selectedModalCommentsUnread}
                                 </span>
                               ) : null}
                             </div>
@@ -9995,12 +10063,12 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
                           {requiresExplicitCommentReadEffective &&
                           selectedCard &&
-                          (commentUnreadByOrderId[selectedCard.id] ?? 0) > 0 ? (
+                          selectedModalCommentsUnread > 0 ? (
                             <div className="border-b border-amber-200/80 bg-amber-50/70 px-3 py-2 dark:border-amber-500/30 dark:bg-amber-950/30">
                               <p className="text-[12px] font-medium text-amber-900/90 dark:text-amber-200">
-                                {(commentUnreadByOrderId[selectedCard.id] ?? 0) === 1
+                                {selectedModalCommentsUnread === 1
                                   ? '1 mensagem não lida — toque em “Marcar como lida” em cada mensagem'
-                                  : `${commentUnreadByOrderId[selectedCard.id]} mensagens não lidas — toque em “Marcar como lida” em cada mensagem`}
+                                  : `${selectedModalCommentsUnread} mensagens não lidas — toque em “Marcar como lida” em cada mensagem`}
                               </p>
                             </div>
                           ) : null}
@@ -10015,7 +10083,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
                              >
                                 {cardDetails?.actions && cardDetails.actions.length > 0 ? (
                                    cardDetails.actions.map(action => {
-                                      const mine = isAuthorOfComment(action.memberCreator.fullName);
+                                      const mine = isAuthorOfComment(
+                                        action.memberCreator.fullName,
+                                        action.data.author_key
+                                      );
                                       const avatar = getCommentAuthorAvatar(action.memberCreator.fullName, action.memberCreator.avatarUrl);
                                       return (
                                       <OsCommentBubble

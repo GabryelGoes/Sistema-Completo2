@@ -1909,6 +1909,8 @@ export interface ServiceOrderComment {
   created_at: string;
   author_photo_url?: string | null;
   updated_at?: string | null;
+  /** admin | id do system user — mesma chave de reader_key. */
+  author_key?: string | null;
   views?: ServiceOrderCommentView[];
   reactions?: ServiceOrderCommentReaction[];
 }
