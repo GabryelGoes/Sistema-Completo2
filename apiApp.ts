@@ -3761,7 +3761,7 @@ export function createApiApp() {
 
       const { data: comments, error: commentsErr } = await supabaseAdmin
         .from("service_order_comments")
-        .select("service_order_id, created_at, author_display_name")
+        .select("id, service_order_id, created_at, author_display_name")
         .in("service_order_id", orderIds);
 
       if (commentsErr) {
@@ -3769,6 +3769,32 @@ export function createApiApp() {
         return res.status(500).json({ error: commentsErr.message });
       }
 
+      const commentIds = (comments ?? []).map((c: { id: string }) => c.id).filter(Boolean);
+      const viewedCommentIds = new Set<string>();
+      if (commentIds.length > 0) {
+        const { data: views, error: viewsErr } = await supabaseAdmin
+          .from("service_order_comment_views")
+          .select("comment_id")
+          .eq("workshop_id", WORKSHOP_ID)
+          .eq("reader_key", actor.readerKey)
+          .in("comment_id", commentIds);
+        if (viewsErr) {
+          if (
+            !/does not exist|schema cache|Could not find the table/i.test(
+              String(viewsErr.message || "")
+            )
+          ) {
+            console.error("[API] comment-unread-counts views:", viewsErr);
+          }
+        } else {
+          for (const row of views ?? []) {
+            const cid = String((row as { comment_id?: string }).comment_id || "");
+            if (cid) viewedCommentIds.add(cid);
+          }
+        }
+      }
+
+      // Fallback legado: watermark por OS (se ainda não há views por mensagem).
       const { data: reads, error: readsErr } = await supabaseAdmin
         .from("service_order_comment_reads")
         .select("service_order_id, last_read_at")
@@ -3777,18 +3803,14 @@ export function createApiApp() {
         .in("service_order_id", orderIds);
 
       if (readsErr) {
-        // Tabela pode ainda não existir — devolve vazio sem quebrar o board.
         if (
           /does not exist|schema cache|Could not find the table/i.test(String(readsErr.message || ""))
         ) {
-          return res.json({
-            counts: {},
-            requiresExplicitRead: actor.requiresExplicitRead,
-            readerKey: actor.readerKey,
-          });
+          /* ignore */
+        } else {
+          console.error("[API] comment-unread-counts reads:", readsErr);
+          return res.status(500).json({ error: readsErr.message });
         }
-        console.error("[API] comment-unread-counts reads:", readsErr);
-        return res.status(500).json({ error: readsErr.message });
       }
 
       const lastReadByOrder = new Map<string, number>();
@@ -3799,15 +3821,20 @@ export function createApiApp() {
       }
 
       const counts: Record<string, number> = {};
+      const readerHasAnyView = viewedCommentIds.size > 0;
       for (const row of comments ?? []) {
         const sid = String((row as { service_order_id?: string }).service_order_id || "");
-        if (!sid) continue;
+        const cid = String((row as { id?: string }).id || "");
+        if (!sid || !cid) continue;
         const author = String((row as { author_display_name?: string }).author_display_name || "");
         if (isOwnAuthor(author)) continue;
-        const created = Date.parse(String((row as { created_at?: string }).created_at || ""));
-        if (!Number.isFinite(created)) continue;
-        const lastRead = lastReadByOrder.get(sid) ?? 0;
-        if (created <= lastRead) continue;
+        if (viewedCommentIds.has(cid)) continue;
+        // Compat legado: sem nenhuma view deste leitor, o watermark por OS ainda vale.
+        if (!readerHasAnyView) {
+          const created = Date.parse(String((row as { created_at?: string }).created_at || ""));
+          const lastRead = lastReadByOrder.get(sid) ?? 0;
+          if (Number.isFinite(created) && created <= lastRead) continue;
+        }
         counts[sid] = (counts[sid] ?? 0) + 1;
       }
 
@@ -6807,7 +6834,89 @@ export function createApiApp() {
         return res.status(500).json({ error: error.message });
       }
 
-      return res.json(data ?? []);
+      const comments = data ?? [];
+      const commentIds = comments.map((c: { id: string }) => c.id).filter(Boolean);
+      let viewsByComment: Record<
+        string,
+        { reader_key: string; reader_display_name: string; viewed_at: string }[]
+      > = {};
+      let reactionsByComment: Record<
+        string,
+        {
+          id: string;
+          reactor_key: string;
+          reactor_display_name: string;
+          emoji: string;
+          created_at: string;
+        }[]
+      > = {};
+
+      if (commentIds.length > 0) {
+        const { data: views, error: viewsErr } = await supabaseAdmin
+          .from("service_order_comment_views")
+          .select("comment_id, reader_key, reader_display_name, viewed_at")
+          .eq("workshop_id", WORKSHOP_ID)
+          .in("comment_id", commentIds);
+        if (viewsErr) {
+          if (!/does not exist|schema cache|Could not find the table/i.test(String(viewsErr.message || ""))) {
+            console.error("[API] Erro ao listar views de comentários:", viewsErr);
+          }
+        } else {
+          for (const row of views ?? []) {
+            const cid = String((row as { comment_id?: string }).comment_id || "");
+            if (!cid) continue;
+            if (!viewsByComment[cid]) viewsByComment[cid] = [];
+            viewsByComment[cid].push({
+              reader_key: String((row as { reader_key?: string }).reader_key || ""),
+              reader_display_name: String(
+                (row as { reader_display_name?: string }).reader_display_name || ""
+              ),
+              viewed_at: String((row as { viewed_at?: string }).viewed_at || ""),
+            });
+          }
+          for (const cid of Object.keys(viewsByComment)) {
+            viewsByComment[cid].sort((a, b) => a.viewed_at.localeCompare(b.viewed_at));
+          }
+        }
+
+        const { data: reactions, error: reactionsErr } = await supabaseAdmin
+          .from("service_order_comment_reactions")
+          .select("id, comment_id, reactor_key, reactor_display_name, emoji, created_at")
+          .eq("workshop_id", WORKSHOP_ID)
+          .in("comment_id", commentIds);
+        if (reactionsErr) {
+          if (
+            !/does not exist|schema cache|Could not find the table/i.test(
+              String(reactionsErr.message || "")
+            )
+          ) {
+            console.error("[API] Erro ao listar reações de comentários:", reactionsErr);
+          }
+        } else {
+          for (const row of reactions ?? []) {
+            const cid = String((row as { comment_id?: string }).comment_id || "");
+            if (!cid) continue;
+            if (!reactionsByComment[cid]) reactionsByComment[cid] = [];
+            reactionsByComment[cid].push({
+              id: String((row as { id?: string }).id || ""),
+              reactor_key: String((row as { reactor_key?: string }).reactor_key || ""),
+              reactor_display_name: String(
+                (row as { reactor_display_name?: string }).reactor_display_name || ""
+              ),
+              emoji: String((row as { emoji?: string }).emoji || ""),
+              created_at: String((row as { created_at?: string }).created_at || ""),
+            });
+          }
+        }
+      }
+
+      return res.json(
+        comments.map((c: { id: string }) => ({
+          ...c,
+          views: viewsByComment[c.id] ?? [],
+          reactions: reactionsByComment[c.id] ?? [],
+        }))
+      );
     } catch (err: any) {
       console.error("[API] Erro em GET /api/service-orders/:id/comments:", err);
       return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
@@ -7019,9 +7128,208 @@ export function createApiApp() {
         console.error("[API] POST comments/read:", error);
         return res.status(500).json({ error: error.message });
       }
+
+      // Também grava recibo por mensagem (exceto as próprias).
+      const { data: comments } = await supabaseAdmin
+        .from("service_order_comments")
+        .select("id, author_display_name")
+        .eq("service_order_id", serviceOrderId);
+
+      const ownNames = new Set<string>();
+      const pushOwn = (n: string) => {
+        const t = n.trim().toLowerCase();
+        if (t) ownNames.add(t);
+      };
+      if (actor.kind === "admin") {
+        pushOwn("Rei do ABS");
+        pushOwn("Gerência");
+        pushOwn(actor.name);
+      } else {
+        pushOwn(actor.name);
+      }
+      const isOwnAuthor = (author: string) => {
+        const a = String(author || "").trim().toLowerCase();
+        if (!a) return false;
+        if (ownNames.has(a)) return true;
+        if (actor.kind === "admin" && /rei\s*do\s*abs/i.test(author)) return true;
+        return false;
+      };
+
+      const viewRows = (comments ?? [])
+        .filter((c: { author_display_name?: string }) => !isOwnAuthor(String(c.author_display_name || "")))
+        .map((c: { id: string }) => ({
+          comment_id: c.id,
+          workshop_id: WORKSHOP_ID,
+          reader_key: actor.readerKey,
+          reader_display_name: actor.name,
+          viewed_at: now,
+        }));
+
+      if (viewRows.length > 0) {
+        const { error: viewsErr } = await supabaseAdmin
+          .from("service_order_comment_views")
+          .upsert(viewRows, { onConflict: "comment_id,reader_key" });
+        if (viewsErr) {
+          if (
+            !/does not exist|schema cache|Could not find the table/i.test(
+              String(viewsErr.message || "")
+            )
+          ) {
+            console.error("[API] POST comments/read views:", viewsErr);
+          }
+        }
+      }
+
       return res.json({ ok: true, lastReadAt: now });
     } catch (err: any) {
       console.error("[API] POST /api/service-orders/:id/comments/read:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+    }
+  });
+
+  /** Marca uma mensagem específica como visualizada. */
+  app.post("/api/service-orders/:id/comments/:commentId/view", async (req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({ error: "Servidor não configurado." });
+      }
+      const actor = await resolveSupportActor(req);
+      if (!actor) return res.status(401).json({ error: "Sessão inválida." });
+
+      const serviceOrderId = String(req.params.id || "").trim();
+      const commentId = String(req.params.commentId || "").trim();
+      if (!serviceOrderId || !commentId) {
+        return res.status(400).json({ error: "IDs obrigatórios." });
+      }
+
+      const { data: comment, error: commentErr } = await supabaseAdmin
+        .from("service_order_comments")
+        .select("id, service_order_id, author_display_name")
+        .eq("id", commentId)
+        .eq("service_order_id", serviceOrderId)
+        .maybeSingle();
+      if (commentErr || !comment) {
+        return res.status(404).json({ error: "Comentário não encontrado." });
+      }
+
+      const { data: so } = await supabaseAdmin
+        .from("service_orders")
+        .select("id")
+        .eq("id", serviceOrderId)
+        .eq("workshop_id", WORKSHOP_ID)
+        .maybeSingle();
+      if (!so) return res.status(404).json({ error: "Ordem de serviço não encontrada." });
+
+      const now = new Date().toISOString();
+      const { data: viewRow, error } = await supabaseAdmin
+        .from("service_order_comment_views")
+        .upsert(
+          {
+            comment_id: commentId,
+            workshop_id: WORKSHOP_ID,
+            reader_key: actor.readerKey,
+            reader_display_name: actor.name,
+            viewed_at: now,
+          },
+          { onConflict: "comment_id,reader_key" }
+        )
+        .select("comment_id, reader_key, reader_display_name, viewed_at")
+        .single();
+
+      if (error) {
+        console.error("[API] POST comment view:", error);
+        return res.status(500).json({ error: error.message });
+      }
+
+      // Atualiza watermark se não houver mais não-lidas para este leitor.
+      await supabaseAdmin.from("service_order_comment_reads").upsert(
+        {
+          workshop_id: WORKSHOP_ID,
+          service_order_id: serviceOrderId,
+          reader_key: actor.readerKey,
+          last_read_at: now,
+          updated_at: now,
+        },
+        { onConflict: "workshop_id,service_order_id,reader_key" }
+      );
+
+      return res.json({
+        ok: true,
+        view: viewRow,
+      });
+    } catch (err: any) {
+      console.error("[API] POST comment/:commentId/view:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+    }
+  });
+
+  /** Toggle reação emoji (adiciona se não existe; remove se já existe). */
+  app.post("/api/service-orders/:id/comments/:commentId/reactions", async (req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({ error: "Servidor não configurado." });
+      }
+      const actor = await resolveSupportActor(req);
+      if (!actor) return res.status(401).json({ error: "Sessão inválida." });
+
+      const serviceOrderId = String(req.params.id || "").trim();
+      const commentId = String(req.params.commentId || "").trim();
+      const emoji = String((req.body as { emoji?: unknown })?.emoji || "").trim();
+      const allowed = new Set(["👍", "❤️", "😂", "😮", "😢", "🙏", "🔥", "✅"]);
+      if (!serviceOrderId || !commentId || !emoji || !allowed.has(emoji)) {
+        return res.status(400).json({ error: "Emoji inválido." });
+      }
+
+      const { data: comment } = await supabaseAdmin
+        .from("service_order_comments")
+        .select("id")
+        .eq("id", commentId)
+        .eq("service_order_id", serviceOrderId)
+        .maybeSingle();
+      if (!comment) return res.status(404).json({ error: "Comentário não encontrado." });
+
+      const { data: so } = await supabaseAdmin
+        .from("service_orders")
+        .select("id")
+        .eq("id", serviceOrderId)
+        .eq("workshop_id", WORKSHOP_ID)
+        .maybeSingle();
+      if (!so) return res.status(404).json({ error: "Ordem de serviço não encontrada." });
+
+      const { data: existing } = await supabaseAdmin
+        .from("service_order_comment_reactions")
+        .select("id")
+        .eq("comment_id", commentId)
+        .eq("reactor_key", actor.readerKey)
+        .eq("emoji", emoji)
+        .maybeSingle();
+
+      if (existing?.id) {
+        await supabaseAdmin
+          .from("service_order_comment_reactions")
+          .delete()
+          .eq("id", existing.id);
+        return res.json({ ok: true, removed: true, emoji });
+      }
+
+      const { data: row, error } = await supabaseAdmin
+        .from("service_order_comment_reactions")
+        .insert({
+          comment_id: commentId,
+          workshop_id: WORKSHOP_ID,
+          reactor_key: actor.readerKey,
+          reactor_display_name: actor.name,
+          emoji,
+        })
+        .select("id, reactor_key, reactor_display_name, emoji, created_at")
+        .single();
+      if (error) {
+        console.error("[API] POST comment reaction:", error);
+        return res.status(500).json({ error: error.message });
+      }
+      return res.json({ ok: true, removed: false, reaction: row });
+    } catch (err: any) {
+      console.error("[API] POST comment/:commentId/reactions:", err);
       return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
     }
   });

@@ -44,6 +44,8 @@ import {
   updateServiceOrderComment,
   getServiceOrderCommentUnreadCounts,
   markServiceOrderCommentsRead,
+  markServiceOrderCommentViewed,
+  toggleServiceOrderCommentReaction,
   getWorkshopServices,
   getWorkshopParts,
   getSystemUserTechnicians,
@@ -213,6 +215,7 @@ import { PatioOsModalPcTabBar, type PatioOsModalPcTab } from '../patio/PatioOsMo
 import { PatioOsModalLabServicesSection } from '../patio/PatioOsModalLabServicesSection';
 import { VehicleObservationsSection } from '../patio/VehicleObservationsSection';
 import { VehicleOsStockCheckoutSection } from '../patio/VehicleOsStockCheckoutSection';
+import { OsCommentBubble } from '../patio/OsCommentBubble';
 import {
   PatioOriginAttachmentsPicker,
   PatioOriginAttachmentsSection,
@@ -1144,11 +1147,31 @@ const Lightbox = ({
 };
 
 /** Converte comentário da API para o formato TrelloAction (compatível com a UI). */
-function commentToAction(c: { id: string; author_display_name: string; text: string; created_at: string; author_photo_url?: string | null; updated_at?: string | null }): TrelloAction {
+function commentToAction(c: {
+  id: string;
+  author_display_name: string;
+  text: string;
+  created_at: string;
+  author_photo_url?: string | null;
+  updated_at?: string | null;
+  views?: { reader_key: string; reader_display_name: string; viewed_at: string }[];
+  reactions?: {
+    id: string;
+    reactor_key: string;
+    reactor_display_name: string;
+    emoji: string;
+    created_at: string;
+  }[];
+}): TrelloAction {
   return {
     id: c.id,
     idMemberCreator: '',
-    data: { text: c.text, edited_at: c.updated_at ?? null },
+    data: {
+      text: c.text,
+      edited_at: c.updated_at ?? null,
+      views: c.views ?? [],
+      reactions: c.reactions ?? [],
+    },
     type: 'commentCard',
     date: c.created_at,
     memberCreator: {
@@ -1197,6 +1220,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const [cards, setCards] = useState<TrelloCard[]>([]);
   /** Comentários não lidos por OS — badges no quadro (tempo real via polling). */
   const [commentUnreadByOrderId, setCommentUnreadByOrderId] = useState<Record<string, number>>({});
+  const [commentReaderKey, setCommentReaderKey] = useState('');
   const [markingCommentsReadId, setMarkingCommentsReadId] = useState<string | null>(null);
   const commentsSectionRef = useRef<HTMLDivElement>(null);
   const commentsListRef = useRef<HTMLDivElement>(null);
@@ -2092,6 +2116,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
     try {
       const data = await getServiceOrderCommentUnreadCounts(orderType);
       setCommentUnreadByOrderId(data.counts);
+      if (data.readerKey) setCommentReaderKey(data.readerKey);
     } catch {
       /* tabela pode ainda não existir */
     }
@@ -3643,6 +3668,42 @@ export const PatioView: React.FC<PatioViewProps> = ({
       alert(err?.message ?? 'Erro ao excluir comentário.');
     } finally {
       setActionLoadingId(null);
+    }
+  };
+
+  const reloadCommentsQuiet = async (orderId: string) => {
+    const comments = await getServiceOrderComments(orderId);
+    setCardDetails((prev) =>
+      prev
+        ? {
+            ...prev,
+            actions: comments.map(commentToAction),
+          }
+        : null
+    );
+  };
+
+  const handleMarkSingleCommentRead = async (commentId: string) => {
+    if (!selectedCard?.id || !commentId) return;
+    setActionLoadingId(commentId);
+    try {
+      await markServiceOrderCommentViewed(selectedCard.id, commentId);
+      await reloadCommentsQuiet(selectedCard.id);
+      void refreshCommentUnreadCounts();
+    } catch (err: any) {
+      alert(err?.message ?? 'Erro ao marcar mensagem como lida.');
+    } finally {
+      setActionLoadingId(null);
+    }
+  };
+
+  const handleToggleCommentReaction = async (commentId: string, emoji: string) => {
+    if (!selectedCard?.id || !commentId || !emoji) return;
+    try {
+      await toggleServiceOrderCommentReaction(selectedCard.id, commentId, emoji);
+      await reloadCommentsQuiet(selectedCard.id);
+    } catch (err: any) {
+      alert(err?.message ?? 'Erro ao reagir.');
     }
   };
 
@@ -9935,25 +9996,12 @@ export const PatioView: React.FC<PatioViewProps> = ({
                           {requiresExplicitCommentReadEffective &&
                           selectedCard &&
                           (commentUnreadByOrderId[selectedCard.id] ?? 0) > 0 ? (
-                            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-amber-200/80 bg-amber-50/70 px-3 py-2 dark:border-amber-500/30 dark:bg-amber-950/30">
+                            <div className="border-b border-amber-200/80 bg-amber-50/70 px-3 py-2 dark:border-amber-500/30 dark:bg-amber-950/30">
                               <p className="text-[12px] font-medium text-amber-900/90 dark:text-amber-200">
                                 {(commentUnreadByOrderId[selectedCard.id] ?? 0) === 1
-                                  ? '1 mensagem não lida'
-                                  : `${commentUnreadByOrderId[selectedCard.id]} mensagens não lidas`}
+                                  ? '1 mensagem não lida — toque em “Marcar como lida” em cada mensagem'
+                                  : `${commentUnreadByOrderId[selectedCard.id]} mensagens não lidas — toque em “Marcar como lida” em cada mensagem`}
                               </p>
-                              <button
-                                type="button"
-                                disabled={markingCommentsReadId === selectedCard.id}
-                                onClick={() => void markSelectedCommentsRead(selectedCard.id)}
-                                className="inline-flex items-center gap-1.5 rounded-lg bg-[#007AFF] px-3 py-1.5 text-[12px] font-semibold text-white shadow-sm hover:opacity-95 disabled:opacity-50"
-                              >
-                                {markingCommentsReadId === selectedCard.id ? (
-                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                ) : (
-                                  <Check className="h-3.5 w-3.5" />
-                                )}
-                                Marcar como lida
-                              </button>
                             </div>
                           ) : null}
 
@@ -9970,106 +10018,27 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                       const mine = isAuthorOfComment(action.memberCreator.fullName);
                                       const avatar = getCommentAuthorAvatar(action.memberCreator.fullName, action.memberCreator.avatarUrl);
                                       return (
-                                      <div
+                                      <OsCommentBubble
                                         key={action.id}
-                                        className={`group/comment flex w-full gap-2 ${mine ? 'flex-row-reverse' : 'flex-row'}`}
-                                      >
-                                         {!mine ? (
-                                         <div className={`relative mt-0.5 flex h-8 w-8 shrink-0 overflow-hidden rounded-full ${avatar.useLogo ? 'bg-brand-yellow' : ''}`}>
-                                            {avatar.useLogo ? (
-                                               <img src="/logo.png" alt="Rei do ABS" className="absolute inset-0 size-full min-h-0 min-w-0 object-cover object-center" />
-                                            ) : avatar.photoUrl ? (
-                                               <img src={avatar.photoUrl} alt={action.memberCreator.fullName} className="absolute inset-0 size-full min-h-0 min-w-0 object-cover object-center" />
-                                            ) : (
-                                               <div className={`relative z-[1] flex size-full items-center justify-center rounded-full text-[11px] font-bold ${avatar.avatarClass}`}>
-                                                  {avatar.initial}
-                                               </div>
-                                            )}
-                                         </div>
-                                         ) : (
-                                           <div className="w-1 shrink-0" aria-hidden />
-                                         )}
-                                         <div className={`flex min-w-0 max-w-[min(100%,22rem)] flex-1 flex-col ${mine ? 'items-end' : 'items-start'}`}>
-                                            {!mine ? (
-                                              <div className="mb-0.5 flex max-w-full items-baseline gap-2 px-1">
-                                                 <span className="truncate text-[12px] font-semibold text-zinc-700 dark:text-zinc-200">{action.memberCreator.fullName}</span>
-                                                 <span className="shrink-0 text-[10px] text-zinc-500 dark:text-zinc-400">
-                                                    {new Date(action.date).toLocaleString('pt-BR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
-                                                 </span>
-                                              </div>
-                                            ) : (
-                                              <span className="mb-0.5 px-1 text-[10px] text-zinc-500 dark:text-zinc-400">
-                                                {new Date(action.date).toLocaleString('pt-BR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
-                                                {action.data.edited_at ? (
-                                                  <span className="ml-1 italic">editada</span>
-                                                ) : null}
-                                              </span>
-                                            )}
-                                            
-                                            {editingActionId === action.id ? (
-                                               <div className="w-full animate-in fade-in duration-200">
-                                                  <textarea 
-                                                    className={`${vin} mb-2 min-h-[100px] w-full max-w-full resize-y break-words text-sm [overflow-wrap:anywhere]`}
-                                                    value={editingText}
-                                                    onChange={(e) => setEditingText(e.target.value)}
-                                                    autoFocus
-                                                  />
-                                                  <div className={`flex items-center gap-2 ${mine ? 'justify-end' : ''}`}>
-                                                     <button 
-                                                        onClick={() => handleUpdateComment(action.id)}
-                                                        disabled={actionLoadingId === action.id}
-                                                        className="px-3 py-1.5 bg-brand-yellow text-black text-xs font-bold rounded-lg flex items-center gap-1 hover:bg-[#fcd61e]"
-                                                     >
-                                                        {actionLoadingId === action.id ? <RefreshCw className="w-3 h-3 animate-spin"/> : <Save className="w-3 h-3"/>}
-                                                        Salvar
-                                                     </button>
-                                                     <button 
-                                                        onClick={handleCancelEdit}
-                                                        disabled={actionLoadingId === action.id}
-                                                        className="px-3 py-1.5 text-zinc-400 text-xs font-medium hover:text-zinc-900 dark:hover:text-white"
-                                                     >
-                                                        Cancelar
-                                                     </button>
-                                                  </div>
-                                               </div>
-                                            ) : (
-                                              <>
-                                                <div
-                                                  className={`max-w-full break-words px-3 py-2 text-[14px] leading-relaxed [overflow-wrap:anywhere] ${
-                                                    mine
-                                                      ? 'rounded-2xl rounded-br-md bg-[#D6EBFF] text-zinc-900 shadow-sm dark:bg-[#0A84FF] dark:text-white'
-                                                      : 'rounded-2xl rounded-bl-md bg-slate-500 text-white shadow-sm dark:bg-slate-600 dark:text-zinc-50'
-                                                  }`}
-                                                >
-                                                   <ReactMarkdown remarkPlugins={[remarkBreaks]} components={markdownComponentsApp}>
-                                                      {action.data.text}
-                                                   </ReactMarkdown>
-                                                </div>
-                                                
-                                                {mine ? (
-                                                <div className="mt-1 flex items-center gap-3 px-1 opacity-0 transition-opacity duration-200 group-hover/comment:opacity-100">
-                                                   <button 
-                                                      type="button"
-                                                      onClick={() => handleStartEdit(action.id, action.data.text)}
-                                                      className="text-[10px] text-zinc-500 hover:text-zinc-900 dark:hover:text-white hover:underline flex items-center gap-1"
-                                                   >
-                                                      Editar
-                                                   </button>
-                                                   <span className="text-zinc-400 dark:text-zinc-700 text-[10px]">•</span>
-                                                   <button 
-                                                      type="button"
-                                                      onClick={() => handleDeleteComment(action.id)}
-                                                      disabled={actionLoadingId === action.id}
-                                                      className="text-[10px] text-zinc-500 hover:text-red-500 hover:underline flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed"
-                                                   >
-                                                      {actionLoadingId === action.id ? 'Excluindo…' : 'Excluir'}
-                                                   </button>
-                                                </div>
-                                                ) : null}
-                                              </>
-                                            )}
-                                         </div>
-                                      </div>
+                                        action={action}
+                                        mine={mine}
+                                        avatar={avatar}
+                                        currentReaderKey={commentReaderKey}
+                                        requiresExplicitRead={requiresExplicitCommentReadEffective}
+                                        markdownComponents={markdownComponentsApp}
+                                        busy={actionLoadingId === action.id}
+                                        onEdit={() => handleStartEdit(action.id, action.data.text)}
+                                        onDelete={() => void handleDeleteComment(action.id)}
+                                        onMarkRead={() => handleMarkSingleCommentRead(action.id)}
+                                        onToggleReaction={(emoji) =>
+                                          handleToggleCommentReaction(action.id, emoji)
+                                        }
+                                        isEditing={editingActionId === action.id}
+                                        editingText={editingText}
+                                        onEditingTextChange={setEditingText}
+                                        onSaveEdit={() => void handleUpdateComment(action.id)}
+                                        onCancelEdit={handleCancelEdit}
+                                      />
                                    ); })
                                 ) : loadingDetails ? (
                                    <div className="flex justify-center py-8 lg:py-6">
