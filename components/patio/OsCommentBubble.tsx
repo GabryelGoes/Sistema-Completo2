@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Check, CheckCheck, Eye, Loader2, Pencil, SmilePlus, X } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkBreaks from 'remark-breaks';
@@ -25,9 +25,7 @@ export type OsCommentBubbleProps = {
   onMarkRead: () => Promise<void> | void;
   onToggleReaction: (emoji: string) => Promise<void> | void;
   isEditing: boolean;
-  editingText: string;
-  onEditingTextChange: (v: string) => void;
-  onSaveEdit: () => void;
+  onSaveEdit: (text: string) => void;
   onCancelEdit: () => void;
 };
 
@@ -57,8 +55,6 @@ export const OsCommentBubble: React.FC<OsCommentBubbleProps> = ({
   onMarkRead,
   onToggleReaction,
   isEditing,
-  editingText,
-  onEditingTextChange,
   onSaveEdit,
   onCancelEdit,
 }) => {
@@ -66,6 +62,11 @@ export const OsCommentBubble: React.FC<OsCommentBubbleProps> = ({
   const [sheet, setSheet] = useState<'menu' | 'views' | 'react' | null>(null);
   const [marking, setMarking] = useState(false);
   const [reacting, setReacting] = useState(false);
+  const [editDraft, setEditDraft] = useState(action.data.text);
+
+  useEffect(() => {
+    if (isEditing) setEditDraft(action.data.text);
+  }, [isEditing, action.data.text]);
 
   const views = action.data.views ?? [];
   const reactions = action.data.reactions ?? [];
@@ -183,14 +184,14 @@ export const OsCommentBubble: React.FC<OsCommentBubbleProps> = ({
           <div className="w-full animate-in fade-in duration-200">
             <textarea
               className="mb-2 min-h-[100px] w-full max-w-full resize-y break-words rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm [overflow-wrap:anywhere] dark:border-white/10 dark:bg-zinc-900"
-              value={editingText}
-              onChange={(e) => onEditingTextChange(e.target.value)}
+              value={editDraft}
+              onChange={(e) => setEditDraft(e.target.value)}
               autoFocus
             />
             <div className={`flex items-center gap-2 ${mine ? 'justify-end' : ''}`}>
               <button
                 type="button"
-                onClick={onSaveEdit}
+                onClick={() => onSaveEdit(editDraft)}
                 disabled={busy}
                 className="flex items-center gap-1 rounded-lg bg-brand-yellow px-3 py-1.5 text-xs font-bold text-black hover:bg-[#fcd61e]"
               >

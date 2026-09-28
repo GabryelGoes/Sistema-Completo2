@@ -2,7 +2,7 @@ import React, { useEffect, useLayoutEffect, useState, useRef, useCallback, useMe
 import { createPortal } from 'react-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkBreaks from 'remark-breaks';
-import { RefreshCw, AlertCircle, ChevronDown, ChevronRight, ChevronLeft, User, X, Check, CheckCircle2, Circle, Plus, FileText, Calendar, Clock, Send, Paperclip, ExternalLink, Trash2, DollarSign, Hash, Minus, Pencil, Save, Eye, History, Search, Copy, ArrowRight, Camera, Image as ImageIcon, FolderOpen, Upload, FilePlus, ArchiveRestore, Printer, Smartphone, Mail, MapPin, Share2, Sparkles, Loader2, Tag, Link2, Wrench, Gauge, MoreHorizontal, LayoutGrid, Columns3, Users, SortDesc, ListOrdered, Truck, RotateCw, RotateCcw, ClipboardList } from 'lucide-react';
+import { RefreshCw, AlertCircle, ChevronDown, ChevronRight, ChevronLeft, User, X, Check, CheckCircle2, Circle, Plus, FileText, Calendar, Clock, Paperclip, ExternalLink, Trash2, DollarSign, Hash, Minus, Pencil, Save, Eye, History, Search, Copy, ArrowRight, Camera, Image as ImageIcon, FolderOpen, Upload, FilePlus, ArchiveRestore, Printer, Smartphone, Mail, MapPin, Share2, Sparkles, Loader2, Tag, Link2, Wrench, Gauge, MoreHorizontal, LayoutGrid, Columns3, Users, SortDesc, ListOrdered, Truck, RotateCw, RotateCcw, ClipboardList } from 'lucide-react';
 import { PdfViewerModal } from '../PdfViewerModal';
 import { MechanicIcon } from '../ui/MechanicIcon';
 import { ReminderIcon } from '../ui/ReminderIcon';
@@ -216,6 +216,8 @@ import { PatioOsModalLabServicesSection } from '../patio/PatioOsModalLabServices
 import { VehicleObservationsSection } from '../patio/VehicleObservationsSection';
 import { VehicleOsStockCheckoutSection } from '../patio/VehicleOsStockCheckoutSection';
 import { OsCommentBubble } from '../patio/OsCommentBubble';
+import { OsCommentComposer } from '../patio/OsCommentComposer';
+import { OsQueixaEditor } from '../patio/OsQueixaEditor';
 import {
   PatioOriginAttachmentsPicker,
   PatioOriginAttachmentsSection,
@@ -1226,7 +1228,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const [markingCommentsReadId, setMarkingCommentsReadId] = useState<string | null>(null);
   const commentsSectionRef = useRef<HTMLDivElement>(null);
   const commentsListRef = useRef<HTMLDivElement>(null);
-  const commentComposerRef = useRef<HTMLTextAreaElement>(null);
   const customerDataSectionRef = useRef<HTMLDivElement>(null);
   const customerNameInputRef = useRef<HTMLInputElement>(null);
   const descriptionSectionRef = useRef<HTMLDivElement>(null);
@@ -1436,23 +1437,19 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const [editFichaPlateLookupError, setEditFichaPlateLookupError] = useState<string | null>(null);
   const lastEditFichaPlateFetchedRef = useRef<string | null>(null);
   const [focusCustomerNameAfterExpand, setFocusCustomerNameAfterExpand] = useState(false);
-  const [newComment, setNewComment] = useState('');
   const [sendingComment, setSendingComment] = useState(false);
 
   // Estados para Edição de Comentário
   const [editingActionId, setEditingActionId] = useState<string | null>(null);
-  const [editingText, setEditingText] = useState('');
   const [actionLoadingId, setActionLoadingId] = useState<string | null>(null);
   const newCommentRef = useRef('');
   const sendingCommentRef = useRef(false);
   const editingActionIdRef = useRef<string | null>(null);
-  newCommentRef.current = newComment;
   sendingCommentRef.current = sendingComment;
   editingActionIdRef.current = editingActionId;
 
   // Estados para Edição da DESCRIÇÃO (Ficha Técnica)
   const [isEditingDesc, setIsEditingDesc] = useState(false);
-  const [descText, setDescText] = useState('');
   const [isSavingDesc, setIsSavingDesc] = useState(false);
   const [labOsLabel, setLabOsLabel] = useState<LabOsLabelInput | null>(null);
   const [patioKeyLabel, setPatioKeyLabel] = useState<PatioKeyLabelInput | null>(null);
@@ -2247,6 +2244,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
     if (!id) return;
     // Evita refetch + setState em massa enquanto o usuário edita o orçamento (lab/pátio).
     if (isBudgetOpenRef.current) return;
+    // Queixa em edição: não re-renderiza o modal gigante no Mac.
+    if (isEditingDescRef.current) return;
     try {
       const [order, photos, budgets, comments] = await Promise.all([
         getServiceOrderById(id),
@@ -2290,9 +2289,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
         const next = budgets.find((b) => b.id === prev.id);
         return next ?? null;
       });
-      if (!isEditingDescRef.current) {
-        setDescText(stripLegacyVehicleCategoryFromComplaint(order.issue_description || ""));
-      }
       void fetchReminders();
       void refreshCommentUnreadCountsRef.current();
     } catch (e) {
@@ -2939,7 +2935,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
       return;
     }
     const loadId = card.id;
-    setDescText(card.desc || "");
     setIsEditingDesc(false);
     setLoadingDetails(true);
     const cached = vehicleCardDetailsCacheRef.current.get(loadId);
@@ -3588,14 +3583,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
     }
   };
 
-  const handleSendComment = async () => {
-    if (!selectedCard || !newComment.trim()) return;
-    const text = newComment.trim();
+  const handleSendComment = async (rawText: string) => {
+    if (!selectedCard || !rawText.trim()) return;
+    const text = rawText.trim();
     const orderId = selectedCard.id;
-    setNewComment('');
-    if (commentComposerRef.current) {
-      commentComposerRef.current.style.height = '44px';
-    }
     setSendingComment(true);
     try {
       const authorUserId =
@@ -3632,7 +3623,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
       void refreshCommentUnreadCounts();
     } catch (err: any) {
       alert(err?.message ?? 'Erro ao enviar comentário.');
-      setNewComment(text);
+      throw err;
     } finally {
       setSendingComment(false);
     }
@@ -3640,14 +3631,12 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
   // --- Funções de Edição/Exclusão de Comentários ---
 
-  const handleStartEdit = (actionId: string, text: string) => {
+  const handleStartEdit = (actionId: string) => {
     setEditingActionId(actionId);
-    setEditingText(text);
   };
 
   const handleCancelEdit = () => {
     setEditingActionId(null);
-    setEditingText('');
   };
 
   /** Verifica se o usuário atual é o autor do comentário (para exibir Editar/Excluir só ao autor). */
@@ -3731,22 +3720,20 @@ export const PatioView: React.FC<PatioViewProps> = ({
     cardDetails?.actions,
   ]);
 
-  const handleUpdateComment = async (actionId: string) => {
-    if (!selectedCard || !actionId || !editingText.trim()) {
+  const handleUpdateComment = async (actionId: string, nextText: string) => {
+    if (!selectedCard || !actionId || !nextText.trim()) {
       setEditingActionId(null);
-      setEditingText('');
       return;
     }
     setActionLoadingId(actionId);
     try {
-      await updateServiceOrderComment(selectedCard.id, actionId, editingText.trim());
+      await updateServiceOrderComment(selectedCard.id, actionId, nextText.trim());
       const comments = await getServiceOrderComments(selectedCard.id);
       setCardDetails(prev => prev ? {
         ...prev,
         actions: comments.map(commentToAction),
       } : null);
       setEditingActionId(null);
-      setEditingText('');
     } catch (err: any) {
       alert(err?.message ?? 'Erro ao atualizar comentário.');
     } finally {
@@ -3808,12 +3795,12 @@ export const PatioView: React.FC<PatioViewProps> = ({
     }
   };
 
-  const handleSaveDescription = async () => {
+  const handleSaveDescription = async (nextText: string) => {
     if (!selectedCard) return;
     setIsSavingDesc(true);
     try {
-      await updateServiceOrderDescription(selectedCard.id, descText, actorOptions);
-      const updatedCard = { ...selectedCard, desc: descText };
+      await updateServiceOrderDescription(selectedCard.id, nextText, actorOptions);
+      const updatedCard = { ...selectedCard, desc: nextText };
       setSelectedCard(updatedCard);
       setCards(prev => prev.map(c => c.id === updatedCard.id ? updatedCard : c));
       setIsEditingDesc(false);
@@ -6328,8 +6315,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
       {/* Grid — mesma ordem dos estágios; cartões em vidro iOS. (z-0 para dropdown do cabeçalho z-50 ficar acima) */}
       <div className="relative z-0 mx-auto w-full max-w-[128rem] px-0.5 sm:px-1 md:px-2 lg:px-3">
-      {/* Enquanto edita orçamento: não reconcilia centenas de cards (trava digitação no PC). */}
-      {isBudgetOpen ? (
+      {/* Enquanto edita orçamento ou OS aberta: não reconcilia centenas de cards (trava digitação no Mac/PC). */}
+      {isBudgetOpen || selectedCard ? (
         <div
           className="min-h-[min(50vh,28rem)] rounded-2xl bg-zinc-100/70 dark:bg-zinc-900/35"
           aria-hidden
@@ -9244,10 +9231,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                 {can('canEditQueixa') && !isEditingDesc ? (
                                   <button
                                     type="button"
-                                    onClick={() => {
-                                      setIsEditingDesc(true);
-                                      setDescText(selectedCard.desc || '');
-                                    }}
+                                    onClick={() => setIsEditingDesc(true)}
                                     className="inline-flex shrink-0 items-center gap-1 rounded-xl border border-[#007AFF]/25 bg-[#007AFF]/[0.09] px-2.5 py-1 text-[11px] font-semibold text-[#007AFF] shadow-[inset_0_1px_0_rgba(255,255,255,0.35)] transition-colors hover:border-[#007AFF]/40 hover:bg-[#007AFF]/15 dark:border-[#007AFF]/35 dark:bg-[#007AFF]/15 dark:text-[#b8d9ff] dark:hover:bg-[#007AFF]/22"
                                   >
                                     Editar
@@ -9257,34 +9241,14 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             </div>
 
                             {isEditingDesc ? (
-                              <div className="animate-in fade-in duration-200 flex flex-col gap-3 bg-zinc-50/90 px-3 py-3 pl-3 dark:bg-white/[0.02] sm:px-4 sm:py-4 sm:pl-4">
-                                <textarea
-                                  data-queixa-textarea
-                                  value={descText}
-                                  onChange={(e) => setDescText(e.target.value)}
-                                  className={`${vin} relative z-[2] min-h-[180px] resize-none cursor-text text-[15px] leading-relaxed !caret-[#007AFF] dark:text-white dark:!caret-[#93c5fd]`}
-                                  placeholder="Queixa"
-                                />
-                                <div className="flex justify-end gap-1.5">
-                                  <button
-                                    type="button"
-                                    onClick={() => setIsEditingDesc(false)}
-                                    disabled={isSavingDesc}
-                                    className="rounded-lg px-2.5 py-1.5 text-[12px] font-semibold text-zinc-500 transition-colors hover:bg-black/5 hover:text-zinc-900 disabled:opacity-50 dark:text-zinc-400 dark:hover:bg-white/[0.06] dark:hover:text-white"
-                                  >
-                                    Cancelar
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={handleSaveDescription}
-                                    disabled={isSavingDesc}
-                                    className="inline-flex items-center gap-1 rounded-lg bg-[#007AFF] px-2.5 py-1.5 text-[12px] font-semibold text-white shadow-sm shadow-blue-500/20 transition-all hover:opacity-95 active:scale-[0.98] disabled:opacity-45"
-                                  >
-                                    {isSavingDesc ? <RefreshCw className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
-                                    Salvar
-                                  </button>
-                                </div>
-                              </div>
+                              <OsQueixaEditor
+                                key={`queixa-${selectedCard.id}`}
+                                initialText={selectedCard.desc || ''}
+                                saving={isSavingDesc}
+                                inputClassName={vin}
+                                onCancel={() => setIsEditingDesc(false)}
+                                onSave={handleSaveDescription}
+                              />
                             ) : (
                               <div className="border-t border-zinc-200/60 bg-zinc-50/90 px-3 py-3 pl-3 dark:border-white/[0.06] dark:bg-white/[0.02] sm:px-4 sm:py-4 sm:pl-4">
                                 <div className={uiReadBody}>
@@ -10131,16 +10095,14 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                         requiresExplicitRead={requiresExplicitCommentReadEffective}
                                         markdownComponents={markdownComponentsApp}
                                         busy={actionLoadingId === action.id}
-                                        onEdit={() => handleStartEdit(action.id, action.data.text)}
+                                        onEdit={() => handleStartEdit(action.id)}
                                         onDelete={() => void handleDeleteComment(action.id)}
                                         onMarkRead={() => handleMarkSingleCommentRead(action.id)}
                                         onToggleReaction={(emoji) =>
                                           handleToggleCommentReaction(action.id, emoji)
                                         }
                                         isEditing={editingActionId === action.id}
-                                        editingText={editingText}
-                                        onEditingTextChange={setEditingText}
-                                        onSaveEdit={() => void handleUpdateComment(action.id)}
+                                        onSaveEdit={(text) => void handleUpdateComment(action.id, text)}
                                         onCancelEdit={handleCancelEdit}
                                       />
                                    ); })
@@ -10156,36 +10118,12 @@ export const PatioView: React.FC<PatioViewProps> = ({
                              </div>
 
                              {can('canAddComments') && (
-                             <div className="flex items-end gap-2 border-t border-zinc-200/60 bg-white p-2.5 dark:border-white/[0.06] dark:bg-zinc-950/40 sm:p-3">
-                                <textarea
-                                   ref={commentComposerRef}
-                                   value={newComment}
-                                   onChange={(e) => {
-                                     setNewComment(e.target.value);
-                                     const el = e.currentTarget;
-                                     el.style.height = 'auto';
-                                     el.style.height = `${Math.min(el.scrollHeight, 140)}px`;
-                                   }}
-                                   placeholder="Mensagem"
-                                   rows={1}
-                                   className={`${vin} max-h-[140px] min-h-[44px] min-w-0 flex-1 resize-none overflow-y-auto whitespace-pre-wrap break-words py-2.5 text-[15px] leading-snug [overflow-wrap:anywhere]`}
-                                   onKeyDown={(e) => {
-                                     if (e.key === 'Enter' && !e.shiftKey) {
-                                       e.preventDefault();
-                                       void handleSendComment();
-                                     }
-                                   }}
-                                />
-                                <button 
-                                   type="button"
-                                   onClick={() => void handleSendComment()}
-                                   disabled={sendingComment || !newComment.trim()}
-                                   className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[#007AFF] text-white shadow-lg shadow-blue-500/25 transition-all duration-200 hover:opacity-95 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
-                                   aria-label="Enviar mensagem"
-                                >
-                                   {sendingComment ? <RefreshCw className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" strokeWidth={2.2} />}
-                                </button>
-                             </div>
+                             <OsCommentComposer
+                               sending={sendingComment}
+                               inputClassName={vin}
+                               draftRef={newCommentRef}
+                               onSend={handleSendComment}
+                             />
                              )}
                         </div>
 
