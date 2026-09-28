@@ -1,9 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { FileText, Pencil, X } from 'lucide-react';
 
-const AUTO_DISMISS_MS = 7000;
-const MAX_VISIBLE = 3;
+/** Quantos banners empilhados no máximo (mais recente no topo). */
+const MAX_STACK = 12;
 
 export type MacOsBudgetBannerItem = {
   id: string;
@@ -53,12 +53,6 @@ function BannerCard({ item, onDismiss, onActivate }: BannerCardProps) {
       : null;
   const author = item.authorName?.trim() || null;
 
-  useEffect(() => {
-    const timer = window.setTimeout(() => beginLeave(), AUTO_DISMISS_MS);
-    return () => window.clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- dismiss once per mount
-  }, []);
-
   const beginLeave = () => {
     if (leaving) return;
     setLeaving(true);
@@ -69,15 +63,11 @@ function BannerCard({ item, onDismiss, onActivate }: BannerCardProps) {
     <div
       role="button"
       tabIndex={0}
-      onClick={() => {
-        onActivate(item);
-        beginLeave();
-      }}
+      onClick={() => onActivate(item)}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
           onActivate(item);
-          beginLeave();
         }
       }}
       className={`group pointer-events-auto relative w-full cursor-pointer overflow-hidden rounded-[18px] border border-white/55 bg-white/85 shadow-[0_12px_40px_-12px_rgba(0,0,0,0.35),0_0_0_0.5px_rgba(0,0,0,0.06)] backdrop-blur-2xl transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] dark:border-white/12 dark:bg-zinc-900/92 dark:shadow-[0_16px_48px_-12px_rgba(0,0,0,0.65)] ${
@@ -123,8 +113,8 @@ function BannerCard({ item, onDismiss, onActivate }: BannerCardProps) {
       </div>
       <button
         type="button"
-        aria-label="Dispensar"
-        className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full text-zinc-400 opacity-70 transition hover:bg-black/5 hover:text-zinc-700 group-hover:opacity-100 dark:hover:bg-white/10 dark:hover:text-zinc-200"
+        aria-label="Fechar notificação"
+        className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-black/[0.04] text-zinc-500 transition hover:bg-black/10 hover:text-zinc-800 dark:bg-white/[0.08] dark:text-zinc-300 dark:hover:bg-white/15 dark:hover:text-white"
         onClick={(e) => {
           e.stopPropagation();
           beginLeave();
@@ -142,15 +132,15 @@ export type MacOsBudgetBannerStackProps = {
   onActivate: (item: MacOsBudgetBannerItem) => void;
 };
 
-/** Banners estilo macOS (canto superior direito) — apenas PC. */
+/** Banners estilo macOS (canto superior direito) — só fecham no X; mais recente no topo. */
 export function MacOsBudgetBannerStack({ items, onDismiss, onActivate }: MacOsBudgetBannerStackProps) {
   if (typeof document === 'undefined') return null;
-  const visible = items.slice(0, MAX_VISIBLE);
+  const visible = items.slice(0, MAX_STACK);
   if (visible.length === 0) return null;
 
   return createPortal(
     <div
-      className="pointer-events-none fixed right-3 top-[max(0.75rem,env(safe-area-inset-top))] z-[100050] flex w-[min(380px,calc(100vw-1.5rem))] flex-col gap-2.5 sm:right-5 sm:top-4"
+      className="pointer-events-none fixed right-3 top-[max(0.75rem,env(safe-area-inset-top))] z-[100050] flex max-h-[calc(100dvh-1.5rem)] w-[min(380px,calc(100vw-1.5rem))] flex-col gap-2.5 overflow-y-auto overscroll-contain sm:right-5 sm:top-4"
       aria-live="polite"
     >
       {visible.map((item) => (

@@ -360,7 +360,7 @@ export default function App() {
         if (prev.some((x) => x.id === item.id || (x.budgetId === item.budgetId && x.kind === item.kind))) {
           return prev;
         }
-        return [item, ...prev].slice(0, 5);
+        return [item, ...prev].slice(0, 12);
       });
     },
     [isDesktopShell, budgetBannerNotifications]
