@@ -218,6 +218,7 @@ export function PatioPhotoAlbums({
   const [isLiveCameraOpen, setIsLiveCameraOpen] = useState(false);
   const [liveCameraCapturing, setLiveCameraCapturing] = useState(false);
   const [liveCameraFlash, setLiveCameraFlash] = useState(false);
+  const [liveCameraStarting, setLiveCameraStarting] = useState(false);
 
   const foldersRef = useRef(folders);
   foldersRef.current = folders;
@@ -622,61 +623,70 @@ export function PatioPhotoAlbums({
     setIsLiveCameraOpen(false);
     setLiveCameraCapturing(false);
     setLiveCameraFlash(false);
+    setLiveCameraStarting(false);
+  }, []);
+
+  const openNativeCameraFallback = useCallback(() => {
+    const input = cameraRef.current;
+    if (!input) return;
+    input.value = '';
+    input.click();
   }, []);
 
   const openLiveCamera = useCallback(async () => {
-    if (!openFolderId || !canEdit || uploading) return;
-    setIsLiveCameraOpen(true);
-  }, [canEdit, openFolderId, uploading]);
+    if (!openFolderId || !canEdit || uploading || liveCameraStarting || isLiveCameraOpen) return;
 
-  useEffect(() => {
-    if (!isLiveCameraOpen) {
-      if (liveCameraStreamRef.current) {
-        liveCameraStreamRef.current.getTracks().forEach((track) => track.stop());
-        liveCameraStreamRef.current = null;
-      }
+    if (!navigator.mediaDevices?.getUserMedia) {
+      openNativeCameraFallback();
       return;
     }
-    let cancelled = false;
-    const init = async () => {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          audio: false,
-          video: {
-            facingMode: { ideal: 'environment' },
-            width: { ideal: 1920 },
-            height: { ideal: 1080 },
-          },
-        });
-        if (cancelled) {
-          stream.getTracks().forEach((track) => track.stop());
-          return;
-        }
-        liveCameraStreamRef.current = stream;
-        if (liveCameraVideoRef.current) {
-          liveCameraVideoRef.current.srcObject = stream;
-          try {
-            await liveCameraVideoRef.current.play();
-          } catch {
-            /* autoplay pode falhar; playsInline costuma bastar no iOS */
-          }
-        }
-      } catch (err) {
-        console.error('Erro ao acessar a câmera:', err);
-        setIsLiveCameraOpen(false);
-        window.alert('Não foi possível abrir a câmera no app. Usando a câmera do sistema.');
-        cameraRef.current?.click();
-      }
-    };
-    void init();
 
-    return () => {
-      cancelled = true;
+    // Abre o overlay imediatamente (feedback) e pede o stream em seguida.
+    setLiveCameraStarting(true);
+    setIsLiveCameraOpen(true);
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: false,
+        video: { facingMode: { ideal: 'environment' } },
+      });
       if (liveCameraStreamRef.current) {
         liveCameraStreamRef.current.getTracks().forEach((track) => track.stop());
-        liveCameraStreamRef.current = null;
       }
-    };
+      liveCameraStreamRef.current = stream;
+      const video = liveCameraVideoRef.current;
+      if (video) {
+        video.srcObject = stream;
+        void video.play().catch(() => {});
+      }
+    } catch (err) {
+      console.error('Erro ao acessar a câmera:', err);
+      setIsLiveCameraOpen(false);
+      setLiveCameraStarting(false);
+      // Novo gesto: usuário toca no botão de fallback abaixo seria ideal;
+      // tenta input nativo e, se o browser bloquear, o botão Galeria ainda funciona.
+      openNativeCameraFallback();
+      return;
+    } finally {
+      setLiveCameraStarting(false);
+    }
+  }, [
+    canEdit,
+    isLiveCameraOpen,
+    liveCameraStarting,
+    openFolderId,
+    openNativeCameraFallback,
+    uploading,
+  ]);
+
+  useEffect(() => {
+    if (!isLiveCameraOpen) return;
+    const video = liveCameraVideoRef.current;
+    const stream = liveCameraStreamRef.current;
+    if (!video || !stream) return;
+    if (video.srcObject !== stream) {
+      video.srcObject = stream;
+      void video.play().catch(() => {});
+    }
   }, [isLiveCameraOpen]);
 
   const captureLiveCameraPhoto = useCallback(() => {
@@ -713,6 +723,27 @@ export function PatioPhotoAlbums({
   useEffect(() => {
     if (!openFolderId && isLiveCameraOpen) stopLiveCamera();
   }, [isLiveCameraOpen, openFolderId, stopLiveCamera]);
+
+  useEffect(() => {
+    if (!isLiveCameraOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        e.stopPropagation();
+        stopLiveCamera();
+      }
+    };
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
+  }, [isLiveCameraOpen, stopLiveCamera]);
+
+  // Ao desmontar o componente, libera a câmera.
+  useEffect(() => () => {
+    if (liveCameraStreamRef.current) {
+      liveCameraStreamRef.current.getTracks().forEach((track) => track.stop());
+      liveCameraStreamRef.current = null;
+    }
+  }, []);
 
   const handleDeletePhoto = async (photo: ServiceOrderPhoto) => {
     if (!canEdit) return;
@@ -832,13 +863,17 @@ export function PatioPhotoAlbums({
               />
               <button
                 type="button"
-                disabled={uploading}
+                disabled={uploading || liveCameraStarting}
                 onClick={() => void openLiveCamera()}
                 className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-[#007AFF] text-white transition-[filter,transform] hover:brightness-110 active:scale-[0.97] disabled:opacity-50"
                 title="Câmera"
                 aria-label="Adicionar pela câmera"
               >
-                {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" strokeWidth={2.25} />}
+                {uploading || liveCameraStarting ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Camera className="h-4 w-4" strokeWidth={2.25} />
+                )}
               </button>
               <button
                 type="button"
@@ -1327,8 +1362,13 @@ export function PatioPhotoAlbums({
       ) : null}
 
       {isLiveCameraOpen ? (
-        <ModalPortal>
-          <div className="fixed inset-0 z-[220] flex flex-col bg-black">
+        <ModalPortal manageBackLayer={false} onRequestClose={stopLiveCamera}>
+          <div
+            className="fixed inset-0 z-[220] flex flex-col bg-black"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Câmera"
+          >
             <div className="relative min-h-0 flex-1 bg-black">
               <video
                 ref={liveCameraVideoRef}
