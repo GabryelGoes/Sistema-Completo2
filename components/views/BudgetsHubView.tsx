@@ -66,7 +66,9 @@ export interface BudgetsHubViewProps {
   blurPlates?: boolean;
   isHubTabActive?: boolean;
   onOpenBudgetInPatio: (serviceOrderId: string, budgetId: string) => void;
-  onIngestNotifierBaseline: (items: Pick<PatioVehicleBudgetAggregateItem, 'budgetId' | 'contentSignature'>[]) => void;
+  onIngestNotifierBaseline: (
+    items: Pick<PatioVehicleBudgetAggregateItem, 'budgetId' | 'contentSignature' | 'verifiedAt'>[]
+  ) => void;
   onClearHubBadge: () => void;
   consumePendingHubBudgetHighlights?: () => { budgetId: string; kind: 'created' | 'edited' }[];
 }
