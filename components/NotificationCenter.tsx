@@ -185,6 +185,10 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
   const lastCreatedAtRef = useRef<string | null>(null);
   const prevUnreadIdsRef = useRef<Set<string>>(new Set());
   const firstFetchDoneRef = useRef(false);
+  const onNewCommentRef = useRef(onNewCommentNotification);
+  const onBudgetBannerRef = useRef(onBudgetBannerNotification);
+  onNewCommentRef.current = onNewCommentNotification;
+  onBudgetBannerRef.current = onBudgetBannerNotification;
   const canUseDOM = typeof window !== 'undefined' && typeof document !== 'undefined';
   const portalTarget = useMemo(() => (canUseDOM ? document.body : null), [canUseDOM]);
 
@@ -195,8 +199,19 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
       : undefined;
 
   /** Pausa em segundo plano: ver checks em pollNewOnly / fetchNotifications. */
-  const POLL_QUICK_MS = 15000; // banners de orçamento + sino — 15s
+  const POLL_QUICK_MS = 12000;
   const POLL_FULL_MS = 90000;
+
+  const emitNewNotification = (n: Notification, shownNative: boolean) => {
+    if (n.type === 'comment') {
+      onNewCommentRef.current?.(n);
+    } else if (n.type === 'budget_created' || n.type === 'budget_edited') {
+      onBudgetBannerRef.current?.(n);
+      if (!shownNative) playOtherNotificationSound();
+    } else if (!shownNative) {
+      playOtherNotificationSound();
+    }
+  };
 
   const fetchNotifications = async (since?: string, silent = false) => {
     if (forTechnician && !technicianSlug) return;
@@ -215,6 +230,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
         return sorted;
       });
       if (sorted.length > 0) lastCreatedAtRef.current = sorted[0].created_at;
+      else if (!lastCreatedAtRef.current) lastCreatedAtRef.current = new Date().toISOString();
       const count = await getUnreadNotificationsCount(notifParams);
       setUnreadCount(count);
       lastFetchRef.current = new Date().toISOString();
@@ -226,14 +242,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
         list.forEach((n) => {
           if (!n.read_at && !prevUnreadIdsRef.current.has(n.id)) {
             const shownNative = showNativeDeviceNotification(n, !!forTechnician);
-            if (n.type === 'comment') {
-              onNewCommentNotification?.(n);
-            } else if (n.type === 'budget_created' || n.type === 'budget_edited') {
-              onBudgetBannerNotification?.(n);
-              if (!shownNative) playOtherNotificationSound();
-            } else if (!shownNative) {
-              playOtherNotificationSound();
-            }
+            emitNewNotification(n, shownNative);
           }
         });
         prevUnreadIdsRef.current = new Set([...prevUnreadIdsRef.current, ...unreadIds]);
@@ -268,14 +277,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
       list.forEach((n) => {
         if (!n.read_at && !prevUnreadIdsRef.current.has(n.id)) {
           const shownNative = showNativeDeviceNotification(n, !!forTechnician);
-          if (n.type === 'comment') {
-            onNewCommentNotification?.(n);
-          } else if (n.type === 'budget_created' || n.type === 'budget_edited') {
-            onBudgetBannerNotification?.(n);
-            if (!shownNative) playOtherNotificationSound();
-          } else if (!shownNative) {
-            playOtherNotificationSound();
-          }
+          emitNewNotification(n, shownNative);
         }
       });
       list.forEach((n) => {
