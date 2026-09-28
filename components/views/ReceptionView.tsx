@@ -979,6 +979,49 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
     setStatus({ step: 'idle' });
   };
 
+  const clearVehicleFields = () => {
+    setCustomer((prev) => ({
+      ...prev,
+      vehicleBrand: '',
+      vehicleModel: '',
+      moduleIdentification: '',
+      plate: '',
+      vehicleColor: '',
+      vehicleYear: '',
+      vehicleEngineInfo: '',
+      mileageKm: '',
+    }));
+    setModuleKind('');
+    setModuleVehicleKind('');
+    setModuleProductOther('');
+    setPlateLookupError(null);
+    lastFetchedPlacaRef.current = null;
+  };
+
+  const clearCustomerFields = () => {
+    setCustomer((prev) => ({
+      ...prev,
+      name: '',
+      cpf: '',
+      phone: '',
+      email: '',
+      cep: '',
+      address: '',
+      city: '',
+      addressNumber: '',
+    }));
+    setIntakeExistingCustomerId(null);
+    setIntakeCustomerSearch('');
+    setIntakeCustomerDirectory(null);
+    setIntakeCustomerDirectoryError(null);
+    setIntakeCustomerDirectoryLoading(false);
+    setIntakeCustomerSearchOpen(false);
+    if (intakeCustomerBlurTimerRef.current) {
+      clearTimeout(intakeCustomerBlurTimerRef.current);
+      intakeCustomerBlurTimerRef.current = null;
+    }
+  };
+
   const runPlacaLookup = useCallback(
     async (force?: boolean) => {
       if (receptionMode !== 'vehicle') return;
@@ -1338,18 +1381,29 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
               type="button"
               onClick={resetForm}
                className="inline-flex items-center gap-2 rounded-xl border border-[#007AFF]/25 bg-[#007AFF]/10 px-3 py-2 text-[12px] font-semibold text-[#007AFF] shadow-[0_8px_20px_-8px_rgba(0,122,255,0.28),0_4px_12px_-6px_rgba(0,0,0,0.06)] transition-all hover:bg-[#007AFF]/15 active:scale-[0.98] dark:border-[#64B5FF]/35 dark:bg-[#64B5FF]/12 dark:text-[#93c5fd] dark:shadow-[0_6px_16px_-10px_rgba(0,122,255,0.45)]"
-              title="Limpar todos os campos"
+              title="Limpar toda a ficha"
             >
               <Eraser className="h-4 w-4" />
-              Limpar campos
+              Limpar ficha
             </button>
           </div>
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:gap-7">
             {/* Dados do cliente — no retrato (tablet/phone): primeiro; no desktop: coluna direita */}
             <div className={`${receptionPortraitVertical ? 'order-1' : 'order-2'} space-y-6`}>
-              <h2 className="border-b border-zinc-200/80 pb-2 text-[14px] font-bold uppercase tracking-[0.08em] text-zinc-700 dark:border-white/[0.08] dark:text-zinc-200">
-                Dados do cliente
-              </h2>
+              <div className="flex items-end justify-between gap-2 border-b border-zinc-200/80 pb-2 dark:border-white/[0.08]">
+                <h2 className="min-w-0 flex-1 text-[14px] font-bold uppercase tracking-[0.08em] text-zinc-700 dark:text-zinc-200">
+                  Dados do cliente
+                </h2>
+                <button
+                  type="button"
+                  onClick={clearCustomerFields}
+                  className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-[#007AFF]/25 bg-[#007AFF]/10 px-2.5 py-1.5 text-[11px] font-semibold text-[#007AFF] shadow-[0_5px_14px_-6px_rgba(0,122,255,0.22)] transition-all hover:bg-[#007AFF]/15 active:scale-[0.98] dark:border-[#64B5FF]/35 dark:bg-[#64B5FF]/12 dark:text-[#93c5fd]"
+                  title="Limpar dados do cliente"
+                >
+                  <Eraser className="h-3.5 w-3.5 shrink-0" />
+                  Limpar campos
+                </button>
+              </div>
               <div className="relative" ref={customerSearchBoxRef}>
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
                   <div className="min-w-0 flex-1">
@@ -1547,14 +1601,10 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
               {/* No retrato: dados do veículo por último entre os blocos desta coluna (order-4) */}
               <div className={receptionPortraitVertical ? 'order-4 space-y-6' : 'contents'}>
               <div
-                className={`border-b border-zinc-200/80 pb-2 dark:border-white/[0.08] ${
-                  receptionPortraitVertical ? 'flex items-end justify-between gap-2' : ''
-                }`}
+                className="flex items-end justify-between gap-2 border-b border-zinc-200/80 pb-2 dark:border-white/[0.08]"
               >
                 <h2
-                  className={`text-[14px] font-bold uppercase tracking-[0.08em] text-zinc-700 dark:text-zinc-200 ${
-                    receptionPortraitVertical ? 'min-w-0 flex-1 leading-tight pr-1' : ''
-                  }`}
+                  className="min-w-0 flex-1 text-[14px] font-bold uppercase tracking-[0.08em] leading-tight text-zinc-700 dark:text-zinc-200 pr-1"
                 >
                   {receptionMode === 'vehicle'
                     ? receptionPortraitVertical
@@ -1562,17 +1612,15 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                       : 'Veículo e atendimento'
                     : 'Peça e atendimento'}
                 </h2>
-                {receptionPortraitVertical ? (
-                  <button
-                    type="button"
-                    onClick={resetForm}
-                    className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-[#007AFF]/25 bg-[#007AFF]/10 px-2.5 py-1.5 text-[11px] font-semibold text-[#007AFF] shadow-[0_5px_14px_-6px_rgba(0,122,255,0.22)] transition-all hover:bg-[#007AFF]/15 active:scale-[0.98] dark:border-[#64B5FF]/35 dark:bg-[#64B5FF]/12 dark:text-[#93c5fd]"
-                    title="Limpar todos os campos"
-                  >
-                    <Eraser className="h-3.5 w-3.5 shrink-0" />
-                    Limpar campos
-                  </button>
-                ) : null}
+                <button
+                  type="button"
+                  onClick={clearVehicleFields}
+                  className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-[#007AFF]/25 bg-[#007AFF]/10 px-2.5 py-1.5 text-[11px] font-semibold text-[#007AFF] shadow-[0_5px_14px_-6px_rgba(0,122,255,0.22)] transition-all hover:bg-[#007AFF]/15 active:scale-[0.98] dark:border-[#64B5FF]/35 dark:bg-[#64B5FF]/12 dark:text-[#93c5fd]"
+                  title="Limpar dados do veículo"
+                >
+                  <Eraser className="h-3.5 w-3.5 shrink-0" />
+                  Limpar campos
+                </button>
               </div>
 
               {receptionMode === 'vehicle' ? (
@@ -1883,22 +1931,22 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                       )}
                     </div>
                   </div>
-                  <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+                  <div className="mt-3 flex flex-col gap-1.5 sm:flex-row sm:flex-wrap">
                     <button
                       type="button"
                       onClick={() => setDiagAuthSignModalOpen(true)}
-                      className="flex flex-1 min-w-0 items-center justify-center gap-2 rounded-2xl border border-[#007AFF]/35 bg-[#007AFF] px-4 py-3.5 text-[14px] font-semibold text-white shadow-[0_10px_26px_-8px_rgba(37,99,235,0.32),0_5px_16px_-7px_rgba(37,99,235,0.22)] transition-all hover:opacity-95 active:scale-[0.99] dark:shadow-md dark:shadow-blue-900/40 sm:min-w-[200px]"
+                      className="flex flex-1 min-w-0 items-center justify-center gap-1.5 rounded-xl border border-[#007AFF]/35 bg-[#007AFF] px-3 py-2 text-[12px] font-semibold text-white shadow-[0_6px_16px_-8px_rgba(37,99,235,0.28)] transition-all hover:opacity-95 active:scale-[0.99] dark:shadow-md dark:shadow-blue-900/40 sm:min-w-[160px]"
                     >
-                      <FileText className="h-4 w-4 shrink-0 opacity-95" strokeWidth={2.25} aria-hidden />
+                      <FileText className="h-3.5 w-3.5 shrink-0 opacity-95" strokeWidth={2.25} aria-hidden />
                       {diagAuthSignatureBlob ? 'Reabrir termo e assinar novamente' : 'Ler termo e assinar'}
                     </button>
                     {diagAuthSignatureDataUrl ? (
                       <button
                         type="button"
                         onClick={() => setDiagAuthSheetOpen(true)}
-                        className="inline-flex flex-1 min-w-0 items-center justify-center gap-2 rounded-2xl border border-zinc-300/90 bg-white px-4 py-3.5 text-[14px] font-semibold text-zinc-800 shadow-[0_6px_18px_-8px_rgba(0,0,0,0.1),0_2px_8px_-4px_rgba(0,0,0,0.06)] transition-all hover:bg-zinc-50 active:scale-[0.99] dark:border-white/12 dark:bg-white/[0.06] dark:text-zinc-100 dark:shadow-sm dark:hover:bg-white/[0.1] sm:min-w-[200px]"
+                        className="inline-flex flex-1 min-w-0 items-center justify-center gap-1.5 rounded-xl border border-zinc-300/90 bg-white px-3 py-2 text-[12px] font-semibold text-zinc-800 shadow-[0_4px_12px_-6px_rgba(0,0,0,0.08)] transition-all hover:bg-zinc-50 active:scale-[0.99] dark:border-white/12 dark:bg-white/[0.06] dark:text-zinc-100 dark:shadow-sm dark:hover:bg-white/[0.1] sm:min-w-[160px]"
                       >
-                        <Eye className="h-4 w-4 shrink-0 text-zinc-600 dark:text-zinc-300" strokeWidth={2.25} aria-hidden />
+                        <Eye className="h-3.5 w-3.5 shrink-0 text-zinc-600 dark:text-zinc-300" strokeWidth={2.25} aria-hidden />
                         Ver autorização de diagnóstico
                       </button>
                     ) : null}

@@ -239,43 +239,39 @@ export const VehicleOsStockCheckoutSection: React.FC<VehicleOsStockCheckoutSecti
           </div>
           <div className="min-w-0">
             <p className={uiOsModalCardSectionTitle}>Peças do estoque</p>
-            <p className="mt-0.5 truncate text-[11px] font-medium text-zinc-500 dark:text-zinc-400">
-              Caixa · leitor USB{claimUsbScanner ? ' ativo' : ''}
-            </p>
+            {claimUsbScanner ? (
+              <p className="mt-0.5 truncate text-[11px] font-medium text-zinc-500 dark:text-zinc-400">
+                leitor USB ativo
+              </p>
+            ) : null}
           </div>
         </div>
-        {showCameraButton ? (
+        <div className="flex shrink-0 items-center gap-1.5">
           <button
             type="button"
-            onClick={() => setScannerOpen(true)}
-            disabled={!!busyCode}
-            className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-[#007AFF]/25 bg-[#007AFF]/[0.09] px-2.5 py-1.5 text-[11px] font-semibold text-[#007AFF] shadow-[inset_0_1px_0_rgba(255,255,255,0.35)] transition-colors hover:border-[#007AFF]/40 hover:bg-[#007AFF]/15 disabled:opacity-50 dark:border-[#007AFF]/35 dark:bg-[#007AFF]/15 dark:text-[#b8d9ff]"
+            onClick={() => setBudgetScanOpen(true)}
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-emerald-500/30 bg-emerald-500/[0.12] px-2.5 py-1.5 text-[11px] font-semibold text-emerald-800 shadow-[inset_0_1px_0_rgba(255,255,255,0.35)] transition-colors hover:border-emerald-500/45 hover:bg-emerald-500/20 dark:border-emerald-400/35 dark:bg-emerald-500/15 dark:text-emerald-200"
+            title="Peças do orçamento"
+            aria-label="Peças do orçamento"
           >
-            <Camera className="h-3.5 w-3.5" strokeWidth={2.4} aria-hidden />
-            Câmera
+            <ClipboardList className="h-3.5 w-3.5" strokeWidth={2.4} aria-hidden />
+            Orçamento
           </button>
-        ) : null}
+          {showCameraButton ? (
+            <button
+              type="button"
+              onClick={() => setScannerOpen(true)}
+              disabled={!!busyCode}
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-[#007AFF]/25 bg-[#007AFF]/[0.09] px-2.5 py-1.5 text-[11px] font-semibold text-[#007AFF] shadow-[inset_0_1px_0_rgba(255,255,255,0.35)] transition-colors hover:border-[#007AFF]/40 hover:bg-[#007AFF]/15 disabled:opacity-50 dark:border-[#007AFF]/35 dark:bg-[#007AFF]/15 dark:text-[#b8d9ff]"
+            >
+              <Camera className="h-3.5 w-3.5" strokeWidth={2.4} aria-hidden />
+              Câmera
+            </button>
+          ) : null}
+        </div>
       </div>
 
       <div className="space-y-3 border-t border-zinc-200/60 bg-zinc-50/90 px-3 py-3 dark:border-white/[0.06] dark:bg-white/[0.02] sm:px-4 sm:py-4">
-        <button
-          type="button"
-          onClick={() => setBudgetScanOpen(true)}
-          className="flex w-full items-center gap-3 rounded-2xl border border-emerald-500/25 bg-gradient-to-br from-emerald-50 to-white px-3.5 py-3 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] transition hover:border-emerald-500/40 hover:from-emerald-100/80 active:scale-[0.99] dark:border-emerald-400/25 dark:from-emerald-500/15 dark:to-zinc-950/40"
-        >
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-emerald-500/20 bg-white dark:border-emerald-400/20 dark:bg-zinc-950/50">
-            <ClipboardList className="h-5 w-5 text-emerald-700 dark:text-emerald-300" strokeWidth={2.2} />
-          </div>
-          <span className="min-w-0 flex-1">
-            <span className="block text-[13px] font-bold text-emerald-950 dark:text-emerald-100">
-              Peças do orçamento
-            </span>
-            <span className="mt-0.5 block text-[11px] font-medium text-emerald-800/75 dark:text-emerald-200/70">
-              Ver aprovadas e bipar para dar baixa
-            </span>
-          </span>
-        </button>
-
         {busyCode ? (
           <div className="flex items-center gap-2 text-[13px] font-medium text-zinc-600 dark:text-zinc-300">
             <Loader2 className="h-4 w-4 animate-spin text-[#007AFF]" />
