@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
-import { FileText, Pencil, X } from 'lucide-react';
+import { CheckCircle2, FileText, Pencil, X } from 'lucide-react';
 
 /** Quantos banners empilhados no máximo (mais recente no topo). */
 const MAX_STACK = 12;
 
 export type MacOsBudgetBannerItem = {
   id: string;
-  kind: 'budget_created' | 'budget_edited';
+  kind: 'budget_created' | 'budget_edited' | 'budget_verified';
   serviceOrderId: string;
   budgetId: string;
   vehicleModel?: string | null;
@@ -28,6 +28,11 @@ function vehicleLine(item: MacOsBudgetBannerItem): string {
 }
 
 function titleFor(item: MacOsBudgetBannerItem): string {
+  if (item.kind === 'budget_verified') {
+    const n = item.budgetNumber;
+    if (n != null && n >= 2) return `${n}º orçamento verificado`;
+    return 'Orçamento verificado';
+  }
   if (item.kind === 'budget_edited') {
     const n = item.budgetNumber;
     if (n != null && n >= 2) return `${n}º orçamento editado`;
@@ -47,8 +52,11 @@ type BannerCardProps = {
 function BannerCard({ item, onDismiss, onActivate }: BannerCardProps) {
   const [leaving, setLeaving] = useState(false);
   const isEdit = item.kind === 'budget_edited';
+  const isVerified = item.kind === 'budget_verified';
   const hint =
-    item.kind === 'budget_created' && item.budgetNumber != null && item.budgetNumber >= 2
+    (item.kind === 'budget_created' || item.kind === 'budget_verified') &&
+    item.budgetNumber != null &&
+    item.budgetNumber >= 2
       ? `${item.budgetNumber}º orçamento deste veículo`
       : null;
   const author = item.authorName?.trim() || null;
@@ -78,12 +86,16 @@ function BannerCard({ item, onDismiss, onActivate }: BannerCardProps) {
       <div className="flex items-start gap-3 px-3.5 py-3 pr-10">
         <div
           className={`mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-[11px] shadow-sm ring-1 ring-black/5 dark:ring-white/10 ${
-            isEdit
-              ? 'bg-gradient-to-b from-[#5AC8FA] to-[#007AFF]'
-              : 'bg-gradient-to-b from-[#34C759] to-[#248A3D]'
+            isVerified
+              ? 'bg-gradient-to-b from-[#30D158] to-[#248A3D]'
+              : isEdit
+                ? 'bg-gradient-to-b from-[#5AC8FA] to-[#007AFF]'
+                : 'bg-gradient-to-b from-[#34C759] to-[#248A3D]'
           }`}
         >
-          {isEdit ? (
+          {isVerified ? (
+            <CheckCircle2 className="h-[18px] w-[18px] text-white" strokeWidth={2.4} />
+          ) : isEdit ? (
             <Pencil className="h-[18px] w-[18px] text-white" strokeWidth={2.4} />
           ) : (
             <FileText className="h-[18px] w-[18px] text-white" strokeWidth={2.4} />

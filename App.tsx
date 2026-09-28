@@ -370,14 +370,20 @@ export default function App() {
     (events: import('./hooks/usePatioBudgetsHubNotifier').PatioBudgetHubEvent[]) => {
       if (!isDesktopShell || !budgetBannerNotifications) return;
       for (const ev of events) {
+        const kind =
+          ev.kind === 'created'
+            ? 'budget_created'
+            : ev.kind === 'edited'
+              ? 'budget_edited'
+              : 'budget_verified';
         pushBudgetBanner({
-          id: `${ev.kind}-${ev.item.budgetId}-${ev.item.contentSignature.slice(0, 12)}`,
-          kind: ev.kind === 'created' ? 'budget_created' : 'budget_edited',
+          id: `${ev.kind}-${ev.item.budgetId}-${ev.item.contentSignature.slice(0, 12)}-${ev.item.verifiedAt ?? ''}`,
+          kind,
           serviceOrderId: ev.item.serviceOrderId,
           budgetId: ev.item.budgetId,
           vehicleModel: ev.item.vehicleModel || ev.item.cardName,
           vehiclePlate: ev.item.plate,
-          authorName: null,
+          authorName: ev.kind === 'verified' ? ev.item.verifiedByName : null,
           budgetNumber: ev.budgetNumber,
         });
       }
