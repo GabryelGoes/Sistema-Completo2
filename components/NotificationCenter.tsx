@@ -25,6 +25,7 @@ import {
   budgetBannerToCardModel,
   type MacOsBudgetBannerItem,
 } from './MacOsBudgetBannerStack';
+import { findDesktopNotificationsBellTarget, playMacGenieMinimize } from '../utils/macGenieMinimize';
 
 /** Primeiro nome do cliente a partir do nome completo. */
 function getFirstName(fullName: string | null | undefined): string | null {
@@ -274,6 +275,9 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
   const rootRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const modalRef = useRef<HTMLDivElement>(null);
+  const cardElsRef = useRef<Map<string, HTMLDivElement>>(new Map());
+  const busyIdsRef = useRef<Set<string>>(new Set());
+  const [busyIds, setBusyIds] = useState<Set<string>>(() => new Set());
   const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
   const lastFetchRef = useRef<string | null>(null);
   const lastCreatedAtRef = useRef<string | null>(null);
@@ -478,6 +482,44 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
     }
   };
 
+  const setCardRef = useCallback((id: string, el: HTMLDivElement | null) => {
+    if (el) cardElsRef.current.set(id, el);
+    else cardElsRef.current.delete(id);
+  }, []);
+
+  const runGenieToBell = useCallback(async (sources: HTMLElement[]) => {
+    const target = findDesktopNotificationsBellTarget() ?? triggerRef.current;
+    if (target && sources.length > 0) {
+      await playMacGenieMinimize({
+        sources,
+        target,
+        durationMs: 920,
+        staggerMs: 40,
+        stripCount: 30,
+        leaveSourcesHidden: true,
+      });
+      return;
+    }
+    await new Promise<void>((r) => window.setTimeout(r, 120));
+  }, []);
+
+  const dismissWithGenie = useCallback(
+    async (id: string, after: () => void) => {
+      if (busyIdsRef.current.has(id)) return;
+      busyIdsRef.current.add(id);
+      setBusyIds(new Set(busyIdsRef.current));
+      const el = cardElsRef.current.get(id) ?? null;
+      try {
+        if (el) await runGenieToBell([el]);
+      } finally {
+        after();
+        busyIdsRef.current.delete(id);
+        setBusyIds(new Set(busyIdsRef.current));
+      }
+    },
+    [runGenieToBell]
+  );
+
   const handleMarkAllRead = async () => {
     setMarkingAll(true);
     try {
@@ -633,11 +675,15 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
                 model={budgetBannerToCardModel(item)}
                 theme={theme}
                 compact
+                busy={busyIds.has(`min-${item.id}`)}
+                cardRef={(el) => setCardRef(`min-${item.id}`, el)}
                 onActivate={() => {
                   onMinimizedBudgetActivate?.(item);
                   setOpen(false);
                 }}
-                onDismiss={() => onMinimizedBudgetDismiss?.(item.id)}
+                onDismiss={() => {
+                  void dismissWithGenie(`min-${item.id}`, () => onMinimizedBudgetDismiss?.(item.id));
+                }}
               />
             ))}
           </div>
@@ -667,15 +713,18 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
                   model={model}
                   theme={theme}
                   compact
+                  busy={busyIds.has(n.id)}
+                  cardRef={(el) => setCardRef(n.id, el)}
                   onActivate={() => {
                     if (isUnread) void handleMarkRead(n.id);
                     onNotificationClick?.(n);
                     setOpen(false);
                   }}
                   onDismiss={() => {
-                    if (isUnread) void handleMarkRead(n.id);
-                    setNotifications((prev) => prev.filter((x) => x.id !== n.id));
-                    // Remoção local; limpeza total no servidor via Limpar todas.
+                    void dismissWithGenie(n.id, () => {
+                      if (isUnread) void handleMarkRead(n.id);
+                      setNotifications((prev) => prev.filter((x) => x.id !== n.id));
+                    });
                   }}
                 />
               );
