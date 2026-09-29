@@ -248,12 +248,13 @@ export default function App() {
     (authSession?.role === 'user' && effectivePatioApproveBudgetItems(authSession.permissions));
   const budgetHubActorOptions =
     authSession?.role === 'admin'
-      ? { actor: 'admin' as const }
+      ? { actor: 'admin' as const, actorDisplayName: adminDisplayName }
       : authSession?.role === 'user'
         ? {
             actor: 'technician' as const,
             actorTechnicianSlug: authSession.userId,
             actorTechnicianName: authSession.displayName ?? authSession.username,
+            actorDisplayName: authSession.displayName ?? authSession.username,
           }
         : undefined;
   /** Qualquer usuário logado pode tentar excluir; a senha do admin (ou de exclusão) é a proteção. */
@@ -360,7 +361,8 @@ export default function App() {
         if (prev.some((x) => x.id === item.id || (x.budgetId === item.budgetId && x.kind === item.kind))) {
           return prev;
         }
-        return [item, ...prev].slice(0, 12);
+        // Sem corte agressivo: novos banners sempre entram; soft-cap alto só para memória.
+        return [item, ...prev].slice(0, 80);
       });
     },
     [isDesktopShell, budgetBannerNotifications]
@@ -376,6 +378,14 @@ export default function App() {
             : ev.kind === 'edited'
               ? 'budget_edited'
               : 'budget_verified';
+        const authorName =
+          ev.kind === 'verified'
+            ? ev.item.verifiedByName
+            : ev.item.lastActorName ?? null;
+        const authorPhotoUrl =
+          ev.kind === 'verified'
+            ? ev.item.verifiedByPhotoUrl ?? null
+            : ev.item.lastActorPhotoUrl ?? null;
         pushBudgetBanner({
           id: `${ev.kind}-${ev.item.budgetId}-${ev.item.contentSignature.slice(0, 12)}-${ev.item.verifiedAt ?? ''}`,
           kind,
@@ -383,7 +393,8 @@ export default function App() {
           budgetId: ev.item.budgetId,
           vehicleModel: ev.item.vehicleModel || ev.item.cardName,
           vehiclePlate: ev.item.plate,
-          authorName: ev.kind === 'verified' ? ev.item.verifiedByName : null,
+          authorName,
+          authorPhotoUrl,
           budgetNumber: ev.budgetNumber,
         });
       }
@@ -419,6 +430,10 @@ export default function App() {
         (typeof n.payload.author_display_name === 'string' && n.payload.author_display_name.trim()) ||
         (typeof n.payload.technician_name === 'string' && n.payload.technician_name.trim()) ||
         null;
+      const authorPhotoUrl =
+        typeof n.payload.author_photo_url === 'string' && n.payload.author_photo_url.trim()
+          ? n.payload.author_photo_url.trim()
+          : null;
       pushBudgetBanner({
         id: n.id,
         kind: n.type,
@@ -429,6 +444,7 @@ export default function App() {
         vehiclePlate:
           typeof n.payload.vehicle_plate === 'string' ? n.payload.vehicle_plate : null,
         authorName: author,
+        authorPhotoUrl,
         budgetNumber,
       });
     },
@@ -1239,7 +1255,9 @@ export default function App() {
         {isDesktopShell ? (
           <MacOsBudgetBannerStack
             items={budgetBannerItems}
+            theme={theme}
             onDismiss={(id) => setBudgetBannerItems((prev) => prev.filter((x) => x.id !== id))}
+            onDismissAll={() => setBudgetBannerItems([])}
             onActivate={(item) => openBudgetFromBanner(item)}
           />
         ) : null}
@@ -1461,11 +1479,12 @@ export default function App() {
             markAsFromAgenda={Boolean(agendaIntakeSourceAppointmentId)}
             actorOptions={
               authSession?.role === 'admin'
-                ? { actor: 'admin' }
+                ? { actor: 'admin', actorDisplayName: adminDisplayName }
                 : {
                     actor: 'technician',
                     actorTechnicianSlug: authSession?.userId,
                     actorTechnicianName: authSession?.displayName ?? authSession?.username,
+                    actorDisplayName: authSession?.displayName ?? authSession?.username,
                   }
             }
             />
@@ -1517,7 +1536,7 @@ export default function App() {
             canVerifyBudgets={canVerifyBudgetsApp}
             requiresExplicitCommentRead={canVerifyBudgetsApp}
             canApproveBudgetItems={canApproveBudgetItemsApp}
-            actorOptions={authSession?.role === 'admin' ? { actor: 'admin' } : { actor: 'technician', actorTechnicianSlug: authSession?.userId, actorTechnicianName: authSession?.displayName ?? authSession?.username }}
+            actorOptions={authSession?.role === 'admin' ? { actor: 'admin', actorDisplayName: adminDisplayName } : { actor: 'technician', actorTechnicianSlug: authSession?.userId, actorTechnicianName: authSession?.displayName ?? authSession?.username, actorDisplayName: authSession?.displayName ?? authSession?.username }}
             />
           </LazyTabBoundary>
         </KeepAliveTabPanel>
@@ -1550,7 +1569,7 @@ export default function App() {
             canVerifyBudgets={canVerifyBudgetsApp}
             requiresExplicitCommentRead={canVerifyBudgetsApp}
             canApproveBudgetItems={canApproveBudgetItemsApp}
-            actorOptions={authSession?.role === 'admin' ? { actor: 'admin' } : { actor: 'technician', actorTechnicianSlug: authSession?.userId, actorTechnicianName: authSession?.displayName ?? authSession?.username }}
+            actorOptions={authSession?.role === 'admin' ? { actor: 'admin', actorDisplayName: adminDisplayName } : { actor: 'technician', actorTechnicianSlug: authSession?.userId, actorTechnicianName: authSession?.displayName ?? authSession?.username, actorDisplayName: authSession?.displayName ?? authSession?.username }}
             />
           </LazyTabBoundary>
         </KeepAliveTabPanel>
@@ -1581,7 +1600,9 @@ export default function App() {
       {isDesktopShell ? (
         <MacOsBudgetBannerStack
           items={budgetBannerItems}
+          theme={theme}
           onDismiss={(id) => setBudgetBannerItems((prev) => prev.filter((x) => x.id !== id))}
+          onDismissAll={() => setBudgetBannerItems([])}
           onActivate={(item) => openBudgetFromBanner(item)}
         />
       ) : null}

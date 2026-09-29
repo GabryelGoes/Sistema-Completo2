@@ -1054,7 +1054,7 @@ export function createApiApp() {
     return (data || []).map((r: { id: string }) => r.id);
   }
 
-  /** Payload enriquecido p/ banners de orçamento (placa, autor, nº do orçamento na OS). */
+  /** Payload enriquecido p/ banners de orçamento (placa, autor, foto, nº do orçamento na OS). */
   async function buildBudgetNotifyPayload(params: {
     serviceOrderId: string;
     budgetId?: string | null;
@@ -1062,6 +1062,7 @@ export function createApiApp() {
     vehicleModel?: string | null;
     customerName?: string | null;
     authorDisplayName?: string | null;
+    authorPhotoUrl?: string | null;
     source?: string;
   }): Promise<Record<string, unknown>> {
     let budgetNumber: number | null = null;
@@ -1083,6 +1084,10 @@ export function createApiApp() {
       }
     }
     const author = (params.authorDisplayName || "").trim() || null;
+    const photo =
+      typeof params.authorPhotoUrl === "string" && params.authorPhotoUrl.trim()
+        ? params.authorPhotoUrl.trim()
+        : null;
     return {
       service_order_id: params.serviceOrderId,
       budget_id: params.budgetId ?? null,
@@ -1090,10 +1095,117 @@ export function createApiApp() {
       vehicle_model: params.vehicleModel ?? null,
       customer_name: params.customerName ?? null,
       author_display_name: author,
+      author_photo_url: photo,
       technician_name: author,
       budget_number: budgetNumber,
       ...(params.source ? { source: params.source } : {}),
     };
+  }
+
+  async function getWorkshopSettingValue(key: string): Promise<string | null> {
+    if (!supabaseAdmin || !WORKSHOP_ID) return null;
+    const { data } = await supabaseAdmin
+      .from("workshop_settings")
+      .select("value")
+      .eq("workshop_id", WORKSHOP_ID)
+      .eq("key", key)
+      .maybeSingle();
+    const v = typeof data?.value === "string" ? data.value.trim() : "";
+    return v || null;
+  }
+
+  async function getAdminDisplayMeta(): Promise<{ name: string; photoUrl: string | null }> {
+    const [name, photoUrl] = await Promise.all([
+      getWorkshopSettingValue("admin_display_name"),
+      getWorkshopSettingValue("admin_photo_url"),
+    ]);
+    return { name: name || "Administrador", photoUrl };
+  }
+
+  /** Resolve nome + foto de quem criou/editou/verificou um orçamento. */
+  async function resolveBudgetActorMeta(params: {
+    actor?: unknown;
+    actorTechnicianSlug?: unknown;
+    actorTechnicianName?: unknown;
+    actorDisplayName?: unknown;
+  }): Promise<{ name: string; photoUrl: string | null }> {
+    const isTechnician =
+      params.actor === "technician" &&
+      (typeof params.actorTechnicianSlug === "string" ||
+        typeof params.actorTechnicianName === "string" ||
+        typeof params.actorDisplayName === "string");
+
+    if (isTechnician) {
+      const slug =
+        typeof params.actorTechnicianSlug === "string" ? params.actorTechnicianSlug.trim() : "";
+      const displayHint =
+        (typeof params.actorDisplayName === "string" && params.actorDisplayName.trim()) ||
+        (typeof params.actorTechnicianName === "string" && params.actorTechnicianName.trim()) ||
+        "";
+      let name = displayHint || slug || "Técnico";
+      let photoUrl: string | null = null;
+      if (supabaseAdmin && WORKSHOP_ID) {
+        if (slug) {
+          const { data } = await supabaseAdmin
+            .from("workshop_system_users")
+            .select("display_name, username, photo_url")
+            .eq("workshop_id", WORKSHOP_ID)
+            .eq("id", slug)
+            .maybeSingle();
+          if (data) {
+            name =
+              (typeof data.display_name === "string" && data.display_name.trim()) ||
+              (typeof data.username === "string" && data.username.trim()) ||
+              name;
+            photoUrl =
+              typeof data.photo_url === "string" && data.photo_url.trim()
+                ? data.photo_url.trim()
+                : null;
+          }
+        }
+        if (!photoUrl && name) {
+          const authorTrim = name.trim().toLowerCase();
+          const { data: systemUsers } = await supabaseAdmin
+            .from("workshop_system_users")
+            .select("photo_url, display_name, username")
+            .eq("workshop_id", WORKSHOP_ID);
+          const u = (systemUsers ?? []).find(
+            (t) =>
+              (t.display_name && String(t.display_name).trim().toLowerCase() === authorTrim) ||
+              String(t.username).trim().toLowerCase() === authorTrim
+          );
+          photoUrl = u?.photo_url?.trim() || null;
+        }
+      }
+      return { name, photoUrl };
+    }
+
+    const admin = await getAdminDisplayMeta();
+    const override =
+      typeof params.actorDisplayName === "string" && params.actorDisplayName.trim()
+        ? params.actorDisplayName.trim()
+        : "";
+    return { name: override || admin.name, photoUrl: admin.photoUrl };
+  }
+
+  async function resolvePhotoUrlForDisplayName(name: string | null | undefined): Promise<string | null> {
+    const n = (name || "").trim();
+    if (!n || !supabaseAdmin || !WORKSHOP_ID) return null;
+    const admin = await getAdminDisplayMeta();
+    if (admin.name.trim().toLowerCase() === n.toLowerCase() || /rei\s*do\s*abs/i.test(n)) {
+      return admin.photoUrl;
+    }
+    const authorTrim = n.toLowerCase();
+    const { data: systemUsers } = await supabaseAdmin
+      .from("workshop_system_users")
+      .select("photo_url, display_name, username")
+      .eq("workshop_id", WORKSHOP_ID);
+    const u = (systemUsers ?? []).find(
+      (t) =>
+        (t.display_name && String(t.display_name).trim().toLowerCase() === authorTrim) ||
+        String(t.username).trim().toLowerCase() === authorTrim
+    );
+    return u?.photo_url?.trim() || null;
   }
 
   function isMissingRpcFunctionError(message: string): boolean {
@@ -4053,7 +4165,7 @@ export function createApiApp() {
         return res.status(500).json({ error: e2.message });
       }
 
-      const items = (budgets ?? []).map((b: Record<string, unknown>) => {
+      const items = ((budgets ?? []) as unknown as Record<string, unknown>[]).map((b: Record<string, unknown>) => {
         const sid = String(b.service_order_id ?? "");
         const o = orderMap.get(sid) as
           | {
@@ -4134,8 +4246,76 @@ export function createApiApp() {
           isVerified: b.verified_at != null && String(b.verified_at).trim() !== "",
           verifiedAt: b.verified_at != null ? String(b.verified_at) : null,
           verifiedByName: b.verified_by_name != null ? String(b.verified_by_name) : null,
+          lastActorName: null as string | null,
+          lastActorPhotoUrl: null as string | null,
+          verifiedByPhotoUrl: null as string | null,
         };
       });
+
+      // Enriquece autor/foto a partir das notificações recentes (criação/edição).
+      const actorByBudget = new Map<string, { name: string; photoUrl: string | null }>();
+      try {
+        const { data: recentNotifs } = await supabaseAdmin
+          .from("notifications")
+          .select("payload, created_at")
+          .eq("workshop_id", WORKSHOP_ID)
+          .in("type", ["budget_created", "budget_edited"])
+          .order("created_at", { ascending: false })
+          .limit(500);
+        for (const row of recentNotifs ?? []) {
+          const payload = (row as { payload?: Record<string, unknown> }).payload ?? {};
+          const bid =
+            typeof payload.budget_id === "string" ? payload.budget_id.trim() : "";
+          if (!bid || actorByBudget.has(bid)) continue;
+          const name =
+            (typeof payload.author_display_name === "string" &&
+              payload.author_display_name.trim()) ||
+            (typeof payload.technician_name === "string" && payload.technician_name.trim()) ||
+            "";
+          if (!name) continue;
+          const photoUrl =
+            typeof payload.author_photo_url === "string" && payload.author_photo_url.trim()
+              ? payload.author_photo_url.trim()
+              : null;
+          actorByBudget.set(bid, { name, photoUrl });
+        }
+      } catch {
+        /* opcional */
+      }
+
+      const verifiedNames = [
+        ...new Set(
+          items
+            .map((it) => (it.verifiedByName || "").trim())
+            .filter(Boolean)
+        ),
+      ];
+      const photoByName = new Map<string, string | null>();
+      for (const n of verifiedNames) {
+        photoByName.set(n.toLowerCase(), await resolvePhotoUrlForDisplayName(n));
+      }
+      // Preenche fotos ausentes nos atores das notificações.
+      for (const [, meta] of actorByBudget) {
+        if (!meta.photoUrl) {
+          const key = meta.name.toLowerCase();
+          if (!photoByName.has(key)) {
+            photoByName.set(key, await resolvePhotoUrlForDisplayName(meta.name));
+          }
+          meta.photoUrl = photoByName.get(key) ?? null;
+        }
+      }
+
+      for (const it of items) {
+        const fromNotif = actorByBudget.get(it.budgetId);
+        if (fromNotif) {
+          it.lastActorName = fromNotif.name;
+          it.lastActorPhotoUrl = fromNotif.photoUrl;
+        }
+        if (it.verifiedByName) {
+          it.verifiedByPhotoUrl =
+            photoByName.get(it.verifiedByName.trim().toLowerCase()) ?? null;
+        }
+      }
 
       items.sort(
         (a, b) =>
@@ -6205,13 +6385,15 @@ export function createApiApp() {
         }
       }
 
+      const labActorMeta = await getAdminDisplayMeta();
       const budgetNotifyPayload = await buildBudgetNotifyPayload({
         serviceOrderId,
         budgetId,
         vehiclePlate: so?.plate ?? null,
         vehicleModel: so?.vehicle_model ?? null,
         customerName: customerNameBudget || null,
-        authorDisplayName: "Rei do ABS",
+        authorDisplayName: labActorMeta.name,
+        authorPhotoUrl: labActorMeta.photoUrl,
         source: "lab_evaluation",
       });
       const technicianIds = await getTechnicianRecipientIdsForSystemType("budget_created");
@@ -6603,18 +6785,20 @@ export function createApiApp() {
       const isTechnicianActor =
         actor === "technician" &&
         (typeof actorTechnicianSlug === "string" || typeof actorTechnicianName === "string");
-      const authorLabel = isTechnicianActor
-        ? typeof actorTechnicianName === "string" && actorTechnicianName.trim()
-          ? actorTechnicianName.trim()
-          : actorTechnicianSlug || "Técnico"
-        : "Rei do ABS";
+      const actorMeta = await resolveBudgetActorMeta({
+        actor,
+        actorTechnicianSlug,
+        actorTechnicianName,
+        actorDisplayName: (req.body as { actorDisplayName?: unknown })?.actorDisplayName,
+      });
       const budgetPayload = await buildBudgetNotifyPayload({
         serviceOrderId,
         budgetId: createdBudgetId || null,
         vehiclePlate: so?.plate ?? null,
         vehicleModel: so?.vehicle_model ?? null,
         customerName: customerNameBudget || null,
-        authorDisplayName: authorLabel,
+        authorDisplayName: actorMeta.name,
+        authorPhotoUrl: actorMeta.photoUrl,
       });
       if (isTechnicianActor) {
         const shouldAdmin = await shouldNotifyAdminForSystemType("budget_created");
@@ -6776,18 +6960,20 @@ export function createApiApp() {
       const isTechnicianActor =
         actor === "technician" &&
         (typeof actorTechnicianSlug === "string" || typeof actorTechnicianName === "string");
-      const authorLabel = isTechnicianActor
-        ? typeof actorTechnicianName === "string" && actorTechnicianName.trim()
-          ? actorTechnicianName.trim()
-          : actorTechnicianSlug || "Técnico"
-        : "Rei do ABS";
+      const actorMeta = await resolveBudgetActorMeta({
+        actor,
+        actorTechnicianSlug,
+        actorTechnicianName,
+        actorDisplayName: (req.body as { actorDisplayName?: unknown })?.actorDisplayName,
+      });
       const budgetEditPayload = await buildBudgetNotifyPayload({
         serviceOrderId,
         budgetId,
         vehiclePlate: so?.plate ?? null,
         vehicleModel: so?.vehicle_model ?? null,
         customerName: customerNameBudgetEdit || null,
-        authorDisplayName: authorLabel,
+        authorDisplayName: actorMeta.name,
+        authorPhotoUrl: actorMeta.photoUrl,
       });
       if (isTechnicianActor) {
         const shouldAdmin = await shouldNotifyAdminForSystemType("budget_edited");

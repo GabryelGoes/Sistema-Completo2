@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { CheckCircle2, FileText, Pencil, X } from 'lucide-react';
+import { CheckCircle2, FileText, Minus, Pencil, Trash2, X } from 'lucide-react';
+import { findDesktopOrcamentosNavTarget, playMacGenieMinimize } from '../utils/macGenieMinimize';
 
-/** Quantos banners empilhados no máximo (mais recente no topo). */
-const MAX_STACK = 12;
+/** Soft-cap visual; novos banners sempre entram (mais recente no topo). */
+const MAX_VISIBLE = 48;
 
 export type MacOsBudgetBannerItem = {
   id: string;
@@ -13,6 +14,7 @@ export type MacOsBudgetBannerItem = {
   vehicleModel?: string | null;
   vehiclePlate?: string | null;
   authorName?: string | null;
+  authorPhotoUrl?: string | null;
   budgetNumber?: number | null;
 };
 
@@ -43,23 +45,52 @@ function titleFor(item: MacOsBudgetBannerItem): string {
   return 'Orçamento criado';
 }
 
+function authorLabel(item: MacOsBudgetBannerItem): string {
+  const name = item.authorName?.trim();
+  return name || 'Usuário';
+}
+
+function initialsFromName(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return '?';
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return `${parts[0][0] ?? ''}${parts[parts.length - 1][0] ?? ''}`.toUpperCase();
+}
+
 type BannerCardProps = {
   item: MacOsBudgetBannerItem;
+  theme: 'dark' | 'light';
   onDismiss: (id: string) => void;
   onActivate: (item: MacOsBudgetBannerItem) => void;
+  cardRef?: (el: HTMLDivElement | null) => void;
+  hiddenForGenie?: boolean;
 };
 
-function BannerCard({ item, onDismiss, onActivate }: BannerCardProps) {
+function BannerCard({
+  item,
+  theme,
+  onDismiss,
+  onActivate,
+  cardRef,
+  hiddenForGenie,
+}: BannerCardProps) {
   const [leaving, setLeaving] = useState(false);
+  const [photoFailed, setPhotoFailed] = useState(false);
   const isEdit = item.kind === 'budget_edited';
   const isVerified = item.kind === 'budget_verified';
+  const isDark = theme === 'dark';
   const hint =
     (item.kind === 'budget_created' || item.kind === 'budget_verified') &&
     item.budgetNumber != null &&
     item.budgetNumber >= 2
       ? `${item.budgetNumber}º orçamento deste veículo`
       : null;
-  const author = item.authorName?.trim() || null;
+  const author = authorLabel(item);
+  const photoUrl = item.authorPhotoUrl?.trim() || null;
+
+  useEffect(() => {
+    setPhotoFailed(false);
+  }, [photoUrl]);
 
   const beginLeave = () => {
     if (leaving) return;
@@ -67,66 +98,106 @@ function BannerCard({ item, onDismiss, onActivate }: BannerCardProps) {
     window.setTimeout(() => onDismiss(item.id), 280);
   };
 
+  const shell = isDark
+    ? 'border-white/12 bg-zinc-900/92 text-white shadow-[0_16px_48px_-12px_rgba(0,0,0,0.65)]'
+    : 'border-black/8 bg-white/92 text-zinc-900 shadow-[0_12px_40px_-12px_rgba(0,0,0,0.28),0_0_0_0.5px_rgba(0,0,0,0.04)]';
+
+  const meta = isDark ? 'text-zinc-400' : 'text-zinc-500';
+  const title = isDark ? 'text-white' : 'text-zinc-900';
+  const body = isDark ? 'text-zinc-300' : 'text-zinc-600';
+  const closeBtn = isDark
+    ? 'bg-white/[0.08] text-zinc-300 hover:bg-white/15 hover:text-white'
+    : 'bg-black/[0.05] text-zinc-500 hover:bg-black/10 hover:text-zinc-800';
+
   return (
     <div
+      ref={cardRef}
       role="button"
-      tabIndex={0}
-      onClick={() => onActivate(item)}
+      tabIndex={hiddenForGenie ? -1 : 0}
+      onClick={() => {
+        if (hiddenForGenie || leaving) return;
+        onActivate(item);
+      }}
       onKeyDown={(e) => {
+        if (hiddenForGenie || leaving) return;
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
           onActivate(item);
         }
       }}
-      className={`group pointer-events-auto relative w-full cursor-pointer overflow-hidden rounded-[18px] border border-white/55 bg-white/85 shadow-[0_12px_40px_-12px_rgba(0,0,0,0.35),0_0_0_0.5px_rgba(0,0,0,0.06)] backdrop-blur-2xl transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] dark:border-white/12 dark:bg-zinc-900/92 dark:shadow-[0_16px_48px_-12px_rgba(0,0,0,0.65)] ${
+      className={`group pointer-events-auto relative w-full cursor-pointer overflow-hidden rounded-[18px] border backdrop-blur-2xl transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${shell} ${
         leaving ? 'translate-x-[110%] opacity-0' : 'translate-x-0 opacity-100'
-      }`}
+      } ${hiddenForGenie ? 'pointer-events-none opacity-0' : ''}`}
       style={{ WebkitBackdropFilter: 'blur(28px)' }}
+      aria-hidden={hiddenForGenie || undefined}
     >
       <div className="flex items-start gap-3 px-3.5 py-3 pr-10">
-        <div
-          className={`mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-[11px] shadow-sm ring-1 ring-black/5 dark:ring-white/10 ${
-            isVerified
-              ? 'bg-gradient-to-b from-[#30D158] to-[#248A3D]'
-              : isEdit
-                ? 'bg-gradient-to-b from-[#5AC8FA] to-[#007AFF]'
-                : 'bg-gradient-to-b from-[#34C759] to-[#248A3D]'
-          }`}
-        >
-          {isVerified ? (
-            <CheckCircle2 className="h-[18px] w-[18px] text-white" strokeWidth={2.4} />
-          ) : isEdit ? (
-            <Pencil className="h-[18px] w-[18px] text-white" strokeWidth={2.4} />
-          ) : (
-            <FileText className="h-[18px] w-[18px] text-white" strokeWidth={2.4} />
-          )}
+        <div className="relative mt-0.5 h-10 w-10 shrink-0">
+          <div
+            className={`flex h-10 w-10 items-center justify-center overflow-hidden rounded-[11px] shadow-sm ring-1 ${
+              isDark ? 'ring-white/10' : 'ring-black/5'
+            } ${
+              isVerified
+                ? 'bg-gradient-to-b from-[#30D158] to-[#248A3D]'
+                : isEdit
+                  ? 'bg-gradient-to-b from-[#5AC8FA] to-[#007AFF]'
+                  : 'bg-gradient-to-b from-[#34C759] to-[#248A3D]'
+            }`}
+          >
+            {photoUrl && !photoFailed ? (
+              <img
+                src={photoUrl}
+                alt=""
+                className="h-full w-full object-cover"
+                onError={() => setPhotoFailed(true)}
+              />
+            ) : (
+              <span className="text-[12px] font-bold tracking-tight text-white">
+                {initialsFromName(author)}
+              </span>
+            )}
+          </div>
+          <span
+            className={`absolute -bottom-1 -right-1 flex h-[18px] w-[18px] items-center justify-center rounded-full shadow-sm ring-2 ${
+              isDark ? 'ring-zinc-900' : 'ring-white'
+            } ${
+              isVerified
+                ? 'bg-[#30D158]'
+                : isEdit
+                  ? 'bg-[#007AFF]'
+                  : 'bg-[#34C759]'
+            }`}
+            aria-hidden
+          >
+            {isVerified ? (
+              <CheckCircle2 className="h-2.5 w-2.5 text-white" strokeWidth={2.8} />
+            ) : isEdit ? (
+              <Pencil className="h-2.5 w-2.5 text-white" strokeWidth={2.8} />
+            ) : (
+              <FileText className="h-2.5 w-2.5 text-white" strokeWidth={2.8} />
+            )}
+          </span>
         </div>
         <div className="min-w-0 flex-1 pt-0.5">
           <div className="flex items-baseline gap-2">
-            <p className="truncate text-[12px] font-semibold tracking-tight text-zinc-500 dark:text-zinc-400">
-              Rei do ABS
-            </p>
-            <span className="text-[11px] tabular-nums text-zinc-400 dark:text-zinc-500">agora</span>
+            <p className={`truncate text-[12px] font-semibold tracking-tight ${meta}`}>{author}</p>
+            <span className={`shrink-0 text-[11px] tabular-nums ${isDark ? 'text-zinc-500' : 'text-zinc-400'}`}>
+              agora
+            </span>
           </div>
-          <p className="mt-0.5 text-[14px] font-semibold leading-snug tracking-tight text-zinc-900 dark:text-white">
+          <p className={`mt-0.5 text-[14px] font-semibold leading-snug tracking-tight ${title}`}>
             {titleFor(item)}
           </p>
-          <p className="mt-0.5 text-[13px] leading-snug text-zinc-600 dark:text-zinc-300">
-            {vehicleLine(item)}
-          </p>
-          {author || hint ? (
-            <p className="mt-0.5 text-[12px] leading-snug text-zinc-500 dark:text-zinc-400">
-              {author ? <>por {author}</> : null}
-              {author && hint ? <span className="text-zinc-400 dark:text-zinc-500"> · </span> : null}
-              {hint ? <span>{hint}</span> : null}
-            </p>
+          <p className={`mt-0.5 text-[13px] leading-snug ${body}`}>{vehicleLine(item)}</p>
+          {hint ? (
+            <p className={`mt-0.5 text-[12px] leading-snug ${meta}`}>{hint}</p>
           ) : null}
         </div>
       </div>
       <button
         type="button"
         aria-label="Fechar notificação"
-        className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-black/[0.04] text-zinc-500 transition hover:bg-black/10 hover:text-zinc-800 dark:bg-white/[0.08] dark:text-zinc-300 dark:hover:bg-white/15 dark:hover:text-white"
+        className={`absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full transition ${closeBtn}`}
         onClick={(e) => {
           e.stopPropagation();
           beginLeave();
@@ -140,23 +211,116 @@ function BannerCard({ item, onDismiss, onActivate }: BannerCardProps) {
 
 export type MacOsBudgetBannerStackProps = {
   items: MacOsBudgetBannerItem[];
+  theme: 'dark' | 'light';
   onDismiss: (id: string) => void;
+  onDismissAll: () => void;
   onActivate: (item: MacOsBudgetBannerItem) => void;
 };
 
-/** Banners estilo macOS (canto superior direito) — só fecham no X; mais recente no topo. */
-export function MacOsBudgetBannerStack({ items, onDismiss, onActivate }: MacOsBudgetBannerStackProps) {
+/** Banners estilo macOS (canto superior direito) — tema do app, limpar tudo e minimizar (genie). */
+export function MacOsBudgetBannerStack({
+  items,
+  theme,
+  onDismiss,
+  onDismissAll,
+  onActivate,
+}: MacOsBudgetBannerStackProps) {
+  const cardElsRef = useRef<Map<string, HTMLDivElement>>(new Map());
+  const [minimizing, setMinimizing] = useState(false);
+  const [genieHiddenIds, setGenieHiddenIds] = useState<Set<string>>(() => new Set());
+
+  const setCardRef = useCallback((id: string, el: HTMLDivElement | null) => {
+    if (el) cardElsRef.current.set(id, el);
+    else cardElsRef.current.delete(id);
+  }, []);
+
+  useEffect(() => {
+    // Novos itens cancelam estado residual de genie.
+    setGenieHiddenIds(new Set());
+    setMinimizing(false);
+  }, [items.length > 0 ? items[0]?.id : '']);
+
   if (typeof document === 'undefined') return null;
-  const visible = items.slice(0, MAX_STACK);
+  const visible = items.slice(0, MAX_VISIBLE);
   if (visible.length === 0) return null;
+
+  const isDark = theme === 'dark';
+  const toolbarShell = isDark
+    ? 'border-white/12 bg-zinc-900/80 text-zinc-200'
+    : 'border-black/8 bg-white/85 text-zinc-700';
+  const toolbarBtn = isDark
+    ? 'hover:bg-white/10 text-zinc-200'
+    : 'hover:bg-black/[0.06] text-zinc-700';
+
+  const handleClearAll = () => {
+    if (minimizing) return;
+    onDismissAll();
+  };
+
+  const handleMinimize = async () => {
+    if (minimizing || visible.length === 0) return;
+    setMinimizing(true);
+    const target = findDesktopOrcamentosNavTarget();
+    const sources = visible
+      .map((item) => cardElsRef.current.get(item.id))
+      .filter((el): el is HTMLDivElement => Boolean(el));
+
+    // Inicia o genie (clones + rects síncronos) antes de ocultar os cards originais.
+    const animPromise =
+      target && sources.length > 0
+        ? playMacGenieMinimize({ sources, target, durationMs: 860, staggerMs: 42 })
+        : new Promise<void>((r) => window.setTimeout(r, 180));
+
+    setGenieHiddenIds(new Set(visible.map((v) => v.id)));
+
+    try {
+      await animPromise;
+    } finally {
+      onDismissAll();
+      setMinimizing(false);
+      setGenieHiddenIds(new Set());
+    }
+  };
 
   return createPortal(
     <div
-      className="pointer-events-none fixed right-3 top-[max(0.75rem,env(safe-area-inset-top))] z-[100050] flex max-h-[calc(100dvh-1.5rem)] w-[min(380px,calc(100vw-1.5rem))] flex-col gap-2.5 overflow-y-auto overscroll-contain sm:right-5 sm:top-4"
+      className={`${isDark ? 'dark' : 'light'} pointer-events-none fixed right-3 top-[max(0.75rem,env(safe-area-inset-top))] z-[100050] flex max-h-[calc(100dvh-1.5rem)] w-[min(380px,calc(100vw-1.5rem))] origin-top-right scale-[0.85] flex-col gap-2 overflow-y-auto overscroll-contain sm:right-5 sm:top-4`}
       aria-live="polite"
+      data-budget-banner-theme={theme}
     >
+      <div className="pointer-events-auto sticky top-0 z-10 flex justify-end gap-1.5 pb-0.5">
+        <button
+          type="button"
+          disabled={minimizing}
+          onClick={() => void handleMinimize()}
+          className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold backdrop-blur-xl transition disabled:opacity-50 ${toolbarShell} ${toolbarBtn}`}
+          style={{ WebkitBackdropFilter: 'blur(20px)' }}
+        >
+          <Minus className="h-3 w-3" strokeWidth={2.5} aria-hidden />
+          Minimizar
+        </button>
+        <button
+          type="button"
+          disabled={minimizing}
+          onClick={handleClearAll}
+          className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold backdrop-blur-xl transition disabled:opacity-50 ${toolbarShell} ${toolbarBtn}`}
+          style={{ WebkitBackdropFilter: 'blur(20px)' }}
+        >
+          <Trash2 className="h-3 w-3" strokeWidth={2.25} aria-hidden />
+          Limpar Tudo
+        </button>
+      </div>
+
       {visible.map((item) => (
-        <BannerCard key={item.id} item={item} onDismiss={onDismiss} onActivate={onActivate} />
+        <BannerCard
+          key={item.id}
+          item={item}
+          theme={theme}
+          onDismiss={onDismiss}
+          onActivate={onActivate}
+          cardRef={(el) => setCardRef(item.id, el)}
+          hiddenForGenie={genieHiddenIds.has(item.id)}
+        />
       ))}
     </div>,
     document.body

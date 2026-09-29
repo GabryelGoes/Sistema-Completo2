@@ -1113,11 +1113,19 @@ export interface ServiceOrderUpdateActor {
   actor?: "admin" | "technician";
   actorTechnicianSlug?: string;
   actorTechnicianName?: string;
+  /** Nome exibido do ator (admin ou técnico) — usado em banners/notificações. */
+  actorDisplayName?: string;
 }
 
 function mergeActorIntoBody<T extends Record<string, unknown>>(body: T, options?: ServiceOrderUpdateActor): T {
   if (!options?.actor) return body;
-  return { ...body, actor: options.actor, actorTechnicianSlug: options.actorTechnicianSlug, actorTechnicianName: options.actorTechnicianName };
+  return {
+    ...body,
+    actor: options.actor,
+    actorTechnicianSlug: options.actorTechnicianSlug,
+    actorTechnicianName: options.actorTechnicianName,
+    actorDisplayName: options.actorDisplayName,
+  };
 }
 
 export async function updateServiceOrderStatus(
@@ -2522,6 +2530,10 @@ export interface PatioVehicleBudgetAggregateItem {
   isVerified: boolean;
   verifiedAt: string | null;
   verifiedByName: string | null;
+  /** Último ator conhecido (criação/edição) — banners do hub. */
+  lastActorName?: string | null;
+  lastActorPhotoUrl?: string | null;
+  verifiedByPhotoUrl?: string | null;
 }
 
 export async function getPatioVehicleBudgetsAggregate(): Promise<PatioVehicleBudgetAggregateItem[]> {

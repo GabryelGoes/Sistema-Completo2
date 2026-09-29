@@ -177,6 +177,7 @@ export function DesktopAppShell({
                 <button
                   key={`tab-${item.id}`}
                   type="button"
+                  data-desktop-nav-id={item.id}
                   className={`desktop-shell-nav-item${active ? ' desktop-shell-nav-item--active' : ''}`}
                   onClick={() => onTabChange(item.id)}
                   aria-current={active ? 'page' : undefined}
@@ -184,9 +185,15 @@ export function DesktopAppShell({
                 >
                   <NavIcon item={item} />
                   <span className="desktop-shell-nav-label min-w-0 truncate">{item.label}</span>
-                  {item.id === 'orcamentos' && orcamentosBadge > 0 ? (
-                    <span className="desktop-shell-nav-badge ml-auto rounded-full bg-red-500 px-1.5 py-0.5 text-[9px] font-bold text-white tabular-nums">
-                      {orcamentosBadge > 99 ? '99+' : orcamentosBadge}
+                  {item.id === 'orcamentos' ? (
+                    <span
+                      data-desktop-nav-badge="orcamentos"
+                      className={`desktop-shell-nav-badge ml-auto rounded-full bg-red-500 px-1.5 py-0.5 text-[9px] font-bold text-white tabular-nums ${
+                        orcamentosBadge > 0 ? '' : 'invisible min-w-[1.1rem] px-0 opacity-0'
+                      }`}
+                      aria-hidden={orcamentosBadge <= 0}
+                    >
+                      {orcamentosBadge > 99 ? '99+' : orcamentosBadge > 0 ? orcamentosBadge : '0'}
                     </span>
                   ) : null}
                 </button>
