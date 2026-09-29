@@ -121,9 +121,10 @@ export function MacOsNotificationCard({
     setPhotoFailed(false);
   }, [photoUrl]);
 
-  // Vidro macOS: sombra no wrapper (drop-shadow segue o raio).
-  // backdrop-filter fica só no shell interno com overflow+radius — evita “pontas” quadradas.
-  const glassBg = isDark ? 'border-white/[0.14] bg-zinc-900/88 text-white' : 'border-white/40 bg-white/78 text-zinc-900';
+  // Vidro macOS opaco o bastante para ler o texto; clip por overflow+radius (sem mask).
+  const glassBg = isDark
+    ? 'border-white/[0.12] bg-zinc-900/95 text-white'
+    : 'border-black/[0.06] bg-white/95 text-zinc-900';
   const dropShadow = isDark
     ? 'drop-shadow-[0_1px_1px_rgba(0,0,0,0.18)] drop-shadow-[0_8px_28px_rgba(0,0,0,0.32)]'
     : 'drop-shadow-[0_1px_1px_rgba(0,0,0,0.04)] drop-shadow-[0_8px_28px_rgba(0,0,0,0.10)]';
@@ -161,10 +162,10 @@ export function MacOsNotificationCard({
           onActivate ? 'cursor-pointer' : ''
         }`}
         style={{
-          WebkitBackdropFilter: 'blur(28px)',
-          // Clip sólido: força backdrop-filter a respeitar o border-radius (sem pontas).
-          WebkitMaskImage: 'linear-gradient(#fff 0 0)',
-          maskImage: 'linear-gradient(#fff 0 0)',
+          WebkitBackdropFilter: 'blur(40px) saturate(180%)',
+          backdropFilter: 'blur(40px) saturate(180%)',
+          // Ajuda o Chromium a clipar o blur no raio, sem mask (mask deixava o card “oco”).
+          transform: 'translateZ(0)',
         }}
       >
         <div
