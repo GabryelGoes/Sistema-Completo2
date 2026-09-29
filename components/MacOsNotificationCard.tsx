@@ -121,21 +121,17 @@ export function MacOsNotificationCard({
     setPhotoFailed(false);
   }, [photoUrl]);
 
-  // Sombra em camadas: no claro, só tintas bem transparentes (halo macOS).
+  // Acabamento estilo notificação macOS: vidro + borda neutra + sombra difusa.
+  // Sem ring/outline azul; sem hairline 0.5px (evita “segundo contorno”).
   const shell = isDark
-    ? 'border-white/[0.08] bg-zinc-900/92 text-white shadow-[0_0_0_0.5px_rgba(255,255,255,0.06),0_1px_2px_rgba(0,0,0,0.18),0_4px_10px_rgba(0,0,0,0.16),0_12px_28px_rgba(0,0,0,0.22),0_28px_56px_rgba(0,0,0,0.18)]'
-    : 'border-black/[0.03] bg-white/90 text-zinc-900 shadow-[0_0_0_0.5px_rgba(0,0,0,0.02),0_2px_6px_rgba(0,0,0,0.025),0_8px_20px_rgba(0,0,0,0.035),0_18px_40px_rgba(0,0,0,0.04)]';
+    ? 'border-white/[0.14] bg-zinc-900/88 text-white shadow-[0_1px_2px_rgba(0,0,0,0.12),0_8px_30px_rgba(0,0,0,0.28)]'
+    : 'border-white/40 bg-white/78 text-zinc-900 shadow-[0_1px_2px_rgba(0,0,0,0.03),0_8px_30px_rgba(0,0,0,0.08)]';
   const meta = isDark ? 'text-zinc-400' : 'text-zinc-500';
   const titleCls = isDark ? 'text-white' : 'text-zinc-900';
   const bodyCls = isDark ? 'text-zinc-300' : 'text-zinc-600';
   const closeBtn = isDark
     ? 'bg-white/[0.12] text-zinc-200 hover:bg-white/20 hover:text-white'
     : 'bg-black/[0.06] text-zinc-600 hover:bg-black/10 hover:text-zinc-900';
-  const unreadRing = model.unread
-    ? isDark
-      ? 'ring-2 ring-[#0A84FF]/55'
-      : 'ring-2 ring-[#007AFF]/35'
-    : '';
 
   return (
     <div
@@ -160,7 +156,7 @@ export function MacOsNotificationCard({
             onActivate();
           }
         }}
-        className={`group overflow-hidden rounded-[18px] border backdrop-blur-2xl ${shell} ${unreadRing} ${
+        className={`group overflow-hidden rounded-[18px] border backdrop-blur-2xl outline-none ring-0 focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 ${shell} ${
           onActivate ? 'cursor-pointer' : ''
         }`}
         style={{ WebkitBackdropFilter: 'blur(28px)' }}
