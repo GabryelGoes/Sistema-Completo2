@@ -260,13 +260,18 @@ export const HomeView: React.FC<HomeViewProps> = ({
     setIsSystemNotificationsOpen(false);
   }, []);
 
+  const settingsCloseInstantRef = useRef(false);
+
   const setSettingsHubOpen = useCallback(
     (open: boolean) => {
       if (!open) {
         closeAllSettingsChildModals();
         const launch = getHomeLaunchSession();
         if (launch?.target.kind === 'overlay' && launch.target.overlayId === 'settings_hub') {
-          requestHomeLaunchClose(() => onSettingsHubOpenChange?.(false));
+          requestHomeLaunchClose(() => {
+            settingsCloseInstantRef.current = true;
+            onSettingsHubOpenChange?.(false);
+          });
           return;
         }
         onSettingsHubOpenChange?.(false);
@@ -284,13 +289,22 @@ export const HomeView: React.FC<HomeViewProps> = ({
   }, [closeAllSettingsChildModals, onSettingsHubOpenChange]);
 
   const isHomeSettingsHubOpen = settingsHubOpenProp;
-  const settingsHubPresence = useModalExitPresence(isHomeSettingsHubOpen, 0);
+  const settingsHubPresence = useModalExitPresence(
+    isHomeSettingsHubOpen,
+    settingsCloseInstantRef.current ? 0 : undefined
+  );
   const armHomeLaunch = useArmHomeLaunch();
   const homeLaunchSession = useHomeLaunchSession();
   const settingsLaunch = useHomeLaunchSurface(
     { kind: 'overlay', overlayId: 'settings_hub' },
     settingsHubPresence.mounted || isHomeSettingsHubOpen
   );
+
+  useEffect(() => {
+    if (!settingsHubPresence.mounted) {
+      settingsCloseInstantRef.current = false;
+    }
+  }, [settingsHubPresence.mounted]);
 
   useEffect(() => {
     if (!settingsHubOpenerRef) return;
@@ -1047,7 +1061,14 @@ export const HomeView: React.FC<HomeViewProps> = ({
             ref={settingsLaunch.surfaceRef}
             data-home-hub-overlay=""
             data-home-launch-surface="settings_hub"
-            className={`${desktopShell ? desktopShellViewportOverlayClass(true) : 'fixed inset-0 z-[110]'} flex min-h-0 flex-col overflow-hidden bg-light-page dark:bg-black home-launch-surface`}
+            className={`${desktopShell ? desktopShellViewportOverlayClass(true) : 'fixed inset-0 z-[110]'} flex min-h-0 flex-col overflow-hidden bg-light-page dark:bg-black ${
+              homeLaunchSession?.target.kind === 'overlay' &&
+              homeLaunchSession.target.overlayId === 'settings_hub'
+                ? 'home-launch-surface'
+                : settingsHubPresence.exiting
+                  ? 'animate-home-hub-out'
+                  : 'animate-home-hub-in'
+            }`}
             role="dialog"
             aria-modal="true"
             aria-label="Configurações"
