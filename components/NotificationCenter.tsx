@@ -25,7 +25,13 @@ import {
   budgetBannerToCardModel,
   type MacOsBudgetBannerItem,
 } from './MacOsBudgetBannerStack';
-import { findDesktopNotificationsBellTarget, playMacGenieMinimize } from '../utils/macGenieMinimize';
+import { findDesktopNotificationsBellTarget } from '../utils/macGenieMinimize';
+import {
+  GenieNotificationDismiss,
+  genieOriginFromElement,
+  genieOriginFromSelector,
+  type GenieOrigin,
+} from '../utils/GenieNotificationDismiss';
 
 /** Primeiro nome do cliente a partir do nome completo. */
 function getFirstName(fullName: string | null | undefined): string | null {
@@ -244,6 +250,10 @@ export interface NotificationCenterProps {
   onMinimizedBudgetActivate?: (item: MacOsBudgetBannerItem) => void;
   onMinimizedBudgetDismiss?: (id: string) => void;
   onMinimizedBudgetClearAll?: () => void;
+  /**
+   * Destino do efeito Genie ao fechar um item (padrão: sino do cabeçalho).
+   */
+  genieOrigin?: GenieOrigin;
 }
 
 export const NotificationCenter: React.FC<NotificationCenterProps> = ({
@@ -258,6 +268,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
   onMinimizedBudgetActivate,
   onMinimizedBudgetDismiss,
   onMinimizedBudgetClearAll,
+  genieOrigin: genieOriginProp,
 }) => {
   const isDesktopTopbar = placement === 'desktopTopbar';
   const isDark = theme === 'dark';
@@ -488,20 +499,23 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
   }, []);
 
   const runGenieToBell = useCallback(async (sources: HTMLElement[]) => {
-    const target = findDesktopNotificationsBellTarget() ?? triggerRef.current;
-    if (target && sources.length > 0) {
-      await playMacGenieMinimize({
-        sources,
-        target,
-        durationMs: 920,
-        staggerMs: 40,
-        stripCount: 30,
-        leaveSourcesHidden: true,
-      });
+    const bell = findDesktopNotificationsBellTarget() ?? triggerRef.current;
+    const origin =
+      genieOriginProp ??
+      genieOriginFromElement(bell) ??
+      genieOriginFromSelector('[data-desktop-notif-bell]');
+    if (sources.length === 0) {
+      await new Promise<void>((r) => window.setTimeout(r, 100));
       return;
     }
-    await new Promise<void>((r) => window.setTimeout(r, 120));
-  }, []);
+    await GenieNotificationDismiss({
+      source: sources[0],
+      genieOrigin: origin,
+      durationMs: 500,
+      stripCount: 40,
+      leaveSourceHidden: true,
+    });
+  }, [genieOriginProp]);
 
   const dismissWithGenie = useCallback(
     async (id: string, after: () => void) => {

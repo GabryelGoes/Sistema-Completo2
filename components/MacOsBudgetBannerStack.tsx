@@ -1,7 +1,14 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Minus, Trash2 } from 'lucide-react';
-import { findDesktopNotificationsBellTarget, playMacGenieMinimize } from '../utils/macGenieMinimize';
+import { findDesktopNotificationsBellTarget } from '../utils/macGenieMinimize';
+import {
+  GenieNotificationDismiss,
+  GenieNotificationDismissMany,
+  genieOriginFromElement,
+  genieOriginFromSelector,
+  type GenieOrigin,
+} from '../utils/GenieNotificationDismiss';
 import {
   MacOsNotificationCard,
   type MacOsNotificationCardModel,
@@ -129,6 +136,11 @@ export type MacOsBudgetBannerStackProps = {
   /** Após animação genie: move para a central de notificações. */
   onMinimize: (items: MacOsBudgetBannerItem[]) => void;
   onActivate: (item: MacOsBudgetBannerItem) => void;
+  /**
+   * Destino do efeito Genie (ícone do sino, ponto, seletor…).
+   * Se omitido, usa o sino do cabeçalho PC.
+   */
+  genieOrigin?: GenieOrigin;
 };
 
 /** Banners estilo macOS (canto superior direito) — tema do app, limpar tudo e minimizar (genie → sino). */
@@ -139,6 +151,7 @@ export function MacOsBudgetBannerStack({
   onDismissAll,
   onMinimize,
   onActivate,
+  genieOrigin: genieOriginProp,
 }: MacOsBudgetBannerStackProps) {
   const cardElsRef = useRef<Map<string, HTMLDivElement>>(new Map());
   const [minimizing, setMinimizing] = useState(false);
@@ -172,20 +185,25 @@ export function MacOsBudgetBannerStack({
     onDismissAll();
   };
 
+  const resolveBellOrigin = (): GenieOrigin => {
+    if (genieOriginProp) return genieOriginProp;
+    const bell = findDesktopNotificationsBellTarget();
+    return genieOriginFromElement(bell) ?? genieOriginFromSelector('[data-desktop-notif-bell]');
+  };
+
   const runGenieToBell = async (sources: HTMLElement[]) => {
-    const target = findDesktopNotificationsBellTarget();
-    if (target && sources.length > 0) {
-      await playMacGenieMinimize({
-        sources,
-        target,
-        durationMs: 1040,
-        staggerMs: 55,
-        stripCount: 34,
-        leaveSourcesHidden: true,
-      });
+    if (sources.length === 0) {
+      await new Promise<void>((r) => window.setTimeout(r, 120));
       return;
     }
-    await new Promise<void>((r) => window.setTimeout(r, 160));
+    await GenieNotificationDismissMany({
+      sources,
+      genieOrigin: resolveBellOrigin(),
+      durationMs: 540,
+      staggerMs: 52,
+      stripCount: 42,
+      leaveSourcesHidden: true,
+    });
   };
 
   const handleDismissOne = async (item: MacOsBudgetBannerItem, el: HTMLDivElement | null) => {
@@ -194,7 +212,13 @@ export function MacOsBudgetBannerStack({
     const source = el ?? cardElsRef.current.get(item.id) ?? null;
     try {
       if (source) {
-        await runGenieToBell([source]);
+        await GenieNotificationDismiss({
+          source,
+          genieOrigin: resolveBellOrigin(),
+          durationMs: 520,
+          stripCount: 42,
+          leaveSourceHidden: true,
+        });
       }
     } finally {
       onDismiss(item.id);
