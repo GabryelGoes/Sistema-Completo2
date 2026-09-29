@@ -102,18 +102,20 @@ function BannerCard({
   };
 
   return (
-    <MacOsNotificationCard
-      model={budgetBannerToCardModel(item)}
-      theme={theme}
-      cardRef={cardRef}
-      hidden={hiddenForGenie}
-      leaving={leaving}
-      onActivate={() => {
-        if (hiddenForGenie || leaving) return;
-        onActivate(item);
-      }}
-      onDismiss={beginLeave}
-    />
+    <div className="pointer-events-auto w-full">
+      <MacOsNotificationCard
+        model={budgetBannerToCardModel(item)}
+        theme={theme}
+        cardRef={cardRef}
+        hidden={hiddenForGenie}
+        leaving={leaving}
+        onActivate={() => {
+          if (hiddenForGenie || leaving) return;
+          onActivate(item);
+        }}
+        onDismiss={beginLeave}
+      />
+    </div>
   );
 }
 
