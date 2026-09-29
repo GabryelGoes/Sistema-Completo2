@@ -121,11 +121,12 @@ export function MacOsNotificationCard({
     setPhotoFailed(false);
   }, [photoUrl]);
 
-  // Acabamento estilo notificação macOS: vidro + borda neutra + sombra difusa.
-  // Sem ring/outline azul; sem hairline 0.5px (evita “segundo contorno”).
-  const shell = isDark
-    ? 'border-white/[0.14] bg-zinc-900/88 text-white shadow-[0_1px_2px_rgba(0,0,0,0.12),0_8px_30px_rgba(0,0,0,0.28)]'
-    : 'border-white/40 bg-white/78 text-zinc-900 shadow-[0_1px_2px_rgba(0,0,0,0.03),0_8px_30px_rgba(0,0,0,0.08)]';
+  // Vidro macOS: sombra no wrapper (drop-shadow segue o raio).
+  // backdrop-filter fica só no shell interno com overflow+radius — evita “pontas” quadradas.
+  const glassBg = isDark ? 'border-white/[0.14] bg-zinc-900/88 text-white' : 'border-white/40 bg-white/78 text-zinc-900';
+  const dropShadow = isDark
+    ? 'drop-shadow-[0_1px_1px_rgba(0,0,0,0.18)] drop-shadow-[0_8px_28px_rgba(0,0,0,0.32)]'
+    : 'drop-shadow-[0_1px_1px_rgba(0,0,0,0.04)] drop-shadow-[0_8px_28px_rgba(0,0,0,0.10)]';
   const meta = isDark ? 'text-zinc-400' : 'text-zinc-500';
   const titleCls = isDark ? 'text-white' : 'text-zinc-900';
   const bodyCls = isDark ? 'text-zinc-300' : 'text-zinc-600';
@@ -136,7 +137,7 @@ export function MacOsNotificationCard({
   return (
     <div
       ref={cardRef}
-      className={`relative w-full transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+      className={`relative w-full rounded-[18px] ${dropShadow} transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
         leaving ? 'translate-x-[110%] opacity-0' : 'translate-x-0 opacity-100'
       } ${hidden || busy ? 'pointer-events-none' : ''} ${hidden ? 'opacity-0' : ''}`}
       aria-hidden={hidden || undefined}
@@ -156,10 +157,15 @@ export function MacOsNotificationCard({
             onActivate();
           }
         }}
-        className={`group overflow-hidden rounded-[18px] border backdrop-blur-2xl outline-none ring-0 focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 ${shell} ${
+        className={`group relative isolate overflow-hidden rounded-[18px] border backdrop-blur-2xl outline-none ring-0 focus:outline-none focus:ring-0 focus-visible:outline-none focus-visible:ring-0 ${glassBg} ${
           onActivate ? 'cursor-pointer' : ''
         }`}
-        style={{ WebkitBackdropFilter: 'blur(28px)' }}
+        style={{
+          WebkitBackdropFilter: 'blur(28px)',
+          // Clip sólido: força backdrop-filter a respeitar o border-radius (sem pontas).
+          WebkitMaskImage: 'linear-gradient(#fff 0 0)',
+          maskImage: 'linear-gradient(#fff 0 0)',
+        }}
       >
         <div
           className={`flex items-start gap-3 ${compact ? 'px-3 py-2.5' : 'px-3.5 py-3'} ${
@@ -218,33 +224,33 @@ export function MacOsNotificationCard({
             ) : null}
           </div>
         </div>
-      </div>
 
-      {onDismiss ? (
-        <button
-          type="button"
-          aria-label="Fechar notificação"
-          className={`absolute right-1.5 top-1.5 z-30 flex h-8 w-8 items-center justify-center rounded-full shadow-sm ring-1 transition ${closeBtn} ${
-            isDark ? 'ring-white/10' : 'ring-black/5'
-          }`}
-          onPointerDown={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-          }}
-          onMouseDown={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-          }}
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            if (hidden || leaving || busy) return;
-            onDismiss();
-          }}
-        >
-          <X className="h-3.5 w-3.5" strokeWidth={2.5} />
-        </button>
-      ) : null}
+        {onDismiss ? (
+          <button
+            type="button"
+            aria-label="Fechar notificação"
+            className={`absolute right-1.5 top-1.5 z-30 flex h-8 w-8 items-center justify-center rounded-full shadow-sm ring-1 transition ${closeBtn} ${
+              isDark ? 'ring-white/10' : 'ring-black/5'
+            }`}
+            onPointerDown={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+            }}
+            onMouseDown={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+            }}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              if (hidden || leaving || busy) return;
+              onDismiss();
+            }}
+          >
+            <X className="h-3.5 w-3.5" strokeWidth={2.5} />
+          </button>
+        ) : null}
+      </div>
     </div>
   );
 }
