@@ -149,7 +149,7 @@ export function MacOsNotificationCard({
           onActivate();
         }
       }}
-      className={`group relative w-full overflow-hidden rounded-[18px] border backdrop-blur-2xl transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${shell} ${unreadRing} ${
+      className={`group pointer-events-auto relative w-full overflow-hidden rounded-[18px] border backdrop-blur-2xl transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${shell} ${unreadRing} ${
         onActivate ? 'cursor-pointer' : ''
       } ${leaving ? 'translate-x-[110%] opacity-0' : 'translate-x-0 opacity-100'} ${
         hidden ? 'pointer-events-none opacity-0' : ''
@@ -212,8 +212,13 @@ export function MacOsNotificationCard({
         <button
           type="button"
           aria-label="Fechar notificação"
-          className={`absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full transition ${closeBtn}`}
+          className={`absolute right-2 top-2 z-20 flex h-7 w-7 items-center justify-center rounded-full transition ${closeBtn}`}
+          onPointerDown={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+          }}
           onClick={(e) => {
+            e.preventDefault();
             e.stopPropagation();
             onDismiss();
           }}
