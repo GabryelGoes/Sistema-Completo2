@@ -37,6 +37,11 @@ import { iosSquircleBackgroundFromHex } from '../ui/iosModalStyles';
 import { desktopHomeHubCard } from '../ui/desktopCardStyles';
 import { useModalExitPresence } from '../../hooks/useModalExitAnimation';
 import { useIosHomeAppReorder } from '../../hooks/useIosHomeAppReorder';
+import { requestHomeLaunchClose, useArmHomeLaunch, useHomeLaunchSession, useHomeLaunchSurface } from '../../hooks/useHomeAppLaunch';
+import {
+  getHomeLaunchSession,
+  HOME_LAUNCH_ICON_ATTR,
+} from '../../utils/homeAppLaunchTransition';
 
 /** Portal no body: evita TabBar (z-40) cobrir o hub dentro do `main` (z-10). */
 function SettingsHubShell({ children }: { children: React.ReactNode }) {
@@ -259,6 +264,13 @@ export const HomeView: React.FC<HomeViewProps> = ({
     (open: boolean) => {
       if (!open) {
         closeAllSettingsChildModals();
+        const launch = getHomeLaunchSession();
+        if (launch?.target.kind === 'overlay' && launch.target.overlayId === 'settings_hub') {
+          requestHomeLaunchClose(() => onSettingsHubOpenChange?.(false));
+          return;
+        }
+        onSettingsHubOpenChange?.(false);
+        return;
       }
       onSettingsHubOpenChange?.(open);
     },
@@ -272,7 +284,13 @@ export const HomeView: React.FC<HomeViewProps> = ({
   }, [closeAllSettingsChildModals, onSettingsHubOpenChange]);
 
   const isHomeSettingsHubOpen = settingsHubOpenProp;
-  const settingsHubPresence = useModalExitPresence(isHomeSettingsHubOpen);
+  const settingsHubPresence = useModalExitPresence(isHomeSettingsHubOpen, 0);
+  const armHomeLaunch = useArmHomeLaunch();
+  const homeLaunchSession = useHomeLaunchSession();
+  const settingsLaunch = useHomeLaunchSurface(
+    { kind: 'overlay', overlayId: 'settings_hub' },
+    settingsHubPresence.mounted || isHomeSettingsHubOpen
+  );
 
   useEffect(() => {
     if (!settingsHubOpenerRef) return;
@@ -639,19 +657,32 @@ export const HomeView: React.FC<HomeViewProps> = ({
     } catch (_) {}
   }, [quickLayout]);
 
+  const resolveLaunchTarget = useCallback((id: QuickTileId) => {
+    if (id === 'settings_hub') return { kind: 'overlay' as const, overlayId: 'settings_hub' };
+    if (id === 'parts_stock') return { kind: 'overlay' as const, overlayId: 'parts_stock' };
+    if (id === 'tv_patio') return { kind: 'overlay' as const, overlayId: 'tv_patio' };
+    return { kind: 'tab' as const, tabId: id };
+  }, []);
+
   const handleQuickActivate = useCallback(
     (id: QuickTileId) => {
       const tile = operationalById[id];
       if (!tile) return;
+      const iconEl =
+        typeof document !== 'undefined'
+          ? document.querySelector(`[${HOME_LAUNCH_ICON_ATTR}="${CSS.escape(id)}"]`)
+          : null;
+      armHomeLaunch(id, resolveLaunchTarget(id), iconEl);
       if (launchTimerRef.current) clearTimeout(launchTimerRef.current);
       setLaunchingQuickId(id);
+      // Abre quase na hora — o FLIP precisa do destination montado cedo.
       launchTimerRef.current = setTimeout(() => {
         launchTimerRef.current = null;
         setLaunchingQuickId(null);
-        openHomeHubSafely(() => tile.onOpen());
-      }, 180);
+        openHomeHubSafely(() => tile.onOpen(), { openDelayMs: 32, guardMs: 700 });
+      }, 70);
     },
-    [operationalById]
+    [armHomeLaunch, operationalById, resolveLaunchTarget]
   );
 
   const handleQuickReorder = useCallback((nextVisibleOrder: QuickTileId[]) => {
@@ -947,14 +978,22 @@ export const HomeView: React.FC<HomeViewProps> = ({
                       {/* pointer-events-none: toque registra no <button> inteiro (cartão + squircle), evita área morta em imagens/WebKit */}
                       <span className="pointer-events-none flex w-full flex-col items-center gap-3">
                         <span
-                          className={`relative inline-flex shrink-0 ${
+                          className={`relative inline-flex shrink-0 overflow-hidden rounded-[1.45rem] sm:rounded-[1.55rem] ${
                             isQuickEditMode && !isDragging ? 'home-tile-wiggle' : ''
-                          } ${isDragging ? 'home-tile-lift' : ''}`}
+                          } ${isDragging ? 'home-tile-lift' : ''} ${
+                            homeLaunchSession?.tileId === app.id &&
+                            (homeLaunchSession.phase === 'opening' ||
+                              homeLaunchSession.phase === 'open' ||
+                              homeLaunchSession.phase === 'closing')
+                              ? 'home-launch-icon-source'
+                              : ''
+                          }`}
                           style={
                             isQuickEditMode
                               ? { animationDelay: `var(--wiggle-delay, ${(tileIndex % 7) * 40}ms)` }
                               : undefined
                           }
+                          data-home-launch-icon={app.id}
                         >
                           <IosAccentIconSquircle
                             variant="tile"
@@ -1005,14 +1044,15 @@ export const HomeView: React.FC<HomeViewProps> = ({
       {settingsHubPresence.mounted ? (
         <SettingsHubShell>
           <div
+            ref={settingsLaunch.surfaceRef}
             data-home-hub-overlay=""
-            className={`${desktopShell ? desktopShellViewportOverlayClass(true) : 'fixed inset-0 z-[110]'} flex min-h-0 flex-col overflow-hidden bg-light-page dark:bg-black ${
-              settingsHubPresence.exiting ? 'animate-home-hub-out' : 'animate-home-hub-in'
-            }`}
+            data-home-launch-surface="settings_hub"
+            className={`${desktopShell ? desktopShellViewportOverlayClass(true) : 'fixed inset-0 z-[110]'} flex min-h-0 flex-col overflow-hidden bg-light-page dark:bg-black home-launch-surface`}
             role="dialog"
             aria-modal="true"
             aria-label="Configurações"
           >
+            <div ref={settingsLaunch.contentRef} className="flex min-h-0 min-w-0 flex-1 flex-col">
             <header className={`shrink-0 border-b border-zinc-200/80 bg-white shadow-[0_1px_0_0_rgba(255,255,255,0.55)_inset] dark:border-white/[0.08] dark:bg-zinc-950 dark:shadow-none ${desktopShell ? 'px-5 py-3' : 'px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))]'}`}>
               <div className="relative w-full">
                 {!desktopShell ? (
@@ -1318,6 +1358,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                   )}
               </div>
             </div>
+            </div>
       </div>
         </SettingsHubShell>
       ) : null}
@@ -1330,14 +1371,34 @@ export const HomeView: React.FC<HomeViewProps> = ({
           <LabProductTypesModal isOpen={isLabProductTypesOpen} onClose={() => setIsLabProductTypesOpen(false)} />
           <LabQuickServicesModal isOpen={isLabQuickServicesOpen} onClose={() => setIsLabQuickServicesOpen(false)} />
           {!onOpenPartsStock ? (
-            <WorkshopPartsModal isOpen={isPartsModalOpen} onClose={() => setIsPartsModalOpen(false)} />
+            <WorkshopPartsModal
+              isOpen={isPartsModalOpen}
+              onClose={() => {
+                const launch = getHomeLaunchSession();
+                if (launch?.target.kind === 'overlay' && launch.target.overlayId === 'parts_stock') {
+                  requestHomeLaunchClose(() => setIsPartsModalOpen(false));
+                  return;
+                }
+                setIsPartsModalOpen(false);
+              }}
+            />
           ) : null}
           <PatioChecklistsModal isOpen={isPatioChecklistsOpen} onClose={() => setIsPatioChecklistsOpen(false)} />
           <ChangePasswordsModal isOpen={isChangePasswordsOpen} onClose={() => setIsChangePasswordsOpen(false)} />
         </>
       )}
       {!onOpenTvPatio ? (
-        <TvPatioModal isOpen={isTvPatioOpen} onClose={() => setIsTvPatioOpen(false)} />
+        <TvPatioModal
+          isOpen={isTvPatioOpen}
+          onClose={() => {
+            const launch = getHomeLaunchSession();
+            if (launch?.target.kind === 'overlay' && launch.target.overlayId === 'tv_patio') {
+              requestHomeLaunchClose(() => setIsTvPatioOpen(false));
+              return;
+            }
+            setIsTvPatioOpen(false);
+          }}
+        />
       ) : null}
       {technicianId && (
         <TechnicianProfileModal

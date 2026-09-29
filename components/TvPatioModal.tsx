@@ -49,6 +49,7 @@ import { mapServiceOrdersToTvBoard, type TvBoardItem } from '../utils/tvBoardPre
 import { ModalPortal } from './ui/ModalPortal';
 import { IosAccentIconSquircle } from './ui/IosAccentIconSquircle';
 import { useDesktopShellLayout } from './ui/DesktopShellContext';
+import { useHomeLaunchSurface } from '../hooks/useHomeAppLaunch';
 import { SETTINGS_CHILD_MODAL_Z } from './ui/iosModalStyles';
 import { desktopShellViewportOverlayClass } from '../utils/desktopShellOverlay';
 import { isTvImageFile, isTvVideoFile, TV_VIDEO_ACCEPT } from '../utils/tvMediaFile';
@@ -332,6 +333,7 @@ interface TvPatioModalProps {
 
 export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) => {
   const isDesktopShell = useDesktopShellLayout();
+  const tvLaunch = useHomeLaunchSurface({ kind: 'overlay', overlayId: 'tv_patio' }, isOpen);
   const [tvScope, setTvScope] = useState<TvScope>('patio');
   const [dataReady, setDataReady] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -1245,10 +1247,13 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
   return (
     <ModalPortal manageBackLayer onRequestClose={onClose}>
       <div
-        className={`${desktopShellViewportOverlayClass(isDesktopShell, SETTINGS_CHILD_MODAL_Z)} flex min-h-0 w-full min-w-0 flex-1 flex-col items-stretch justify-stretch overflow-hidden bg-black/45 backdrop-blur-[20px]${
+        ref={tvLaunch.surfaceRef}
+        data-home-launch-surface="tv_patio"
+        className={`${desktopShellViewportOverlayClass(isDesktopShell, SETTINGS_CHILD_MODAL_Z)} flex min-h-0 w-full min-w-0 flex-1 flex-col items-stretch justify-stretch overflow-hidden bg-black/45 backdrop-blur-[20px] home-launch-surface${
           isDesktopShell ? '' : ' inset-0 h-[100dvh]'
         }`}
       >
+      <div ref={tvLaunch.contentRef} className="flex min-h-0 min-w-0 flex-1 flex-col">
       {chimeBanner && (
         <div
           className={`pointer-events-none z-[125] flex items-center justify-center bg-black/55 p-3 sm:p-6 ${
@@ -2772,6 +2777,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
             )}
           </div>
         </div>
+      </div>
       </div>
       </div>
     </ModalPortal>

@@ -39,6 +39,11 @@ import {
 } from './services/apiService';
 import type { ServiceOrderStatus } from './constants/serviceOrderStages';
 import { KeepAliveTabPanel } from './components/KeepAliveTabPanel';
+import { requestHomeLaunchClose } from './hooks/useHomeAppLaunch';
+import {
+  clearHomeLaunch,
+  getHomeLaunchSession,
+} from './utils/homeAppLaunchTransition';
 import { applyAccentToRoot, DEFAULT_ACCENT, moduleAccentColor } from './utils/appAppearance';
 import { setLabProductKinds } from './utils/moduleMetadata';
 import { setLabQuickServices } from './utils/labQuickServices';
@@ -158,6 +163,8 @@ export default function App() {
   const handleDesktopTabChange = useCallback(
     (tab: TabId, setTab: React.Dispatch<React.SetStateAction<TabId>>) => {
       dismissDesktopShellOverlays();
+      // Troca via sidebar/tab bar não herda origem do ícone da Home.
+      clearHomeLaunch();
       setTab(tab);
     },
     [dismissDesktopShellOverlays]
@@ -586,17 +593,32 @@ export default function App() {
   });
 
   const navigateToHomeApp = useCallback(() => {
-    if (isLimitedSystemUser) {
-      setUserTab('home');
-    } else {
-      setCurrentTab('home');
+    const doNav = () => {
+      if (isLimitedSystemUser) {
+        setUserTab('home');
+      } else {
+        setCurrentTab('home');
+      }
+    };
+    const launch = getHomeLaunchSession();
+    if (
+      launch &&
+      launch.target.kind === 'tab' &&
+      launch.target.tabId === activeAppTab &&
+      (launch.phase === 'open' || launch.phase === 'opening')
+    ) {
+      requestHomeLaunchClose(doNav);
+      return;
     }
-  }, [isLimitedSystemUser]);
+    clearHomeLaunch();
+    doNav();
+  }, [isLimitedSystemUser, activeAppTab]);
 
   const handleOverlayCloseOrBack = useCallback(() => {
     if (returnTabAfterReception === 'patio' || returnTabAfterReception === 'laboratorio') {
       const target = returnTabAfterReception;
       setReturnTabAfterReception(null);
+      clearHomeLaunch();
       if (isLimitedSystemUser) {
         if (userAllowedTabs.includes(target)) setUserTab(target);
         else setUserTab('home');
@@ -607,6 +629,7 @@ export default function App() {
     }
     if (returnTabAfterReception === 'agenda') {
       setReturnTabAfterReception(null);
+      clearHomeLaunch();
       if (agendaIntakeSourceAppointmentId) {
         setAgendaPendingDetailAppointmentId(agendaIntakeSourceAppointmentId);
       }
@@ -618,9 +641,14 @@ export default function App() {
       }
       return;
     }
-    if (isLimitedSystemUser) setUserTab('home');
-    else setCurrentTab('home');
-  }, [returnTabAfterReception, agendaIntakeSourceAppointmentId, isLimitedSystemUser, userAllowedTabs]);
+    navigateToHomeApp();
+  }, [
+    returnTabAfterReception,
+    agendaIntakeSourceAppointmentId,
+    isLimitedSystemUser,
+    userAllowedTabs,
+    navigateToHomeApp,
+  ]);
 
   const handleReceptionIntakeSuccess = useCallback(
     async (orderType: 'vehicle' | 'module') => {
@@ -938,13 +966,32 @@ export default function App() {
   // Inventário / TVs: ESC via ModalPortal.onRequestClose (evita pilha duplicada).
 
   const closePartsModalToHome = useCallback(() => {
-    setIsPartsModalOpen(false);
-    setPartsBootIntent(null);
-    navigateToHomeApp();
-  }, [navigateToHomeApp]);
+    const finish = () => {
+      setIsPartsModalOpen(false);
+      setPartsBootIntent(null);
+      clearHomeLaunch();
+      if (isLimitedSystemUser) setUserTab('home');
+      else setCurrentTab('home');
+    };
+    const launch = getHomeLaunchSession();
+    if (launch?.target.kind === 'overlay' && launch.target.overlayId === 'parts_stock') {
+      requestHomeLaunchClose(finish);
+      return;
+    }
+    finish();
+  }, [isLimitedSystemUser]);
 
   const closeTvPatioModal = useCallback(() => {
-    setIsTvPatioModalOpen(false);
+    const finish = () => {
+      clearHomeLaunch();
+      setIsTvPatioModalOpen(false);
+    };
+    const launch = getHomeLaunchSession();
+    if (launch?.target.kind === 'overlay' && launch.target.overlayId === 'tv_patio') {
+      requestHomeLaunchClose(finish);
+      return;
+    }
+    finish();
   }, []);
 
   useEffect(() => {

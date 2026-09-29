@@ -31,6 +31,7 @@ import { PartPhotoImg } from './ui/PartPhotoImg';
 import { RegistrationPortal } from './ui/RegistrationPortal';
 import { useBrowserBackLayer } from './ui/BackNavigationContext';
 import { useDesktopShellLayout } from './ui/DesktopShellContext';
+import { useHomeLaunchSurface } from '../hooks/useHomeAppLaunch';
 import {
   desktopShellPortaledChildOverlayClass,
   desktopShellViewportOverlayClass,
@@ -197,6 +198,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
   bootIntent = null,
   onBootIntentConsumed,
 }) => {
+  const partsLaunch = useHomeLaunchSurface({ kind: 'overlay', overlayId: 'parts_stock' }, isOpen);
   const [parts, setParts] = useState<WorkshopPart[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -1158,9 +1160,11 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
 
     <ModalPortal manageBackLayer onRequestClose={onClose}>
     <div
-      className={`${desktopShellViewportOverlayClass(isDesktopShell, SETTINGS_CHILD_MODAL_Z)} flex min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden bg-white dark:bg-zinc-950 p-0${isDesktopShell ? '' : ' h-[100dvh] max-h-[100dvh]'}`}
+      ref={partsLaunch.surfaceRef}
+      data-home-launch-surface="parts_stock"
+      className={`${desktopShellViewportOverlayClass(isDesktopShell, SETTINGS_CHILD_MODAL_Z)} flex min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden bg-white dark:bg-zinc-950 p-0 home-launch-surface${isDesktopShell ? '' : ' h-[100dvh] max-h-[100dvh]'}`}
     >
-      <div className="relative flex h-full min-h-0 w-full max-w-none flex-1 flex-col overflow-hidden bg-white dark:bg-zinc-950">
+      <div ref={partsLaunch.contentRef} className="relative flex h-full min-h-0 w-full max-w-none flex-1 flex-col overflow-hidden bg-white dark:bg-zinc-950">
         {!isDesktopShell ? (
           <button
             type="button"
