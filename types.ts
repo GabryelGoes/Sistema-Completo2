@@ -74,6 +74,19 @@ export interface BoardAction {
   data: {
     text: string;
     edited_at?: string | null; // Preenchido quando o comentário foi editado (exibe "editada")
+    author_key?: string | null;
+    views?: {
+      reader_key: string;
+      reader_display_name: string;
+      viewed_at: string;
+    }[];
+    reactions?: {
+      id: string;
+      reactor_key: string;
+      reactor_display_name: string;
+      emoji: string;
+      created_at: string;
+    }[];
   };
   type: string;
   date: string;

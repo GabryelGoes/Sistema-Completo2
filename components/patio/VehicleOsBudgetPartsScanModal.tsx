@@ -26,10 +26,39 @@ export type BudgetScanLine = {
   key: string;
   description: string;
   workshopPartId: string | null;
+  /** true quando a peça resolveu para o catálogo de estoque (bipável). */
+  fromStock: boolean;
   neededQty: number;
   budgetIds: string[];
   photoUrl: string | null;
 };
+
+function manualCheckedStorageKey(serviceOrderId: string): string {
+  return `budget-scan-manual-checked:${serviceOrderId}`;
+}
+
+function readManualChecked(serviceOrderId: string): Record<string, boolean> {
+  try {
+    const raw = localStorage.getItem(manualCheckedStorageKey(serviceOrderId));
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    const out: Record<string, boolean> = {};
+    for (const [k, v] of Object.entries(parsed)) {
+      if (v === true) out[k] = true;
+    }
+    return out;
+  } catch {
+    return {};
+  }
+}
+
+function writeManualChecked(serviceOrderId: string, value: Record<string, boolean>) {
+  try {
+    localStorage.setItem(manualCheckedStorageKey(serviceOrderId), JSON.stringify(value));
+  } catch {
+    /* ignore */
+  }
+}
 
 export type VehicleOsBudgetPartsScanModalProps = {
   isOpen: boolean;
@@ -88,8 +117,10 @@ export const VehicleOsBudgetPartsScanModal: React.FC<VehicleOsBudgetPartsScanMod
 }) => {
   const isDesktopShell = useDesktopShellLayout();
   const [loading, setLoading] = useState(true);
-  const [lines, setLines] = useState<BudgetScanLine[]>([]);
+  const [allLines, setAllLines] = useState<BudgetScanLine[]>([]);
+  const [includeAllApproved, setIncludeAllApproved] = useState(false);
   const [fulfilled, setFulfilled] = useState<Record<string, number>>({});
+  const [manualChecked, setManualChecked] = useState<Record<string, boolean>>({});
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hint, setHint] = useState<string | null>(null);
@@ -131,6 +162,7 @@ export const VehicleOsBudgetPartsScanModal: React.FC<VehicleOsBudgetPartsScanMod
             catalogPart = catalogByName.get(normalizeBudgetPartName(desc));
             if (catalogPart) partId = catalogPart.id;
           }
+          const fromStock = Boolean(partId && catalogPart);
           const key = partId ? `id:${partId}` : `name:${normalizeBudgetPartName(desc)}`;
           const qty = parseQty(p.quantity);
           const prev = map.get(key);
@@ -139,11 +171,13 @@ export const VehicleOsBudgetPartsScanModal: React.FC<VehicleOsBudgetPartsScanMod
             if (!prev.budgetIds.includes(b.id)) prev.budgetIds.push(b.id);
             if (!prev.photoUrl && catalogPart?.photo_url) prev.photoUrl = catalogPart.photo_url;
             if (!prev.workshopPartId && partId) prev.workshopPartId = partId;
+            if (fromStock) prev.fromStock = true;
           } else {
             map.set(key, {
               key,
               description: catalogPart?.name?.trim() || desc,
               workshopPartId: partId,
+              fromStock,
               neededQty: qty,
               budgetIds: [b.id],
               photoUrl: catalogPart?.photo_url ?? null,
@@ -151,7 +185,10 @@ export const VehicleOsBudgetPartsScanModal: React.FC<VehicleOsBudgetPartsScanMod
           }
         }
       }
-      setLines([...map.values()].sort((a, b) => a.description.localeCompare(b.description, 'pt-BR')));
+      setAllLines(
+        [...map.values()].sort((a, b) => a.description.localeCompare(b.description, 'pt-BR'))
+      );
+      setManualChecked(readManualChecked(serviceOrderId));
 
       const counts: Record<string, number> = {};
       for (const m of movements) {
@@ -165,7 +202,6 @@ export const VehicleOsBudgetPartsScanModal: React.FC<VehicleOsBudgetPartsScanMod
         } else if (nameKey && map.has(nameKey)) {
           counts[nameKey] = Math.round(((counts[nameKey] ?? 0) + qty) * 1000) / 1000;
         } else if (idKey) {
-          // Movimentação de peça do estoque que bate por id mesmo se a linha só tem nome
           for (const line of map.values()) {
             if (line.workshopPartId === m.part_id) {
               counts[line.key] = Math.round(((counts[line.key] ?? 0) + qty) * 1000) / 1000;
@@ -176,7 +212,7 @@ export const VehicleOsBudgetPartsScanModal: React.FC<VehicleOsBudgetPartsScanMod
       setFulfilled(counts);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Não foi possível carregar o orçamento.');
-      setLines([]);
+      setAllLines([]);
       setFulfilled({});
     } finally {
       setLoading(false);
@@ -185,28 +221,62 @@ export const VehicleOsBudgetPartsScanModal: React.FC<VehicleOsBudgetPartsScanMod
 
   useEffect(() => {
     if (!isOpen) return;
+    setIncludeAllApproved(false);
     void load();
   }, [isOpen, load]);
+
+  const lines = useMemo(
+    () => (includeAllApproved ? allLines : allLines.filter((l) => l.fromStock)),
+    [allLines, includeAllApproved]
+  );
+
+  const hasManualApproved = useMemo(
+    () => allLines.some((l) => !l.fromStock),
+    [allLines]
+  );
+
+  const lineDoneQty = useCallback(
+    (line: BudgetScanLine): number => {
+      if (!line.fromStock) {
+        return manualChecked[line.key] ? line.neededQty : 0;
+      }
+      return Math.min(fulfilled[line.key] ?? 0, line.neededQty);
+    },
+    [fulfilled, manualChecked]
+  );
 
   const stats = useMemo(() => {
     let needed = 0;
     let done = 0;
     for (const line of lines) {
       needed += line.neededQty;
-      done += Math.min(fulfilled[line.key] ?? 0, line.neededQty);
+      done += lineDoneQty(line);
     }
     return { needed, done, remaining: Math.max(0, needed - done) };
-  }, [lines, fulfilled]);
+  }, [lineDoneQty, lines]);
+
+  const toggleManualChecked = useCallback(
+    (key: string) => {
+      setManualChecked((prev) => {
+        const next = { ...prev, [key]: !prev[key] };
+        if (!next[key]) delete next[key];
+        writeManualChecked(serviceOrderId, next);
+        return next;
+      });
+    },
+    [serviceOrderId]
+  );
 
   const findMatchingLine = useCallback(
     (part: WorkshopPart): BudgetScanLine | null => {
-      const byId = lines.find((l) => l.workshopPartId === part.id);
+      const stockLines = lines.filter((l) => l.fromStock);
+      const byId = stockLines.find((l) => l.workshopPartId === part.id);
       if (byId) {
         const got = fulfilled[byId.key] ?? 0;
         if (got < byId.neededQty) return byId;
       }
       const nameKey = normalizeBudgetPartName(part.name);
-      const byName = lines.find(
+      const byName = stockLines.find(
         (l) =>
           (!l.workshopPartId || l.workshopPartId === part.id) &&
           normalizeBudgetPartName(l.description) === nameKey
@@ -215,7 +285,6 @@ export const VehicleOsBudgetPartsScanModal: React.FC<VehicleOsBudgetPartsScanMod
         const got = fulfilled[byName.key] ?? 0;
         if (got < byName.neededQty) return byName;
       }
-      // Já completo? ainda assim aponta a linha para feedback.
       return byId ?? byName ?? null;
     },
     [fulfilled, lines]
@@ -404,7 +473,8 @@ export const VehicleOsBudgetPartsScanModal: React.FC<VehicleOsBudgetPartsScanMod
           <div className="shrink-0 space-y-3 border-b border-zinc-200/70 bg-zinc-50/90 px-4 py-3 dark:border-white/[0.06] dark:bg-white/[0.03] sm:px-5">
             <div className="flex items-center justify-between gap-2 text-[12px] font-semibold tabular-nums text-zinc-700 dark:text-zinc-300">
               <span>
-                {formatWorkshopPartQty(stats.done)} / {formatWorkshopPartQty(stats.needed)} bipados
+                {formatWorkshopPartQty(stats.done)} / {formatWorkshopPartQty(stats.needed)}{' '}
+                {includeAllApproved ? 'conferidos' : 'bipados'}
               </span>
               <span className="text-emerald-700 dark:text-emerald-300">{progressPct}%</span>
             </div>
@@ -416,8 +486,9 @@ export const VehicleOsBudgetPartsScanModal: React.FC<VehicleOsBudgetPartsScanMod
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <p className="flex-1 text-[12px] leading-relaxed text-zinc-600 dark:text-zinc-400">
-                Passe o código no leitor USB
-                {showCameraButton ? ' ou use a câmera' : ''} — o item correspondente acende na lista.
+                {includeAllApproved
+                  ? 'Bipe peças do estoque; marque as demais como conferidas.'
+                  : `Passe o código no leitor USB${showCameraButton ? ' ou use a câmera' : ''} — só peças cadastradas no estoque.`}
               </p>
               {showCameraButton ? (
                 <button
@@ -431,6 +502,16 @@ export const VehicleOsBudgetPartsScanModal: React.FC<VehicleOsBudgetPartsScanMod
                 </button>
               ) : null}
             </div>
+            {!includeAllApproved && hasManualApproved ? (
+              <button
+                type="button"
+                onClick={() => setIncludeAllApproved(true)}
+                className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-[12px] font-semibold text-emerald-800 transition hover:bg-emerald-500/15 dark:text-emerald-200"
+              >
+                <ClipboardList className="h-3.5 w-3.5" strokeWidth={2.4} aria-hidden />
+                Incluir todas as peças aprovadas
+              </button>
+            ) : null}
             {busy ? (
               <div className="flex items-center gap-2 text-[13px] font-medium text-zinc-600 dark:text-zinc-300">
                 <Loader2 className="h-4 w-4 animate-spin text-[#007AFF]" />
@@ -459,20 +540,29 @@ export const VehicleOsBudgetPartsScanModal: React.FC<VehicleOsBudgetPartsScanMod
               <div className="flex flex-col items-center gap-3 rounded-2xl border border-dashed border-zinc-300/90 bg-zinc-50/80 px-4 py-10 text-center dark:border-white/10 dark:bg-white/[0.03]">
                 <ClipboardList className="h-8 w-8 text-zinc-400" strokeWidth={1.75} />
                 <p className="text-[14px] font-semibold text-zinc-800 dark:text-zinc-200">
-                  Nenhuma peça aprovada
+                  {includeAllApproved
+                    ? 'Nenhuma peça aprovada'
+                    : allLines.length > 0
+                      ? 'Nenhuma peça do estoque'
+                      : 'Nenhuma peça aprovada'}
                 </p>
                 <p className="max-w-xs text-[12px] leading-relaxed text-zinc-500 dark:text-zinc-400">
-                  Aprove itens de peça no orçamento desta OS para bipá-los aqui e dar baixa no estoque.
+                  {includeAllApproved
+                    ? 'Aprove itens de peça no orçamento desta OS para bipá-los aqui e dar baixa no estoque.'
+                    : allLines.length > 0
+                      ? 'Há peças aprovadas fora do estoque. Use “Incluir todas as peças aprovadas” para conferi-las.'
+                      : 'Aprove itens de peça no orçamento desta OS para bipá-los aqui e dar baixa no estoque.'}
                 </p>
               </div>
             ) : (
               <ul className="space-y-2.5">
                 {lines.map((line) => {
-                  const got = Math.min(fulfilled[line.key] ?? 0, line.neededQty);
+                  const got = lineDoneQty(line);
                   const pct = line.neededQty > 0 ? Math.min(100, (got / line.neededQty) * 100) : 0;
                   const complete = got >= line.neededQty;
                   const hitting = hitKey === line.key;
                   const justDone = justCompletedKey === line.key;
+                  const isManual = !line.fromStock;
                   return (
                     <li
                       key={line.key}
@@ -486,55 +576,79 @@ export const VehicleOsBudgetPartsScanModal: React.FC<VehicleOsBudgetPartsScanMod
                       } ${hitting ? 'budget-scan-hit' : ''}`}
                     >
                       <div className="flex items-center gap-3">
-                        <div className="relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-zinc-200/80 bg-zinc-50 dark:border-white/10 dark:bg-white/[0.04]">
-                          {line.photoUrl ? (
-                            <PartPhotoImg src={line.photoUrl} alt="" className="h-full w-full object-cover" />
-                          ) : (
-                            <Package className="h-5 w-5 text-zinc-400" aria-hidden />
-                          )}
-                          {complete ? (
-                            <div
-                              className={`absolute inset-0 flex items-center justify-center bg-emerald-600/85 ${
-                                justDone ? 'budget-scan-check' : ''
-                              }`}
-                            >
-                              <CheckCircle2 className="h-7 w-7 text-white" strokeWidth={2.4} />
-                            </div>
-                          ) : null}
-                        </div>
+                        {isManual ? (
+                          <label className="flex h-12 w-12 shrink-0 cursor-pointer items-center justify-center">
+                            <input
+                              type="checkbox"
+                              checked={!!manualChecked[line.key]}
+                              onChange={() => toggleManualChecked(line.key)}
+                              className="h-5 w-5 rounded border-zinc-300 text-emerald-600 focus:ring-emerald-500 dark:border-white/20 dark:bg-zinc-900"
+                              aria-label={`Marcar ${line.description} como conferida`}
+                            />
+                          </label>
+                        ) : (
+                          <div className="relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-zinc-200/80 bg-zinc-50 dark:border-white/10 dark:bg-white/[0.04]">
+                            {line.photoUrl ? (
+                              <PartPhotoImg src={line.photoUrl} alt="" className="h-full w-full object-cover" />
+                            ) : (
+                              <Package className="h-5 w-5 text-zinc-400" aria-hidden />
+                            )}
+                            {complete ? (
+                              <div
+                                className={`absolute inset-0 flex items-center justify-center bg-emerald-600/85 ${
+                                  justDone ? 'budget-scan-check' : ''
+                                }`}
+                              >
+                                <CheckCircle2 className="h-7 w-7 text-white" strokeWidth={2.4} />
+                              </div>
+                            ) : null}
+                          </div>
+                        )}
                         <div className="min-w-0 flex-1">
                           <p className="truncate text-[14px] font-semibold text-zinc-900 dark:text-white">
                             {line.description}
                           </p>
                           <p className="mt-0.5 text-[11px] font-medium tabular-nums text-zinc-500 dark:text-zinc-400">
-                            {complete
-                              ? 'Baixa concluída'
-                              : `Faltam ${formatWorkshopPartQty(line.neededQty - got)} de ${formatWorkshopPartQty(line.neededQty)}`}
+                            {isManual
+                              ? complete
+                                ? 'Conferida'
+                                : 'Marcar como conferida'
+                              : complete
+                                ? 'Baixa concluída'
+                                : `Faltam ${formatWorkshopPartQty(line.neededQty - got)} de ${formatWorkshopPartQty(line.neededQty)}`}
                           </p>
-                          <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-zinc-200/80 dark:bg-white/10">
-                            <div
-                              key={`${line.key}-${got}`}
-                              className={`h-full rounded-full transition-[width] duration-500 ease-out ${
-                                complete ? 'bg-emerald-500' : 'bg-[#007AFF] budget-scan-bar-fill'
+                          {!isManual ? (
+                            <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-zinc-200/80 dark:bg-white/10">
+                              <div
+                                key={`${line.key}-${got}`}
+                                className={`h-full rounded-full transition-[width] duration-500 ease-out ${
+                                  complete ? 'bg-emerald-500' : 'bg-[#007AFF] budget-scan-bar-fill'
+                                }`}
+                                style={{ width: `${pct}%` }}
+                              />
+                            </div>
+                          ) : null}
+                        </div>
+                        {!isManual ? (
+                          <div className="shrink-0 text-right">
+                            <p
+                              className={`text-[15px] font-bold tabular-nums ${
+                                complete
+                                  ? 'text-emerald-700 dark:text-emerald-300'
+                                  : 'text-zinc-800 dark:text-zinc-100'
                               }`}
-                              style={{ width: `${pct}%` }}
-                            />
+                            >
+                              {formatWorkshopPartQty(got)}
+                              <span className="text-[12px] font-semibold text-zinc-400">
+                                /{formatWorkshopPartQty(line.neededQty)}
+                              </span>
+                            </p>
                           </div>
-                        </div>
-                        <div className="shrink-0 text-right">
-                          <p
-                            className={`text-[15px] font-bold tabular-nums ${
-                              complete
-                                ? 'text-emerald-700 dark:text-emerald-300'
-                                : 'text-zinc-800 dark:text-zinc-100'
-                            }`}
-                          >
-                            {formatWorkshopPartQty(got)}
-                            <span className="text-[12px] font-semibold text-zinc-400">
-                              /{formatWorkshopPartQty(line.neededQty)}
-                            </span>
-                          </p>
-                        </div>
+                        ) : (
+                          <span className="shrink-0 text-[11px] font-semibold tabular-nums text-zinc-500 dark:text-zinc-400">
+                            {formatWorkshopPartQty(line.neededQty)}
+                          </span>
+                        )}
                       </div>
                     </li>
                   );

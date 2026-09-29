@@ -1,20 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback, useLayoutEffect } from 'react';
 import { createPortal } from 'react-dom';
-import {
-  Bell,
-  Trash2,
-  MessageCircle,
-  GitBranch,
-  FileText,
-  Edit3,
-  CheckCircle2,
-  Calendar,
-  Car,
-  AlertCircle,
-  ChevronRight,
-  Loader2,
-  X,
-} from 'lucide-react';
+import { Bell, Loader2, Trash2, X } from 'lucide-react';
 import {
   getNotifications,
   getUnreadNotificationsCount,
@@ -29,8 +15,23 @@ import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useRegisterModalOpen } from './ui/ModalLayerContext';
 import { useBrowserBackLayer } from './ui/BackNavigationContext';
-
-const ADMIN_DISPLAY_NAME = 'Rei do ABS';
+import {
+  MacOsNotificationCard,
+  type MacOsNotifAccent,
+  type MacOsNotifIconKind,
+  type MacOsNotificationCardModel,
+} from './MacOsNotificationCard';
+import {
+  budgetBannerToCardModel,
+  type MacOsBudgetBannerItem,
+} from './MacOsBudgetBannerStack';
+import { findDesktopNotificationsBellTarget } from '../utils/macGenieMinimize';
+import {
+  GenieNotificationDismiss,
+  genieOriginFromElement,
+  genieOriginFromSelector,
+  type GenieOrigin,
+} from '../utils/GenieNotificationDismiss';
 
 /** Primeiro nome do cliente a partir do nome completo. */
 function getFirstName(fullName: string | null | undefined): string | null {
@@ -40,67 +41,167 @@ function getFirstName(fullName: string | null | undefined): string | null {
   return first || null;
 }
 
-/** Identificação do veículo nas notificações: modelo - primeiro nome do cliente. */
 function formatVehicleLabel(p: Notification['payload']): string {
   const model = (p.vehicle_model && p.vehicle_model.trim()) || 'Veículo';
   const firstName = getFirstName(p.customer_name);
   return firstName ? `${model} - ${firstName}` : model;
 }
 
-const TYPE_CONFIG: Record<NotificationType, { label: string; icon: React.ReactNode; accent: string }> = {
-  comment: { label: 'Comentário', icon: <MessageCircle className="w-5 h-5" />, accent: 'text-[#007AFF]' },
-  stage_change: { label: 'Mudança de etapa', icon: <GitBranch className="w-5 h-5" />, accent: 'text-[#007AFF]' },
-  budget_created: { label: 'Orçamento criado', icon: <FileText className="w-5 h-5" />, accent: 'text-[#007AFF]' },
-  budget_edited: { label: 'Orçamento editado', icon: <Edit3 className="w-5 h-5" />, accent: 'text-[#007AFF]' },
-  vehicle_finalized: { label: 'Veículo finalizado', icon: <CheckCircle2 className="w-5 h-5" />, accent: 'text-emerald-500' },
-  vehicle_scheduled: { label: 'Veículo agendado', icon: <Calendar className="w-5 h-5" />, accent: 'text-[#007AFF]' },
-  vehicle_registered: { label: 'Veículo cadastrado', icon: <Car className="w-5 h-5" />, accent: 'text-[#007AFF]' },
-  complaint_edited: { label: 'Queixa editada', icon: <AlertCircle className="w-5 h-5" />, accent: 'text-rose-500' },
-  delivery_date_changed: { label: 'Data de entrega alterada', icon: <Calendar className="w-5 h-5" />, accent: 'text-[#007AFF]' },
-};
-
-function formatNotificationTitle(n: Notification, forTechnician?: boolean): string {
-  const cfg = TYPE_CONFIG[n.type] || { label: n.type };
-  const p = n.payload;
+function vehicleBody(p: Notification['payload']): string {
   const vehicle = formatVehicleLabel(p);
-  const who = p.author_display_name || p.technician_name || (forTechnician ? ADMIN_DISPLAY_NAME : 'Alguém');
-  const adminLabel = ADMIN_DISPLAY_NAME;
-  switch (n.type) {
-    case 'comment':
-      return `${who} comentou em ${vehicle}`;
-    case 'stage_change':
-      return forTechnician ? `${adminLabel} alterou etapa · ${vehicle}` : `${who} alterou etapa · ${vehicle}`;
-    case 'budget_created':
-      return `${who} criou orçamento · ${vehicle}`;
-    case 'budget_edited':
-      return `${who} editou orçamento · ${vehicle}`;
-    case 'vehicle_finalized':
-      return `${who} finalizou · ${vehicle}`;
-    case 'vehicle_scheduled':
-      return `${vehicle} agendado`;
-    case 'vehicle_registered':
-      return `Cadastro · ${vehicle}`;
-    case 'complaint_edited':
-      return forTechnician ? `${adminLabel} editou a queixa · ${vehicle}` : `${who} editou a queixa · ${vehicle}`;
-    case 'delivery_date_changed':
-      return `Data de entrega alterada · ${vehicle}`;
-    default:
-      return cfg.label;
-  }
+  const plate =
+    typeof p.vehicle_plate === 'string' && p.vehicle_plate.trim()
+      ? p.vehicle_plate.trim().toUpperCase()
+      : '';
+  return plate ? `${vehicle} · ${plate}` : vehicle;
 }
 
-function formatNotificationSubtitle(n: Notification): string | null {
-  if (n.type === 'comment' && n.payload.text) {
-    return n.payload.text.length > 80 ? n.payload.text.slice(0, 80) + '…' : n.payload.text;
+function authorFromPayload(p: Notification['payload'], forTechnician?: boolean): string {
+  const who =
+    (typeof p.author_display_name === 'string' && p.author_display_name.trim()) ||
+    (typeof p.technician_name === 'string' && p.technician_name.trim()) ||
+    '';
+  if (who) return who;
+  return forTechnician ? 'Administrador' : 'Alguém';
+}
+
+function photoFromPayload(p: Notification['payload']): string | null {
+  return typeof p.author_photo_url === 'string' && p.author_photo_url.trim()
+    ? p.author_photo_url.trim()
+    : null;
+}
+
+function budgetNumberFromPayload(p: Notification['payload']): number | null {
+  if (typeof p.budget_number === 'number' && p.budget_number >= 1) return Math.floor(p.budget_number);
+  if (typeof p.budget_number === 'string' && Number(p.budget_number) >= 1) {
+    return Math.floor(Number(p.budget_number));
   }
   return null;
 }
 
-/** Mostra a notificação na central do dispositivo (barra do sistema). Usa Service Worker quando disponível (mais confiável em tablet/segundo plano). Retorna true se a permissão está concedida (evita som duplicado). */
+type TypeVisual = {
+  title: (n: Notification, forTechnician?: boolean) => string;
+  accent: MacOsNotifAccent;
+  icon: MacOsNotifIconKind;
+};
+
+const TYPE_VISUAL: Record<NotificationType, TypeVisual> = {
+  comment: {
+    title: () => 'Novo comentário',
+    accent: 'sky',
+    icon: 'comment',
+  },
+  stage_change: {
+    title: () => 'Mudança de etapa',
+    accent: 'blue',
+    icon: 'branch',
+  },
+  budget_created: {
+    title: (n) => {
+      const num = budgetNumberFromPayload(n.payload);
+      return num != null && num >= 2 ? `${num}º orçamento criado` : 'Orçamento criado';
+    },
+    accent: 'green',
+    icon: 'file',
+  },
+  budget_edited: {
+    title: (n) => {
+      const num = budgetNumberFromPayload(n.payload);
+      return num != null && num >= 2 ? `${num}º orçamento editado` : 'Orçamento editado';
+    },
+    accent: 'blue',
+    icon: 'pencil',
+  },
+  vehicle_finalized: {
+    title: () => 'Veículo finalizado',
+    accent: 'emerald',
+    icon: 'check',
+  },
+  vehicle_scheduled: {
+    title: () => 'Veículo agendado',
+    accent: 'violet',
+    icon: 'calendar',
+  },
+  vehicle_registered: {
+    title: () => 'Veículo cadastrado',
+    accent: 'green',
+    icon: 'car',
+  },
+  complaint_edited: {
+    title: () => 'Queixa editada',
+    accent: 'rose',
+    icon: 'alert',
+  },
+  delivery_date_changed: {
+    title: () => 'Data de entrega alterada',
+    accent: 'amber',
+    icon: 'calendar',
+  },
+};
+
+function notificationToCardModel(
+  n: Notification,
+  forTechnician?: boolean
+): MacOsNotificationCardModel {
+  const visual = TYPE_VISUAL[n.type] || {
+    title: () => n.type,
+    accent: 'blue' as MacOsNotifAccent,
+    icon: 'file' as MacOsNotifIconKind,
+  };
+  const hint =
+    n.type === 'comment' && n.payload.text
+      ? n.payload.text.length > 100
+        ? `${n.payload.text.slice(0, 100)}…`
+        : n.payload.text
+      : n.type === 'budget_created' || n.type === 'budget_edited'
+        ? (() => {
+            const num = budgetNumberFromPayload(n.payload);
+            return num != null && num >= 2 ? `${num}º orçamento deste veículo` : null;
+          })()
+        : null;
+
+  let timeLabel = 'agora';
+  try {
+    timeLabel = formatDistanceToNow(new Date(n.created_at), { addSuffix: true, locale: ptBR });
+  } catch {
+    /* ignore */
+  }
+
+  return {
+    id: n.id,
+    authorName: authorFromPayload(n.payload, forTechnician),
+    authorPhotoUrl: photoFromPayload(n.payload),
+    title: visual.title(n, forTechnician),
+    body: vehicleBody(n.payload),
+    hint,
+    timeLabel,
+    accent: visual.accent,
+    icon: visual.icon,
+    unread: !n.read_at,
+  };
+}
+
+/** Título curto para notificação nativa do dispositivo. */
+function formatNativeTitle(n: Notification, forTechnician?: boolean): string {
+  const author = authorFromPayload(n.payload, forTechnician);
+  const visual = TYPE_VISUAL[n.type];
+  const action = visual ? visual.title(n, forTechnician) : n.type;
+  return `${author} · ${action}`;
+}
+
+function formatNativeBody(n: Notification): string {
+  if (n.type === 'comment' && n.payload.text) {
+    return n.payload.text.length > 80 ? `${n.payload.text.slice(0, 80)}…` : n.payload.text;
+  }
+  return vehicleBody(n.payload);
+}
+
 function showNativeDeviceNotification(n: Notification, forTechnician?: boolean): boolean {
-  if (typeof window === 'undefined' || !('Notification' in window) || Notification.permission !== 'granted') return false;
-  const title = formatNotificationTitle(n, forTechnician);
-  const body = formatNotificationSubtitle(n) || 'Rei do ABS';
+  if (typeof window === 'undefined' || !('Notification' in window) || Notification.permission !== 'granted') {
+    return false;
+  }
+  const title = formatNativeTitle(n, forTechnician);
+  const body = formatNativeBody(n);
   const icon = '/logo.png';
 
   const show = () => {
@@ -110,14 +211,24 @@ function showNativeDeviceNotification(n: Notification, forTechnician?: boolean):
         .catch(() => {
           try {
             const native = new Notification(title, { body, icon });
-            native.onclick = () => { native.close(); window.focus(); };
-          } catch {}
+            native.onclick = () => {
+              native.close();
+              window.focus();
+            };
+          } catch {
+            /* ignore */
+          }
         });
     } else {
       try {
         const native = new Notification(title, { body, icon });
-        native.onclick = () => { native.close(); window.focus(); };
-      } catch {}
+        native.onclick = () => {
+          native.close();
+          window.focus();
+        };
+      } catch {
+        /* ignore */
+      }
     }
   };
   show();
@@ -127,30 +238,40 @@ function showNativeDeviceNotification(n: Notification, forTechnician?: boolean):
 export type NotificationCenterPlacement = 'floating' | 'desktopTopbar';
 
 export interface NotificationCenterProps {
-  /** Callback quando há novo comentário (para pop-up + som) */
   onNewCommentNotification?: (notification: Notification) => void;
-  /** Callback ao clicar numa notificação (ex.: ir ao veículo/comentários no Pátio) */
+  onBudgetBannerNotification?: (notification: Notification) => void;
   onNotificationClick?: (notification: Notification) => void;
-  /** Se true, usa API de notificações do técnico (for=technician&slug=...) */
   forTechnician?: boolean;
-  /** Slug do técnico quando forTechnician é true */
   technicianSlug?: string;
-  /** Tema do sistema para cores (preto, amarelo, branco) */
   theme?: 'light' | 'dark';
-  /** `desktopTopbar`: botão do shell PC + painel dropdown; `floating`: sino circular (padrão). */
   placement?: NotificationCenterPlacement;
+  /** Banners de orçamento minimizados (disponíveis em qualquer página no sino). */
+  minimizedBudgetBanners?: MacOsBudgetBannerItem[];
+  onMinimizedBudgetActivate?: (item: MacOsBudgetBannerItem) => void;
+  onMinimizedBudgetDismiss?: (id: string) => void;
+  onMinimizedBudgetClearAll?: () => void;
+  /**
+   * Destino do efeito Genie ao fechar um item (padrão: sino do cabeçalho).
+   */
+  genieOrigin?: GenieOrigin;
 }
 
 export const NotificationCenter: React.FC<NotificationCenterProps> = ({
   onNewCommentNotification,
+  onBudgetBannerNotification,
   onNotificationClick,
   forTechnician,
   technicianSlug,
   theme = 'dark',
   placement = 'floating',
+  minimizedBudgetBanners = [],
+  onMinimizedBudgetActivate,
+  onMinimizedBudgetDismiss,
+  onMinimizedBudgetClearAll,
+  genieOrigin: genieOriginProp,
 }) => {
   const isDesktopTopbar = placement === 'desktopTopbar';
-  const isDark = isDesktopTopbar ? false : theme === 'dark';
+  const isDark = theme === 'dark';
   const [open, setOpen] = useState(false);
   useRegisterModalOpen(open);
   useBrowserBackLayer(open, () => setOpen(false));
@@ -165,27 +286,45 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
   const rootRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const modalRef = useRef<HTMLDivElement>(null);
+  const cardElsRef = useRef<Map<string, HTMLDivElement>>(new Map());
+  const busyIdsRef = useRef<Set<string>>(new Set());
+  const [busyIds, setBusyIds] = useState<Set<string>>(() => new Set());
   const [dropdownStyle, setDropdownStyle] = useState<React.CSSProperties>({});
   const lastFetchRef = useRef<string | null>(null);
   const lastCreatedAtRef = useRef<string | null>(null);
   const prevUnreadIdsRef = useRef<Set<string>>(new Set());
   const firstFetchDoneRef = useRef(false);
+  const onNewCommentRef = useRef(onNewCommentNotification);
+  const onBudgetBannerRef = useRef(onBudgetBannerNotification);
+  onNewCommentRef.current = onNewCommentNotification;
+  onBudgetBannerRef.current = onBudgetBannerNotification;
   const canUseDOM = typeof window !== 'undefined' && typeof document !== 'undefined';
   const portalTarget = useMemo(() => (canUseDOM ? document.body : null), [canUseDOM]);
 
-  /** Só busca notificações do técnico quando slug (userId) estiver definido; senão a API retornaria a lista do admin e o pop-up não apareceria para o técnico. */
   const notifParams =
     forTechnician && technicianSlug
-      ? { for: "technician" as const, technicianSlug }
+      ? { for: 'technician' as const, technicianSlug }
       : undefined;
 
-  /** Pausa em segundo plano: ver checks em pollNewOnly / fetchNotifications. */
-  const POLL_QUICK_MS = 60000;   // mín. 60s — reduz invocações Vercel / Supabase
-  const POLL_FULL_MS = 120000;   // lista completa menos frequente
+  const POLL_QUICK_MS = 12000;
+  const POLL_FULL_MS = 90000;
+
+  const minimizedCount = minimizedBudgetBanners.length;
+  const badgeCount = unreadCount + minimizedCount;
+
+  const emitNewNotification = (n: Notification, shownNative: boolean) => {
+    if (n.type === 'comment') {
+      onNewCommentRef.current?.(n);
+    } else if (n.type === 'budget_created' || n.type === 'budget_edited') {
+      onBudgetBannerRef.current?.(n);
+      if (!shownNative) playOtherNotificationSound();
+    } else if (!shownNative) {
+      playOtherNotificationSound();
+    }
+  };
 
   const fetchNotifications = async (since?: string, silent = false) => {
     if (forTechnician && !technicianSlug) return;
-    /** Poll em segundo plano — não bloqueia o primeiro fetch ao abrir o painel (silent=false). */
     if (silent && typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
     if (!silent) setLoading(true);
     try {
@@ -200,6 +339,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
         return sorted;
       });
       if (sorted.length > 0) lastCreatedAtRef.current = sorted[0].created_at;
+      else if (!lastCreatedAtRef.current) lastCreatedAtRef.current = new Date().toISOString();
       const count = await getUnreadNotificationsCount(notifParams);
       setUnreadCount(count);
       lastFetchRef.current = new Date().toISOString();
@@ -211,11 +351,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
         list.forEach((n) => {
           if (!n.read_at && !prevUnreadIdsRef.current.has(n.id)) {
             const shownNative = showNativeDeviceNotification(n, !!forTechnician);
-            if (n.type === 'comment') {
-              onNewCommentNotification?.(n);
-            } else if (!shownNative) {
-              playOtherNotificationSound();
-            }
+            emitNewNotification(n, shownNative);
           }
         });
         prevUnreadIdsRef.current = new Set([...prevUnreadIdsRef.current, ...unreadIds]);
@@ -250,11 +386,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
       list.forEach((n) => {
         if (!n.read_at && !prevUnreadIdsRef.current.has(n.id)) {
           const shownNative = showNativeDeviceNotification(n, !!forTechnician);
-          if (n.type === 'comment') {
-            onNewCommentNotification?.(n);
-          } else if (!shownNative) {
-            playOtherNotificationSound();
-          }
+          emitNewNotification(n, shownNative);
         }
       });
       list.forEach((n) => {
@@ -283,11 +415,12 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
 
   const requestNotificationPermission = () => {
     if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
-      Notification.requestPermission().then((p) => setNotifPermission(p)).catch(() => {});
+      Notification.requestPermission()
+        .then((p) => setNotifPermission(p))
+        .catch(() => {});
     }
   };
 
-  // Pedir permissão ao montar (após um breve delay) para que notificações apareçam no dispositivo sem depender do clique no sino
   useEffect(() => {
     if (typeof Notification === 'undefined' || Notification.permission !== 'default') return;
     const t = setTimeout(requestNotificationPermission, 1500);
@@ -298,8 +431,8 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
     const btn = triggerRef.current;
     if (!btn || typeof window === 'undefined') return;
     const rect = btn.getBoundingClientRect();
-    const panelWidth = 380;
-    const maxHeight = Math.min(window.innerHeight * 0.7, 520);
+    const panelWidth = 400;
+    const maxHeight = Math.min(window.innerHeight * 0.78, 620);
     let left = rect.right - panelWidth;
     left = Math.max(12, Math.min(left, window.innerWidth - panelWidth - 12));
     setDropdownStyle({
@@ -315,7 +448,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
   useLayoutEffect(() => {
     if (!open || !isDesktopTopbar) return;
     updateDropdownPosition();
-  }, [open, isDesktopTopbar, updateDropdownPosition]);
+  }, [open, isDesktopTopbar, updateDropdownPosition, minimizedCount, notifications.length]);
 
   useEffect(() => {
     if (!open || !isDesktopTopbar) return;
@@ -360,6 +493,47 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
     }
   };
 
+  const setCardRef = useCallback((id: string, el: HTMLDivElement | null) => {
+    if (el) cardElsRef.current.set(id, el);
+    else cardElsRef.current.delete(id);
+  }, []);
+
+  const runGenieToBell = useCallback(async (sources: HTMLElement[]) => {
+    const bell = findDesktopNotificationsBellTarget() ?? triggerRef.current;
+    const origin =
+      genieOriginProp ??
+      genieOriginFromElement(bell) ??
+      genieOriginFromSelector('[data-desktop-notif-bell]');
+    if (sources.length === 0) {
+      await new Promise<void>((r) => window.setTimeout(r, 100));
+      return;
+    }
+    await GenieNotificationDismiss({
+      source: sources[0],
+      genieOrigin: origin,
+      durationMs: 500,
+      stripCount: 40,
+      leaveSourceHidden: true,
+    });
+  }, [genieOriginProp]);
+
+  const dismissWithGenie = useCallback(
+    async (id: string, after: () => void) => {
+      if (busyIdsRef.current.has(id)) return;
+      busyIdsRef.current.add(id);
+      setBusyIds(new Set(busyIdsRef.current));
+      const el = cardElsRef.current.get(id) ?? null;
+      try {
+        if (el) await runGenieToBell([el]);
+      } finally {
+        after();
+        busyIdsRef.current.delete(id);
+        setBusyIds(new Set(busyIdsRef.current));
+      }
+    },
+    [runGenieToBell]
+  );
+
   const handleMarkAllRead = async () => {
     setMarkingAll(true);
     try {
@@ -376,12 +550,15 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
   };
 
   const handleClearAll = async () => {
-    if (notifications.length === 0) return;
+    if (notifications.length === 0 && minimizedCount === 0) return;
     setClearing(true);
     try {
-      await clearNotifications(notifParams);
-      setNotifications([]);
-      setUnreadCount(0);
+      if (notifications.length > 0) {
+        await clearNotifications(notifParams);
+        setNotifications([]);
+        setUnreadCount(0);
+      }
+      onMinimizedBudgetClearAll?.();
     } catch {
       // ignore
     } finally {
@@ -389,170 +566,187 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
     }
   };
 
-  const config = (type: NotificationType) => TYPE_CONFIG[type] || { label: type, icon: <Bell className="w-5 h-5" />, accent: 'text-brand-yellow' };
-
-  const bellClass = isDark
-    ? 'bg-white/10 border-white/15 text-zinc-200 hover:text-white hover:bg-white/15'
-    : 'bg-white/70 border-zinc-200/80 text-zinc-700 hover:text-zinc-900 hover:bg-white/90';
-
-  const panelClass = isDark
-    ? 'bg-zinc-950/70 border-white/10 shadow-[0_30px_90px_rgba(0,0,0,0.65)]'
-    : 'bg-white/70 border-zinc-200/70 shadow-[0_30px_90px_rgba(0,0,0,0.22)]';
-
-  const headerBorderClass = isDark ? 'border-white/10' : 'border-zinc-200/70';
-  const titleClass = isDark ? 'text-white' : 'text-zinc-900';
-  const linkClass = 'text-[#007AFF] hover:underline disabled:opacity-50';
-  const dividerClass = isDark ? 'divide-white/8' : 'divide-zinc-200/70';
-  const itemUnreadClass = isDark ? 'bg-[#007AFF]/12' : 'bg-[#007AFF]/8';
-  const itemHoverClass = isDark ? 'hover:bg-white/[0.06]' : 'hover:bg-black/[0.03]';
-  const iconBgClass = isDark ? 'bg-white/10' : 'bg-white/70';
-  const textPrimaryClass = isDark ? 'text-white' : 'text-zinc-900';
-  const textSecondaryClass = isDark ? 'text-zinc-300' : 'text-zinc-600';
-  const textMutedClass = isDark ? 'text-zinc-400' : 'text-zinc-500';
-  const chevronClass = isDark ? 'text-zinc-500' : 'text-zinc-400';
-  const dotClass = 'bg-[#007AFF]';
-  const emptyClass = isDark ? 'text-zinc-300' : 'text-zinc-500';
-  const loadingClass = isDark ? 'text-zinc-400' : 'text-zinc-400';
+  const panelShell = isDark
+    ? 'border-white/12 bg-zinc-950/88 text-white shadow-[0_28px_80px_-16px_rgba(0,0,0,0.7)]'
+    : 'border-black/8 bg-white/90 text-zinc-900 shadow-[0_28px_80px_-16px_rgba(0,0,0,0.28)]';
 
   const panelShellClass = isDesktopTopbar
-    ? 'rounded-2xl border-0 bg-white shadow-none overflow-hidden flex flex-col'
-    : `w-[min(420px,calc(100vw-24px))] rounded-[28px] backdrop-blur-2xl overflow-hidden flex flex-col max-h-[78vh] border ${panelClass}`;
+    ? `rounded-[22px] border backdrop-blur-2xl overflow-hidden flex flex-col ${panelShell}`
+    : `w-[min(420px,calc(100vw-24px))] rounded-[22px] border backdrop-blur-2xl overflow-hidden flex flex-col max-h-[78vh] ${panelShell}`;
+
+  const headerBorder = isDark ? 'border-white/10' : 'border-black/8';
+  const titleClass = isDark ? 'text-white' : 'text-zinc-900';
+  const mutedClass = isDark ? 'text-zinc-400' : 'text-zinc-500';
+  const chipBtn = isDark
+    ? 'border-white/10 bg-white/5 text-zinc-100 hover:bg-white/10'
+    : 'border-zinc-200/80 bg-white/70 text-zinc-800 hover:bg-white';
+  const sectionLabel = isDark ? 'text-zinc-400' : 'text-zinc-500';
+  const emptyClass = isDark ? 'text-zinc-400' : 'text-zinc-500';
 
   const panelContent = (
-            <>
-              <div className={`flex items-center justify-between px-5 py-4 border-b shrink-0 ${headerBorderClass}`}>
-                <div className="min-w-0">
-                  <h3 className={`text-[17px] font-semibold tracking-tight ${titleClass}`}>Notificações</h3>
-                  <p className={`mt-0.5 text-[12px] ${isDark ? 'text-zinc-400' : 'text-zinc-500'}`}>
-                    {isDesktopTopbar ? 'Clique para abrir e marcar como lida.' : 'Toque para abrir e marcar como lida.'}
-                  </p>
-                </div>
-                <div className="flex items-center gap-2">
-                  {unreadCount > 0 && (
-                    <button
-                      type="button"
-                      onClick={handleMarkAllRead}
-                      disabled={markingAll}
-                      className={`h-9 px-3 rounded-full border text-[13px] font-semibold tracking-tight backdrop-blur-xl transition-colors ${isDark ? 'border-white/10 bg-white/5 text-white hover:bg-white/10' : 'border-zinc-200/70 bg-white/60 text-zinc-900 hover:bg-white/80'} ${markingAll ? 'opacity-70' : ''}`}
-                    >
-                      {markingAll ? (
-                        <span className="inline-flex items-center gap-2">
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                          Marcando…
-                        </span>
-                      ) : (
-                        'Marcar tudo'
-                      )}
-                    </button>
-                  )}
-                  {notifications.length > 0 && (
-                    <button
-                      type="button"
-                      onClick={handleClearAll}
-                      disabled={clearing}
-                      className={`h-9 w-9 rounded-full border backdrop-blur-xl grid place-items-center transition-colors ${isDark ? 'border-white/10 bg-white/5 text-zinc-200 hover:bg-white/10' : 'border-zinc-200/70 bg-white/60 text-zinc-700 hover:bg-white/80'} ${clearing ? 'opacity-70' : ''}`}
-                      title="Limpar todas"
-                      aria-label="Limpar todas"
-                    >
-                      {clearing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => setOpen(false)}
-                    className={`h-9 w-9 rounded-full border backdrop-blur-xl grid place-items-center transition-colors ${isDark ? 'border-white/10 bg-white/5 text-zinc-200 hover:bg-white/10' : 'border-zinc-200/70 bg-white/60 text-zinc-700 hover:bg-white/80'}`}
-                    aria-label="Fechar"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
-                </div>
-              </div>
-
-              {typeof Notification !== 'undefined' && (notifPermission ?? Notification.permission) === 'default' && (
-                <div className="px-5 pt-4">
-                  <div className={`rounded-2xl border p-4 flex items-center justify-between gap-3 ${isDark ? 'border-white/10 bg-white/5 text-zinc-200' : 'border-zinc-200/70 bg-white/60 text-zinc-700'}`}>
-                    <div className="min-w-0">
-                      <p className={`text-[13px] font-semibold tracking-tight ${textPrimaryClass}`}>Notificações no dispositivo</p>
-                      <p className={`mt-0.5 text-[12px] ${textMutedClass}`}>Ative para receber alertas mesmo fora do app.</p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={requestNotificationPermission}
-                      className="shrink-0 h-9 px-4 rounded-full bg-[#007AFF] text-white text-[13px] font-semibold tracking-tight shadow-sm active:scale-[0.98]"
-                    >
-                      Ativar
-                    </button>
-                  </div>
-                </div>
+    <>
+      <div className={`flex items-center justify-between gap-3 border-b px-4 py-3.5 shrink-0 ${headerBorder}`}>
+        <div className="min-w-0">
+          <h3 className={`text-[16px] font-semibold tracking-tight ${titleClass}`}>Notificações</h3>
+          <p className={`mt-0.5 text-[12px] ${mutedClass}`}>
+            {minimizedCount > 0
+              ? `${minimizedCount} minimizada${minimizedCount === 1 ? '' : 's'} · mesmo visual dos banners`
+              : 'Mesmo visual dos banners do sistema'}
+          </p>
+        </div>
+        <div className="flex items-center gap-1.5">
+          {unreadCount > 0 ? (
+            <button
+              type="button"
+              onClick={handleMarkAllRead}
+              disabled={markingAll}
+              className={`h-8 px-2.5 rounded-full border text-[12px] font-semibold tracking-tight backdrop-blur-xl transition-colors ${chipBtn} ${
+                markingAll ? 'opacity-70' : ''
+              }`}
+            >
+              {markingAll ? (
+                <span className="inline-flex items-center gap-1.5">
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  …
+                </span>
+              ) : (
+                'Marcar tudo'
               )}
+            </button>
+          ) : null}
+          {notifications.length > 0 || minimizedCount > 0 ? (
+            <button
+              type="button"
+              onClick={handleClearAll}
+              disabled={clearing}
+              className={`h-8 w-8 rounded-full border backdrop-blur-xl grid place-items-center transition-colors ${chipBtn} ${
+                clearing ? 'opacity-70' : ''
+              }`}
+              title="Limpar todas"
+              aria-label="Limpar todas"
+            >
+              {clearing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+            </button>
+          ) : null}
+          <button
+            type="button"
+            onClick={() => setOpen(false)}
+            className={`h-8 w-8 rounded-full border backdrop-blur-xl grid place-items-center transition-colors ${chipBtn}`}
+            aria-label="Fechar"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
 
-              {typeof Notification !== 'undefined' && (notifPermission ?? Notification.permission) === 'denied' && (
-                <div className="px-5 pt-4">
-                  <div className={`rounded-2xl border p-4 text-[12px] ${isDark ? 'border-amber-500/20 bg-amber-500/10 text-amber-200' : 'border-amber-300/50 bg-amber-50 text-amber-900'}`}>
-                    Notificações no dispositivo desativadas. Ative nas configurações do site no navegador.
-                  </div>
-                </div>
-              )}
+      {typeof Notification !== 'undefined' && (notifPermission ?? Notification.permission) === 'default' ? (
+        <div className="px-4 pt-3">
+          <div
+            className={`rounded-[16px] border p-3 flex items-center justify-between gap-3 ${
+              isDark ? 'border-white/10 bg-white/5 text-zinc-200' : 'border-zinc-200/80 bg-white/70 text-zinc-700'
+            }`}
+          >
+            <div className="min-w-0">
+              <p className={`text-[13px] font-semibold tracking-tight ${titleClass}`}>
+                Notificações no dispositivo
+              </p>
+              <p className={`mt-0.5 text-[12px] ${mutedClass}`}>Ative para alertas fora do app.</p>
+            </div>
+            <button
+              type="button"
+              onClick={requestNotificationPermission}
+              className="shrink-0 h-8 px-3 rounded-full bg-[#007AFF] text-white text-[12px] font-semibold tracking-tight shadow-sm active:scale-[0.98]"
+            >
+              Ativar
+            </button>
+          </div>
+        </div>
+      ) : null}
 
-              <div className="overflow-y-auto overscroll-contain flex-1 mt-4">
-                {loading && notifications.length === 0 ? (
-                  <div className={`flex justify-center py-12 ${loadingClass}`}>
-                    <Loader2 className="w-8 h-8 animate-spin" />
-                  </div>
-                ) : notifications.length === 0 ? (
-                  <div className={`py-12 px-5 text-center text-[14px] ${emptyClass}`}>Nenhuma notificação ainda.</div>
-                ) : (
-                  <ul className={`divide-y ${dividerClass}`}>
-                    {notifications.map((n) => {
-                      const cfg = config(n.type);
-                      const isUnread = !n.read_at;
-                      return (
-                        <li
-                          key={n.id}
-                          role="button"
-                          tabIndex={0}
-                          className={`flex gap-3 px-5 py-4 transition-colors cursor-pointer ${isUnread ? itemUnreadClass : itemHoverClass}`}
-                          onClick={() => {
-                            if (isUnread) handleMarkRead(n.id);
-                            onNotificationClick?.(n);
-                            setOpen(false);
-                          }}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter' || e.key === ' ') {
-                              e.preventDefault();
-                              if (isUnread) handleMarkRead(n.id);
-                              onNotificationClick?.(n);
-                              setOpen(false);
-                            }
-                          }}
-                        >
-                          <div className={`shrink-0 w-10 h-10 rounded-2xl flex items-center justify-center border ${iconBgClass} ${isDark ? 'border-white/10' : 'border-zinc-200/70'} ${cfg.accent}`}>
-                            {cfg.icon}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className={`text-[14px] font-semibold leading-snug tracking-tight ${textPrimaryClass}`}>
-                              {formatNotificationTitle(n, forTechnician)}
-                            </p>
-                            {formatNotificationSubtitle(n) && (
-                              <p className={`text-[13px] mt-0.5 line-clamp-2 ${textSecondaryClass}`}>
-                                {formatNotificationSubtitle(n)}
-                              </p>
-                            )}
-                            <p className={`text-[11px] mt-1 ${textMutedClass}`}>
-                              {formatDistanceToNow(new Date(n.created_at), { addSuffix: true, locale: ptBR })}
-                            </p>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            {isUnread && <span className={`shrink-0 w-2 h-2 rounded-full ${dotClass}`} />}
-                            <ChevronRight className={`w-5 h-5 shrink-0 ${chevronClass}`} />
-                          </div>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                )}
-              </div>
-            </>
+      {typeof Notification !== 'undefined' && (notifPermission ?? Notification.permission) === 'denied' ? (
+        <div className="px-4 pt-3">
+          <div
+            className={`rounded-[16px] border p-3 text-[12px] ${
+              isDark
+                ? 'border-amber-500/20 bg-amber-500/10 text-amber-200'
+                : 'border-amber-300/50 bg-amber-50 text-amber-900'
+            }`}
+          >
+            Notificações no dispositivo desativadas. Ative nas configurações do site no navegador.
+          </div>
+        </div>
+      ) : null}
+
+      <div className="overflow-y-auto overscroll-contain flex-1 px-3 py-3 space-y-2.5">
+        {minimizedCount > 0 ? (
+          <div className="space-y-2">
+            <p className={`px-1 text-[11px] font-semibold uppercase tracking-[0.12em] ${sectionLabel}`}>
+              Minimizadas
+            </p>
+            {minimizedBudgetBanners.map((item) => (
+              <MacOsNotificationCard
+                key={`min-${item.id}`}
+                model={budgetBannerToCardModel(item)}
+                theme={theme}
+                compact
+                busy={busyIds.has(`min-${item.id}`)}
+                cardRef={(el) => setCardRef(`min-${item.id}`, el)}
+                onActivate={() => {
+                  onMinimizedBudgetActivate?.(item);
+                  setOpen(false);
+                }}
+                onDismiss={() => {
+                  void dismissWithGenie(`min-${item.id}`, () => onMinimizedBudgetDismiss?.(item.id));
+                }}
+              />
+            ))}
+          </div>
+        ) : null}
+
+        {loading && notifications.length === 0 && minimizedCount === 0 ? (
+          <div className={`flex justify-center py-12 ${mutedClass}`}>
+            <Loader2 className="w-7 h-7 animate-spin" />
+          </div>
+        ) : notifications.length === 0 && minimizedCount === 0 ? (
+          <div className={`py-12 px-3 text-center text-[14px] ${emptyClass}`}>
+            Nenhuma notificação ainda.
+          </div>
+        ) : notifications.length > 0 ? (
+          <div className="space-y-2">
+            {minimizedCount > 0 ? (
+              <p className={`px-1 pt-1 text-[11px] font-semibold uppercase tracking-[0.12em] ${sectionLabel}`}>
+                Todas
+              </p>
+            ) : null}
+            {notifications.map((n) => {
+              const model = notificationToCardModel(n, forTechnician);
+              const isUnread = !n.read_at;
+              return (
+                <MacOsNotificationCard
+                  key={n.id}
+                  model={model}
+                  theme={theme}
+                  compact
+                  busy={busyIds.has(n.id)}
+                  cardRef={(el) => setCardRef(n.id, el)}
+                  onActivate={() => {
+                    if (isUnread) void handleMarkRead(n.id);
+                    onNotificationClick?.(n);
+                    setOpen(false);
+                  }}
+                  onDismiss={() => {
+                    void dismissWithGenie(n.id, () => {
+                      if (isUnread) void handleMarkRead(n.id);
+                      setNotifications((prev) => prev.filter((x) => x.id !== n.id));
+                    });
+                  }}
+                />
+              );
+            })}
+          </div>
+        ) : null}
+      </div>
+    </>
   );
 
   const toggleOpen = () => {
@@ -565,11 +759,16 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
       <button
         ref={triggerRef}
         type="button"
+        data-desktop-notif-bell={isDesktopTopbar ? 'true' : undefined}
         onClick={toggleOpen}
         className={
           isDesktopTopbar
             ? 'desktop-shell-topbar-btn relative'
-            : `relative w-11 h-11 rounded-full backdrop-blur-xl border flex items-center justify-center transition-all shadow-[0_8px_24px_rgba(0,0,0,0.10)] active:scale-[0.98] ${bellClass}`
+            : `relative w-11 h-11 rounded-full backdrop-blur-xl border flex items-center justify-center transition-all shadow-[0_8px_24px_rgba(0,0,0,0.10)] active:scale-[0.98] ${
+                isDark
+                  ? 'bg-white/10 border-white/15 text-zinc-200 hover:text-white hover:bg-white/15'
+                  : 'bg-white/70 border-zinc-200/80 text-zinc-700 hover:text-zinc-900 hover:bg-white/90'
+              }`
         }
         aria-label="Central de notificações"
         aria-expanded={open}
@@ -577,17 +776,24 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
         title="Notificações"
       >
         <Bell className={isDesktopTopbar ? 'h-4 w-4' : 'w-5 h-5'} strokeWidth={2} />
-        {unreadCount > 0 && (
+        {badgeCount > 0 ? (
           <span
+            data-desktop-notif-badge={isDesktopTopbar ? 'true' : undefined}
             className={
               isDesktopTopbar
                 ? 'absolute -right-0.5 -top-0.5 flex h-[15px] min-w-[15px] items-center justify-center rounded-full bg-rose-500 px-0.5 text-[9px] font-bold text-white shadow-sm'
                 : 'absolute -top-0.5 -right-0.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-rose-500 px-1 text-[11px] font-bold text-white shadow-sm'
             }
           >
-            {unreadCount > 99 ? '99+' : unreadCount}
+            {badgeCount > 99 ? '99+' : badgeCount}
           </span>
-        )}
+        ) : isDesktopTopbar ? (
+          <span
+            data-desktop-notif-badge="true"
+            className="pointer-events-none absolute -right-0.5 -top-0.5 h-[15px] w-[15px] opacity-0"
+            aria-hidden
+          />
+        ) : null}
       </button>
 
       {open && portalTarget && isDesktopTopbar
@@ -601,7 +807,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
               />
               <div
                 ref={modalRef}
-                style={dropdownStyle}
+                style={{ ...dropdownStyle, WebkitBackdropFilter: 'blur(28px)' }}
                 className={panelShellClass}
                 onClick={(e) => e.stopPropagation()}
                 role="dialog"
@@ -625,6 +831,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
               <div
                 ref={modalRef}
                 className={panelShellClass}
+                style={{ WebkitBackdropFilter: 'blur(28px)' }}
                 onClick={(e) => e.stopPropagation()}
                 role="dialog"
                 aria-modal="true"
@@ -638,4 +845,4 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
         : null}
     </div>
   );
-}
+};

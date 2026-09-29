@@ -1113,11 +1113,19 @@ export interface ServiceOrderUpdateActor {
   actor?: "admin" | "technician";
   actorTechnicianSlug?: string;
   actorTechnicianName?: string;
+  /** Nome exibido do ator (admin ou técnico) — usado em banners/notificações. */
+  actorDisplayName?: string;
 }
 
 function mergeActorIntoBody<T extends Record<string, unknown>>(body: T, options?: ServiceOrderUpdateActor): T {
   if (!options?.actor) return body;
-  return { ...body, actor: options.actor, actorTechnicianSlug: options.actorTechnicianSlug, actorTechnicianName: options.actorTechnicianName };
+  return {
+    ...body,
+    actor: options.actor,
+    actorTechnicianSlug: options.actorTechnicianSlug,
+    actorTechnicianName: options.actorTechnicianName,
+    actorDisplayName: options.actorDisplayName,
+  };
 }
 
 export async function updateServiceOrderStatus(
@@ -1888,6 +1896,20 @@ export async function rotateServiceOrderPhoto(
 
 // ---------- Comentários do modal do veículo ----------
 
+export interface ServiceOrderCommentView {
+  reader_key: string;
+  reader_display_name: string;
+  viewed_at: string;
+}
+
+export interface ServiceOrderCommentReaction {
+  id: string;
+  reactor_key: string;
+  reactor_display_name: string;
+  emoji: string;
+  created_at: string;
+}
+
 export interface ServiceOrderComment {
   id: string;
   author_display_name: string;
@@ -1895,6 +1917,10 @@ export interface ServiceOrderComment {
   created_at: string;
   author_photo_url?: string | null;
   updated_at?: string | null;
+  /** admin | id do system user — mesma chave de reader_key. */
+  author_key?: string | null;
+  views?: ServiceOrderCommentView[];
+  reactions?: ServiceOrderCommentReaction[];
 }
 
 export async function getServiceOrderComments(serviceOrderId: string): Promise<ServiceOrderComment[]> {
@@ -1994,6 +2020,44 @@ export async function markServiceOrderCommentsRead(serviceOrderId: string): Prom
   }
 }
 
+/** Marca uma mensagem específica como visualizada. */
+export async function markServiceOrderCommentViewed(
+  serviceOrderId: string,
+  commentId: string
+): Promise<ServiceOrderCommentView> {
+  const response = await fetch(
+    `${API_BASE}/service-orders/${encodeURIComponent(serviceOrderId)}/comments/${encodeURIComponent(commentId)}/view`,
+    { method: "POST" }
+  );
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || "Falha ao marcar mensagem como lida.");
+  }
+  const data = await response.json();
+  return data.view as ServiceOrderCommentView;
+}
+
+/** Adiciona ou remove reação emoji na mensagem. */
+export async function toggleServiceOrderCommentReaction(
+  serviceOrderId: string,
+  commentId: string,
+  emoji: string
+): Promise<{ removed: boolean; reaction?: ServiceOrderCommentReaction; emoji: string }> {
+  const response = await fetch(
+    `${API_BASE}/service-orders/${encodeURIComponent(serviceOrderId)}/comments/${encodeURIComponent(commentId)}/reactions`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ emoji }),
+    }
+  );
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || "Falha ao reagir à mensagem.");
+  }
+  return response.json();
+}
+
 export async function updateServiceOrderComment(
   serviceOrderId: string,
   commentId: string,
@@ -2041,6 +2105,10 @@ export interface NotificationPayload {
   delivery_date?: string | null;
   technician_slug?: string;
   technician_name?: string;
+  /** ID do orçamento (hub) — banners / clique. */
+  budget_id?: string | null;
+  /** Nº cronológico do orçamento na OS (1 = primeiro). */
+  budget_number?: number | null;
   [key: string]: unknown;
 }
 
@@ -2462,6 +2530,10 @@ export interface PatioVehicleBudgetAggregateItem {
   isVerified: boolean;
   verifiedAt: string | null;
   verifiedByName: string | null;
+  /** Último ator conhecido (criação/edição) — banners do hub. */
+  lastActorName?: string | null;
+  lastActorPhotoUrl?: string | null;
+  verifiedByPhotoUrl?: string | null;
 }
 
 export async function getPatioVehicleBudgetsAggregate(): Promise<PatioVehicleBudgetAggregateItem[]> {

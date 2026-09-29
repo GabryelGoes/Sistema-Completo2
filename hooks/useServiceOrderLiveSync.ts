@@ -185,6 +185,31 @@ export function useServiceOrderLiveSync(
       );
     }
 
+    // Recibos/reações não têm service_order_id — filtra pela oficina.
+    if (workshopId) {
+      extraChannel = extraChannel
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "service_order_comment_views",
+            filter: `workshop_id=eq.${workshopId}`,
+          },
+          () => schedule()
+        )
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "service_order_comment_reactions",
+            filter: `workshop_id=eq.${workshopId}`,
+          },
+          () => schedule()
+        );
+    }
+
     let coreOk = false;
     let extraOk = false;
 

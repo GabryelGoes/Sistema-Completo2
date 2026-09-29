@@ -19,6 +19,9 @@ interface SettingsModalProps {
   onThemeChange: (theme: 'dark' | 'light') => void;
   cinematographicMode?: boolean;
   onCinematographicModeChange?: (enabled: boolean) => void;
+  /** Banners macOS de orçamento criado/editado */
+  budgetBannerNotifications?: boolean;
+  onBudgetBannerNotificationsChange?: (enabled: boolean) => void;
   orientation?: 'portrait' | 'landscape';
   showPatioAccess?: boolean;
 }
@@ -36,6 +39,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onThemeChange,
   cinematographicMode = false,
   onCinematographicModeChange,
+  budgetBannerNotifications = true,
+  onBudgetBannerNotificationsChange,
   orientation,
 }) => {
   useRegisterModalOpen(isOpen);
@@ -165,6 +170,27 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     checked={cinematographicMode}
                     onChange={() => onCinematographicModeChange(!cinematographicMode)}
                     ariaLabel="Ativar modo cinematográfico"
+                  />
+                </div>
+              </div>
+            )}
+
+            {typeof onBudgetBannerNotificationsChange === 'function' && (
+              <div className={`${iosModalInsetCard} p-4 sm:p-5`}>
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <label className="text-[15px] font-medium text-zinc-900 dark:text-white block">
+                      Banners de orçamento
+                    </label>
+                    <p className="text-[12px] text-zinc-500 dark:text-zinc-400 mt-0.5">
+                      No modo PC, mostra alertas no canto da tela (estilo macOS) quando um orçamento é criado, editado ou verificado
+                    </p>
+                  </div>
+                  <IosSwitch
+                    id="settings-modal-budget-banners"
+                    checked={budgetBannerNotifications}
+                    onChange={() => onBudgetBannerNotificationsChange(!budgetBannerNotifications)}
+                    ariaLabel="Ativar banners de orçamento"
                   />
                 </div>
               </div>

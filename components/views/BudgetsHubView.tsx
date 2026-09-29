@@ -59,6 +59,9 @@ function normalizeAggregateItem(raw: PatioVehicleBudgetAggregateItem): PatioVehi
     isVerified: raw.isVerified ?? false,
     verifiedAt: raw.verifiedAt ?? null,
     verifiedByName: raw.verifiedByName ?? null,
+    lastActorName: raw.lastActorName ?? null,
+    lastActorPhotoUrl: raw.lastActorPhotoUrl ?? null,
+    verifiedByPhotoUrl: raw.verifiedByPhotoUrl ?? null,
   };
 }
 
@@ -66,7 +69,9 @@ export interface BudgetsHubViewProps {
   blurPlates?: boolean;
   isHubTabActive?: boolean;
   onOpenBudgetInPatio: (serviceOrderId: string, budgetId: string) => void;
-  onIngestNotifierBaseline: (items: Pick<PatioVehicleBudgetAggregateItem, 'budgetId' | 'contentSignature'>[]) => void;
+  onIngestNotifierBaseline: (
+    items: Pick<PatioVehicleBudgetAggregateItem, 'budgetId' | 'contentSignature' | 'verifiedAt'>[]
+  ) => void;
   onClearHubBadge: () => void;
   consumePendingHubBudgetHighlights?: () => { budgetId: string; kind: 'created' | 'edited' }[];
 }
