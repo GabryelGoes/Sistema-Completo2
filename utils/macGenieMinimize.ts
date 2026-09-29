@@ -207,3 +207,12 @@ export function findDesktopOrcamentosNavTarget(): HTMLElement | null {
   const icon = item.querySelector<HTMLElement>('.desktop-shell-nav-icon');
   return icon ?? item;
 }
+
+/** Sino da central de notificações no cabeçalho (modo PC). */
+export function findDesktopNotificationsBellTarget(): HTMLElement | null {
+  if (typeof document === 'undefined') return null;
+  const bell = document.querySelector<HTMLElement>('[data-desktop-notif-bell]');
+  if (!bell) return null;
+  const badge = bell.querySelector<HTMLElement>('[data-desktop-notif-badge]');
+  return badge ?? bell;
+}

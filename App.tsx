@@ -179,6 +179,7 @@ export default function App() {
   /** Banners macOS de orçamento (ligado por padrão). */
   const [budgetBannerNotifications, setBudgetBannerNotifications] = useState(true);
   const [budgetBannerItems, setBudgetBannerItems] = useState<MacOsBudgetBannerItem[]>([]);
+  const [minimizedBudgetBanners, setMinimizedBudgetBanners] = useState<MacOsBudgetBannerItem[]>([]);
 
   // Device Orientation
   const orientation = useOrientation();
@@ -354,9 +355,30 @@ export default function App() {
     [goToOrcamentosTab]
   );
 
+  const handleMinimizeBudgetBanners = useCallback((items: MacOsBudgetBannerItem[]) => {
+    setMinimizedBudgetBanners((prev) => {
+      const byId = new Map(prev.map((x) => [x.id, x]));
+      for (const it of items) byId.set(it.id, it);
+      return Array.from(byId.values());
+    });
+    const ids = new Set(items.map((x) => x.id));
+    setBudgetBannerItems((prev) => prev.filter((x) => !ids.has(x.id)));
+  }, []);
+
+  const handleMinimizedBudgetActivate = useCallback(
+    (item: MacOsBudgetBannerItem) => {
+      setMinimizedBudgetBanners((prev) => prev.filter((x) => x.id !== item.id));
+      openBudgetFromBanner(item);
+    },
+    [openBudgetFromBanner]
+  );
+
   const pushBudgetBanner = useCallback(
     (item: MacOsBudgetBannerItem) => {
       if (!isDesktopShell || !budgetBannerNotifications) return;
+      setMinimizedBudgetBanners((prev) =>
+        prev.filter((x) => !(x.budgetId === item.budgetId && x.kind === item.kind))
+      );
       setBudgetBannerItems((prev) => {
         if (prev.some((x) => x.id === item.id || (x.budgetId === item.budgetId && x.kind === item.kind))) {
           return prev;
@@ -481,8 +503,20 @@ export default function App() {
       onNotificationClick: handleNotificationClick,
       forTechnician: authSession.role === 'user' && !!authSession.userId,
       technicianSlug: authSession.role === 'user' ? authSession.userId : undefined,
+      minimizedBudgetBanners,
+      onMinimizedBudgetActivate: handleMinimizedBudgetActivate,
+      onMinimizedBudgetDismiss: (id) =>
+        setMinimizedBudgetBanners((prev) => prev.filter((x) => x.id !== id)),
+      onMinimizedBudgetClearAll: () => setMinimizedBudgetBanners([]),
     };
-  }, [authSession, theme, handleBudgetBannerNotification, handleNotificationClick]);
+  }, [
+    authSession,
+    theme,
+    handleBudgetBannerNotification,
+    handleNotificationClick,
+    minimizedBudgetBanners,
+    handleMinimizedBudgetActivate,
+  ]);
 
   const handleOpenLaboratoryOrderFromPatio = useCallback(
     (serviceOrderId: string) => {
@@ -686,11 +720,17 @@ export default function App() {
 
   useEffect(() => {
     localStorage.setItem('app_budget_banner_notifications', String(budgetBannerNotifications));
-    if (!budgetBannerNotifications) setBudgetBannerItems([]);
+    if (!budgetBannerNotifications) {
+      setBudgetBannerItems([]);
+      setMinimizedBudgetBanners([]);
+    }
   }, [budgetBannerNotifications]);
 
   useEffect(() => {
-    if (!isDesktopShell) setBudgetBannerItems([]);
+    if (!isDesktopShell) {
+      setBudgetBannerItems([]);
+      setMinimizedBudgetBanners([]);
+    }
   }, [isDesktopShell]);
 
   // Configurações da oficina (nome do admin + aparência global) após login
@@ -1258,6 +1298,7 @@ export default function App() {
             theme={theme}
             onDismiss={(id) => setBudgetBannerItems((prev) => prev.filter((x) => x.id !== id))}
             onDismissAll={() => setBudgetBannerItems([])}
+            onMinimize={handleMinimizeBudgetBanners}
             onActivate={(item) => openBudgetFromBanner(item)}
           />
         ) : null}
@@ -1603,6 +1644,7 @@ export default function App() {
           theme={theme}
           onDismiss={(id) => setBudgetBannerItems((prev) => prev.filter((x) => x.id !== id))}
           onDismissAll={() => setBudgetBannerItems([])}
+          onMinimize={handleMinimizeBudgetBanners}
           onActivate={(item) => openBudgetFromBanner(item)}
         />
       ) : null}
