@@ -121,9 +121,10 @@ export function MacOsNotificationCard({
     setPhotoFailed(false);
   }, [photoUrl]);
 
+  // Sombra em camadas (degradê suave), sem spread negativo — evita borda “cortada”.
   const shell = isDark
-    ? 'border-white/12 bg-zinc-900/92 text-white shadow-[0_16px_48px_-12px_rgba(0,0,0,0.55)]'
-    : 'border-black/8 bg-white/92 text-zinc-900 shadow-[0_12px_40px_-12px_rgba(0,0,0,0.22),0_0_0_0.5px_rgba(0,0,0,0.04)]';
+    ? 'border-white/[0.08] bg-zinc-900/92 text-white shadow-[0_0_0_0.5px_rgba(255,255,255,0.06),0_1px_2px_rgba(0,0,0,0.18),0_4px_10px_rgba(0,0,0,0.16),0_12px_28px_rgba(0,0,0,0.22),0_28px_56px_rgba(0,0,0,0.18)]'
+    : 'border-black/[0.04] bg-white/92 text-zinc-900 shadow-[0_0_0_0.5px_rgba(0,0,0,0.04),0_1px_2px_rgba(0,0,0,0.03),0_4px_12px_rgba(0,0,0,0.05),0_12px_28px_rgba(0,0,0,0.07),0_28px_56px_rgba(0,0,0,0.06)]';
   const meta = isDark ? 'text-zinc-400' : 'text-zinc-500';
   const titleCls = isDark ? 'text-white' : 'text-zinc-900';
   const bodyCls = isDark ? 'text-zinc-300' : 'text-zinc-600';
