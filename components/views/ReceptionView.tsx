@@ -248,6 +248,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
   const [moduleVehicleKind, setModuleVehicleKind] = useState<ModuleVehicleKind | ''>('');
   const [moduleProductOther, setModuleProductOther] = useState('');
   const [moduleIntakeStatus, setModuleIntakeStatus] = useState<ServiceOrderStatus>(FIRST_STAGE);
+  const [moduleGarantia, setModuleGarantia] = useState(false);
   const [labBenchHintRefreshKey, setLabBenchHintRefreshKey] = useState(0);
   const [plateLookupLoading, setPlateLookupLoading] = useState(false);
   const [plateLookupError, setPlateLookupError] = useState<string | null>(null);
@@ -350,6 +351,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
       setModuleKind('');
       setModuleVehicleKind('');
       setModuleProductOther('');
+      setModuleGarantia(false);
     }
   }, [receptionMode]);
 
@@ -874,19 +876,23 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
       };
       const agendaOpts =
         !isModule && markAsFromAgenda ? { agendaTag: true as const } : undefined;
+      const moduleOpts =
+        isModule && moduleGarantia
+          ? { ...(agendaOpts ?? {}), garantiaTag: true as const }
+          : agendaOpts;
       const { serviceOrder } = useExistingFlow
         ? await saveReceptionIntakeForExistingCustomer(
             intakeExistingCustomerId!,
             intakeCustomer,
             receptionMode,
             receptionMode === 'module' ? moduleIntakeStatus : undefined,
-            agendaOpts
+            moduleOpts
           )
         : await saveReceptionIntake(
             intakeCustomer,
             receptionMode,
             receptionMode === 'module' ? moduleIntakeStatus : undefined,
-            agendaOpts
+            moduleOpts
           );
 
       if (isModule && moduleKind) {
@@ -981,6 +987,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
     setModuleKind('');
     setModuleVehicleKind('');
     setModuleProductOther('');
+    setModuleGarantia(false);
     setPlateLookupError(null);
     lastFetchedPlacaRef.current = null;
     setIntakeExistingCustomerId(null);
@@ -1018,6 +1025,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
     setModuleKind('');
     setModuleVehicleKind('');
     setModuleProductOther('');
+    setModuleGarantia(false);
     setPlateLookupError(null);
     lastFetchedPlacaRef.current = null;
   };
@@ -1860,6 +1868,22 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                         onChange={handleInputChange}
                       />
                     </div>
+                    <label className="flex cursor-pointer items-start gap-3 rounded-2xl border border-zinc-200/90 bg-white/80 px-4 py-3 dark:border-white/[0.1] dark:bg-white/[0.04]">
+                      <input
+                        type="checkbox"
+                        checked={moduleGarantia}
+                        onChange={(e) => setModuleGarantia(e.target.checked)}
+                        className="mt-0.5 h-4 w-4 rounded border-zinc-300 text-red-600 focus:ring-red-500/40"
+                      />
+                      <span className="min-w-0">
+                        <span className="block text-[15px] font-semibold text-zinc-900 dark:text-white">
+                          Peça em garantia
+                        </span>
+                        <span className="mt-0.5 block text-[12px] text-zinc-500 dark:text-zinc-400">
+                          Marca a OS com a etiqueta Garantia no laboratório (não cria coluna à parte)
+                        </span>
+                      </span>
+                    </label>
                     <div>
                       <label className={`${iosLabel} ml-1`} id="reception-module-stage-label">
                         Etapa inicial no quadro <span className="text-red-500">*</span>

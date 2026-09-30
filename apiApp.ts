@@ -4443,6 +4443,7 @@ export function createApiApp() {
         moduleProductOther: bodyModuleProductOther,
         status: bodyStatus,
         agendaTag: bodyAgendaTag,
+        garantiaTag: bodyGarantiaTag,
       } = req.body;
 
       const orderType = bodyOrderType === "module" ? "module" : "vehicle";
@@ -4560,6 +4561,7 @@ export function createApiApp() {
           bench_slot_at: benchFields.bench_slot_at,
           bench_queued_at: benchFields.bench_queued_at,
           agenda_tag: orderType === "vehicle" && bodyAgendaTag === true,
+          garantia_tag: bodyGarantiaTag === true,
         })
         .select("*")
         .single();
@@ -11230,6 +11232,9 @@ export function createApiApp() {
           }
         }
       }
+      if (garantiaTag === true) {
+        updatePayload.garantia_tag = true;
+      }
       if (garantiaTag === false) {
         updatePayload.garantia_tag = false;
       }
@@ -11436,7 +11441,10 @@ export function createApiApp() {
           const merged: ExternalRepair = { ...(prevExternal ?? {}) };
           if (!merged.sentAt) merged.sentAt = today;
           updatePayload.external_repair = merged;
-        } else if (nextStatus === "CHEGADA_CONSERTO" && prevStatus === "EM_CONSERTO_EXTERNO") {
+        } else if (
+          (nextStatus === "CHEGADA_CONSERTO" || nextStatus === "EM_SERVICO") &&
+          prevStatus === "EM_CONSERTO_EXTERNO"
+        ) {
           const merged: ExternalRepair = { ...(prevExternal ?? {}) };
           if (!merged.returnedAt) merged.returnedAt = today;
           updatePayload.external_repair = merged;

@@ -33,9 +33,7 @@ export const LAB_BENCH_STATUSES: string[] = [
   "AGUARDANDO_APROVACAO",
   "ORCAMENTO_APROVADO",
   "AGUARDANDO_PECAS",
-  "PECAS_DISPONIVEIS",
-  "ENVIO_CONSERTO",
-  "CHEGADA_CONSERTO",
+  "SEM_CONSERTO",
   "PRONTO_PRA_RETIRADA",
 ];
 
@@ -73,20 +71,14 @@ export const LAB_BENCH_STAGE_LEGEND: LabBenchStageLegend[] = [
   {
     id: "AGUARDANDO_PECAS",
     label: "Aguardando peças",
-    statuses: ["AGUARDANDO_PECAS", "PECAS_DISPONIVEIS"],
+    statuses: ["AGUARDANDO_PECAS"],
     accent: "bg-teal-500",
   },
   {
-    id: "ENVIO_CONSERTO",
-    label: "Envio conserto",
-    statuses: ["ENVIO_CONSERTO"],
-    accent: "bg-indigo-600",
-  },
-  {
-    id: "CHEGADA_CONSERTO",
-    label: "Chegada conserto",
-    statuses: ["CHEGADA_CONSERTO"],
-    accent: "bg-cyan-600",
+    id: "SEM_CONSERTO",
+    label: "Sem conserto",
+    statuses: ["SEM_CONSERTO"],
+    accent: "bg-stone-600",
   },
   {
     id: "PRONTO_PRA_RETIRADA",

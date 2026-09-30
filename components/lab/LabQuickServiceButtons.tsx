@@ -1,9 +1,8 @@
-import React from 'react';
-import { Loader2 } from 'lucide-react';
-import {
-  LAB_QUICK_SERVICE_COLOR_CLASSES,
-  type LabQuickService,
-} from '../../utils/labQuickServices';
+import React, { useMemo, useState } from 'react';
+import { ChevronRight, Loader2, Sparkles, X } from 'lucide-react';
+import type { LabQuickService } from '../../utils/labQuickServices';
+import { ModalPortal } from '../ui/ModalPortal';
+import { iosModalClose, iosModalShell } from '../ui/iosModalStyles';
 
 export type LabQuickServiceButtonsProps = {
   services: LabQuickService[];
@@ -12,42 +11,137 @@ export type LabQuickServiceButtonsProps = {
   loadingId?: string | null;
   /** Filtra presets exibidos (ex.: apenas ABS na avaliação técnica). */
   filter?: (preset: LabQuickService) => boolean;
+  /** Rótulo do botão único que abre a lista. */
+  buttonLabel?: string;
   hint?: string;
 };
 
+/**
+ * Um único botão que abre a lista de serviços rápidos (sem cores por item).
+ */
 export const LabQuickServiceButtons: React.FC<LabQuickServiceButtonsProps> = ({
   services,
   onSelect,
   disabled = false,
   loadingId = null,
   filter,
+  buttonLabel = 'Serviços rápidos',
   hint,
 }) => {
-  const visible = filter ? services.filter(filter) : services;
+  const [open, setOpen] = useState(false);
+  const visible = useMemo(
+    () => (filter ? services.filter(filter) : services),
+    [services, filter]
+  );
   if (visible.length === 0) return null;
+
+  const busy = disabled || loadingId != null;
 
   return (
     <div className="space-y-2">
       {hint ? (
         <p className="text-[12px] leading-relaxed text-zinc-600 dark:text-zinc-400">{hint}</p>
       ) : null}
-      <div className="flex flex-wrap gap-2">
-        {visible.map((preset) => {
-          const color = LAB_QUICK_SERVICE_COLOR_CLASSES[preset.color];
-          const isLoading = loadingId === preset.id;
-          return (
-            <button
-              key={preset.id}
-              type="button"
-              onClick={() => onSelect(preset)}
-              disabled={disabled || (loadingId != null && !isLoading)}
-              className={`rounded-xl border-2 px-3.5 py-2.5 text-[13px] font-semibold shadow-md transition active:scale-[0.98] disabled:opacity-55 ${color.btn} ${color.btnHover}`}
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        disabled={busy}
+        className="group flex w-full items-center gap-3 rounded-xl border border-zinc-200/90 bg-white px-3.5 py-3 text-left shadow-sm transition hover:bg-zinc-50 disabled:opacity-55 dark:border-white/[0.1] dark:bg-zinc-950/55 dark:hover:bg-zinc-900"
+      >
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[0.65rem] bg-violet-600/10 text-violet-700 dark:bg-violet-500/15 dark:text-violet-300">
+          <Sparkles className="h-5 w-5" strokeWidth={2.25} aria-hidden />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block text-[14px] font-semibold text-zinc-900 dark:text-white">
+            {buttonLabel}
+          </span>
+          <span className="mt-0.5 block text-[12px] text-zinc-500 dark:text-zinc-400">
+            {visible.length} {visible.length === 1 ? 'serviço' : 'serviços'} · toque para escolher
+          </span>
+        </span>
+        <ChevronRight
+          className="h-5 w-5 shrink-0 text-zinc-400 transition-transform group-hover:translate-x-0.5 group-hover:text-violet-600 dark:text-zinc-500"
+          strokeWidth={2.25}
+          aria-hidden
+        />
+      </button>
+
+      {open ? (
+        <ModalPortal manageBackLayer={false}>
+          <div
+            className="fixed inset-0 z-[350] flex items-center justify-center bg-black/45 p-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] backdrop-blur-[20px] sm:p-6"
+            onClick={() => !busy && setOpen(false)}
+            role="presentation"
+          >
+            <div
+              className={`relative flex max-h-[min(88dvh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1.5rem))] w-full max-w-md min-h-0 flex-col overflow-hidden ${iosModalShell}`}
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="lab-quick-services-picker-title"
+              onClick={(e) => e.stopPropagation()}
             >
-              {isLoading ? <Loader2 className="mx-auto h-4 w-4 animate-spin" /> : preset.label}
-            </button>
-          );
-        })}
-      </div>
+              <button
+                type="button"
+                onClick={() => setOpen(false)}
+                className={iosModalClose}
+                aria-label="Fechar serviços rápidos"
+                disabled={busy}
+              >
+                <X className="h-5 w-5" />
+              </button>
+
+              <div className="shrink-0 border-b border-zinc-200/70 px-6 pb-5 pt-7 dark:border-white/[0.07] sm:px-8 sm:pt-8">
+                <div className="flex items-start gap-3 pr-10">
+                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[0.7rem] bg-violet-600/10 text-violet-700 dark:bg-violet-500/15 dark:text-violet-300">
+                    <Sparkles className="h-5 w-5" strokeWidth={2.25} aria-hidden />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <h2
+                      id="lab-quick-services-picker-title"
+                      className="text-[22px] font-semibold leading-tight tracking-tight text-zinc-900 dark:text-white"
+                    >
+                      {buttonLabel}
+                    </h2>
+                    <p className="mt-1 text-[13px] text-zinc-500 dark:text-zinc-400">
+                      Escolha um serviço para incluir na avaliação.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-[#F2F2F7] px-4 py-4 dark:bg-black/25 custom-scrollbar sm:px-6">
+                <ul className="space-y-2">
+                  {visible.map((preset) => {
+                    const isLoading = loadingId === preset.id;
+                    return (
+                      <li key={preset.id}>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            onSelect(preset);
+                            if (!isLoading) setOpen(false);
+                          }}
+                          disabled={disabled || (loadingId != null && !isLoading)}
+                          className="flex w-full items-center gap-3 rounded-xl border border-zinc-200/90 bg-white px-3.5 py-3.5 text-left shadow-sm transition active:scale-[0.99] hover:bg-zinc-50 disabled:opacity-55 dark:border-white/[0.1] dark:bg-zinc-900 dark:hover:bg-zinc-800"
+                        >
+                          <span className="min-w-0 flex-1 text-[15px] font-semibold leading-snug text-zinc-900 dark:text-white">
+                            {preset.label}
+                          </span>
+                          {isLoading ? (
+                            <Loader2 className="h-5 w-5 shrink-0 animate-spin text-zinc-400" />
+                          ) : (
+                            <ChevronRight className="h-5 w-5 shrink-0 text-zinc-400" aria-hidden />
+                          )}
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            </div>
+          </div>
+        </ModalPortal>
+      ) : null}
     </div>
   );
 };

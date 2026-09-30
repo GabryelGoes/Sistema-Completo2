@@ -38,18 +38,15 @@ const PATIO_STAGE_PRIORITY: Record<string, number> = {
 };
 
 const LAB_STAGE_PRIORITY: Record<string, number> = {
-  Garantia: 1,
-  'Aguardando Avaliação': 2,
-  'Avaliação Técnica': 3,
-  'Aguardando Aprovação': 4,
-  'Orçamento Aprovado': 5,
-  'Aguardando Peças': 6,
-  'Peças Disponíveis': 7,
-  'Envio Conserto': 8,
-  'Chegada Conserto': 9,
-  'Em Serviço': 10,
-  'Pronto pra Retirada': 11,
-  'Orçamento Não Aprovado': 12,
+  'Aguardando Avaliação': 1,
+  'Avaliação Técnica': 2,
+  'Aguardando Aprovação': 3,
+  'Orçamento Aprovado': 4,
+  'Aguardando Peças': 5,
+  'Em Serviço': 6,
+  'Sem Conserto': 7,
+  'Pronto pra Retirada': 8,
+  'Orçamento Não Aprovado': 9,
 };
 
 const PATIO_STATUS_TO_STAGE: Record<string, string> = {
@@ -72,12 +69,13 @@ const LAB_STATUS_TO_STAGE: Record<string, string> = {
   AGUARDANDO_APROVACAO: 'Aguardando Aprovação',
   ORCAMENTO_APROVADO: 'Orçamento Aprovado',
   AGUARDANDO_PECAS: 'Aguardando Peças',
-  PECAS_DISPONIVEIS: 'Peças Disponíveis',
-  ENVIO_CONSERTO: 'Envio Conserto',
-  CHEGADA_CONSERTO: 'Chegada Conserto',
+  PECAS_DISPONIVEIS: 'Aguardando Peças',
+  ENVIO_CONSERTO: 'Em Conserto',
+  CHEGADA_CONSERTO: 'Em Serviço',
   EM_SERVICO: 'Em Serviço',
+  SEM_CONSERTO: 'Sem Conserto',
   PRONTO_PRA_RETIRADA: 'Pronto pra Retirada',
-  GARANTIA: 'Garantia',
+  GARANTIA: 'Aguardando Avaliação',
   ORCAMENTO_NAO_APROVADO: 'Orçamento Não Aprovado',
   FINALIZADO: 'Pronto pra Retirada',
   FASE_DE_TESTE: 'Em Serviço',
@@ -139,6 +137,7 @@ export function tvBoardStageColorClass(stage: string, scope: TvScope): string {
       : 'bg-rose-700 text-white';
   }
   if (s.includes('garantia')) return 'bg-red-600 text-white';
+  if (s.includes('sem conserto')) return 'bg-stone-600 text-white';
   if (s.includes('avaliação') && s.includes('aguardando')) return 'bg-zinc-500 text-white';
   if (s.includes('aguardando aprovação') || s.includes('aguardando aprovacao')) {
     return 'bg-amber-500 text-amber-950';
