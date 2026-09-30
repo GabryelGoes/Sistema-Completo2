@@ -9743,15 +9743,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                         />
                                       </span>
                                     </button>
-                                    {canResignDiagAuth ? (
-                                      <button
-                                        type="button"
-                                        onClick={() => setDiagnosticAuthSignOpen(true)}
-                                        className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-zinc-200/90 bg-white px-4 py-2.5 text-[13px] font-semibold text-zinc-800 transition-colors hover:bg-zinc-50 active:scale-[0.99] dark:border-white/[0.1] dark:bg-white/[0.06] dark:text-zinc-100 dark:hover:bg-white/[0.1]"
-                                      >
-                                        Reassinar termo
-                                      </button>
-                                    ) : null}
                                   </div>
                                 ) : (
                                   <button
@@ -9827,11 +9818,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
                                 <div
                                   className={`max-h-[380px] overflow-x-hidden overflow-y-auto rounded-xl border border-zinc-200/75 bg-white/95 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)] dark:border-white/[0.08] dark:bg-zinc-950/50 ${
-                                    isPatioPcModal
-                                      ? 'space-y-2.5 p-2.5'
-                                      : isPatioTabletLikeModal
-                                        ? 'grid grid-cols-2 gap-2.5 p-3'
-                                        : 'space-y-2.5 p-2.5'
+                                    isPatioPcModal || isPatioTabletLikeModal
+                                      ? 'grid grid-cols-2 gap-2.5 p-3'
+                                      : 'space-y-2.5 p-2.5'
                                   }`}
                                 >
                               {savedBudgets
@@ -9847,8 +9836,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                   const dateStr = new Date(budgetLastActivityMs(budget)).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
                                   const numero = budgetChronologicalNumber(sameOs, budget.id);
                                   const budgetVerified = isBudgetVerified(budget);
-                                  const ringRadius = isPatioTabletLikeModal ? 'rounded-[14px]' : 'rounded-[18px]';
-                                  const innerRadius = isPatioTabletLikeModal ? 'rounded-[12px]' : 'rounded-[16px]';
+                                  const ringRadius =
+                                    isPatioPcModal || isPatioTabletLikeModal ? 'rounded-[14px]' : 'rounded-[18px]';
+                                  const innerRadius =
+                                    isPatioPcModal || isPatioTabletLikeModal ? 'rounded-[12px]' : 'rounded-[16px]';
                                   return (
                                     <div
                                       key={budget.id}
@@ -9858,32 +9849,32 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                       type="button"
                                       onClick={() => openBudgetForView(budget)}
                                       className={`group relative w-full border border-white/85 bg-white/95 text-left shadow-[0_6px_16px_-8px_rgba(0,0,0,0.22)] ring-1 ring-transparent transition-[border-color,box-shadow,ring-color] duration-200 hover:border-white hover:shadow-[0_10px_22px_-8px_rgba(0,122,255,0.33)] hover:ring-[#007AFF]/20 dark:border-white/[0.08] dark:bg-zinc-950/85 dark:shadow-[0_8px_20px_-10px_rgba(0,0,0,0.6)] dark:hover:border-[#93c5fd]/35 dark:hover:shadow-[0_12px_26px_-10px_rgba(59,130,246,0.28)] dark:hover:ring-[#7ab8ff]/20 ${innerRadius} ${
-                                        isPatioTabletLikeModal ? 'p-2.5' : 'p-3.5'
+                                        isPatioPcModal || isPatioTabletLikeModal ? 'p-2.5' : 'p-3.5'
                                       }`}
                                     >
-                                      <div className={`mb-2 flex items-center justify-between gap-1.5${isPatioTabletLikeModal ? ' mb-1.5' : ' mb-2.5'}`}>
-                                        <span className={`font-bold uppercase tracking-wider text-zinc-800 dark:text-zinc-100 ${isPatioTabletLikeModal ? 'text-[10px]' : 'text-xs'}`}>
+                                      <div className={`mb-2 flex items-center justify-between gap-1.5${isPatioPcModal || isPatioTabletLikeModal ? ' mb-1.5' : ' mb-2.5'}`}>
+                                        <span className={`font-bold uppercase tracking-wider text-zinc-800 dark:text-zinc-100 ${isPatioPcModal || isPatioTabletLikeModal ? 'text-[10px]' : 'text-xs'}`}>
                                           Orçamento {numero}
                                         </span>
                                         {budgetVerified ? (
-                                          <span className={`inline-flex shrink-0 items-center gap-1 rounded-full bg-emerald-500/12 font-bold uppercase tracking-[0.08em] text-emerald-700 dark:bg-emerald-500/18 dark:text-emerald-300 ${isPatioTabletLikeModal ? 'px-1.5 py-0.5 text-[8px]' : 'px-2 py-0.5 text-[10px]'}`}>
+                                          <span className={`inline-flex shrink-0 items-center gap-1 rounded-full bg-emerald-500/12 font-bold uppercase tracking-[0.08em] text-emerald-700 dark:bg-emerald-500/18 dark:text-emerald-300 ${isPatioPcModal || isPatioTabletLikeModal ? 'px-1.5 py-0.5 text-[8px]' : 'px-2 py-0.5 text-[10px]'}`}>
                                             Verificado
                                           </span>
                                         ) : (
-                                          <span className={`inline-flex shrink-0 items-center gap-1 rounded-full bg-amber-500/12 font-bold uppercase tracking-[0.08em] text-amber-800 dark:bg-amber-500/18 dark:text-amber-200 ${isPatioTabletLikeModal ? 'px-1.5 py-0.5 text-[8px]' : 'px-2 py-0.5 text-[10px]'}`}>
+                                          <span className={`inline-flex shrink-0 items-center gap-1 rounded-full bg-amber-500/12 font-bold uppercase tracking-[0.08em] text-amber-800 dark:bg-amber-500/18 dark:text-amber-200 ${isPatioPcModal || isPatioTabletLikeModal ? 'px-1.5 py-0.5 text-[8px]' : 'px-2 py-0.5 text-[10px]'}`}>
                                             Aguardando
                                           </span>
                                         )}
                                       </div>
-                                      <p className={`mb-2 line-clamp-2 font-semibold leading-snug text-zinc-900 dark:text-zinc-100 ${isPatioTabletLikeModal ? 'mb-1.5 text-[11px]' : 'text-[13px]'}`}>
+                                      <p className={`mb-2 line-clamp-2 font-semibold leading-snug text-zinc-900 dark:text-zinc-100 ${isPatioPcModal || isPatioTabletLikeModal ? 'mb-1.5 text-[11px]' : 'text-[13px]'}`}>
                                         {preview}
                                       </p>
-                                      <div className={`mb-2 flex items-center gap-2 text-zinc-600 dark:text-zinc-400 ${isPatioTabletLikeModal ? 'mb-1.5 text-[10px]' : 'text-[11px]'}`}>
+                                      <div className={`mb-2 flex items-center gap-2 text-zinc-600 dark:text-zinc-400 ${isPatioPcModal || isPatioTabletLikeModal ? 'mb-1.5 text-[10px]' : 'text-[11px]'}`}>
                                         <span>{budget.services.length} serviço{budget.services.length !== 1 ? 's' : ''}</span>
                                         <span>·</span>
                                         <span>{budget.parts.length} peça{budget.parts.length !== 1 ? 's' : ''}</span>
                                       </div>
-                                      <div className={`flex items-center justify-between gap-1 border-t border-zinc-200/80 font-semibold uppercase tracking-[0.08em] text-zinc-500 dark:border-white/[0.08] dark:text-zinc-400 ${isPatioTabletLikeModal ? 'pt-1.5 text-[8px]' : 'pt-2 text-[10px]'}`}>
+                                      <div className={`flex items-center justify-between gap-1 border-t border-zinc-200/80 font-semibold uppercase tracking-[0.08em] text-zinc-500 dark:border-white/[0.08] dark:text-zinc-400 ${isPatioPcModal || isPatioTabletLikeModal ? 'pt-1.5 text-[8px]' : 'pt-2 text-[10px]'}`}>
                                         <span className="min-w-0 truncate">{dateStr}</span>
                                         <span className="shrink-0 text-[#007AFF] dark:text-[#93c5fd]">{patioVehicleVm.openHintLabel}</span>
                                       </div>
@@ -9892,7 +9883,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                   );
                                 })}
                               {savedBudgets.filter((b) => b.serviceOrderId === selectedCard.id).length === 0 && (
-                                <div className={`rounded-xl border border-dashed border-zinc-300/95 bg-zinc-50/90 p-5 text-center dark:border-white/[0.12] dark:bg-white/[0.04]${isPatioTabletLikeModal ? ' col-span-2' : ''}`}>
+                                <div className={`rounded-xl border border-dashed border-zinc-300/95 bg-zinc-50/90 p-5 text-center dark:border-white/[0.12] dark:bg-white/[0.04]${isPatioPcModal || isPatioTabletLikeModal ? ' col-span-2' : ''}`}>
                                   <img src="/icons/novo-orcamento-ios.png" alt="" className="mx-auto mb-2 h-9 w-9 rounded-[0.65rem] object-cover" />
                                   <p className="mt-0.5 text-sm font-semibold text-zinc-900 dark:text-zinc-100">Nenhum orçamento</p>
                                   <p className="mt-0.5 text-xs text-zinc-600 dark:text-zinc-400">Crie um orçamento pelo botão acima</p>
@@ -9930,7 +9921,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                                   : 'border border-zinc-200/80 bg-white text-zinc-600 hover:border-[#007AFF]/35 dark:border-white/[0.1] dark:bg-zinc-900 dark:text-zinc-300'
                                               }`}
                                             >
-                                              #{num}
+                                              {num}
                                               {isBudgetVerified(b) ? ' ✓' : ''}
                                             </button>
                                           );
@@ -10565,6 +10556,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
                              />
                              )}
                         </div>
+
+                        {isPatioPcModal ? (
+                          <div className="h-px bg-zinc-200 dark:bg-zinc-800" />
+                        ) : null}
 
                         <div className={isPatioPcModal ? 'mt-1' : 'mt-3'}>
                           <VehicleOsStockCheckoutSection
@@ -11442,7 +11437,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
               : (selectedCard?.mileageKm ?? serviceOrderDetail?.mileage_km)
           }
           onResign={
-            canResignDiagAuth
+            canResignDiagAuth && !isPatioPcModal
               ? () => {
                   setDiagnosticAuthSheetOpen(false);
                   setDiagnosticAuthSignOpen(true);
