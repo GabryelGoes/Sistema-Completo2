@@ -2167,6 +2167,10 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
       <DiagnosticAuthorizationSignModal
         open={diagAuthSignModalOpen}
         confirming={diagAuthSaving}
+        vehicleBrand={customer.vehicleBrand}
+        vehicleModel={customer.vehicleModel}
+        plate={customer.plate}
+        mileageKm={customer.mileageKm}
         onClose={() => {
           if (diagAuthSaving) return;
           const shouldNavigate = !!pendingDiagAuthOsId;
