@@ -1656,7 +1656,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                           onClick={() => void runPlacaLookup(true)}
                           disabled={plateLookupLoading}
                           title="Buscar placa"
-                          className="inline-flex h-[42px] shrink-0 items-center justify-center gap-1.5 self-end rounded-xl border border-zinc-200 bg-zinc-100 px-3 text-sm font-semibold text-zinc-800 transition-all hover:border-[#007AFF]/45 hover:bg-white active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50 dark:border-brand-border dark:bg-brand-surfaceHighlight dark:text-zinc-100 dark:hover:border-[#64B5FF]/40"
+                          className="inline-flex shrink-0 items-center justify-center gap-1.5 self-end rounded-xl border border-zinc-200 bg-zinc-100 px-3 py-3 text-sm font-semibold text-zinc-800 transition-all hover:border-[#007AFF]/45 hover:bg-white active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50 dark:border-brand-border dark:bg-brand-surfaceHighlight dark:text-zinc-100 dark:hover:border-[#64B5FF]/40"
                         >
                           {plateLookupLoading ? (
                             <Loader2 className="h-4 w-4 animate-spin text-[#007AFF] dark:text-[#7ab8ff]" aria-hidden />
