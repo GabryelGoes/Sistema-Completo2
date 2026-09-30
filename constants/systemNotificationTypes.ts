@@ -15,6 +15,11 @@ export const SYSTEM_NOTIFICATION_TYPE_OPTIONS = [
     description: "Um orçamento existente foi alterado.",
   },
   {
+    id: "budget_items_approved",
+    label: "Itens aprovados",
+    description: "Itens do orçamento foram aprovados ou reprovados no hub.",
+  },
+  {
     id: "stage_change",
     label: "Mudança de etapa",
     description: "A OS foi movida para outra etapa.",

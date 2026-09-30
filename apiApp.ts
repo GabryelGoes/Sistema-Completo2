@@ -257,6 +257,50 @@ function budgetContentWithoutApprovals(row: {
   });
 }
 
+/** Impressão estável das decisões de aprovação por item (true/false/pendente). */
+function budgetApprovalFingerprint(services: unknown, parts: unknown): string {
+  const mark = (item: unknown): string => {
+    if (!item || typeof item !== "object") return "_";
+    const a = (item as { approved?: unknown }).approved;
+    if (a === true) return "1";
+    if (a === false) return "0";
+    return "_";
+  };
+  const s = (Array.isArray(services) ? services : []).map(mark).join("");
+  const p = (Array.isArray(parts) ? parts : []).map(mark).join("");
+  return `s:${s}|p:${p}`;
+}
+
+function countBudgetApprovalDecisions(services: unknown, parts: unknown): {
+  approvedItemsCount: number;
+  rejectedItemsCount: number;
+  pendingItemsCount: number;
+  hasExplicitApprovalDecisions: boolean;
+} {
+  let approvedItemsCount = 0;
+  let rejectedItemsCount = 0;
+  let pendingItemsCount = 0;
+  let hasExplicitApprovalDecisions = false;
+  for (const row of [...(Array.isArray(services) ? services : []), ...(Array.isArray(parts) ? parts : [])]) {
+    const r = row as { approved?: boolean };
+    if (r?.approved === true) {
+      approvedItemsCount += 1;
+      hasExplicitApprovalDecisions = true;
+    } else if (r?.approved === false) {
+      rejectedItemsCount += 1;
+      hasExplicitApprovalDecisions = true;
+    } else if (row != null && typeof row === "object") {
+      pendingItemsCount += 1;
+    }
+  }
+  return {
+    approvedItemsCount,
+    rejectedItemsCount,
+    pendingItemsCount,
+    hasExplicitApprovalDecisions,
+  };
+}
+
 export function createApiApp() {
   const app = express();
   const WORKSHOP_ID = process.env.WORKSHOP_ID;
@@ -1535,6 +1579,10 @@ export function createApiApp() {
     if (type === "lab_sem_conserto" && cfg.adminNotificationTypes.includes("stage_change")) {
       return true;
     }
+    // Migração: aprovação de itens herda preferência de “orçamento editado”.
+    if (type === "budget_items_approved" && cfg.adminNotificationTypes.includes("budget_edited")) {
+      return true;
+    }
     return false;
   }
 
@@ -1544,11 +1592,20 @@ export function createApiApp() {
     const direct = cfg.subscribers
       .filter((s) => s.notificationTypes.includes(type))
       .map((s) => s.systemUserId);
-    if (direct.length > 0 || type !== "lab_sem_conserto") return direct;
-    // Migração: quem recebia mudança de etapa passa a receber Sem conserto.
-    return cfg.subscribers
-      .filter((s) => s.notificationTypes.includes("stage_change"))
-      .map((s) => s.systemUserId);
+    if (direct.length > 0) return direct;
+    if (type === "lab_sem_conserto") {
+      // Migração: quem recebia mudança de etapa passa a receber Sem conserto.
+      return cfg.subscribers
+        .filter((s) => s.notificationTypes.includes("stage_change"))
+        .map((s) => s.systemUserId);
+    }
+    if (type === "budget_items_approved") {
+      // Migração: quem recebia “editado” passa a receber aprovação de itens.
+      return cfg.subscribers
+        .filter((s) => s.notificationTypes.includes("budget_edited"))
+        .map((s) => s.systemUserId);
+    }
+    return direct;
   }
 
   /**
@@ -4299,35 +4356,25 @@ export function createApiApp() {
         const contentSignature = crypto
           .createHash("sha256")
           .update(
-            JSON.stringify({
-              cardName: b.card_name ?? "",
-              updatedAt: String(b.updated_at ?? ""),
-              d: b.diagnosis ?? "",
-              s: b.services ?? [],
-              p: b.parts ?? [],
-              o: b.observations ?? "",
+            budgetContentWithoutApprovals({
+              card_name: b.card_name ?? "",
+              diagnosis: b.diagnosis ?? "",
+              observations: b.observations ?? "",
+              services: b.services ?? [],
+              parts: b.parts ?? [],
             })
           )
           .digest("hex");
+        const approvalFingerprint = budgetApprovalFingerprint(b.services, b.parts);
         const cid = o?.customer_id ?? null;
         const servicesArr = Array.isArray(b.services) ? b.services : [];
         const partsArr = Array.isArray(b.parts) ? b.parts : [];
-        let approvedItemsCount = 0;
-        let rejectedItemsCount = 0;
-        let pendingItemsCount = 0;
-        let hasExplicitApprovalDecisions = false;
-        for (const row of [...servicesArr, ...partsArr]) {
-          const r = row as { approved?: boolean };
-          if (r.approved === true) {
-            approvedItemsCount += 1;
-            hasExplicitApprovalDecisions = true;
-          } else if (r.approved === false) {
-            rejectedItemsCount += 1;
-            hasExplicitApprovalDecisions = true;
-          } else if (row != null && typeof row === "object") {
-            pendingItemsCount += 1;
-          }
-        }
+        const {
+          approvedItemsCount,
+          rejectedItemsCount,
+          pendingItemsCount,
+          hasExplicitApprovalDecisions,
+        } = countBudgetApprovalDecisions(servicesArr, partsArr);
         const hasApprovedItems = approvedItemsCount > 0;
         const diag = typeof b.diagnosis === "string" ? b.diagnosis : "";
         const createdAt = String(b.created_at ?? "");
@@ -4339,6 +4386,7 @@ export function createApiApp() {
           createdAt,
           updatedAt,
           contentSignature,
+          approvalFingerprint,
           cardName: b.card_name != null ? String(b.card_name) : null,
           diagnosisPreview: diag.slice(0, 140),
           servicesCount: servicesArr.length,
@@ -4368,14 +4416,14 @@ export function createApiApp() {
         };
       });
 
-      // Enriquece autor/foto a partir das notificações recentes (criação/edição).
+      // Enriquece autor/foto a partir das notificações recentes (criação/edição/aprovação).
       const actorByBudget = new Map<string, { name: string; photoUrl: string | null }>();
       try {
         const { data: recentNotifs } = await supabaseAdmin
           .from("notifications")
           .select("payload, created_at")
           .eq("workshop_id", WORKSHOP_ID)
-          .in("type", ["budget_created", "budget_edited"])
+          .in("type", ["budget_created", "budget_edited", "budget_items_approved"])
           .order("created_at", { ascending: false })
           .limit(500);
         for (const row of recentNotifs ?? []) {
@@ -7007,6 +7055,13 @@ export function createApiApp() {
         parts: Array.isArray(parts) ? parts : [],
       });
       const shouldInvalidateVerification = prevContentSig !== nextContentSig;
+      const prevApprovalFp = budgetApprovalFingerprint(
+        (prevBudgetRow as { services?: unknown } | null)?.services,
+        (prevBudgetRow as { parts?: unknown } | null)?.parts
+      );
+      const nextApprovalFp = budgetApprovalFingerprint(services, parts);
+      const approvalsChanged = prevApprovalFp !== nextApprovalFp;
+      const approvalOnlyUpdate = !shouldInvalidateVerification && approvalsChanged;
 
       const updatePayload: Record<string, unknown> = {
         card_name: cardName ?? null,
@@ -7097,7 +7152,7 @@ export function createApiApp() {
         actorTechnicianName,
         actorDisplayName: (req.body as { actorDisplayName?: unknown })?.actorDisplayName,
       });
-      const budgetEditPayload = await buildBudgetNotifyPayload({
+      const budgetNotifyPayload = await buildBudgetNotifyPayload({
         serviceOrderId,
         budgetId,
         vehiclePlate: so?.plate ?? null,
@@ -7106,27 +7161,62 @@ export function createApiApp() {
         authorDisplayName: actorMeta.name,
         authorPhotoUrl: actorMeta.photoUrl,
       });
-      if (isTechnicianActor) {
-        const shouldAdmin = await shouldNotifyAdminForSystemType("budget_edited");
-        if (shouldAdmin) {
-        await supabaseAdmin.from("notifications").insert({
-          workshop_id: WORKSHOP_ID,
-          type: "budget_edited",
-          payload: budgetEditPayload,
-          target_type: "admin",
-          target_slug: null,
-        }).then(({ error: e }) => { if (e) console.error("[API] Notificação budget_edited:", e); });
+
+      if (approvalOnlyUpdate) {
+        const decisions = countBudgetApprovalDecisions(services, parts);
+        const approvalPayload = {
+          ...budgetNotifyPayload,
+          approved_items_count: decisions.approvedItemsCount,
+          rejected_items_count: decisions.rejectedItemsCount,
+          pending_items_count: decisions.pendingItemsCount,
+        };
+        const notifType = "budget_items_approved";
+        if (isTechnicianActor) {
+          const shouldAdmin = await shouldNotifyAdminForSystemType(notifType);
+          if (shouldAdmin) {
+            await supabaseAdmin.from("notifications").insert({
+              workshop_id: WORKSHOP_ID,
+              type: notifType,
+              payload: approvalPayload,
+              target_type: "admin",
+              target_slug: null,
+            }).then(({ error: e }) => { if (e) console.error("[API] Notificação budget_items_approved:", e); });
+          }
+        } else {
+          const technicianIds = await getTechnicianRecipientIdsForSystemType(notifType);
+          for (const techId of technicianIds) {
+            await supabaseAdmin.from("notifications").insert({
+              workshop_id: WORKSHOP_ID,
+              type: notifType,
+              payload: approvalPayload,
+              target_type: "technician",
+              target_slug: techId,
+            }).then(({ error: e }) => { if (e) console.error("[API] Notificação budget_items_approved (técnico):", e); });
+          }
         }
-      } else {
-        const technicianIds = await getTechnicianRecipientIdsForSystemType("budget_edited");
-        for (const techId of technicianIds) {
+      } else if (shouldInvalidateVerification) {
+        if (isTechnicianActor) {
+          const shouldAdmin = await shouldNotifyAdminForSystemType("budget_edited");
+          if (shouldAdmin) {
           await supabaseAdmin.from("notifications").insert({
             workshop_id: WORKSHOP_ID,
             type: "budget_edited",
-            payload: budgetEditPayload,
-            target_type: "technician",
-            target_slug: techId,
-          }).then(({ error: e }) => { if (e) console.error("[API] Notificação budget_edited (técnico):", e); });
+            payload: budgetNotifyPayload,
+            target_type: "admin",
+            target_slug: null,
+          }).then(({ error: e }) => { if (e) console.error("[API] Notificação budget_edited:", e); });
+          }
+        } else {
+          const technicianIds = await getTechnicianRecipientIdsForSystemType("budget_edited");
+          for (const techId of technicianIds) {
+            await supabaseAdmin.from("notifications").insert({
+              workshop_id: WORKSHOP_ID,
+              type: "budget_edited",
+              payload: budgetNotifyPayload,
+              target_type: "technician",
+              target_slug: techId,
+            }).then(({ error: e }) => { if (e) console.error("[API] Notificação budget_edited (técnico):", e); });
+          }
         }
       }
 
