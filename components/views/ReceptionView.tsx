@@ -318,6 +318,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
 
   useEffect(() => {
     if (receptionMode !== 'vehicle') {
+      setDiagAuthSignatureBlob(null);
       setDiagAuthSignatureDataUrl(null);
       setDiagAuthSignedAt(null);
       setDiagAuthSheetOpen(false);
@@ -357,6 +358,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
   const [diagAuthSignModalOpen, setDiagAuthSignModalOpen] = useState(false);
   const [diagAuthSaving, setDiagAuthSaving] = useState(false);
   const [pendingDiagAuthOsId, setPendingDiagAuthOsId] = useState<string | null>(null);
+  const [diagAuthSignatureBlob, setDiagAuthSignatureBlob] = useState<Blob | null>(null);
   const [diagAuthSignatureDataUrl, setDiagAuthSignatureDataUrl] = useState<string | null>(null);
   const [diagAuthSignedAt, setDiagAuthSignedAt] = useState<Date | null>(null);
   const [diagAuthSheetOpen, setDiagAuthSheetOpen] = useState(false);
@@ -897,12 +899,24 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
           : `Cadastro criado com sucesso.${osLabel}`,
       });
 
-      // Assinatura do termo só depois da ficha criada (veículo).
-      // Navega para o Pátio só após assinar ou dispensar o modal.
       if (serviceOrder?.id && receptionMode === 'vehicle') {
+        // Já assinou na ficha: grava e segue.
+        if (diagAuthSignatureBlob) {
+          const uploaded = await uploadServiceOrderPhoto(
+            serviceOrder.id,
+            diagAuthSignatureBlob,
+            `AUTORIZACAO_DIAGNOSTICO_${Date.now()}.png`
+          );
+          await updateServiceOrderDiagnosticAuthorization(
+            serviceOrder.id,
+            { signaturePath: uploaded.path },
+            actorOptions
+          );
+          await onIntakeSuccess?.(receptionMode);
+          return;
+        }
+        // Ainda não assinou: oferece o termo agora (também pode assinar depois no Pátio).
         setPendingDiagAuthOsId(serviceOrder.id);
-        setDiagAuthSignatureDataUrl(null);
-        setDiagAuthSignedAt(null);
         setDiagAuthSignModalOpen(true);
         return;
       }
@@ -963,6 +977,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
       clearTimeout(intakeCustomerBlurTimerRef.current);
       intakeCustomerBlurTimerRef.current = null;
     }
+    setDiagAuthSignatureBlob(null);
     setDiagAuthSignatureDataUrl(null);
     setDiagAuthSignedAt(null);
     setDiagAuthSheetOpen(false);
@@ -1640,14 +1655,15 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                           onMouseDown={(e) => e.preventDefault()}
                           onClick={() => void runPlacaLookup(true)}
                           disabled={plateLookupLoading}
-                          className="flex h-[46px] shrink-0 items-center justify-center gap-2 rounded-xl border border-zinc-200/90 bg-white px-3 text-[13px] font-semibold text-zinc-800 shadow-sm transition-all hover:border-[#007AFF]/45 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50 dark:border-white/[0.12] dark:bg-white/[0.06] dark:text-zinc-100 dark:shadow-none sm:mb-0.5"
+                          title="Buscar placa"
+                          className="inline-flex h-[42px] shrink-0 items-center justify-center gap-1.5 self-end rounded-xl border border-zinc-200 bg-zinc-100 px-3 text-sm font-semibold text-zinc-800 transition-all hover:border-[#007AFF]/45 hover:bg-white active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50 dark:border-brand-border dark:bg-brand-surfaceHighlight dark:text-zinc-100 dark:hover:border-[#64B5FF]/40"
                         >
                           {plateLookupLoading ? (
                             <Loader2 className="h-4 w-4 animate-spin text-[#007AFF] dark:text-[#7ab8ff]" aria-hidden />
                           ) : (
                             <Search className="h-4 w-4 text-[#007AFF] dark:text-[#7ab8ff]" aria-hidden />
                           )}
-                          Buscar placa
+                          Buscar
                         </button>
                       </div>
                       {plateLookupError ? (
@@ -1915,19 +1931,29 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                       <p className="text-[14px] font-bold leading-snug text-zinc-900 dark:text-white">
                         Autorização de diagnóstico técnico
                       </p>
-                      {diagAuthSignatureDataUrl && pendingDiagAuthOsId == null ? (
+                      {diagAuthSignatureBlob || diagAuthSignatureDataUrl ? (
                         <p className="pt-0.5 text-[12px] font-semibold text-emerald-600 dark:text-emerald-400">
                           Concluído
                         </p>
                       ) : (
                         <p className="pt-0.5 text-[12px] font-medium text-amber-700 dark:text-amber-400/95">
-                          Pendente — será solicitada após criar a ficha
+                          Pendente
                         </p>
                       )}
                     </div>
                   </div>
-                  {diagAuthSignatureDataUrl ? (
-                    <div className="mt-3">
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setDiagAuthSignModalOpen(true)}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-300/90 bg-white px-2.5 py-1.5 text-[11px] font-semibold text-zinc-700 shadow-sm transition-colors hover:border-[#007AFF]/35 hover:bg-zinc-50 hover:text-[#007AFF] active:scale-[0.99] dark:border-white/12 dark:bg-white/[0.06] dark:text-zinc-200 dark:hover:border-[#64B5FF]/40 dark:hover:bg-white/[0.1] dark:hover:text-[#8cc8ff]"
+                    >
+                      <FileText className="h-3 w-3 shrink-0 opacity-80" strokeWidth={2.25} aria-hidden />
+                      {diagAuthSignatureBlob || diagAuthSignatureDataUrl
+                        ? 'Reassinar termo'
+                        : 'Ler termo e assinar'}
+                    </button>
+                    {diagAuthSignatureDataUrl ? (
                       <button
                         type="button"
                         onClick={() => setDiagAuthSheetOpen(true)}
@@ -1936,8 +1962,8 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                         <Eye className="h-3 w-3 shrink-0 text-zinc-500 dark:text-zinc-400" strokeWidth={2.25} aria-hidden />
                         Ver autorização
                       </button>
-                    </div>
-                  ) : null}
+                    ) : null}
+                  </div>
                 </div>
                 </div>
               )}
@@ -2081,7 +2107,11 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
         }}
         onConfirm={(blob, meta) => {
           const osId = pendingDiagAuthOsId;
+          // Assinatura durante o cadastro (ainda sem OS): só guarda localmente.
           if (!osId) {
+            setDiagAuthSignatureBlob(blob);
+            setDiagAuthSignatureDataUrl(meta.signaturePreviewDataUrl);
+            setDiagAuthSignedAt(new Date());
             setDiagAuthSignModalOpen(false);
             return;
           }
@@ -2098,6 +2128,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                 { signaturePath: uploaded.path },
                 actorOptions
               );
+              setDiagAuthSignatureBlob(blob);
               setDiagAuthSignatureDataUrl(meta.signaturePreviewDataUrl);
               setDiagAuthSignedAt(new Date());
               setPendingDiagAuthOsId(null);
