@@ -1409,7 +1409,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                   title="Limpar dados do cliente"
                 >
                   <Eraser className="h-3.5 w-3.5 shrink-0" />
-                  Limpar campos
+                  Limpar Dados
                 </button>
               </div>
               <div className="relative" ref={customerSearchBoxRef}>
@@ -1607,7 +1607,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
               {/* No retrato: dados do veículo por último entre os blocos desta coluna (order-4) */}
               <div className={receptionPortraitVertical ? 'order-4 space-y-6' : 'contents'}>
               <div
-                className="flex h-9 items-end justify-between gap-2 border-b border-zinc-200/80 pb-2 dark:border-white/[0.08]"
+                className="flex h-10 items-end justify-between gap-2 border-b border-zinc-200/80 pb-2 dark:border-white/[0.08]"
               >
                 <h2
                   className="min-w-0 flex-1 truncate text-[14px] font-bold uppercase leading-none tracking-[0.08em] text-zinc-700 dark:text-zinc-200"
@@ -1625,12 +1625,12 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                   title="Limpar dados do veículo"
                 >
                   <Eraser className="h-3.5 w-3.5 shrink-0" />
-                  Limpar campos
+                  Limpar Dados
                 </button>
               </div>
 
               {receptionMode === 'vehicle' ? (
-                <div className="space-y-4">
+                <>
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:items-end">
                     <div className="min-w-0">
                       <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
@@ -1695,14 +1695,20 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                       onChange={handleInputChange}
                       icon={<FileText className="w-4 h-4" />}
                     />
-                    <Input
-                      label="Modelo (aparece no card)"
-                      name="vehicleModel"
-                      placeholder="Modelo"
-                      value={customer.vehicleModel}
-                      onChange={handleInputChange}
-                      icon={<Car className="w-4 h-4" />}
-                    />
+                    <div className="min-w-0">
+                      <Input
+                        label="Modelo (aparece no card)"
+                        name="vehicleModel"
+                        placeholder="Modelo"
+                        value={customer.vehicleModel}
+                        onChange={handleInputChange}
+                        icon={<Car className="w-4 h-4" />}
+                      />
+                      {/* Reserva a mesma altura da dica CPF/CNPJ na coluna do cliente */}
+                      <p className="mt-1 min-h-[1rem] px-1 text-[11px] font-medium" aria-hidden>
+                        {'\u00a0'}
+                      </p>
+                    </div>
                   </div>
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 sm:items-end">
                     <Input
@@ -1730,7 +1736,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                       icon={<Car className="w-4 h-4" />}
                     />
                   </div>
-                </div>
+                </>
               ) : (
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:items-end">
                   <Input 
@@ -1915,6 +1921,19 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
               </div>
 
               {receptionMode === 'vehicle' && (
+                <div className={`relative ${receptionPortraitVertical ? 'order-2' : ''}`}>
+                  <TextArea
+                    label="Queixa do cliente"
+                    name="issueDescription"
+                    placeholder="Queixa"
+                    value={customer.issueDescription}
+                    onChange={handleInputChange}
+                    required
+                  />
+                </div>
+              )}
+
+              {receptionMode === 'vehicle' && (
                 <div className={receptionPortraitVertical ? 'order-3' : undefined}>
                 <div className="rounded-[22px] border border-[#007AFF]/20 bg-gradient-to-br from-[#007AFF]/[0.06] via-white to-zinc-50/90 p-4 shadow-[0_12px_32px_-12px_rgba(0,122,255,0.22),0_6px_18px_-10px_rgba(0,122,255,0.14),0_3px_10px_-5px_rgba(0,0,0,0.06)] dark:border-[#007AFF]/25 dark:from-[#007AFF]/12 dark:via-zinc-950/40 dark:to-zinc-950/20 dark:shadow-[0_8px_28px_-14px_rgba(0,122,255,0.25)] sm:p-5">
                   <div
@@ -1973,19 +1992,6 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                     </div>
                   </div>
                 </div>
-                </div>
-              )}
-
-              {receptionMode === 'vehicle' && (
-                <div className={`relative ${receptionPortraitVertical ? 'order-2' : ''}`}>
-                  <TextArea
-                    label="Queixa do cliente"
-                    name="issueDescription"
-                    placeholder="Queixa"
-                    value={customer.issueDescription}
-                    onChange={handleInputChange}
-                    required
-                  />
                 </div>
               )}
 
@@ -2055,10 +2061,27 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                     type="button"
                     disabled={intakePhotos.length >= MAX_RECEPTION_INTAKE_PHOTOS}
                     onClick={() => void openLiveCamera()}
-                    className="flex min-h-[52px] flex-1 items-center justify-center gap-2.5 rounded-2xl border border-zinc-200/90 bg-white/50 py-3.5 text-zinc-700 shadow-[0_6px_18px_-8px_rgba(0,0,0,0.1),0_2px_8px_-4px_rgba(0,0,0,0.05)] backdrop-blur-md transition-all hover:border-[#007AFF]/45 hover:bg-white/90 active:scale-[0.99] disabled:pointer-events-none disabled:opacity-45 dark:border-white/[0.1] dark:bg-white/[0.04] dark:text-zinc-100 dark:shadow-none dark:hover:bg-white/[0.1]"
+                    className={
+                      desktopShell
+                        ? 'inline-flex min-h-[36px] flex-1 items-center justify-center gap-1.5 rounded-xl border border-zinc-200/80 bg-white/60 px-3 py-1.5 text-[12px] font-medium text-zinc-600 shadow-sm transition-all hover:border-[#007AFF]/35 hover:bg-white active:scale-[0.99] disabled:pointer-events-none disabled:opacity-45 dark:border-white/[0.1] dark:bg-white/[0.04] dark:text-zinc-300 dark:hover:bg-white/[0.08]'
+                        : 'flex min-h-[52px] flex-1 items-center justify-center gap-2.5 rounded-2xl border border-zinc-200/90 bg-white/50 py-3.5 text-zinc-700 shadow-[0_6px_18px_-8px_rgba(0,0,0,0.1),0_2px_8px_-4px_rgba(0,0,0,0.05)] backdrop-blur-md transition-all hover:border-[#007AFF]/45 hover:bg-white/90 active:scale-[0.99] disabled:pointer-events-none disabled:opacity-45 dark:border-white/[0.1] dark:bg-white/[0.04] dark:text-zinc-100 dark:shadow-none dark:hover:bg-white/[0.1]'
+                    }
                   >
-                    <Camera className="h-5 w-5 shrink-0 text-[#007AFF] dark:text-[#7ab8ff]" strokeWidth={2} />
-                    <span className="text-left text-sm font-semibold leading-tight">
+                    <Camera
+                      className={
+                        desktopShell
+                          ? 'h-3.5 w-3.5 shrink-0 text-[#007AFF] dark:text-[#7ab8ff]'
+                          : 'h-5 w-5 shrink-0 text-[#007AFF] dark:text-[#7ab8ff]'
+                      }
+                      strokeWidth={2}
+                    />
+                    <span
+                      className={
+                        desktopShell
+                          ? 'text-[12px] font-medium leading-none'
+                          : 'text-left text-sm font-semibold leading-tight'
+                      }
+                    >
                       Câmera
                     </span>
                   </button>
@@ -2066,9 +2089,20 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                     type="button"
                     disabled={intakePhotos.length >= MAX_RECEPTION_INTAKE_PHOTOS}
                     onClick={() => galleryInputRef.current?.click()}
-                    className="flex min-h-[52px] flex-1 items-center justify-center gap-2 rounded-2xl border border-zinc-300/90 bg-zinc-100/60 py-3.5 text-sm font-semibold text-zinc-800 shadow-[0_6px_18px_-8px_rgba(0,0,0,0.1),0_2px_8px_-4px_rgba(0,0,0,0.05)] backdrop-blur-md transition-all hover:bg-zinc-100 active:scale-[0.99] disabled:pointer-events-none disabled:opacity-45 dark:border-white/12 dark:bg-white/[0.06] dark:text-zinc-100 dark:shadow-none dark:hover:bg-white/[0.1]"
+                    className={
+                      desktopShell
+                        ? 'inline-flex min-h-[36px] flex-1 items-center justify-center gap-1.5 rounded-xl border border-zinc-200/80 bg-zinc-100/50 px-3 py-1.5 text-[12px] font-medium text-zinc-600 shadow-sm transition-all hover:bg-zinc-100 active:scale-[0.99] disabled:pointer-events-none disabled:opacity-45 dark:border-white/12 dark:bg-white/[0.05] dark:text-zinc-300 dark:hover:bg-white/[0.09]'
+                        : 'flex min-h-[52px] flex-1 items-center justify-center gap-2 rounded-2xl border border-zinc-300/90 bg-zinc-100/60 py-3.5 text-sm font-semibold text-zinc-800 shadow-[0_6px_18px_-8px_rgba(0,0,0,0.1),0_2px_8px_-4px_rgba(0,0,0,0.05)] backdrop-blur-md transition-all hover:bg-zinc-100 active:scale-[0.99] disabled:pointer-events-none disabled:opacity-45 dark:border-white/12 dark:bg-white/[0.06] dark:text-zinc-100 dark:shadow-none dark:hover:bg-white/[0.1]'
+                    }
                   >
-                    <ImageIcon className="h-5 w-5 shrink-0 text-zinc-600 dark:text-zinc-300" strokeWidth={2} />
+                    <ImageIcon
+                      className={
+                        desktopShell
+                          ? 'h-3.5 w-3.5 shrink-0 text-zinc-500 dark:text-zinc-400'
+                          : 'h-5 w-5 shrink-0 text-zinc-600 dark:text-zinc-300'
+                      }
+                      strokeWidth={2}
+                    />
                     Galeria
                   </button>
                 </div>
