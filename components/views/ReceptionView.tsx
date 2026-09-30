@@ -2253,10 +2253,15 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
           onClose={() => setDiagAuthSheetOpen(false)}
           signatureImageSrc={diagAuthSignatureDataUrl}
           signedAt={diagAuthSignedAt?.toISOString() ?? null}
+          customerName={customer.name}
           vehicleBrand={customer.vehicleBrand}
           vehicleModel={customer.vehicleModel}
           plate={customer.plate}
           mileageKm={customer.mileageKm}
+          onResign={() => {
+            setDiagAuthSheetOpen(false);
+            setDiagAuthSignModalOpen(true);
+          }}
         />
       ) : null}
 
@@ -2886,6 +2891,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
           onClose={() => setArchivedDiagAuthSheetOpen(false)}
           signatureImageSrc={archivedDiagAuthSignatureSrc}
           signedAt={archivedDetailData.diagnostic_authorization_signed_at ?? null}
+          customerName={archivedDetailData.customers?.name}
           vehicleBrand={archivedDetailData.vehicle_brand}
           vehicleModel={archivedDetailData.vehicle_model}
           plate={archivedDetailData.plate}

@@ -1,5 +1,5 @@
 import React, { useCallback } from "react";
-import { Printer, X } from "lucide-react";
+import { PenLine, Printer, X } from "lucide-react";
 import { ModalPortal } from "../ui/ModalPortal";
 import { useTabletPhonePortraitFullscreen } from "../../hooks/useTabletPhonePortraitFullscreen";
 import {
@@ -19,10 +19,14 @@ export interface DiagnosticAuthorizationSheetModalProps {
   /** URL pública do storage ou data URL da assinatura */
   signatureImageSrc: string;
   signedAt?: string | null;
+  customerName?: string | null;
   vehicleBrand?: string | null;
   vehicleModel?: string | null;
   plate?: string | null;
   mileageKm?: string | null;
+  /** Quando informado, exibe botão para reassinar o termo. */
+  onResign?: () => void;
+  resignDisabled?: boolean;
 }
 
 function formatKmDisplay(mileageKm?: string | null): string {
@@ -39,24 +43,28 @@ export const DiagnosticAuthorizationSheetModal: React.FC<DiagnosticAuthorization
   onClose,
   signatureImageSrc,
   signedAt,
+  customerName,
   vehicleBrand,
   vehicleModel,
   plate,
   mileageKm,
+  onResign,
+  resignDisabled = false,
 }) => {
   const handlePrint = useCallback(() => {
     printDiagnosticAuthorizationSheet({
       signatureImageSrc,
       signedAt,
-      vehicle: { vehicleBrand, vehicleModel, plate, mileageKm },
+      vehicle: { customerName, vehicleBrand, vehicleModel, plate, mileageKm },
     });
-  }, [signatureImageSrc, signedAt, vehicleBrand, vehicleModel, plate, mileageKm]);
+  }, [signatureImageSrc, signedAt, customerName, vehicleBrand, vehicleModel, plate, mileageKm]);
 
   const fullScreenPortrait = useTabletPhonePortraitFullscreen();
 
   if (!open) return null;
 
   const signed = formatDiagnosticAuthorizationSignedAt(signedAt);
+  const customerLabel = (customerName ?? "").trim() || "—";
   const vehicleLabel = formatDiagnosticAuthorizationVehicleLabel(vehicleBrand, vehicleModel);
   const plateLabel = (plate ?? "").trim().toUpperCase() || "—";
   const kmLabel = formatKmDisplay(mileageKm);
@@ -108,14 +116,15 @@ export const DiagnosticAuthorizationSheetModal: React.FC<DiagnosticAuthorization
                 <h3 className="text-center text-[15px] font-bold uppercase tracking-[0.08em] text-zinc-950 sm:text-[16px]">
                   {DIAGNOSTIC_AUTHORIZATION_TITLE}
                 </h3>
-                {signed ? (
-                  <p className="mt-2 text-center text-[12px] font-medium text-zinc-500 sm:text-[13px]">
-                    Data: {signed.date} &nbsp;·&nbsp; Hora: {signed.time}
-                  </p>
-                ) : null}
               </header>
 
-              <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
+              <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
+                <div className="min-w-0 border-b border-zinc-200 pb-2">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-zinc-500">
+                    Cliente
+                  </p>
+                  <p className="mt-1 text-[14px] font-semibold text-zinc-900">{customerLabel}</p>
+                </div>
                 <div className="min-w-0 border-b border-zinc-200 pb-2">
                   <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-zinc-500">
                     Veículo
@@ -175,6 +184,17 @@ export const DiagnosticAuthorizationSheetModal: React.FC<DiagnosticAuthorization
                 : "relative z-10 flex shrink-0 flex-wrap items-center justify-end gap-3 border-t border-zinc-200 bg-white px-6 py-4"
             }
           >
+            {onResign ? (
+              <button
+                type="button"
+                onClick={onResign}
+                disabled={resignDisabled}
+                className="inline-flex items-center gap-2 rounded-lg border border-zinc-300 bg-white px-5 py-2.5 text-sm font-medium text-zinc-800 transition-colors hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <PenLine className="h-4 w-4" aria-hidden />
+                Reassinar termo
+              </button>
+            ) : null}
             <button
               type="button"
               onClick={handlePrint}
