@@ -11084,6 +11084,28 @@ export const PatioView: React.FC<PatioViewProps> = ({
       <DiagnosticAuthorizationSignModal
         open={diagnosticAuthSignOpen}
         confirming={diagnosticAuthSaving}
+        vehicleBrand={
+          selectedHistoryCard
+            ? historyServiceOrderDetail?.vehicle_brand
+            : (selectedCard?.vehicleBrand ?? serviceOrderDetail?.vehicle_brand)
+        }
+        vehicleModel={
+          selectedHistoryCard
+            ? historyServiceOrderDetail?.vehicle_model
+            : (serviceOrderDetail?.vehicle_model ??
+                (selectedCard?.name ? parsePatioCardTitle(selectedCard.name).vehicle : null))
+        }
+        plate={
+          selectedHistoryCard
+            ? historyServiceOrderDetail?.plate
+            : (serviceOrderDetail?.plate ??
+                (selectedCard?.name ? parsePatioCardTitle(selectedCard.name).plateOrModule : null))
+        }
+        mileageKm={
+          selectedHistoryCard
+            ? historyServiceOrderDetail?.mileage_km
+            : (selectedCard?.mileageKm ?? serviceOrderDetail?.mileage_km)
+        }
         onClose={() => {
           if (diagnosticAuthSaving) return;
           setDiagnosticAuthSignOpen(false);
