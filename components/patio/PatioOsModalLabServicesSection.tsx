@@ -13,7 +13,6 @@ import { ModalPortal } from '../ui/ModalPortal';
 import { iosModalClose, iosModalShell } from '../ui/iosModalStyles';
 import {
   getLabQuickServices,
-  LAB_QUICK_SERVICE_COLOR_CLASSES,
   LAB_QUICK_SERVICES_CHANGED_EVENT,
   type LabQuickService,
 } from '../../utils/labQuickServices';
@@ -62,6 +61,9 @@ export type PatioOsModalLabServicesSectionProps = {
   /** Copia anexos selecionados para uma OS do laboratório já enviada. */
   onCopyPatioAttachmentsToLab?: (laboratoryOrderId: string, paths: string[]) => Promise<boolean | void> | boolean | void;
   copyingPatioAttachments?: boolean;
+  /** Marca o serviço enviado ao laboratório como garantia. */
+  newLabServiceGarantia?: boolean;
+  onLabServiceGarantiaChange?: (value: boolean) => void;
   /** Em tablet/mobile: cabeçalho clicável, conteúdo recolhido por padrão. */
   collapsible?: boolean;
   defaultExpanded?: boolean;
@@ -103,6 +105,8 @@ export const PatioOsModalLabServicesSection: React.FC<PatioOsModalLabServicesSec
   onSelectedPatioAttachmentPathsChange,
   onCopyPatioAttachmentsToLab,
   copyingPatioAttachments = false,
+  newLabServiceGarantia = false,
+  onLabServiceGarantiaChange,
   collapsible = false,
   defaultExpanded = false,
 }) => {
@@ -593,6 +597,26 @@ export const PatioOsModalLabServicesSection: React.FC<PatioOsModalLabServicesSec
             />
           </div>
 
+          {typeof onLabServiceGarantiaChange === 'function' ? (
+            <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-red-500/25 bg-red-500/[0.06] px-3.5 py-3 dark:border-red-400/20 dark:bg-red-500/10">
+              <input
+                type="checkbox"
+                checked={newLabServiceGarantia}
+                onChange={(e) => onLabServiceGarantiaChange(e.target.checked)}
+                disabled={busy}
+                className="mt-0.5 h-4 w-4 rounded border-zinc-300 text-red-600 focus:ring-red-500/40"
+              />
+              <span className="min-w-0">
+                <span className="block text-[14px] font-semibold text-zinc-900 dark:text-white">
+                  Enviar como garantia
+                </span>
+                <span className="mt-0.5 block text-[12px] text-zinc-500 dark:text-zinc-400">
+                  A OS do laboratório nasce com a etiqueta Garantia
+                </span>
+              </span>
+            </label>
+          ) : null}
+
           {/* 6. Envios rápidos → abre modal com lista */}
           {onQuickSendService && quickServices.length > 0 ? (
             <button
@@ -677,7 +701,6 @@ export const PatioOsModalLabServicesSection: React.FC<PatioOsModalLabServicesSec
               ) : (
                 <ul className="space-y-2">
                   {quickServices.map((preset) => {
-                    const color = LAB_QUICK_SERVICE_COLOR_CLASSES[preset.color];
                     const isLoading = quickSendingServiceId === preset.id;
                     return (
                       <li key={preset.id}>
@@ -685,15 +708,15 @@ export const PatioOsModalLabServicesSection: React.FC<PatioOsModalLabServicesSec
                           type="button"
                           onClick={() => handleSelectQuickService(preset)}
                           disabled={busy && !isLoading}
-                          className={`flex w-full items-center gap-3 rounded-xl border-2 px-3.5 py-3.5 text-left shadow-sm transition active:scale-[0.99] disabled:opacity-55 ${color.btn} ${color.btnHover}`}
+                          className="flex w-full items-center gap-3 rounded-xl border border-zinc-200/90 bg-white px-3.5 py-3.5 text-left shadow-sm transition active:scale-[0.99] hover:bg-zinc-50 disabled:opacity-55 dark:border-white/[0.1] dark:bg-zinc-900 dark:hover:bg-zinc-800"
                         >
-                          <span className="min-w-0 flex-1 text-[15px] font-semibold leading-snug">
+                          <span className="min-w-0 flex-1 text-[15px] font-semibold leading-snug text-zinc-900 dark:text-white">
                             {preset.label}
                           </span>
                           {isLoading ? (
-                            <Loader2 className="h-5 w-5 shrink-0 animate-spin opacity-90" />
+                            <Loader2 className="h-5 w-5 shrink-0 animate-spin text-zinc-400" />
                           ) : (
-                            <ChevronRight className="h-5 w-5 shrink-0 opacity-80" aria-hidden />
+                            <ChevronRight className="h-5 w-5 shrink-0 text-zinc-400" aria-hidden />
                           )}
                         </button>
                       </li>

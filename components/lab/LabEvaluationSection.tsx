@@ -1,7 +1,18 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { format, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { CheckCircle2, ClipboardCheck, Loader2, Plus, Trash2 } from 'lucide-react';
+import {
+  Camera,
+  CheckCircle2,
+  ClipboardCheck,
+  ImagePlus,
+  Loader2,
+  OctagonX,
+  Paperclip,
+  Plus,
+  Trash2,
+  X,
+} from 'lucide-react';
 import { uiOsModalCardSectionTitle, uiOsModalSectionIconWrap } from '../ui/appTypography';
 import {
   getLabQuickServices,
@@ -43,6 +54,11 @@ export type LabEvaluationSubmitPayload = {
   observations: string;
 };
 
+export type LabUnrepairablePayload = {
+  reason: string;
+  files: File[];
+};
+
 export type LabEvaluationSectionProps = {
   insetCardClass: string;
   inputClass: string;
@@ -54,6 +70,8 @@ export type LabEvaluationSectionProps = {
   evaluatedByDisplayName: string;
   onSubmitEvaluation: (payload: LabEvaluationSubmitPayload) => Promise<void>;
   onDeleteEvaluation?: () => Promise<void>;
+  /** Marca a peça/módulo como sem conserto (motivo + anexos). */
+  onMarkUnrepairable?: (payload: LabUnrepairablePayload) => Promise<void>;
 };
 
 function formatEvaluatedAt(iso: string | null | undefined): string {
@@ -77,6 +95,8 @@ function newDraftFromPreset(preset: LabQuickService): LabEvaluationServiceDraft 
   };
 }
 
+type PendingAttach = { id: string; file: File; previewUrl?: string };
+
 export const LabEvaluationSection: React.FC<LabEvaluationSectionProps> = ({
   insetCardClass,
   inputClass,
@@ -88,6 +108,7 @@ export const LabEvaluationSection: React.FC<LabEvaluationSectionProps> = ({
   evaluatedByDisplayName,
   onSubmitEvaluation,
   onDeleteEvaluation,
+  onMarkUnrepairable,
 }) => {
   const [quickServices, setQuickServices] = useState<LabQuickService[]>(() => getLabQuickServices());
   const [serviceDrafts, setServiceDrafts] = useState<LabEvaluationServiceDraft[]>([]);
@@ -98,6 +119,13 @@ export const LabEvaluationSection: React.FC<LabEvaluationSectionProps> = ({
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const [unrepairOpen, setUnrepairOpen] = useState(false);
+  const [unrepairReason, setUnrepairReason] = useState('');
+  const [unrepairFiles, setUnrepairFiles] = useState<PendingAttach[]>([]);
+  const [unrepairSaving, setUnrepairSaving] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
 
   const reloadQuickServices = useCallback(() => {
     setQuickServices(getLabQuickServices());
@@ -115,6 +143,14 @@ export const LabEvaluationSection: React.FC<LabEvaluationSectionProps> = ({
       .then(setWorkshopParts)
       .catch(() => setWorkshopParts([]));
   }, []);
+
+  useEffect(() => {
+    return () => {
+      unrepairFiles.forEach((f) => {
+        if (f.previewUrl) URL.revokeObjectURL(f.previewUrl);
+      });
+    };
+  }, [unrepairFiles]);
 
   const hasEvaluation = Boolean((evaluatedService ?? '').trim());
   const evaluationOpen = isLabEvaluationOpen(orderStatus) && !hasEvaluation;
@@ -212,12 +248,64 @@ export const LabEvaluationSection: React.FC<LabEvaluationSectionProps> = ({
     }
   };
 
+  const addUnrepairFiles = (list: FileList | null) => {
+    if (!list || list.length === 0) return;
+    const next: PendingAttach[] = [];
+    for (let i = 0; i < list.length; i++) {
+      const file = list.item(i);
+      if (!file) continue;
+      const isImage = file.type.startsWith('image/');
+      next.push({
+        id: `att-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 6)}`,
+        file,
+        previewUrl: isImage ? URL.createObjectURL(file) : undefined,
+      });
+    }
+    setUnrepairFiles((prev) => [...prev, ...next]);
+  };
+
+  const removeUnrepairFile = (id: string) => {
+    setUnrepairFiles((prev) => {
+      const target = prev.find((f) => f.id === id);
+      if (target?.previewUrl) URL.revokeObjectURL(target.previewUrl);
+      return prev.filter((f) => f.id !== id);
+    });
+  };
+
+  const handleUnrepairSubmit = async () => {
+    if (!onMarkUnrepairable) return;
+    const reason = unrepairReason.trim();
+    if (!reason) {
+      setError('Informe o motivo de não haver conserto.');
+      return;
+    }
+    setUnrepairSaving(true);
+    setError(null);
+    try {
+      await onMarkUnrepairable({
+        reason,
+        files: unrepairFiles.map((f) => f.file),
+      });
+      setUnrepairOpen(false);
+      setUnrepairReason('');
+      setUnrepairFiles((prev) => {
+        prev.forEach((f) => {
+          if (f.previewUrl) URL.revokeObjectURL(f.previewUrl);
+        });
+        return [];
+      });
+    } catch (e) {
+      setError((e as Error)?.message ?? 'Não foi possível registrar “sem conserto”.');
+    } finally {
+      setUnrepairSaving(false);
+    }
+  };
+
   const partsInset = 'rounded-xl border border-zinc-200/80 bg-white/90 dark:border-white/[0.1] dark:bg-zinc-950/50';
+  const formBusy = saving || deleting || unrepairSaving;
 
   return (
-    <div
-      className={`${insetCardClass} min-w-0 overflow-hidden shadow-none`}
-    >
+    <div className={`${insetCardClass} min-w-0 overflow-hidden shadow-none`}>
       <div className="relative flex items-center gap-2 border-b border-black/[0.06] bg-white/85 px-2.5 py-2 pl-3 backdrop-blur-[2px] dark:border-white/[0.08] dark:bg-zinc-950/35 sm:gap-3 sm:px-3 sm:py-2.5 sm:pl-4">
         <div className={uiOsModalSectionIconWrap}>
           <ClipboardCheck className="h-4 w-4 text-violet-600 dark:text-violet-400" strokeWidth={2.25} aria-hidden />
@@ -261,18 +349,13 @@ export const LabEvaluationSection: React.FC<LabEvaluationSectionProps> = ({
           </div>
         ) : (
           <>
-            <p className="text-[13px] leading-relaxed text-zinc-600 dark:text-zinc-400">
-              Após inspecionar o produto, adicione os serviços necessários. Ao enviar, um orçamento será criado para
-              aprovação do cliente.
-            </p>
-
             {showAbsPresets ? (
               <LabQuickServiceButtons
                 services={quickServices}
                 filter={(p) => p.absOnly}
                 onSelect={addPreset}
-                disabled={saving}
-                hint="Serviços rápidos configurados para módulos ABS."
+                disabled={formBusy}
+                buttonLabel="Serviços rápidos"
               />
             ) : null}
 
@@ -286,7 +369,7 @@ export const LabEvaluationSection: React.FC<LabEvaluationSectionProps> = ({
                   onChange={(e) => setOtherService(e.target.value)}
                   placeholder="troca de componente"
                   className={`${inputClass} !h-11 min-w-0 flex-1 !py-0 text-[13px]`}
-                  disabled={saving}
+                  disabled={formBusy}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') {
                       e.preventDefault();
@@ -297,7 +380,7 @@ export const LabEvaluationSection: React.FC<LabEvaluationSectionProps> = ({
                 <button
                   type="button"
                   onClick={addOtherService}
-                  disabled={saving}
+                  disabled={formBusy}
                   className="inline-flex shrink-0 items-center gap-1 rounded-xl border border-zinc-300/90 bg-white px-3 py-2 text-[13px] font-semibold text-zinc-800 dark:border-white/15 dark:bg-zinc-900 dark:text-zinc-100"
                 >
                   <Plus className="h-4 w-4" />
@@ -328,7 +411,7 @@ export const LabEvaluationSection: React.FC<LabEvaluationSectionProps> = ({
                         <button
                           type="button"
                           onClick={() => removeDraft(draft.id)}
-                          disabled={saving}
+                          disabled={formBusy}
                           className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10"
                           aria-label="Remover serviço"
                         >
@@ -341,7 +424,7 @@ export const LabEvaluationSection: React.FC<LabEvaluationSectionProps> = ({
                             type="checkbox"
                             checked={draft.outsourced}
                             onChange={(e) => updateDraft(draft.id, { outsourced: e.target.checked })}
-                            disabled={saving}
+                            disabled={formBusy}
                             className="h-4 w-4 rounded"
                           />
                           Terceirizado
@@ -352,7 +435,7 @@ export const LabEvaluationSection: React.FC<LabEvaluationSectionProps> = ({
                               type="checkbox"
                               checked={draft.preApproved}
                               onChange={(e) => updateDraft(draft.id, { preApproved: e.target.checked })}
-                              disabled={saving}
+                              disabled={formBusy}
                               className="h-4 w-4 rounded"
                             />
                             Limpeza pré-aprovada
@@ -369,7 +452,7 @@ export const LabEvaluationSection: React.FC<LabEvaluationSectionProps> = ({
                             onChange={(e) => updateDraft(draft.id, { suggestedValueInput: e.target.value })}
                             placeholder="450,00"
                             className={`${inputClass} !h-10 !py-0 text-[13px]`}
-                            disabled={saving}
+                            disabled={formBusy}
                           />
                           {parseSuggestedValueInput(draft.suggestedValueInput) != null ? (
                             <p className="mt-0.5 text-[11px] text-violet-700 dark:text-violet-300">
@@ -386,7 +469,7 @@ export const LabEvaluationSection: React.FC<LabEvaluationSectionProps> = ({
                             onChange={(e) => updateDraft(draft.id, { lineObservations: e.target.value })}
                             placeholder="Opcional"
                             className={`${inputClass} !h-10 !py-0 text-[13px]`}
-                            disabled={saving}
+                            disabled={formBusy}
                           />
                         </div>
                       </div>
@@ -402,7 +485,7 @@ export const LabEvaluationSection: React.FC<LabEvaluationSectionProps> = ({
               workshopParts={workshopParts}
               inputClass={inputClass}
               insetClass={partsInset}
-              disabled={saving}
+              disabled={formBusy}
             />
 
             <div>
@@ -415,19 +498,160 @@ export const LabEvaluationSection: React.FC<LabEvaluationSectionProps> = ({
                 placeholder="Informações para o orçamentista…"
                 rows={2}
                 className={`${inputClass} min-h-[72px] resize-y text-[13px]`}
-                disabled={saving}
+                disabled={formBusy}
               />
             </div>
 
             <button
               type="button"
               onClick={() => void handleSubmit()}
-              disabled={saving || serviceDrafts.length === 0}
+              disabled={formBusy || serviceDrafts.length === 0}
               className="flex w-full items-center justify-center gap-2 rounded-xl bg-violet-600 px-4 py-3.5 text-[14px] font-bold text-white shadow-md shadow-violet-500/25 transition hover:brightness-105 disabled:opacity-55"
             >
               {saving ? <Loader2 className="h-5 w-5 animate-spin" /> : null}
               Enviar avaliação para orçamento
             </button>
+
+            {onMarkUnrepairable ? (
+              <div className="rounded-xl border border-stone-300/80 bg-white/90 p-3 dark:border-white/[0.1] dark:bg-zinc-950/50">
+                {!unrepairOpen ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setUnrepairOpen(true);
+                      setError(null);
+                    }}
+                    disabled={formBusy}
+                    className="flex w-full items-center gap-3 rounded-xl border border-stone-300/90 bg-stone-100/80 px-3.5 py-3 text-left transition hover:bg-stone-200/70 disabled:opacity-55 dark:border-white/[0.12] dark:bg-stone-900/50 dark:hover:bg-stone-800/60"
+                  >
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[0.65rem] bg-stone-600/15 text-stone-700 dark:text-stone-300">
+                      <OctagonX className="h-5 w-5" strokeWidth={2.25} aria-hidden />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-[14px] font-semibold text-zinc-900 dark:text-white">
+                        Sem conserto
+                      </span>
+                      <span className="mt-0.5 block text-[12px] text-zinc-500 dark:text-zinc-400">
+                        Módulo ou peça sem possibilidade de reparo
+                      </span>
+                    </span>
+                  </button>
+                ) : (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-[13px] font-semibold text-stone-800 dark:text-stone-200">
+                        Registrar sem conserto
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => setUnrepairOpen(false)}
+                        disabled={unrepairSaving}
+                        className="rounded-lg p-1.5 text-zinc-500 hover:bg-zinc-100 dark:hover:bg-white/10"
+                        aria-label="Fechar"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                    <div>
+                      <label className="mb-1.5 block text-[12px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                        Motivo <span className="text-red-500">*</span>
+                      </label>
+                      <textarea
+                        value={unrepairReason}
+                        onChange={(e) => setUnrepairReason(e.target.value)}
+                        placeholder="Descreva por que não há conserto…"
+                        rows={3}
+                        className={`${inputClass} min-h-[88px] resize-y text-[13px]`}
+                        disabled={unrepairSaving}
+                      />
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => cameraInputRef.current?.click()}
+                        disabled={unrepairSaving}
+                        className="inline-flex items-center gap-2 rounded-xl border border-zinc-300/90 bg-white px-3 py-2.5 text-[13px] font-semibold text-zinc-800 dark:border-white/15 dark:bg-zinc-900 dark:text-zinc-100"
+                      >
+                        <Camera className="h-4 w-4 text-[#007AFF]" />
+                        Câmera
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => fileInputRef.current?.click()}
+                        disabled={unrepairSaving}
+                        className="inline-flex items-center gap-2 rounded-xl border border-zinc-300/90 bg-white px-3 py-2.5 text-[13px] font-semibold text-zinc-800 dark:border-white/15 dark:bg-zinc-900 dark:text-zinc-100"
+                      >
+                        <ImagePlus className="h-4 w-4 text-[#007AFF]" />
+                        Fotos / arquivos
+                      </button>
+                      <input
+                        ref={cameraInputRef}
+                        type="file"
+                        accept="image/*"
+                        capture="environment"
+                        className="hidden"
+                        onChange={(e) => {
+                          addUnrepairFiles(e.target.files);
+                          e.target.value = '';
+                        }}
+                      />
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/*,application/pdf,.pdf,.doc,.docx,.xls,.xlsx"
+                        multiple
+                        className="hidden"
+                        onChange={(e) => {
+                          addUnrepairFiles(e.target.files);
+                          e.target.value = '';
+                        }}
+                      />
+                    </div>
+                    {unrepairFiles.length > 0 ? (
+                      <ul className="space-y-1.5">
+                        {unrepairFiles.map((f) => (
+                          <li
+                            key={f.id}
+                            className="flex items-center gap-2 rounded-lg border border-zinc-200/80 bg-zinc-50/90 px-2.5 py-2 dark:border-white/[0.08] dark:bg-zinc-900/60"
+                          >
+                            {f.previewUrl ? (
+                              <img
+                                src={f.previewUrl}
+                                alt=""
+                                className="h-10 w-10 shrink-0 rounded-md object-cover"
+                              />
+                            ) : (
+                              <Paperclip className="h-4 w-4 shrink-0 text-zinc-500" />
+                            )}
+                            <span className="min-w-0 flex-1 truncate text-[12px] text-zinc-700 dark:text-zinc-300">
+                              {f.file.name}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => removeUnrepairFile(f.id)}
+                              disabled={unrepairSaving}
+                              className="rounded-md p-1 text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10"
+                              aria-label="Remover anexo"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : null}
+                    <button
+                      type="button"
+                      onClick={() => void handleUnrepairSubmit()}
+                      disabled={unrepairSaving || !unrepairReason.trim()}
+                      className="flex w-full items-center justify-center gap-2 rounded-xl bg-stone-700 px-4 py-3 text-[14px] font-bold text-white transition hover:brightness-110 disabled:opacity-55 dark:bg-stone-600"
+                    >
+                      {unrepairSaving ? <Loader2 className="h-5 w-5 animate-spin" /> : <OctagonX className="h-5 w-5" />}
+                      Confirmar sem conserto
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : null}
           </>
         )}
 

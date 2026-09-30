@@ -1294,6 +1294,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const [newLabManualLabel, setNewLabManualLabel] = useState("");
   const [newLabServiceDetails, setNewLabServiceDetails] = useState("");
   const [newLabProductKind, setNewLabProductKind] = useState<ModuleKind | "">("");
+  const [newLabServiceGarantia, setNewLabServiceGarantia] = useState(false);
   const [newLabProductOther, setNewLabProductOther] = useState("");
   const [labOrdersLookup, setLabOrdersLookup] = useState<Record<string, ServiceOrderDetail>>({});
   const [labLinkedStatusByOrderId, setLabLinkedStatusByOrderId] = useState<Record<string, string>>({});
@@ -3456,6 +3457,21 @@ export const PatioView: React.FC<PatioViewProps> = ({
     }
   };
 
+  const handleAddGarantia = async () => {
+    if (!selectedCard || selectedCard.garantiaTag) return;
+    const cardId = selectedCard.id;
+    setRemovingGarantiaId(cardId);
+    try {
+      await updateServiceOrderGarantiaTag(cardId, true, actorOptions);
+      setCards((prev) => prev.map((c) => (c.id === cardId ? { ...c, garantiaTag: true } : c)));
+      setSelectedCard((prev) => (prev && prev.id === cardId ? { ...prev, garantiaTag: true } : prev));
+    } catch (err: any) {
+      alert(err?.message ?? 'Erro ao marcar como Garantia.');
+    } finally {
+      setRemovingGarantiaId(null);
+    }
+  };
+
   const handleSaveMileage = async () => {
     if (!selectedCard) return;
     const value = mileageEditValue.trim();
@@ -4099,10 +4115,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
     }
   };
 
-  /** Registra o retorno do conserto externo: move para a coluna "Chegada conserto". */
+  /** Registra o retorno do conserto externo: move para “Em serviço”. */
   const handleRegisterExternalReturn = async (cardId: string) => {
     try {
-      await updateServiceOrderStatus(cardId, 'CHEGADA_CONSERTO', actorOptions);
+      await updateServiceOrderStatus(cardId, 'EM_SERVICO', actorOptions);
     } catch (err: any) {
       alert(err?.message ?? 'Erro ao registrar chegada do conserto.');
     } finally {
@@ -4334,6 +4350,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
         moduleProductOther:
           newLabProductKind === OTHER_MODULE_KIND_ID ? newLabProductOther.trim() || null : null,
         issueDescription,
+        garantiaTag: newLabServiceGarantia ? true : undefined,
       });
       const linkSource = overrideServiceLabel ? "manual" : newLabServiceMode;
       const next: LabServiceLink[] = [
@@ -4360,6 +4377,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
       setNewLabManualLabel("");
       setNewLabBudgetRef("");
       setNewLabServiceDetails("");
+      setNewLabServiceGarantia(false);
       if (!overrideServiceLabel) {
         setNewLabProductKind("");
         setNewLabProductOther("");
@@ -4421,6 +4439,54 @@ export const PatioView: React.FC<PatioViewProps> = ({
     window.dispatchEvent(new CustomEvent('rda-patio-budgets-changed'));
     void fetchDataRef.current(true);
   }, [selectedCard]);
+
+  const handleLabMarkUnrepairable = useCallback(
+    async (payload: import('../lab/LabEvaluationSection').LabUnrepairablePayload) => {
+      if (!selectedCard) return;
+      const reason = payload.reason.trim();
+      if (!reason) throw new Error('Informe o motivo.');
+
+      const commentText = `Sem conserto — motivo:\n${reason}`;
+      await addServiceOrderComment(
+        selectedCard.id,
+        commentText,
+        commentAuthorName,
+        actorOptions?.actor,
+        actorOptions?.actor === 'technician' ? actorOptions.actorTechnicianSlug : undefined
+      );
+
+      for (let i = 0; i < payload.files.length; i++) {
+        const file = payload.files[i];
+        const safeName = file.name?.trim() || `sem_conserto_${Date.now()}_${i + 1}`;
+        await uploadServiceOrderPhoto(selectedCard.id, file, safeName, {
+          folderSlug: 'sem-conserto',
+        });
+      }
+
+      await updateServiceOrderStatus(selectedCard.id, 'SEM_CONSERTO', actorOptions);
+      const updated = await getServiceOrderById(selectedCard.id);
+      setServiceOrderDetail(updated);
+      const newStatus = (updated.status ?? 'SEM_CONSERTO') as ServiceOrderStatus;
+      setSelectedCard((prev) =>
+        prev
+          ? {
+              ...prev,
+              idList: newStatus,
+              dateLastActivity: updated.updated_at,
+            }
+          : prev
+      );
+      setCards((prev) =>
+        prev.map((c) =>
+          c.id === selectedCard.id
+            ? { ...c, idList: newStatus, dateLastActivity: updated.updated_at }
+            : c
+        )
+      );
+      void fetchDataRef.current(true);
+    },
+    [selectedCard, commentAuthorName, actorOptions]
+  );
 
   const handleDeleteExternalRepair = async () => {
     if (!selectedCard || !serviceOrderDetail) return;
@@ -7781,6 +7847,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 copyPatioAttachmentsToLabOrder(laboratoryOrderId, paths, selectedCard?.id)
               }
               copyingPatioAttachments={copyingPatioOriginAttachments}
+              newLabServiceGarantia={newLabServiceGarantia}
+              onLabServiceGarantiaChange={setNewLabServiceGarantia}
             />
           ) : null;
         const renderExternalRepairSection = () => {
@@ -8162,7 +8230,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                   Agendado
                                 </span>
                               ) : null}
-                              {!isModuleMode && selectedCard.garantiaTag ? (
+                              {selectedCard.garantiaTag ? (
                                 <span className="inline-flex max-w-full items-center gap-1 rounded-md border border-red-500/35 bg-red-500/[0.08] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-red-600 dark:border-red-400/30 dark:bg-red-500/10 dark:text-red-300">
                                   Garantia
                                   <button
@@ -8182,6 +8250,24 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                     )}
                                   </button>
                                 </span>
+                              ) : can('canEditFicha') ? (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    void handleAddGarantia();
+                                  }}
+                                  disabled={removingGarantiaId === selectedCard.id}
+                                  className="inline-flex items-center gap-1 rounded-md border border-red-500/30 bg-white/80 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-red-600 transition hover:bg-red-50 disabled:opacity-50 dark:border-red-400/25 dark:bg-zinc-900/60 dark:text-red-300 dark:hover:bg-red-500/10"
+                                  title="Marcar como garantia"
+                                >
+                                  {removingGarantiaId === selectedCard.id ? (
+                                    <RefreshCw className="h-2.5 w-2.5 animate-spin" />
+                                  ) : (
+                                    <Tag className="h-2.5 w-2.5" />
+                                  )}
+                                  Garantia
+                                </button>
                               ) : null}
                             </div>
                           ) : (
@@ -8226,7 +8312,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                               Agendado
                             </span>
                           ) : null}
-                          {selectedCard.garantiaTag && (
+                          {selectedCard.garantiaTag ? (
                             <span className="inline-flex items-center gap-1 rounded-md border border-red-500/35 bg-red-500/[0.08] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-red-600 dark:border-red-400/30 dark:bg-red-500/10 dark:text-red-300">
                               Garantia
                               <button
@@ -8239,7 +8325,25 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                 {removingGarantiaId === selectedCard.id ? <RefreshCw className="h-2.5 w-2.5 animate-spin" /> : <X className="h-2.5 w-2.5" />}
                               </button>
                             </span>
-                          )}
+                          ) : can('canEditFicha') ? (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                void handleAddGarantia();
+                              }}
+                              disabled={removingGarantiaId === selectedCard.id}
+                              className="inline-flex items-center gap-1 rounded-md border border-red-500/30 bg-white/80 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-red-600 transition hover:bg-red-50 disabled:opacity-50 dark:border-red-400/25 dark:bg-zinc-900/60 dark:text-red-300 dark:hover:bg-red-500/10"
+                              title="Marcar como garantia"
+                            >
+                              {removingGarantiaId === selectedCard.id ? (
+                                <RefreshCw className="h-2.5 w-2.5 animate-spin" />
+                              ) : (
+                                <Tag className="h-2.5 w-2.5" />
+                              )}
+                              Garantia
+                            </button>
+                          ) : null}
                           </div>
                           )}
                         </div>
@@ -9341,6 +9445,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             evaluatedByDisplayName={commentAuthorName}
                             onSubmitEvaluation={handleLabEvaluationSubmit}
                             onDeleteEvaluation={can('canEditFicha') ? handleLabEvaluationDelete : undefined}
+                            onMarkUnrepairable={can('canEditFicha') ? handleLabMarkUnrepairable : undefined}
                           />
                         ) : null}
 

@@ -852,6 +852,8 @@ export async function createServiceOrder(params: {
   vehicleEngineInfo?: string | null;
   /** Marca OS criada a partir da Agenda (Chegou ao pátio). */
   agendaTag?: boolean;
+  /** Etiqueta de garantia (laboratório / pátio). */
+  garantiaTag?: boolean;
 }): Promise<ApiServiceOrder> {
   const orderType = params.orderType === "module" ? "module" : "vehicle";
   const body: Record<string, unknown> = {
@@ -879,6 +881,7 @@ export async function createServiceOrder(params: {
     if (params.moduleProductOther) body.moduleProductOther = params.moduleProductOther;
     if (params.status) body.status = params.status;
   }
+  if (params.garantiaTag === true) body.garantiaTag = true;
   const response = await fetch(`${API_BASE}/service-orders`, {
     method: "POST",
     headers: {
@@ -902,7 +905,7 @@ export async function saveReceptionIntake(
   customer: Customer,
   orderType: ServiceOrderType = "vehicle",
   moduleInitialStatus?: ServiceOrderStatus,
-  options?: { agendaTag?: boolean }
+  options?: { agendaTag?: boolean; garantiaTag?: boolean }
 ) {
   const createdCustomer = await createCustomer(customer);
 
@@ -928,6 +931,7 @@ export async function saveReceptionIntake(
       orderType === "vehicle" ? customer.vehicleEngineInfo?.trim() || null : undefined,
     status: orderType === "module" ? moduleInitialStatus : undefined,
     agendaTag: orderType === "vehicle" && options?.agendaTag === true ? true : undefined,
+    garantiaTag: options?.garantiaTag === true ? true : undefined,
   });
 
   return {
@@ -942,7 +946,7 @@ export async function saveReceptionIntakeForExistingCustomer(
   customer: Customer,
   orderType: ServiceOrderType = "vehicle",
   moduleInitialStatus?: ServiceOrderStatus,
-  options?: { agendaTag?: boolean }
+  options?: { agendaTag?: boolean; garantiaTag?: boolean }
 ) {
   const createdServiceOrder = await createServiceOrder({
     customerId,
@@ -965,6 +969,7 @@ export async function saveReceptionIntakeForExistingCustomer(
     vehicleEngineInfo: orderType === "vehicle" ? customer.vehicleEngineInfo?.trim() || null : undefined,
     status: orderType === "module" ? moduleInitialStatus : undefined,
     agendaTag: orderType === "vehicle" && options?.agendaTag === true ? true : undefined,
+    garantiaTag: options?.garantiaTag === true ? true : undefined,
   });
   const all = await getCustomers();
   const row = all.find((c) => c.id === customerId);
