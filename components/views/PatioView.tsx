@@ -28,6 +28,7 @@ import {
   renameServiceOrderPhoto,
   rotateServiceOrderPhoto,
   deleteServiceOrderPhoto,
+  updateServiceOrderDiagnosticAuthorization,
   copyServiceOrderPhotosFrom,
   getLabOrderSourcePatio,
   type ServiceOrderPhoto,
@@ -247,6 +248,7 @@ import { VehicleBrandLogo } from '../ui/VehicleBrandLogo';
 import { ReceptionArchivedHistoryHubCard, boardCardToArchivedHistoryHubOrder } from '../reception/ReceptionArchivedHistoryHubCard';
 import { archivedHistoryModalShell } from '../reception/archivedHistoryModalShell';
 import { DiagnosticAuthorizationSheetModal } from '../diagnostic/DiagnosticAuthorizationSheetModal';
+import { DiagnosticAuthorizationSignModal } from '../diagnostic/DiagnosticAuthorizationSignModal';
 import { ServiceTechnicianClosingModal } from '../patio/ServiceTechnicianClosingModal';
 import { BudgetApprovalModal } from '../budget/BudgetApprovalModal';
 import { LabEvaluationSection } from '../lab/LabEvaluationSection';
@@ -1714,6 +1716,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
   const boardStages = useMemo(() => getServiceOrderStages(flowKind), [flowKind]);
   const [diagnosticAuthSheetOpen, setDiagnosticAuthSheetOpen] = useState(false);
+  const [diagnosticAuthSignOpen, setDiagnosticAuthSignOpen] = useState(false);
+  const [diagnosticAuthSaving, setDiagnosticAuthSaving] = useState(false);
   const diagnosticAuthSheetContext = useMemo(() => {
     if (isModuleMode) return null;
     const d = selectedHistoryCard ? historyServiceOrderDetail : serviceOrderDetail;
@@ -1723,6 +1727,49 @@ export const PatioView: React.FC<PatioViewProps> = ({
     if (!src) return null;
     return { src, signedAt: d.diagnostic_authorization_signed_at ?? null };
   }, [isModuleMode, selectedHistoryCard, historyServiceOrderDetail, serviceOrderDetail]);
+  const canCollectDiagAuth =
+    !isModuleMode &&
+    !!selectedCard &&
+    !selectedHistoryCard &&
+    !!serviceOrderDetail &&
+    !serviceOrderDetail.diagnostic_authorization_signature_path;
+  const handleConfirmDiagAuthSignature = useCallback(
+    (blob: Blob) => {
+      const osId = selectedCard?.id;
+      if (!osId) return;
+      void (async () => {
+        setDiagnosticAuthSaving(true);
+        try {
+          const uploaded = await uploadServiceOrderPhoto(
+            osId,
+            blob,
+            `AUTORIZACAO_DIAGNOSTICO_${Date.now()}.png`
+          );
+          await updateServiceOrderDiagnosticAuthorization(
+            osId,
+            { signaturePath: uploaded.path },
+            actorOptions
+          );
+          const order = await getServiceOrderById(osId);
+          if (selectedCardRef.current?.id === osId) {
+            setServiceOrderDetail(order);
+          }
+          setDiagnosticAuthSignOpen(false);
+          setDiagnosticAuthSheetOpen(true);
+        } catch (err) {
+          console.error(err);
+          window.alert(
+            err instanceof Error
+              ? err.message
+              : 'Não foi possível salvar a assinatura. Tente novamente.'
+          );
+        } finally {
+          setDiagnosticAuthSaving(false);
+        }
+      })();
+    },
+    [selectedCard?.id, actorOptions]
+  );
   const diagnosticAuthSubtitleKm = useMemo(() => {
     if (isModuleMode) return null;
     const km = selectedHistoryCard
@@ -1739,6 +1786,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
   ]);
   useEffect(() => {
     setDiagnosticAuthSheetOpen(false);
+    setDiagnosticAuthSignOpen(false);
   }, [selectedCard?.id, selectedHistoryCard?.id]);
   /** Mesmos ícones iOS da Home para cabeçalhos de modais do Pátio / Laboratório. */
   const patioOrLabModuleIcon = (
@@ -8579,11 +8627,21 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             </div>
                           </button>
                           )}
-                          {isPatioTabletLikeModal && !isModuleMode && diagnosticAuthSheetContext ? (
+                          {isPatioTabletLikeModal &&
+                          !isModuleMode &&
+                          (diagnosticAuthSheetContext || canCollectDiagAuth) ? (
                             <button
                               type="button"
-                              onClick={() => setDiagnosticAuthSheetOpen(true)}
-                              title="Ver autorização de diagnóstico"
+                              onClick={() =>
+                                diagnosticAuthSheetContext
+                                  ? setDiagnosticAuthSheetOpen(true)
+                                  : setDiagnosticAuthSignOpen(true)
+                              }
+                              title={
+                                diagnosticAuthSheetContext
+                                  ? 'Ver autorização de diagnóstico'
+                                  : 'Assinar termo de diagnóstico'
+                              }
                               className={`${vi} patio-vm-card patio-vm-meta-card group relative order-5 col-start-1 w-full cursor-pointer overflow-hidden text-left shadow-[0_6px_24px_-10px_rgba(0,0,0,0.1)] transition-all duration-200 hover:border-[#007AFF]/28 dark:shadow-[0_10px_32px_-14px_rgba(0,0,0,0.45)] dark:hover:border-white/[0.12]`}
                             >
                               <div
@@ -8597,7 +8655,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
                               <div className={c.row}>
                                 <div className="min-w-0 flex-1">
                                   <p className={c.titleText}>Diagnóstico</p>
-                                  <p className={c.bodyText}>Ver autorização</p>
+                                  <p className={c.bodyText}>
+                                    {diagnosticAuthSheetContext ? 'Ver autorização' : 'Assinar termo'}
+                                  </p>
                                 </div>
                                 <ChevronRight
                                   strokeWidth={2.25}
@@ -9306,7 +9366,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                         !isModuleMode &&
                         selectedCard &&
                         !selectedHistoryCard &&
-                        diagnosticAuthSheetContext ? (
+                        (diagnosticAuthSheetContext || canCollectDiagAuth) ? (
                           <div className={`${vi} min-w-0 overflow-hidden shadow-none`}>
                             <div className="relative min-w-0">
                               <div
@@ -9328,27 +9388,51 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                 </div>
                               </div>
                               <div className="relative border-t border-zinc-200/60 bg-zinc-50/90 px-3 py-3 dark:border-white/[0.06] dark:bg-white/[0.02] sm:px-4 sm:py-4">
-                                <button
-                                  type="button"
-                                  onClick={() => setDiagnosticAuthSheetOpen(true)}
-                                  className="group relative w-full overflow-hidden rounded-xl border border-zinc-200/85 bg-gradient-to-br from-white via-white to-zinc-50/95 text-left shadow-[0_4px_22px_-10px_rgba(0,122,255,0.22),inset_0_1px_0_rgba(255,255,255,0.92)] transition-all hover:border-[#007AFF]/40 hover:shadow-[0_10px_32px_-12px_rgba(0,122,255,0.32)] active:scale-[0.99] dark:border-white/[0.1] dark:from-zinc-900 dark:via-zinc-900 dark:to-zinc-950 dark:shadow-[0_6px_28px_-14px_rgba(0,0,0,0.55)] dark:hover:border-[#007AFF]/35"
-                                >
-                                  <span className="flex items-center gap-3.5 px-4 py-3.5">
-                                    <span className="min-w-0 flex-1">
-                                      <span className="block text-[14px] font-bold leading-tight tracking-tight text-zinc-900 dark:text-white">
-                                        Ver autorização de diagnóstico
+                                {diagnosticAuthSheetContext ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => setDiagnosticAuthSheetOpen(true)}
+                                    className="group relative w-full overflow-hidden rounded-xl border border-zinc-200/85 bg-gradient-to-br from-white via-white to-zinc-50/95 text-left shadow-[0_4px_22px_-10px_rgba(0,122,255,0.22),inset_0_1px_0_rgba(255,255,255,0.92)] transition-all hover:border-[#007AFF]/40 hover:shadow-[0_10px_32px_-12px_rgba(0,122,255,0.32)] active:scale-[0.99] dark:border-white/[0.1] dark:from-zinc-900 dark:via-zinc-900 dark:to-zinc-950 dark:shadow-[0_6px_28px_-14px_rgba(0,0,0,0.55)] dark:hover:border-[#007AFF]/35"
+                                  >
+                                    <span className="flex items-center gap-3.5 px-4 py-3.5">
+                                      <span className="min-w-0 flex-1">
+                                        <span className="block text-[14px] font-bold leading-tight tracking-tight text-zinc-900 dark:text-white">
+                                          Ver autorização de diagnóstico
+                                        </span>
+                                        <span className="mt-1 block text-[11px] font-medium leading-snug text-emerald-600 dark:text-emerald-400">
+                                          Concluído
+                                        </span>
                                       </span>
-                                      <span className="mt-1 block text-[11px] font-medium leading-snug text-zinc-500 dark:text-zinc-400">
-                                        Documento assinado pelo cliente
-                                      </span>
+                                      <ChevronRight
+                                        className="h-5 w-5 shrink-0 text-zinc-300 transition-transform group-hover:translate-x-0.5 group-hover:text-[#007AFF] dark:text-zinc-500 dark:group-hover:text-[#7ab8ff]"
+                                        strokeWidth={2.25}
+                                        aria-hidden
+                                      />
                                     </span>
-                                    <ChevronRight
-                                      className="h-5 w-5 shrink-0 text-zinc-300 transition-transform group-hover:translate-x-0.5 group-hover:text-[#007AFF] dark:text-zinc-500 dark:group-hover:text-[#7ab8ff]"
-                                      strokeWidth={2.25}
-                                      aria-hidden
-                                    />
-                                  </span>
-                                </button>
+                                  </button>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    onClick={() => setDiagnosticAuthSignOpen(true)}
+                                    className="group relative w-full overflow-hidden rounded-xl border border-amber-300/70 bg-gradient-to-br from-white via-white to-amber-50/80 text-left shadow-sm transition-all hover:border-amber-400/80 active:scale-[0.99] dark:border-amber-500/30 dark:from-zinc-900 dark:via-zinc-900 dark:to-amber-950/20"
+                                  >
+                                    <span className="flex items-center gap-3.5 px-4 py-3.5">
+                                      <span className="min-w-0 flex-1">
+                                        <span className="block text-[14px] font-bold leading-tight tracking-tight text-zinc-900 dark:text-white">
+                                          Assinar termo de diagnóstico
+                                        </span>
+                                        <span className="mt-1 block text-[11px] font-medium leading-snug text-amber-700 dark:text-amber-400">
+                                          Pendente
+                                        </span>
+                                      </span>
+                                      <ChevronRight
+                                        className="h-5 w-5 shrink-0 text-zinc-300 transition-transform group-hover:translate-x-0.5 group-hover:text-amber-600 dark:text-zinc-500"
+                                        strokeWidth={2.25}
+                                        aria-hidden
+                                      />
+                                    </span>
+                                  </button>
+                                )}
                               </div>
                             </div>
                           </div>
@@ -10989,6 +11073,16 @@ export const PatioView: React.FC<PatioViewProps> = ({
           subtitleExtra={diagnosticAuthSubtitleKm}
         />
       ) : null}
+
+      <DiagnosticAuthorizationSignModal
+        open={diagnosticAuthSignOpen}
+        confirming={diagnosticAuthSaving}
+        onClose={() => {
+          if (diagnosticAuthSaving) return;
+          setDiagnosticAuthSignOpen(false);
+        }}
+        onConfirm={(blob) => handleConfirmDiagAuthSignature(blob)}
+      />
 
       {/* MODAL CRIAR/EDITAR ORÇAMENTO — estado de digitação isolado do PatioView (evita trava no PC) */}
       {isBudgetOpen && selectedCard && patioPortalsVisible && (

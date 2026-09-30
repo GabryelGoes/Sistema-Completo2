@@ -318,11 +318,12 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
 
   useEffect(() => {
     if (receptionMode !== 'vehicle') {
-      setDiagAuthSignatureBlob(null);
       setDiagAuthSignatureDataUrl(null);
       setDiagAuthSignedAt(null);
       setDiagAuthSheetOpen(false);
       setDiagAuthSignModalOpen(false);
+      setDiagAuthSaving(false);
+      setPendingDiagAuthOsId(null);
     } else {
       setModuleKind('');
       setModuleVehicleKind('');
@@ -354,7 +355,8 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
   const [liveCameraCapturing, setLiveCameraCapturing] = useState(false);
   const [liveCameraFlash, setLiveCameraFlash] = useState(false);
   const [diagAuthSignModalOpen, setDiagAuthSignModalOpen] = useState(false);
-  const [diagAuthSignatureBlob, setDiagAuthSignatureBlob] = useState<Blob | null>(null);
+  const [diagAuthSaving, setDiagAuthSaving] = useState(false);
+  const [pendingDiagAuthOsId, setPendingDiagAuthOsId] = useState<string | null>(null);
   const [diagAuthSignatureDataUrl, setDiagAuthSignatureDataUrl] = useState<string | null>(null);
   const [diagAuthSignedAt, setDiagAuthSignedAt] = useState<Date | null>(null);
   const [diagAuthSheetOpen, setDiagAuthSheetOpen] = useState(false);
@@ -822,14 +824,6 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
         });
         return;
       }
-      if (!diagAuthSignatureBlob) {
-        setStatus({
-          step: 'error',
-          message:
-            'É obrigatório ler e assinar a autorização de diagnóstico técnico. Abra "Ler termo e assinar", assine com o mouse/dedo ou anexe a imagem da assinatura e confirme.',
-        });
-        return;
-      }
     }
 
     const docStatus = getCpfCnpjStatus(customer.cpf);
@@ -895,19 +889,6 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
         }
       }
 
-      if (serviceOrder?.id && receptionMode === 'vehicle' && diagAuthSignatureBlob) {
-        const uploaded = await uploadServiceOrderPhoto(
-          serviceOrder.id,
-          diagAuthSignatureBlob,
-          `AUTORIZACAO_DIAGNOSTICO_${Date.now()}.png`
-        );
-        await updateServiceOrderDiagnosticAuthorization(
-          serviceOrder.id,
-          { signaturePath: uploaded.path },
-          actorOptions
-        );
-      }
-
       const osLabel = serviceOrder?.os_number != null ? ` OS #${serviceOrder.os_number}.` : '';
       setStatus({
         step: 'success',
@@ -915,6 +896,17 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
           ? `Nova OS criada para o cliente selecionado.${osLabel}`
           : `Cadastro criado com sucesso.${osLabel}`,
       });
+
+      // Assinatura do termo só depois da ficha criada (veículo).
+      // Navega para o Pátio só após assinar ou dispensar o modal.
+      if (serviceOrder?.id && receptionMode === 'vehicle') {
+        setPendingDiagAuthOsId(serviceOrder.id);
+        setDiagAuthSignatureDataUrl(null);
+        setDiagAuthSignedAt(null);
+        setDiagAuthSignModalOpen(true);
+        return;
+      }
+
       await onIntakeSuccess?.(receptionMode);
     } catch (error: any) {
       console.error(error);
@@ -971,11 +963,12 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
       clearTimeout(intakeCustomerBlurTimerRef.current);
       intakeCustomerBlurTimerRef.current = null;
     }
-    setDiagAuthSignatureBlob(null);
     setDiagAuthSignatureDataUrl(null);
     setDiagAuthSignedAt(null);
     setDiagAuthSheetOpen(false);
     setDiagAuthSignModalOpen(false);
+    setDiagAuthSaving(false);
+    setPendingDiagAuthOsId(null);
     setStatus({ step: 'idle' });
   };
 
@@ -1478,8 +1471,8 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                                   <button
                                     type="button"
                                     onClick={() => selectIntakeExistingCustomer(c)}
-                                    className={`flex w-full flex-col gap-0.5 px-3 py-2.5 text-left text-sm transition-colors hover:bg-zinc-100/90 dark:hover:bg-white/[0.06] ${
-                                      selected ? 'bg-[#007AFF]/10 dark:bg-[#64B5FF]/15' : ''
+                                    className={`flex w-full flex-col gap-0.5 px-3 py-2.5 text-left text-sm transition-colors hover:bg-zinc-100 dark:hover:bg-zinc-800 ${
+                                      selected ? 'bg-[#007AFF]/10 dark:bg-[#64B5FF]/15' : 'bg-white dark:bg-zinc-900'
                                     }`}
                                   >
                                     <span className="font-semibold text-zinc-900 dark:text-zinc-100">
@@ -1922,27 +1915,19 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                       <p className="text-[14px] font-bold leading-snug text-zinc-900 dark:text-white">
                         Autorização de diagnóstico técnico
                       </p>
-                      {diagAuthSignatureBlob ? (
+                      {diagAuthSignatureDataUrl && pendingDiagAuthOsId == null ? (
                         <p className="pt-0.5 text-[12px] font-semibold text-emerald-600 dark:text-emerald-400">
                           Concluído
                         </p>
                       ) : (
                         <p className="pt-0.5 text-[12px] font-medium text-amber-700 dark:text-amber-400/95">
-                          Pendente
+                          Pendente — será solicitada após criar a ficha
                         </p>
                       )}
                     </div>
                   </div>
-                  <div className="mt-3 flex flex-wrap items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setDiagAuthSignModalOpen(true)}
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-300/90 bg-white px-2.5 py-1.5 text-[11px] font-semibold text-zinc-700 shadow-sm transition-colors hover:border-[#007AFF]/35 hover:bg-zinc-50 hover:text-[#007AFF] active:scale-[0.99] dark:border-white/12 dark:bg-white/[0.06] dark:text-zinc-200 dark:hover:border-[#64B5FF]/40 dark:hover:bg-white/[0.1] dark:hover:text-[#8cc8ff]"
-                    >
-                      <FileText className="h-3 w-3 shrink-0 opacity-80" strokeWidth={2.25} aria-hidden />
-                      {diagAuthSignatureBlob ? 'Reassinar termo' : 'Ler termo e assinar'}
-                    </button>
-                    {diagAuthSignatureDataUrl ? (
+                  {diagAuthSignatureDataUrl ? (
+                    <div className="mt-3">
                       <button
                         type="button"
                         onClick={() => setDiagAuthSheetOpen(true)}
@@ -1951,8 +1936,8 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                         <Eye className="h-3 w-3 shrink-0 text-zinc-500 dark:text-zinc-400" strokeWidth={2.25} aria-hidden />
                         Ver autorização
                       </button>
-                    ) : null}
-                  </div>
+                    </div>
+                  ) : null}
                 </div>
                 </div>
               )}
@@ -2084,12 +2069,51 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
 
       <DiagnosticAuthorizationSignModal
         open={diagAuthSignModalOpen}
-        onClose={() => setDiagAuthSignModalOpen(false)}
-        onConfirm={(blob, meta) => {
-          setDiagAuthSignatureBlob(blob);
-          setDiagAuthSignatureDataUrl(meta.signaturePreviewDataUrl);
-          setDiagAuthSignedAt(new Date());
+        confirming={diagAuthSaving}
+        onClose={() => {
+          if (diagAuthSaving) return;
+          const shouldNavigate = !!pendingDiagAuthOsId;
           setDiagAuthSignModalOpen(false);
+          setPendingDiagAuthOsId(null);
+          if (shouldNavigate) {
+            void onIntakeSuccess?.('vehicle');
+          }
+        }}
+        onConfirm={(blob, meta) => {
+          const osId = pendingDiagAuthOsId;
+          if (!osId) {
+            setDiagAuthSignModalOpen(false);
+            return;
+          }
+          void (async () => {
+            setDiagAuthSaving(true);
+            try {
+              const uploaded = await uploadServiceOrderPhoto(
+                osId,
+                blob,
+                `AUTORIZACAO_DIAGNOSTICO_${Date.now()}.png`
+              );
+              await updateServiceOrderDiagnosticAuthorization(
+                osId,
+                { signaturePath: uploaded.path },
+                actorOptions
+              );
+              setDiagAuthSignatureDataUrl(meta.signaturePreviewDataUrl);
+              setDiagAuthSignedAt(new Date());
+              setPendingDiagAuthOsId(null);
+              setDiagAuthSignModalOpen(false);
+              await onIntakeSuccess?.('vehicle');
+            } catch (err) {
+              console.error(err);
+              window.alert(
+                err instanceof Error
+                  ? err.message
+                  : 'Não foi possível salvar a assinatura. Tente novamente.'
+              );
+            } finally {
+              setDiagAuthSaving(false);
+            }
+          })();
         }}
       />
 
