@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Minus, Trash2 } from 'lucide-react';
+import type { Notification } from '../services/apiService';
 import { findDesktopNotificationsBellTarget } from '../utils/macGenieMinimize';
 import {
   GenieNotificationDismiss,
@@ -19,14 +20,20 @@ const MAX_VISIBLE = 48;
 
 export type MacOsBudgetBannerItem = {
   id: string;
-  kind: 'budget_created' | 'budget_edited' | 'budget_verified';
+  kind: 'budget_created' | 'budget_edited' | 'budget_verified' | 'comment';
   serviceOrderId: string;
-  budgetId: string;
+  /** Obrigatório para orçamentos; ausente em comentários. */
+  budgetId?: string;
   vehicleModel?: string | null;
   vehiclePlate?: string | null;
+  customerName?: string | null;
   authorName?: string | null;
   authorPhotoUrl?: string | null;
   budgetNumber?: number | null;
+  /** Prévia do texto do comentário. */
+  commentText?: string | null;
+  /** Snapshot para abrir o CommentPopUp ao ativar o banner. */
+  commentNotification?: Notification | null;
 };
 
 function plateLabel(plate: string | null | undefined): string | null {
@@ -37,10 +44,18 @@ function plateLabel(plate: string | null | undefined): string | null {
 function vehicleLine(item: MacOsBudgetBannerItem): string {
   const model = (item.vehicleModel && item.vehicleModel.trim()) || 'Veículo';
   const plate = plateLabel(item.vehiclePlate);
+  const customer = (item.customerName && item.customerName.trim()) || '';
+  if (item.kind === 'comment') {
+    if (customer && plate) return `${model} · ${customer} · ${plate}`;
+    if (customer) return `${model} · ${customer}`;
+    if (plate) return `${model} · ${plate}`;
+    return model;
+  }
   return plate ? `${model} · ${plate}` : model;
 }
 
 function titleFor(item: MacOsBudgetBannerItem): string {
+  if (item.kind === 'comment') return 'Novo comentário';
   if (item.kind === 'budget_verified') {
     const n = item.budgetNumber;
     if (n != null && n >= 2) return `${n}º orçamento verificado`;
@@ -61,7 +76,27 @@ function authorLabel(item: MacOsBudgetBannerItem): string {
   return name || 'Usuário';
 }
 
+function commentPreview(text: string | null | undefined): string | null {
+  const t = typeof text === 'string' ? text.trim().replace(/\s+/g, ' ') : '';
+  if (!t) return null;
+  return t.length > 120 ? `${t.slice(0, 117)}…` : t;
+}
+
 export function budgetBannerToCardModel(item: MacOsBudgetBannerItem): MacOsNotificationCardModel {
+  if (item.kind === 'comment') {
+    return {
+      id: item.id,
+      authorName: authorLabel(item),
+      authorPhotoUrl: item.authorPhotoUrl,
+      title: titleFor(item),
+      body: commentPreview(item.commentText) || vehicleLine(item),
+      hint: commentPreview(item.commentText) ? vehicleLine(item) : null,
+      timeLabel: 'agora',
+      accent: 'violet',
+      icon: 'comment',
+      unread: true,
+    };
+  }
   const hint =
     (item.kind === 'budget_created' || item.kind === 'budget_verified') &&
     item.budgetNumber != null &&

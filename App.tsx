@@ -169,11 +169,6 @@ export default function App() {
     [dismissDesktopShellOverlays]
   );
 
-  const handleNewCommentNotification = (n: Notification) => {
-    playNotificationSound();
-    setCommentPopUpNotification(n);
-  };
-
   // Theme State
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
   const [patioActiveCount, setPatioActiveCount] = useState(0);
@@ -184,6 +179,8 @@ export default function App() {
   const [cinematographicMode, setCinematographicMode] = useState(false);
   /** Banners macOS de orçamento (ligado por padrão). */
   const [budgetBannerNotifications, setBudgetBannerNotifications] = useState(true);
+  /** Banners macOS de comentários (ligado por padrão). */
+  const [commentBannerNotifications, setCommentBannerNotifications] = useState(true);
   const [budgetBannerItems, setBudgetBannerItems] = useState<MacOsBudgetBannerItem[]>([]);
   const [minimizedBudgetBanners, setMinimizedBudgetBanners] = useState<MacOsBudgetBannerItem[]>([]);
 
@@ -365,6 +362,12 @@ export default function App() {
 
   const openBudgetFromBanner = useCallback(
     (item: MacOsBudgetBannerItem) => {
+      if (item.kind === 'comment') {
+        if (item.commentNotification) {
+          setCommentPopUpNotification(item.commentNotification);
+        }
+        return;
+      }
       const soId = item.serviceOrderId?.trim() || '';
       const budgetId = item.budgetId?.trim() || '';
       if (!soId || !budgetId) return;
@@ -394,19 +397,73 @@ export default function App() {
 
   const pushBudgetBanner = useCallback(
     (item: MacOsBudgetBannerItem) => {
-      if (!isDesktopShell || !budgetBannerNotifications) return;
+      if (!isDesktopShell) return;
+      const isComment = item.kind === 'comment';
+      if (isComment && !commentBannerNotifications) return;
+      if (!isComment && !budgetBannerNotifications) return;
       setMinimizedBudgetBanners((prev) =>
-        prev.filter((x) => !(x.budgetId === item.budgetId && x.kind === item.kind))
+        prev.filter((x) => {
+          if (isComment) {
+            return !(x.kind === 'comment' && x.id === item.id);
+          }
+          return !(x.budgetId === item.budgetId && x.kind === item.kind);
+        })
       );
       setBudgetBannerItems((prev) => {
-        if (prev.some((x) => x.id === item.id || (x.budgetId === item.budgetId && x.kind === item.kind))) {
+        if (
+          prev.some((x) =>
+            isComment
+              ? x.id === item.id || (x.kind === 'comment' && x.commentNotification?.id === item.id)
+              : x.id === item.id || (x.budgetId === item.budgetId && x.kind === item.kind)
+          )
+        ) {
           return prev;
         }
         // Sem corte agressivo: novos banners sempre entram; soft-cap alto só para memória.
         return [item, ...prev].slice(0, 80);
       });
     },
-    [isDesktopShell, budgetBannerNotifications]
+    [isDesktopShell, budgetBannerNotifications, commentBannerNotifications]
+  );
+
+  const handleNewCommentNotification = useCallback(
+    (n: Notification) => {
+      // Toque próprio de comentário (diferente do arpejo de orçamento).
+      playNotificationSound();
+      if (isDesktopShell && commentBannerNotifications) {
+        const soId =
+          typeof n.payload.service_order_id === 'string' ? n.payload.service_order_id.trim() : '';
+        const author =
+          (typeof n.payload.author_display_name === 'string' && n.payload.author_display_name.trim()) ||
+          (typeof n.payload.technician_name === 'string' && n.payload.technician_name.trim()) ||
+          null;
+        const authorPhotoUrl =
+          typeof n.payload.author_photo_url === 'string' && n.payload.author_photo_url.trim()
+            ? n.payload.author_photo_url.trim()
+            : null;
+        const commentText =
+          typeof n.payload.text === 'string' ? n.payload.text : null;
+        pushBudgetBanner({
+          id: n.id,
+          kind: 'comment',
+          serviceOrderId: soId,
+          vehicleModel:
+            typeof n.payload.vehicle_model === 'string' ? n.payload.vehicle_model : null,
+          vehiclePlate:
+            typeof n.payload.vehicle_plate === 'string' ? n.payload.vehicle_plate : null,
+          customerName:
+            typeof n.payload.customer_name === 'string' ? n.payload.customer_name : null,
+          authorName: author,
+          authorPhotoUrl,
+          commentText,
+          commentNotification: n,
+        });
+        // No PC com banners: o alerta fica no canto; clique abre o pop-up de resposta.
+        return;
+      }
+      setCommentPopUpNotification(n);
+    },
+    [isDesktopShell, commentBannerNotifications, pushBudgetBanner]
   );
 
   const handleBudgetHubEvents = useCallback(
@@ -494,6 +551,16 @@ export default function App() {
 
   const handleNotificationClick = useCallback(
     (n: Notification) => {
+      if (n.type === 'comment') {
+        setCommentPopUpNotification(n);
+        void markNotificationRead(
+          n.id,
+          authSession?.role === 'user' && authSession.userId
+            ? { for: 'technician', technicianSlug: authSession.userId }
+            : undefined
+        ).catch(() => {});
+        return;
+      }
       if (n.type === 'budget_created' || n.type === 'budget_edited') {
         const soId =
           typeof n.payload.service_order_id === 'string' ? n.payload.service_order_id.trim() : '';
@@ -531,6 +598,7 @@ export default function App() {
   }, [
     authSession,
     theme,
+    handleNewCommentNotification,
     handleBudgetBannerNotification,
     handleNotificationClick,
     minimizedBudgetBanners,
@@ -807,6 +875,10 @@ export default function App() {
     if (savedBudgetBanners !== null) {
       setBudgetBannerNotifications(savedBudgetBanners === 'true');
     }
+    const savedCommentBanners = localStorage.getItem('app_comment_banner_notifications');
+    if (savedCommentBanners !== null) {
+      setCommentBannerNotifications(savedCommentBanners === 'true');
+    }
   }, []);
 
   // Apply theme to document
@@ -824,10 +896,18 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('app_budget_banner_notifications', String(budgetBannerNotifications));
     if (!budgetBannerNotifications) {
-      setBudgetBannerItems([]);
-      setMinimizedBudgetBanners([]);
+      setBudgetBannerItems((prev) => prev.filter((x) => x.kind === 'comment'));
+      setMinimizedBudgetBanners((prev) => prev.filter((x) => x.kind === 'comment'));
     }
   }, [budgetBannerNotifications]);
+
+  useEffect(() => {
+    localStorage.setItem('app_comment_banner_notifications', String(commentBannerNotifications));
+    if (!commentBannerNotifications) {
+      setBudgetBannerItems((prev) => prev.filter((x) => x.kind !== 'comment'));
+      setMinimizedBudgetBanners((prev) => prev.filter((x) => x.kind !== 'comment'));
+    }
+  }, [commentBannerNotifications]);
 
   useEffect(() => {
     if (!isDesktopShell) {
@@ -1434,6 +1514,8 @@ export default function App() {
           onCinematographicModeChange={setCinematographicMode}
           budgetBannerNotifications={budgetBannerNotifications}
           onBudgetBannerNotificationsChange={setBudgetBannerNotifications}
+          commentBannerNotifications={commentBannerNotifications}
+          onCommentBannerNotificationsChange={setCommentBannerNotifications}
           orientation={orientation}
           showPatioAccess={false}
         />
@@ -1790,6 +1872,8 @@ export default function App() {
         onCinematographicModeChange={setCinematographicMode}
         budgetBannerNotifications={budgetBannerNotifications}
         onBudgetBannerNotificationsChange={setBudgetBannerNotifications}
+        commentBannerNotifications={commentBannerNotifications}
+        onCommentBannerNotificationsChange={setCommentBannerNotifications}
         orientation={orientation}
         showPatioAccess={authSession?.role === 'admin' || hasFullAccess}
       />
