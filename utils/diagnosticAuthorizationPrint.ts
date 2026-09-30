@@ -9,6 +9,8 @@ export type DiagnosticAuthorizationPrintVehicle = {
   vehicleModel?: string | null;
   plate?: string | null;
   mileageKm?: string | null;
+  /** Nome do cliente (exibido no documento). */
+  customerName?: string | null;
 };
 
 function esc(s: string) {
@@ -72,6 +74,7 @@ export function printDiagnosticAuthorizationSheet(opts: {
   vehicle?: DiagnosticAuthorizationPrintVehicle | null;
 }): void {
   const signed = formatDiagnosticAuthorizationSignedAt(opts.signedAt);
+  const customerName = clean(opts.vehicle?.customerName) || '—';
   const vehicleLabel = formatDiagnosticAuthorizationVehicleLabel(
     opts.vehicle?.vehicleBrand,
     opts.vehicle?.vehicleModel
@@ -80,9 +83,7 @@ export function printDiagnosticAuthorizationSheet(opts: {
   const kmRaw = clean(opts.vehicle?.mileageKm);
   const km = kmRaw ? kmRaw.replace(/\B(?=(\d{3})+(?!\d))/g, '.') : '—';
 
-  const signedMeta = signed
-    ? `<p class="doc-meta">Data: ${esc(signed.date)} &nbsp;·&nbsp; Hora: ${esc(signed.time)}</p>`
-    : '';
+  // Data/hora só sob a assinatura (não no cabeçalho do documento).
   const signedFoot = signed
     ? `<p class="sign-meta">${esc(signed.date)} — ${esc(signed.time)}</p>`
     : '';
@@ -91,7 +92,8 @@ export function printDiagnosticAuthorizationSheet(opts: {
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8" />
-  <title>${esc(DIAGNOSTIC_AUTHORIZATION_TITLE)}</title>
+  <!-- Título vazio: evita cabeçalho do navegador com data + título duplicado ao imprimir. -->
+  <title></title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     html, body {
@@ -117,13 +119,6 @@ export function printDiagnosticAuthorizationSheet(opts: {
       color: #09090b;
       line-height: 1.25;
     }
-    .doc-meta {
-      margin-top: 8px;
-      text-align: center;
-      font-size: 10.5pt;
-      font-weight: 500;
-      color: #71717a;
-    }
     .divider {
       margin-top: 14px;
       border: 0;
@@ -132,7 +127,7 @@ export function printDiagnosticAuthorizationSheet(opts: {
     .vehicle-grid {
       margin-top: 18px;
       display: grid;
-      grid-template-columns: 1fr 1fr 1fr;
+      grid-template-columns: 1fr 1fr;
       gap: 12px 16px;
     }
     .vehicle-field {
@@ -211,7 +206,8 @@ export function printDiagnosticAuthorizationSheet(opts: {
       font-size: 10pt;
       color: #71717a;
     }
-    @page { size: A4; margin: 14mm; }
+    /* Margens suficientes no papel; cabeçalhos/rodapés do Chrome ficam fora do conteúdo. */
+    @page { size: A4; margin: 12mm; }
     @media print {
       .sheet { max-width: none; padding: 0; }
     }
@@ -220,9 +216,12 @@ export function printDiagnosticAuthorizationSheet(opts: {
 <body>
   <div class="sheet">
     <h1 class="doc-title">${esc(DIAGNOSTIC_AUTHORIZATION_TITLE)}</h1>
-    ${signedMeta}
     <hr class="divider" />
     <div class="vehicle-grid">
+      <div class="vehicle-field">
+        <span class="label">Cliente</span>
+        <span class="value">${esc(customerName)}</span>
+      </div>
       <div class="vehicle-field">
         <span class="label">Veículo</span>
         <span class="value">${esc(vehicleLabel)}</span>
