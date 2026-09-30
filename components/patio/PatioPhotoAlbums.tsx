@@ -31,7 +31,10 @@ import {
 
 function attachmentDisplayName(fileName: string): string {
   const base = String(fileName || '').split('/').pop() || fileName;
-  return base.replace(/^\d{10,}_/, '').replace(/^entrada_[^_]+_\d+_/, 'Entrada · ');
+  return base
+    .replace(/^\d{10,}_/, '')
+    .replace(/^entrada_[^_]+_\d+_/, 'Entrada · ')
+    .replace(/^sem_conserto_/i, 'Sem conserto · ');
 }
 
 /** Nome editável (sem extensão) para o campo de renomear. */
