@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo, useRef, Suspense } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef, Suspense } from 'react';
 import { Customer, Appointment } from './types';
 import { SettingsModal } from './components/SettingsModal';
 import { ChangePasswordsModal } from './components/ChangePasswordsModal';
@@ -41,7 +41,7 @@ import type { ServiceOrderStatus } from './constants/serviceOrderStages';
 import { KeepAliveTabPanel } from './components/KeepAliveTabPanel';
 import {
   measureSourceExpandRect,
-  measureSourceExpandRectInHiddenPanel,
+  measureCreateOsSourceAfterUnderlayVisible,
   prefersReducedMotion,
   type SourceExpandRect,
 } from './utils/iosSourceExpandTransition';
@@ -225,6 +225,10 @@ export default function App() {
   const [receptionSourceExpandClosing, setReceptionSourceExpandClosing] = useState(false);
   const [receptionSourceExpandCloseTarget, setReceptionSourceExpandCloseTarget] =
     useState<SourceExpandRect | null>(null);
+  /** Pátio/Lab visível atrás do cadastro durante o FLIP (sem refetch — isAppTabActive=false). */
+  const [expandUnderlayTab, setExpandUnderlayTab] = useState<'patio' | 'laboratorio' | null>(null);
+  /** Dispara remediação do botão + recolhimento após o underlay estar no layout. */
+  const [receptionCloseMeasureNonce, setReceptionCloseMeasureNonce] = useState(0);
   const createOsSourceElRef = useRef<HTMLElement | null>(null);
   const pendingReturnTabAfterExpandCloseRef = useRef<TabId | null>(null);
   /** Agenda → “Chegou ao pátio”: id do agendamento (excluir após ficha criada; gesto voltar reabre o modal de detalhe). */
@@ -612,6 +616,8 @@ export default function App() {
     setReceptionSourceExpandOrigin(null);
     setReceptionSourceExpandClosing(false);
     setReceptionSourceExpandCloseTarget(null);
+    setExpandUnderlayTab(null);
+    setReceptionCloseMeasureNonce(0);
     createOsSourceElRef.current = null;
     pendingReturnTabAfterExpandCloseRef.current = null;
   }, []);
@@ -620,6 +626,7 @@ export default function App() {
     const target = pendingReturnTabAfterExpandCloseRef.current;
     clearReceptionSourceExpand();
     setReturnTabAfterReception(null);
+    // A aba de destino já foi ativada no início do recolhimento (Pátio atrás + cor do cabeçalho).
     if (!target) return;
     if (isLimitedSystemUser) {
       if (userAllowedTabs.includes(target)) setUserTab(target);
@@ -629,25 +636,54 @@ export default function App() {
     }
   }, [clearReceptionSourceExpand, isLimitedSystemUser, userAllowedTabs]);
 
+  /** Após underlay no layout: mede o botão e inicia o FLIP de recolhimento. */
+  useLayoutEffect(() => {
+    if (receptionCloseMeasureNonce === 0) return;
+    const target = pendingReturnTabAfterExpandCloseRef.current;
+    if (target !== 'patio' && target !== 'laboratorio') return;
+
+    const closeTarget = measureCreateOsSourceAfterUnderlayVisible(
+      target,
+      createOsSourceElRef.current
+    );
+
+    if (closeTarget && !prefersReducedMotion()) {
+      setReceptionSourceExpandCloseTarget(closeTarget);
+      setReceptionSourceExpandClosing(true);
+      if (isLimitedSystemUser) {
+        if (userAllowedTabs.includes(target)) setUserTab(target);
+        else setUserTab('home');
+      } else {
+        setCurrentTab(target);
+      }
+      return;
+    }
+
+    // Sem geometria válida — volta instantâneo
+    clearReceptionSourceExpand();
+    setReturnTabAfterReception(null);
+    if (isLimitedSystemUser) {
+      if (userAllowedTabs.includes(target)) setUserTab(target);
+      else setUserTab('home');
+    } else {
+      setCurrentTab(target);
+    }
+  }, [
+    receptionCloseMeasureNonce,
+    isLimitedSystemUser,
+    userAllowedTabs,
+    clearReceptionSourceExpand,
+  ]);
+
   const handleOverlayCloseOrBack = useCallback(() => {
     if (returnTabAfterReception === 'patio' || returnTabAfterReception === 'laboratorio') {
       const target = returnTabAfterReception;
-      const sourceEl = createOsSourceElRef.current;
-      const panel =
-        typeof document !== 'undefined'
-          ? (document.querySelector(`[data-keepalive-tab="${target}"]`) as HTMLElement | null)
-          : null;
 
-      let closeTarget: SourceExpandRect | null = null;
-      if (sourceEl && panel && receptionSourceExpandOrigin && !prefersReducedMotion()) {
-        closeTarget = measureSourceExpandRectInHiddenPanel(panel, sourceEl);
-        if (!closeTarget) closeTarget = measureSourceExpandRect(sourceEl);
-      }
-
-      if (closeTarget && receptionSourceExpandOrigin && !prefersReducedMotion()) {
+      if (receptionSourceExpandOrigin && !prefersReducedMotion()) {
+        // Mantém/ativa underlay, depois mede no layout effect (geometria estável do botão).
         pendingReturnTabAfterExpandCloseRef.current = target;
-        setReceptionSourceExpandCloseTarget(closeTarget);
-        setReceptionSourceExpandClosing(true);
+        setExpandUnderlayTab(target);
+        setReceptionCloseMeasureNonce((n) => n + 1);
         return;
       }
 
@@ -870,6 +906,7 @@ export default function App() {
     setReceptionForcedMode(inferredMode);
     setReturnTabAfterReception(inferredMode === 'module' ? 'laboratorio' : 'patio');
     clearReceptionSourceExpand();
+    setExpandUnderlayTab(inferredMode === 'module' ? 'laboratorio' : 'patio');
     if (authSession?.role === 'user' && !hasFullAccess) {
       setUserTab('reception');
     } else {
@@ -909,6 +946,7 @@ export default function App() {
 
       setReceptionSourceExpandClosing(false);
       setReceptionSourceExpandCloseTarget(null);
+      setExpandUnderlayTab(mode === 'module' ? 'laboratorio' : 'patio');
       if (sourceButton && !prefersReducedMotion()) {
         const origin = measureSourceExpandRect(sourceButton);
         createOsSourceElRef.current = sourceButton;
@@ -970,6 +1008,30 @@ export default function App() {
       return next;
     });
   }, [authSession, userTab, hasFullAccess]);
+
+  // Pré-monta Recepção ao abrir Pátio/Lab (só KeepAlive local; sem fetch enquanto inativa).
+  useEffect(() => {
+    if (!authSession || (authSession.role === 'user' && !hasFullAccess)) return;
+    if (currentTab !== 'patio' && currentTab !== 'laboratorio') return;
+    setVisitedTabs((prev) => {
+      if (prev.has('reception')) return prev;
+      const next = new Set(prev);
+      next.add('reception');
+      return next;
+    });
+  }, [authSession, currentTab, hasFullAccess]);
+
+  useEffect(() => {
+    if (!authSession || authSession.role !== 'user' || hasFullAccess) return;
+    if (userTab !== 'patio' && userTab !== 'laboratorio') return;
+    if (userAllowedTabs.length > 0 && !userAllowedTabs.includes('reception')) return;
+    setVisitedUserTabs((prev) => {
+      if (prev.has('reception')) return prev;
+      const next = new Set(prev);
+      next.add('reception');
+      return next;
+    });
+  }, [authSession, userTab, hasFullAccess, userAllowedTabs]);
 
   // Navegação mobile (gesto voltar Android/iOS): se estiver fora da Home, volta para Home.
   useEffect(() => {
@@ -1283,6 +1345,7 @@ export default function App() {
             tabId="patio"
             activeTab={userTab}
             visitedTabs={visitedUserTabs}
+            underlayVisible={expandUnderlayTab === 'patio'}
             className="flex-1 min-h-0 overflow-y-auto px-3 pb-4 pt-1 sm:px-4 md:px-6 md:pb-6 md:pt-2 lg:p-8 lg:pt-6"
           >
             <LazyTabBoundary label="Pátio">
@@ -1312,6 +1375,7 @@ export default function App() {
             tabId="laboratorio"
             activeTab={userTab}
             visitedTabs={visitedUserTabs}
+            underlayVisible={expandUnderlayTab === 'laboratorio'}
             className="flex-1 min-h-0 overflow-y-auto px-3 pb-4 pt-1 sm:px-4 md:px-6 md:pb-6 md:pt-2 lg:p-8 lg:pt-6"
           >
             <LazyTabBoundary label="Laboratório">
@@ -1654,6 +1718,7 @@ export default function App() {
           tabId="patio"
           activeTab={currentTab}
           visitedTabs={visitedTabs}
+          underlayVisible={expandUnderlayTab === 'patio'}
           className="flex-1 min-h-0 overflow-y-auto px-3 pb-4 pt-1 sm:px-4 md:px-6 md:pb-6 md:pt-2 lg:p-8 lg:pt-6"
         >
           <LazyTabBoundary label="Pátio">
@@ -1685,6 +1750,7 @@ export default function App() {
           tabId="laboratorio"
           activeTab={currentTab}
           visitedTabs={visitedTabs}
+          underlayVisible={expandUnderlayTab === 'laboratorio'}
           className="flex-1 min-h-0 overflow-y-auto px-3 pb-4 pt-1 sm:px-4 md:px-6 md:pb-6 md:pt-2 lg:p-8 lg:pt-6"
         >
           <LazyTabBoundary label="Laboratório">

@@ -23,9 +23,13 @@ export function prefersReducedMotion(): boolean {
   }
 }
 
-export function measureSourceExpandRect(el: HTMLElement): SourceExpandRect | null {
+export function measureSourceExpandRect(el: HTMLElement | null | undefined): SourceExpandRect | null {
+  if (!el || typeof el.getBoundingClientRect !== 'function') return null;
+  // Botão desconectado do DOM (ex.: remount) — inválido
+  if (!el.isConnected) return null;
   const rect = el.getBoundingClientRect();
   if (!Number.isFinite(rect.width) || rect.width < 2 || rect.height < 2) return null;
+  if (!Number.isFinite(rect.left) || !Number.isFinite(rect.top)) return null;
   const cs = window.getComputedStyle(el);
   return {
     left: rect.left,
@@ -37,42 +41,20 @@ export function measureSourceExpandRect(el: HTMLElement): SourceExpandRect | nul
 }
 
 /**
- * Mede um elemento dentro de um painel com `hidden` (display:none),
- * forçando layout invisível só durante a medição.
+ * Mede o botão «Criar OS» depois que o painel do Pátio/Lab já está visível.
+ * Prefere o elemento clicado; se falhar, tenta `[data-criar-os-source]` no painel.
  */
-export function measureSourceExpandRectInHiddenPanel(
-  panel: HTMLElement,
-  el: HTMLElement
+export function measureCreateOsSourceAfterUnderlayVisible(
+  panelTabId: string,
+  preferredEl: HTMLElement | null
 ): SourceExpandRect | null {
-  const wasHidden = panel.hasAttribute('hidden');
-  const prev = {
-    visibility: panel.style.visibility,
-    pointerEvents: panel.style.pointerEvents,
-    position: panel.style.position,
-    inset: panel.style.inset,
-    zIndex: panel.style.zIndex,
-    opacity: panel.style.opacity,
-  };
-  try {
-    if (wasHidden) panel.removeAttribute('hidden');
-    panel.style.visibility = 'hidden';
-    panel.style.pointerEvents = 'none';
-    panel.style.position = 'fixed';
-    panel.style.inset = '0';
-    panel.style.zIndex = '-1';
-    panel.style.opacity = '0';
-    // Força reflow
-    void panel.offsetWidth;
-    return measureSourceExpandRect(el);
-  } finally {
-    panel.style.visibility = prev.visibility;
-    panel.style.pointerEvents = prev.pointerEvents;
-    panel.style.position = prev.position;
-    panel.style.inset = prev.inset;
-    panel.style.zIndex = prev.zIndex;
-    panel.style.opacity = prev.opacity;
-    if (wasHidden) panel.setAttribute('hidden', '');
-  }
+  const fromPreferred = measureSourceExpandRect(preferredEl);
+  if (fromPreferred) return fromPreferred;
+
+  const panel = document.querySelector(`[data-keepalive-tab="${panelTabId}"]`) as HTMLElement | null;
+  if (!panel) return null;
+  const fallback = panel.querySelector('[data-criar-os-source="1"]') as HTMLElement | null;
+  return measureSourceExpandRect(fallback);
 }
 
 /** Invert FLIP: origem (botão) → caixa final do painel (top-left origin). */
@@ -86,7 +68,7 @@ export function computeSourceExpandInvert(
   const dy = from.top - to.top;
   // Compensa o scale no border-radius para o raio visual ≈ o do botão no 1º frame
   const avgScale = Math.max(0.001, (sx + sy) / 2);
-  const rawRadius = parseFloat(from.borderRadius) || 12;
+  const rawRadius = parseFloat(String(from.borderRadius)) || 12;
   const unit = /rem$/i.test(from.borderRadius) ? 'rem' : 'px';
   const compensated =
     unit === 'rem'
