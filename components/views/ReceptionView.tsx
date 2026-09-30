@@ -1398,8 +1398,8 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:gap-7">
             {/* Dados do cliente — no retrato (tablet/phone): primeiro; no desktop: coluna direita */}
             <div className={`${receptionPortraitVertical ? 'order-1' : 'order-2'} space-y-6`}>
-              <div className="flex items-end justify-between gap-2 border-b border-zinc-200/80 pb-2 dark:border-white/[0.08]">
-                <h2 className="min-w-0 flex-1 text-[14px] font-bold uppercase tracking-[0.08em] text-zinc-700 dark:text-zinc-200">
+              <div className="flex h-10 items-end justify-between gap-2 border-b border-zinc-200/80 pb-2 dark:border-white/[0.08]">
+                <h2 className="min-w-0 flex-1 truncate text-[14px] font-bold uppercase leading-none tracking-[0.08em] text-zinc-700 dark:text-zinc-200">
                   Dados do cliente
                 </h2>
                 <button
@@ -1607,10 +1607,10 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
               {/* No retrato: dados do veículo por último entre os blocos desta coluna (order-4) */}
               <div className={receptionPortraitVertical ? 'order-4 space-y-6' : 'contents'}>
               <div
-                className="flex items-end justify-between gap-2 border-b border-zinc-200/80 pb-2 dark:border-white/[0.08]"
+                className="flex h-9 items-end justify-between gap-2 border-b border-zinc-200/80 pb-2 dark:border-white/[0.08]"
               >
                 <h2
-                  className="min-w-0 flex-1 text-[14px] font-bold uppercase tracking-[0.08em] leading-tight text-zinc-700 dark:text-zinc-200 pr-1"
+                  className="min-w-0 flex-1 truncate text-[14px] font-bold uppercase leading-none tracking-[0.08em] text-zinc-700 dark:text-zinc-200"
                 >
                   {receptionMode === 'vehicle'
                     ? receptionPortraitVertical
@@ -1656,7 +1656,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                           onClick={() => void runPlacaLookup(true)}
                           disabled={plateLookupLoading}
                           title="Buscar placa"
-                          className="inline-flex shrink-0 items-center justify-center gap-1.5 self-end rounded-xl border border-zinc-200 bg-zinc-100 px-3 py-3 text-sm font-semibold text-zinc-800 transition-all hover:border-[#007AFF]/45 hover:bg-white active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50 dark:border-brand-border dark:bg-brand-surfaceHighlight dark:text-zinc-100 dark:hover:border-[#64B5FF]/40"
+                          className="inline-flex h-[46px] shrink-0 items-center justify-center gap-1.5 self-end rounded-xl border border-zinc-200 bg-zinc-100 px-3 text-sm font-semibold text-zinc-800 transition-all hover:border-[#007AFF]/45 hover:bg-white active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50 dark:border-brand-border dark:bg-brand-surfaceHighlight dark:text-zinc-100 dark:hover:border-[#64B5FF]/40 sm:mb-0.5"
                         >
                           {plateLookupLoading ? (
                             <Loader2 className="h-4 w-4 animate-spin text-[#007AFF] dark:text-[#7ab8ff]" aria-hidden />
@@ -1686,51 +1686,49 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                     </div>
                   </div>
 
-                  <div className="space-y-4 border-t border-zinc-200/80 pt-4 dark:border-white/[0.08]">
-                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:items-end">
-                      <Input
-                        label="Marca / montadora"
-                        name="vehicleBrand"
-                        placeholder="Marca"
-                        value={customer.vehicleBrand ?? ''}
-                        onChange={handleInputChange}
-                        icon={<FileText className="w-4 h-4" />}
-                      />
-                      <Input
-                        label="Modelo (aparece no card)"
-                        name="vehicleModel"
-                        placeholder="Modelo"
-                        value={customer.vehicleModel}
-                        onChange={handleInputChange}
-                        icon={<Car className="w-4 h-4" />}
-                      />
-                    </div>
-                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 sm:items-end">
-                      <Input
-                        label="Cor"
-                        name="vehicleColor"
-                        placeholder="Cor"
-                        value={customer.vehicleColor ?? ''}
-                        onChange={handleInputChange}
-                        icon={<Sparkles className="w-4 h-4" />}
-                      />
-                      <Input
-                        label="Ano / ano modelo"
-                        name="vehicleYear"
-                        placeholder="Ano"
-                        value={customer.vehicleYear ?? ''}
-                        onChange={handleInputChange}
-                        icon={<Calendar className="w-4 h-4" />}
-                      />
-                      <Input
-                        label="Motor"
-                        name="vehicleEngineInfo"
-                        placeholder="Motor"
-                        value={customer.vehicleEngineInfo ?? ''}
-                        onChange={handleInputChange}
-                        icon={<Car className="w-4 h-4" />}
-                      />
-                    </div>
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:items-end">
+                    <Input
+                      label="Marca / montadora"
+                      name="vehicleBrand"
+                      placeholder="Marca"
+                      value={customer.vehicleBrand ?? ''}
+                      onChange={handleInputChange}
+                      icon={<FileText className="w-4 h-4" />}
+                    />
+                    <Input
+                      label="Modelo (aparece no card)"
+                      name="vehicleModel"
+                      placeholder="Modelo"
+                      value={customer.vehicleModel}
+                      onChange={handleInputChange}
+                      icon={<Car className="w-4 h-4" />}
+                    />
+                  </div>
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 sm:items-end">
+                    <Input
+                      label="Cor"
+                      name="vehicleColor"
+                      placeholder="Cor"
+                      value={customer.vehicleColor ?? ''}
+                      onChange={handleInputChange}
+                      icon={<Sparkles className="w-4 h-4" />}
+                    />
+                    <Input
+                      label="Ano / ano modelo"
+                      name="vehicleYear"
+                      placeholder="Ano"
+                      value={customer.vehicleYear ?? ''}
+                      onChange={handleInputChange}
+                      icon={<Calendar className="w-4 h-4" />}
+                    />
+                    <Input
+                      label="Motor"
+                      name="vehicleEngineInfo"
+                      placeholder="Motor"
+                      value={customer.vehicleEngineInfo ?? ''}
+                      onChange={handleInputChange}
+                      icon={<Car className="w-4 h-4" />}
+                    />
                   </div>
                 </div>
               ) : (
@@ -1992,8 +1990,6 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
               )}
 
               <div className={receptionPortraitVertical ? 'order-5 space-y-6' : 'contents'}>
-              <div className="h-px bg-zinc-200/80 dark:bg-white/[0.08]" />
-
               <div className="space-y-3">
                 <label className={`${iosLabel} ml-1`}>
                   {receptionMode === 'vehicle' ? 'Fotos do veículo (opcional)' : 'Fotos (opcional)'}
