@@ -14,7 +14,7 @@ export const FIELD_CONTROL_HEIGHT_CLASS = 'h-12';
 export const Input: React.FC<InputProps> = ({ label, icon, className, inputClassName, required, ...props }) => {
   return (
     <div className={`flex min-w-0 flex-col gap-2 ${className ?? ''}`}>
-      <label className="ml-1 block min-h-4 text-xs font-medium uppercase leading-4 tracking-wider text-zinc-950 dark:text-zinc-300">
+      <label className="ml-1 block h-4 truncate text-xs font-medium uppercase leading-4 tracking-wider text-zinc-950 dark:text-zinc-300">
         {label}
         {required ? <span className="ml-0.5 text-red-500" aria-hidden> *</span> : null}
       </label>
