@@ -1270,6 +1270,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const [serviceOrderDetail, setServiceOrderDetail] = useState<ServiceOrderDetail | null>(null);
   const [cardDetails, setCardDetails] = useState<{ actions: TrelloAction[], attachments: TrelloAttachment[] } | null>(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
+  /** Chat: loading próprio — não espera fotos/orçamentos. */
+  const [loadingComments, setLoadingComments] = useState(false);
   const [editFichaSaving, setEditFichaSaving] = useState(false);
   const [referenceLinksDraft, setReferenceLinksDraft] = useState<VehicleReferenceLink[]>([]);
   const [pendingReferenceLink, setPendingReferenceLink] = useState<{ label: string; url: string } | null>(null);
@@ -1648,6 +1650,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [selectedHistoryCard, setSelectedHistoryCard] = useState<BoardCard | null>(null);
   const [loadingHistoryDetails, setLoadingHistoryDetails] = useState(false);
+  const [loadingHistoryComments, setLoadingHistoryComments] = useState(false);
   const [historyCardDetails, setHistoryCardDetails] = useState<{ actions: BoardAction[], attachments: BoardAttachment[] } | null>(null);
   const [historyServiceOrderDetail, setHistoryServiceOrderDetail] = useState<ServiceOrderDetail | null>(null);
   const [historySavedBudgets, setHistorySavedBudgets] = useState<SavedBudget[]>([]);
@@ -2349,12 +2352,31 @@ export const PatioView: React.FC<PatioViewProps> = ({
     // Queixa em edição: não re-renderiza o modal gigante no Mac.
     if (isEditingDescRef.current) return;
     try {
-      const [order, photos, budgets, comments] = await Promise.all([
+      // Comentários primeiro: chat não espera fotos/orçamentos.
+      const commentsPromise = getServiceOrderComments(id);
+      const restPromise = Promise.all([
         getServiceOrderById(id),
         getServiceOrderPhotos(id),
         getServiceOrderBudgets(id),
-        getServiceOrderComments(id),
       ]);
+
+      void commentsPromise
+        .then((comments) => {
+          if (isBudgetOpenRef.current) return;
+          if (selectedCardRef.current?.id !== id) return;
+          const skipCommentsRefresh =
+            !!newCommentRef.current.trim() ||
+            !!editingActionIdRef.current ||
+            sendingCommentRef.current;
+          if (skipCommentsRefresh) return;
+          setCardDetails((prev) => ({
+            actions: (comments ?? []).map(commentToAction),
+            attachments: prev?.attachments ?? [],
+          }));
+        })
+        .catch(() => {});
+
+      const [order, photos, budgets] = await restPromise;
       if (isBudgetOpenRef.current) return;
       setServiceOrderDetail(order);
       const listItem = serviceOrderDetailToListItem(order);
@@ -2363,10 +2385,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
       setSelectedCard((prev) => (prev?.id === id ? freshCard : prev));
       setCards((prev) => prev.map((c) => (c.id === id ? freshCard : c)));
       setExternalRepairCards((prev) => prev.map((c) => (c.id === id ? freshCard : c)));
-      const skipCommentsRefresh =
-        !!newCommentRef.current.trim() ||
-        !!editingActionIdRef.current ||
-        sendingCommentRef.current;
       const nextAttachments = photos.map((p, i) => ({
         id: p.path || String(i),
         name: p.name,
@@ -2374,16 +2392,27 @@ export const PatioView: React.FC<PatioViewProps> = ({
         mimeType: attachmentMimeType(p.name),
         previews: [{ url: p.url, width: 200, height: 200 }],
       }));
-      if (skipCommentsRefresh) {
-        setCardDetails((prev) => ({
-          actions: prev?.actions ?? [],
-          attachments: nextAttachments,
-        }));
-      } else {
-        setCardDetails({
-          actions: (comments ?? []).map(commentToAction),
-          attachments: nextAttachments,
-        });
+      setCardDetails((prev) => ({
+        actions: prev?.actions ?? [],
+        attachments: nextAttachments,
+      }));
+      // Comentários podem ter chegado depois: aplica de novo se já resolvido.
+      try {
+        const comments = await commentsPromise;
+        if (!isBudgetOpenRef.current && selectedCardRef.current?.id === id) {
+          const skipCommentsRefresh =
+            !!newCommentRef.current.trim() ||
+            !!editingActionIdRef.current ||
+            sendingCommentRef.current;
+          if (!skipCommentsRefresh) {
+            setCardDetails((prev) => ({
+              actions: (comments ?? []).map(commentToAction),
+              attachments: prev?.attachments ?? nextAttachments,
+            }));
+          }
+        }
+      } catch {
+        /* already logged above */
       }
       setSavedBudgets(budgets);
       setViewingBudget((prev) => {
@@ -3034,12 +3063,14 @@ export const PatioView: React.FC<PatioViewProps> = ({
       setServiceOrderDetail(null);
       setSavedBudgets([]);
       setLoadingDetails(false);
+      setLoadingComments(false);
       return;
     }
     const loadId = card.id;
     setIsEditingDesc(false);
     setLoadingDetails(true);
     const cached = vehicleCardDetailsCacheRef.current.get(loadId);
+    const hasCachedComments = (cached?.actions?.length ?? 0) > 0;
     setCardDetails(
       cached
         ? {
@@ -3048,18 +3079,33 @@ export const PatioView: React.FC<PatioViewProps> = ({
           }
         : { actions: [], attachments: [] }
     );
+    setLoadingComments(!hasCachedComments);
     setServiceOrderDetail(serviceOrderDetailPlaceholderFromCard(card, orderType));
-    Promise.all([
+
+    // Comentários em paralelo e aplicados assim que chegam (não esperam fotos/orçamentos).
+    const commentsPromise = getServiceOrderComments(loadId)
+      .then((comments) => {
+        if (selectedCardRef.current?.id !== loadId) return;
+        setCardDetails((prev) => ({
+          actions: (comments ?? []).map(commentToAction),
+          attachments: prev?.attachments ?? [],
+        }));
+      })
+      .catch((err) => console.error('Erro ao carregar comentários', err))
+      .finally(() => {
+        if (selectedCardRef.current?.id === loadId) setLoadingComments(false);
+      });
+
+    const detailsPromise = Promise.all([
       getServiceOrderById(loadId),
       getServiceOrderPhotos(loadId),
       getServiceOrderBudgets(loadId),
-      getServiceOrderComments(loadId),
     ])
-      .then(([order, photos, budgets, comments]) => {
+      .then(([order, photos, budgets]) => {
         if (selectedCardRef.current?.id !== order.id) return;
         setServiceOrderDetail(order);
-        setCardDetails({
-          actions: (comments ?? []).map(commentToAction),
+        setCardDetails((prev) => ({
+          actions: prev?.actions ?? [],
           attachments: photos.map((p, i) => ({
             id: p.path || String(i),
             name: p.name,
@@ -3067,15 +3113,17 @@ export const PatioView: React.FC<PatioViewProps> = ({
             mimeType: attachmentMimeType(p.name),
             previews: [{ url: p.url, width: 200, height: 200 }],
           })),
-        });
+        }));
         setSavedBudgets(budgets);
       })
-      .catch((err) => console.error("Erro ao carregar detalhes", err))
+      .catch((err) => console.error('Erro ao carregar detalhes', err))
       .finally(() => {
         const currentId = selectedCardRef.current?.id;
         if (currentId != null && currentId !== loadId) return;
         setLoadingDetails(false);
       });
+
+    void Promise.all([commentsPromise, detailsPromise]);
   }, [selectedCard?.id, orderType]);
 
   useEffect(() => {
@@ -3278,6 +3326,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
     setSelectedHistoryCard(card);
     setUnarchiveError(null);
     const cached = vehicleCardDetailsCacheRef.current.get(card.id);
+    const hasCachedComments = (cached?.actions?.length ?? 0) > 0;
     setHistoryCardDetails(
       cached
         ? {
@@ -3288,19 +3337,33 @@ export const PatioView: React.FC<PatioViewProps> = ({
     );
     setHistoryServiceOrderDetail(serviceOrderDetailPlaceholderFromCard(card, orderType));
     setLoadingHistoryDetails(true);
+    setLoadingHistoryComments(!hasCachedComments);
     setHistorySavedBudgets([]);
-    Promise.all([
+
+    const commentsPromise = getServiceOrderComments(card.id)
+      .then((comments) => {
+        if (selectedHistoryCardRef.current?.id !== card.id) return;
+        setHistoryCardDetails((prev) => ({
+          actions: (comments ?? []).map(commentToAction),
+          attachments: prev?.attachments ?? [],
+        }));
+      })
+      .catch((err) => console.error(err))
+      .finally(() => {
+        if (selectedHistoryCardRef.current?.id === card.id) setLoadingHistoryComments(false);
+      });
+
+    const detailsPromise = Promise.all([
       getServiceOrderById(card.id),
       getServiceOrderPhotos(card.id),
-      getServiceOrderComments(card.id),
       getServiceOrderBudgets(card.id),
     ])
-      .then(([order, photos, comments, budgets]) => {
+      .then(([order, photos, budgets]) => {
         if (selectedHistoryCardRef.current?.id !== order.id) return;
         setHistoryServiceOrderDetail(order);
         setHistorySavedBudgets(budgets);
-        setHistoryCardDetails({
-          actions: (comments ?? []).map(commentToAction),
+        setHistoryCardDetails((prev) => ({
+          actions: prev?.actions ?? [],
           attachments: photos.map((p, i) => {
             const mime = attachmentMimeType(p.name);
             const isPdf = mime === 'application/pdf' || p.url.toLowerCase().endsWith('.pdf');
@@ -3312,10 +3375,12 @@ export const PatioView: React.FC<PatioViewProps> = ({
               previews: isPdf ? [] : [{ url: p.url, width: 200, height: 200 }],
             };
           }),
-        });
+        }));
       })
-      .catch(err => console.error(err))
+      .catch((err) => console.error(err))
       .finally(() => setLoadingHistoryDetails(false));
+
+    void Promise.all([commentsPromise, detailsPromise]);
   };
 
   const handleUseRegistration = async (card: BoardCard) => {
@@ -7645,7 +7710,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                          </div>
                                       </div>
                                    ); })
-                                ) : loadingHistoryDetails ? (
+                                ) : loadingHistoryComments ? (
                                    <div className="flex justify-center py-8">
                                       <RefreshCw className="h-6 w-6 animate-spin text-[#007AFF]" />
                                    </div>
@@ -9836,9 +9901,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                 .map((budget) => {
                                   const sameOs = savedBudgets.filter((x) => x.serviceOrderId === selectedCard.id);
                                   const preview =
-                                    budget.diagnosis?.split('\n')[0]?.slice(0, 42) ||
-                                    budget.services[0]?.description?.slice(0, 42) ||
-                                    (budget.parts[0] ? `${budget.parts[0].quantity}x ${budget.parts[0].description?.slice(0, 30)}` : '') ||
+                                    budget.diagnosis?.split('\n')[0]?.trim() ||
+                                    budget.services[0]?.description?.trim() ||
+                                    (budget.parts[0]
+                                      ? `${budget.parts[0].quantity}x ${budget.parts[0].description ?? ''}`.trim()
+                                      : '') ||
                                     'Orçamento';
                                   const dateStr = new Date(budgetLastActivityMs(budget)).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
                                   const numero = budgetChronologicalNumber(sameOs, budget.id);
@@ -9873,7 +9940,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                           </span>
                                         )}
                                       </div>
-                                      <p className={`mb-2 line-clamp-2 font-semibold leading-snug text-zinc-900 dark:text-zinc-100 ${isPatioPcModal || isPatioTabletLikeModal ? 'mb-1.5 text-[11px]' : 'text-[13px]'}`}>
+                                      <p className={`mb-2 line-clamp-3 font-semibold leading-snug text-zinc-900 dark:text-zinc-100 ${isPatioPcModal || isPatioTabletLikeModal ? 'mb-1.5 text-[11px]' : 'text-[13px]'}`}>
                                         {preview}
                                       </p>
                                       <div className={`mb-2 flex items-center gap-2 text-zinc-600 dark:text-zinc-400 ${isPatioPcModal || isPatioTabletLikeModal ? 'mb-1.5 text-[10px]' : 'text-[11px]'}`}>
@@ -9912,45 +9979,65 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                 if (!conferenceBudget) return null;
                                 return (
                                   <div className="space-y-1.5">
-                                    {cardBudgets.length > 1 ? (
-                                      <div className="flex flex-wrap gap-1">
-                                        {cardBudgets.map((b) => {
-                                          const num = budgetChronologicalNumber(cardBudgets, b.id);
-                                          const active = b.id === activeConferenceId;
-                                          return (
-                                            <button
-                                              key={b.id}
-                                              type="button"
-                                              onClick={() => setConferenceBudgetId(b.id)}
-                                              className={`rounded-md px-2 py-1 text-[10px] font-semibold transition-colors ${
-                                                active
-                                                  ? 'bg-[#007AFF] text-white'
-                                                  : 'border border-zinc-200/80 bg-white text-zinc-600 hover:border-[#007AFF]/35 dark:border-white/[0.1] dark:bg-zinc-900 dark:text-zinc-300'
-                                              }`}
-                                            >
-                                              {num}
-                                              {isBudgetVerified(b) ? ' ✓' : ''}
-                                            </button>
-                                          );
-                                        })}
-                                      </div>
-                                    ) : null}
-                                    <BudgetVerificationPanel
-                                      isVerified={isBudgetVerified(conferenceBudget)}
-                                      verifiedAt={conferenceBudget.verifiedAt}
-                                      verifiedByName={conferenceBudget.verifiedByName}
-                                      canVerify={canVerifyBudgetsEffective}
-                                      verifying={verifyingBudgetId === conferenceBudget.id}
-                                      onVerify={() => void handleVerifyBudget(conferenceBudget.id)}
-                                      diagnosis={conferenceBudget.diagnosis}
-                                      services={conferenceBudget.services}
-                                      parts={conferenceBudget.parts}
-                                      budgetNum={
+                                    {(() => {
+                                      const selectionButtons =
                                         cardBudgets.length > 1
-                                          ? budgetChronologicalNumber(cardBudgets, conferenceBudget.id)
-                                          : undefined
-                                      }
-                                    />
+                                          ? cardBudgets.map((b) => {
+                                              const num = budgetChronologicalNumber(cardBudgets, b.id);
+                                              const active = b.id === activeConferenceId;
+                                              return (
+                                                <button
+                                                  key={b.id}
+                                                  type="button"
+                                                  onClick={() => setConferenceBudgetId(b.id)}
+                                                  className={`rounded-md px-2 py-1 text-[10px] font-semibold transition-colors ${
+                                                    active
+                                                      ? 'bg-[#007AFF] text-white'
+                                                      : 'border border-zinc-200/80 bg-white text-zinc-600 hover:border-[#007AFF]/35 dark:border-white/[0.1] dark:bg-zinc-900 dark:text-zinc-300'
+                                                  }`}
+                                                >
+                                                  {num}
+                                                  {isBudgetVerified(b) ? ' ✓' : ''}
+                                                </button>
+                                              );
+                                            })
+                                          : null;
+                                      const showSelectionAbove =
+                                        !!selectionButtons &&
+                                        !(isPatioPcModal && canVerifyBudgetsEffective && !isBudgetVerified(conferenceBudget));
+                                      return (
+                                        <>
+                                          {showSelectionAbove ? (
+                                            <div className="flex flex-wrap gap-1">{selectionButtons}</div>
+                                          ) : null}
+                                          <BudgetVerificationPanel
+                                            isVerified={isBudgetVerified(conferenceBudget)}
+                                            verifiedAt={conferenceBudget.verifiedAt}
+                                            verifiedByName={conferenceBudget.verifiedByName}
+                                            canVerify={canVerifyBudgetsEffective}
+                                            verifying={verifyingBudgetId === conferenceBudget.id}
+                                            onVerify={() => void handleVerifyBudget(conferenceBudget.id)}
+                                            diagnosis={conferenceBudget.diagnosis}
+                                            services={conferenceBudget.services}
+                                            parts={conferenceBudget.parts}
+                                            budgetNum={
+                                              cardBudgets.length > 1
+                                                ? budgetChronologicalNumber(cardBudgets, conferenceBudget.id)
+                                                : undefined
+                                            }
+                                            pcLayout={isPatioPcModal}
+                                            selectionSlot={
+                                              isPatioPcModal &&
+                                              canVerifyBudgetsEffective &&
+                                              !isBudgetVerified(conferenceBudget) &&
+                                              selectionButtons
+                                                ? selectionButtons
+                                                : undefined
+                                            }
+                                          />
+                                        </>
+                                      );
+                                    })()}
                                   </div>
                                 );
                               })()}
@@ -10543,7 +10630,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                         onCancelEdit={handleCancelEdit}
                                       />
                                    ); })
-                                ) : loadingDetails ? (
+                                ) : loadingComments ? (
                                    <div className="flex justify-center py-8 lg:py-6">
                                       <RefreshCw className="h-6 w-6 animate-spin text-[#007AFF] lg:h-5 lg:w-5" />
                                    </div>
