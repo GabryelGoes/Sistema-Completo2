@@ -327,7 +327,7 @@ html[data-desktop-shell='true'] .desktop-shell-topbar {
   color: #fff;
   border-bottom: none;
   box-shadow: none;
-  transition: background-color 0.45s cubic-bezier(0.22, 1, 0.36, 1), color 0.45s cubic-bezier(0.22, 1, 0.36, 1);
+  transition: background-color 0.2s ease;
 }
 
 /* Fundos claros (Resumo, Pátio, Orçamentos): texto escuro */
@@ -454,7 +454,6 @@ html[data-desktop-shell='true'] .desktop-shell-content {
 }
 
 html[data-desktop-shell='true'] .desktop-shell-content-inner {
-  position: relative;
   display: flex;
   flex-direction: column;
   min-height: 100%;

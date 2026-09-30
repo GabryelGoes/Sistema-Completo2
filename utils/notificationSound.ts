@@ -1,7 +1,8 @@
 /**
  * Sons de notificação (Web Audio API).
- * - Comentários: dois tons ascendentes (C5 → E5).
- * - Outras notificações: toque mais grave e curto (D4 → F4).
+ * - Comentários: dois tons ascendentes (C5 → E5) — toque de mensagem.
+ * - Orçamentos: arpejo G4–C5–E5 (playBudgetCreatedOrEditedSound).
+ * - Outras: toque grave curto D4 → F4.
  */
 let audioContext: AudioContext | null = null;
 
@@ -12,38 +13,32 @@ function getContext(): AudioContext {
   return audioContext;
 }
 
-/** Som para novo comentário (tom mais agudo). */
+/**
+ * Som para novo comentário — blob de mensagem (dois bipos curtos + leve eco),
+ * distinto do arpejo de orçamento.
+ */
 export function playNotificationSound(): void {
   try {
     const ctx = getContext();
-    if (ctx.state === "suspended") ctx.resume();
+    if (ctx.state === "suspended") void ctx.resume();
 
     const now = ctx.currentTime;
-    const osc1 = ctx.createOscillator();
-    const osc2 = ctx.createOscillator();
-    const gain = ctx.createGain();
-
-    osc1.type = "sine";
-    osc1.frequency.setValueAtTime(523.25, now); // C5
-    osc1.frequency.setValueAtTime(659.25, now + 0.12); // E5
-    osc1.connect(gain);
-
-    osc2.type = "sine";
-    osc2.frequency.setValueAtTime(523.25, now);
-    osc2.frequency.setValueAtTime(659.25, now + 0.12);
-    osc2.connect(gain);
-
-    gain.connect(ctx.destination);
-    gain.gain.setValueAtTime(0, now);
-    gain.gain.linearRampToValueAtTime(0.15, now + 0.02);
-    gain.gain.linearRampToValueAtTime(0.12, now + 0.2);
-    gain.gain.linearRampToValueAtTime(0, now + 0.38);
-
-    osc1.start(now);
-    osc2.start(now);
-    osc1.stop(now + 0.38);
-    osc2.stop(now + 0.38);
-    gain.gain.setValueAtTime(0, now + 0.38);
+    const freqs = [587.33, 783.99]; // D5 → G5 — mais agudo/“mensagem” que o arpejo de orçamento
+    freqs.forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = "triangle";
+      osc.frequency.setValueAtTime(freq, now);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      const t0 = now + i * 0.11;
+      gain.gain.setValueAtTime(0, t0);
+      gain.gain.linearRampToValueAtTime(0.14, t0 + 0.015);
+      gain.gain.linearRampToValueAtTime(0.06, t0 + 0.09);
+      gain.gain.linearRampToValueAtTime(0, t0 + 0.2);
+      osc.start(t0);
+      osc.stop(t0 + 0.22);
+    });
   } catch {
     // Ignore errors (e.g. autoplay policy)
   }

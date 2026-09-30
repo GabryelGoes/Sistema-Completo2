@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef, Suspense } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef, Suspense } from 'react';
 import { Customer, Appointment } from './types';
 import { SettingsModal } from './components/SettingsModal';
 import { ChangePasswordsModal } from './components/ChangePasswordsModal';
@@ -39,12 +39,6 @@ import {
 } from './services/apiService';
 import type { ServiceOrderStatus } from './constants/serviceOrderStages';
 import { KeepAliveTabPanel } from './components/KeepAliveTabPanel';
-import {
-  measureSourceExpandRect,
-  measureCreateOsSourceAfterUnderlayVisible,
-  prefersReducedMotion,
-  type SourceExpandRect,
-} from './utils/iosSourceExpandTransition';
 import { applyAccentToRoot, DEFAULT_ACCENT, moduleAccentColor } from './utils/appAppearance';
 import { setLabProductKinds } from './utils/moduleMetadata';
 import { setLabQuickServices } from './utils/labQuickServices';
@@ -169,11 +163,6 @@ export default function App() {
     [dismissDesktopShellOverlays]
   );
 
-  const handleNewCommentNotification = (n: Notification) => {
-    playNotificationSound();
-    setCommentPopUpNotification(n);
-  };
-
   // Theme State
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
   const [patioActiveCount, setPatioActiveCount] = useState(0);
@@ -184,6 +173,8 @@ export default function App() {
   const [cinematographicMode, setCinematographicMode] = useState(false);
   /** Banners macOS de orçamento (ligado por padrão). */
   const [budgetBannerNotifications, setBudgetBannerNotifications] = useState(true);
+  /** Banners macOS de comentários (ligado por padrão). */
+  const [commentBannerNotifications, setCommentBannerNotifications] = useState(true);
   const [budgetBannerItems, setBudgetBannerItems] = useState<MacOsBudgetBannerItem[]>([]);
   const [minimizedBudgetBanners, setMinimizedBudgetBanners] = useState<MacOsBudgetBannerItem[]>([]);
 
@@ -218,19 +209,6 @@ export default function App() {
     useState<ServiceOrderStatus | null>(null);
   /** Ao fechar a Recepção aberta a partir do Pátio/Lab (criar veículo/módulo ou “usar dados”), voltar para esta aba em vez do Início. */
   const [returnTabAfterReception, setReturnTabAfterReception] = useState<TabId | null>(null);
-  /** FLIP iOS: origem do botão «Criar OS» / «Criar módulo» → tela Recepção. */
-  const [receptionSourceExpandOrigin, setReceptionSourceExpandOrigin] = useState<SourceExpandRect | null>(
-    null
-  );
-  const [receptionSourceExpandClosing, setReceptionSourceExpandClosing] = useState(false);
-  const [receptionSourceExpandCloseTarget, setReceptionSourceExpandCloseTarget] =
-    useState<SourceExpandRect | null>(null);
-  /** Pátio/Lab visível atrás do cadastro durante o FLIP (sem refetch — isAppTabActive=false). */
-  const [expandUnderlayTab, setExpandUnderlayTab] = useState<'patio' | 'laboratorio' | null>(null);
-  /** Dispara remediação do botão + recolhimento após o underlay estar no layout. */
-  const [receptionCloseMeasureNonce, setReceptionCloseMeasureNonce] = useState(0);
-  const createOsSourceElRef = useRef<HTMLElement | null>(null);
-  const pendingReturnTabAfterExpandCloseRef = useRef<TabId | null>(null);
   /** Agenda → “Chegou ao pátio”: id do agendamento (excluir após ficha criada; gesto voltar reabre o modal de detalhe). */
   const [agendaIntakeSourceAppointmentId, setAgendaIntakeSourceAppointmentId] = useState<string | null>(null);
   /** Após voltar da Recepção para a Agenda: reabrir modal de detalhe deste id (uma vez). */
@@ -365,6 +343,12 @@ export default function App() {
 
   const openBudgetFromBanner = useCallback(
     (item: MacOsBudgetBannerItem) => {
+      if (item.kind === 'comment') {
+        if (item.commentNotification) {
+          setCommentPopUpNotification(item.commentNotification);
+        }
+        return;
+      }
       const soId = item.serviceOrderId?.trim() || '';
       const budgetId = item.budgetId?.trim() || '';
       if (!soId || !budgetId) return;
@@ -394,19 +378,73 @@ export default function App() {
 
   const pushBudgetBanner = useCallback(
     (item: MacOsBudgetBannerItem) => {
-      if (!isDesktopShell || !budgetBannerNotifications) return;
+      if (!isDesktopShell) return;
+      const isComment = item.kind === 'comment';
+      if (isComment && !commentBannerNotifications) return;
+      if (!isComment && !budgetBannerNotifications) return;
       setMinimizedBudgetBanners((prev) =>
-        prev.filter((x) => !(x.budgetId === item.budgetId && x.kind === item.kind))
+        prev.filter((x) => {
+          if (isComment) {
+            return !(x.kind === 'comment' && x.id === item.id);
+          }
+          return !(x.budgetId === item.budgetId && x.kind === item.kind);
+        })
       );
       setBudgetBannerItems((prev) => {
-        if (prev.some((x) => x.id === item.id || (x.budgetId === item.budgetId && x.kind === item.kind))) {
+        if (
+          prev.some((x) =>
+            isComment
+              ? x.id === item.id || (x.kind === 'comment' && x.commentNotification?.id === item.id)
+              : x.id === item.id || (x.budgetId === item.budgetId && x.kind === item.kind)
+          )
+        ) {
           return prev;
         }
         // Sem corte agressivo: novos banners sempre entram; soft-cap alto só para memória.
         return [item, ...prev].slice(0, 80);
       });
     },
-    [isDesktopShell, budgetBannerNotifications]
+    [isDesktopShell, budgetBannerNotifications, commentBannerNotifications]
+  );
+
+  const handleNewCommentNotification = useCallback(
+    (n: Notification) => {
+      // Toque próprio de comentário (diferente do arpejo de orçamento).
+      playNotificationSound();
+      if (isDesktopShell && commentBannerNotifications) {
+        const soId =
+          typeof n.payload.service_order_id === 'string' ? n.payload.service_order_id.trim() : '';
+        const author =
+          (typeof n.payload.author_display_name === 'string' && n.payload.author_display_name.trim()) ||
+          (typeof n.payload.technician_name === 'string' && n.payload.technician_name.trim()) ||
+          null;
+        const authorPhotoUrl =
+          typeof n.payload.author_photo_url === 'string' && n.payload.author_photo_url.trim()
+            ? n.payload.author_photo_url.trim()
+            : null;
+        const commentText =
+          typeof n.payload.text === 'string' ? n.payload.text : null;
+        pushBudgetBanner({
+          id: n.id,
+          kind: 'comment',
+          serviceOrderId: soId,
+          vehicleModel:
+            typeof n.payload.vehicle_model === 'string' ? n.payload.vehicle_model : null,
+          vehiclePlate:
+            typeof n.payload.vehicle_plate === 'string' ? n.payload.vehicle_plate : null,
+          customerName:
+            typeof n.payload.customer_name === 'string' ? n.payload.customer_name : null,
+          authorName: author,
+          authorPhotoUrl,
+          commentText,
+          commentNotification: n,
+        });
+        // No PC com banners: o alerta fica no canto; clique abre o pop-up de resposta.
+        return;
+      }
+      setCommentPopUpNotification(n);
+    },
+    [isDesktopShell, commentBannerNotifications, pushBudgetBanner]
   );
 
   const handleBudgetHubEvents = useCallback(
@@ -494,6 +532,16 @@ export default function App() {
 
   const handleNotificationClick = useCallback(
     (n: Notification) => {
+      if (n.type === 'comment') {
+        setCommentPopUpNotification(n);
+        void markNotificationRead(
+          n.id,
+          authSession?.role === 'user' && authSession.userId
+            ? { for: 'technician', technicianSlug: authSession.userId }
+            : undefined
+        ).catch(() => {});
+        return;
+      }
       if (n.type === 'budget_created' || n.type === 'budget_edited') {
         const soId =
           typeof n.payload.service_order_id === 'string' ? n.payload.service_order_id.trim() : '';
@@ -531,6 +579,7 @@ export default function App() {
   }, [
     authSession,
     theme,
+    handleNewCommentNotification,
     handleBudgetBannerNotification,
     handleNotificationClick,
     minimizedBudgetBanners,
@@ -612,82 +661,9 @@ export default function App() {
     }
   }, [isLimitedSystemUser]);
 
-  const clearReceptionSourceExpand = useCallback(() => {
-    setReceptionSourceExpandOrigin(null);
-    setReceptionSourceExpandClosing(false);
-    setReceptionSourceExpandCloseTarget(null);
-    setExpandUnderlayTab(null);
-    setReceptionCloseMeasureNonce(0);
-    createOsSourceElRef.current = null;
-    pendingReturnTabAfterExpandCloseRef.current = null;
-  }, []);
-
-  const finishReceptionSourceExpandClose = useCallback(() => {
-    const target = pendingReturnTabAfterExpandCloseRef.current;
-    clearReceptionSourceExpand();
-    setReturnTabAfterReception(null);
-    // A aba de destino já foi ativada no início do recolhimento (Pátio atrás + cor do cabeçalho).
-    if (!target) return;
-    if (isLimitedSystemUser) {
-      if (userAllowedTabs.includes(target)) setUserTab(target);
-      else setUserTab('home');
-    } else {
-      setCurrentTab(target);
-    }
-  }, [clearReceptionSourceExpand, isLimitedSystemUser, userAllowedTabs]);
-
-  /** Após underlay no layout: mede o botão e inicia o FLIP de recolhimento. */
-  useLayoutEffect(() => {
-    if (receptionCloseMeasureNonce === 0) return;
-    const target = pendingReturnTabAfterExpandCloseRef.current;
-    if (target !== 'patio' && target !== 'laboratorio') return;
-
-    const closeTarget = measureCreateOsSourceAfterUnderlayVisible(
-      target,
-      createOsSourceElRef.current
-    );
-
-    if (closeTarget && !prefersReducedMotion()) {
-      setReceptionSourceExpandCloseTarget(closeTarget);
-      setReceptionSourceExpandClosing(true);
-      if (isLimitedSystemUser) {
-        if (userAllowedTabs.includes(target)) setUserTab(target);
-        else setUserTab('home');
-      } else {
-        setCurrentTab(target);
-      }
-      return;
-    }
-
-    // Sem geometria válida — volta instantâneo
-    clearReceptionSourceExpand();
-    setReturnTabAfterReception(null);
-    if (isLimitedSystemUser) {
-      if (userAllowedTabs.includes(target)) setUserTab(target);
-      else setUserTab('home');
-    } else {
-      setCurrentTab(target);
-    }
-  }, [
-    receptionCloseMeasureNonce,
-    isLimitedSystemUser,
-    userAllowedTabs,
-    clearReceptionSourceExpand,
-  ]);
-
   const handleOverlayCloseOrBack = useCallback(() => {
     if (returnTabAfterReception === 'patio' || returnTabAfterReception === 'laboratorio') {
       const target = returnTabAfterReception;
-
-      if (receptionSourceExpandOrigin && !prefersReducedMotion()) {
-        // Mantém/ativa underlay, depois mede no layout effect (geometria estável do botão).
-        pendingReturnTabAfterExpandCloseRef.current = target;
-        setExpandUnderlayTab(target);
-        setReceptionCloseMeasureNonce((n) => n + 1);
-        return;
-      }
-
-      clearReceptionSourceExpand();
       setReturnTabAfterReception(null);
       if (isLimitedSystemUser) {
         if (userAllowedTabs.includes(target)) setUserTab(target);
@@ -699,7 +675,6 @@ export default function App() {
     }
     if (returnTabAfterReception === 'agenda') {
       setReturnTabAfterReception(null);
-      clearReceptionSourceExpand();
       if (agendaIntakeSourceAppointmentId) {
         setAgendaPendingDetailAppointmentId(agendaIntakeSourceAppointmentId);
       }
@@ -711,17 +686,9 @@ export default function App() {
       }
       return;
     }
-    clearReceptionSourceExpand();
     if (isLimitedSystemUser) setUserTab('home');
     else setCurrentTab('home');
-  }, [
-    returnTabAfterReception,
-    agendaIntakeSourceAppointmentId,
-    isLimitedSystemUser,
-    userAllowedTabs,
-    receptionSourceExpandOrigin,
-    clearReceptionSourceExpand,
-  ]);
+  }, [returnTabAfterReception, agendaIntakeSourceAppointmentId, isLimitedSystemUser, userAllowedTabs]);
 
   const handleReceptionIntakeSuccess = useCallback(
     async (orderType: 'vehicle' | 'module') => {
@@ -736,7 +703,6 @@ export default function App() {
       }
       setAgendaPendingDetailAppointmentId(null);
       setReturnTabAfterReception(null);
-      clearReceptionSourceExpand();
       setReceptionInitialModuleStatus(null);
       const target: TabId = orderType === 'module' ? 'laboratorio' : 'patio';
       if (isLimitedSystemUser) {
@@ -746,7 +712,7 @@ export default function App() {
         setCurrentTab(target);
       }
     },
-    [agendaIntakeSourceAppointmentId, isLimitedSystemUser, userAllowedTabs, clearReceptionSourceExpand]
+    [agendaIntakeSourceAppointmentId, isLimitedSystemUser, userAllowedTabs]
   );
 
   const handleOpenReceptionFromAgenda = useCallback(
@@ -754,7 +720,6 @@ export default function App() {
       setPrefillData(customer);
       setReceptionForcedMode('vehicle');
       setReturnTabAfterReception('agenda');
-      clearReceptionSourceExpand();
       setAgendaIntakeSourceAppointmentId(appointmentId);
       if (isLimitedSystemUser) {
         setUserTab('reception');
@@ -762,7 +727,7 @@ export default function App() {
         setCurrentTab('reception');
       }
     },
-    [isLimitedSystemUser, clearReceptionSourceExpand]
+    [isLimitedSystemUser]
   );
 
   const clearAgendaPendingDetailAppointment = useCallback(() => {
@@ -807,6 +772,10 @@ export default function App() {
     if (savedBudgetBanners !== null) {
       setBudgetBannerNotifications(savedBudgetBanners === 'true');
     }
+    const savedCommentBanners = localStorage.getItem('app_comment_banner_notifications');
+    if (savedCommentBanners !== null) {
+      setCommentBannerNotifications(savedCommentBanners === 'true');
+    }
   }, []);
 
   // Apply theme to document
@@ -824,10 +793,18 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('app_budget_banner_notifications', String(budgetBannerNotifications));
     if (!budgetBannerNotifications) {
-      setBudgetBannerItems([]);
-      setMinimizedBudgetBanners([]);
+      setBudgetBannerItems((prev) => prev.filter((x) => x.kind === 'comment'));
+      setMinimizedBudgetBanners((prev) => prev.filter((x) => x.kind === 'comment'));
     }
   }, [budgetBannerNotifications]);
+
+  useEffect(() => {
+    localStorage.setItem('app_comment_banner_notifications', String(commentBannerNotifications));
+    if (!commentBannerNotifications) {
+      setBudgetBannerItems((prev) => prev.filter((x) => x.kind !== 'comment'));
+      setMinimizedBudgetBanners((prev) => prev.filter((x) => x.kind !== 'comment'));
+    }
+  }, [commentBannerNotifications]);
 
   useEffect(() => {
     if (!isDesktopShell) {
@@ -905,8 +882,6 @@ export default function App() {
         : 'vehicle';
     setReceptionForcedMode(inferredMode);
     setReturnTabAfterReception(inferredMode === 'module' ? 'laboratorio' : 'patio');
-    clearReceptionSourceExpand();
-    setExpandUnderlayTab(inferredMode === 'module' ? 'laboratorio' : 'patio');
     if (authSession?.role === 'user' && !hasFullAccess) {
       setUserTab('reception');
     } else {
@@ -921,18 +896,13 @@ export default function App() {
     }
     if (app === 'reception') {
       setReturnTabAfterReception(null);
-      clearReceptionSourceExpand();
       setAgendaIntakeSourceAppointmentId(null);
     }
     setCurrentTab(app);
   };
 
   const handleCreateRegistrationFromArea = useCallback(
-    (
-      mode: 'vehicle' | 'module',
-      initialModuleStatus?: ServiceOrderStatus,
-      sourceButton?: HTMLElement | null
-    ) => {
+    (mode: 'vehicle' | 'module', initialModuleStatus?: ServiceOrderStatus) => {
       try {
         localStorage.setItem('app_reception_mode', mode);
       } catch (_) {}
@@ -943,19 +913,6 @@ export default function App() {
         mode === 'module' && initialModuleStatus ? initialModuleStatus : null
       );
       setReturnTabAfterReception(mode === 'module' ? 'laboratorio' : 'patio');
-
-      setReceptionSourceExpandClosing(false);
-      setReceptionSourceExpandCloseTarget(null);
-      setExpandUnderlayTab(mode === 'module' ? 'laboratorio' : 'patio');
-      if (sourceButton && !prefersReducedMotion()) {
-        const origin = measureSourceExpandRect(sourceButton);
-        createOsSourceElRef.current = sourceButton;
-        setReceptionSourceExpandOrigin(origin);
-      } else {
-        createOsSourceElRef.current = null;
-        setReceptionSourceExpandOrigin(null);
-      }
-
       if (isLimitedSystemUser) {
         setUserTab('reception');
       } else {
@@ -1008,30 +965,6 @@ export default function App() {
       return next;
     });
   }, [authSession, userTab, hasFullAccess]);
-
-  // Pré-monta Recepção ao abrir Pátio/Lab (só KeepAlive local; sem fetch enquanto inativa).
-  useEffect(() => {
-    if (!authSession || (authSession.role === 'user' && !hasFullAccess)) return;
-    if (currentTab !== 'patio' && currentTab !== 'laboratorio') return;
-    setVisitedTabs((prev) => {
-      if (prev.has('reception')) return prev;
-      const next = new Set(prev);
-      next.add('reception');
-      return next;
-    });
-  }, [authSession, currentTab, hasFullAccess]);
-
-  useEffect(() => {
-    if (!authSession || authSession.role !== 'user' || hasFullAccess) return;
-    if (userTab !== 'patio' && userTab !== 'laboratorio') return;
-    if (userAllowedTabs.length > 0 && !userAllowedTabs.includes('reception')) return;
-    setVisitedUserTabs((prev) => {
-      if (prev.has('reception')) return prev;
-      const next = new Set(prev);
-      next.add('reception');
-      return next;
-    });
-  }, [authSession, userTab, hasFullAccess, userAllowedTabs]);
 
   // Navegação mobile (gesto voltar Android/iOS): se estiver fora da Home, volta para Home.
   useEffect(() => {
@@ -1294,13 +1227,6 @@ export default function App() {
             activeTab={userTab}
             visitedTabs={visitedUserTabs}
             className="flex-1 min-h-0 w-full flex flex-col overflow-y-auto p-0"
-            sourceExpandOrigin={receptionSourceExpandOrigin}
-            sourceExpandClosing={receptionSourceExpandClosing}
-            sourceExpandCloseTarget={receptionSourceExpandCloseTarget}
-            onSourceExpandOpenDone={() => {
-              /* origem permanece até fechar, para o caminho de volta */
-            }}
-            onSourceExpandCloseDone={finishReceptionSourceExpandClose}
           >
             <LazyTabBoundary label="Recepção">
               <LazyReceptionView
@@ -1345,7 +1271,6 @@ export default function App() {
             tabId="patio"
             activeTab={userTab}
             visitedTabs={visitedUserTabs}
-            underlayVisible={expandUnderlayTab === 'patio'}
             className="flex-1 min-h-0 overflow-y-auto px-3 pb-4 pt-1 sm:px-4 md:px-6 md:pb-6 md:pt-2 lg:p-8 lg:pt-6"
           >
             <LazyTabBoundary label="Pátio">
@@ -1375,7 +1300,6 @@ export default function App() {
             tabId="laboratorio"
             activeTab={userTab}
             visitedTabs={visitedUserTabs}
-            underlayVisible={expandUnderlayTab === 'laboratorio'}
             className="flex-1 min-h-0 overflow-y-auto px-3 pb-4 pt-1 sm:px-4 md:px-6 md:pb-6 md:pt-2 lg:p-8 lg:pt-6"
           >
             <LazyTabBoundary label="Laboratório">
@@ -1434,6 +1358,8 @@ export default function App() {
           onCinematographicModeChange={setCinematographicMode}
           budgetBannerNotifications={budgetBannerNotifications}
           onBudgetBannerNotificationsChange={setBudgetBannerNotifications}
+          commentBannerNotifications={commentBannerNotifications}
+          onCommentBannerNotificationsChange={setCommentBannerNotifications}
           orientation={orientation}
           showPatioAccess={false}
         />
@@ -1660,13 +1586,6 @@ export default function App() {
           activeTab={currentTab}
           visitedTabs={visitedTabs}
           className="flex-1 min-h-0 w-full flex flex-col overflow-y-auto p-0"
-          sourceExpandOrigin={receptionSourceExpandOrigin}
-          sourceExpandClosing={receptionSourceExpandClosing}
-          sourceExpandCloseTarget={receptionSourceExpandCloseTarget}
-          onSourceExpandOpenDone={() => {
-            /* origem permanece até fechar, para o caminho de volta */
-          }}
-          onSourceExpandCloseDone={finishReceptionSourceExpandClose}
         >
           <LazyTabBoundary label="Recepção">
             <LazyReceptionView
@@ -1718,7 +1637,6 @@ export default function App() {
           tabId="patio"
           activeTab={currentTab}
           visitedTabs={visitedTabs}
-          underlayVisible={expandUnderlayTab === 'patio'}
           className="flex-1 min-h-0 overflow-y-auto px-3 pb-4 pt-1 sm:px-4 md:px-6 md:pb-6 md:pt-2 lg:p-8 lg:pt-6"
         >
           <LazyTabBoundary label="Pátio">
@@ -1750,7 +1668,6 @@ export default function App() {
           tabId="laboratorio"
           activeTab={currentTab}
           visitedTabs={visitedTabs}
-          underlayVisible={expandUnderlayTab === 'laboratorio'}
           className="flex-1 min-h-0 overflow-y-auto px-3 pb-4 pt-1 sm:px-4 md:px-6 md:pb-6 md:pt-2 lg:p-8 lg:pt-6"
         >
           <LazyTabBoundary label="Laboratório">
@@ -1790,6 +1707,8 @@ export default function App() {
         onCinematographicModeChange={setCinematographicMode}
         budgetBannerNotifications={budgetBannerNotifications}
         onBudgetBannerNotificationsChange={setBudgetBannerNotifications}
+        commentBannerNotifications={commentBannerNotifications}
+        onCommentBannerNotificationsChange={setCommentBannerNotifications}
         orientation={orientation}
         showPatioAccess={authSession?.role === 'admin' || hasFullAccess}
       />

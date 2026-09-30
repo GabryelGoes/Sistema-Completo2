@@ -22,6 +22,9 @@ interface SettingsModalProps {
   /** Banners macOS de orçamento criado/editado */
   budgetBannerNotifications?: boolean;
   onBudgetBannerNotificationsChange?: (enabled: boolean) => void;
+  /** Banners macOS de novos comentários */
+  commentBannerNotifications?: boolean;
+  onCommentBannerNotificationsChange?: (enabled: boolean) => void;
   orientation?: 'portrait' | 'landscape';
   showPatioAccess?: boolean;
 }
@@ -41,6 +44,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onCinematographicModeChange,
   budgetBannerNotifications = true,
   onBudgetBannerNotificationsChange,
+  commentBannerNotifications = true,
+  onCommentBannerNotificationsChange,
   orientation,
 }) => {
   useRegisterModalOpen(isOpen);
@@ -191,6 +196,27 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     checked={budgetBannerNotifications}
                     onChange={() => onBudgetBannerNotificationsChange(!budgetBannerNotifications)}
                     ariaLabel="Ativar banners de orçamento"
+                  />
+                </div>
+              </div>
+            )}
+
+            {typeof onCommentBannerNotificationsChange === 'function' && (
+              <div className={`${iosModalInsetCard} p-4 sm:p-5`}>
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <label className="text-[15px] font-medium text-zinc-900 dark:text-white block">
+                      Banners de comentários
+                    </label>
+                    <p className="text-[12px] text-zinc-500 dark:text-zinc-400 mt-0.5">
+                      No modo PC, mostra alertas no canto da tela quando chega um novo comentário (com toque sonoro próprio)
+                    </p>
+                  </div>
+                  <IosSwitch
+                    id="settings-modal-comment-banners"
+                    checked={commentBannerNotifications}
+                    onChange={() => onCommentBannerNotificationsChange(!commentBannerNotifications)}
+                    ariaLabel="Ativar banners de comentários"
                   />
                 </div>
               </div>
