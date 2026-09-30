@@ -45,7 +45,12 @@ export const BudgetVerificationPanel: React.FC<BudgetVerificationPanelProps> = (
       { ok: diagnosis.trim().length > 0, label: 'Diagnóstico' },
       {
         ok: services.length > 0,
-        label: services.length > 0 ? `${services.length} Serv.` : 'Serv.',
+        label:
+          services.length === 1
+            ? '1 Serviço'
+            : services.length > 1
+              ? `${services.length} Serviços`
+              : 'Serviços',
       },
       {
         ok: parts.length > 0 || services.length > 0,
