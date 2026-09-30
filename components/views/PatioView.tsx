@@ -364,7 +364,11 @@ export type OpenServiceOrderSection = 'comments' | 'budgets' | 'description' | n
 
 interface PatioViewProps {
   onUseCustomerData?: (data: Customer) => void;
-  onCreateRegistration?: (mode: ServiceOrderType, initialModuleStatus?: ServiceOrderStatus) => void;
+  onCreateRegistration?: (
+    mode: ServiceOrderType,
+    initialModuleStatus?: ServiceOrderStatus,
+    sourceButton?: HTMLElement | null
+  ) => void;
   /** Nome exibido nos comentários: "Rei do ABS" (admin) ou nome do técnico. */
   commentAuthorName?: string;
   /** Banner macOS: orçamento criado/editado. */
@@ -6051,7 +6055,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
               <div className={`flex justify-center md:justify-self-center md:px-2 ${headerActionsOneLine ? 'hidden' : ''}`}>
                 <button
                   type="button"
-                  onClick={() => onCreateRegistration?.(isModuleMode ? 'module' : 'vehicle')}
+                  data-criar-os-source="1"
+                  onClick={(e) =>
+                    onCreateRegistration?.(isModuleMode ? 'module' : 'vehicle', undefined, e.currentTarget)
+                  }
                   className={patioCompactCreateBtn}
                 >
                   <Plus className="h-4 w-4" strokeWidth={2.75} aria-hidden />
@@ -6161,7 +6168,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   {headerActionsOneLine ? (
                     <button
                       type="button"
-                      onClick={() => onCreateRegistration?.(isModuleMode ? 'module' : 'vehicle')}
+                      data-criar-os-source="1"
+                      onClick={(e) =>
+                        onCreateRegistration?.(isModuleMode ? 'module' : 'vehicle', undefined, e.currentTarget)
+                      }
                       className={patioCompactCreateBtn}
                     >
                       <Plus className="h-4 w-4" strokeWidth={2.75} aria-hidden />
@@ -6252,7 +6262,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 </button>
                 <button
                   type="button"
-                  onClick={() => onCreateRegistration?.(isModuleMode ? 'module' : 'vehicle')}
+                  data-criar-os-source="1"
+                  onClick={(e) =>
+                    onCreateRegistration?.(isModuleMode ? 'module' : 'vehicle', undefined, e.currentTarget)
+                  }
                   className={patioCompactCreateBtn}
                 >
                   <Plus className="h-4 w-4" strokeWidth={2.75} aria-hidden />

@@ -39,6 +39,12 @@ import {
 } from './services/apiService';
 import type { ServiceOrderStatus } from './constants/serviceOrderStages';
 import { KeepAliveTabPanel } from './components/KeepAliveTabPanel';
+import {
+  measureSourceExpandRect,
+  measureSourceExpandRectInHiddenPanel,
+  prefersReducedMotion,
+  type SourceExpandRect,
+} from './utils/iosSourceExpandTransition';
 import { applyAccentToRoot, DEFAULT_ACCENT, moduleAccentColor } from './utils/appAppearance';
 import { setLabProductKinds } from './utils/moduleMetadata';
 import { setLabQuickServices } from './utils/labQuickServices';
@@ -212,6 +218,15 @@ export default function App() {
     useState<ServiceOrderStatus | null>(null);
   /** Ao fechar a Recepção aberta a partir do Pátio/Lab (criar veículo/módulo ou “usar dados”), voltar para esta aba em vez do Início. */
   const [returnTabAfterReception, setReturnTabAfterReception] = useState<TabId | null>(null);
+  /** FLIP iOS: origem do botão «Criar OS» / «Criar módulo» → tela Recepção. */
+  const [receptionSourceExpandOrigin, setReceptionSourceExpandOrigin] = useState<SourceExpandRect | null>(
+    null
+  );
+  const [receptionSourceExpandClosing, setReceptionSourceExpandClosing] = useState(false);
+  const [receptionSourceExpandCloseTarget, setReceptionSourceExpandCloseTarget] =
+    useState<SourceExpandRect | null>(null);
+  const createOsSourceElRef = useRef<HTMLElement | null>(null);
+  const pendingReturnTabAfterExpandCloseRef = useRef<TabId | null>(null);
   /** Agenda → “Chegou ao pátio”: id do agendamento (excluir após ficha criada; gesto voltar reabre o modal de detalhe). */
   const [agendaIntakeSourceAppointmentId, setAgendaIntakeSourceAppointmentId] = useState<string | null>(null);
   /** Após voltar da Recepção para a Agenda: reabrir modal de detalhe deste id (uma vez). */
@@ -593,9 +608,50 @@ export default function App() {
     }
   }, [isLimitedSystemUser]);
 
+  const clearReceptionSourceExpand = useCallback(() => {
+    setReceptionSourceExpandOrigin(null);
+    setReceptionSourceExpandClosing(false);
+    setReceptionSourceExpandCloseTarget(null);
+    createOsSourceElRef.current = null;
+    pendingReturnTabAfterExpandCloseRef.current = null;
+  }, []);
+
+  const finishReceptionSourceExpandClose = useCallback(() => {
+    const target = pendingReturnTabAfterExpandCloseRef.current;
+    clearReceptionSourceExpand();
+    setReturnTabAfterReception(null);
+    if (!target) return;
+    if (isLimitedSystemUser) {
+      if (userAllowedTabs.includes(target)) setUserTab(target);
+      else setUserTab('home');
+    } else {
+      setCurrentTab(target);
+    }
+  }, [clearReceptionSourceExpand, isLimitedSystemUser, userAllowedTabs]);
+
   const handleOverlayCloseOrBack = useCallback(() => {
     if (returnTabAfterReception === 'patio' || returnTabAfterReception === 'laboratorio') {
       const target = returnTabAfterReception;
+      const sourceEl = createOsSourceElRef.current;
+      const panel =
+        typeof document !== 'undefined'
+          ? (document.querySelector(`[data-keepalive-tab="${target}"]`) as HTMLElement | null)
+          : null;
+
+      let closeTarget: SourceExpandRect | null = null;
+      if (sourceEl && panel && receptionSourceExpandOrigin && !prefersReducedMotion()) {
+        closeTarget = measureSourceExpandRectInHiddenPanel(panel, sourceEl);
+        if (!closeTarget) closeTarget = measureSourceExpandRect(sourceEl);
+      }
+
+      if (closeTarget && receptionSourceExpandOrigin && !prefersReducedMotion()) {
+        pendingReturnTabAfterExpandCloseRef.current = target;
+        setReceptionSourceExpandCloseTarget(closeTarget);
+        setReceptionSourceExpandClosing(true);
+        return;
+      }
+
+      clearReceptionSourceExpand();
       setReturnTabAfterReception(null);
       if (isLimitedSystemUser) {
         if (userAllowedTabs.includes(target)) setUserTab(target);
@@ -607,6 +663,7 @@ export default function App() {
     }
     if (returnTabAfterReception === 'agenda') {
       setReturnTabAfterReception(null);
+      clearReceptionSourceExpand();
       if (agendaIntakeSourceAppointmentId) {
         setAgendaPendingDetailAppointmentId(agendaIntakeSourceAppointmentId);
       }
@@ -618,9 +675,17 @@ export default function App() {
       }
       return;
     }
+    clearReceptionSourceExpand();
     if (isLimitedSystemUser) setUserTab('home');
     else setCurrentTab('home');
-  }, [returnTabAfterReception, agendaIntakeSourceAppointmentId, isLimitedSystemUser, userAllowedTabs]);
+  }, [
+    returnTabAfterReception,
+    agendaIntakeSourceAppointmentId,
+    isLimitedSystemUser,
+    userAllowedTabs,
+    receptionSourceExpandOrigin,
+    clearReceptionSourceExpand,
+  ]);
 
   const handleReceptionIntakeSuccess = useCallback(
     async (orderType: 'vehicle' | 'module') => {
@@ -635,6 +700,7 @@ export default function App() {
       }
       setAgendaPendingDetailAppointmentId(null);
       setReturnTabAfterReception(null);
+      clearReceptionSourceExpand();
       setReceptionInitialModuleStatus(null);
       const target: TabId = orderType === 'module' ? 'laboratorio' : 'patio';
       if (isLimitedSystemUser) {
@@ -644,7 +710,7 @@ export default function App() {
         setCurrentTab(target);
       }
     },
-    [agendaIntakeSourceAppointmentId, isLimitedSystemUser, userAllowedTabs]
+    [agendaIntakeSourceAppointmentId, isLimitedSystemUser, userAllowedTabs, clearReceptionSourceExpand]
   );
 
   const handleOpenReceptionFromAgenda = useCallback(
@@ -652,6 +718,7 @@ export default function App() {
       setPrefillData(customer);
       setReceptionForcedMode('vehicle');
       setReturnTabAfterReception('agenda');
+      clearReceptionSourceExpand();
       setAgendaIntakeSourceAppointmentId(appointmentId);
       if (isLimitedSystemUser) {
         setUserTab('reception');
@@ -659,7 +726,7 @@ export default function App() {
         setCurrentTab('reception');
       }
     },
-    [isLimitedSystemUser]
+    [isLimitedSystemUser, clearReceptionSourceExpand]
   );
 
   const clearAgendaPendingDetailAppointment = useCallback(() => {
@@ -802,6 +869,7 @@ export default function App() {
         : 'vehicle';
     setReceptionForcedMode(inferredMode);
     setReturnTabAfterReception(inferredMode === 'module' ? 'laboratorio' : 'patio');
+    clearReceptionSourceExpand();
     if (authSession?.role === 'user' && !hasFullAccess) {
       setUserTab('reception');
     } else {
@@ -816,13 +884,18 @@ export default function App() {
     }
     if (app === 'reception') {
       setReturnTabAfterReception(null);
+      clearReceptionSourceExpand();
       setAgendaIntakeSourceAppointmentId(null);
     }
     setCurrentTab(app);
   };
 
   const handleCreateRegistrationFromArea = useCallback(
-    (mode: 'vehicle' | 'module', initialModuleStatus?: ServiceOrderStatus) => {
+    (
+      mode: 'vehicle' | 'module',
+      initialModuleStatus?: ServiceOrderStatus,
+      sourceButton?: HTMLElement | null
+    ) => {
       try {
         localStorage.setItem('app_reception_mode', mode);
       } catch (_) {}
@@ -833,6 +906,18 @@ export default function App() {
         mode === 'module' && initialModuleStatus ? initialModuleStatus : null
       );
       setReturnTabAfterReception(mode === 'module' ? 'laboratorio' : 'patio');
+
+      setReceptionSourceExpandClosing(false);
+      setReceptionSourceExpandCloseTarget(null);
+      if (sourceButton && !prefersReducedMotion()) {
+        const origin = measureSourceExpandRect(sourceButton);
+        createOsSourceElRef.current = sourceButton;
+        setReceptionSourceExpandOrigin(origin);
+      } else {
+        createOsSourceElRef.current = null;
+        setReceptionSourceExpandOrigin(null);
+      }
+
       if (isLimitedSystemUser) {
         setUserTab('reception');
       } else {
@@ -1147,6 +1232,13 @@ export default function App() {
             activeTab={userTab}
             visitedTabs={visitedUserTabs}
             className="flex-1 min-h-0 w-full flex flex-col overflow-y-auto p-0"
+            sourceExpandOrigin={receptionSourceExpandOrigin}
+            sourceExpandClosing={receptionSourceExpandClosing}
+            sourceExpandCloseTarget={receptionSourceExpandCloseTarget}
+            onSourceExpandOpenDone={() => {
+              /* origem permanece até fechar, para o caminho de volta */
+            }}
+            onSourceExpandCloseDone={finishReceptionSourceExpandClose}
           >
             <LazyTabBoundary label="Recepção">
               <LazyReceptionView
@@ -1504,6 +1596,13 @@ export default function App() {
           activeTab={currentTab}
           visitedTabs={visitedTabs}
           className="flex-1 min-h-0 w-full flex flex-col overflow-y-auto p-0"
+          sourceExpandOrigin={receptionSourceExpandOrigin}
+          sourceExpandClosing={receptionSourceExpandClosing}
+          sourceExpandCloseTarget={receptionSourceExpandCloseTarget}
+          onSourceExpandOpenDone={() => {
+            /* origem permanece até fechar, para o caminho de volta */
+          }}
+          onSourceExpandCloseDone={finishReceptionSourceExpandClose}
         >
           <LazyTabBoundary label="Recepção">
             <LazyReceptionView
