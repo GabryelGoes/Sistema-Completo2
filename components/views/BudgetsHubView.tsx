@@ -51,6 +51,7 @@ function normalizeAggregateItem(raw: PatioVehicleBudgetAggregateItem): PatioVehi
     ...raw,
     orderType: raw.orderType === 'module' ? 'module' : 'vehicle',
     moduleIdentification: raw.moduleIdentification ?? null,
+    approvalFingerprint: raw.approvalFingerprint ?? '',
     hasApprovedItems: raw.hasApprovedItems ?? false,
     hasExplicitApprovalDecisions: raw.hasExplicitApprovalDecisions ?? false,
     approvedItemsCount: raw.approvedItemsCount ?? 0,
@@ -70,7 +71,10 @@ export interface BudgetsHubViewProps {
   isHubTabActive?: boolean;
   onOpenBudgetInPatio: (serviceOrderId: string, budgetId: string) => void;
   onIngestNotifierBaseline: (
-    items: Pick<PatioVehicleBudgetAggregateItem, 'budgetId' | 'contentSignature' | 'verifiedAt'>[]
+    items: Pick<
+      PatioVehicleBudgetAggregateItem,
+      'budgetId' | 'contentSignature' | 'verifiedAt' | 'approvalFingerprint'
+    >[]
   ) => void;
   onClearHubBadge: () => void;
   consumePendingHubBudgetHighlights?: () => { budgetId: string; kind: 'created' | 'edited' }[];

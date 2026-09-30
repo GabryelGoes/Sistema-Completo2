@@ -20,7 +20,7 @@ const MAX_VISIBLE = 48;
 
 export type MacOsBudgetBannerItem = {
   id: string;
-  kind: 'budget_created' | 'budget_edited' | 'budget_verified' | 'comment';
+  kind: 'budget_created' | 'budget_edited' | 'budget_verified' | 'budget_items_approved' | 'comment';
   serviceOrderId: string;
   /** Obrigatório para orçamentos; ausente em comentários. */
   budgetId?: string;
@@ -30,6 +30,8 @@ export type MacOsBudgetBannerItem = {
   authorName?: string | null;
   authorPhotoUrl?: string | null;
   budgetNumber?: number | null;
+  /** Contagem de itens aprovados (banner de aprovação). */
+  approvedItemsCount?: number | null;
   /** Prévia do texto do comentário. */
   commentText?: string | null;
   /** Snapshot para abrir o CommentPopUp ao ativar o banner. */
@@ -56,6 +58,13 @@ function vehicleLine(item: MacOsBudgetBannerItem): string {
 
 function titleFor(item: MacOsBudgetBannerItem): string {
   if (item.kind === 'comment') return 'Novo comentário';
+  if (item.kind === 'budget_items_approved') {
+    const count = item.approvedItemsCount;
+    if (typeof count === 'number' && count >= 1) {
+      return count === 1 ? '1 item aprovado' : `${count} itens aprovados`;
+    }
+    return 'Itens aprovados';
+  }
   if (item.kind === 'budget_verified') {
     const n = item.budgetNumber;
     if (n != null && n >= 2) return `${n}º orçamento verificado`;
@@ -98,11 +107,27 @@ export function budgetBannerToCardModel(item: MacOsBudgetBannerItem): MacOsNotif
     };
   }
   const hint =
-    (item.kind === 'budget_created' || item.kind === 'budget_verified') &&
+    (item.kind === 'budget_created' ||
+      item.kind === 'budget_verified' ||
+      item.kind === 'budget_items_approved') &&
     item.budgetNumber != null &&
     item.budgetNumber >= 2
       ? `${item.budgetNumber}º orçamento deste veículo`
       : null;
+  const accent: MacOsNotificationCardModel['accent'] =
+    item.kind === 'budget_verified'
+      ? 'emerald'
+      : item.kind === 'budget_items_approved'
+        ? 'amber'
+        : item.kind === 'budget_edited'
+          ? 'blue'
+          : 'green';
+  const icon: MacOsNotificationCardModel['icon'] =
+    item.kind === 'budget_verified' || item.kind === 'budget_items_approved'
+      ? 'check'
+      : item.kind === 'budget_edited'
+        ? 'pencil'
+        : 'file';
   return {
     id: item.id,
     authorName: authorLabel(item),
@@ -111,9 +136,8 @@ export function budgetBannerToCardModel(item: MacOsBudgetBannerItem): MacOsNotif
     body: vehicleLine(item),
     hint,
     timeLabel: 'agora',
-    accent:
-      item.kind === 'budget_verified' ? 'emerald' : item.kind === 'budget_edited' ? 'blue' : 'green',
-    icon: item.kind === 'budget_verified' ? 'check' : item.kind === 'budget_edited' ? 'pencil' : 'file',
+    accent,
+    icon,
     unread: true,
   };
 }
