@@ -102,10 +102,31 @@ const RECEPTION_MODE_KEY = 'app_reception_mode';
 
 /** Cartão principal da recepção — chapado, sem aro. */
 const receptionPageGlass =
-  'relative w-full rounded-[2rem] sm:rounded-[2.25rem] border-0 bg-white/70 dark:bg-zinc-900/40 backdrop-blur-2xl shadow-none';
+  'relative w-full min-w-0 max-w-full rounded-[2rem] sm:rounded-[2.25rem] border-0 bg-white/70 dark:bg-zinc-900/40 backdrop-blur-2xl shadow-none';
 
 const receptionSectionShell =
-  'overflow-hidden rounded-[24px] border-0 bg-white shadow-none dark:bg-zinc-900/40 dark:backdrop-blur-2xl';
+  'min-w-0 max-w-full overflow-x-clip rounded-[24px] border-0 bg-white shadow-none dark:bg-zinc-900/40 dark:backdrop-blur-2xl';
+
+/** Grade de campos da ficha: gap de linha 20px, colunas 16px. */
+const receptionFormCols =
+  'grid min-w-0 max-w-full grid-cols-1 gap-x-4 gap-y-5 lg:grid-cols-2';
+const receptionFormCol = 'flex min-w-0 flex-col gap-5';
+const receptionFormRow2 =
+  'grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2 sm:items-start';
+const receptionFormRow3 =
+  'grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-3 sm:items-start';
+const receptionSectionHeader =
+  'flex h-10 min-w-0 items-end justify-between gap-2 border-b border-zinc-200/80 pb-2 dark:border-white/[0.08]';
+const receptionSectionTitle =
+  'min-w-0 flex-1 truncate text-[14px] font-bold uppercase leading-none tracking-[0.08em] text-zinc-700 dark:text-zinc-200';
+/** Botão de ação alinhado ao input (48px). */
+const receptionInlineActionBtn =
+  'inline-flex h-12 shrink-0 items-center justify-center gap-1.5 rounded-xl border border-zinc-200 bg-zinc-100 px-3 text-sm font-semibold text-zinc-800 transition-all hover:border-[#007AFF]/45 hover:bg-white active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50 dark:border-brand-border dark:bg-brand-surfaceHighlight dark:text-zinc-100 dark:hover:border-[#64B5FF]/40';
+const receptionInlineActionBtnLight =
+  'inline-flex h-12 shrink-0 items-center justify-center gap-2 rounded-xl border border-zinc-200/90 bg-white px-3 text-[13px] font-semibold text-zinc-800 shadow-sm transition-all hover:border-[#007AFF]/45 active:scale-[0.98] dark:border-white/[0.12] dark:bg-white/[0.06] dark:text-zinc-100 dark:shadow-none';
+/** Reserva a altura da dica sob CPF/CNPJ para manter a grade entre colunas. */
+const receptionFieldHintSlot =
+  'mt-1 min-h-4 px-1 text-[11px] font-medium leading-4';
 
 function sortArchivedOrdersNewestFirst(orders: ServiceOrderListItem[]): ServiceOrderListItem[] {
   return [...orders].sort(
@@ -323,6 +344,8 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
       setDiagAuthSignedAt(null);
       setDiagAuthSheetOpen(false);
       setDiagAuthSignModalOpen(false);
+      setDiagAuthSaving(false);
+      setPendingDiagAuthOsId(null);
     } else {
       setModuleKind('');
       setModuleVehicleKind('');
@@ -354,6 +377,8 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
   const [liveCameraCapturing, setLiveCameraCapturing] = useState(false);
   const [liveCameraFlash, setLiveCameraFlash] = useState(false);
   const [diagAuthSignModalOpen, setDiagAuthSignModalOpen] = useState(false);
+  const [diagAuthSaving, setDiagAuthSaving] = useState(false);
+  const [pendingDiagAuthOsId, setPendingDiagAuthOsId] = useState<string | null>(null);
   const [diagAuthSignatureBlob, setDiagAuthSignatureBlob] = useState<Blob | null>(null);
   const [diagAuthSignatureDataUrl, setDiagAuthSignatureDataUrl] = useState<string | null>(null);
   const [diagAuthSignedAt, setDiagAuthSignedAt] = useState<Date | null>(null);
@@ -404,11 +429,6 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
     if (!p?.trim()) return null;
     return getVehiclePhotoPublicUrl(p);
   }, [archivedDetailData?.diagnostic_authorization_signature_path]);
-
-  const intakeDiagAuthSubtitleKm = useMemo(() => {
-    const km = (customer.mileageKm ?? '').trim();
-    return km ? `Km ${km}` : null;
-  }, [customer.mileageKm]);
 
   const customerDocStatus = useMemo(() => getCpfCnpjStatus(customer.cpf), [customer.cpf]);
   const customerDocHint =
@@ -822,14 +842,6 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
         });
         return;
       }
-      if (!diagAuthSignatureBlob) {
-        setStatus({
-          step: 'error',
-          message:
-            'É obrigatório ler e assinar a autorização de diagnóstico técnico. Toque em "Ler termo e assinar" e confirme com a assinatura do cliente.',
-        });
-        return;
-      }
     }
 
     const docStatus = getCpfCnpjStatus(customer.cpf);
@@ -895,19 +907,6 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
         }
       }
 
-      if (serviceOrder?.id && receptionMode === 'vehicle' && diagAuthSignatureBlob) {
-        const uploaded = await uploadServiceOrderPhoto(
-          serviceOrder.id,
-          diagAuthSignatureBlob,
-          `AUTORIZACAO_DIAGNOSTICO_${Date.now()}.png`
-        );
-        await updateServiceOrderDiagnosticAuthorization(
-          serviceOrder.id,
-          { signaturePath: uploaded.path },
-          actorOptions
-        );
-      }
-
       const osLabel = serviceOrder?.os_number != null ? ` OS #${serviceOrder.os_number}.` : '';
       setStatus({
         step: 'success',
@@ -915,6 +914,29 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
           ? `Nova OS criada para o cliente selecionado.${osLabel}`
           : `Cadastro criado com sucesso.${osLabel}`,
       });
+
+      if (serviceOrder?.id && receptionMode === 'vehicle') {
+        // Já assinou na ficha: grava e segue.
+        if (diagAuthSignatureBlob) {
+          const uploaded = await uploadServiceOrderPhoto(
+            serviceOrder.id,
+            diagAuthSignatureBlob,
+            `AUTORIZACAO_DIAGNOSTICO_${Date.now()}.png`
+          );
+          await updateServiceOrderDiagnosticAuthorization(
+            serviceOrder.id,
+            { signaturePath: uploaded.path },
+            actorOptions
+          );
+          await onIntakeSuccess?.(receptionMode);
+          return;
+        }
+        // Ainda não assinou: oferece o termo agora (também pode assinar depois no Pátio).
+        setPendingDiagAuthOsId(serviceOrder.id);
+        setDiagAuthSignModalOpen(true);
+        return;
+      }
+
       await onIntakeSuccess?.(receptionMode);
     } catch (error: any) {
       console.error(error);
@@ -976,6 +998,8 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
     setDiagAuthSignedAt(null);
     setDiagAuthSheetOpen(false);
     setDiagAuthSignModalOpen(false);
+    setDiagAuthSaving(false);
+    setPendingDiagAuthOsId(null);
     setStatus({ step: 'idle' });
   };
 
@@ -1365,18 +1389,18 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
       ) : null}
 
       {/* Cartão principal — vidro iOS */}
-      <div className={`${receptionPageGlass} overflow-hidden`}>
+      <div className={`${receptionPageGlass} overflow-x-clip`}>
         <div className="pointer-events-none absolute -top-32 -right-32 w-[22rem] h-[22rem] bg-gradient-to-br from-cyan-400/20 to-blue-600/10 rounded-full blur-3xl opacity-70" />
         <div className="pointer-events-none absolute -bottom-28 -left-20 w-[18rem] h-[18rem] bg-gradient-to-br from-sky-400/20 to-blue-600/10 rounded-full blur-3xl opacity-60" />
 
         <form
           onSubmit={handleSubmit}
-          className="relative z-10 [&_input]:shadow-[0_6px_18px_-6px_rgba(0,0,0,0.12),0_3px_10px_-4px_rgba(0,0,0,0.08),0_1px_4px_-2px_rgba(0,0,0,0.05)] [&_textarea]:shadow-[0_6px_18px_-6px_rgba(0,0,0,0.12),0_3px_10px_-4px_rgba(0,0,0,0.08),0_1px_4px_-2px_rgba(0,0,0,0.05)] dark:[&_input]:shadow-none dark:[&_textarea]:shadow-none"
+          className="reception-intake-form relative z-10 box-border min-w-0 max-w-full [&_input]:shadow-[0_6px_18px_-6px_rgba(0,0,0,0.12),0_3px_10px_-4px_rgba(0,0,0,0.08),0_1px_4px_-2px_rgba(0,0,0,0.05)] [&_textarea]:shadow-[0_6px_18px_-6px_rgba(0,0,0,0.12),0_3px_10px_-4px_rgba(0,0,0,0.08),0_1px_4px_-2px_rgba(0,0,0,0.05)] dark:[&_input]:shadow-none dark:[&_textarea]:shadow-none"
         >
           {/* Bloco único da ficha */}
           <div className={`${receptionSectionShell} w-full rounded-[calc(2rem-2px)] sm:rounded-[calc(2.25rem-2px)]`}>
-            <div className="px-2.5 py-3 sm:p-5 lg:p-6">
-          <div className={`mb-4 flex justify-end ${receptionPortraitVertical ? 'hidden' : ''}`}>
+            <div className="box-border min-w-0 max-w-full px-3 py-3 sm:px-5 sm:py-5 lg:px-6 lg:py-6">
+          <div className={`mb-4 flex justify-end ${receptionPortraitVertical || desktopShell ? 'hidden' : ''}`}>
             <button
               type="button"
               onClick={resetForm}
@@ -1387,11 +1411,11 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
               Limpar ficha
             </button>
           </div>
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:gap-7">
+          <div className={receptionFormCols}>
             {/* Dados do cliente — no retrato (tablet/phone): primeiro; no desktop: coluna direita */}
-            <div className={`${receptionPortraitVertical ? 'order-1' : 'order-2'} space-y-6`}>
-              <div className="flex items-end justify-between gap-2 border-b border-zinc-200/80 pb-2 dark:border-white/[0.08]">
-                <h2 className="min-w-0 flex-1 text-[14px] font-bold uppercase tracking-[0.08em] text-zinc-700 dark:text-zinc-200">
+            <div className={`${receptionPortraitVertical ? 'order-1' : 'order-2'} ${receptionFormCol}`}>
+              <div className={receptionSectionHeader}>
+                <h2 className={receptionSectionTitle}>
                   Dados do cliente
                 </h2>
                 <button
@@ -1401,11 +1425,11 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                   title="Limpar dados do cliente"
                 >
                   <Eraser className="h-3.5 w-3.5 shrink-0" />
-                  Limpar campos
+                  Limpar Dados
                 </button>
               </div>
-              <div className="relative" ref={customerSearchBoxRef}>
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+              <div className="relative min-w-0" ref={customerSearchBoxRef}>
+                <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-end sm:gap-4">
                   <div className="min-w-0 flex-1">
                     <Input
                       label="Nome Completo"
@@ -1431,13 +1455,16 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                       })
                     }
                     aria-expanded={intakeCustomerSearchOpen}
-                    className="flex h-12 shrink-0 items-center justify-center gap-2 rounded-2xl border border-zinc-200/90 bg-white/90 px-4 text-sm font-semibold text-zinc-800 shadow-[0_6px_18px_-7px_rgba(0,0,0,0.1),0_2px_8px_-4px_rgba(0,0,0,0.06)] transition-all hover:border-[#007AFF]/45 active:scale-[0.98] dark:border-white/[0.12] dark:bg-white/[0.06] dark:text-zinc-100 dark:shadow-none sm:mb-0.5"
+                    className={receptionInlineActionBtnLight}
                     title="Buscar cliente já cadastrado"
                   >
                     <Search className="h-4 w-4 text-[#007AFF] dark:text-[#7ab8ff]" aria-hidden />
                     Buscar cliente
                   </button>
                 </div>
+                <p className={receptionFieldHintSlot} aria-hidden>
+                  {'\u00a0'}
+                </p>
                 {intakeExistingCustomerId ? (
                   <div className="mt-2 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-zinc-200/70 bg-zinc-50/70 px-3 py-2 dark:border-white/[0.08] dark:bg-zinc-950/30">
                     <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
@@ -1453,7 +1480,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                   </div>
                 ) : null}
                 {intakeCustomerSearchOpen ? (
-                  <div className="absolute left-0 right-0 z-30 mt-1.5 overflow-hidden rounded-xl border border-zinc-200/80 bg-white/98 shadow-[0_12px_28px_-10px_rgba(0,0,0,0.18),0_4px_12px_-4px_rgba(0,0,0,0.08)] backdrop-blur dark:border-white/[0.1] dark:bg-zinc-900/98 dark:shadow-[0_12px_28px_-12px_rgba(0,0,0,0.55)]">
+                  <div className="absolute left-0 right-0 z-30 mt-1.5 overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-[0_12px_28px_-10px_rgba(0,0,0,0.18),0_4px_12px_-4px_rgba(0,0,0,0.08)] dark:border-white/[0.12] dark:bg-zinc-900 dark:shadow-[0_12px_28px_-12px_rgba(0,0,0,0.55)]">
                     {intakeCustomerDirectoryLoading ? (
                       <p className="flex items-center gap-2 px-3 py-3 text-xs text-zinc-500 dark:text-zinc-400">
                         <Loader2 className="h-3.5 w-3.5 animate-spin shrink-0" />
@@ -1478,8 +1505,8 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                                   <button
                                     type="button"
                                     onClick={() => selectIntakeExistingCustomer(c)}
-                                    className={`flex w-full flex-col gap-0.5 px-3 py-2.5 text-left text-sm transition-colors hover:bg-zinc-100/90 dark:hover:bg-white/[0.06] ${
-                                      selected ? 'bg-[#007AFF]/10 dark:bg-[#64B5FF]/15' : ''
+                                    className={`flex w-full flex-col gap-0.5 px-3 py-2.5 text-left text-sm transition-colors hover:bg-zinc-100 dark:hover:bg-zinc-800 ${
+                                      selected ? 'bg-[#007AFF]/10 dark:bg-[#64B5FF]/15' : 'bg-white dark:bg-zinc-900'
                                     }`}
                                   >
                                     <span className="font-semibold text-zinc-900 dark:text-zinc-100">
@@ -1500,16 +1527,21 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                   </div>
                 ) : null}
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Input
-                  label="Telefone"
-                  name="phone"
-                  placeholder="Telefone"
-                  value={customer.phone}
-                  onChange={handleInputChange}
-                  icon={<Smartphone className="w-4 h-4" />}
-                  required
-                />
+              <div className={receptionFormRow2}>
+                <div className="min-w-0">
+                  <Input
+                    label="Telefone"
+                    name="phone"
+                    placeholder="Telefone"
+                    value={customer.phone}
+                    onChange={handleInputChange}
+                    icon={<Smartphone className="w-4 h-4" />}
+                    required
+                  />
+                  <p className={receptionFieldHintSlot} aria-hidden>
+                    {'\u00a0'}
+                  </p>
+                </div>
                 <div className="min-w-0">
                   <Input
                     label="CPF / CNPJ"
@@ -1528,23 +1560,21 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                           : undefined
                     }
                   />
-                  {customerDocHint ? (
-                    <p
-                      className={`mt-1 px-1 text-[11px] font-medium ${
-                        customerDocStatus === 'invalid'
-                          ? 'text-red-600 dark:text-red-400'
-                          : customerDocStatus === 'cpf' || customerDocStatus === 'cnpj'
-                            ? 'text-emerald-700 dark:text-emerald-400'
-                            : 'text-zinc-500 dark:text-zinc-400'
-                      }`}
-                      role={customerDocStatus === 'invalid' ? 'alert' : undefined}
-                    >
-                      {customerDocHint}
-                    </p>
-                  ) : null}
+                  <p
+                    className={`${receptionFieldHintSlot} ${
+                      customerDocStatus === 'invalid'
+                        ? 'text-red-600 dark:text-red-400'
+                        : customerDocStatus === 'cpf' || customerDocStatus === 'cnpj'
+                          ? 'text-emerald-700 dark:text-emerald-400'
+                          : 'text-zinc-500 dark:text-zinc-400'
+                    }`}
+                    role={customerDocStatus === 'invalid' ? 'alert' : undefined}
+                  >
+                    {customerDocHint ?? '\u00a0'}
+                  </p>
                 </div>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className={receptionFormRow2}>
                 <Input
                   label="E-mail"
                   name="email"
@@ -1562,7 +1592,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                   icon={<MapPin className="w-4 h-4" />}
                 />
               </div>
-              <div>
+              <div className="min-w-0">
                 <Input
                   label="Endereço"
                   name="address"
@@ -1572,7 +1602,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                   icon={<Map className="w-4 h-4" />}
                 />
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className={receptionFormRow2}>
                 <Input
                   label="Nº"
                   name="addressNumber"
@@ -1595,17 +1625,13 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
             {/* Veículo/módulo — no retrato: após cliente/queixa/autorização; no desktop: coluna esquerda */}
             <div
               className={`${
-                receptionPortraitVertical ? 'order-2 flex flex-col gap-6' : 'order-1 space-y-6'
+                receptionPortraitVertical ? 'order-2 flex flex-col gap-5' : `order-1 ${receptionFormCol}`
               }`}
             >
               {/* No retrato: dados do veículo por último entre os blocos desta coluna (order-4) */}
-              <div className={receptionPortraitVertical ? 'order-4 space-y-6' : 'contents'}>
-              <div
-                className="flex items-end justify-between gap-2 border-b border-zinc-200/80 pb-2 dark:border-white/[0.08]"
-              >
-                <h2
-                  className="min-w-0 flex-1 text-[14px] font-bold uppercase tracking-[0.08em] leading-tight text-zinc-700 dark:text-zinc-200 pr-1"
-                >
+              <div className={receptionPortraitVertical ? 'order-4 flex flex-col gap-5' : 'contents'}>
+              <div className={receptionSectionHeader}>
+                <h2 className={receptionSectionTitle}>
                   {receptionMode === 'vehicle'
                     ? receptionPortraitVertical
                       ? 'Dados do veículo'
@@ -1619,15 +1645,15 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                   title="Limpar dados do veículo"
                 >
                   <Eraser className="h-3.5 w-3.5 shrink-0" />
-                  Limpar campos
+                  Limpar Dados
                 </button>
               </div>
 
               {receptionMode === 'vehicle' ? (
-                <div className="space-y-4">
-                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:items-end">
-                    <div className="min-w-0 space-y-1.5">
-                      <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+                <>
+                  <div className={receptionFormRow2}>
+                    <div className="min-w-0">
+                      <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-end sm:gap-4">
                         <div className="min-w-0 flex-1">
                           <Input
                             label="Placa"
@@ -1649,21 +1675,26 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                           onMouseDown={(e) => e.preventDefault()}
                           onClick={() => void runPlacaLookup(true)}
                           disabled={plateLookupLoading}
-                          className="flex h-12 shrink-0 items-center justify-center gap-2 rounded-2xl border border-zinc-200/90 bg-white/90 px-4 text-sm font-semibold text-zinc-800 shadow-[0_6px_18px_-7px_rgba(0,0,0,0.1),0_2px_8px_-4px_rgba(0,0,0,0.06)] transition-all hover:border-[#007AFF]/45 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50 dark:border-white/[0.12] dark:bg-white/[0.06] dark:text-zinc-100 dark:shadow-none sm:mb-0.5"
+                          title="Buscar placa"
+                          className={receptionInlineActionBtn}
                         >
                           {plateLookupLoading ? (
                             <Loader2 className="h-4 w-4 animate-spin text-[#007AFF] dark:text-[#7ab8ff]" aria-hidden />
                           ) : (
                             <Search className="h-4 w-4 text-[#007AFF] dark:text-[#7ab8ff]" aria-hidden />
                           )}
-                          Buscar placa
+                          Buscar
                         </button>
                       </div>
                       {plateLookupError ? (
-                        <p className="px-1 text-xs text-red-600 dark:text-red-400" role="alert">
+                        <p className={`${receptionFieldHintSlot} text-red-600 dark:text-red-400`} role="alert">
                           {plateLookupError}
                         </p>
-                      ) : null}
+                      ) : (
+                        <p className={receptionFieldHintSlot} aria-hidden>
+                          {'\u00a0'}
+                        </p>
+                      )}
                     </div>
                     <div className="min-w-0">
                       <Input
@@ -1676,11 +1707,14 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                         icon={<Hash className="w-4 h-4" />}
                         required
                       />
+                      <p className={receptionFieldHintSlot} aria-hidden>
+                        {'\u00a0'}
+                      </p>
                     </div>
                   </div>
 
-                  <div className="space-y-4 border-t border-zinc-200/80 pt-4 dark:border-white/[0.08]">
-                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div className={receptionFormRow2}>
+                    <div className="min-w-0">
                       <Input
                         label="Marca / montadora"
                         name="vehicleBrand"
@@ -1689,6 +1723,11 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                         onChange={handleInputChange}
                         icon={<FileText className="w-4 h-4" />}
                       />
+                      <p className={receptionFieldHintSlot} aria-hidden>
+                        {'\u00a0'}
+                      </p>
+                    </div>
+                    <div className="min-w-0">
                       <Input
                         label="Modelo (aparece no card)"
                         name="vehicleModel"
@@ -1697,37 +1736,40 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                         onChange={handleInputChange}
                         icon={<Car className="w-4 h-4" />}
                       />
-                    </div>
-                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-                      <Input
-                        label="Cor"
-                        name="vehicleColor"
-                        placeholder="Cor"
-                        value={customer.vehicleColor ?? ''}
-                        onChange={handleInputChange}
-                        icon={<Sparkles className="w-4 h-4" />}
-                      />
-                      <Input
-                        label="Ano / ano modelo"
-                        name="vehicleYear"
-                        placeholder="Ano"
-                        value={customer.vehicleYear ?? ''}
-                        onChange={handleInputChange}
-                        icon={<Calendar className="w-4 h-4" />}
-                      />
-                      <Input
-                        label="Motor (cilindradas / combustível)"
-                        name="vehicleEngineInfo"
-                        placeholder="Motor"
-                        value={customer.vehicleEngineInfo ?? ''}
-                        onChange={handleInputChange}
-                        icon={<Car className="w-4 h-4" />}
-                      />
+                      <p className={receptionFieldHintSlot} aria-hidden>
+                        {'\u00a0'}
+                      </p>
                     </div>
                   </div>
-                </div>
+                  <div className={receptionFormRow3}>
+                    <Input
+                      label="Cor"
+                      name="vehicleColor"
+                      placeholder="Cor"
+                      value={customer.vehicleColor ?? ''}
+                      onChange={handleInputChange}
+                      icon={<Sparkles className="w-4 h-4" />}
+                    />
+                    <Input
+                      label="Ano / ano modelo"
+                      name="vehicleYear"
+                      placeholder="Ano"
+                      value={customer.vehicleYear ?? ''}
+                      onChange={handleInputChange}
+                      icon={<Calendar className="w-4 h-4" />}
+                    />
+                    <Input
+                      label="Motor"
+                      name="vehicleEngineInfo"
+                      placeholder="Motor"
+                      value={customer.vehicleEngineInfo ?? ''}
+                      onChange={handleInputChange}
+                      icon={<Car className="w-4 h-4" />}
+                    />
+                  </div>
+                </>
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className={receptionFormRow2}>
                   <Input 
                     label="Veículo"
                     name="vehicleModel"
@@ -1910,52 +1952,6 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
               </div>
 
               {receptionMode === 'vehicle' && (
-                <div className={receptionPortraitVertical ? 'order-3' : undefined}>
-                <div className="rounded-[22px] border border-[#007AFF]/20 bg-gradient-to-br from-[#007AFF]/[0.06] via-white to-zinc-50/90 p-4 shadow-[0_12px_32px_-12px_rgba(0,122,255,0.22),0_6px_18px_-10px_rgba(0,122,255,0.14),0_3px_10px_-5px_rgba(0,0,0,0.06)] dark:border-[#007AFF]/25 dark:from-[#007AFF]/12 dark:via-zinc-950/40 dark:to-zinc-950/20 dark:shadow-[0_8px_28px_-14px_rgba(0,122,255,0.25)] sm:p-5">
-                  <div className="flex gap-3">
-                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-[#007AFF]/30 bg-white shadow-[0_5px_14px_-6px_rgba(0,0,0,0.1),0_2px_6px_-3px_rgba(0,0,0,0.05)] dark:border-[#007AFF]/35 dark:bg-zinc-900/80 dark:shadow-sm">
-                      <ShieldCheck className="h-5 w-5 text-[#007AFF] dark:text-[#7ab8ff]" strokeWidth={2.25} aria-hidden />
-                    </div>
-                    <div className="min-w-0 flex-1 space-y-1">
-                      <p className="text-[14px] font-bold leading-snug text-zinc-900 dark:text-white">
-                        Autorização de diagnóstico técnico
-                      </p>
-                      {diagAuthSignatureBlob ? (
-                        <p className="pt-0.5 text-[12px] font-semibold text-emerald-600 dark:text-emerald-400">
-                          Assinatura registrada. Toque em Ver autorização para ver o termo (imprimir ou PDF no próprio documento).
-                        </p>
-                      ) : (
-                        <p className="pt-0.5 text-[12px] font-medium text-amber-700 dark:text-amber-400/95">
-                          Pendente: abra o termo e assine antes de enviar a ficha.
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                  <div className="mt-3 flex flex-col gap-1.5 sm:flex-row sm:flex-wrap">
-                    <button
-                      type="button"
-                      onClick={() => setDiagAuthSignModalOpen(true)}
-                      className="flex flex-1 min-w-0 items-center justify-center gap-1.5 rounded-xl border border-[#007AFF]/35 bg-[#007AFF] px-3 py-2 text-[12px] font-semibold text-white shadow-[0_6px_16px_-8px_rgba(37,99,235,0.28)] transition-all hover:opacity-95 active:scale-[0.99] dark:shadow-md dark:shadow-blue-900/40 sm:min-w-[160px]"
-                    >
-                      <FileText className="h-3.5 w-3.5 shrink-0 opacity-95" strokeWidth={2.25} aria-hidden />
-                      {diagAuthSignatureBlob ? 'Reabrir termo e assinar novamente' : 'Ler termo e assinar'}
-                    </button>
-                    {diagAuthSignatureDataUrl ? (
-                      <button
-                        type="button"
-                        onClick={() => setDiagAuthSheetOpen(true)}
-                        className="inline-flex flex-1 min-w-0 items-center justify-center gap-1.5 rounded-xl border border-zinc-300/90 bg-white px-3 py-2 text-[12px] font-semibold text-zinc-800 shadow-[0_4px_12px_-6px_rgba(0,0,0,0.08)] transition-all hover:bg-zinc-50 active:scale-[0.99] dark:border-white/12 dark:bg-white/[0.06] dark:text-zinc-100 dark:shadow-sm dark:hover:bg-white/[0.1] sm:min-w-[160px]"
-                      >
-                        <Eye className="h-3.5 w-3.5 shrink-0 text-zinc-600 dark:text-zinc-300" strokeWidth={2.25} aria-hidden />
-                        Ver autorização de diagnóstico
-                      </button>
-                    ) : null}
-                  </div>
-                </div>
-                </div>
-              )}
-
-              {receptionMode === 'vehicle' && (
                 <div className={`relative ${receptionPortraitVertical ? 'order-2' : ''}`}>
                   <TextArea
                     label="Queixa do cliente"
@@ -1968,9 +1964,69 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                 </div>
               )}
 
-              <div className={receptionPortraitVertical ? 'order-5 space-y-6' : 'contents'}>
-              <div className="h-px bg-zinc-200/80 dark:bg-white/[0.08]" />
+              {receptionMode === 'vehicle' && (
+                <div className={receptionPortraitVertical ? 'order-3' : undefined}>
+                <div className="rounded-[22px] border border-[#007AFF]/20 bg-gradient-to-br from-[#007AFF]/[0.06] via-white to-zinc-50/90 p-4 shadow-[0_12px_32px_-12px_rgba(0,122,255,0.22),0_6px_18px_-10px_rgba(0,122,255,0.14),0_3px_10px_-5px_rgba(0,0,0,0.06)] dark:border-[#007AFF]/25 dark:from-[#007AFF]/12 dark:via-zinc-950/40 dark:to-zinc-950/20 dark:shadow-[0_8px_28px_-14px_rgba(0,122,255,0.25)] sm:p-5">
+                  <div
+                    className={
+                      desktopShell
+                        ? 'flex flex-wrap items-center justify-between gap-3'
+                        : 'flex flex-col gap-3'
+                    }
+                  >
+                    <div className="flex min-w-0 flex-1 items-start gap-3">
+                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-[#007AFF]/30 bg-white shadow-[0_5px_14px_-6px_rgba(0,0,0,0.1),0_2px_6px_-3px_rgba(0,0,0,0.05)] dark:border-[#007AFF]/35 dark:bg-zinc-900/80 dark:shadow-sm">
+                        <ShieldCheck className="h-5 w-5 text-[#007AFF] dark:text-[#7ab8ff]" strokeWidth={2.25} aria-hidden />
+                      </div>
+                      <div className="min-w-0 flex-1 space-y-1">
+                        <p className="text-[14px] font-bold leading-snug text-zinc-900 dark:text-white">
+                          Autorização de diagnóstico técnico
+                        </p>
+                        {diagAuthSignatureBlob || diagAuthSignatureDataUrl ? (
+                          <p className="pt-0.5 text-[12px] font-semibold text-emerald-600 dark:text-emerald-400">
+                            Concluído
+                          </p>
+                        ) : (
+                          <p className="pt-0.5 text-[12px] font-medium text-amber-700 dark:text-amber-400/95">
+                            Pendente
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    <div
+                      className={
+                        desktopShell
+                          ? 'flex shrink-0 flex-wrap items-center justify-end gap-2'
+                          : 'flex flex-wrap items-center gap-2'
+                      }
+                    >
+                      <button
+                        type="button"
+                        onClick={() => setDiagAuthSignModalOpen(true)}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-300/90 bg-white px-2.5 py-1.5 text-[11px] font-semibold text-zinc-700 shadow-sm transition-colors hover:border-[#007AFF]/35 hover:bg-zinc-50 hover:text-[#007AFF] active:scale-[0.99] dark:border-white/12 dark:bg-white/[0.06] dark:text-zinc-200 dark:hover:border-[#64B5FF]/40 dark:hover:bg-white/[0.1] dark:hover:text-[#8cc8ff]"
+                      >
+                        <FileText className="h-3 w-3 shrink-0 opacity-80" strokeWidth={2.25} aria-hidden />
+                        {diagAuthSignatureBlob || diagAuthSignatureDataUrl
+                          ? 'Reassinar termo'
+                          : 'Ler termo e assinar'}
+                      </button>
+                      {diagAuthSignatureDataUrl ? (
+                        <button
+                          type="button"
+                          onClick={() => setDiagAuthSheetOpen(true)}
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-300/90 bg-white px-2.5 py-1.5 text-[11px] font-semibold text-zinc-700 shadow-sm transition-colors hover:bg-zinc-50 active:scale-[0.99] dark:border-white/12 dark:bg-white/[0.06] dark:text-zinc-200 dark:hover:bg-white/[0.1]"
+                        >
+                          <Eye className="h-3 w-3 shrink-0 text-zinc-500 dark:text-zinc-400" strokeWidth={2.25} aria-hidden />
+                          Ver autorização
+                        </button>
+                      ) : null}
+                    </div>
+                  </div>
+                </div>
+                </div>
+              )}
 
+              <div className={receptionPortraitVertical ? 'order-5 flex flex-col gap-5' : 'contents'}>
               <div className="space-y-3">
                 <label className={`${iosLabel} ml-1`}>
                   {receptionMode === 'vehicle' ? 'Fotos do veículo (opcional)' : 'Fotos (opcional)'}
@@ -2036,10 +2092,27 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                     type="button"
                     disabled={intakePhotos.length >= MAX_RECEPTION_INTAKE_PHOTOS}
                     onClick={() => void openLiveCamera()}
-                    className="flex min-h-[52px] flex-1 items-center justify-center gap-2.5 rounded-2xl border border-zinc-200/90 bg-white/50 py-3.5 text-zinc-700 shadow-[0_6px_18px_-8px_rgba(0,0,0,0.1),0_2px_8px_-4px_rgba(0,0,0,0.05)] backdrop-blur-md transition-all hover:border-[#007AFF]/45 hover:bg-white/90 active:scale-[0.99] disabled:pointer-events-none disabled:opacity-45 dark:border-white/[0.1] dark:bg-white/[0.04] dark:text-zinc-100 dark:shadow-none dark:hover:bg-white/[0.1]"
+                    className={
+                      desktopShell
+                        ? 'inline-flex min-h-[36px] flex-1 items-center justify-center gap-1.5 rounded-xl border border-zinc-200/80 bg-white/60 px-3 py-1.5 text-[12px] font-medium text-zinc-600 shadow-sm transition-all hover:border-[#007AFF]/35 hover:bg-white active:scale-[0.99] disabled:pointer-events-none disabled:opacity-45 dark:border-white/[0.1] dark:bg-white/[0.04] dark:text-zinc-300 dark:hover:bg-white/[0.08]'
+                        : 'flex min-h-[52px] flex-1 items-center justify-center gap-2.5 rounded-2xl border border-zinc-200/90 bg-white/50 py-3.5 text-zinc-700 shadow-[0_6px_18px_-8px_rgba(0,0,0,0.1),0_2px_8px_-4px_rgba(0,0,0,0.05)] backdrop-blur-md transition-all hover:border-[#007AFF]/45 hover:bg-white/90 active:scale-[0.99] disabled:pointer-events-none disabled:opacity-45 dark:border-white/[0.1] dark:bg-white/[0.04] dark:text-zinc-100 dark:shadow-none dark:hover:bg-white/[0.1]'
+                    }
                   >
-                    <Camera className="h-5 w-5 shrink-0 text-[#007AFF] dark:text-[#7ab8ff]" strokeWidth={2} />
-                    <span className="text-left text-sm font-semibold leading-tight">
+                    <Camera
+                      className={
+                        desktopShell
+                          ? 'h-3.5 w-3.5 shrink-0 text-[#007AFF] dark:text-[#7ab8ff]'
+                          : 'h-5 w-5 shrink-0 text-[#007AFF] dark:text-[#7ab8ff]'
+                      }
+                      strokeWidth={2}
+                    />
+                    <span
+                      className={
+                        desktopShell
+                          ? 'text-[12px] font-medium leading-none'
+                          : 'text-left text-sm font-semibold leading-tight'
+                      }
+                    >
                       Câmera
                     </span>
                   </button>
@@ -2047,9 +2120,20 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                     type="button"
                     disabled={intakePhotos.length >= MAX_RECEPTION_INTAKE_PHOTOS}
                     onClick={() => galleryInputRef.current?.click()}
-                    className="flex min-h-[52px] flex-1 items-center justify-center gap-2 rounded-2xl border border-zinc-300/90 bg-zinc-100/60 py-3.5 text-sm font-semibold text-zinc-800 shadow-[0_6px_18px_-8px_rgba(0,0,0,0.1),0_2px_8px_-4px_rgba(0,0,0,0.05)] backdrop-blur-md transition-all hover:bg-zinc-100 active:scale-[0.99] disabled:pointer-events-none disabled:opacity-45 dark:border-white/12 dark:bg-white/[0.06] dark:text-zinc-100 dark:shadow-none dark:hover:bg-white/[0.1]"
+                    className={
+                      desktopShell
+                        ? 'inline-flex min-h-[36px] flex-1 items-center justify-center gap-1.5 rounded-xl border border-zinc-200/80 bg-zinc-100/50 px-3 py-1.5 text-[12px] font-medium text-zinc-600 shadow-sm transition-all hover:bg-zinc-100 active:scale-[0.99] disabled:pointer-events-none disabled:opacity-45 dark:border-white/12 dark:bg-white/[0.05] dark:text-zinc-300 dark:hover:bg-white/[0.09]'
+                        : 'flex min-h-[52px] flex-1 items-center justify-center gap-2 rounded-2xl border border-zinc-300/90 bg-zinc-100/60 py-3.5 text-sm font-semibold text-zinc-800 shadow-[0_6px_18px_-8px_rgba(0,0,0,0.1),0_2px_8px_-4px_rgba(0,0,0,0.05)] backdrop-blur-md transition-all hover:bg-zinc-100 active:scale-[0.99] disabled:pointer-events-none disabled:opacity-45 dark:border-white/12 dark:bg-white/[0.06] dark:text-zinc-100 dark:shadow-none dark:hover:bg-white/[0.1]'
+                    }
                   >
-                    <ImageIcon className="h-5 w-5 shrink-0 text-zinc-600 dark:text-zinc-300" strokeWidth={2} />
+                    <ImageIcon
+                      className={
+                        desktopShell
+                          ? 'h-3.5 w-3.5 shrink-0 text-zinc-500 dark:text-zinc-400'
+                          : 'h-5 w-5 shrink-0 text-zinc-600 dark:text-zinc-300'
+                      }
+                      strokeWidth={2}
+                    />
                     Galeria
                   </button>
                 </div>
@@ -2065,10 +2149,10 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
 
             </div>
           </div>
-          <div className="pt-4 flex justify-end">
+          <div className="box-border flex min-w-0 max-w-full justify-end pb-2 pt-5 sm:pb-1">
             <button
               type="submit"
-              className="group relative flex min-w-[220px] items-center justify-center gap-2 rounded-2xl bg-[#007AFF] px-8 py-3.5 text-[15px] font-semibold text-white shadow-[0_14px_34px_-10px_rgba(37,99,235,0.32),0_6px_18px_-8px_rgba(37,99,235,0.22),0_2px_8px_-4px_rgba(0,0,0,0.08)] transition-all hover:opacity-95 active:scale-[0.98] dark:shadow-lg dark:shadow-blue-500/25"
+              className="group relative flex min-w-0 max-w-full items-center justify-center gap-2 rounded-2xl bg-[#007AFF] px-6 py-3.5 text-[15px] font-semibold text-white shadow-[0_14px_34px_-10px_rgba(37,99,235,0.32),0_6px_18px_-8px_rgba(37,99,235,0.22),0_2px_8px_-4px_rgba(0,0,0,0.08)] transition-all hover:opacity-95 active:scale-[0.98] dark:shadow-lg dark:shadow-blue-500/25 sm:min-w-[220px] sm:px-8"
             >
               Criar Ficha
               <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
@@ -2082,12 +2166,60 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
 
       <DiagnosticAuthorizationSignModal
         open={diagAuthSignModalOpen}
-        onClose={() => setDiagAuthSignModalOpen(false)}
-        onConfirm={(blob, meta) => {
-          setDiagAuthSignatureBlob(blob);
-          setDiagAuthSignatureDataUrl(meta.signaturePreviewDataUrl);
-          setDiagAuthSignedAt(new Date());
+        confirming={diagAuthSaving}
+        vehicleBrand={customer.vehicleBrand}
+        vehicleModel={customer.vehicleModel}
+        plate={customer.plate}
+        mileageKm={customer.mileageKm}
+        onClose={() => {
+          if (diagAuthSaving) return;
+          const shouldNavigate = !!pendingDiagAuthOsId;
           setDiagAuthSignModalOpen(false);
+          setPendingDiagAuthOsId(null);
+          if (shouldNavigate) {
+            void onIntakeSuccess?.('vehicle');
+          }
+        }}
+        onConfirm={(blob, meta) => {
+          const osId = pendingDiagAuthOsId;
+          // Assinatura durante o cadastro (ainda sem OS): só guarda localmente.
+          if (!osId) {
+            setDiagAuthSignatureBlob(blob);
+            setDiagAuthSignatureDataUrl(meta.signaturePreviewDataUrl);
+            setDiagAuthSignedAt(new Date());
+            setDiagAuthSignModalOpen(false);
+            return;
+          }
+          void (async () => {
+            setDiagAuthSaving(true);
+            try {
+              const uploaded = await uploadServiceOrderPhoto(
+                osId,
+                blob,
+                `AUTORIZACAO_DIAGNOSTICO_${Date.now()}.png`
+              );
+              await updateServiceOrderDiagnosticAuthorization(
+                osId,
+                { signaturePath: uploaded.path },
+                actorOptions
+              );
+              setDiagAuthSignatureBlob(blob);
+              setDiagAuthSignatureDataUrl(meta.signaturePreviewDataUrl);
+              setDiagAuthSignedAt(new Date());
+              setPendingDiagAuthOsId(null);
+              setDiagAuthSignModalOpen(false);
+              await onIntakeSuccess?.('vehicle');
+            } catch (err) {
+              console.error(err);
+              window.alert(
+                err instanceof Error
+                  ? err.message
+                  : 'Não foi possível salvar a assinatura. Tente novamente.'
+              );
+            } finally {
+              setDiagAuthSaving(false);
+            }
+          })();
         }}
       />
 
@@ -2097,7 +2229,10 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
           onClose={() => setDiagAuthSheetOpen(false)}
           signatureImageSrc={diagAuthSignatureDataUrl}
           signedAt={diagAuthSignedAt?.toISOString() ?? null}
-          subtitleExtra={intakeDiagAuthSubtitleKm}
+          vehicleBrand={customer.vehicleBrand}
+          vehicleModel={customer.vehicleModel}
+          plate={customer.plate}
+          mileageKm={customer.mileageKm}
         />
       ) : null}
 
@@ -2727,11 +2862,10 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
           onClose={() => setArchivedDiagAuthSheetOpen(false)}
           signatureImageSrc={archivedDiagAuthSignatureSrc}
           signedAt={archivedDetailData.diagnostic_authorization_signed_at ?? null}
-          subtitleExtra={
-            archivedDetailData.mileage_km != null && String(archivedDetailData.mileage_km).trim() !== ''
-              ? `Km ${String(archivedDetailData.mileage_km).trim()}`
-              : null
-          }
+          vehicleBrand={archivedDetailData.vehicle_brand}
+          vehicleModel={archivedDetailData.vehicle_model}
+          plate={archivedDetailData.plate}
+          mileageKm={archivedDetailData.mileage_km}
         />
       ) : null}
 
