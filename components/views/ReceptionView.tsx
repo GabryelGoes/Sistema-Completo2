@@ -826,7 +826,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
         setStatus({
           step: 'error',
           message:
-            'É obrigatório ler e assinar a autorização de diagnóstico técnico. Toque em "Ler termo e assinar" e confirme com a assinatura do cliente.',
+            'É obrigatório ler e assinar a autorização de diagnóstico técnico. Abra "Ler termo e assinar", assine com o mouse/dedo ou anexe a imagem da assinatura e confirme.',
         });
         return;
       }
@@ -1926,7 +1926,9 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                         </p>
                       ) : (
                         <p className="pt-0.5 text-[12px] font-medium text-amber-700 dark:text-amber-400/95">
-                          Pendente: abra o termo e assine antes de enviar a ficha.
+                          {desktopShell
+                            ? 'Pendente: abra o termo e assine com o mouse, ou anexe a foto/scan da assinatura, antes de enviar a ficha.'
+                            : 'Pendente: abra o termo e assine antes de enviar a ficha.'}
                         </p>
                       )}
                     </div>
