@@ -86,6 +86,7 @@ import {
   EXTERNAL_REPAIR_STAGE,
   EXTERNAL_REPAIR_STATUS,
   isExternalRepairStatus,
+  LABORATORY_GARANTIA_MOVE_STATUSES,
   type ServiceOrderStatus,
 } from '../../constants/serviceOrderStages';
 import {
@@ -1850,7 +1851,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
   useEffect(() => {
     if (!onVehicleModalOsLabelChange) return;
-    if (!isPatioPcModal || !selectedCard) {
+    // Laboratório: OS# só no cabeçalho (ao lado de “Laboratório”). Pátio: só no PC.
+    const shouldShow =
+      !!selectedCard && (isModuleMode || isPatioPcModal);
+    if (!shouldShow) {
       onVehicleModalOsLabelChange(null);
       return;
     }
@@ -1860,6 +1864,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
   }, [
     onVehicleModalOsLabelChange,
     isPatioPcModal,
+    isModuleMode,
     selectedCard,
     selectedCard?.id,
     selectedCard?.osNumber,
@@ -2074,6 +2079,17 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const cardInTransitionTitleParts = moveCardDisplayed
     ? parsePatioCardTitle(moveCardDisplayed.name)
     : null;
+  /** Em Garantia (lab): só avaliação técnica, em serviço, aguardando peças e pronto pra retirada. */
+  const moveModalLists = useMemo(() => {
+    if (!isModuleMode || !moveCardDisplayed) return lists;
+    const inGarantia =
+      moveCardDisplayed.idList === 'GARANTIA' || moveCardDisplayed.garantiaTag === true;
+    if (!inGarantia) return lists;
+    const allowed = new Set<string>(LABORATORY_GARANTIA_MOVE_STATUSES);
+    return lists.filter(
+      (list) => allowed.has(list.id) || list.id === moveCardDisplayed.idList
+    );
+  }, [isModuleMode, moveCardDisplayed, lists]);
   const {
     displayed: assignCardDisplayed,
     exiting: assignModalExiting,
@@ -3445,11 +3461,20 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const handleRemoveGarantia = async () => {
     if (!selectedCard || !selectedCard.garantiaTag) return;
     const cardId = selectedCard.id;
+    const wasGarantiaStage = selectedCard.idList === 'GARANTIA';
     setRemovingGarantiaId(cardId);
     try {
       await updateServiceOrderGarantiaTag(cardId, false, actorOptions);
-      setCards(prev => prev.map(c => c.id === cardId ? { ...c, garantiaTag: false } : c));
-      setSelectedCard(prev => prev && prev.id === cardId ? { ...prev, garantiaTag: false } : prev);
+      setCards((prev) => prev.map((c) => (c.id === cardId ? { ...c, garantiaTag: false } : c)));
+      setSelectedCard((prev) =>
+        prev && prev.id === cardId ? { ...prev, garantiaTag: false } : prev
+      );
+      if (wasGarantiaStage) {
+        await performStageChangeForCard(
+          { ...selectedCard, garantiaTag: false },
+          'AGUARDANDO_AVALIACAO'
+        );
+      }
     } catch (err: any) {
       alert(err?.message ?? 'Erro ao remover etiqueta garantia.');
     } finally {
@@ -3462,9 +3487,16 @@ export const PatioView: React.FC<PatioViewProps> = ({
     const cardId = selectedCard.id;
     setRemovingGarantiaId(cardId);
     try {
-      await updateServiceOrderGarantiaTag(cardId, true, actorOptions);
-      setCards((prev) => prev.map((c) => (c.id === cardId ? { ...c, garantiaTag: true } : c)));
-      setSelectedCard((prev) => (prev && prev.id === cardId ? { ...prev, garantiaTag: true } : prev));
+      if (isModuleMode) {
+        // Laboratório: etiqueta ativa a etapa Garantia.
+        await performStageChangeForCard(selectedCard, 'GARANTIA');
+      } else {
+        await updateServiceOrderGarantiaTag(cardId, true, actorOptions);
+        setCards((prev) => prev.map((c) => (c.id === cardId ? { ...c, garantiaTag: true } : c)));
+        setSelectedCard((prev) =>
+          prev && prev.id === cardId ? { ...prev, garantiaTag: true } : prev
+        );
+      }
     } catch (err: any) {
       alert(err?.message ?? 'Erro ao marcar como Garantia.');
     } finally {
@@ -8236,67 +8268,16 @@ export const PatioView: React.FC<PatioViewProps> = ({
                           }
                         >
                           {isPatioTabletLikeModal ? (
-                            <div
-                              className={`flex min-h-10 w-full min-w-0 items-center gap-2 ${
-                                isModuleMode
-                                  ? 'pr-[calc(9.75rem+env(safe-area-inset-right,0px))]'
-                                  : 'pr-[calc(4.25rem+env(safe-area-inset-right,0px))]'
-                              }`}
-                            >
-                              {isModuleMode &&
-                              (serviceOrderDetail?.os_number ?? selectedCard.osNumber) != null ? (
-                                <span className="inline-flex items-center rounded-lg border border-zinc-300/60 bg-zinc-200/80 px-3 py-1.5 text-xs font-semibold uppercase tracking-wider text-zinc-600 dark:border-zinc-600/60 dark:bg-zinc-700/80 dark:text-zinc-300">
-                                  OS #{serviceOrderDetail?.os_number ?? selectedCard.osNumber}
-                                </span>
-                              ) : null}
-                              {!isModuleMode && selectedCard.agendaTag ? (
+                            !isModuleMode && selectedCard.agendaTag ? (
+                              <div className="flex min-h-10 w-full min-w-0 items-center gap-2 pr-[calc(4.25rem+env(safe-area-inset-right,0px))]">
                                 <span
                                   className="inline-flex items-center rounded-md border border-sky-500/30 bg-sky-500/[0.08] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-sky-700 dark:border-sky-400/25 dark:bg-sky-400/10 dark:text-sky-300"
                                   title="Veículo originado da Agenda"
                                 >
                                   Agendado
                                 </span>
-                              ) : null}
-                              {selectedCard.garantiaTag ? (
-                                <span className="inline-flex max-w-full items-center gap-1 rounded-md border border-red-500/35 bg-red-500/[0.08] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-red-600 dark:border-red-400/30 dark:bg-red-500/10 dark:text-red-300">
-                                  Garantia
-                                  <button
-                                    type="button"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      handleRemoveGarantia();
-                                    }}
-                                    disabled={removingGarantiaId === selectedCard.id}
-                                    className="flex h-4 w-4 items-center justify-center rounded-full bg-red-500/20 text-red-700 transition-colors hover:bg-red-500/35 disabled:opacity-50 dark:text-red-300"
-                                    title="Remover etiqueta Garantia"
-                                  >
-                                    {removingGarantiaId === selectedCard.id ? (
-                                      <RefreshCw className="h-2.5 w-2.5 animate-spin" />
-                                    ) : (
-                                      <X className="h-2.5 w-2.5" />
-                                    )}
-                                  </button>
-                                </span>
-                              ) : can('canEditFicha') ? (
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    void handleAddGarantia();
-                                  }}
-                                  disabled={removingGarantiaId === selectedCard.id}
-                                  className="inline-flex items-center gap-1 rounded-md border border-red-500/30 bg-white/80 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-red-600 transition hover:bg-red-50 disabled:opacity-50 dark:border-red-400/25 dark:bg-zinc-900/60 dark:text-red-300 dark:hover:bg-red-500/10"
-                                  title="Marcar como garantia"
-                                >
-                                  {removingGarantiaId === selectedCard.id ? (
-                                    <RefreshCw className="h-2.5 w-2.5 animate-spin" />
-                                  ) : (
-                                    <Tag className="h-2.5 w-2.5" />
-                                  )}
-                                  Garantia
-                                </button>
-                              ) : null}
-                            </div>
+                              </div>
+                            ) : null
                           ) : (
                           <div
                             className={`flex flex-wrap items-center gap-1.5${
@@ -8307,7 +8288,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                 : ''
                             }`}
                           >
-                          {(isModuleMode || !patioVehicleVm.hideOsBadge) &&
+                          {!isModuleMode &&
+                          !patioVehicleVm.hideOsBadge &&
                           (serviceOrderDetail?.os_number ?? selectedCard.osNumber) != null ? (
                             <span className={`inline-flex items-center px-3 py-1.5 text-xs font-semibold uppercase tracking-wider bg-zinc-200/80 dark:bg-zinc-700/80 text-zinc-600 dark:text-zinc-300 border border-zinc-300/60 dark:border-zinc-600/60 ${isPatioPcModal ? 'rounded-md' : 'rounded-lg'}`}>
                               OS #{(serviceOrderDetail?.os_number ?? selectedCard.osNumber)}
@@ -8339,42 +8321,47 @@ export const PatioView: React.FC<PatioViewProps> = ({
                               Agendado
                             </span>
                           ) : null}
-                          {selectedCard.garantiaTag ? (
-                            <span className="inline-flex items-center gap-1 rounded-md border border-red-500/35 bg-red-500/[0.08] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-red-600 dark:border-red-400/30 dark:bg-red-500/10 dark:text-red-300">
-                              Garantia
-                              <button
-                                type="button"
-                                onClick={(e) => { e.stopPropagation(); handleRemoveGarantia(); }}
-                                disabled={removingGarantiaId === selectedCard.id}
-                                className="flex h-4 w-4 items-center justify-center rounded-full bg-red-500/20 text-red-700 transition-colors hover:bg-red-500/35 disabled:opacity-50 dark:text-red-300"
-                                title="Remover etiqueta Garantia"
-                              >
-                                {removingGarantiaId === selectedCard.id ? <RefreshCw className="h-2.5 w-2.5 animate-spin" /> : <X className="h-2.5 w-2.5" />}
-                              </button>
-                            </span>
-                          ) : can('canEditFicha') ? (
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                void handleAddGarantia();
-                              }}
-                              disabled={removingGarantiaId === selectedCard.id}
-                              className="inline-flex items-center gap-1 rounded-md border border-red-500/30 bg-white/80 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-red-600 transition hover:bg-red-50 disabled:opacity-50 dark:border-red-400/25 dark:bg-zinc-900/60 dark:text-red-300 dark:hover:bg-red-500/10"
-                              title="Marcar como garantia"
-                            >
-                              {removingGarantiaId === selectedCard.id ? (
-                                <RefreshCw className="h-2.5 w-2.5 animate-spin" />
-                              ) : (
-                                <Tag className="h-2.5 w-2.5" />
-                              )}
-                              Garantia
-                            </button>
-                          ) : null}
                           </div>
                           )}
                         </div>
                         <div className={`${patioVehicleVm.titlePlateRow}`}>
+                          {can('canEditFicha') || selectedCard.garantiaTag ? (
+                            selectedCard.garantiaTag ? (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  void handleRemoveGarantia();
+                                }}
+                                disabled={removingGarantiaId === selectedCard.id}
+                                className="inline-flex shrink-0 items-center rounded-md border border-red-600 bg-red-600 px-2.5 py-[0.3rem] text-[11px] font-semibold uppercase tracking-wide text-white shadow-none transition hover:bg-red-700 disabled:opacity-50"
+                                title="Remover etiqueta Garantia"
+                              >
+                                {removingGarantiaId === selectedCard.id ? (
+                                  <RefreshCw className="h-3 w-3 animate-spin" />
+                                ) : (
+                                  'Garantia'
+                                )}
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  void handleAddGarantia();
+                                }}
+                                disabled={removingGarantiaId === selectedCard.id}
+                                className="inline-flex shrink-0 items-center rounded-md border border-red-500/45 bg-transparent px-2.5 py-[0.3rem] text-[11px] font-semibold uppercase tracking-wide text-red-600 transition hover:bg-red-50 disabled:opacity-50 dark:border-red-400/40 dark:text-red-300 dark:hover:bg-red-500/10"
+                                title="Marcar como garantia"
+                              >
+                                {removingGarantiaId === selectedCard.id ? (
+                                  <RefreshCw className="h-3 w-3 animate-spin" />
+                                ) : (
+                                  'Garantia'
+                                )}
+                              </button>
+                            )
+                          ) : null}
                           {!isModuleMode && isPatioTabletLikeModal ? (
                             <VehicleBrandLogo
                               brand={serviceOrderDetail?.vehicle_brand || selectedCard.vehicleBrand}
@@ -9397,7 +9384,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
                               </div>
                               <div className="relative z-[1] flex shrink-0 items-center gap-1.5">
                                 {isModuleMode && serviceOrderDetail && !loadingDetails ? (
-                                  <>
                                   <button
                                     type="button"
                                     onClick={handleOpenLabOsLabel}
@@ -9406,15 +9392,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                     <Tag className="h-3 w-3" aria-hidden strokeWidth={2.5} />
                                     Etiqueta OS
                                   </button>
-                                  <button
-                                    type="button"
-                                    onClick={handlePrintLabModuleFicha}
-                                    className="inline-flex items-center gap-1 rounded-xl border border-violet-500/35 bg-violet-600 px-2.5 py-1 text-[11px] font-semibold text-white shadow-sm shadow-violet-500/20 transition-colors hover:bg-violet-500"
-                                  >
-                                    <Printer className="h-3 w-3" aria-hidden strokeWidth={2.5} />
-                                    Imprimir ficha
-                                  </button>
-                                  </>
                                 ) : null}
                                 {!isModuleMode && selectedCard && !loadingDetails ? (
                                   <button
@@ -11411,7 +11388,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 </div>
               ) : null}
               <div className={isSmartphone ? 'space-y-2' : 'space-y-2.5'}>
-                {lists.map((list) => {
+                {moveModalLists.map((list) => {
                   const config = getStatusConfig(list.name, list.id);
                   const isCurrent = !isExternalRepairStatus(moveCardDisplayed.idList) && list.id === moveCardDisplayed.idList;
                   return (
