@@ -90,7 +90,7 @@ export function PatioStyleArchiveBoardCard({
           ${patioBoardGlassCardShadow}
           motion-safe:transition-[border-radius,box-shadow] motion-safe:duration-500 motion-safe:ease-[cubic-bezier(0.34,1.35,0.25,1)]
           ${shellRound}
-          ${isGarantia ? 'border-2 border-red-500/70' : 'border-0'}
+          border-0
         `}
       >
         <div

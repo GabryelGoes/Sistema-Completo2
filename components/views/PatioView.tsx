@@ -6663,15 +6663,13 @@ export const PatioView: React.FC<PatioViewProps> = ({
               : hasLabUndelivered
                 ? 'violet'
                 : 'amber';
-          const cardRingClass = isGarantia
-            ? 'border-2 border-red-500/70'
-            : originTint === 'green'
-              ? 'border-2 border-green-500/75 dark:border-green-400/70'
-              : originTint === 'violet'
-                ? 'border-2 border-violet-500/75 dark:border-violet-400/70'
-                : originTint === 'amber'
-                  ? 'border-2 border-amber-500/75 dark:border-amber-400/70'
-                  : 'border-0';
+          const cardRingClass = originTint === 'green'
+            ? 'border-2 border-green-500/75 dark:border-green-400/70'
+            : originTint === 'violet'
+              ? 'border-2 border-violet-500/75 dark:border-violet-400/70'
+              : originTint === 'amber'
+                ? 'border-2 border-amber-500/75 dark:border-amber-400/70'
+                : 'border-0';
 
           return (
             <div
@@ -6852,7 +6850,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   </div>
                 ) : null}
 
-                {/* Técnico + ícone de origem (centro) + placa */}
+                {/* Técnico + garantia + ícone de origem (centro) + placa */}
                 <div
                   className={`grid min-w-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-1.5 ${
                     customerName
@@ -6864,7 +6862,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                         : 'mt-1'
                   }`}
                 >
-                  <div className="min-w-0 justify-self-start">
+                  <div className="flex min-w-0 items-center gap-1.5 justify-self-start">
                     <button
                       type="button"
                       disabled={!canAssignMember}
@@ -6896,6 +6894,14 @@ export const PatioView: React.FC<PatioViewProps> = ({
                         {mechanic ? capitalizeFirst(mechanic) : (canAssignMember ? '+ Técnico' : 'Sem técnico')}
                       </span>
                     </button>
+                    {isGarantia ? (
+                      <span
+                        className="inline-flex shrink-0 items-center rounded-md border border-red-600 bg-red-600 px-2 py-[0.2rem] text-[9px] font-semibold uppercase tracking-wide text-white shadow-none"
+                        title="Em garantia"
+                      >
+                        Garantia
+                      </span>
+                    ) : null}
                   </div>
                   <div className="flex justify-self-center">
                     {showOriginCue ? (
