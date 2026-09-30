@@ -151,6 +151,24 @@ export const BudgetApprovalModal: React.FC<BudgetApprovalModalProps> = ({
       );
       onSaved(updated);
       onClose();
+      const approvedItemsCount =
+        services.filter((s) => s.approved === true).length +
+        parts.filter((p) => p.approved === true).length;
+      const authorName =
+        (typeof actorOptions?.actorDisplayName === 'string' && actorOptions.actorDisplayName.trim()) ||
+        (typeof actorOptions?.actorTechnicianName === 'string' && actorOptions.actorTechnicianName.trim()) ||
+        null;
+      window.dispatchEvent(
+        new CustomEvent('rda-budget-items-approved', {
+          detail: {
+            serviceOrderId,
+            budgetId: budget.id,
+            cardName: budget.cardName,
+            approvedItemsCount,
+            authorName,
+          },
+        })
+      );
       window.dispatchEvent(new CustomEvent('rda-patio-budgets-changed'));
     } catch (err: unknown) {
       alert((err as Error)?.message ?? 'Erro ao salvar aprovação.');

@@ -2092,6 +2092,7 @@ export type NotificationType =
   | "lab_sem_conserto"
   | "budget_created"
   | "budget_edited"
+  | "budget_items_approved"
   | "vehicle_finalized"
   | "vehicle_scheduled"
   | "vehicle_registered"
@@ -2122,6 +2123,10 @@ export interface NotificationPayload {
   os_number?: number | null;
   /** Tipo da OS (vehicle | module). */
   order_type?: string | null;
+  /** Contagens de decisão de aprovação (tipo budget_items_approved). */
+  approved_items_count?: number | null;
+  rejected_items_count?: number | null;
+  pending_items_count?: number | null;
   [key: string]: unknown;
 }
 
@@ -2522,6 +2527,8 @@ export interface PatioVehicleBudgetAggregateItem {
   createdAt: string;
   updatedAt: string;
   contentSignature: string;
+  /** Fingerprint só das decisões approved true/false/pendente por item. */
+  approvalFingerprint?: string;
   cardName: string | null;
   diagnosisPreview: string;
   servicesCount: number;
@@ -2543,7 +2550,7 @@ export interface PatioVehicleBudgetAggregateItem {
   isVerified: boolean;
   verifiedAt: string | null;
   verifiedByName: string | null;
-  /** Último ator conhecido (criação/edição) — banners do hub. */
+  /** Último ator conhecido (criação/edição/aprovação) — banners do hub. */
   lastActorName?: string | null;
   lastActorPhotoUrl?: string | null;
   verifiedByPhotoUrl?: string | null;

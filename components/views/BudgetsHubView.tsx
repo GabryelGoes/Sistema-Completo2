@@ -51,6 +51,7 @@ function normalizeAggregateItem(raw: PatioVehicleBudgetAggregateItem): PatioVehi
     ...raw,
     orderType: raw.orderType === 'module' ? 'module' : 'vehicle',
     moduleIdentification: raw.moduleIdentification ?? null,
+    approvalFingerprint: raw.approvalFingerprint ?? '',
     hasApprovedItems: raw.hasApprovedItems ?? false,
     hasExplicitApprovalDecisions: raw.hasExplicitApprovalDecisions ?? false,
     approvedItemsCount: raw.approvedItemsCount ?? 0,
@@ -70,7 +71,10 @@ export interface BudgetsHubViewProps {
   isHubTabActive?: boolean;
   onOpenBudgetInPatio: (serviceOrderId: string, budgetId: string) => void;
   onIngestNotifierBaseline: (
-    items: Pick<PatioVehicleBudgetAggregateItem, 'budgetId' | 'contentSignature' | 'verifiedAt'>[]
+    items: Pick<
+      PatioVehicleBudgetAggregateItem,
+      'budgetId' | 'contentSignature' | 'verifiedAt' | 'approvalFingerprint'
+    >[]
   ) => void;
   onClearHubBadge: () => void;
   consumePendingHubBudgetHighlights?: () => { budgetId: string; kind: 'created' | 'edited' }[];
@@ -261,9 +265,10 @@ export const BudgetsHubView: React.FC<BudgetsHubViewProps> = ({
   }, []);
 
   const syncFromRealtime = useCallback(() => {
+    // Não reingere baseline aqui — o notifier precisa detectar created/edited/approved.
     void load({
       silent: true,
-      skipNotifierIngest: !isHubTabActiveRef.current,
+      skipNotifierIngest: true,
     });
   }, [load]);
 
@@ -275,7 +280,7 @@ export const BudgetsHubView: React.FC<BudgetsHubViewProps> = ({
       if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
       void load({
         silent: true,
-        skipNotifierIngest: !isHubTabActiveRef.current,
+        skipNotifierIngest: true,
       });
     }, 90000);
     return () => window.clearInterval(id);
@@ -289,10 +294,12 @@ export const BudgetsHubView: React.FC<BudgetsHubViewProps> = ({
   }, [isHubTabActive, onClearHubBadge, load]);
 
   useEffect(() => {
+    // Sempre pula ingest: o notifier escuta o mesmo evento e precisa ver o diff
+    // (aprovação de itens não muda contentSignature — só approvalFingerprint).
     const onEvt = () =>
       void load({
         silent: true,
-        skipNotifierIngest: !isHubTabActiveRef.current,
+        skipNotifierIngest: true,
       });
     window.addEventListener(BUDGETS_CHANGED, onEvt);
     return () => window.removeEventListener(BUDGETS_CHANGED, onEvt);

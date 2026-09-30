@@ -497,7 +497,9 @@ export default function App() {
             ? 'budget_created'
             : ev.kind === 'edited'
               ? 'budget_edited'
-              : 'budget_verified';
+              : ev.kind === 'approved'
+                ? 'budget_items_approved'
+                : 'budget_verified';
         const authorName =
           ev.kind === 'verified'
             ? ev.item.verifiedByName
@@ -507,7 +509,7 @@ export default function App() {
             ? ev.item.verifiedByPhotoUrl ?? null
             : ev.item.lastActorPhotoUrl ?? null;
         pushBudgetBanner({
-          id: `${ev.kind}-${ev.item.budgetId}-${ev.item.contentSignature.slice(0, 12)}-${ev.item.verifiedAt ?? ''}`,
+          id: `${ev.kind}-${ev.item.budgetId}-${ev.item.contentSignature.slice(0, 12)}-${ev.item.approvalFingerprint ?? ''}-${ev.item.verifiedAt ?? ''}`,
           kind,
           serviceOrderId: ev.item.serviceOrderId,
           budgetId: ev.item.budgetId,
@@ -516,6 +518,8 @@ export default function App() {
           authorName,
           authorPhotoUrl,
           budgetNumber: ev.budgetNumber,
+          approvedItemsCount:
+            ev.kind === 'approved' ? ev.item.approvedItemsCount ?? null : null,
         });
       }
     },
@@ -529,6 +533,37 @@ export default function App() {
     pollMs: isDesktopShell && budgetBannerNotifications ? 8000 : 60000,
     onBudgetEvents: isDesktopShell && budgetBannerNotifications ? handleBudgetHubEvents : undefined,
   });
+
+  /** Banner imediato ao salvar aprovação neste cliente (não depende do poll/race do hub). */
+  useEffect(() => {
+    if (!isDesktopShell || !budgetBannerNotifications) return;
+    const onLocalApproved = (ev: Event) => {
+      const d = (ev as CustomEvent<{
+        serviceOrderId?: string;
+        budgetId?: string;
+        cardName?: string;
+        approvedItemsCount?: number;
+        authorName?: string | null;
+      }>).detail;
+      const soId = typeof d?.serviceOrderId === 'string' ? d.serviceOrderId.trim() : '';
+      const budgetId = typeof d?.budgetId === 'string' ? d.budgetId.trim() : '';
+      if (!soId || !budgetId) return;
+      pushBudgetBanner({
+        id: `local-approved-${budgetId}-${Date.now()}`,
+        kind: 'budget_items_approved',
+        serviceOrderId: soId,
+        budgetId,
+        vehicleModel: typeof d.cardName === 'string' && d.cardName.trim() ? d.cardName.trim() : null,
+        authorName: typeof d.authorName === 'string' && d.authorName.trim() ? d.authorName.trim() : null,
+        approvedItemsCount:
+          typeof d.approvedItemsCount === 'number' && d.approvedItemsCount >= 0
+            ? Math.floor(d.approvedItemsCount)
+            : null,
+      });
+    };
+    window.addEventListener('rda-budget-items-approved', onLocalApproved);
+    return () => window.removeEventListener('rda-budget-items-approved', onLocalApproved);
+  }, [isDesktopShell, budgetBannerNotifications, pushBudgetBanner]);
 
   const handleBudgetBannerNotification = useCallback(
     (n: Notification) => {
@@ -576,7 +611,13 @@ export default function App() {
         return;
       }
       if (!budgetBannerNotifications) return;
-      if (n.type !== 'budget_created' && n.type !== 'budget_edited') return;
+      if (
+        n.type !== 'budget_created' &&
+        n.type !== 'budget_edited' &&
+        n.type !== 'budget_items_approved'
+      ) {
+        return;
+      }
       const soId =
         typeof n.payload.service_order_id === 'string' ? n.payload.service_order_id.trim() : '';
       const budgetId =
@@ -597,6 +638,13 @@ export default function App() {
         typeof n.payload.author_photo_url === 'string' && n.payload.author_photo_url.trim()
           ? n.payload.author_photo_url.trim()
           : null;
+      const approvedRaw = n.payload.approved_items_count;
+      const approvedItemsCount =
+        typeof approvedRaw === 'number' && approvedRaw >= 0
+          ? Math.floor(approvedRaw)
+          : typeof approvedRaw === 'string' && Number(approvedRaw) >= 0
+            ? Math.floor(Number(approvedRaw))
+            : null;
       pushBudgetBanner({
         id: n.id,
         kind: n.type,
@@ -609,6 +657,7 @@ export default function App() {
         authorName: author,
         authorPhotoUrl,
         budgetNumber,
+        approvedItemsCount: n.type === 'budget_items_approved' ? approvedItemsCount : null,
       });
     },
     [isDesktopShell, budgetBannerNotifications, pushBudgetBanner]
@@ -666,7 +715,7 @@ export default function App() {
         ).catch(() => {});
         return;
       }
-      if (n.type === 'budget_created' || n.type === 'budget_edited') {
+      if (n.type === 'budget_created' || n.type === 'budget_edited' || n.type === 'budget_items_approved') {
         const soId =
           typeof n.payload.service_order_id === 'string' ? n.payload.service_order_id.trim() : '';
         const budgetId =
