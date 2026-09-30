@@ -6,7 +6,11 @@ import {
   DIAGNOSTIC_AUTHORIZATION_SIGNATURE_LABEL,
   DIAGNOSTIC_AUTHORIZATION_TITLE,
 } from "../../utils/diagnosticAuthorizationTerm";
-import { DIAGNOSTIC_AUTHORIZATION_PRINT_CSS } from "../../utils/diagnosticAuthorizationPrintCss";
+import {
+  formatDiagnosticAuthorizationSignedAt,
+  formatDiagnosticAuthorizationVehicleLabel,
+  printDiagnosticAuthorizationSheet,
+} from "../../utils/diagnosticAuthorizationPrint";
 import { DiagnosticAuthorizationTermBody } from "./DiagnosticAuthorizationTermBody";
 
 export interface DiagnosticAuthorizationSheetModalProps {
@@ -15,25 +19,19 @@ export interface DiagnosticAuthorizationSheetModalProps {
   /** URL pública do storage ou data URL da assinatura */
   signatureImageSrc: string;
   signedAt?: string | null;
-  /** Rodapé do cabeçalho (ex.: km) */
-  subtitleExtra?: string | null;
+  vehicleBrand?: string | null;
+  vehicleModel?: string | null;
+  plate?: string | null;
+  mileageKm?: string | null;
 }
 
-function formatSignedAt(signedAt?: string | null): { date: string; time: string } | null {
-  if (!signedAt) return null;
-  const d = new Date(signedAt);
-  if (Number.isNaN(d.getTime())) return null;
-  return {
-    date: d.toLocaleDateString("pt-BR", {
-      day: "2-digit",
-      month: "long",
-      year: "numeric",
-    }),
-    time: d.toLocaleTimeString("pt-BR", {
-      hour: "2-digit",
-      minute: "2-digit",
-    }),
-  };
+function formatKmDisplay(mileageKm?: string | null): string {
+  const raw = (mileageKm ?? "").trim();
+  if (!raw) return "—";
+  const digits = raw.replace(/\D/g, "");
+  if (!digits) return raw;
+  const grouped = digits.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  return `Km ${grouped}`;
 }
 
 export const DiagnosticAuthorizationSheetModal: React.FC<DiagnosticAuthorizationSheetModalProps> = ({
@@ -41,21 +39,30 @@ export const DiagnosticAuthorizationSheetModal: React.FC<DiagnosticAuthorization
   onClose,
   signatureImageSrc,
   signedAt,
-  subtitleExtra,
+  vehicleBrand,
+  vehicleModel,
+  plate,
+  mileageKm,
 }) => {
   const handlePrint = useCallback(() => {
-    window.print();
-  }, []);
+    printDiagnosticAuthorizationSheet({
+      signatureImageSrc,
+      signedAt,
+      vehicle: { vehicleBrand, vehicleModel, plate, mileageKm },
+    });
+  }, [signatureImageSrc, signedAt, vehicleBrand, vehicleModel, plate, mileageKm]);
 
   const fullScreenPortrait = useTabletPhonePortraitFullscreen();
 
   if (!open) return null;
 
-  const signed = formatSignedAt(signedAt);
+  const signed = formatDiagnosticAuthorizationSignedAt(signedAt);
+  const vehicleLabel = formatDiagnosticAuthorizationVehicleLabel(vehicleBrand, vehicleModel);
+  const plateLabel = (plate ?? "").trim().toUpperCase() || "—";
+  const kmLabel = formatKmDisplay(mileageKm);
 
   return (
     <ModalPortal>
-      <style dangerouslySetInnerHTML={{ __html: DIAGNOSTIC_AUTHORIZATION_PRINT_CSS }} />
       <div
         className={
           fullScreenPortrait
@@ -73,7 +80,7 @@ export const DiagnosticAuthorizationSheetModal: React.FC<DiagnosticAuthorization
               : "diag-auth-sheet-paper relative flex max-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-2rem)] w-full max-w-2xl min-h-0 flex-col overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-[0_24px_64px_-24px_rgba(0,0,0,0.35)] animate-modal-sheet"
           }
         >
-          <div className="diag-auth-sheet-no-print relative z-10 flex shrink-0 items-start justify-between gap-3 border-b border-zinc-200 px-6 py-4">
+          <div className="relative z-10 flex shrink-0 items-start justify-between gap-3 border-b border-zinc-200 px-6 py-4">
             <div className="min-w-0">
               <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-500">
                 Documento
@@ -84,14 +91,6 @@ export const DiagnosticAuthorizationSheetModal: React.FC<DiagnosticAuthorization
               >
                 {DIAGNOSTIC_AUTHORIZATION_TITLE}
               </h2>
-              {signed ? (
-                <p className="mt-1.5 text-[13px] font-medium text-zinc-600">
-                  Assinado em {signed.date} às {signed.time}
-                </p>
-              ) : null}
-              {subtitleExtra ? (
-                <p className="mt-0.5 text-[13px] font-medium text-zinc-500">{subtitleExtra}</p>
-              ) : null}
             </div>
             <button
               type="button"
@@ -115,6 +114,29 @@ export const DiagnosticAuthorizationSheetModal: React.FC<DiagnosticAuthorization
                   </p>
                 ) : null}
               </header>
+
+              <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4">
+                <div className="min-w-0 border-b border-zinc-200 pb-2">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-zinc-500">
+                    Veículo
+                  </p>
+                  <p className="mt-1 text-[14px] font-semibold text-zinc-900">{vehicleLabel}</p>
+                </div>
+                <div className="min-w-0 border-b border-zinc-200 pb-2">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-zinc-500">
+                    Placa
+                  </p>
+                  <p className="mt-1 text-[14px] font-semibold uppercase tracking-wide text-zinc-900">
+                    {plateLabel}
+                  </p>
+                </div>
+                <div className="min-w-0 border-b border-zinc-200 pb-2">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-zinc-500">
+                    Quilometragem
+                  </p>
+                  <p className="mt-1 text-[14px] font-semibold text-zinc-900">{kmLabel}</p>
+                </div>
+              </div>
 
               <DiagnosticAuthorizationTermBody
                 className="mt-6 space-y-4 text-[15px] leading-relaxed text-zinc-800 sm:text-[16px] sm:leading-relaxed"
@@ -149,8 +171,8 @@ export const DiagnosticAuthorizationSheetModal: React.FC<DiagnosticAuthorization
           <div
             className={
               fullScreenPortrait
-                ? "diag-auth-sheet-no-print relative z-10 flex shrink-0 flex-wrap items-center justify-end gap-3 border-t border-zinc-200 bg-white px-6 py-4 pb-[max(0.75rem,env(safe-area-inset-bottom))]"
-                : "diag-auth-sheet-no-print relative z-10 flex shrink-0 flex-wrap items-center justify-end gap-3 border-t border-zinc-200 bg-white px-6 py-4"
+                ? "relative z-10 flex shrink-0 flex-wrap items-center justify-end gap-3 border-t border-zinc-200 bg-white px-6 py-4 pb-[max(0.75rem,env(safe-area-inset-bottom))]"
+                : "relative z-10 flex shrink-0 flex-wrap items-center justify-end gap-3 border-t border-zinc-200 bg-white px-6 py-4"
             }
           >
             <button
@@ -159,7 +181,7 @@ export const DiagnosticAuthorizationSheetModal: React.FC<DiagnosticAuthorization
               className="inline-flex items-center gap-2 rounded-lg border border-zinc-300 bg-white px-5 py-2.5 text-sm font-medium text-zinc-800 transition-colors hover:bg-zinc-50"
             >
               <Printer className="h-4 w-4" aria-hidden />
-              Imprimir ou PDF
+              Imprimir / Salvar PDF
             </button>
             <button
               type="button"

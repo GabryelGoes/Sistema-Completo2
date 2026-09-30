@@ -1770,20 +1770,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
     },
     [selectedCard?.id, actorOptions]
   );
-  const diagnosticAuthSubtitleKm = useMemo(() => {
-    if (isModuleMode) return null;
-    const km = selectedHistoryCard
-      ? historyServiceOrderDetail?.mileage_km
-      : (selectedCard?.mileageKm ?? serviceOrderDetail?.mileage_km);
-    const s = km != null && String(km).trim() !== '' ? String(km).trim() : null;
-    return s ? `Km ${s}` : null;
-  }, [
-    isModuleMode,
-    selectedHistoryCard,
-    historyServiceOrderDetail,
-    selectedCard?.mileageKm,
-    serviceOrderDetail?.mileage_km,
-  ]);
   useEffect(() => {
     setDiagnosticAuthSheetOpen(false);
     setDiagnosticAuthSignOpen(false);
@@ -11070,7 +11056,28 @@ export const PatioView: React.FC<PatioViewProps> = ({
           onClose={() => setDiagnosticAuthSheetOpen(false)}
           signatureImageSrc={diagnosticAuthSheetContext.src}
           signedAt={diagnosticAuthSheetContext.signedAt}
-          subtitleExtra={diagnosticAuthSubtitleKm}
+          vehicleBrand={
+            selectedHistoryCard
+              ? historyServiceOrderDetail?.vehicle_brand
+              : (selectedCard?.vehicleBrand ?? serviceOrderDetail?.vehicle_brand)
+          }
+          vehicleModel={
+            selectedHistoryCard
+              ? historyServiceOrderDetail?.vehicle_model
+              : (serviceOrderDetail?.vehicle_model ??
+                  (selectedCard?.name ? parsePatioCardTitle(selectedCard.name).vehicle : null))
+          }
+          plate={
+            selectedHistoryCard
+              ? historyServiceOrderDetail?.plate
+              : (serviceOrderDetail?.plate ??
+                  (selectedCard?.name ? parsePatioCardTitle(selectedCard.name).plateOrModule : null))
+          }
+          mileageKm={
+            selectedHistoryCard
+              ? historyServiceOrderDetail?.mileage_km
+              : (selectedCard?.mileageKm ?? serviceOrderDetail?.mileage_km)
+          }
         />
       ) : null}
 

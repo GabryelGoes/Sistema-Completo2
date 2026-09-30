@@ -409,11 +409,6 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
     return getVehiclePhotoPublicUrl(p);
   }, [archivedDetailData?.diagnostic_authorization_signature_path]);
 
-  const intakeDiagAuthSubtitleKm = useMemo(() => {
-    const km = (customer.mileageKm ?? '').trim();
-    return km ? `Km ${km}` : null;
-  }, [customer.mileageKm]);
-
   const customerDocStatus = useMemo(() => getCpfCnpjStatus(customer.cpf), [customer.cpf]);
   const customerDocHint =
     customerDocStatus === 'incomplete'
@@ -2194,7 +2189,10 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
           onClose={() => setDiagAuthSheetOpen(false)}
           signatureImageSrc={diagAuthSignatureDataUrl}
           signedAt={diagAuthSignedAt?.toISOString() ?? null}
-          subtitleExtra={intakeDiagAuthSubtitleKm}
+          vehicleBrand={customer.vehicleBrand}
+          vehicleModel={customer.vehicleModel}
+          plate={customer.plate}
+          mileageKm={customer.mileageKm}
         />
       ) : null}
 
@@ -2824,11 +2822,10 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
           onClose={() => setArchivedDiagAuthSheetOpen(false)}
           signatureImageSrc={archivedDiagAuthSignatureSrc}
           signedAt={archivedDetailData.diagnostic_authorization_signed_at ?? null}
-          subtitleExtra={
-            archivedDetailData.mileage_km != null && String(archivedDetailData.mileage_km).trim() !== ''
-              ? `Km ${String(archivedDetailData.mileage_km).trim()}`
-              : null
-          }
+          vehicleBrand={archivedDetailData.vehicle_brand}
+          vehicleModel={archivedDetailData.vehicle_model}
+          plate={archivedDetailData.plate}
+          mileageKm={archivedDetailData.mileage_km}
         />
       ) : null}
 
