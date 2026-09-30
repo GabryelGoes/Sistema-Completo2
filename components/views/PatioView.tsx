@@ -4457,7 +4457,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
       for (let i = 0; i < payload.files.length; i++) {
         const file = payload.files[i];
-        const safeName = file.name?.trim() || `sem_conserto_${Date.now()}_${i + 1}`;
+        const originalName = file.name?.trim() || `foto_${Date.now()}_${i + 1}`;
+        const safeName = /(^|_)sem_conserto_/i.test(originalName)
+          ? originalName
+          : `sem_conserto_${originalName}`;
         await uploadServiceOrderPhoto(selectedCard.id, file, safeName, {
           folderSlug: 'sem-conserto',
         });
@@ -4466,6 +4469,30 @@ export const PatioView: React.FC<PatioViewProps> = ({
       await updateServiceOrderStatus(selectedCard.id, 'SEM_CONSERTO', actorOptions);
       const updated = await getServiceOrderById(selectedCard.id);
       setServiceOrderDetail(updated);
+      setPhotoAlbumsRefreshKey((k) => k + 1);
+      try {
+        const photos = await getServiceOrderPhotos(selectedCard.id);
+        setCardDetails((prev) => ({
+          actions: prev?.actions ?? [],
+          attachments: photos.map((p, i) => {
+            const n = (p.name || '').toLowerCase();
+            const mimeType = n.endsWith('.pdf')
+              ? 'application/pdf'
+              : /\.(jpe?g|png|gif|webp|heic|heif|bmp)$/.test(n)
+                ? 'image/*'
+                : 'application/octet-stream';
+            return {
+              id: p.path || String(i),
+              name: p.name,
+              url: p.url,
+              mimeType,
+              previews: [{ url: p.url, width: 200, height: 200 }],
+            };
+          }),
+        }));
+      } catch {
+        /* pastas ainda carregam via refreshKey */
+      }
       const newStatus = (updated.status ?? 'SEM_CONSERTO') as ServiceOrderStatus;
       setSelectedCard((prev) =>
         prev

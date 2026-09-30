@@ -563,6 +563,8 @@ export function createApiApp() {
   /** Álbum principal (legado: "Outras fotos"). */
   const SO_PHOTO_FOLDER_OUTRAS_NAME = "Biblioteca";
   const SO_PHOTO_FOLDER_OUTRAS_LEGACY_NAMES = ["Outras fotos", "outras fotos"];
+  const SO_PHOTO_FOLDER_SEM_CONSERTO_SLUG = "sem-conserto";
+  const SO_PHOTO_FOLDER_SEM_CONSERTO_NAME = "Sem conserto";
 
   function isServiceOrderImageFileName(name: string): boolean {
     return /\.(jpe?g|png|gif|webp|heic|heif|bmp)$/i.test(String(name || ""));
@@ -572,6 +574,11 @@ export function createApiApp() {
     // Storage grava como `{timestamp}_entrada_{osId}_…jpg` (upload-init) ou `entrada_…` (legado).
     const base = String(name || "").trim().split("/").pop() || "";
     return /(^|_)entrada_/i.test(base);
+  }
+
+  function isSemConsertoPhotoFileName(name: string): boolean {
+    const base = String(name || "").trim().split("/").pop() || "";
+    return /(^|_)sem_conserto_/i.test(base) || /(^|_)sem-conserto_/i.test(base);
   }
 
   type ServiceOrderPhotoFolderRow = {
@@ -732,6 +739,51 @@ export function createApiApp() {
     });
   }
 
+  /** Resolve pasta por slug conhecido, criando se ainda não existir (ex.: sem-conserto). */
+  async function resolvePhotoFolderIdForSlug(
+    serviceOrderId: string,
+    slugRaw: string
+  ): Promise<string> {
+    const slug = String(slugRaw || "").trim();
+    if (!slug || !serviceOrderId) return "";
+
+    const synced = await ensureAndSyncServiceOrderPhotoFolders(serviceOrderId);
+    const existing = synced.folders.find((f) => f.slug === slug);
+    if (existing?.id) return existing.id;
+
+    if (slug === SO_PHOTO_FOLDER_SEM_CONSERTO_SLUG) {
+      const folder = await getOrCreateNamedPhotoFolder({
+        serviceOrderId,
+        name: SO_PHOTO_FOLDER_SEM_CONSERTO_NAME,
+        slug: SO_PHOTO_FOLDER_SEM_CONSERTO_SLUG,
+        isSystem: true,
+        sortOrder: 40,
+      });
+      return folder?.id || "";
+    }
+    if (slug === SO_PHOTO_FOLDER_ENTRADA_SLUG) {
+      const folder = await getOrCreateNamedPhotoFolder({
+        serviceOrderId,
+        name: SO_PHOTO_FOLDER_ENTRADA_NAME,
+        slug: SO_PHOTO_FOLDER_ENTRADA_SLUG,
+        isSystem: true,
+        sortOrder: 0,
+      });
+      return folder?.id || "";
+    }
+    if (slug === SO_PHOTO_FOLDER_OUTRAS_SLUG) {
+      const folder = await getOrCreateNamedPhotoFolder({
+        serviceOrderId,
+        name: SO_PHOTO_FOLDER_OUTRAS_NAME,
+        slug: SO_PHOTO_FOLDER_OUTRAS_SLUG,
+        isSystem: false,
+        sortOrder: 50,
+      });
+      return folder?.id || "";
+    }
+    return "";
+  }
+
   async function upsertServiceOrderPhotoItem(params: {
     serviceOrderId: string;
     folderId: string;
@@ -817,8 +869,24 @@ export function createApiApp() {
     );
 
     const orphanImages = imageFiles.filter((p) => !itemsByPath.has(p.path));
+    const needsSemConserto = orphanImages.some((p) => isSemConsertoPhotoFileName(p.name));
+    const needsOutras = orphanImages.some(
+      (p) => !isEntradaIntakePhotoFileName(p.name) && !isSemConsertoPhotoFileName(p.name)
+    );
+
+    let semConserto: ServiceOrderPhotoFolderRow | null = null;
+    if (needsSemConserto) {
+      semConserto = await getOrCreateNamedPhotoFolder({
+        serviceOrderId,
+        name: SO_PHOTO_FOLDER_SEM_CONSERTO_NAME,
+        slug: SO_PHOTO_FOLDER_SEM_CONSERTO_SLUG,
+        isSystem: true,
+        sortOrder: 40,
+      });
+    }
+
     let outras: ServiceOrderPhotoFolderRow | null = null;
-    if (orphanImages.some((p) => !isEntradaIntakePhotoFileName(p.name))) {
+    if (needsOutras) {
       outras = await getOrCreateNamedPhotoFolder({
         serviceOrderId,
         name: SO_PHOTO_FOLDER_OUTRAS_NAME,
@@ -829,10 +897,14 @@ export function createApiApp() {
     }
 
     for (const photo of orphanImages) {
-      const targetFolderId =
-        isEntradaIntakePhotoFileName(photo.name) && entrada
-          ? entrada.id
-          : outras?.id || entrada?.id;
+      let targetFolderId: string | undefined;
+      if (isEntradaIntakePhotoFileName(photo.name) && entrada) {
+        targetFolderId = entrada.id;
+      } else if (isSemConsertoPhotoFileName(photo.name) && semConserto) {
+        targetFolderId = semConserto.id;
+      } else {
+        targetFolderId = outras?.id || entrada?.id;
+      }
       if (!targetFolderId) continue;
       await upsertServiceOrderPhotoItem({
         serviceOrderId,
@@ -860,6 +932,40 @@ export function createApiApp() {
           fileName: row.file_name,
           kind: "photo",
         });
+      }
+    }
+
+    // Migra fotos de “Sem conserto” que caíram na Biblioteca (slug inexistente no upload).
+    const hasSemConsertoCandidates = ((existingItems ?? []) as ServiceOrderPhotoItemRow[]).some(
+      (row) =>
+        storagePaths.has(row.storage_path) &&
+        isSemConsertoPhotoFileName(row.file_name) &&
+        (!semConserto || row.folder_id !== semConserto.id)
+    );
+    if (hasSemConsertoCandidates) {
+      const semConsertoFolder =
+        semConserto ||
+        (await getOrCreateNamedPhotoFolder({
+          serviceOrderId,
+          name: SO_PHOTO_FOLDER_SEM_CONSERTO_NAME,
+          slug: SO_PHOTO_FOLDER_SEM_CONSERTO_SLUG,
+          isSystem: true,
+          sortOrder: 40,
+        }));
+      if (semConsertoFolder) {
+        const semConsertoFolderId = semConsertoFolder.id;
+        for (const row of (existingItems ?? []) as ServiceOrderPhotoItemRow[]) {
+          if (!storagePaths.has(row.storage_path)) continue;
+          if (!isSemConsertoPhotoFileName(row.file_name)) continue;
+          if (row.folder_id === semConsertoFolderId) continue;
+          await upsertServiceOrderPhotoItem({
+            serviceOrderId,
+            folderId: semConsertoFolderId,
+            storagePath: row.storage_path,
+            fileName: row.file_name,
+            kind: "photo",
+          });
+        }
       }
     }
 
@@ -4723,15 +4829,18 @@ export function createApiApp() {
       if (isServiceOrderImageFileName(storedName) && !isDiagnosticAuthorizationSignatureFileName(storedName)) {
         let targetFolderId = folderIdRaw;
         if (!targetFolderId && folderSlugRaw) {
-          const synced = await ensureAndSyncServiceOrderPhotoFolders(serviceOrderId);
-          const bySlug = synced.folders.find((f) => f.slug === folderSlugRaw);
-          targetFolderId = bySlug?.id || "";
+          targetFolderId = await resolvePhotoFolderIdForSlug(serviceOrderId, folderSlugRaw);
         }
         if (!targetFolderId) {
           const synced = await ensureAndSyncServiceOrderPhotoFolders(serviceOrderId);
           if (isEntradaIntakePhotoFileName(storedName)) {
             targetFolderId =
               synced.folders.find((f) => f.slug === SO_PHOTO_FOLDER_ENTRADA_SLUG)?.id || "";
+          } else if (isSemConsertoPhotoFileName(storedName)) {
+            targetFolderId = await resolvePhotoFolderIdForSlug(
+              serviceOrderId,
+              SO_PHOTO_FOLDER_SEM_CONSERTO_SLUG
+            );
           } else {
             const outras =
               synced.folders.find((f) => f.slug === SO_PHOTO_FOLDER_OUTRAS_SLUG) ||
@@ -4866,13 +4975,19 @@ export function createApiApp() {
               ? String((req.body as { folderSlug?: string }).folderSlug).trim()
               : "";
           let targetFolderId = folderIdForm;
+          if (!targetFolderId && folderSlugForm) {
+            targetFolderId = await resolvePhotoFolderIdForSlug(serviceOrderId, folderSlugForm);
+          }
           if (!targetFolderId) {
             const synced = await ensureAndSyncServiceOrderPhotoFolders(serviceOrderId);
-            if (folderSlugForm) {
-              targetFolderId = synced.folders.find((f) => f.slug === folderSlugForm)?.id || "";
-            } else if (isEntradaIntakePhotoFileName(safeName)) {
+            if (isEntradaIntakePhotoFileName(safeName)) {
               targetFolderId =
                 synced.folders.find((f) => f.slug === SO_PHOTO_FOLDER_ENTRADA_SLUG)?.id || "";
+            } else if (isSemConsertoPhotoFileName(safeName)) {
+              targetFolderId = await resolvePhotoFolderIdForSlug(
+                serviceOrderId,
+                SO_PHOTO_FOLDER_SEM_CONSERTO_SLUG
+              );
             } else {
               const outras =
                 synced.folders.find((f) => f.slug === SO_PHOTO_FOLDER_OUTRAS_SLUG) ||
