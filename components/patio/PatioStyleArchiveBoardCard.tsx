@@ -163,7 +163,7 @@ export function PatioStyleArchiveBoardCard({
                   hasCustomer ? (boardPanoramic ? 'mt-1.5' : 'mt-2') : 'mt-0.5'
                 }`}
               >
-                <div className="min-w-0 flex-1">
+                <div className="flex min-w-0 flex-1 items-center gap-1.5">
                   <div
                     className={`
                     inline-flex max-w-full cursor-default items-center justify-start gap-1.5 rounded-2xl border px-2.5 py-1.5 transition-none
@@ -197,6 +197,14 @@ export function PatioStyleArchiveBoardCard({
                       {hasMechanic ? capitalizeFirst(mechanic) : 'Sem técnico'}
                     </span>
                   </div>
+                  {isGarantia ? (
+                    <span
+                      className="inline-flex shrink-0 items-center rounded-md border border-red-600 bg-red-600 px-2 py-[0.2rem] text-[9px] font-semibold uppercase tracking-wide text-white shadow-none"
+                      title="Em garantia"
+                    >
+                      Garantia
+                    </span>
+                  ) : null}
                 </div>
                 {!isModuleMode ? (
                   <div className="shrink-0">
