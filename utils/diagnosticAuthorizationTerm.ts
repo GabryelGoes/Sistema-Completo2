@@ -15,24 +15,24 @@ export const DIAGNOSTIC_AUTHORIZATION_PARAGRAPH_CHUNKS: readonly (readonly Diagn
   [
     { text: "Autorizo a realização do " },
     { text: "diagnóstico técnico", callout: true },
-    { text: " em meu veículo e declaro estar ciente de que " },
-    { text: "será cobrado", callout: true },
-    { text: " o valor de " },
+    {
+      text: " em meu veículo e declaro estar ciente de que será cobrado o valor de ",
+    },
     { text: "R$ 450,00", callout: true },
-    { text: " referente ao " },
-    { text: "tempo técnico, análises e testes", callout: true },
-    { text: " necessários para identificação da falha apresentada." },
+    {
+      text: " referente ao tempo técnico, análises e testes necessários para identificação da falha apresentada.",
+    },
   ],
   [
     { text: "Estou ciente de que, em caso de " },
-    { text: "aprovação do orçamento de reparo", callout: true },
-    { text: ", o valor do diagnóstico " },
-    { text: "não será cobrado separadamente", callout: true },
-    { text: ". " },
-    { text: "Caso o orçamento não seja aprovado", callout: true },
-    { text: ", o valor do diagnóstico " },
-    { text: "será devido normalmente", callout: true },
-    { text: "." },
+    { text: "aprovação do orçamento", callout: true },
+    { text: " de reparo, o valor do diagnóstico " },
+    { text: "não será cobrado", callout: true },
+    { text: ", sendo pago " },
+    { text: "somente o valor do serviço orçado", callout: true },
+    { text: " e aprovado. Caso o orçamento não seja aprovado, o valor de " },
+    { text: "R$ 450,00", callout: true },
+    { text: " será devido normalmente." },
   ],
 ] as const;
 

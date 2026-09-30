@@ -1376,7 +1376,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
           {/* Bloco único da ficha */}
           <div className={`${receptionSectionShell} w-full rounded-[calc(2rem-2px)] sm:rounded-[calc(2.25rem-2px)]`}>
             <div className="px-2.5 py-3 sm:p-5 lg:p-6">
-          <div className={`mb-4 flex justify-end ${receptionPortraitVertical ? 'hidden' : ''}`}>
+          <div className={`mb-4 flex justify-end ${receptionPortraitVertical || desktopShell ? 'hidden' : ''}`}>
             <button
               type="button"
               onClick={resetForm}
@@ -1431,7 +1431,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                       })
                     }
                     aria-expanded={intakeCustomerSearchOpen}
-                    className="flex h-12 shrink-0 items-center justify-center gap-2 rounded-2xl border border-zinc-200/90 bg-white/90 px-4 text-sm font-semibold text-zinc-800 shadow-[0_6px_18px_-7px_rgba(0,0,0,0.1),0_2px_8px_-4px_rgba(0,0,0,0.06)] transition-all hover:border-[#007AFF]/45 active:scale-[0.98] dark:border-white/[0.12] dark:bg-white/[0.06] dark:text-zinc-100 dark:shadow-none sm:mb-0.5"
+                    className="flex h-[46px] shrink-0 items-center justify-center gap-2 rounded-xl border border-zinc-200/90 bg-white px-3 text-[13px] font-semibold text-zinc-800 shadow-sm transition-all hover:border-[#007AFF]/45 active:scale-[0.98] dark:border-white/[0.12] dark:bg-white/[0.06] dark:text-zinc-100 dark:shadow-none sm:mb-0.5"
                     title="Buscar cliente já cadastrado"
                   >
                     <Search className="h-4 w-4 text-[#007AFF] dark:text-[#7ab8ff]" aria-hidden />
@@ -1453,7 +1453,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                   </div>
                 ) : null}
                 {intakeCustomerSearchOpen ? (
-                  <div className="absolute left-0 right-0 z-30 mt-1.5 overflow-hidden rounded-xl border border-zinc-200/80 bg-white/98 shadow-[0_12px_28px_-10px_rgba(0,0,0,0.18),0_4px_12px_-4px_rgba(0,0,0,0.08)] backdrop-blur dark:border-white/[0.1] dark:bg-zinc-900/98 dark:shadow-[0_12px_28px_-12px_rgba(0,0,0,0.55)]">
+                  <div className="absolute left-0 right-0 z-30 mt-1.5 overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-[0_12px_28px_-10px_rgba(0,0,0,0.18),0_4px_12px_-4px_rgba(0,0,0,0.08)] dark:border-white/[0.12] dark:bg-zinc-900 dark:shadow-[0_12px_28px_-12px_rgba(0,0,0,0.55)]">
                     {intakeCustomerDirectoryLoading ? (
                       <p className="flex items-center gap-2 px-3 py-3 text-xs text-zinc-500 dark:text-zinc-400">
                         <Loader2 className="h-3.5 w-3.5 animate-spin shrink-0" />
@@ -1500,7 +1500,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                   </div>
                 ) : null}
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:items-end">
                 <Input
                   label="Telefone"
                   name="phone"
@@ -1528,23 +1528,21 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                           : undefined
                     }
                   />
-                  {customerDocHint ? (
-                    <p
-                      className={`mt-1 px-1 text-[11px] font-medium ${
-                        customerDocStatus === 'invalid'
-                          ? 'text-red-600 dark:text-red-400'
-                          : customerDocStatus === 'cpf' || customerDocStatus === 'cnpj'
-                            ? 'text-emerald-700 dark:text-emerald-400'
-                            : 'text-zinc-500 dark:text-zinc-400'
-                      }`}
-                      role={customerDocStatus === 'invalid' ? 'alert' : undefined}
-                    >
-                      {customerDocHint}
-                    </p>
-                  ) : null}
+                  <p
+                    className={`mt-1 min-h-[1rem] px-1 text-[11px] font-medium ${
+                      customerDocStatus === 'invalid'
+                        ? 'text-red-600 dark:text-red-400'
+                        : customerDocStatus === 'cpf' || customerDocStatus === 'cnpj'
+                          ? 'text-emerald-700 dark:text-emerald-400'
+                          : 'text-zinc-500 dark:text-zinc-400'
+                    }`}
+                    role={customerDocStatus === 'invalid' ? 'alert' : undefined}
+                  >
+                    {customerDocHint ?? '\u00a0'}
+                  </p>
                 </div>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:items-end">
                 <Input
                   label="E-mail"
                   name="email"
@@ -1572,7 +1570,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                   icon={<Map className="w-4 h-4" />}
                 />
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:items-end">
                 <Input
                   label="Nº"
                   name="addressNumber"
@@ -1649,7 +1647,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                           onMouseDown={(e) => e.preventDefault()}
                           onClick={() => void runPlacaLookup(true)}
                           disabled={plateLookupLoading}
-                          className="flex h-12 shrink-0 items-center justify-center gap-2 rounded-2xl border border-zinc-200/90 bg-white/90 px-4 text-sm font-semibold text-zinc-800 shadow-[0_6px_18px_-7px_rgba(0,0,0,0.1),0_2px_8px_-4px_rgba(0,0,0,0.06)] transition-all hover:border-[#007AFF]/45 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50 dark:border-white/[0.12] dark:bg-white/[0.06] dark:text-zinc-100 dark:shadow-none sm:mb-0.5"
+                          className="flex h-[46px] shrink-0 items-center justify-center gap-2 rounded-xl border border-zinc-200/90 bg-white px-3 text-[13px] font-semibold text-zinc-800 shadow-sm transition-all hover:border-[#007AFF]/45 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50 dark:border-white/[0.12] dark:bg-white/[0.06] dark:text-zinc-100 dark:shadow-none sm:mb-0.5"
                         >
                           {plateLookupLoading ? (
                             <Loader2 className="h-4 w-4 animate-spin text-[#007AFF] dark:text-[#7ab8ff]" aria-hidden />
@@ -1663,7 +1661,11 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                         <p className="px-1 text-xs text-red-600 dark:text-red-400" role="alert">
                           {plateLookupError}
                         </p>
-                      ) : null}
+                      ) : (
+                        <p className="min-h-[1rem] px-1 text-xs opacity-0" aria-hidden>
+                          .
+                        </p>
+                      )}
                     </div>
                     <div className="min-w-0">
                       <Input
@@ -1680,7 +1682,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                   </div>
 
                   <div className="space-y-4 border-t border-zinc-200/80 pt-4 dark:border-white/[0.08]">
-                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:items-end">
                       <Input
                         label="Marca / montadora"
                         name="vehicleBrand"
@@ -1698,7 +1700,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                         icon={<Car className="w-4 h-4" />}
                       />
                     </div>
-                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 sm:items-end">
                       <Input
                         label="Cor"
                         name="vehicleColor"
@@ -1716,7 +1718,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                         icon={<Calendar className="w-4 h-4" />}
                       />
                       <Input
-                        label="Motor (cilindradas / combustível)"
+                        label="Motor"
                         name="vehicleEngineInfo"
                         placeholder="Motor"
                         value={customer.vehicleEngineInfo ?? ''}
@@ -1727,7 +1729,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                   </div>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:items-end">
                   <Input 
                     label="Veículo"
                     name="vehicleModel"
@@ -1922,34 +1924,32 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                       </p>
                       {diagAuthSignatureBlob ? (
                         <p className="pt-0.5 text-[12px] font-semibold text-emerald-600 dark:text-emerald-400">
-                          Assinatura registrada. Toque em Ver autorização para ver o termo (imprimir ou PDF no próprio documento).
+                          Concluído
                         </p>
                       ) : (
                         <p className="pt-0.5 text-[12px] font-medium text-amber-700 dark:text-amber-400/95">
-                          {desktopShell
-                            ? 'Pendente: abra o termo e assine com o mouse, ou anexe a foto/scan da assinatura, antes de enviar a ficha.'
-                            : 'Pendente: abra o termo e assine antes de enviar a ficha.'}
+                          Pendente
                         </p>
                       )}
                     </div>
                   </div>
-                  <div className="mt-3 flex flex-col gap-1.5 sm:flex-row sm:flex-wrap">
+                  <div className="mt-3 flex flex-wrap items-center gap-2">
                     <button
                       type="button"
                       onClick={() => setDiagAuthSignModalOpen(true)}
-                      className="flex flex-1 min-w-0 items-center justify-center gap-1.5 rounded-xl border border-[#007AFF]/35 bg-[#007AFF] px-3 py-2 text-[12px] font-semibold text-white shadow-[0_6px_16px_-8px_rgba(37,99,235,0.28)] transition-all hover:opacity-95 active:scale-[0.99] dark:shadow-md dark:shadow-blue-900/40 sm:min-w-[160px]"
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-300/90 bg-white px-2.5 py-1.5 text-[11px] font-semibold text-zinc-700 shadow-sm transition-colors hover:border-[#007AFF]/35 hover:bg-zinc-50 hover:text-[#007AFF] active:scale-[0.99] dark:border-white/12 dark:bg-white/[0.06] dark:text-zinc-200 dark:hover:border-[#64B5FF]/40 dark:hover:bg-white/[0.1] dark:hover:text-[#8cc8ff]"
                     >
-                      <FileText className="h-3.5 w-3.5 shrink-0 opacity-95" strokeWidth={2.25} aria-hidden />
-                      {diagAuthSignatureBlob ? 'Reabrir termo e assinar novamente' : 'Ler termo e assinar'}
+                      <FileText className="h-3 w-3 shrink-0 opacity-80" strokeWidth={2.25} aria-hidden />
+                      {diagAuthSignatureBlob ? 'Reassinar termo' : 'Ler termo e assinar'}
                     </button>
                     {diagAuthSignatureDataUrl ? (
                       <button
                         type="button"
                         onClick={() => setDiagAuthSheetOpen(true)}
-                        className="inline-flex flex-1 min-w-0 items-center justify-center gap-1.5 rounded-xl border border-zinc-300/90 bg-white px-3 py-2 text-[12px] font-semibold text-zinc-800 shadow-[0_4px_12px_-6px_rgba(0,0,0,0.08)] transition-all hover:bg-zinc-50 active:scale-[0.99] dark:border-white/12 dark:bg-white/[0.06] dark:text-zinc-100 dark:shadow-sm dark:hover:bg-white/[0.1] sm:min-w-[160px]"
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-300/90 bg-white px-2.5 py-1.5 text-[11px] font-semibold text-zinc-700 shadow-sm transition-colors hover:bg-zinc-50 active:scale-[0.99] dark:border-white/12 dark:bg-white/[0.06] dark:text-zinc-200 dark:hover:bg-white/[0.1]"
                       >
-                        <Eye className="h-3.5 w-3.5 shrink-0 text-zinc-600 dark:text-zinc-300" strokeWidth={2.25} aria-hidden />
-                        Ver autorização de diagnóstico
+                        <Eye className="h-3 w-3 shrink-0 text-zinc-500 dark:text-zinc-400" strokeWidth={2.25} aria-hidden />
+                        Ver autorização
                       </button>
                     ) : null}
                   </div>
