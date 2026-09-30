@@ -6,6 +6,11 @@ export type ServiceTechnicianLineRef = {
   budgetId?: string | null;
 };
 
+export type BudgetServiceTechnicianRef = {
+  name: string;
+  technicianId: string;
+};
+
 function normDesc(s: string): string {
   return String(s ?? '')
     .trim()
@@ -15,14 +20,14 @@ function normDesc(s: string): string {
 }
 
 /**
- * Nome do técnico para uma linha de serviço do orçamento (match por budget + descrição).
+ * Técnico para uma linha de serviço do orçamento (match por budget + descrição).
  */
-export function resolveBudgetServiceTechnicianName(
+export function resolveBudgetServiceTechnician(
   lines: ServiceTechnicianLineRef[],
   budgetId: string,
   serviceDescription: string,
   usedLineIndexes?: Set<number>
-): string | null {
+): BudgetServiceTechnicianRef | null {
   const desc = normDesc(serviceDescription);
   if (!desc) return null;
 
@@ -38,7 +43,9 @@ export function resolveBudgetServiceTechnicianName(
     if (usedLineIndexes?.has(index)) continue;
     usedLineIndexes?.add(index);
     const name = (line.technicianName ?? '').trim();
-    return name || null;
+    const technicianId = String(line.technicianId ?? '').trim();
+    if (!name) return null;
+    return { name, technicianId };
   }
 
   // Fallback: mesma descrição em qualquer orçamento da OS
@@ -47,10 +54,33 @@ export function resolveBudgetServiceTechnicianName(
     if (normDesc(lines[i].description) !== desc) continue;
     usedLineIndexes?.add(i);
     const name = (lines[i].technicianName ?? '').trim();
-    return name || null;
+    const technicianId = String(lines[i].technicianId ?? '').trim();
+    if (!name) return null;
+    return { name, technicianId };
   }
 
   return null;
+}
+
+/** @deprecated Preferir resolveBudgetServiceTechnician — mantido para compat. */
+export function resolveBudgetServiceTechnicianName(
+  lines: ServiceTechnicianLineRef[],
+  budgetId: string,
+  serviceDescription: string,
+  usedLineIndexes?: Set<number>
+): string | null {
+  return resolveBudgetServiceTechnician(lines, budgetId, serviceDescription, usedLineIndexes)?.name ?? null;
+}
+
+export function buildBudgetServiceTechnicians(
+  lines: ServiceTechnicianLineRef[],
+  budgetId: string,
+  services: { description: string }[]
+): (BudgetServiceTechnicianRef | null)[] {
+  const used = new Set<number>();
+  return services.map((s) =>
+    resolveBudgetServiceTechnician(lines, budgetId, s.description, used)
+  );
 }
 
 export function buildBudgetServiceTechnicianNames(
@@ -58,8 +88,5 @@ export function buildBudgetServiceTechnicianNames(
   budgetId: string,
   services: { description: string }[]
 ): (string | null)[] {
-  const used = new Set<number>();
-  return services.map((s) =>
-    resolveBudgetServiceTechnicianName(lines, budgetId, s.description, used)
-  );
+  return buildBudgetServiceTechnicians(lines, budgetId, services).map((t) => t?.name ?? null);
 }
