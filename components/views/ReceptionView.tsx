@@ -102,10 +102,31 @@ const RECEPTION_MODE_KEY = 'app_reception_mode';
 
 /** Cartão principal da recepção — chapado, sem aro. */
 const receptionPageGlass =
-  'relative w-full rounded-[2rem] sm:rounded-[2.25rem] border-0 bg-white/70 dark:bg-zinc-900/40 backdrop-blur-2xl shadow-none';
+  'relative w-full min-w-0 max-w-full rounded-[2rem] sm:rounded-[2.25rem] border-0 bg-white/70 dark:bg-zinc-900/40 backdrop-blur-2xl shadow-none';
 
 const receptionSectionShell =
-  'overflow-hidden rounded-[24px] border-0 bg-white shadow-none dark:bg-zinc-900/40 dark:backdrop-blur-2xl';
+  'min-w-0 max-w-full overflow-x-clip rounded-[24px] border-0 bg-white shadow-none dark:bg-zinc-900/40 dark:backdrop-blur-2xl';
+
+/** Grade de campos da ficha: gap de linha 20px, colunas 16px. */
+const receptionFormCols =
+  'grid min-w-0 max-w-full grid-cols-1 gap-x-4 gap-y-5 lg:grid-cols-2';
+const receptionFormCol = 'flex min-w-0 flex-col gap-5';
+const receptionFormRow2 =
+  'grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2 sm:items-start';
+const receptionFormRow3 =
+  'grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-3 sm:items-start';
+const receptionSectionHeader =
+  'flex h-10 min-w-0 items-end justify-between gap-2 border-b border-zinc-200/80 pb-2 dark:border-white/[0.08]';
+const receptionSectionTitle =
+  'min-w-0 flex-1 truncate text-[14px] font-bold uppercase leading-none tracking-[0.08em] text-zinc-700 dark:text-zinc-200';
+/** Botão de ação alinhado ao input (48px). */
+const receptionInlineActionBtn =
+  'inline-flex h-12 shrink-0 items-center justify-center gap-1.5 rounded-xl border border-zinc-200 bg-zinc-100 px-3 text-sm font-semibold text-zinc-800 transition-all hover:border-[#007AFF]/45 hover:bg-white active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50 dark:border-brand-border dark:bg-brand-surfaceHighlight dark:text-zinc-100 dark:hover:border-[#64B5FF]/40';
+const receptionInlineActionBtnLight =
+  'inline-flex h-12 shrink-0 items-center justify-center gap-2 rounded-xl border border-zinc-200/90 bg-white px-3 text-[13px] font-semibold text-zinc-800 shadow-sm transition-all hover:border-[#007AFF]/45 active:scale-[0.98] dark:border-white/[0.12] dark:bg-white/[0.06] dark:text-zinc-100 dark:shadow-none';
+/** Reserva a altura da dica sob CPF/CNPJ para manter a grade entre colunas. */
+const receptionFieldHintSlot =
+  'mt-1 min-h-4 px-1 text-[11px] font-medium leading-4';
 
 function sortArchivedOrdersNewestFirst(orders: ServiceOrderListItem[]): ServiceOrderListItem[] {
   return [...orders].sort(
@@ -1368,17 +1389,17 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
       ) : null}
 
       {/* Cartão principal — vidro iOS */}
-      <div className={`${receptionPageGlass} overflow-hidden`}>
+      <div className={`${receptionPageGlass} overflow-x-clip`}>
         <div className="pointer-events-none absolute -top-32 -right-32 w-[22rem] h-[22rem] bg-gradient-to-br from-cyan-400/20 to-blue-600/10 rounded-full blur-3xl opacity-70" />
         <div className="pointer-events-none absolute -bottom-28 -left-20 w-[18rem] h-[18rem] bg-gradient-to-br from-sky-400/20 to-blue-600/10 rounded-full blur-3xl opacity-60" />
 
         <form
           onSubmit={handleSubmit}
-          className="relative z-10 [&_input]:shadow-[0_6px_18px_-6px_rgba(0,0,0,0.12),0_3px_10px_-4px_rgba(0,0,0,0.08),0_1px_4px_-2px_rgba(0,0,0,0.05)] [&_textarea]:shadow-[0_6px_18px_-6px_rgba(0,0,0,0.12),0_3px_10px_-4px_rgba(0,0,0,0.08),0_1px_4px_-2px_rgba(0,0,0,0.05)] dark:[&_input]:shadow-none dark:[&_textarea]:shadow-none"
+          className="reception-intake-form relative z-10 box-border min-w-0 max-w-full [&_input]:shadow-[0_6px_18px_-6px_rgba(0,0,0,0.12),0_3px_10px_-4px_rgba(0,0,0,0.08),0_1px_4px_-2px_rgba(0,0,0,0.05)] [&_textarea]:shadow-[0_6px_18px_-6px_rgba(0,0,0,0.12),0_3px_10px_-4px_rgba(0,0,0,0.08),0_1px_4px_-2px_rgba(0,0,0,0.05)] dark:[&_input]:shadow-none dark:[&_textarea]:shadow-none"
         >
           {/* Bloco único da ficha */}
           <div className={`${receptionSectionShell} w-full rounded-[calc(2rem-2px)] sm:rounded-[calc(2.25rem-2px)]`}>
-            <div className="px-2.5 py-3 sm:p-5 lg:p-6">
+            <div className="box-border min-w-0 max-w-full px-3 py-3 sm:px-5 sm:py-5 lg:px-6 lg:py-6">
           <div className={`mb-4 flex justify-end ${receptionPortraitVertical || desktopShell ? 'hidden' : ''}`}>
             <button
               type="button"
@@ -1390,11 +1411,11 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
               Limpar ficha
             </button>
           </div>
-          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:gap-7">
+          <div className={receptionFormCols}>
             {/* Dados do cliente — no retrato (tablet/phone): primeiro; no desktop: coluna direita */}
-            <div className={`${receptionPortraitVertical ? 'order-1' : 'order-2'} space-y-6`}>
-              <div className="flex h-10 items-end justify-between gap-2 border-b border-zinc-200/80 pb-2 dark:border-white/[0.08]">
-                <h2 className="min-w-0 flex-1 truncate text-[14px] font-bold uppercase leading-none tracking-[0.08em] text-zinc-700 dark:text-zinc-200">
+            <div className={`${receptionPortraitVertical ? 'order-1' : 'order-2'} ${receptionFormCol}`}>
+              <div className={receptionSectionHeader}>
+                <h2 className={receptionSectionTitle}>
                   Dados do cliente
                 </h2>
                 <button
@@ -1407,8 +1428,8 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                   Limpar Dados
                 </button>
               </div>
-              <div className="relative" ref={customerSearchBoxRef}>
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+              <div className="relative min-w-0" ref={customerSearchBoxRef}>
+                <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-end sm:gap-4">
                   <div className="min-w-0 flex-1">
                     <Input
                       label="Nome Completo"
@@ -1434,13 +1455,16 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                       })
                     }
                     aria-expanded={intakeCustomerSearchOpen}
-                    className="flex h-[46px] shrink-0 items-center justify-center gap-2 rounded-xl border border-zinc-200/90 bg-white px-3 text-[13px] font-semibold text-zinc-800 shadow-sm transition-all hover:border-[#007AFF]/45 active:scale-[0.98] dark:border-white/[0.12] dark:bg-white/[0.06] dark:text-zinc-100 dark:shadow-none sm:mb-0.5"
+                    className={receptionInlineActionBtnLight}
                     title="Buscar cliente já cadastrado"
                   >
                     <Search className="h-4 w-4 text-[#007AFF] dark:text-[#7ab8ff]" aria-hidden />
                     Buscar cliente
                   </button>
                 </div>
+                <p className={receptionFieldHintSlot} aria-hidden>
+                  {'\u00a0'}
+                </p>
                 {intakeExistingCustomerId ? (
                   <div className="mt-2 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-zinc-200/70 bg-zinc-50/70 px-3 py-2 dark:border-white/[0.08] dark:bg-zinc-950/30">
                     <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
@@ -1503,16 +1527,21 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                   </div>
                 ) : null}
               </div>
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:items-end">
-                <Input
-                  label="Telefone"
-                  name="phone"
-                  placeholder="Telefone"
-                  value={customer.phone}
-                  onChange={handleInputChange}
-                  icon={<Smartphone className="w-4 h-4" />}
-                  required
-                />
+              <div className={receptionFormRow2}>
+                <div className="min-w-0">
+                  <Input
+                    label="Telefone"
+                    name="phone"
+                    placeholder="Telefone"
+                    value={customer.phone}
+                    onChange={handleInputChange}
+                    icon={<Smartphone className="w-4 h-4" />}
+                    required
+                  />
+                  <p className={receptionFieldHintSlot} aria-hidden>
+                    {'\u00a0'}
+                  </p>
+                </div>
                 <div className="min-w-0">
                   <Input
                     label="CPF / CNPJ"
@@ -1532,7 +1561,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                     }
                   />
                   <p
-                    className={`mt-1 min-h-[1rem] px-1 text-[11px] font-medium ${
+                    className={`${receptionFieldHintSlot} ${
                       customerDocStatus === 'invalid'
                         ? 'text-red-600 dark:text-red-400'
                         : customerDocStatus === 'cpf' || customerDocStatus === 'cnpj'
@@ -1545,7 +1574,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                   </p>
                 </div>
               </div>
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:items-end">
+              <div className={receptionFormRow2}>
                 <Input
                   label="E-mail"
                   name="email"
@@ -1563,7 +1592,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                   icon={<MapPin className="w-4 h-4" />}
                 />
               </div>
-              <div>
+              <div className="min-w-0">
                 <Input
                   label="Endereço"
                   name="address"
@@ -1573,7 +1602,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                   icon={<Map className="w-4 h-4" />}
                 />
               </div>
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:items-end">
+              <div className={receptionFormRow2}>
                 <Input
                   label="Nº"
                   name="addressNumber"
@@ -1596,17 +1625,13 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
             {/* Veículo/módulo — no retrato: após cliente/queixa/autorização; no desktop: coluna esquerda */}
             <div
               className={`${
-                receptionPortraitVertical ? 'order-2 flex flex-col gap-6' : 'order-1 space-y-6'
+                receptionPortraitVertical ? 'order-2 flex flex-col gap-5' : `order-1 ${receptionFormCol}`
               }`}
             >
               {/* No retrato: dados do veículo por último entre os blocos desta coluna (order-4) */}
-              <div className={receptionPortraitVertical ? 'order-4 space-y-6' : 'contents'}>
-              <div
-                className="flex h-10 items-end justify-between gap-2 border-b border-zinc-200/80 pb-2 dark:border-white/[0.08]"
-              >
-                <h2
-                  className="min-w-0 flex-1 truncate text-[14px] font-bold uppercase leading-none tracking-[0.08em] text-zinc-700 dark:text-zinc-200"
-                >
+              <div className={receptionPortraitVertical ? 'order-4 flex flex-col gap-5' : 'contents'}>
+              <div className={receptionSectionHeader}>
+                <h2 className={receptionSectionTitle}>
                   {receptionMode === 'vehicle'
                     ? receptionPortraitVertical
                       ? 'Dados do veículo'
@@ -1626,9 +1651,9 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
 
               {receptionMode === 'vehicle' ? (
                 <>
-                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:items-end">
+                  <div className={receptionFormRow2}>
                     <div className="min-w-0">
-                      <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+                      <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-end sm:gap-4">
                         <div className="min-w-0 flex-1">
                           <Input
                             label="Placa"
@@ -1651,7 +1676,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                           onClick={() => void runPlacaLookup(true)}
                           disabled={plateLookupLoading}
                           title="Buscar placa"
-                          className="inline-flex h-[46px] shrink-0 items-center justify-center gap-1.5 self-end rounded-xl border border-zinc-200 bg-zinc-100 px-3 text-sm font-semibold text-zinc-800 transition-all hover:border-[#007AFF]/45 hover:bg-white active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50 dark:border-brand-border dark:bg-brand-surfaceHighlight dark:text-zinc-100 dark:hover:border-[#64B5FF]/40 sm:mb-0.5"
+                          className={receptionInlineActionBtn}
                         >
                           {plateLookupLoading ? (
                             <Loader2 className="h-4 w-4 animate-spin text-[#007AFF] dark:text-[#7ab8ff]" aria-hidden />
@@ -1662,10 +1687,14 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                         </button>
                       </div>
                       {plateLookupError ? (
-                        <p className="mt-1.5 px-1 text-xs text-red-600 dark:text-red-400" role="alert">
+                        <p className={`${receptionFieldHintSlot} text-red-600 dark:text-red-400`} role="alert">
                           {plateLookupError}
                         </p>
-                      ) : null}
+                      ) : (
+                        <p className={receptionFieldHintSlot} aria-hidden>
+                          {'\u00a0'}
+                        </p>
+                      )}
                     </div>
                     <div className="min-w-0">
                       <Input
@@ -1678,18 +1707,26 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                         icon={<Hash className="w-4 h-4" />}
                         required
                       />
+                      <p className={receptionFieldHintSlot} aria-hidden>
+                        {'\u00a0'}
+                      </p>
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:items-end">
-                    <Input
-                      label="Marca / montadora"
-                      name="vehicleBrand"
-                      placeholder="Marca"
-                      value={customer.vehicleBrand ?? ''}
-                      onChange={handleInputChange}
-                      icon={<FileText className="w-4 h-4" />}
-                    />
+                  <div className={receptionFormRow2}>
+                    <div className="min-w-0">
+                      <Input
+                        label="Marca / montadora"
+                        name="vehicleBrand"
+                        placeholder="Marca"
+                        value={customer.vehicleBrand ?? ''}
+                        onChange={handleInputChange}
+                        icon={<FileText className="w-4 h-4" />}
+                      />
+                      <p className={receptionFieldHintSlot} aria-hidden>
+                        {'\u00a0'}
+                      </p>
+                    </div>
                     <div className="min-w-0">
                       <Input
                         label="Modelo (aparece no card)"
@@ -1699,13 +1736,12 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                         onChange={handleInputChange}
                         icon={<Car className="w-4 h-4" />}
                       />
-                      {/* Reserva a mesma altura da dica CPF/CNPJ na coluna do cliente */}
-                      <p className="mt-1 min-h-[1rem] px-1 text-[11px] font-medium" aria-hidden>
+                      <p className={receptionFieldHintSlot} aria-hidden>
                         {'\u00a0'}
                       </p>
                     </div>
                   </div>
-                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 sm:items-end">
+                  <div className={receptionFormRow3}>
                     <Input
                       label="Cor"
                       name="vehicleColor"
@@ -1733,7 +1769,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                   </div>
                 </>
               ) : (
-                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:items-end">
+                <div className={receptionFormRow2}>
                   <Input 
                     label="Veículo"
                     name="vehicleModel"
@@ -1990,7 +2026,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                 </div>
               )}
 
-              <div className={receptionPortraitVertical ? 'order-5 space-y-6' : 'contents'}>
+              <div className={receptionPortraitVertical ? 'order-5 flex flex-col gap-5' : 'contents'}>
               <div className="space-y-3">
                 <label className={`${iosLabel} ml-1`}>
                   {receptionMode === 'vehicle' ? 'Fotos do veículo (opcional)' : 'Fotos (opcional)'}
@@ -2113,10 +2149,10 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
 
             </div>
           </div>
-          <div className="pt-4 flex justify-end">
+          <div className="box-border flex min-w-0 max-w-full justify-end pb-2 pt-5 sm:pb-1">
             <button
               type="submit"
-              className="group relative flex min-w-[220px] items-center justify-center gap-2 rounded-2xl bg-[#007AFF] px-8 py-3.5 text-[15px] font-semibold text-white shadow-[0_14px_34px_-10px_rgba(37,99,235,0.32),0_6px_18px_-8px_rgba(37,99,235,0.22),0_2px_8px_-4px_rgba(0,0,0,0.08)] transition-all hover:opacity-95 active:scale-[0.98] dark:shadow-lg dark:shadow-blue-500/25"
+              className="group relative flex min-w-0 max-w-full items-center justify-center gap-2 rounded-2xl bg-[#007AFF] px-6 py-3.5 text-[15px] font-semibold text-white shadow-[0_14px_34px_-10px_rgba(37,99,235,0.32),0_6px_18px_-8px_rgba(37,99,235,0.22),0_2px_8px_-4px_rgba(0,0,0,0.08)] transition-all hover:opacity-95 active:scale-[0.98] dark:shadow-lg dark:shadow-blue-500/25 sm:min-w-[220px] sm:px-8"
             >
               Criar Ficha
               <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
