@@ -522,9 +522,9 @@ export const LabEvaluationSection: React.FC<LabEvaluationSectionProps> = ({
                       setError(null);
                     }}
                     disabled={formBusy}
-                    className="flex w-full items-center gap-3 rounded-xl border border-stone-300/90 bg-stone-100/80 px-3.5 py-3 text-left transition hover:bg-stone-200/70 disabled:opacity-55 dark:border-white/[0.12] dark:bg-stone-900/50 dark:hover:bg-stone-800/60"
+                    className="flex w-full items-center gap-3 rounded-xl border border-[#9A6434]/35 bg-[#9A6434]/10 px-3.5 py-3 text-left transition hover:bg-[#9A6434]/15 disabled:opacity-55 dark:border-[#9A6434]/40 dark:bg-[#9A6434]/15 dark:hover:bg-[#9A6434]/25"
                   >
-                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[0.65rem] bg-stone-600/15 text-stone-700 dark:text-stone-300">
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[0.65rem] bg-[#9A6434]/18 text-[#9A6434] dark:text-[#D4A574]">
                       <OctagonX className="h-5 w-5" strokeWidth={2.25} aria-hidden />
                     </span>
                     <span className="min-w-0 flex-1">
@@ -539,7 +539,7 @@ export const LabEvaluationSection: React.FC<LabEvaluationSectionProps> = ({
                 ) : (
                   <div className="space-y-3">
                     <div className="flex items-center justify-between gap-2">
-                      <p className="text-[13px] font-semibold text-stone-800 dark:text-stone-200">
+                      <p className="text-[13px] font-semibold text-[#9A6434] dark:text-[#D4A574]">
                         Registrar sem conserto
                       </p>
                       <button
@@ -643,7 +643,7 @@ export const LabEvaluationSection: React.FC<LabEvaluationSectionProps> = ({
                       type="button"
                       onClick={() => void handleUnrepairSubmit()}
                       disabled={unrepairSaving || !unrepairReason.trim()}
-                      className="flex w-full items-center justify-center gap-2 rounded-xl bg-stone-700 px-4 py-3 text-[14px] font-bold text-white transition hover:brightness-110 disabled:opacity-55 dark:bg-stone-600"
+                      className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#9A6434] px-4 py-3 text-[14px] font-bold text-white transition hover:brightness-110 disabled:opacity-55"
                     >
                       {unrepairSaving ? <Loader2 className="h-5 w-5 animate-spin" /> : <OctagonX className="h-5 w-5" />}
                       Confirmar sem conserto

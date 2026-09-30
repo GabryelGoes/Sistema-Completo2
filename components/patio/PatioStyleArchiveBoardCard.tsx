@@ -90,7 +90,7 @@ export function PatioStyleArchiveBoardCard({
           ${patioBoardGlassCardShadow}
           motion-safe:transition-[border-radius,box-shadow] motion-safe:duration-500 motion-safe:ease-[cubic-bezier(0.34,1.35,0.25,1)]
           ${shellRound}
-          ${isGarantia ? 'border-2 border-red-500/70' : 'border-0'}
+          border-0
         `}
       >
         <div
@@ -163,7 +163,7 @@ export function PatioStyleArchiveBoardCard({
                   hasCustomer ? (boardPanoramic ? 'mt-1.5' : 'mt-2') : 'mt-0.5'
                 }`}
               >
-                <div className="min-w-0 flex-1">
+                <div className="flex min-w-0 flex-1 items-center gap-1.5">
                   <div
                     className={`
                     inline-flex max-w-full cursor-default items-center justify-start gap-1.5 rounded-2xl border px-2.5 py-1.5 transition-none
@@ -197,6 +197,18 @@ export function PatioStyleArchiveBoardCard({
                       {hasMechanic ? capitalizeFirst(mechanic) : 'Sem técnico'}
                     </span>
                   </div>
+                  {isGarantia ? (
+                    <span
+                      className={`inline-flex shrink-0 items-center rounded-md border border-red-600 bg-red-600 font-semibold uppercase tracking-wide text-white shadow-none ${
+                        isModuleMode
+                          ? 'px-2 py-[0.2rem] text-[9px]'
+                          : 'px-[0.65rem] py-[0.26rem] text-[11.7px]'
+                      }`}
+                      title="Em garantia"
+                    >
+                      Garantia
+                    </span>
+                  ) : null}
                 </div>
                 {!isModuleMode ? (
                   <div className="shrink-0">

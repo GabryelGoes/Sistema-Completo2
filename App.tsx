@@ -349,13 +349,45 @@ export default function App() {
         }
         return;
       }
+      if (item.kind === 'lab_sem_conserto') {
+        const soId = item.serviceOrderId?.trim() || '';
+        if (!soId) return;
+        setLabOsScanQuick(null);
+        setLaboratorioPendingOrderId(soId);
+        setLaboratorioPendingScanToken(Date.now());
+        setIsPartsModalOpen(false);
+        setPartsBootIntent(null);
+        setIsTvPatioModalOpen(false);
+        setSettingsHubOpen(false);
+        setIsSettingsOpen(false);
+        setIsSupportChatOpen(false);
+        if (isLimitedSystemUser) {
+          setVisitedUserTabs((prev) => {
+            if (prev.has('laboratorio')) return prev;
+            const next = new Set(prev);
+            next.add('laboratorio');
+            return next;
+          });
+          if (userAllowedTabs.includes('laboratorio')) setUserTab('laboratorio');
+          else setUserTab('home');
+        } else {
+          setVisitedTabs((prev) => {
+            if (prev.has('laboratorio')) return prev;
+            const next = new Set(prev);
+            next.add('laboratorio');
+            return next;
+          });
+          setCurrentTab('laboratorio');
+        }
+        return;
+      }
       const soId = item.serviceOrderId?.trim() || '';
       const budgetId = item.budgetId?.trim() || '';
       if (!soId || !budgetId) return;
       goToOrcamentosTab();
       setHubBudgetViewer({ serviceOrderId: soId, budgetId });
     },
-    [goToOrcamentosTab]
+    [goToOrcamentosTab, isLimitedSystemUser, userAllowedTabs]
   );
 
   const handleMinimizeBudgetBanners = useCallback((items: MacOsBudgetBannerItem[]) => {
@@ -380,12 +412,18 @@ export default function App() {
     (item: MacOsBudgetBannerItem) => {
       if (!isDesktopShell) return;
       const isComment = item.kind === 'comment';
+      const isLabSemConserto = item.kind === 'lab_sem_conserto';
       if (isComment && !commentBannerNotifications) return;
-      if (!isComment && !budgetBannerNotifications) return;
+      if (!isComment && !isLabSemConserto && !budgetBannerNotifications) return;
       setMinimizedBudgetBanners((prev) =>
         prev.filter((x) => {
           if (isComment) {
             return !(x.kind === 'comment' && x.id === item.id);
+          }
+          if (isLabSemConserto) {
+            return !(
+              x.kind === 'lab_sem_conserto' && x.serviceOrderId === item.serviceOrderId
+            );
           }
           return !(x.budgetId === item.budgetId && x.kind === item.kind);
         })
@@ -395,7 +433,10 @@ export default function App() {
           prev.some((x) =>
             isComment
               ? x.id === item.id || (x.kind === 'comment' && x.commentNotification?.id === item.id)
-              : x.id === item.id || (x.budgetId === item.budgetId && x.kind === item.kind)
+              : isLabSemConserto
+                ? x.id === item.id ||
+                  (x.kind === 'lab_sem_conserto' && x.serviceOrderId === item.serviceOrderId)
+                : x.id === item.id || (x.budgetId === item.budgetId && x.kind === item.kind)
           )
         ) {
           return prev;
@@ -491,7 +532,50 @@ export default function App() {
 
   const handleBudgetBannerNotification = useCallback(
     (n: Notification) => {
-      if (!isDesktopShell || !budgetBannerNotifications) return;
+      if (!isDesktopShell) return;
+      if (n.type === 'lab_sem_conserto') {
+        const soId =
+          typeof n.payload.service_order_id === 'string' ? n.payload.service_order_id.trim() : '';
+        if (!soId) return;
+        const author =
+          (typeof n.payload.author_display_name === 'string' && n.payload.author_display_name.trim()) ||
+          (typeof n.payload.technician_name === 'string' && n.payload.technician_name.trim()) ||
+          null;
+        const authorPhotoUrl =
+          typeof n.payload.author_photo_url === 'string' && n.payload.author_photo_url.trim()
+            ? n.payload.author_photo_url.trim()
+            : null;
+        const osRaw = n.payload.os_number;
+        const osNumber =
+          typeof osRaw === 'number' && osRaw >= 1
+            ? Math.floor(osRaw)
+            : typeof osRaw === 'string' && Number(osRaw) >= 1
+              ? Math.floor(Number(osRaw))
+              : null;
+        const moduleIdent =
+          typeof n.payload.module_identification === 'string' && n.payload.module_identification.trim()
+            ? n.payload.module_identification.trim()
+            : null;
+        const vehicleModel =
+          (typeof n.payload.vehicle_model === 'string' && n.payload.vehicle_model.trim()
+            ? n.payload.vehicle_model.trim()
+            : null) || moduleIdent;
+        pushBudgetBanner({
+          id: n.id,
+          kind: 'lab_sem_conserto',
+          serviceOrderId: soId,
+          vehicleModel,
+          vehiclePlate:
+            typeof n.payload.vehicle_plate === 'string' ? n.payload.vehicle_plate : null,
+          customerName:
+            typeof n.payload.customer_name === 'string' ? n.payload.customer_name : null,
+          authorName: author,
+          authorPhotoUrl,
+          osNumber,
+        });
+        return;
+      }
+      if (!budgetBannerNotifications) return;
       if (n.type !== 'budget_created' && n.type !== 'budget_edited') return;
       const soId =
         typeof n.payload.service_order_id === 'string' ? n.payload.service_order_id.trim() : '';
@@ -542,6 +626,46 @@ export default function App() {
         ).catch(() => {});
         return;
       }
+      if (n.type === 'lab_sem_conserto') {
+        const soId =
+          typeof n.payload.service_order_id === 'string' ? n.payload.service_order_id.trim() : '';
+        if (soId) {
+          setLabOsScanQuick(null);
+          setLaboratorioPendingOrderId(soId);
+          setLaboratorioPendingScanToken(Date.now());
+          setIsPartsModalOpen(false);
+          setPartsBootIntent(null);
+          setIsTvPatioModalOpen(false);
+          setSettingsHubOpen(false);
+          setIsSettingsOpen(false);
+          setIsSupportChatOpen(false);
+          if (isLimitedSystemUser) {
+            setVisitedUserTabs((prev) => {
+              if (prev.has('laboratorio')) return prev;
+              const next = new Set(prev);
+              next.add('laboratorio');
+              return next;
+            });
+            if (userAllowedTabs.includes('laboratorio')) setUserTab('laboratorio');
+            else setUserTab('home');
+          } else {
+            setVisitedTabs((prev) => {
+              if (prev.has('laboratorio')) return prev;
+              const next = new Set(prev);
+              next.add('laboratorio');
+              return next;
+            });
+            setCurrentTab('laboratorio');
+          }
+        }
+        void markNotificationRead(
+          n.id,
+          authSession?.role === 'user' && authSession.userId
+            ? { for: 'technician', technicianSlug: authSession.userId }
+            : undefined
+        ).catch(() => {});
+        return;
+      }
       if (n.type === 'budget_created' || n.type === 'budget_edited') {
         const soId =
           typeof n.payload.service_order_id === 'string' ? n.payload.service_order_id.trim() : '';
@@ -558,7 +682,7 @@ export default function App() {
         ).catch(() => {});
       }
     },
-    [authSession, goToOrcamentosTab]
+    [authSession, goToOrcamentosTab, isLimitedSystemUser, userAllowedTabs]
   );
 
   const notificationCenterProps = useMemo((): Omit<NotificationCenterProps, 'placement'> | undefined => {

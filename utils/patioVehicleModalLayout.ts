@@ -297,11 +297,11 @@ export function getPatioVehicleModalLayout(
       'patio-vehicle-modal__shell relative flex h-[100dvh] max-h-[100dvh] w-full min-h-0 flex-col overflow-hidden rounded-none border-0 bg-[#F2F2F7] shadow-none dark:bg-[#0a0a0a] dark:shadow-none',
     scroll: 'patio-vm-scroll min-h-0 flex-1 overflow-y-auto overscroll-y-auto custom-scrollbar',
     header:
-      'patio-vm-desktop-header shrink-0 border-b border-zinc-300/80 bg-white/95 px-6 py-2 dark:border-white/[0.08] dark:bg-zinc-900/95 xl:px-8 xl:py-2.5',
-    headerInner: 'mx-auto flex w-full min-w-0 max-w-[1680px] flex-col gap-1.5',
+      'patio-vm-desktop-header shrink-0 border-b border-zinc-300/80 bg-white/95 px-6 py-1.5 dark:border-white/[0.08] dark:bg-zinc-900/95 xl:px-8 xl:py-1.5',
+    headerInner: 'mx-auto flex w-full min-w-0 max-w-[1680px] flex-col gap-1',
     headerTitlePad: 'min-w-0',
     headerMeta:
-      'patio-vm-header-meta patio-vm-header-meta--pc mt-2 grid w-full min-w-0 grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4',
+      'patio-vm-header-meta patio-vm-header-meta--pc mt-1.5 grid w-full min-w-0 grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4',
     title:
       'patio-vehicle-modal__title font-vehicle min-w-0 flex-1 truncate text-[2rem] font-bold uppercase leading-none tracking-tight text-zinc-900 dark:text-white xl:text-[2.35rem]',
     titlePlateRow: 'mt-0 flex min-w-0 items-center gap-3',

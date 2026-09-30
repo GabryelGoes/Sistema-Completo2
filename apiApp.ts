@@ -1530,14 +1530,24 @@ export function createApiApp() {
 
   async function shouldNotifyAdminForSystemType(type: string): Promise<boolean> {
     const cfg = await getSystemNotificationConfig();
-    return cfg.adminNotificationTypes.includes(type);
+    if (cfg.adminNotificationTypes.includes(type)) return true;
+    // Migração: Sem conserto (lab) herda preferência de “mudança de etapa”.
+    if (type === "lab_sem_conserto" && cfg.adminNotificationTypes.includes("stage_change")) {
+      return true;
+    }
+    return false;
   }
 
   async function getTechnicianRecipientIdsForSystemType(type: string): Promise<string[]> {
     const cfg = await getSystemNotificationConfig();
     if (!cfg.hasExplicitConfig) return getTechnicianUserIds();
-    return cfg.subscribers
+    const direct = cfg.subscribers
       .filter((s) => s.notificationTypes.includes(type))
+      .map((s) => s.systemUserId);
+    if (direct.length > 0 || type !== "lab_sem_conserto") return direct;
+    // Migração: quem recebia mudança de etapa passa a receber Sem conserto.
+    return cfg.subscribers
+      .filter((s) => s.notificationTypes.includes("stage_change"))
       .map((s) => s.systemUserId);
   }
 
@@ -4631,6 +4641,10 @@ export function createApiApp() {
         ) {
           initialStatus = normalized;
         }
+      }
+      // Garantia no laboratório: entra direto na etapa Garantia (bancada 1–24).
+      if (orderType === "module" && bodyGarantiaTag === true) {
+        initialStatus = "GARANTIA";
       }
 
       const benchFields =
@@ -11506,7 +11520,7 @@ export function createApiApp() {
       const { data: previous } = await supabaseAdmin
         .from("service_orders")
         .select(
-          "status, issue_description, delivery_date, assigned_technician, plate, vehicle_model, order_type, bench_slot, external_repair, lab_service_links, customers(name)"
+          "status, issue_description, delivery_date, assigned_technician, plate, vehicle_model, order_type, bench_slot, bench_queued_at, external_repair, lab_service_links, customers(name)"
         )
         .eq("id", id)
         .eq("workshop_id", WORKSHOP_ID)
@@ -11519,6 +11533,18 @@ export function createApiApp() {
         (updatePayload.order_type as string | undefined) ??
         (previous as { order_type?: string } | null)?.order_type ??
         null;
+
+      // Marcar garantia no lab sem status: direciona para a etapa Garantia (bancada).
+      if (
+        effectiveOrderType === "module" &&
+        updatePayload.garantia_tag === true &&
+        updatePayload.status === undefined &&
+        previous &&
+        String((previous as { status?: string }).status ?? "") !== "GARANTIA"
+      ) {
+        updatePayload.status = "GARANTIA";
+      }
+
       if (
         updatePayload.status !== undefined &&
         effectiveOrderType === "module" &&
@@ -11563,6 +11589,33 @@ export function createApiApp() {
           const merged: ExternalRepair = { ...(prevExternal ?? {}) };
           if (!merged.returnedAt) merged.returnedAt = today;
           updatePayload.external_repair = merged;
+        }
+      } else if (
+        // Cura: módulo em etapa de bancada (ex.: Garantia) sem compartimento nem fila.
+        effectiveOrderType === "module" &&
+        previous &&
+        updatePayload.bench_slot === undefined &&
+        updatePayload.bench_queued_at === undefined
+      ) {
+        const statusAfter =
+          (updatePayload.status as string | undefined) ??
+          String((previous as { status?: string }).status ?? "");
+        const prevSlot =
+          typeof (previous as { bench_slot?: number | null }).bench_slot === "number"
+            ? ((previous as { bench_slot?: number | null }).bench_slot as number)
+            : null;
+        const prevQueued = (previous as { bench_queued_at?: string | null }).bench_queued_at;
+        if (statusUsesBench(statusAfter) && prevSlot == null && !prevQueued) {
+          const healed = await pickBenchSlotForStatus(statusAfter, null, id);
+          if (healed != null) {
+            updatePayload.bench_slot = healed;
+            updatePayload.bench_slot_at = new Date().toISOString();
+            updatePayload.bench_queued_at = null;
+          } else {
+            updatePayload.bench_slot = null;
+            updatePayload.bench_slot_at = null;
+            updatePayload.bench_queued_at = new Date().toISOString();
+          }
         }
       }
 
@@ -11661,27 +11714,60 @@ export function createApiApp() {
       const customerNameSo = previous?.customers && typeof previous.customers === "object" && "name" in previous.customers
         ? String((previous.customers as { name: string }).name ?? "")
         : "";
+      const moduleIdent =
+        typeof data?.module_identification === "string" && data.module_identification.trim()
+          ? data.module_identification.trim()
+          : null;
       const payloadBase = {
         service_order_id: id,
         vehicle_plate: data?.plate ?? previous?.plate ?? null,
-        vehicle_model: data?.vehicle_model ?? previous?.vehicle_model ?? null,
+        vehicle_model:
+          (typeof data?.vehicle_model === "string" && data.vehicle_model.trim()
+            ? data.vehicle_model.trim()
+            : null) ||
+          moduleIdent ||
+          (previous?.vehicle_model ?? null),
         customer_name: customerNameSo || null,
+        module_identification: moduleIdent,
+        os_number: data?.os_number ?? null,
+        order_type: effectiveOrderType,
       };
       if (previous) {
+        const statusChanged =
+          updatePayload.status !== undefined && previous.status !== data?.status;
+        const enteredLabSemConserto =
+          statusChanged &&
+          effectiveOrderType === "module" &&
+          String(data?.status ?? "") === "SEM_CONSERTO";
         if (isAdminActor) {
           // Ações do admin: notificar todos os técnicos
           const stageTechIds = await getTechnicianRecipientIdsForSystemType("stage_change");
+          const labSemConsertoTechIds = enteredLabSemConserto
+            ? await getTechnicianRecipientIdsForSystemType("lab_sem_conserto")
+            : [];
           const complaintTechIds = await getTechnicianRecipientIdsForSystemType("complaint_edited");
           const deliveryTechIds = await getTechnicianRecipientIdsForSystemType("delivery_date_changed");
-          if (updatePayload.status !== undefined && previous.status !== data?.status) {
-            for (const techId of stageTechIds) {
-              await supabaseAdmin.from("notifications").insert({
-                workshop_id: WORKSHOP_ID,
-                type: "stage_change",
-                payload: { ...payloadBase, new_status: data?.status },
-                target_type: "technician",
-                target_slug: techId,
-              }).then(({ error: e }) => { if (e) console.error("[API] Notificação stage_change:", e); });
+          if (statusChanged) {
+            if (enteredLabSemConserto) {
+              for (const techId of labSemConsertoTechIds) {
+                await supabaseAdmin.from("notifications").insert({
+                  workshop_id: WORKSHOP_ID,
+                  type: "lab_sem_conserto",
+                  payload: { ...payloadBase, new_status: data?.status },
+                  target_type: "technician",
+                  target_slug: techId,
+                }).then(({ error: e }) => { if (e) console.error("[API] Notificação lab_sem_conserto:", e); });
+              }
+            } else {
+              for (const techId of stageTechIds) {
+                await supabaseAdmin.from("notifications").insert({
+                  workshop_id: WORKSHOP_ID,
+                  type: "stage_change",
+                  payload: { ...payloadBase, new_status: data?.status },
+                  target_type: "technician",
+                  target_slug: techId,
+                }).then(({ error: e }) => { if (e) console.error("[API] Notificação stage_change:", e); });
+              }
             }
           }
           if (updatePayload.issue_description !== undefined && previous.issue_description !== data?.issue_description) {
@@ -11710,17 +11796,30 @@ export function createApiApp() {
           // Ações do técnico: notificar apenas o admin (Rei do ABS)
           const technicianLabel = typeof actorTechnicianName === "string" && actorTechnicianName.trim() ? actorTechnicianName.trim() : (actorTechnicianSlug || "Técnico");
           const shouldAdminStage = await shouldNotifyAdminForSystemType("stage_change");
+          const shouldAdminLabSemConserto = enteredLabSemConserto
+            ? await shouldNotifyAdminForSystemType("lab_sem_conserto")
+            : false;
           const shouldAdminComplaint = await shouldNotifyAdminForSystemType("complaint_edited");
           const shouldAdminDelivery = await shouldNotifyAdminForSystemType("delivery_date_changed");
-          if (updatePayload.status !== undefined && previous.status !== data?.status) {
-            if (shouldAdminStage) {
-            await supabaseAdmin.from("notifications").insert({
-              workshop_id: WORKSHOP_ID,
-              type: "stage_change",
-              payload: { ...payloadBase, new_status: data?.status, technician_name: technicianLabel },
-              target_type: "admin",
-              target_slug: null,
-            }).then(({ error: e }) => { if (e) console.error("[API] Notificação stage_change (admin):", e); });
+          if (statusChanged) {
+            if (enteredLabSemConserto) {
+              if (shouldAdminLabSemConserto) {
+                await supabaseAdmin.from("notifications").insert({
+                  workshop_id: WORKSHOP_ID,
+                  type: "lab_sem_conserto",
+                  payload: { ...payloadBase, new_status: data?.status, technician_name: technicianLabel },
+                  target_type: "admin",
+                  target_slug: null,
+                }).then(({ error: e }) => { if (e) console.error("[API] Notificação lab_sem_conserto (admin):", e); });
+              }
+            } else if (shouldAdminStage) {
+              await supabaseAdmin.from("notifications").insert({
+                workshop_id: WORKSHOP_ID,
+                type: "stage_change",
+                payload: { ...payloadBase, new_status: data?.status, technician_name: technicianLabel },
+                target_type: "admin",
+                target_slug: null,
+              }).then(({ error: e }) => { if (e) console.error("[API] Notificação stage_change (admin):", e); });
             }
           }
           if (updatePayload.issue_description !== undefined && previous.issue_description !== data?.issue_description) {

@@ -38,6 +38,7 @@ const PATIO_STAGE_PRIORITY: Record<string, number> = {
 };
 
 const LAB_STAGE_PRIORITY: Record<string, number> = {
+  Garantia: 0,
   'Aguardando Avaliação': 1,
   'Avaliação Técnica': 2,
   'Aguardando Aprovação': 3,
@@ -75,7 +76,7 @@ const LAB_STATUS_TO_STAGE: Record<string, string> = {
   EM_SERVICO: 'Em Serviço',
   SEM_CONSERTO: 'Sem Conserto',
   PRONTO_PRA_RETIRADA: 'Pronto pra Retirada',
-  GARANTIA: 'Aguardando Avaliação',
+  GARANTIA: 'Garantia',
   ORCAMENTO_NAO_APROVADO: 'Orçamento Não Aprovado',
   FINALIZADO: 'Pronto pra Retirada',
   FASE_DE_TESTE: 'Em Serviço',
@@ -137,7 +138,7 @@ export function tvBoardStageColorClass(stage: string, scope: TvScope): string {
       : 'bg-rose-700 text-white';
   }
   if (s.includes('garantia')) return 'bg-red-600 text-white';
-  if (s.includes('sem conserto')) return 'bg-stone-600 text-white';
+  if (s.includes('sem conserto')) return 'bg-[#9A6434] text-white';
   if (s.includes('avaliação') && s.includes('aguardando')) return 'bg-zinc-500 text-white';
   if (s.includes('aguardando aprovação') || s.includes('aguardando aprovacao')) {
     return 'bg-amber-500 text-amber-950';

@@ -1,8 +1,22 @@
 import React, { useMemo, useState } from 'react';
-import { ChevronRight, Loader2, Sparkles, X } from 'lucide-react';
+import { ChevronRight, Loader2, X } from 'lucide-react';
 import type { LabQuickService } from '../../utils/labQuickServices';
 import { ModalPortal } from '../ui/ModalPortal';
 import { iosModalClose, iosModalShell } from '../ui/iosModalStyles';
+
+/** Ícone de envio rápido do pátio, tingido de violeta para o laboratório. */
+function LabQuickServiceIcon({ sizeClass = 'h-10 w-10' }: { sizeClass?: string }) {
+  return (
+    <span className={`relative ${sizeClass} shrink-0 overflow-hidden rounded-[0.65rem] bg-violet-600`}>
+      <img
+        src="/icons/envio-rapido-ios.png"
+        alt=""
+        className="h-full w-full object-cover opacity-95 mix-blend-luminosity"
+      />
+      <span className="pointer-events-none absolute inset-0 bg-violet-600/55 mix-blend-color" aria-hidden />
+    </span>
+  );
+}
 
 export type LabQuickServiceButtonsProps = {
   services: LabQuickService[];
@@ -48,9 +62,7 @@ export const LabQuickServiceButtons: React.FC<LabQuickServiceButtonsProps> = ({
         disabled={busy}
         className="group flex w-full items-center gap-3 rounded-xl border border-zinc-200/90 bg-white px-3.5 py-3 text-left shadow-sm transition hover:bg-zinc-50 disabled:opacity-55 dark:border-white/[0.1] dark:bg-zinc-950/55 dark:hover:bg-zinc-900"
       >
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[0.65rem] bg-violet-600/10 text-violet-700 dark:bg-violet-500/15 dark:text-violet-300">
-          <Sparkles className="h-5 w-5" strokeWidth={2.25} aria-hidden />
-        </span>
+        <LabQuickServiceIcon />
         <span className="min-w-0 flex-1">
           <span className="block text-[14px] font-semibold text-zinc-900 dark:text-white">
             {buttonLabel}
@@ -92,9 +104,7 @@ export const LabQuickServiceButtons: React.FC<LabQuickServiceButtonsProps> = ({
 
               <div className="shrink-0 border-b border-zinc-200/70 px-6 pb-5 pt-7 dark:border-white/[0.07] sm:px-8 sm:pt-8">
                 <div className="flex items-start gap-3 pr-10">
-                  <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[0.7rem] bg-violet-600/10 text-violet-700 dark:bg-violet-500/15 dark:text-violet-300">
-                    <Sparkles className="h-5 w-5" strokeWidth={2.25} aria-hidden />
-                  </span>
+                  <LabQuickServiceIcon sizeClass="h-11 w-11" />
                   <div className="min-w-0 flex-1">
                     <h2
                       id="lab-quick-services-picker-title"

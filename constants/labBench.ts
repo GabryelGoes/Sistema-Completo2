@@ -28,6 +28,7 @@ export interface ExternalRepair {
 
 /** Status que ocupam compartimento físico na bancada (1..24). */
 export const LAB_BENCH_STATUSES: string[] = [
+  "GARANTIA",
   "AGUARDANDO_AVALIACAO",
   "AVALIACAO_TECNICA",
   "AGUARDANDO_APROVACAO",
@@ -57,6 +58,12 @@ export interface LabBenchStageLegend {
 
 export const LAB_BENCH_STAGE_LEGEND: LabBenchStageLegend[] = [
   {
+    id: "GARANTIA",
+    label: "Garantia",
+    statuses: ["GARANTIA"],
+    accent: "bg-red-600",
+  },
+  {
     id: "AGUARDANDO_AVALIACAO",
     label: "Aguardando avaliação",
     statuses: ["AGUARDANDO_AVALIACAO", "AVALIACAO_TECNICA"],
@@ -78,7 +85,7 @@ export const LAB_BENCH_STAGE_LEGEND: LabBenchStageLegend[] = [
     id: "SEM_CONSERTO",
     label: "Sem conserto",
     statuses: ["SEM_CONSERTO"],
-    accent: "bg-stone-600",
+    accent: "bg-[#9A6434]",
   },
   {
     id: "PRONTO_PRA_RETIRADA",
