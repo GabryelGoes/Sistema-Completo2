@@ -9940,7 +9940,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                           </span>
                                         )}
                                       </div>
-                                      <p className={`mb-2 line-clamp-3 font-semibold leading-snug text-zinc-900 dark:text-zinc-100 ${isPatioPcModal || isPatioTabletLikeModal ? 'mb-1.5 text-[11px]' : 'text-[13px]'}`}>
+                                      <p className={`mb-2 truncate font-semibold leading-snug text-zinc-900 dark:text-zinc-100 ${isPatioPcModal || isPatioTabletLikeModal ? 'mb-1.5 text-[11px]' : 'text-[13px]'}`}>
                                         {preview}
                                       </p>
                                       <div className={`mb-2 flex items-center gap-2 text-zinc-600 dark:text-zinc-400 ${isPatioPcModal || isPatioTabletLikeModal ? 'mb-1.5 text-[10px]' : 'text-[11px]'}`}>
