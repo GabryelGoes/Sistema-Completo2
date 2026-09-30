@@ -20,6 +20,11 @@ export const SYSTEM_NOTIFICATION_TYPE_OPTIONS = [
     description: "A OS foi movida para outra etapa.",
   },
   {
+    id: "lab_sem_conserto",
+    label: "Sem conserto (laboratório)",
+    description: "Uma OS do laboratório entrou na etapa Sem conserto.",
+  },
+  {
     id: "complaint_edited",
     label: "Queixa editada",
     description: "A queixa/descrição da OS foi alterada.",

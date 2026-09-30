@@ -42,7 +42,11 @@ function getFirstName(fullName: string | null | undefined): string | null {
 }
 
 function formatVehicleLabel(p: Notification['payload']): string {
-  const model = (p.vehicle_model && p.vehicle_model.trim()) || 'Veículo';
+  const isModule = p.order_type === 'module' || p.new_status === 'SEM_CONSERTO';
+  const model =
+    (p.vehicle_model && p.vehicle_model.trim()) ||
+    (typeof p.module_identification === 'string' && p.module_identification.trim()) ||
+    (isModule ? 'Módulo' : 'Veículo');
   const firstName = getFirstName(p.customer_name);
   return firstName ? `${model} - ${firstName}` : model;
 }
@@ -95,6 +99,11 @@ const TYPE_VISUAL: Record<NotificationType, TypeVisual> = {
     title: () => 'Mudança de etapa',
     accent: 'blue',
     icon: 'branch',
+  },
+  lab_sem_conserto: {
+    title: () => 'Sem conserto',
+    accent: 'amber',
+    icon: 'alert',
   },
   budget_created: {
     title: (n) => {
@@ -158,7 +167,9 @@ function notificationToCardModel(
             const num = budgetNumberFromPayload(n.payload);
             return num != null && num >= 2 ? `${num}º orçamento deste veículo` : null;
           })()
-        : null;
+        : n.type === 'lab_sem_conserto'
+          ? 'Laboratório'
+          : null;
 
   let timeLabel = 'agora';
   try {
@@ -315,7 +326,11 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
   const emitNewNotification = (n: Notification, shownNative: boolean) => {
     if (n.type === 'comment') {
       onNewCommentRef.current?.(n);
-    } else if (n.type === 'budget_created' || n.type === 'budget_edited') {
+    } else if (
+      n.type === 'budget_created' ||
+      n.type === 'budget_edited' ||
+      n.type === 'lab_sem_conserto'
+    ) {
       onBudgetBannerRef.current?.(n);
       if (!shownNative) playOtherNotificationSound();
     } else if (!shownNative) {

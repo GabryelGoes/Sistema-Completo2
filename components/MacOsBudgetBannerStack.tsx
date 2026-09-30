@@ -20,9 +20,9 @@ const MAX_VISIBLE = 48;
 
 export type MacOsBudgetBannerItem = {
   id: string;
-  kind: 'budget_created' | 'budget_edited' | 'budget_verified' | 'comment';
+  kind: 'budget_created' | 'budget_edited' | 'budget_verified' | 'comment' | 'lab_sem_conserto';
   serviceOrderId: string;
-  /** Obrigatório para orçamentos; ausente em comentários. */
+  /** Obrigatório para orçamentos; ausente em comentários / Sem conserto. */
   budgetId?: string;
   vehicleModel?: string | null;
   vehiclePlate?: string | null;
@@ -34,6 +34,8 @@ export type MacOsBudgetBannerItem = {
   commentText?: string | null;
   /** Snapshot para abrir o CommentPopUp ao ativar o banner. */
   commentNotification?: Notification | null;
+  /** Nº da OS (banner Sem conserto). */
+  osNumber?: number | null;
 };
 
 function plateLabel(plate: string | null | undefined): string | null {
@@ -42,20 +44,23 @@ function plateLabel(plate: string | null | undefined): string | null {
 }
 
 function vehicleLine(item: MacOsBudgetBannerItem): string {
-  const model = (item.vehicleModel && item.vehicleModel.trim()) || 'Veículo';
+  const model =
+    (item.vehicleModel && item.vehicleModel.trim()) ||
+    (item.kind === 'lab_sem_conserto' ? 'Módulo' : 'Veículo');
   const plate = plateLabel(item.vehiclePlate);
   const customer = (item.customerName && item.customerName.trim()) || '';
-  if (item.kind === 'comment') {
-    if (customer && plate) return `${model} · ${customer} · ${plate}`;
-    if (customer) return `${model} · ${customer}`;
-    if (plate) return `${model} · ${plate}`;
-    return model;
+  if (item.kind === 'comment' || item.kind === 'lab_sem_conserto') {
+    const os =
+      item.kind === 'lab_sem_conserto' && item.osNumber != null ? `OS #${item.osNumber}` : null;
+    const parts = [model, customer || null, plate, os].filter(Boolean);
+    return parts.join(' · ') || model;
   }
   return plate ? `${model} · ${plate}` : model;
 }
 
 function titleFor(item: MacOsBudgetBannerItem): string {
   if (item.kind === 'comment') return 'Novo comentário';
+  if (item.kind === 'lab_sem_conserto') return 'Sem conserto';
   if (item.kind === 'budget_verified') {
     const n = item.budgetNumber;
     if (n != null && n >= 2) return `${n}º orçamento verificado`;
@@ -94,6 +99,20 @@ export function budgetBannerToCardModel(item: MacOsBudgetBannerItem): MacOsNotif
       timeLabel: 'agora',
       accent: 'violet',
       icon: 'comment',
+      unread: true,
+    };
+  }
+  if (item.kind === 'lab_sem_conserto') {
+    return {
+      id: item.id,
+      authorName: authorLabel(item),
+      authorPhotoUrl: item.authorPhotoUrl,
+      title: titleFor(item),
+      body: vehicleLine(item),
+      hint: 'Laboratório',
+      timeLabel: 'agora',
+      accent: 'amber',
+      icon: 'alert',
       unread: true,
     };
   }

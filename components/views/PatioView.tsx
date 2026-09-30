@@ -6196,14 +6196,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
         <header className={`relative z-50 overflow-visible ${headerActionsOneLine ? 'mb-5 pb-0.5 sm:mb-6 lg:mb-8' : 'mb-3 sm:mb-4 md:mb-5 lg:mb-7'}`}>
           {desktopShell ? (
             <div
-              className={`w-full gap-y-4 md:gap-x-3 ${
-                headerActionsOneLine
-                  ? 'flex flex-nowrap items-center md:justify-between'
-                  : 'grid grid-cols-1 items-center md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)]'
-              }`}
+              className="grid w-full grid-cols-1 items-center gap-y-4 md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] md:gap-x-3"
             >
               <div className="flex min-w-0 items-center md:justify-self-start" aria-hidden />
-              <div className={`flex justify-center md:justify-self-center md:px-2 ${headerActionsOneLine ? 'hidden' : ''}`}>
+              <div className="flex justify-center md:justify-self-center md:px-2">
                 <button
                   type="button"
                   onClick={() =>
@@ -6212,13 +6208,13 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   className={patioCompactCreateBtn}
                 >
                   <Plus className="h-4 w-4" strokeWidth={2.75} aria-hidden />
-                  <span>{isModuleMode ? 'Criar módulo' : 'Criar OS'}</span>
+                  <span>Criar OS</span>
                 </button>
               </div>
               <div
                 className={
                   headerActionsOneLine
-                    ? 'min-w-0 flex-1 overflow-x-auto overflow-y-visible pb-1.5 [scrollbar-width:thin] [-webkit-overflow-scrolling:touch]'
+                    ? 'min-w-0 flex-1 overflow-x-auto overflow-y-visible pb-1.5 [scrollbar-width:thin] [-webkit-overflow-scrolling:touch] md:justify-self-end'
                     : 'flex w-full min-w-0 flex-wrap items-center justify-end gap-2 overflow-visible md:w-auto md:justify-self-end'
                 }
               >
@@ -6315,18 +6311,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
                     </button>
                     {patioHeaderToolsMenu}
                   </div>
-                  {headerActionsOneLine ? (
-                    <button
-                      type="button"
-                      onClick={() =>
-                        onCreateRegistration?.(isModuleMode ? 'module' : 'vehicle')
-                      }
-                      className={patioCompactCreateBtn}
-                    >
-                      <Plus className="h-4 w-4" strokeWidth={2.75} aria-hidden />
-                      <span>Criar módulo</span>
-                    </button>
-                  ) : null}
                 </div>
               </div>
             </div>
@@ -6417,7 +6401,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   className={patioCompactCreateBtn}
                 >
                   <Plus className="h-4 w-4" strokeWidth={2.75} aria-hidden />
-                  <span>{isModuleMode ? 'Criar módulo' : 'Criar OS'}</span>
+                  <span>Criar OS</span>
                 </button>
                 <div className="shrink-0">
                   <button
@@ -8368,15 +8352,25 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   <div className={patioVehicleVm.header}>
                      <div className={patioVehicleVm.headerInner}>
                         <div className={isPatioPcModal ? patioVehicleVm.headerTitlePad : undefined}>
+                        {(() => {
+                          const showPcAgenda =
+                            isPatioPcModal && !isModuleMode && selectedCard.agendaTag;
+                          const showTabletAgenda =
+                            isPatioTabletLikeModal && !isModuleMode && selectedCard.agendaTag;
+                          const showMobileBadges = !isPatioPcModal && !isPatioTabletLikeModal;
+                          if (!showPcAgenda && !showTabletAgenda && !showMobileBadges) {
+                            return null;
+                          }
+                          return (
                         <div
                           className={
                             isPatioPcModal && !isModuleMode
-                              ? 'flex min-h-10 flex-wrap items-center gap-2 pr-24 xl:pr-28'
+                              ? 'flex flex-wrap items-center gap-2 pr-24 xl:pr-28'
                               : 'flex flex-wrap items-center gap-2'
                           }
                         >
                           {isPatioTabletLikeModal ? (
-                            !isModuleMode && selectedCard.agendaTag ? (
+                            showTabletAgenda ? (
                               <div className="flex min-h-10 w-full min-w-0 items-center gap-2 pr-[calc(4.25rem+env(safe-area-inset-right,0px))]">
                                 <span
                                   className="inline-flex items-center rounded-md border border-sky-500/30 bg-sky-500/[0.08] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-sky-700 dark:border-sky-400/25 dark:bg-sky-400/10 dark:text-sky-300"
@@ -8432,8 +8426,37 @@ export const PatioView: React.FC<PatioViewProps> = ({
                           </div>
                           )}
                         </div>
+                          );
+                        })()}
                         <div className={`${patioVehicleVm.titlePlateRow}`}>
-                          {selectedCard.garantiaTag ? (
+                          {!isModuleMode && isPatioTabletLikeModal ? (
+                            <VehicleBrandLogo
+                              brand={serviceOrderDetail?.vehicle_brand || selectedCard.vehicleBrand}
+                              size={patioVehicleVm.brandLogoSize}
+                            />
+                          ) : null}
+                          {!isModuleMode && isPatioPcModal ? (
+                            <VehicleBrandLogo
+                              brand={serviceOrderDetail?.vehicle_brand || selectedCard.vehicleBrand}
+                              size={patioVehicleVm.brandLogoSize}
+                            />
+                          ) : null}
+                          <div className="flex min-w-0 flex-1 items-center gap-2">
+                          <h1
+                            className={`${patioVehicleVm.title} min-w-0 truncate ${vehicleModalTitleShadow}`}
+                            title={selectedCardTitleParts?.vehicle}
+                          >
+                            {selectedCardTitleParts?.vehicle}
+                          </h1>
+                          {!isModuleMode && selectedCard.garantiaTag ? (
+                            <span
+                              className="inline-flex shrink-0 items-center rounded-md border border-red-600 bg-red-600 px-2.5 py-[0.3rem] text-[11px] font-semibold uppercase tracking-wide text-white shadow-none"
+                              title="Veículo em garantia"
+                            >
+                              Garantia
+                            </span>
+                          ) : null}
+                          {isModuleMode && selectedCard.garantiaTag ? (
                             <button
                               type="button"
                               onClick={(e) => {
@@ -8450,42 +8473,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                 'Garantia'
                               )}
                             </button>
-                          ) : !isModuleMode && can('canEditFicha') ? (
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                void handleAddGarantia();
-                              }}
-                              disabled={removingGarantiaId === selectedCard.id}
-                              className="inline-flex shrink-0 items-center rounded-md border border-red-500/45 bg-transparent px-2.5 py-[0.3rem] text-[11px] font-semibold uppercase tracking-wide text-red-600 transition hover:bg-red-50 disabled:opacity-50 dark:border-red-400/40 dark:text-red-300 dark:hover:bg-red-500/10"
-                              title="Marcar como garantia"
-                            >
-                              {removingGarantiaId === selectedCard.id ? (
-                                <RefreshCw className="h-3 w-3 animate-spin" />
-                              ) : (
-                                'Garantia'
-                              )}
-                            </button>
                           ) : null}
-                          {!isModuleMode && isPatioTabletLikeModal ? (
-                            <VehicleBrandLogo
-                              brand={serviceOrderDetail?.vehicle_brand || selectedCard.vehicleBrand}
-                              size={patioVehicleVm.brandLogoSize}
-                            />
-                          ) : null}
-                          {!isModuleMode && isPatioPcModal ? (
-                            <VehicleBrandLogo
-                              brand={serviceOrderDetail?.vehicle_brand || selectedCard.vehicleBrand}
-                              size={patioVehicleVm.brandLogoSize}
-                            />
-                          ) : null}
-                          <h1
-                            className={`${patioVehicleVm.title} min-w-0 flex-1 ${vehicleModalTitleShadow}`}
-                            title={selectedCardTitleParts?.vehicle}
-                          >
-                            {selectedCardTitleParts?.vehicle}
-                          </h1>
+                          </div>
                           {isModuleMode && modalOriginIcon ? (
                             <div className="inline-flex shrink-0 items-center justify-center pl-1">
                               {modalOriginIcon}

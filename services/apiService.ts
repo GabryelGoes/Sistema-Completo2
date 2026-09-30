@@ -2088,6 +2088,7 @@ export async function updateServiceOrderComment(
 export type NotificationType =
   | "comment"
   | "stage_change"
+  | "lab_sem_conserto"
   | "budget_created"
   | "budget_edited"
   | "vehicle_finalized"
@@ -2114,6 +2115,12 @@ export interface NotificationPayload {
   budget_id?: string | null;
   /** Nº cronológico do orçamento na OS (1 = primeiro). */
   budget_number?: number | null;
+  /** Identificação do módulo (OS de laboratório). */
+  module_identification?: string | null;
+  /** Número da OS. */
+  os_number?: number | null;
+  /** Tipo da OS (vehicle | module). */
+  order_type?: string | null;
   [key: string]: unknown;
 }
 
