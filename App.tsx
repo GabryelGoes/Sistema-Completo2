@@ -534,6 +534,37 @@ export default function App() {
     onBudgetEvents: isDesktopShell && budgetBannerNotifications ? handleBudgetHubEvents : undefined,
   });
 
+  /** Banner imediato ao salvar aprovação neste cliente (não depende do poll/race do hub). */
+  useEffect(() => {
+    if (!isDesktopShell || !budgetBannerNotifications) return;
+    const onLocalApproved = (ev: Event) => {
+      const d = (ev as CustomEvent<{
+        serviceOrderId?: string;
+        budgetId?: string;
+        cardName?: string;
+        approvedItemsCount?: number;
+        authorName?: string | null;
+      }>).detail;
+      const soId = typeof d?.serviceOrderId === 'string' ? d.serviceOrderId.trim() : '';
+      const budgetId = typeof d?.budgetId === 'string' ? d.budgetId.trim() : '';
+      if (!soId || !budgetId) return;
+      pushBudgetBanner({
+        id: `local-approved-${budgetId}-${Date.now()}`,
+        kind: 'budget_items_approved',
+        serviceOrderId: soId,
+        budgetId,
+        vehicleModel: typeof d.cardName === 'string' && d.cardName.trim() ? d.cardName.trim() : null,
+        authorName: typeof d.authorName === 'string' && d.authorName.trim() ? d.authorName.trim() : null,
+        approvedItemsCount:
+          typeof d.approvedItemsCount === 'number' && d.approvedItemsCount >= 0
+            ? Math.floor(d.approvedItemsCount)
+            : null,
+      });
+    };
+    window.addEventListener('rda-budget-items-approved', onLocalApproved);
+    return () => window.removeEventListener('rda-budget-items-approved', onLocalApproved);
+  }, [isDesktopShell, budgetBannerNotifications, pushBudgetBanner]);
+
   const handleBudgetBannerNotification = useCallback(
     (n: Notification) => {
       if (!isDesktopShell) return;

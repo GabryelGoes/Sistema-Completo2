@@ -265,9 +265,10 @@ export const BudgetsHubView: React.FC<BudgetsHubViewProps> = ({
   }, []);
 
   const syncFromRealtime = useCallback(() => {
+    // Não reingere baseline aqui — o notifier precisa detectar created/edited/approved.
     void load({
       silent: true,
-      skipNotifierIngest: !isHubTabActiveRef.current,
+      skipNotifierIngest: true,
     });
   }, [load]);
 
@@ -279,7 +280,7 @@ export const BudgetsHubView: React.FC<BudgetsHubViewProps> = ({
       if (typeof document !== 'undefined' && document.visibilityState !== 'visible') return;
       void load({
         silent: true,
-        skipNotifierIngest: !isHubTabActiveRef.current,
+        skipNotifierIngest: true,
       });
     }, 90000);
     return () => window.clearInterval(id);
@@ -293,10 +294,12 @@ export const BudgetsHubView: React.FC<BudgetsHubViewProps> = ({
   }, [isHubTabActive, onClearHubBadge, load]);
 
   useEffect(() => {
+    // Sempre pula ingest: o notifier escuta o mesmo evento e precisa ver o diff
+    // (aprovação de itens não muda contentSignature — só approvalFingerprint).
     const onEvt = () =>
       void load({
         silent: true,
-        skipNotifierIngest: !isHubTabActiveRef.current,
+        skipNotifierIngest: true,
       });
     window.addEventListener(BUDGETS_CHANGED, onEvt);
     return () => window.removeEventListener(BUDGETS_CHANGED, onEvt);

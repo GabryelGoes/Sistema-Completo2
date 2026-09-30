@@ -7171,28 +7171,27 @@ export function createApiApp() {
           pending_items_count: decisions.pendingItemsCount,
         };
         const notifType = "budget_items_approved";
-        if (isTechnicianActor) {
-          const shouldAdmin = await shouldNotifyAdminForSystemType(notifType);
-          if (shouldAdmin) {
-            await supabaseAdmin.from("notifications").insert({
-              workshop_id: WORKSHOP_ID,
-              type: notifType,
-              payload: approvalPayload,
-              target_type: "admin",
-              target_slug: null,
-            }).then(({ error: e }) => { if (e) console.error("[API] Notificação budget_items_approved:", e); });
-          }
-        } else {
-          const technicianIds = await getTechnicianRecipientIdsForSystemType(notifType);
-          for (const techId of technicianIds) {
-            await supabaseAdmin.from("notifications").insert({
-              workshop_id: WORKSHOP_ID,
-              type: notifType,
-              payload: approvalPayload,
-              target_type: "technician",
-              target_slug: techId,
-            }).then(({ error: e }) => { if (e) console.error("[API] Notificação budget_items_approved (técnico):", e); });
-          }
+        // Notifica admins e técnicos (quem estiver inscrito) — aprovação é evento
+        // transversal; o orçamentista no PC também precisa ver o banner.
+        const shouldAdmin = await shouldNotifyAdminForSystemType(notifType);
+        if (shouldAdmin) {
+          await supabaseAdmin.from("notifications").insert({
+            workshop_id: WORKSHOP_ID,
+            type: notifType,
+            payload: approvalPayload,
+            target_type: "admin",
+            target_slug: null,
+          }).then(({ error: e }) => { if (e) console.error("[API] Notificação budget_items_approved:", e); });
+        }
+        const technicianIds = await getTechnicianRecipientIdsForSystemType(notifType);
+        for (const techId of technicianIds) {
+          await supabaseAdmin.from("notifications").insert({
+            workshop_id: WORKSHOP_ID,
+            type: notifType,
+            payload: approvalPayload,
+            target_type: "technician",
+            target_slug: techId,
+          }).then(({ error: e }) => { if (e) console.error("[API] Notificação budget_items_approved (técnico):", e); });
         }
       } else if (shouldInvalidateVerification) {
         if (isTechnicianActor) {
