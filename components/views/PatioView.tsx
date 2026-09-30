@@ -176,7 +176,7 @@ import {
   mapPatioBudgetPartToPayload,
   type PatioBudgetEditDraft,
 } from '../budget/PatioBudgetEditForm';
-import { buildBudgetServiceTechnicianNames } from '../../utils/budgetServiceTechnicians';
+import { buildBudgetServiceTechnicians } from '../../utils/budgetServiceTechnicians';
 import { parseReferenceLinksFromApi, formatReferenceLinkDisplay } from '../../utils/vehicleReferenceLinks';
 import { capitalizeFirst, firstTwoNames } from '../../utils/personNameFormat';
 import { getPatioBoardModelTitleClass } from '../../utils/patioBoardModelTitle';
@@ -1713,14 +1713,21 @@ export const PatioView: React.FC<PatioViewProps> = ({
     };
   }, [viewingBudget?.id, selectedCard?.id, selectedHistoryCard?.id, isModuleMode]);
 
-  const viewingBudgetTechnicianNames = useMemo(() => {
+  const viewingBudgetTechnicians = useMemo(() => {
     if (!viewingBudget || isModuleMode || budgetViewTechLines.length === 0) return undefined;
-    return buildBudgetServiceTechnicianNames(
+    return buildBudgetServiceTechnicians(
       budgetViewTechLines,
       viewingBudget.id,
       viewingBudget.services
-    );
-  }, [viewingBudget, isModuleMode, budgetViewTechLines]);
+    ).map((t) => {
+      if (!t) return null;
+      const tech = systemTechnicians.find((x) => x.id === t.technicianId);
+      return {
+        name: t.name,
+        accentColor: tech?.accent_color ?? null,
+      };
+    });
+  }, [viewingBudget, isModuleMode, budgetViewTechLines, systemTechnicians]);
 
   const boardStages = useMemo(() => getServiceOrderStages(flowKind), [flowKind]);
   const [diagnosticAuthSheetOpen, setDiagnosticAuthSheetOpen] = useState(false);
@@ -11343,7 +11350,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 services={viewingBudget.services}
                 parts={viewingBudget.parts}
                 observations={viewingBudget.observations}
-                serviceTechnicianNames={viewingBudgetTechnicianNames}
+                serviceTechnicians={viewingBudgetTechnicians}
               />
             </div>
             <div className={budgetReadModalFooterClass}>

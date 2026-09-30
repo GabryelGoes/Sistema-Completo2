@@ -7,13 +7,15 @@ import {
   getServiceOrderBudgets,
   getServiceOrderById,
   getServiceOrderServiceTechnicians,
+  getSystemUserTechnicians,
   isBudgetVerified,
   updateServiceOrderStatus,
   type SavedBudgetFromApi,
   type ServiceOrderDetail,
   type ServiceOrderUpdateActor,
+  type SystemUserTechnician,
 } from "../services/apiService";
-import { buildBudgetServiceTechnicianNames } from "../utils/budgetServiceTechnicians";
+import { buildBudgetServiceTechnicians } from "../utils/budgetServiceTechnicians";
 import { printBudgetMechanicWithDetail, printBudgetWithDetail } from "../utils/budgetPrintWithDetail";
 import { BudgetReadModalBody } from "./budget/BudgetReadModalBody";
 import { BudgetVerifiedSeal } from "./budget/BudgetVerifiedSeal";
@@ -55,6 +57,7 @@ export const BudgetHubViewerModal: React.FC<BudgetHubViewerModalProps> = ({
   const [serviceTechLines, setServiceTechLines] = useState<
     Awaited<ReturnType<typeof getServiceOrderServiceTechnicians>>["lines"]
   >([]);
+  const [systemTechnicians, setSystemTechnicians] = useState<SystemUserTechnician[]>([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -65,13 +68,15 @@ export const BudgetHubViewerModal: React.FC<BudgetHubViewerModalProps> = ({
     setServiceTechLines([]);
     void (async () => {
       try {
-        const [d, list] = await Promise.all([
+        const [d, list, techs] = await Promise.all([
           getServiceOrderById(serviceOrderId),
           getServiceOrderBudgets(serviceOrderId),
+          getSystemUserTechnicians().catch(() => [] as SystemUserTechnician[]),
         ]);
         if (cancelled) return;
         setDetail(d);
         setBudgets(list);
+        setSystemTechnicians(techs);
         if (d.order_type !== "module") {
           try {
             const tech = await getServiceOrderServiceTechnicians(serviceOrderId);
@@ -104,10 +109,17 @@ export const BudgetHubViewerModal: React.FC<BudgetHubViewerModalProps> = ({
 
   const isModuleMode = detail?.order_type === "module";
 
-  const serviceTechnicianNames = useMemo(() => {
+  const serviceTechnicians = useMemo(() => {
     if (!budget || isModuleMode || serviceTechLines.length === 0) return undefined;
-    return buildBudgetServiceTechnicianNames(serviceTechLines, budget.id, budget.services);
-  }, [budget, isModuleMode, serviceTechLines]);
+    return buildBudgetServiceTechnicians(serviceTechLines, budget.id, budget.services).map((t) => {
+      if (!t) return null;
+      const tech = systemTechnicians.find((x) => x.id === t.technicianId);
+      return {
+        name: t.name,
+        accentColor: tech?.accent_color ?? null,
+      };
+    });
+  }, [budget, isModuleMode, serviceTechLines, systemTechnicians]);
 
   const isVerified = budget ? isBudgetVerified(budget) : false;
   const mileageKm = detail?.mileage_km ?? null;
@@ -210,7 +222,7 @@ export const BudgetHubViewerModal: React.FC<BudgetHubViewerModalProps> = ({
                   parts={budget.parts}
                   observations={budget.observations}
                   showInternalFields
-                  serviceTechnicianNames={serviceTechnicianNames}
+                  serviceTechnicians={serviceTechnicians}
                 />
               </div>
             )}
