@@ -1632,7 +1632,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
               {receptionMode === 'vehicle' ? (
                 <div className="space-y-4">
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:items-end">
-                    <div className="min-w-0 space-y-1.5">
+                    <div className="min-w-0">
                       <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
                         <div className="min-w-0 flex-1">
                           <Input
@@ -1667,14 +1667,10 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                         </button>
                       </div>
                       {plateLookupError ? (
-                        <p className="px-1 text-xs text-red-600 dark:text-red-400" role="alert">
+                        <p className="mt-1.5 px-1 text-xs text-red-600 dark:text-red-400" role="alert">
                           {plateLookupError}
                         </p>
-                      ) : (
-                        <p className="min-h-[1rem] px-1 text-xs opacity-0" aria-hidden>
-                          .
-                        </p>
-                      )}
+                      ) : null}
                     </div>
                     <div className="min-w-0">
                       <Input
@@ -1923,46 +1919,60 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
               {receptionMode === 'vehicle' && (
                 <div className={receptionPortraitVertical ? 'order-3' : undefined}>
                 <div className="rounded-[22px] border border-[#007AFF]/20 bg-gradient-to-br from-[#007AFF]/[0.06] via-white to-zinc-50/90 p-4 shadow-[0_12px_32px_-12px_rgba(0,122,255,0.22),0_6px_18px_-10px_rgba(0,122,255,0.14),0_3px_10px_-5px_rgba(0,0,0,0.06)] dark:border-[#007AFF]/25 dark:from-[#007AFF]/12 dark:via-zinc-950/40 dark:to-zinc-950/20 dark:shadow-[0_8px_28px_-14px_rgba(0,122,255,0.25)] sm:p-5">
-                  <div className="flex gap-3">
-                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-[#007AFF]/30 bg-white shadow-[0_5px_14px_-6px_rgba(0,0,0,0.1),0_2px_6px_-3px_rgba(0,0,0,0.05)] dark:border-[#007AFF]/35 dark:bg-zinc-900/80 dark:shadow-sm">
-                      <ShieldCheck className="h-5 w-5 text-[#007AFF] dark:text-[#7ab8ff]" strokeWidth={2.25} aria-hidden />
-                    </div>
-                    <div className="min-w-0 flex-1 space-y-1">
-                      <p className="text-[14px] font-bold leading-snug text-zinc-900 dark:text-white">
-                        Autorização de diagnóstico técnico
-                      </p>
-                      {diagAuthSignatureBlob || diagAuthSignatureDataUrl ? (
-                        <p className="pt-0.5 text-[12px] font-semibold text-emerald-600 dark:text-emerald-400">
-                          Concluído
+                  <div
+                    className={
+                      desktopShell
+                        ? 'flex flex-wrap items-center justify-between gap-3'
+                        : 'flex flex-col gap-3'
+                    }
+                  >
+                    <div className="flex min-w-0 flex-1 items-start gap-3">
+                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-[#007AFF]/30 bg-white shadow-[0_5px_14px_-6px_rgba(0,0,0,0.1),0_2px_6px_-3px_rgba(0,0,0,0.05)] dark:border-[#007AFF]/35 dark:bg-zinc-900/80 dark:shadow-sm">
+                        <ShieldCheck className="h-5 w-5 text-[#007AFF] dark:text-[#7ab8ff]" strokeWidth={2.25} aria-hidden />
+                      </div>
+                      <div className="min-w-0 flex-1 space-y-1">
+                        <p className="text-[14px] font-bold leading-snug text-zinc-900 dark:text-white">
+                          Autorização de diagnóstico técnico
                         </p>
-                      ) : (
-                        <p className="pt-0.5 text-[12px] font-medium text-amber-700 dark:text-amber-400/95">
-                          Pendente
-                        </p>
-                      )}
+                        {diagAuthSignatureBlob || diagAuthSignatureDataUrl ? (
+                          <p className="pt-0.5 text-[12px] font-semibold text-emerald-600 dark:text-emerald-400">
+                            Concluído
+                          </p>
+                        ) : (
+                          <p className="pt-0.5 text-[12px] font-medium text-amber-700 dark:text-amber-400/95">
+                            Pendente
+                          </p>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                  <div className="mt-3 flex flex-wrap items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setDiagAuthSignModalOpen(true)}
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-300/90 bg-white px-2.5 py-1.5 text-[11px] font-semibold text-zinc-700 shadow-sm transition-colors hover:border-[#007AFF]/35 hover:bg-zinc-50 hover:text-[#007AFF] active:scale-[0.99] dark:border-white/12 dark:bg-white/[0.06] dark:text-zinc-200 dark:hover:border-[#64B5FF]/40 dark:hover:bg-white/[0.1] dark:hover:text-[#8cc8ff]"
+                    <div
+                      className={
+                        desktopShell
+                          ? 'flex shrink-0 flex-wrap items-center justify-end gap-2'
+                          : 'flex flex-wrap items-center gap-2'
+                      }
                     >
-                      <FileText className="h-3 w-3 shrink-0 opacity-80" strokeWidth={2.25} aria-hidden />
-                      {diagAuthSignatureBlob || diagAuthSignatureDataUrl
-                        ? 'Reassinar termo'
-                        : 'Ler termo e assinar'}
-                    </button>
-                    {diagAuthSignatureDataUrl ? (
                       <button
                         type="button"
-                        onClick={() => setDiagAuthSheetOpen(true)}
-                        className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-300/90 bg-white px-2.5 py-1.5 text-[11px] font-semibold text-zinc-700 shadow-sm transition-colors hover:bg-zinc-50 active:scale-[0.99] dark:border-white/12 dark:bg-white/[0.06] dark:text-zinc-200 dark:hover:bg-white/[0.1]"
+                        onClick={() => setDiagAuthSignModalOpen(true)}
+                        className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-300/90 bg-white px-2.5 py-1.5 text-[11px] font-semibold text-zinc-700 shadow-sm transition-colors hover:border-[#007AFF]/35 hover:bg-zinc-50 hover:text-[#007AFF] active:scale-[0.99] dark:border-white/12 dark:bg-white/[0.06] dark:text-zinc-200 dark:hover:border-[#64B5FF]/40 dark:hover:bg-white/[0.1] dark:hover:text-[#8cc8ff]"
                       >
-                        <Eye className="h-3 w-3 shrink-0 text-zinc-500 dark:text-zinc-400" strokeWidth={2.25} aria-hidden />
-                        Ver autorização
+                        <FileText className="h-3 w-3 shrink-0 opacity-80" strokeWidth={2.25} aria-hidden />
+                        {diagAuthSignatureBlob || diagAuthSignatureDataUrl
+                          ? 'Reassinar termo'
+                          : 'Ler termo e assinar'}
                       </button>
-                    ) : null}
+                      {diagAuthSignatureDataUrl ? (
+                        <button
+                          type="button"
+                          onClick={() => setDiagAuthSheetOpen(true)}
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-300/90 bg-white px-2.5 py-1.5 text-[11px] font-semibold text-zinc-700 shadow-sm transition-colors hover:bg-zinc-50 active:scale-[0.99] dark:border-white/12 dark:bg-white/[0.06] dark:text-zinc-200 dark:hover:bg-white/[0.1]"
+                        >
+                          <Eye className="h-3 w-3 shrink-0 text-zinc-500 dark:text-zinc-400" strokeWidth={2.25} aria-hidden />
+                          Ver autorização
+                        </button>
+                      ) : null}
+                    </div>
                   </div>
                 </div>
                 </div>
