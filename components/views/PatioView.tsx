@@ -3435,13 +3435,28 @@ export const PatioView: React.FC<PatioViewProps> = ({
     const previousListId = card.idList;
     const previousGarantiaTag = Boolean(card.garantiaTag);
     const nextGarantiaTag = newListId === 'GARANTIA' || previousGarantiaTag;
+    const previousBenchSlot = card.benchSlot ?? null;
+    const previousBenchQueuedAt = card.benchQueuedAt ?? null;
     const movedAt = new Date().toISOString();
 
-    const applyLocalStage = (listId: string, garantiaTag: boolean, activityAt: string) => {
+    const applyLocalStage = (
+      listId: string,
+      garantiaTag: boolean,
+      activityAt: string,
+      bench?: { benchSlot: number | null; benchQueuedAt: string | null }
+    ) => {
       setCards((prev) =>
         prev.map((c) =>
           c.id === card.id
-            ? { ...c, idList: listId, garantiaTag, dateLastActivity: activityAt }
+            ? {
+                ...c,
+                idList: listId,
+                garantiaTag,
+                dateLastActivity: activityAt,
+                ...(bench
+                  ? { benchSlot: bench.benchSlot, benchQueuedAt: bench.benchQueuedAt }
+                  : {}),
+              }
             : c
         )
       );
@@ -3452,10 +3467,25 @@ export const PatioView: React.FC<PatioViewProps> = ({
           idList: listId,
           garantiaTag,
           dateLastActivity: activityAt,
+          ...(bench
+            ? { benchSlot: bench.benchSlot, benchQueuedAt: bench.benchQueuedAt }
+            : {}),
         });
         setServiceOrderDetail((prev) =>
           prev?.id === card.id
-            ? { ...prev, status: listId as ServiceOrderStatus, updated_at: activityAt }
+            ? {
+                ...prev,
+                status: listId as ServiceOrderStatus,
+                updated_at: activityAt,
+                ...(bench
+                  ? {
+                      bench_slot: bench.benchSlot,
+                      bench_queued_at: bench.benchQueuedAt,
+                      bench_slot_at:
+                        bench.benchSlot != null ? activityAt : prev.bench_slot_at ?? null,
+                    }
+                  : {}),
+              }
             : prev
         );
       }
@@ -3467,10 +3497,28 @@ export const PatioView: React.FC<PatioViewProps> = ({
     setStageChangingCardId(card.id);
     setIsMoving(true);
     try {
-      await updateServiceOrderStatus(card.id, newListId as ServiceOrderStatus, actorOptions);
+      const updated = await updateServiceOrderStatus(
+        card.id,
+        newListId as ServiceOrderStatus,
+        actorOptions
+      );
+      const nextBenchSlot =
+        typeof updated?.bench_slot === 'number' ? updated.bench_slot : null;
+      const nextBenchQueuedAt =
+        typeof updated?.bench_queued_at === 'string' && updated.bench_queued_at
+          ? updated.bench_queued_at
+          : null;
+      applyLocalStage(newListId, nextGarantiaTag || updated?.garantia_tag === true, movedAt, {
+        benchSlot: nextBenchSlot,
+        benchQueuedAt: nextBenchQueuedAt,
+      });
+      void fetchDataRef.current(true);
     } catch (err: unknown) {
       console.error('Failed to move', err);
-      applyLocalStage(previousListId, previousGarantiaTag, card.dateLastActivity || movedAt);
+      applyLocalStage(previousListId, previousGarantiaTag, card.dateLastActivity || movedAt, {
+        benchSlot: previousBenchSlot,
+        benchQueuedAt: previousBenchQueuedAt,
+      });
       alert((err as Error)?.message ?? 'Erro ao mover. O card voltou para a etapa anterior.');
     } finally {
       stageChangingCardIdRef.current = null;
@@ -6195,11 +6243,53 @@ export const PatioView: React.FC<PatioViewProps> = ({
         {/* Cabeçalho mobile/tablet: título + contagem + busca + ações; PC shell mantém badge compacto */}
         <header className={`relative z-50 overflow-visible ${headerActionsOneLine ? 'mb-5 pb-0.5 sm:mb-6 lg:mb-8' : 'mb-3 sm:mb-4 md:mb-5 lg:mb-7'}`}>
           {desktopShell ? (
-            <div
-              className="grid w-full grid-cols-1 items-center gap-y-4 md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] md:gap-x-3"
-            >
-              <div className="flex min-w-0 items-center md:justify-self-start" aria-hidden />
-              <div className="flex justify-center md:justify-self-center md:px-2">
+            <div className="grid w-full grid-cols-1 items-center gap-y-3 md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] md:gap-x-4">
+              <div className="flex min-w-0 flex-wrap items-center gap-1.5 md:justify-self-start">
+                {headerActionsOneLine ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => setBenchQueueModalOpen(true)}
+                      className={`relative inline-flex shrink-0 items-center justify-center rounded-xl border-0 bg-violet-100 font-semibold text-violet-900 transition-colors hover:bg-violet-200/90 active:scale-[0.98] dark:bg-violet-950/50 dark:text-violet-100 ${headerPillSize}`}
+                    >
+                      <ListOrdered className="h-4 w-4 shrink-0" strokeWidth={2.2} aria-hidden />
+                      <span className="tracking-tight">Fila da bancada</span>
+                      {benchQueueCount > 0 ? (
+                        <span className="inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-violet-600 px-1.5 py-0.5 text-[10px] font-bold text-white dark:bg-violet-500">
+                          {benchQueueCount}
+                        </span>
+                      ) : null}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setExternalRepairModalOpen(true)}
+                      className={`relative inline-flex shrink-0 items-center justify-center rounded-xl border-0 bg-purple-100 font-semibold text-purple-900 transition-colors hover:bg-purple-200/90 active:scale-[0.98] dark:bg-purple-950/50 dark:text-purple-100 ${headerPillSize}`}
+                    >
+                      <Wrench className="h-4 w-4 shrink-0" strokeWidth={2.2} aria-hidden />
+                      <span className="tracking-tight">Conserto externo</span>
+                      {externalRepairCards.length > 0 ? (
+                        <span className="inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-purple-600 px-1.5 py-0.5 text-[10px] font-bold text-white dark:bg-purple-500">
+                          {externalRepairCards.length}
+                        </span>
+                      ) : null}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleBenchPanelToggle}
+                      aria-expanded={benchPanelOpen}
+                      className={`relative inline-flex shrink-0 items-center justify-center rounded-xl border-0 bg-white font-semibold text-zinc-700 transition-colors hover:bg-zinc-100 active:scale-[0.98] dark:border-white/10 dark:bg-white/10 dark:text-zinc-100 ${headerPillSize}`}
+                    >
+                      <ChevronDown
+                        className={`h-4 w-4 shrink-0 transition-transform ${benchPanelOpen ? '' : '-rotate-90'}`}
+                        strokeWidth={2.2}
+                        aria-hidden
+                      />
+                      <span className="tracking-tight">Bancada do laboratório</span>
+                    </button>
+                  </>
+                ) : null}
+              </div>
+              <div className="relative z-10 flex justify-center md:justify-self-center md:px-2">
                 <button
                   type="button"
                   onClick={() =>
@@ -6211,106 +6301,49 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   <span>Criar OS</span>
                 </button>
               </div>
-              <div
-                className={
-                  headerActionsOneLine
-                    ? 'min-w-0 flex-1 overflow-x-auto overflow-y-visible pb-1.5 [scrollbar-width:thin] [-webkit-overflow-scrolling:touch] md:justify-self-end'
-                    : 'flex w-full min-w-0 flex-wrap items-center justify-end gap-2 overflow-visible md:w-auto md:justify-self-end'
-                }
-              >
-                <div
-                  className={
-                    headerActionsOneLine
-                      ? 'flex w-max min-w-full flex-nowrap items-center justify-end gap-1.5 py-1'
-                      : 'contents'
+              <div className="flex min-w-0 flex-wrap items-center justify-end gap-1.5 md:justify-self-end">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setReminderSaveError(null);
+                    setIsRemindersOpen(true);
+                  }}
+                  className={`${patioCompactActionBtn} ${headerActionsOneLine ? headerPillSize : ''}`}
+                >
+                  {remindersBadgeCount > 0 && (
+                    <span className="pointer-events-none absolute -right-1 -top-1 inline-flex min-h-[18px] min-w-[18px] items-center justify-center rounded-full border-2 border-white bg-red-500 px-1 text-[10px] font-bold leading-none text-white dark:border-zinc-900">
+                      {remindersBadgeCount > 99 ? '99+' : remindersBadgeCount}
+                    </span>
+                  )}
+                  <ReminderIcon className="h-4 w-4 text-[#007AFF]" strokeWidth={2} />
+                  <span>Lembretes</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsHistoryOpen(true)}
+                  className={`${patioCompactActionBtn} ${headerActionsOneLine ? headerPillSize : ''}`}
+                  title={
+                    isModuleMode
+                      ? 'Consultar histórico de módulos arquivados'
+                      : 'Consultar histórico de veículos arquivados'
                   }
                 >
-                  {headerActionsOneLine && (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => setBenchQueueModalOpen(true)}
-                        className={`relative inline-flex shrink-0 items-center justify-center rounded-xl border-0 bg-violet-100 font-semibold text-violet-900 transition-colors hover:bg-violet-200/90 active:scale-[0.98] dark:bg-violet-950/50 dark:text-violet-100 ${headerPillSize}`}
-                      >
-                        <ListOrdered className="h-4 w-4 shrink-0" strokeWidth={2.2} aria-hidden />
-                        <span className="tracking-tight">Fila da bancada</span>
-                        {benchQueueCount > 0 ? (
-                          <span className="inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-violet-600 px-1.5 py-0.5 text-[10px] font-bold text-white dark:bg-violet-500">
-                            {benchQueueCount}
-                          </span>
-                        ) : null}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setExternalRepairModalOpen(true)}
-                        className={`relative inline-flex shrink-0 items-center justify-center rounded-xl border-0 bg-purple-100 font-semibold text-purple-900 transition-colors hover:bg-purple-200/90 active:scale-[0.98] dark:bg-purple-950/50 dark:text-purple-100 ${headerPillSize}`}
-                      >
-                        <Wrench className="h-4 w-4 shrink-0" strokeWidth={2.2} aria-hidden />
-                        <span className="tracking-tight">Conserto externo</span>
-                        {externalRepairCards.length > 0 ? (
-                          <span className="inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-purple-600 px-1.5 py-0.5 text-[10px] font-bold text-white dark:bg-purple-500">
-                            {externalRepairCards.length}
-                          </span>
-                        ) : null}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={handleBenchPanelToggle}
-                        aria-expanded={benchPanelOpen}
-                        className={`relative inline-flex shrink-0 items-center justify-center rounded-xl border-0 bg-white font-semibold text-zinc-700 transition-colors hover:bg-zinc-100 active:scale-[0.98] dark:border-white/10 dark:bg-white/10 dark:text-zinc-100 ${headerPillSize}`}
-                      >
-                        <ChevronDown
-                          className={`h-4 w-4 shrink-0 transition-transform ${benchPanelOpen ? '' : '-rotate-90'}`}
-                          strokeWidth={2.2}
-                          aria-hidden
-                        />
-                        <span className="tracking-tight">Bancada do laboratório</span>
-                      </button>
-                    </>
-                  )}
+                  <History className="h-4 w-4 text-[#007AFF]" strokeWidth={2} />
+                  <span>Histórico</span>
+                </button>
+                <div className="shrink-0">
                   <button
                     type="button"
-                    onClick={() => {
-                      setReminderSaveError(null);
-                      setIsRemindersOpen(true);
-                    }}
-                    className={`${patioCompactActionBtn} ${headerActionsOneLine ? headerPillSize : ''}`}
+                    ref={patioHeaderToolsTriggerRef}
+                    onClick={() => setIsPatioHeaderToolsOpen((o) => !o)}
+                    aria-expanded={isPatioHeaderToolsOpen}
+                    aria-haspopup="menu"
+                    aria-label="Mais opções"
+                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border-0 bg-white text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-[#007AFF] active:scale-95 dark:border-white/[0.1] dark:bg-zinc-900/75 dark:text-zinc-300"
                   >
-                    {remindersBadgeCount > 0 && (
-                      <span className="pointer-events-none absolute -right-1 -top-1 inline-flex min-h-[18px] min-w-[18px] items-center justify-center rounded-full border-2 border-white bg-red-500 px-1 text-[10px] font-bold leading-none text-white dark:border-zinc-900">
-                        {remindersBadgeCount > 99 ? '99+' : remindersBadgeCount}
-                      </span>
-                    )}
-                    <ReminderIcon className="h-4 w-4 text-[#007AFF]" strokeWidth={2} />
-                    <span>Lembretes</span>
+                    <MoreHorizontal className="h-5 w-5" strokeWidth={2.2} aria-hidden />
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => setIsHistoryOpen(true)}
-                    className={`${patioCompactActionBtn} ${headerActionsOneLine ? headerPillSize : ''}`}
-                    title={
-                      isModuleMode
-                        ? 'Consultar histórico de módulos arquivados'
-                        : 'Consultar histórico de veículos arquivados'
-                    }
-                  >
-                    <History className="h-4 w-4 text-[#007AFF]" strokeWidth={2} />
-                    <span>Histórico</span>
-                  </button>
-                  <div className="shrink-0">
-                    <button
-                      type="button"
-                      ref={patioHeaderToolsTriggerRef}
-                      onClick={() => setIsPatioHeaderToolsOpen((o) => !o)}
-                      aria-expanded={isPatioHeaderToolsOpen}
-                      aria-haspopup="menu"
-                      aria-label="Mais opções"
-                      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border-0 bg-white text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-[#007AFF] active:scale-95 dark:border-white/[0.1] dark:bg-zinc-900/75 dark:text-zinc-300"
-                    >
-                      <MoreHorizontal className="h-5 w-5" strokeWidth={2.2} aria-hidden />
-                    </button>
-                    {patioHeaderToolsMenu}
-                  </div>
+                  {patioHeaderToolsMenu}
                 </div>
               </div>
             </div>

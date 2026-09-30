@@ -4642,6 +4642,10 @@ export function createApiApp() {
           initialStatus = normalized;
         }
       }
+      // Garantia no laboratório: entra direto na etapa Garantia (bancada 1–24).
+      if (orderType === "module" && bodyGarantiaTag === true) {
+        initialStatus = "GARANTIA";
+      }
 
       const benchFields =
         orderType === "module"
@@ -11516,7 +11520,7 @@ export function createApiApp() {
       const { data: previous } = await supabaseAdmin
         .from("service_orders")
         .select(
-          "status, issue_description, delivery_date, assigned_technician, plate, vehicle_model, order_type, bench_slot, external_repair, lab_service_links, customers(name)"
+          "status, issue_description, delivery_date, assigned_technician, plate, vehicle_model, order_type, bench_slot, bench_queued_at, external_repair, lab_service_links, customers(name)"
         )
         .eq("id", id)
         .eq("workshop_id", WORKSHOP_ID)
@@ -11529,6 +11533,18 @@ export function createApiApp() {
         (updatePayload.order_type as string | undefined) ??
         (previous as { order_type?: string } | null)?.order_type ??
         null;
+
+      // Marcar garantia no lab sem status: direciona para a etapa Garantia (bancada).
+      if (
+        effectiveOrderType === "module" &&
+        updatePayload.garantia_tag === true &&
+        updatePayload.status === undefined &&
+        previous &&
+        String((previous as { status?: string }).status ?? "") !== "GARANTIA"
+      ) {
+        updatePayload.status = "GARANTIA";
+      }
+
       if (
         updatePayload.status !== undefined &&
         effectiveOrderType === "module" &&
@@ -11573,6 +11589,33 @@ export function createApiApp() {
           const merged: ExternalRepair = { ...(prevExternal ?? {}) };
           if (!merged.returnedAt) merged.returnedAt = today;
           updatePayload.external_repair = merged;
+        }
+      } else if (
+        // Cura: módulo em etapa de bancada (ex.: Garantia) sem compartimento nem fila.
+        effectiveOrderType === "module" &&
+        previous &&
+        updatePayload.bench_slot === undefined &&
+        updatePayload.bench_queued_at === undefined
+      ) {
+        const statusAfter =
+          (updatePayload.status as string | undefined) ??
+          String((previous as { status?: string }).status ?? "");
+        const prevSlot =
+          typeof (previous as { bench_slot?: number | null }).bench_slot === "number"
+            ? ((previous as { bench_slot?: number | null }).bench_slot as number)
+            : null;
+        const prevQueued = (previous as { bench_queued_at?: string | null }).bench_queued_at;
+        if (statusUsesBench(statusAfter) && prevSlot == null && !prevQueued) {
+          const healed = await pickBenchSlotForStatus(statusAfter, null, id);
+          if (healed != null) {
+            updatePayload.bench_slot = healed;
+            updatePayload.bench_slot_at = new Date().toISOString();
+            updatePayload.bench_queued_at = null;
+          } else {
+            updatePayload.bench_slot = null;
+            updatePayload.bench_slot_at = null;
+            updatePayload.bench_queued_at = new Date().toISOString();
+          }
         }
       }
 

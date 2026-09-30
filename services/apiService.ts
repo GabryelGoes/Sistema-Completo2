@@ -69,6 +69,7 @@ interface ApiServiceOrder {
   issue_description: string | null;
   ai_analysis: string | null;
   status: string;
+  garantia_tag?: boolean;
   vehicle_category?: string | null;
   vehicle_color?: string | null;
   vehicle_year?: string | null;
