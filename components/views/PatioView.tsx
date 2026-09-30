@@ -6929,7 +6929,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
                     </button>
                     {isGarantia ? (
                       <span
-                        className="inline-flex shrink-0 items-center rounded-md border border-red-600 bg-red-600 px-2 py-[0.2rem] text-[9px] font-semibold uppercase tracking-wide text-white shadow-none"
+                        className={`inline-flex shrink-0 items-center rounded-md border border-red-600 bg-red-600 font-semibold uppercase tracking-wide text-white shadow-none ${
+                          isModuleMode
+                            ? 'px-2 py-[0.2rem] text-[9px]'
+                            : 'px-[0.65rem] py-[0.26rem] text-[11.7px]'
+                        }`}
                         title="Em garantia"
                       >
                         Garantia
