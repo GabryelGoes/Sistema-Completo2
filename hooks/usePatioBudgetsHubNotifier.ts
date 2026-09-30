@@ -3,16 +3,20 @@ import type { TabId } from "../components/TabBar";
 import { getPatioVehicleBudgetsAggregate, type PatioVehicleBudgetAggregateItem } from "../services/apiService";
 import { playBudgetCreatedOrEditedSound } from "../utils/notificationSound";
 
-type SnapshotRow = { id: string; sig: string; verifiedAt: string };
+type SnapshotRow = { id: string; sig: string; approvalFp: string; verifiedAt: string };
 
 function stableAggregateKey(
-  items: Pick<PatioVehicleBudgetAggregateItem, "budgetId" | "contentSignature" | "verifiedAt">[]
+  items: Pick<
+    PatioVehicleBudgetAggregateItem,
+    "budgetId" | "contentSignature" | "verifiedAt" | "approvalFingerprint"
+  >[]
 ): string {
   return JSON.stringify(
     [...items]
       .map((i) => ({
         id: i.budgetId,
         sig: i.contentSignature,
+        approvalFp: i.approvalFingerprint ? String(i.approvalFingerprint) : "",
         verifiedAt: i.verifiedAt ? String(i.verifiedAt) : "",
       }))
       .sort((a, b) => a.id.localeCompare(b.id))
@@ -22,22 +26,24 @@ function stableAggregateKey(
 function countDiffEvents(
   prev: SnapshotRow[],
   next: SnapshotRow[]
-): { created: number; edited: number; verified: number } {
+): { created: number; edited: number; verified: number; approved: number } {
   const prevMap = new Map(prev.map((x) => [x.id, x]));
   let created = 0;
   let edited = 0;
   let verified = 0;
+  let approved = 0;
   for (const row of next) {
     const o = prevMap.get(row.id);
     if (!o) created++;
     else if (!o.verifiedAt && row.verifiedAt) verified++;
     else if (o.sig !== row.sig) edited++;
+    else if (o.approvalFp !== row.approvalFp) approved++;
   }
-  return { created, edited, verified };
+  return { created, edited, verified, approved };
 }
 
 export type PatioBudgetHubEvent = {
-  kind: "created" | "edited" | "verified";
+  kind: "created" | "edited" | "verified" | "approved";
   item: PatioVehicleBudgetAggregateItem;
   /** Nº cronológico do orçamento nesta OS (1 = primeiro). */
   budgetNumber: number;
@@ -47,7 +53,7 @@ export function usePatioBudgetsHubNotifier(opts: {
   enabled: boolean;
   activeTab: TabId;
   pollMs?: number;
-  /** Chamado quando detecta orçamento novo/editado/verificado (após o baseline inicial). */
+  /** Chamado quando detecta orçamento novo/editado/verificado/aprovado (após o baseline inicial). */
   onBudgetEvents?: (events: PatioBudgetHubEvent[]) => void;
 }) {
   const { enabled, activeTab, pollMs = 60000, onBudgetEvents } = opts;
@@ -68,6 +74,7 @@ export function usePatioBudgetsHubNotifier(opts: {
       const compact: SnapshotRow[] = items.map((i) => ({
         id: i.budgetId,
         sig: i.contentSignature,
+        approvalFp: i.approvalFingerprint ? String(i.approvalFingerprint) : "",
         verifiedAt: i.verifiedAt ? String(i.verifiedAt) : "",
       }));
       const stable = stableAggregateKey(items);
@@ -97,7 +104,7 @@ export function usePatioBudgetsHubNotifier(opts: {
           pendingHubBudgetMetaRef.current.set(row.id, "created");
           events.push({ kind: "created", item, budgetNumber });
         } else if (!o.verifiedAt && row.verifiedAt) {
-          // Verificação: prioriza sobre “editado” no mesmo ciclo.
+          // Verificação: prioriza sobre “editado”/“aprovado” no mesmo ciclo.
           events.push({ kind: "verified", item, budgetNumber });
           if (o.sig !== row.sig) {
             pendingHubBudgetMetaRef.current.set(row.id, "edited");
@@ -105,11 +112,13 @@ export function usePatioBudgetsHubNotifier(opts: {
         } else if (o.sig !== row.sig) {
           pendingHubBudgetMetaRef.current.set(row.id, "edited");
           events.push({ kind: "edited", item, budgetNumber });
+        } else if (o.approvalFp !== row.approvalFp) {
+          events.push({ kind: "approved", item, budgetNumber });
         }
       }
       snapshotRef.current = stable;
-      const { created, edited, verified } = countDiffEvents(prevRows, compact);
-      const n = created + edited + verified;
+      const { created, edited, verified, approved } = countDiffEvents(prevRows, compact);
+      const n = created + edited + verified + approved;
       if (n > 0) {
         if (activeTabRef.current !== "orcamentos") {
           playBudgetCreatedOrEditedSound();
@@ -140,7 +149,7 @@ export function usePatioBudgetsHubNotifier(opts: {
     (
       items: Pick<
         PatioVehicleBudgetAggregateItem,
-        "budgetId" | "contentSignature" | "verifiedAt"
+        "budgetId" | "contentSignature" | "verifiedAt" | "approvalFingerprint"
       >[]
     ) => {
       snapshotRef.current = stableAggregateKey(items);

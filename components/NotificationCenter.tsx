@@ -112,6 +112,23 @@ const TYPE_VISUAL: Record<NotificationType, TypeVisual> = {
     accent: 'blue',
     icon: 'pencil',
   },
+  budget_items_approved: {
+    title: (n) => {
+      const raw = n.payload.approved_items_count;
+      const count =
+        typeof raw === 'number' && raw >= 1
+          ? Math.floor(raw)
+          : typeof raw === 'string' && Number(raw) >= 1
+            ? Math.floor(Number(raw))
+            : null;
+      if (count != null) {
+        return count === 1 ? '1 item aprovado' : `${count} itens aprovados`;
+      }
+      return 'Itens aprovados';
+    },
+    accent: 'amber',
+    icon: 'check',
+  },
   vehicle_finalized: {
     title: () => 'Veículo finalizado',
     accent: 'emerald',
@@ -153,7 +170,9 @@ function notificationToCardModel(
       ? n.payload.text.length > 100
         ? `${n.payload.text.slice(0, 100)}…`
         : n.payload.text
-      : n.type === 'budget_created' || n.type === 'budget_edited'
+      : n.type === 'budget_created' ||
+          n.type === 'budget_edited' ||
+          n.type === 'budget_items_approved'
         ? (() => {
             const num = budgetNumberFromPayload(n.payload);
             return num != null && num >= 2 ? `${num}º orçamento deste veículo` : null;
@@ -315,7 +334,11 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
   const emitNewNotification = (n: Notification, shownNative: boolean) => {
     if (n.type === 'comment') {
       onNewCommentRef.current?.(n);
-    } else if (n.type === 'budget_created' || n.type === 'budget_edited') {
+    } else if (
+      n.type === 'budget_created' ||
+      n.type === 'budget_edited' ||
+      n.type === 'budget_items_approved'
+    ) {
       onBudgetBannerRef.current?.(n);
       if (!shownNative) playOtherNotificationSound();
     } else if (!shownNative) {
