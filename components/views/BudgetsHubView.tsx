@@ -68,6 +68,8 @@ function normalizeAggregateItem(raw: PatioVehicleBudgetAggregateItem): PatioVehi
 
 export interface BudgetsHubViewProps {
   blurPlates?: boolean;
+  /** Embaça orçamentos ainda não verificados com aviso “Aguardando aprovação”. */
+  blurUnverifiedBudgets?: boolean;
   isHubTabActive?: boolean;
   onOpenBudgetInPatio: (serviceOrderId: string, budgetId: string) => void;
   onIngestNotifierBaseline: (
@@ -82,6 +84,7 @@ export interface BudgetsHubViewProps {
 
 export const BudgetsHubView: React.FC<BudgetsHubViewProps> = ({
   blurPlates = false,
+  blurUnverifiedBudgets = true,
   isHubTabActive = true,
   onOpenBudgetInPatio,
   onIngestNotifierBaseline,
@@ -378,6 +381,7 @@ export const BudgetsHubView: React.FC<BudgetsHubViewProps> = ({
           pulseByBudgetId={pulseByBudgetId}
           onOpenBudget={openBudgetFromHub}
           blurPlates={blurPlates}
+          blurUnverifiedBudgets={blurUnverifiedBudgets}
           desktopShell={desktopShell}
           userZoomScale={userZoomScale}
           columnWidthRem={trelloColumnWidthRem}
@@ -401,6 +405,7 @@ export const BudgetsHubView: React.FC<BudgetsHubViewProps> = ({
         pendingBudgetHighlightIds={pendingBudgetHighlightIds}
         onOpenBudget={openBudgetFromHub}
         blurPlates={blurPlates}
+        blurUnverifiedBudgets={blurUnverifiedBudgets}
         desktopShell={desktopShell}
         userZoomScale={userZoomScale}
         gridColumnCount={gridColumnCount}

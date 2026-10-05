@@ -175,6 +175,8 @@ export default function App() {
   const [budgetBannerNotifications, setBudgetBannerNotifications] = useState(true);
   /** Banners macOS de comentários (ligado por padrão). */
   const [commentBannerNotifications, setCommentBannerNotifications] = useState(true);
+  /** Embaça orçamentos sem verificação (ligado por padrão). */
+  const [blurUnverifiedBudgets, setBlurUnverifiedBudgets] = useState(true);
   const [budgetBannerItems, setBudgetBannerItems] = useState<MacOsBudgetBannerItem[]>([]);
   const [minimizedBudgetBanners, setMinimizedBudgetBanners] = useState<MacOsBudgetBannerItem[]>([]);
 
@@ -949,6 +951,10 @@ export default function App() {
     if (savedCommentBanners !== null) {
       setCommentBannerNotifications(savedCommentBanners === 'true');
     }
+    const savedBlurUnverified = localStorage.getItem('app_blur_unverified_budgets');
+    if (savedBlurUnverified !== null) {
+      setBlurUnverifiedBudgets(savedBlurUnverified === 'true');
+    }
   }, []);
 
   // Apply theme to document
@@ -978,6 +984,10 @@ export default function App() {
       setMinimizedBudgetBanners((prev) => prev.filter((x) => x.kind !== 'comment'));
     }
   }, [commentBannerNotifications]);
+
+  useEffect(() => {
+    localStorage.setItem('app_blur_unverified_budgets', String(blurUnverifiedBudgets));
+  }, [blurUnverifiedBudgets]);
 
   useEffect(() => {
     if (!isDesktopShell) {
@@ -1356,6 +1366,7 @@ export default function App() {
               <LazyTabBoundary label="Orçamentos">
                 <LazyBudgetsHubView
                 blurPlates={cinematographicMode}
+                blurUnverifiedBudgets={blurUnverifiedBudgets && !canVerifyBudgetsApp}
                 isHubTabActive={userTab === 'orcamentos'}
                 onOpenBudgetInPatio={handleOpenBudgetFromHub}
                 onIngestNotifierBaseline={patioBudgetsHub.ingestBaselineFromItems}
@@ -1533,6 +1544,8 @@ export default function App() {
           onBudgetBannerNotificationsChange={setBudgetBannerNotifications}
           commentBannerNotifications={commentBannerNotifications}
           onCommentBannerNotificationsChange={setCommentBannerNotifications}
+          blurUnverifiedBudgets={blurUnverifiedBudgets}
+          onBlurUnverifiedBudgetsChange={setBlurUnverifiedBudgets}
           orientation={orientation}
           showPatioAccess={false}
         />
@@ -1545,6 +1558,7 @@ export default function App() {
             onClose={() => setHubBudgetViewer(null)}
             canApproveBudgetItems={canApproveBudgetItemsApp}
             actorOptions={budgetHubActorOptions}
+            blurUnverifiedBudgets={blurUnverifiedBudgets && !canVerifyBudgetsApp}
           />
         ) : null}
         {isDesktopShell ? (
@@ -1711,6 +1725,7 @@ export default function App() {
             <LazyTabBoundary label="Orçamentos">
               <LazyBudgetsHubView
               blurPlates={cinematographicMode}
+                blurUnverifiedBudgets={blurUnverifiedBudgets && !canVerifyBudgetsApp}
               isHubTabActive={currentTab === 'orcamentos'}
               onOpenBudgetInPatio={handleOpenBudgetFromHub}
               onIngestNotifierBaseline={patioBudgetsHub.ingestBaselineFromItems}
@@ -1882,6 +1897,8 @@ export default function App() {
         onBudgetBannerNotificationsChange={setBudgetBannerNotifications}
         commentBannerNotifications={commentBannerNotifications}
         onCommentBannerNotificationsChange={setCommentBannerNotifications}
+        blurUnverifiedBudgets={blurUnverifiedBudgets}
+        onBlurUnverifiedBudgetsChange={setBlurUnverifiedBudgets}
         orientation={orientation}
         showPatioAccess={authSession?.role === 'admin' || hasFullAccess}
       />
@@ -1893,6 +1910,7 @@ export default function App() {
           onClose={() => setHubBudgetViewer(null)}
           canApproveBudgetItems={canApproveBudgetItemsApp}
           actorOptions={budgetHubActorOptions}
+            blurUnverifiedBudgets={blurUnverifiedBudgets && !canVerifyBudgetsApp}
         />
       ) : null}
       {isDesktopShell ? (

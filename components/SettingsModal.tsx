@@ -25,6 +25,12 @@ interface SettingsModalProps {
   /** Banners macOS de novos comentários */
   commentBannerNotifications?: boolean;
   onCommentBannerNotificationsChange?: (enabled: boolean) => void;
+  /**
+   * Embaça orçamentos ainda não verificados (com aviso “Aguardando aprovação”).
+   * Ligado por padrão; desligar remove o embassamento.
+   */
+  blurUnverifiedBudgets?: boolean;
+  onBlurUnverifiedBudgetsChange?: (enabled: boolean) => void;
   orientation?: 'portrait' | 'landscape';
   showPatioAccess?: boolean;
 }
@@ -46,6 +52,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onBudgetBannerNotificationsChange,
   commentBannerNotifications = true,
   onCommentBannerNotificationsChange,
+  blurUnverifiedBudgets = true,
+  onBlurUnverifiedBudgetsChange,
   orientation,
 }) => {
   useRegisterModalOpen(isOpen);
@@ -217,6 +225,27 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     checked={commentBannerNotifications}
                     onChange={() => onCommentBannerNotificationsChange(!commentBannerNotifications)}
                     ariaLabel="Ativar banners de comentários"
+                  />
+                </div>
+              </div>
+            )}
+
+            {typeof onBlurUnverifiedBudgetsChange === 'function' && (
+              <div className={`${iosModalInsetCard} p-4 sm:p-5`}>
+                <div className="flex items-center justify-between gap-4">
+                  <div>
+                    <label className="text-[15px] font-medium text-zinc-900 dark:text-white block">
+                      Embaçar orçamentos sem verificação
+                    </label>
+                    <p className="text-[12px] text-zinc-500 dark:text-zinc-400 mt-0.5">
+                      No hub de Orçamentos, orçamentos ainda não verificados ficam embassados com “Aguardando aprovação” (não vale para admin / acesso total)
+                    </p>
+                  </div>
+                  <IosSwitch
+                    id="settings-modal-blur-unverified-budgets"
+                    checked={blurUnverifiedBudgets}
+                    onChange={() => onBlurUnverifiedBudgetsChange(!blurUnverifiedBudgets)}
+                    ariaLabel="Embaçar orçamentos sem verificação"
                   />
                 </div>
               </div>
