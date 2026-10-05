@@ -7,6 +7,7 @@ import {
 import { ModalPortal } from '../../ui/ModalPortal';
 import { iosModalClose, iosModalShell } from '../../ui/iosModalStyles';
 import { MercosulPlateMockup } from '../../ui/MercosulPlateMockup';
+import { UnverifiedBudgetFrost } from '../../budget/UnverifiedBudgetFrost';
 import type { VehicleBudgetGroup } from '../../../utils/budgetsHubViews';
 
 function formatBudgetCreated(iso: string): string {
@@ -37,6 +38,7 @@ export type BudgetHubBudgetPickerModalProps = {
   open: boolean;
   group: VehicleBudgetGroup | null;
   blurPlates?: boolean;
+  blurUnverifiedBudgets?: boolean;
   onClose: () => void;
   onOpenBudget: (serviceOrderId: string, budgetId: string) => void;
 };
@@ -49,6 +51,7 @@ export function BudgetHubBudgetPickerModal({
   open,
   group,
   blurPlates = false,
+  blurUnverifiedBudgets = true,
   onClose,
   onOpenBudget,
 }: BudgetHubBudgetPickerModalProps) {
@@ -133,6 +136,10 @@ export function BudgetHubBudgetPickerModal({
                   const parts = row.partsCount ?? 0;
                   return (
                     <li key={row.budgetId}>
+                      <UnverifiedBudgetFrost
+                        active={blurUnverifiedBudgets && !row.isVerified}
+                        className="rounded-[16px]"
+                      >
                       <button
                         type="button"
                         onClick={() => {
@@ -182,6 +189,7 @@ export function BudgetHubBudgetPickerModal({
                           </span>
                         </div>
                       </button>
+                      </UnverifiedBudgetFrost>
                     </li>
                   );
                 })}

@@ -19,6 +19,7 @@ import { buildBudgetServiceTechnicians } from "../utils/budgetServiceTechnicians
 import { printBudgetMechanicWithDetail, printBudgetWithDetail } from "../utils/budgetPrintWithDetail";
 import { BudgetReadModalBody } from "./budget/BudgetReadModalBody";
 import { BudgetVerifiedSeal } from "./budget/BudgetVerifiedSeal";
+import { UnverifiedBudgetFrost } from "./budget/UnverifiedBudgetFrost";
 import { BudgetApprovalModal } from "./budget/BudgetApprovalModal";
 import {
   budgetReadFooterBtnClass,
@@ -38,6 +39,8 @@ export interface BudgetHubViewerModalProps {
   actorOptions?: ServiceOrderUpdateActor;
   /** Use quando o modal abre sobre outro diálogo (ex.: detalhe da OS em relatórios). */
   stacked?: boolean;
+  /** Embaça conteúdo se o orçamento ainda não foi verificado. */
+  blurUnverifiedBudgets?: boolean;
 }
 
 export const BudgetHubViewerModal: React.FC<BudgetHubViewerModalProps> = ({
@@ -47,6 +50,7 @@ export const BudgetHubViewerModal: React.FC<BudgetHubViewerModalProps> = ({
   canApproveBudgetItems = false,
   actorOptions,
   stacked = false,
+  blurUnverifiedBudgets = true,
 }) => {
   const [detail, setDetail] = useState<ServiceOrderDetail | null>(null);
   const [budgets, setBudgets] = useState<SavedBudgetFromApi[]>([]);
@@ -216,14 +220,16 @@ export const BudgetHubViewerModal: React.FC<BudgetHubViewerModalProps> = ({
               <div className="p-6 text-sm font-medium text-slate-700">Orçamento não encontrado.</div>
             ) : (
               <div className={budgetReadModalScrollClass}>
-                <BudgetReadModalBody
-                  diagnosis={budget.diagnosis}
-                  services={budget.services}
-                  parts={budget.parts}
-                  observations={budget.observations}
-                  showInternalFields
-                  serviceTechnicians={serviceTechnicians}
-                />
+                <UnverifiedBudgetFrost active={blurUnverifiedBudgets && !isVerified} className="rounded-xl">
+                  <BudgetReadModalBody
+                    diagnosis={budget.diagnosis}
+                    services={budget.services}
+                    parts={budget.parts}
+                    observations={budget.observations}
+                    showInternalFields
+                    serviceTechnicians={serviceTechnicians}
+                  />
+                </UnverifiedBudgetFrost>
               </div>
             )}
 

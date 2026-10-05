@@ -278,6 +278,7 @@ export function BudgetHubCardsGrid({
   pendingBudgetHighlightIds,
   onOpenBudget,
   blurPlates,
+  blurUnverifiedBudgets = true,
   desktopShell,
   compact,
   userZoomScale = 1,
@@ -288,6 +289,7 @@ export function BudgetHubCardsGrid({
   pendingBudgetHighlightIds: Set<string>;
   onOpenBudget: (serviceOrderId: string, budgetId: string) => void;
   blurPlates?: boolean;
+  blurUnverifiedBudgets?: boolean;
   desktopShell?: boolean;
   compact?: boolean;
   userZoomScale?: number;
@@ -321,6 +323,7 @@ export function BudgetHubCardsGrid({
             pulseByBudgetId={pulseByBudgetId}
             pendingNewBudgetIds={pendingNew}
             blurPlates={blurPlates}
+            blurUnverifiedBudgets={blurUnverifiedBudgets}
             desktopShell={desktopShell}
             compact={compact}
             gridScale
@@ -343,6 +346,7 @@ export function BudgetHubStageBoard({
   pulseByBudgetId,
   onOpenBudget,
   blurPlates,
+  blurUnverifiedBudgets = true,
   desktopShell,
   userZoomScale = 1,
   columnWidthRem,
@@ -352,6 +356,7 @@ export function BudgetHubStageBoard({
   pulseByBudgetId: Record<string, 'created' | 'edited'>;
   onOpenBudget: (serviceOrderId: string, budgetId: string) => void;
   blurPlates?: boolean;
+  blurUnverifiedBudgets?: boolean;
   desktopShell?: boolean;
   userZoomScale?: number;
   /** Largura preferida das colunas Trello (rem). */
@@ -547,6 +552,7 @@ export function BudgetHubStageBoard({
                       pulseByBudgetId={pulseByBudgetId}
                       pendingNewBudgetIds={pendingNew}
                       blurPlates={blurPlates}
+                      blurUnverifiedBudgets={blurUnverifiedBudgets}
                       desktopShell={desktopShell}
                       compact
                       trelloScale

@@ -4,6 +4,7 @@ import {
   budgetChronologicalNumber,
 } from '../../../services/apiService';
 import { BudgetVerifiedSeal } from '../../budget/BudgetVerifiedSeal';
+import { UnverifiedBudgetFrost } from '../../budget/UnverifiedBudgetFrost';
 import { MercosulPlateMockup } from '../../ui/MercosulPlateMockup';
 import { getStageConfig, getStageStyle } from '../../../constants/serviceOrderStages';
 import { firstTwoNames } from '../../../utils/personNameFormat';
@@ -50,6 +51,8 @@ export type BudgetHubPatioStyleCardProps = {
   /** IDs de orçamentos novos ainda não abertos — badge no card. */
   pendingNewBudgetIds?: Set<string>;
   blurPlates?: boolean;
+  /** Embaça orçamentos ainda não verificados. */
+  blurUnverifiedBudgets?: boolean;
   desktopShell?: boolean;
   compact?: boolean;
   /** Escala reduzida para colunas do modo por etapa. */
@@ -72,6 +75,7 @@ export function BudgetHubPatioStyleCard({
   pulseByBudgetId = {},
   pendingNewBudgetIds,
   blurPlates = false,
+  blurUnverifiedBudgets = true,
   desktopShell,
   compact,
   trelloScale,
@@ -234,6 +238,11 @@ export function BudgetHubPatioStyleCard({
               const pulse = pulseByBudgetId[bid];
               return (
                 <li key={row.budgetId}>
+                  <UnverifiedBudgetFrost
+                    active={blurUnverifiedBudgets && !row.isVerified}
+                    compact
+                    className="rounded-xl"
+                  >
                   <button
                     type="button"
                     onClick={(e) => {
@@ -281,6 +290,7 @@ export function BudgetHubPatioStyleCard({
                     ) : null}
                     <ChevronRight className="ml-auto h-3.5 w-3.5 shrink-0 text-zinc-400" strokeWidth={2.4} aria-hidden />
                   </button>
+                  </UnverifiedBudgetFrost>
                 </li>
               );
             })}
@@ -315,6 +325,7 @@ export function BudgetHubPatioStyleCard({
         open={pickerOpen}
         group={group}
         blurPlates={blurPlates}
+        blurUnverifiedBudgets={blurUnverifiedBudgets}
         onClose={() => setPickerOpen(false)}
         onOpenBudget={onOpenBudget}
       />
