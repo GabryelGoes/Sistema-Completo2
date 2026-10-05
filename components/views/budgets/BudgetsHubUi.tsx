@@ -235,6 +235,8 @@ export function BudgetHubCardsGrid({
   blurPlates,
   desktopShell,
   compact,
+  userZoomScale = 1,
+  gridColumnCount = 4,
 }: {
   groups: VehicleBudgetGroup[];
   pulseByBudgetId: Record<string, 'created' | 'edited'>;
@@ -243,14 +245,23 @@ export function BudgetHubCardsGrid({
   blurPlates?: boolean;
   desktopShell?: boolean;
   compact?: boolean;
+  userZoomScale?: number;
+  /** Colunas na grade (PC / telas largas). */
+  gridColumnCount?: number;
 }) {
+  const cols = Math.max(3, Math.min(6, Math.round(gridColumnCount)));
   return (
     <div
       className={`grid gap-3 ${
         desktopShell
-          ? 'grid-cols-4'
+          ? ''
           : 'grid-cols-1 sm:grid-cols-2'
       }`}
+      style={
+        desktopShell
+          ? ({ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` } as React.CSSProperties)
+          : undefined
+      }
     >
       {groups.map((group) => {
         const needsAttention = group.items.some((row) =>
@@ -266,6 +277,7 @@ export function BudgetHubCardsGrid({
             desktopShell={desktopShell}
             compact={compact}
             gridScale
+            userZoomScale={userZoomScale}
             onOpenBudget={onOpenBudget}
           />
         );
@@ -285,6 +297,8 @@ export function BudgetHubStageBoard({
   onOpenBudget,
   blurPlates,
   desktopShell,
+  userZoomScale = 1,
+  columnWidthRem,
 }: {
   columns: StageKanbanColumn[];
   pendingBudgetHighlightIds: Set<string>;
@@ -292,8 +306,11 @@ export function BudgetHubStageBoard({
   onOpenBudget: (serviceOrderId: string, budgetId: string) => void;
   blurPlates?: boolean;
   desktopShell?: boolean;
+  userZoomScale?: number;
+  /** Largura preferida das colunas Trello (rem). */
+  columnWidthRem?: number;
 }) {
-  const colMin = desktopShell ? 'min-w-[15.5rem] w-[15.5rem]' : 'min-w-[13.25rem] w-[13.25rem]';
+  const colW = columnWidthRem ?? (desktopShell ? 15.5 : 13.25);
   const boardRef = useRef<HTMLDivElement | null>(null);
   const boardWrapRef = useRef<HTMLDivElement | null>(null);
   const [boardHeight, setBoardHeight] = useState<number>(0);
@@ -458,7 +475,8 @@ export function BudgetHubStageBoard({
           <div
             key={col.status}
             data-budgets-hub-col
-            className={`${colMin} flex h-full min-h-0 shrink-0 flex-col overflow-hidden ${columnShell}`}
+            className={`flex h-full min-h-0 shrink-0 flex-col overflow-hidden ${columnShell}`}
+            style={{ width: `${colW}rem`, minWidth: `${colW}rem` }}
           >
             <div className={`z-[1] shrink-0 border-b border-zinc-200/80 px-2.5 py-2 ${headerTop} ${col.style}`}>
               <p className="text-[10px] font-bold uppercase tracking-[0.06em]">{col.name}</p>
@@ -487,6 +505,7 @@ export function BudgetHubStageBoard({
                       compact
                       trelloScale
                       hideStageFooter
+                      userZoomScale={userZoomScale}
                       onOpenBudget={onOpenBudget}
                     />
                   );
