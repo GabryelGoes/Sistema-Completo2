@@ -844,6 +844,8 @@ export async function createServiceOrder(params: {
   orderType?: ServiceOrderType;
   /** Laboratório: etapa inicial no quadro (padrão: aguardando avaliação). */
   status?: ServiceOrderStatus;
+  /** Laboratório/Pátio: marca etiqueta de garantia (no lab força etapa Garantia + bancada). */
+  garantiaTag?: boolean;
   vehicleBrand?: string | null;
   vehicleColor?: string | null;
   vehicleYear?: string | null;
@@ -857,6 +859,7 @@ export async function createServiceOrder(params: {
     aiAnalysis: params.aiAnalysis ?? null,
     orderType,
   };
+  if (params.garantiaTag === true) body.garantiaTag = true;
   if (orderType === "vehicle") {
     body.plate = (params.plate || '').toUpperCase();
     body.mileageKm = params.mileageKm ?? null;
