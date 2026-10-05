@@ -6064,33 +6064,21 @@ export const PatioView: React.FC<PatioViewProps> = ({
                       />
                     ) : typeof card.benchSlot === 'number' ? (
                       <span
-                        className={`inline-flex items-center rounded-xl border border-violet-400/55 bg-violet-500/18 px-2.5 font-extrabold tabular-nums tracking-tight text-violet-800 shadow-sm dark:border-violet-400/40 dark:bg-violet-400/20 dark:text-violet-100 ${
-                          boardPanoramic
-                            ? 'min-h-[2rem] py-1 text-[0.95rem] portrait:text-[0.78rem]'
-                            : 'min-h-[2.15rem] py-1.5 text-[1.05rem] portrait:text-[0.88rem]'
-                        }`}
+                        className="inline-flex items-center rounded-lg border border-violet-500/50 bg-violet-500/20 px-2 py-1 text-[12px] font-bold tabular-nums tracking-tight text-violet-900 dark:border-violet-400/45 dark:bg-violet-400/22 dark:text-violet-100"
                         title="Bancada do laboratório — vaga fixa"
                       >
                         Vaga: {card.benchSlot}
                       </span>
                     ) : card.benchQueuedAt ? (
                       <span
-                        className={`inline-flex items-center rounded-xl border border-violet-400/45 bg-violet-500/14 px-2.5 font-bold tracking-tight text-violet-800 dark:border-violet-400/35 dark:bg-violet-400/16 dark:text-violet-100 ${
-                          boardPanoramic
-                            ? 'min-h-[2rem] py-1 text-[0.82rem] portrait:text-[0.72rem]'
-                            : 'min-h-[2.15rem] py-1.5 text-[0.92rem] portrait:text-[0.8rem]'
-                        }`}
+                        className="inline-flex items-center rounded-lg border border-violet-500/40 bg-violet-500/15 px-2 py-1 text-[11px] font-semibold tracking-tight text-violet-900 dark:border-violet-400/35 dark:bg-violet-400/16 dark:text-violet-100"
                         title="Na fila: será posicionado quando um compartimento liberar (1–24)"
                       >
                         Fila
                       </span>
                     ) : statusUsesBench(card.idList) ? (
                       <span
-                        className={`inline-flex items-center rounded-xl border border-amber-400/50 bg-amber-500/16 px-2.5 font-bold tracking-tight text-amber-900 dark:border-amber-400/35 dark:bg-amber-400/14 dark:text-amber-100 ${
-                          boardPanoramic
-                            ? 'min-h-[2rem] py-1 text-[0.82rem] portrait:text-[0.72rem]'
-                            : 'min-h-[2.15rem] py-1.5 text-[0.92rem] portrait:text-[0.8rem]'
-                        }`}
+                        className="inline-flex items-center rounded-lg border border-amber-500/45 bg-amber-500/15 px-2 py-1 text-[11px] font-semibold tracking-tight text-amber-950 dark:border-amber-400/35 dark:bg-amber-400/14 dark:text-amber-100"
                         title="Defina o compartimento na bancada (painel acima ou na ficha)"
                       >
                         Sem vaga
