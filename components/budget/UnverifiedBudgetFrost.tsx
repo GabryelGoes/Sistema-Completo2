@@ -22,14 +22,16 @@ export function UnverifiedBudgetFrost({
 
   return (
     <div className={`relative isolate overflow-hidden ${className}`}>
-      <div className="blur-[2.75px] opacity-[0.48] saturate-50 contrast-[0.92]">{children}</div>
+      <div className="blur-[1.25px] opacity-[0.72] saturate-[0.85]">{children}</div>
       <div
-        className="pointer-events-none absolute inset-0 z-[1] flex items-center justify-center bg-zinc-950/18 dark:bg-black/35"
+        className="pointer-events-none absolute inset-0 z-[1] flex items-center justify-center bg-gradient-to-b from-white/45 via-white/28 to-white/40 dark:from-zinc-950/50 dark:via-zinc-950/35 dark:to-zinc-950/55"
         aria-hidden
       >
         <span
-          className={`inline-flex max-w-[92%] items-center justify-center rounded-full border border-amber-400/55 bg-amber-50/95 px-2.5 font-bold uppercase tracking-[0.08em] text-amber-950 shadow-sm dark:border-amber-300/40 dark:bg-amber-950/90 dark:text-amber-100 ${
-            compact ? 'py-0.5 text-[9px]' : 'py-1 text-[10px] sm:text-[11px]'
+          className={`inline-flex max-w-[92%] items-center justify-center rounded-full border border-zinc-300/70 bg-white/88 font-semibold tracking-[0.04em] text-zinc-700 shadow-[0_1px_2px_rgba(15,23,42,0.06)] backdrop-blur-[6px] dark:border-white/12 dark:bg-zinc-900/88 dark:text-zinc-200 dark:shadow-[0_1px_2px_rgba(0,0,0,0.35)] ${
+            compact
+              ? 'px-2 py-0.5 text-[9px] uppercase'
+              : 'px-2.5 py-1 text-[10px] uppercase sm:text-[11px]'
           }`}
         >
           Aguardando aprovação
