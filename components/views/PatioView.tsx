@@ -228,7 +228,6 @@ import { PatioBoardOriginIcon } from '../patio/PatioBoardOriginIcon';
 import { BudgetReadModalBody } from '../budget/BudgetReadModalBody';
 import { BudgetVerificationPanel } from '../budget/BudgetVerificationPanel';
 import { BudgetVerifiedSeal } from '../budget/BudgetVerifiedSeal';
-import { UnverifiedBudgetFrost } from '../budget/UnverifiedBudgetFrost';
 import { BudgetLinePositionControl } from '../budget/BudgetLinePositionControl';
 import { BudgetPartSuggestionDropdown } from '../budget/BudgetPartSuggestionDropdown';
 import { BudgetServiceSuggestionDropdown } from '../budget/BudgetServiceSuggestionDropdown';
@@ -392,8 +391,6 @@ interface PatioViewProps {
   actorOptions?: ServiceOrderUpdateActor;
   /** Modo cinematográfico: embaçar placas em todo o app (para gravar tela / redes sociais). */
   blurPlates?: boolean;
-  /** Embaça orçamentos ainda não verificados com aviso “Aguardando aprovação”. */
-  blurUnverifiedBudgets?: boolean;
   /** Ao mudar este número, abre o modal de Histórico automaticamente. */
   openHistoryRequested?: number;
   /** Exibir apenas veículos (Pátio) ou apenas módulos (Laboratório). */
@@ -1217,7 +1214,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
   onOpenServiceOrderHandled,
   actorOptions,
   blurPlates = false,
-  blurUnverifiedBudgets = true,
   openHistoryRequested,
   orderType = 'vehicle',
   patioPermissions,
@@ -9923,10 +9919,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                       key={budget.id}
                                       className={`min-w-0 overflow-hidden bg-gradient-to-r from-[#007AFF] via-brand-yellow to-[#007AFF] p-[2px] shadow-[0_6px_16px_-8px_rgba(0,122,255,0.33)] dark:shadow-[0_10px_24px_-12px_rgba(59,130,246,0.32)] ${ringRadius}`}
                                     >
-                                    <UnverifiedBudgetFrost
-                                      active={blurUnverifiedBudgets && !budgetVerified}
-                                      className={innerRadius}
-                                    >
                                     <button
                                       type="button"
                                       onClick={() => openBudgetForView(budget)}
@@ -9961,7 +9953,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                         <span className="shrink-0 text-[#007AFF] dark:text-[#93c5fd]">{patioVehicleVm.openHintLabel}</span>
                                       </div>
                                     </button>
-                                    </UnverifiedBudgetFrost>
                                     </div>
                                   );
                                 })}
@@ -11441,18 +11432,13 @@ export const PatioView: React.FC<PatioViewProps> = ({
               </button>
             </div>
             <div className={budgetReadModalScrollClass}>
-              <UnverifiedBudgetFrost
-                active={blurUnverifiedBudgets && !isBudgetVerified(viewingBudget)}
-                className="rounded-xl"
-              >
-                <BudgetReadModalBody
-                  diagnosis={viewingBudget.diagnosis}
-                  services={viewingBudget.services}
-                  parts={viewingBudget.parts}
-                  observations={viewingBudget.observations}
-                  serviceTechnicians={viewingBudgetTechnicians}
-                />
-              </UnverifiedBudgetFrost>
+              <BudgetReadModalBody
+                diagnosis={viewingBudget.diagnosis}
+                services={viewingBudget.services}
+                parts={viewingBudget.parts}
+                observations={viewingBudget.observations}
+                serviceTechnicians={viewingBudgetTechnicians}
+              />
             </div>
             <div className={budgetReadModalFooterClass}>
               {can('canEditBudgets') && !!selectedCard ? (

@@ -2,7 +2,8 @@ import React from 'react';
 
 /**
  * Embaça o conteúdo de orçamentos ainda não verificados e exibe o aviso
- * “Aguardando aprovação”. Desligável nas Configurações.
+ * “Aguardando aprovação”. Usado só no hub de Orçamentos (não para admin /
+ * acesso total). Desligável nas Configurações.
  */
 export function UnverifiedBudgetFrost({
   active,

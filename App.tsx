@@ -1366,7 +1366,7 @@ export default function App() {
               <LazyTabBoundary label="Orçamentos">
                 <LazyBudgetsHubView
                 blurPlates={cinematographicMode}
-                blurUnverifiedBudgets={blurUnverifiedBudgets}
+                blurUnverifiedBudgets={blurUnverifiedBudgets && !canVerifyBudgetsApp}
                 isHubTabActive={userTab === 'orcamentos'}
                 onOpenBudgetInPatio={handleOpenBudgetFromHub}
                 onIngestNotifierBaseline={patioBudgetsHub.ingestBaselineFromItems}
@@ -1466,7 +1466,6 @@ export default function App() {
               onNotificationClick={handleNotificationClick}
               onNewCommentNotification={handleNewCommentNotification}
               blurPlates={cinematographicMode}
-              blurUnverifiedBudgets={blurUnverifiedBudgets}
               isAppTabActive={userTab === 'patio'}
               suppressVehiclePortals={isDesktopShell && shellOverlayTopbar !== null}
               openServiceOrderId={patioPendingOrderId}
@@ -1497,7 +1496,6 @@ export default function App() {
               onNotificationClick={handleNotificationClick}
               onNewCommentNotification={handleNewCommentNotification}
               blurPlates={cinematographicMode}
-              blurUnverifiedBudgets={blurUnverifiedBudgets}
               isAppTabActive={userTab === 'laboratorio'}
               suppressVehiclePortals={isDesktopShell && shellOverlayTopbar !== null}
               openServiceOrderId={laboratorioPendingOrderId}
@@ -1560,7 +1558,7 @@ export default function App() {
             onClose={() => setHubBudgetViewer(null)}
             canApproveBudgetItems={canApproveBudgetItemsApp}
             actorOptions={budgetHubActorOptions}
-            blurUnverifiedBudgets={blurUnverifiedBudgets}
+            blurUnverifiedBudgets={blurUnverifiedBudgets && !canVerifyBudgetsApp}
           />
         ) : null}
         {isDesktopShell ? (
@@ -1727,7 +1725,7 @@ export default function App() {
             <LazyTabBoundary label="Orçamentos">
               <LazyBudgetsHubView
               blurPlates={cinematographicMode}
-                blurUnverifiedBudgets={blurUnverifiedBudgets}
+                blurUnverifiedBudgets={blurUnverifiedBudgets && !canVerifyBudgetsApp}
               isHubTabActive={currentTab === 'orcamentos'}
               onOpenBudgetInPatio={handleOpenBudgetFromHub}
               onIngestNotifierBaseline={patioBudgetsHub.ingestBaselineFromItems}
@@ -1838,7 +1836,6 @@ export default function App() {
             onNotificationClick={handleNotificationClick}
             onNewCommentNotification={handleNewCommentNotification}
             blurPlates={cinematographicMode}
-              blurUnverifiedBudgets={blurUnverifiedBudgets}
             isAppTabActive={currentTab === 'patio'}
             suppressVehiclePortals={isDesktopShell && shellOverlayTopbar !== null}
             openServiceOrderId={patioPendingOrderId}
@@ -1871,7 +1868,6 @@ export default function App() {
             onNotificationClick={handleNotificationClick}
             onNewCommentNotification={handleNewCommentNotification}
             blurPlates={cinematographicMode}
-              blurUnverifiedBudgets={blurUnverifiedBudgets}
             isAppTabActive={currentTab === 'laboratorio'}
             suppressVehiclePortals={isDesktopShell && shellOverlayTopbar !== null}
             onActiveCardsCountChange={setLaboratorioActiveCount}
@@ -1914,7 +1910,7 @@ export default function App() {
           onClose={() => setHubBudgetViewer(null)}
           canApproveBudgetItems={canApproveBudgetItemsApp}
           actorOptions={budgetHubActorOptions}
-            blurUnverifiedBudgets={blurUnverifiedBudgets}
+            blurUnverifiedBudgets={blurUnverifiedBudgets && !canVerifyBudgetsApp}
         />
       ) : null}
       {isDesktopShell ? (

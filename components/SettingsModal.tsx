@@ -238,7 +238,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       Embaçar orçamentos sem verificação
                     </label>
                     <p className="text-[12px] text-zinc-500 dark:text-zinc-400 mt-0.5">
-                      Orçamentos ainda não verificados ficam embassados com o aviso “Aguardando aprovação”
+                      No hub de Orçamentos, orçamentos ainda não verificados ficam embassados com “Aguardando aprovação” (não vale para admin / acesso total)
                     </p>
                   </div>
                   <IosSwitch
