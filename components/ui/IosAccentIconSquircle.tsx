@@ -71,7 +71,8 @@ export const IosAccentIconSquircle: React.FC<Props> = ({
       : '';
   const merged = isImg
     ? [
-        'absolute inset-0 z-10 size-full min-h-0 min-w-0 object-cover object-center',
+        // PNG de app icon: tamanho fixo no shell; cores estáveis claro/escuro (sem filter de tema).
+        'absolute inset-0 z-10 size-full min-h-0 min-w-0 object-cover object-center opacity-100 [filter:none] dark:opacity-100 dark:[filter:none]',
         children.props.className,
       ]
         .filter(Boolean)
