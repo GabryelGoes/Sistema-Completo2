@@ -742,6 +742,32 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
     }));
   }, [intakePlateVehicleSuggestions, intakeCustomerDirectory]);
 
+  const completeMissingVehicleFromPlaca = useCallback(async (plate: string) => {
+    if (receptionMode !== 'vehicle') return;
+    const p = normalizePlacaLocal(plate);
+    if (p.length < 7) return;
+    setPlateLookupError(null);
+    setPlateLookupLoading(true);
+    try {
+      const result = await consultPlacaFipe(p);
+      lastFetchedPlacaRef.current = normalizePlacaLocal(result.plate || p);
+      setCustomer((prev) => ({
+        ...prev,
+        plate: (prev.plate?.trim() || result.plate || p).toUpperCase(),
+        vehicleBrand: prev.vehicleBrand?.trim() || result.vehicleBrand?.trim() || '',
+        vehicleModel: prev.vehicleModel?.trim() || result.vehicleModel?.trim() || '',
+        vehicleColor: prev.vehicleColor?.trim() || result.vehicleColor?.trim() || '',
+        vehicleYear: prev.vehicleYear?.trim() || result.vehicleYear?.trim() || '',
+        vehicleEngineInfo: prev.vehicleEngineInfo?.trim() || result.vehicleEngineInfo?.trim() || '',
+      }));
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : 'Falha na consulta.';
+      setPlateLookupError(msg);
+    } finally {
+      setPlateLookupLoading(false);
+    }
+  }, [receptionMode]);
+
   const selectIntakeLinkedVehicle = useCallback(
     (row: ReceptionLinkedVehicleSuggestion) => {
       const c = (intakeCustomerDirectory ?? []).find((x) => x.id === row.customerId);
@@ -756,6 +782,12 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
         if (c) selectIntakeExistingCustomer(c);
         return;
       }
+      const plate = (row.plate || '').trim().toUpperCase();
+      const brand = (row.vehicleBrand || '').trim();
+      const model = (row.vehicleModel || '').trim();
+      const color = (row.vehicleColor || '').trim();
+      const year = (row.vehicleYear || '').trim();
+      const engine = (row.vehicleEngineInfo || '').trim();
       setIntakeExistingCustomerId(row.customerId);
       setCustomer((prev) => {
         const base = c ? receptionFormFromApiCustomer(c, prev) : {
@@ -766,20 +798,26 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
         };
         return {
           ...base,
-          plate: row.plate,
-          vehicleBrand: row.vehicleBrand,
-          vehicleModel: row.vehicleModel,
-          vehicleColor: row.vehicleColor,
-          vehicleYear: row.vehicleYear,
-          vehicleEngineInfo: row.vehicleEngineInfo,
+          plate,
+          vehicleBrand: brand,
+          vehicleModel: model,
+          vehicleColor: color,
+          vehicleYear: year,
+          vehicleEngineInfo: engine,
           // Não copia km da OS antiga — quilometragem deve ser informada no atendimento atual.
           mileageKm: prev.mileageKm,
         };
       });
-      lastFetchedPlacaRef.current = normalizePlacaLocal(row.plate) || null;
       setPlateLookupError(null);
+      const missingVehicleData = !brand || !model || !color || !year || !engine;
+      if (missingVehicleData && plate) {
+        lastFetchedPlacaRef.current = null;
+        void completeMissingVehicleFromPlaca(plate);
+      } else {
+        lastFetchedPlacaRef.current = normalizePlacaLocal(plate) || null;
+      }
     },
-    [intakeCustomerDirectory, selectIntakeExistingCustomer]
+    [intakeCustomerDirectory, selectIntakeExistingCustomer, completeMissingVehicleFromPlaca]
   );
 
   const clearIntakeCustomerSelection = useCallback(() => {
@@ -1068,13 +1106,22 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
       }
     }
 
+    if (!(customer.city ?? '').trim()) {
+      setStatus({ step: 'error', message: 'Preencha a cidade.' });
+      return;
+    }
+
     const docStatus = getCpfCnpjStatus(customer.cpf);
+    if (docStatus === 'empty') {
+      setStatus({ step: 'error', message: 'Preencha o CPF ou CNPJ.' });
+      return;
+    }
     if (docStatus === 'incomplete' || docStatus === 'invalid') {
       setStatus({
         step: 'error',
         message:
           docStatus === 'incomplete'
-            ? 'CPF ou CNPJ incompleto. Informe os dígitos ou deixe o campo em branco.'
+            ? 'CPF ou CNPJ incompleto. Informe todos os dígitos.'
             : 'CPF ou CNPJ inválido. Verifique os dígitos informados.',
       });
       return;
@@ -1717,7 +1764,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                 ) : null}
                 {intakeCustomerSearchOpen &&
                 intakeCustomerSearch.trim().length < RECEPTION_SUGGEST_MIN_CHARS ? (
-                  <div className="absolute left-0 right-0 z-30 mt-1.5 overflow-hidden rounded-md border border-zinc-300 bg-white px-3 py-2.5 text-xs text-zinc-500 shadow-md dark:border-white/[0.14] dark:bg-zinc-900 dark:text-zinc-400">
+                  <div className="absolute left-0 right-0 z-30 mt-1.5 overflow-hidden rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-xs text-zinc-500 shadow-md dark:border-brand-border dark:bg-zinc-900 dark:text-zinc-400">
                     Digite ao menos {RECEPTION_SUGGEST_MIN_CHARS} caracteres para ver veículos vinculados.
                   </div>
                 ) : null}
@@ -1759,6 +1806,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                     value={customer.cpf}
                     onChange={handleInputChange}
                     icon={<ShieldCheck className="w-4 h-4" />}
+                    required
                     inputClassName={
                       customerDocStatus === 'invalid'
                         ? 'border-red-400 focus:border-red-500 focus:ring-red-400/40'
@@ -1825,6 +1873,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                   value={customer.city ?? ''}
                   onChange={handleInputChange}
                   icon={<Building2 className="w-4 h-4" />}
+                  required
                 />
               </div>
             </div>

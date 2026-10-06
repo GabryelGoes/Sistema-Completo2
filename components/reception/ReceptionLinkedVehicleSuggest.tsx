@@ -72,7 +72,7 @@ export const ReceptionLinkedVehicleSuggest: React.FC<ReceptionLinkedVehicleSugge
 
   return (
     <div
-      className={`absolute left-0 right-0 z-30 mt-1.5 overflow-hidden rounded-md border border-zinc-300 bg-white shadow-[0_10px_28px_-8px_rgba(0,0,0,0.22),0_4px_12px_-4px_rgba(0,0,0,0.1)] dark:border-white/[0.14] dark:bg-zinc-900 ${className}`}
+      className={`absolute left-0 right-0 z-30 mt-1.5 overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-[0_10px_28px_-8px_rgba(0,0,0,0.22),0_4px_12px_-4px_rgba(0,0,0,0.1)] dark:border-brand-border dark:bg-zinc-900 ${className}`}
       role="listbox"
       aria-label="Sugestões de veículos vinculados"
     >
