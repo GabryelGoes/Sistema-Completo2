@@ -158,7 +158,7 @@ const HOME_MODULE_ACCESS: {
     key: 'access_relatorios',
     label: 'Relatórios',
     description: 'Centro de relatórios na página inicial — entradas, entregas, técnicos, garantia e modelos',
-    icon: '/icons/relatorios-ios.svg',
+    icon: '/icons/relatorios-ios.png',
     iconAlt: 'Relatórios',
   },
   {

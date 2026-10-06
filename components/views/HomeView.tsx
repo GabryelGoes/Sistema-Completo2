@@ -576,7 +576,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
         id: 'relatorios',
         label: 'Relatórios',
         icon: (
-          <img src="/icons/relatorios-ios.svg" alt="Relatórios" className="h-full w-full object-cover" />
+          <img src="/icons/relatorios-ios.png" alt="Relatórios" className="h-full w-full object-cover" />
         ),
         onOpen: () => onOpenApp('relatorios'),
       });
