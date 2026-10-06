@@ -71,8 +71,10 @@ export const IosAccentIconSquircle: React.FC<Props> = ({
       : '';
   const merged = isImg
     ? [
-        // PNG de app icon: tamanho fixo no shell; cores estáveis claro/escuro (sem filter de tema).
-        'absolute inset-0 z-10 size-full min-h-0 min-w-0 object-cover object-center opacity-100 [filter:none] dark:opacity-100 dark:[filter:none]',
+        // PNG de app icon: caixa fixa do shell; tiles da home usam fill para equalizar tamanho aparente.
+        `absolute inset-0 z-10 block size-full min-h-0 min-w-0 border-0 ${
+          variant === 'tile' ? 'object-fill' : 'object-cover'
+        } object-center outline-none [box-shadow:none] opacity-100 [filter:none] dark:opacity-100 dark:[filter:none]`,
         children.props.className,
       ]
         .filter(Boolean)
