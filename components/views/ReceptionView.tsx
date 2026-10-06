@@ -772,7 +772,8 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
           vehicleColor: row.vehicleColor,
           vehicleYear: row.vehicleYear,
           vehicleEngineInfo: row.vehicleEngineInfo,
-          mileageKm: row.mileageKm || prev.mileageKm,
+          // Não copia km da OS antiga — quilometragem deve ser informada no atendimento atual.
+          mileageKm: prev.mileageKm,
         };
       });
       lastFetchedPlacaRef.current = normalizePlacaLocal(row.plate) || null;
@@ -1062,14 +1063,6 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
         setStatus({
           step: 'error',
           message: 'Preencha a placa completa (mín. 7 caracteres).',
-        });
-        return;
-      }
-      const kmTrim = (customer.mileageKm ?? '').trim();
-      if (!kmTrim) {
-        setStatus({
-          step: 'error',
-          message: 'Preencha a quilometragem (Km).',
         });
         return;
       }
@@ -1943,7 +1936,6 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                         value={customer.mileageKm ?? ''}
                         onChange={handleInputChange}
                         icon={<Hash className="w-4 h-4" />}
-                        required
                       />
                       <p className={receptionFieldHintSlot} aria-hidden>
                         {'\u00a0'}

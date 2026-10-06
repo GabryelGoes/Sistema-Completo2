@@ -1,5 +1,5 @@
 import React from 'react';
-import { Loader2, Star } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { formatCpfCnpj, onlyDigits } from '../../utils/cpfCnpj';
 
 export type ReceptionLinkedVehicleSuggestion = {
@@ -37,9 +37,9 @@ export function formatVehicleSuggestLine(s: ReceptionLinkedVehicleSuggestion): s
   return parts.join(' - ');
 }
 
-function personKindBadge(cpf: string | null): 'PF' | 'PJ' {
+function docLabel(cpf: string | null): 'CPF' | 'CNPJ' {
   const d = onlyDigits(cpf ?? '');
-  return d.length > 11 ? 'PJ' : 'PF';
+  return d.length > 11 ? 'CNPJ' : 'CPF';
 }
 
 type ReceptionLinkedVehicleSuggestProps = {
@@ -109,7 +109,6 @@ export const ReceptionLinkedVehicleSuggest: React.FC<ReceptionLinkedVehicleSugge
           ) : (
             <ul>
               {suggestions.map((row, idx) => {
-                const kind = personKindBadge(row.cpf);
                 const zebra = idx % 2 === 1;
                 return (
                   <li key={row.key}>
@@ -133,18 +132,8 @@ export const ReceptionLinkedVehicleSuggest: React.FC<ReceptionLinkedVehicleSugge
                           </span>
                         </div>
                         <div className="mt-1 flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-0.5">
-                          <span className="inline-flex items-center gap-1.5">
-                            <span
-                              className={`inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-[2px] text-[8px] font-bold text-white ${
-                                kind === 'PJ' ? 'bg-violet-500' : 'bg-sky-500'
-                              }`}
-                              aria-hidden
-                            >
-                              {kind}
-                            </span>
-                            <span className="text-[12px] font-semibold text-zinc-900 dark:text-zinc-100">
-                              {row.customerName}
-                            </span>
+                          <span className="text-[12px] font-semibold text-zinc-900 dark:text-zinc-100">
+                            {row.customerName}
                           </span>
                           {row.phone ? (
                             <span className="text-[11px] italic text-zinc-500 dark:text-zinc-400">
@@ -153,22 +142,10 @@ export const ReceptionLinkedVehicleSuggest: React.FC<ReceptionLinkedVehicleSugge
                           ) : null}
                           {row.cpf ? (
                             <span className="text-[11px] italic text-zinc-500 dark:text-zinc-400">
-                              {kind === 'PJ' ? 'CNPJ' : 'CPF'}: {formatCpfCnpj(row.cpf)}
+                              {docLabel(row.cpf)}: {formatCpfCnpj(row.cpf)}
                             </span>
                           ) : null}
                         </div>
-                      </div>
-                      <div
-                        className="hidden shrink-0 items-center gap-0.5 self-center sm:flex"
-                        aria-hidden
-                      >
-                        {Array.from({ length: 5 }).map((_, i) => (
-                          <Star
-                            key={i}
-                            className="h-3 w-3 text-zinc-300 dark:text-zinc-600"
-                            strokeWidth={1.5}
-                          />
-                        ))}
                       </div>
                     </button>
                   </li>
