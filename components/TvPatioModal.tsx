@@ -1306,7 +1306,8 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
               <img
                 src={tvScope === 'laboratorio' ? '/icons/laboratorio-ios.png' : '/icons/tv-patio-ios.png'}
                 alt={tvScope === 'laboratorio' ? 'TV Laboratório' : 'TV Pátio'}
-                className="h-full w-full object-cover"
+                className="h-full w-full object-cover opacity-100 [filter:none] dark:opacity-100 dark:[filter:none]"
+                draggable={false}
               />
             </IosAccentIconSquircle>
             <div>

@@ -57,7 +57,12 @@ export type DesktopAppShellProps = {
 function NavIconImg({ iconSrc }: { iconSrc: string }) {
   return (
     <span className="desktop-shell-nav-icon" aria-hidden>
-      <img src={iconSrc} alt="" className="h-full w-full object-cover" />
+      <img
+        src={iconSrc}
+        alt=""
+        className="h-full w-full object-cover opacity-100 [filter:none] dark:opacity-100 dark:[filter:none]"
+        draggable={false}
+      />
     </span>
   );
 }
