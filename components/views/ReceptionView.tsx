@@ -271,9 +271,11 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
   const [intakeVehicleOrdersLoading, setIntakeVehicleOrdersLoading] = useState(false);
   const [intakeVehicleOrdersError, setIntakeVehicleOrdersError] = useState<string | null>(null);
   const [intakePlateSearchOpen, setIntakePlateSearchOpen] = useState(false);
+  const [intakeModelSearchOpen, setIntakeModelSearchOpen] = useState(false);
   const intakeCustomerBlurTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const customerSearchBoxRef = useRef<HTMLDivElement | null>(null);
   const plateSearchBoxRef = useRef<HTMLDivElement | null>(null);
+  const modelSearchBoxRef = useRef<HTMLDivElement | null>(null);
   const stageMenuRef = useRef<HTMLDivElement | null>(null);
   const [stageMenuOpen, setStageMenuOpen] = useState(false);
   const [, setLabKindsVersion] = useState(0);
@@ -303,7 +305,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
   }, []);
 
   useEffect(() => {
-    if (!intakeCustomerSearchOpen && !intakePlateSearchOpen) return;
+    if (!intakeCustomerSearchOpen && !intakePlateSearchOpen && !intakeModelSearchOpen) return;
     const onPointerDown = (e: MouseEvent) => {
       const t = e.target as Node;
       if (intakeCustomerSearchOpen && customerSearchBoxRef.current && !customerSearchBoxRef.current.contains(t)) {
@@ -312,11 +314,15 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
       if (intakePlateSearchOpen && plateSearchBoxRef.current && !plateSearchBoxRef.current.contains(t)) {
         setIntakePlateSearchOpen(false);
       }
+      if (intakeModelSearchOpen && modelSearchBoxRef.current && !modelSearchBoxRef.current.contains(t)) {
+        setIntakeModelSearchOpen(false);
+      }
     };
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         setIntakeCustomerSearchOpen(false);
         setIntakePlateSearchOpen(false);
+        setIntakeModelSearchOpen(false);
       }
     };
     document.addEventListener('mousedown', onPointerDown);
@@ -325,7 +331,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
       document.removeEventListener('mousedown', onPointerDown);
       document.removeEventListener('keydown', onKey);
     };
-  }, [intakeCustomerSearchOpen, intakePlateSearchOpen]);
+  }, [intakeCustomerSearchOpen, intakePlateSearchOpen, intakeModelSearchOpen]);
 
   useEffect(() => {
     return () => {
@@ -453,7 +459,9 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
 
   const customerDocStatus = useMemo(() => getCpfCnpjStatus(customer.cpf), [customer.cpf]);
   const customerDocHint =
-    customerDocStatus === 'incomplete'
+    customerDocStatus === 'empty'
+      ? 'CPF ou CNPJ obrigatório.'
+      : customerDocStatus === 'incomplete'
       ? 'Digite o CPF (11 dígitos) ou CNPJ (14 dígitos).'
       : customerDocStatus === 'invalid'
         ? 'Documento inválido — confira os dígitos.'
@@ -668,17 +676,35 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
       .slice(0, 60);
   }, [customer.plate, intakeLinkedVehiclesAll]);
 
+  const intakeModelVehicleSuggestions = useMemo((): ReceptionLinkedVehicleSuggestion[] => {
+    const qRaw = (customer.vehicleModel ?? '').trim();
+    if (qRaw.length < RECEPTION_SUGGEST_MIN_CHARS) return [];
+    const qLower = qRaw.toLowerCase();
+    return intakeLinkedVehiclesAll
+      .filter((s) => {
+        const model = s.vehicleModel.toLowerCase();
+        const brand = s.vehicleBrand.toLowerCase();
+        return model.includes(qLower) || brand.includes(qLower) || `${brand} ${model}`.includes(qLower);
+      })
+      .slice(0, 60);
+  }, [customer.vehicleModel, intakeLinkedVehiclesAll]);
+
+  const closeAllIntakeSuggest = useCallback(() => {
+    setIntakeCustomerSearchOpen(false);
+    setIntakePlateSearchOpen(false);
+    setIntakeModelSearchOpen(false);
+  }, []);
+
   const selectIntakeExistingCustomer = useCallback((c: ApiCustomer) => {
     setIntakeExistingCustomerId(c.id);
     setIntakeCustomerSearch('');
-    setIntakeCustomerSearchOpen(false);
-    setIntakePlateSearchOpen(false);
+    closeAllIntakeSuggest();
     if (intakeCustomerBlurTimerRef.current) {
       clearTimeout(intakeCustomerBlurTimerRef.current);
       intakeCustomerBlurTimerRef.current = null;
     }
     setCustomer((prev) => receptionFormFromApiCustomer(c, prev));
-  }, []);
+  }, [closeAllIntakeSuggest]);
 
   const clearVehicleFieldsForNovaPlaca = useCallback((prev: Customer): Customer => ({
     ...prev,
@@ -706,8 +732,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
     const c = customerId
       ? (intakeCustomerDirectory ?? []).find((x) => x.id === customerId)
       : undefined;
-    setIntakeCustomerSearchOpen(false);
-    setIntakePlateSearchOpen(false);
+    closeAllIntakeSuggest();
     if (!c) return;
     setIntakeExistingCustomerId(c.id);
     setIntakeCustomerSearch('');
@@ -721,10 +746,11 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
     intakeCustomerSearch,
     intakeCustomerDirectory,
     clearVehicleFieldsForNovaPlaca,
+    closeAllIntakeSuggest,
   ]);
 
   const selectIntakeNovaPlacaFromPlate = useCallback(() => {
-    setIntakePlateSearchOpen(false);
+    closeAllIntakeSuggest();
     // Mantém a placa digitada como nova; se houver um único cliente nos resultados, preenche os dados dele.
     const ids = [...new Set(intakePlateVehicleSuggestions.map((r) => r.customerId))];
     if (ids.length !== 1) return;
@@ -740,7 +766,26 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
       vehicleYear: '',
       vehicleEngineInfo: '',
     }));
-  }, [intakePlateVehicleSuggestions, intakeCustomerDirectory]);
+  }, [intakePlateVehicleSuggestions, intakeCustomerDirectory, closeAllIntakeSuggest]);
+
+  const selectIntakeNovaPlacaFromModel = useCallback(() => {
+    closeAllIntakeSuggest();
+    // Mantém o modelo digitado; se houver um único cliente nos resultados, preenche os dados dele.
+    const ids = [...new Set(intakeModelVehicleSuggestions.map((r) => r.customerId))];
+    if (ids.length !== 1) return;
+    const c = (intakeCustomerDirectory ?? []).find((x) => x.id === ids[0]);
+    if (!c) return;
+    setIntakeExistingCustomerId(c.id);
+    setCustomer((prev) => ({
+      ...receptionFormFromApiCustomer(c, prev),
+      vehicleModel: prev.vehicleModel,
+      plate: '',
+      vehicleBrand: '',
+      vehicleColor: '',
+      vehicleYear: '',
+      vehicleEngineInfo: '',
+    }));
+  }, [intakeModelVehicleSuggestions, intakeCustomerDirectory, closeAllIntakeSuggest]);
 
   const completeMissingVehicleFromPlaca = useCallback(async (plate: string) => {
     if (receptionMode !== 'vehicle') return;
@@ -771,8 +816,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
   const selectIntakeLinkedVehicle = useCallback(
     (row: ReceptionLinkedVehicleSuggestion) => {
       const c = (intakeCustomerDirectory ?? []).find((x) => x.id === row.customerId);
-      setIntakeCustomerSearchOpen(false);
-      setIntakePlateSearchOpen(false);
+      closeAllIntakeSuggest();
       setIntakeCustomerSearch('');
       if (intakeCustomerBlurTimerRef.current) {
         clearTimeout(intakeCustomerBlurTimerRef.current);
@@ -817,14 +861,13 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
         lastFetchedPlacaRef.current = normalizePlacaLocal(plate) || null;
       }
     },
-    [intakeCustomerDirectory, selectIntakeExistingCustomer, completeMissingVehicleFromPlaca]
+    [intakeCustomerDirectory, selectIntakeExistingCustomer, completeMissingVehicleFromPlaca, closeAllIntakeSuggest]
   );
 
   const clearIntakeCustomerSelection = useCallback(() => {
     setIntakeExistingCustomerId(null);
     setIntakeCustomerSearch('');
-    setIntakeCustomerSearchOpen(false);
-    setIntakePlateSearchOpen(false);
+    closeAllIntakeSuggest();
     if (intakeCustomerBlurTimerRef.current) {
       clearTimeout(intakeCustomerBlurTimerRef.current);
       intakeCustomerBlurTimerRef.current = null;
@@ -840,7 +883,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
       city: '',
       addressNumber: '',
     }));
-  }, []);
+  }, [closeAllIntakeSuggest]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
@@ -858,6 +901,15 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
       setIntakeCustomerSearch(value);
       const q = value.trim();
       setIntakeCustomerSearchOpen(q.length >= RECEPTION_SUGGEST_MIN_CHARS);
+      setIntakePlateSearchOpen(false);
+      setIntakeModelSearchOpen(false);
+      return;
+    }
+    if (name === 'vehicleModel' && receptionMode === 'vehicle') {
+      setCustomer((prev) => ({ ...prev, vehicleModel: value }));
+      const q = value.trim();
+      setIntakeModelSearchOpen(q.length >= RECEPTION_SUGGEST_MIN_CHARS);
+      setIntakeCustomerSearchOpen(false);
       setIntakePlateSearchOpen(false);
       return;
     }
@@ -1266,6 +1318,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
     setIntakeCustomerDirectoryLoading(false);
     setIntakeCustomerSearchOpen(false);
     setIntakePlateSearchOpen(false);
+    setIntakeModelSearchOpen(false);
     setIntakeVehicleOrders(null);
     setIntakeVehicleOrdersError(null);
     setIntakeVehicleOrdersLoading(false);
@@ -1322,6 +1375,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
     setIntakeCustomerDirectoryLoading(false);
     setIntakeCustomerSearchOpen(false);
     setIntakePlateSearchOpen(false);
+    setIntakeModelSearchOpen(false);
     if (intakeCustomerBlurTimerRef.current) {
       clearTimeout(intakeCustomerBlurTimerRef.current);
       intakeCustomerBlurTimerRef.current = null;
@@ -1733,6 +1787,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                           const q = (customer.name ?? '').trim();
                           setIntakeCustomerSearch(q);
                           setIntakePlateSearchOpen(false);
+                          setIntakeModelSearchOpen(false);
                         }
                         return next;
                       })
@@ -1922,12 +1977,14 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                               const q = value.trim();
                               setIntakePlateSearchOpen(q.length >= RECEPTION_SUGGEST_MIN_CHARS);
                               setIntakeCustomerSearchOpen(false);
+                              setIntakeModelSearchOpen(false);
                             }}
                             onFocus={() => {
                               const q = (customer.plate ?? '').trim();
                               if (q.length >= RECEPTION_SUGGEST_MIN_CHARS) {
                                 setIntakePlateSearchOpen(true);
                                 setIntakeCustomerSearchOpen(false);
+                                setIntakeModelSearchOpen(false);
                               }
                             }}
                             onBlur={() => void runPlacaLookup(false)}
@@ -2006,18 +2063,39 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                         {'\u00a0'}
                       </p>
                     </div>
-                    <div className="min-w-0">
+                    <div className="relative min-w-0" ref={modelSearchBoxRef}>
                       <Input
                         label="Modelo (aparece no card)"
                         name="vehicleModel"
                         placeholder="Modelo"
                         value={customer.vehicleModel}
                         onChange={handleInputChange}
+                        onFocus={() => {
+                          const q = (customer.vehicleModel ?? '').trim();
+                          if (q.length >= RECEPTION_SUGGEST_MIN_CHARS) {
+                            setIntakeModelSearchOpen(true);
+                            setIntakeCustomerSearchOpen(false);
+                            setIntakePlateSearchOpen(false);
+                          }
+                        }}
+                        autoComplete="off"
                         icon={<Car className="w-4 h-4" />}
                       />
                       <p className={receptionFieldHintSlot} aria-hidden>
                         {'\u00a0'}
                       </p>
+                      <ReceptionLinkedVehicleSuggest
+                        open={
+                          intakeModelSearchOpen &&
+                          (customer.vehicleModel ?? '').trim().length >= RECEPTION_SUGGEST_MIN_CHARS
+                        }
+                        query={customer.vehicleModel ?? ''}
+                        loading={intakeVehicleOrdersLoading}
+                        error={intakeVehicleOrdersError}
+                        suggestions={intakeModelVehicleSuggestions}
+                        onSelectVehicle={selectIntakeLinkedVehicle}
+                        onSelectNovaPlaca={selectIntakeNovaPlacaFromModel}
+                      />
                     </div>
                   </div>
                   <div className={receptionFormRow3}>
