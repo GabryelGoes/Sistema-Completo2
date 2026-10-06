@@ -255,7 +255,12 @@ export const QualityRadarView: React.FC<{ authSession?: AuthSession | null }> = 
                   Gestão da equipe
                 </p>
                 <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight md:text-[1.75rem]">
-                  <img src={QUALITY_RADAR_ICON} alt="" className="h-9 w-9 rounded-xl object-cover" />
+                  <img
+                    src={QUALITY_RADAR_ICON}
+                    alt=""
+                    className="h-9 w-9 rounded-xl object-cover opacity-100 [filter:none] dark:opacity-100 dark:[filter:none]"
+                    draggable={false}
+                  />
                   {QUALITY_RADAR_MODULE_TITLE}
                 </h1>
                 <p className="max-w-xl text-[14px] leading-relaxed text-rose-50">{QUALITY_RADAR_MODULE_SUBTITLE}</p>
