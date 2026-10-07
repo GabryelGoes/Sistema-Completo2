@@ -803,6 +803,42 @@ export default function App() {
     setPatioPendingOrderId(null);
   }, []);
 
+  /** Boletins técnicos: abre a OS vinculada no Pátio (ativa ou arquivada, sem desarquivar). */
+  const handleOpenLinkedServiceOrderFromBulletin = useCallback(
+    (serviceOrderId: string) => {
+      const soId = serviceOrderId.trim();
+      if (!soId) return;
+      setIsPartsModalOpen(false);
+      setPartsBootIntent(null);
+      setIsTvPatioModalOpen(false);
+      setSettingsHubOpen(false);
+      setIsSettingsOpen(false);
+      setIsSupportChatOpen(false);
+      // Limpa antes para permitir reabrir a mesma OS em sequência.
+      setPatioPendingOrderId(null);
+      window.setTimeout(() => setPatioPendingOrderId(soId), 0);
+      if (isLimitedSystemUser) {
+        setVisitedUserTabs((prev) => {
+          if (prev.has('patio')) return prev;
+          const next = new Set(prev);
+          next.add('patio');
+          return next;
+        });
+        if (userAllowedTabs.includes('patio')) setUserTab('patio');
+        else setUserTab('home');
+      } else {
+        setVisitedTabs((prev) => {
+          if (prev.has('patio')) return prev;
+          const next = new Set(prev);
+          next.add('patio');
+          return next;
+        });
+        setCurrentTab('patio');
+      }
+    },
+    [isLimitedSystemUser, userAllowedTabs]
+  );
+
   /**
    * Pistola USB: se o modal da OS reivindicar (caixa de estoque), trata lá;
    * senão, QR de OS do Laboratório (RDA-OS) abre o modal rápido.
@@ -1393,7 +1429,10 @@ export default function App() {
             className="flex-1 min-h-0 w-full overflow-y-auto overflow-x-hidden"
           >
             <LazyTabBoundary label="Boletim técnico">
-              <LazyErrorBulletinView authSession={authSession} />
+              <LazyErrorBulletinView
+                authSession={authSession}
+                onOpenLinkedServiceOrder={handleOpenLinkedServiceOrderFromBulletin}
+              />
             </LazyTabBoundary>
           </KeepAliveTabPanel>
           <KeepAliveTabPanel
@@ -1754,7 +1793,10 @@ export default function App() {
           className="flex-1 min-h-0 w-full overflow-y-auto overflow-x-hidden"
         >
           <LazyTabBoundary label="Boletim técnico">
-            <LazyErrorBulletinView authSession={authSession} />
+            <LazyErrorBulletinView
+              authSession={authSession}
+              onOpenLinkedServiceOrder={handleOpenLinkedServiceOrderFromBulletin}
+            />
           </LazyTabBoundary>
         </KeepAliveTabPanel>
 

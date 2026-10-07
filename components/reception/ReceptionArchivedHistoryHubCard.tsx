@@ -1,5 +1,5 @@
 import React from 'react';
-import { ChevronRight, FileText, Wrench } from 'lucide-react';
+import { ChevronRight, Eye, FileText, Wrench } from 'lucide-react';
 import { getStageStyle } from '../../constants/serviceOrderStages';
 import type { BoardCard } from '../../types';
 import { parsePatioCardTitle } from '../../utils/patioCardTitle';
@@ -75,6 +75,8 @@ export type ReceptionArchivedHistoryHubCardProps = {
   isModuleMode: boolean;
   blurPlates?: boolean;
   onOpenDetail: () => void;
+  /** Botão explícito para abrir a ficha completa sem desarquivar (padrão: true). */
+  showVisualizeButton?: boolean;
   footerAppend?: React.ReactNode;
 };
 
@@ -87,6 +89,7 @@ export function ReceptionArchivedHistoryHubCard({
   isModuleMode,
   blurPlates = false,
   onOpenDetail,
+  showVisualizeButton = true,
   footerAppend,
 }: ReceptionArchivedHistoryHubCardProps) {
   const model = (order.vehicle_model || (isModuleMode ? 'Módulo' : 'Veículo')).trim();
@@ -158,10 +161,24 @@ export function ReceptionArchivedHistoryHubCard({
                 .join(' · ')}
             </p>
           ) : null}
-          <p className="mt-2 text-[12px] font-medium text-zinc-500 dark:text-zinc-500">Toque para abrir a ficha completa</p>
+          <p className="mt-2 text-[12px] font-medium text-zinc-500 dark:text-zinc-500">
+            Toque para abrir a ficha completa sem desarquivar
+          </p>
         </div>
         <ChevronRight className="mt-1 h-5 w-5 shrink-0 text-zinc-400" strokeWidth={2} aria-hidden />
       </button>
+      {showVisualizeButton ? (
+        <div className="border-t border-zinc-200/60 bg-zinc-50/90 px-4 py-3 dark:border-white/[0.06] dark:bg-zinc-950/35 sm:px-5">
+          <button
+            type="button"
+            onClick={onOpenDetail}
+            className="flex w-full min-h-[48px] items-center justify-center gap-2 rounded-2xl bg-[#007AFF] px-4 py-2.5 text-[14px] font-semibold text-white shadow-[0_8px_20px_-8px_rgba(37,99,235,0.32)] transition-all hover:opacity-95 active:scale-[0.98] dark:shadow-lg dark:shadow-blue-500/25"
+          >
+            <Eye className="h-4 w-4" strokeWidth={2.25} aria-hidden />
+            {isModuleMode ? 'Visualizar OS do módulo' : 'Visualizar OS completa'}
+          </button>
+        </div>
+      ) : null}
       {footerAppend ? (
         <div className="border-t border-zinc-200/60 bg-zinc-50/90 px-4 py-4 dark:border-white/[0.06] dark:bg-zinc-950/35 sm:px-5">
           {footerAppend}

@@ -12694,11 +12694,12 @@ export function createApiApp() {
 
       const safeName = sanitizeVehiclePhotoFileName(file.originalname);
       const pathInBucket = `${WORKSHOP_ID}/bulletins/${bulletinId}/${Date.now()}_${safeName}`;
-      const isPhoto = (file.mimetype || "").startsWith("image/");
+      const contentType = resolveServiceOrderPhotoContentType(safeName, file.mimetype);
+      const isPhoto = contentType.startsWith("image/");
 
       const { error: uploadError } = await supabaseAdmin.storage
         .from(ERROR_BULLETINS_BUCKET)
-        .upload(pathInBucket, file.buffer, { contentType: file.mimetype, upsert: false });
+        .upload(pathInBucket, file.buffer, { contentType, upsert: false });
 
       if (uploadError) {
         console.error("[API] upload error-bulletin attachment:", uploadError);
@@ -12718,7 +12719,7 @@ export function createApiApp() {
           name: safeName,
           url: publicUrl,
           storage_path: pathInBucket,
-          mime_type: file.mimetype,
+          mime_type: contentType,
           file_size_bytes: file.size,
         })
         .select("*")

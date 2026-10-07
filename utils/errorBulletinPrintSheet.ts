@@ -33,7 +33,10 @@ export function printErrorBulletin(detail: ErrorBulletinDetail): void {
   const vehicle = [detail.vehicleBrand, detail.vehicleModel, detail.vehicleYear].filter(Boolean).join(' ');
   const dtcs = parseDtcLines(detail.dtcCodes);
   const dtcHtml = dtcs.length
-    ? `<div class="dtc-row">${dtcs.map((c) => `<span class="dtc">${esc(c)}</span>`).join('')}</div>`
+    ? `<section class="dtc-sec">
+        <h2 class="dtc-sec-title">Códigos DTC (${dtcs.length})</h2>
+        <div class="dtc-row">${dtcs.map((c) => `<span class="dtc">${esc(c)}</span>`).join('')}</div>
+      </section>`
     : '';
   const tags = (detail.tags ?? []).filter(Boolean);
   const tagHtml = tags.length
@@ -75,8 +78,10 @@ export function printErrorBulletin(detail: ErrorBulletinDetail): void {
   .sec { margin: 0 0 14px; page-break-inside: avoid; }
   .sec-title { font-family: system-ui, sans-serif; font-size: 8.5pt; letter-spacing: 0.1em; text-transform: uppercase; color: #92400e; margin: 0 0 6px; font-weight: 700; border-left: 3px solid #f59e0b; padding-left: 8px; }
   .sec-body { white-space: pre-wrap; }
-  .dtc-row { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 14px; }
-  .dtc { font-family: ui-monospace, monospace; font-size: 9pt; font-weight: 700; background: #f59e0b; color: #fff; padding: 3px 8px; border-radius: 4px; }
+  .dtc-sec { margin: 0 0 18px; padding: 12px 14px; border: 2.5px solid #d97706; border-radius: 10px; background: #fffbeb; page-break-inside: avoid; }
+  .dtc-sec-title { font-family: system-ui, sans-serif; font-size: 11pt; letter-spacing: 0.08em; text-transform: uppercase; color: #92400e; margin: 0 0 10px; font-weight: 800; }
+  .dtc-row { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; }
+  .dtc { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 14pt; font-weight: 800; letter-spacing: 0.04em; background: #d97706; color: #fff; padding: 8px 14px; border-radius: 8px; border: 1.5px solid #b45309; box-shadow: 0 1px 0 rgba(0,0,0,0.08); min-width: 4.2em; text-align: center; }
   .tags { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
   .tag { font-family: system-ui, sans-serif; font-size: 8.5pt; background: #f4f4f5; border: 1px solid #e4e4e7; padding: 2px 8px; border-radius: 999px; }
   .photos { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
