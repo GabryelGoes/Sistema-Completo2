@@ -12203,6 +12203,7 @@ export function createApiApp() {
           bench_slot: null,
           bench_slot_at: null,
           bench_queued_at: null,
+          oficina_shelf: null,
           updated_at: archivedAt,
         })
         .eq("id", id)
