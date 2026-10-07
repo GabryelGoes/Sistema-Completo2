@@ -1175,7 +1175,7 @@ export async function updateServiceOrderBenchSlot(
   return response.json();
 }
 
-/** Define (A–Z) ou limpa (null) a letra da oficina (independente do depósito). */
+/** Define (A–X) ou limpa (null) a letra da oficina (bancada 24 vagas). */
 export async function updateServiceOrderOficinaShelf(
   id: string,
   letter: string | null
@@ -1188,6 +1188,40 @@ export async function updateServiceOrderOficinaShelf(
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
     throw new Error(err.error || `Falha ao atualizar letra da oficina (${response.status})`);
+  }
+  return response.json();
+}
+
+/** Técnico leva a peça da oficina para o laboratório (Em serviço). */
+export async function registerOficinaSaida(id: string): Promise<ApiServiceOrder> {
+  const response = await fetch(`${API_BASE}/service-orders/${id}/oficina-saida`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({}),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao registrar saída (${response.status})`);
+  }
+  return response.json();
+}
+
+/**
+ * Devolve a peça à bancada da oficina (letra A–X automática).
+ * Se estava Em serviço, volta para Aguardando avaliação (ou `status` informado).
+ */
+export async function registerOficinaRetorno(
+  id: string,
+  status?: string
+): Promise<ApiServiceOrder> {
+  const response = await fetch(`${API_BASE}/service-orders/${id}/oficina-retorno`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(status ? { status } : {}),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao registrar retorno (${response.status})`);
   }
   return response.json();
 }

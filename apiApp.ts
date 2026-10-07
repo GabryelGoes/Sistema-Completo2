@@ -20,8 +20,11 @@ import {
 } from "./constants/serviceOrderStages.js";
 import {
   statusUsesBench,
+  statusUsesOficinaShelf,
   firstFreeBenchSlot,
+  firstFreeOficinaShelf,
   normalizeBenchSlot,
+  normalizeOficinaShelf,
   type ExternalRepair,
 } from "./constants/labBench.js";
 import { normalizeTvChimeConfig } from "./utils/tvChimeSchedule.js";
@@ -405,6 +408,49 @@ export function createApiApp() {
     return firstFreeBenchSlot(occupied);
   }
 
+  /** Letras A–X ocupadas por OS de módulo ativas, exceto a OS informada. */
+  async function occupiedOficinaShelves(excludeId?: string | null): Promise<Set<string>> {
+    const occupied = new Set<string>();
+    if (!supabaseAdmin || !WORKSHOP_ID) return occupied;
+    const { data, error } = await supabaseAdmin
+      .from("service_orders")
+      .select("id, oficina_shelf, status")
+      .eq("workshop_id", WORKSHOP_ID)
+      .eq("order_type", "module")
+      .not("oficina_shelf", "is", null)
+      .neq("status", CANCELLED_STATUS);
+    if (error) {
+      // Coluna pode não existir ainda no projeto remoto
+      if (!/oficina_shelf/i.test(error.message || "")) {
+        console.warn("[API] occupiedOficinaShelves:", error.message);
+      }
+      return occupied;
+    }
+    for (const row of data ?? []) {
+      const r = row as { id: string; oficina_shelf: string | null };
+      if (excludeId && r.id === excludeId) continue;
+      const letter = normalizeOficinaShelf(r.oficina_shelf);
+      if (letter) occupied.add(letter);
+    }
+    return occupied;
+  }
+
+  /**
+   * Vaga da oficina (letra A–X): mantém a atual se válida; senão primeira livre.
+   * Null se o status não usa oficina ou se estiver lotada.
+   */
+  async function pickOficinaShelfForStatus(
+    status: string,
+    currentLetter: string | null,
+    excludeId?: string | null
+  ): Promise<string | null> {
+    if (!statusUsesOficinaShelf(status)) return null;
+    const normalized = normalizeOficinaShelf(currentLetter);
+    if (normalized != null) return normalized;
+    const occupied = await occupiedOficinaShelves(excludeId);
+    return firstFreeOficinaShelf(occupied);
+  }
+
   /**
    * Atribui compartimentos a OS na fila (bench_queued_at), em ordem FIFO,
    * quando qualquer vaga 1..24 liberar.
@@ -455,25 +501,39 @@ export function createApiApp() {
     }
   }
 
-  /** Compartimento + fila ao criar OS de módulo. */
+  /** Compartimento do depósito + letra da oficina + fila ao criar OS de módulo. */
   async function benchFieldsForNewModule(status: string): Promise<{
     bench_slot: number | null;
     bench_slot_at: string | null;
     bench_queued_at: string | null;
+    oficina_shelf: string | null;
   }> {
     const now = new Date().toISOString();
     if (!statusUsesBench(status)) {
-      return { bench_slot: null, bench_slot_at: null, bench_queued_at: null };
+      return {
+        bench_slot: null,
+        bench_slot_at: null,
+        bench_queued_at: null,
+        oficina_shelf: null,
+      };
     }
     const occupied = await occupiedBenchSlots();
     const slot = firstFreeBenchSlot(occupied);
+    const oficinaLetter = await pickOficinaShelfForStatus(status, null, null);
     if (slot != null) {
-      return { bench_slot: slot, bench_slot_at: now, bench_queued_at: null };
+      return {
+        bench_slot: slot,
+        bench_slot_at: now,
+        bench_queued_at: null,
+        oficina_shelf: oficinaLetter,
+      };
     }
-    if (statusUsesBench(status)) {
-      return { bench_slot: null, bench_slot_at: null, bench_queued_at: now };
-    }
-    return { bench_slot: null, bench_slot_at: null, bench_queued_at: null };
+    return {
+      bench_slot: null,
+      bench_slot_at: null,
+      bench_queued_at: now,
+      oficina_shelf: oficinaLetter,
+    };
   }
 
   function reqOrderId(req: express.Request): string {
@@ -4698,39 +4758,52 @@ export function createApiApp() {
       const benchFields =
         orderType === "module"
           ? await benchFieldsForNewModule(initialStatus)
-          : { bench_slot: null, bench_slot_at: null, bench_queued_at: null };
+          : {
+              bench_slot: null,
+              bench_slot_at: null,
+              bench_queued_at: null,
+              oficina_shelf: null,
+            };
+
+      const insertRow: Record<string, unknown> = {
+        workshop_id: WORKSHOP_ID,
+        os_number: nextOsNumber,
+        customer_id: customerId,
+        vehicle_model: vehicleModel ?? null,
+        vehicle_brand: vehicleBrandIns,
+        module_identification: orderType === "module" ? (moduleIdentification ?? null) : null,
+        module_kind: moduleKindParsed,
+        module_vehicle_kind: moduleVehicleKindParsed,
+        module_product_other:
+          orderType === "module" && moduleKindParsed === "outro"
+            ? moduleProductOtherTrimmed
+            : null,
+        plate: orderType === "vehicle" ? String(plate || "").toUpperCase() : null,
+        mileage_km:
+          orderType === "vehicle" && mileageKm != null && String(mileageKm).trim() !== ""
+            ? String(mileageKm).trim()
+            : null,
+        issue_description: issueDescription ?? null,
+        ai_analysis: aiAnalysis ?? null,
+        status: initialStatus,
+        order_type: orderType,
+        vehicle_category: vehicleCategoryTrimmed,
+        vehicle_color: vehicleColorIns,
+        vehicle_year: vehicleYearIns,
+        vehicle_engine_info: vehicleEngineInfoIns,
+        bench_slot: benchFields.bench_slot,
+        bench_slot_at: benchFields.bench_slot_at,
+        bench_queued_at: benchFields.bench_queued_at,
+        agenda_tag: orderType === "vehicle" && bodyAgendaTag === true,
+        garantia_tag: bodyGarantiaTag === true,
+      };
+      if (orderType === "module" && benchFields.oficina_shelf != null) {
+        insertRow.oficina_shelf = benchFields.oficina_shelf;
+      }
 
       const { data, error } = await supabaseAdmin
         .from("service_orders")
-        .insert({
-          workshop_id: WORKSHOP_ID,
-          os_number: nextOsNumber,
-          customer_id: customerId,
-          vehicle_model: vehicleModel ?? null,
-          vehicle_brand: vehicleBrandIns,
-          module_identification: orderType === "module" ? (moduleIdentification ?? null) : null,
-          module_kind: moduleKindParsed,
-          module_vehicle_kind: moduleVehicleKindParsed,
-          module_product_other:
-            orderType === "module" && moduleKindParsed === "outro"
-              ? moduleProductOtherTrimmed
-              : null,
-          plate: orderType === "vehicle" ? String(plate || '').toUpperCase() : null,
-          mileage_km: orderType === "vehicle" && mileageKm != null && String(mileageKm).trim() !== '' ? String(mileageKm).trim() : null,
-          issue_description: issueDescription ?? null,
-          ai_analysis: aiAnalysis ?? null,
-          status: initialStatus,
-          order_type: orderType,
-          vehicle_category: vehicleCategoryTrimmed,
-          vehicle_color: vehicleColorIns,
-          vehicle_year: vehicleYearIns,
-          vehicle_engine_info: vehicleEngineInfoIns,
-          bench_slot: benchFields.bench_slot,
-          bench_slot_at: benchFields.bench_slot_at,
-          bench_queued_at: benchFields.bench_queued_at,
-          agenda_tag: orderType === "vehicle" && bodyAgendaTag === true,
-          garantia_tag: bodyGarantiaTag === true,
-        })
+        .insert(insertRow)
         .select("*")
         .single();
 
@@ -11609,7 +11682,7 @@ export function createApiApp() {
       const { data: previous } = await supabaseAdmin
         .from("service_orders")
         .select(
-          "status, issue_description, delivery_date, assigned_technician, plate, vehicle_model, order_type, bench_slot, bench_queued_at, external_repair, lab_service_links, customers(name)"
+          "status, issue_description, delivery_date, assigned_technician, plate, vehicle_model, order_type, bench_slot, bench_queued_at, oficina_shelf, external_repair, lab_service_links, customers(name)"
         )
         .eq("id", id)
         .eq("workshop_id", WORKSHOP_ID)
@@ -11618,6 +11691,7 @@ export function createApiApp() {
       // Bancada do laboratório: quando o status muda em uma OS de módulo, realoca o
       // compartimento automaticamente (1..24) para o grupo do novo status, ou libera
       // o compartimento quando o produto sai da bancada (ex.: EM_SERVICO / finalizado).
+      // Paralelo: letra da oficina A–X.
       const effectiveOrderType =
         (updatePayload.order_type as string | undefined) ??
         (previous as { order_type?: string } | null)?.order_type ??
@@ -11644,6 +11718,9 @@ export function createApiApp() {
           typeof (previous as { bench_slot?: number | null }).bench_slot === "number"
             ? ((previous as { bench_slot?: number | null }).bench_slot as number)
             : null;
+        const currentOficina = normalizeOficinaShelf(
+          (previous as { oficina_shelf?: string | null }).oficina_shelf
+        );
         const nextStatus = String(updatePayload.status);
         if (statusUsesBench(nextStatus)) {
           const newSlot = await pickBenchSlotForStatus(nextStatus, currentSlot, id);
@@ -11656,10 +11733,20 @@ export function createApiApp() {
             updatePayload.bench_slot_at = null;
             updatePayload.bench_queued_at = new Date().toISOString();
           }
+          if (updatePayload.oficina_shelf === undefined) {
+            updatePayload.oficina_shelf = await pickOficinaShelfForStatus(
+              nextStatus,
+              currentOficina,
+              id
+            );
+          }
         } else {
           updatePayload.bench_slot = null;
           updatePayload.bench_slot_at = null;
           updatePayload.bench_queued_at = null;
+          if (updatePayload.oficina_shelf === undefined) {
+            updatePayload.oficina_shelf = null;
+          }
         }
 
         // Conserto externo: carimba datas automaticamente ao enviar/registrar retorno.
@@ -11694,6 +11781,9 @@ export function createApiApp() {
             ? ((previous as { bench_slot?: number | null }).bench_slot as number)
             : null;
         const prevQueued = (previous as { bench_queued_at?: string | null }).bench_queued_at;
+        const prevOficina = normalizeOficinaShelf(
+          (previous as { oficina_shelf?: string | null }).oficina_shelf
+        );
         if (statusUsesBench(statusAfter) && prevSlot == null && !prevQueued) {
           const healed = await pickBenchSlotForStatus(statusAfter, null, id);
           if (healed != null) {
@@ -11705,6 +11795,17 @@ export function createApiApp() {
             updatePayload.bench_slot_at = null;
             updatePayload.bench_queued_at = new Date().toISOString();
           }
+        }
+        if (
+          statusUsesOficinaShelf(statusAfter) &&
+          prevOficina == null &&
+          updatePayload.oficina_shelf === undefined
+        ) {
+          updatePayload.oficina_shelf = await pickOficinaShelfForStatus(
+            statusAfter,
+            null,
+            id
+          );
         }
       }
 
@@ -12015,7 +12116,7 @@ export function createApiApp() {
     }
   });
 
-  // Oficina: definir/limpar letra A–Z (endereço na oficina, independente do depósito/bancada).
+  // Oficina: definir/limpar letra A–X (bancada da oficina, 24 vagas).
   app.put("/api/service-orders/:id/oficina-shelf", async (req, res) => {
     try {
       if (!supabaseAdmin || !WORKSHOP_ID) {
@@ -12026,13 +12127,9 @@ export function createApiApp() {
 
       const raw = req.body?.oficinaShelf ?? req.body?.shelf ?? req.body?.letter;
       const clearing = raw === null || raw === "" || raw === undefined;
-      const letter = clearing
-        ? null
-        : String(raw)
-            .trim()
-            .toUpperCase();
-      if (!clearing && !/^[A-Z]$/.test(letter || "")) {
-        return res.status(400).json({ error: "Letra inválida (use A a Z)." });
+      const letter = clearing ? null : normalizeOficinaShelf(raw);
+      if (!clearing && letter == null) {
+        return res.status(400).json({ error: "Letra inválida (use A a X)." });
       }
 
       const { data: order } = await supabaseAdmin
@@ -12075,7 +12172,6 @@ export function createApiApp() {
         .select("*")
         .single();
       if (error) {
-        // Coluna ainda não migrada no projeto remoto
         if (
           /oficina_shelf/i.test(error.message || "") &&
           /does not exist|Could not find/i.test(error.message || "")
@@ -12091,6 +12187,171 @@ export function createApiApp() {
       return res.json(data);
     } catch (err: any) {
       console.error("[API] Erro em PUT /api/service-orders/:id/oficina-shelf:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+    }
+  });
+
+  /**
+   * Saída: técnico leva a peça da oficina para o laboratório (Em serviço).
+   * Libera letra da oficina e vaga do depósito.
+   */
+  app.post("/api/service-orders/:id/oficina-saida", async (req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({ error: "Servidor não configurado." });
+      }
+      const id = reqOrderId(req);
+      if (!id) return res.status(400).json({ error: "ID da OS inválido." });
+
+      const { data: order } = await supabaseAdmin
+        .from("service_orders")
+        .select("id, order_type, status, oficina_shelf, bench_slot")
+        .eq("id", id)
+        .eq("workshop_id", WORKSHOP_ID)
+        .single();
+      if (!order) {
+        return res.status(404).json({ error: "Ordem de serviço não encontrada." });
+      }
+      if ((order as { order_type?: string }).order_type !== "module") {
+        return res.status(400).json({ error: "Saída é exclusiva do laboratório." });
+      }
+      const prevStatus = String((order as { status?: string }).status ?? "");
+      if (prevStatus === "EM_SERVICO") {
+        return res.status(400).json({ error: "Esta peça já está em serviço com o técnico." });
+      }
+      if (prevStatus === CANCELLED_STATUS || prevStatus === "FINALIZADO") {
+        return res.status(400).json({ error: "Não é possível registrar saída nesta etapa." });
+      }
+
+      const now = new Date().toISOString();
+      const { data, error } = await supabaseAdmin
+        .from("service_orders")
+        .update({
+          status: "EM_SERVICO",
+          oficina_shelf: null,
+          bench_slot: null,
+          bench_slot_at: null,
+          bench_queued_at: null,
+          updated_at: now,
+        })
+        .eq("id", id)
+        .eq("workshop_id", WORKSHOP_ID)
+        .select("*")
+        .single();
+      if (error) {
+        console.error("[API] POST oficina-saida:", error);
+        return res.status(500).json({ error: error.message });
+      }
+      await processIntakeBenchQueue();
+      return res.json(data);
+    } catch (err: any) {
+      console.error("[API] Erro em POST /api/service-orders/:id/oficina-saida:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+    }
+  });
+
+  /**
+   * Retorno: devolve a peça à bancada da oficina (letra A–X automática).
+   * Se estava Em serviço, volta para Aguardando avaliação (e reatribui depósito 1–24).
+   */
+  app.post("/api/service-orders/:id/oficina-retorno", async (req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({ error: "Servidor não configurado." });
+      }
+      const id = reqOrderId(req);
+      if (!id) return res.status(400).json({ error: "ID da OS inválido." });
+
+      const bodyStatus =
+        typeof req.body?.status === "string" ? String(req.body.status).trim() : "";
+
+      const { data: order } = await supabaseAdmin
+        .from("service_orders")
+        .select("id, order_type, status, oficina_shelf, bench_slot, bench_queued_at")
+        .eq("id", id)
+        .eq("workshop_id", WORKSHOP_ID)
+        .single();
+      if (!order) {
+        return res.status(404).json({ error: "Ordem de serviço não encontrada." });
+      }
+      if ((order as { order_type?: string }).order_type !== "module") {
+        return res.status(400).json({ error: "Retorno é exclusivo do laboratório." });
+      }
+
+      const prevStatus = String((order as { status?: string }).status ?? "");
+      if (prevStatus === CANCELLED_STATUS || prevStatus === "FINALIZADO") {
+        return res.status(400).json({ error: "Não é possível registrar retorno nesta etapa." });
+      }
+
+      let nextStatus = prevStatus;
+      if (!statusUsesOficinaShelf(prevStatus)) {
+        nextStatus =
+          bodyStatus && statusUsesOficinaShelf(bodyStatus)
+            ? bodyStatus
+            : "AGUARDANDO_AVALIACAO";
+      } else if (bodyStatus && statusUsesOficinaShelf(bodyStatus)) {
+        nextStatus = bodyStatus;
+      }
+
+      const currentOficina = normalizeOficinaShelf(
+        (order as { oficina_shelf?: string | null }).oficina_shelf
+      );
+      const currentSlot =
+        typeof (order as { bench_slot?: number | null }).bench_slot === "number"
+          ? ((order as { bench_slot?: number | null }).bench_slot as number)
+          : null;
+
+      const letter = await pickOficinaShelfForStatus(nextStatus, currentOficina, id);
+      if (letter == null) {
+        return res.status(409).json({
+          error: "Bancada da oficina lotada (A–X). Liberte uma letra antes do retorno.",
+        });
+      }
+
+      const now = new Date().toISOString();
+      const patch: Record<string, unknown> = {
+        status: nextStatus,
+        oficina_shelf: letter,
+        updated_at: now,
+      };
+
+      if (statusUsesBench(nextStatus)) {
+        const slot = await pickBenchSlotForStatus(nextStatus, currentSlot, id);
+        if (slot != null) {
+          patch.bench_slot = slot;
+          patch.bench_slot_at = now;
+          patch.bench_queued_at = null;
+        } else {
+          patch.bench_slot = null;
+          patch.bench_slot_at = null;
+          patch.bench_queued_at = now;
+        }
+      }
+
+      const { data, error } = await supabaseAdmin
+        .from("service_orders")
+        .update(patch)
+        .eq("id", id)
+        .eq("workshop_id", WORKSHOP_ID)
+        .select("*")
+        .single();
+      if (error) {
+        if (
+          /oficina_shelf/i.test(error.message || "") &&
+          /does not exist|Could not find/i.test(error.message || "")
+        ) {
+          return res.status(503).json({
+            error:
+              "Coluna oficina_shelf ainda não existe. Aplique a migration 20261007120000_service_orders_oficina_shelf.",
+          });
+        }
+        console.error("[API] POST oficina-retorno:", error);
+        return res.status(500).json({ error: error.message });
+      }
+      await processIntakeBenchQueue();
+      return res.json(data);
+    } catch (err: any) {
+      console.error("[API] Erro em POST /api/service-orders/:id/oficina-retorno:", err);
       return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
     }
   });

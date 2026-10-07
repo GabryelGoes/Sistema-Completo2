@@ -2821,8 +2821,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
     const occupied: string[] = [];
     for (const c of cards) {
       if (c.id === selectedCard?.id) continue;
-      const letter = typeof c.oficinaShelf === 'string' ? c.oficinaShelf.trim().toUpperCase() : '';
-      if (/^[A-Z]$/.test(letter)) occupied.push(letter);
+      const letter =
+        typeof c.oficinaShelf === 'string' ? c.oficinaShelf.trim().toUpperCase() : '';
+      if (/^[A-X]$/.test(letter)) occupied.push(letter);
     }
     return occupied;
   }, [cards, selectedCard?.id]);
@@ -2834,7 +2835,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
       const normalized =
         letter == null || letter === ''
           ? null
-          : /^[A-Za-z]$/.test(letter.trim())
+          : /^[A-Xa-x]$/.test(letter.trim())
             ? letter.trim().toUpperCase()
             : null;
       setCards((prev) =>

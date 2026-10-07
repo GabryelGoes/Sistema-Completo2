@@ -3,6 +3,8 @@ import {
   ALL_BENCH_SLOTS,
   OFICINA_SHELF_LETTERS,
   firstFreeBenchSlot,
+  firstFreeOficinaShelf,
+  normalizeOficinaShelf,
   statusUsesBench,
 } from '../../constants/labBench';
 import { getStageConfig } from '../../constants/serviceOrderStages';
@@ -11,7 +13,7 @@ export interface LabBenchSlotEditorProps {
   status: string;
   currentSlot: number | null;
   occupiedSlots: Iterable<number>;
-  /** Letra A–Z da prateleira na oficina (independente do depósito). */
+  /** Letra A–X da bancada da oficina (24 vagas). */
   currentOficinaShelf?: string | null;
   occupiedOficinaShelves?: Iterable<string>;
   disabled?: boolean;
@@ -36,18 +38,24 @@ export function LabBenchSlotEditor({
   const onBench = statusUsesBench(status);
   const occupied = useMemo(() => new Set(occupiedSlots), [occupiedSlots]);
   const occupiedLetters = useMemo(
-    () => new Set(Array.from(occupiedOficinaShelves ?? []).map((l) => l.toUpperCase())),
+    () =>
+      new Set(
+        Array.from(occupiedOficinaShelves ?? [])
+          .map((l) => normalizeOficinaShelf(l))
+          .filter((l): l is string => Boolean(l))
+      ),
     [occupiedOficinaShelves]
   );
   const suggested = useMemo(
     () => (onBench ? firstFreeBenchSlot(occupied) : null),
     [onBench, occupied]
   );
+  const suggestedLetter = useMemo(
+    () => (onBench ? firstFreeOficinaShelf(occupiedLetters) : null),
+    [onBench, occupiedLetters]
+  );
   const stage = getStageConfig(status, 'module');
-  const currentLetter =
-    typeof currentOficinaShelf === 'string' && /^[A-Za-z]$/.test(currentOficinaShelf.trim())
-      ? currentOficinaShelf.trim().toUpperCase()
-      : null;
+  const currentLetter = normalizeOficinaShelf(currentOficinaShelf);
 
   if (!onBench) {
     return (
@@ -63,20 +71,33 @@ export function LabBenchSlotEditor({
         <div className="space-y-2">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <p className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
-              Oficina (letra A–Z)
+              Oficina — bancada (letra A–X)
             </p>
-            {currentLetter ? (
-              <p className="text-[11px] text-violet-800 dark:text-violet-200">
-                Atual: <strong>{currentLetter}</strong>
-              </p>
-            ) : (
-              <p className="text-[11px] text-zinc-500">Sem letra definida</p>
-            )}
+            {suggestedLetter != null && currentLetter !== suggestedLetter ? (
+              <button
+                type="button"
+                disabled={disabled || saving}
+                onClick={() => void onSaveOficinaShelf(suggestedLetter)}
+                className="rounded-lg bg-violet-600 px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-violet-500 disabled:opacity-50"
+              >
+                Usar sugerida ({suggestedLetter})
+              </button>
+            ) : null}
           </div>
-          <div className="grid grid-cols-9 gap-1">
+          {currentLetter ? (
+            <p className="text-[11px] text-violet-800 dark:text-violet-200">
+              Atual: letra <strong>{currentLetter}</strong> — permanece ao mudar de etapa.
+            </p>
+          ) : (
+            <p className="text-[11px] text-amber-800 dark:text-amber-200">
+              Sem letra na oficina — o sistema atribui automaticamente na entrada ou no retorno.
+            </p>
+          )}
+          <div className="grid grid-cols-8 gap-1.5">
             {OFICINA_SHELF_LETTERS.map((letter) => {
               const taken = occupiedLetters.has(letter) && letter !== currentLetter;
               const isCurrent = currentLetter === letter;
+              const isSuggested = suggestedLetter === letter && !taken;
               return (
                 <button
                   key={letter}
@@ -89,7 +110,9 @@ export function LabBenchSlotEditor({
                       ? 'border-violet-500 bg-violet-100 text-violet-950 dark:bg-violet-950/50 dark:text-violet-100'
                       : taken
                         ? 'cursor-not-allowed border-zinc-200 bg-zinc-100 text-zinc-400 dark:border-zinc-800 dark:bg-zinc-900'
-                        : 'border-zinc-200 bg-white text-zinc-800 hover:border-violet-400 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200',
+                        : isSuggested
+                          ? 'border-violet-400 bg-violet-50 text-violet-900 hover:bg-violet-100 dark:bg-violet-950/40 dark:text-violet-200'
+                          : 'border-zinc-200 bg-white text-zinc-800 hover:border-violet-400 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200',
                   ].join(' ')}
                   title={taken ? 'Letra ocupada por outro produto' : `Oficina ${letter}`}
                 >
@@ -176,8 +199,9 @@ export function LabBenchSlotEditor({
             </button>
           ) : null}
           <p className="self-center text-[10px] text-zinc-500">
-            A vaga do depósito não muda quando a etapa muda — só a cor do card. A letra da oficina
-            aparece junto na etiqueta.
+            Letras A–X (oficina) e números 1–24 (depósito) são atribuídos automaticamente. Na Saída
+            (scan do QR) a peça vai para Em serviço e libera as vagas; no Retorno a próxima letra
+            livre é preenchida.
           </p>
         </div>
       </div>

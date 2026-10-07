@@ -49,19 +49,34 @@ export const ALL_BENCH_SLOTS: number[] = Array.from(
 );
 
 /**
- * Endereços na oficina (letra A–Z), distintos do depósito/bancada (1–24).
- * Ambos podem constar na etiqueta da OS.
+ * Bancada da oficina — 24 vagas em letras (A–X), paralelas ao depósito 1–24.
+ * Atribuição automática na entrada; liberadas em Em serviço / Saída.
  */
-export const OFICINA_SHELF_LETTERS: string[] = Array.from({ length: 26 }, (_, i) =>
-  String.fromCharCode(65 + i)
+export const OFICINA_SHELF_COUNT = 24;
+export const OFICINA_SHELF_LETTERS: string[] = Array.from(
+  { length: OFICINA_SHELF_COUNT },
+  (_, i) => String.fromCharCode(65 + i) // A … X
 );
 
-/** Normaliza letra A–Z; retorna null se inválida/vazia. */
+/** Normaliza letra A–X; retorna null se inválida/vazia. */
 export function normalizeOficinaShelf(raw: unknown): string | null {
-  if (raw == null || raw === '') return null;
+  if (raw == null || raw === "") return null;
   const s = String(raw).trim().toUpperCase();
-  if (!/^[A-Z]$/.test(s)) return null;
+  if (!OFICINA_SHELF_LETTERS.includes(s)) return null;
   return s;
+}
+
+/** Primeira letra livre entre A–X. */
+export function firstFreeOficinaShelf(occupiedLetters: Iterable<string>): string | null {
+  const occupied = new Set<string>();
+  for (const raw of occupiedLetters) {
+    const n = normalizeOficinaShelf(raw);
+    if (n) occupied.add(n);
+  }
+  for (const letter of OFICINA_SHELF_LETTERS) {
+    if (!occupied.has(letter)) return letter;
+  }
+  return null;
 }
 
 /** Legenda visual das etapas (cores na UI — não define zona física). */
@@ -122,7 +137,12 @@ export const LAB_BENCH_INTAKE_GROUP = LAB_BENCH_GROUPS[0];
 
 export function statusUsesBench(status: string | null | undefined): boolean {
   const s = String(status ?? "").trim();
-  return LAB_BENCH_STATUSES.includes(s);
+  return (LAB_BENCH_STATUSES as string[]).includes(s);
+}
+
+/** Mesmos status da bancada do depósito usam vaga na oficina (letra A–X). */
+export function statusUsesOficinaShelf(status: string | null | undefined): boolean {
+  return statusUsesBench(status);
 }
 
 /** Primeiro compartimento livre entre 1..24. */
