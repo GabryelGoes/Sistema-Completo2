@@ -3970,6 +3970,31 @@ export async function uploadWorkshopAdminPhoto(file: Blob, fileName?: string): P
   return response.json();
 }
 
+/** Envia foto ilustrativa de um tipo de peça do laboratório. */
+export async function uploadLabProductKindPhoto(
+  kindId: string,
+  file: Blob,
+  fileName?: string
+): Promise<{
+  photoUrl: string;
+  labProductKinds: { id: string; label: string; photoUrl?: string | null }[];
+}> {
+  const formData = new FormData();
+  formData.append("file", file, fileName ?? "photo.jpg");
+  const response = await fetch(
+    `${API_BASE}/lab-product-kinds/${encodeURIComponent(kindId)}/photo`,
+    {
+      method: "POST",
+      body: formData,
+    }
+  );
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao enviar foto do tipo (${response.status})`);
+  }
+  return response.json();
+}
+
 // ---------- Autenticação ----------
 
 /** Permissões de um usuário do sistema (não-admin). */
@@ -4322,8 +4347,8 @@ export interface WorkshopSettings {
   stockGuardPasswordConfigured?: boolean;
   /** Configuração visual da oficina (cor de destaque, wallpapers); null se nunca salvo. */
   appAppearance?: WorkshopAppAppearance | null;
-  /** Tipos de produto do laboratório configuráveis (id + rótulo). */
-  labProductKinds?: { id: string; label: string }[];
+  /** Tipos de produto do laboratório configuráveis (id + rótulo + foto opcional). */
+  labProductKinds?: { id: string; label: string; photoUrl?: string | null }[];
   /** Serviços rápidos da avaliação técnica (módulos ABS). */
   labQuickServices?: {
     id: string;
@@ -4352,7 +4377,7 @@ export async function updateWorkshopSettings(
     vehicleDeletePassword?: string;
     stockGuardPassword?: string;
     appAppearance?: WorkshopAppAppearance | null;
-    labProductKinds?: { id: string; label: string }[];
+    labProductKinds?: { id: string; label: string; photoUrl?: string | null }[];
     labQuickServices?: {
       id: string;
       label: string;

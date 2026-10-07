@@ -12,6 +12,8 @@ export type ModuleVehicleKind = 'carro' | 'moto';
 export interface LabProductKind {
   id: string;
   label: string;
+  /** Foto ilustrativa do tipo (URL pública no Storage). */
+  photoUrl?: string | null;
 }
 
 /** Tipo reservado para texto livre ("Outro produto"); sempre disponível. */
@@ -54,7 +56,7 @@ export function slugifyModuleKindId(raw: string): string {
 
 /** Normaliza uma lista vinda das configurações garantindo o tipo "outro" no final. */
 export function normalizeLabProductKinds(
-  list: { id?: unknown; label?: unknown }[] | null | undefined
+  list: { id?: unknown; label?: unknown; photoUrl?: unknown; photo_url?: unknown }[] | null | undefined
 ): LabProductKind[] {
   if (!Array.isArray(list) || list.length === 0) {
     return [...DEFAULT_LAB_PRODUCT_KINDS];
@@ -71,7 +73,10 @@ export function normalizeLabProductKinds(
       id = `${id}_${n}`;
     }
     seen.add(id);
-    cleaned.push({ id, label });
+    const photoRaw = item?.photoUrl ?? item?.photo_url;
+    const photoUrl =
+      typeof photoRaw === 'string' && photoRaw.trim() ? photoRaw.trim() : null;
+    cleaned.push(photoUrl ? { id, label, photoUrl } : { id, label });
   }
   if (!cleaned.some((k) => k.id === OTHER_MODULE_KIND_ID)) {
     cleaned.push({ id: OTHER_MODULE_KIND_ID, label: DEFAULT_LABELS[OTHER_MODULE_KIND_ID] });
@@ -80,8 +85,19 @@ export function normalizeLabProductKinds(
 }
 
 /** Atualiza o registro dinâmico (chamado ao carregar as configurações da oficina). */
-export function setLabProductKinds(list: { id?: unknown; label?: unknown }[] | null | undefined): void {
+export function setLabProductKinds(
+  list: { id?: unknown; label?: unknown; photoUrl?: unknown; photo_url?: unknown }[] | null | undefined
+): void {
   LAB_PRODUCT_KINDS = normalizeLabProductKinds(list);
+}
+
+/** URL da foto ilustrativa de um tipo de peça (se configurada). */
+export function getLabProductKindPhotoUrl(kindId: string | null | undefined): string | null {
+  const k = parseModuleKind(kindId);
+  if (!k) return null;
+  const found = LAB_PRODUCT_KINDS.find((x) => x.id === k);
+  const url = found?.photoUrl?.trim();
+  return url || null;
 }
 
 /** Lista atual de tipos de produto. */

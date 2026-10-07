@@ -2,7 +2,7 @@ import React, { useEffect, useLayoutEffect, useState, useRef, useCallback, useMe
 import { createPortal } from 'react-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkBreaks from 'remark-breaks';
-import { RefreshCw, AlertCircle, ChevronDown, ChevronRight, ChevronLeft, User, X, Check, CheckCircle2, Circle, Plus, FileText, Calendar, Clock, Paperclip, ExternalLink, Trash2, DollarSign, Hash, Minus, Pencil, Save, Eye, History, Search, Copy, ArrowRight, Camera, Image as ImageIcon, FolderOpen, Upload, FilePlus, ArchiveRestore, Printer, Smartphone, Mail, MapPin, Share2, Sparkles, Loader2, Tag, Link2, Wrench, Gauge, MoreHorizontal, LayoutGrid, Columns3, Users, SortDesc, ListOrdered, Truck, RotateCw, RotateCcw, ClipboardList } from 'lucide-react';
+import { RefreshCw, AlertCircle, ChevronDown, ChevronRight, ChevronLeft, User, X, Check, CheckCircle2, Circle, Plus, FileText, Calendar, Clock, Paperclip, ExternalLink, Trash2, DollarSign, Hash, Minus, Pencil, Save, Eye, History, Search, Copy, ArrowRight, Camera, Image as ImageIcon, FolderOpen, Upload, FilePlus, ArchiveRestore, Printer, Smartphone, Mail, MapPin, Share2, Sparkles, Loader2, Tag, Link2, Wrench, Gauge, MoreHorizontal, LayoutGrid, Columns3, Users, SortDesc, ListOrdered, List, Truck, RotateCw, RotateCcw, ClipboardList } from 'lucide-react';
 import { PdfViewerModal } from '../PdfViewerModal';
 import { MechanicIcon } from '../ui/MechanicIcon';
 import { ReminderIcon } from '../ui/ReminderIcon';
@@ -23,6 +23,8 @@ import {
   updateServiceOrderLabServiceLinks,
   updateServiceOrderBenchSlot,
   updateServiceOrderOficinaShelf,
+  registerOficinaSaida,
+  registerOficinaRetorno,
   updateServiceOrderExternalRepair,
   getServiceOrderLocationMoves,
   type ServiceOrderLocationMove,
@@ -214,6 +216,7 @@ import {
 import { BoardCardZoomMenuSection } from '../ui/BoardCardZoomMenuSection';
 import { LAB_BENCH_SLOT_COUNT, statusUsesBench } from '../../constants/labBench';
 import LabBenchPanel from '../lab/LabBenchPanel';
+import { LabListaBoard, type LabListaUiLocation } from '../lab/LabListaBoard';
 import { LabBenchQueueModal } from '../lab/LabBenchQueueModal';
 import { LabExternalRepairModal } from '../lab/LabExternalRepairModal';
 import { PatioOsModalPcTabBar, type PatioOsModalPcTab } from '../patio/PatioOsModalPcTabBar';
@@ -571,6 +574,9 @@ function orderToCard(o: ServiceOrderListItem, technicianNameMap?: Record<string,
     benchSlotAt: o.bench_slot_at ?? null,
     benchQueuedAt: o.bench_queued_at ?? null,
     oficinaShelf: o.oficina_shelf ?? null,
+    moduleKind: o.module_kind ?? null,
+    moduleIdentification: o.module_identification ?? null,
+    moduleProductOther: o.module_product_other ?? null,
     externalRepair: o.external_repair ?? null,
   };
 }
@@ -1821,10 +1827,13 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const remindersScopeApi = orderType === 'module' ? ('module' as const) : ('vehicle' as const);
   const remindersBadgeCount = reminders.length;
 
-  type PatioBoardLayoutMode = 'standard' | 'trello' | 'by_mechanic' | 'recent_first';
-  /** Zoom dos cartões por modo de visualização (padrão / trello / mecânico / recentes). */
+  type PatioBoardLayoutMode = 'lista' | 'standard' | 'trello' | 'by_mechanic' | 'recent_first';
+  /** Zoom dos cartões por modo de visualização (lista / padrão / trello / mecânico / recentes). */
   const patioZoomScope: BoardCardZoomScope = isModuleMode ? 'patio-module' : 'patio-vehicle';
-  const [boardLayoutMode, setBoardLayoutMode] = useState<PatioBoardLayoutMode>('standard');
+  const [boardLayoutMode, setBoardLayoutMode] = useState<PatioBoardLayoutMode>(
+    isModuleMode ? 'lista' : 'standard'
+  );
+  const [locationChangingCardId, setLocationChangingCardId] = useState<string | null>(null);
   const [cardZoomStep, setCardZoomStep] = useState(() =>
     readBoardCardZoomStepIndex(isModuleMode ? 'patio-module' : 'patio-vehicle', 'standard')
   );
@@ -1976,34 +1985,44 @@ export const PatioView: React.FC<PatioViewProps> = ({
     }
   }, [isModuleMode, patioZoomScope, boardLayoutMode]);
 
-  const boardLayoutStorageKey = `patio-board-layout-${isModuleMode ? 'module' : 'vehicle'}`;
+  /** module-v2: novo padrão “Lista” no laboratório (PC) sem herdar o “standard” antigo. */
+  const boardLayoutStorageKey = `patio-board-layout-${isModuleMode ? 'module-v2' : 'vehicle'}`;
   useEffect(() => {
+    const defaultMode: PatioBoardLayoutMode = isModuleMode ? 'lista' : 'standard';
     try {
       const raw = localStorage.getItem(boardLayoutStorageKey);
-      const mode: PatioBoardLayoutMode =
-        raw === 'trello' || raw === 'by_mechanic' || raw === 'recent_first' ? raw : 'standard';
+      let mode: PatioBoardLayoutMode =
+        raw === 'lista' ||
+        raw === 'trello' ||
+        raw === 'by_mechanic' ||
+        raw === 'recent_first' ||
+        raw === 'standard'
+          ? raw
+          : defaultMode;
+      if (!isModuleMode && mode === 'lista') mode = 'standard';
       setBoardLayoutMode(mode);
       setCardZoomStep(readBoardCardZoomStepIndex(patioZoomScope, mode));
       setTrelloColStep(readTrelloColumnWidthStepIndex(patioZoomScope, mode));
       setGridColStep(readGridColumnCountStepIndex(patioZoomScope, mode));
     } catch {
-      setBoardLayoutMode('standard');
-      setCardZoomStep(getDefaultBoardCardZoomStepIndex(patioZoomScope, 'standard'));
-      setTrelloColStep(readTrelloColumnWidthStepIndex(patioZoomScope, 'standard'));
-      setGridColStep(readGridColumnCountStepIndex(patioZoomScope, 'standard'));
+      setBoardLayoutMode(defaultMode);
+      setCardZoomStep(getDefaultBoardCardZoomStepIndex(patioZoomScope, defaultMode));
+      setTrelloColStep(readTrelloColumnWidthStepIndex(patioZoomScope, defaultMode));
+      setGridColStep(readGridColumnCountStepIndex(patioZoomScope, defaultMode));
     }
-  }, [boardLayoutStorageKey, patioZoomScope]);
+  }, [boardLayoutStorageKey, patioZoomScope, isModuleMode]);
   const setBoardLayoutModePersist = React.useCallback(
     (mode: PatioBoardLayoutMode) => {
-      setBoardLayoutMode(mode);
-      setCardZoomStep(readBoardCardZoomStepIndex(patioZoomScope, mode));
-      setTrelloColStep(readTrelloColumnWidthStepIndex(patioZoomScope, mode));
-      setGridColStep(readGridColumnCountStepIndex(patioZoomScope, mode));
+      const next = !isModuleMode && mode === 'lista' ? 'standard' : mode;
+      setBoardLayoutMode(next);
+      setCardZoomStep(readBoardCardZoomStepIndex(patioZoomScope, next));
+      setTrelloColStep(readTrelloColumnWidthStepIndex(patioZoomScope, next));
+      setGridColStep(readGridColumnCountStepIndex(patioZoomScope, next));
       try {
-        localStorage.setItem(boardLayoutStorageKey, mode);
+        localStorage.setItem(boardLayoutStorageKey, next);
       } catch (_) {}
     },
-    [boardLayoutStorageKey, patioZoomScope]
+    [boardLayoutStorageKey, patioZoomScope, isModuleMode]
   );
   const handlePatioCardZoomStepChange = React.useCallback(
     (nextIndex: number) => {
@@ -2918,6 +2937,103 @@ export const PatioView: React.FC<PatioViewProps> = ({
       cancelled = true;
     };
   }, [isModuleMode, selectedCard?.id, serviceOrderDetail?.oficina_shelf, serviceOrderDetail?.bench_slot]);
+
+  /** Lista PC: troca Oficina ↔ Laboratório (usa Saída/Retorno com auto-atribuição). */
+  const handleListaLocationChange = useCallback(
+    async (card: TrelloCard, target: LabListaUiLocation) => {
+      const loc = resolveLabLocation(card);
+      const currentUi: LabListaUiLocation | null =
+        loc.kind === 'oficina'
+          ? 'oficina'
+          : loc.kind === 'deposito' || loc.kind === 'fila'
+            ? 'laboratorio'
+            : null;
+      if (currentUi === target) return;
+
+      const actorName =
+        actorOptions?.actorDisplayName ||
+        actorOptions?.actorTechnicianName ||
+        (actorOptions?.actor === 'admin' ? 'Admin' : null);
+      const actorUserId =
+        actorOptions?.actor === 'technician' ? actorOptions.actorTechnicianSlug ?? null : null;
+      const needsForce =
+        (target === 'laboratorio' && loc.kind !== 'oficina') ||
+        (target === 'oficina' && loc.kind !== 'deposito' && loc.kind !== 'fila');
+
+      setLocationChangingCardId(card.id);
+      try {
+        const result =
+          target === 'laboratorio'
+            ? await registerOficinaSaida(card.id, {
+                actorName,
+                actorUserId,
+                force: needsForce,
+              })
+            : await registerOficinaRetorno(card.id, {
+                actorName,
+                actorUserId,
+                force: needsForce,
+              });
+        const nextShelf =
+          typeof (result as { oficina_shelf?: string | null }).oficina_shelf === 'string'
+            ? (result as { oficina_shelf: string }).oficina_shelf
+            : null;
+        const nextSlot =
+          typeof (result as { bench_slot?: number | null }).bench_slot === 'number'
+            ? (result as { bench_slot: number }).bench_slot
+            : null;
+        const nextQueued =
+          typeof (result as { bench_queued_at?: string | null }).bench_queued_at === 'string' &&
+          (result as { bench_queued_at: string }).bench_queued_at
+            ? (result as { bench_queued_at: string }).bench_queued_at
+            : null;
+        setCards((prev) =>
+          prev.map((c) =>
+            c.id === card.id
+              ? {
+                  ...c,
+                  oficinaShelf: nextShelf,
+                  benchSlot: nextSlot,
+                  benchQueuedAt: nextQueued,
+                }
+              : c
+          )
+        );
+        if (selectedCardRef.current?.id === card.id) {
+          setSelectedCard((c) =>
+            c
+              ? {
+                  ...c,
+                  oficinaShelf: nextShelf,
+                  benchSlot: nextSlot,
+                  benchQueuedAt: nextQueued,
+                }
+              : c
+          );
+          setServiceOrderDetail((d) =>
+            d
+              ? {
+                  ...d,
+                  oficina_shelf: nextShelf,
+                  bench_slot: nextSlot,
+                  bench_queued_at: nextQueued,
+                  bench_slot_at: nextSlot != null ? new Date().toISOString() : null,
+                }
+              : d
+          );
+        }
+        void fetchDataRef.current(true);
+      } catch (err: unknown) {
+        window.alert(
+          err instanceof Error ? err.message : 'Falha ao alterar a localização da peça.'
+        );
+        fetchDataRef.current(true);
+      } finally {
+        setLocationChangingCardId(null);
+      }
+    },
+    [actorOptions]
+  );
 
   const handleBenchPanelToggle = useCallback(() => {
     setBenchPanelOpen((prev) => {
@@ -6285,13 +6401,15 @@ export const PatioView: React.FC<PatioViewProps> = ({
             <BoardCardZoomMenuSection
               scope={patioZoomScope}
               modeLabel={
-                boardLayoutMode === 'trello'
-                  ? 'Estilo Trello'
-                  : boardLayoutMode === 'by_mechanic'
-                    ? 'Por mecânico'
-                    : boardLayoutMode === 'recent_first'
-                      ? 'Recentes primeiro'
-                      : 'Padrão'
+                boardLayoutMode === 'lista'
+                  ? 'Lista'
+                  : boardLayoutMode === 'trello'
+                    ? 'Estilo Trello'
+                    : boardLayoutMode === 'by_mechanic'
+                      ? 'Por mecânico'
+                      : boardLayoutMode === 'recent_first'
+                        ? 'Recentes primeiro'
+                        : 'Padrão'
               }
               stepIndex={cardZoomStep}
               onStepChange={handlePatioCardZoomStepChange}
@@ -6306,6 +6424,16 @@ export const PatioView: React.FC<PatioViewProps> = ({
               <div className="flex flex-col gap-1">
                 {(
                   [
+                    ...(isModuleMode
+                      ? [
+                          {
+                            mode: 'lista' as const,
+                            icon: List,
+                            title: 'Lista',
+                            desc: 'Tabela com localização e etapa clicáveis (padrão no PC)',
+                          },
+                        ]
+                      : []),
                     { mode: 'standard' as const, icon: LayoutGrid, title: 'Padrão', desc: 'Grade na ordem das etapas do fluxo' },
                     { mode: 'trello' as const, icon: Columns3, title: 'Estilo Trello', desc: 'Colunas por etapa — arraste o cartão para mudar a fase' },
                     { mode: 'by_mechanic' as const, icon: Users, title: 'Por mecânico', desc: 'Colunas por técnico atribuído' },
@@ -7364,7 +7492,22 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
         return (
           <div key={boardLayoutMode} className={layoutMotion}>
-            {boardLayoutMode === 'trello'
+            {boardLayoutMode === 'lista' && isModuleMode
+              ? (
+                  <LabListaBoard
+                    cards={sortedCardsList}
+                    lists={lists}
+                    getStatusConfig={getStatusConfig}
+                    locationBusyId={locationChangingCardId}
+                    stageBusyId={stageChangingCardId || (isMoving && cardInTransition ? cardInTransition.id : null)}
+                    onOpenCard={(card) => setSelectedCard(card)}
+                    onChangeStage={(card, e) => handleOpenMoveModal(card, e)}
+                    onChangeLocation={(card, target) => {
+                      void handleListaLocationChange(card, target);
+                    }}
+                  />
+                )
+              : boardLayoutMode === 'trello'
               ? zoomWrap(
                   <div ref={boardDragScrollRef} className={`patio-board-hscroll flex max-w-full cursor-grab gap-3 overflow-x-auto overflow-y-hidden overscroll-x-contain pb-2 pt-1 [-webkit-overflow-scrolling:touch] portrait:gap-2 portrait:pb-1.5 sm:gap-4 sm:pb-2.5 ${trelloDragCardId ? '' : 'scroll-smooth'}`}>
                     {stageColumnsSorted.map((stage) => (

@@ -2175,10 +2175,10 @@ export function createApiApp() {
       .slice(0, 48);
   }
 
-  function normalizeLabProductKinds(list: any): { id: string; label: string }[] {
+  function normalizeLabProductKinds(list: any): { id: string; label: string; photoUrl?: string }[] {
     if (!Array.isArray(list) || list.length === 0) return [...DEFAULT_LAB_PRODUCT_KINDS];
     const seen = new Set<string>();
-    const cleaned: { id: string; label: string }[] = [];
+    const cleaned: { id: string; label: string; photoUrl?: string }[] = [];
     for (const item of list) {
       const label = String(item?.label ?? "").trim();
       let id = slugifyKindId(String(item?.id ?? "") || label);
@@ -2189,7 +2189,10 @@ export function createApiApp() {
         id = `${id}_${n}`;
       }
       seen.add(id);
-      cleaned.push({ id, label });
+      const photoRaw = item?.photoUrl ?? item?.photo_url;
+      const photoUrl =
+        typeof photoRaw === "string" && photoRaw.trim() ? photoRaw.trim() : null;
+      cleaned.push(photoUrl ? { id, label, photoUrl } : { id, label });
     }
     if (!cleaned.some((k) => k.id === "outro")) {
       cleaned.push({ id: "outro", label: "Outro produto" });
@@ -2197,7 +2200,9 @@ export function createApiApp() {
     return cleaned.length ? cleaned : [...DEFAULT_LAB_PRODUCT_KINDS];
   }
 
-  function parseLabProductKindsValue(raw: string | null | undefined): { id: string; label: string }[] {
+  function parseLabProductKindsValue(
+    raw: string | null | undefined
+  ): { id: string; label: string; photoUrl?: string }[] {
     const s = (raw ?? "").trim();
     if (!s) return [...DEFAULT_LAB_PRODUCT_KINDS];
     try {
@@ -11408,6 +11413,86 @@ export function createApiApp() {
         return res.json({ adminPhotoUrl: photoUrlWithCacheBust });
       } catch (err: any) {
         console.error("[API] Erro em POST /api/workshop-admin/photo:", err);
+        return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+      }
+    }
+  );
+
+  /** Foto ilustrativa de um tipo de peça do laboratório (atualiza lab_product_kinds). */
+  app.post(
+    "/api/lab-product-kinds/:kindId/photo",
+    upload.single("file"),
+    async (req, res) => {
+      try {
+        if (!supabaseAdmin || !WORKSHOP_ID) {
+          return res.status(500).json({
+            error:
+              "Supabase ou WORKSHOP_ID não configurados. Verifique variáveis de ambiente.",
+          });
+        }
+        const kindId = slugifyKindId(req.params.kindId);
+        if (!kindId) {
+          return res.status(400).json({ error: "Tipo de peça inválido." });
+        }
+        const file = req.file;
+        if (!file) {
+          return res.status(400).json({ error: "Arquivo de imagem não enviado." });
+        }
+        const bucket = VEHICLE_PHOTOS_BUCKET;
+        const ext =
+          file.mimetype === "image/jpeg" || file.mimetype === "image/jpg"
+            ? "jpg"
+            : file.mimetype === "image/png"
+              ? "png"
+              : "webp";
+        const pathInBucket = `${WORKSHOP_ID}/lab-product-kinds/${kindId}.${ext}`;
+        const { error: uploadError } = await supabaseAdmin.storage
+          .from(bucket)
+          .upload(pathInBucket, file.buffer, {
+            contentType: file.mimetype,
+            upsert: true,
+          });
+        if (uploadError) {
+          console.error("[API] Erro ao enviar foto do tipo de peça:", uploadError);
+          return res.status(500).json({ error: uploadError.message });
+        }
+        const {
+          data: { publicUrl },
+        } = supabaseAdmin.storage.from(bucket).getPublicUrl(pathInBucket);
+        const photoUrlWithCacheBust = `${publicUrl}${publicUrl.includes("?") ? "&" : "?"}v=${Date.now()}`;
+
+        const rawKinds = await getWorkshopSettingValue("lab_product_kinds");
+        const kinds = parseLabProductKindsValue(rawKinds);
+        let found = false;
+        const nextKinds = kinds.map((k) => {
+          if (k.id !== kindId) return k;
+          found = true;
+          return { ...k, photoUrl: photoUrlWithCacheBust };
+        });
+        if (!found) {
+          return res.status(404).json({
+            error: "Tipo de peça não encontrado. Salve o tipo antes de enviar a foto.",
+          });
+        }
+        const { error: updateErr } = await supabaseAdmin.from("workshop_settings").upsert(
+          {
+            workshop_id: WORKSHOP_ID,
+            key: "lab_product_kinds",
+            value: JSON.stringify(normalizeLabProductKinds(nextKinds)),
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: "workshop_id,key" }
+        );
+        if (updateErr) {
+          console.error("[API] Erro ao atualizar lab_product_kinds com foto:", updateErr);
+          return res.status(500).json({ error: updateErr.message });
+        }
+        return res.json({
+          photoUrl: photoUrlWithCacheBust,
+          labProductKinds: normalizeLabProductKinds(nextKinds),
+        });
+      } catch (err: any) {
+        console.error("[API] Erro em POST /api/lab-product-kinds/:kindId/photo:", err);
         return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
       }
     }

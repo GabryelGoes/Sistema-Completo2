@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { X, Plus, Trash2, Loader2, Package, Info } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { X, Plus, Trash2, Loader2, Package, Info, Camera, Image as ImageIcon } from 'lucide-react';
 import {
   iosModalShell,
   iosModalClose,
@@ -12,12 +12,18 @@ import { ModalPortal } from './ui/ModalPortal';
 import { IosModalHeader } from './ui/IosModalHeader';
 import { useRegisterModalOpen } from './ui/ModalLayerContext';
 import { useDesktopShellLayout } from './ui/DesktopShellContext';
-import { getWorkshopSettings, updateWorkshopSettings } from '../services/apiService';
+import {
+  getWorkshopSettings,
+  updateWorkshopSettings,
+  uploadLabProductKindPhoto,
+} from '../services/apiService';
 import {
   OTHER_MODULE_KIND_ID,
   setLabProductKinds,
   LAB_PRODUCT_KINDS_CHANGED_EVENT,
+  slugifyModuleKindId,
 } from '../utils/moduleMetadata';
+import { storageThumbnailUrl } from '../utils/storageThumbnailUrl';
 
 interface LabProductTypesModalProps {
   isOpen: boolean;
@@ -28,6 +34,7 @@ interface DraftKind {
   /** id existente (vazio para tipos novos — gerado ao salvar). */
   id: string;
   label: string;
+  photoUrl: string | null;
   /** chave estável só para o React render. */
   key: string;
 }
@@ -41,7 +48,9 @@ export const LabProductTypesModal: React.FC<LabProductTypesModalProps> = ({ isOp
   const [items, setItems] = useState<DraftKind[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [uploadingKey, setUploadingKey] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const fileInputRefs = useRef<Record<string, HTMLInputElement | null>>({});
 
   useEffect(() => {
     if (!isOpen) return;
@@ -54,6 +63,7 @@ export const LabProductTypesModal: React.FC<LabProductTypesModalProps> = ({ isOp
         const list = (s.labProductKinds ?? []).map((k) => ({
           id: k.id,
           label: k.label,
+          photoUrl: k.photoUrl?.trim() || null,
           key: nextDraftKey(),
         }));
         setItems(list);
@@ -84,16 +94,60 @@ export const LabProductTypesModal: React.FC<LabProductTypesModalProps> = ({ isOp
     setItems((prev) => {
       const next = [...prev];
       const otherIdx = next.findIndex((it) => it.id === OTHER_MODULE_KIND_ID);
-      const newItem: DraftKind = { id: '', label: '', key: nextDraftKey() };
+      const newItem: DraftKind = { id: '', label: '', photoUrl: null, key: nextDraftKey() };
       if (otherIdx >= 0) next.splice(otherIdx, 0, newItem);
       else next.push(newItem);
       return next;
     });
   };
 
+  const dispatchKindsChanged = () => {
+    try {
+      window.dispatchEvent(new CustomEvent(LAB_PRODUCT_KINDS_CHANGED_EVENT));
+    } catch {
+      /* noop */
+    }
+  };
+
+  const handlePhotoPick = async (key: string, file: File | null) => {
+    if (!file) return;
+    const item = items.find((it) => it.key === key);
+    if (!item) return;
+    const kindId = item.id.trim() || slugifyModuleKindId(item.label);
+    if (!kindId) {
+      setError('Defina o nome do tipo antes de adicionar a foto.');
+      return;
+    }
+    // Tipos novos precisam existir no settings antes do upload.
+    if (!item.id.trim()) {
+      setError('Salve o tipo primeiro e depois adicione a foto.');
+      return;
+    }
+    setUploadingKey(key);
+    setError(null);
+    try {
+      const result = await uploadLabProductKindPhoto(kindId, file, file.name);
+      setLabProductKinds(result.labProductKinds);
+      setItems((prev) =>
+        prev.map((it) =>
+          it.key === key ? { ...it, photoUrl: result.photoUrl } : it
+        )
+      );
+      dispatchKindsChanged();
+    } catch (e: any) {
+      setError(e?.message ?? 'Falha ao enviar a foto.');
+    } finally {
+      setUploadingKey(null);
+    }
+  };
+
   const handleSave = async () => {
     const cleaned = items
-      .map((it) => ({ id: it.id.trim(), label: it.label.trim() }))
+      .map((it) => ({
+        id: it.id.trim(),
+        label: it.label.trim(),
+        photoUrl: it.photoUrl?.trim() || null,
+      }))
       .filter((it) => it.label.length > 0);
     if (cleaned.length === 0) {
       setError('Adicione pelo menos um tipo de produto.');
@@ -104,11 +158,7 @@ export const LabProductTypesModal: React.FC<LabProductTypesModalProps> = ({ isOp
     try {
       const saved = await updateWorkshopSettings({ labProductKinds: cleaned });
       setLabProductKinds(saved.labProductKinds ?? cleaned);
-      try {
-        window.dispatchEvent(new CustomEvent(LAB_PRODUCT_KINDS_CHANGED_EVENT));
-      } catch {
-        /* noop */
-      }
+      dispatchKindsChanged();
       onClose();
     } catch (e: any) {
       setError(e?.message ?? 'Falha ao salvar. Tente novamente.');
@@ -131,8 +181,8 @@ export const LabProductTypesModal: React.FC<LabProductTypesModalProps> = ({ isOp
             <div className={`px-6 sm:px-8 pt-8 pb-4 shrink-0 ${isDesktopShell ? 'pr-6 sm:pr-8' : 'pr-14'}`}>
               <IosModalHeader
                 icon={<Package className="h-6 w-6" strokeWidth={2.1} />}
-                title="Tipos de produto do laboratório"
-                subtitle="Adicione, renomeie ou remova os tipos exibidos na recepção"
+                title="Tipos de peça do laboratório"
+                subtitle="Nomes e fotos exibidos na lista e na recepção"
               />
             </div>
 
@@ -140,9 +190,9 @@ export const LabProductTypesModal: React.FC<LabProductTypesModalProps> = ({ isOp
               <div className="flex items-start gap-2 rounded-2xl border border-[#007AFF]/20 bg-[#007AFF]/[0.06] px-3.5 py-3 text-[12.5px] leading-relaxed text-zinc-600 dark:border-[#64B5FF]/25 dark:bg-[#64B5FF]/10 dark:text-zinc-300">
                 <Info className="mt-0.5 h-4 w-4 shrink-0 text-[#007AFF] dark:text-[#7ab8ff]" aria-hidden />
                 <span>
-                  Renomear um tipo mantém os produtos já cadastrados. Ao excluir um tipo, os produtos
-                  antigos que o usavam podem deixar de exibir o nome. O tipo <strong>Outro produto</strong>{' '}
-                  é fixo (campo de texto livre na recepção).
+                  Adicione uma foto por tipo para a visualização em lista do laboratório. Renomear mantém
+                  os produtos já cadastrados. O tipo <strong>Outro produto</strong> é fixo (texto livre na
+                  recepção). Salve tipos novos antes de enviar a foto.
                 </span>
               </div>
 
@@ -155,11 +205,51 @@ export const LabProductTypesModal: React.FC<LabProductTypesModalProps> = ({ isOp
                 <div className="space-y-2.5">
                   {items.map((it) => {
                     const isOther = it.id === OTHER_MODULE_KIND_ID;
+                    const thumb = it.photoUrl
+                      ? storageThumbnailUrl(it.photoUrl, { maxWidth: 96, maxHeight: 96, resize: 'cover' }) || it.photoUrl
+                      : null;
+                    const uploading = uploadingKey === it.key;
                     return (
                       <div
                         key={it.key}
                         className={`${iosModalInsetCard} flex items-center gap-2.5 p-2.5`}
                       >
+                        <div className="relative shrink-0">
+                          <button
+                            type="button"
+                            disabled={uploading || !it.id.trim()}
+                            onClick={() => fileInputRefs.current[it.key]?.click()}
+                            className="group relative flex h-14 w-14 items-center justify-center overflow-hidden rounded-xl border border-zinc-200/80 bg-zinc-50 transition hover:border-[#007AFF]/45 disabled:opacity-50 dark:border-white/[0.1] dark:bg-zinc-950/40"
+                            aria-label={it.photoUrl ? 'Trocar foto do tipo' : 'Adicionar foto do tipo'}
+                            title={!it.id.trim() ? 'Salve o tipo antes de adicionar a foto' : undefined}
+                          >
+                            {thumb ? (
+                              <img src={thumb} alt="" className="h-full w-full object-cover" />
+                            ) : (
+                              <ImageIcon className="h-5 w-5 text-zinc-400 dark:text-zinc-500" strokeWidth={1.8} />
+                            )}
+                            <span className="absolute inset-0 flex items-center justify-center bg-black/35 opacity-0 transition group-hover:opacity-100">
+                              {uploading ? (
+                                <Loader2 className="h-4 w-4 animate-spin text-white" />
+                              ) : (
+                                <Camera className="h-4 w-4 text-white" strokeWidth={2.2} />
+                              )}
+                            </span>
+                          </button>
+                          <input
+                            ref={(el) => {
+                              fileInputRefs.current[it.key] = el;
+                            }}
+                            type="file"
+                            accept="image/jpeg,image/png,image/webp"
+                            className="hidden"
+                            onChange={(e) => {
+                              const file = e.target.files?.[0] ?? null;
+                              e.target.value = '';
+                              void handlePhotoPick(it.key, file);
+                            }}
+                          />
+                        </div>
                         <div className="min-w-0 flex-1">
                           <input
                             value={it.label}

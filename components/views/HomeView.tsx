@@ -1130,7 +1130,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                             <SettingsRow
                               onClick={() => setIsLabProductTypesOpen(true)}
                               title="Tipos de peça do laboratório"
-                              subtitle="Adicionar, renomear ou excluir"
+                              subtitle="Nomes e fotos dos tipos de peça"
                               icon={
                                 <IosAccentIconSquircle variant="row" strokeWidth={2.2}>
                                   <Package />
