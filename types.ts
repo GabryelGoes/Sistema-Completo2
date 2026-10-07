@@ -167,6 +167,8 @@ export interface BoardCard {
   benchSlotAt?: string | null;
   /** Na fila para compartimento 1..4 (aguardando avaliação). */
   benchQueuedAt?: string | null;
+  /** Letra A–Z na oficina (independente do depósito/bancada). */
+  oficinaShelf?: string | null;
   /** Dados do conserto em terceiros (laboratório). */
   externalRepair?: ExternalRepair | null;
 }

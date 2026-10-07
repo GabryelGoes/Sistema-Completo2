@@ -22,6 +22,7 @@ import {
   updateServiceOrderReferenceLinks,
   updateServiceOrderLabServiceLinks,
   updateServiceOrderBenchSlot,
+  updateServiceOrderOficinaShelf,
   updateServiceOrderExternalRepair,
   getServiceOrderPhotos,
   uploadServiceOrderPhoto,
@@ -511,6 +512,7 @@ function serviceOrderDetailToListItem(detail: ServiceOrderDetail): ServiceOrderL
     bench_slot: (detail as ServiceOrderDetail & { bench_slot?: number | null }).bench_slot ?? null,
     bench_slot_at: (detail as ServiceOrderDetail & { bench_slot_at?: string | null }).bench_slot_at ?? null,
     bench_queued_at: (detail as ServiceOrderDetail & { bench_queued_at?: string | null }).bench_queued_at ?? null,
+    oficina_shelf: (detail as ServiceOrderDetail & { oficina_shelf?: string | null }).oficina_shelf ?? null,
     external_repair: (detail as ServiceOrderDetail & { external_repair?: unknown }).external_repair as never ?? null,
     lab_evaluated_service: detail.lab_evaluated_service ?? null,
     lab_evaluated_at: detail.lab_evaluated_at ?? null,
@@ -561,6 +563,7 @@ function orderToCard(o: ServiceOrderListItem, technicianNameMap?: Record<string,
     benchSlot: o.bench_slot ?? null,
     benchSlotAt: o.bench_slot_at ?? null,
     benchQueuedAt: o.bench_queued_at ?? null,
+    oficinaShelf: o.oficina_shelf ?? null,
     externalRepair: o.external_repair ?? null,
   };
 }
@@ -2814,6 +2817,44 @@ export const PatioView: React.FC<PatioViewProps> = ({
     [selectedCard, handleBenchMove]
   );
 
+  const occupiedOficinaShelvesForEditor = useMemo(() => {
+    const occupied: string[] = [];
+    for (const c of cards) {
+      if (c.id === selectedCard?.id) continue;
+      const letter = typeof c.oficinaShelf === 'string' ? c.oficinaShelf.trim().toUpperCase() : '';
+      if (/^[A-Z]$/.test(letter)) occupied.push(letter);
+    }
+    return occupied;
+  }, [cards, selectedCard?.id]);
+
+  const handleOficinaShelfFromDetail = useCallback(
+    async (letter: string | null) => {
+      if (!selectedCard) return;
+      const cardId = selectedCard.id;
+      const normalized =
+        letter == null || letter === ''
+          ? null
+          : /^[A-Za-z]$/.test(letter.trim())
+            ? letter.trim().toUpperCase()
+            : null;
+      setCards((prev) =>
+        prev.map((c) => (c.id === cardId ? { ...c, oficinaShelf: normalized } : c))
+      );
+      setSelectedCard((c) => (c ? { ...c, oficinaShelf: normalized } : c));
+      setServiceOrderDetail((d) => (d ? { ...d, oficina_shelf: normalized } : d));
+      setBenchSlotSaving(true);
+      try {
+        await updateServiceOrderOficinaShelf(cardId, normalized);
+      } catch (err: unknown) {
+        window.alert(err instanceof Error ? err.message : 'Falha ao salvar letra da oficina.');
+        fetchDataRef.current(true);
+      } finally {
+        setBenchSlotSaving(false);
+      }
+    },
+    [selectedCard]
+  );
+
   const handleBenchPanelToggle = useCallback(() => {
     setBenchPanelOpen((prev) => {
       const next = !prev;
@@ -4966,6 +5007,12 @@ export const PatioView: React.FC<PatioViewProps> = ({
           : typeof selectedCard.benchSlot === 'number'
             ? selectedCard.benchSlot
             : null,
+      oficinaShelf:
+        typeof serviceOrderDetail?.oficina_shelf === 'string'
+          ? serviceOrderDetail.oficina_shelf
+          : typeof selectedCard.oficinaShelf === 'string'
+            ? selectedCard.oficinaShelf
+            : null,
     });
   }, [isModuleMode, selectedCard, serviceOrderDetail]);
 
@@ -5010,6 +5057,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
         vehicleName,
         complaint,
         benchSlot: typeof linked?.bench_slot === 'number' ? linked.bench_slot : null,
+        oficinaShelf:
+          typeof linked?.oficina_shelf === 'string' ? linked.oficina_shelf : null,
       });
     },
     [
@@ -9358,7 +9407,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                       </div>
                                       {serviceOrderDetail && statusUsesBench(serviceOrderDetail.status) ? (
                                         <div className={`${vi} p-4 sm:p-5`}>
-                                          <p className={`${iosLabel} mb-2`}>Posição na bancada</p>
+                                          <p className={`${iosLabel} mb-2`}>Oficina e depósito</p>
                                           <LabBenchSlotEditor
                                             status={serviceOrderDetail.status}
                                             currentSlot={
@@ -9367,9 +9416,16 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                                 : null
                                             }
                                             occupiedSlots={occupiedBenchSlotsForEditor}
+                                            currentOficinaShelf={
+                                              typeof serviceOrderDetail.oficina_shelf === 'string'
+                                                ? serviceOrderDetail.oficina_shelf
+                                                : selectedCard?.oficinaShelf ?? null
+                                            }
+                                            occupiedOficinaShelves={occupiedOficinaShelvesForEditor}
                                             disabled={!can('canEditFicha')}
                                             saving={benchSlotSaving}
                                             onSave={handleBenchSlotFromDetail}
+                                            onSaveOficinaShelf={handleOficinaShelfFromDetail}
                                           />
                                         </div>
                                       ) : null}

@@ -1,3 +1,15 @@
+import {
+  cssFontForElement,
+  loadLabelTemplate,
+  saveLabelTemplate,
+  type LabelAlign,
+  type LabelElementDef,
+  type LabelFontFamily,
+  type LabelFontWeight,
+  type LabelKeyOptions,
+  type LabelTemplateLayout,
+  type LabelVAlign,
+} from './labelTemplates';
 import { NIIMBOT_LABEL_H_PX, NIIMBOT_LABEL_W_PX } from './niimbotLabelRender';
 
 export type PatioKeyLabelInput = {
@@ -7,41 +19,25 @@ export type PatioKeyLabelInput = {
   plate: string;
 };
 
-export type PatioKeyLabelFontFamily =
-  | 'Arial'
-  | 'Helvetica'
-  | 'Verdana'
-  | 'Tahoma'
-  | 'Trebuchet MS'
-  | 'Georgia'
-  | 'Times New Roman'
-  | 'Courier New'
-  | 'Impact';
+/** @deprecated Use LabelFontFamily — mantido para o modal de impressão. */
+export type PatioKeyLabelFontFamily = LabelFontFamily;
+export type PatioKeyLabelAlign = LabelAlign;
+export type PatioKeyLabelVAlign = LabelVAlign;
+export type PatioKeyLabelWeight = LabelFontWeight;
 
-export type PatioKeyLabelAlign = 'left' | 'center' | 'right';
-export type PatioKeyLabelVAlign = 'top' | 'middle' | 'bottom';
-export type PatioKeyLabelWeight = 'normal' | 'bold' | '900';
-
-/** Estilo editável da etiqueta de chave (persistido no dispositivo). */
+/** Estilo editável da etiqueta de chave (derivado do template unificado). */
 export type PatioKeyLabelStyle = {
   fontFamily: PatioKeyLabelFontFamily;
-  /** Tamanho base em px no bloco retrato (30 mm de largura). */
   fontSize: number;
   fontWeight: PatioKeyLabelWeight;
   letterSpacing: number;
-  /** Multiplicador do espaçamento entre linhas (1 = padrão). */
   lineSpacing: number;
   align: PatioKeyLabelAlign;
   vAlign: PatioKeyLabelVAlign;
-  /** Deslocamento horizontal no bloco (px). */
   offsetX: number;
-  /** Deslocamento vertical no bloco (px). */
   offsetY: number;
-  /** Margem interna do bloco (px). */
   margin: number;
-  /** Espaço entre as duas cópias (px). */
   halfGap: number;
-  /** Mostrar rótulos Cliente:/Carro:/… */
   showLabels: boolean;
 };
 
@@ -72,25 +68,74 @@ export const DEFAULT_PATIO_KEY_LABEL_STYLE: PatioKeyLabelStyle = {
   showLabels: true,
 };
 
-const STYLE_STORAGE_KEY = 'rda.patioKeyLabelStyle.v1';
+function clamp(n: number, min: number, max: number): number {
+  if (!Number.isFinite(n)) return min;
+  return Math.max(min, Math.min(max, n));
+}
+
+function styleFromTemplate(layout: LabelTemplateLayout): PatioKeyLabelStyle {
+  const first = layout.elements[0];
+  const opts = layout.keyOptions;
+  const hasLabels = layout.elements.some((e) => (e.labelText || '').trim().length > 0);
+  return normalizePatioKeyLabelStyle({
+    fontFamily: first?.fontFamily ?? 'Arial',
+    fontSize: first?.fontSize ?? 18,
+    fontWeight: first?.fontWeight ?? 'bold',
+    letterSpacing: opts?.letterSpacing ?? 0,
+    lineSpacing: opts?.lineSpacing ?? 1,
+    align: first?.align ?? 'left',
+    vAlign: opts?.vAlign ?? 'middle',
+    offsetX: opts?.offsetX ?? 0,
+    offsetY: opts?.offsetY ?? 0,
+    margin: opts?.margin ?? 4,
+    halfGap: opts?.halfGap ?? 2,
+    showLabels: hasLabels,
+  });
+}
+
+function applyStyleToTemplate(
+  layout: LabelTemplateLayout,
+  style: PatioKeyLabelStyle
+): LabelTemplateLayout {
+  const show = style.showLabels !== false;
+  const defaults: Record<string, string> = {
+    customer: 'Cliente:',
+    vehicle: 'Carro:',
+    color: 'Cor:',
+    plate: 'Placa:',
+  };
+  return {
+    ...layout,
+    elements: layout.elements.map((e) => ({
+      ...e,
+      fontFamily: style.fontFamily,
+      fontSize: style.fontSize,
+      valueFontSize: style.fontSize,
+      fontWeight: style.fontWeight,
+      align: style.align,
+      labelText: show ? e.labelText || defaults[e.id] || e.labelText : '',
+      visible: e.visible !== false,
+    })),
+    keyOptions: {
+      letterSpacing: style.letterSpacing,
+      lineSpacing: style.lineSpacing,
+      margin: style.margin,
+      halfGap: style.halfGap,
+      vAlign: style.vAlign,
+      dualCopy: layout.keyOptions?.dualCopy !== false,
+      offsetX: style.offsetX,
+      offsetY: style.offsetY,
+    } satisfies LabelKeyOptions,
+  };
+}
 
 export function loadPatioKeyLabelStyle(): PatioKeyLabelStyle {
-  try {
-    const raw = localStorage.getItem(STYLE_STORAGE_KEY);
-    if (!raw) return { ...DEFAULT_PATIO_KEY_LABEL_STYLE };
-    const parsed = JSON.parse(raw) as Partial<PatioKeyLabelStyle>;
-    return normalizePatioKeyLabelStyle({ ...DEFAULT_PATIO_KEY_LABEL_STYLE, ...parsed });
-  } catch {
-    return { ...DEFAULT_PATIO_KEY_LABEL_STYLE };
-  }
+  return styleFromTemplate(loadLabelTemplate('chave'));
 }
 
 export function savePatioKeyLabelStyle(style: PatioKeyLabelStyle): void {
-  try {
-    localStorage.setItem(STYLE_STORAGE_KEY, JSON.stringify(normalizePatioKeyLabelStyle(style)));
-  } catch {
-    /* ignore quota */
-  }
+  const layout = loadLabelTemplate('chave');
+  saveLabelTemplate(applyStyleToTemplate(layout, normalizePatioKeyLabelStyle(style)));
 }
 
 export function normalizePatioKeyLabelStyle(style: PatioKeyLabelStyle): PatioKeyLabelStyle {
@@ -113,11 +158,6 @@ export function normalizePatioKeyLabelStyle(style: PatioKeyLabelStyle): PatioKey
     halfGap: clamp(Math.round(style.halfGap), 0, 12),
     showLabels: style.showLabels !== false,
   };
-}
-
-function clamp(n: number, min: number, max: number): number {
-  if (!Number.isFinite(n)) return min;
-  return Math.max(min, Math.min(max, n));
 }
 
 function toUpperClean(raw: string): string {
@@ -155,17 +195,11 @@ function fitLineNoEllipsis(
   return s || '';
 }
 
-function cssFont(style: PatioKeyLabelStyle): string {
-  const weight =
-    style.fontWeight === '900' ? '900' : style.fontWeight === 'normal' ? '400' : '700';
-  return `${weight} ${style.fontSize}px "${style.fontFamily}", Arial, sans-serif`;
-}
-
 function renderKeyBlock(
   blockW: number,
   blockH: number,
   input: PatioKeyLabelInput,
-  style: PatioKeyLabelStyle
+  layout: LabelTemplateLayout
 ): HTMLCanvasElement {
   const canvas = document.createElement('canvas');
   canvas.width = blockW;
@@ -178,55 +212,64 @@ function renderKeyBlock(
   ctx.fillStyle = '#000000';
   ctx.textBaseline = 'top';
 
-  const margin = style.margin;
+  const opts = layout.keyOptions!;
+  const margin = opts.margin;
   const contentW = Math.max(8, blockW - margin * 2);
-  const rows: Array<{ label: string; value: string }> = [
-    { label: 'Cliente:', value: formatKeyLabelCustomerName(input.customerName) },
-    { label: 'Carro:', value: formatKeyLabelVehicleModel(input.vehicleModel) },
-    { label: 'Cor:', value: toUpperClean(input.vehicleColor) || '—' },
-    { label: 'Placa:', value: toUpperClean(input.plate) || '—' },
-  ];
 
-  const font = cssFont(style);
-  ctx.font = font;
-  try {
-    (ctx as CanvasRenderingContext2D & { letterSpacing?: string }).letterSpacing =
-      `${style.letterSpacing}px`;
-  } catch {
-    /* letterSpacing pode não existir em alguns browsers */
-  }
+  const valueById: Record<string, string> = {
+    customer: formatKeyLabelCustomerName(input.customerName),
+    vehicle: formatKeyLabelVehicleModel(input.vehicleModel),
+    color: toUpperClean(input.vehicleColor) || '—',
+    plate: toUpperClean(input.plate) || '—',
+  };
 
-  const lineHeight = Math.max(style.fontSize * style.lineSpacing, style.fontSize);
+  const rows = layout.elements.filter((e) => e.visible !== false && e.kind === 'text_field');
+  if (rows.length === 0) return canvas;
+
+  const fontSize = rows[0]!.fontSize;
+  const lineHeight = Math.max(fontSize * opts.lineSpacing, fontSize);
   const blockTextH = lineHeight * rows.length;
   const usableH = Math.max(0, blockH - margin * 2);
 
   let startY = margin;
-  if (style.vAlign === 'middle') {
+  if (opts.vAlign === 'middle') {
     startY = margin + Math.max(0, (usableH - blockTextH) / 2);
-  } else if (style.vAlign === 'bottom') {
+  } else if (opts.vAlign === 'bottom') {
     startY = margin + Math.max(0, usableH - blockTextH);
   }
-  startY += style.offsetY;
+  startY += opts.offsetY;
+
+  try {
+    (ctx as CanvasRenderingContext2D & { letterSpacing?: string }).letterSpacing =
+      `${opts.letterSpacing}px`;
+  } catch {
+    /* letterSpacing pode não existir em alguns browsers */
+  }
 
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i]!;
     const y = startY + i * lineHeight;
+    const font = cssFontForElement(row);
     ctx.font = font;
 
-    const labelText = style.showLabels ? `${row.label} ` : '';
-    const labelW = style.showLabels ? ctx.measureText(labelText).width : 0;
+    const labelText = (row.labelText || '').trim()
+      ? row.labelText.endsWith(' ')
+        ? row.labelText
+        : `${row.labelText} `
+      : '';
+    const labelW = labelText ? ctx.measureText(labelText).width : 0;
     const valueMax = Math.max(8, contentW - labelW);
-    const valueText = fitLineNoEllipsis(ctx, row.value, valueMax);
+    const valueText = fitLineNoEllipsis(ctx, valueById[row.id] ?? '—', valueMax);
     const fullW = labelW + ctx.measureText(valueText).width;
 
-    let x = margin + style.offsetX;
-    if (style.align === 'center') {
-      x = margin + style.offsetX + (contentW - fullW) / 2;
-    } else if (style.align === 'right') {
-      x = margin + style.offsetX + (contentW - fullW);
+    let x = margin + opts.offsetX;
+    if (row.align === 'center') {
+      x = margin + opts.offsetX + (contentW - fullW) / 2;
+    } else if (row.align === 'right') {
+      x = margin + opts.offsetX + (contentW - fullW);
     }
 
-    if (style.showLabels) {
+    if (labelText) {
       ctx.fillText(labelText, x, y);
       ctx.fillText(valueText, x + labelW, y);
     } else {
@@ -243,16 +286,26 @@ function renderKeyBlock(
  */
 export function renderPatioKeyLabelDataUrl(
   input: PatioKeyLabelInput,
-  styleInput?: Partial<PatioKeyLabelStyle> | null
+  styleOrLayout?: Partial<PatioKeyLabelStyle> | LabelTemplateLayout | null
 ): string {
-  const style = normalizePatioKeyLabelStyle({
-    ...DEFAULT_PATIO_KEY_LABEL_STYLE,
-    ...(styleInput ?? {}),
-  });
+  let layout = loadLabelTemplate('chave');
 
+  if (styleOrLayout && 'elements' in styleOrLayout && Array.isArray(styleOrLayout.elements)) {
+    layout = styleOrLayout as LabelTemplateLayout;
+  } else if (styleOrLayout) {
+    layout = applyStyleToTemplate(
+      layout,
+      normalizePatioKeyLabelStyle({
+        ...DEFAULT_PATIO_KEY_LABEL_STYLE,
+        ...(styleOrLayout as Partial<PatioKeyLabelStyle>),
+      })
+    );
+  }
+
+  const opts = layout.keyOptions!;
   const portraitW = NIIMBOT_LABEL_H_PX; // 240 = 30 mm
   const portraitH = NIIMBOT_LABEL_W_PX; // 384 = 50 mm
-  const halfH = Math.floor((portraitH - style.halfGap) / 2);
+  const halfH = Math.floor((portraitH - opts.halfGap) / 2);
 
   const portrait = document.createElement('canvas');
   portrait.width = portraitW;
@@ -263,14 +316,16 @@ export function renderPatioKeyLabelDataUrl(
   pctx.fillStyle = '#ffffff';
   pctx.fillRect(0, 0, portraitW, portraitH);
 
-  const block = renderKeyBlock(portraitW, halfH, input, style);
+  const block = renderKeyBlock(portraitW, halfH, input, layout);
   pctx.drawImage(block, 0, 0);
 
-  pctx.save();
-  pctx.translate(portraitW, portraitH);
-  pctx.rotate(Math.PI);
-  pctx.drawImage(block, 0, 0);
-  pctx.restore();
+  if (opts.dualCopy !== false) {
+    pctx.save();
+    pctx.translate(portraitW, portraitH);
+    pctx.rotate(Math.PI);
+    pctx.drawImage(block, 0, 0);
+    pctx.restore();
+  }
 
   const printW = NIIMBOT_LABEL_W_PX;
   const printH = NIIMBOT_LABEL_H_PX;
@@ -291,3 +346,5 @@ export function renderPatioKeyLabelDataUrl(
 
   return canvas.toDataURL('image/png');
 }
+
+export type { LabelElementDef, LabelTemplateLayout };

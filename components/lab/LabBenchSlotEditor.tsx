@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import {
   ALL_BENCH_SLOTS,
+  OFICINA_SHELF_LETTERS,
   firstFreeBenchSlot,
   statusUsesBench,
 } from '../../constants/labBench';
@@ -10,9 +11,13 @@ export interface LabBenchSlotEditorProps {
   status: string;
   currentSlot: number | null;
   occupiedSlots: Iterable<number>;
+  /** Letra A–Z da prateleira na oficina (independente do depósito). */
+  currentOficinaShelf?: string | null;
+  occupiedOficinaShelves?: Iterable<string>;
   disabled?: boolean;
   saving?: boolean;
   onSave: (slot: number | null) => void | Promise<void>;
+  onSaveOficinaShelf?: (letter: string | null) => void | Promise<void>;
   className?: string;
 }
 
@@ -20,18 +25,29 @@ export function LabBenchSlotEditor({
   status,
   currentSlot,
   occupiedSlots,
+  currentOficinaShelf = null,
+  occupiedOficinaShelves,
   disabled = false,
   saving = false,
   onSave,
+  onSaveOficinaShelf,
   className = '',
 }: LabBenchSlotEditorProps) {
   const onBench = statusUsesBench(status);
   const occupied = useMemo(() => new Set(occupiedSlots), [occupiedSlots]);
+  const occupiedLetters = useMemo(
+    () => new Set(Array.from(occupiedOficinaShelves ?? []).map((l) => l.toUpperCase())),
+    [occupiedOficinaShelves]
+  );
   const suggested = useMemo(
     () => (onBench ? firstFreeBenchSlot(occupied) : null),
     [onBench, occupied]
   );
   const stage = getStageConfig(status, 'module');
+  const currentLetter =
+    typeof currentOficinaShelf === 'string' && /^[A-Za-z]$/.test(currentOficinaShelf.trim())
+      ? currentOficinaShelf.trim().toUpperCase()
+      : null;
 
   if (!onBench) {
     return (
@@ -42,73 +58,128 @@ export function LabBenchSlotEditor({
   }
 
   return (
-    <div className={`space-y-2 ${className}`}>
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
-          Compartimento na bancada (vaga fixa 1–24)
-        </p>
-        {suggested != null && currentSlot !== suggested ? (
-          <button
-            type="button"
-            disabled={disabled || saving}
-            onClick={() => void onSave(suggested)}
-            className="rounded-lg bg-emerald-600 px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-emerald-500 disabled:opacity-50"
-          >
-            Usar sugerido ({suggested})
-          </button>
-        ) : null}
-      </div>
-      {currentSlot != null ? (
-        <p className="text-[11px] text-amber-800 dark:text-amber-200">
-          Atual: compartimento <strong>{currentSlot}</strong> — permanece ao mudar de etapa.
-        </p>
-      ) : (
-        <p className="text-[11px] text-amber-800 dark:text-amber-200">
-          Este produto ainda não está posicionado na bancada física.
-        </p>
-      )}
-      <div className="grid grid-cols-6 gap-1.5">
-        {ALL_BENCH_SLOTS.map((slot) => {
-          const taken = occupied.has(slot) && slot !== currentSlot;
-          const isCurrent = currentSlot === slot;
-          const isSuggested = suggested === slot && !taken;
-          return (
+    <div className={`space-y-4 ${className}`}>
+      {typeof onSaveOficinaShelf === 'function' ? (
+        <div className="space-y-2">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
+              Oficina (letra A–Z)
+            </p>
+            {currentLetter ? (
+              <p className="text-[11px] text-violet-800 dark:text-violet-200">
+                Atual: <strong>{currentLetter}</strong>
+              </p>
+            ) : (
+              <p className="text-[11px] text-zinc-500">Sem letra definida</p>
+            )}
+          </div>
+          <div className="grid grid-cols-9 gap-1">
+            {OFICINA_SHELF_LETTERS.map((letter) => {
+              const taken = occupiedLetters.has(letter) && letter !== currentLetter;
+              const isCurrent = currentLetter === letter;
+              return (
+                <button
+                  key={letter}
+                  type="button"
+                  disabled={disabled || saving || taken}
+                  onClick={() => void onSaveOficinaShelf(letter)}
+                  className={[
+                    'rounded-lg border px-1 py-1.5 text-center text-[11px] font-bold transition',
+                    isCurrent
+                      ? 'border-violet-500 bg-violet-100 text-violet-950 dark:bg-violet-950/50 dark:text-violet-100'
+                      : taken
+                        ? 'cursor-not-allowed border-zinc-200 bg-zinc-100 text-zinc-400 dark:border-zinc-800 dark:bg-zinc-900'
+                        : 'border-zinc-200 bg-white text-zinc-800 hover:border-violet-400 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200',
+                  ].join(' ')}
+                  title={taken ? 'Letra ocupada por outro produto' : `Oficina ${letter}`}
+                >
+                  {letter}
+                </button>
+              );
+            })}
+          </div>
+          {currentLetter ? (
             <button
-              key={slot}
               type="button"
-              disabled={disabled || saving || taken}
-              onClick={() => void onSave(slot)}
-              className={[
-                'rounded-lg border px-1 py-1.5 text-center text-[11px] font-bold transition',
-                isCurrent
-                  ? 'border-amber-500 bg-amber-100 text-amber-950 dark:bg-amber-950/50 dark:text-amber-100'
-                  : taken
-                    ? 'cursor-not-allowed border-zinc-200 bg-zinc-100 text-zinc-400 dark:border-zinc-800 dark:bg-zinc-900'
-                    : isSuggested
-                      ? 'border-emerald-400 bg-emerald-50 text-emerald-900 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-200'
-                      : 'border-zinc-200 bg-white text-zinc-800 hover:border-amber-400 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200',
-              ].join(' ')}
-              title={taken ? 'Ocupado por outro produto' : `Compartimento ${slot}`}
+              disabled={disabled || saving}
+              onClick={() => void onSaveOficinaShelf(null)}
+              className="rounded-lg border border-zinc-300 px-2.5 py-1 text-[11px] font-medium text-zinc-600 hover:bg-zinc-50 dark:border-zinc-600 dark:text-zinc-400"
             >
-              {slot}
+              Remover letra da oficina
             </button>
-          );
-        })}
-      </div>
-      <div className="flex flex-wrap gap-2 pt-0.5">
+          ) : null}
+        </div>
+      ) : null}
+
+      <div className="space-y-2">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
+            Depósito / bancada (vaga 1–24)
+          </p>
+          {suggested != null && currentSlot !== suggested ? (
+            <button
+              type="button"
+              disabled={disabled || saving}
+              onClick={() => void onSave(suggested)}
+              className="rounded-lg bg-emerald-600 px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-emerald-500 disabled:opacity-50"
+            >
+              Usar sugerido ({suggested})
+            </button>
+          ) : null}
+        </div>
         {currentSlot != null ? (
-          <button
-            type="button"
-            disabled={disabled || saving}
-            onClick={() => void onSave(null)}
-            className="rounded-lg border border-zinc-300 px-2.5 py-1 text-[11px] font-medium text-zinc-600 hover:bg-zinc-50 dark:border-zinc-600 dark:text-zinc-400"
-          >
-            Remover da bancada
-          </button>
-        ) : null}
-        <p className="self-center text-[10px] text-zinc-500">
-          A vaga não muda quando a etapa muda — só a cor do card.
-        </p>
+          <p className="text-[11px] text-amber-800 dark:text-amber-200">
+            Atual: compartimento <strong>{currentSlot}</strong> — permanece ao mudar de etapa.
+          </p>
+        ) : (
+          <p className="text-[11px] text-amber-800 dark:text-amber-200">
+            Este produto ainda não está posicionado na bancada física.
+          </p>
+        )}
+        <div className="grid grid-cols-6 gap-1.5">
+          {ALL_BENCH_SLOTS.map((slot) => {
+            const taken = occupied.has(slot) && slot !== currentSlot;
+            const isCurrent = currentSlot === slot;
+            const isSuggested = suggested === slot && !taken;
+            return (
+              <button
+                key={slot}
+                type="button"
+                disabled={disabled || saving || taken}
+                onClick={() => void onSave(slot)}
+                className={[
+                  'rounded-lg border px-1 py-1.5 text-center text-[11px] font-bold transition',
+                  isCurrent
+                    ? 'border-amber-500 bg-amber-100 text-amber-950 dark:bg-amber-950/50 dark:text-amber-100'
+                    : taken
+                      ? 'cursor-not-allowed border-zinc-200 bg-zinc-100 text-zinc-400 dark:border-zinc-800 dark:bg-zinc-900'
+                      : isSuggested
+                        ? 'border-emerald-400 bg-emerald-50 text-emerald-900 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-200'
+                        : 'border-zinc-200 bg-white text-zinc-800 hover:border-amber-400 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200',
+                ].join(' ')}
+                title={taken ? 'Ocupado por outro produto' : `Compartimento ${slot}`}
+              >
+                {slot}
+              </button>
+            );
+          })}
+        </div>
+        <div className="flex flex-wrap gap-2 pt-0.5">
+          {currentSlot != null ? (
+            <button
+              type="button"
+              disabled={disabled || saving}
+              onClick={() => void onSave(null)}
+              className="rounded-lg border border-zinc-300 px-2.5 py-1 text-[11px] font-medium text-zinc-600 hover:bg-zinc-50 dark:border-zinc-600 dark:text-zinc-400"
+            >
+              Remover da bancada
+            </button>
+          ) : null}
+          <p className="self-center text-[10px] text-zinc-500">
+            A vaga do depósito não muda quando a etapa muda — só a cor do card. A letra da oficina
+            aparece junto na etiqueta.
+          </p>
+        </div>
       </div>
     </div>
   );

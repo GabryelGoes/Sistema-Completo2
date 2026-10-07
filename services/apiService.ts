@@ -77,6 +77,8 @@ interface ApiServiceOrder {
   bench_slot?: number | null;
   bench_slot_at?: string | null;
   bench_queued_at?: string | null;
+  /** Letra A–Z na oficina (independente do depósito/bancada). */
+  oficina_shelf?: string | null;
   external_repair?: ExternalRepair | null;
   diagnostic_authorization_signed_at?: string | null;
   diagnostic_authorization_signature_path?: string | null;
@@ -125,6 +127,8 @@ export interface ServiceOrderListItem {
   bench_slot?: number | null;
   bench_slot_at?: string | null;
   bench_queued_at?: string | null;
+  /** Letra A–Z na oficina (independente do depósito/bancada). */
+  oficina_shelf?: string | null;
   /** Dados do conserto em terceiros. */
   external_repair?: ExternalRepair | null;
   /** Avaliação técnica do laboratório — serviço decidido pelo técnico. */
@@ -172,6 +176,8 @@ export interface ServiceOrderDetail {
   bench_slot?: number | null;
   bench_slot_at?: string | null;
   bench_queued_at?: string | null;
+  /** Letra A–Z na oficina (independente do depósito/bancada). */
+  oficina_shelf?: string | null;
   /** Dados do conserto em terceiros. */
   external_repair?: ExternalRepair | null;
   /** Avaliação técnica do laboratório — serviço decidido pelo técnico. */
@@ -1165,6 +1171,23 @@ export async function updateServiceOrderBenchSlot(
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
     throw new Error(err.error || `Falha ao atualizar compartimento (${response.status})`);
+  }
+  return response.json();
+}
+
+/** Define (A–Z) ou limpa (null) a letra da oficina (independente do depósito). */
+export async function updateServiceOrderOficinaShelf(
+  id: string,
+  letter: string | null
+): Promise<ApiServiceOrder> {
+  const response = await fetch(`${API_BASE}/service-orders/${id}/oficina-shelf`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ oficinaShelf: letter }),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao atualizar letra da oficina (${response.status})`);
   }
   return response.json();
 }

@@ -1,4 +1,10 @@
 import { drawCode128B } from './niimbotCode128';
+import {
+  cssFontForElement,
+  loadLabelTemplate,
+  type LabelElementDef,
+  type LabelTemplateLayout,
+} from './labelTemplates';
 import { generateInternalEan13 } from './workshopPartLabelCode';
 
 export const NIIMBOT_LABEL_W_PX = 384;
@@ -58,18 +64,45 @@ function truncateToWidth(
   return `${s}…`;
 }
 
+function findEl(layout: LabelTemplateLayout, id: string): LabelElementDef | undefined {
+  return layout.elements.find((e) => e.id === id);
+}
+
+function drawPlainText(
+  ctx: CanvasRenderingContext2D,
+  elDef: LabelElementDef,
+  text: string
+): void {
+  if (!elDef.visible) return;
+  ctx.fillStyle = '#000000';
+  ctx.textBaseline = 'top';
+  ctx.font = cssFontForElement(elDef);
+  const drawn = truncateToWidth(ctx, text, elDef.w);
+  let x = elDef.x;
+  if (elDef.align === 'center') {
+    const tw = ctx.measureText(drawn).width;
+    x = elDef.x + (elDef.w - tw) / 2;
+  } else if (elDef.align === 'right') {
+    const tw = ctx.measureText(drawn).width;
+    x = elDef.x + elDef.w - tw;
+  }
+  ctx.fillText(drawn, x, elDef.y);
+}
+
 /** Renderiza a etiqueta 50×30 mm (384×240 @ 203 dpi) e devolve data URL PNG. */
-export function renderNiimbotPartLabelDataUrl(input: NiimbotPartLabelInput): string {
+export function renderNiimbotPartLabelDataUrl(
+  input: NiimbotPartLabelInput,
+  layoutInput?: LabelTemplateLayout | null
+): string {
   const code = String(input.code ?? '').trim();
   if (!code) throw new Error('Código interno ausente para a etiqueta.');
 
   const brand = (input.brand ?? 'REI DO ABS').trim() || 'REI DO ABS';
   const name = String(input.name ?? '').trim() || 'Peça';
+  const layout = layoutInput ?? loadLabelTemplate('estoque');
 
-  const w = NIIMBOT_LABEL_W_PX;
-  const h = NIIMBOT_LABEL_H_PX;
-  const m = NIIMBOT_LABEL_MARGIN_PX;
-  const contentW = w - m * 2;
+  const w = layout.canvasW || NIIMBOT_LABEL_W_PX;
+  const h = layout.canvasH || NIIMBOT_LABEL_H_PX;
 
   const canvas = document.createElement('canvas');
   canvas.width = w;
@@ -82,34 +115,48 @@ export function renderNiimbotPartLabelDataUrl(input: NiimbotPartLabelInput): str
   ctx.fillStyle = '#000000';
   ctx.textBaseline = 'top';
 
-  // Marca
-  ctx.font = 'bold 22px Arial, Helvetica, sans-serif';
-  ctx.fillText(truncateToWidth(ctx, brand, contentW), m, 8);
+  const brandEl = findEl(layout, 'brand');
+  if (brandEl) drawPlainText(ctx, brandEl, brand);
 
-  // Nome do produto
-  ctx.font = 'bold 18px Arial, Helvetica, sans-serif';
-  const nameY = 36;
-  ctx.fillText(truncateToWidth(ctx, name, contentW), m, nameY);
+  const nameEl = findEl(layout, 'name');
+  if (nameEl) drawPlainText(ctx, nameEl, name);
 
-  // Linha "Código: …"
-  ctx.font = '14px Arial, Helvetica, sans-serif';
-  const codeLine = truncateToWidth(ctx, `Código: ${code}`, contentW);
-  ctx.fillText(codeLine, m, 62);
+  const codeLineEl = findEl(layout, 'code_line');
+  if (codeLineEl?.visible) {
+    ctx.font = cssFontForElement(codeLineEl);
+    ctx.textBaseline = 'top';
+    const prefix = codeLineEl.labelText
+      ? codeLineEl.labelText.endsWith(' ')
+        ? codeLineEl.labelText
+        : `${codeLineEl.labelText} `
+      : '';
+    const line = truncateToWidth(ctx, `${prefix}${code}`, codeLineEl.w);
+    ctx.fillText(line, codeLineEl.x, codeLineEl.y);
+  }
 
-  // Code128
-  const barY = 88;
-  const barH = 96;
-  const barX = m;
-  const barW = contentW;
-  drawCode128B(ctx, code, barX, barY, barW, barH);
+  const barcodeEl = findEl(layout, 'barcode');
+  if (barcodeEl?.visible) {
+    drawCode128B(ctx, code, barcodeEl.x, barcodeEl.y, barcodeEl.w, barcodeEl.h);
+  }
 
-  // Texto legível sob o código de barras
-  ctx.font = 'bold 16px Arial, Helvetica, sans-serif';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'alphabetic';
-  const human = truncateToWidth(ctx, code, contentW);
-  ctx.fillText(human, w / 2, h - 14);
-  ctx.textAlign = 'left';
+  const humanEl = findEl(layout, 'human_code');
+  if (humanEl?.visible) {
+    ctx.font = cssFontForElement(humanEl);
+    ctx.textBaseline = 'alphabetic';
+    const human = truncateToWidth(ctx, code, humanEl.w);
+    const textY = humanEl.y + humanEl.h - 4;
+    if (humanEl.align === 'center') {
+      ctx.textAlign = 'center';
+      ctx.fillText(human, humanEl.x + humanEl.w / 2, textY);
+      ctx.textAlign = 'left';
+    } else if (humanEl.align === 'right') {
+      ctx.textAlign = 'right';
+      ctx.fillText(human, humanEl.x + humanEl.w, textY);
+      ctx.textAlign = 'left';
+    } else {
+      ctx.fillText(human, humanEl.x, textY);
+    }
+  }
 
   return canvas.toDataURL('image/png');
 }

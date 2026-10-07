@@ -1,5 +1,5 @@
-import React from 'react';
-import { X } from 'lucide-react';
+import React, { useState } from 'react';
+import { ChevronRight, Tag, X } from 'lucide-react';
 import { iosModalShell, iosModalClose, iosModalInsetCard, resolveIosModalOverlayClass } from './ui/iosModalStyles';
 import { ModalPortal } from './ui/ModalPortal';
 import { IosModalHeader } from './ui/IosModalHeader';
@@ -11,6 +11,7 @@ import {
   DEVICE_TYPE_LABELS,
   type DeviceTypeOverride,
 } from '../utils/deviceType';
+import { LabelTemplatesEditorModal } from './LabelTemplatesEditorModal';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -58,6 +59,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 }) => {
   useRegisterModalOpen(isOpen);
   const isDesktopShell = useDesktopShellLayout();
+  const [labelEditorOpen, setLabelEditorOpen] = useState(false);
   const {
     label: deviceLabel,
     deviceType,
@@ -250,10 +252,35 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 </div>
               </div>
             )}
+
+            <div className={`${iosModalInsetCard} p-4 sm:p-5`}>
+              <button
+                type="button"
+                onClick={() => setLabelEditorOpen(true)}
+                className="flex w-full items-center gap-3 text-left transition active:scale-[0.99]"
+              >
+                <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900">
+                  <Tag className="h-5 w-5" />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <span className="block text-[15px] font-medium text-zinc-900 dark:text-white">
+                    Editor de etiquetas
+                  </span>
+                  <span className="mt-0.5 block text-[12px] text-zinc-500 dark:text-zinc-400">
+                    Laboratório, estoque e chave — reposicionar, fontes, ocultar campos e reescrever rótulos
+                  </span>
+                </span>
+                <ChevronRight className="h-5 w-5 shrink-0 text-zinc-400" />
+              </button>
+            </div>
           </div>
         </div>
       </div>
     </div>
+    <LabelTemplatesEditorModal
+      open={labelEditorOpen}
+      onClose={() => setLabelEditorOpen(false)}
+    />
     </ModalPortal>
   );
 };

@@ -48,6 +48,22 @@ export const ALL_BENCH_SLOTS: number[] = Array.from(
   (_, i) => i + 1
 );
 
+/**
+ * Endereços na oficina (letra A–Z), distintos do depósito/bancada (1–24).
+ * Ambos podem constar na etiqueta da OS.
+ */
+export const OFICINA_SHELF_LETTERS: string[] = Array.from({ length: 26 }, (_, i) =>
+  String.fromCharCode(65 + i)
+);
+
+/** Normaliza letra A–Z; retorna null se inválida/vazia. */
+export function normalizeOficinaShelf(raw: unknown): string | null {
+  if (raw == null || raw === '') return null;
+  const s = String(raw).trim().toUpperCase();
+  if (!/^[A-Z]$/.test(s)) return null;
+  return s;
+}
+
 /** Legenda visual das etapas (cores na UI — não define zona física). */
 export interface LabBenchStageLegend {
   id: string;

@@ -179,6 +179,8 @@ export function LabOsScanQuickModal({
       vehicleName,
       complaint: stripLegacyComplaint(detail.issue_description) || '—',
       benchSlot: typeof detail.bench_slot === 'number' ? detail.bench_slot : null,
+      oficinaShelf:
+        typeof detail.oficina_shelf === 'string' ? detail.oficina_shelf : null,
     });
   }, [customerName, detail, serviceOrderId, vehicleName]);
 

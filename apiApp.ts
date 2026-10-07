@@ -3896,7 +3896,7 @@ export function createApiApp() {
 
   // ----------------- ORDENS DE SERVIÇO -----------------
   const SERVICE_ORDERS_LIST_SELECT =
-    "id, os_number, customer_id, vehicle_model, vehicle_brand, module_identification, module_kind, module_vehicle_kind, module_product_other, plate, mileage_km, delivery_date, vehicle_observations, issue_description, ai_analysis, status, assigned_technician, garantia_tag, agenda_tag, order_type, vehicle_category, vehicle_color, vehicle_year, vehicle_engine_info, reference_links, lab_service_links, lab_evaluated_service, lab_evaluated_at, lab_evaluated_by_name, bench_slot, bench_slot_at, bench_queued_at, external_repair, diagnostic_authorization_signed_at, diagnostic_authorization_signature_path, created_at, updated_at";
+    "id, os_number, customer_id, vehicle_model, vehicle_brand, module_identification, module_kind, module_vehicle_kind, module_product_other, plate, mileage_km, delivery_date, vehicle_observations, issue_description, ai_analysis, status, assigned_technician, garantia_tag, agenda_tag, order_type, vehicle_category, vehicle_color, vehicle_year, vehicle_engine_info, reference_links, lab_service_links, lab_evaluated_service, lab_evaluated_at, lab_evaluated_by_name, bench_slot, bench_slot_at, bench_queued_at, oficina_shelf, external_repair, diagnostic_authorization_signed_at, diagnostic_authorization_signature_path, created_at, updated_at";
   /** Fallback quando migrações recentes ainda não foram aplicadas no projeto Supabase. */
   const SERVICE_ORDERS_LIST_SELECT_MINIMAL =
     "id, os_number, customer_id, vehicle_model, vehicle_brand, module_identification, plate, mileage_km, delivery_date, issue_description, ai_analysis, status, assigned_technician, garantia_tag, agenda_tag, order_type, vehicle_category, vehicle_color, vehicle_year, vehicle_engine_info, reference_links, diagnostic_authorization_signed_at, diagnostic_authorization_signature_path, created_at, updated_at";
@@ -11778,6 +11778,7 @@ export function createApiApp() {
               bench_slot: null,
               bench_slot_at: null,
               bench_queued_at: null,
+              oficina_shelf: null,
               updated_at: archivedAt,
             })
             .in("id", removedLabIds)
@@ -12010,6 +12011,86 @@ export function createApiApp() {
       return res.json(data);
     } catch (err: any) {
       console.error("[API] Erro em PUT /api/service-orders/:id/bench-slot:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+    }
+  });
+
+  // Oficina: definir/limpar letra A–Z (endereço na oficina, independente do depósito/bancada).
+  app.put("/api/service-orders/:id/oficina-shelf", async (req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({ error: "Servidor não configurado." });
+      }
+      const id = reqOrderId(req);
+      if (!id) return res.status(400).json({ error: "ID da OS inválido." });
+
+      const raw = req.body?.oficinaShelf ?? req.body?.shelf ?? req.body?.letter;
+      const clearing = raw === null || raw === "" || raw === undefined;
+      const letter = clearing
+        ? null
+        : String(raw)
+            .trim()
+            .toUpperCase();
+      if (!clearing && !/^[A-Z]$/.test(letter || "")) {
+        return res.status(400).json({ error: "Letra inválida (use A a Z)." });
+      }
+
+      const { data: order } = await supabaseAdmin
+        .from("service_orders")
+        .select("id, order_type, status, oficina_shelf")
+        .eq("id", id)
+        .eq("workshop_id", WORKSHOP_ID)
+        .single();
+      if (!order) {
+        return res.status(404).json({ error: "Ordem de serviço não encontrada." });
+      }
+      if ((order as { order_type?: string }).order_type !== "module") {
+        return res.status(400).json({ error: "A letra da oficina é exclusiva do laboratório." });
+      }
+
+      if (letter != null) {
+        const { data: clash } = await supabaseAdmin
+          .from("service_orders")
+          .select("id")
+          .eq("workshop_id", WORKSHOP_ID)
+          .eq("order_type", "module")
+          .eq("oficina_shelf", letter)
+          .neq("status", CANCELLED_STATUS)
+          .neq("id", id)
+          .maybeSingle();
+        if (clash) {
+          return res.status(409).json({ error: `Letra ${letter} já está em uso.` });
+        }
+      }
+
+      const nowShelf = new Date().toISOString();
+      const { data, error } = await supabaseAdmin
+        .from("service_orders")
+        .update({
+          oficina_shelf: letter,
+          updated_at: nowShelf,
+        })
+        .eq("id", id)
+        .eq("workshop_id", WORKSHOP_ID)
+        .select("*")
+        .single();
+      if (error) {
+        // Coluna ainda não migrada no projeto remoto
+        if (
+          /oficina_shelf/i.test(error.message || "") &&
+          /does not exist|Could not find/i.test(error.message || "")
+        ) {
+          return res.status(503).json({
+            error:
+              "Coluna oficina_shelf ainda não existe. Aplique a migration 20261007120000_service_orders_oficina_shelf.",
+          });
+        }
+        console.error("[API] PUT oficina-shelf:", error);
+        return res.status(500).json({ error: error.message });
+      }
+      return res.json(data);
+    } catch (err: any) {
+      console.error("[API] Erro em PUT /api/service-orders/:id/oficina-shelf:", err);
       return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
     }
   });
