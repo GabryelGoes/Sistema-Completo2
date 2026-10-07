@@ -346,6 +346,9 @@ export default function App() {
   const openBudgetFromBanner = useCallback(
     (item: MacOsBudgetBannerItem) => {
       if (item.kind === 'comment') {
+        // Tira o banner da frente (z altíssimo) para o CommentPopUp ficar visível.
+        setBudgetBannerItems((prev) => prev.filter((x) => x.id !== item.id));
+        setMinimizedBudgetBanners((prev) => prev.filter((x) => x.id !== item.id));
         if (item.commentNotification) {
           setCommentPopUpNotification(item.commentNotification);
         }
