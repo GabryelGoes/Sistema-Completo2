@@ -24,6 +24,8 @@ import {
   updateServiceOrderBenchSlot,
   updateServiceOrderOficinaShelf,
   updateServiceOrderExternalRepair,
+  getServiceOrderLocationMoves,
+  type ServiceOrderLocationMove,
   getServiceOrderPhotos,
   uploadServiceOrderPhoto,
   renameServiceOrderPhoto,
@@ -243,6 +245,8 @@ import {
   budgetReadModalShellClass,
 } from '../budget/budgetReadModalTheme';
 import { LabBenchSlotEditor } from '../lab/LabBenchSlotEditor';
+import { LabScanModeBar } from '../lab/LabScanModeBar';
+import { formatLabLocationShort, resolveLabLocation } from '../../utils/labLocation';
 import type { ExternalRepair } from '../../constants/labBench';
 import { MercosulPlateMockup } from '../ui/MercosulPlateMockup';
 import { PatioPhotoAlbums } from '../patio/PatioPhotoAlbums';
@@ -429,6 +433,9 @@ interface PatioViewProps {
   onVehicleModalOsLabelChange?: (label: string | null) => void;
   /** Fecha a página e volta ao Início (botão X no cabeçalho mobile/tablet). */
   onClosePage?: () => void;
+  /** Modo da pistola no Laboratório (Consultar / Saída / Retorno). */
+  labScanMode?: import('../../utils/labScanMode').LabScanMode;
+  onLabScanModeChange?: (mode: import('../../utils/labScanMode').LabScanMode) => void;
 }
 
 function boardListsFromStages(stages: ReturnType<typeof getServiceOrderStages>): BoardList[] {
@@ -1229,6 +1236,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
   onActiveCardsCountChange,
   onVehicleModalOsLabelChange,
   onClosePage,
+  labScanMode = 'consultar',
+  onLabScanModeChange,
 }) => {
   /** Admin: sem patioPermissions = tudo permitido. Usuário do sistema: só o que for explicitamente true. */
   const can = (key: keyof NonNullable<PatioViewProps['patioPermissions']>) =>
@@ -1291,6 +1300,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
   /** Aba ativa no modal da OS (somente layout PC). */
   const [pcOsModalTab, setPcOsModalTab] = useState<PatioOsModalPcTab>('dados');
   const [benchSlotSaving, setBenchSlotSaving] = useState(false);
+  const [locationMoves, setLocationMoves] = useState<ServiceOrderLocationMove[]>([]);
   const [labServiceLinksDraft, setLabServiceLinksDraft] = useState<LabServiceLink[]>([]);
   const [labServiceLinksSaving, setLabServiceLinksSaving] = useState(false);
   const [creatingLabService, setCreatingLabService] = useState(false);
@@ -2745,7 +2755,12 @@ export const PatioView: React.FC<PatioViewProps> = ({
     setCards((prev) =>
       prev.map((c) =>
         c.id === cardId
-          ? { ...c, benchSlot: slot, benchQueuedAt: slot != null ? null : c.benchQueuedAt }
+          ? {
+              ...c,
+              benchSlot: slot,
+              benchQueuedAt: slot != null ? null : c.benchQueuedAt,
+              ...(slot != null ? { oficinaShelf: null } : {}),
+            }
           : c
       )
     );
@@ -2758,6 +2773,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 ...c,
                 benchSlot: slot,
                 benchQueuedAt: slot != null ? null : c.benchQueuedAt,
+                ...(slot != null ? { oficinaShelf: null } : {}),
               }
             : c
         );
@@ -2768,6 +2784,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 bench_slot: slot,
                 bench_slot_at: slot != null ? new Date().toISOString() : null,
                 bench_queued_at: slot != null ? null : d.bench_queued_at,
+                ...(slot != null ? { oficina_shelf: null } : {}),
               }
             : d
         );
@@ -2839,10 +2856,38 @@ export const PatioView: React.FC<PatioViewProps> = ({
             ? letter.trim().toUpperCase()
             : null;
       setCards((prev) =>
-        prev.map((c) => (c.id === cardId ? { ...c, oficinaShelf: normalized } : c))
+        prev.map((c) =>
+          c.id === cardId
+            ? {
+                ...c,
+                oficinaShelf: normalized,
+                ...(normalized
+                  ? { benchSlot: null, benchQueuedAt: null }
+                  : {}),
+              }
+            : c
+        )
       );
-      setSelectedCard((c) => (c ? { ...c, oficinaShelf: normalized } : c));
-      setServiceOrderDetail((d) => (d ? { ...d, oficina_shelf: normalized } : d));
+      setSelectedCard((c) =>
+        c
+          ? {
+              ...c,
+              oficinaShelf: normalized,
+              ...(normalized ? { benchSlot: null, benchQueuedAt: null } : {}),
+            }
+          : c
+      );
+      setServiceOrderDetail((d) =>
+        d
+          ? {
+              ...d,
+              oficina_shelf: normalized,
+              ...(normalized
+                ? { bench_slot: null, bench_slot_at: null, bench_queued_at: null }
+                : {}),
+            }
+          : d
+      );
       setBenchSlotSaving(true);
       try {
         await updateServiceOrderOficinaShelf(cardId, normalized);
@@ -2855,6 +2900,24 @@ export const PatioView: React.FC<PatioViewProps> = ({
     },
     [selectedCard]
   );
+
+  useEffect(() => {
+    if (!isModuleMode || !selectedCard?.id) {
+      setLocationMoves([]);
+      return;
+    }
+    let cancelled = false;
+    void getServiceOrderLocationMoves(selectedCard.id)
+      .then((rows) => {
+        if (!cancelled) setLocationMoves(rows);
+      })
+      .catch(() => {
+        if (!cancelled) setLocationMoves([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isModuleMode, selectedCard?.id, serviceOrderDetail?.oficina_shelf, serviceOrderDetail?.bench_slot]);
 
   const handleBenchPanelToggle = useCallback(() => {
     setBenchPanelOpen((prev) => {
@@ -6599,6 +6662,15 @@ export const PatioView: React.FC<PatioViewProps> = ({
         </header>
       </div>
 
+      {/* Modo da pistola — sempre visível no Laboratório */}
+      {isModuleMode && typeof onLabScanModeChange === 'function' ? (
+        <div className="relative z-0 mx-auto w-full max-w-[100rem] px-3 pb-1 sm:px-5 md:px-6">
+          <div className="rounded-2xl bg-zinc-100/80 px-3 py-2.5 dark:bg-white/[0.04]">
+            <LabScanModeBar mode={labScanMode} onChange={onLabScanModeChange} />
+          </div>
+        </div>
+      ) : null}
+
       {/* Bancada do laboratório — painel visual dos 24 compartimentos (só no modo módulo) */}
       {isModuleMode && (!headerActionsOneLine || benchPanelOpen) && (
         <div className="relative z-0 mx-auto w-full max-w-[100rem] px-3 pb-2 sm:px-5 md:px-6">
@@ -9408,7 +9480,16 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                       </div>
                                       {serviceOrderDetail && statusUsesBench(serviceOrderDetail.status) ? (
                                         <div className={`${vi} p-4 sm:p-5`}>
-                                          <p className={`${iosLabel} mb-2`}>Oficina e depósito</p>
+                                          <p className={`${iosLabel} mb-2`}>Local físico</p>
+                                          <p className="mb-2 text-[13px] font-semibold text-zinc-800 dark:text-zinc-100">
+                                            {formatLabLocationShort(
+                                              resolveLabLocation({
+                                                oficina_shelf: serviceOrderDetail.oficina_shelf,
+                                                bench_slot: serviceOrderDetail.bench_slot,
+                                                bench_queued_at: serviceOrderDetail.bench_queued_at,
+                                              })
+                                            )}
+                                          </p>
                                           <LabBenchSlotEditor
                                             status={serviceOrderDetail.status}
                                             currentSlot={
@@ -9428,6 +9509,61 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                             onSave={handleBenchSlotFromDetail}
                                             onSaveOficinaShelf={handleOficinaShelfFromDetail}
                                           />
+                                          {locationMoves.length > 0 ? (
+                                            <div className="mt-3 space-y-1.5 border-t border-zinc-200/70 pt-3 dark:border-white/10">
+                                              <p className="text-[11px] font-bold uppercase tracking-wide text-zinc-500">
+                                                Histórico de movimentação
+                                              </p>
+                                              <ul className="max-h-40 space-y-1 overflow-y-auto custom-scrollbar">
+                                                {locationMoves.slice(0, 12).map((m) => {
+                                                  const when = new Date(m.created_at);
+                                                  const time = Number.isNaN(when.getTime())
+                                                    ? '—'
+                                                    : when.toLocaleString('pt-BR', {
+                                                        day: '2-digit',
+                                                        month: '2-digit',
+                                                        hour: '2-digit',
+                                                        minute: '2-digit',
+                                                      });
+                                                  const dir =
+                                                    m.direction === 'saida'
+                                                      ? 'Saída → Depósito'
+                                                      : 'Retorno → Oficina';
+                                                  const from =
+                                                    m.from_kind === 'oficina' && m.from_value
+                                                      ? `Oficina ${m.from_value}`
+                                                      : m.from_kind === 'deposito' && m.from_value
+                                                        ? `Depósito ${m.from_value}`
+                                                        : m.from_kind === 'fila'
+                                                          ? 'Fila'
+                                                          : '—';
+                                                  const to =
+                                                    m.to_kind === 'oficina' && m.to_value
+                                                      ? `Oficina ${m.to_value}`
+                                                      : m.to_kind === 'deposito' && m.to_value
+                                                        ? `Depósito ${m.to_value}`
+                                                        : m.to_kind === 'fila'
+                                                          ? 'Fila'
+                                                          : '—';
+                                                  return (
+                                                    <li
+                                                      key={m.id}
+                                                      className="rounded-lg bg-zinc-50 px-2.5 py-1.5 text-[11px] text-zinc-700 dark:bg-white/[0.04] dark:text-zinc-300"
+                                                    >
+                                                      <span className="font-semibold">{dir}</span>
+                                                      <span className="opacity-80">
+                                                        {' '}
+                                                        · {from} → {to}
+                                                      </span>
+                                                      <span className="mt-0.5 block text-[10px] text-zinc-500">
+                                                        {m.actor_name || '—'} · {time}
+                                                      </span>
+                                                    </li>
+                                                  );
+                                                })}
+                                              </ul>
+                                            </div>
+                                          ) : null}
                                         </div>
                                       ) : null}
                                     </>

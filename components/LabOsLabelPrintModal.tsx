@@ -111,12 +111,13 @@ export function LabOsLabelPrintModal({ open, label, onClose }: LabOsLabelPrintMo
               <p className="mt-0.5 text-[12px] text-zinc-500 dark:text-zinc-400">
                 {label.vehicleName}
                 {typeof label.oficinaShelf === 'string' &&
-                /^[A-Za-z]$/.test(label.oficinaShelf.trim())
+                /^[A-Xa-x]$/.test(label.oficinaShelf.trim())
                   ? ` · Oficina ${label.oficinaShelf.trim().toUpperCase()}`
-                  : ' · Sem letra na oficina'}
-                {typeof label.benchSlot === 'number'
-                  ? ` · Depósito ${label.benchSlot}`
-                  : ' · Sem vaga no depósito'}
+                  : typeof label.benchSlot === 'number'
+                    ? ` · Depósito ${label.benchSlot}`
+                    : label.benchQueuedAt
+                      ? ' · Fila depósito'
+                      : ' · Sem local'}
               </p>
             </div>
 

@@ -199,9 +199,8 @@ export function LabBenchSlotEditor({
             </button>
           ) : null}
           <p className="self-center text-[10px] text-zinc-500">
-            Letras A–X (oficina) e números 1–24 (depósito) são atribuídos automaticamente. Na Saída
-            (scan do QR) a peça vai para Em serviço e libera as vagas; no Retorno a próxima letra
-            livre é preenchida.
+            Um endereço ativo por vez. Entrada → letra na oficina (A–X). Pistola: Saída → Depósito
+            (vaga 1–24 ou fila); Retorno → Oficina (próxima letra livre).
           </p>
         </div>
       </div>

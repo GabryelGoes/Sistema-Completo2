@@ -1,11 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ArrowDownToLine,
-  ArrowUpFromLine,
   CalendarDays,
   Check,
   ChevronRight,
   Loader2,
+  MapPin,
   Tag,
   Truck,
   User,
@@ -13,8 +12,6 @@ import {
 } from 'lucide-react';
 import {
   getServiceOrderById,
-  registerOficinaRetorno,
-  registerOficinaSaida,
   updateServiceOrderStatus,
   type ServiceOrderDetail,
   type ServiceOrderUpdateActor,
@@ -27,10 +24,7 @@ import {
   isExternalRepairStatus,
   type ServiceOrderStatus,
 } from '../constants/serviceOrderStages';
-import {
-  normalizeOficinaShelf,
-  statusUsesOficinaShelf,
-} from '../constants/labBench';
+import { formatLabLocationShort, resolveLabLocation } from '../utils/labLocation';
 import { LabOsLabelPrintModal } from './LabOsLabelPrintModal';
 import type { LabOsLabelInput } from '../utils/labOsLabelRender';
 import { ModalPortal } from './ui/ModalPortal';
@@ -88,8 +82,6 @@ export function LabOsScanQuickModal({
   const [error, setError] = useState<string | null>(null);
   const [stageModalOpen, setStageModalOpen] = useState(false);
   const [savingStage, setSavingStage] = useState(false);
-  const [transferBusy, setTransferBusy] = useState(false);
-  const [transferMessage, setTransferMessage] = useState<string | null>(null);
   const [labelPrint, setLabelPrint] = useState<LabOsLabelInput | null>(null);
   const currentStageRef = useRef<HTMLElement | null>(null);
 
@@ -114,7 +106,6 @@ export function LabOsScanQuickModal({
     setLoading(true);
     setError(null);
     setStageModalOpen(false);
-    setTransferMessage(null);
     setDetail(null);
     void getServiceOrderById(serviceOrderId)
       .then((order) => {
@@ -164,22 +155,12 @@ export function LabOsScanQuickModal({
   const stageStyle = getStageStyle(statusId, 'module') || stageCfg?.style || 'bg-zinc-500 text-white';
   const stageLabel = stageCfg?.name ?? (statusId || 'Etapa');
 
-  const oficinaLetter = normalizeOficinaShelf(detail?.oficina_shelf);
-  const depositoSlot =
-    typeof detail?.bench_slot === 'number' ? detail.bench_slot : null;
-  const inService = statusId === 'EM_SERVICO';
-  const onOficinaShelf = statusUsesOficinaShelf(statusId);
-  const canSaida =
-    Boolean(detail) &&
-    !inService &&
-    statusId !== 'FINALIZADO' &&
-    statusId !== 'CANCELLED' &&
-    (onOficinaShelf || Boolean(oficinaLetter));
-  const canRetorno =
-    Boolean(detail) &&
-    statusId !== 'FINALIZADO' &&
-    statusId !== 'CANCELLED' &&
-    (inService || (onOficinaShelf && !oficinaLetter));
+  const location = resolveLabLocation({
+    oficina_shelf: detail?.oficina_shelf,
+    bench_slot: detail?.bench_slot,
+    bench_queued_at: detail?.bench_queued_at,
+  });
+  const locationLabel = formatLabLocationShort(location);
 
   const handleChangeStage = useCallback(
     async (next: ServiceOrderStatus) => {
@@ -207,49 +188,6 @@ export function LabOsScanQuickModal({
     [actorOptions, detail, savingStage, serviceOrderId]
   );
 
-  const handleSaida = useCallback(async () => {
-    if (!detail || !serviceOrderId || transferBusy || !canSaida) return;
-    setTransferBusy(true);
-    setError(null);
-    setTransferMessage(null);
-    try {
-      const updated = await registerOficinaSaida(serviceOrderId);
-      setDetail((prev) => (prev ? { ...prev, ...updated } : prev));
-      setTransferMessage('Saída registrada — peça com o técnico (Em serviço).');
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Falha ao registrar saída.');
-    } finally {
-      setTransferBusy(false);
-    }
-  }, [canSaida, detail, serviceOrderId, transferBusy]);
-
-  const handleRetorno = useCallback(async () => {
-    if (!detail || !serviceOrderId || transferBusy || !canRetorno) return;
-    setTransferBusy(true);
-    setError(null);
-    setTransferMessage(null);
-    try {
-      const updated = await registerOficinaRetorno(serviceOrderId);
-      setDetail((prev) => (prev ? { ...prev, ...updated } : prev));
-      const letter = normalizeOficinaShelf(updated.oficina_shelf);
-      const slot =
-        typeof updated.bench_slot === 'number' ? updated.bench_slot : null;
-      setTransferMessage(
-        [
-          'Retorno registrado',
-          letter ? `oficina ${letter}` : null,
-          slot != null ? `depósito ${slot}` : null,
-        ]
-          .filter(Boolean)
-          .join(' · ')
-      );
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Falha ao registrar retorno.');
-    } finally {
-      setTransferBusy(false);
-    }
-  }, [canRetorno, detail, serviceOrderId, transferBusy]);
-
   const handlePrintLabel = useCallback(() => {
     if (!detail || !serviceOrderId) return;
     setLabelPrint({
@@ -260,6 +198,7 @@ export function LabOsScanQuickModal({
       benchSlot: typeof detail.bench_slot === 'number' ? detail.bench_slot : null,
       oficinaShelf:
         typeof detail.oficina_shelf === 'string' ? detail.oficina_shelf : null,
+      benchQueuedAt: detail.bench_queued_at ?? null,
     });
   }, [customerName, detail, serviceOrderId, vehicleName]);
 
@@ -368,23 +307,26 @@ export function LabOsScanQuickModal({
                       </p>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-2.5">
-                      <div className="rounded-2xl bg-violet-50 px-3.5 py-3 dark:bg-violet-950/35">
-                        <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-violet-700 dark:text-violet-300">
-                          Oficina
-                        </p>
-                        <p className="mt-1 text-[22px] font-bold tabular-nums leading-none text-violet-950 dark:text-violet-100">
-                          {oficinaLetter ?? '—'}
-                        </p>
+                    <div
+                      className={`rounded-2xl px-3.5 py-3 ${
+                        location.kind === 'oficina'
+                          ? 'bg-violet-50 dark:bg-violet-950/35'
+                          : location.kind === 'deposito' || location.kind === 'fila'
+                            ? 'bg-amber-50 dark:bg-amber-950/35'
+                            : 'bg-zinc-100/90 dark:bg-white/[0.05]'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.1em] text-zinc-500 dark:text-zinc-400">
+                        <MapPin className="h-3.5 w-3.5" strokeWidth={2.25} aria-hidden />
+                        Local atual
                       </div>
-                      <div className="rounded-2xl bg-amber-50 px-3.5 py-3 dark:bg-amber-950/35">
-                        <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-amber-800 dark:text-amber-300">
-                          Depósito
-                        </p>
-                        <p className="mt-1 text-[22px] font-bold tabular-nums leading-none text-amber-950 dark:text-amber-100">
-                          {depositoSlot ?? '—'}
-                        </p>
-                      </div>
+                      <p className="mt-1 text-[20px] font-bold leading-none text-zinc-900 dark:text-white">
+                        {locationLabel}
+                      </p>
+                      <p className="mt-1.5 text-[11px] leading-snug text-zinc-500 dark:text-zinc-400">
+                        Para mover: no topo do Laboratório use Saída → Depósito ou Retorno → Oficina e
+                        bipa a peça.
+                      </p>
                     </div>
 
                     <div className="rounded-2xl bg-zinc-100/90 px-3.5 py-3 dark:bg-white/[0.05]">
@@ -407,61 +349,10 @@ export function LabOsScanQuickModal({
                     </div>
                   </div>
 
-                  <div className="space-y-2">
-                    <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-zinc-500 dark:text-zinc-400">
-                      Movimentação
-                    </p>
-                    <div className="grid grid-cols-2 gap-2.5">
-                      <button
-                        type="button"
-                        onClick={() => void handleSaida()}
-                        disabled={!canSaida || transferBusy || savingStage}
-                        className="inline-flex flex-col items-center justify-center gap-1.5 rounded-2xl bg-sky-600 px-3 py-3.5 text-center text-white shadow-sm shadow-sky-500/25 transition hover:brightness-110 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-40"
-                      >
-                        {transferBusy ? (
-                          <Loader2 className="h-5 w-5 animate-spin" />
-                        ) : (
-                          <ArrowUpFromLine className="h-5 w-5" strokeWidth={2.25} />
-                        )}
-                        <span className="text-[13px] font-bold leading-tight">Saída</span>
-                        <span className="text-[10px] font-medium leading-snug text-white/85">
-                          Técnico leva ao lab
-                        </span>
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => void handleRetorno()}
-                        disabled={!canRetorno || transferBusy || savingStage}
-                        className="inline-flex flex-col items-center justify-center gap-1.5 rounded-2xl bg-emerald-600 px-3 py-3.5 text-center text-white shadow-sm shadow-emerald-500/25 transition hover:brightness-110 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-40"
-                      >
-                        {transferBusy ? (
-                          <Loader2 className="h-5 w-5 animate-spin" />
-                        ) : (
-                          <ArrowDownToLine className="h-5 w-5" strokeWidth={2.25} />
-                        )}
-                        <span className="text-[13px] font-bold leading-tight">Retorno</span>
-                        <span className="text-[10px] font-medium leading-snug text-white/85">
-                          Volta à oficina (A–X)
-                        </span>
-                      </button>
-                    </div>
-                    {transferMessage ? (
-                      <p className="rounded-xl bg-emerald-50 px-3 py-2 text-center text-[12px] font-medium text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200">
-                        {transferMessage}
-                      </p>
-                    ) : (
-                      <p className="text-center text-[11px] leading-snug text-zinc-500 dark:text-zinc-400">
-                        {inService
-                          ? 'Peça com o técnico — use Retorno para devolver à bancada da oficina.'
-                          : 'Saída libera a letra e coloca em Em serviço. Retorno atribui a próxima letra livre (A–X).'}
-                      </p>
-                    )}
-                  </div>
-
                   <button
                     type="button"
                     onClick={() => setStageModalOpen(true)}
-                    disabled={savingStage || transferBusy}
+                    disabled={savingStage}
                     title="Alterar etapa"
                     aria-label={`Alterar etapa: ${stageLabel}`}
                     className={`group flex w-full items-center justify-between gap-3 rounded-2xl border-2 px-3.5 py-3.5 text-left transition-all hover:brightness-105 active:scale-[0.99] disabled:opacity-60 ${

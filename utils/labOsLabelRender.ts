@@ -6,6 +6,10 @@ import {
   type LabelElementDef,
   type LabelTemplateLayout,
 } from './labelTemplates';
+import {
+  formatLabLocationLabelBanner,
+  resolveLabLocation,
+} from './labLocation';
 import { NIIMBOT_LABEL_H_PX, NIIMBOT_LABEL_W_PX } from './niimbotLabelRender';
 
 export type LabOsLabelInput = {
@@ -16,8 +20,10 @@ export type LabOsLabelInput = {
   complaint: string;
   /** Compartimento do depósito/bancada (1–24). */
   benchSlot?: number | null;
-  /** Endereço na oficina (letra A–Z). */
+  /** Endereço na oficina (letra A–X). */
   oficinaShelf?: string | null;
+  /** Na fila do depósito. */
+  benchQueuedAt?: string | null;
 };
 
 /** Quebra texto em linhas que cabem em maxWidth (até maxLines). */
@@ -200,22 +206,28 @@ export async function renderLabOsLabelDataUrl(
     ctx.drawImage(qrImg, qrEl.x, qrEl.y, qrSize, qrSize);
   }
 
-  const oficinaEl = findEl(layout, 'oficina');
-  if (oficinaEl) {
-    const letter =
-      typeof input.oficinaShelf === 'string' && /^[A-Za-z]$/.test(input.oficinaShelf.trim())
-        ? input.oficinaShelf.trim().toUpperCase()
-        : '—';
-    drawBanner(ctx, oficinaEl, letter);
+  // Um endereço ativo na etiqueta: OFICINA C | DEP 07 | DEP FILA
+  const loc = resolveLabLocation({
+    oficinaShelf: input.oficinaShelf,
+    benchSlot: input.benchSlot,
+    benchQueuedAt: input.benchQueuedAt,
+  });
+  const banner = formatLabLocationLabelBanner(loc);
+  const locationEl =
+    findEl(layout, 'location') ??
+    (loc.kind === 'oficina'
+      ? findEl(layout, 'oficina')
+      : findEl(layout, 'deposito') ?? findEl(layout, 'oficina'));
+  if (locationEl?.visible) {
+    drawBanner(ctx, { ...locationEl, labelText: banner.tag }, banner.value);
   }
-
-  const depositoEl = findEl(layout, 'deposito');
-  if (depositoEl) {
-    const num =
-      typeof input.benchSlot === 'number' && Number.isFinite(input.benchSlot)
-        ? String(Math.trunc(input.benchSlot))
-        : '—';
-    drawBanner(ctx, depositoEl, num);
+  // Elementos legados: ocultos se já desenhamos o local ativo
+  for (const legacyId of ['oficina', 'deposito'] as const) {
+    if (locationEl?.id === legacyId) continue;
+    const legacy = findEl(layout, legacyId);
+    if (legacy && legacy.id !== locationEl?.id) {
+      // não desenha o outro endereço — um só ativo
+    }
   }
 
   const customerEl = findEl(layout, 'customer');

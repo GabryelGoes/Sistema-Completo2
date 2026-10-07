@@ -1192,36 +1192,105 @@ export async function updateServiceOrderOficinaShelf(
   return response.json();
 }
 
-/** Técnico leva a peça da oficina para o laboratório (Em serviço). */
-export async function registerOficinaSaida(id: string): Promise<ApiServiceOrder> {
+export type LabLocationMoveResult = ApiServiceOrder & {
+  move?: {
+    direction: "saida" | "retorno";
+    feedback: string;
+    toKind: string;
+    toValue: string | null;
+    fromKind: string;
+    fromValue: string | null;
+  };
+  already?: boolean;
+  code?: string;
+  location?: { kind: string; value: string | null };
+};
+
+export type LabLocationMoveActor = {
+  actorName?: string | null;
+  actorUserId?: string | null;
+  force?: boolean;
+  letter?: string | null;
+};
+
+/** Saída → Depósito (libera letra, acomoda vaga 1–24 ou fila). */
+export async function registerOficinaSaida(
+  id: string,
+  opts?: LabLocationMoveActor
+): Promise<LabLocationMoveResult> {
   const response = await fetch(`${API_BASE}/service-orders/${id}/oficina-saida`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({}),
+    body: JSON.stringify({
+      actorName: opts?.actorName ?? null,
+      actorUserId: opts?.actorUserId ?? null,
+      force: opts?.force === true,
+    }),
   });
+  const body = await response.json().catch(() => ({}));
   if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    throw new Error(err.error || `Falha ao registrar saída (${response.status})`);
+    const err = new Error(body.error || `Falha ao registrar saída (${response.status})`) as Error & {
+      code?: string;
+      already?: boolean;
+      location?: { kind: string; value: string | null };
+    };
+    err.code = body.code;
+    err.already = body.already;
+    err.location = body.location;
+    throw err;
   }
-  return response.json();
+  return body;
 }
 
-/**
- * Devolve a peça à bancada da oficina (letra A–X automática).
- * Se estava Em serviço, volta para Aguardando avaliação (ou `status` informado).
- */
+/** Retorno → Oficina (tira do depósito/fila, atribui letra A–X). */
 export async function registerOficinaRetorno(
   id: string,
-  status?: string
-): Promise<ApiServiceOrder> {
+  opts?: LabLocationMoveActor
+): Promise<LabLocationMoveResult> {
   const response = await fetch(`${API_BASE}/service-orders/${id}/oficina-retorno`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(status ? { status } : {}),
+    body: JSON.stringify({
+      actorName: opts?.actorName ?? null,
+      actorUserId: opts?.actorUserId ?? null,
+      force: opts?.force === true,
+      letter: opts?.letter ?? null,
+    }),
   });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const err = new Error(body.error || `Falha ao registrar retorno (${response.status})`) as Error & {
+      code?: string;
+      already?: boolean;
+      location?: { kind: string; value: string | null };
+    };
+    err.code = body.code;
+    err.already = body.already;
+    err.location = body.location;
+    throw err;
+  }
+  return body;
+}
+
+export type ServiceOrderLocationMove = {
+  id: string;
+  direction: "saida" | "retorno";
+  from_kind: string;
+  from_value: string | null;
+  to_kind: string;
+  to_value: string | null;
+  actor_name: string | null;
+  actor_user_id: string | null;
+  created_at: string;
+};
+
+export async function getServiceOrderLocationMoves(
+  id: string
+): Promise<ServiceOrderLocationMove[]> {
+  const response = await fetch(`${API_BASE}/service-orders/${id}/location-moves`);
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
-    throw new Error(err.error || `Falha ao registrar retorno (${response.status})`);
+    throw new Error(err.error || `Falha ao carregar histórico (${response.status})`);
   }
   return response.json();
 }
