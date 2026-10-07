@@ -79,7 +79,11 @@ const STATUS_SOLID: Record<ErrorBulletinStatus, string> = {
 const shell =
   'rounded-[22px] border-0 bg-white/75 dark:bg-zinc-900/45 backdrop-blur-2xl shadow-none';
 
-export const ErrorBulletinView: React.FC<{ authSession?: AuthSession | null }> = ({ authSession }) => {
+export const ErrorBulletinView: React.FC<{
+  authSession?: AuthSession | null;
+  /** Abre a OS vinculada ao boletim (pátio / arquivada). */
+  onOpenLinkedServiceOrder?: (serviceOrderId: string) => void;
+}> = ({ authSession, onOpenLinkedServiceOrder }) => {
   const [settings, setSettings] = useState<BulletinSettings>(() => loadSettings());
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [items, setItems] = useState<ErrorBulletin[] | null>(null);
@@ -403,6 +407,7 @@ export const ErrorBulletinView: React.FC<{ authSession?: AuthSession | null }> =
         }}
         onEdit={(id) => openEdit(id)}
         onDeleted={() => void load()}
+        onOpenLinkedServiceOrder={onOpenLinkedServiceOrder}
       />
 
       <ErrorBulletinEditorModal

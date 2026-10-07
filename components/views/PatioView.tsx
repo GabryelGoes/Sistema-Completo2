@@ -2962,6 +2962,14 @@ export const PatioView: React.FC<PatioViewProps> = ({
           nameMap,
           orderType
         );
+        // OS arquivada: abre a ficha de histórico (leitura) sem desarquivar.
+        if (detail.status === CANCELLED_STATUS || listItem.status === CANCELLED_STATUS) {
+          setSelectedCard(null);
+          handleOpenHistoryCardDetails(nextCard);
+          openServiceOrderHandledRef.current = true;
+          onOpenServiceOrderHandled?.();
+          return;
+        }
         setSelectedHistoryCard(null);
         setSelectedCard(nextCard);
         if (!openServiceOrderSection) {
