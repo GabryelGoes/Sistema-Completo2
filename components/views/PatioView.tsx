@@ -6397,25 +6397,124 @@ export const PatioView: React.FC<PatioViewProps> = ({
             {isModuleMode && (
               <div className="border-b border-zinc-100 px-3 pb-2 dark:border-white/[0.07]">
                 <p className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-zinc-400 dark:text-zinc-500">Bancada</p>
-                <button
-                  type="button"
-                  role="menuitem"
-                  className="flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left text-zinc-800 transition-colors hover:bg-zinc-100/90 dark:text-zinc-100 dark:hover:bg-white/[0.08]"
-                  onClick={() => {
-                    setBenchFullscreenOpen(true);
-                    setIsPatioHeaderToolsOpen(false);
-                  }}
-                >
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border-0 bg-violet-100 dark:bg-violet-950/50">
-                    <LayoutGrid className="h-5 w-5 text-[#A855F7] dark:text-violet-300" strokeWidth={2.2} aria-hidden />
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block text-[14px] font-semibold leading-snug">Visualizar bancada (tela cheia)</span>
-                    <span className="mt-0.5 block text-[11px] font-normal leading-snug text-zinc-500 dark:text-zinc-400">
-                      Abre o balcão ocupando toda a tela do laboratório
+                <div className="flex flex-col gap-1">
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left text-zinc-800 transition-colors hover:bg-zinc-100/90 dark:text-zinc-100 dark:hover:bg-white/[0.08]"
+                    onClick={() => {
+                      setBenchQueueModalOpen(true);
+                      setIsPatioHeaderToolsOpen(false);
+                    }}
+                  >
+                    <span className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border-0 bg-violet-100 dark:bg-violet-950/50">
+                      <ListOrdered className="h-5 w-5 text-violet-700 dark:text-violet-300" strokeWidth={2.2} aria-hidden />
+                      {benchQueueCount > 0 ? (
+                        <span className="absolute -right-1 -top-1 inline-flex min-h-[1.1rem] min-w-[1.1rem] items-center justify-center rounded-full bg-violet-600 px-1 text-[9px] font-bold text-white">
+                          {benchQueueCount > 99 ? '99+' : benchQueueCount}
+                        </span>
+                      ) : null}
                     </span>
-                  </span>
-                </button>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-[14px] font-semibold leading-snug">Fila da bancada</span>
+                      <span className="mt-0.5 block text-[11px] font-normal leading-snug text-zinc-500 dark:text-zinc-400">
+                        Peças aguardando vaga nos compartimentos 1–24
+                      </span>
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left text-zinc-800 transition-colors hover:bg-zinc-100/90 dark:text-zinc-100 dark:hover:bg-white/[0.08]"
+                    onClick={() => {
+                      setExternalRepairModalOpen(true);
+                      setIsPatioHeaderToolsOpen(false);
+                    }}
+                  >
+                    <span className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border-0 bg-purple-100 dark:bg-purple-950/50">
+                      <Wrench className="h-5 w-5 text-purple-700 dark:text-purple-300" strokeWidth={2.2} aria-hidden />
+                      {externalRepairCards.length > 0 ? (
+                        <span className="absolute -right-1 -top-1 inline-flex min-h-[1.1rem] min-w-[1.1rem] items-center justify-center rounded-full bg-purple-600 px-1 text-[9px] font-bold text-white">
+                          {externalRepairCards.length > 99 ? '99+' : externalRepairCards.length}
+                        </span>
+                      ) : null}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-[14px] font-semibold leading-snug">Conserto externo</span>
+                      <span className="mt-0.5 block text-[11px] font-normal leading-snug text-zinc-500 dark:text-zinc-400">
+                        Peças enviadas a terceiros
+                      </span>
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className={`flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left transition-colors hover:bg-zinc-100/90 dark:hover:bg-white/[0.08] ${
+                      benchPanelOpen
+                        ? 'text-[#007AFF] dark:text-[#64B5FF]'
+                        : 'text-zinc-800 dark:text-zinc-100'
+                    }`}
+                    onClick={() => {
+                      handleBenchPanelToggle();
+                      setIsPatioHeaderToolsOpen(false);
+                    }}
+                  >
+                    <span
+                      className={`relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border shadow-sm ${
+                        benchPanelOpen
+                          ? 'border-[#007AFF]/45 bg-[#007AFF]/15 dark:border-[#0A84FF]/45 dark:bg-[#0A84FF]/18'
+                          : 'border-zinc-200/80 bg-zinc-50 dark:border-white/[0.1] dark:bg-white/[0.06]'
+                      }`}
+                    >
+                      <ChevronDown
+                        className={`h-5 w-5 drop-shadow-sm transition-transform ${benchPanelOpen ? '' : '-rotate-90'}`}
+                        strokeWidth={2.2}
+                        aria-hidden
+                      />
+                      {!benchPanelOpen && (benchQueueCount > 0 || unassignedBenchCount > 0) ? (
+                        <span
+                          className={`absolute -right-1 -top-1 inline-flex min-h-[1.1rem] min-w-[1.1rem] items-center justify-center rounded-full px-1 text-[9px] font-bold text-white ${
+                            benchQueueCount > 0 ? 'bg-violet-600' : 'bg-amber-500'
+                          }`}
+                        >
+                          {(benchQueueCount > 0 ? benchQueueCount : unassignedBenchCount) > 99
+                            ? '99+'
+                            : benchQueueCount > 0
+                              ? benchQueueCount
+                              : unassignedBenchCount}
+                        </span>
+                      ) : null}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-[14px] font-semibold leading-snug">Bancada do laboratório</span>
+                      <span className="mt-0.5 block text-[11px] font-normal leading-snug text-zinc-500 dark:text-zinc-400">
+                        {benchPanelOpen ? 'Ocultar painel dos compartimentos' : 'Mostrar painel dos compartimentos'}
+                      </span>
+                    </span>
+                    {benchPanelOpen ? (
+                      <Check className="h-4 w-4 shrink-0 text-[#007AFF] dark:text-[#64B5FF]" strokeWidth={2.5} aria-hidden />
+                    ) : null}
+                  </button>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left text-zinc-800 transition-colors hover:bg-zinc-100/90 dark:text-zinc-100 dark:hover:bg-white/[0.08]"
+                    onClick={() => {
+                      setBenchFullscreenOpen(true);
+                      setIsPatioHeaderToolsOpen(false);
+                    }}
+                  >
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border-0 bg-violet-100 dark:bg-violet-950/50">
+                      <LayoutGrid className="h-5 w-5 text-[#A855F7] dark:text-violet-300" strokeWidth={2.2} aria-hidden />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-[14px] font-semibold leading-snug">Visualizar bancada (tela cheia)</span>
+                      <span className="mt-0.5 block text-[11px] font-normal leading-snug text-zinc-500 dark:text-zinc-400">
+                        Abre o balcão ocupando toda a tela do laboratório
+                      </span>
+                    </span>
+                  </button>
+                </div>
               </div>
             )}
             <BoardCardZoomMenuSection
@@ -6647,51 +6746,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
         <header className={`relative z-50 overflow-visible ${headerActionsOneLine ? 'mb-5 pb-0.5 sm:mb-6 lg:mb-8' : 'mb-3 sm:mb-4 md:mb-5 lg:mb-7'}`}>
           {desktopShell ? (
             <div className="grid w-full grid-cols-1 items-center gap-y-3 md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] md:gap-x-4">
-              <div className="flex min-w-0 flex-wrap items-center gap-1.5 md:justify-self-start">
-                {headerActionsOneLine ? (
-                  <>
-                    <button
-                      type="button"
-                      onClick={() => setBenchQueueModalOpen(true)}
-                      className={`relative inline-flex shrink-0 items-center justify-center rounded-xl border-0 bg-violet-100 font-semibold text-violet-900 transition-colors hover:bg-violet-200/90 active:scale-[0.98] dark:bg-violet-950/50 dark:text-violet-100 ${headerPillSize}`}
-                    >
-                      <ListOrdered className="h-4 w-4 shrink-0" strokeWidth={2.2} aria-hidden />
-                      <span className="tracking-tight">Fila da bancada</span>
-                      {benchQueueCount > 0 ? (
-                        <span className="inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-violet-600 px-1.5 py-0.5 text-[10px] font-bold text-white dark:bg-violet-500">
-                          {benchQueueCount}
-                        </span>
-                      ) : null}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setExternalRepairModalOpen(true)}
-                      className={`relative inline-flex shrink-0 items-center justify-center rounded-xl border-0 bg-purple-100 font-semibold text-purple-900 transition-colors hover:bg-purple-200/90 active:scale-[0.98] dark:bg-purple-950/50 dark:text-purple-100 ${headerPillSize}`}
-                    >
-                      <Wrench className="h-4 w-4 shrink-0" strokeWidth={2.2} aria-hidden />
-                      <span className="tracking-tight">Conserto externo</span>
-                      {externalRepairCards.length > 0 ? (
-                        <span className="inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-purple-600 px-1.5 py-0.5 text-[10px] font-bold text-white dark:bg-purple-500">
-                          {externalRepairCards.length}
-                        </span>
-                      ) : null}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleBenchPanelToggle}
-                      aria-expanded={benchPanelOpen}
-                      className={`relative inline-flex shrink-0 items-center justify-center rounded-xl border-0 bg-white font-semibold text-zinc-700 transition-colors hover:bg-zinc-100 active:scale-[0.98] dark:border-white/10 dark:bg-white/10 dark:text-zinc-100 ${headerPillSize}`}
-                    >
-                      <ChevronDown
-                        className={`h-4 w-4 shrink-0 transition-transform ${benchPanelOpen ? '' : '-rotate-90'}`}
-                        strokeWidth={2.2}
-                        aria-hidden
-                      />
-                      <span className="tracking-tight">Bancada do laboratório</span>
-                    </button>
-                  </>
-                ) : null}
-              </div>
+              <div className="hidden min-w-0 md:block md:justify-self-start" aria-hidden />
               <div className="relative z-10 flex justify-center md:justify-self-center md:px-2">
                 <button
                   type="button"
@@ -6884,70 +6939,16 @@ export const PatioView: React.FC<PatioViewProps> = ({
         </div>
       ) : null}
 
-      {/* Bancada do laboratório — painel visual dos 24 compartimentos (só no modo módulo) */}
-      {isModuleMode && (!headerActionsOneLine || benchPanelOpen) && (
+      {/* Bancada do laboratório — painel visual (abre pelo menu ⋯) */}
+      {isModuleMode && benchPanelOpen ? (
         <div className="relative z-0 mx-auto w-full max-w-[100rem] px-3 pb-2 sm:px-5 md:px-6">
-          {!headerActionsOneLine && (
-            <div className="mb-2 flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setBenchQueueModalOpen(true)}
-                className="inline-flex items-center gap-1.5 rounded-full border-0 bg-violet-100 px-3 py-1.5 text-[13px] font-semibold text-violet-900 transition-colors hover:bg-violet-200/90 dark:bg-violet-950/50 dark:text-violet-100"
-              >
-                <ListOrdered className="h-4 w-4 shrink-0" strokeWidth={2.2} aria-hidden />
-                Fila da bancada
-                {benchQueueCount > 0 ? (
-                  <span className="inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-violet-600 px-1.5 py-0.5 text-[10px] font-bold text-white dark:bg-violet-500">
-                    {benchQueueCount}
-                  </span>
-                ) : null}
-              </button>
-              <button
-                type="button"
-                onClick={() => setExternalRepairModalOpen(true)}
-                className="inline-flex items-center gap-1.5 rounded-full border-0 bg-purple-100 px-3 py-1.5 text-[13px] font-semibold text-purple-900 transition-colors hover:bg-purple-200/90 dark:bg-purple-950/50 dark:text-purple-100"
-              >
-                <Wrench className="h-4 w-4 shrink-0" strokeWidth={2.2} aria-hidden />
-                Conserto externo
-                {externalRepairCards.length > 0 ? (
-                  <span className="inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-purple-600 px-1.5 py-0.5 text-[10px] font-bold text-white dark:bg-purple-500">
-                    {externalRepairCards.length}
-                  </span>
-                ) : null}
-              </button>
-              <button
-                type="button"
-                onClick={handleBenchPanelToggle}
-                aria-expanded={benchPanelOpen}
-                className="inline-flex items-center gap-1.5 rounded-full border-0 bg-white px-3 py-1.5 text-[13px] font-semibold text-zinc-700 transition-colors hover:bg-zinc-100 hover:text-zinc-900 dark:border-white/10 dark:bg-white/10 dark:text-zinc-100 dark:hover:text-white"
-              >
-                <ChevronDown
-                  className={`h-4 w-4 transition-transform ${benchPanelOpen ? '' : '-rotate-90'}`}
-                  strokeWidth={2.2}
-                  aria-hidden
-                />
-                Bancada do laboratório
-                {benchQueueCount > 0 ? (
-                  <span className="inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-violet-600 px-1.5 py-0.5 text-[10px] font-bold text-white">
-                    {benchQueueCount}
-                  </span>
-                ) : unassignedBenchCount > 0 ? (
-                  <span className="inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-amber-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
-                    {unassignedBenchCount}
-                  </span>
-                ) : null}
-              </button>
-            </div>
-          )}
-          {benchPanelOpen && (
-            <LabBenchPanel
-              cards={cards}
-              onOpenCard={(card) => setSelectedCard(card)}
-              onMoveCard={handleBenchMove}
-            />
-          )}
+          <LabBenchPanel
+            cards={cards}
+            onOpenCard={(card) => setSelectedCard(card)}
+            onMoveCard={handleBenchMove}
+          />
         </div>
-      )}
+      ) : null}
 
       {/* Grid — mesma ordem dos estágios; cartões em vidro iOS. (z-0 para dropdown do cabeçalho z-50 ficar acima) */}
       <div className="relative z-0 mx-auto w-full max-w-[128rem] px-0.5 sm:px-1 md:px-2 lg:px-3">
