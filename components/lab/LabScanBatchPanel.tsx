@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Check, Loader2, MapPin, Package, Undo2, X } from 'lucide-react';
 import type { LabScanMode } from '../../utils/labScanMode';
 import {
@@ -86,7 +86,16 @@ export function LabScanBatchPanel({
 }: LabScanBatchPanelProps) {
   const open = items.length > 0;
   const presence = useModalExitPresence(open);
+  // Mantém o último lote na animação de saída (items já vem [] ao fechar).
+  const displayItemsRef = useRef<LabScanBatchItem[]>(items);
+  if (items.length > 0) {
+    displayItemsRef.current = items;
+  }
+  const displayItems = items.length > 0 ? items : displayItemsRef.current;
+
   if (!presence.mounted) return null;
+  const latest = displayItems[displayItems.length - 1];
+  if (!latest) return null;
 
   const title = mode === 'saida' ? 'Entrada no laboratório' : 'Retorno à oficina';
   const accent =
@@ -97,9 +106,8 @@ export function LabScanBatchPanel({
     mode === 'saida'
       ? 'bg-violet-500/15 text-violet-800 dark:bg-violet-400/15 dark:text-violet-200'
       : 'bg-amber-400/20 text-amber-950 dark:bg-[#F5D00B]/18 dark:text-[#F5D00B]';
-  const okCount = items.filter((i) => i.ok).length;
-  const latest = items[items.length - 1];
-  const previous = items.slice(0, -1).reverse();
+  const okCount = displayItems.filter((i) => i.ok).length;
+  const previous = displayItems.slice(0, -1).reverse();
   const partLabel = labProductDisplayLabel(latest.moduleKind, latest.moduleProductOther);
   const moduleId = (latest.moduleIdentification || '').trim();
   const vehicle = (latest.vehicleModel || latest.label || '—').trim() || '—';
@@ -141,7 +149,8 @@ export function LabScanBatchPanel({
               {title}
             </h2>
             <p className="mt-1 text-[13px] text-zinc-500 dark:text-zinc-400">
-              {items.length} peça{items.length === 1 ? '' : 's'} no lote · continue bipando ou confirme
+              {displayItems.length} peça{displayItems.length === 1 ? '' : 's'} no lote · continue
+              bipando ou confirme
             </p>
           </div>
 
@@ -243,7 +252,7 @@ export function LabScanBatchPanel({
               <button
                 type="button"
                 onClick={onUndoLast}
-                disabled={confirming || items.length === 0}
+                disabled={confirming || !open || displayItems.length === 0}
                 className="inline-flex flex-1 items-center justify-center gap-2 rounded-2xl bg-zinc-200/90 px-4 py-3.5 text-[15px] font-semibold text-zinc-800 transition active:scale-[0.99] disabled:opacity-40 dark:bg-white/10 dark:text-zinc-100"
               >
                 <Undo2 className="h-4 w-4" strokeWidth={2.4} />

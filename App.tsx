@@ -872,16 +872,28 @@ export default function App() {
       opts: { feedback: string; ok: boolean; already?: boolean }
     ) => {
       let enriched: LabScanOrderMeta | null | undefined = result;
-      const missingMeta =
-        !enriched?.module_kind && !enriched?.vehicle_model && !enriched?.module_identification;
-      if (missingMeta) {
-        try {
-          enriched = await getServiceOrderById(osId);
-        } catch {
-          /* mantém o que veio da movimentação */
+      try {
+        const missingMeta =
+          !enriched?.module_kind &&
+          !enriched?.vehicle_model &&
+          !enriched?.module_identification;
+        if (missingMeta) {
+          try {
+            enriched = await getServiceOrderById(osId);
+          } catch {
+            /* mantém o que veio da movimentação */
+          }
         }
+        appendLabBatchItem(buildLabBatchItem(osId, enriched, opts));
+      } catch (err: unknown) {
+        appendLabBatchItem({
+          id: osId,
+          label: osId.slice(0, 8),
+          feedback: opts.feedback || (err instanceof Error ? err.message : 'Erro ao exibir peça'),
+          ok: opts.ok,
+          already: opts.already,
+        });
       }
-      appendLabBatchItem(buildLabBatchItem(osId, enriched, opts));
     },
     [appendLabBatchItem, buildLabBatchItem]
   );
