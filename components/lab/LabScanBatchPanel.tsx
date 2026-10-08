@@ -92,6 +92,24 @@ export function LabScanBatchPanel({
     displayItemsRef.current = items;
   }
   const displayItems = items.length > 0 ? items : displayItemsRef.current;
+  const okCount = displayItems.filter((i) => i.ok).length;
+  const canConfirm = open && !confirming && okCount > 0;
+
+  // Enter confirma o lote. O Enter da pistola QR é engolido no capture pelo wedge,
+  // então não dispara este listener em bubble.
+  useEffect(() => {
+    if (!canConfirm) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'Enter' && e.code !== 'Enter' && e.code !== 'NumpadEnter') return;
+      if (e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return;
+      if (e.isComposing || e.repeat) return;
+      e.preventDefault();
+      e.stopPropagation();
+      onConfirm();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [canConfirm, onConfirm]);
 
   if (!presence.mounted) return null;
   const latest = displayItems[displayItems.length - 1];
@@ -106,7 +124,6 @@ export function LabScanBatchPanel({
     mode === 'saida'
       ? 'bg-violet-500/15 text-violet-800 dark:bg-violet-400/15 dark:text-violet-200'
       : 'bg-amber-400/20 text-amber-950 dark:bg-[#F5D00B]/18 dark:text-[#F5D00B]';
-  const okCount = displayItems.filter((i) => i.ok).length;
   const previous = displayItems.slice(0, -1).reverse();
   const partLabel = labProductDisplayLabel(latest.moduleKind, latest.moduleProductOther);
   const moduleId = (latest.moduleIdentification || '').trim();
