@@ -6741,10 +6741,74 @@ export const PatioView: React.FC<PatioViewProps> = ({
         <div className="absolute bottom-1/4 left-0 h-[220px] w-[320px] -translate-x-1/3 rounded-full bg-[#007AFF]/[0.04] blur-[80px] dark:bg-[#007AFF]/[0.06]" />
       </div>
 
-      <div className="relative z-0 mx-auto max-w-[100rem] overflow-visible px-3 pt-0 sm:px-5 md:px-6 md:pt-1 lg:pt-2">
+      <div
+        className={`relative z-0 mx-auto overflow-visible pt-0 md:pt-1 lg:pt-2 ${
+          isModuleMode
+            ? 'max-w-none px-2 sm:px-3 md:px-3 lg:px-4'
+            : 'max-w-[100rem] px-3 sm:px-5 md:px-6'
+        }`}
+      >
         {/* Cabeçalho mobile/tablet: título + contagem + busca + ações; PC shell mantém badge compacto */}
         <header className={`relative z-50 overflow-visible ${headerActionsOneLine ? 'mb-5 pb-0.5 sm:mb-6 lg:mb-8' : 'mb-3 sm:mb-4 md:mb-5 lg:mb-7'}`}>
           {desktopShell ? (
+            isModuleMode && typeof onLabScanModeChange === 'function' ? (
+              <div className="flex w-full flex-nowrap items-center gap-2 overflow-x-auto pb-0.5 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden sm:gap-2.5">
+                <LabScanModeBar
+                  mode={labScanMode}
+                  onChange={onLabScanModeChange}
+                  compact
+                  className="shrink-0"
+                />
+                <div className="min-w-2 flex-1" aria-hidden />
+                <button
+                  type="button"
+                  onClick={() => onCreateRegistration?.('module')}
+                  className={`${patioCompactCreateBtn} shrink-0`}
+                >
+                  <Plus className="h-4 w-4" strokeWidth={2.75} aria-hidden />
+                  <span>Criar OS</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setReminderSaveError(null);
+                    setIsRemindersOpen(true);
+                  }}
+                  className={`${patioCompactActionBtn} ${headerPillSize} shrink-0`}
+                >
+                  {remindersBadgeCount > 0 && (
+                    <span className="pointer-events-none absolute -right-1 -top-1 inline-flex min-h-[18px] min-w-[18px] items-center justify-center rounded-full border-2 border-white bg-red-500 px-1 text-[10px] font-bold leading-none text-white dark:border-zinc-900">
+                      {remindersBadgeCount > 99 ? '99+' : remindersBadgeCount}
+                    </span>
+                  )}
+                  <ReminderIcon className="h-4 w-4 text-[#007AFF]" strokeWidth={2} />
+                  <span>Lembretes</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsHistoryOpen(true)}
+                  className={`${patioCompactActionBtn} ${headerPillSize} shrink-0`}
+                  title="Consultar histórico de módulos arquivados"
+                >
+                  <History className="h-4 w-4 text-[#007AFF]" strokeWidth={2} />
+                  <span>Histórico</span>
+                </button>
+                <div className="shrink-0">
+                  <button
+                    type="button"
+                    ref={patioHeaderToolsTriggerRef}
+                    onClick={() => setIsPatioHeaderToolsOpen((o) => !o)}
+                    aria-expanded={isPatioHeaderToolsOpen}
+                    aria-haspopup="menu"
+                    aria-label="Mais opções"
+                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border-0 bg-white text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-[#007AFF] active:scale-95 dark:border-white/[0.1] dark:bg-zinc-900/75 dark:text-zinc-300"
+                  >
+                    <MoreHorizontal className="h-5 w-5" strokeWidth={2.2} aria-hidden />
+                  </button>
+                  {patioHeaderToolsMenu}
+                </div>
+              </div>
+            ) : (
             <div className="grid w-full grid-cols-1 items-center gap-y-3 md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] md:gap-x-4">
               <div className="hidden min-w-0 md:block md:justify-self-start" aria-hidden />
               <div className="relative z-10 flex justify-center md:justify-self-center md:px-2">
@@ -6805,6 +6869,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 </div>
               </div>
             </div>
+            )
           ) : (
             <div className={`flex w-full flex-col ${patioHeaderActionsCentered ? 'gap-3.5' : 'gap-3.5 sm:gap-4'}`}>
               <div
@@ -6849,19 +6914,27 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 </div>
               </div>
 
-              {/* Lembretes, Histórico, Criar OS, ⋯ e Notificações — sempre na mesma linha */}
+              {/* Leitor QR (lab) + Lembretes, Histórico, Criar OS, ⋯ e Notificações — mesma linha */}
               <div
                 className={`flex w-full flex-nowrap items-center gap-2 overflow-x-auto pb-0.5 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden sm:gap-2.5 ${
                   patioHeaderActionsCentered || viewportWidth >= 768 ? 'justify-center' : ''
                 }`}
               >
+                {isModuleMode && typeof onLabScanModeChange === 'function' ? (
+                  <LabScanModeBar
+                    mode={labScanMode}
+                    onChange={onLabScanModeChange}
+                    compact
+                    className="shrink-0"
+                  />
+                ) : null}
                 <button
                   type="button"
                   onClick={() => {
                     setReminderSaveError(null);
                     setIsRemindersOpen(true);
                   }}
-                  className={patioCompactActionBtn}
+                  className={`${patioCompactActionBtn} shrink-0`}
                 >
                   {remindersBadgeCount > 0 && (
                     <span className="pointer-events-none absolute -right-1 -top-1 inline-flex min-h-[18px] min-w-[18px] items-center justify-center rounded-full border-2 border-white bg-red-500 px-1 text-[10px] font-bold leading-none text-white dark:border-zinc-900">
@@ -6874,7 +6947,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 <button
                   type="button"
                   onClick={() => setIsHistoryOpen(true)}
-                  className={patioCompactActionBtn}
+                  className={`${patioCompactActionBtn} shrink-0`}
                   title={
                     isModuleMode
                       ? 'Consultar histórico de módulos arquivados'
@@ -6889,7 +6962,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   onClick={() =>
                     onCreateRegistration?.(isModuleMode ? 'module' : 'vehicle')
                   }
-                  className={patioCompactCreateBtn}
+                  className={`${patioCompactCreateBtn} shrink-0`}
                 >
                   <Plus className="h-4 w-4" strokeWidth={2.75} aria-hidden />
                   <span>Criar OS</span>
@@ -6930,18 +7003,13 @@ export const PatioView: React.FC<PatioViewProps> = ({
         </header>
       </div>
 
-      {/* Modo da pistola — sempre visível no Laboratório */}
-      {isModuleMode && typeof onLabScanModeChange === 'function' ? (
-        <div className="relative z-0 mx-auto w-full max-w-[100rem] px-3 pb-1 sm:px-5 md:px-6">
-          <div className="rounded-2xl bg-zinc-100/80 px-3 py-2.5 dark:bg-white/[0.04]">
-            <LabScanModeBar mode={labScanMode} onChange={onLabScanModeChange} />
-          </div>
-        </div>
-      ) : null}
-
       {/* Bancada do laboratório — painel visual (abre pelo menu ⋯) */}
       {isModuleMode && benchPanelOpen ? (
-        <div className="relative z-0 mx-auto w-full max-w-[100rem] px-3 pb-2 sm:px-5 md:px-6">
+        <div
+          className={`relative z-0 mx-auto w-full pb-2 ${
+            isModuleMode ? 'max-w-none px-2 sm:px-3 md:px-3 lg:px-4' : 'max-w-[100rem] px-3 sm:px-5 md:px-6'
+          }`}
+        >
           <LabBenchPanel
             cards={cards}
             onOpenCard={(card) => setSelectedCard(card)}
@@ -6950,8 +7018,14 @@ export const PatioView: React.FC<PatioViewProps> = ({
         </div>
       ) : null}
 
-      {/* Grid — mesma ordem dos estágios; cartões em vidro iOS. (z-0 para dropdown do cabeçalho z-50 ficar acima) */}
-      <div className="relative z-0 mx-auto w-full max-w-[128rem] px-0.5 sm:px-1 md:px-2 lg:px-3">
+      {/* Grid / lista — laboratório usa quase toda a largura útil (sem invadir a sidebar). */}
+      <div
+        className={`relative z-0 mx-auto w-full ${
+          isModuleMode
+            ? 'max-w-none px-1 sm:px-1.5 md:px-2 lg:px-2.5'
+            : 'max-w-[128rem] px-0.5 sm:px-1 md:px-2 lg:px-3'
+        }`}
+      >
       {/* Enquanto edita orçamento ou OS aberta: não reconcilia centenas de cards (trava digitação no Mac/PC). */}
       {isBudgetOpen || selectedCard ? (
         <div

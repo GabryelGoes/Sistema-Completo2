@@ -1,4 +1,4 @@
-/** Modo da pistola no Laboratório — persiste no dispositivo. */
+/** Modo do leitor QR no Laboratório — persiste no dispositivo. */
 
 export type LabScanMode = 'consultar' | 'saida' | 'retorno';
 
@@ -14,13 +14,13 @@ export const LAB_SCAN_MODE_OPTIONS: Array<{
   },
   {
     id: 'saida',
-    label: 'Saída → Depósito',
-    hint: 'Oficina → Depósito (técnico levando)',
+    label: 'Laboratório',
+    hint: 'Oficina → Laboratório (técnico levando)',
   },
   {
     id: 'retorno',
-    label: 'Retorno → Oficina',
-    hint: 'Depósito → Oficina (técnico trazendo)',
+    label: 'Oficina',
+    hint: 'Laboratório → Oficina (técnico trazendo)',
   },
 ];
 

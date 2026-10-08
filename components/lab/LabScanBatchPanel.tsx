@@ -32,7 +32,7 @@ export function LabScanBatchPanel({
 }: LabScanBatchPanelProps) {
   if (items.length === 0) return null;
 
-  const title = mode === 'saida' ? 'Saída → Depósito' : 'Retorno → Oficina';
+  const title = mode === 'saida' ? 'Leitor → Laboratório' : 'Leitor → Oficina';
   const okCount = items.filter((i) => i.ok).length;
 
   return (
@@ -93,8 +93,8 @@ export function LabScanBatchPanel({
           type="button"
           onClick={onConfirm}
           disabled={confirming || okCount === 0}
-          className={`inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl px-3 py-2.5 text-[13px] font-semibold text-white disabled:opacity-40 ${
-            mode === 'saida' ? 'bg-sky-600' : 'bg-emerald-600'
+          className={`inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl px-3 py-2.5 text-[13px] font-semibold disabled:opacity-40 ${
+            mode === 'saida' ? 'bg-emerald-600 text-white' : 'bg-[#F5D00B] text-black'
           }`}
         >
           {confirming ? (
