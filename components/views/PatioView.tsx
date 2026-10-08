@@ -6729,8 +6729,20 @@ export const PatioView: React.FC<PatioViewProps> = ({
         )
       : null;
 
+  /** PC + lista do lab: cabeçalho (Criar OS) fixo; só a lista rola. */
+  const labListaPcPinnedHeader =
+    isModuleMode && isPcLayout && boardLayoutMode === 'lista';
+
   return (
-    <div className="relative min-h-full w-full animate-in pb-32 fade-in duration-500">
+    <div
+      className={
+        labListaPcPinnedHeader
+          ? 'relative flex h-full min-h-0 w-full flex-col overflow-hidden animate-in fade-in duration-500'
+          : isModuleMode && isPcLayout
+            ? 'relative flex h-full min-h-0 w-full flex-col overflow-y-auto overscroll-contain animate-in pb-8 fade-in duration-500'
+            : 'relative min-h-full w-full animate-in pb-32 fade-in duration-500'
+      }
+    >
       <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
         <div className="absolute -top-40 left-1/2 h-[min(480px,75vw)] w-[min(880px,100vw)] -translate-x-1/2 rounded-full bg-gradient-to-br from-cyan-400/[0.09] via-sky-400/[0.05] to-violet-500/[0.08] blur-[90px] dark:from-cyan-500/[0.08] dark:via-transparent dark:to-violet-600/[0.12]" />
         <div className="absolute bottom-0 right-0 h-[380px] w-[min(520px,90vw)] translate-x-[15%] rounded-full bg-gradient-to-tl from-amber-400/[0.07] to-transparent blur-[100px] dark:from-amber-500/[0.08]" />
@@ -6738,11 +6750,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
       </div>
 
       <div
-        className={`relative z-0 mx-auto overflow-visible pt-0 md:pt-1 lg:pt-2 ${
+        className={`relative z-0 mx-auto shrink-0 overflow-visible pt-0 md:pt-1 lg:pt-2 ${
           isModuleMode
             ? 'max-w-none px-2 sm:px-3 md:px-3 lg:px-4'
             : 'max-w-[100rem] px-3 sm:px-5 md:px-6'
-        }`}
+        } ${labListaPcPinnedHeader ? 'w-full' : ''}`}
       >
         {/* Cabeçalho mobile/tablet: título + contagem + busca + ações; PC shell mantém badge compacto */}
         <header className={`relative z-50 overflow-visible ${headerActionsOneLine ? 'mb-5 pb-0.5 sm:mb-6 lg:mb-8' : 'mb-3 sm:mb-4 md:mb-5 lg:mb-7'}`}>
@@ -7002,7 +7014,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
       {/* Bancada do laboratório — painel visual (abre pelo menu ⋯) */}
       {isModuleMode && benchPanelOpen ? (
         <div
-          className={`relative z-0 mx-auto w-full pb-2 ${
+          className={`relative z-0 mx-auto w-full shrink-0 pb-2 ${
             isModuleMode ? 'max-w-none px-2 sm:px-3 md:px-3 lg:px-4' : 'max-w-[100rem] px-3 sm:px-5 md:px-6'
           }`}
         >
@@ -7020,6 +7032,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
           isModuleMode
             ? 'max-w-none px-1 sm:px-1.5 md:px-2 lg:px-2.5'
             : 'max-w-[128rem] px-0.5 sm:px-1 md:px-2 lg:px-3'
+        } ${
+          labListaPcPinnedHeader
+            ? 'min-h-0 flex-1 overflow-y-auto overscroll-contain pb-3 custom-scrollbar'
+            : ''
         }`}
       >
       {/* Enquanto edita orçamento ou OS aberta: não reconcilia centenas de cards (trava digitação no Mac/PC). */}

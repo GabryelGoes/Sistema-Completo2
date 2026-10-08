@@ -377,7 +377,7 @@ export const LabListaBoard: React.FC<LabListaBoardProps> = ({
   return (
     <div className="overflow-x-auto overflow-y-visible rounded-[1.35rem] border border-zinc-200/70 bg-white/70 shadow-[0_10px_30px_-16px_rgba(0,0,0,0.18)] dark:border-white/[0.08] dark:bg-zinc-950/45 dark:shadow-none">
       <table className="w-full min-w-[64rem] border-collapse text-left">
-        <thead>
+        <thead className="sticky top-0 z-20">
           <tr className="border-b border-zinc-200/80 dark:border-white/[0.08]">
             {[
               { key: 'comp', label: 'Comp.', className: 'w-[4.5rem]' },
@@ -389,7 +389,7 @@ export const LabListaBoard: React.FC<LabListaBoardProps> = ({
             ].map((col) => (
               <th
                 key={col.key}
-                className={`px-3 py-3 text-[10px] font-bold uppercase tracking-[0.14em] text-zinc-400 dark:text-zinc-500 sm:px-4 ${col.className}`}
+                className={`bg-white/95 px-3 py-3 text-[10px] font-bold uppercase tracking-[0.14em] text-zinc-400 backdrop-blur-md dark:bg-zinc-950/90 dark:text-zinc-500 sm:px-4 ${col.className}`}
               >
                 {col.label}
               </th>
