@@ -51,7 +51,8 @@ export const ALL_BENCH_SLOTS: number[] = Array.from(
 
 /**
  * Localização Oficina — flag simples (sem letra A–X).
- * A vaga numérica 1–24 é só do laboratório (`bench_slot`).
+ * O compartimento numérico 1–24 (`bench_slot`) é o mesmo da bancada do laboratório
+ * e permanece atribuído enquanto a peça estiver na oficina.
  */
 export const OFICINA_LOCATION_FLAG = '*';
 

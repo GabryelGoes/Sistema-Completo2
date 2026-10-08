@@ -2900,9 +2900,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
             ? {
                 ...c,
                 oficinaShelf: normalized,
-                ...(normalized
-                  ? { benchSlot: null, benchQueuedAt: null }
-                  : {}),
+                ...(normalized ? { benchQueuedAt: null } : {}),
               }
             : c
         )
@@ -2912,7 +2910,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
           ? {
               ...c,
               oficinaShelf: normalized,
-              ...(normalized ? { benchSlot: null, benchQueuedAt: null } : {}),
+              ...(normalized ? { benchQueuedAt: null } : {}),
             }
           : c
       );
@@ -2921,9 +2919,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
           ? {
               ...d,
               oficina_shelf: normalized,
-              ...(normalized
-                ? { bench_slot: null, bench_slot_at: null, bench_queued_at: null }
-                : {}),
+              ...(normalized ? { bench_queued_at: null } : {}),
             }
           : d
       );

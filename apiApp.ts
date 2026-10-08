@@ -500,8 +500,9 @@ export function createApiApp() {
   }
 
   /**
-   * Ao criar OS de módulo: localização Oficina (flag, sem letra).
-   * Vaga numérica 1–24 só via leitor QR (Laboratório) / painel da bancada.
+   * Ao criar OS de módulo: localização Oficina (flag) + compartimento 1–24
+   * (mesma numeração da bancada do laboratório). Se a bancada estiver cheia,
+   * entra sem vaga (sem fila — a peça já está na oficina).
    */
   async function benchFieldsForNewModule(status: string): Promise<{
     bench_slot: number | null;
@@ -517,14 +518,13 @@ export function createApiApp() {
         oficina_shelf: null,
       };
     }
-    const oficinaFlag = await pickOficinaShelfForStatus(
-      statusUsesOficinaShelf(status) ? status : "AGUARDANDO_AVALIACAO",
-      null,
-      null
-    );
+    const statusForPick = statusUsesOficinaShelf(status) ? status : "AGUARDANDO_AVALIACAO";
+    const oficinaFlag = await pickOficinaShelfForStatus(statusForPick, null, null);
+    const slot = await pickBenchSlotForStatus(statusForPick, null, null);
+    const now = new Date().toISOString();
     return {
-      bench_slot: null,
-      bench_slot_at: null,
+      bench_slot: slot,
+      bench_slot_at: slot != null ? now : null,
       bench_queued_at: null,
       oficina_shelf: oficinaFlag,
     };
@@ -11878,6 +11878,12 @@ export function createApiApp() {
             null,
             id
           );
+          const curedSlot = await pickBenchSlotForStatus(statusAfter, null, id);
+          if (curedSlot != null) {
+            updatePayload.bench_slot = curedSlot;
+            updatePayload.bench_slot_at = new Date().toISOString();
+            updatePayload.bench_queued_at = null;
+          }
         }
       }
 
@@ -12192,7 +12198,7 @@ export function createApiApp() {
     }
   });
 
-  // Oficina: definir/limpar letra A–X (um endereço ativo — limpa depósito).
+  // Oficina: definir/limpar flag (*). Mantém o compartimento 1–24 (mesma bancada).
   app.put("/api/service-orders/:id/oficina-shelf", async (req, res) => {
     try {
       if (!supabaseAdmin || !WORKSHOP_ID) {
@@ -12205,12 +12211,12 @@ export function createApiApp() {
       const clearing = raw === null || raw === "" || raw === undefined;
       const letter = clearing ? null : normalizeOficinaShelf(raw);
       if (!clearing && letter == null) {
-        return res.status(400).json({ error: "Letra inválida (use A a X)." });
+        return res.status(400).json({ error: "Localização de oficina inválida." });
       }
 
       const { data: order } = await supabaseAdmin
         .from("service_orders")
-        .select("id, order_type, status, oficina_shelf")
+        .select("id, order_type, status, oficina_shelf, bench_slot")
         .eq("id", id)
         .eq("workshop_id", WORKSHOP_ID)
         .single();
@@ -12218,22 +12224,7 @@ export function createApiApp() {
         return res.status(404).json({ error: "Ordem de serviço não encontrada." });
       }
       if ((order as { order_type?: string }).order_type !== "module") {
-        return res.status(400).json({ error: "A letra da oficina é exclusiva do laboratório." });
-      }
-
-      if (letter != null) {
-        const { data: clash } = await supabaseAdmin
-          .from("service_orders")
-          .select("id")
-          .eq("workshop_id", WORKSHOP_ID)
-          .eq("order_type", "module")
-          .eq("oficina_shelf", letter)
-          .neq("status", CANCELLED_STATUS)
-          .neq("id", id)
-          .maybeSingle();
-        if (clash) {
-          return res.status(409).json({ error: `Letra ${letter} já está em uso.` });
-        }
+        return res.status(400).json({ error: "Localização da oficina é exclusiva do laboratório." });
       }
 
       const nowShelf = new Date().toISOString();
@@ -12242,8 +12233,21 @@ export function createApiApp() {
         updated_at: nowShelf,
       };
       if (letter != null) {
-        shelfUpdate.bench_slot = null;
-        shelfUpdate.bench_slot_at = null;
+        // Mantém o número do compartimento; se ainda não tiver, atribui um livre.
+        const prevSlot =
+          typeof (order as { bench_slot?: number | null }).bench_slot === "number"
+            ? ((order as { bench_slot?: number | null }).bench_slot as number)
+            : null;
+        const statusForPick = String((order as { status?: string }).status ?? "AGUARDANDO_AVALIACAO");
+        const slot = await pickBenchSlotForStatus(
+          statusUsesBench(statusForPick) ? statusForPick : "AGUARDANDO_AVALIACAO",
+          prevSlot,
+          id
+        );
+        if (slot != null) {
+          shelfUpdate.bench_slot = slot;
+          if (prevSlot == null) shelfUpdate.bench_slot_at = nowShelf;
+        }
         shelfUpdate.bench_queued_at = null;
       }
       const { data, error } = await supabaseAdmin
@@ -12339,7 +12343,8 @@ export function createApiApp() {
         });
       }
 
-      const slot = await pickBenchSlotForStatus("AGUARDANDO_AVALIACAO", null, id);
+      // Mantém o compartimento já atribuído na oficina; só busca livre se ainda não tiver.
+      const slot = await pickBenchSlotForStatus("AGUARDANDO_AVALIACAO", fromSlot, id);
       const now = new Date().toISOString();
       const patch: Record<string, unknown> = {
         oficina_shelf: null,
@@ -12349,7 +12354,7 @@ export function createApiApp() {
       let toValue: string | null = null;
       if (slot != null) {
         patch.bench_slot = slot;
-        patch.bench_slot_at = now;
+        if (fromSlot == null) patch.bench_slot_at = now;
         patch.bench_queued_at = null;
         toKind = "deposito";
         toValue = String(slot);
@@ -12377,7 +12382,7 @@ export function createApiApp() {
         serviceOrderId: id,
         direction: "saida",
         fromKind: fromLetter ? "oficina" : "none",
-        fromValue: fromLetter,
+        fromValue: fromSlot != null ? String(fromSlot) : fromLetter,
         toKind,
         toValue,
         actorName,
@@ -12394,7 +12399,7 @@ export function createApiApp() {
           toKind,
           toValue,
           fromKind: fromLetter ? "oficina" : "none",
-          fromValue: fromLetter,
+          fromValue: fromSlot != null ? String(fromSlot) : fromLetter,
         },
       });
     } catch (err: any) {
@@ -12404,7 +12409,8 @@ export function createApiApp() {
   });
 
   /**
-   * Retorno → Oficina: tira do laboratório/fila e marca localização Oficina (sem letra).
+   * Retorno → Oficina: marca flag Oficina e **mantém** o compartimento 1–24
+   * (mesma numeração da bancada). Se estiver só na fila, atribui vaga livre.
    */
   app.post("/api/service-orders/:id/oficina-retorno", async (req, res) => {
     try {
@@ -12448,12 +12454,15 @@ export function createApiApp() {
         (order as { bench_queued_at?: string | null }).bench_queued_at
       );
 
-      if (fromLetter && !fromSlot && !fromQueued) {
+      if (fromLetter) {
         return res.status(409).json({
-          error: "Peça já está na oficina.",
+          error:
+            fromSlot != null
+              ? `Peça já está na oficina (comp. ${fromSlot}).`
+              : "Peça já está na oficina.",
           code: "already_at_destination",
           already: true,
-          location: { kind: "oficina", value: null },
+          location: { kind: "oficina", value: fromSlot != null ? String(fromSlot) : null },
         });
       }
 
@@ -12471,16 +12480,21 @@ export function createApiApp() {
         });
       }
 
+      const slot = await pickBenchSlotForStatus("AGUARDANDO_AVALIACAO", fromSlot, id);
       const now = new Date().toISOString();
+      const retornoPatch: Record<string, unknown> = {
+        oficina_shelf: letter,
+        bench_queued_at: null,
+        updated_at: now,
+      };
+      if (slot != null) {
+        retornoPatch.bench_slot = slot;
+        if (fromSlot == null) retornoPatch.bench_slot_at = now;
+      }
+
       const { data, error } = await supabaseAdmin
         .from("service_orders")
-        .update({
-          oficina_shelf: letter,
-          bench_slot: null,
-          bench_slot_at: null,
-          bench_queued_at: null,
-          updated_at: now,
-        })
+        .update(retornoPatch)
         .eq("id", id)
         .eq("workshop_id", WORKSHOP_ID)
         .select("*")
@@ -12501,25 +12515,26 @@ export function createApiApp() {
 
       const fromKind = fromSlot != null ? "deposito" : fromQueued ? "fila" : "none";
       const fromValue = fromSlot != null ? String(fromSlot) : null;
+      const toValue = slot != null ? String(slot) : null;
       await insertLocationMove({
         serviceOrderId: id,
         direction: "retorno",
         fromKind,
         fromValue,
         toKind: "oficina",
-        toValue: null,
+        toValue,
         actorName,
         actorUserId,
       });
-      await processIntakeBenchQueue();
+      // Não chama processIntakeBenchQueue: o compartimento continua ocupado pela peça na oficina.
 
       return res.json({
         ...data,
         move: {
           direction: "retorno",
-          feedback: "OK · Oficina",
+          feedback: slot != null ? `OK · Oficina ${slot}` : "OK · Oficina",
           toKind: "oficina",
-          toValue: null,
+          toValue,
           fromKind,
           fromValue,
         },

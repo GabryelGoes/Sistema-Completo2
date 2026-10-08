@@ -1213,7 +1213,7 @@ export type LabLocationMoveActor = {
   letter?: string | null;
 };
 
-/** Saída → Depósito (libera letra, acomoda vaga 1–24 ou fila). */
+/** Saída → Laboratório (limpa flag oficina; mantém/atribui vaga 1–24 ou fila). */
 export async function registerOficinaSaida(
   id: string,
   opts?: LabLocationMoveActor
@@ -1242,7 +1242,7 @@ export async function registerOficinaSaida(
   return body;
 }
 
-/** Retorno → Oficina (tira do depósito/fila, atribui letra A–X). */
+/** Retorno → Oficina (flag oficina; mantém o mesmo compartimento 1–24). */
 export async function registerOficinaRetorno(
   id: string,
   opts?: LabLocationMoveActor

@@ -1,6 +1,8 @@
 /**
- * Endereço físico da peça no laboratório — um só ativo por vez:
- * Oficina (flag) | Laboratório (vaga 1–24) | Fila do laboratório.
+ * Localização da peça no laboratório:
+ * - `oficina_shelf`: flag Oficina (`*`) vs Laboratório (null)
+ * - `bench_slot`: compartimento 1–24 (mesmo número na oficina e no laboratório)
+ * - Fila: sem vaga, aguardando compartimento livre
  */
 
 import {
@@ -14,7 +16,7 @@ export type LabLocationState = {
   kind: LabLocationKind;
   /** Flag genérica quando kind === 'oficina' (sem letra). */
   oficinaShelf: string | null;
-  /** 1–24 quando kind === 'deposito' (vaga no laboratório). */
+  /** Compartimento 1–24 (oficina e laboratório usam a mesma numeração). */
   benchSlot: number | null;
   queued: boolean;
 };
@@ -31,9 +33,9 @@ export function resolveLabLocation(input: {
   const slot = normalizeBenchSlot(input.bench_slot ?? input.benchSlot);
   const queued = Boolean(input.bench_queued_at ?? input.benchQueuedAt);
 
-  // Um endereço ativo: prioriza oficina se ambos existirem (dados antigos).
+  // Oficina (flag) tem prioridade de “onde está”; o número do compartimento permanece.
   if (letter) {
-    return { kind: 'oficina', oficinaShelf: letter, benchSlot: null, queued: false };
+    return { kind: 'oficina', oficinaShelf: letter, benchSlot: slot, queued: false };
   }
   if (slot != null) {
     return { kind: 'deposito', oficinaShelf: null, benchSlot: slot, queued: false };
@@ -45,21 +47,22 @@ export function resolveLabLocation(input: {
 }
 
 export function formatLabLocationShort(loc: LabLocationState): string {
-  if (loc.kind === 'oficina') return 'Oficina';
+  if (loc.kind === 'oficina') {
+    return loc.benchSlot != null ? `Oficina · ${loc.benchSlot}` : 'Oficina';
+  }
   if (loc.kind === 'deposito' && loc.benchSlot != null) return `Laboratório · ${loc.benchSlot}`;
   if (loc.kind === 'fila') return 'Fila laboratório';
   return 'Sem local';
 }
 
 /**
- * Banner da etiqueta: só o número da vaga (laboratório).
- * Oficina / sem local → traço (sem letra).
+ * Banner da etiqueta: número do compartimento (1–24), oficina ou laboratório.
  */
 export function formatLabLocationLabelBanner(loc: LabLocationState): {
   tag: string;
   value: string;
 } {
-  if (loc.kind === 'deposito' && loc.benchSlot != null) {
+  if (loc.benchSlot != null && (loc.kind === 'deposito' || loc.kind === 'oficina')) {
     return { tag: '', value: String(loc.benchSlot).padStart(2, '0') };
   }
   if (loc.kind === 'fila') {
