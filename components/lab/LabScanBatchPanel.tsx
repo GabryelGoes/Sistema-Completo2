@@ -36,7 +36,6 @@ export type LabScanBatchPanelProps = {
   onConfirm: () => void;
   onUndoLast: () => void;
   onClear: () => void;
-  idleHintSeconds?: number;
 };
 
 function formatComp(slot: number | null | undefined): string | null {
@@ -84,7 +83,6 @@ export function LabScanBatchPanel({
   onConfirm,
   onUndoLast,
   onClear,
-  idleHintSeconds = 12,
 }: LabScanBatchPanelProps) {
   const open = items.length > 0;
   const presence = useModalExitPresence(open);
@@ -143,10 +141,7 @@ export function LabScanBatchPanel({
               {title}
             </h2>
             <p className="mt-1 text-[13px] text-zinc-500 dark:text-zinc-400">
-              {items.length} peça{items.length === 1 ? '' : 's'} no lote
-              {idleHintSeconds > 0
-                ? ` · fecha em ~${idleHintSeconds}s sem novo bip`
-                : ''}
+              {items.length} peça{items.length === 1 ? '' : 's'} no lote · continue bipando ou confirme
             </p>
           </div>
 

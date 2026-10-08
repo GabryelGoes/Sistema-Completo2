@@ -116,7 +116,6 @@ export default function App() {
   const [labScanMode, setLabScanMode] = useState<LabScanMode>(() => loadLabScanMode());
   const [labScanBatch, setLabScanBatch] = useState<LabScanBatchItem[]>([]);
   const [labScanBatchConfirming, setLabScanBatchConfirming] = useState(false);
-  const labScanBatchIdleTimerRef = useRef<number | null>(null);
   const labScanBusyRef = useRef(false);
   const [patioPendingOrderId, setPatioPendingOrderId] = useState<string | null>(null);
   const [shellProfileModal, setShellProfileModal] = useState<ShellProfileModal>(null);
@@ -823,23 +822,7 @@ export default function App() {
     saveLabScanMode(mode);
     if (mode === 'consultar') {
       setLabScanBatch([]);
-      if (labScanBatchIdleTimerRef.current) {
-        window.clearTimeout(labScanBatchIdleTimerRef.current);
-        labScanBatchIdleTimerRef.current = null;
-      }
     }
-  }, []);
-
-  const scheduleLabBatchAutoClear = useCallback(() => {
-    if (typeof window === 'undefined') return;
-    if (labScanBatchIdleTimerRef.current) {
-      window.clearTimeout(labScanBatchIdleTimerRef.current);
-    }
-    // Tempo maior para o operador ler o modal refinado (não some em 2s).
-    labScanBatchIdleTimerRef.current = window.setTimeout(() => {
-      setLabScanBatch([]);
-      labScanBatchIdleTimerRef.current = null;
-    }, 12000);
   }, []);
 
   type LabScanOrderMeta = {
@@ -875,16 +858,12 @@ export default function App() {
     []
   );
 
-  const appendLabBatchItem = useCallback(
-    (item: LabScanBatchItem) => {
-      setLabScanBatch((prev) => {
-        const withoutDup = prev.filter((p) => p.id !== item.id);
-        return [...withoutDup, item];
-      });
-      scheduleLabBatchAutoClear();
-    },
-    [scheduleLabBatchAutoClear]
-  );
+  const appendLabBatchItem = useCallback((item: LabScanBatchItem) => {
+    setLabScanBatch((prev) => {
+      const withoutDup = prev.filter((p) => p.id !== item.id);
+      return [...withoutDup, item];
+    });
+  }, []);
 
   const appendLabBatchFromScan = useCallback(
     async (
@@ -1031,7 +1010,6 @@ export default function App() {
         window.alert(err instanceof Error ? err.message : 'Não foi possível desfazer.');
       } finally {
         setLabScanBatchConfirming(false);
-        scheduleLabBatchAutoClear();
       }
     })();
   }, [
@@ -1040,15 +1018,10 @@ export default function App() {
     authSession?.username,
     labScanBatch,
     labScanMode,
-    scheduleLabBatchAutoClear,
   ]);
 
   const handleLabBatchConfirm = useCallback(() => {
     setLabScanBatch([]);
-    if (labScanBatchIdleTimerRef.current) {
-      window.clearTimeout(labScanBatchIdleTimerRef.current);
-      labScanBatchIdleTimerRef.current = null;
-    }
   }, []);
 
   useBarcodeWedgeListener({
@@ -1749,7 +1722,6 @@ export default function App() {
             onConfirm={handleLabBatchConfirm}
             onUndoLast={handleLabBatchUndoLast}
             onClear={handleLabBatchConfirm}
-            idleHintSeconds={12}
           />
         ) : null}
         {showMobileBackgroundNotifications ? (
@@ -2137,7 +2109,6 @@ export default function App() {
           onConfirm={handleLabBatchConfirm}
           onUndoLast={handleLabBatchUndoLast}
           onClear={handleLabBatchConfirm}
-          idleHintSeconds={12}
         />
       ) : null}
 
