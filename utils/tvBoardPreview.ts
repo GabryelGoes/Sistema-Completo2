@@ -157,10 +157,15 @@ export function tvBoardStageColorClass(stage: string, scope: TvScope): string {
   }
   if (s.includes('envio') && s.includes('conserto')) return 'bg-indigo-600 text-white';
   if (s.includes('chegada') && s.includes('conserto')) return 'bg-cyan-600 text-white';
+  if (s.includes('reparo aprovado')) return 'bg-orange-600 text-white';
+  if (s.includes('em análise') || s.includes('em analise')) return 'bg-[#F5D00B] text-black';
   if (s.includes('serviço') || s.includes('servico')) return 'bg-blue-600 text-white';
   if (s.includes('fase de teste')) return 'bg-sky-500 text-white';
-  if (s.includes('pronto pra retirada') || s.includes('pronto para retirada') || s.includes('finalizado')) {
-    return 'bg-green-500 text-black';
+  if (s.includes('pronto pra entrega') || s.includes('pronto pra retirada') || s.includes('pronto para retirada')) {
+    return 'bg-green-400 text-green-950';
+  }
+  if (s.includes('finalizado')) {
+    return 'bg-green-900 text-white';
   }
   return 'bg-zinc-800 text-white';
 }
