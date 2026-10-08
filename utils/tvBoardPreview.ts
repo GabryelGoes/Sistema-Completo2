@@ -44,10 +44,11 @@ const LAB_STAGE_PRIORITY: Record<string, number> = {
   'Aguardando Aprovação': 3,
   'Reparo Aprovado': 4,
   'Aguardando Peças': 5,
-  Finalizado: 6,
-  'Sem Conserto': 7,
-  'Pronto pra Entrega': 8,
-  'Orçamento Não Aprovado': 9,
+  'Em Reparo': 6,
+  Finalizado: 7,
+  'Sem Conserto': 8,
+  'Pronto pra Entrega': 9,
+  'Orçamento Não Aprovado': 10,
 };
 
 const PATIO_STATUS_TO_STAGE: Record<string, string> = {
@@ -73,7 +74,7 @@ const LAB_STATUS_TO_STAGE: Record<string, string> = {
   PECAS_DISPONIVEIS: 'Aguardando Peças',
   ENVIO_CONSERTO: 'Em Conserto',
   CHEGADA_CONSERTO: 'Finalizado',
-  EM_SERVICO: 'Finalizado',
+  EM_SERVICO: 'Em Reparo',
   SEM_CONSERTO: 'Sem Conserto',
   PRONTO_PRA_RETIRADA: 'Pronto pra Entrega',
   GARANTIA: 'Garantia',

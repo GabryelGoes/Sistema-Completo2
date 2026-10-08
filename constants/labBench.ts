@@ -34,6 +34,7 @@ export const LAB_BENCH_STATUSES: string[] = [
   "AGUARDANDO_APROVACAO",
   "ORCAMENTO_APROVADO",
   "AGUARDANDO_PECAS",
+  "EM_SERVICO",
   "FINALIZADO",
   "SEM_CONSERTO",
   "PRONTO_PRA_RETIRADA",
@@ -124,6 +125,12 @@ export const LAB_BENCH_STAGE_LEGEND: LabBenchStageLegend[] = [
     label: "Aguardando peças",
     statuses: ["AGUARDANDO_PECAS"],
     accent: "bg-teal-500",
+  },
+  {
+    id: "EM_SERVICO",
+    label: "Em reparo",
+    statuses: ["EM_SERVICO"],
+    accent: "bg-blue-600",
   },
   {
     id: "FINALIZADO",

@@ -50,7 +50,7 @@ export const SERVICE_ORDER_STAGES: StageConfig[] = [
 /**
  * Fluxo do Laboratório — etapas operacionais:
  * Aguardando avaliação → Em análise → Aguardando aprovação → Reparo aprovado →
- * Aguardando peças → Finalizado → Pronto pra entrega
+ * Aguardando peças → Em reparo → Finalizado → Pronto pra entrega
  * (+ Garantia / Sem conserto / Orçamento não aprovado).
  */
 export const LABORATORY_SERVICE_ORDER_STAGES: StageConfig[] = [
@@ -60,12 +60,14 @@ export const LABORATORY_SERVICE_ORDER_STAGES: StageConfig[] = [
   { id: "AGUARDANDO_APROVACAO", name: "Aguardando aprovação", style: "bg-amber-500 text-amber-950 border-amber-600", ringClass: "ring-2 ring-amber-600 ring-offset-2 ring-offset-zinc-50 dark:ring-offset-[#0a0a0a]", pos: 3 },
   { id: "ORCAMENTO_APROVADO", name: "Reparo aprovado", style: "bg-orange-600 text-white border-orange-600", ringClass: "ring-2 ring-orange-600 ring-offset-2 ring-offset-zinc-50 dark:ring-offset-[#0a0a0a]", pos: 4 },
   { id: "AGUARDANDO_PECAS", name: "Aguardando peças", style: "bg-teal-500 text-white border-teal-500", ringClass: "ring-2 ring-teal-500 ring-offset-2 ring-offset-zinc-50 dark:ring-offset-[#0a0a0a]", pos: 5 },
+  /** Azul igual a “Em serviço” do pátio. */
+  { id: "EM_SERVICO", name: "Em reparo", style: "bg-blue-600 text-white border-blue-600", ringClass: "ring-2 ring-blue-600 ring-offset-2 ring-offset-zinc-50 dark:ring-offset-[#0a0a0a]", pos: 6 },
   /** Verde escuro igual à “Fase de teste” do pátio. */
-  { id: "FINALIZADO", name: "Finalizado", style: "bg-green-900 text-white border-green-800", ringClass: "ring-2 ring-green-800 ring-offset-2 ring-offset-zinc-50 dark:ring-offset-[#0a0a0a]", pos: 6 },
-  { id: "SEM_CONSERTO", name: "Sem conserto", style: "bg-[#9A6434] text-white border-[#9A6434]", ringClass: "ring-2 ring-[#9A6434] ring-offset-2 ring-offset-zinc-50 dark:ring-offset-[#0a0a0a]", pos: 7 },
+  { id: "FINALIZADO", name: "Finalizado", style: "bg-green-900 text-white border-green-800", ringClass: "ring-2 ring-green-800 ring-offset-2 ring-offset-zinc-50 dark:ring-offset-[#0a0a0a]", pos: 7 },
+  { id: "SEM_CONSERTO", name: "Sem conserto", style: "bg-[#9A6434] text-white border-[#9A6434]", ringClass: "ring-2 ring-[#9A6434] ring-offset-2 ring-offset-zinc-50 dark:ring-offset-[#0a0a0a]", pos: 8 },
   /** Mantém o verde claro anterior de “Pronto pra retirada”. */
-  { id: "PRONTO_PRA_RETIRADA", name: "Pronto pra entrega", style: "bg-green-400 text-green-950 border-green-500", ringClass: "ring-2 ring-green-500 ring-offset-2 ring-offset-zinc-50 dark:ring-offset-[#0a0a0a]", pos: 8 },
-  { id: "ORCAMENTO_NAO_APROVADO", name: "Orçamento não aprovado", style: "bg-violet-600 text-white border-violet-600", ringClass: "ring-2 ring-violet-600 ring-offset-2 ring-offset-zinc-50 dark:ring-offset-[#0a0a0a]", pos: 9 },
+  { id: "PRONTO_PRA_RETIRADA", name: "Pronto pra entrega", style: "bg-green-400 text-green-950 border-green-500", ringClass: "ring-2 ring-green-500 ring-offset-2 ring-offset-zinc-50 dark:ring-offset-[#0a0a0a]", pos: 9 },
+  { id: "ORCAMENTO_NAO_APROVADO", name: "Orçamento não aprovado", style: "bg-violet-600 text-white border-violet-600", ringClass: "ring-2 ring-violet-600 ring-offset-2 ring-offset-zinc-50 dark:ring-offset-[#0a0a0a]", pos: 10 },
 ];
 
 /**
@@ -100,8 +102,7 @@ export function isExternalRepairStatus(status: string | null | undefined): boole
 
 /** Status legados ainda aceitos no banco — mapeados ao abrir o quadro do laboratório. */
 export const LABORATORY_LEGACY_STATUS_MAP: Partial<Record<string, ServiceOrderStatus>> = {
-  /** “Em serviço” do lab antigo → Finalizado. */
-  EM_SERVICO: "FINALIZADO",
+  /** “Fase de teste” do lab antigo → Finalizado. */
   FASE_DE_TESTE: "FINALIZADO",
   /** Etapas removidas do quadro do laboratório. */
   PECAS_DISPONIVEIS: "AGUARDANDO_PECAS",
