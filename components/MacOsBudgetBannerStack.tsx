@@ -214,7 +214,8 @@ function BannerCard({
 
 export type MacOsBudgetBannerStackProps = {
   items: MacOsBudgetBannerItem[];
-  theme: 'dark' | 'light';
+  /** Ignorado: banners do canto usam sempre o visual escuro. */
+  theme?: 'dark' | 'light';
   onDismiss: (id: string) => void;
   onDismissAll: () => void;
   /** Após animação genie: move para a central de notificações. */
@@ -227,10 +228,10 @@ export type MacOsBudgetBannerStackProps = {
   genieOrigin?: GenieOrigin;
 };
 
-/** Banners estilo macOS (canto superior direito) — tema do app, limpar tudo e minimizar (genie → sino). */
+/** Banners estilo macOS (canto superior direito) — sempre visual escuro; limpar tudo e minimizar (genie → sino). */
 export function MacOsBudgetBannerStack({
   items,
-  theme,
+  theme: _theme,
   onDismiss,
   onDismissAll,
   onMinimize,
@@ -241,6 +242,8 @@ export function MacOsBudgetBannerStack({
   const [minimizing, setMinimizing] = useState(false);
   const [busyIds, setBusyIds] = useState<Set<string>>(() => new Set());
   const [genieHiddenIds, setGenieHiddenIds] = useState<Set<string>>(() => new Set());
+  /** Banners do canto: sempre o visual do modo escuro (fundo escuro), em qualquer tema do app. */
+  const bannerTheme = 'dark' as const;
 
   const setCardRef = useCallback((id: string, el: HTMLDivElement | null) => {
     if (el) cardElsRef.current.set(id, el);
@@ -256,13 +259,8 @@ export function MacOsBudgetBannerStack({
   const visible = items.slice(0, MAX_VISIBLE);
   if (visible.length === 0) return null;
 
-  const isDark = theme === 'dark';
-  const toolbarShell = isDark
-    ? 'border-white/12 bg-zinc-900/80 text-zinc-200'
-    : 'border-black/8 bg-white/85 text-zinc-700';
-  const toolbarBtn = isDark
-    ? 'hover:bg-white/10 text-zinc-200'
-    : 'hover:bg-black/[0.06] text-zinc-700';
+  const toolbarShell = 'border-white/12 bg-zinc-900/80 text-zinc-200';
+  const toolbarBtn = 'hover:bg-white/10 text-zinc-200';
 
   const handleClearAll = () => {
     if (minimizing || busyIds.size > 0) return;
@@ -336,9 +334,9 @@ export function MacOsBudgetBannerStack({
 
   return createPortal(
     <div
-      className={`${isDark ? 'dark' : 'light'} pointer-events-none fixed right-3 top-[max(0.75rem,env(safe-area-inset-top))] z-[100050] flex max-h-[calc(100dvh-1.5rem)] w-[min(380px,calc(100vw-1.5rem))] origin-top-right scale-[0.85] flex-col gap-2 overflow-y-auto overscroll-contain sm:right-5 sm:top-4`}
+      className="dark pointer-events-none fixed right-3 top-[max(0.75rem,env(safe-area-inset-top))] z-[100050] flex max-h-[calc(100dvh-1.5rem)] w-[min(380px,calc(100vw-1.5rem))] origin-top-right scale-[0.85] flex-col gap-2 overflow-y-auto overscroll-contain sm:right-5 sm:top-4"
       aria-live="polite"
-      data-budget-banner-theme={theme}
+      data-budget-banner-theme={bannerTheme}
     >
       {/* w-fit + self-end: não cobre o X dos banners (bug anterior). */}
       <div className="pointer-events-none sticky top-0 z-10 flex w-fit max-w-full shrink-0 flex-wrap justify-end gap-1.5 self-end pb-0.5">
@@ -368,7 +366,7 @@ export function MacOsBudgetBannerStack({
         <BannerCard
           key={item.id}
           item={item}
-          theme={theme}
+          theme={bannerTheme}
           onDismiss={onDismiss}
           onActivate={onActivate}
           cardRef={(el) => setCardRef(item.id, el)}
