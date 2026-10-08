@@ -36,6 +36,7 @@ import {
   deleteAppointment,
   getSupportUnreadCount,
   markNotificationRead,
+  getServiceOrderById,
   registerOficinaRetorno,
   registerOficinaSaida,
 } from './services/apiService';
@@ -834,11 +835,45 @@ export default function App() {
     if (labScanBatchIdleTimerRef.current) {
       window.clearTimeout(labScanBatchIdleTimerRef.current);
     }
+    // Tempo maior para o operador ler o modal refinado (não some em 2s).
     labScanBatchIdleTimerRef.current = window.setTimeout(() => {
       setLabScanBatch([]);
       labScanBatchIdleTimerRef.current = null;
-    }, 2500);
+    }, 12000);
   }, []);
+
+  type LabScanOrderMeta = {
+    os_number?: number | null;
+    vehicle_model?: string | null;
+    module_kind?: string | null;
+    module_product_other?: string | null;
+    module_identification?: string | null;
+    bench_slot?: number | null;
+  };
+
+  const buildLabBatchItem = useCallback(
+    (
+      osId: string,
+      result: LabScanOrderMeta | null | undefined,
+      opts: { feedback: string; ok: boolean; already?: boolean }
+    ): LabScanBatchItem => {
+      const r = result ?? {};
+      return {
+        id: osId,
+        osNumber: typeof r.os_number === 'number' ? r.os_number : null,
+        label: (r.vehicle_model || '').trim() || osId.slice(0, 8),
+        vehicleModel: (r.vehicle_model || '').trim() || null,
+        moduleKind: r.module_kind ?? null,
+        moduleProductOther: r.module_product_other ?? null,
+        moduleIdentification: (r.module_identification || '').trim() || null,
+        benchSlot: typeof r.bench_slot === 'number' ? r.bench_slot : null,
+        feedback: opts.feedback,
+        ok: opts.ok,
+        already: opts.already,
+      };
+    },
+    []
+  );
 
   const appendLabBatchItem = useCallback(
     (item: LabScanBatchItem) => {
@@ -849,6 +884,27 @@ export default function App() {
       scheduleLabBatchAutoClear();
     },
     [scheduleLabBatchAutoClear]
+  );
+
+  const appendLabBatchFromScan = useCallback(
+    async (
+      osId: string,
+      result: LabScanOrderMeta | null | undefined,
+      opts: { feedback: string; ok: boolean; already?: boolean }
+    ) => {
+      let enriched: LabScanOrderMeta | null | undefined = result;
+      const missingMeta =
+        !enriched?.module_kind && !enriched?.vehicle_model && !enriched?.module_identification;
+      if (missingMeta) {
+        try {
+          enriched = await getServiceOrderById(osId);
+        } catch {
+          /* mantém o que veio da movimentação */
+        }
+      }
+      appendLabBatchItem(buildLabBatchItem(osId, enriched, opts));
+    },
+    [appendLabBatchItem, buildLabBatchItem]
   );
 
   /**
@@ -883,10 +939,7 @@ export default function App() {
           try {
             const result = await registerOficinaSaida(osId, { actorName, actorUserId });
             playNotificationSound();
-            appendLabBatchItem({
-              id: osId,
-              osNumber: result.os_number ?? null,
-              label: result.vehicle_model || osId.slice(0, 8),
+            await appendLabBatchFromScan(osId, result, {
               feedback: result.move?.feedback || 'OK · Laboratório',
               ok: true,
             });
@@ -897,20 +950,16 @@ export default function App() {
             };
             if (e.already) {
               playNotificationSound();
-              appendLabBatchItem({
-                id: osId,
-                label: osId.slice(0, 8),
+              await appendLabBatchFromScan(osId, null, {
                 feedback:
                   e.location?.kind === 'deposito' && e.location.value
-                    ? `Já no depósito · ${e.location.value}`
+                    ? `Já no laboratório · ${e.location.value}`
                     : e.message || 'Já no destino',
                 ok: true,
                 already: true,
               });
             } else {
-              appendLabBatchItem({
-                id: osId,
-                label: osId.slice(0, 8),
+              await appendLabBatchFromScan(osId, null, {
                 feedback: e.message || 'Falha na saída',
                 ok: false,
               });
@@ -920,10 +969,7 @@ export default function App() {
           try {
             const result = await registerOficinaRetorno(osId, { actorName, actorUserId });
             playNotificationSound();
-            appendLabBatchItem({
-              id: osId,
-              osNumber: result.os_number ?? null,
-              label: result.vehicle_model || osId.slice(0, 8),
+            await appendLabBatchFromScan(osId, result, {
               feedback: result.move?.feedback || 'OK · Oficina',
               ok: true,
             });
@@ -934,9 +980,7 @@ export default function App() {
             };
             if (e.already) {
               playNotificationSound();
-              appendLabBatchItem({
-                id: osId,
-                label: osId.slice(0, 8),
+              await appendLabBatchFromScan(osId, null, {
                 feedback:
                   e.location?.kind === 'oficina' && e.location.value
                     ? `Já na oficina · ${e.location.value}`
@@ -945,9 +989,7 @@ export default function App() {
                 already: true,
               });
             } else {
-              appendLabBatchItem({
-                id: osId,
-                label: osId.slice(0, 8),
+              await appendLabBatchFromScan(osId, null, {
                 feedback: e.message || 'Falha no retorno',
                 ok: false,
               });
@@ -959,7 +1001,7 @@ export default function App() {
       }
     })();
   }, [
-    appendLabBatchItem,
+    appendLabBatchFromScan,
     authSession?.displayName,
     authSession?.userId,
     authSession?.username,
@@ -1699,7 +1741,7 @@ export default function App() {
               />
             </LazyTabBoundary>
           </KeepAliveTabPanel>
-        {(labScanMode === 'saida' || labScanMode === 'retorno') && labScanBatch.length > 0 ? (
+        {labScanMode === 'saida' || labScanMode === 'retorno' ? (
           <LabScanBatchPanel
             mode={labScanMode}
             items={labScanBatch}
@@ -1707,6 +1749,7 @@ export default function App() {
             onConfirm={handleLabBatchConfirm}
             onUndoLast={handleLabBatchUndoLast}
             onClear={handleLabBatchConfirm}
+            idleHintSeconds={12}
           />
         ) : null}
         {showMobileBackgroundNotifications ? (
@@ -2086,7 +2129,7 @@ export default function App() {
           </LazyTabBoundary>
         </KeepAliveTabPanel>
 
-      {(labScanMode === 'saida' || labScanMode === 'retorno') && labScanBatch.length > 0 ? (
+      {labScanMode === 'saida' || labScanMode === 'retorno' ? (
         <LabScanBatchPanel
           mode={labScanMode}
           items={labScanBatch}
@@ -2094,6 +2137,7 @@ export default function App() {
           onConfirm={handleLabBatchConfirm}
           onUndoLast={handleLabBatchUndoLast}
           onClear={handleLabBatchConfirm}
+          idleHintSeconds={12}
         />
       ) : null}
 
