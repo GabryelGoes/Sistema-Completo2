@@ -333,7 +333,7 @@ export const LabListaBoard: React.FC<LabListaBoardProps> = ({
     {
       id: 'oficina',
       label: 'Oficina',
-      style: 'bg-[#F5D00B] text-black border border-[#F5D00B]/
+      style: "bg-[#F5D00B] text-black border border-[#F5D00B]",
     },
     {
       id: 'laboratorio',
