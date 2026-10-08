@@ -79,32 +79,32 @@ type MenuPlacement = {
   top: number;
   left: number;
   width: number;
+  optionHeight: number;
   openUp: boolean;
-  maxHeight: number;
 };
 
 function computeMenuPlacement(
   trigger: HTMLElement,
-  estimatedMenuHeight: number
+  optionCount: number
 ): MenuPlacement {
   const rect = trigger.getBoundingClientRect();
-  const gap = 8;
+  const gap = 6;
   const edge = 12;
+  const itemGap = 4;
+  const padY = 6;
   const vw = window.innerWidth;
   const vh = window.innerHeight;
-  // Sugestões um pouco maiores que o botão
-  const width = Math.max(rect.width * 1.22, Math.min(300, vw - edge * 2));
-  const left = Math.max(edge, Math.min(rect.left + rect.width / 2 - width / 2, vw - width - edge));
+  const width = Math.min(rect.width, vw - edge * 2);
+  const optionHeight = Math.max(rect.height, 36);
+  const menuHeight =
+    padY * 2 + optionCount * optionHeight + Math.max(0, optionCount - 1) * itemGap;
+  const left = Math.max(edge, Math.min(rect.left, vw - width - edge));
   const spaceBelow = vh - rect.bottom - gap - edge;
   const spaceAbove = rect.top - gap - edge;
-  const need = Math.min(estimatedMenuHeight, 240);
-  const openUp = spaceBelow < need && spaceAbove >= spaceBelow;
-  const available = Math.max(openUp ? spaceAbove : spaceBelow, 120);
-  const maxHeight = Math.min(estimatedMenuHeight, available);
-  let top = openUp ? rect.top - gap - maxHeight : rect.bottom + gap;
-  // Nunca esconder fora da viewport
-  top = Math.max(edge, Math.min(top, vh - maxHeight - edge));
-  return { top, left, width, openUp, maxHeight };
+  const openUp = spaceBelow < menuHeight && spaceAbove >= spaceBelow;
+  let top = openUp ? rect.top - gap - menuHeight : rect.bottom + gap;
+  top = Math.max(edge, Math.min(top, vh - menuHeight - edge));
+  return { top, left, width, optionHeight, openUp };
 }
 
 type SuggestionOption = {
@@ -116,22 +116,20 @@ type SuggestionOption = {
 function ListaSuggestionPicker({
   triggerClassName,
   triggerLabel,
-  triggerStyle,
   options,
   currentId,
   busy,
   ariaLabel,
-  estimatedMenuHeight = 280,
+  optionRoundedClass = 'rounded-xl',
   onPick,
 }: {
   triggerClassName: string;
   triggerLabel: React.ReactNode;
-  triggerStyle?: string;
   options: SuggestionOption[];
   currentId: string | null;
   busy?: boolean;
   ariaLabel: string;
-  estimatedMenuHeight?: number;
+  optionRoundedClass?: string;
   onPick: (id: string) => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -140,6 +138,7 @@ function ListaSuggestionPicker({
   const triggerRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const scrollRestoreRef = useRef<{ target: HTMLElement | Window; top: number } | null>(null);
+  const optionCount = options.length;
 
   const restoreScroll = useCallback(() => {
     const saved = scrollRestoreRef.current;
@@ -169,19 +168,18 @@ function ListaSuggestionPicker({
       top: readScrollTop(scrollTarget),
     };
     setOpen(true);
-    // Leva a linha mais ao centro da área visível
     trigger.scrollIntoView({ block: 'center', inline: 'nearest', behavior: 'smooth' });
     window.setTimeout(() => {
       if (!triggerRef.current) return;
-      setPlacement(computeMenuPlacement(triggerRef.current, estimatedMenuHeight));
+      setPlacement(computeMenuPlacement(triggerRef.current, optionCount));
     }, 180);
-  }, [estimatedMenuHeight]);
+  }, [optionCount]);
 
   useLayoutEffect(() => {
     if (!open || !triggerRef.current) return;
     const update = () => {
       if (!triggerRef.current) return;
-      setPlacement(computeMenuPlacement(triggerRef.current, estimatedMenuHeight));
+      setPlacement(computeMenuPlacement(triggerRef.current, optionCount));
     };
     update();
     window.addEventListener('resize', update);
@@ -190,24 +188,15 @@ function ListaSuggestionPicker({
       window.removeEventListener('resize', update);
       window.removeEventListener('scroll', update, true);
     };
-  }, [open, estimatedMenuHeight]);
+  }, [open, optionCount]);
 
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') closeMenu(true);
     };
-    const onDoc = (e: MouseEvent) => {
-      const t = e.target as Node;
-      if (triggerRef.current?.contains(t) || menuRef.current?.contains(t)) return;
-      closeMenu(true);
-    };
     document.addEventListener('keydown', onKey);
-    document.addEventListener('mousedown', onDoc);
-    return () => {
-      document.removeEventListener('keydown', onKey);
-      document.removeEventListener('mousedown', onDoc);
-    };
+    return () => document.removeEventListener('keydown', onKey);
   }, [open, closeMenu]);
 
   const handlePick = (id: string) => {
@@ -246,64 +235,81 @@ function ListaSuggestionPicker({
           aria-hidden
         />
       </button>
-      {open && placement && typeof document !== 'undefined'
+      {open && typeof document !== 'undefined'
         ? createPortal(
-            <div
-              ref={menuRef}
-              role="listbox"
-              style={{
-                position: 'fixed',
-                top: placement.top,
-                left: placement.left,
-                width: placement.width,
-                maxHeight: placement.maxHeight,
-                zIndex: 99999,
-              }}
-              className={`overflow-y-auto overscroll-contain rounded-2xl border border-zinc-200/90 bg-white/98 py-2 shadow-[0_24px_60px_-14px_rgba(0,0,0,0.4)] backdrop-blur-xl dark:border-white/[0.12] dark:bg-zinc-950/98 motion-safe:animate-in motion-safe:fade-in motion-safe:zoom-in-95 motion-safe:duration-200 ${
-                placement.openUp
-                  ? 'motion-safe:slide-in-from-bottom-3 origin-bottom'
-                  : 'motion-safe:slide-in-from-top-3 origin-top'
-              }`}
-            >
-              {options.map((opt, index) => {
-                const active = currentId === opt.id;
-                const picking = pickingId === opt.id;
-                return (
-                  <button
-                    key={opt.id}
-                    type="button"
-                    role="option"
-                    aria-selected={active}
-                    style={{ animationDelay: `${index * 28}ms` }}
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      handlePick(opt.id);
-                    }}
-                    className={`mx-1.5 mb-1 flex w-[calc(100%-0.75rem)] items-center gap-2.5 rounded-xl px-4 py-3.5 text-left text-[15px] font-semibold last:mb-0 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-left-1 motion-safe:duration-200 transition-all duration-200 ${
-                      picking
-                        ? 'scale-[1.035] brightness-110 shadow-md'
-                        : active
-                          ? 'ring-2 ring-white/40 ring-offset-1 ring-offset-transparent'
-                          : 'hover:brightness-105 hover:scale-[1.015] active:scale-[0.985]'
-                    } ${opt.style ?? (active ? 'bg-[#007AFF]/12 text-[#007AFF] dark:bg-[#0A84FF]/18 dark:text-[#64B5FF]' : 'text-zinc-800 hover:bg-zinc-100/90 dark:text-zinc-100 dark:hover:bg-white/[0.06]')}`}
-                  >
-                    <span className="min-w-0 flex-1 truncate uppercase tracking-wide">
-                      {opt.label}
-                    </span>
-                    {active || picking ? (
-                      <Check
-                        className={`h-5 w-5 shrink-0 transition-transform duration-200 ${
-                          picking ? 'scale-125 animate-in zoom-in-50 duration-200' : 'scale-100'
+            <>
+              <button
+                type="button"
+                aria-label="Fechar sugestões"
+                className="fixed inset-0 z-[99998] border-0 bg-zinc-950/25 backdrop-blur-[2px] motion-safe:animate-in motion-safe:fade-in motion-safe:duration-200 dark:bg-black/35"
+                onClick={() => closeMenu(true)}
+              />
+              {placement ? (
+                <div
+                  ref={menuRef}
+                  role="listbox"
+                  style={{
+                    position: 'fixed',
+                    top: placement.top,
+                    left: placement.left,
+                    width: placement.width,
+                    zIndex: 99999,
+                  }}
+                  className={`flex flex-col gap-1 overflow-hidden rounded-none bg-transparent p-0 shadow-none motion-safe:animate-in motion-safe:fade-in motion-safe:zoom-in-95 motion-safe:duration-200 ${
+                    placement.openUp
+                      ? 'motion-safe:slide-in-from-bottom-2 origin-bottom'
+                      : 'motion-safe:slide-in-from-top-2 origin-top'
+                  }`}
+                >
+                  {options.map((opt, index) => {
+                    const active = currentId === opt.id;
+                    const picking = pickingId === opt.id;
+                    return (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        role="option"
+                        aria-selected={active}
+                        style={{
+                          height: placement.optionHeight,
+                          animationDelay: `${index * 24}ms`,
+                        }}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          handlePick(opt.id);
+                        }}
+                        className={`inline-flex w-full items-center gap-2 border-0 px-3.5 text-left text-[13px] font-semibold shadow-sm transition-all duration-200 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-left-1 motion-safe:duration-200 ${optionRoundedClass} ${
+                          picking
+                            ? 'scale-[1.03] brightness-110'
+                            : active
+                              ? ''
+                              : 'hover:brightness-105 active:scale-[0.985]'
+                        } ${
+                          opt.style ??
+                          (active
+                            ? 'bg-[#007AFF]/12 text-[#007AFF] dark:bg-[#0A84FF]/18 dark:text-[#64B5FF]'
+                            : 'border border-zinc-200/80 bg-white text-zinc-800 dark:border-white/[0.12] dark:bg-zinc-900 dark:text-zinc-100')
                         }`}
-                        strokeWidth={2.6}
-                        aria-hidden
-                      />
-                    ) : null}
-                  </button>
-                );
-              })}
-            </div>,
+                      >
+                        <span className="min-w-0 flex-1 truncate uppercase tracking-wide">
+                          {opt.label}
+                        </span>
+                        {active || picking ? (
+                          <Check
+                            className={`h-4 w-4 shrink-0 transition-transform duration-200 ${
+                              picking ? 'scale-125 animate-in zoom-in-50 duration-200' : 'scale-100'
+                            }`}
+                            strokeWidth={2.6}
+                            aria-hidden
+                          />
+                        ) : null}
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : null}
+            </>,
             document.body
           )
         : null}
@@ -462,7 +468,7 @@ export const LabListaBoard: React.FC<LabListaBoardProps> = ({
                           ? 'Laboratório'
                           : 'Definir'
                     }`}
-                    estimatedMenuHeight={140}
+                    optionRoundedClass="rounded-xl"
                     options={locationOptions}
                     triggerClassName="inline-flex min-h-[2.5rem] w-full max-w-[11.5rem] items-center gap-2 rounded-xl border border-zinc-200/80 bg-white px-3 py-2 text-left text-[13px] font-semibold text-zinc-800 shadow-sm transition hover:bg-zinc-50 active:scale-[0.98] disabled:opacity-55 dark:border-white/[0.12] dark:bg-zinc-900/80 dark:text-zinc-100 dark:hover:bg-zinc-800/80"
                     triggerLabel={
@@ -482,7 +488,7 @@ export const LabListaBoard: React.FC<LabListaBoardProps> = ({
                     busy={busyStage}
                     currentId={card.idList}
                     ariaLabel={`Etapa: ${statusConfig.label}`}
-                    estimatedMenuHeight={Math.min(420, 56 + stageOptions.length * 52)}
+                    optionRoundedClass="rounded-2xl"
                     options={stageOptions.map((s) => ({
                       id: s.id,
                       label: s.name,
