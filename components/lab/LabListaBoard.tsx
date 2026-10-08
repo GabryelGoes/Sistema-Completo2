@@ -75,6 +75,10 @@ function writeScrollTop(target: HTMLElement | Window, top: number, smooth: boole
   }
 }
 
+/** Folga do fundo sólido além dos botões (px). */
+const SUGGESTION_PANEL_PAD_X = 12;
+const SUGGESTION_PANEL_PAD_Y = 12;
+
 type MenuPlacement = {
   top: number;
   left: number;
@@ -91,19 +95,25 @@ function computeMenuPlacement(
   const gap = 6;
   const edge = 12;
   const itemGap = 4;
-  const padY = 6;
   const vw = window.innerWidth;
   const vh = window.innerHeight;
-  const width = Math.min(rect.width, vw - edge * 2);
+  const width = Math.min(rect.width, vw - edge * 2 - SUGGESTION_PANEL_PAD_X * 2);
   const optionHeight = Math.max(rect.height, 36);
-  const menuHeight =
-    padY * 2 + optionCount * optionHeight + Math.max(0, optionCount - 1) * itemGap;
-  const left = Math.max(edge, Math.min(rect.left, vw - width - edge));
+  const optionsHeight =
+    optionCount * optionHeight + Math.max(0, optionCount - 1) * itemGap;
+  const panelHeight = optionsHeight + SUGGESTION_PANEL_PAD_Y * 2;
+  let left = Math.max(
+    edge + SUGGESTION_PANEL_PAD_X,
+    Math.min(rect.left, vw - width - edge - SUGGESTION_PANEL_PAD_X)
+  );
   const spaceBelow = vh - rect.bottom - gap - edge;
   const spaceAbove = rect.top - gap - edge;
-  const openUp = spaceBelow < menuHeight && spaceAbove >= spaceBelow;
-  let top = openUp ? rect.top - gap - menuHeight : rect.bottom + gap;
-  top = Math.max(edge, Math.min(top, vh - menuHeight - edge));
+  const openUp = spaceBelow < panelHeight && spaceAbove >= spaceBelow;
+  let top = openUp ? rect.top - gap - optionsHeight : rect.bottom + gap;
+  top = Math.max(
+    edge + SUGGESTION_PANEL_PAD_Y,
+    Math.min(top, vh - optionsHeight - edge - SUGGESTION_PANEL_PAD_Y)
+  );
   return { top, left, width, optionHeight, openUp };
 }
 
@@ -250,63 +260,79 @@ function ListaSuggestionPicker({
                   role="listbox"
                   style={{
                     position: 'fixed',
-                    top: placement.top,
-                    left: placement.left,
-                    width: placement.width,
+                    top: placement.top - SUGGESTION_PANEL_PAD_Y,
+                    left: placement.left - SUGGESTION_PANEL_PAD_X,
+                    width: placement.width + SUGGESTION_PANEL_PAD_X * 2,
+                    padding: `${SUGGESTION_PANEL_PAD_Y}px ${SUGGESTION_PANEL_PAD_X}px`,
                     zIndex: 99999,
                   }}
-                  className={`flex flex-col gap-1 overflow-hidden rounded-none bg-transparent p-0 shadow-none motion-safe:animate-in motion-safe:fade-in motion-safe:zoom-in-95 motion-safe:duration-200 ${
+                  className={`relative rounded-2xl bg-zinc-100 dark:bg-black motion-safe:animate-in motion-safe:fade-in motion-safe:zoom-in-95 motion-safe:duration-200 ${
                     placement.openUp
                       ? 'motion-safe:slide-in-from-bottom-2 origin-bottom'
                       : 'motion-safe:slide-in-from-top-2 origin-top'
                   }`}
                 >
-                  {options.map((opt, index) => {
-                    const active = currentId === opt.id;
-                    const picking = pickingId === opt.id;
-                    return (
-                      <button
-                        key={opt.id}
-                        type="button"
-                        role="option"
-                        aria-selected={active}
-                        style={{
-                          height: placement.optionHeight,
-                          animationDelay: `${index * 24}ms`,
-                        }}
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          handlePick(opt.id);
-                        }}
-                        className={`inline-flex w-full items-center gap-2 border-0 px-3.5 text-left text-[13px] font-semibold shadow-sm transition-all duration-200 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-left-1 motion-safe:duration-200 ${optionRoundedClass} ${
-                          picking
-                            ? 'scale-[1.03] brightness-110'
-                            : active
-                              ? ''
-                              : 'hover:brightness-105 active:scale-[0.985]'
-                        } ${
-                          opt.style ??
-                          (active
-                            ? 'bg-[#007AFF]/12 text-[#007AFF] dark:bg-[#0A84FF]/18 dark:text-[#64B5FF]'
-                            : 'border border-zinc-200/80 bg-white text-zinc-800 dark:border-white/[0.12] dark:bg-zinc-900 dark:text-zinc-100')
-                        }`}
-                      >
-                        <span className="min-w-0 flex-1 truncate uppercase tracking-wide">
-                          {opt.label}
-                        </span>
-                        {active || picking ? (
-                          <Check
-                            className={`h-4 w-4 shrink-0 transition-transform duration-200 ${
-                              picking ? 'scale-125 animate-in zoom-in-50 duration-200' : 'scale-100'
-                            }`}
-                            strokeWidth={2.6}
-                            aria-hidden
-                          />
-                        ) : null}
-                      </button>
-                    );
-                  })}
+                  {/* Degradê suave nas bordas → blur do fundo */}
+                  <div
+                    aria-hidden
+                    className="pointer-events-none absolute -inset-3 -z-10 rounded-[1.6rem] bg-gradient-to-b from-zinc-100 via-zinc-100/85 to-zinc-100/0 opacity-90 blur-[1px] dark:from-black dark:via-black/85 dark:to-black/0 dark:opacity-95"
+                  />
+                  <div
+                    aria-hidden
+                    className="pointer-events-none absolute inset-0 -z-10 rounded-2xl
+                      shadow-[0_0_28px_16px_rgba(244,244,245,0.75),0_0_56px_32px_rgba(244,244,245,0.35)]
+                      dark:shadow-[0_0_28px_16px_rgba(0,0,0,0.85),0_0_56px_32px_rgba(0,0,0,0.45)]"
+                  />
+                  <div className="relative flex flex-col gap-1">
+                    {options.map((opt, index) => {
+                      const active = currentId === opt.id;
+                      const picking = pickingId === opt.id;
+                      return (
+                        <button
+                          key={opt.id}
+                          type="button"
+                          role="option"
+                          aria-selected={active}
+                          style={{
+                            height: placement.optionHeight,
+                            animationDelay: `${index * 24}ms`,
+                          }}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handlePick(opt.id);
+                          }}
+                          className={`inline-flex w-full items-center gap-2 border-0 px-3.5 text-left text-[13px] font-semibold shadow-sm transition-all duration-200 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-left-1 motion-safe:duration-200 ${optionRoundedClass} ${
+                            picking
+                              ? 'scale-[1.03] brightness-110'
+                              : active
+                                ? ''
+                                : 'hover:brightness-105 active:scale-[0.985]'
+                          } ${
+                            opt.style ??
+                            (active
+                              ? 'bg-[#007AFF]/12 text-[#007AFF] dark:bg-[#0A84FF]/18 dark:text-[#64B5FF]'
+                              : 'border border-zinc-200/80 bg-white text-zinc-800 dark:border-white/[0.12] dark:bg-zinc-900 dark:text-zinc-100')
+                          }`}
+                        >
+                          <span className="min-w-0 flex-1 truncate uppercase tracking-wide">
+                            {opt.label}
+                          </span>
+                          {active || picking ? (
+                            <Check
+                              className={`h-4 w-4 shrink-0 transition-transform duration-200 ${
+                                picking
+                                  ? 'scale-125 animate-in zoom-in-50 duration-200'
+                                  : 'scale-100'
+                              }`}
+                              strokeWidth={2.6}
+                              aria-hidden
+                            />
+                          ) : null}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
               ) : null}
             </>,
