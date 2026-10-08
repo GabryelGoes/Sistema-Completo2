@@ -20,7 +20,7 @@ export type LabOsLabelInput = {
   complaint: string;
   /** Compartimento do depósito/bancada (1–24). */
   benchSlot?: number | null;
-  /** Endereço na oficina (letra A–X). */
+  /** Flag de localização Oficina (sem letra). */
   oficinaShelf?: string | null;
   /** Na fila do depósito. */
   benchQueuedAt?: string | null;
@@ -206,7 +206,7 @@ export async function renderLabOsLabelDataUrl(
     ctx.drawImage(qrImg, qrEl.x, qrEl.y, qrSize, qrSize);
   }
 
-  // Um endereço ativo na etiqueta: OFICINA C | DEP 07 | DEP FILA
+  // Etiqueta: só o número da vaga no laboratório (sem letra da oficina).
   const loc = resolveLabLocation({
     oficinaShelf: input.oficinaShelf,
     benchSlot: input.benchSlot,
@@ -215,11 +215,10 @@ export async function renderLabOsLabelDataUrl(
   const banner = formatLabLocationLabelBanner(loc);
   const locationEl =
     findEl(layout, 'location') ??
-    (loc.kind === 'oficina'
-      ? findEl(layout, 'oficina')
-      : findEl(layout, 'deposito') ?? findEl(layout, 'oficina'));
+    findEl(layout, 'deposito') ??
+    findEl(layout, 'oficina');
   if (locationEl?.visible) {
-    drawBanner(ctx, { ...locationEl, labelText: banner.tag }, banner.value);
+    drawBanner(ctx, { ...locationEl, labelText: banner.tag || '' }, banner.value);
   }
   // Elementos legados: ocultos se já desenhamos o local ativo
   for (const legacyId of ['oficina', 'deposito'] as const) {

@@ -887,7 +887,7 @@ export default function App() {
               id: osId,
               osNumber: result.os_number ?? null,
               label: result.vehicle_model || osId.slice(0, 8),
-              feedback: result.move?.feedback || 'OK · Depósito',
+              feedback: result.move?.feedback || 'OK · Laboratório',
               ok: true,
             });
           } catch (err: unknown) {

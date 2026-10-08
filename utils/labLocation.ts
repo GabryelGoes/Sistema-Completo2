@@ -1,6 +1,6 @@
 /**
  * Endereço físico da peça no laboratório — um só ativo por vez:
- * Oficina (letra A–X) | Depósito (vaga 1–24) | Fila do depósito.
+ * Oficina (flag) | Laboratório (vaga 1–24) | Fila do laboratório.
  */
 
 import {
@@ -12,9 +12,9 @@ export type LabLocationKind = 'oficina' | 'deposito' | 'fila' | 'none';
 
 export type LabLocationState = {
   kind: LabLocationKind;
-  /** Letras A–X quando kind === 'oficina' */
+  /** Flag genérica quando kind === 'oficina' (sem letra). */
   oficinaShelf: string | null;
-  /** 1–24 quando kind === 'deposito' */
+  /** 1–24 quando kind === 'deposito' (vaga no laboratório). */
   benchSlot: number | null;
   queued: boolean;
 };
@@ -45,24 +45,25 @@ export function resolveLabLocation(input: {
 }
 
 export function formatLabLocationShort(loc: LabLocationState): string {
-  if (loc.kind === 'oficina' && loc.oficinaShelf) return `Oficina · ${loc.oficinaShelf}`;
-  if (loc.kind === 'deposito' && loc.benchSlot != null) return `Depósito · ${loc.benchSlot}`;
-  if (loc.kind === 'fila') return 'Fila depósito';
+  if (loc.kind === 'oficina') return 'Oficina';
+  if (loc.kind === 'deposito' && loc.benchSlot != null) return `Laboratório · ${loc.benchSlot}`;
+  if (loc.kind === 'fila') return 'Fila laboratório';
   return 'Sem local';
 }
 
+/**
+ * Banner da etiqueta: só o número da vaga (laboratório).
+ * Oficina / sem local → traço (sem letra).
+ */
 export function formatLabLocationLabelBanner(loc: LabLocationState): {
   tag: string;
   value: string;
 } {
-  if (loc.kind === 'oficina' && loc.oficinaShelf) {
-    return { tag: 'OFICINA', value: loc.oficinaShelf };
-  }
   if (loc.kind === 'deposito' && loc.benchSlot != null) {
-    return { tag: 'DEP', value: String(loc.benchSlot) };
+    return { tag: '', value: String(loc.benchSlot).padStart(2, '0') };
   }
   if (loc.kind === 'fila') {
-    return { tag: 'DEP', value: 'FILA' };
+    return { tag: '', value: 'FILA' };
   }
-  return { tag: 'LOCAL', value: '—' };
+  return { tag: '', value: '—' };
 }

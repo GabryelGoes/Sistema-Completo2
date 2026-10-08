@@ -160,7 +160,7 @@ export function createDefaultLabOsTemplate(): LabelTemplateLayout {
         h: 44,
         fontSize: 14,
         valueFontSize: 32,
-        labelText: 'OFICINA',
+        labelText: '',
       }),
       el({
         id: 'customer',
@@ -606,8 +606,8 @@ export const LABEL_SAMPLE_DATA = {
     customerName: 'JOÃO SILVA',
     vehicleName: 'GOL 1.6 MSI',
     complaint: 'ABS acende no painel após frear em buraco',
-    benchSlot: null,
-    oficinaShelf: 'C',
+    benchSlot: 7,
+    oficinaShelf: null,
   },
   estoque: {
     brand: 'REI DO ABS',

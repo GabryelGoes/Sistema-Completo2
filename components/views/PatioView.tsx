@@ -2931,7 +2931,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
       try {
         await updateServiceOrderOficinaShelf(cardId, normalized);
       } catch (err: unknown) {
-        window.alert(err instanceof Error ? err.message : 'Falha ao salvar letra da oficina.');
+        window.alert(err instanceof Error ? err.message : 'Falha ao salvar localização da oficina.');
         fetchDataRef.current(true);
       } finally {
         setBenchSlotSaving(false);

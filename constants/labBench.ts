@@ -50,34 +50,33 @@ export const ALL_BENCH_SLOTS: number[] = Array.from(
 );
 
 /**
- * Bancada da oficina — 24 vagas em letras (A–X), paralelas ao depósito 1–24.
- * Atribuição automática na entrada; liberadas na Saída (→ depósito).
+ * Localização Oficina — flag simples (sem letra A–X).
+ * A vaga numérica 1–24 é só do laboratório (`bench_slot`).
  */
+export const OFICINA_LOCATION_FLAG = '*';
+
+/** @deprecated Letras A–X (legado). Novos registros usam OFICINA_LOCATION_FLAG. */
 export const OFICINA_SHELF_COUNT = 24;
 export const OFICINA_SHELF_LETTERS: string[] = Array.from(
   { length: OFICINA_SHELF_COUNT },
-  (_, i) => String.fromCharCode(65 + i) // A … X
+  (_, i) => String.fromCharCode(65 + i)
 );
 
-/** Normaliza letra A–X; retorna null se inválida/vazia. */
+/**
+ * Normaliza flag de oficina: `*` / `OF` / letras legadas A–X → OFICINA_LOCATION_FLAG.
+ */
 export function normalizeOficinaShelf(raw: unknown): string | null {
-  if (raw == null || raw === "") return null;
+  if (raw == null || raw === '') return null;
   const s = String(raw).trim().toUpperCase();
-  if (!OFICINA_SHELF_LETTERS.includes(s)) return null;
-  return s;
+  if (!s) return null;
+  if (s === '*' || s === 'OF' || s === 'OFICINA') return OFICINA_LOCATION_FLAG;
+  if (OFICINA_SHELF_LETTERS.includes(s)) return OFICINA_LOCATION_FLAG;
+  return null;
 }
 
-/** Primeira letra livre entre A–X. */
-export function firstFreeOficinaShelf(occupiedLetters: Iterable<string>): string | null {
-  const occupied = new Set<string>();
-  for (const raw of occupiedLetters) {
-    const n = normalizeOficinaShelf(raw);
-    if (n) occupied.add(n);
-  }
-  for (const letter of OFICINA_SHELF_LETTERS) {
-    if (!occupied.has(letter)) return letter;
-  }
-  return null;
+/** Sempre a flag genérica (várias peças podem estar na oficina ao mesmo tempo). */
+export function firstFreeOficinaShelf(_occupiedLetters?: Iterable<string>): string | null {
+  return OFICINA_LOCATION_FLAG;
 }
 
 /** Legenda visual das etapas (cores na UI — não define zona física). */

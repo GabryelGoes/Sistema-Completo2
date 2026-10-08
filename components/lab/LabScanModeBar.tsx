@@ -12,20 +12,18 @@ export type LabScanModeBarProps = {
   compact?: boolean;
 };
 
-const MODE_BTN_CLASS: Record<LabScanMode, { idle: string; active: string }> = {
-  consultar: {
-    idle: 'bg-violet-600 text-white hover:brightness-110',
-    active: 'bg-violet-600 text-white ring-2 ring-violet-300 ring-offset-2 ring-offset-zinc-100 dark:ring-violet-400/70 dark:ring-offset-zinc-950',
-  },
-  saida: {
-    idle: 'bg-emerald-600 text-white hover:brightness-110',
-    active: 'bg-emerald-600 text-white ring-2 ring-emerald-300 ring-offset-2 ring-offset-zinc-100 dark:ring-emerald-400/70 dark:ring-offset-zinc-950',
-  },
-  retorno: {
-    idle: 'bg-[#F5D00B] text-black hover:brightness-105',
-    active: 'bg-[#F5D00B] text-black ring-2 ring-amber-300 ring-offset-2 ring-offset-zinc-100 dark:ring-amber-400/80 dark:ring-offset-zinc-950',
-  },
+/** Cores chapadas só no estado selecionado. */
+const MODE_ACTIVE_CLASS: Record<LabScanMode, string> = {
+  consultar:
+    'bg-violet-600 text-white ring-2 ring-violet-300 ring-offset-2 ring-offset-zinc-100 dark:ring-violet-400/70 dark:ring-offset-zinc-950',
+  saida:
+    'bg-emerald-600 text-white ring-2 ring-emerald-300 ring-offset-2 ring-offset-zinc-100 dark:ring-emerald-400/70 dark:ring-offset-zinc-950',
+  retorno:
+    'bg-[#F5D00B] text-black ring-2 ring-amber-300 ring-offset-2 ring-offset-zinc-100 dark:ring-amber-400/80 dark:ring-offset-zinc-950',
 };
+
+const MODE_IDLE_CLASS =
+  'border border-zinc-200/90 bg-white text-zinc-700 hover:bg-zinc-50 dark:border-white/[0.12] dark:bg-zinc-900/80 dark:text-zinc-200 dark:hover:bg-zinc-800/80';
 
 export function LabScanModeBar({
   mode,
@@ -42,7 +40,6 @@ export function LabScanModeBar({
         </span>
         {LAB_SCAN_MODE_OPTIONS.map((opt) => {
           const selected = opt.id === mode;
-          const colors = MODE_BTN_CLASS[opt.id];
           return (
             <button
               key={opt.id}
@@ -50,8 +47,8 @@ export function LabScanModeBar({
               onClick={() => onChange(opt.id)}
               aria-pressed={selected}
               className={`inline-flex shrink-0 items-center justify-center rounded-lg px-3 py-2 text-[12px] font-bold tracking-tight transition active:scale-[0.98] sm:px-3.5 sm:text-[13px] ${
-                selected ? colors.active : colors.idle
-              } ${selected ? '' : 'opacity-90'}`}
+                selected ? MODE_ACTIVE_CLASS[opt.id] : MODE_IDLE_CLASS
+              }`}
             >
               {opt.label}
             </button>

@@ -436,19 +436,17 @@ export function createApiApp() {
   }
 
   /**
-   * Vaga da oficina (letra A–X): mantém a atual se válida; senão primeira livre.
-   * Null se o status não usa oficina ou se estiver lotada.
+   * Flag de localização Oficina (*): mantém a atual se válida; senão atribui a flag.
    */
   async function pickOficinaShelfForStatus(
     status: string,
     currentLetter: string | null,
-    excludeId?: string | null
+    _excludeId?: string | null
   ): Promise<string | null> {
     if (!statusUsesOficinaShelf(status)) return null;
     const normalized = normalizeOficinaShelf(currentLetter);
     if (normalized != null) return normalized;
-    const occupied = await occupiedOficinaShelves(excludeId);
-    return firstFreeOficinaShelf(occupied);
+    return firstFreeOficinaShelf();
   }
 
   /**
@@ -502,8 +500,8 @@ export function createApiApp() {
   }
 
   /**
-   * Ao criar OS de módulo: um endereço ativo — letra na oficina (A–X).
-   * Depósito (1–24) só via Saída / painel da bancada.
+   * Ao criar OS de módulo: localização Oficina (flag, sem letra).
+   * Vaga numérica 1–24 só via leitor QR (Laboratório) / painel da bancada.
    */
   async function benchFieldsForNewModule(status: string): Promise<{
     bench_slot: number | null;
@@ -519,7 +517,7 @@ export function createApiApp() {
         oficina_shelf: null,
       };
     }
-    const oficinaLetter = await pickOficinaShelfForStatus(
+    const oficinaFlag = await pickOficinaShelfForStatus(
       statusUsesOficinaShelf(status) ? status : "AGUARDANDO_AVALIACAO",
       null,
       null
@@ -528,7 +526,7 @@ export function createApiApp() {
       bench_slot: null,
       bench_slot_at: null,
       bench_queued_at: null,
-      oficina_shelf: oficinaLetter,
+      oficina_shelf: oficinaFlag,
     };
   }
 
@@ -12276,7 +12274,7 @@ export function createApiApp() {
   });
 
   /**
-   * Saída → Depósito: libera letra da oficina e acomoda no depósito (vaga 1–24 ou fila).
+   * Saída → Laboratório: libera oficina e acomoda vaga 1–24 (ou fila).
    * Body opcional: { actorName, actorUserId, force }
    */
   app.post("/api/service-orders/:id/oficina-saida", async (req, res) => {
@@ -12321,13 +12319,13 @@ export function createApiApp() {
         (order as { bench_queued_at?: string | null }).bench_queued_at
       );
 
-      // Já no depósito / fila
+      // Já no laboratório / fila
       if (!fromLetter && (fromSlot != null || fromQueued)) {
         return res.status(409).json({
           error:
             fromSlot != null
-              ? `Peça já está no depósito (vaga ${fromSlot}).`
-              : "Peça já está na fila do depósito.",
+              ? `Peça já está no laboratório (vaga ${fromSlot}).`
+              : "Peça já está na fila do laboratório.",
           code: "already_at_destination",
           already: true,
           location: fromSlot != null ? { kind: "deposito", value: String(fromSlot) } : { kind: "fila", value: null },
@@ -12336,7 +12334,7 @@ export function createApiApp() {
 
       if (!fromLetter && !force) {
         return res.status(400).json({
-          error: "Peça sem letra na oficina. Use força para enviar ao depósito mesmo assim.",
+          error: "Peça sem localização na oficina. Use força para enviar ao laboratório mesmo assim.",
           code: "not_in_oficina",
         });
       }
@@ -12392,7 +12390,7 @@ export function createApiApp() {
         move: {
           direction: "saida",
           feedback:
-            toKind === "deposito" ? `OK · Vaga ${toValue}` : "OK · Fila",
+            toKind === "deposito" ? `OK · Laboratório ${toValue}` : "OK · Fila",
           toKind,
           toValue,
           fromKind: fromLetter ? "oficina" : "none",
@@ -12406,7 +12404,7 @@ export function createApiApp() {
   });
 
   /**
-   * Retorno → Oficina: tira do depósito/fila e atribui próxima letra livre (A–X).
+   * Retorno → Oficina: tira do laboratório/fila e marca localização Oficina (sem letra).
    */
   app.post("/api/service-orders/:id/oficina-retorno", async (req, res) => {
     try {
@@ -12421,8 +12419,6 @@ export function createApiApp() {
         typeof req.body?.actorName === "string" ? req.body.actorName.trim() : null;
       const actorUserId =
         typeof req.body?.actorUserId === "string" ? req.body.actorUserId.trim() : null;
-      const preferredLetter = normalizeOficinaShelf(req.body?.letter ?? req.body?.oficinaShelf);
-
       const { data: order } = await supabaseAdmin
         .from("service_orders")
         .select("id, order_type, status, oficina_shelf, bench_slot, bench_queued_at")
@@ -12454,32 +12450,24 @@ export function createApiApp() {
 
       if (fromLetter && !fromSlot && !fromQueued) {
         return res.status(409).json({
-          error: `Peça já está na oficina (letra ${fromLetter}).`,
+          error: "Peça já está na oficina.",
           code: "already_at_destination",
           already: true,
-          location: { kind: "oficina", value: fromLetter },
+          location: { kind: "oficina", value: null },
         });
       }
 
       if (!fromSlot && !fromQueued && !force) {
         return res.status(400).json({
-          error: "Peça não está no depósito nem na fila. Use força para acomodar na oficina.",
+          error: "Peça não está no laboratório nem na fila. Use força para acomodar na oficina.",
           code: "not_in_deposito",
         });
       }
 
-      let letter = preferredLetter;
-      if (letter) {
-        const occupied = await occupiedOficinaShelves(id);
-        if (occupied.has(letter)) {
-          return res.status(409).json({ error: `Letra ${letter} já está em uso.` });
-        }
-      } else {
-        letter = await pickOficinaShelfForStatus("AGUARDANDO_AVALIACAO", null, id);
-      }
+      const letter = await pickOficinaShelfForStatus("AGUARDANDO_AVALIACAO", null, id);
       if (letter == null) {
         return res.status(409).json({
-          error: "Bancada da oficina lotada (A–X). Liberte uma letra antes do retorno.",
+          error: "Não foi possível marcar a peça na oficina.",
         });
       }
 
@@ -12519,7 +12507,7 @@ export function createApiApp() {
         fromKind,
         fromValue,
         toKind: "oficina",
-        toValue: letter,
+        toValue: null,
         actorName,
         actorUserId,
       });
@@ -12529,9 +12517,9 @@ export function createApiApp() {
         ...data,
         move: {
           direction: "retorno",
-          feedback: `OK · Oficina ${letter}`,
+          feedback: "OK · Oficina",
           toKind: "oficina",
-          toValue: letter,
+          toValue: null,
           fromKind,
           fromValue,
         },
