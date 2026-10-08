@@ -50,6 +50,17 @@ function formatBenchComp(slot: number | null | undefined): string | null {
   return String(slot).padStart(2, '0');
 }
 
+/** Peças recém-entradas no laboratório (últimas 24h). */
+const LAB_LISTA_NEW_BADGE_MS = 24 * 60 * 60 * 1000;
+
+function isRecentlyEnteredLabPiece(createdAt: string | null | undefined): boolean {
+  if (!createdAt) return false;
+  const t = new Date(createdAt).getTime();
+  if (Number.isNaN(t)) return false;
+  const age = Date.now() - t;
+  return age >= 0 && age < LAB_LISTA_NEW_BADGE_MS;
+}
+
 function getScrollParent(el: HTMLElement | null): HTMLElement | Window {
   let node = el?.parentElement ?? null;
   while (node && node !== document.body) {
@@ -416,11 +427,14 @@ export const LabListaBoard: React.FC<LabListaBoardProps> = ({
             const compLabel = formatBenchComp(card.benchSlot);
             const busyLoc = locationBusyId === card.id;
             const busyStage = stageBusyId === card.id;
+            const isNewEntry = isRecentlyEnteredLabPiece(card.createdAt);
 
             return (
               <tr
                 key={card.id}
-                className="group border-b border-zinc-100/90 transition-colors last:border-b-0 hover:bg-zinc-50/80 dark:border-white/[0.05] dark:hover:bg-white/[0.035]"
+                className={`group border-b border-zinc-100/90 transition-colors last:border-b-0 hover:bg-zinc-50/80 dark:border-white/[0.05] dark:hover:bg-white/[0.035] ${
+                  isNewEntry ? 'bg-[#007AFF]/[0.035] dark:bg-[#0A84FF]/[0.06]' : ''
+                }`}
               >
                 <td className="px-3 py-3.5 sm:px-4">
                   {compLabel ? (
@@ -439,14 +453,24 @@ export const LabListaBoard: React.FC<LabListaBoardProps> = ({
                     onClick={() => onOpenCard(card)}
                     className="flex max-w-[20rem] items-center gap-3 text-left transition active:scale-[0.99]"
                   >
-                    <span className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl border border-zinc-200/80 bg-zinc-100 dark:border-white/[0.1] dark:bg-zinc-900">
-                      {photoUrl ? (
-                        <img src={photoUrl} alt="" className="h-full w-full object-cover" />
-                      ) : (
-                        <span className="flex h-full w-full items-center justify-center text-zinc-400 dark:text-zinc-600">
-                          <Package className="h-5 w-5" strokeWidth={1.8} aria-hidden />
+                    <span className="relative h-12 w-12 shrink-0">
+                      <span className="relative flex h-12 w-12 overflow-hidden rounded-xl border border-zinc-200/80 bg-zinc-100 dark:border-white/[0.1] dark:bg-zinc-900">
+                        {photoUrl ? (
+                          <img src={photoUrl} alt="" className="h-full w-full object-cover" />
+                        ) : (
+                          <span className="flex h-full w-full items-center justify-center text-zinc-400 dark:text-zinc-600">
+                            <Package className="h-5 w-5" strokeWidth={1.8} aria-hidden />
+                          </span>
+                        )}
+                      </span>
+                      {isNewEntry ? (
+                        <span
+                          className="pointer-events-none absolute -right-1.5 -top-1.5 z-10 inline-flex items-center rounded-md bg-[#007AFF] px-1.5 py-0.5 text-[9px] font-bold uppercase leading-none tracking-[0.06em] text-white shadow-[0_4px_10px_-2px_rgba(0,122,255,0.55)] ring-2 ring-white dark:ring-zinc-950"
+                          title="Entrada nas últimas 24 horas"
+                        >
+                          Novo
                         </span>
-                      )}
+                      ) : null}
                     </span>
                     <span className="min-w-0">
                       <span className="block truncate text-[14px] font-semibold leading-snug text-zinc-900 dark:text-white">
