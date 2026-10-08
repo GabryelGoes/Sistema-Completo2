@@ -376,14 +376,24 @@ export const LabListaBoard: React.FC<LabListaBoardProps> = ({
     {
       id: 'oficina',
       label: 'Oficina',
-      style: "bg-[#F5D00B] text-black border border-[#F5D00B]",
+      style: 'bg-[#F5D00B] text-black border-0',
     },
     {
       id: 'laboratorio',
       label: 'Laboratório',
-      style: 'bg-emerald-600 text-white border border-emerald-600',
+      style: 'bg-violet-600 text-white border-0',
     },
   ];
+
+  const locationTriggerStyle = (loc: LabListaUiLocation | null): string => {
+    if (loc === 'oficina') {
+      return 'border-0 bg-[#F5D00B] text-black hover:brightness-105 dark:bg-[#F5D00B] dark:text-black dark:hover:brightness-110';
+    }
+    if (loc === 'laboratorio') {
+      return 'border-0 bg-violet-600 text-white hover:brightness-110 dark:bg-violet-600 dark:text-white';
+    }
+    return 'border border-zinc-200/80 bg-white text-zinc-800 hover:bg-zinc-50 dark:border-white/[0.12] dark:bg-zinc-900/80 dark:text-zinc-100 dark:hover:bg-zinc-800/80';
+  };
 
   return (
     <div className="overflow-x-auto overflow-y-visible rounded-[1.35rem] border border-zinc-200/70 bg-white/70 shadow-[0_10px_30px_-16px_rgba(0,0,0,0.18)] dark:border-white/[0.08] dark:bg-zinc-950/45 dark:shadow-none">
@@ -520,7 +530,7 @@ export const LabListaBoard: React.FC<LabListaBoardProps> = ({
                     }`}
                     optionRoundedClass="rounded-xl"
                     options={locationOptions}
-                    triggerClassName="inline-flex min-h-[2.5rem] w-full max-w-[11.5rem] items-center gap-2 rounded-xl border border-zinc-200/80 bg-white px-3 py-2 text-left text-[13px] font-semibold text-zinc-800 shadow-sm transition hover:bg-zinc-50 active:scale-[0.98] disabled:opacity-55 dark:border-white/[0.12] dark:bg-zinc-900/80 dark:text-zinc-100 dark:hover:bg-zinc-800/80"
+                    triggerClassName={`inline-flex min-h-[2.5rem] w-full max-w-[11.5rem] items-center gap-2 rounded-xl px-3 py-2 text-left text-[13px] font-semibold shadow-sm transition active:scale-[0.98] disabled:opacity-55 ${locationTriggerStyle(uiLoc)}`}
                     triggerLabel={
                       <span className="min-w-0 flex-1 truncate">
                         {uiLoc === 'oficina'
