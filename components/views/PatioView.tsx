@@ -2,7 +2,7 @@ import React, { useEffect, useLayoutEffect, useState, useRef, useCallback, useMe
 import { createPortal } from 'react-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkBreaks from 'remark-breaks';
-import { RefreshCw, AlertCircle, ChevronDown, ChevronRight, ChevronLeft, User, X, Check, CheckCircle2, Circle, Plus, FileText, Calendar, Clock, Paperclip, ExternalLink, Trash2, DollarSign, Hash, Minus, Pencil, Save, Eye, History, Search, Copy, ArrowRight, Camera, Image as ImageIcon, FolderOpen, Upload, FilePlus, ArchiveRestore, Printer, Smartphone, Mail, MapPin, Share2, Sparkles, Loader2, Tag, Link2, Wrench, Gauge, MoreHorizontal, LayoutGrid, Columns3, Users, SortDesc, ListOrdered, List, Truck, RotateCw, RotateCcw, ClipboardList } from 'lucide-react';
+import { RefreshCw, AlertCircle, ChevronDown, ChevronRight, ChevronLeft, User, X, Check, CheckCircle2, Circle, Plus, FileText, Calendar, Clock, Paperclip, ExternalLink, Trash2, DollarSign, Hash, Minus, Pencil, Save, Eye, History, Search, Copy, ArrowRight, Camera, Image as ImageIcon, FolderOpen, Upload, FilePlus, ArchiveRestore, Printer, Smartphone, Mail, MapPin, Share2, Sparkles, Loader2, Tag, Link2, Wrench, Gauge, MoreHorizontal, LayoutGrid, Columns3, Users, SortDesc, SortAsc, ListOrdered, List, Truck, RotateCw, RotateCcw, ClipboardList } from 'lucide-react';
 import { PdfViewerModal } from '../PdfViewerModal';
 import { MechanicIcon } from '../ui/MechanicIcon';
 import { ReminderIcon } from '../ui/ReminderIcon';
@@ -1828,12 +1828,32 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const remindersBadgeCount = reminders.length;
 
   type PatioBoardLayoutMode = 'lista' | 'standard' | 'trello' | 'by_mechanic' | 'recent_first';
+  /** Ordem das peças na visão Lista do laboratório. */
+  type LabListaSortMode = 'oldest_first' | 'by_stage' | 'newest_first';
   /** Zoom dos cartões por modo de visualização (lista / padrão / trello / mecânico / recentes). */
   const patioZoomScope: BoardCardZoomScope = isModuleMode ? 'patio-module' : 'patio-vehicle';
   const [boardLayoutMode, setBoardLayoutMode] = useState<PatioBoardLayoutMode>(
     isModuleMode ? 'lista' : 'standard'
   );
   const [locationChangingCardId, setLocationChangingCardId] = useState<string | null>(null);
+  const labListaSortStorageKey = 'lab-lista-sort-v1';
+  const [labListaSortMode, setLabListaSortMode] = useState<LabListaSortMode>(() => {
+    try {
+      const raw = localStorage.getItem(labListaSortStorageKey);
+      if (raw === 'oldest_first' || raw === 'by_stage' || raw === 'newest_first') return raw;
+    } catch {
+      /* ignore */
+    }
+    return 'by_stage';
+  });
+  const setLabListaSortModePersist = React.useCallback((mode: LabListaSortMode) => {
+    setLabListaSortMode(mode);
+    try {
+      localStorage.setItem(labListaSortStorageKey, mode);
+    } catch {
+      /* ignore */
+    }
+  }, []);
   const [cardZoomStep, setCardZoomStep] = useState(() =>
     readBoardCardZoomStepIndex(isModuleMode ? 'patio-module' : 'patio-vehicle', 'standard')
   );
@@ -6472,6 +6492,71 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 ))}
               </div>
             </div>
+            {isModuleMode && boardLayoutMode === 'lista' ? (
+              <div className="border-b border-zinc-100 px-3 pb-2 dark:border-white/[0.07]">
+                <p className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-zinc-400 dark:text-zinc-500">
+                  Ordem da lista
+                </p>
+                <div className="flex flex-col gap-1">
+                  {(
+                    [
+                      {
+                        mode: 'oldest_first' as const,
+                        icon: SortAsc,
+                        title: 'Mais antigo → mais novo',
+                        desc: 'Peças que entraram primeiro no topo',
+                      },
+                      {
+                        mode: 'by_stage' as const,
+                        icon: ListOrdered,
+                        title: 'Por etapas',
+                        desc: 'Garantia primeiro, depois a ordem do fluxo',
+                      },
+                      {
+                        mode: 'newest_first' as const,
+                        icon: SortDesc,
+                        title: 'Mais novo → mais antigo',
+                        desc: 'Peças mais recentes no topo',
+                      },
+                    ] as const
+                  ).map(({ mode, icon: Icon, title, desc }) => (
+                    <button
+                      key={mode}
+                      type="button"
+                      role="menuitem"
+                      className={`flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left transition-colors hover:bg-zinc-100/90 dark:hover:bg-white/[0.08] ${
+                        labListaSortMode === mode
+                          ? 'text-[#007AFF] dark:text-[#64B5FF]'
+                          : 'text-zinc-800 dark:text-zinc-100'
+                      }`}
+                      onClick={() => {
+                        setLabListaSortModePersist(mode);
+                        setIsPatioHeaderToolsOpen(false);
+                      }}
+                    >
+                      <span
+                        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border shadow-sm ${
+                          labListaSortMode === mode
+                            ? 'border-[#007AFF]/45 bg-[#007AFF]/15 dark:border-[#0A84FF]/45 dark:bg-[#0A84FF]/18'
+                            : 'border-zinc-200/80 bg-zinc-50 dark:border-white/[0.1] dark:bg-white/[0.06]'
+                        }`}
+                      >
+                        <Icon className="h-5 w-5 drop-shadow-sm" strokeWidth={2.1} aria-hidden />
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-[14px] font-semibold leading-snug">{title}</span>
+                        <span className="mt-0.5 block text-[11px] font-normal leading-snug text-zinc-500 dark:text-zinc-400">
+                          {desc}
+                        </span>
+                      </span>
+                      {labListaSortMode === mode ? (
+                        <Check className="h-4 w-4 shrink-0 text-[#007AFF] dark:text-[#64B5FF]" strokeWidth={2.5} aria-hidden />
+                      ) : null}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : null}
             {!isModuleMode ? (
               <div className="border-b border-zinc-100 px-3 py-2 dark:border-white/[0.07]">
                 <p className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-zinc-400 dark:text-zinc-500">Buscar placa</p>
@@ -7499,16 +7584,25 @@ export const PatioView: React.FC<PatioViewProps> = ({
             {boardLayoutMode === 'lista' && isModuleMode
               ? (
                   <LabListaBoard
-                    cards={[...sortedCardsList].sort((a, b) => {
-                      const sa =
-                        typeof a.benchSlot === 'number' ? a.benchSlot : Number.POSITIVE_INFINITY;
-                      const sb =
-                        typeof b.benchSlot === 'number' ? b.benchSlot : Number.POSITIVE_INFINITY;
-                      if (sa !== sb) return sa - sb;
-                      return (
-                        new Date(b.dateLastActivity).getTime() -
-                        new Date(a.dateLastActivity).getTime()
-                      );
+                    cards={[...cards].sort((a, b) => {
+                      const cardTime = (c: TrelloCard) => {
+                        const created = c.createdAt ? new Date(c.createdAt).getTime() : NaN;
+                        if (!Number.isNaN(created)) return created;
+                        const act = c.dateLastActivity ? new Date(c.dateLastActivity).getTime() : 0;
+                        return Number.isNaN(act) ? 0 : act;
+                      };
+                      if (labListaSortMode === 'oldest_first') {
+                        const diff = cardTime(a) - cardTime(b);
+                        if (diff !== 0) return diff;
+                        return byStage(a, b);
+                      }
+                      if (labListaSortMode === 'newest_first') {
+                        const diff = cardTime(b) - cardTime(a);
+                        if (diff !== 0) return diff;
+                        return byStage(a, b);
+                      }
+                      // by_stage — Garantia (pos 0) primeiro, depois o fluxo
+                      return byStage(a, b);
                     })}
                     lists={lists}
                     getStatusConfig={getStatusConfig}
