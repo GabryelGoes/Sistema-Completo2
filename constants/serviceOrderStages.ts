@@ -47,18 +47,27 @@ export const SERVICE_ORDER_STAGES: StageConfig[] = [
   { id: "ORCAMENTO_NAO_APROVADO", name: "Orçamento não aprovado", style: "bg-violet-600 text-white border-violet-600", ringClass: "ring-2 ring-violet-600 ring-offset-2 ring-offset-zinc-50 dark:ring-offset-[#0a0a0a]", pos: 10 },
 ];
 
-/** Fluxo do Laboratório — garantia volta como etapa ao marcar a etiqueta. */
+/**
+ * Fluxo do Laboratório — etapas operacionais:
+ * Aguardando avaliação → Em análise → Aguardando aprovação → Reparo aprovado →
+ * Aguardando peças → Em reparo → Finalizado → Pronto pra entrega
+ * (+ Garantia / Sem conserto / Orçamento não aprovado).
+ */
 export const LABORATORY_SERVICE_ORDER_STAGES: StageConfig[] = [
   { id: "GARANTIA", name: "Garantia", style: "bg-red-600 text-white border-red-600", ringClass: "ring-2 ring-red-600 ring-offset-2 ring-offset-zinc-50 dark:ring-offset-[#0a0a0a]", pos: 0 },
   { id: "AGUARDANDO_AVALIACAO", name: "Aguardando avaliação", style: "bg-zinc-500 text-white border-zinc-600", ringClass: "ring-2 ring-zinc-500 ring-offset-2 ring-offset-zinc-50 dark:ring-offset-[#0a0a0a]", pos: 1 },
-  { id: "AVALIACAO_TECNICA", name: "Avaliação técnica", style: "bg-[#F5D00B] text-black border-[#F5D00B]", ringClass: "ring-2 ring-[#F5D00B] ring-offset-2 ring-offset-zinc-50 dark:ring-offset-[#0a0a0a]", pos: 2 },
+  { id: "AVALIACAO_TECNICA", name: "Em análise", style: "bg-[#F5D00B] text-black border-[#F5D00B]", ringClass: "ring-2 ring-[#F5D00B] ring-offset-2 ring-offset-zinc-50 dark:ring-offset-[#0a0a0a]", pos: 2 },
   { id: "AGUARDANDO_APROVACAO", name: "Aguardando aprovação", style: "bg-amber-500 text-amber-950 border-amber-600", ringClass: "ring-2 ring-amber-600 ring-offset-2 ring-offset-zinc-50 dark:ring-offset-[#0a0a0a]", pos: 3 },
-  { id: "ORCAMENTO_APROVADO", name: "Orçamento aprovado", style: "bg-orange-600 text-white border-orange-600", ringClass: "ring-2 ring-orange-600 ring-offset-2 ring-offset-zinc-50 dark:ring-offset-[#0a0a0a]", pos: 4 },
+  { id: "ORCAMENTO_APROVADO", name: "Reparo aprovado", style: "bg-orange-600 text-white border-orange-600", ringClass: "ring-2 ring-orange-600 ring-offset-2 ring-offset-zinc-50 dark:ring-offset-[#0a0a0a]", pos: 4 },
   { id: "AGUARDANDO_PECAS", name: "Aguardando peças", style: "bg-teal-500 text-white border-teal-500", ringClass: "ring-2 ring-teal-500 ring-offset-2 ring-offset-zinc-50 dark:ring-offset-[#0a0a0a]", pos: 5 },
-  { id: "EM_SERVICO", name: "Em serviço", style: "bg-blue-600 text-white border-blue-600", ringClass: "ring-2 ring-blue-600 ring-offset-2 ring-offset-zinc-50 dark:ring-offset-[#0a0a0a]", pos: 6 },
-  { id: "SEM_CONSERTO", name: "Sem conserto", style: "bg-[#9A6434] text-white border-[#9A6434]", ringClass: "ring-2 ring-[#9A6434] ring-offset-2 ring-offset-zinc-50 dark:ring-offset-[#0a0a0a]", pos: 7 },
-  { id: "PRONTO_PRA_RETIRADA", name: "Pronto pra retirada", style: "bg-green-400 text-green-950 border-green-500", ringClass: "ring-2 ring-green-500 ring-offset-2 ring-offset-zinc-50 dark:ring-offset-[#0a0a0a]", pos: 8 },
-  { id: "ORCAMENTO_NAO_APROVADO", name: "Orçamento não aprovado", style: "bg-violet-600 text-white border-violet-600", ringClass: "ring-2 ring-violet-600 ring-offset-2 ring-offset-zinc-50 dark:ring-offset-[#0a0a0a]", pos: 9 },
+  /** Azul igual a “Em serviço” do pátio. */
+  { id: "EM_SERVICO", name: "Em reparo", style: "bg-blue-600 text-white border-blue-600", ringClass: "ring-2 ring-blue-600 ring-offset-2 ring-offset-zinc-50 dark:ring-offset-[#0a0a0a]", pos: 6 },
+  /** Verde escuro igual à “Fase de teste” do pátio. */
+  { id: "FINALIZADO", name: "Finalizado", style: "bg-green-900 text-white border-green-800", ringClass: "ring-2 ring-green-800 ring-offset-2 ring-offset-zinc-50 dark:ring-offset-[#0a0a0a]", pos: 7 },
+  { id: "SEM_CONSERTO", name: "Sem conserto", style: "bg-[#9A6434] text-white border-[#9A6434]", ringClass: "ring-2 ring-[#9A6434] ring-offset-2 ring-offset-zinc-50 dark:ring-offset-[#0a0a0a]", pos: 8 },
+  /** Mantém o verde claro anterior de “Pronto pra retirada”. */
+  { id: "PRONTO_PRA_RETIRADA", name: "Pronto pra entrega", style: "bg-green-400 text-green-950 border-green-500", ringClass: "ring-2 ring-green-500 ring-offset-2 ring-offset-zinc-50 dark:ring-offset-[#0a0a0a]", pos: 9 },
+  { id: "ORCAMENTO_NAO_APROVADO", name: "Orçamento não aprovado", style: "bg-violet-600 text-white border-violet-600", ringClass: "ring-2 ring-violet-600 ring-offset-2 ring-offset-zinc-50 dark:ring-offset-[#0a0a0a]", pos: 10 },
 ];
 
 /**
@@ -79,7 +88,7 @@ export const EXTERNAL_REPAIR_STAGE: StageConfig = {
 /** Etapas permitidas ao alterar etapa de uma OS em Garantia (laboratório). */
 export const LABORATORY_GARANTIA_MOVE_STATUSES: ServiceOrderStatus[] = [
   "AVALIACAO_TECNICA",
-  "EM_SERVICO",
+  "FINALIZADO",
   "AGUARDANDO_PECAS",
   "PRONTO_PRA_RETIRADA",
 ];
@@ -91,14 +100,14 @@ export function isExternalRepairStatus(status: string | null | undefined): boole
   return String(status ?? "").trim() === EXTERNAL_REPAIR_STATUS;
 }
 
-/** Status legados do pátio ainda aceitos no banco — mapeados ao abrir o quadro do laboratório. */
+/** Status legados ainda aceitos no banco — mapeados ao abrir o quadro do laboratório. */
 export const LABORATORY_LEGACY_STATUS_MAP: Partial<Record<string, ServiceOrderStatus>> = {
-  FINALIZADO: "PRONTO_PRA_RETIRADA",
-  FASE_DE_TESTE: "EM_SERVICO",
+  /** “Fase de teste” do lab antigo → Finalizado. */
+  FASE_DE_TESTE: "FINALIZADO",
   /** Etapas removidas do quadro do laboratório. */
   PECAS_DISPONIVEIS: "AGUARDANDO_PECAS",
   ENVIO_CONSERTO: "EM_CONSERTO_EXTERNO",
-  CHEGADA_CONSERTO: "EM_SERVICO",
+  CHEGADA_CONSERTO: "FINALIZADO",
 };
 
 /** Primeira etapa padrão (nova OS na recepção) */
@@ -191,11 +200,10 @@ export function isServiceOrderActivePatioFlow(status: string): boolean {
   return s !== "FINALIZADO" && s !== "ORCAMENTO_NAO_APROVADO";
 }
 
-/** OS ainda em fluxo no Laboratório. */
+/** OS ainda em fluxo no Laboratório (Finalizado permanece no quadro até Pronto pra entrega). */
 export function isServiceOrderActiveLabFlow(status: string): boolean {
   const s = String(status || "").trim();
   if (!s || s === CANCELLED_STATUS) return false;
-  if (s === "FINALIZADO") return false;
   return s !== "PRONTO_PRA_RETIRADA" && s !== "ORCAMENTO_NAO_APROVADO";
 }
 

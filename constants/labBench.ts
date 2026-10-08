@@ -7,7 +7,7 @@
  *
  * Ao mudar de etapa, o produto **não muda de compartimento** — só a cor/etiqueta
  * no sistema. A etapa é lida no card; a posição física permanece até entrega,
- * arquivamento ou etapa que não usa bancada (ex.: Em serviço).
+ * arquivamento ou etapa fora da bancada.
  *
  * Fila (`bench_queued_at`): quando todos os 24 compartimentos estão ocupados.
  */
@@ -34,6 +34,8 @@ export const LAB_BENCH_STATUSES: string[] = [
   "AGUARDANDO_APROVACAO",
   "ORCAMENTO_APROVADO",
   "AGUARDANDO_PECAS",
+  "EM_SERVICO",
+  "FINALIZADO",
   "SEM_CONSERTO",
   "PRONTO_PRA_RETIRADA",
 ];
@@ -47,6 +49,37 @@ export const ALL_BENCH_SLOTS: number[] = Array.from(
   { length: LAB_BENCH_SLOT_COUNT },
   (_, i) => i + 1
 );
+
+/**
+ * Localização Oficina — flag simples (sem letra A–X).
+ * O compartimento numérico 1–24 (`bench_slot`) é o mesmo da bancada do laboratório
+ * e permanece atribuído enquanto a peça estiver na oficina.
+ */
+export const OFICINA_LOCATION_FLAG = '*';
+
+/** @deprecated Letras A–X (legado). Novos registros usam OFICINA_LOCATION_FLAG. */
+export const OFICINA_SHELF_COUNT = 24;
+export const OFICINA_SHELF_LETTERS: string[] = Array.from(
+  { length: OFICINA_SHELF_COUNT },
+  (_, i) => String.fromCharCode(65 + i)
+);
+
+/**
+ * Normaliza flag de oficina: `*` / `OF` / letras legadas A–X → OFICINA_LOCATION_FLAG.
+ */
+export function normalizeOficinaShelf(raw: unknown): string | null {
+  if (raw == null || raw === '') return null;
+  const s = String(raw).trim().toUpperCase();
+  if (!s) return null;
+  if (s === '*' || s === 'OF' || s === 'OFICINA') return OFICINA_LOCATION_FLAG;
+  if (OFICINA_SHELF_LETTERS.includes(s)) return OFICINA_LOCATION_FLAG;
+  return null;
+}
+
+/** Sempre a flag genérica (várias peças podem estar na oficina ao mesmo tempo). */
+export function firstFreeOficinaShelf(_occupiedLetters?: Iterable<string>): string | null {
+  return OFICINA_LOCATION_FLAG;
+}
 
 /** Legenda visual das etapas (cores na UI — não define zona física). */
 export interface LabBenchStageLegend {
@@ -66,20 +99,44 @@ export const LAB_BENCH_STAGE_LEGEND: LabBenchStageLegend[] = [
   {
     id: "AGUARDANDO_AVALIACAO",
     label: "Aguardando avaliação",
-    statuses: ["AGUARDANDO_AVALIACAO", "AVALIACAO_TECNICA"],
+    statuses: ["AGUARDANDO_AVALIACAO"],
     accent: "bg-zinc-500",
+  },
+  {
+    id: "AVALIACAO_TECNICA",
+    label: "Em análise",
+    statuses: ["AVALIACAO_TECNICA"],
+    accent: "bg-[#F5D00B]",
   },
   {
     id: "AGUARDANDO_APROVACAO",
     label: "Aguardando aprovação",
-    statuses: ["AGUARDANDO_APROVACAO", "ORCAMENTO_APROVADO"],
+    statuses: ["AGUARDANDO_APROVACAO"],
     accent: "bg-amber-500",
+  },
+  {
+    id: "ORCAMENTO_APROVADO",
+    label: "Reparo aprovado",
+    statuses: ["ORCAMENTO_APROVADO"],
+    accent: "bg-orange-600",
   },
   {
     id: "AGUARDANDO_PECAS",
     label: "Aguardando peças",
     statuses: ["AGUARDANDO_PECAS"],
     accent: "bg-teal-500",
+  },
+  {
+    id: "EM_SERVICO",
+    label: "Em reparo",
+    statuses: ["EM_SERVICO"],
+    accent: "bg-blue-600",
+  },
+  {
+    id: "FINALIZADO",
+    label: "Finalizado",
+    statuses: ["FINALIZADO"],
+    accent: "bg-green-900",
   },
   {
     id: "SEM_CONSERTO",
@@ -89,9 +146,9 @@ export const LAB_BENCH_STAGE_LEGEND: LabBenchStageLegend[] = [
   },
   {
     id: "PRONTO_PRA_RETIRADA",
-    label: "Pronto pra retirada",
+    label: "Pronto pra entrega",
     statuses: ["PRONTO_PRA_RETIRADA"],
-    accent: "bg-green-500",
+    accent: "bg-green-400",
   },
 ];
 
@@ -106,7 +163,12 @@ export const LAB_BENCH_INTAKE_GROUP = LAB_BENCH_GROUPS[0];
 
 export function statusUsesBench(status: string | null | undefined): boolean {
   const s = String(status ?? "").trim();
-  return LAB_BENCH_STATUSES.includes(s);
+  return (LAB_BENCH_STATUSES as string[]).includes(s);
+}
+
+/** Mesmos status da bancada do depósito usam vaga na oficina (letra A–X). */
+export function statusUsesOficinaShelf(status: string | null | undefined): boolean {
+  return statusUsesBench(status);
 }
 
 /** Primeiro compartimento livre entre 1..24. */

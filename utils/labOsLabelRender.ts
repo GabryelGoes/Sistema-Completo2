@@ -1,5 +1,15 @@
 import QRCode from 'qrcode';
 import { buildLabOsQrPayload } from './labOsQrCode';
+import {
+  cssFontForElement,
+  loadLabelTemplate,
+  type LabelElementDef,
+  type LabelTemplateLayout,
+} from './labelTemplates';
+import {
+  formatLabLocationLabelBanner,
+  resolveLabLocation,
+} from './labLocation';
 import { NIIMBOT_LABEL_H_PX, NIIMBOT_LABEL_W_PX } from './niimbotLabelRender';
 
 export type LabOsLabelInput = {
@@ -8,19 +18,13 @@ export type LabOsLabelInput = {
   vehicleName: string;
   /** Queixa do cliente (várias linhas). */
   complaint: string;
-  /** Compartimento da bancada do laboratório (1–24). */
+  /** Compartimento do depósito/bancada (1–24). */
   benchSlot?: number | null;
+  /** Flag de localização Oficina (sem letra). */
+  oficinaShelf?: string | null;
+  /** Na fila do depósito. */
+  benchQueuedAt?: string | null;
 };
-
-/** +30% sobre as fontes anteriores (QR permanece 168 px). */
-const FONT_SLOT_LABEL = Math.round(11 * 1.3); // 14
-const FONT_SLOT_NUM = Math.round(28 * 1.3); // 36 — vaga bem evidente
-const FONT_LABEL = Math.round(12 * 1.3); // 16
-const FONT_VALUE = Math.round(15 * 1.3); // 20
-const FONT_COMPLAINT = Math.round(13 * 1.3); // 17
-const LINE_SLOT = Math.round(34 * 1.3); // 44
-const LINE_VALUE = Math.round(22 * 1.3); // 29
-const LINE_COMPLAINT = Math.round(17 * 1.3); // 22
 
 /** Quebra texto em linhas que cabem em maxWidth (até maxLines). */
 function wrapTextLines(
@@ -71,31 +75,63 @@ function wrapTextLines(
   return lines.length ? lines : ['—'];
 }
 
-/**
- * Desenha "Rótulo: valor" — valor pode continuar em linhas abaixo (largura total).
- * Retorna o y seguinte.
- */
-function drawLabeledBlock(
+function drawBanner(
   ctx: CanvasRenderingContext2D,
-  label: string,
-  value: string,
-  x: number,
-  y: number,
-  maxWidth: number,
-  labelFont: string,
-  valueFont: string,
-  lineHeight: number,
-  maxLines: number
-): number {
+  elDef: LabelElementDef,
+  value: string
+): void {
+  if (!elDef.visible) return;
+  const { x, y, w, h } = elDef;
+  ctx.fillStyle = '#000000';
+  ctx.fillRect(x, y, w, h);
+
+  ctx.fillStyle = '#ffffff';
+  ctx.textBaseline = 'middle';
+  const midY = y + h / 2;
+  const padX = 6;
+
+  const tag = (elDef.labelText || '').trim();
+  ctx.font = cssFontForElement(elDef, elDef.fontSize);
+  if (tag) ctx.fillText(tag, x + padX, midY);
+
+  const tagW = tag ? ctx.measureText(tag).width : 0;
+  ctx.font = cssFontForElement(elDef, elDef.valueFontSize || elDef.fontSize);
+  const numText = value.trim() || '—';
+  ctx.fillText(numText, x + padX + (tag ? tagW + 8 : 0), midY);
+
+  ctx.fillStyle = '#000000';
+  ctx.textBaseline = 'top';
+}
+
+function drawLabeledField(
+  ctx: CanvasRenderingContext2D,
+  elDef: LabelElementDef,
+  value: string
+): void {
+  if (!elDef.visible) return;
+  const { x, y, w } = elDef;
+  const labelFont = cssFontForElement(elDef, elDef.fontSize);
+  const valueFont = cssFontForElement(
+    { ...elDef, fontWeight: elDef.fontWeight },
+    elDef.valueFontSize || elDef.fontSize
+  );
+  const lineHeight = Math.max(
+    (elDef.valueFontSize || elDef.fontSize) * 1.15,
+    elDef.fontSize * 1.15
+  );
+
   ctx.font = labelFont;
-  const labelText = label.endsWith(' ') ? label : `${label} `;
-  const labelW = ctx.measureText(labelText).width;
+  const labelText = elDef.labelText
+    ? elDef.labelText.endsWith(' ')
+      ? elDef.labelText
+      : `${elDef.labelText} `
+    : '';
+  const labelW = labelText ? ctx.measureText(labelText).width : 0;
 
   ctx.font = valueFont;
-  const firstMax = Math.max(20, maxWidth - labelW);
+  const firstMax = Math.max(20, w - labelW);
   const valueNorm = (value || '').trim().replace(/\s+/g, ' ') || '—';
 
-  // Primeira linha: rótulo + início do valor
   const words = valueNorm.split(' ');
   let first = '';
   let wordIdx = 0;
@@ -108,73 +144,44 @@ function drawLabeledBlock(
     let t = words[0];
     while (t.length > 1 && ctx.measureText(`${t}…`).width > firstMax) t = t.slice(0, -1);
     first = `${t}…`;
-    wordIdx = words.length; // resto descartado se só 1 linha
+    wordIdx = words.length;
   }
 
-  ctx.font = labelFont;
-  ctx.fillText(labelText, x, y);
+  ctx.textBaseline = 'top';
+  ctx.fillStyle = '#000000';
+  if (labelText) {
+    ctx.font = labelFont;
+    ctx.fillText(labelText, x, y);
+  }
   ctx.font = valueFont;
   ctx.fillText(first || '—', x + labelW, y);
 
-  let used = 1;
   let cy = y + lineHeight;
   const rest = words.slice(wordIdx).join(' ').trim();
-  if (rest && maxLines > 1) {
-    const more = wrapTextLines(ctx, rest, maxWidth, maxLines - 1);
+  if (rest && elDef.maxLines > 1) {
+    const more = wrapTextLines(ctx, rest, w, elDef.maxLines - 1);
     for (const line of more) {
       ctx.fillText(line, x, cy);
       cy += lineHeight;
-      used += 1;
     }
   }
-
-  return y + used * lineHeight;
 }
 
-/**
- * Bloco destacado da vaga: faixa preta com "VAGA" + número grande em branco
- * (máximo contraste na impressão térmica).
- */
-function drawBenchSlotBanner(
-  ctx: CanvasRenderingContext2D,
-  slot: number | null | undefined,
-  x: number,
-  y: number,
-  maxWidth: number
-): number {
-  const slotLabelFont = `bold ${FONT_SLOT_LABEL}px Arial, Helvetica, sans-serif`;
-  const slotNumFont = `bold ${FONT_SLOT_NUM}px Arial, Helvetica, sans-serif`;
-  const padX = 6;
-  const padY = 3;
-  const bannerH = LINE_SLOT;
-  const hasSlot = typeof slot === 'number' && Number.isFinite(slot);
-
-  ctx.fillStyle = '#000000';
-  ctx.fillRect(x, y, maxWidth, bannerH);
-
-  ctx.fillStyle = '#ffffff';
-  ctx.textBaseline = 'middle';
-  const midY = y + bannerH / 2;
-
-  ctx.font = slotLabelFont;
-  const tag = 'VAGA';
-  ctx.fillText(tag, x + padX, midY);
-
-  const tagW = ctx.measureText(tag).width;
-  ctx.font = slotNumFont;
-  const numText = hasSlot ? String(Math.trunc(slot)) : '—';
-  ctx.fillText(numText, x + padX + tagW + 8, midY);
-
-  ctx.fillStyle = '#000000';
-  ctx.textBaseline = 'top';
-  return y + bannerH + padY;
+function findEl(layout: LabelTemplateLayout, id: string): LabelElementDef | undefined {
+  return layout.elements.find((e) => e.id === id);
 }
 
-/** Renderiza etiqueta 50×30 mm (384×240): QR à esquerda + textos à direita. */
-export async function renderLabOsLabelDataUrl(input: LabOsLabelInput): Promise<string> {
+/** Renderiza etiqueta 50×30 mm (384×240) com layout editável. */
+export async function renderLabOsLabelDataUrl(
+  input: LabOsLabelInput,
+  layoutInput?: LabelTemplateLayout | null
+): Promise<string> {
+  const layout = layoutInput
+    ? layoutInput
+    : loadLabelTemplate('lab_os');
   const payload = buildLabOsQrPayload(input.serviceOrderId);
-  const w = NIIMBOT_LABEL_W_PX;
-  const h = NIIMBOT_LABEL_H_PX;
+  const w = layout.canvasW || NIIMBOT_LABEL_W_PX;
+  const h = layout.canvasH || NIIMBOT_LABEL_H_PX;
   const canvas = document.createElement('canvas');
   canvas.width = w;
   canvas.height = h;
@@ -186,68 +193,50 @@ export async function renderLabOsLabelDataUrl(input: LabOsLabelInput): Promise<s
   ctx.fillStyle = '#000000';
   ctx.textBaseline = 'top';
 
-  const qrSize = 168; // tamanho do QR inalterado
-  const qrX = 6;
-  const qrY = Math.floor((h - qrSize) / 2);
-  const textX = qrX + qrSize + 8;
-  const textMax = w - textX - 8;
+  const qrEl = findEl(layout, 'qr');
+  if (qrEl?.visible) {
+    const qrSize = Math.min(qrEl.w, qrEl.h);
+    const qrDataUrl = await QRCode.toDataURL(payload, {
+      errorCorrectionLevel: 'M',
+      margin: 0,
+      width: qrSize,
+      color: { dark: '#000000', light: '#ffffff' },
+    });
+    const qrImg = await loadImage(qrDataUrl);
+    ctx.drawImage(qrImg, qrEl.x, qrEl.y, qrSize, qrSize);
+  }
 
-  const qrDataUrl = await QRCode.toDataURL(payload, {
-    errorCorrectionLevel: 'M',
-    margin: 0,
-    width: qrSize,
-    color: { dark: '#000000', light: '#ffffff' },
+  // Etiqueta: só o número da vaga no laboratório (sem letra da oficina).
+  const loc = resolveLabLocation({
+    oficinaShelf: input.oficinaShelf,
+    benchSlot: input.benchSlot,
+    benchQueuedAt: input.benchQueuedAt,
   });
-  const qrImg = await loadImage(qrDataUrl);
-  ctx.drawImage(qrImg, qrX, qrY, qrSize, qrSize);
+  const banner = formatLabLocationLabelBanner(loc);
+  const locationEl =
+    findEl(layout, 'location') ??
+    findEl(layout, 'deposito') ??
+    findEl(layout, 'oficina');
+  if (locationEl?.visible) {
+    drawBanner(ctx, { ...locationEl, labelText: banner.tag || '' }, banner.value);
+  }
+  // Elementos legados: ocultos se já desenhamos o local ativo
+  for (const legacyId of ['oficina', 'deposito'] as const) {
+    if (locationEl?.id === legacyId) continue;
+    const legacy = findEl(layout, legacyId);
+    if (legacy && legacy.id !== locationEl?.id) {
+      // não desenha o outro endereço — um só ativo
+    }
+  }
 
-  const labelFont = `bold ${FONT_LABEL}px Arial, Helvetica, sans-serif`;
-  const valueFont = `bold ${FONT_VALUE}px Arial, Helvetica, sans-serif`;
-  const complaintFont = `${FONT_COMPLAINT}px Arial, Helvetica, sans-serif`;
+  const customerEl = findEl(layout, 'customer');
+  if (customerEl) drawLabeledField(ctx, customerEl, input.customerName || '—');
 
-  let y = 4;
+  const vehicleEl = findEl(layout, 'vehicle');
+  if (vehicleEl) drawLabeledField(ctx, vehicleEl, input.vehicleName || '—');
 
-  y = drawBenchSlotBanner(ctx, input.benchSlot, textX, y, textMax);
-
-  y = drawLabeledBlock(
-    ctx,
-    'Cliente:',
-    input.customerName || '—',
-    textX,
-    y,
-    textMax,
-    labelFont,
-    valueFont,
-    LINE_VALUE,
-    2
-  );
-
-  y = drawLabeledBlock(
-    ctx,
-    'Veículo:',
-    input.vehicleName || '—',
-    textX,
-    y,
-    textMax,
-    labelFont,
-    valueFont,
-    LINE_VALUE,
-    2
-  );
-
-  // Queixa: rótulo na primeira linha; texto completo em várias linhas abaixo
-  y = drawLabeledBlock(
-    ctx,
-    'Queixa:',
-    input.complaint || '—',
-    textX,
-    y,
-    textMax,
-    labelFont,
-    complaintFont,
-    LINE_COMPLAINT,
-    Math.max(1, Math.floor((h - 4 - y) / LINE_COMPLAINT))
-  );
+  const complaintEl = findEl(layout, 'complaint');
+  if (complaintEl) drawLabeledField(ctx, complaintEl, input.complaint || '—');
 
   return canvas.toDataURL('image/png');
 }

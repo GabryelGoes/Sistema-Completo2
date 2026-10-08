@@ -10,9 +10,14 @@ export interface LabBenchSlotEditorProps {
   status: string;
   currentSlot: number | null;
   occupiedSlots: Iterable<number>;
+  /** @deprecated Letras da oficina removidas — localização via leitor QR / coluna. */
+  currentOficinaShelf?: string | null;
+  occupiedOficinaShelves?: Iterable<string>;
   disabled?: boolean;
   saving?: boolean;
   onSave: (slot: number | null) => void | Promise<void>;
+  /** @deprecated Sem editor de letras. */
+  onSaveOficinaShelf?: (letter: string | null) => void | Promise<void>;
   className?: string;
 }
 
@@ -36,7 +41,8 @@ export function LabBenchSlotEditor({
   if (!onBench) {
     return (
       <p className={`text-xs text-zinc-500 dark:text-zinc-400 ${className}`}>
-        O estágio &quot;{stage?.name ?? status}&quot; não usa compartimento na bancada (produto com o técnico ou fora do fluxo).
+        O estágio &quot;{stage?.name ?? status}&quot; não usa compartimento na bancada (produto com o
+        técnico ou fora do fluxo).
       </p>
     );
   }
@@ -45,7 +51,7 @@ export function LabBenchSlotEditor({
     <div className={`space-y-2 ${className}`}>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
-          Compartimento na bancada (vaga fixa 1–24)
+          Laboratório — vaga (1–24)
         </p>
         {suggested != null && currentSlot !== suggested ? (
           <button
@@ -60,11 +66,11 @@ export function LabBenchSlotEditor({
       </div>
       {currentSlot != null ? (
         <p className="text-[11px] text-amber-800 dark:text-amber-200">
-          Atual: compartimento <strong>{currentSlot}</strong> — permanece ao mudar de etapa.
+          Atual: vaga <strong>{currentSlot}</strong> — permanece ao mudar de etapa.
         </p>
       ) : (
         <p className="text-[11px] text-amber-800 dark:text-amber-200">
-          Este produto ainda não está posicionado na bancada física.
+          Sem vaga no laboratório. Use o leitor QR (Laboratório) ou a coluna Localização.
         </p>
       )}
       <div className="grid grid-cols-6 gap-1.5">
@@ -88,7 +94,7 @@ export function LabBenchSlotEditor({
                       ? 'border-emerald-400 bg-emerald-50 text-emerald-900 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-200'
                       : 'border-zinc-200 bg-white text-zinc-800 hover:border-amber-400 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200',
               ].join(' ')}
-              title={taken ? 'Ocupado por outro produto' : `Compartimento ${slot}`}
+              title={taken ? 'Ocupado por outro produto' : `Vaga ${slot}`}
             >
               {slot}
             </button>
@@ -107,7 +113,7 @@ export function LabBenchSlotEditor({
           </button>
         ) : null}
         <p className="self-center text-[10px] text-zinc-500">
-          A vaga não muda quando a etapa muda — só a cor do card.
+          Entrada → Oficina. Leitor QR: Laboratório (vaga 1–24 ou fila) · Oficina (volta sem letra).
         </p>
       </div>
     </div>

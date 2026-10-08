@@ -265,9 +265,9 @@ export function PatioKeyLabelPrintModal({ open, label, onClose }: PatioKeyLabelP
 
             {/* Só os ajustes rolam */}
             <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-5 py-4 custom-scrollbar sm:px-6">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-2">
                 <p className="text-[11px] font-bold uppercase tracking-wide text-zinc-500">
-                  Editor da etiqueta
+                  Ajustes rápidos
                 </p>
                 <button
                   type="button"
@@ -279,6 +279,9 @@ export function PatioKeyLabelPrintModal({ open, label, onClose }: PatioKeyLabelP
                   Resetar padrão
                 </button>
               </div>
+              <p className="rounded-xl bg-sky-50 px-3 py-2 text-[12px] text-sky-900 dark:bg-sky-950/40 dark:text-sky-100">
+                Editor completo (todas as etiquetas): Configurações → Editor de etiquetas.
+              </p>
 
               <div className="space-y-3 rounded-2xl border-0 bg-zinc-50 p-3.5 dark:bg-white/[0.03] sm:p-4">
                 <label className="block space-y-1.5">

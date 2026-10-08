@@ -4,6 +4,7 @@ import {
   Check,
   ChevronRight,
   Loader2,
+  MapPin,
   Tag,
   Truck,
   User,
@@ -23,6 +24,7 @@ import {
   isExternalRepairStatus,
   type ServiceOrderStatus,
 } from '../constants/serviceOrderStages';
+import { formatLabLocationShort, resolveLabLocation } from '../utils/labLocation';
 import { LabOsLabelPrintModal } from './LabOsLabelPrintModal';
 import type { LabOsLabelInput } from '../utils/labOsLabelRender';
 import { ModalPortal } from './ui/ModalPortal';
@@ -153,14 +155,29 @@ export function LabOsScanQuickModal({
   const stageStyle = getStageStyle(statusId, 'module') || stageCfg?.style || 'bg-zinc-500 text-white';
   const stageLabel = stageCfg?.name ?? (statusId || 'Etapa');
 
+  const location = resolveLabLocation({
+    oficina_shelf: detail?.oficina_shelf,
+    bench_slot: detail?.bench_slot,
+    bench_queued_at: detail?.bench_queued_at,
+  });
+  const locationLabel = formatLabLocationShort(location);
+
   const handleChangeStage = useCallback(
     async (next: ServiceOrderStatus) => {
       if (!detail || !serviceOrderId || next === detail.status || savingStage) return;
       setSavingStage(true);
       setError(null);
       try {
-        await updateServiceOrderStatus(serviceOrderId, next, actorOptions);
-        setDetail((prev) => (prev ? { ...prev, status: next } : prev));
+        const updated = await updateServiceOrderStatus(serviceOrderId, next, actorOptions);
+        setDetail((prev) =>
+          prev
+            ? {
+                ...prev,
+                ...updated,
+                status: updated.status ?? next,
+              }
+            : prev
+        );
         setStageModalOpen(false);
       } catch (err: unknown) {
         setError(err instanceof Error ? err.message : 'Falha ao alterar a etapa.');
@@ -179,6 +196,9 @@ export function LabOsScanQuickModal({
       vehicleName,
       complaint: stripLegacyComplaint(detail.issue_description) || '—',
       benchSlot: typeof detail.bench_slot === 'number' ? detail.bench_slot : null,
+      oficinaShelf:
+        typeof detail.oficina_shelf === 'string' ? detail.oficina_shelf : null,
+      benchQueuedAt: detail.bench_queued_at ?? null,
     });
   }, [customerName, detail, serviceOrderId, vehicleName]);
 
@@ -284,6 +304,28 @@ export function LabOsScanQuickModal({
                       </div>
                       <p className="mt-1 text-[15px] font-semibold leading-snug text-zinc-900 dark:text-white">
                         {customerName}
+                      </p>
+                    </div>
+
+                    <div
+                      className={`rounded-2xl px-3.5 py-3 ${
+                        location.kind === 'oficina'
+                          ? 'bg-violet-50 dark:bg-violet-950/35'
+                          : location.kind === 'deposito' || location.kind === 'fila'
+                            ? 'bg-amber-50 dark:bg-amber-950/35'
+                            : 'bg-zinc-100/90 dark:bg-white/[0.05]'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.1em] text-zinc-500 dark:text-zinc-400">
+                        <MapPin className="h-3.5 w-3.5" strokeWidth={2.25} aria-hidden />
+                        Local atual
+                      </div>
+                      <p className="mt-1 text-[20px] font-bold leading-none text-zinc-900 dark:text-white">
+                        {locationLabel}
+                      </p>
+                      <p className="mt-1.5 text-[11px] leading-snug text-zinc-500 dark:text-zinc-400">
+                        Para mover: no topo do Laboratório use Saída → Depósito ou Retorno → Oficina e
+                        bipa a peça.
                       </p>
                     </div>
 

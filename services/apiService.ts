@@ -77,6 +77,8 @@ interface ApiServiceOrder {
   bench_slot?: number | null;
   bench_slot_at?: string | null;
   bench_queued_at?: string | null;
+  /** Letra A–Z na oficina (independente do depósito/bancada). */
+  oficina_shelf?: string | null;
   external_repair?: ExternalRepair | null;
   diagnostic_authorization_signed_at?: string | null;
   diagnostic_authorization_signature_path?: string | null;
@@ -125,6 +127,8 @@ export interface ServiceOrderListItem {
   bench_slot?: number | null;
   bench_slot_at?: string | null;
   bench_queued_at?: string | null;
+  /** Letra A–Z na oficina (independente do depósito/bancada). */
+  oficina_shelf?: string | null;
   /** Dados do conserto em terceiros. */
   external_repair?: ExternalRepair | null;
   /** Avaliação técnica do laboratório — serviço decidido pelo técnico. */
@@ -172,6 +176,8 @@ export interface ServiceOrderDetail {
   bench_slot?: number | null;
   bench_slot_at?: string | null;
   bench_queued_at?: string | null;
+  /** Letra A–Z na oficina (independente do depósito/bancada). */
+  oficina_shelf?: string | null;
   /** Dados do conserto em terceiros. */
   external_repair?: ExternalRepair | null;
   /** Avaliação técnica do laboratório — serviço decidido pelo técnico. */
@@ -1165,6 +1171,126 @@ export async function updateServiceOrderBenchSlot(
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
     throw new Error(err.error || `Falha ao atualizar compartimento (${response.status})`);
+  }
+  return response.json();
+}
+
+/** Define (A–X) ou limpa (null) a letra da oficina (bancada 24 vagas). */
+export async function updateServiceOrderOficinaShelf(
+  id: string,
+  letter: string | null
+): Promise<ApiServiceOrder> {
+  const response = await fetch(`${API_BASE}/service-orders/${id}/oficina-shelf`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ oficinaShelf: letter }),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao atualizar letra da oficina (${response.status})`);
+  }
+  return response.json();
+}
+
+export type LabLocationMoveResult = ApiServiceOrder & {
+  move?: {
+    direction: "saida" | "retorno";
+    feedback: string;
+    toKind: string;
+    toValue: string | null;
+    fromKind: string;
+    fromValue: string | null;
+  };
+  already?: boolean;
+  code?: string;
+  location?: { kind: string; value: string | null };
+};
+
+export type LabLocationMoveActor = {
+  actorName?: string | null;
+  actorUserId?: string | null;
+  force?: boolean;
+  letter?: string | null;
+};
+
+/** Saída → Laboratório (limpa flag oficina; mantém/atribui vaga 1–24 ou fila). */
+export async function registerOficinaSaida(
+  id: string,
+  opts?: LabLocationMoveActor
+): Promise<LabLocationMoveResult> {
+  const response = await fetch(`${API_BASE}/service-orders/${id}/oficina-saida`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      actorName: opts?.actorName ?? null,
+      actorUserId: opts?.actorUserId ?? null,
+      force: opts?.force === true,
+    }),
+  });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const err = new Error(body.error || `Falha ao registrar saída (${response.status})`) as Error & {
+      code?: string;
+      already?: boolean;
+      location?: { kind: string; value: string | null };
+    };
+    err.code = body.code;
+    err.already = body.already;
+    err.location = body.location;
+    throw err;
+  }
+  return body;
+}
+
+/** Retorno → Oficina (flag oficina; mantém o mesmo compartimento 1–24). */
+export async function registerOficinaRetorno(
+  id: string,
+  opts?: LabLocationMoveActor
+): Promise<LabLocationMoveResult> {
+  const response = await fetch(`${API_BASE}/service-orders/${id}/oficina-retorno`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      actorName: opts?.actorName ?? null,
+      actorUserId: opts?.actorUserId ?? null,
+      force: opts?.force === true,
+      letter: opts?.letter ?? null,
+    }),
+  });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const err = new Error(body.error || `Falha ao registrar retorno (${response.status})`) as Error & {
+      code?: string;
+      already?: boolean;
+      location?: { kind: string; value: string | null };
+    };
+    err.code = body.code;
+    err.already = body.already;
+    err.location = body.location;
+    throw err;
+  }
+  return body;
+}
+
+export type ServiceOrderLocationMove = {
+  id: string;
+  direction: "saida" | "retorno";
+  from_kind: string;
+  from_value: string | null;
+  to_kind: string;
+  to_value: string | null;
+  actor_name: string | null;
+  actor_user_id: string | null;
+  created_at: string;
+};
+
+export async function getServiceOrderLocationMoves(
+  id: string
+): Promise<ServiceOrderLocationMove[]> {
+  const response = await fetch(`${API_BASE}/service-orders/${id}/location-moves`);
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao carregar histórico (${response.status})`);
   }
   return response.json();
 }
@@ -3844,6 +3970,31 @@ export async function uploadWorkshopAdminPhoto(file: Blob, fileName?: string): P
   return response.json();
 }
 
+/** Envia foto ilustrativa de um tipo de peça do laboratório. */
+export async function uploadLabProductKindPhoto(
+  kindId: string,
+  file: Blob,
+  fileName?: string
+): Promise<{
+  photoUrl: string;
+  labProductKinds: { id: string; label: string; photoUrl?: string | null }[];
+}> {
+  const formData = new FormData();
+  formData.append("file", file, fileName ?? "photo.jpg");
+  const response = await fetch(
+    `${API_BASE}/lab-product-kinds/${encodeURIComponent(kindId)}/photo`,
+    {
+      method: "POST",
+      body: formData,
+    }
+  );
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao enviar foto do tipo (${response.status})`);
+  }
+  return response.json();
+}
+
 // ---------- Autenticação ----------
 
 /** Permissões de um usuário do sistema (não-admin). */
@@ -4196,8 +4347,8 @@ export interface WorkshopSettings {
   stockGuardPasswordConfigured?: boolean;
   /** Configuração visual da oficina (cor de destaque, wallpapers); null se nunca salvo. */
   appAppearance?: WorkshopAppAppearance | null;
-  /** Tipos de produto do laboratório configuráveis (id + rótulo). */
-  labProductKinds?: { id: string; label: string }[];
+  /** Tipos de produto do laboratório configuráveis (id + rótulo + foto opcional). */
+  labProductKinds?: { id: string; label: string; photoUrl?: string | null }[];
   /** Serviços rápidos da avaliação técnica (módulos ABS). */
   labQuickServices?: {
     id: string;
@@ -4226,7 +4377,7 @@ export async function updateWorkshopSettings(
     vehicleDeletePassword?: string;
     stockGuardPassword?: string;
     appAppearance?: WorkshopAppAppearance | null;
-    labProductKinds?: { id: string; label: string }[];
+    labProductKinds?: { id: string; label: string; photoUrl?: string | null }[];
     labQuickServices?: {
       id: string;
       label: string;

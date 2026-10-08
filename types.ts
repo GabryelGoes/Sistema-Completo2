@@ -167,6 +167,14 @@ export interface BoardCard {
   benchSlotAt?: string | null;
   /** Na fila para compartimento 1..4 (aguardando avaliação). */
   benchQueuedAt?: string | null;
+  /** Letra A–Z na oficina (independente do depósito/bancada). */
+  oficinaShelf?: string | null;
+  /** Tipo de produto do laboratório (slug configurável). */
+  moduleKind?: string | null;
+  /** Identificação / marca-modelo da peça no laboratório. */
+  moduleIdentification?: string | null;
+  /** Quando moduleKind=outro: descrição livre. */
+  moduleProductOther?: string | null;
   /** Dados do conserto em terceiros (laboratório). */
   externalRepair?: ExternalRepair | null;
 }

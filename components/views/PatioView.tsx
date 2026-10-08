@@ -2,7 +2,7 @@ import React, { useEffect, useLayoutEffect, useState, useRef, useCallback, useMe
 import { createPortal } from 'react-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkBreaks from 'remark-breaks';
-import { RefreshCw, AlertCircle, ChevronDown, ChevronRight, ChevronLeft, User, X, Check, CheckCircle2, Circle, Plus, FileText, Calendar, Clock, Paperclip, ExternalLink, Trash2, DollarSign, Hash, Minus, Pencil, Save, Eye, History, Search, Copy, ArrowRight, Camera, Image as ImageIcon, FolderOpen, Upload, FilePlus, ArchiveRestore, Printer, Smartphone, Mail, MapPin, Share2, Sparkles, Loader2, Tag, Link2, Wrench, Gauge, MoreHorizontal, LayoutGrid, Columns3, Users, SortDesc, ListOrdered, Truck, RotateCw, RotateCcw, ClipboardList } from 'lucide-react';
+import { RefreshCw, AlertCircle, ChevronDown, ChevronRight, ChevronLeft, User, X, Check, CheckCircle2, Circle, Plus, FileText, Calendar, Clock, Paperclip, ExternalLink, Trash2, DollarSign, Hash, Minus, Pencil, Save, Eye, History, Search, Copy, ArrowRight, Camera, Image as ImageIcon, FolderOpen, Upload, FilePlus, ArchiveRestore, Printer, Smartphone, Mail, MapPin, Share2, Sparkles, Loader2, Tag, Link2, Wrench, Gauge, MoreHorizontal, LayoutGrid, Columns3, Users, SortDesc, SortAsc, ListOrdered, List, Truck, RotateCw, RotateCcw, ClipboardList } from 'lucide-react';
 import { PdfViewerModal } from '../PdfViewerModal';
 import { MechanicIcon } from '../ui/MechanicIcon';
 import { ReminderIcon } from '../ui/ReminderIcon';
@@ -22,7 +22,12 @@ import {
   updateServiceOrderReferenceLinks,
   updateServiceOrderLabServiceLinks,
   updateServiceOrderBenchSlot,
+  updateServiceOrderOficinaShelf,
+  registerOficinaSaida,
+  registerOficinaRetorno,
   updateServiceOrderExternalRepair,
+  getServiceOrderLocationMoves,
+  type ServiceOrderLocationMove,
   getServiceOrderPhotos,
   uploadServiceOrderPhoto,
   renameServiceOrderPhoto,
@@ -211,6 +216,7 @@ import {
 import { BoardCardZoomMenuSection } from '../ui/BoardCardZoomMenuSection';
 import { LAB_BENCH_SLOT_COUNT, statusUsesBench } from '../../constants/labBench';
 import LabBenchPanel from '../lab/LabBenchPanel';
+import { LabListaBoard, type LabListaUiLocation } from '../lab/LabListaBoard';
 import { LabBenchQueueModal } from '../lab/LabBenchQueueModal';
 import { LabExternalRepairModal } from '../lab/LabExternalRepairModal';
 import { PatioOsModalPcTabBar, type PatioOsModalPcTab } from '../patio/PatioOsModalPcTabBar';
@@ -242,6 +248,8 @@ import {
   budgetReadModalShellClass,
 } from '../budget/budgetReadModalTheme';
 import { LabBenchSlotEditor } from '../lab/LabBenchSlotEditor';
+import { LabScanModeBar } from '../lab/LabScanModeBar';
+import { formatLabLocationShort, resolveLabLocation } from '../../utils/labLocation';
 import type { ExternalRepair } from '../../constants/labBench';
 import { MercosulPlateMockup } from '../ui/MercosulPlateMockup';
 import { PatioPhotoAlbums } from '../patio/PatioPhotoAlbums';
@@ -428,6 +436,9 @@ interface PatioViewProps {
   onVehicleModalOsLabelChange?: (label: string | null) => void;
   /** Fecha a página e volta ao Início (botão X no cabeçalho mobile/tablet). */
   onClosePage?: () => void;
+  /** Modo da pistola no Laboratório (Consultar / Saída / Retorno). */
+  labScanMode?: import('../../utils/labScanMode').LabScanMode;
+  onLabScanModeChange?: (mode: import('../../utils/labScanMode').LabScanMode) => void;
 }
 
 function boardListsFromStages(stages: ReturnType<typeof getServiceOrderStages>): BoardList[] {
@@ -511,6 +522,7 @@ function serviceOrderDetailToListItem(detail: ServiceOrderDetail): ServiceOrderL
     bench_slot: (detail as ServiceOrderDetail & { bench_slot?: number | null }).bench_slot ?? null,
     bench_slot_at: (detail as ServiceOrderDetail & { bench_slot_at?: string | null }).bench_slot_at ?? null,
     bench_queued_at: (detail as ServiceOrderDetail & { bench_queued_at?: string | null }).bench_queued_at ?? null,
+    oficina_shelf: (detail as ServiceOrderDetail & { oficina_shelf?: string | null }).oficina_shelf ?? null,
     external_repair: (detail as ServiceOrderDetail & { external_repair?: unknown }).external_repair as never ?? null,
     lab_evaluated_service: detail.lab_evaluated_service ?? null,
     lab_evaluated_at: detail.lab_evaluated_at ?? null,
@@ -561,6 +573,10 @@ function orderToCard(o: ServiceOrderListItem, technicianNameMap?: Record<string,
     benchSlot: o.bench_slot ?? null,
     benchSlotAt: o.bench_slot_at ?? null,
     benchQueuedAt: o.bench_queued_at ?? null,
+    oficinaShelf: o.oficina_shelf ?? null,
+    moduleKind: o.module_kind ?? null,
+    moduleIdentification: o.module_identification ?? null,
+    moduleProductOther: o.module_product_other ?? null,
     externalRepair: o.external_repair ?? null,
   };
 }
@@ -1226,6 +1242,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
   onActiveCardsCountChange,
   onVehicleModalOsLabelChange,
   onClosePage,
+  labScanMode = 'consultar',
+  onLabScanModeChange,
 }) => {
   /** Admin: sem patioPermissions = tudo permitido. Usuário do sistema: só o que for explicitamente true. */
   const can = (key: keyof NonNullable<PatioViewProps['patioPermissions']>) =>
@@ -1288,6 +1306,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
   /** Aba ativa no modal da OS (somente layout PC). */
   const [pcOsModalTab, setPcOsModalTab] = useState<PatioOsModalPcTab>('dados');
   const [benchSlotSaving, setBenchSlotSaving] = useState(false);
+  const [locationMoves, setLocationMoves] = useState<ServiceOrderLocationMove[]>([]);
   const [labServiceLinksDraft, setLabServiceLinksDraft] = useState<LabServiceLink[]>([]);
   const [labServiceLinksSaving, setLabServiceLinksSaving] = useState(false);
   const [creatingLabService, setCreatingLabService] = useState(false);
@@ -1808,10 +1827,33 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const remindersScopeApi = orderType === 'module' ? ('module' as const) : ('vehicle' as const);
   const remindersBadgeCount = reminders.length;
 
-  type PatioBoardLayoutMode = 'standard' | 'trello' | 'by_mechanic' | 'recent_first';
-  /** Zoom dos cartões por modo de visualização (padrão / trello / mecânico / recentes). */
+  type PatioBoardLayoutMode = 'lista' | 'standard' | 'trello' | 'by_mechanic' | 'recent_first';
+  /** Ordem das peças na visão Lista do laboratório. */
+  type LabListaSortMode = 'oldest_first' | 'by_stage' | 'newest_first';
+  /** Zoom dos cartões por modo de visualização (lista / padrão / trello / mecânico / recentes). */
   const patioZoomScope: BoardCardZoomScope = isModuleMode ? 'patio-module' : 'patio-vehicle';
-  const [boardLayoutMode, setBoardLayoutMode] = useState<PatioBoardLayoutMode>('standard');
+  const [boardLayoutMode, setBoardLayoutMode] = useState<PatioBoardLayoutMode>(
+    isModuleMode ? 'lista' : 'standard'
+  );
+  const [locationChangingCardId, setLocationChangingCardId] = useState<string | null>(null);
+  const labListaSortStorageKey = 'lab-lista-sort-v1';
+  const [labListaSortMode, setLabListaSortMode] = useState<LabListaSortMode>(() => {
+    try {
+      const raw = localStorage.getItem(labListaSortStorageKey);
+      if (raw === 'oldest_first' || raw === 'by_stage' || raw === 'newest_first') return raw;
+    } catch {
+      /* ignore */
+    }
+    return 'by_stage';
+  });
+  const setLabListaSortModePersist = React.useCallback((mode: LabListaSortMode) => {
+    setLabListaSortMode(mode);
+    try {
+      localStorage.setItem(labListaSortStorageKey, mode);
+    } catch {
+      /* ignore */
+    }
+  }, []);
   const [cardZoomStep, setCardZoomStep] = useState(() =>
     readBoardCardZoomStepIndex(isModuleMode ? 'patio-module' : 'patio-vehicle', 'standard')
   );
@@ -1963,34 +2005,44 @@ export const PatioView: React.FC<PatioViewProps> = ({
     }
   }, [isModuleMode, patioZoomScope, boardLayoutMode]);
 
-  const boardLayoutStorageKey = `patio-board-layout-${isModuleMode ? 'module' : 'vehicle'}`;
+  /** module-v2: novo padrão “Lista” no laboratório (PC) sem herdar o “standard” antigo. */
+  const boardLayoutStorageKey = `patio-board-layout-${isModuleMode ? 'module-v2' : 'vehicle'}`;
   useEffect(() => {
+    const defaultMode: PatioBoardLayoutMode = isModuleMode ? 'lista' : 'standard';
     try {
       const raw = localStorage.getItem(boardLayoutStorageKey);
-      const mode: PatioBoardLayoutMode =
-        raw === 'trello' || raw === 'by_mechanic' || raw === 'recent_first' ? raw : 'standard';
+      let mode: PatioBoardLayoutMode =
+        raw === 'lista' ||
+        raw === 'trello' ||
+        raw === 'by_mechanic' ||
+        raw === 'recent_first' ||
+        raw === 'standard'
+          ? raw
+          : defaultMode;
+      if (!isModuleMode && mode === 'lista') mode = 'standard';
       setBoardLayoutMode(mode);
       setCardZoomStep(readBoardCardZoomStepIndex(patioZoomScope, mode));
       setTrelloColStep(readTrelloColumnWidthStepIndex(patioZoomScope, mode));
       setGridColStep(readGridColumnCountStepIndex(patioZoomScope, mode));
     } catch {
-      setBoardLayoutMode('standard');
-      setCardZoomStep(getDefaultBoardCardZoomStepIndex(patioZoomScope, 'standard'));
-      setTrelloColStep(readTrelloColumnWidthStepIndex(patioZoomScope, 'standard'));
-      setGridColStep(readGridColumnCountStepIndex(patioZoomScope, 'standard'));
+      setBoardLayoutMode(defaultMode);
+      setCardZoomStep(getDefaultBoardCardZoomStepIndex(patioZoomScope, defaultMode));
+      setTrelloColStep(readTrelloColumnWidthStepIndex(patioZoomScope, defaultMode));
+      setGridColStep(readGridColumnCountStepIndex(patioZoomScope, defaultMode));
     }
-  }, [boardLayoutStorageKey, patioZoomScope]);
+  }, [boardLayoutStorageKey, patioZoomScope, isModuleMode]);
   const setBoardLayoutModePersist = React.useCallback(
     (mode: PatioBoardLayoutMode) => {
-      setBoardLayoutMode(mode);
-      setCardZoomStep(readBoardCardZoomStepIndex(patioZoomScope, mode));
-      setTrelloColStep(readTrelloColumnWidthStepIndex(patioZoomScope, mode));
-      setGridColStep(readGridColumnCountStepIndex(patioZoomScope, mode));
+      const next = !isModuleMode && mode === 'lista' ? 'standard' : mode;
+      setBoardLayoutMode(next);
+      setCardZoomStep(readBoardCardZoomStepIndex(patioZoomScope, next));
+      setTrelloColStep(readTrelloColumnWidthStepIndex(patioZoomScope, next));
+      setGridColStep(readGridColumnCountStepIndex(patioZoomScope, next));
       try {
-        localStorage.setItem(boardLayoutStorageKey, mode);
+        localStorage.setItem(boardLayoutStorageKey, next);
       } catch (_) {}
     },
-    [boardLayoutStorageKey, patioZoomScope]
+    [boardLayoutStorageKey, patioZoomScope, isModuleMode]
   );
   const handlePatioCardZoomStepChange = React.useCallback(
     (nextIndex: number) => {
@@ -2097,7 +2149,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const cardInTransitionTitleParts = moveCardDisplayed
     ? parsePatioCardTitle(moveCardDisplayed.name)
     : null;
-  /** Em Garantia (lab): só avaliação técnica, em serviço, aguardando peças e pronto pra retirada. */
+  /** Em Garantia (lab): só em análise, finalizado, aguardando peças e pronto pra entrega. */
   const moveModalLists = useMemo(() => {
     if (!isModuleMode || !moveCardDisplayed) return lists;
     const inGarantia =
@@ -2742,7 +2794,12 @@ export const PatioView: React.FC<PatioViewProps> = ({
     setCards((prev) =>
       prev.map((c) =>
         c.id === cardId
-          ? { ...c, benchSlot: slot, benchQueuedAt: slot != null ? null : c.benchQueuedAt }
+          ? {
+              ...c,
+              benchSlot: slot,
+              benchQueuedAt: slot != null ? null : c.benchQueuedAt,
+              ...(slot != null ? { oficinaShelf: null } : {}),
+            }
           : c
       )
     );
@@ -2755,6 +2812,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 ...c,
                 benchSlot: slot,
                 benchQueuedAt: slot != null ? null : c.benchQueuedAt,
+                ...(slot != null ? { oficinaShelf: null } : {}),
               }
             : c
         );
@@ -2765,6 +2823,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 bench_slot: slot,
                 bench_slot_at: slot != null ? new Date().toISOString() : null,
                 bench_queued_at: slot != null ? null : d.bench_queued_at,
+                ...(slot != null ? { oficina_shelf: null } : {}),
               }
             : d
         );
@@ -2812,6 +2871,184 @@ export const PatioView: React.FC<PatioViewProps> = ({
       }
     },
     [selectedCard, handleBenchMove]
+  );
+
+  const occupiedOficinaShelvesForEditor = useMemo(() => {
+    const occupied: string[] = [];
+    for (const c of cards) {
+      if (c.id === selectedCard?.id) continue;
+      const letter =
+        typeof c.oficinaShelf === 'string' ? c.oficinaShelf.trim().toUpperCase() : '';
+      if (/^[A-X]$/.test(letter)) occupied.push(letter);
+    }
+    return occupied;
+  }, [cards, selectedCard?.id]);
+
+  const handleOficinaShelfFromDetail = useCallback(
+    async (letter: string | null) => {
+      if (!selectedCard) return;
+      const cardId = selectedCard.id;
+      const normalized =
+        letter == null || letter === ''
+          ? null
+          : /^[A-Xa-x]$/.test(letter.trim())
+            ? letter.trim().toUpperCase()
+            : null;
+      setCards((prev) =>
+        prev.map((c) =>
+          c.id === cardId
+            ? {
+                ...c,
+                oficinaShelf: normalized,
+                ...(normalized ? { benchQueuedAt: null } : {}),
+              }
+            : c
+        )
+      );
+      setSelectedCard((c) =>
+        c
+          ? {
+              ...c,
+              oficinaShelf: normalized,
+              ...(normalized ? { benchQueuedAt: null } : {}),
+            }
+          : c
+      );
+      setServiceOrderDetail((d) =>
+        d
+          ? {
+              ...d,
+              oficina_shelf: normalized,
+              ...(normalized ? { bench_queued_at: null } : {}),
+            }
+          : d
+      );
+      setBenchSlotSaving(true);
+      try {
+        await updateServiceOrderOficinaShelf(cardId, normalized);
+      } catch (err: unknown) {
+        window.alert(err instanceof Error ? err.message : 'Falha ao salvar localização da oficina.');
+        fetchDataRef.current(true);
+      } finally {
+        setBenchSlotSaving(false);
+      }
+    },
+    [selectedCard]
+  );
+
+  useEffect(() => {
+    if (!isModuleMode || !selectedCard?.id) {
+      setLocationMoves([]);
+      return;
+    }
+    let cancelled = false;
+    void getServiceOrderLocationMoves(selectedCard.id)
+      .then((rows) => {
+        if (!cancelled) setLocationMoves(rows);
+      })
+      .catch(() => {
+        if (!cancelled) setLocationMoves([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isModuleMode, selectedCard?.id, serviceOrderDetail?.oficina_shelf, serviceOrderDetail?.bench_slot]);
+
+  /** Lista PC: troca Oficina ↔ Laboratório (usa Saída/Retorno com auto-atribuição). */
+  const handleListaLocationChange = useCallback(
+    async (card: TrelloCard, target: LabListaUiLocation) => {
+      const loc = resolveLabLocation(card);
+      const currentUi: LabListaUiLocation | null =
+        loc.kind === 'oficina'
+          ? 'oficina'
+          : loc.kind === 'deposito' || loc.kind === 'fila'
+            ? 'laboratorio'
+            : null;
+      if (currentUi === target) return;
+
+      const actorName =
+        actorOptions?.actorDisplayName ||
+        actorOptions?.actorTechnicianName ||
+        (actorOptions?.actor === 'admin' ? 'Admin' : null);
+      const actorUserId =
+        actorOptions?.actor === 'technician' ? actorOptions.actorTechnicianSlug ?? null : null;
+      const needsForce =
+        (target === 'laboratorio' && loc.kind !== 'oficina') ||
+        (target === 'oficina' && loc.kind !== 'deposito' && loc.kind !== 'fila');
+
+      setLocationChangingCardId(card.id);
+      try {
+        const result =
+          target === 'laboratorio'
+            ? await registerOficinaSaida(card.id, {
+                actorName,
+                actorUserId,
+                force: needsForce,
+              })
+            : await registerOficinaRetorno(card.id, {
+                actorName,
+                actorUserId,
+                force: needsForce,
+              });
+        const nextShelf =
+          typeof (result as { oficina_shelf?: string | null }).oficina_shelf === 'string'
+            ? (result as { oficina_shelf: string }).oficina_shelf
+            : null;
+        const nextSlot =
+          typeof (result as { bench_slot?: number | null }).bench_slot === 'number'
+            ? (result as { bench_slot: number }).bench_slot
+            : null;
+        const nextQueued =
+          typeof (result as { bench_queued_at?: string | null }).bench_queued_at === 'string' &&
+          (result as { bench_queued_at: string }).bench_queued_at
+            ? (result as { bench_queued_at: string }).bench_queued_at
+            : null;
+        setCards((prev) =>
+          prev.map((c) =>
+            c.id === card.id
+              ? {
+                  ...c,
+                  oficinaShelf: nextShelf,
+                  benchSlot: nextSlot,
+                  benchQueuedAt: nextQueued,
+                }
+              : c
+          )
+        );
+        if (selectedCardRef.current?.id === card.id) {
+          setSelectedCard((c) =>
+            c
+              ? {
+                  ...c,
+                  oficinaShelf: nextShelf,
+                  benchSlot: nextSlot,
+                  benchQueuedAt: nextQueued,
+                }
+              : c
+          );
+          setServiceOrderDetail((d) =>
+            d
+              ? {
+                  ...d,
+                  oficina_shelf: nextShelf,
+                  bench_slot: nextSlot,
+                  bench_queued_at: nextQueued,
+                  bench_slot_at: nextSlot != null ? new Date().toISOString() : null,
+                }
+              : d
+          );
+        }
+        void fetchDataRef.current(true);
+      } catch (err: unknown) {
+        window.alert(
+          err instanceof Error ? err.message : 'Falha ao alterar a localização da peça.'
+        );
+        fetchDataRef.current(true);
+      } finally {
+        setLocationChangingCardId(null);
+      }
+    },
+    [actorOptions]
   );
 
   const handleBenchPanelToggle = useCallback(() => {
@@ -4299,10 +4536,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
     }
   };
 
-  /** Registra o retorno do conserto externo: move para “Em serviço”. */
+  /** Registra o retorno do conserto externo: move para “Finalizado”. */
   const handleRegisterExternalReturn = async (cardId: string) => {
     try {
-      await updateServiceOrderStatus(cardId, 'EM_SERVICO', actorOptions);
+      await updateServiceOrderStatus(cardId, 'FINALIZADO', actorOptions);
     } catch (err: any) {
       alert(err?.message ?? 'Erro ao registrar chegada do conserto.');
     } finally {
@@ -4966,6 +5203,12 @@ export const PatioView: React.FC<PatioViewProps> = ({
           : typeof selectedCard.benchSlot === 'number'
             ? selectedCard.benchSlot
             : null,
+      oficinaShelf:
+        typeof serviceOrderDetail?.oficina_shelf === 'string'
+          ? serviceOrderDetail.oficina_shelf
+          : typeof selectedCard.oficinaShelf === 'string'
+            ? selectedCard.oficinaShelf
+            : null,
     });
   }, [isModuleMode, selectedCard, serviceOrderDetail]);
 
@@ -5010,6 +5253,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
         vehicleName,
         complaint,
         benchSlot: typeof linked?.bench_slot === 'number' ? linked.bench_slot : null,
+        oficinaShelf:
+          typeof linked?.oficina_shelf === 'string' ? linked.oficina_shelf : null,
       });
     },
     [
@@ -6148,37 +6393,138 @@ export const PatioView: React.FC<PatioViewProps> = ({
             {isModuleMode && (
               <div className="border-b border-zinc-100 px-3 pb-2 dark:border-white/[0.07]">
                 <p className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-zinc-400 dark:text-zinc-500">Bancada</p>
-                <button
-                  type="button"
-                  role="menuitem"
-                  className="flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left text-zinc-800 transition-colors hover:bg-zinc-100/90 dark:text-zinc-100 dark:hover:bg-white/[0.08]"
-                  onClick={() => {
-                    setBenchFullscreenOpen(true);
-                    setIsPatioHeaderToolsOpen(false);
-                  }}
-                >
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border-0 bg-violet-100 dark:bg-violet-950/50">
-                    <LayoutGrid className="h-5 w-5 text-[#A855F7] dark:text-violet-300" strokeWidth={2.2} aria-hidden />
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block text-[14px] font-semibold leading-snug">Visualizar bancada (tela cheia)</span>
-                    <span className="mt-0.5 block text-[11px] font-normal leading-snug text-zinc-500 dark:text-zinc-400">
-                      Abre o balcão ocupando toda a tela do laboratório
+                <div className="flex flex-col gap-1">
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left text-zinc-800 transition-colors hover:bg-zinc-100/90 dark:text-zinc-100 dark:hover:bg-white/[0.08]"
+                    onClick={() => {
+                      setBenchQueueModalOpen(true);
+                      setIsPatioHeaderToolsOpen(false);
+                    }}
+                  >
+                    <span className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border-0 bg-violet-100 dark:bg-violet-950/50">
+                      <ListOrdered className="h-5 w-5 text-violet-700 dark:text-violet-300" strokeWidth={2.2} aria-hidden />
+                      {benchQueueCount > 0 ? (
+                        <span className="absolute -right-1 -top-1 inline-flex min-h-[1.1rem] min-w-[1.1rem] items-center justify-center rounded-full bg-violet-600 px-1 text-[9px] font-bold text-white">
+                          {benchQueueCount > 99 ? '99+' : benchQueueCount}
+                        </span>
+                      ) : null}
                     </span>
-                  </span>
-                </button>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-[14px] font-semibold leading-snug">Fila da bancada</span>
+                      <span className="mt-0.5 block text-[11px] font-normal leading-snug text-zinc-500 dark:text-zinc-400">
+                        Peças aguardando vaga nos compartimentos 1–24
+                      </span>
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left text-zinc-800 transition-colors hover:bg-zinc-100/90 dark:text-zinc-100 dark:hover:bg-white/[0.08]"
+                    onClick={() => {
+                      setExternalRepairModalOpen(true);
+                      setIsPatioHeaderToolsOpen(false);
+                    }}
+                  >
+                    <span className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border-0 bg-purple-100 dark:bg-purple-950/50">
+                      <Wrench className="h-5 w-5 text-purple-700 dark:text-purple-300" strokeWidth={2.2} aria-hidden />
+                      {externalRepairCards.length > 0 ? (
+                        <span className="absolute -right-1 -top-1 inline-flex min-h-[1.1rem] min-w-[1.1rem] items-center justify-center rounded-full bg-purple-600 px-1 text-[9px] font-bold text-white">
+                          {externalRepairCards.length > 99 ? '99+' : externalRepairCards.length}
+                        </span>
+                      ) : null}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-[14px] font-semibold leading-snug">Conserto externo</span>
+                      <span className="mt-0.5 block text-[11px] font-normal leading-snug text-zinc-500 dark:text-zinc-400">
+                        Peças enviadas a terceiros
+                      </span>
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className={`flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left transition-colors hover:bg-zinc-100/90 dark:hover:bg-white/[0.08] ${
+                      benchPanelOpen
+                        ? 'text-[#007AFF] dark:text-[#64B5FF]'
+                        : 'text-zinc-800 dark:text-zinc-100'
+                    }`}
+                    onClick={() => {
+                      handleBenchPanelToggle();
+                      setIsPatioHeaderToolsOpen(false);
+                    }}
+                  >
+                    <span
+                      className={`relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border shadow-sm ${
+                        benchPanelOpen
+                          ? 'border-[#007AFF]/45 bg-[#007AFF]/15 dark:border-[#0A84FF]/45 dark:bg-[#0A84FF]/18'
+                          : 'border-zinc-200/80 bg-zinc-50 dark:border-white/[0.1] dark:bg-white/[0.06]'
+                      }`}
+                    >
+                      <ChevronDown
+                        className={`h-5 w-5 drop-shadow-sm transition-transform ${benchPanelOpen ? '' : '-rotate-90'}`}
+                        strokeWidth={2.2}
+                        aria-hidden
+                      />
+                      {!benchPanelOpen && (benchQueueCount > 0 || unassignedBenchCount > 0) ? (
+                        <span
+                          className={`absolute -right-1 -top-1 inline-flex min-h-[1.1rem] min-w-[1.1rem] items-center justify-center rounded-full px-1 text-[9px] font-bold text-white ${
+                            benchQueueCount > 0 ? 'bg-violet-600' : 'bg-amber-500'
+                          }`}
+                        >
+                          {(benchQueueCount > 0 ? benchQueueCount : unassignedBenchCount) > 99
+                            ? '99+'
+                            : benchQueueCount > 0
+                              ? benchQueueCount
+                              : unassignedBenchCount}
+                        </span>
+                      ) : null}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-[14px] font-semibold leading-snug">Bancada do laboratório</span>
+                      <span className="mt-0.5 block text-[11px] font-normal leading-snug text-zinc-500 dark:text-zinc-400">
+                        {benchPanelOpen ? 'Ocultar painel dos compartimentos' : 'Mostrar painel dos compartimentos'}
+                      </span>
+                    </span>
+                    {benchPanelOpen ? (
+                      <Check className="h-4 w-4 shrink-0 text-[#007AFF] dark:text-[#64B5FF]" strokeWidth={2.5} aria-hidden />
+                    ) : null}
+                  </button>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left text-zinc-800 transition-colors hover:bg-zinc-100/90 dark:text-zinc-100 dark:hover:bg-white/[0.08]"
+                    onClick={() => {
+                      setBenchFullscreenOpen(true);
+                      setIsPatioHeaderToolsOpen(false);
+                    }}
+                  >
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border-0 bg-violet-100 dark:bg-violet-950/50">
+                      <LayoutGrid className="h-5 w-5 text-[#A855F7] dark:text-violet-300" strokeWidth={2.2} aria-hidden />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-[14px] font-semibold leading-snug">Visualizar bancada (tela cheia)</span>
+                      <span className="mt-0.5 block text-[11px] font-normal leading-snug text-zinc-500 dark:text-zinc-400">
+                        Abre o balcão ocupando toda a tela do laboratório
+                      </span>
+                    </span>
+                  </button>
+                </div>
               </div>
             )}
             <BoardCardZoomMenuSection
               scope={patioZoomScope}
               modeLabel={
-                boardLayoutMode === 'trello'
-                  ? 'Estilo Trello'
-                  : boardLayoutMode === 'by_mechanic'
-                    ? 'Por mecânico'
-                    : boardLayoutMode === 'recent_first'
-                      ? 'Recentes primeiro'
-                      : 'Padrão'
+                boardLayoutMode === 'lista'
+                  ? 'Lista'
+                  : boardLayoutMode === 'trello'
+                    ? 'Estilo Trello'
+                    : boardLayoutMode === 'by_mechanic'
+                      ? 'Por mecânico'
+                      : boardLayoutMode === 'recent_first'
+                        ? 'Recentes primeiro'
+                        : 'Padrão'
               }
               stepIndex={cardZoomStep}
               onStepChange={handlePatioCardZoomStepChange}
@@ -6193,6 +6539,16 @@ export const PatioView: React.FC<PatioViewProps> = ({
               <div className="flex flex-col gap-1">
                 {(
                   [
+                    ...(isModuleMode
+                      ? [
+                          {
+                            mode: 'lista' as const,
+                            icon: List,
+                            title: 'Lista',
+                            desc: 'Tabela com localização e etapa clicáveis (padrão no PC)',
+                          },
+                        ]
+                      : []),
                     { mode: 'standard' as const, icon: LayoutGrid, title: 'Padrão', desc: 'Grade na ordem das etapas do fluxo' },
                     { mode: 'trello' as const, icon: Columns3, title: 'Estilo Trello', desc: 'Colunas por etapa — arraste o cartão para mudar a fase' },
                     { mode: 'by_mechanic' as const, icon: Users, title: 'Por mecânico', desc: 'Colunas por técnico atribuído' },
@@ -6231,6 +6587,71 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 ))}
               </div>
             </div>
+            {isModuleMode && boardLayoutMode === 'lista' ? (
+              <div className="border-b border-zinc-100 px-3 pb-2 dark:border-white/[0.07]">
+                <p className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-zinc-400 dark:text-zinc-500">
+                  Ordem da lista
+                </p>
+                <div className="flex flex-col gap-1">
+                  {(
+                    [
+                      {
+                        mode: 'oldest_first' as const,
+                        icon: SortAsc,
+                        title: 'Mais antigo → mais novo',
+                        desc: 'Peças que entraram primeiro no topo',
+                      },
+                      {
+                        mode: 'by_stage' as const,
+                        icon: ListOrdered,
+                        title: 'Por etapas',
+                        desc: 'Garantia primeiro, depois a ordem do fluxo',
+                      },
+                      {
+                        mode: 'newest_first' as const,
+                        icon: SortDesc,
+                        title: 'Mais novo → mais antigo',
+                        desc: 'Peças mais recentes no topo',
+                      },
+                    ] as const
+                  ).map(({ mode, icon: Icon, title, desc }) => (
+                    <button
+                      key={mode}
+                      type="button"
+                      role="menuitem"
+                      className={`flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left transition-colors hover:bg-zinc-100/90 dark:hover:bg-white/[0.08] ${
+                        labListaSortMode === mode
+                          ? 'text-[#007AFF] dark:text-[#64B5FF]'
+                          : 'text-zinc-800 dark:text-zinc-100'
+                      }`}
+                      onClick={() => {
+                        setLabListaSortModePersist(mode);
+                        setIsPatioHeaderToolsOpen(false);
+                      }}
+                    >
+                      <span
+                        className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border shadow-sm ${
+                          labListaSortMode === mode
+                            ? 'border-[#007AFF]/45 bg-[#007AFF]/15 dark:border-[#0A84FF]/45 dark:bg-[#0A84FF]/18'
+                            : 'border-zinc-200/80 bg-zinc-50 dark:border-white/[0.1] dark:bg-white/[0.06]'
+                        }`}
+                      >
+                        <Icon className="h-5 w-5 drop-shadow-sm" strokeWidth={2.1} aria-hidden />
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block text-[14px] font-semibold leading-snug">{title}</span>
+                        <span className="mt-0.5 block text-[11px] font-normal leading-snug text-zinc-500 dark:text-zinc-400">
+                          {desc}
+                        </span>
+                      </span>
+                      {labListaSortMode === mode ? (
+                        <Check className="h-4 w-4 shrink-0 text-[#007AFF] dark:text-[#64B5FF]" strokeWidth={2.5} aria-hidden />
+                      ) : null}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : null}
             {!isModuleMode ? (
               <div className="border-b border-zinc-100 px-3 py-2 dark:border-white/[0.07]">
                 <p className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-zinc-400 dark:text-zinc-500">Buscar placa</p>
@@ -6308,64 +6729,104 @@ export const PatioView: React.FC<PatioViewProps> = ({
         )
       : null;
 
+  /** Lista do lab: cabeçalho (QR / Criar OS / Lembretes / …) fixo; só a tabela rola. */
+  const labListaPinnedHeader = isModuleMode && boardLayoutMode === 'lista';
+
   return (
-    <div className="relative min-h-full w-full animate-in pb-32 fade-in duration-500">
+    <div
+      data-lab-lista-pinned={labListaPinnedHeader ? 'true' : undefined}
+      className={
+        labListaPinnedHeader
+          ? 'relative flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden animate-in fade-in duration-500'
+          : isModuleMode && isPcLayout
+            ? 'relative flex h-full min-h-0 w-full flex-1 flex-col overflow-y-auto overscroll-contain animate-in pb-8 fade-in duration-500'
+            : 'relative min-h-full w-full animate-in pb-32 fade-in duration-500'
+      }
+    >
       <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
         <div className="absolute -top-40 left-1/2 h-[min(480px,75vw)] w-[min(880px,100vw)] -translate-x-1/2 rounded-full bg-gradient-to-br from-cyan-400/[0.09] via-sky-400/[0.05] to-violet-500/[0.08] blur-[90px] dark:from-cyan-500/[0.08] dark:via-transparent dark:to-violet-600/[0.12]" />
         <div className="absolute bottom-0 right-0 h-[380px] w-[min(520px,90vw)] translate-x-[15%] rounded-full bg-gradient-to-tl from-amber-400/[0.07] to-transparent blur-[100px] dark:from-amber-500/[0.08]" />
         <div className="absolute bottom-1/4 left-0 h-[220px] w-[320px] -translate-x-1/3 rounded-full bg-[#007AFF]/[0.04] blur-[80px] dark:bg-[#007AFF]/[0.06]" />
       </div>
 
-      <div className="relative z-0 mx-auto max-w-[100rem] overflow-visible px-3 pt-0 sm:px-5 md:px-6 md:pt-1 lg:pt-2">
+      <div
+        className={`relative z-0 mx-auto shrink-0 overflow-visible pt-0 md:pt-1 lg:pt-2 ${
+          isModuleMode
+            ? 'max-w-none px-2 sm:px-3 md:px-3 lg:px-4'
+            : 'max-w-[100rem] px-3 sm:px-5 md:px-6'
+        } ${labListaPinnedHeader ? 'w-full' : ''}`}
+      >
         {/* Cabeçalho mobile/tablet: título + contagem + busca + ações; PC shell mantém badge compacto */}
-        <header className={`relative z-50 overflow-visible ${headerActionsOneLine ? 'mb-5 pb-0.5 sm:mb-6 lg:mb-8' : 'mb-3 sm:mb-4 md:mb-5 lg:mb-7'}`}>
+        <header
+          className={`relative z-50 shrink-0 overflow-visible ${
+            labListaPinnedHeader
+              ? 'mb-3 pb-0.5 sm:mb-3.5 lg:mb-4'
+              : headerActionsOneLine
+                ? 'mb-5 pb-0.5 sm:mb-6 lg:mb-8'
+                : 'mb-3 sm:mb-4 md:mb-5 lg:mb-7'
+          }`}
+        >
           {desktopShell ? (
-            <div className="grid w-full grid-cols-1 items-center gap-y-3 md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] md:gap-x-4">
-              <div className="flex min-w-0 flex-wrap items-center gap-1.5 md:justify-self-start">
-                {headerActionsOneLine ? (
-                  <>
-                    <button
-                      type="button"
-                      onClick={() => setBenchQueueModalOpen(true)}
-                      className={`relative inline-flex shrink-0 items-center justify-center rounded-xl border-0 bg-violet-100 font-semibold text-violet-900 transition-colors hover:bg-violet-200/90 active:scale-[0.98] dark:bg-violet-950/50 dark:text-violet-100 ${headerPillSize}`}
-                    >
-                      <ListOrdered className="h-4 w-4 shrink-0" strokeWidth={2.2} aria-hidden />
-                      <span className="tracking-tight">Fila da bancada</span>
-                      {benchQueueCount > 0 ? (
-                        <span className="inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-violet-600 px-1.5 py-0.5 text-[10px] font-bold text-white dark:bg-violet-500">
-                          {benchQueueCount}
-                        </span>
-                      ) : null}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setExternalRepairModalOpen(true)}
-                      className={`relative inline-flex shrink-0 items-center justify-center rounded-xl border-0 bg-purple-100 font-semibold text-purple-900 transition-colors hover:bg-purple-200/90 active:scale-[0.98] dark:bg-purple-950/50 dark:text-purple-100 ${headerPillSize}`}
-                    >
-                      <Wrench className="h-4 w-4 shrink-0" strokeWidth={2.2} aria-hidden />
-                      <span className="tracking-tight">Conserto externo</span>
-                      {externalRepairCards.length > 0 ? (
-                        <span className="inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-purple-600 px-1.5 py-0.5 text-[10px] font-bold text-white dark:bg-purple-500">
-                          {externalRepairCards.length}
-                        </span>
-                      ) : null}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleBenchPanelToggle}
-                      aria-expanded={benchPanelOpen}
-                      className={`relative inline-flex shrink-0 items-center justify-center rounded-xl border-0 bg-white font-semibold text-zinc-700 transition-colors hover:bg-zinc-100 active:scale-[0.98] dark:border-white/10 dark:bg-white/10 dark:text-zinc-100 ${headerPillSize}`}
-                    >
-                      <ChevronDown
-                        className={`h-4 w-4 shrink-0 transition-transform ${benchPanelOpen ? '' : '-rotate-90'}`}
-                        strokeWidth={2.2}
-                        aria-hidden
-                      />
-                      <span className="tracking-tight">Bancada do laboratório</span>
-                    </button>
-                  </>
-                ) : null}
+            isModuleMode && typeof onLabScanModeChange === 'function' ? (
+              <div className="flex w-full flex-nowrap items-center gap-2 overflow-x-auto pb-0.5 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden sm:gap-2.5">
+                <LabScanModeBar
+                  mode={labScanMode}
+                  onChange={onLabScanModeChange}
+                  compact
+                  className="shrink-0"
+                />
+                <div className="min-w-2 flex-1" aria-hidden />
+                <button
+                  type="button"
+                  onClick={() => onCreateRegistration?.('module')}
+                  className={`${patioCompactCreateBtn} shrink-0`}
+                >
+                  <Plus className="h-4 w-4" strokeWidth={2.75} aria-hidden />
+                  <span>Criar OS</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setReminderSaveError(null);
+                    setIsRemindersOpen(true);
+                  }}
+                  className={`${patioCompactActionBtn} ${headerPillSize} shrink-0`}
+                >
+                  {remindersBadgeCount > 0 && (
+                    <span className="pointer-events-none absolute -right-1 -top-1 inline-flex min-h-[18px] min-w-[18px] items-center justify-center rounded-full border-2 border-white bg-red-500 px-1 text-[10px] font-bold leading-none text-white dark:border-zinc-900">
+                      {remindersBadgeCount > 99 ? '99+' : remindersBadgeCount}
+                    </span>
+                  )}
+                  <ReminderIcon className="h-4 w-4 text-[#007AFF]" strokeWidth={2} />
+                  <span>Lembretes</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsHistoryOpen(true)}
+                  className={`${patioCompactActionBtn} ${headerPillSize} shrink-0`}
+                  title="Consultar histórico de módulos arquivados"
+                >
+                  <History className="h-4 w-4 text-[#007AFF]" strokeWidth={2} />
+                  <span>Histórico</span>
+                </button>
+                <div className="shrink-0">
+                  <button
+                    type="button"
+                    ref={patioHeaderToolsTriggerRef}
+                    onClick={() => setIsPatioHeaderToolsOpen((o) => !o)}
+                    aria-expanded={isPatioHeaderToolsOpen}
+                    aria-haspopup="menu"
+                    aria-label="Mais opções"
+                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border-0 bg-white text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-[#007AFF] active:scale-95 dark:border-white/[0.1] dark:bg-zinc-900/75 dark:text-zinc-300"
+                  >
+                    <MoreHorizontal className="h-5 w-5" strokeWidth={2.2} aria-hidden />
+                  </button>
+                  {patioHeaderToolsMenu}
+                </div>
               </div>
+            ) : (
+            <div className="grid w-full grid-cols-1 items-center gap-y-3 md:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] md:gap-x-4">
+              <div className="hidden min-w-0 md:block md:justify-self-start" aria-hidden />
               <div className="relative z-10 flex justify-center md:justify-self-center md:px-2">
                 <button
                   type="button"
@@ -6424,6 +6885,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 </div>
               </div>
             </div>
+            )
           ) : (
             <div className={`flex w-full flex-col ${patioHeaderActionsCentered ? 'gap-3.5' : 'gap-3.5 sm:gap-4'}`}>
               <div
@@ -6468,19 +6930,27 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 </div>
               </div>
 
-              {/* Lembretes, Histórico, Criar OS, ⋯ e Notificações — sempre na mesma linha */}
+              {/* Leitor QR (lab) + Lembretes, Histórico, Criar OS, ⋯ e Notificações — mesma linha */}
               <div
                 className={`flex w-full flex-nowrap items-center gap-2 overflow-x-auto pb-0.5 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden sm:gap-2.5 ${
                   patioHeaderActionsCentered || viewportWidth >= 768 ? 'justify-center' : ''
                 }`}
               >
+                {isModuleMode && typeof onLabScanModeChange === 'function' ? (
+                  <LabScanModeBar
+                    mode={labScanMode}
+                    onChange={onLabScanModeChange}
+                    compact
+                    className="shrink-0"
+                  />
+                ) : null}
                 <button
                   type="button"
                   onClick={() => {
                     setReminderSaveError(null);
                     setIsRemindersOpen(true);
                   }}
-                  className={patioCompactActionBtn}
+                  className={`${patioCompactActionBtn} shrink-0`}
                 >
                   {remindersBadgeCount > 0 && (
                     <span className="pointer-events-none absolute -right-1 -top-1 inline-flex min-h-[18px] min-w-[18px] items-center justify-center rounded-full border-2 border-white bg-red-500 px-1 text-[10px] font-bold leading-none text-white dark:border-zinc-900">
@@ -6493,7 +6963,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 <button
                   type="button"
                   onClick={() => setIsHistoryOpen(true)}
-                  className={patioCompactActionBtn}
+                  className={`${patioCompactActionBtn} shrink-0`}
                   title={
                     isModuleMode
                       ? 'Consultar histórico de módulos arquivados'
@@ -6508,7 +6978,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   onClick={() =>
                     onCreateRegistration?.(isModuleMode ? 'module' : 'vehicle')
                   }
-                  className={patioCompactCreateBtn}
+                  className={`${patioCompactCreateBtn} shrink-0`}
                 >
                   <Plus className="h-4 w-4" strokeWidth={2.75} aria-hidden />
                   <span>Criar OS</span>
@@ -6549,73 +7019,33 @@ export const PatioView: React.FC<PatioViewProps> = ({
         </header>
       </div>
 
-      {/* Bancada do laboratório — painel visual dos 24 compartimentos (só no modo módulo) */}
-      {isModuleMode && (!headerActionsOneLine || benchPanelOpen) && (
-        <div className="relative z-0 mx-auto w-full max-w-[100rem] px-3 pb-2 sm:px-5 md:px-6">
-          {!headerActionsOneLine && (
-            <div className="mb-2 flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setBenchQueueModalOpen(true)}
-                className="inline-flex items-center gap-1.5 rounded-full border-0 bg-violet-100 px-3 py-1.5 text-[13px] font-semibold text-violet-900 transition-colors hover:bg-violet-200/90 dark:bg-violet-950/50 dark:text-violet-100"
-              >
-                <ListOrdered className="h-4 w-4 shrink-0" strokeWidth={2.2} aria-hidden />
-                Fila da bancada
-                {benchQueueCount > 0 ? (
-                  <span className="inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-violet-600 px-1.5 py-0.5 text-[10px] font-bold text-white dark:bg-violet-500">
-                    {benchQueueCount}
-                  </span>
-                ) : null}
-              </button>
-              <button
-                type="button"
-                onClick={() => setExternalRepairModalOpen(true)}
-                className="inline-flex items-center gap-1.5 rounded-full border-0 bg-purple-100 px-3 py-1.5 text-[13px] font-semibold text-purple-900 transition-colors hover:bg-purple-200/90 dark:bg-purple-950/50 dark:text-purple-100"
-              >
-                <Wrench className="h-4 w-4 shrink-0" strokeWidth={2.2} aria-hidden />
-                Conserto externo
-                {externalRepairCards.length > 0 ? (
-                  <span className="inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-purple-600 px-1.5 py-0.5 text-[10px] font-bold text-white dark:bg-purple-500">
-                    {externalRepairCards.length}
-                  </span>
-                ) : null}
-              </button>
-              <button
-                type="button"
-                onClick={handleBenchPanelToggle}
-                aria-expanded={benchPanelOpen}
-                className="inline-flex items-center gap-1.5 rounded-full border-0 bg-white px-3 py-1.5 text-[13px] font-semibold text-zinc-700 transition-colors hover:bg-zinc-100 hover:text-zinc-900 dark:border-white/10 dark:bg-white/10 dark:text-zinc-100 dark:hover:text-white"
-              >
-                <ChevronDown
-                  className={`h-4 w-4 transition-transform ${benchPanelOpen ? '' : '-rotate-90'}`}
-                  strokeWidth={2.2}
-                  aria-hidden
-                />
-                Bancada do laboratório
-                {benchQueueCount > 0 ? (
-                  <span className="inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-violet-600 px-1.5 py-0.5 text-[10px] font-bold text-white">
-                    {benchQueueCount}
-                  </span>
-                ) : unassignedBenchCount > 0 ? (
-                  <span className="inline-flex min-w-[1.25rem] items-center justify-center rounded-full bg-amber-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
-                    {unassignedBenchCount}
-                  </span>
-                ) : null}
-              </button>
-            </div>
-          )}
-          {benchPanelOpen && (
-            <LabBenchPanel
-              cards={cards}
-              onOpenCard={(card) => setSelectedCard(card)}
-              onMoveCard={handleBenchMove}
-            />
-          )}
+      {/* Bancada do laboratório — painel visual (abre pelo menu ⋯) */}
+      {isModuleMode && benchPanelOpen ? (
+        <div
+          className={`relative z-0 mx-auto w-full shrink-0 pb-2 ${
+            isModuleMode ? 'max-w-none px-2 sm:px-3 md:px-3 lg:px-4' : 'max-w-[100rem] px-3 sm:px-5 md:px-6'
+          }`}
+        >
+          <LabBenchPanel
+            cards={cards}
+            onOpenCard={(card) => setSelectedCard(card)}
+            onMoveCard={handleBenchMove}
+          />
         </div>
-      )}
+      ) : null}
 
-      {/* Grid — mesma ordem dos estágios; cartões em vidro iOS. (z-0 para dropdown do cabeçalho z-50 ficar acima) */}
-      <div className="relative z-0 mx-auto w-full max-w-[128rem] px-0.5 sm:px-1 md:px-2 lg:px-3">
+      {/* Grid / lista — laboratório usa quase toda a largura útil (sem invadir a sidebar). */}
+      <div
+        className={`relative z-0 mx-auto w-full ${
+          isModuleMode
+            ? 'max-w-none px-1 sm:px-1.5 md:px-2 lg:px-2.5'
+            : 'max-w-[128rem] px-0.5 sm:px-1 md:px-2 lg:px-3'
+        } ${
+          labListaPinnedHeader
+            ? 'flex min-h-0 flex-1 flex-col overflow-hidden'
+            : ''
+        }`}
+      >
       {/* Enquanto edita orçamento ou OS aberta: não reconcilia centenas de cards (trava digitação no Mac/PC). */}
       {isBudgetOpen || selectedCard ? (
         <div
@@ -6740,12 +7170,14 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
           const canAssignMember = can('canAssignTechnician'); 
           
-          // Condição para botão ENTREGAR: finalizado (pátio) ou pronto pra retirada (laboratório)
+          // Condição para botão ENTREGAR: finalizado (pátio) ou pronto pra entrega/retirada (laboratório)
           const showDeliverButton =
-            card.idList === 'FINALIZADO' ||
-            card.idList === 'PRONTO_PRA_RETIRADA' ||
-            listNameLower.includes('finalizado') ||
-            listNameLower.includes('pronto pra retirada');
+            (!isModuleMode &&
+              (card.idList === 'FINALIZADO' || listNameLower.includes('finalizado'))) ||
+            (isModuleMode &&
+              (card.idList === 'PRONTO_PRA_RETIRADA' ||
+                listNameLower.includes('pronto pra entrega') ||
+                listNameLower.includes('pronto pra retirada')));
 
           // Condição para botão de ENTREGUE em 'não aprovado'
           const showNotApprovedDeliverButton = listNameLower.includes('não aprovado');
@@ -6763,7 +7195,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
           );
           const labModuleReady =
             fromPatio &&
-            (card.idList === 'PRONTO_PRA_RETIRADA' || listNameLower.includes('pronto pra retirada'));
+            (card.idList === 'PRONTO_PRA_RETIRADA' ||
+              listNameLower.includes('pronto pra entrega') ||
+              listNameLower.includes('pronto pra retirada'));
           const showOriginCue = hasLabUndelivered || fromPatio;
           const originReady = hasLabUndelivered ? hasLabReady : labModuleReady;
           const originTint: 'violet' | 'amber' | 'green' | null = !showOriginCue
@@ -7241,8 +7675,55 @@ export const PatioView: React.FC<PatioViewProps> = ({
         };
 
         return (
-          <div key={boardLayoutMode} className={layoutMotion}>
-            {boardLayoutMode === 'trello'
+          <div
+            key={boardLayoutMode}
+            className={`${layoutMotion}${
+              labListaPinnedHeader ? ' flex h-full min-h-0 flex-1 flex-col' : ''
+            }`}
+          >
+            {boardLayoutMode === 'lista' && isModuleMode
+              ? (
+                  <LabListaBoard
+                    cards={[...cards].sort((a, b) => {
+                      const cardTime = (c: TrelloCard) => {
+                        const created = c.createdAt ? new Date(c.createdAt).getTime() : NaN;
+                        if (!Number.isNaN(created)) return created;
+                        const act = c.dateLastActivity ? new Date(c.dateLastActivity).getTime() : 0;
+                        return Number.isNaN(act) ? 0 : act;
+                      };
+                      if (labListaSortMode === 'oldest_first') {
+                        const diff = cardTime(a) - cardTime(b);
+                        if (diff !== 0) return diff;
+                        return byStage(a, b);
+                      }
+                      if (labListaSortMode === 'newest_first') {
+                        const diff = cardTime(b) - cardTime(a);
+                        if (diff !== 0) return diff;
+                        return byStage(a, b);
+                      }
+                      // by_stage — Garantia (pos 0) primeiro, depois o fluxo
+                      return byStage(a, b);
+                    })}
+                    lists={lists}
+                    getStatusConfig={getStatusConfig}
+                    stageOptions={stageColumnsSorted.map((s) => ({
+                      id: s.id,
+                      name: s.name,
+                      style: s.style,
+                    }))}
+                    locationBusyId={locationChangingCardId}
+                    stageBusyId={stageChangingCardId || (isMoving && cardInTransition ? cardInTransition.id : null)}
+                    onOpenCard={(card) => setSelectedCard(card)}
+                    onChangeStage={(card, stageId) => {
+                      void performStageChangeForCard(card, stageId);
+                    }}
+                    onChangeLocation={(card, target) => {
+                      void handleListaLocationChange(card, target);
+                    }}
+                    fillHeight={labListaPinnedHeader}
+                  />
+                )
+              : boardLayoutMode === 'trello'
               ? zoomWrap(
                   <div ref={boardDragScrollRef} className={`patio-board-hscroll flex max-w-full cursor-grab gap-3 overflow-x-auto overflow-y-hidden overscroll-x-contain pb-2 pt-1 [-webkit-overflow-scrolling:touch] portrait:gap-2 portrait:pb-1.5 sm:gap-4 sm:pb-2.5 ${trelloDragCardId ? '' : 'scroll-smooth'}`}>
                     {stageColumnsSorted.map((stage) => (
@@ -7970,6 +8451,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
         const modalLabModuleReady =
           modalFromPatio &&
           (modalStageStatus === 'PRONTO_PRA_RETIRADA' ||
+            modalListName.toLowerCase().includes('pronto pra entrega') ||
             modalListName.toLowerCase().includes('pronto pra retirada'));
         const modalShowOriginIcon = modalHasLabUndelivered || modalFromPatio;
         const modalOriginReady = modalHasLabUndelivered ? modalLabReady : modalLabModuleReady;
@@ -9358,7 +9840,16 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                       </div>
                                       {serviceOrderDetail && statusUsesBench(serviceOrderDetail.status) ? (
                                         <div className={`${vi} p-4 sm:p-5`}>
-                                          <p className={`${iosLabel} mb-2`}>Posição na bancada</p>
+                                          <p className={`${iosLabel} mb-2`}>Local físico</p>
+                                          <p className="mb-2 text-[13px] font-semibold text-zinc-800 dark:text-zinc-100">
+                                            {formatLabLocationShort(
+                                              resolveLabLocation({
+                                                oficina_shelf: serviceOrderDetail.oficina_shelf,
+                                                bench_slot: serviceOrderDetail.bench_slot,
+                                                bench_queued_at: serviceOrderDetail.bench_queued_at,
+                                              })
+                                            )}
+                                          </p>
                                           <LabBenchSlotEditor
                                             status={serviceOrderDetail.status}
                                             currentSlot={
@@ -9367,10 +9858,72 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                                 : null
                                             }
                                             occupiedSlots={occupiedBenchSlotsForEditor}
+                                            currentOficinaShelf={
+                                              typeof serviceOrderDetail.oficina_shelf === 'string'
+                                                ? serviceOrderDetail.oficina_shelf
+                                                : selectedCard?.oficinaShelf ?? null
+                                            }
+                                            occupiedOficinaShelves={occupiedOficinaShelvesForEditor}
                                             disabled={!can('canEditFicha')}
                                             saving={benchSlotSaving}
                                             onSave={handleBenchSlotFromDetail}
+                                            onSaveOficinaShelf={handleOficinaShelfFromDetail}
                                           />
+                                          {locationMoves.length > 0 ? (
+                                            <div className="mt-3 space-y-1.5 border-t border-zinc-200/70 pt-3 dark:border-white/10">
+                                              <p className="text-[11px] font-bold uppercase tracking-wide text-zinc-500">
+                                                Histórico de movimentação
+                                              </p>
+                                              <ul className="max-h-40 space-y-1 overflow-y-auto custom-scrollbar">
+                                                {locationMoves.slice(0, 12).map((m) => {
+                                                  const when = new Date(m.created_at);
+                                                  const time = Number.isNaN(when.getTime())
+                                                    ? '—'
+                                                    : when.toLocaleString('pt-BR', {
+                                                        day: '2-digit',
+                                                        month: '2-digit',
+                                                        hour: '2-digit',
+                                                        minute: '2-digit',
+                                                      });
+                                                  const dir =
+                                                    m.direction === 'saida'
+                                                      ? '→ Laboratório'
+                                                      : '→ Oficina';
+                                                  const from =
+                                                    m.from_kind === 'oficina'
+                                                      ? 'Oficina'
+                                                      : m.from_kind === 'deposito' && m.from_value
+                                                        ? `Lab ${m.from_value}`
+                                                        : m.from_kind === 'fila'
+                                                          ? 'Fila'
+                                                          : '—';
+                                                  const to =
+                                                    m.to_kind === 'oficina'
+                                                      ? 'Oficina'
+                                                      : m.to_kind === 'deposito' && m.to_value
+                                                        ? `Lab ${m.to_value}`
+                                                        : m.to_kind === 'fila'
+                                                          ? 'Fila'
+                                                          : '—';
+                                                  return (
+                                                    <li
+                                                      key={m.id}
+                                                      className="rounded-lg bg-zinc-50 px-2.5 py-1.5 text-[11px] text-zinc-700 dark:bg-white/[0.04] dark:text-zinc-300"
+                                                    >
+                                                      <span className="font-semibold">{dir}</span>
+                                                      <span className="opacity-80">
+                                                        {' '}
+                                                        · {from} → {to}
+                                                      </span>
+                                                      <span className="mt-0.5 block text-[10px] text-zinc-500">
+                                                        {m.actor_name || '—'} · {time}
+                                                      </span>
+                                                    </li>
+                                                  );
+                                                })}
+                                              </ul>
+                                            </div>
+                                          ) : null}
                                         </div>
                                       ) : null}
                                     </>

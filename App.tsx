@@ -36,6 +36,9 @@ import {
   deleteAppointment,
   getSupportUnreadCount,
   markNotificationRead,
+  getServiceOrderById,
+  registerOficinaRetorno,
+  registerOficinaSaida,
 } from './services/apiService';
 import type { ServiceOrderStatus } from './constants/serviceOrderStages';
 import { KeepAliveTabPanel } from './components/KeepAliveTabPanel';
@@ -63,6 +66,12 @@ import { tryActiveBarcodeScanClaim } from './utils/activeBarcodeScanClaim';
 import { parseLabOsQrPayload } from './utils/labOsQrCode';
 import type { WorkshopPartsBootIntent } from './components/WorkshopPartsModal';
 import { LabOsScanQuickModal } from './components/LabOsScanQuickModal';
+import { LabScanBatchPanel, type LabScanBatchItem } from './components/lab/LabScanBatchPanel';
+import {
+  loadLabScanMode,
+  saveLabScanMode,
+  type LabScanMode,
+} from './utils/labScanMode';
 
 import { lazyWithRetry } from './utils/lazyWithRetry';
 
@@ -103,6 +112,11 @@ export default function App() {
   const [laboratorioPendingScanToken, setLaboratorioPendingScanToken] = useState(0);
   /** Modal rápido ao escanear QR da peça do laboratório (qualquer tela). */
   const [labOsScanQuick, setLabOsScanQuick] = useState<{ id: string; token: number } | null>(null);
+  /** Modo da pistola no Laboratório: consultar | saida | retorno */
+  const [labScanMode, setLabScanMode] = useState<LabScanMode>(() => loadLabScanMode());
+  const [labScanBatch, setLabScanBatch] = useState<LabScanBatchItem[]>([]);
+  const [labScanBatchConfirming, setLabScanBatchConfirming] = useState(false);
+  const labScanBusyRef = useRef(false);
   const [patioPendingOrderId, setPatioPendingOrderId] = useState<string | null>(null);
   const [shellProfileModal, setShellProfileModal] = useState<ShellProfileModal>(null);
   const [isPartsModalOpen, setIsPartsModalOpen] = useState(false);
@@ -803,9 +817,101 @@ export default function App() {
     setPatioPendingOrderId(null);
   }, []);
 
+  const handleLabScanModeChange = useCallback((mode: LabScanMode) => {
+    setLabScanMode(mode);
+    saveLabScanMode(mode);
+    if (mode === 'consultar') {
+      setLabScanBatch([]);
+    }
+  }, []);
+
+  type LabScanOrderMeta = {
+    os_number?: number | null;
+    vehicle_model?: string | null;
+    module_kind?: string | null;
+    module_product_other?: string | null;
+    module_identification?: string | null;
+    bench_slot?: number | null;
+    customer_name?: string | null;
+    customers?: { name?: string | null } | null;
+  };
+
+  const buildLabBatchItem = useCallback(
+    (
+      osId: string,
+      result: LabScanOrderMeta | null | undefined,
+      opts: { feedback: string; ok: boolean; already?: boolean }
+    ): LabScanBatchItem => {
+      const r = result ?? {};
+      const customerName =
+        (typeof r.customers?.name === 'string' ? r.customers.name : '').trim() ||
+        (typeof r.customer_name === 'string' ? r.customer_name : '').trim() ||
+        null;
+      return {
+        id: osId,
+        osNumber: typeof r.os_number === 'number' ? r.os_number : null,
+        label: (r.vehicle_model || '').trim() || osId.slice(0, 8),
+        vehicleModel: (r.vehicle_model || '').trim() || null,
+        customerName,
+        moduleKind: r.module_kind ?? null,
+        moduleProductOther: r.module_product_other ?? null,
+        moduleIdentification: (r.module_identification || '').trim() || null,
+        benchSlot: typeof r.bench_slot === 'number' ? r.bench_slot : null,
+        feedback: opts.feedback,
+        ok: opts.ok,
+        already: opts.already,
+      };
+    },
+    []
+  );
+
+  const appendLabBatchItem = useCallback((item: LabScanBatchItem) => {
+    setLabScanBatch((prev) => {
+      const withoutDup = prev.filter((p) => p.id !== item.id);
+      return [...withoutDup, item];
+    });
+  }, []);
+
+  const appendLabBatchFromScan = useCallback(
+    async (
+      osId: string,
+      result: LabScanOrderMeta | null | undefined,
+      opts: { feedback: string; ok: boolean; already?: boolean }
+    ) => {
+      let enriched: LabScanOrderMeta | null | undefined = result;
+      try {
+        const hasCustomer =
+          Boolean(enriched?.customers?.name?.trim()) ||
+          Boolean(enriched?.customer_name?.trim());
+        const missingMeta =
+          !enriched?.module_kind ||
+          !enriched?.vehicle_model ||
+          !enriched?.module_identification ||
+          !hasCustomer;
+        if (missingMeta) {
+          try {
+            enriched = { ...enriched, ...(await getServiceOrderById(osId)) };
+          } catch {
+            /* mantém o que veio da movimentação */
+          }
+        }
+        appendLabBatchItem(buildLabBatchItem(osId, enriched, opts));
+      } catch (err: unknown) {
+        appendLabBatchItem({
+          id: osId,
+          label: osId.slice(0, 8),
+          feedback: opts.feedback || (err instanceof Error ? err.message : 'Erro ao exibir peça'),
+          ok: opts.ok,
+          already: opts.already,
+        });
+      }
+    },
+    [appendLabBatchItem, buildLabBatchItem]
+  );
+
   /**
    * Pistola USB: se o modal da OS reivindicar (caixa de estoque), trata lá;
-   * senão, QR de OS do Laboratório (RDA-OS) abre o modal rápido.
+   * senão, QR de OS do Laboratório (RDA-OS) — Consultar / Saída / Retorno.
    */
   const handleGlobalBarcodeScan = useCallback((code: string) => {
     void (async () => {
@@ -818,8 +924,127 @@ export default function App() {
       setSettingsHubOpen(false);
       setIsSettingsOpen(false);
       setIsSupportChatOpen(false);
-      setLabOsScanQuick({ id: osId, token: Date.now() });
+
+      const mode = labScanMode;
+      if (mode === 'consultar') {
+        setLabOsScanQuick({ id: osId, token: Date.now() });
+        return;
+      }
+
+      if (labScanBusyRef.current) return;
+      labScanBusyRef.current = true;
+      const actorName =
+        authSession?.displayName ?? authSession?.username ?? 'Usuário';
+      const actorUserId = authSession?.userId ?? null;
+      try {
+        if (mode === 'saida') {
+          try {
+            const result = await registerOficinaSaida(osId, { actorName, actorUserId });
+            playNotificationSound();
+            await appendLabBatchFromScan(osId, result, {
+              feedback: result.move?.feedback || 'OK · Laboratório',
+              ok: true,
+            });
+          } catch (err: unknown) {
+            const e = err as Error & {
+              already?: boolean;
+              location?: { kind: string; value: string | null };
+            };
+            if (e.already) {
+              playNotificationSound();
+              await appendLabBatchFromScan(osId, null, {
+                feedback:
+                  e.location?.kind === 'deposito' && e.location.value
+                    ? `Já no laboratório · ${e.location.value}`
+                    : e.message || 'Já no destino',
+                ok: true,
+                already: true,
+              });
+            } else {
+              await appendLabBatchFromScan(osId, null, {
+                feedback: e.message || 'Falha na saída',
+                ok: false,
+              });
+            }
+          }
+        } else if (mode === 'retorno') {
+          try {
+            const result = await registerOficinaRetorno(osId, { actorName, actorUserId });
+            playNotificationSound();
+            await appendLabBatchFromScan(osId, result, {
+              feedback: result.move?.feedback || 'OK · Oficina',
+              ok: true,
+            });
+          } catch (err: unknown) {
+            const e = err as Error & {
+              already?: boolean;
+              location?: { kind: string; value: string | null };
+            };
+            if (e.already) {
+              playNotificationSound();
+              await appendLabBatchFromScan(osId, null, {
+                feedback:
+                  e.location?.kind === 'oficina' && e.location.value
+                    ? `Já na oficina · ${e.location.value}`
+                    : e.message || 'Já no destino',
+                ok: true,
+                already: true,
+              });
+            } else {
+              await appendLabBatchFromScan(osId, null, {
+                feedback: e.message || 'Falha no retorno',
+                ok: false,
+              });
+            }
+          }
+        }
+      } finally {
+        labScanBusyRef.current = false;
+      }
     })();
+  }, [
+    appendLabBatchFromScan,
+    authSession?.displayName,
+    authSession?.userId,
+    authSession?.username,
+    labScanMode,
+  ]);
+
+  const handleLabBatchUndoLast = useCallback(() => {
+    void (async () => {
+      const last = labScanBatch[labScanBatch.length - 1];
+      if (!last?.ok || last.already) {
+        setLabScanBatch((prev) => prev.slice(0, -1));
+        return;
+      }
+      setLabScanBatchConfirming(true);
+      const actorName =
+        authSession?.displayName ?? authSession?.username ?? 'Usuário';
+      const actorUserId = authSession?.userId ?? null;
+      try {
+        // Desfaz invertendo o movimento
+        if (labScanMode === 'saida') {
+          await registerOficinaRetorno(last.id, { actorName, actorUserId, force: true });
+        } else if (labScanMode === 'retorno') {
+          await registerOficinaSaida(last.id, { actorName, actorUserId, force: true });
+        }
+        setLabScanBatch((prev) => prev.slice(0, -1));
+      } catch (err: unknown) {
+        window.alert(err instanceof Error ? err.message : 'Não foi possível desfazer.');
+      } finally {
+        setLabScanBatchConfirming(false);
+      }
+    })();
+  }, [
+    authSession?.displayName,
+    authSession?.userId,
+    authSession?.username,
+    labScanBatch,
+    labScanMode,
+  ]);
+
+  const handleLabBatchConfirm = useCallback(() => {
+    setLabScanBatch([]);
   }, []);
 
   useBarcodeWedgeListener({
@@ -1484,7 +1709,7 @@ export default function App() {
             tabId="laboratorio"
             activeTab={userTab}
             visitedTabs={visitedUserTabs}
-            className="flex-1 min-h-0 overflow-y-auto px-3 pb-4 pt-1 sm:px-4 md:px-6 md:pb-6 md:pt-2 lg:p-8 lg:pt-6"
+            className="flex h-full min-h-0 flex-1 flex-col overflow-hidden px-3 pb-3 pt-1 sm:px-4 sm:pb-4 md:px-6 md:pb-4 md:pt-2 lg:px-8 lg:pb-4 lg:pt-4"
           >
             <LazyTabBoundary label="Laboratório">
               <LazyPatioView
@@ -1507,9 +1732,21 @@ export default function App() {
               onClosePage={isDesktopShell ? undefined : navigateToHomeApp}
               actorOptions={{ actor: 'technician', actorTechnicianSlug: authSession.userId, actorTechnicianName: authSession.displayName ?? authSession.username }}
               patioPermissions={patioPerms}
+              labScanMode={labScanMode}
+              onLabScanModeChange={handleLabScanModeChange}
               />
             </LazyTabBoundary>
           </KeepAliveTabPanel>
+        {labScanMode === 'saida' || labScanMode === 'retorno' ? (
+          <LabScanBatchPanel
+            mode={labScanMode}
+            items={labScanBatch}
+            confirming={labScanBatchConfirming}
+            onConfirm={handleLabBatchConfirm}
+            onUndoLast={handleLabBatchUndoLast}
+            onClear={handleLabBatchConfirm}
+          />
+        ) : null}
         {showMobileBackgroundNotifications ? (
           <div className="sr-only" aria-hidden="true">
             <NotificationCenter
@@ -1856,7 +2093,7 @@ export default function App() {
           tabId="laboratorio"
           activeTab={currentTab}
           visitedTabs={visitedTabs}
-          className="flex-1 min-h-0 overflow-y-auto px-3 pb-4 pt-1 sm:px-4 md:px-6 md:pb-6 md:pt-2 lg:p-8 lg:pt-6"
+          className="flex h-full min-h-0 flex-1 flex-col overflow-hidden px-3 pb-3 pt-1 sm:px-4 sm:pb-4 md:px-6 md:pb-4 md:pt-2 lg:px-8 lg:pb-4 lg:pt-4"
         >
           <LazyTabBoundary label="Laboratório">
             <LazyPatioView
@@ -1881,9 +2118,22 @@ export default function App() {
             requiresExplicitCommentRead={canVerifyBudgetsApp}
             canApproveBudgetItems={canApproveBudgetItemsApp}
             actorOptions={authSession?.role === 'admin' ? { actor: 'admin', actorDisplayName: adminDisplayName } : { actor: 'technician', actorTechnicianSlug: authSession?.userId, actorTechnicianName: authSession?.displayName ?? authSession?.username, actorDisplayName: authSession?.displayName ?? authSession?.username }}
+            labScanMode={labScanMode}
+            onLabScanModeChange={handleLabScanModeChange}
             />
           </LazyTabBoundary>
         </KeepAliveTabPanel>
+
+      {labScanMode === 'saida' || labScanMode === 'retorno' ? (
+        <LabScanBatchPanel
+          mode={labScanMode}
+          items={labScanBatch}
+          confirming={labScanBatchConfirming}
+          onConfirm={handleLabBatchConfirm}
+          onUndoLast={handleLabBatchUndoLast}
+          onClear={handleLabBatchConfirm}
+        />
+      ) : null}
 
       {/* Global Modals */}
       <SettingsModal

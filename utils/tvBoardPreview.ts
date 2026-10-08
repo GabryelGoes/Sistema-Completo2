@@ -40,14 +40,15 @@ const PATIO_STAGE_PRIORITY: Record<string, number> = {
 const LAB_STAGE_PRIORITY: Record<string, number> = {
   Garantia: 0,
   'Aguardando Avaliação': 1,
-  'Avaliação Técnica': 2,
+  'Em Análise': 2,
   'Aguardando Aprovação': 3,
-  'Orçamento Aprovado': 4,
+  'Reparo Aprovado': 4,
   'Aguardando Peças': 5,
-  'Em Serviço': 6,
-  'Sem Conserto': 7,
-  'Pronto pra Retirada': 8,
-  'Orçamento Não Aprovado': 9,
+  'Em Reparo': 6,
+  Finalizado: 7,
+  'Sem Conserto': 8,
+  'Pronto pra Entrega': 9,
+  'Orçamento Não Aprovado': 10,
 };
 
 const PATIO_STATUS_TO_STAGE: Record<string, string> = {
@@ -66,20 +67,20 @@ const PATIO_STATUS_TO_STAGE: Record<string, string> = {
 
 const LAB_STATUS_TO_STAGE: Record<string, string> = {
   AGUARDANDO_AVALIACAO: 'Aguardando Avaliação',
-  AVALIACAO_TECNICA: 'Avaliação Técnica',
+  AVALIACAO_TECNICA: 'Em Análise',
   AGUARDANDO_APROVACAO: 'Aguardando Aprovação',
-  ORCAMENTO_APROVADO: 'Orçamento Aprovado',
+  ORCAMENTO_APROVADO: 'Reparo Aprovado',
   AGUARDANDO_PECAS: 'Aguardando Peças',
   PECAS_DISPONIVEIS: 'Aguardando Peças',
   ENVIO_CONSERTO: 'Em Conserto',
-  CHEGADA_CONSERTO: 'Em Serviço',
-  EM_SERVICO: 'Em Serviço',
+  CHEGADA_CONSERTO: 'Finalizado',
+  EM_SERVICO: 'Em Reparo',
   SEM_CONSERTO: 'Sem Conserto',
-  PRONTO_PRA_RETIRADA: 'Pronto pra Retirada',
+  PRONTO_PRA_RETIRADA: 'Pronto pra Entrega',
   GARANTIA: 'Garantia',
   ORCAMENTO_NAO_APROVADO: 'Orçamento Não Aprovado',
-  FINALIZADO: 'Pronto pra Retirada',
-  FASE_DE_TESTE: 'Em Serviço',
+  FINALIZADO: 'Finalizado',
+  FASE_DE_TESTE: 'Finalizado',
 };
 
 const MODULE_KIND_LABELS: Record<string, string> = {
@@ -157,10 +158,15 @@ export function tvBoardStageColorClass(stage: string, scope: TvScope): string {
   }
   if (s.includes('envio') && s.includes('conserto')) return 'bg-indigo-600 text-white';
   if (s.includes('chegada') && s.includes('conserto')) return 'bg-cyan-600 text-white';
+  if (s.includes('reparo aprovado')) return 'bg-orange-600 text-white';
+  if (s.includes('em análise') || s.includes('em analise')) return 'bg-[#F5D00B] text-black';
   if (s.includes('serviço') || s.includes('servico')) return 'bg-blue-600 text-white';
   if (s.includes('fase de teste')) return 'bg-sky-500 text-white';
-  if (s.includes('pronto pra retirada') || s.includes('pronto para retirada') || s.includes('finalizado')) {
-    return 'bg-green-500 text-black';
+  if (s.includes('pronto pra entrega') || s.includes('pronto pra retirada') || s.includes('pronto para retirada')) {
+    return 'bg-green-400 text-green-950';
+  }
+  if (s.includes('finalizado')) {
+    return 'bg-green-900 text-white';
   }
   return 'bg-zinc-800 text-white';
 }

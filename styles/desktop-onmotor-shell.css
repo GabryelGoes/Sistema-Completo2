@@ -466,6 +466,29 @@ html[data-desktop-shell='true'] .desktop-shell-content-inner > [role='tabpanel']
   flex-direction: column;
 }
 
+/*
+ * Laboratório lista: cabeçalho (QR / Criar OS / Lembretes / …) fica fixo e só a
+ * tabela rola. Trava a altura do shell para não crescer com o conteúdo e anular
+ * a rolagem interna. Escopo no tabpanel ativo (keep-alive mantém o attr nas abas ocultas).
+ */
+html[data-desktop-shell='true']
+  .desktop-shell-content:has([role='tabpanel']:not([hidden]) [data-lab-lista-pinned='true']) {
+  overflow: hidden;
+}
+
+html[data-desktop-shell='true']
+  .desktop-shell-content-inner:has([role='tabpanel']:not([hidden]) [data-lab-lista-pinned='true']) {
+  height: 100%;
+  max-height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+html[data-desktop-shell='true'] .desktop-shell-content [data-lab-lista-scroll] {
+  overflow: auto !important;
+  max-height: none;
+}
+
 /* Cards OnMotor dentro das views */
 html[data-desktop-shell='true'] .desktop-onmotor-card {
   border-top-color: rgb(var(--desktop-shell-accent-rgb) / 1);
