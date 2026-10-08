@@ -12,14 +12,11 @@ export type LabScanModeBarProps = {
   compact?: boolean;
 };
 
-/** Cores chapadas só no estado selecionado. */
+/** Cores chapadas só no estado selecionado (sem aro). */
 const MODE_ACTIVE_CLASS: Record<LabScanMode, string> = {
-  consultar:
-    'bg-violet-600 text-white ring-2 ring-violet-300 ring-offset-2 ring-offset-zinc-100 dark:ring-violet-400/70 dark:ring-offset-zinc-950',
-  saida:
-    'bg-emerald-600 text-white ring-2 ring-emerald-300 ring-offset-2 ring-offset-zinc-100 dark:ring-emerald-400/70 dark:ring-offset-zinc-950',
-  retorno:
-    'bg-[#F5D00B] text-black ring-2 ring-amber-300 ring-offset-2 ring-offset-zinc-100 dark:ring-amber-400/80 dark:ring-offset-zinc-950',
+  consultar: 'bg-violet-600 text-white',
+  saida: 'bg-emerald-600 text-white',
+  retorno: 'bg-[#F5D00B] text-black',
 };
 
 const MODE_IDLE_CLASS =

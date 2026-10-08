@@ -7681,10 +7681,17 @@ export const PatioView: React.FC<PatioViewProps> = ({
                     })}
                     lists={lists}
                     getStatusConfig={getStatusConfig}
+                    stageOptions={stageColumnsSorted.map((s) => ({
+                      id: s.id,
+                      name: s.name,
+                      style: s.style,
+                    }))}
                     locationBusyId={locationChangingCardId}
                     stageBusyId={stageChangingCardId || (isMoving && cardInTransition ? cardInTransition.id : null)}
                     onOpenCard={(card) => setSelectedCard(card)}
-                    onChangeStage={(card, e) => handleOpenMoveModal(card, e)}
+                    onChangeStage={(card, stageId) => {
+                      void performStageChangeForCard(card, stageId);
+                    }}
                     onChangeLocation={(card, target) => {
                       void handleListaLocationChange(card, target);
                     }}
@@ -9854,21 +9861,21 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                                       });
                                                   const dir =
                                                     m.direction === 'saida'
-                                                      ? 'Saída → Depósito'
-                                                      : 'Retorno → Oficina';
+                                                      ? '→ Laboratório'
+                                                      : '→ Oficina';
                                                   const from =
-                                                    m.from_kind === 'oficina' && m.from_value
-                                                      ? `Oficina ${m.from_value}`
+                                                    m.from_kind === 'oficina'
+                                                      ? 'Oficina'
                                                       : m.from_kind === 'deposito' && m.from_value
-                                                        ? `Depósito ${m.from_value}`
+                                                        ? `Lab ${m.from_value}`
                                                         : m.from_kind === 'fila'
                                                           ? 'Fila'
                                                           : '—';
                                                   const to =
-                                                    m.to_kind === 'oficina' && m.to_value
-                                                      ? `Oficina ${m.to_value}`
+                                                    m.to_kind === 'oficina'
+                                                      ? 'Oficina'
                                                       : m.to_kind === 'deposito' && m.to_value
-                                                        ? `Depósito ${m.to_value}`
+                                                        ? `Lab ${m.to_value}`
                                                         : m.to_kind === 'fila'
                                                           ? 'Fila'
                                                           : '—';
