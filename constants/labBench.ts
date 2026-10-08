@@ -7,7 +7,7 @@
  *
  * Ao mudar de etapa, o produto **não muda de compartimento** — só a cor/etiqueta
  * no sistema. A etapa é lida no card; a posição física permanece até entrega,
- * arquivamento ou etapa que não usa bancada (ex.: Em serviço).
+ * arquivamento ou etapa fora da bancada.
  *
  * Fila (`bench_queued_at`): quando todos os 24 compartimentos estão ocupados.
  */
@@ -34,6 +34,7 @@ export const LAB_BENCH_STATUSES: string[] = [
   "AGUARDANDO_APROVACAO",
   "ORCAMENTO_APROVADO",
   "AGUARDANDO_PECAS",
+  "FINALIZADO",
   "SEM_CONSERTO",
   "PRONTO_PRA_RETIRADA",
 ];
@@ -50,7 +51,7 @@ export const ALL_BENCH_SLOTS: number[] = Array.from(
 
 /**
  * Bancada da oficina — 24 vagas em letras (A–X), paralelas ao depósito 1–24.
- * Atribuição automática na entrada; liberadas em Em serviço / Saída.
+ * Atribuição automática na entrada; liberadas na Saída (→ depósito).
  */
 export const OFICINA_SHELF_COUNT = 24;
 export const OFICINA_SHELF_LETTERS: string[] = Array.from(
@@ -97,20 +98,38 @@ export const LAB_BENCH_STAGE_LEGEND: LabBenchStageLegend[] = [
   {
     id: "AGUARDANDO_AVALIACAO",
     label: "Aguardando avaliação",
-    statuses: ["AGUARDANDO_AVALIACAO", "AVALIACAO_TECNICA"],
+    statuses: ["AGUARDANDO_AVALIACAO"],
     accent: "bg-zinc-500",
+  },
+  {
+    id: "AVALIACAO_TECNICA",
+    label: "Em análise",
+    statuses: ["AVALIACAO_TECNICA"],
+    accent: "bg-[#F5D00B]",
   },
   {
     id: "AGUARDANDO_APROVACAO",
     label: "Aguardando aprovação",
-    statuses: ["AGUARDANDO_APROVACAO", "ORCAMENTO_APROVADO"],
+    statuses: ["AGUARDANDO_APROVACAO"],
     accent: "bg-amber-500",
+  },
+  {
+    id: "ORCAMENTO_APROVADO",
+    label: "Reparo aprovado",
+    statuses: ["ORCAMENTO_APROVADO"],
+    accent: "bg-orange-600",
   },
   {
     id: "AGUARDANDO_PECAS",
     label: "Aguardando peças",
     statuses: ["AGUARDANDO_PECAS"],
     accent: "bg-teal-500",
+  },
+  {
+    id: "FINALIZADO",
+    label: "Finalizado",
+    statuses: ["FINALIZADO"],
+    accent: "bg-green-900",
   },
   {
     id: "SEM_CONSERTO",
@@ -120,9 +139,9 @@ export const LAB_BENCH_STAGE_LEGEND: LabBenchStageLegend[] = [
   },
   {
     id: "PRONTO_PRA_RETIRADA",
-    label: "Pronto pra retirada",
+    label: "Pronto pra entrega",
     statuses: ["PRONTO_PRA_RETIRADA"],
-    accent: "bg-green-500",
+    accent: "bg-green-400",
   },
 ];
 

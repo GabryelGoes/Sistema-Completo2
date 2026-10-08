@@ -6564,7 +6564,7 @@ export function createApiApp() {
         normLines[0].pre_approved === true &&
         normLines[0].lab_preset_id === "limpeza_valvulas";
 
-      const statusUpdate = isPreApprovedCleaningOnly ? "EM_SERVICO" : "AGUARDANDO_APROVACAO";
+      const statusUpdate = isPreApprovedCleaningOnly ? "FINALIZADO" : "AGUARDANDO_APROVACAO";
 
       const evalSummary =
         normLines.length === 1
@@ -11796,9 +11796,8 @@ export function createApiApp() {
         .eq("workshop_id", WORKSHOP_ID)
         .single();
 
-      // Bancada do laboratório: quando o status muda em uma OS de módulo, realoca o
-      // compartimento automaticamente (1..24) para o grupo do novo status, ou libera
-      // o compartimento quando o produto sai da bancada (ex.: EM_SERVICO / finalizado).
+      // Bancada do laboratório: endereço físico (oficina/depósito) NÃO muda com a etapa —
+      // só via Saída/Retorno, editores manuais ou arquivamento.
       // Paralelo: letra da oficina A–X.
       const effectiveOrderType =
         (updatePayload.order_type as string | undefined) ??
@@ -11842,7 +11841,9 @@ export function createApiApp() {
           if (!merged.sentAt) merged.sentAt = today;
           updatePayload.external_repair = merged;
         } else if (
-          (nextStatus === "CHEGADA_CONSERTO" || nextStatus === "EM_SERVICO") &&
+          (nextStatus === "CHEGADA_CONSERTO" ||
+            nextStatus === "EM_SERVICO" ||
+            nextStatus === "FINALIZADO") &&
           prevStatus === "EM_CONSERTO_EXTERNO"
         ) {
           const merged: ExternalRepair = { ...(prevExternal ?? {}) };

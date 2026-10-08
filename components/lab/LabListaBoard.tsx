@@ -1,17 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import {
-  Car,
-  Check,
-  ChevronDown,
-  Clock,
-  FileText,
-  Flag,
-  Home,
-  Package,
-  Search,
-  User,
-  Wrench,
-} from 'lucide-react';
+import { Check, ChevronDown, Package } from 'lucide-react';
 import type { TrelloCard } from '../../types';
 import { parsePatioCardTitle } from '../../utils/patioCardTitle';
 import { isLabModuleFromPatio } from '../../utils/externalRepair';
@@ -22,6 +10,7 @@ import {
 } from '../../utils/moduleMetadata';
 import { resolveLabLocation, type LabLocationKind } from '../../utils/labLocation';
 import { storageThumbnailUrl } from '../../utils/storageThumbnailUrl';
+import { LAB_BENCH_FIRST_SLOT, LAB_BENCH_LAST_SLOT } from '../../constants/labBench';
 
 export type LabListaUiLocation = 'oficina' | 'laboratorio';
 
@@ -41,37 +30,17 @@ type LabListaBoardProps = {
   onChangeLocation: (card: TrelloCard, target: LabListaUiLocation) => void;
 };
 
-function stageIcon(listId: string, listName: string) {
-  const id = (listId || '').toUpperCase();
-  const name = listName.toLowerCase();
-  if (id.includes('AGUARDANDO_AVALIACAO') || name.includes('aguardando avaliação')) {
-    return FileText;
-  }
-  if (id.includes('ANALISE') || name.includes('análise') || name.includes('analise')) {
-    return Search;
-  }
-  if (id.includes('AGUARDANDO_APROVACAO') || name.includes('aguardando aprovação') || name.includes('aguardando aprovacao')) {
-    return Clock;
-  }
-  if (id.includes('APROVADO') || name.includes('aprovado')) {
-    return Check;
-  }
-  if (id.includes('EM_SERVICO') || id.includes('EM_REPARO') || name.includes('reparo') || name.includes('serviço') || name.includes('servico')) {
-    return Wrench;
-  }
-  if (id.includes('FINALIZADO') || name.includes('finalizado')) {
-    return Flag;
-  }
-  if (id.includes('PRONTO') || name.includes('retirada')) {
-    return Package;
-  }
-  return FileText;
-}
-
 function uiLocationFromKind(kind: LabLocationKind): LabListaUiLocation | null {
   if (kind === 'oficina') return 'oficina';
   if (kind === 'deposito' || kind === 'fila') return 'laboratorio';
   return null;
+}
+
+/** Número do compartimento da bancada (1–24), formatado. */
+function formatBenchComp(slot: number | null | undefined): string | null {
+  if (typeof slot !== 'number') return null;
+  if (slot < LAB_BENCH_FIRST_SLOT || slot > LAB_BENCH_LAST_SLOT) return null;
+  return String(slot).padStart(2, '0');
 }
 
 function LocationPicker({
@@ -113,7 +82,6 @@ function LocationPicker({
         aria-expanded={open}
         aria-label={`Localização: ${label}`}
       >
-        <Home className="h-3.5 w-3.5 shrink-0 text-zinc-500 dark:text-zinc-400" strokeWidth={2.2} aria-hidden />
         <span className="min-w-0 flex-1 truncate">{label}</span>
         <ChevronDown className="h-3.5 w-3.5 shrink-0 text-zinc-400" strokeWidth={2.4} aria-hidden />
       </button>
@@ -147,7 +115,6 @@ function LocationPicker({
                   if (!active) onPick(opt.id);
                 }}
               >
-                <Home className="h-3.5 w-3.5 shrink-0 opacity-70" strokeWidth={2.2} aria-hidden />
                 <span className="flex-1">{opt.title}</span>
                 {active ? <Check className="h-3.5 w-3.5 shrink-0" strokeWidth={2.6} aria-hidden /> : null}
               </button>
@@ -199,7 +166,7 @@ export const LabListaBoard: React.FC<LabListaBoardProps> = ({
           </tr>
         </thead>
         <tbody>
-          {cards.map((card, index) => {
+          {cards.map((card) => {
             const titleParts = parsePatioCardTitle(card.name);
             const vehicle = titleParts.vehicle || '—';
             const customer = titleParts.customer || '—';
@@ -212,10 +179,9 @@ export const LabListaBoard: React.FC<LabListaBoardProps> = ({
             const fromPatio = isLabModuleFromPatio(card.desc);
             const listName = lists.find((l) => l.id === card.idList)?.name ?? '—';
             const statusConfig = getStatusConfig(listName, card.idList);
-            const StageIcon = stageIcon(card.idList, listName);
             const loc = resolveLabLocation(card);
             const uiLoc = uiLocationFromKind(loc.kind);
-            const compLabel = String(index + 1).padStart(2, '0');
+            const compLabel = formatBenchComp(card.benchSlot);
             const busyLoc = locationBusyId === card.id;
             const busyStage = stageBusyId === card.id;
 
@@ -225,9 +191,15 @@ export const LabListaBoard: React.FC<LabListaBoardProps> = ({
                 className="group border-b border-zinc-100/90 transition-colors last:border-b-0 hover:bg-zinc-50/80 dark:border-white/[0.05] dark:hover:bg-white/[0.035]"
               >
                 <td className="px-3 py-3.5 sm:px-4">
-                  <span className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-zinc-200/90 bg-zinc-100 text-[12px] font-bold tabular-nums text-zinc-700 dark:border-white/[0.12] dark:bg-white/[0.06] dark:text-zinc-200">
-                    {compLabel}
-                  </span>
+                  {compLabel ? (
+                    <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-zinc-200/90 bg-zinc-100 text-[12px] font-bold tabular-nums text-zinc-700 dark:border-white/[0.12] dark:bg-white/[0.06] dark:text-zinc-200">
+                      {compLabel}
+                    </span>
+                  ) : (
+                    <span className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-dashed border-zinc-200/80 text-[11px] font-semibold text-zinc-400 dark:border-white/[0.1] dark:text-zinc-600">
+                      —
+                    </span>
+                  )}
                 </td>
                 <td className="px-3 py-3.5 sm:px-4">
                   <button
@@ -256,13 +228,11 @@ export const LabListaBoard: React.FC<LabListaBoardProps> = ({
                 </td>
                 <td className="px-3 py-3.5 sm:px-4">
                   {fromPatio ? (
-                    <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-2.5 py-1 text-[11px] font-semibold text-amber-900 dark:bg-amber-950/50 dark:text-amber-100">
-                      <Car className="h-3.5 w-3.5" strokeWidth={2.2} aria-hidden />
+                    <span className="inline-flex items-center rounded-md bg-[#F5D00B] px-2.5 py-1 text-[11px] font-bold text-black">
                       Pátio
                     </span>
                   ) : (
-                    <span className="inline-flex items-center gap-1.5 rounded-full bg-sky-100 px-2.5 py-1 text-[11px] font-semibold text-sky-900 dark:bg-sky-950/50 dark:text-sky-100">
-                      <User className="h-3.5 w-3.5" strokeWidth={2.2} aria-hidden />
+                    <span className="inline-flex items-center rounded-md bg-sky-200 px-2.5 py-1 text-[11px] font-bold text-sky-950 dark:bg-sky-300/90 dark:text-sky-950">
                       Cliente
                     </span>
                   )}
@@ -300,11 +270,10 @@ export const LabListaBoard: React.FC<LabListaBoardProps> = ({
                     className={`inline-flex min-h-[2.65rem] w-full max-w-[18rem] items-center gap-2 rounded-2xl border-0 px-3.5 py-2 text-left shadow-sm transition hover:brightness-110 active:scale-[0.98] disabled:opacity-55 ${statusConfig.style}`}
                     aria-label={`Etapa: ${statusConfig.label}`}
                   >
-                    <StageIcon className="h-4 w-4 shrink-0 text-black/80" strokeWidth={2.2} aria-hidden />
-                    <span className="min-w-0 flex-1 truncate text-[13px] font-semibold uppercase tracking-wide !text-black">
+                    <span className="min-w-0 flex-1 truncate text-[13px] font-semibold uppercase tracking-wide !text-inherit">
                       {statusConfig.label}
                     </span>
-                    <ChevronDown className="h-4 w-4 shrink-0 text-black/70" strokeWidth={2.4} aria-hidden />
+                    <ChevronDown className="h-4 w-4 shrink-0 opacity-70" strokeWidth={2.4} aria-hidden />
                   </button>
                 </td>
               </tr>

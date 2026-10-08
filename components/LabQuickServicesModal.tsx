@@ -162,7 +162,7 @@ export const LabQuickServicesModal: React.FC<LabQuickServicesModalProps> = ({ is
                 <span>
                   Estes serviços aparecem na <strong>avaliação técnica</strong> quando o produto for módulo ABS
                   (completo, hidráulico ou eletrônico). Marque &quot;Limpeza pré-aprovada&quot; apenas no serviço que
-                  permitir atalho direto para Em serviço.
+                  permitir atalho direto para Finalizado.
                 </span>
               </div>
 

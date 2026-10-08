@@ -40,13 +40,13 @@ const PATIO_STAGE_PRIORITY: Record<string, number> = {
 const LAB_STAGE_PRIORITY: Record<string, number> = {
   Garantia: 0,
   'Aguardando Avaliação': 1,
-  'Avaliação Técnica': 2,
+  'Em Análise': 2,
   'Aguardando Aprovação': 3,
-  'Orçamento Aprovado': 4,
+  'Reparo Aprovado': 4,
   'Aguardando Peças': 5,
-  'Em Serviço': 6,
+  Finalizado: 6,
   'Sem Conserto': 7,
-  'Pronto pra Retirada': 8,
+  'Pronto pra Entrega': 8,
   'Orçamento Não Aprovado': 9,
 };
 
@@ -66,20 +66,20 @@ const PATIO_STATUS_TO_STAGE: Record<string, string> = {
 
 const LAB_STATUS_TO_STAGE: Record<string, string> = {
   AGUARDANDO_AVALIACAO: 'Aguardando Avaliação',
-  AVALIACAO_TECNICA: 'Avaliação Técnica',
+  AVALIACAO_TECNICA: 'Em Análise',
   AGUARDANDO_APROVACAO: 'Aguardando Aprovação',
-  ORCAMENTO_APROVADO: 'Orçamento Aprovado',
+  ORCAMENTO_APROVADO: 'Reparo Aprovado',
   AGUARDANDO_PECAS: 'Aguardando Peças',
   PECAS_DISPONIVEIS: 'Aguardando Peças',
   ENVIO_CONSERTO: 'Em Conserto',
-  CHEGADA_CONSERTO: 'Em Serviço',
-  EM_SERVICO: 'Em Serviço',
+  CHEGADA_CONSERTO: 'Finalizado',
+  EM_SERVICO: 'Finalizado',
   SEM_CONSERTO: 'Sem Conserto',
-  PRONTO_PRA_RETIRADA: 'Pronto pra Retirada',
+  PRONTO_PRA_RETIRADA: 'Pronto pra Entrega',
   GARANTIA: 'Garantia',
   ORCAMENTO_NAO_APROVADO: 'Orçamento Não Aprovado',
-  FINALIZADO: 'Pronto pra Retirada',
-  FASE_DE_TESTE: 'Em Serviço',
+  FINALIZADO: 'Finalizado',
+  FASE_DE_TESTE: 'Finalizado',
 };
 
 const MODULE_KIND_LABELS: Record<string, string> = {

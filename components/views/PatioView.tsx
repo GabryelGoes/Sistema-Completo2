@@ -2129,7 +2129,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const cardInTransitionTitleParts = moveCardDisplayed
     ? parsePatioCardTitle(moveCardDisplayed.name)
     : null;
-  /** Em Garantia (lab): só avaliação técnica, em serviço, aguardando peças e pronto pra retirada. */
+  /** Em Garantia (lab): só em análise, finalizado, aguardando peças e pronto pra entrega. */
   const moveModalLists = useMemo(() => {
     if (!isModuleMode || !moveCardDisplayed) return lists;
     const inGarantia =
@@ -4520,10 +4520,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
     }
   };
 
-  /** Registra o retorno do conserto externo: move para “Em serviço”. */
+  /** Registra o retorno do conserto externo: move para “Finalizado”. */
   const handleRegisterExternalReturn = async (cardId: string) => {
     try {
-      await updateServiceOrderStatus(cardId, 'EM_SERVICO', actorOptions);
+      await updateServiceOrderStatus(cardId, 'FINALIZADO', actorOptions);
     } catch (err: any) {
       alert(err?.message ?? 'Erro ao registrar chegada do conserto.');
     } finally {
@@ -6990,12 +6990,14 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
           const canAssignMember = can('canAssignTechnician'); 
           
-          // Condição para botão ENTREGAR: finalizado (pátio) ou pronto pra retirada (laboratório)
+          // Condição para botão ENTREGAR: finalizado (pátio) ou pronto pra entrega/retirada (laboratório)
           const showDeliverButton =
-            card.idList === 'FINALIZADO' ||
-            card.idList === 'PRONTO_PRA_RETIRADA' ||
-            listNameLower.includes('finalizado') ||
-            listNameLower.includes('pronto pra retirada');
+            (!isModuleMode &&
+              (card.idList === 'FINALIZADO' || listNameLower.includes('finalizado'))) ||
+            (isModuleMode &&
+              (card.idList === 'PRONTO_PRA_RETIRADA' ||
+                listNameLower.includes('pronto pra entrega') ||
+                listNameLower.includes('pronto pra retirada')));
 
           // Condição para botão de ENTREGUE em 'não aprovado'
           const showNotApprovedDeliverButton = listNameLower.includes('não aprovado');
@@ -7013,7 +7015,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
           );
           const labModuleReady =
             fromPatio &&
-            (card.idList === 'PRONTO_PRA_RETIRADA' || listNameLower.includes('pronto pra retirada'));
+            (card.idList === 'PRONTO_PRA_RETIRADA' ||
+              listNameLower.includes('pronto pra entrega') ||
+              listNameLower.includes('pronto pra retirada'));
           const showOriginCue = hasLabUndelivered || fromPatio;
           const originReady = hasLabUndelivered ? hasLabReady : labModuleReady;
           const originTint: 'violet' | 'amber' | 'green' | null = !showOriginCue
@@ -7495,7 +7499,17 @@ export const PatioView: React.FC<PatioViewProps> = ({
             {boardLayoutMode === 'lista' && isModuleMode
               ? (
                   <LabListaBoard
-                    cards={sortedCardsList}
+                    cards={[...sortedCardsList].sort((a, b) => {
+                      const sa =
+                        typeof a.benchSlot === 'number' ? a.benchSlot : Number.POSITIVE_INFINITY;
+                      const sb =
+                        typeof b.benchSlot === 'number' ? b.benchSlot : Number.POSITIVE_INFINITY;
+                      if (sa !== sb) return sa - sb;
+                      return (
+                        new Date(b.dateLastActivity).getTime() -
+                        new Date(a.dateLastActivity).getTime()
+                      );
+                    })}
                     lists={lists}
                     getStatusConfig={getStatusConfig}
                     locationBusyId={locationChangingCardId}
@@ -8235,6 +8249,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
         const modalLabModuleReady =
           modalFromPatio &&
           (modalStageStatus === 'PRONTO_PRA_RETIRADA' ||
+            modalListName.toLowerCase().includes('pronto pra entrega') ||
             modalListName.toLowerCase().includes('pronto pra retirada'));
         const modalShowOriginIcon = modalHasLabUndelivered || modalFromPatio;
         const modalOriginReady = modalHasLabUndelivered ? modalLabReady : modalLabModuleReady;
