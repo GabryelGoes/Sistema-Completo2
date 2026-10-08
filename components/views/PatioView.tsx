@@ -6729,14 +6729,14 @@ export const PatioView: React.FC<PatioViewProps> = ({
         )
       : null;
 
-  /** PC + lista do lab: cabeçalho (Criar OS) fixo; só a lista rola. */
-  const labListaPcPinnedHeader =
-    isModuleMode && isPcLayout && boardLayoutMode === 'lista';
+  /** Lista do lab: cabeçalho (QR / Criar OS / Lembretes / …) fixo; só a tabela rola. */
+  const labListaPinnedHeader = isModuleMode && boardLayoutMode === 'lista';
 
   return (
     <div
+      data-lab-lista-pinned={labListaPinnedHeader ? 'true' : undefined}
       className={
-        labListaPcPinnedHeader
+        labListaPinnedHeader
           ? 'relative flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden animate-in fade-in duration-500'
           : isModuleMode && isPcLayout
             ? 'relative flex h-full min-h-0 w-full flex-1 flex-col overflow-y-auto overscroll-contain animate-in pb-8 fade-in duration-500'
@@ -6754,10 +6754,18 @@ export const PatioView: React.FC<PatioViewProps> = ({
           isModuleMode
             ? 'max-w-none px-2 sm:px-3 md:px-3 lg:px-4'
             : 'max-w-[100rem] px-3 sm:px-5 md:px-6'
-        } ${labListaPcPinnedHeader ? 'w-full' : ''}`}
+        } ${labListaPinnedHeader ? 'w-full' : ''}`}
       >
         {/* Cabeçalho mobile/tablet: título + contagem + busca + ações; PC shell mantém badge compacto */}
-        <header className={`relative z-50 overflow-visible ${headerActionsOneLine ? 'mb-5 pb-0.5 sm:mb-6 lg:mb-8' : 'mb-3 sm:mb-4 md:mb-5 lg:mb-7'}`}>
+        <header
+          className={`relative z-50 shrink-0 overflow-visible ${
+            labListaPinnedHeader
+              ? 'mb-3 pb-0.5 sm:mb-3.5 lg:mb-4'
+              : headerActionsOneLine
+                ? 'mb-5 pb-0.5 sm:mb-6 lg:mb-8'
+                : 'mb-3 sm:mb-4 md:mb-5 lg:mb-7'
+          }`}
+        >
           {desktopShell ? (
             isModuleMode && typeof onLabScanModeChange === 'function' ? (
               <div className="flex w-full flex-nowrap items-center gap-2 overflow-x-auto pb-0.5 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden sm:gap-2.5">
@@ -7033,8 +7041,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
             ? 'max-w-none px-1 sm:px-1.5 md:px-2 lg:px-2.5'
             : 'max-w-[128rem] px-0.5 sm:px-1 md:px-2 lg:px-3'
         } ${
-          labListaPcPinnedHeader
-            ? 'flex min-h-0 flex-1 flex-col overflow-hidden pb-1'
+          labListaPinnedHeader
+            ? 'flex min-h-0 flex-1 flex-col overflow-hidden'
             : ''
         }`}
       >
@@ -7670,52 +7678,50 @@ export const PatioView: React.FC<PatioViewProps> = ({
           <div
             key={boardLayoutMode}
             className={`${layoutMotion}${
-              labListaPcPinnedHeader ? ' flex h-full min-h-0 flex-col' : ''
+              labListaPinnedHeader ? ' flex h-full min-h-0 flex-1 flex-col' : ''
             }`}
           >
             {boardLayoutMode === 'lista' && isModuleMode
               ? (
-                  <div className={labListaPcPinnedHeader ? 'flex min-h-0 flex-1 flex-col' : undefined}>
-                    <LabListaBoard
-                      cards={[...cards].sort((a, b) => {
-                        const cardTime = (c: TrelloCard) => {
-                          const created = c.createdAt ? new Date(c.createdAt).getTime() : NaN;
-                          if (!Number.isNaN(created)) return created;
-                          const act = c.dateLastActivity ? new Date(c.dateLastActivity).getTime() : 0;
-                          return Number.isNaN(act) ? 0 : act;
-                        };
-                        if (labListaSortMode === 'oldest_first') {
-                          const diff = cardTime(a) - cardTime(b);
-                          if (diff !== 0) return diff;
-                          return byStage(a, b);
-                        }
-                        if (labListaSortMode === 'newest_first') {
-                          const diff = cardTime(b) - cardTime(a);
-                          if (diff !== 0) return diff;
-                          return byStage(a, b);
-                        }
-                        // by_stage — Garantia (pos 0) primeiro, depois o fluxo
+                  <LabListaBoard
+                    cards={[...cards].sort((a, b) => {
+                      const cardTime = (c: TrelloCard) => {
+                        const created = c.createdAt ? new Date(c.createdAt).getTime() : NaN;
+                        if (!Number.isNaN(created)) return created;
+                        const act = c.dateLastActivity ? new Date(c.dateLastActivity).getTime() : 0;
+                        return Number.isNaN(act) ? 0 : act;
+                      };
+                      if (labListaSortMode === 'oldest_first') {
+                        const diff = cardTime(a) - cardTime(b);
+                        if (diff !== 0) return diff;
                         return byStage(a, b);
-                      })}
-                      lists={lists}
-                      getStatusConfig={getStatusConfig}
-                      stageOptions={stageColumnsSorted.map((s) => ({
-                        id: s.id,
-                        name: s.name,
-                        style: s.style,
-                      }))}
-                      locationBusyId={locationChangingCardId}
-                      stageBusyId={stageChangingCardId || (isMoving && cardInTransition ? cardInTransition.id : null)}
-                      onOpenCard={(card) => setSelectedCard(card)}
-                      onChangeStage={(card, stageId) => {
-                        void performStageChangeForCard(card, stageId);
-                      }}
-                      onChangeLocation={(card, target) => {
-                        void handleListaLocationChange(card, target);
-                      }}
-                      fillHeight={labListaPcPinnedHeader}
-                    />
-                  </div>
+                      }
+                      if (labListaSortMode === 'newest_first') {
+                        const diff = cardTime(b) - cardTime(a);
+                        if (diff !== 0) return diff;
+                        return byStage(a, b);
+                      }
+                      // by_stage — Garantia (pos 0) primeiro, depois o fluxo
+                      return byStage(a, b);
+                    })}
+                    lists={lists}
+                    getStatusConfig={getStatusConfig}
+                    stageOptions={stageColumnsSorted.map((s) => ({
+                      id: s.id,
+                      name: s.name,
+                      style: s.style,
+                    }))}
+                    locationBusyId={locationChangingCardId}
+                    stageBusyId={stageChangingCardId || (isMoving && cardInTransition ? cardInTransition.id : null)}
+                    onOpenCard={(card) => setSelectedCard(card)}
+                    onChangeStage={(card, stageId) => {
+                      void performStageChangeForCard(card, stageId);
+                    }}
+                    onChangeLocation={(card, target) => {
+                      void handleListaLocationChange(card, target);
+                    }}
+                    fillHeight={labListaPinnedHeader}
+                  />
                 )
               : boardLayoutMode === 'trello'
               ? zoomWrap(

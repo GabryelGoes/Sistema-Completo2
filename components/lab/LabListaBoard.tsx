@@ -36,7 +36,7 @@ type LabListaBoardProps = {
   onOpenCard: (card: TrelloCard) => void;
   onChangeStage: (card: TrelloCard, stageId: string) => void;
   onChangeLocation: (card: TrelloCard, target: LabListaUiLocation) => void;
-  /** Preenche a altura do pai e rola a tabela por dentro (PC lista). */
+  /** Preenche a altura do pai e rola a tabela por dentro (lista do lab). */
   fillHeight?: boolean;
 };
 
@@ -406,8 +406,11 @@ export const LabListaBoard: React.FC<LabListaBoardProps> = ({
 
   return (
     <div
-      className={`overflow-auto rounded-[1.35rem] border border-zinc-200/70 bg-white/70 shadow-[0_10px_30px_-16px_rgba(0,0,0,0.18)] dark:border-white/[0.08] dark:bg-zinc-950/45 dark:shadow-none custom-scrollbar ${
-        fillHeight ? 'h-full min-h-0 max-h-full' : 'max-h-full min-h-0'
+      data-lab-lista-scroll={fillHeight ? 'true' : undefined}
+      className={`rounded-[1.35rem] border border-zinc-200/70 bg-white/70 shadow-[0_10px_30px_-16px_rgba(0,0,0,0.18)] dark:border-white/[0.08] dark:bg-zinc-950/45 dark:shadow-none custom-scrollbar ${
+        fillHeight
+          ? 'min-h-0 flex-1 overflow-auto overscroll-contain pb-8'
+          : 'max-h-full min-h-0 overflow-auto'
       }`}
     >
       <table className="w-full min-w-[64rem] border-collapse text-left">
