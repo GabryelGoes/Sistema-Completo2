@@ -6737,9 +6737,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
     <div
       className={
         labListaPcPinnedHeader
-          ? 'relative flex h-full min-h-0 w-full flex-col overflow-hidden animate-in fade-in duration-500'
+          ? 'relative flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden animate-in fade-in duration-500'
           : isModuleMode && isPcLayout
-            ? 'relative flex h-full min-h-0 w-full flex-col overflow-y-auto overscroll-contain animate-in pb-8 fade-in duration-500'
+            ? 'relative flex h-full min-h-0 w-full flex-1 flex-col overflow-y-auto overscroll-contain animate-in pb-8 fade-in duration-500'
             : 'relative min-h-full w-full animate-in pb-32 fade-in duration-500'
       }
     >
@@ -7034,7 +7034,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
             : 'max-w-[128rem] px-0.5 sm:px-1 md:px-2 lg:px-3'
         } ${
           labListaPcPinnedHeader
-            ? 'min-h-0 flex-1 overflow-y-auto overscroll-contain pb-3 custom-scrollbar'
+            ? 'flex min-h-0 flex-1 flex-col overflow-hidden pb-1'
             : ''
         }`}
       >
@@ -7667,47 +7667,55 @@ export const PatioView: React.FC<PatioViewProps> = ({
         };
 
         return (
-          <div key={boardLayoutMode} className={layoutMotion}>
+          <div
+            key={boardLayoutMode}
+            className={`${layoutMotion}${
+              labListaPcPinnedHeader ? ' flex h-full min-h-0 flex-col' : ''
+            }`}
+          >
             {boardLayoutMode === 'lista' && isModuleMode
               ? (
-                  <LabListaBoard
-                    cards={[...cards].sort((a, b) => {
-                      const cardTime = (c: TrelloCard) => {
-                        const created = c.createdAt ? new Date(c.createdAt).getTime() : NaN;
-                        if (!Number.isNaN(created)) return created;
-                        const act = c.dateLastActivity ? new Date(c.dateLastActivity).getTime() : 0;
-                        return Number.isNaN(act) ? 0 : act;
-                      };
-                      if (labListaSortMode === 'oldest_first') {
-                        const diff = cardTime(a) - cardTime(b);
-                        if (diff !== 0) return diff;
+                  <div className={labListaPcPinnedHeader ? 'flex min-h-0 flex-1 flex-col' : undefined}>
+                    <LabListaBoard
+                      cards={[...cards].sort((a, b) => {
+                        const cardTime = (c: TrelloCard) => {
+                          const created = c.createdAt ? new Date(c.createdAt).getTime() : NaN;
+                          if (!Number.isNaN(created)) return created;
+                          const act = c.dateLastActivity ? new Date(c.dateLastActivity).getTime() : 0;
+                          return Number.isNaN(act) ? 0 : act;
+                        };
+                        if (labListaSortMode === 'oldest_first') {
+                          const diff = cardTime(a) - cardTime(b);
+                          if (diff !== 0) return diff;
+                          return byStage(a, b);
+                        }
+                        if (labListaSortMode === 'newest_first') {
+                          const diff = cardTime(b) - cardTime(a);
+                          if (diff !== 0) return diff;
+                          return byStage(a, b);
+                        }
+                        // by_stage — Garantia (pos 0) primeiro, depois o fluxo
                         return byStage(a, b);
-                      }
-                      if (labListaSortMode === 'newest_first') {
-                        const diff = cardTime(b) - cardTime(a);
-                        if (diff !== 0) return diff;
-                        return byStage(a, b);
-                      }
-                      // by_stage — Garantia (pos 0) primeiro, depois o fluxo
-                      return byStage(a, b);
-                    })}
-                    lists={lists}
-                    getStatusConfig={getStatusConfig}
-                    stageOptions={stageColumnsSorted.map((s) => ({
-                      id: s.id,
-                      name: s.name,
-                      style: s.style,
-                    }))}
-                    locationBusyId={locationChangingCardId}
-                    stageBusyId={stageChangingCardId || (isMoving && cardInTransition ? cardInTransition.id : null)}
-                    onOpenCard={(card) => setSelectedCard(card)}
-                    onChangeStage={(card, stageId) => {
-                      void performStageChangeForCard(card, stageId);
-                    }}
-                    onChangeLocation={(card, target) => {
-                      void handleListaLocationChange(card, target);
-                    }}
-                  />
+                      })}
+                      lists={lists}
+                      getStatusConfig={getStatusConfig}
+                      stageOptions={stageColumnsSorted.map((s) => ({
+                        id: s.id,
+                        name: s.name,
+                        style: s.style,
+                      }))}
+                      locationBusyId={locationChangingCardId}
+                      stageBusyId={stageChangingCardId || (isMoving && cardInTransition ? cardInTransition.id : null)}
+                      onOpenCard={(card) => setSelectedCard(card)}
+                      onChangeStage={(card, stageId) => {
+                        void performStageChangeForCard(card, stageId);
+                      }}
+                      onChangeLocation={(card, target) => {
+                        void handleListaLocationChange(card, target);
+                      }}
+                      fillHeight={labListaPcPinnedHeader}
+                    />
+                  </div>
                 )
               : boardLayoutMode === 'trello'
               ? zoomWrap(

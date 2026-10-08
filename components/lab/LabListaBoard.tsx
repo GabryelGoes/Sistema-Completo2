@@ -36,6 +36,8 @@ type LabListaBoardProps = {
   onOpenCard: (card: TrelloCard) => void;
   onChangeStage: (card: TrelloCard, stageId: string) => void;
   onChangeLocation: (card: TrelloCard, target: LabListaUiLocation) => void;
+  /** Preenche a altura do pai e rola a tabela por dentro (PC lista). */
+  fillHeight?: boolean;
 };
 
 function uiLocationFromKind(kind: LabLocationKind): LabListaUiLocation | null {
@@ -50,11 +52,17 @@ function formatBenchComp(slot: number | null | undefined): string | null {
   return String(slot).padStart(2, '0');
 }
 
-/** Peças recém-entradas no laboratório (últimas 24h). */
+/** Peças recém-entradas no laboratório (últimas 24h), ainda na etapa de entrada. */
 const LAB_LISTA_NEW_BADGE_MS = 24 * 60 * 60 * 1000;
+const LAB_LISTA_NEW_BADGE_STAGES = new Set(['AGUARDANDO_AVALIACAO', 'GARANTIA']);
 
-function isRecentlyEnteredLabPiece(createdAt: string | null | undefined): boolean {
+function shouldShowLabListaNewBadge(
+  createdAt: string | null | undefined,
+  stageId: string | null | undefined
+): boolean {
   if (!createdAt) return false;
+  const stage = String(stageId ?? '').trim();
+  if (!LAB_LISTA_NEW_BADGE_STAGES.has(stage)) return false;
   const t = new Date(createdAt).getTime();
   if (Number.isNaN(t)) return false;
   const age = Date.now() - t;
@@ -364,6 +372,7 @@ export const LabListaBoard: React.FC<LabListaBoardProps> = ({
   onOpenCard,
   onChangeStage,
   onChangeLocation,
+  fillHeight = false,
 }) => {
   const [, bumpKinds] = useState(0);
   useEffect(() => {
@@ -396,7 +405,11 @@ export const LabListaBoard: React.FC<LabListaBoardProps> = ({
   };
 
   return (
-    <div className="overflow-x-auto overflow-y-visible rounded-[1.35rem] border border-zinc-200/70 bg-white/70 shadow-[0_10px_30px_-16px_rgba(0,0,0,0.18)] dark:border-white/[0.08] dark:bg-zinc-950/45 dark:shadow-none">
+    <div
+      className={`overflow-auto rounded-[1.35rem] border border-zinc-200/70 bg-white/70 shadow-[0_10px_30px_-16px_rgba(0,0,0,0.18)] dark:border-white/[0.08] dark:bg-zinc-950/45 dark:shadow-none custom-scrollbar ${
+        fillHeight ? 'h-full min-h-0 max-h-full' : 'max-h-full min-h-0'
+      }`}
+    >
       <table className="w-full min-w-[64rem] border-collapse text-left">
         <thead className="sticky top-0 z-20">
           <tr className="border-b border-zinc-200/80 dark:border-white/[0.08]">
@@ -437,7 +450,7 @@ export const LabListaBoard: React.FC<LabListaBoardProps> = ({
             const compLabel = formatBenchComp(card.benchSlot);
             const busyLoc = locationBusyId === card.id;
             const busyStage = stageBusyId === card.id;
-            const isNewEntry = isRecentlyEnteredLabPiece(card.createdAt);
+            const isNewEntry = shouldShowLabListaNewBadge(card.createdAt, card.idList);
 
             return (
               <tr

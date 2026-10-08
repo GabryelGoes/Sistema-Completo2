@@ -1698,7 +1698,7 @@ export default function App() {
             tabId="laboratorio"
             activeTab={userTab}
             visitedTabs={visitedUserTabs}
-            className="flex min-h-0 flex-1 flex-col overflow-hidden px-3 pb-4 pt-1 sm:px-4 md:px-6 md:pb-6 md:pt-2 lg:p-8 lg:pt-6"
+            className="flex h-full min-h-0 flex-1 flex-col overflow-hidden px-3 pb-4 pt-1 sm:px-4 md:px-6 md:pb-6 md:pt-2 lg:p-8 lg:pt-6"
           >
             <LazyTabBoundary label="Laboratório">
               <LazyPatioView
@@ -2082,7 +2082,7 @@ export default function App() {
           tabId="laboratorio"
           activeTab={currentTab}
           visitedTabs={visitedTabs}
-          className="flex min-h-0 flex-1 flex-col overflow-hidden px-3 pb-4 pt-1 sm:px-4 md:px-6 md:pb-6 md:pt-2 lg:p-8 lg:pt-6"
+          className="flex h-full min-h-0 flex-1 flex-col overflow-hidden px-3 pb-4 pt-1 sm:px-4 md:px-6 md:pb-6 md:pt-2 lg:p-8 lg:pt-6"
         >
           <LazyTabBoundary label="Laboratório">
             <LazyPatioView
