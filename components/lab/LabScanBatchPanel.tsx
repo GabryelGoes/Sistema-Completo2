@@ -93,11 +93,11 @@ export function LabScanBatchPanel({
   const title = mode === 'saida' ? 'Entrada no laboratório' : 'Retorno à oficina';
   const accent =
     mode === 'saida'
-      ? 'bg-emerald-600 text-white'
+      ? 'bg-violet-600 text-white'
       : 'bg-[#F5D00B] text-black';
   const accentSoft =
     mode === 'saida'
-      ? 'bg-emerald-500/15 text-emerald-800 dark:bg-emerald-400/15 dark:text-emerald-200'
+      ? 'bg-violet-500/15 text-violet-800 dark:bg-violet-400/15 dark:text-violet-200'
       : 'bg-amber-400/20 text-amber-950 dark:bg-[#F5D00B]/18 dark:text-[#F5D00B]';
   const okCount = items.filter((i) => i.ok).length;
   const latest = items[items.length - 1];

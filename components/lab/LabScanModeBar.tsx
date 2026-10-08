@@ -14,8 +14,8 @@ export type LabScanModeBarProps = {
 
 /** Cores chapadas só no estado selecionado (sem aro). */
 const MODE_ACTIVE_CLASS: Record<LabScanMode, string> = {
-  consultar: 'bg-violet-600 text-white',
-  saida: 'bg-emerald-600 text-white',
+  consultar: 'bg-[#007AFF] text-white',
+  saida: 'bg-violet-600 text-white',
   retorno: 'bg-[#F5D00B] text-black',
 };
 
