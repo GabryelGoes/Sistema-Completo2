@@ -832,6 +832,8 @@ export default function App() {
     module_product_other?: string | null;
     module_identification?: string | null;
     bench_slot?: number | null;
+    customer_name?: string | null;
+    customers?: { name?: string | null } | null;
   };
 
   const buildLabBatchItem = useCallback(
@@ -841,11 +843,16 @@ export default function App() {
       opts: { feedback: string; ok: boolean; already?: boolean }
     ): LabScanBatchItem => {
       const r = result ?? {};
+      const customerName =
+        (typeof r.customers?.name === 'string' ? r.customers.name : '').trim() ||
+        (typeof r.customer_name === 'string' ? r.customer_name : '').trim() ||
+        null;
       return {
         id: osId,
         osNumber: typeof r.os_number === 'number' ? r.os_number : null,
         label: (r.vehicle_model || '').trim() || osId.slice(0, 8),
         vehicleModel: (r.vehicle_model || '').trim() || null,
+        customerName,
         moduleKind: r.module_kind ?? null,
         moduleProductOther: r.module_product_other ?? null,
         moduleIdentification: (r.module_identification || '').trim() || null,
@@ -873,13 +880,17 @@ export default function App() {
     ) => {
       let enriched: LabScanOrderMeta | null | undefined = result;
       try {
+        const hasCustomer =
+          Boolean(enriched?.customers?.name?.trim()) ||
+          Boolean(enriched?.customer_name?.trim());
         const missingMeta =
-          !enriched?.module_kind &&
-          !enriched?.vehicle_model &&
-          !enriched?.module_identification;
+          !enriched?.module_kind ||
+          !enriched?.vehicle_model ||
+          !enriched?.module_identification ||
+          !hasCustomer;
         if (missingMeta) {
           try {
-            enriched = await getServiceOrderById(osId);
+            enriched = { ...enriched, ...(await getServiceOrderById(osId)) };
           } catch {
             /* mantém o que veio da movimentação */
           }
