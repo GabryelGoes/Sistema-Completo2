@@ -1,17 +1,14 @@
 import React, { useEffect, useMemo, useRef } from 'react';
 import {
-  AlertTriangle,
   BarChart3,
   Check,
   ChevronDown,
   ChevronRight,
   Clock,
   Command,
-  FileText,
   History,
   Loader2,
   Package,
-  PackageX,
   Pencil,
   Plus,
   QrCode,
@@ -169,9 +166,9 @@ export function WorkshopPartsHomeDashboard({
   const gridCols =
     'lg:grid-cols-[minmax(14rem,2.2fr)_minmax(7rem,0.9fr)_minmax(7rem,0.9fr)_minmax(5.5rem,0.7fr)_minmax(5.5rem,0.7fr)_minmax(4.5rem,0.55fr)_minmax(7.5rem,0.9fr)_5.5rem]';
 
-  /** Pills + espaço abaixo para a scrollbar horizontal não cobrir os botões. */
+  /** Container com overflow: padding-bottom reserva faixa da scrollbar abaixo das pills. */
   const categoryScrollCls =
-    'flex gap-2 overflow-x-auto overflow-y-hidden pt-0.5 pb-2.5 [scrollbar-width:thin] [scrollbar-color:rgba(113,113,122,0.25)_transparent] [&::-webkit-scrollbar]:h-1 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-zinc-400/25 hover:[&::-webkit-scrollbar-thumb]:bg-zinc-400/40 dark:[&::-webkit-scrollbar-thumb]:bg-white/15';
+    'overflow-x-auto overflow-y-hidden pt-0.5 pb-2 [scrollbar-width:thin] [scrollbar-color:rgba(113,113,122,0.22)_transparent] [&::-webkit-scrollbar]:h-1 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-zinc-400/20 hover:[&::-webkit-scrollbar-thumb]:bg-zinc-400/35 dark:[&::-webkit-scrollbar-thumb]:bg-white/15';
 
   return (
     <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-auto touch-pan-y px-4 pb-[max(2rem,env(safe-area-inset-bottom))] custom-scrollbar [scrollbar-gutter:stable] sm:px-6 lg:px-8">
@@ -475,57 +472,59 @@ export function WorkshopPartsHomeDashboard({
           </div>
 
           <div className={categoryScrollCls}>
-            <button
-              type="button"
-              onClick={() => {
-                onCategoryFilterChange('all');
-                setCategoryFilterMenuOpen(false);
-              }}
-              className={`shrink-0 rounded-full px-3.5 py-1.5 text-[13px] font-semibold transition-colors ${
-                categoryFilter === 'all'
-                  ? 'bg-[#0F7A4B] text-white'
-                  : 'bg-zinc-200/90 text-zinc-800 hover:bg-zinc-300/90 dark:bg-white/10 dark:text-zinc-200 dark:hover:bg-white/15'
-              }`}
-            >
-              Todos <span className="tabular-nums">({categoryCounts.total})</span>
-            </button>
-            {categoryCounts.uncategorized > 0 ? (
+            <div className="flex w-max min-w-full gap-2">
               <button
                 type="button"
                 onClick={() => {
-                  onCategoryFilterChange('uncategorized');
+                  onCategoryFilterChange('all');
                   setCategoryFilterMenuOpen(false);
                 }}
                 className={`shrink-0 rounded-full px-3.5 py-1.5 text-[13px] font-semibold transition-colors ${
-                  categoryFilter === 'uncategorized'
+                  categoryFilter === 'all'
                     ? 'bg-[#0F7A4B] text-white'
                     : 'bg-zinc-200/90 text-zinc-800 hover:bg-zinc-300/90 dark:bg-white/10 dark:text-zinc-200 dark:hover:bg-white/15'
                 }`}
               >
-                Sem categoria <span className="tabular-nums">({categoryCounts.uncategorized})</span>
+                Todos <span className="tabular-nums">({categoryCounts.total})</span>
               </button>
-            ) : null}
-            {categories.map((c) => {
-              const n = categoryCounts.counts.get(c.id) ?? 0;
-              if (n === 0) return null;
-              return (
+              {categoryCounts.uncategorized > 0 ? (
                 <button
-                  key={c.id}
                   type="button"
                   onClick={() => {
-                    onCategoryFilterChange(c.id);
+                    onCategoryFilterChange('uncategorized');
                     setCategoryFilterMenuOpen(false);
                   }}
                   className={`shrink-0 rounded-full px-3.5 py-1.5 text-[13px] font-semibold transition-colors ${
-                    categoryFilter === c.id
+                    categoryFilter === 'uncategorized'
                       ? 'bg-[#0F7A4B] text-white'
                       : 'bg-zinc-200/90 text-zinc-800 hover:bg-zinc-300/90 dark:bg-white/10 dark:text-zinc-200 dark:hover:bg-white/15'
                   }`}
                 >
-                  {c.name} <span className="tabular-nums">({n})</span>
+                  Sem categoria <span className="tabular-nums">({categoryCounts.uncategorized})</span>
                 </button>
-              );
-            })}
+              ) : null}
+              {categories.map((c) => {
+                const n = categoryCounts.counts.get(c.id) ?? 0;
+                if (n === 0) return null;
+                return (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => {
+                      onCategoryFilterChange(c.id);
+                      setCategoryFilterMenuOpen(false);
+                    }}
+                    className={`shrink-0 rounded-full px-3.5 py-1.5 text-[13px] font-semibold transition-colors ${
+                      categoryFilter === c.id
+                        ? 'bg-[#0F7A4B] text-white'
+                        : 'bg-zinc-200/90 text-zinc-800 hover:bg-zinc-300/90 dark:bg-white/10 dark:text-zinc-200 dark:hover:bg-white/15'
+                    }`}
+                  >
+                    {c.name} <span className="tabular-nums">({n})</span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </div>
       ) : null}
