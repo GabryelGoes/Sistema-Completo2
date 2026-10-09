@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Bluetooth, BluetoothConnected, Loader2, Printer, Tag, X } from 'lucide-react';
 import {
+  NIIMBOT_BLE_HELP,
   NIIMBOT_MODEL_LABEL,
   NIIMBOT_SIZE_LABEL,
   niimbotService,
@@ -164,17 +165,29 @@ export function LabOsLabelPrintModal({ open, label, onClose }: LabOsLabelPrintMo
                     Desconectar
                   </button>
                 ) : (
-                  <button
-                    type="button"
-                    onClick={() => run(() => niimbotService.connect())}
-                    disabled={printing}
-                    className="shrink-0 rounded-lg bg-zinc-900 px-2.5 py-1.5 text-[12px] font-semibold text-white disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900"
-                  >
-                    Conectar
-                  </button>
+                  <div className="flex shrink-0 flex-col items-end gap-1">
+                    <button
+                      type="button"
+                      onClick={() => run(() => niimbotService.connect())}
+                      disabled={printing}
+                      className="rounded-lg bg-zinc-900 px-2.5 py-1.5 text-[12px] font-semibold text-white disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900"
+                    >
+                      Conectar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => run(() => niimbotService.connect({ anyDevice: true }))}
+                      disabled={printing}
+                      className="rounded-lg px-2 py-1 text-[11px] font-semibold text-[#007AFF] hover:bg-[#007AFF]/10 disabled:opacity-50"
+                    >
+                      Listar todos
+                    </button>
+                  </div>
                 )
               ) : null}
             </div>
+
+            <p className="text-[11px] leading-snug text-zinc-500 dark:text-zinc-400">{NIIMBOT_BLE_HELP}</p>
 
             <label className="block">
               <span className="text-[11px] font-bold uppercase tracking-wide text-zinc-500">
