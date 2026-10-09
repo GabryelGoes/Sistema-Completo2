@@ -5647,6 +5647,28 @@ export const PatioView: React.FC<PatioViewProps> = ({
     }
   };
 
+  /** Arquiva OS do laboratório vinculada (Recebido no modal do veículo). */
+  const handleReceiveLabOrder = async (laboratoryOrderId: string) => {
+    if (archivingId) return;
+    const msg =
+      'Confirmar recebimento desta peça do laboratório? A OS do laboratório será arquivada e irá para o histórico.';
+    if (!window.confirm(msg)) return;
+    setArchivingId(laboratoryOrderId);
+    try {
+      await updateServiceOrderStatus(laboratoryOrderId, 'CANCELLED', actorOptions);
+      setLabLinkedStatusByOrderId((prev) => ({ ...prev, [laboratoryOrderId]: 'CANCELLED' }));
+      setLabOrdersLookup((prev) => {
+        const existing = prev[laboratoryOrderId];
+        if (!existing) return prev;
+        return { ...prev, [laboratoryOrderId]: { ...existing, status: 'CANCELLED' } };
+      });
+    } catch (error: any) {
+      alert(error?.message ?? 'Erro ao arquivar.');
+    } finally {
+      setArchivingId(null);
+    }
+  };
+
   const handleUnarchive = async (card: BoardCard) => {
     if (unarchivingId) return;
     setUnarchiveError(null);
@@ -7560,7 +7582,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                       ) : (
                         <CheckCircle2 className="w-3.5 h-3.5" />
                       )}
-                      ENTREGAR
+                      {isModuleMode ? 'Entregue' : 'ENTREGAR'}
                     </button>
                   ) : null}
                 </div>
@@ -7617,7 +7639,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                       ) : (
                         <CheckCircle2 className="w-3 h-3" />
                       )}
-                      ENTREGAR
+                      {isModuleMode ? 'Entregue' : 'ENTREGAR'}
                     </button>
                   )}
                   <ChevronDown
@@ -7721,6 +7743,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
                       void handleListaLocationChange(card, target);
                     }}
                     fillHeight={labListaPinnedHeader}
+                    canDeliver={can('canArchiveCard')}
+                    archivingId={archivingId}
+                    onDeliver={(card) => {
+                      void handleDeliverVehicle(card.id);
+                    }}
                   />
                 )
               : boardLayoutMode === 'trello'
@@ -8431,6 +8458,14 @@ export const PatioView: React.FC<PatioViewProps> = ({
         const modalStageStatus = resolveCardStageStatus(selectedCard);
         const modalListName = resolveCardStageLabel(selectedCard);
         const modalStatusConfig = getStatusConfig(modalListName, modalStageStatus);
+        const modalListNameLower = modalListName.toLowerCase();
+        const modalShowDeliver =
+          isModuleMode &&
+          can('canArchiveCard') &&
+          (modalStageStatus === 'PRONTO_PRA_RETIRADA' ||
+            modalListNameLower.includes('pronto pra entrega') ||
+            modalListNameLower.includes('pronto pra retirada') ||
+            modalListNameLower.includes('não aprovado'));
         const modalFromPatio = isModuleMode && isLabModuleFromPatio(selectedCard.desc);
         const modalHasLabUndelivered =
           !isModuleMode &&
@@ -8505,6 +8540,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
               labServiceLinksSaving={labServiceLinksSaving}
               labServiceLinksDraft={labServiceLinksDraft}
               labOrdersLookup={labOrdersLookup}
+              labOrderStatusById={labLinkedStatusByOrderId}
               getStageName={(status) => getStageConfig(status, 'module')?.name ?? status}
               getStageStyleClass={(status) => getStageStyle(status, 'module')}
               onOpenLaboratoryOrder={onOpenLaboratoryOrder}
@@ -8512,6 +8548,12 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 void handlePrintLabServiceLinkLabel(laboratoryOrderId);
               }}
               onRemoveLabServiceLink={(linkId) => void handleRemoveLabServiceLink(linkId)}
+              onReceiveLabOrder={
+                can('canArchiveCard')
+                  ? (laboratoryOrderId) => void handleReceiveLabOrder(laboratoryOrderId)
+                  : undefined
+              }
+              receivingLabOrderId={archivingId}
               patioAttachments={patioOriginAttachments}
               selectedPatioAttachmentPaths={selectedPatioOriginAttachmentPaths}
               onSelectedPatioAttachmentPathsChange={setSelectedPatioOriginAttachmentPaths}
@@ -9011,6 +9053,46 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             className={`${patioVehicleVm.stagePill} ${isExternalRepairStatus(modalStageStatus) ? '!text-white' : '!text-black dark:!text-black'} ${modalStatusConfig.style}`}
                           >
                             {modalListName}
+                            {modalShowDeliver ? (
+                              <span
+                                role="button"
+                                tabIndex={0}
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  if (archivingId === selectedCard.id) return;
+                                  const notApproved = modalListNameLower.includes('não aprovado');
+                                  const msg = notApproved
+                                    ? 'Confirmar entrega desta peça não aprovada? Ele será arquivado e irá para o histórico.'
+                                    : 'Confirmar entrega desta peça? Ele será arquivado e irá para o histórico.';
+                                  if (window.confirm(msg)) {
+                                    void handleDeliverVehicle(selectedCard.id);
+                                  }
+                                }}
+                                onKeyDown={(e) => {
+                                  if (e.key !== 'Enter' && e.key !== ' ') return;
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  if (archivingId === selectedCard.id) return;
+                                  const notApproved = modalListNameLower.includes('não aprovado');
+                                  const msg = notApproved
+                                    ? 'Confirmar entrega desta peça não aprovada? Ele será arquivado e irá para o histórico.'
+                                    : 'Confirmar entrega desta peça? Ele será arquivado e irá para o histórico.';
+                                  if (window.confirm(msg)) {
+                                    void handleDeliverVehicle(selectedCard.id);
+                                  }
+                                }}
+                                className="inline-flex shrink-0 items-center gap-1 rounded-full border border-emerald-500/70 bg-white/90 px-2.5 py-1 text-[10px] font-semibold text-emerald-700 shadow-sm hover:bg-emerald-50"
+                                aria-label="Entregue — arquivar OS"
+                              >
+                                {archivingId === selectedCard.id ? (
+                                  <RefreshCw className="h-3 w-3 animate-spin" aria-hidden />
+                                ) : (
+                                  <CheckCircle2 className="h-3 w-3" aria-hidden />
+                                )}
+                                Entregue
+                              </span>
+                            ) : null}
                             <ChevronDown
                               className={`h-4 w-4 shrink-0 opacity-90 ${isExternalRepairStatus(modalStageStatus) ? 'text-white' : 'text-black dark:text-black'}`}
                               aria-hidden
@@ -9602,6 +9684,46 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                 >
                                   {modalListName}
                                 </p>
+                                {modalShowDeliver ? (
+                                  <span
+                                    role="button"
+                                    tabIndex={0}
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      if (archivingId === selectedCard.id) return;
+                                      const notApproved = modalListNameLower.includes('não aprovado');
+                                      const msg = notApproved
+                                        ? 'Confirmar entrega desta peça não aprovada? Ele será arquivado e irá para o histórico.'
+                                        : 'Confirmar entrega desta peça? Ele será arquivado e irá para o histórico.';
+                                      if (window.confirm(msg)) {
+                                        void handleDeliverVehicle(selectedCard.id);
+                                      }
+                                    }}
+                                    onKeyDown={(e) => {
+                                      if (e.key !== 'Enter' && e.key !== ' ') return;
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      if (archivingId === selectedCard.id) return;
+                                      const notApproved = modalListNameLower.includes('não aprovado');
+                                      const msg = notApproved
+                                        ? 'Confirmar entrega desta peça não aprovada? Ele será arquivado e irá para o histórico.'
+                                        : 'Confirmar entrega desta peça? Ele será arquivado e irá para o histórico.';
+                                      if (window.confirm(msg)) {
+                                        void handleDeliverVehicle(selectedCard.id);
+                                      }
+                                    }}
+                                    className="inline-flex shrink-0 items-center gap-1 rounded-full border border-emerald-500/70 bg-white/90 px-2.5 py-1 text-[10px] font-semibold text-emerald-700 shadow-sm hover:bg-emerald-50"
+                                    aria-label="Entregue — arquivar OS"
+                                  >
+                                    {archivingId === selectedCard.id ? (
+                                      <RefreshCw className="h-3 w-3 animate-spin" aria-hidden />
+                                    ) : (
+                                      <CheckCircle2 className="h-3 w-3" aria-hidden />
+                                    )}
+                                    Entregue
+                                  </span>
+                                ) : null}
                                 <ChevronDown
                                   className={`shrink-0 opacity-90 ${
                                     patioVehicleVm.mode === 'mobile' ? 'h-3.5 w-3.5' : 'h-4 w-4'
@@ -11106,13 +11228,53 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                   e.stopPropagation();
                                   handleOpenMoveModal(selectedCard, e);
                                 }}
-                                className={`group flex w-full items-center justify-between rounded-xl border-2 p-4 transition-all hover:brightness-110 hover:scale-[1.01] active:scale-[0.99] ${isExternalRepairStatus(modalStageStatus) ? '!text-white' : '!text-black dark:!text-black'} ${modalStatusConfig.style}`}
+                                className={`group flex w-full items-center justify-between gap-2 rounded-xl border-2 p-4 transition-all hover:brightness-110 hover:scale-[1.01] active:scale-[0.99] ${isExternalRepairStatus(modalStageStatus) ? '!text-white' : '!text-black dark:!text-black'} ${modalStatusConfig.style}`}
                               >
-                                <span className={`text-[16px] font-bold uppercase leading-snug sm:text-[17px] ${isExternalRepairStatus(modalStageStatus) ? '!text-white' : '!text-black dark:!text-black'}`}>
+                                <span className={`min-w-0 flex-1 text-left text-[16px] font-bold uppercase leading-snug sm:text-[17px] ${isExternalRepairStatus(modalStageStatus) ? '!text-white' : '!text-black dark:!text-black'}`}>
                                   {modalListName}
                                 </span>
+                                {modalShowDeliver ? (
+                                  <span
+                                    role="button"
+                                    tabIndex={0}
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      if (archivingId === selectedCard.id) return;
+                                      const notApproved = modalListNameLower.includes('não aprovado');
+                                      const msg = notApproved
+                                        ? 'Confirmar entrega desta peça não aprovada? Ele será arquivado e irá para o histórico.'
+                                        : 'Confirmar entrega desta peça? Ele será arquivado e irá para o histórico.';
+                                      if (window.confirm(msg)) {
+                                        void handleDeliverVehicle(selectedCard.id);
+                                      }
+                                    }}
+                                    onKeyDown={(e) => {
+                                      if (e.key !== 'Enter' && e.key !== ' ') return;
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      if (archivingId === selectedCard.id) return;
+                                      const notApproved = modalListNameLower.includes('não aprovado');
+                                      const msg = notApproved
+                                        ? 'Confirmar entrega desta peça não aprovada? Ele será arquivado e irá para o histórico.'
+                                        : 'Confirmar entrega desta peça? Ele será arquivado e irá para o histórico.';
+                                      if (window.confirm(msg)) {
+                                        void handleDeliverVehicle(selectedCard.id);
+                                      }
+                                    }}
+                                    className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-emerald-500/70 bg-white/90 px-3 py-1.5 text-[11px] font-semibold text-emerald-700 shadow-sm hover:bg-emerald-50"
+                                    aria-label="Entregue — arquivar OS"
+                                  >
+                                    {archivingId === selectedCard.id ? (
+                                      <RefreshCw className="h-3.5 w-3.5 animate-spin" aria-hidden />
+                                    ) : (
+                                      <CheckCircle2 className="h-3.5 w-3.5" aria-hidden />
+                                    )}
+                                    Entregue
+                                  </span>
+                                ) : null}
                                 <ChevronDown
-                                  className={`h-5 w-5 opacity-90 ${isExternalRepairStatus(modalStageStatus) ? 'text-white' : 'text-black dark:text-black'}`}
+                                  className={`h-5 w-5 shrink-0 opacity-90 ${isExternalRepairStatus(modalStageStatus) ? 'text-white' : 'text-black dark:text-black'}`}
                                 />
                             </button>
                          </div>

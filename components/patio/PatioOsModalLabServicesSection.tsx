@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { Plus, Loader2, Trash2, ArrowRight, ChevronDown, ChevronRight, X, Check, Pencil, Paperclip, Tag } from 'lucide-react';
+import { Plus, Loader2, Trash2, ArrowRight, ChevronDown, ChevronRight, X, Check, CheckCircle2, Pencil, Paperclip, Tag, RefreshCw } from 'lucide-react';
 import type { LabServiceLink } from '../../types';
 import type { ServiceOrderDetail } from '../../services/apiService';
 import {
@@ -45,11 +45,16 @@ export type PatioOsModalLabServicesSectionProps = {
   labServiceLinksSaving: boolean;
   labServiceLinksDraft: LabServiceLink[];
   labOrdersLookup: Record<string, ServiceOrderDetail>;
+  /** Status rápido das OS lab (fallback quando o detalhe ainda não carregou). */
+  labOrderStatusById?: Record<string, string>;
   getStageName: (status: string) => string;
   getStageStyleClass: (status: string) => string;
   onOpenLaboratoryOrder?: (laboratoryOrderId: string) => void;
   /** Abre impressão da etiqueta da OS do laboratório vinculada. */
   onPrintLabOsLabel?: (laboratoryOrderId: string) => void;
+  /** Arquiva a OS do laboratório (Recebido) quando estiver em Pronto pra entrega. */
+  onReceiveLabOrder?: (laboratoryOrderId: string) => void;
+  receivingLabOrderId?: string | null;
   onRemoveLabServiceLink: (linkId: string) => void;
   /** Envio rápido com rótulo de um preset configurado. */
   onQuickSendService?: (preset: LabQuickService) => void;
@@ -93,10 +98,13 @@ export const PatioOsModalLabServicesSection: React.FC<PatioOsModalLabServicesSec
   labServiceLinksSaving,
   labServiceLinksDraft,
   labOrdersLookup,
+  labOrderStatusById,
   getStageName,
   getStageStyleClass,
   onOpenLaboratoryOrder,
   onPrintLabOsLabel,
+  onReceiveLabOrder,
+  receivingLabOrderId = null,
   onRemoveLabServiceLink,
   onQuickSendService,
   quickSendingServiceId = null,
@@ -363,10 +371,23 @@ export const PatioOsModalLabServicesSection: React.FC<PatioOsModalLabServicesSec
           <div className="space-y-2">
             {sentLinksNewestFirst.map((link) => {
                 const linkedOrder = labOrdersLookup[link.laboratoryOrderId];
-                const statusLabel = linkedOrder ? getStageName(linkedOrder.status) : 'Não localizado';
-                const statusStyle = linkedOrder
-                  ? getStageStyleClass(linkedOrder.status)
+                const linkedStatus = String(
+                  linkedOrder?.status ?? labOrderStatusById?.[link.laboratoryOrderId] ?? ''
+                ).trim();
+                const statusLabel = linkedStatus
+                  ? getStageName(linkedStatus)
+                  : 'Não localizado';
+                const statusStyle = linkedStatus
+                  ? getStageStyleClass(linkedStatus)
                   : 'bg-zinc-500 text-white border-zinc-600';
+                const statusLower = statusLabel.toLowerCase();
+                const canReceive =
+                  typeof onReceiveLabOrder === 'function' &&
+                  linkedStatus !== 'CANCELLED' &&
+                  (linkedStatus === 'PRONTO_PRA_RETIRADA' ||
+                    statusLower.includes('pronto pra entrega') ||
+                    statusLower.includes('pronto pra retirada'));
+                const receiving = receivingLabOrderId === link.laboratoryOrderId;
                 return (
                   <div
                     key={link.id}
@@ -392,6 +413,23 @@ export const PatioOsModalLabServicesSection: React.FC<PatioOsModalLabServicesSec
                       >
                         {statusLabel}
                       </span>
+                      {canReceive ? (
+                        <button
+                          type="button"
+                          onClick={() => onReceiveLabOrder?.(link.laboratoryOrderId)}
+                          disabled={busy || receiving}
+                          title="Confirmar recebimento e arquivar a OS do laboratório"
+                          aria-label={`Recebido — arquivar OS de ${link.serviceLabel}`}
+                          className="inline-flex items-center gap-1 rounded-lg border border-emerald-500/50 bg-emerald-600 px-2.5 py-1.5 text-[12px] font-semibold text-white shadow-sm shadow-emerald-500/20 transition-colors hover:bg-emerald-500 disabled:opacity-60"
+                        >
+                          {receiving ? (
+                            <RefreshCw className="h-3.5 w-3.5 animate-spin" aria-hidden />
+                          ) : (
+                            <CheckCircle2 className="h-3.5 w-3.5" strokeWidth={2.5} aria-hidden />
+                          )}
+                          Recebido
+                        </button>
+                      ) : null}
                       {onPrintLabOsLabel ? (
                         <button
                           type="button"
