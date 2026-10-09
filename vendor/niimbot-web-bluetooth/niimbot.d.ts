@@ -34,6 +34,8 @@ export type NiimbotPrinterInfo = {
 export type NiimbotApi = {
   VERSION?: string;
   isSupported: () => boolean;
+  /** GATT realmente conectado (não só printerInfo residual). */
+  isConnected?: () => boolean;
   connect: (model: NiimbotModel) => Promise<void>;
   disconnect: () => Promise<void>;
   identify: (model: NiimbotModel) => Promise<NiimbotPrinterInfo>;

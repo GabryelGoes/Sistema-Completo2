@@ -548,32 +548,42 @@
     device.addEventListener("gattserverdisconnected", () => {
       const wasConnected = characteristic != null;
       characteristic = null;
+      // Clear identity too — otherwise the app thinks the link is still up via Niimbot.printer.
+      printerInfo = null;
       if (wasConnected) logMsg("printer disconnected (link dropped — reconnect to continue)");
     });
-    // Initial connection packet (raw, 0x03 prefix — same as niimblue).
-    await writeRaw(new Uint8Array([0x03, 0x55, 0x55, 0xc1, 0x01, 0x01, 0xc1, 0xaa, 0xaa]));
-    await sleep(200);
-    await detectPrinter();                 // identify B1 vs B1 Pro (same BLE name)
-    // Flow control + arming follow the ACTUAL printer (detected), falling back to the
-    // caller's pick when unidentified — so an identify-then-print flow (or a wrong
-    // pick) still paces and arms a real B1 correctly.
-    const meta = (printerInfo && printerInfo.modelId != null) ? MODEL_IDS[printerInfo.modelId] : null;
-    const task = (meta && meta.task) || (printerInfo && printerInfo.task) || (model && model.task);
-    // Flow control is per-MODEL, not per-task. Only the 203 dpi B1 drops rows on a
-    // full-speed burst, so it paces; the B1 Pro and B1-Pro-class M2-H take the unpaced
-    // "fast" burst (writeNoResponse, no gap) — same as the B1 Pro path. When the model
-    // is unknown, default a b1-task printer to paced (safe) and never use slow acked
-    // writes unless writeNoResponse is unavailable.
-    const needsPacing = meta ? !!meta.paced : (task === "b1");
-    writeMode = needsPacing ? (props.writeWithoutResponse ? "paced" : "acked") : "fast";
-    _bundleAllowed = !!(meta && meta.bundle);   // only bundle frames where validated (B1, M2-H)
-    if (IS_MAC && writeMode === "fast") writeMode = "paced";   // macOS (and iOS — see IS_MAC) drops unacked bursts → pace the "fast" models too
-    // NOT DEBUG-gated: `effective=` is the answer to "which write path did this print
-    // take?", and the previous wrong conclusion about iOS was reached precisely because
-    // nobody could see it. One line per connect.
-    logAlways(`writeMode=${writeMode} override=${writeOverride || "auto"} effective=${effectiveWriteMode()} forcePacing=${writeOverride === "paced"} bundle=${effectiveBundle()} (detected=${_bundleAllowed}) mac=${IS_MAC} [${MAC_SOURCE}] pace=${PACE_MS} (task=${task || "?"}, model=${(meta && meta.label) || "?"}, write=${!!props.write}, writeNoResp=${!!props.writeWithoutResponse})`);
-    warnOverrideVsModel();   // now that the model is identified, an override that fights it is worth saying
-    if (task === "b1") await b1Handshake();
+    try {
+      // Initial connection packet (raw, 0x03 prefix — same as niimblue).
+      await writeRaw(new Uint8Array([0x03, 0x55, 0x55, 0xc1, 0x01, 0x01, 0xc1, 0xaa, 0xaa]));
+      await sleep(200);
+      await detectPrinter();                 // identify B1 vs B1 Pro (same BLE name)
+      // Flow control + arming follow the ACTUAL printer (detected), falling back to the
+      // caller's pick when unidentified — so an identify-then-print flow (or a wrong
+      // pick) still paces and arms a real B1 correctly.
+      const meta = (printerInfo && printerInfo.modelId != null) ? MODEL_IDS[printerInfo.modelId] : null;
+      const task = (meta && meta.task) || (printerInfo && printerInfo.task) || (model && model.task);
+      // Flow control is per-MODEL, not per-task. Only the 203 dpi B1 drops rows on a
+      // full-speed burst, so it paces; the B1 Pro and B1-Pro-class M2-H take the unpaced
+      // "fast" burst (writeNoResponse, no gap) — same as the B1 Pro path. When the model
+      // is unknown, default a b1-task printer to paced (safe) and never use slow acked
+      // writes unless writeNoResponse is unavailable.
+      const needsPacing = meta ? !!meta.paced : (task === "b1");
+      writeMode = needsPacing ? (props.writeWithoutResponse ? "paced" : "acked") : "fast";
+      _bundleAllowed = !!(meta && meta.bundle);   // only bundle frames where validated (B1, M2-H)
+      if (IS_MAC && writeMode === "fast") writeMode = "paced";   // macOS (and iOS — see IS_MAC) drops unacked bursts → pace the "fast" models too
+      // NOT DEBUG-gated: `effective=` is the answer to "which write path did this print
+      // take?", and the previous wrong conclusion about iOS was reached precisely because
+      // nobody could see it. One line per connect.
+      logAlways(`writeMode=${writeMode} override=${writeOverride || "auto"} effective=${effectiveWriteMode()} forcePacing=${writeOverride === "paced"} bundle=${effectiveBundle()} (detected=${_bundleAllowed}) mac=${IS_MAC} [${MAC_SOURCE}] pace=${PACE_MS} (task=${task || "?"}, model=${(meta && meta.label) || "?"}, write=${!!props.write}, writeNoResp=${!!props.writeWithoutResponse})`);
+      warnOverrideVsModel();   // now that the model is identified, an override that fights it is worth saying
+      if (task === "b1") await b1Handshake();
+    } catch (err) {
+      // Partial GATT sessions leave characteristic/device set and make the next connect()
+      // early-return without finishing handshake. Tear down so the chooser can reopen.
+      try { if (device && device.gatt && device.gatt.connected) device.gatt.disconnect(); } catch (_) { /* already gone */ }
+      characteristic = null; device = null; pendingQueue = []; lastUnsolicited = null; printerInfo = null;
+      throw err;
+    }
   }
 
   // Drop the BLE connection so a different printer can be paired/identified. Clears
@@ -1450,6 +1460,8 @@
     get FORCE_PACING() { return writeOverride === "paced"; },
     set FORCE_PACING(v) { setWriteOverride(v ? "paced" : null); },
     get printer() { return printerInfo; },   // { modelId, protocolVersion, label, task, dpi } after connect
+    // True only while the GATT link is actually up (characteristic + connected device).
+    isConnected: () => !!(characteristic && device && device.gatt && device.gatt.connected),
     isSupported: () => !!navigator.bluetooth,
     // NOT PUBLISHED API — reaches the notification dispatcher (pendingQueue,
     // registerWait/clearWait, onNotify) directly for test/dispatch.test.js. Every real

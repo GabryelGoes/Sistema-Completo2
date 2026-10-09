@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Bluetooth, BluetoothConnected, Loader2, Printer, Tag, X } from 'lucide-react';
 import {
+  NIIMBOT_BLE_HELP,
   NIIMBOT_MODEL_LABEL,
   NIIMBOT_SIZE_LABEL,
   niimbotService,
@@ -175,6 +176,8 @@ export function LabOsLabelPrintModal({ open, label, onClose }: LabOsLabelPrintMo
                 )
               ) : null}
             </div>
+
+            <p className="text-[11px] leading-snug text-zinc-500 dark:text-zinc-400">{NIIMBOT_BLE_HELP}</p>
 
             <label className="block">
               <span className="text-[11px] font-bold uppercase tracking-wide text-zinc-500">

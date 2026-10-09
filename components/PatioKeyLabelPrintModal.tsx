@@ -17,6 +17,7 @@ import {
 import {
   NIIMBOT_MODEL_LABEL,
   NIIMBOT_SIZE_LABEL,
+  NIIMBOT_BLE_HELP,
   niimbotService,
   type NiimbotServiceSnapshot,
 } from '../services/niimbotService';
@@ -473,6 +474,8 @@ export function PatioKeyLabelPrintModal({ open, label, onClose }: PatioKeyLabelP
                   )
                 ) : null}
               </div>
+
+              <p className="text-[11px] leading-snug text-zinc-500 dark:text-zinc-400">{NIIMBOT_BLE_HELP}</p>
 
               <label className="block">
                 <span className="text-[11px] font-bold uppercase tracking-wide text-zinc-500">
