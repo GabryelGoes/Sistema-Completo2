@@ -68,7 +68,7 @@ export const NIIMBOT_MODEL_LABEL = 'Niimbot B1';
 
 /** Dica curta exibida nos modais de etiqueta. */
 export const NIIMBOT_BLE_HELP =
-  'Chrome/Edge com HTTPS. No Android, ligue Bluetooth e Localização. Feche o app oficial NIIMBOT antes de conectar. USB não imprime aqui.';
+  'A B1 só fala com um aparelho por vez: desconecte no celular e feche o app NIIMBOT. Use Chrome/Edge (HTTPS). No Android, ligue também a Localização. Aperte o botão da impressora para ela aparecer. USB não imprime aqui.';
 
 function api() {
   const n = typeof window !== 'undefined' ? window.Niimbot : undefined;
@@ -108,7 +108,10 @@ function translateConnectError(raw: string): string {
     lower.includes('cancelled') ||
     lower.includes('abort')
   ) {
-    return 'Conexão cancelada. Toque em Conectar e escolha a B1 no seletor Bluetooth.';
+    return (
+      'Conexão cancelada ou B1 não apareceu na lista. Desconecte no celular, feche o app NIIMBOT, ' +
+      'aperte o botão da impressora e toque em Conectar de novo.'
+    );
   }
   if (
     lower.includes('notfound') ||
@@ -117,8 +120,8 @@ function translateConnectError(raw: string): string {
     lower.includes('not found')
   ) {
     return (
-      'Nenhuma B1 encontrada. No Android, ative também a Localização. ' +
-      'Feche o app oficial NIIMBOT, ligue a impressora e tente de novo.'
+      'Nenhuma impressora encontrada. A B1 some da lista se estiver ligada ao celular. ' +
+      'Desconecte no app NIIMBOT, no Android ligue a Localização, e tente de novo.'
     );
   }
   if (lower.includes('networkerror') || lower.includes('gatt')) {
@@ -218,6 +221,19 @@ class NiimbotService {
     return info?.label || NIIMBOT_MODEL_LABEL;
   }
 
+  /**
+   * Limpa o driver SEM await — `disconnect()` do vendor é síncrono no corpo.
+   * Await antes de `requestDevice` derruba o gesto do usuário no Chrome e o seletor
+   * nem abre (SecurityError) ou falha de forma confusa.
+   */
+  private clearDriverSync() {
+    try {
+      void api().disconnect();
+    } catch {
+      /* already gone */
+    }
+  }
+
   private async safeDisconnectDriver() {
     try {
       await api().disconnect();
@@ -227,8 +243,9 @@ class NiimbotService {
   }
 
   /**
-   * @param options.anyDevice — abre o seletor Chrome sem filtrar por nome "B1"
-   *   (quando a impressora não anuncia o nome ou a lista filtrada vem vazia).
+   * @param options.anyDevice — padrão true: seletor Chrome sem filtro de nome.
+   *   A B1 muitas vezes não aparece no filtro "B1" (nome não anunciado / ocupada pelo celular).
+   *   Passe `{ anyDevice: false }` para filtrar só por prefixo B1.
    */
   async connect(options?: { anyDevice?: boolean }): Promise<void> {
     if (!this.isSupported()) {
@@ -238,14 +255,14 @@ class NiimbotService {
       this.setState('unsupported', msg);
       throw new Error(msg);
     }
-    // Evita early-return do driver com sessão GATT pela metade.
-    await this.safeDisconnectDriver();
-    const anyDevice = options?.anyDevice === true;
+    // Sem await aqui — preserva o gesto do usuário até o requestDevice.
+    this.clearDriverSync();
+    const anyDevice = options?.anyDevice !== false;
     this.setState(
       'connecting',
       anyDevice
-        ? 'Abrindo seletor com todos os dispositivos Bluetooth…'
-        : 'Abrindo seletor Bluetooth (B1)…'
+        ? 'Abrindo seletor Bluetooth… escolha a B1 na lista'
+        : 'Abrindo seletor Bluetooth (filtro B1)…'
     );
     try {
       await api().identify(anyDevice ? NIIMBOT_DISCOVERY_MODEL : NIIMBOT_B1_MODEL);
@@ -255,12 +272,10 @@ class NiimbotService {
       await this.safeDisconnectDriver();
       const raw = err instanceof Error ? err.message : 'Falha ao conectar à impressora';
       let msg = translateConnectError(raw);
-      if (
-        !anyDevice &&
-        (/cancelad|cancelled|canceled|abort|notfound|não encontrada|nenhuma b1/i.test(msg) ||
-          /not found|no device/i.test(raw))
-      ) {
-        msg = `${msg} Se a lista estava vazia, use «Listar todos».`;
+      if (/cancelad|cancelled|canceled|abort|notfound|não encontrada|nenhuma b1/i.test(msg)) {
+        msg =
+          `${msg} Se a B1 não aparece: desconecte no celular, feche o app NIIMBOT, ` +
+          'aperte o botão da impressora e tente de novo.';
       }
       this.setState('disconnected', msg);
       throw new Error(msg);

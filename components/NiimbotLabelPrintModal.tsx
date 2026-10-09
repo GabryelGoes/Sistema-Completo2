@@ -193,9 +193,9 @@ export function NiimbotLabelPrintModal({
     }
   };
 
-  const handleConnect = (anyDevice = false) =>
+  const handleConnect = () =>
     run(async () => {
-      await niimbotService.connect({ anyDevice });
+      await niimbotService.connect();
     });
 
   const handleDisconnect = () =>
@@ -301,24 +301,14 @@ export function NiimbotLabelPrintModal({
                     Desconectar
                   </button>
                 ) : (
-                  <div className="flex shrink-0 flex-col items-end gap-1">
-                    <button
-                      type="button"
-                      onClick={() => handleConnect(false)}
-                      disabled={printing || snap.status === 'connecting'}
-                      className="rounded-lg bg-zinc-900 px-2.5 py-1.5 text-[12px] font-semibold text-white hover:bg-zinc-800 disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900"
-                    >
-                      Conectar
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleConnect(true)}
-                      disabled={printing || snap.status === 'connecting'}
-                      className="rounded-lg px-2 py-1 text-[11px] font-semibold text-[#007AFF] hover:bg-[#007AFF]/10 disabled:opacity-50"
-                    >
-                      Listar todos
-                    </button>
-                  </div>
+                  <button
+                    type="button"
+                    onClick={handleConnect}
+                    disabled={printing || snap.status === 'connecting'}
+                    className="shrink-0 rounded-lg bg-zinc-900 px-2.5 py-1.5 text-[12px] font-semibold text-white hover:bg-zinc-800 disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900"
+                  >
+                    Conectar
+                  </button>
                 )
               ) : null}
             </div>
