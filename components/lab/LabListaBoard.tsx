@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Check, ChevronDown, Package } from 'lucide-react';
+import { Check, CheckCircle2, ChevronDown, Package, RefreshCw } from 'lucide-react';
 import type { TrelloCard } from '../../types';
 import { parsePatioCardTitle } from '../../utils/patioCardTitle';
 import { isLabModuleFromPatio } from '../../utils/externalRepair';
@@ -38,6 +38,10 @@ type LabListaBoardProps = {
   onChangeLocation: (card: TrelloCard, target: LabListaUiLocation) => void;
   /** Preenche a altura do pai e rola a tabela por dentro (lista do lab). */
   fillHeight?: boolean;
+  /** Permite arquivar (Entregue) na etapa Pronto pra entrega. */
+  canDeliver?: boolean;
+  archivingId?: string | null;
+  onDeliver?: (card: TrelloCard) => void;
 };
 
 function uiLocationFromKind(kind: LabLocationKind): LabListaUiLocation | null {
@@ -151,6 +155,7 @@ function ListaSuggestionPicker({
   ariaLabel,
   optionRoundedClass = 'rounded-xl',
   onPick,
+  trailingAction,
 }: {
   triggerClassName: string;
   triggerLabel: React.ReactNode;
@@ -160,6 +165,8 @@ function ListaSuggestionPicker({
   ariaLabel: string;
   optionRoundedClass?: string;
   onPick: (id: string) => void;
+  /** Ação aninhada no gatilho (ex.: Entregue em Pronto pra entrega). */
+  trailingAction?: React.ReactNode;
 }) {
   const [open, setOpen] = useState(false);
   const [placement, setPlacement] = useState<MenuPlacement | null>(null);
@@ -258,6 +265,7 @@ function ListaSuggestionPicker({
         aria-label={ariaLabel}
       >
         {triggerLabel}
+        {trailingAction}
         <ChevronDown
           className={`h-4 w-4 shrink-0 opacity-70 transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
           strokeWidth={2.4}
@@ -373,6 +381,9 @@ export const LabListaBoard: React.FC<LabListaBoardProps> = ({
   onChangeStage,
   onChangeLocation,
   fillHeight = false,
+  canDeliver = false,
+  archivingId = null,
+  onDeliver,
 }) => {
   const [, bumpKinds] = useState(0);
   useEffect(() => {
@@ -454,6 +465,14 @@ export const LabListaBoard: React.FC<LabListaBoardProps> = ({
             const busyLoc = locationBusyId === card.id;
             const busyStage = stageBusyId === card.id;
             const isNewEntry = shouldShowLabListaNewBadge(card.createdAt, card.idList);
+            const listNameLower = listName.toLowerCase();
+            const showDeliver =
+              canDeliver &&
+              typeof onDeliver === 'function' &&
+              (card.idList === 'PRONTO_PRA_RETIRADA' ||
+                listNameLower.includes('pronto pra entrega') ||
+                listNameLower.includes('pronto pra retirada') ||
+                listNameLower.includes('não aprovado'));
 
             return (
               <tr
@@ -577,6 +596,44 @@ export const LabListaBoard: React.FC<LabListaBoardProps> = ({
                       </span>
                     }
                     onPick={(stageId) => onChangeStage(card, stageId)}
+                    trailingAction={
+                      showDeliver ? (
+                        <span
+                          role="button"
+                          tabIndex={0}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            if (archivingId === card.id) return;
+                            const notApproved = listNameLower.includes('não aprovado');
+                            const msg = notApproved
+                              ? 'Confirmar entrega desta peça não aprovada? Ele será arquivado e irá para o histórico.'
+                              : 'Confirmar entrega desta peça? Ele será arquivado e irá para o histórico.';
+                            if (window.confirm(msg)) onDeliver(card);
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key !== 'Enter' && e.key !== ' ') return;
+                            e.preventDefault();
+                            e.stopPropagation();
+                            if (archivingId === card.id) return;
+                            const notApproved = listNameLower.includes('não aprovado');
+                            const msg = notApproved
+                              ? 'Confirmar entrega desta peça não aprovada? Ele será arquivado e irá para o histórico.'
+                              : 'Confirmar entrega desta peça? Ele será arquivado e irá para o histórico.';
+                            if (window.confirm(msg)) onDeliver(card);
+                          }}
+                          className="inline-flex shrink-0 items-center gap-1 rounded-full border border-emerald-500/70 bg-white/90 px-2.5 py-1 text-[10px] font-semibold text-emerald-700 shadow-sm hover:bg-emerald-50 hover:text-emerald-800"
+                          aria-label="Entregue — arquivar OS"
+                        >
+                          {archivingId === card.id ? (
+                            <RefreshCw className="h-3 w-3 animate-spin" aria-hidden />
+                          ) : (
+                            <CheckCircle2 className="h-3 w-3" aria-hidden />
+                          )}
+                          Entregue
+                        </span>
+                      ) : null
+                    }
                   />
                 </td>
               </tr>
