@@ -169,13 +169,14 @@ export function WorkshopPartsHomeDashboard({
   const gridCols =
     'lg:grid-cols-[minmax(14rem,2.2fr)_minmax(7rem,0.9fr)_minmax(7rem,0.9fr)_minmax(5.5rem,0.7fr)_minmax(5.5rem,0.7fr)_minmax(4.5rem,0.55fr)_minmax(7.5rem,0.9fr)_5.5rem]';
 
+  /** Pills + espaço abaixo para a scrollbar horizontal não cobrir os botões. */
   const categoryScrollCls =
-    'mb-0 flex gap-2 overflow-x-auto pb-0.5 [scrollbar-width:thin] [scrollbar-color:rgba(113,113,122,0.28)_transparent] [&::-webkit-scrollbar]:h-1 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-zinc-400/30 hover:[&::-webkit-scrollbar-thumb]:bg-zinc-400/45 dark:[&::-webkit-scrollbar-thumb]:bg-white/20';
+    'flex gap-2 overflow-x-auto overflow-y-hidden pt-0.5 pb-2.5 [scrollbar-width:thin] [scrollbar-color:rgba(113,113,122,0.25)_transparent] [&::-webkit-scrollbar]:h-1 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-zinc-400/25 hover:[&::-webkit-scrollbar-thumb]:bg-zinc-400/40 dark:[&::-webkit-scrollbar-thumb]:bg-white/15';
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-y-auto touch-pan-y px-4 pb-[max(2rem,env(safe-area-inset-bottom))] custom-scrollbar [scrollbar-gutter:stable] sm:px-6 lg:px-8">
-      {/* Barra de ações */}
-      <div className="mb-5 flex shrink-0 flex-col gap-3 pt-1 sm:mb-6 sm:flex-row sm:items-start sm:justify-between">
+    <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-auto touch-pan-y px-4 pb-[max(2rem,env(safe-area-inset-bottom))] custom-scrollbar [scrollbar-gutter:stable] sm:px-6 lg:px-8">
+      {/* Barra de ações — sobe e some ao rolar */}
+      <div className="mb-5 flex flex-col gap-3 pt-1 sm:mb-6 sm:flex-row sm:items-start sm:justify-between">
         {!loading ? (
           <div className="min-w-0 w-full overflow-hidden rounded-2xl border-0 bg-amber-50/95 shadow-none dark:bg-amber-950/35 sm:max-w-md">
             <button
@@ -272,9 +273,9 @@ export function WorkshopPartsHomeDashboard({
         </div>
       ) : null}
 
-      {/* KPIs */}
+      {/* KPIs — sobem e somem ao rolar */}
       {!loading && parts.length > 0 ? (
-        <div className="mb-5 grid shrink-0 grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <button
             type="button"
             onClick={showAllParts}
@@ -346,9 +347,9 @@ export function WorkshopPartsHomeDashboard({
         </div>
       ) : null}
 
-      {/* Busca + categorias: sticky — ao rolar, só a lista de produtos continua */}
+      {/* Busca + categorias: sticky — trava aqui; abaixo só a lista rola */}
       {!loading && parts.length > 0 ? (
-        <div className="sticky top-0 z-30 -mx-4 mb-4 space-y-3 bg-[#F4F5F7]/95 px-4 pb-3 pt-1 backdrop-blur-md dark:bg-zinc-950/95 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
+        <div className="sticky top-0 z-30 -mx-4 mb-4 space-y-2.5 border-b border-zinc-200/60 bg-[#F4F5F7] px-4 pb-2.5 pt-1 dark:border-white/[0.06] dark:bg-zinc-950 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-stretch">
             <div className="relative min-w-0 flex-1">
               <label htmlFor="workshop-parts-search" className="sr-only">
@@ -529,8 +530,8 @@ export function WorkshopPartsHomeDashboard({
         </div>
       ) : null}
 
-      {/* Tabela */}
-      <div className="overflow-hidden rounded-[22px] border-0 bg-white shadow-none dark:bg-zinc-900">
+      {/* Tabela de produtos — continua rolando sob o cabeçalho sticky */}
+      <div className="rounded-[22px] border-0 bg-white shadow-none dark:bg-zinc-900">
         <div
           className={`hidden border-b border-zinc-100 px-4 py-3 text-[11px] font-bold uppercase tracking-[0.12em] text-zinc-400 dark:border-white/[0.06] dark:text-zinc-500 lg:grid lg:gap-3 ${gridCols}`}
         >
