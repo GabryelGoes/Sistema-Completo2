@@ -1,25 +1,15 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
   X,
-  Package,
+  Check,
+  Tags,
+  Printer,
+  Loader2,
   Plus,
   Pencil,
   Trash2,
-  Check,
-  Loader2,
-  Search,
-  Tags,
-  ChevronDown,
-  AlertTriangle,
-  PackageX,
-  Clock,
-  History,
-  BarChart3,
-  Printer,
-  ScanLine,
 } from 'lucide-react';
 import { iosModalShell, iosModalClose, iosModalInsetCard, SETTINGS_CHILD_MODAL_Z, NESTED_STOCK_OVERLAY_Z } from './ui/iosModalStyles';
-import { IosAccentIconSquircle } from './ui/IosAccentIconSquircle';
 
 import {
   WORKSHOP_PART_LEGACY_COVER_ID,
@@ -27,7 +17,6 @@ import {
   workshopPartToPhotoSlots,
 } from '../utils/workshopPartPhotoSlots';
 import { ModalPortal } from './ui/ModalPortal';
-import { PartPhotoImg } from './ui/PartPhotoImg';
 import { RegistrationPortal } from './ui/RegistrationPortal';
 import { useBrowserBackLayer } from './ui/BackNavigationContext';
 import { useDesktopShellLayout } from './ui/DesktopShellContext';
@@ -92,7 +81,6 @@ import {
   buildPartNumberMap,
   countPartsByCategory,
   countStockAlerts,
-  formatWorkshopPartQty,
   getWorkshopPartStockStatus,
   readWorkshopPartSortMode,
   sortWorkshopPartsForCatalogNumber,
@@ -101,7 +89,7 @@ import {
   type WorkshopPartSortMode,
 } from '../utils/workshopPartStock';
 import { storageSiteLabel } from '../utils/workshopPartFields';
-import { WorkshopPartStockBadge } from './ui/WorkshopPartStockBadge';
+import { WorkshopPartsHomeDashboard } from './WorkshopPartsHomeDashboard';
 
 interface WorkshopPartsModalProps {
   isOpen: boolean;
@@ -1036,6 +1024,14 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
     ];
   }, [categories, categoryCounts]);
 
+  const categoryNamesForPart = useCallback(
+    (p: WorkshopPart) =>
+      (p.category_ids ?? [])
+        .map((cid) => categories.find((c) => c.id === cid)?.name)
+        .filter(Boolean) as string[],
+    [categories]
+  );
+
   useEffect(() => {
     if (!editingId) return;
     if (!filteredParts.some((p) => p.id === editingId)) {
@@ -1047,10 +1043,6 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
   }, [filteredParts, editingId]);
 
   const isDesktopShell = useDesktopShellLayout();
-
-  /** Lista sem backdrop-blur: blur quebra carregamento de imagens no Safari (mobile/tablet). */
-  const workshopPartsListCard =
-    'overflow-visible rounded-[22px] border-0 bg-white dark:bg-zinc-900 shadow-none';
 
   useBrowserBackLayer(isAnalyticsOpen, () => setIsAnalyticsOpen(false));
 
@@ -1158,9 +1150,9 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
 
     <ModalPortal manageBackLayer onRequestClose={onClose}>
     <div
-      className={`${desktopShellViewportOverlayClass(isDesktopShell, SETTINGS_CHILD_MODAL_Z)} flex min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden bg-white dark:bg-zinc-950 p-0${isDesktopShell ? '' : ' h-[100dvh] max-h-[100dvh]'}`}
+      className={`${desktopShellViewportOverlayClass(isDesktopShell, SETTINGS_CHILD_MODAL_Z)} flex min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden bg-[#F4F5F7] dark:bg-zinc-950 p-0${isDesktopShell ? '' : ' h-[100dvh] max-h-[100dvh]'}`}
     >
-      <div className="relative flex h-full min-h-0 w-full max-w-none flex-1 flex-col overflow-hidden bg-white dark:bg-zinc-950">
+      <div className="relative flex h-full min-h-0 w-full max-w-none flex-1 flex-col overflow-hidden bg-[#F4F5F7] dark:bg-zinc-950">
         {!isDesktopShell ? (
           <button
             type="button"
@@ -1177,9 +1169,9 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
           <div className="px-6 sm:px-8 pt-[max(2rem,env(safe-area-inset-top)+0.75rem)] pb-4 pr-14 shrink-0">
             <IosModalHeader
               icon={<img src="/icons/estoque-ios.png" alt="" className="h-full w-full min-h-0 object-cover" />}
-              title="Estoque"
-              subtitle="Preço, quantidade e foto para orçamentos"
-              gradientClass="from-emerald-500 to-teal-700"
+              title="ESTOQUE"
+              subtitle="Peças, categorias e alertas de estoque"
+              gradientClass="from-emerald-600 to-teal-800"
             />
           </div>
           ) : (
@@ -1189,625 +1181,53 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
         {isAnalyticsOpen ? (
           <WorkshopPartsAnalyticsView onBack={() => setIsAnalyticsOpen(false)} />
         ) : (
-        <div className="flex-1 min-h-0 overflow-y-auto overscroll-y-auto touch-pan-y px-6 sm:px-8 pb-[max(2rem,env(safe-area-inset-bottom))] custom-scrollbar [scrollbar-gutter:stable] [zoom:0.85]">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between mb-4">
-            {!loading ? (
-              <div className="min-w-0 w-full sm:max-w-xl overflow-hidden rounded-2xl border-0 bg-amber-50/90 shadow-none dark:bg-amber-950/35">
-                <button
-                  type="button"
-                  onClick={() => setReservationsExpanded((v) => !v)}
-                  className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left"
-                  aria-expanded={reservationsExpanded}
-                >
-                  <span className="min-w-0 flex items-center gap-2">
-                    <span className="text-[15px] font-semibold text-amber-950 dark:text-amber-100">
-                      Em Orçamentos
-                    </span>
-                    {pendingReservations.length > 0 ? (
-                      <span className="rounded-md bg-amber-500/20 px-1.5 py-0.5 text-[11px] font-bold tabular-nums text-amber-950 dark:text-amber-100">
-                        {pendingReservations.length}
-                      </span>
-                    ) : null}
-                  </span>
-                  <ChevronDown
-                    className={`h-5 w-5 shrink-0 text-amber-800 transition-transform dark:text-amber-200 ${
-                      reservationsExpanded ? 'rotate-180' : ''
-                    }`}
-                    aria-hidden
-                  />
-                </button>
-                {reservationsExpanded ? (
-                  pendingReservations.length > 0 ? (
-                    <ul className="max-h-[min(280px,40vh)] space-y-1.5 overflow-y-auto border-t border-amber-200/70 px-3 py-3 dark:border-amber-500/20 custom-scrollbar">
-                      {pendingReservations.map((row) => {
-                        const vehicleBits = [
-                          row.osNumber != null ? `OS #${row.osNumber}` : null,
-                          row.plate,
-                          row.vehicleModel,
-                        ].filter(Boolean);
-                        return (
-                          <li
-                            key={`${row.budgetId}-${row.workshopPartId ?? row.partName}-${row.serviceOrderId}`}
-                            className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-white/80 px-3 py-2.5 text-[13px] dark:bg-black/25"
-                          >
-                            <span className="min-w-0">
-                              <span className="block font-semibold text-zinc-900 dark:text-white">
-                                {row.partName}
-                              </span>
-                              <span className="block text-[12px] text-zinc-500 dark:text-zinc-400">
-                                {vehicleBits.length > 0 ? vehicleBits.join(' · ') : 'Veículo'}
-                                {row.budgetCardName ? ` · ${row.budgetCardName}` : ''}
-                              </span>
-                            </span>
-                            <span className="shrink-0 rounded-lg bg-amber-500/15 px-2.5 py-1 text-[13px] font-bold tabular-nums text-amber-950 dark:text-amber-100">
-                              {row.quantityLabel} un.
-                            </span>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  ) : (
-                    <p className="border-t border-amber-200/70 px-4 py-3 text-[13px] text-amber-900/80 dark:border-amber-500/20 dark:text-amber-200/80">
-                      Nenhuma peça em orçamento aguardando baixa.
-                    </p>
-                  )
-                ) : null}
-              </div>
-            ) : (
-              <div className="min-w-0 w-full sm:max-w-xl" />
-            )}
-            <div className="flex flex-wrap gap-2 justify-end shrink-0">
-              <button
-                type="button"
-                onClick={() => setScanHubOpen(true)}
-                className="inline-flex items-center justify-center gap-2 rounded-2xl border-0 bg-emerald-50 dark:bg-emerald-950/40 px-4 py-3 text-[15px] font-semibold text-emerald-900 dark:text-emerald-100 hover:bg-emerald-100/90 dark:hover:bg-emerald-900/50 transition-colors shadow-none"
-              >
-                <ScanLine className="w-5 h-5" />
-                Escanear código
-              </button>
-              <button
-                type="button"
-                onClick={() => setIsAnalyticsOpen(true)}
-                className="inline-flex items-center justify-center gap-2 rounded-2xl border-0 bg-emerald-50 dark:bg-emerald-950/40 px-4 py-3 text-[15px] font-semibold text-emerald-900 dark:text-emerald-100 hover:bg-emerald-100/90 dark:hover:bg-emerald-900/50 transition-colors shadow-none"
-              >
-                <BarChart3 className="w-5 h-5" />
-                Gráficos
-              </button>
-              <button
-                type="button"
-                onClick={() => setIsCategoriesModalOpen(true)}
-                className="inline-flex items-center justify-center gap-2 rounded-2xl border-0 bg-zinc-100 dark:bg-white/5 px-4 py-3 text-[15px] font-semibold text-zinc-800 dark:text-white hover:bg-zinc-200/80 dark:hover:bg-white/10 transition-colors"
-              >
-                <Tags className="w-5 h-5" />
-                Categorias
-              </button>
-              <button
-                type="button"
-                onClick={() => openCreateRegistration()}
-                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 py-3 text-[15px] font-semibold text-white shadow-none hover:bg-emerald-500 transition-colors"
-              >
-                <Plus className="w-5 h-5" />
-                Adicionar peça
-              </button>
-            </div>
-          </div>
+          <WorkshopPartsHomeDashboard
+            loading={loading}
+            error={error}
+            parts={parts}
+            filteredParts={filteredParts}
+            partsInCategoryScopeCount={partsInCategoryScope.length}
+            partsAfterStockFilterEmpty={partsAfterStockFilter.length === 0 && stockAlertFilter !== 'all'}
+            categories={categories}
+            categoryCounts={categoryCounts}
+            stockAlerts={stockAlertsGlobal}
+            pendingReservations={pendingReservations}
+            reservationsExpanded={reservationsExpanded}
+            onToggleReservations={() => setReservationsExpanded((v) => !v)}
+            reservedQtyByPartId={reservedQtyByPartId}
+            partNumberById={partNumberById}
+            categoryFilter={categoryFilter}
+            categoryFilterLabel={categoryFilterLabel}
+            categoryFilterOptions={categoryFilterOptions}
+            categoryFilterMenuOpen={categoryFilterMenuOpen}
+            setCategoryFilterMenuOpen={setCategoryFilterMenuOpen}
+            categoryFilterDropdownRef={categoryFilterDropdownRef}
+            onCategoryFilterChange={setCategoryFilter}
+            stockAlertFilter={stockAlertFilter}
+            onStockAlertFilterChange={setStockAlertFilter}
+            partsSearchQuery={partsSearchQuery}
+            onPartsSearchQueryChange={setPartsSearchQuery}
+            sortMode={sortMode}
+            onSortModeChange={setSortMode}
+            categoryNamesForPart={categoryNamesForPart}
+            onOpenScan={() => setScanHubOpen(true)}
+            onOpenAnalytics={() => setIsAnalyticsOpen(true)}
+            onOpenCategories={() => setIsCategoriesModalOpen(true)}
+            onAddPart={() => openCreateRegistration()}
+            onOpenPart={(p) => void openProductView(p)}
+            onEditPart={(p) => void openEditRegistration(p)}
+            onDeletePart={(id) => handleDelete(id)}
+            editingId={editingId}
+            editingName={editingName}
+            editingPrice={editingPrice}
+            editingStock={editingStock}
+            onEditingNameChange={setEditingName}
+            onEditingPriceChange={setEditingPrice}
+            onEditingStockChange={setEditingStock}
+            onSaveEdit={() => void handleSaveEdit()}
+            onCancelEdit={cancelEdit}
+          />
 
-          {error && (
-            <div className="mb-4 px-4 py-3 rounded-xl bg-red-50 dark:bg-red-950/30 border-0 text-red-700 dark:text-red-300 text-sm shadow-none">
-              {error}
-            </div>
-          )}
-
-          <div className={workshopPartsListCard}>
-            {!loading && parts.length > 0 && (
-              <div className="border-b border-zinc-200/50 dark:border-white/[0.06] bg-zinc-50/40 dark:bg-white/[0.02] px-3 py-3 sm:px-4 space-y-2">
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-stretch sm:gap-3">
-                  <div ref={categoryFilterDropdownRef} className="relative z-20 w-full sm:w-[min(100%,280px)] shrink-0">
-                    <span id="workshop-parts-category-filter-label" className="sr-only">
-                      Filtrar por categoria
-                    </span>
-                    <button
-                      type="button"
-                      id="workshop-parts-category-filter"
-                      aria-haspopup="listbox"
-                      aria-expanded={categoryFilterMenuOpen}
-                      aria-controls="workshop-parts-category-listbox"
-                      onClick={() => setCategoryFilterMenuOpen((open) => !open)}
-                      className="flex w-full min-h-[46px] items-center justify-between gap-2 rounded-xl border-0 bg-zinc-100 dark:bg-zinc-950/90 py-2.5 pl-3 pr-2 text-left text-[15px] font-semibold text-zinc-900 dark:text-white shadow-none focus:outline-none focus:ring-2 focus:ring-emerald-500/40 transition-colors"
-                    >
-                      <span className="min-w-0 truncate">{categoryFilterLabel}</span>
-                      <ChevronDown
-                        className={`h-5 w-5 shrink-0 text-zinc-500 transition-transform duration-200 ${
-                          categoryFilterMenuOpen ? 'rotate-180' : ''
-                        }`}
-                        aria-hidden
-                      />
-                    </button>
-                    {categoryFilterMenuOpen ? (
-                      <ul
-                        id="workshop-parts-category-listbox"
-                        role="listbox"
-                        aria-label="Opções de filtro por categoria"
-                        className="absolute left-0 right-0 top-full z-[60] mt-1.5 max-h-[min(280px,45vh)] overflow-y-auto rounded-xl border-0 bg-white dark:bg-zinc-900 py-1.5 shadow-none"
-                      >
-                        {categoryFilterOptions.map((opt) => {
-                          const selected = categoryFilter === opt.value;
-                          return (
-                            <li key={opt.value} role="none">
-                              <button
-                                type="button"
-                                role="option"
-                                aria-selected={selected}
-                                onClick={() => {
-                                  setCategoryFilter(opt.value);
-                                  setCategoryFilterMenuOpen(false);
-                                }}
-                                className={`flex w-full items-center justify-between gap-3 px-4 py-3 text-left text-[15px] transition-colors ${
-                                  selected
-                                    ? 'bg-emerald-500/14 font-semibold text-emerald-950 dark:bg-emerald-400/18 dark:text-emerald-50'
-                                    : 'font-medium text-zinc-900 dark:text-zinc-100 hover:bg-zinc-100 dark:hover:bg-white/[0.08]'
-                                }`}
-                              >
-                                <span className="min-w-0 truncate">{opt.countLabel}</span>
-                                {selected ? (
-                                  <Check
-                                    className="h-4 w-4 shrink-0 text-emerald-600"
-                                    strokeWidth={2.5}
-                                    aria-hidden
-                                  />
-                                ) : null}
-                              </button>
-                            </li>
-                          );
-                        })}
-                      </ul>
-                    ) : null}
-                  </div>
-                  <div className="relative flex-1 min-w-0">
-                    <label htmlFor="workshop-parts-search" className="sr-only">
-                      Pesquisar peças
-                    </label>
-                    <Search
-                      className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400"
-                      aria-hidden
-                    />
-                    <input
-                      id="workshop-parts-search"
-                      type="search"
-                      value={partsSearchQuery}
-                      onChange={(e) => setPartsSearchQuery(e.target.value)}
-                      placeholder="Pesquisar nesta seleção (nome, preço, categorias…)"
-                      autoComplete="off"
-                      className="w-full rounded-xl border-0 bg-zinc-100 dark:bg-white/5 py-2.5 pl-10 pr-10 text-[15px] text-zinc-900 dark:text-white placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/35"
-                    />
-                    {partsSearchQuery ? (
-                      <button
-                        type="button"
-                        onClick={() => setPartsSearchQuery('')}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-zinc-500 hover:bg-zinc-200/80 dark:text-zinc-400 dark:hover:bg-white/10"
-                        aria-label="Limpar pesquisa"
-                      >
-                        <X className="h-4 w-4" />
-                      </button>
-                    ) : null}
-                  </div>
-                </div>
-
-                <div className="flex flex-col gap-1.5 sm:flex-row sm:items-center sm:justify-between">
-                  <span
-                    id="workshop-parts-sort-label"
-                    className="text-[11px] font-bold uppercase tracking-wide text-zinc-500 dark:text-zinc-400"
-                  >
-                    Ordenar por
-                  </span>
-                  <div
-                    role="group"
-                    aria-labelledby="workshop-parts-sort-label"
-                    className="inline-flex w-full sm:w-auto rounded-xl border-0 bg-zinc-100 dark:bg-zinc-950/90 p-1 shadow-none"
-                  >
-                    <button
-                      type="button"
-                      onClick={() => setSortMode('recent')}
-                      aria-pressed={sortMode === 'recent'}
-                      className={`inline-flex flex-1 sm:flex-initial items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-[13px] font-semibold transition-colors ${
-                        sortMode === 'recent'
-                          ? 'bg-emerald-600 text-white shadow-none'
-                          : 'text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-white/[0.08]'
-                      }`}
-                    >
-                      <Clock className="h-4 w-4 shrink-0" aria-hidden />
-                      Recentes
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setSortMode('oldest')}
-                      aria-pressed={sortMode === 'oldest'}
-                      className={`inline-flex flex-1 sm:flex-initial items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-[13px] font-semibold transition-colors ${
-                        sortMode === 'oldest'
-                          ? 'bg-emerald-600 text-white shadow-none'
-                          : 'text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-white/[0.08]'
-                      }`}
-                    >
-                      <History className="h-4 w-4 shrink-0" aria-hidden />
-                      Antigo
-                    </button>
-                  </div>
-                </div>
-
-                <div className="flex flex-col gap-2.5 pt-0.5">
-                  <p className="text-[14px] font-semibold text-zinc-800 dark:text-zinc-200">
-                    <span className="tabular-nums">{categoryCounts.total}</span>{' '}
-                    {categoryCounts.total === 1 ? 'peça no estoque' : 'peças no estoque'}
-                    {categoryFilter !== 'all' || stockAlertFilter !== 'all' || partsSearchQuery.trim() ? (
-                      <span className="font-medium text-zinc-500 dark:text-zinc-400">
-                        {' '}
-                        · exibindo <span className="tabular-nums text-zinc-700 dark:text-zinc-300">{filteredParts.length}</span>
-                      </span>
-                    ) : null}
-                  </p>
-
-                  {(stockAlertsGlobal.zero > 0 || stockAlertsGlobal.low > 0) && (
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-[11px] font-bold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-                        Alertas:
-                      </span>
-                      {stockAlertsGlobal.zero > 0 ? (
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setStockAlertFilter((f) => (f === 'zero' ? 'all' : 'zero'))
-                          }
-                          className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] font-semibold transition-colors ${
-                            stockAlertFilter === 'zero'
-                              ? 'bg-red-600 text-white'
-                              : 'bg-red-100 text-red-900 shadow-none hover:bg-red-200/90 dark:bg-red-950/50 dark:text-red-200'
-                          }`}
-                        >
-                          <PackageX className="h-3.5 w-3.5" aria-hidden />
-                          <span className="tabular-nums">{stockAlertsGlobal.zero}</span> sem estoque
-                        </button>
-                      ) : null}
-                      {stockAlertsGlobal.low > 0 ? (
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setStockAlertFilter((f) => (f === 'low' ? 'all' : 'low'))
-                          }
-                          className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[12px] font-semibold transition-colors ${
-                            stockAlertFilter === 'low'
-                              ? 'bg-amber-600 text-white'
-                              : 'bg-amber-100 text-amber-900 shadow-none hover:bg-amber-200/90 dark:bg-amber-950/50 dark:text-amber-200'
-                          }`}
-                        >
-                          <AlertTriangle className="h-3.5 w-3.5" aria-hidden />
-                          <span className="tabular-nums">{stockAlertsGlobal.low}</span> acabando
-                        </button>
-                      ) : null}
-                      {(stockAlertsGlobal.zero > 0 && stockAlertsGlobal.low > 0) ||
-                      stockAlertFilter === 'alerts' ? (
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setStockAlertFilter((f) => (f === 'alerts' ? 'all' : 'alerts'))
-                          }
-                          className={`rounded-full px-2.5 py-1 text-[12px] font-semibold transition-colors ${
-                            stockAlertFilter === 'alerts'
-                              ? 'bg-zinc-800 text-white dark:bg-zinc-200 dark:text-zinc-900'
-                              : 'text-zinc-600 underline hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200'
-                          }`}
-                        >
-                          {stockAlertFilter === 'alerts' ? 'Limpar filtro de alertas' : 'Ver todos os alertas'}
-                        </button>
-                      ) : null}
-                    </div>
-                  )}
-
-                  {categories.length > 0 ? (
-                    <div className="flex flex-col gap-1.5">
-                      <span className="text-[11px] font-bold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-                        Por categoria
-                      </span>
-                      <div className="flex gap-2 overflow-x-auto pb-0.5 -mx-0.5 px-0.5 scrollbar-thin">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setCategoryFilter('all');
-                            setCategoryFilterMenuOpen(false);
-                          }}
-                          className={`shrink-0 rounded-full px-3 py-1 text-[12px] font-semibold transition-colors ${
-                            categoryFilter === 'all'
-                              ? 'bg-emerald-600 text-white'
-                              : 'bg-zinc-200/90 text-zinc-800 hover:bg-zinc-300/90 dark:bg-white/10 dark:text-zinc-200 dark:hover:bg-white/15'
-                          }`}
-                        >
-                          Todos <span className="tabular-nums">({categoryCounts.total})</span>
-                        </button>
-                        {categoryCounts.uncategorized > 0 ? (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setCategoryFilter('uncategorized');
-                              setCategoryFilterMenuOpen(false);
-                            }}
-                            className={`shrink-0 rounded-full px-3 py-1 text-[12px] font-semibold transition-colors ${
-                              categoryFilter === 'uncategorized'
-                                ? 'bg-emerald-600 text-white'
-                                : 'bg-zinc-200/90 text-zinc-800 hover:bg-zinc-300/90 dark:bg-white/10 dark:text-zinc-200 dark:hover:bg-white/15'
-                            }`}
-                          >
-                            Sem categoria{' '}
-                            <span className="tabular-nums">({categoryCounts.uncategorized})</span>
-                          </button>
-                        ) : null}
-                        {categories.map((c) => {
-                          const n = categoryCounts.counts.get(c.id) ?? 0;
-                          if (n === 0) return null;
-                          return (
-                            <button
-                              key={c.id}
-                              type="button"
-                              onClick={() => {
-                                setCategoryFilter(c.id);
-                                setCategoryFilterMenuOpen(false);
-                              }}
-                              className={`shrink-0 rounded-full px-3 py-1 text-[12px] font-semibold transition-colors ${
-                                categoryFilter === c.id
-                                  ? 'bg-emerald-600 text-white'
-                                  : 'bg-zinc-200/90 text-zinc-800 hover:bg-zinc-300/90 dark:bg-white/10 dark:text-zinc-200 dark:hover:bg-white/15'
-                              }`}
-                            >
-                              {c.name} <span className="tabular-nums">({n})</span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  ) : null}
-                </div>
-              </div>
-            )}
-            <div className="hidden md:grid md:grid-cols-[4fr_1fr_1fr_auto_auto] md:gap-3 px-4 pt-3 pb-2 text-[11px] font-bold uppercase tracking-wide text-zinc-500 dark:text-zinc-400 border-b border-zinc-200/40 dark:border-white/[0.06] bg-zinc-50/50 dark:bg-white/[0.03]">
-              <span className="min-w-0">Nome da peça</span>
-              <span className="text-right tabular-nums">Preço</span>
-              <span className="text-right tabular-nums">Quantidade</span>
-              <span className="text-center justify-self-center">Editar</span>
-              <span className="text-center justify-self-center">Excluir</span>
-            </div>
-            <div className="md:hidden px-4 pt-3 pb-2 text-[11px] font-bold uppercase tracking-wide text-zinc-500 dark:text-zinc-400 border-b border-zinc-200/40 dark:border-white/[0.06] bg-zinc-50/50 dark:bg-white/[0.03]">
-              Lista de peças
-            </div>
-
-            {loading ? (
-              <div className="flex items-center justify-center py-12 text-zinc-500 dark:text-zinc-400">
-                <Loader2 className="w-8 h-8 animate-spin" />
-              </div>
-            ) : parts.length === 0 ? (
-              <div className="py-10 px-4 text-center">
-                <p className="text-[15px] text-zinc-500 dark:text-zinc-400">Nenhuma peça cadastrada.</p>
-                <p className="text-[13px] text-zinc-400 dark:text-zinc-500 mt-1">
-                  Toque em <span className="font-medium text-zinc-600 dark:text-zinc-300">Adicionar peça</span> para incluir a primeira
-                  peça.
-                </p>
-              </div>
-            ) : partsInCategoryScope.length === 0 ? (
-              <div className="py-10 px-4 text-center">
-                <p className="text-[15px] text-zinc-500 dark:text-zinc-400">Nenhuma peça nesta seleção.</p>
-                <p className="text-[13px] text-zinc-400 dark:text-zinc-500 mt-1">
-                  Escolha{' '}
-                  <button
-                    type="button"
-                    className="font-medium text-emerald-600 dark:text-emerald-400 underline hover:brightness-110"
-                    onClick={() => {
-                      setCategoryFilter('all');
-                      setPartsSearchQuery('');
-                      setCategoryFilterMenuOpen(false);
-                    }}
-                  >
-                    Todas as peças
-                  </button>{' '}
-                  no filtro acima, ou outra categoria, ou vincule peças em{' '}
-                  <button
-                    type="button"
-                    className="font-medium text-emerald-600 dark:text-emerald-400 underline hover:brightness-110"
-                    onClick={() => setIsCategoriesModalOpen(true)}
-                  >
-                    Categorias
-                  </button>{' '}
-                  / detalhe do item.
-                </p>
-                <button
-                  type="button"
-                  className="mt-3 text-[14px] font-semibold text-emerald-600 dark:text-emerald-400 underline hover:brightness-110"
-                  onClick={() => {
-                    setCategoryFilter('all');
-                    setPartsSearchQuery('');
-                    setCategoryFilterMenuOpen(false);
-                  }}
-                >
-                  Ver todas as peças
-                </button>
-              </div>
-            ) : partsAfterStockFilter.length === 0 && stockAlertFilter !== 'all' ? (
-              <div className="py-10 px-4 text-center">
-                <p className="text-[15px] text-zinc-500 dark:text-zinc-400">
-                  Nenhuma peça com este alerta nesta seleção.
-                </p>
-                <button
-                  type="button"
-                  className="mt-3 text-[14px] font-semibold text-emerald-600 dark:text-emerald-400 underline hover:brightness-110"
-                  onClick={() => setStockAlertFilter('all')}
-                >
-                  Mostrar todas as peças
-                </button>
-              </div>
-            ) : filteredParts.length === 0 ? (
-              <div className="py-10 px-4 text-center">
-                <p className="text-[15px] text-zinc-500 dark:text-zinc-400">Nenhum resultado para a pesquisa nesta seleção.</p>
-                <p className="text-[13px] text-zinc-400 dark:text-zinc-500 mt-1">
-                  Ajuste os termos ou{' '}
-                  <button
-                    type="button"
-                    className="font-medium text-emerald-600 dark:text-emerald-400 underline"
-                    onClick={() => setPartsSearchQuery('')}
-                  >
-                    limpar a busca
-                  </button>
-                  .
-                </p>
-              </div>
-            ) : (
-              <div className="divide-y divide-zinc-200/50 dark:divide-white/[0.06]">
-                {filteredParts.map((p) => {
-                  const originalCode = (p.original_code ?? '').trim() || null;
-                  const partNum = partNumberById.get(p.id);
-                  const stockStatus = getWorkshopPartStockStatus(p);
-                  const rowAlertCls =
-                    stockStatus === 'zero'
-                      ? 'bg-red-50/80 dark:bg-red-950/20'
-                      : stockStatus === 'low'
-                        ? 'bg-amber-50/70 dark:bg-amber-950/15'
-                        : 'bg-transparent';
-                  return (
-                  <div
-                    key={p.id}
-                    className={`min-h-[52px] flex flex-wrap items-center gap-3 px-4 py-3 hover:bg-zinc-100/60 dark:hover:bg-white/[0.04] transition-colors md:grid md:grid-cols-[4fr_1fr_1fr_auto_auto] md:flex-nowrap md:gap-3 md:items-center ${rowAlertCls}`}
-                  >
-                    {editingId === p.id ? (
-                      <>
-                        <input
-                          type="text"
-                          value={editingName}
-                          onChange={(e) => setEditingName(e.target.value)}
-                          className="w-full min-w-0 basis-full px-3 py-2 rounded-lg border-0 bg-zinc-100 dark:bg-white/5 text-zinc-900 dark:text-white text-[15px] focus:outline-none focus:ring-2 focus:ring-brand-yellow/40 md:basis-auto md:min-w-0"
-                          autoFocus
-                        />
-                        <div className="grid w-full basis-full grid-cols-2 gap-2 md:contents">
-                          <input
-                            type="number"
-                            min="0"
-                            step="0.01"
-                            value={editingPrice}
-                            onChange={(e) => setEditingPrice(e.target.value)}
-                            className="min-w-0 px-3 py-2 rounded-lg border-0 bg-zinc-100 dark:bg-white/5 text-zinc-900 dark:text-white text-[14px] text-right tabular-nums focus:outline-none focus:ring-2 focus:ring-brand-yellow/40 md:min-w-0"
-                          />
-                          <input
-                            type="number"
-                            min="0"
-                            step="0.001"
-                            value={editingStock}
-                            onChange={(e) => setEditingStock(e.target.value)}
-                            className="min-w-0 px-3 py-2 rounded-lg border-0 bg-zinc-100 dark:bg-white/5 text-zinc-900 dark:text-white text-[14px] text-right tabular-nums focus:outline-none focus:ring-2 focus:ring-brand-yellow/40 md:min-w-0"
-                          />
-                        </div>
-                        <div className="flex w-full basis-full items-center justify-end gap-2 md:contents">
-                          <button
-                            type="button"
-                            onClick={handleSaveEdit}
-                            className="w-9 h-9 shrink-0 rounded-lg bg-brand-yellow text-black flex items-center justify-center justify-self-center hover:brightness-110"
-                          >
-                            <Check className="w-4 h-4" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={cancelEdit}
-                            className="w-9 h-9 shrink-0 rounded-lg bg-zinc-200 dark:bg-white/10 text-zinc-600 flex items-center justify-center justify-self-center hover:bg-zinc-300 dark:hover:bg-white/20"
-                          >
-                            <X className="w-4 h-4" />
-                          </button>
-                        </div>
-                      </>
-                    ) : (
-                      <>
-                        <button
-                          type="button"
-                          onClick={() => void openProductView(p)}
-                          className="w-full min-w-0 flex flex-[1_1_100%] items-center gap-3 text-left rounded-xl -my-1 -ml-2 pl-2 pr-2 py-1.5 hover:bg-zinc-200/70 dark:hover:bg-white/[0.07] transition-colors cursor-pointer md:col-span-1 md:flex-[unset] md:w-auto"
-                          title="Ver detalhes da peça"
-                        >
-                          <div className="isolate w-10 h-10 shrink-0 overflow-hidden rounded-lg border-0 bg-zinc-100 pointer-events-none dark:bg-white/5">
-                            {p.photo_url ? (
-                              <PartPhotoImg
-                                src={p.photo_url}
-                                alt=""
-                                className="h-full w-full object-cover [transform:translateZ(0)]"
-                              />
-                            ) : null}
-                          </div>
-                          <span className="min-w-0 flex flex-col gap-0.5 text-left">
-                            <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5">
-                              {partNum != null ? (
-                                <span className="shrink-0 text-[13px] font-bold tabular-nums text-emerald-700 dark:text-emerald-400">
-                                  #{partNum}
-                                </span>
-                              ) : null}
-                              <WorkshopPartStockBadge status={stockStatus} className="md:hidden" />
-                            </span>
-                            <span className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400 truncate">
-                              {p.brand?.trim() || '—'}
-                              {p.model?.trim() ? ` · ${p.model.trim()}` : ''}
-                            </span>
-                            <span className="text-[16px] font-extrabold leading-tight text-zinc-900 dark:text-white truncate">
-                              {p.name}
-                            </span>
-                            <span className="text-[12px] text-zinc-600 dark:text-zinc-400 truncate">
-                              {storageSiteLabel(p.storage_site)}
-                              {p.location?.trim() ? ` · ${p.location.trim()}` : ''}
-                            </span>
-                            {originalCode ? (
-                              <span
-                                className="text-[12px] font-medium text-zinc-600 dark:text-zinc-400 truncate"
-                                title={`Código original: ${originalCode}`}
-                              >
-                                {originalCode}
-                              </span>
-                            ) : null}
-                          </span>
-                        </button>
-                        <span className="min-w-0 flex-1 text-[14px] text-zinc-700 dark:text-zinc-300 text-right tabular-nums md:flex-[unset] md:min-w-0 md:justify-self-end">
-                          R$ {Number(p.unit_price ?? 0).toFixed(2)}
-                        </span>
-                        <span
-                          className={`min-w-0 flex flex-1 flex-col items-end gap-0.5 text-[14px] tabular-nums md:flex-[unset] md:min-w-0 md:justify-self-end ${
-                            stockStatus === 'zero'
-                              ? 'font-semibold text-red-700 dark:text-red-300'
-                              : stockStatus === 'low'
-                                ? 'font-semibold text-amber-800 dark:text-amber-300'
-                                : 'text-zinc-700 dark:text-zinc-300'
-                          }`}
-                        >
-                          <span>{formatWorkshopPartQty(p.stock_qty)}</span>
-                          {(reservedQtyByPartId[p.id] ?? 0) > 0 ? (
-                            <span className="text-[11px] font-medium text-amber-700 dark:text-amber-300">
-                              {formatWorkshopPartQty(reservedQtyByPartId[p.id])} em orçamento
-                            </span>
-                          ) : null}
-                          <WorkshopPartStockBadge status={stockStatus} className="hidden md:inline-flex" />
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => void openEditRegistration(p)}
-                          className="w-9 h-9 shrink-0 rounded-lg flex items-center justify-center justify-self-center text-zinc-500 hover:text-brand-yellow hover:bg-brand-yellow/10 transition-colors"
-                          aria-label="Editar cadastro completo"
-                        >
-                          <Pencil className="w-4 h-4" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleDelete(p.id)}
-                          className="w-9 h-9 shrink-0 rounded-lg flex items-center justify-center justify-self-center text-zinc-500 hover:text-red-600 hover:bg-red-500/10 transition-colors"
-                          aria-label="Excluir"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </>
-                    )}
-                  </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        </div>
         )}
         </div>
       </div>

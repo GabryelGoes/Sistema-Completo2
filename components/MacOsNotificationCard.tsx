@@ -122,17 +122,20 @@ export function MacOsNotificationCard({
   }, [photoUrl]);
 
   // Vidro macOS opaco o bastante para ler o texto; clip por overflow+radius (sem mask).
+  // No tema escuro: usar text-white/* (não text-zinc-*) — o CSS do modo claro força
+  // text-zinc-400/500/600/700 para preto e quebrava os banners escuros.
   const glassBg = isDark
     ? 'border-white/[0.12] bg-zinc-900/95 text-white'
     : 'border-black/[0.06] bg-white/95 text-zinc-900';
   const dropShadow = isDark
     ? 'drop-shadow-[0_1px_1px_rgba(0,0,0,0.18)] drop-shadow-[0_8px_28px_rgba(0,0,0,0.32)]'
     : 'drop-shadow-[0_1px_1px_rgba(0,0,0,0.04)] drop-shadow-[0_8px_28px_rgba(0,0,0,0.10)]';
-  const meta = isDark ? 'text-zinc-400' : 'text-zinc-500';
+  const meta = isDark ? 'text-white/75' : 'text-zinc-500';
   const titleCls = isDark ? 'text-white' : 'text-zinc-900';
-  const bodyCls = isDark ? 'text-zinc-300' : 'text-zinc-600';
+  const bodyCls = isDark ? 'text-white/90' : 'text-zinc-600';
+  const timeCls = isDark ? 'text-white/60' : 'text-zinc-400';
   const closeBtn = isDark
-    ? 'bg-white/[0.12] text-zinc-200 hover:bg-white/20 hover:text-white'
+    ? 'bg-white/[0.12] text-white hover:bg-white/20 hover:text-white'
     : 'bg-black/[0.06] text-zinc-600 hover:bg-black/10 hover:text-zinc-900';
 
   return (
@@ -205,11 +208,7 @@ export function MacOsNotificationCard({
             <div className="flex items-baseline gap-2">
               <p className={`truncate text-[12px] font-semibold tracking-tight ${meta}`}>{author}</p>
               {model.timeLabel ? (
-                <span
-                  className={`shrink-0 text-[11px] tabular-nums ${
-                    isDark ? 'text-zinc-500' : 'text-zinc-400'
-                  }`}
-                >
+                <span className={`shrink-0 text-[11px] tabular-nums ${timeCls}`}>
                   {model.timeLabel}
                 </span>
               ) : null}
