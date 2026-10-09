@@ -90,6 +90,21 @@ const actionBtnGreen =
 const actionBtnPrimary =
   'inline-flex items-center justify-center gap-2 rounded-2xl bg-[#0F7A4B] px-4 py-3 text-[14px] font-semibold text-white shadow-none transition-colors hover:bg-[#0c6a41]';
 
+const KPI_ICON_SRC = {
+  emEstoque: '/icons/estoque-kpi-em-estoque.png',
+  semEstoque: '/icons/estoque-kpi-sem-estoque.png',
+  acabando: '/icons/estoque-kpi-acabando.png',
+  valorTotal: '/icons/estoque-kpi-valor-total.png',
+} as const;
+
+function EstoqueKpiIcon({ src, alt }: { src: string; alt: string }) {
+  return (
+    <span className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-transparent">
+      <img src={src} alt={alt} className="h-11 w-11 object-contain drop-shadow-sm" draggable={false} />
+    </span>
+  );
+}
+
 export function WorkshopPartsHomeDashboard({
   loading,
   error,
@@ -282,12 +297,10 @@ export function WorkshopPartsHomeDashboard({
                 : 'bg-white hover:bg-zinc-50 dark:bg-zinc-900 dark:hover:bg-zinc-800/80'
             }`}
           >
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-zinc-100 text-zinc-700 dark:bg-white/10 dark:text-zinc-200">
-              <Package className="h-5 w-5" strokeWidth={2} aria-hidden />
-            </span>
+            <EstoqueKpiIcon src={KPI_ICON_SRC.emEstoque} alt="" />
             <span className="min-w-0 flex-1 text-[14px] font-semibold leading-snug text-zinc-900 dark:text-white">
               <span className="tabular-nums">{categoryCounts.total}</span>{' '}
-              {categoryCounts.total === 1 ? 'peça no estoque' : 'peças no estoque'}
+              {categoryCounts.total === 1 ? 'peça em estoque' : 'peças em estoque'}
             </span>
             <ChevronRight className="h-4 w-4 shrink-0 text-zinc-400" aria-hidden />
           </button>
@@ -297,13 +310,11 @@ export function WorkshopPartsHomeDashboard({
             onClick={() => onStockAlertFilterChange(stockAlertFilter === 'zero' ? 'all' : 'zero')}
             className={`flex items-center gap-3 rounded-2xl border-0 px-4 py-3.5 text-left shadow-none transition-colors ${
               stockAlertFilter === 'zero'
-                ? 'bg-amber-100 ring-2 ring-amber-400/50 dark:bg-amber-950/50'
+                ? 'bg-red-50 ring-2 ring-red-400/45 dark:bg-red-950/40'
                 : 'bg-white hover:bg-zinc-50 dark:bg-zinc-900 dark:hover:bg-zinc-800/80'
             }`}
           >
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-700 dark:bg-amber-950/60 dark:text-amber-300">
-              <AlertTriangle className="h-5 w-5" strokeWidth={2} aria-hidden />
-            </span>
+            <EstoqueKpiIcon src={KPI_ICON_SRC.semEstoque} alt="" />
             <span className="min-w-0 flex-1 text-[14px] font-semibold text-zinc-900 dark:text-white">
               <span className="tabular-nums">{stockAlerts.zero}</span> sem estoque
             </span>
@@ -319,9 +330,7 @@ export function WorkshopPartsHomeDashboard({
                 : 'bg-white hover:bg-zinc-50 dark:bg-zinc-900 dark:hover:bg-zinc-800/80'
             }`}
           >
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-orange-100 text-orange-700 dark:bg-orange-950/50 dark:text-orange-300">
-              <PackageX className="h-5 w-5" strokeWidth={2} aria-hidden />
-            </span>
+            <EstoqueKpiIcon src={KPI_ICON_SRC.acabando} alt="" />
             <span className="min-w-0 flex-1 text-[14px] font-semibold text-zinc-900 dark:text-white">
               <span className="tabular-nums">{stockAlerts.low}</span> acabando
             </span>
@@ -329,9 +338,7 @@ export function WorkshopPartsHomeDashboard({
           </button>
 
           <div className="flex items-center gap-3 rounded-2xl border-0 bg-white px-4 py-3.5 shadow-none dark:bg-zinc-900">
-            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-violet-100 text-violet-700 dark:bg-violet-950/50 dark:text-violet-300">
-              <FileText className="h-5 w-5" strokeWidth={2} aria-hidden />
-            </span>
+            <EstoqueKpiIcon src={KPI_ICON_SRC.valorTotal} alt="" />
             <div className="min-w-0 flex flex-col gap-0.5">
               <p className="text-[15px] font-bold tabular-nums leading-tight text-zinc-900 dark:text-white">
                 {formatWorkshopPartsCurrency(inventoryValue)}
