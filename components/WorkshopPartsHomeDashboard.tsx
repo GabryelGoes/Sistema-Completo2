@@ -27,7 +27,6 @@ import {
   formatWorkshopPartsCurrency,
   getWorkshopPartStockStatus,
   sumWorkshopPartsInventoryValue,
-  workshopPartsRecentGrowthPct,
   type WorkshopPartSortMode,
 } from '../utils/workshopPartStock';
 import { storageSiteLabel } from '../utils/workshopPartFields';
@@ -144,7 +143,13 @@ export function WorkshopPartsHomeDashboard({
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   const inventoryValue = useMemo(() => sumWorkshopPartsInventoryValue(parts), [parts]);
-  const growthPct = useMemo(() => workshopPartsRecentGrowthPct(parts), [parts]);
+
+  const showAllParts = () => {
+    onCategoryFilterChange('all');
+    onStockAlertFilterChange('all');
+    onPartsSearchQueryChange('');
+    setCategoryFilterMenuOpen(false);
+  };
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -164,10 +169,13 @@ export function WorkshopPartsHomeDashboard({
   const gridCols =
     'lg:grid-cols-[minmax(14rem,2.2fr)_minmax(7rem,0.9fr)_minmax(7rem,0.9fr)_minmax(5.5rem,0.7fr)_minmax(5.5rem,0.7fr)_minmax(4.5rem,0.55fr)_minmax(7.5rem,0.9fr)_5.5rem]';
 
+  const categoryScrollCls =
+    'mb-0 flex gap-2 overflow-x-auto pb-0.5 [scrollbar-width:thin] [scrollbar-color:rgba(113,113,122,0.28)_transparent] [&::-webkit-scrollbar]:h-1 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-zinc-400/30 hover:[&::-webkit-scrollbar-thumb]:bg-zinc-400/45 dark:[&::-webkit-scrollbar-thumb]:bg-white/20';
+
   return (
-    <div className="flex-1 min-h-0 overflow-y-auto overscroll-y-auto touch-pan-y px-4 pb-[max(2rem,env(safe-area-inset-bottom))] custom-scrollbar [scrollbar-gutter:stable] sm:px-6 lg:px-8">
+    <div className="flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-y-auto touch-pan-y px-4 pb-[max(2rem,env(safe-area-inset-bottom))] custom-scrollbar [scrollbar-gutter:stable] sm:px-6 lg:px-8">
       {/* Barra de ações */}
-      <div className="mb-5 flex flex-col gap-3 pt-1 sm:mb-6 sm:flex-row sm:items-start sm:justify-between">
+      <div className="mb-5 flex shrink-0 flex-col gap-3 pt-1 sm:mb-6 sm:flex-row sm:items-start sm:justify-between">
         {!loading ? (
           <div className="min-w-0 w-full overflow-hidden rounded-2xl border-0 bg-amber-50/95 shadow-none dark:bg-amber-950/35 sm:max-w-md">
             <button
@@ -266,23 +274,25 @@ export function WorkshopPartsHomeDashboard({
 
       {/* KPIs */}
       {!loading && parts.length > 0 ? (
-        <div className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <div className="flex items-center gap-3 rounded-2xl border-0 bg-white px-4 py-3.5 shadow-none dark:bg-zinc-900">
+        <div className="mb-5 grid shrink-0 grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <button
+            type="button"
+            onClick={showAllParts}
+            className={`flex items-center gap-3 rounded-2xl border-0 px-4 py-3.5 text-left shadow-none transition-colors ${
+              categoryFilter === 'all' && stockAlertFilter === 'all' && !partsSearchQuery.trim()
+                ? 'bg-emerald-50 ring-2 ring-emerald-500/35 dark:bg-emerald-950/40'
+                : 'bg-white hover:bg-zinc-50 dark:bg-zinc-900 dark:hover:bg-zinc-800/80'
+            }`}
+          >
             <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-zinc-100 text-zinc-700 dark:bg-white/10 dark:text-zinc-200">
               <Package className="h-5 w-5" strokeWidth={2} aria-hidden />
             </span>
-            <div className="min-w-0 flex-1">
-              <p className="text-[14px] font-semibold leading-snug text-zinc-900 dark:text-white">
-                <span className="tabular-nums">{categoryCounts.total}</span>{' '}
-                {categoryCounts.total === 1 ? 'peça no estoque' : 'peças no estoque'}
-              </p>
-            </div>
-            {growthPct != null && growthPct > 0 ? (
-              <span className="shrink-0 rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-bold tabular-nums text-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-200">
-                ↑ {growthPct}%
-              </span>
-            ) : null}
-          </div>
+            <span className="min-w-0 flex-1 text-[14px] font-semibold leading-snug text-zinc-900 dark:text-white">
+              <span className="tabular-nums">{categoryCounts.total}</span>{' '}
+              {categoryCounts.total === 1 ? 'peça no estoque' : 'peças no estoque'}
+            </span>
+            <ChevronRight className="h-4 w-4 shrink-0 text-zinc-400" aria-hidden />
+          </button>
 
           <button
             type="button"
@@ -324,195 +334,198 @@ export function WorkshopPartsHomeDashboard({
             <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-violet-100 text-violet-700 dark:bg-violet-950/50 dark:text-violet-300">
               <FileText className="h-5 w-5" strokeWidth={2} aria-hidden />
             </span>
-            <p className="min-w-0 text-[14px] font-semibold leading-snug text-zinc-900 dark:text-white">
-              <span className="tabular-nums">{formatWorkshopPartsCurrency(inventoryValue)}</span>{' '}
-              <span className="font-medium text-zinc-500 dark:text-zinc-400">valor total em estoque</span>
-            </p>
+            <div className="min-w-0 flex flex-col gap-0.5">
+              <p className="text-[15px] font-bold tabular-nums leading-tight text-zinc-900 dark:text-white">
+                {formatWorkshopPartsCurrency(inventoryValue)}
+              </p>
+              <p className="text-[12px] font-medium leading-snug text-zinc-500 dark:text-zinc-400">
+                valor total em estoque
+              </p>
+            </div>
           </div>
         </div>
       ) : null}
 
-      {/* Busca + filtro + ordenação */}
+      {/* Busca + categorias: sticky — ao rolar, só a lista de produtos continua */}
       {!loading && parts.length > 0 ? (
-        <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-stretch">
-          <div className="relative min-w-0 flex-1">
-            <label htmlFor="workshop-parts-search" className="sr-only">
-              Pesquisar peças
-            </label>
-            <Search
-              className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400"
-              aria-hidden
-            />
-            <input
-              ref={searchInputRef}
-              id="workshop-parts-search"
-              type="search"
-              value={partsSearchQuery}
-              onChange={(e) => onPartsSearchQueryChange(e.target.value)}
-              placeholder="Pesquisar peça, código, marca, categoria..."
-              autoComplete="off"
-              className="w-full rounded-2xl border-0 bg-white py-3 pl-11 pr-20 text-[15px] text-zinc-900 shadow-none placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/35 dark:bg-zinc-900 dark:text-white dark:placeholder:text-zinc-500"
-            />
-            <span className="pointer-events-none absolute right-3 top-1/2 hidden -translate-y-1/2 items-center gap-0.5 rounded-md border border-zinc-200 bg-zinc-50 px-1.5 py-0.5 text-[11px] font-semibold text-zinc-500 sm:inline-flex dark:border-white/10 dark:bg-white/5 dark:text-zinc-400">
-              <Command className="h-3 w-3" aria-hidden />
-              K
-            </span>
-            {partsSearchQuery ? (
-              <button
-                type="button"
-                onClick={() => onPartsSearchQueryChange('')}
-                className="absolute right-14 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-zinc-500 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-white/10 sm:right-16"
-                aria-label="Limpar pesquisa"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            ) : null}
-          </div>
-
-          <div ref={categoryFilterDropdownRef} className="relative z-20 w-full shrink-0 lg:w-[min(100%,240px)]">
-            <button
-              type="button"
-              id="workshop-parts-category-filter"
-              aria-haspopup="listbox"
-              aria-expanded={categoryFilterMenuOpen}
-              aria-controls="workshop-parts-category-listbox"
-              onClick={() => setCategoryFilterMenuOpen((open) => !open)}
-              className="flex w-full min-h-[48px] items-center justify-between gap-2 rounded-2xl border-0 bg-white py-3 pl-4 pr-3 text-left text-[14px] font-semibold text-zinc-900 shadow-none focus:outline-none focus:ring-2 focus:ring-emerald-500/40 dark:bg-zinc-900 dark:text-white"
-            >
-              <span className="min-w-0 truncate">{categoryFilterLabel}</span>
-              <ChevronDown
-                className={`h-4 w-4 shrink-0 text-zinc-500 transition-transform duration-200 ${
-                  categoryFilterMenuOpen ? 'rotate-180' : ''
-                }`}
+        <div className="sticky top-0 z-30 -mx-4 mb-4 space-y-3 bg-[#F4F5F7]/95 px-4 pb-3 pt-1 backdrop-blur-md dark:bg-zinc-950/95 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-stretch">
+            <div className="relative min-w-0 flex-1">
+              <label htmlFor="workshop-parts-search" className="sr-only">
+                Pesquisar peças
+              </label>
+              <Search
+                className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400"
                 aria-hidden
               />
-            </button>
-            {categoryFilterMenuOpen ? (
-              <ul
-                id="workshop-parts-category-listbox"
-                role="listbox"
-                aria-label="Opções de filtro por categoria"
-                className="absolute left-0 right-0 top-full z-[60] mt-1.5 max-h-[min(280px,45vh)] overflow-y-auto rounded-2xl border-0 bg-white py-1.5 shadow-[0_12px_40px_-12px_rgba(0,0,0,0.25)] dark:bg-zinc-900"
+              <input
+                ref={searchInputRef}
+                id="workshop-parts-search"
+                type="search"
+                value={partsSearchQuery}
+                onChange={(e) => onPartsSearchQueryChange(e.target.value)}
+                placeholder="Pesquisar peça, código, marca, categoria..."
+                autoComplete="off"
+                className="w-full rounded-2xl border-0 bg-white py-3 pl-11 pr-20 text-[15px] text-zinc-900 shadow-none placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/35 dark:bg-zinc-900 dark:text-white dark:placeholder:text-zinc-500"
+              />
+              <span className="pointer-events-none absolute right-3 top-1/2 hidden -translate-y-1/2 items-center gap-0.5 rounded-md border border-zinc-200 bg-zinc-50 px-1.5 py-0.5 text-[11px] font-semibold text-zinc-500 sm:inline-flex dark:border-white/10 dark:bg-white/5 dark:text-zinc-400">
+                <Command className="h-3 w-3" aria-hidden />
+                K
+              </span>
+              {partsSearchQuery ? (
+                <button
+                  type="button"
+                  onClick={() => onPartsSearchQueryChange('')}
+                  className="absolute right-14 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-zinc-500 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-white/10 sm:right-16"
+                  aria-label="Limpar pesquisa"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              ) : null}
+            </div>
+
+            <div ref={categoryFilterDropdownRef} className="relative z-40 w-full shrink-0 lg:w-[min(100%,240px)]">
+              <button
+                type="button"
+                id="workshop-parts-category-filter"
+                aria-haspopup="listbox"
+                aria-expanded={categoryFilterMenuOpen}
+                aria-controls="workshop-parts-category-listbox"
+                onClick={() => setCategoryFilterMenuOpen((open) => !open)}
+                className="flex w-full min-h-[48px] items-center justify-between gap-2 rounded-2xl border-0 bg-white py-3 pl-4 pr-3 text-left text-[14px] font-semibold text-zinc-900 shadow-none focus:outline-none focus:ring-2 focus:ring-emerald-500/40 dark:bg-zinc-900 dark:text-white"
               >
-                {categoryFilterOptions.map((opt) => {
-                  const selected = categoryFilter === opt.value;
-                  return (
-                    <li key={opt.value} role="none">
-                      <button
-                        type="button"
-                        role="option"
-                        aria-selected={selected}
-                        onClick={() => {
-                          onCategoryFilterChange(opt.value);
-                          setCategoryFilterMenuOpen(false);
-                        }}
-                        className={`flex w-full items-center justify-between gap-3 px-4 py-3 text-left text-[14px] transition-colors ${
-                          selected
-                            ? 'bg-emerald-500/14 font-semibold text-emerald-950 dark:bg-emerald-400/18 dark:text-emerald-50'
-                            : 'font-medium text-zinc-900 hover:bg-zinc-100 dark:text-zinc-100 dark:hover:bg-white/[0.08]'
-                        }`}
-                      >
-                        <span className="min-w-0 truncate">{opt.countLabel}</span>
-                        {selected ? (
-                          <Check className="h-4 w-4 shrink-0 text-emerald-600" strokeWidth={2.5} aria-hidden />
-                        ) : null}
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-            ) : null}
+                <span className="min-w-0 truncate">{categoryFilterLabel}</span>
+                <ChevronDown
+                  className={`h-4 w-4 shrink-0 text-zinc-500 transition-transform duration-200 ${
+                    categoryFilterMenuOpen ? 'rotate-180' : ''
+                  }`}
+                  aria-hidden
+                />
+              </button>
+              {categoryFilterMenuOpen ? (
+                <ul
+                  id="workshop-parts-category-listbox"
+                  role="listbox"
+                  aria-label="Opções de filtro por categoria"
+                  className="absolute left-0 right-0 top-full z-[60] mt-1.5 max-h-[min(280px,45vh)] overflow-y-auto rounded-2xl border-0 bg-white py-1.5 shadow-[0_12px_40px_-12px_rgba(0,0,0,0.25)] dark:bg-zinc-900"
+                >
+                  {categoryFilterOptions.map((opt) => {
+                    const selected = categoryFilter === opt.value;
+                    return (
+                      <li key={opt.value} role="none">
+                        <button
+                          type="button"
+                          role="option"
+                          aria-selected={selected}
+                          onClick={() => {
+                            onCategoryFilterChange(opt.value);
+                            setCategoryFilterMenuOpen(false);
+                          }}
+                          className={`flex w-full items-center justify-between gap-3 px-4 py-3 text-left text-[14px] transition-colors ${
+                            selected
+                              ? 'bg-emerald-500/14 font-semibold text-emerald-950 dark:bg-emerald-400/18 dark:text-emerald-50'
+                              : 'font-medium text-zinc-900 hover:bg-zinc-100 dark:text-zinc-100 dark:hover:bg-white/[0.08]'
+                          }`}
+                        >
+                          <span className="min-w-0 truncate">{opt.countLabel}</span>
+                          {selected ? (
+                            <Check className="h-4 w-4 shrink-0 text-emerald-600" strokeWidth={2.5} aria-hidden />
+                          ) : null}
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              ) : null}
+            </div>
+
+            <div
+              role="group"
+              aria-label="Ordenar lista"
+              className="inline-flex w-full shrink-0 rounded-2xl border-0 bg-white p-1 shadow-none dark:bg-zinc-900 lg:w-auto"
+            >
+              <button
+                type="button"
+                onClick={() => onSortModeChange('recent')}
+                aria-pressed={sortMode === 'recent'}
+                className={`inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl px-3.5 py-2.5 text-[13px] font-semibold transition-colors lg:flex-initial ${
+                  sortMode === 'recent'
+                    ? 'bg-[#0F7A4B] text-white shadow-none'
+                    : 'text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-white/[0.08]'
+                }`}
+              >
+                <Clock className="h-4 w-4 shrink-0" aria-hidden />
+                Recentes
+              </button>
+              <button
+                type="button"
+                onClick={() => onSortModeChange('oldest')}
+                aria-pressed={sortMode === 'oldest'}
+                className={`inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl px-3.5 py-2.5 text-[13px] font-semibold transition-colors lg:flex-initial ${
+                  sortMode === 'oldest'
+                    ? 'bg-[#0F7A4B] text-white shadow-none'
+                    : 'text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-white/[0.08]'
+                }`}
+              >
+                <History className="h-4 w-4 shrink-0" aria-hidden />
+                Antigo
+              </button>
+            </div>
           </div>
 
-          <div
-            role="group"
-            aria-label="Ordenar lista"
-            className="inline-flex w-full shrink-0 rounded-2xl border-0 bg-white p-1 shadow-none dark:bg-zinc-900 lg:w-auto"
-          >
-            <button
-              type="button"
-              onClick={() => onSortModeChange('recent')}
-              aria-pressed={sortMode === 'recent'}
-              className={`inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl px-3.5 py-2.5 text-[13px] font-semibold transition-colors lg:flex-initial ${
-                sortMode === 'recent'
-                  ? 'bg-[#0F7A4B] text-white shadow-none'
-                  : 'text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-white/[0.08]'
-              }`}
-            >
-              <Clock className="h-4 w-4 shrink-0" aria-hidden />
-              Recentes
-            </button>
-            <button
-              type="button"
-              onClick={() => onSortModeChange('oldest')}
-              aria-pressed={sortMode === 'oldest'}
-              className={`inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl px-3.5 py-2.5 text-[13px] font-semibold transition-colors lg:flex-initial ${
-                sortMode === 'oldest'
-                  ? 'bg-[#0F7A4B] text-white shadow-none'
-                  : 'text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-white/[0.08]'
-              }`}
-            >
-              <History className="h-4 w-4 shrink-0" aria-hidden />
-              Antigo
-            </button>
-          </div>
-        </div>
-      ) : null}
-
-      {/* Pills de categoria */}
-      {!loading && parts.length > 0 ? (
-        <div className="mb-4 flex gap-2 overflow-x-auto pb-1 scrollbar-thin">
-          <button
-            type="button"
-            onClick={() => {
-              onCategoryFilterChange('all');
-              setCategoryFilterMenuOpen(false);
-            }}
-            className={`shrink-0 rounded-full px-3.5 py-1.5 text-[13px] font-semibold transition-colors ${
-              categoryFilter === 'all'
-                ? 'bg-[#0F7A4B] text-white'
-                : 'bg-zinc-200/90 text-zinc-800 hover:bg-zinc-300/90 dark:bg-white/10 dark:text-zinc-200 dark:hover:bg-white/15'
-            }`}
-          >
-            Todos <span className="tabular-nums">({categoryCounts.total})</span>
-          </button>
-          {categoryCounts.uncategorized > 0 ? (
+          <div className={categoryScrollCls}>
             <button
               type="button"
               onClick={() => {
-                onCategoryFilterChange('uncategorized');
+                onCategoryFilterChange('all');
                 setCategoryFilterMenuOpen(false);
               }}
               className={`shrink-0 rounded-full px-3.5 py-1.5 text-[13px] font-semibold transition-colors ${
-                categoryFilter === 'uncategorized'
+                categoryFilter === 'all'
                   ? 'bg-[#0F7A4B] text-white'
                   : 'bg-zinc-200/90 text-zinc-800 hover:bg-zinc-300/90 dark:bg-white/10 dark:text-zinc-200 dark:hover:bg-white/15'
               }`}
             >
-              Sem categoria <span className="tabular-nums">({categoryCounts.uncategorized})</span>
+              Todos <span className="tabular-nums">({categoryCounts.total})</span>
             </button>
-          ) : null}
-          {categories.map((c) => {
-            const n = categoryCounts.counts.get(c.id) ?? 0;
-            if (n === 0) return null;
-            return (
+            {categoryCounts.uncategorized > 0 ? (
               <button
-                key={c.id}
                 type="button"
                 onClick={() => {
-                  onCategoryFilterChange(c.id);
+                  onCategoryFilterChange('uncategorized');
                   setCategoryFilterMenuOpen(false);
                 }}
                 className={`shrink-0 rounded-full px-3.5 py-1.5 text-[13px] font-semibold transition-colors ${
-                  categoryFilter === c.id
+                  categoryFilter === 'uncategorized'
                     ? 'bg-[#0F7A4B] text-white'
                     : 'bg-zinc-200/90 text-zinc-800 hover:bg-zinc-300/90 dark:bg-white/10 dark:text-zinc-200 dark:hover:bg-white/15'
                 }`}
               >
-                {c.name} <span className="tabular-nums">({n})</span>
+                Sem categoria <span className="tabular-nums">({categoryCounts.uncategorized})</span>
               </button>
-            );
-          })}
+            ) : null}
+            {categories.map((c) => {
+              const n = categoryCounts.counts.get(c.id) ?? 0;
+              if (n === 0) return null;
+              return (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => {
+                    onCategoryFilterChange(c.id);
+                    setCategoryFilterMenuOpen(false);
+                  }}
+                  className={`shrink-0 rounded-full px-3.5 py-1.5 text-[13px] font-semibold transition-colors ${
+                    categoryFilter === c.id
+                      ? 'bg-[#0F7A4B] text-white'
+                      : 'bg-zinc-200/90 text-zinc-800 hover:bg-zinc-300/90 dark:bg-white/10 dark:text-zinc-200 dark:hover:bg-white/15'
+                  }`}
+                >
+                  {c.name} <span className="tabular-nums">({n})</span>
+                </button>
+              );
+            })}
+          </div>
         </div>
       ) : null}
 
