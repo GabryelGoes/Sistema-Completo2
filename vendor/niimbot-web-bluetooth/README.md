@@ -7,5 +7,7 @@ Driver MIT de [iscarelli/niimbot-web-bluetooth](https://github.com/iscarelli/nii
 - `LICENSE` — MIT
 
 A app usa o B1 via `services/niimbotService.ts` (detecta B1 Pro automaticamente).
-Conexão: Chrome/Edge + HTTPS; no Android ligue também a Localização; feche o app
-oficial NIIMBOT. Se a B1 não aparecer no seletor, use «Listar todos».
+Conexão: Chrome/Edge + HTTPS; desconecte a B1 do celular (app NIIMBOT) antes —
+só um aparelho por vez; no Android ligue também a Localização. O seletor lista
+todos os Bluetooth (sem filtro de nome) para achar a impressora com mais
+confiabilidade.
