@@ -121,6 +121,8 @@ export default function App() {
   const [shellProfileModal, setShellProfileModal] = useState<ShellProfileModal>(null);
   const [isPartsModalOpen, setIsPartsModalOpen] = useState(false);
   const [partsBootIntent, setPartsBootIntent] = useState<WorkshopPartsBootIntent | null>(null);
+  const isPartsModalOpenRef = useRef(false);
+  const partsExitGuardRef = useRef<null | ((proceed: () => void) => void)>(null);
   const [isTvPatioModalOpen, setIsTvPatioModalOpen] = useState(false);
   const [settingsHubOpen, setSettingsHubOpen] = useState(false);
   const [isSupportChatOpen, setIsSupportChatOpen] = useState(false);
@@ -128,15 +130,55 @@ export default function App() {
   const homeSettingsHubOpenerRef = useRef<(() => void) | null>(null);
   const homeSettingsHubCloserRef = useRef<(() => void) | null>(null);
 
+  useEffect(() => {
+    isPartsModalOpenRef.current = isPartsModalOpen;
+  }, [isPartsModalOpen]);
+
+  const closePartsModalState = useCallback(() => {
+    setIsPartsModalOpen(false);
+    setPartsBootIntent(null);
+  }, []);
+
+  /** Fecha o Estoque; se o modo Balanço estiver ativo, confirma antes. */
+  const requestClosePartsModal = useCallback(
+    (afterClose?: () => void) => {
+      const finish = () => {
+        closePartsModalState();
+        afterClose?.();
+      };
+      if (isPartsModalOpenRef.current && partsExitGuardRef.current) {
+        partsExitGuardRef.current(finish);
+      } else {
+        finish();
+      }
+    },
+    [closePartsModalState]
+  );
+
+  /** Fecha Estoque (+ confirma Balanço) e demais overlays que cobrem a tela. */
+  const dismissShellOverlaysForNavigation = useCallback(
+    (after?: () => void) => {
+      requestClosePartsModal(() => {
+        setIsTvPatioModalOpen(false);
+        setSettingsHubOpen(false);
+        setIsSettingsOpen(false);
+        setIsSupportChatOpen(false);
+        after?.();
+      });
+    },
+    [requestClosePartsModal]
+  );
 
   /** Fecha modais/hubs abertos pelos atalhos da sidebar (modo PC). */
   const dismissDesktopShellOverlays = useCallback(() => {
-    setIsPartsModalOpen(false);
-    setIsTvPatioModalOpen(false);
-    setIsSettingsOpen(false);
-    setSettingsHubOpen(false);
-    setIsSupportChatOpen(false);
-  }, []);
+    const dismissRest = () => {
+      setIsTvPatioModalOpen(false);
+      setIsSettingsOpen(false);
+      setSettingsHubOpen(false);
+      setIsSupportChatOpen(false);
+    };
+    requestClosePartsModal(dismissRest);
+  }, [requestClosePartsModal]);
 
   const desktopSidebarAccess = useMemo(
     () =>
@@ -150,23 +192,31 @@ export default function App() {
   const handleDesktopSidebarAction = useCallback(
     (action: DesktopSidebarActionId) => {
       if (action === 'estoque_pecas') {
-        dismissDesktopShellOverlays();
+        setIsTvPatioModalOpen(false);
+        setIsSettingsOpen(false);
+        setSettingsHubOpen(false);
+        setIsSupportChatOpen(false);
         setIsPartsModalOpen(true);
         return;
       }
       if (action === 'tvs_oficina') {
-        dismissDesktopShellOverlays();
-        setIsTvPatioModalOpen(true);
+        requestClosePartsModal(() => {
+          setIsSettingsOpen(false);
+          setSettingsHubOpen(false);
+          setIsSupportChatOpen(false);
+          setIsTvPatioModalOpen(true);
+        });
         return;
       }
       if (action === 'configuracoes') {
-            setIsPartsModalOpen(false);
-        setIsSettingsOpen(false);
-        setSettingsHubOpen(true);
+        requestClosePartsModal(() => {
+          setIsSettingsOpen(false);
+          setSettingsHubOpen(true);
+        });
         return;
       }
     },
-[dismissDesktopShellOverlays]
+    [requestClosePartsModal]
   );
 
   const handleDesktopTabChange = useCallback(
@@ -383,12 +433,7 @@ export default function App() {
         setLabOsScanQuick(null);
         setLaboratorioPendingOrderId(soId);
         setLaboratorioPendingScanToken(Date.now());
-        setIsPartsModalOpen(false);
-        setPartsBootIntent(null);
-        setIsTvPatioModalOpen(false);
-        setSettingsHubOpen(false);
-        setIsSettingsOpen(false);
-        setIsSupportChatOpen(false);
+        dismissShellOverlaysForNavigation();
         if (isLimitedSystemUser) {
           setVisitedUserTabs((prev) => {
             if (prev.has('laboratorio')) return prev;
@@ -415,7 +460,7 @@ export default function App() {
       goToOrcamentosTab();
       setHubBudgetViewer({ serviceOrderId: soId, budgetId });
     },
-    [goToOrcamentosTab, isLimitedSystemUser, userAllowedTabs]
+    [dismissShellOverlaysForNavigation, goToOrcamentosTab, isLimitedSystemUser, userAllowedTabs]
   );
 
   const handleMinimizeBudgetBanners = useCallback((items: MacOsBudgetBannerItem[]) => {
@@ -710,12 +755,7 @@ export default function App() {
           setLabOsScanQuick(null);
           setLaboratorioPendingOrderId(soId);
           setLaboratorioPendingScanToken(Date.now());
-          setIsPartsModalOpen(false);
-          setPartsBootIntent(null);
-          setIsTvPatioModalOpen(false);
-          setSettingsHubOpen(false);
-          setIsSettingsOpen(false);
-          setIsSupportChatOpen(false);
+          dismissShellOverlaysForNavigation();
           if (isLimitedSystemUser) {
             setVisitedUserTabs((prev) => {
               if (prev.has('laboratorio')) return prev;
@@ -759,7 +799,13 @@ export default function App() {
         ).catch(() => {});
       }
     },
-    [authSession, goToOrcamentosTab, isLimitedSystemUser, userAllowedTabs]
+    [
+      authSession,
+      dismissShellOverlaysForNavigation,
+      goToOrcamentosTab,
+      isLimitedSystemUser,
+      userAllowedTabs,
+    ]
   );
 
   const notificationCenterProps = useMemo((): Omit<NotificationCenterProps, 'placement'> | undefined => {
@@ -793,12 +839,7 @@ export default function App() {
       setLaboratorioPendingOrderId(serviceOrderId);
       setLaboratorioPendingScanToken(Date.now());
       // Fecha overlays que cobririam o modal da OS.
-      setIsPartsModalOpen(false);
-      setPartsBootIntent(null);
-      setIsTvPatioModalOpen(false);
-      setSettingsHubOpen(false);
-      setIsSettingsOpen(false);
-      setIsSupportChatOpen(false);
+      dismissShellOverlaysForNavigation();
       if (isLimitedSystemUser) {
         setVisitedUserTabs((prev) => {
           if (prev.has('laboratorio')) return prev;
@@ -818,7 +859,7 @@ export default function App() {
         setCurrentTab('laboratorio');
       }
     },
-    [isLimitedSystemUser, userAllowedTabs]
+    [dismissShellOverlaysForNavigation, isLimitedSystemUser, userAllowedTabs]
   );
 
   const handleLaboratoryOrderHandled = useCallback(() => {
@@ -927,12 +968,7 @@ export default function App() {
     (serviceOrderId: string) => {
       const soId = serviceOrderId.trim();
       if (!soId) return;
-      setIsPartsModalOpen(false);
-      setPartsBootIntent(null);
-      setIsTvPatioModalOpen(false);
-      setSettingsHubOpen(false);
-      setIsSettingsOpen(false);
-      setIsSupportChatOpen(false);
+      dismissShellOverlaysForNavigation();
       // Limpa antes para permitir reabrir a mesma OS em sequência.
       setPatioPendingOrderId(null);
       window.setTimeout(() => setPatioPendingOrderId(soId), 0);
@@ -955,7 +991,7 @@ export default function App() {
         setCurrentTab('patio');
       }
     },
-    [isLimitedSystemUser, userAllowedTabs]
+    [dismissShellOverlaysForNavigation, isLimitedSystemUser, userAllowedTabs]
   );
 
   /**
@@ -967,12 +1003,7 @@ export default function App() {
       if (await tryActiveBarcodeScanClaim(code)) return;
       const osId = parseLabOsQrPayload(code);
       if (!osId) return;
-      setIsPartsModalOpen(false);
-      setPartsBootIntent(null);
-      setIsTvPatioModalOpen(false);
-      setSettingsHubOpen(false);
-      setIsSettingsOpen(false);
-      setIsSupportChatOpen(false);
+      dismissShellOverlaysForNavigation();
 
       const mode = labScanMode;
       if (mode === 'consultar') {
@@ -1056,6 +1087,7 @@ export default function App() {
     authSession?.displayName,
     authSession?.userId,
     authSession?.username,
+    dismissShellOverlaysForNavigation,
     labScanMode,
   ]);
 
@@ -1489,10 +1521,8 @@ export default function App() {
   // Inventário / TVs: ESC via ModalPortal.onRequestClose (evita pilha duplicada).
 
   const closePartsModalToHome = useCallback(() => {
-    setIsPartsModalOpen(false);
-    setPartsBootIntent(null);
-    navigateToHomeApp();
-  }, [navigateToHomeApp]);
+    requestClosePartsModal(() => navigateToHomeApp());
+  }, [navigateToHomeApp, requestClosePartsModal]);
 
   const closeTvPatioModal = useCallback(() => {
     setIsTvPatioModalOpen(false);
@@ -1900,6 +1930,9 @@ export default function App() {
               onClose={closePartsModalToHome}
               bootIntent={partsBootIntent}
               onBootIntentConsumed={() => setPartsBootIntent(null)}
+              onRegisterExitGuard={(guard) => {
+                partsExitGuardRef.current = guard;
+              }}
             />
           </Suspense>
         ) : null}
@@ -2271,6 +2304,9 @@ export default function App() {
             onClose={closePartsModalToHome}
             bootIntent={partsBootIntent}
             onBootIntentConsumed={() => setPartsBootIntent(null)}
+            onRegisterExitGuard={(guard) => {
+              partsExitGuardRef.current = guard;
+            }}
           />
         </Suspense>
       ) : null}
