@@ -79,6 +79,10 @@ import {
   type ServiceOrderType,
   type ChecklistTemplate,
 } from '../../services/apiService';
+import {
+  getServiceOrdersWarm,
+  getSystemUserTechniciansWarm,
+} from '../../services/boardWarmup';
 import type { ServiceOrderDetail, ApiCustomer } from '../../services/apiService';
 import {
   getServiceOrderStages,
@@ -2685,13 +2689,13 @@ export const PatioView: React.FC<PatioViewProps> = ({
       setInitialLoading(true);
     }
     try {
-      const orders = await getServiceOrders(undefined, orderType);
-      let technicians: SystemUserTechnician[] = [];
-      try {
-        technicians = await getSystemUserTechnicians();
-      } catch (_) {
-        // Nenhum usuário marcado como técnico ainda
-      }
+      const fetchOrders = isBackground
+        ? getServiceOrders(undefined, orderType)
+        : getServiceOrdersWarm(undefined, orderType);
+      const [orders, technicians] = await Promise.all([
+        fetchOrders,
+        getSystemUserTechniciansWarm().catch(() => [] as SystemUserTechnician[]),
+      ]);
       setSystemTechnicians(technicians);
       setLists(boardListsFromStages(boardStages));
       const nameMap = buildTechnicianNameMap(technicians);

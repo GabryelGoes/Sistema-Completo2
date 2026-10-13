@@ -28,6 +28,7 @@ import { SYSTEM_NOTIFICATIONS_ICON } from '../../constants/systemNotificationsIc
 import { QUALITY_RADAR_ICON } from '../../constants/qualityRadar';
 import { ERROR_BULLETIN_ICON, TECHNICAL_BULLETINS_MODULE_LABEL } from '../../constants/errorBulletinIcon';
 import { effectiveAccessOrcamentos, type SystemUserPermissions } from '../../services/apiService';
+import { warmPatioOrLaboratoryBoard } from '../../services/boardWarmup';
 import { useRegisterModalOpen } from '../ui/ModalLayerContext';
 import { useBrowserBackLayer } from '../ui/BackNavigationContext';
 import { desktopShellViewportOverlayClass } from '../../utils/desktopShellOverlay';
@@ -662,6 +663,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
     (id: QuickTileId) => {
       const tile = operationalById[id];
       if (!tile) return;
+      // Aquenta chunk/dados antes do gesto terminar — abrir Pátio/Lab fica quase imediato.
+      if (id === 'patio') warmPatioOrLaboratoryBoard('vehicle');
+      else if (id === 'laboratorio') warmPatioOrLaboratoryBoard('module');
       if (launchTimerRef.current) clearTimeout(launchTimerRef.current);
       setLaunchingQuickId(id);
       launchTimerRef.current = setTimeout(() => {
