@@ -88,6 +88,43 @@ export function countStockAlerts(parts: WorkshopPart[]): { zero: number; low: nu
   return { zero, low };
 }
 
+/** Valor total em estoque (preço unitário × quantidade). */
+export function sumWorkshopPartsInventoryValue(parts: WorkshopPart[]): number {
+  let total = 0;
+  for (const p of parts) {
+    const price = Number(p.unit_price ?? 0);
+    const qty = Number(p.stock_qty ?? 0);
+    if (!Number.isFinite(price) || !Number.isFinite(qty)) continue;
+    total += price * qty;
+  }
+  return total;
+}
+
+export function formatWorkshopPartsCurrency(value: number): string {
+  const v = Number.isFinite(value) ? value : 0;
+  return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+}
+
+/**
+ * Variação aproximada do catálogo: peças cadastradas nos últimos 30 dias
+ * em relação ao restante do estoque (para o badge ↑% do dashboard).
+ */
+export function workshopPartsRecentGrowthPct(
+  parts: WorkshopPart[],
+  windowMs = 30 * 24 * 60 * 60 * 1000
+): number | null {
+  if (parts.length === 0) return null;
+  const cutoff = Date.now() - windowMs;
+  let recent = 0;
+  for (const p of parts) {
+    const t = new Date(p.created_at).getTime();
+    if (!Number.isNaN(t) && t >= cutoff) recent += 1;
+  }
+  if (recent <= 0) return null;
+  const baseline = Math.max(parts.length - recent, 1);
+  return Math.round((recent / baseline) * 100);
+}
+
 export type WorkshopPartCategoryCounts = {
   /** Produto em várias categorias conta em cada uma. */
   counts: Map<string, number>;

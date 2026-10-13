@@ -259,8 +259,8 @@ export function MacOsBudgetBannerStack({
   const visible = items.slice(0, MAX_VISIBLE);
   if (visible.length === 0) return null;
 
-  const toolbarShell = 'border-white/12 bg-zinc-900/80 text-zinc-200';
-  const toolbarBtn = 'hover:bg-white/10 text-zinc-200';
+  const toolbarShell = 'border-white/12 bg-zinc-900/80 text-white';
+  const toolbarBtn = 'hover:bg-white/10 text-white';
 
   const handleClearAll = () => {
     if (minimizing || busyIds.size > 0) return;
