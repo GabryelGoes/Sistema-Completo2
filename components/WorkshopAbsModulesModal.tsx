@@ -5,12 +5,15 @@ import {
   ArrowUpFromLine,
   ChevronDown,
   ChevronRight,
+  HelpCircle,
   History,
   Loader2,
   MapPin,
+  Pencil,
   Plus,
   Printer,
   QrCode,
+  Save,
   Scissors,
   Search,
   Trash2,
@@ -26,6 +29,8 @@ import {
   getWorkshopAbsModuleMovements,
   lookupWorkshopAbsModuleByCode,
   searchWorkshopAbsModules,
+  updateWorkshopAbsModule,
+  updateWorkshopAbsModuleModel,
   type WorkshopAbsModule,
   type WorkshopAbsModuleModel,
   type WorkshopAbsModuleMovement,
@@ -60,9 +65,9 @@ import {
   type WorkshopAbsModuleApplicationInput,
   type WorkshopAbsModuleCodeInput,
 } from '../utils/workshopAbsModules';
-import { printAbsModuleLabel } from '../utils/absModuleLabelPrint';
 import { getStoredAuth } from './views/LoginView';
 import { BarcodeScanField } from './BarcodeScanField';
+import { NiimbotAbsModuleLabelPrintModal } from './NiimbotAbsModuleLabelPrintModal';
 import { RegistrationPortal } from './ui/RegistrationPortal';
 import { resolveIosModalOverlayClass, NESTED_STOCK_OVERLAY_Z } from './ui/iosModalStyles';
 import { useDesktopShellLayout } from './ui/DesktopShellContext';
@@ -176,14 +181,40 @@ function StatusPill({ status }: { status: string }) {
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({
+  label,
+  hint,
+  children,
+}: {
+  label: string;
+  hint?: string;
+  children: React.ReactNode;
+}) {
   return (
     <label className="block space-y-1.5">
-      <span className="text-[12px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
-        {label}
+      <span className="flex items-center gap-1.5">
+        <span className="text-[12px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+          {label}
+        </span>
+        {hint ? (
+          <span title={hint} className="text-zinc-400 dark:text-zinc-500">
+            <HelpCircle className="h-3.5 w-3.5" aria-hidden />
+          </span>
+        ) : null}
       </span>
       {children}
     </label>
+  );
+}
+
+function SectionHint({ title, hint }: { title: string; hint: string }) {
+  return (
+    <span className="flex items-center gap-1.5">
+      <span className="text-[12px] font-semibold uppercase tracking-wide text-zinc-500">{title}</span>
+      <span title={hint} className="text-zinc-400 dark:text-zinc-500">
+        <HelpCircle className="h-3.5 w-3.5" aria-hidden />
+      </span>
+    </span>
   );
 }
 
@@ -235,17 +266,19 @@ function modelPrimaryCode(model: WorkshopAbsModuleModel): string {
 
 function AppsEditor({
   title,
+  hint,
   apps,
   onChange,
 }: {
   title: string;
+  hint: string;
   apps: AppDraft[];
   onChange: (next: AppDraft[]) => void;
 }) {
   return (
     <div className="space-y-2 rounded-2xl bg-zinc-100/80 p-3 dark:bg-white/[0.04]">
       <div className="flex items-center justify-between gap-2">
-        <p className="text-[12px] font-semibold uppercase tracking-wide text-zinc-500">{title}</p>
+        <SectionHint title={title} hint={hint} />
         <button
           type="button"
           onClick={() => onChange([...apps, emptyApp()])}
@@ -256,56 +289,64 @@ function AppsEditor({
       </div>
       {apps.map((app, idx) => (
         <div key={idx} className="grid gap-2 sm:grid-cols-2">
-          <input
-            className={inputClass}
-            placeholder="Marca veículo"
-            value={app.vehicle_brand}
-            onChange={(e) => {
-              const next = [...apps];
-              next[idx] = { ...app, vehicle_brand: e.target.value };
-              onChange(next);
-            }}
-          />
-          <input
-            className={inputClass}
-            placeholder="Modelo"
-            value={app.vehicle_model}
-            onChange={(e) => {
-              const next = [...apps];
-              next[idx] = { ...app, vehicle_model: e.target.value };
-              onChange(next);
-            }}
-          />
-          <input
-            className={inputClass}
-            placeholder="Ano de"
-            value={app.year_from}
-            onChange={(e) => {
-              const next = [...apps];
-              next[idx] = { ...app, year_from: e.target.value };
-              onChange(next);
-            }}
-          />
-          <input
-            className={inputClass}
-            placeholder="Ano até"
-            value={app.year_to}
-            onChange={(e) => {
-              const next = [...apps];
-              next[idx] = { ...app, year_to: e.target.value };
-              onChange(next);
-            }}
-          />
-          <input
-            className={`${inputClass} sm:col-span-2`}
-            placeholder="Motor / versão / notas"
-            value={app.engine || app.notes}
-            onChange={(e) => {
-              const next = [...apps];
-              next[idx] = { ...app, engine: e.target.value };
-              onChange(next);
-            }}
-          />
+          <Field label="Marca" hint="Marca do veículo compatível (ex.: VW, Fiat).">
+            <input
+              className={inputClass}
+              value={app.vehicle_brand}
+              onChange={(e) => {
+                const next = [...apps];
+                next[idx] = { ...app, vehicle_brand: e.target.value };
+                onChange(next);
+              }}
+            />
+          </Field>
+          <Field label="Modelo" hint="Modelo do veículo (ex.: Gol, Palio).">
+            <input
+              className={inputClass}
+              value={app.vehicle_model}
+              onChange={(e) => {
+                const next = [...apps];
+                next[idx] = { ...app, vehicle_model: e.target.value };
+                onChange(next);
+              }}
+            />
+          </Field>
+          <Field label="Ano de" hint="Ano inicial da faixa de aplicação.">
+            <input
+              className={inputClass}
+              value={app.year_from}
+              onChange={(e) => {
+                const next = [...apps];
+                next[idx] = { ...app, year_from: e.target.value };
+                onChange(next);
+              }}
+            />
+          </Field>
+          <Field label="Ano até" hint="Ano final da faixa de aplicação.">
+            <input
+              className={inputClass}
+              value={app.year_to}
+              onChange={(e) => {
+                const next = [...apps];
+                next[idx] = { ...app, year_to: e.target.value };
+                onChange(next);
+              }}
+            />
+          </Field>
+          <Field
+            label="Motor / versão / notas"
+            hint="Motorização, versão ou observação técnica desta aplicação."
+          >
+            <input
+              className={inputClass}
+              value={app.engine || app.notes}
+              onChange={(e) => {
+                const next = [...apps];
+                next[idx] = { ...app, engine: e.target.value };
+                onChange(next);
+              }}
+            />
+          </Field>
         </div>
       ))}
     </div>
@@ -314,17 +355,19 @@ function AppsEditor({
 
 function CodesEditor({
   title,
+  hint,
   codes,
   onChange,
 }: {
   title: string;
+  hint: string;
   codes: { code_role: WorkshopAbsModuleCodeInput['code_role']; code_value: string }[];
   onChange: (next: typeof codes) => void;
 }) {
   return (
     <div className="space-y-2 rounded-2xl bg-zinc-100/80 p-3 dark:bg-white/[0.04]">
       <div className="flex items-center justify-between gap-2">
-        <p className="text-[12px] font-semibold uppercase tracking-wide text-zinc-500">{title}</p>
+        <SectionHint title={title} hint={hint} />
         <button
           type="button"
           onClick={() => onChange([...codes, { code_role: 'alternativo', code_value: '' }])}
@@ -334,35 +377,41 @@ function CodesEditor({
         </button>
       </div>
       {codes.map((c, idx) => (
-        <div key={idx} className="grid grid-cols-[120px_1fr] gap-2">
-          <select
-            className={selectClass}
-            value={c.code_role || 'fabricante'}
-            onChange={(e) => {
-              const next = [...codes];
-              next[idx] = {
-                ...c,
-                code_role: e.target.value as WorkshopAbsModuleCodeInput['code_role'],
-              };
-              onChange(next);
-            }}
+        <div key={idx} className="grid gap-2 sm:grid-cols-[140px_1fr]">
+          <Field label="Tipo do código" hint="Origem da referência: fabricante, montadora ou alternativa.">
+            <select
+              className={selectClass}
+              value={c.code_role || 'fabricante'}
+              onChange={(e) => {
+                const next = [...codes];
+                next[idx] = {
+                  ...c,
+                  code_role: e.target.value as WorkshopAbsModuleCodeInput['code_role'],
+                };
+                onChange(next);
+              }}
+            >
+              {ABS_CODE_ROLE_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field
+            label="Código"
+            hint="Referência técnica em texto (preserva zeros à esquerda)."
           >
-            {ABS_CODE_ROLE_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>
-                {o.label}
-              </option>
-            ))}
-          </select>
-          <input
-            className={inputClass}
-            placeholder="Código"
-            value={c.code_value}
-            onChange={(e) => {
-              const next = [...codes];
-              next[idx] = { ...c, code_value: e.target.value };
-              onChange(next);
-            }}
-          />
+            <input
+              className={inputClass}
+              value={c.code_value}
+              onChange={(e) => {
+                const next = [...codes];
+                next[idx] = { ...c, code_value: e.target.value };
+                onChange(next);
+              }}
+            />
+          </Field>
         </div>
       ))}
     </div>
@@ -392,6 +441,11 @@ export function WorkshopAbsModulesModal({
   const [filterCondition, setFilterCondition] = useState<AbsModuleItemCondition | ''>('');
   const [filterStatus, setFilterStatus] = useState<AbsModuleStatus | ''>('');
   const [wizard, setWizard] = useState<WizardState>(emptyWizard);
+  /** Quando definido, o formulário edita esta unidade (e seu modelo técnico). */
+  const [editingModule, setEditingModule] = useState<WorkshopAbsModule | null>(null);
+  /** Cadastro de nova unidade vinculada a um modelo já existente. */
+  const [createForModelId, setCreateForModelId] = useState<string | null>(null);
+  const [labelPrintModule, setLabelPrintModule] = useState<WorkshopAbsModule | null>(null);
   const [saving, setSaving] = useState(false);
   const [action, setAction] = useState<ActionPanel>(null);
   const [history, setHistory] = useState<WorkshopAbsModuleMovement[]>([]);
@@ -404,7 +458,6 @@ export function WorkshopAbsModulesModal({
   const [transferLocation, setTransferLocation] = useState('');
   const [entryLocation, setEntryLocation] = useState('');
   const [confirmExit, setConfirmExit] = useState(false);
-  const [printBusy, setPrintBusy] = useState(false);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [disWithdrawn, setDisWithdrawn] = useState<'eletronico' | 'hidraulico'>('eletronico');
   const [disDestination, setDisDestination] = useState<AbsDisassembleDestination>('estoque');
@@ -506,6 +559,9 @@ export function WorkshopAbsModulesModal({
     setSuccessMsg(null);
     setAction(null);
     setWizard(emptyWizard());
+    setEditingModule(null);
+    setCreateForModelId(null);
+    setLabelPrintModule(null);
 
     const boot = async () => {
       if (initialDisassemblePublicId) {
@@ -654,110 +710,214 @@ export function WorkshopAbsModulesModal({
     [openDetail]
   );
 
-  const handleCreate = useCallback(async () => {
+  const buildCatalogPayload = useCallback(() => {
+    const kind = wizard.module_kind;
+    const codes: WorkshopAbsModuleCodeInput[] = [];
+    const applications: WorkshopAbsModuleApplicationInput[] = [];
+
+    if (kind === 'eletronico') {
+      codes.push(...toCodes(wizard.eletronicoCodes, 'eletronico'));
+    } else if (kind === 'hidraulico') {
+      codes.push(...toCodes(wizard.hidraulicoCodes, 'hidraulico'));
+    } else if (kind === 'completo') {
+      codes.push(...toCodes(wizard.eletronicoCodes, 'eletronico'));
+      codes.push(...toCodes(wizard.hidraulicoCodes, 'hidraulico'));
+      codes.push(...toCodes(wizard.eletronicoCodes, 'completo'));
+    } else {
+      codes.push(...toCodes(wizard.eletronicoCodes, 'completo'));
+    }
+
+    if (kind === 'completo') {
+      applications.push(...toApps(wizard.appsCompleto, 'completo'));
+      applications.push(...toApps(wizard.appsEletronico, 'eletronico'));
+      applications.push(...toApps(wizard.appsHidraulico, 'hidraulico'));
+    } else if (kind === 'eletronico') {
+      applications.push(...toApps(wizard.appsEletronico, 'eletronico'));
+    } else if (kind === 'hidraulico') {
+      applications.push(...toApps(wizard.appsHidraulico, 'hidraulico'));
+    } else {
+      applications.push(...toApps(wizard.appsCompleto, 'completo'));
+    }
+
+    const primary =
+      primaryCodeForScope(
+        codes.map((c, i) => ({
+          id: String(i),
+          model_id: '',
+          component_scope: c.component_scope,
+          code_role: c.code_role || 'fabricante',
+          code_value: c.code_value,
+          sort_order: c.sort_order ?? i,
+        })),
+        kind === 'hidraulico' ? 'hidraulico' : kind === 'eletronico' ? 'eletronico' : 'completo'
+      ) ||
+      codes[0]?.code_value ||
+      null;
+
+    return { kind, codes, applications, primary };
+  }, [wizard]);
+
+  const openEdit = useCallback(
+    async (mod: WorkshopAbsModule) => {
+      setLoading(true);
+      setError(null);
+      setAction(null);
+      try {
+        let catalog: WorkshopAbsModuleModel | null = mod.catalog_model ?? null;
+        if (mod.model_id) {
+          catalog = await getWorkshopAbsModuleModel(mod.model_id);
+        }
+        const codes = catalog?.codes || [];
+        const apps = catalog?.applications || [];
+        const mapCodes = (scope: AbsComponentScope) => {
+          const list = codes
+            .filter((c) => c.component_scope === scope)
+            .sort((a, b) => a.sort_order - b.sort_order)
+            .map((c) => ({
+              code_role: c.code_role || ('fabricante' as const),
+              code_value: c.code_value,
+            }));
+          return list.length > 0
+            ? list
+            : [
+                { code_role: 'fabricante' as const, code_value: '' },
+                { code_role: 'fabricante' as const, code_value: '' },
+              ];
+        };
+        const mapApps = (scope: AbsComponentScope): AppDraft[] => {
+          const list = apps
+            .filter((a) => a.component_scope === scope)
+            .sort((a, b) => a.sort_order - b.sort_order)
+            .map((a) => ({
+              vehicle_brand: a.vehicle_brand || '',
+              vehicle_model: a.vehicle_model || '',
+              year_from: a.year_from != null ? String(a.year_from) : '',
+              year_to: a.year_to != null ? String(a.year_to) : '',
+              engine: a.engine || '',
+              notes: a.notes || '',
+            }));
+          return list.length > 0 ? list : [emptyApp()];
+        };
+
+        setEditingModule(mod);
+        setCreateForModelId(null);
+        setWizard({
+          manufacturer: catalog?.manufacturer || mod.manufacturer || '',
+          family: catalog?.family || mod.model || '',
+          module_kind: catalog?.module_kind || mod.module_kind,
+          notes: catalog?.notes || '',
+          eletronicoCodes: mapCodes('eletronico'),
+          hidraulicoCodes: mapCodes('hidraulico'),
+          appsCompleto: mapApps('completo'),
+          appsEletronico: mapApps('eletronico'),
+          appsHidraulico: mapApps('hidraulico'),
+          item_state: mod.item_state,
+          item_condition: mod.item_condition,
+          damage_description: mod.damage_description || '',
+          unit_cost: Number(mod.unit_cost) || 0,
+          unit_price: Number(mod.unit_price) || 0,
+          supplier: mod.supplier || '',
+          location: mod.location || '',
+          unit_notes: mod.notes || '',
+        });
+        setView({ kind: 'form' });
+      } catch (e) {
+        setError(e instanceof Error ? e.message : 'Falha ao abrir edição.');
+      } finally {
+        setLoading(false);
+      }
+    },
+    []
+  );
+
+  const handleSave = useCallback(async () => {
     setSaving(true);
     setError(null);
     try {
-      const kind = wizard.module_kind;
-      const codes: WorkshopAbsModuleCodeInput[] = [];
-      const applications: WorkshopAbsModuleApplicationInput[] = [];
-
-      if (kind === 'eletronico') {
-        codes.push(...toCodes(wizard.eletronicoCodes, 'eletronico'));
-      } else if (kind === 'hidraulico') {
-        codes.push(...toCodes(wizard.hidraulicoCodes, 'hidraulico'));
-      } else if (kind === 'completo') {
-        codes.push(...toCodes(wizard.eletronicoCodes, 'eletronico'));
-        codes.push(...toCodes(wizard.hidraulicoCodes, 'hidraulico'));
-        codes.push(...toCodes(wizard.eletronicoCodes, 'completo'));
-      } else {
-        codes.push(...toCodes(wizard.eletronicoCodes, 'completo'));
-      }
-
-      if (kind === 'completo') {
-        applications.push(...toApps(wizard.appsCompleto, 'completo'));
-        applications.push(...toApps(wizard.appsEletronico, 'eletronico'));
-        applications.push(...toApps(wizard.appsHidraulico, 'hidraulico'));
-      } else if (kind === 'eletronico') {
-        applications.push(...toApps(wizard.appsEletronico, 'eletronico'));
-      } else if (kind === 'hidraulico') {
-        applications.push(...toApps(wizard.appsHidraulico, 'hidraulico'));
-      } else {
-        applications.push(...toApps(wizard.appsCompleto, 'completo'));
-      }
-
-      const primary =
-        primaryCodeForScope(
-          codes.map((c, i) => ({
-            id: String(i),
-            model_id: '',
-            component_scope: c.component_scope,
-            code_role: c.code_role || 'fabricante',
-            code_value: c.code_value,
-            sort_order: c.sort_order ?? i,
-          })),
-          kind === 'hidraulico' ? 'hidraulico' : kind === 'eletronico' ? 'eletronico' : 'completo'
-        ) ||
-        codes[0]?.code_value ||
-        null;
-
-      const created = await createWorkshopAbsModule({
+      const { kind, codes, applications, primary } = buildCatalogPayload();
+      const catalog = {
         manufacturer: wizard.manufacturer || null,
-        original_code: primary,
-        application:
-          applications[0]?.vehicle_model ||
-          applications[0]?.vehicle_brand ||
-          null,
-        model: wizard.family || null,
+        family: wizard.family || null,
         module_kind: kind,
-        item_state: wizard.item_state,
-        item_condition: wizard.item_condition,
-        damage_description: wizard.damage_description || null,
-        unit_cost: wizard.unit_cost,
-        unit_price: wizard.unit_price,
-        supplier: wizard.supplier || null,
-        location: wizard.location || null,
-        notes: wizard.unit_notes || wizard.notes || null,
-        status: 'disponivel',
-        catalog: {
+        notes: wizard.notes || null,
+        codes,
+        applications,
+      };
+
+      if (editingModule) {
+        if (editingModule.model_id) {
+          await updateWorkshopAbsModuleModel(editingModule.model_id, catalog);
+        }
+        const updated = await updateWorkshopAbsModule(editingModule.public_id, {
           manufacturer: wizard.manufacturer || null,
-          family: wizard.family || null,
+          original_code: primary,
+          application:
+            applications[0]?.vehicle_model || applications[0]?.vehicle_brand || null,
+          model: wizard.family || null,
           module_kind: kind,
-          notes: wizard.notes || null,
-          codes,
-          applications,
-        },
-        recorded_by_name: recordedByName,
-      });
-      openDetail(created);
-      setSuccessMsg(
-        `Unidade ${formatAbsModuleSequence(created.sequence_number)} (${created.public_id}) cadastrada.`
-      );
+          item_state: wizard.item_state,
+          item_condition: wizard.item_condition,
+          damage_description: wizard.damage_description || null,
+          unit_cost: wizard.unit_cost,
+          unit_price: wizard.unit_price,
+          supplier: wizard.supplier || null,
+          location: wizard.location || null,
+          notes: wizard.unit_notes || wizard.notes || null,
+          model_id: editingModule.model_id,
+        });
+        setEditingModule(null);
+        openDetail(updated);
+        setSuccessMsg(
+          `Unidade ${formatAbsModuleSequence(updated.sequence_number)} (${updated.public_id}) atualizada.`
+        );
+      } else {
+        if (createForModelId) {
+          await updateWorkshopAbsModuleModel(createForModelId, catalog);
+        }
+        const created = await createWorkshopAbsModule({
+          manufacturer: wizard.manufacturer || null,
+          original_code: primary,
+          application:
+            applications[0]?.vehicle_model || applications[0]?.vehicle_brand || null,
+          model: wizard.family || null,
+          module_kind: kind,
+          item_state: wizard.item_state,
+          item_condition: wizard.item_condition,
+          damage_description: wizard.damage_description || null,
+          unit_cost: wizard.unit_cost,
+          unit_price: wizard.unit_price,
+          supplier: wizard.supplier || null,
+          location: wizard.location || null,
+          notes: wizard.unit_notes || wizard.notes || null,
+          status: 'disponivel',
+          model_id: createForModelId,
+          catalog: createForModelId ? undefined : catalog,
+          recorded_by_name: recordedByName,
+        });
+        setCreateForModelId(null);
+        openDetail(created);
+        setSuccessMsg(
+          `Unidade ${formatAbsModuleSequence(created.sequence_number)} (${created.public_id}) cadastrada.`
+        );
+      }
       void loadModels();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Falha ao cadastrar.');
+      setError(e instanceof Error ? e.message : 'Falha ao salvar.');
     } finally {
       setSaving(false);
     }
-  }, [loadModels, openDetail, recordedByName, wizard]);
+  }, [
+    buildCatalogPayload,
+    createForModelId,
+    editingModule,
+    loadModels,
+    openDetail,
+    recordedByName,
+    wizard,
+  ]);
 
-  const handlePrint = useCallback(async (mod: WorkshopAbsModule) => {
-    setPrintBusy(true);
-    try {
-      await printAbsModuleLabel({
-        publicId: mod.public_id,
-        moduleKind: mod.module_kind,
-        manufacturer: mod.manufacturer,
-        application: mod.application,
-        sequenceNumber: mod.sequence_number,
-        location: mod.location,
-        code: mod.original_code,
-      });
-    } catch (e) {
-      setActionError(e instanceof Error ? e.message : 'Falha ao imprimir etiqueta.');
-    } finally {
-      setPrintBusy(false);
-    }
+  const handlePrint = useCallback((mod: WorkshopAbsModule) => {
+    setLabelPrintModule(mod);
   }, []);
 
   const loadHistory = useCallback(async (publicId: string) => {
@@ -844,6 +1004,11 @@ export function WorkshopAbsModulesModal({
   const goBack = useCallback(() => {
     setAction(null);
     setActionError(null);
+    if (view.kind === 'form' && editingModule) {
+      openDetail(editingModule);
+      setEditingModule(null);
+      return;
+    }
     if (view.kind === 'detail' || view.kind === 'disassemble') {
       const mod = view.module;
       if (mod.model_id) {
@@ -861,13 +1026,14 @@ export function WorkshopAbsModulesModal({
       }
     }
     if (view.kind === 'model' || view.kind === 'form' || view.kind === 'missing') {
+      setEditingModule(null);
       setView({ kind: 'models' });
       void loadModels();
       return;
     }
     setView({ kind: 'models' });
     void loadModels();
-  }, [loadModels, openModel, view]);
+  }, [editingModule, loadModels, openDetail, openModel, view]);
 
   if (!isOpen) return null;
 
@@ -880,6 +1046,7 @@ export function WorkshopAbsModulesModal({
     wizard.module_kind === 'completo' || wizard.module_kind === 'hidraulico';
 
   return (
+    <>
     <RegistrationPortal>
       <div
         className={resolveIosModalOverlayClass(isDesktopShell, NESTED_STOCK_OVERLAY_Z)}
@@ -917,7 +1084,8 @@ export function WorkshopAbsModulesModal({
               <p className="text-[13px] text-zinc-500 dark:text-zinc-400">
                 {view.kind === 'models' && 'Catálogo técnico e unidades físicas'}
                 {view.kind === 'model' && 'Unidades do modelo'}
-                {view.kind === 'form' && 'Novo módulo — modelo + unidade'}
+                {view.kind === 'form' &&
+                  (editingModule ? 'Editar módulo cadastrado' : 'Novo módulo — modelo + unidade')}
                 {view.kind === 'detail' && 'Detalhe da unidade'}
                 {view.kind === 'disassemble' && 'Desmembrar módulo completo'}
                 {view.kind === 'missing' && 'QR não encontrado'}
@@ -979,6 +1147,8 @@ export function WorkshopAbsModulesModal({
                   <button
                     type="button"
                     onClick={() => {
+                      setEditingModule(null);
+                      setCreateForModelId(null);
                       setWizard(emptyWizard());
                       setView({ kind: 'form' });
                       requestAnimationFrame(() => {
@@ -1246,8 +1416,15 @@ export function WorkshopAbsModulesModal({
                                 </button>
                                 <button
                                   type="button"
-                                  disabled={printBusy}
-                                  onClick={() => void handlePrint(u)}
+                                  onClick={() => void openEdit(u)}
+                                  className="inline-flex items-center gap-1 rounded-xl bg-zinc-100 px-2.5 py-1.5 text-[12px] font-semibold dark:bg-white/10"
+                                >
+                                  <Pencil className="h-3.5 w-3.5" />
+                                  Editar
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handlePrint(u)}
                                   className="rounded-xl bg-zinc-100 px-2.5 py-1.5 text-[12px] font-semibold dark:bg-white/10"
                                 >
                                   Etiqueta
@@ -1281,6 +1458,8 @@ export function WorkshopAbsModulesModal({
                 <button
                   type="button"
                   onClick={() => {
+                    setEditingModule(null);
+                    setCreateForModelId(view.model.id);
                     setWizard({
                       ...emptyWizard(),
                       manufacturer: view.model.manufacturer || '',
@@ -1309,6 +1488,8 @@ export function WorkshopAbsModulesModal({
                 <button
                   type="button"
                   onClick={() => {
+                    setEditingModule(null);
+                    setCreateForModelId(null);
                     setWizard(emptyWizard());
                     setView({ kind: 'form' });
                   }}
@@ -1322,12 +1503,22 @@ export function WorkshopAbsModulesModal({
 
             {view.kind === 'form' ? (
               <div className="space-y-4">
+                {editingModule ? (
+                  <div className="rounded-2xl bg-sky-50 px-4 py-3 text-[13px] text-sky-950 dark:bg-sky-950/40 dark:text-sky-100">
+                    Editando {formatAbsModuleSequence(editingModule.sequence_number)} ·{' '}
+                    <span className="font-mono font-semibold">{editingModule.public_id}</span>
+                    {' — '}o código ABS e o número sequencial não mudam.
+                  </div>
+                ) : null}
                 <section className="space-y-3">
                   <h3 className="text-[14px] font-bold text-zinc-900 dark:text-white">
                     1. Modelo técnico
                   </h3>
                   <div className="grid gap-3 sm:grid-cols-2">
-                    <Field label="Fabricante">
+                    <Field
+                      label="Fabricante"
+                      hint="Marca do ABS (ex.: Bosch, Continental, TRW)."
+                    >
                       <input
                         className={inputClass}
                         value={wizard.manufacturer}
@@ -1336,17 +1527,24 @@ export function WorkshopAbsModulesModal({
                         }
                       />
                     </Field>
-                    <Field label="Família / linha">
+                    <Field
+                      label="Família / linha"
+                      hint="Geração ou família técnica (ex.: Bosch 8.0, 9.0) — não substitui o código exato."
+                    >
                       <input
                         className={inputClass}
                         value={wizard.family}
                         onChange={(e) => setWizard((w) => ({ ...w, family: e.target.value }))}
                       />
                     </Field>
-                    <Field label="Tipo de módulo">
+                    <Field
+                      label="Tipo de módulo"
+                      hint="Completo = eletrônica + hidráulica juntas. Eletrônico ou hidráulico = componente separado."
+                    >
                       <select
                         className={selectClass}
                         value={wizard.module_kind}
+                        disabled={Boolean(editingModule)}
                         onChange={(e) =>
                           setWizard((w) => ({
                             ...w,
@@ -1361,7 +1559,10 @@ export function WorkshopAbsModulesModal({
                         ))}
                       </select>
                     </Field>
-                    <Field label="Notas do modelo">
+                    <Field
+                      label="Notas do modelo"
+                      hint="Observações técnicas do cadastro do modelo (compartilhadas por todas as unidades)."
+                    >
                       <input
                         className={inputClass}
                         value={wizard.notes}
@@ -1372,6 +1573,7 @@ export function WorkshopAbsModulesModal({
                   {showEletronicoCodes ? (
                     <CodesEditor
                       title="Códigos eletrônico"
+                      hint="Referências da parte eletrônica. Use + código para alternativas."
                       codes={wizard.eletronicoCodes}
                       onChange={(eletronicoCodes) => setWizard((w) => ({ ...w, eletronicoCodes }))}
                     />
@@ -1379,6 +1581,7 @@ export function WorkshopAbsModulesModal({
                   {showHidraulicoCodes ? (
                     <CodesEditor
                       title="Códigos hidráulico"
+                      hint="Referências da parte hidráulica. Use + código para alternativas."
                       codes={wizard.hidraulicoCodes}
                       onChange={(hidraulicoCodes) => setWizard((w) => ({ ...w, hidraulicoCodes }))}
                     />
@@ -1392,6 +1595,7 @@ export function WorkshopAbsModulesModal({
                   {(wizard.module_kind === 'completo' || wizard.module_kind === 'outro') && (
                     <AppsEditor
                       title="Escopo completo"
+                      hint="Veículos compatíveis com o módulo completo (não se aplicam automaticamente aos componentes)."
                       apps={wizard.appsCompleto}
                       onChange={(appsCompleto) => setWizard((w) => ({ ...w, appsCompleto }))}
                     />
@@ -1399,6 +1603,7 @@ export function WorkshopAbsModulesModal({
                   {(wizard.module_kind === 'completo' || wizard.module_kind === 'eletronico') && (
                     <AppsEditor
                       title="Escopo eletrônico"
+                      hint="Veículos compatíveis só com a parte eletrônica."
                       apps={wizard.appsEletronico}
                       onChange={(appsEletronico) => setWizard((w) => ({ ...w, appsEletronico }))}
                     />
@@ -1406,6 +1611,7 @@ export function WorkshopAbsModulesModal({
                   {(wizard.module_kind === 'completo' || wizard.module_kind === 'hidraulico') && (
                     <AppsEditor
                       title="Escopo hidráulico"
+                      hint="Veículos compatíveis só com a parte hidráulica."
                       apps={wizard.appsHidraulico}
                       onChange={(appsHidraulico) => setWizard((w) => ({ ...w, appsHidraulico }))}
                     />
@@ -1417,7 +1623,7 @@ export function WorkshopAbsModulesModal({
                     3. Unidade física
                   </h3>
                   <div className="grid gap-3 sm:grid-cols-2">
-                    <Field label="Estado">
+                    <Field label="Estado" hint="Situação comercial da peça: novo, usado ou recondicionado.">
                       <select
                         className={selectClass}
                         value={wizard.item_state}
@@ -1435,7 +1641,10 @@ export function WorkshopAbsModulesModal({
                         ))}
                       </select>
                     </Field>
-                    <Field label="Condição">
+                    <Field
+                      label="Condição"
+                      hint="Estado físico/testes: perfeito, com avarias, defeituoso ou não testado."
+                    >
                       <select
                         className={selectClass}
                         value={wizard.item_condition}
@@ -1453,7 +1662,7 @@ export function WorkshopAbsModulesModal({
                         ))}
                       </select>
                     </Field>
-                    <Field label="Custo">
+                    <Field label="Custo" hint="Custo individual desta unidade (não do modelo).">
                       <input
                         type="number"
                         min={0}
@@ -1465,7 +1674,7 @@ export function WorkshopAbsModulesModal({
                         }
                       />
                     </Field>
-                    <Field label="Preço">
+                    <Field label="Preço" hint="Preço de venda individual desta unidade.">
                       <input
                         type="number"
                         min={0}
@@ -1477,7 +1686,10 @@ export function WorkshopAbsModulesModal({
                         }
                       />
                     </Field>
-                    <Field label="Localização">
+                    <Field
+                      label="Localização"
+                      hint="Prateleira ou posição física onde a unidade está guardada."
+                    >
                       <input
                         className={inputClass}
                         value={wizard.location}
@@ -1485,16 +1697,19 @@ export function WorkshopAbsModulesModal({
                         placeholder="Prateleira B3"
                       />
                     </Field>
-                    <Field label="Fornecedor">
+                    <Field label="Fornecedor" hint="Procedência / fornecedor desta unidade.">
                       <input
                         className={inputClass}
                         value={wizard.supplier}
                         onChange={(e) => setWizard((w) => ({ ...w, supplier: e.target.value }))}
                       />
                     </Field>
-                    <Field label="Avarias / descrição">
+                    <Field
+                      label="Avarias / descrição"
+                      hint="Descreva avarias visíveis ou defeitos desta unidade."
+                    >
                       <input
-                        className={`${inputClass} sm:col-span-2`}
+                        className={inputClass}
                         value={wizard.damage_description}
                         onChange={(e) =>
                           setWizard((w) => ({ ...w, damage_description: e.target.value }))
@@ -1502,7 +1717,10 @@ export function WorkshopAbsModulesModal({
                       />
                     </Field>
                   </div>
-                  <Field label="Observações da unidade">
+                  <Field
+                    label="Observações da unidade"
+                    hint="Anotações só desta peça física (histórico, procedência, etc.)."
+                  >
                     <textarea
                       rows={2}
                       className={inputClass}
@@ -1515,11 +1733,19 @@ export function WorkshopAbsModulesModal({
                 <button
                   type="button"
                   disabled={saving}
-                  onClick={() => void handleCreate()}
+                  onClick={() => void handleSave()}
                   className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 py-3.5 text-[15px] font-semibold text-white disabled:opacity-50"
                 >
-                  {saving ? <Loader2 className="h-5 w-5 animate-spin" /> : <Plus className="h-5 w-5" />}
-                  Salvar modelo + unidade e gerar ID
+                  {saving ? (
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                  ) : editingModule ? (
+                    <Save className="h-5 w-5" />
+                  ) : (
+                    <Plus className="h-5 w-5" />
+                  )}
+                  {editingModule
+                    ? 'Salvar alterações'
+                    : 'Salvar modelo + unidade e gerar ID'}
                 </button>
               </div>
             ) : null}
@@ -1758,15 +1984,18 @@ export function WorkshopAbsModulesModal({
                   </button>
                   <button
                     type="button"
-                    disabled={printBusy}
-                    onClick={() => void handlePrint(detail)}
-                    className="inline-flex items-center justify-center gap-2 rounded-2xl border-0 bg-zinc-100 px-4 py-3.5 text-[15px] font-semibold text-zinc-800 shadow-none dark:bg-white/5 dark:text-white disabled:opacity-50"
+                    onClick={() => void openEdit(detail)}
+                    className="inline-flex items-center justify-center gap-2 rounded-2xl border-0 bg-zinc-100 px-4 py-3.5 text-[15px] font-semibold text-zinc-800 shadow-none dark:bg-white/5 dark:text-white"
                   >
-                    {printBusy ? (
-                      <Loader2 className="h-5 w-5 animate-spin" />
-                    ) : (
-                      <Printer className="h-5 w-5" />
-                    )}
+                    <Pencil className="h-5 w-5" />
+                    Editar cadastro
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handlePrint(detail)}
+                    className="inline-flex items-center justify-center gap-2 rounded-2xl border-0 bg-zinc-100 px-4 py-3.5 text-[15px] font-semibold text-zinc-800 shadow-none dark:bg-white/5 dark:text-white"
+                  >
+                    <Printer className="h-5 w-5" />
                     Imprimir etiqueta
                   </button>
                   {detail.module_kind === 'completo' && detail.status === 'disponivel' ? (
@@ -1981,5 +2210,11 @@ export function WorkshopAbsModulesModal({
         </div>
       </div>
     </RegistrationPortal>
+      <NiimbotAbsModuleLabelPrintModal
+        open={Boolean(labelPrintModule)}
+        module={labelPrintModule}
+        onClose={() => setLabelPrintModule(null)}
+      />
+    </>
   );
 }
