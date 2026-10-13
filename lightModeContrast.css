@@ -48,3 +48,23 @@ html.light [data-media-overlay] .text-white,
 html.light [data-media-overlay] .text-white\/80 {
   color: #ffffff !important;
 }
+
+/* Banners do canto (sempre fundo escuro): não herdar o texto preto forçado do modo claro */
+html.light [data-budget-banner-theme],
+html.light [data-budget-banner-theme] .text-white,
+html.light [data-budget-banner-theme] .text-zinc-200,
+html.light [data-budget-banner-theme] .text-zinc-300,
+html.light [data-budget-banner-theme] .text-zinc-400,
+html.light [data-budget-banner-theme] .text-zinc-500 {
+  color: #ffffff !important;
+}
+
+html.light [data-budget-banner-theme] .text-white\/90 {
+  color: rgb(255 255 255 / 0.9) !important;
+}
+html.light [data-budget-banner-theme] .text-white\/75 {
+  color: rgb(255 255 255 / 0.75) !important;
+}
+html.light [data-budget-banner-theme] .text-white\/60 {
+  color: rgb(255 255 255 / 0.6) !important;
+}
