@@ -588,27 +588,6 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
     };
   }, [isReceptionTabActive, intakeVehicleOrders]);
 
-  const intakeExistingCustomerFiltered = useMemo(() => {
-    const rows = intakeCustomerDirectory;
-    if (!rows?.length) return [];
-    const qRaw = intakeCustomerSearch.trim();
-    const qLower = qRaw.toLowerCase();
-    const qDigits = qRaw.replace(/\D/g, '');
-    let list = rows;
-    if (qLower.length > 0) {
-      list = rows.filter((c) => {
-        const name = (c.name || '').toLowerCase();
-        const phoneDigits = (c.phone || '').replace(/\D/g, '');
-        if (name.includes(qLower)) return true;
-        if (qDigits.length >= 3 && phoneDigits.includes(qDigits)) return true;
-        const cpfDigits = (c.cpf || '').replace(/\D/g, '');
-        if (qDigits.length >= 4 && cpfDigits.includes(qDigits)) return true;
-        return false;
-      });
-    }
-    return list.slice(0, 50);
-  }, [intakeCustomerDirectory, intakeCustomerSearch]);
-
   const intakeLinkedVehiclesAll = useMemo((): ReceptionLinkedVehicleSuggestion[] => {
     const orders = intakeVehicleOrders ?? [];
     const custMap = new globalThis.Map((intakeCustomerDirectory ?? []).map((c) => [c.id, c] as const));
@@ -1893,7 +1872,6 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                   onSelectVehicle={selectIntakeLinkedVehicle}
                   onSelectNovaPlaca={selectIntakeNovaPlacaFromName}
                 />
-                ) : null}
               </div>
               <div className={receptionFormRow2}>
                 <div className="min-w-0">
