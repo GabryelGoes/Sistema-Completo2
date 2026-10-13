@@ -9,8 +9,11 @@ import {
   iosInput,
   iosAccentIconShellModal,
   iosPageTitleIconGlass,
+  resolveIosModalOverlayClass,
 } from './ui/iosModalStyles';
 import { useRegisterModalOpen } from './ui/ModalLayerContext';
+import { ModalPortal } from './ui/ModalPortal';
+import { useDesktopShellLayout } from './ui/DesktopShellContext';
 
 interface CommentPopUpProps {
   notification: Notification;
@@ -59,6 +62,7 @@ export const CommentPopUp: React.FC<CommentPopUpProps> = ({
   const conversationEndRef = useRef<HTMLDivElement>(null);
 
   useRegisterModalOpen(true);
+  const isDesktopShell = useDesktopShellLayout();
 
   const isDark = theme === 'dark';
   const titleClass = isDark ? 'text-white' : 'text-zinc-900';
@@ -71,7 +75,8 @@ export const CommentPopUp: React.FC<CommentPopUpProps> = ({
   const bubbleOutgoing = 'bg-[#007AFF] text-white shadow-md shadow-blue-500/20';
 
   const p = notification.payload;
-  const orderId = p.service_order_id;
+  const orderId =
+    typeof p.service_order_id === 'string' ? p.service_order_id.trim() : '';
   const model = p.vehicle_model?.trim() || 'Veículo';
   const customer = p.customer_name?.trim() || p.vehicle_plate || 'Cliente';
   const showBlurredPlate = blurPlates && !!p.vehicle_plate && !p.customer_name?.trim();
@@ -83,21 +88,33 @@ export const CommentPopUp: React.FC<CommentPopUpProps> = ({
       setLoadingConversation(false);
       return;
     }
+    let cancelled = false;
     setLoadingConversation(true);
     Promise.all([
       getServiceOrderComments(orderId),
       getWorkshopSettings().then((s) => s.adminPhotoUrl ?? null).catch(() => null),
     ]).then(([comments, adminPhoto]) => {
+      if (cancelled) return;
       setConversation(comments ?? []);
       setAdminPhotoUrlFallback(adminPhoto?.trim() || null);
-    }).catch(() => setConversation([])).finally(() => setLoadingConversation(false));
+    }).catch(() => {
+      if (!cancelled) setConversation([]);
+    }).finally(() => {
+      if (!cancelled) setLoadingConversation(false);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [orderId]);
 
   // Sempre exibir a última mensagem: rolar para o fim quando a conversa carrega ou atualiza
   useEffect(() => {
     if (loadingConversation || conversation.length === 0) return;
-    conversationEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
-  }, [loadingConversation, conversation.length]);
+    const id = window.requestAnimationFrame(() => {
+      conversationEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    });
+    return () => window.cancelAnimationFrame(id);
+  }, [loadingConversation, conversation]);
 
   const getPhotoForAuthor = (c: ServiceOrderComment): string | null => {
     const url = c.author_photo_url?.trim() || null;
@@ -113,26 +130,38 @@ export const CommentPopUp: React.FC<CommentPopUpProps> = ({
 
   const handleSendReply = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!orderId || !reply.trim() || sending) return;
+    const text = reply.trim();
+    if (!orderId || !text || sending) return;
     setSending(true);
     try {
-      await addServiceOrderComment(
+      const created = await addServiceOrderComment(
         orderId,
-        reply.trim(),
+        text,
         replyAuthorName.trim() || 'Rei do ABS',
         replyActor,
         replyActor === 'technician' ? replyAuthorUserId : null
       );
+      // Mostra a mensagem imediatamente (evita sumir se o refetch falhar/atrasar).
+      setConversation((prev) => {
+        if (prev.some((c) => c.id === created.id)) return prev;
+        return [...prev, created];
+      });
+      setReply('');
       // Responder marca as mensagens recebidas como visualizadas.
       try {
         await markServiceOrderCommentsRead(orderId);
       } catch {
         /* ignore */
       }
-      setReply('');
       onReplySent?.();
-      const updated = await getServiceOrderComments(orderId);
-      setConversation(updated ?? []);
+      try {
+        const updated = await getServiceOrderComments(orderId);
+        if (updated && updated.length > 0) {
+          setConversation(updated);
+        }
+      } catch {
+        /* mantém a lista otimista */
+      }
     } catch {
       // keep open on error
     } finally {
@@ -141,8 +170,9 @@ export const CommentPopUp: React.FC<CommentPopUpProps> = ({
   };
 
   return (
+    <ModalPortal manageBackLayer={false} onRequestClose={onClose}>
     <div
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-black/45 backdrop-blur-[20px] p-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-6 sm:p-6 animate-in fade-in duration-200"
+      className={`${resolveIosModalOverlayClass(isDesktopShell, 'z-[140]')} animate-in fade-in duration-200`}
       onClick={(e) => e.target === e.currentTarget && onClose()}
       aria-modal="true"
       role="dialog"
@@ -296,5 +326,6 @@ export const CommentPopUp: React.FC<CommentPopUpProps> = ({
         </form>
       </div>
     </div>
+    </ModalPortal>
   );
 }
