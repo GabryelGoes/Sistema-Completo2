@@ -38,8 +38,11 @@ import {
   collectApprovedServicesFromBudgets,
   mergeFinalizeStockDraftLines,
   mergeServiceTechnicianDraftLines,
+  normalizeServiceDescription,
+  planClosingItemsBudgetSync,
   validateServiceTechnicianLines,
 } from "./utils/serviceOrderServiceTechnicians.js";
+import { normalizeBudgetPartName } from "./utils/budgetPartStock.js";
 import { collectPendingStockReservations } from "./utils/workshopPartReservations.js";
 import { normalizeBarcodeInput } from "./utils/workshopPartBarcode.js";
 import {
@@ -6337,6 +6340,7 @@ export function createApiApp() {
       const rawLines = Array.isArray(req.body?.lines) ? req.body.lines : [];
       const recordedByName =
         typeof req.body?.recordedByName === "string" ? req.body.recordedByName.trim().slice(0, 200) : "";
+      const rawStockParts = Array.isArray(req.body?.stockParts) ? req.body.stockParts : [];
 
       const { data: so } = await supabaseAdmin
         .from("service_orders")
@@ -6382,6 +6386,125 @@ export function createApiApp() {
         return res.status(400).json({ error: techCheck.error });
       }
 
+      const stockParts = rawStockParts
+        .map((row: unknown) => {
+          if (!row || typeof row !== "object") return null;
+          const r = row as Record<string, unknown>;
+          const description = typeof r.description === "string" ? r.description.trim() : "";
+          const quantity =
+            typeof r.quantity === "string"
+              ? r.quantity.trim()
+              : typeof r.quantity === "number"
+                ? String(r.quantity)
+                : "";
+          const workshopPartId =
+            typeof r.workshopPartId === "string"
+              ? r.workshopPartId.trim()
+              : typeof r.workshop_part_id === "string"
+                ? r.workshop_part_id.trim()
+                : null;
+          if (!description) return null;
+          return { description, quantity: quantity || "1", workshopPartId };
+        })
+        .filter(Boolean) as { description: string; quantity: string; workshopPartId: string | null }[];
+
+      // Inclui no orçamento (já aprovados) serviços/peças adicionados só no fechamento.
+      const { data: budgetRowsForSync, error: budgetSyncLoadError } = await supabaseAdmin
+        .from("budgets")
+        .select("id, services, parts, created_at, updated_at, card_name")
+        .eq("service_order_id", serviceOrderId)
+        .eq("workshop_id", WORKSHOP_ID)
+        .order("created_at", { ascending: false });
+      if (budgetSyncLoadError) throw budgetSyncLoadError;
+
+      const closingSync = planClosingItemsBudgetSync(
+        (budgetRowsForSync ?? []).map((b) => ({
+          id: String(b.id),
+          services: (b.services ?? null) as { description: string; approved?: boolean }[] | null,
+          parts: (b.parts ?? null) as {
+            description: string;
+            quantity?: string | number;
+            approved?: boolean;
+            fromStock?: boolean;
+            workshopPartId?: string;
+          }[] | null,
+          created_at: typeof b.created_at === "string" ? b.created_at : null,
+          updated_at: typeof b.updated_at === "string" ? b.updated_at : null,
+        })),
+        lines.map((l) => ({ description: l.description })),
+        stockParts.map((p) => ({
+          description: p.description,
+          quantity: p.quantity,
+          workshopPartId: p.workshopPartId,
+          fromStock: Boolean(p.workshopPartId),
+        }))
+      );
+
+      const now = new Date().toISOString();
+
+      if (closingSync.newBudget) {
+        const cardName =
+          typeof budgetRowsForSync?.[0]?.card_name === "string" && budgetRowsForSync[0].card_name.trim()
+            ? budgetRowsForSync[0].card_name
+            : "Fechamento da OS";
+        const { data: createdClosingBudget, error: createClosingBudgetError } = await supabaseAdmin
+          .from("budgets")
+          .insert({
+            workshop_id: WORKSHOP_ID,
+            service_order_id: serviceOrderId,
+            card_name: cardName,
+            diagnosis: "Itens adicionados no fechamento do veículo",
+            services: closingSync.newBudget.services,
+            parts: closingSync.newBudget.parts,
+            observations: "",
+            updated_at: now,
+          })
+          .select("id")
+          .single();
+        if (createClosingBudgetError) throw createClosingBudgetError;
+        const createdClosingBudgetId = createdClosingBudget?.id
+          ? String(createdClosingBudget.id)
+          : null;
+        if (createdClosingBudgetId) {
+          for (const svc of closingSync.newBudget.services) {
+            closingSync.serviceBudgetIds[normalizeServiceDescription(svc.description)] =
+              createdClosingBudgetId;
+          }
+          for (const part of closingSync.newBudget.parts) {
+            closingSync.partBudgetIds[normalizeBudgetPartName(part.description)] =
+              createdClosingBudgetId;
+          }
+        }
+      }
+
+      for (const upd of closingSync.updatedBudgets) {
+        const budgetUpdate: Record<string, unknown> = {
+          services: upd.services,
+          parts: upd.parts,
+          updated_at: now,
+        };
+        if (await hasBudgetVerifyColumns()) {
+          budgetUpdate.verified_at = null;
+          budgetUpdate.verified_by_name = null;
+        }
+        const { error: updBudgetError } = await supabaseAdmin
+          .from("budgets")
+          .update(budgetUpdate)
+          .eq("id", upd.id)
+          .eq("service_order_id", serviceOrderId)
+          .eq("workshop_id", WORKSHOP_ID);
+        if (updBudgetError) throw updBudgetError;
+      }
+
+      if (closingSync.updatedBudgets.length > 0 || closingSync.newBudget) {
+        await touchServiceOrderUpdatedAt(serviceOrderId);
+      }
+
+      const resolveServiceBudgetId = (description: string, existing: string | null) => {
+        if (existing) return existing;
+        return closingSync.serviceBudgetIds[normalizeServiceDescription(description)] ?? null;
+      };
+
       const { error: delError } = await supabaseAdmin
         .from("service_order_service_technicians")
         .delete()
@@ -6389,13 +6512,12 @@ export function createApiApp() {
         .eq("workshop_id", WORKSHOP_ID);
       if (delError) throw delError;
 
-      const now = new Date().toISOString();
       const payload = lines.map((line, index) => ({
         workshop_id: WORKSHOP_ID,
         service_order_id: serviceOrderId,
         description: line.description,
         technician_id: line.technicianId,
-        budget_id: line.budgetId,
+        budget_id: resolveServiceBudgetId(line.description, line.budgetId),
         sort_order: index,
         recorded_at: now,
         recorded_by_name: recordedByName,
@@ -6416,7 +6538,16 @@ export function createApiApp() {
       if (delStockError) throw delStockError;
 
       // Baixa automática ao finalizar desativada: estoque só via leitor ou baixa manual.
-      return res.json({ ok: true, stockApplied: false });
+      return res.json({
+        ok: true,
+        stockApplied: false,
+        budgetSync: {
+          updatedBudgetIds: closingSync.updatedBudgets.map((b) => b.id),
+          createdBudget: Boolean(closingSync.newBudget),
+          servicesLinked: lines.length,
+          partsLinked: stockParts.length,
+        },
+      });
     } catch (err: unknown) {
       console.error("[API] PUT service-technicians:", err);
       const msg = err instanceof Error ? err.message : "Erro";
