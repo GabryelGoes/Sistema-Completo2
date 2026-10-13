@@ -1,0 +1,55 @@
+---
+description: origin/main é a única base oficial para novos agentes e features
+alwaysApply: true
+---
+
+# Base oficial: origin/main
+
+A branch **`main`** (ref `origin/main`) é a **única versão oficial e aprovada** do sistema após a consolidação (Fase D). Todos os novos agentes e novas funcionalidades partem dela.
+
+## Antes de iniciar qualquer tarefa
+
+1. Buscar a `main` mais recente:
+   ```bash
+   git fetch origin main
+   ```
+2. Confirmar o tip oficial:
+   ```bash
+   git rev-parse origin/main
+   git log -1 --oneline origin/main
+   ```
+3. Se já houver branch de trabalho nesta conversa, verificar que ela **contém** as alterações atuais da `main`:
+   ```bash
+   git merge-base --is-ancestor origin/main HEAD
+   ```
+   - Se **falhar**: incorporar `origin/main` (merge ou rebase conforme o fluxo do PR) **antes** de continuar, ou recriar a branch a partir de `origin/main` se ainda não houver commits próprios úteis.
+4. Se for **nova** tarefa / novo agente sem branch própria: criar branch a partir da `main` atualizada (ver abaixo).
+
+## Nova funcionalidade = branch própria a partir da main
+
+```bash
+git fetch origin main
+git checkout -B cursor/<nome-descritivo>-485b origin/main
+```
+
+- Prefixo `cursor/`, sufixo `-485b`, só minúsculas.
+- Uma feature (ou correção) por branch.
+- Abrir PR com **base `main`**.
+
+## Proibido como base de novos agentes
+
+- Branches antigas `cursor/*` de stacks intermediárias (ex.: `cursor/patio-tablet-header-fix-485b`, `cursor/estoque-restore-dashboard-485b`, `cursor/consolidate-orphans-into-tip-485b`, etc.).
+- PRs intermediários / órfãos / tip de conversas anteriores **como ponto de partida** de um agente novo.
+- Qualquer base “limpa” ou sibling que **não** seja `origin/main` atualizado.
+
+Exceção **apenas** dentro da **mesma** conversa/agente já em andamento: continue no tip da branch de feature **desta** conversa (criada a partir da `main`), sem voltar a uma sibling antiga. Ver também `never-discard-user-work.mdc`.
+
+## Não alterar a main diretamente
+
+- **Nunca** commit/push direto em `main`.
+- Sempre: branch → PR → `main`.
+- Preferir merge que preserve histórico (merge commit ou fast-forward). **Não** usar squash em integrações grandes/históricas quando o usuário pedir preservação de commits.
+
+## Layout e funcionalidades
+
+O layout aprovado (`95d91e2`) e as funcionalidades consolidadas **já estão na `main`**. Partir de `origin/main` **não** descarta esse trabalho. Continuar a validar `git merge-base --is-ancestor 95d91e2 HEAD` em mudanças de UI.

@@ -5,22 +5,26 @@ alwaysApply: true
 
 # Nunca descartar o trabalho em andamento
 
-**Regra absoluta:** pedidos novos (estoque, fonte, modal, lab, bluetooth, etc.) **NÃO** podem abrir branch a partir de `main`, de um sibling antigo, ou de uma base “limpa” se isso **omitir** commits já feitos e aprovados nesta conversa ou em PRs abertos desta stack.
+**Regra absoluta:** pedidos novos (estoque, fonte, modal, lab, bluetooth, etc.) **NÃO** podem abrir branch a partir de uma base que **omitir** commits já feitos e aprovados nesta conversa.
+
+A base oficial de **novos** agentes é `origin/main` (já contém o sistema consolidado). Dentro de uma conversa **já iniciada**, o tip de partida é a branch de feature **desta** conversa.
 
 ## Obrigatório
 
-1. **Continue no tip do trabalho em andamento** — o branch mais recente da stack desta conversa / agente que já contém as features pedidas (layout `95d91e2`, Estoque dashboard, Lab, etc.).
-2. Se as cloud instructions pedirem “branch novo a partir do base”, o tip de partida **ainda assim** deve ser o branch que já contém as alterações do usuário — nunca uma base limpa que apague Pátio/SF Pro/Estoque/pastas/etc.
-3. **PRs paralelos na mesma stack:** se já existe PR aberto com trabalho do usuário (ex.: home do Estoque em `cursor/estoque-home-dashboard-485b`), o próximo branch **deve** partir desse tip (ou fazer merge/cherry-pick dele) antes de empilhar outra feature. Não ramificar só de `label-templates-editor` / sibling e deixar o Estoque para trás.
-4. Preferir cherry-pick / commit no tip atual a criar PR “limpo” sem o histórico.
-5. Antes de `checkout -b`, conferir:
+1. **Novo agente / nova conversa sem branch própria:** partir de `origin/main` atualizado (`git fetch origin main` + branch `cursor/<nome>-485b` a partir de `origin/main`). Ver `main-official-base.mdc`.
+2. **Mesma conversa com trabalho em andamento:** continue no tip da branch de feature atual (a que já contém as features pedidas nesta conversa). Não criar sibling a partir de `main` se isso omitir commits locais/já pushados desta conversa ainda não mergeados.
+3. **Nunca** usar branches antigas de stacks intermediárias nem PRs órfãos como base de agente novo.
+4. Preferir commit no tip atual da feature a criar PR “paralelo” sem o histórico desta conversa.
+5. Antes de `checkout -b` (quando já há tip de feature nesta conversa), conferir:
+   - `git fetch origin main`
    - `git log --oneline -5`
+   - `git merge-base --is-ancestor origin/main HEAD` (ou planejar merge da main se atrás)
    - `git merge-base --is-ancestor 95d91e2 HEAD` (layout)
-   - presença das features recentes (ex.: `components/WorkshopPartsHomeDashboard.tsx` para a home do Estoque)
+   - presença das features recentes desta conversa (arquivos/commits do tip atual)
 6. Se já errou e criou branch sem o trabalho: cherry-pick / checkout dos arquivos imediatamente para o branch correto, alinhe o PR e avise o usuário.
 
 ## Proibido
 
-- Branch novo só com a feature nova, descartando tipografia, Pátio PC, home do Estoque, pastas de anexos ou qualquer pedido anterior da conversa.
-- Dizer que “é um PR separado” como desculpa para omitir o restante da stack.
-- Empilhar Lab/Bluetooth/etc. em cima de um sibling que **não** contém o Estoque/dashboard já entregue, sem trazer esses commits de volta.
+- Branch novo só com a feature nova, descartando tipografia, Pátio, Estoque, pastas de anexos ou qualquer pedido anterior **desta** conversa ainda não na `main`.
+- Dizer que “é um PR separado” como desculpa para omitir o restante do trabalho em andamento.
+- Empilhar feature nova em cima de sibling antigo / PR intermediário que **não** seja `origin/main` nem o tip desta conversa.
