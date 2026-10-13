@@ -181,10 +181,6 @@ export function WorkshopPartsHomeDashboard({
   const gridCols =
     'lg:grid-cols-[minmax(14rem,2.2fr)_minmax(7rem,0.9fr)_minmax(7rem,0.9fr)_minmax(5.5rem,0.7fr)_minmax(5.5rem,0.7fr)_minmax(4.5rem,0.55fr)_minmax(7.5rem,0.9fr)_5.5rem]';
 
-  /** Container com overflow: padding-bottom reserva faixa da scrollbar abaixo das pills. */
-  const categoryScrollCls =
-    'overflow-x-auto overflow-y-hidden pt-0.5 pb-2 [scrollbar-width:thin] [scrollbar-color:rgba(113,113,122,0.22)_transparent] [&::-webkit-scrollbar]:h-1 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-zinc-400/20 hover:[&::-webkit-scrollbar-thumb]:bg-zinc-400/35 dark:[&::-webkit-scrollbar-thumb]:bg-white/15';
-
   return (
     <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-auto touch-pan-y px-4 pb-[max(2rem,env(safe-area-inset-bottom))] custom-scrollbar [scrollbar-gutter:stable] sm:px-6 lg:px-8">
       {/* Barra de ações — sobe e some ao rolar */}
@@ -351,9 +347,9 @@ export function WorkshopPartsHomeDashboard({
         </div>
       ) : null}
 
-      {/* Busca + categorias: sticky — trava aqui; abaixo só a lista rola */}
+      {/* Busca + filtro: sticky — trava aqui; abaixo só a lista rola */}
       {!loading && parts.length > 0 ? (
-        <div className="sticky top-0 z-30 -mx-4 mb-4 space-y-2.5 border-b border-zinc-200/60 bg-[#F4F5F7] px-4 pb-2.5 pt-1 dark:border-white/[0.06] dark:bg-zinc-950 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
+        <div className="sticky top-0 z-30 -mx-4 mb-4 border-b border-zinc-200/60 bg-[#F4F5F7] px-4 pb-2.5 pt-1 dark:border-white/[0.06] dark:bg-zinc-950 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-stretch">
             <div className="relative min-w-0 flex-1">
               <label htmlFor="workshop-parts-search" className="sr-only">
@@ -475,62 +471,6 @@ export function WorkshopPartsHomeDashboard({
                 <History className="h-4 w-4 shrink-0" aria-hidden />
                 Antigo
               </button>
-            </div>
-          </div>
-
-          <div className={categoryScrollCls}>
-            <div className="flex w-max min-w-full gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  onCategoryFilterChange('all');
-                  setCategoryFilterMenuOpen(false);
-                }}
-                className={`shrink-0 rounded-full px-3.5 py-1.5 text-[13px] font-semibold transition-colors ${
-                  categoryFilter === 'all'
-                    ? 'bg-[#0F7A4B] text-white'
-                    : 'bg-zinc-200/90 text-zinc-800 hover:bg-zinc-300/90 dark:bg-white/10 dark:text-zinc-200 dark:hover:bg-white/15'
-                }`}
-              >
-                Todos <span className="tabular-nums">({categoryCounts.total})</span>
-              </button>
-              {categoryCounts.uncategorized > 0 ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    onCategoryFilterChange('uncategorized');
-                    setCategoryFilterMenuOpen(false);
-                  }}
-                  className={`shrink-0 rounded-full px-3.5 py-1.5 text-[13px] font-semibold transition-colors ${
-                    categoryFilter === 'uncategorized'
-                      ? 'bg-[#0F7A4B] text-white'
-                      : 'bg-zinc-200/90 text-zinc-800 hover:bg-zinc-300/90 dark:bg-white/10 dark:text-zinc-200 dark:hover:bg-white/15'
-                  }`}
-                >
-                  Sem categoria <span className="tabular-nums">({categoryCounts.uncategorized})</span>
-                </button>
-              ) : null}
-              {categories.map((c) => {
-                const n = categoryCounts.counts.get(c.id) ?? 0;
-                if (n === 0) return null;
-                return (
-                  <button
-                    key={c.id}
-                    type="button"
-                    onClick={() => {
-                      onCategoryFilterChange(c.id);
-                      setCategoryFilterMenuOpen(false);
-                    }}
-                    className={`shrink-0 rounded-full px-3.5 py-1.5 text-[13px] font-semibold transition-colors ${
-                      categoryFilter === c.id
-                        ? 'bg-[#0F7A4B] text-white'
-                        : 'bg-zinc-200/90 text-zinc-800 hover:bg-zinc-300/90 dark:bg-white/10 dark:text-zinc-200 dark:hover:bg-white/15'
-                    }`}
-                  >
-                    {c.name} <span className="tabular-nums">({n})</span>
-                  </button>
-                );
-              })}
             </div>
           </div>
         </div>
