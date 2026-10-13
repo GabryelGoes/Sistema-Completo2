@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Loader2, Pencil, Printer, Trash2, X } from 'lucide-react';
+import { Car, Loader2, Pencil, Printer, Trash2, X } from 'lucide-react';
 import { ModalPortal } from './ui/ModalPortal';
 import { useDesktopShellLayout } from './ui/DesktopShellContext';
 import { desktopShellViewportOverlayClass } from '../utils/desktopShellOverlay';
@@ -27,6 +27,8 @@ type Props = {
   onClose: () => void;
   onEdit: (id: string) => void;
   onDeleted: () => void;
+  /** Abre a OS vinculada (pátio ou arquivada) sem editar o boletim. */
+  onOpenLinkedServiceOrder?: (serviceOrderId: string) => void;
 };
 
 function parseDtcLines(raw: string): string[] {
@@ -55,6 +57,7 @@ export const ErrorBulletinViewerModal: React.FC<Props> = ({
   onClose,
   onEdit,
   onDeleted,
+  onOpenLinkedServiceOrder,
 }) => {
   const isDesktopShell = useDesktopShellLayout();
   const [loading, setLoading] = useState(false);
@@ -141,6 +144,22 @@ export const ErrorBulletinViewerModal: React.FC<Props> = ({
             </p>
           </div>
           <div className="flex flex-wrap items-center justify-end gap-2">
+            {detail?.serviceOrderId && onOpenLinkedServiceOrder ? (
+              <button
+                type="button"
+                disabled={loading}
+                onClick={() => {
+                  const soId = detail.serviceOrderId;
+                  if (!soId) return;
+                  onClose();
+                  onOpenLinkedServiceOrder(soId);
+                }}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-sky-300 bg-sky-500 px-3 py-2 text-[13px] font-semibold text-white transition hover:bg-sky-600 disabled:opacity-50"
+              >
+                <Car className="h-4 w-4" />
+                Abrir OS vinculada
+              </button>
+            ) : null}
             <button
               type="button"
               disabled={!detail || loading}
@@ -221,15 +240,15 @@ export const ErrorBulletinViewerModal: React.FC<Props> = ({
               </header>
 
               {dtcs.length > 0 ? (
-                <section className="mb-6">
-                  <h3 className="mb-2 border-l-[3px] border-amber-500 pl-2 text-[11px] font-bold uppercase tracking-[0.12em] text-amber-800">
-                    Códigos DTC
+                <section className="mb-7 rounded-xl border-2 border-amber-500/80 bg-amber-50 px-4 py-4">
+                  <h3 className="mb-3 text-[12px] font-black uppercase tracking-[0.16em] text-amber-900">
+                    Códigos DTC ({dtcs.length})
                   </h3>
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-wrap gap-2.5">
                     {dtcs.map((c) => (
                       <span
                         key={c}
-                        className="rounded-md bg-amber-500 px-2 py-1 font-mono text-[12px] font-bold text-white"
+                        className="inline-flex min-w-[4.5rem] items-center justify-center rounded-lg bg-amber-600 px-3 py-2 font-mono text-[16px] font-black tracking-wide text-white shadow-sm"
                       >
                         {c}
                       </span>

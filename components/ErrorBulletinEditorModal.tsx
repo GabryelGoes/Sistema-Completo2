@@ -177,6 +177,7 @@ export const ErrorBulletinEditorModal: React.FC<Props> = ({
     setStatus(d.status);
     setTagsRaw((d.tags ?? []).join(', '));
     setAttachments(d.attachments ?? []);
+    setSelectedOrderId(d.serviceOrderId ?? null);
   };
 
   const resetForm = useCallback(() => {
@@ -264,6 +265,16 @@ export const ErrorBulletinEditorModal: React.FC<Props> = ({
     [pickerOrders, vehicleSearch]
   );
 
+  // Ao carregar um boletim com OS vinculada, seleciona a aba pátio/arquivados correta.
+  useEffect(() => {
+    if (!selectedOrderId) return;
+    if (archivedOrders.some((o) => o.id === selectedOrderId)) {
+      setVehiclePickMode('archived');
+    } else if (patioOrders.some((o) => o.id === selectedOrderId)) {
+      setVehiclePickMode('patio');
+    }
+  }, [selectedOrderId, archivedOrders, patioOrders]);
+
   useEffect(() => {
     if (!open) return;
     if (!bulletinId) {
@@ -306,6 +317,7 @@ export const ErrorBulletinEditorModal: React.FC<Props> = ({
       .split(',')
       .map((t) => t.trim())
       .filter(Boolean),
+    serviceOrderId: selectedOrderId,
   });
 
   const handleSave = async () => {
@@ -580,14 +592,37 @@ export const ErrorBulletinEditorModal: React.FC<Props> = ({
                           </ul>
                         )}
                         {selectedOrderId ? (
-                          <p className="text-[12px] text-emerald-700 dark:text-emerald-400">
-                            Veículo selecionado — os campos abaixo foram preenchidos e podem ser ajustados.
-                          </p>
+                          <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-emerald-300/60 bg-emerald-50/80 px-3 py-2 dark:border-emerald-500/30 dark:bg-emerald-950/30">
+                            <p className="text-[12px] font-medium text-emerald-800 dark:text-emerald-300">
+                              OS vinculada — ao abrir o boletim você poderá ir direto a este veículo
+                              {vehiclePickMode === 'archived' ? ' (arquivado)' : ' (pátio)'}.
+                            </p>
+                            <button
+                              type="button"
+                              onClick={() => setSelectedOrderId(null)}
+                              className="shrink-0 rounded-lg px-2 py-1 text-[12px] font-semibold text-emerald-900 underline-offset-2 hover:underline dark:text-emerald-200"
+                            >
+                              Desvincular OS
+                            </button>
+                          </div>
                         ) : (
                           <p className="text-[12px] text-zinc-500 dark:text-zinc-400">
-                            Toque em um veículo da lista para preencher marca, modelo, placa e motor.
+                            Toque em um veículo da lista para preencher os dados e vincular a OS ao boletim.
                           </p>
                         )}
+                      </div>
+                    ) : selectedOrderId ? (
+                      <div className="mt-2 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-emerald-300/60 bg-emerald-50/80 px-3 py-2 dark:border-emerald-500/30 dark:bg-emerald-950/30">
+                        <p className="text-[12px] font-medium text-emerald-800 dark:text-emerald-300">
+                          Há uma OS vinculada a este boletim.
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => setSelectedOrderId(null)}
+                          className="shrink-0 rounded-lg px-2 py-1 text-[12px] font-semibold text-emerald-900 underline-offset-2 hover:underline dark:text-emerald-200"
+                        >
+                          Desvincular OS
+                        </button>
                       </div>
                     ) : null}
                   </div>
@@ -689,16 +724,36 @@ export const ErrorBulletinEditorModal: React.FC<Props> = ({
                     <div className="mb-3 flex flex-wrap gap-2">
                       <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-zinc-800 px-3 py-2 text-[13px] font-semibold text-white transition hover:bg-zinc-700">
                         <ImageIcon className="h-4 w-4" />
-                        Enviar arquivo
+                        Adicionar fotos
                         <input
                           type="file"
                           multiple
-                          accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt"
+                          accept="image/*"
                           className="hidden"
-                          onChange={(e) => void handleUploadFiles(e.target.files)}
+                          onChange={(e) => {
+                            void handleUploadFiles(e.target.files);
+                            e.target.value = '';
+                          }}
+                        />
+                      </label>
+                      <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl bg-amber-600 px-3 py-2 text-[13px] font-semibold text-white transition hover:bg-amber-500">
+                        <FileText className="h-4 w-4" />
+                        Adicionar documentos
+                        <input
+                          type="file"
+                          multiple
+                          accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/plain"
+                          className="hidden"
+                          onChange={(e) => {
+                            void handleUploadFiles(e.target.files);
+                            e.target.value = '';
+                          }}
                         />
                       </label>
                     </div>
+                    <p className="mb-3 text-[12px] text-zinc-500 dark:text-zinc-400">
+                      Fotos: JPG/PNG/HEIC. Documentos: PDF, Word, Excel ou TXT.
+                    </p>
                     <div className="mb-3 flex flex-wrap gap-2">
                       <input
                         className={`${inputClass} min-w-[120px] flex-1`}
