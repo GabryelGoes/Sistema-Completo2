@@ -18,7 +18,7 @@ import {
   Trash2,
   X,
 } from 'lucide-react';
-import type { WorkshopPart, WorkshopPartCategory, WorkshopPartPendingReservation } from '../services/apiService';
+import type { WorkshopPart, WorkshopPartPendingReservation } from '../services/apiService';
 import {
   formatWorkshopPartQty,
   formatWorkshopPartsCurrency,
