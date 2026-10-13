@@ -97,6 +97,11 @@ interface WorkshopPartsModalProps {
   /** Ação pedida de fora (ex.: leitura USB global). */
   bootIntent?: WorkshopPartsBootIntent | null;
   onBootIntentConsumed?: () => void;
+  /**
+   * Registra guarda de saída: se o modo Balanço estiver ativo, pede confirmação
+   * antes de chamar `proceed` (fechar o Estoque / navegar para outra tela).
+   */
+  onRegisterExitGuard?: (guard: ((proceed: () => void) => void) | null) => void;
 }
 
 export type WorkshopPartsBootIntent =
@@ -184,6 +189,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
   onClose,
   bootIntent = null,
   onBootIntentConsumed,
+  onRegisterExitGuard,
 }) => {
   const [parts, setParts] = useState<WorkshopPart[]>([]);
   const [loading, setLoading] = useState(false);
@@ -237,6 +243,12 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
   const [stockGuardOpen, setStockGuardOpen] = useState(false);
   const [stockGuardError, setStockGuardError] = useState<string | null>(null);
   const [stockGuardBusy, setStockGuardBusy] = useState(false);
+  /** Modo Balanço: senha uma vez; alterações sem novo prompt até sair do Estoque. */
+  const [balanceModeActive, setBalanceModeActive] = useState(false);
+  const balanceModeActiveRef = useRef(false);
+  const balancePasswordRef = useRef<string | null>(null);
+  const stockGuardPurposeRef = useRef<'action' | 'balance'>('action');
+  const [stockGuardPurpose, setStockGuardPurpose] = useState<'action' | 'balance'>('action');
   const createPhotoInputRef = useRef<HTMLInputElement>(null);
   const createCameraInputRef = useRef<HTMLInputElement>(null);
   const categoryFilterDropdownRef = useRef<HTMLDivElement>(null);
@@ -247,6 +259,39 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
   /** Ação protegida a executar após validar a senha do estoque. */
   const pendingStockGuardActionRef = useRef<null | (() => Promise<void>)>(null);
 
+  const clearBalanceMode = useCallback(() => {
+    balancePasswordRef.current = null;
+    balanceModeActiveRef.current = false;
+    setBalanceModeActive(false);
+  }, []);
+
+  const confirmLeaveBalanceMode = useCallback((): boolean => {
+    if (!balanceModeActiveRef.current) return true;
+    return window.confirm(
+      'Você está no modo Balanço.\n\nAo sair do Estoque, o modo Balanço será desativado e a senha da Gerência voltará a ser pedida nas alterações.\n\nDeseja sair mesmo assim?'
+    );
+  }, []);
+
+  const requestClose = useCallback(() => {
+    if (!confirmLeaveBalanceMode()) return;
+    clearBalanceMode();
+    onClose();
+  }, [clearBalanceMode, confirmLeaveBalanceMode, onClose]);
+
+  useEffect(() => {
+    if (!onRegisterExitGuard) return;
+    onRegisterExitGuard((proceed) => {
+      if (!confirmLeaveBalanceMode()) return;
+      clearBalanceMode();
+      proceed();
+    });
+    return () => onRegisterExitGuard(null);
+  }, [onRegisterExitGuard, confirmLeaveBalanceMode, clearBalanceMode]);
+
+  useEffect(() => {
+    if (!isOpen) clearBalanceMode();
+  }, [isOpen, clearBalanceMode]);
+
   const [categoryFilterMenuOpen, setCategoryFilterMenuOpen] = useState(false);
 
   const parseNumber = (value: string): number => {
@@ -255,14 +300,40 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
   };
 
   const requestStockGuard = useCallback((action: () => Promise<void>) => {
+    if (balanceModeActiveRef.current) {
+      void action();
+      return;
+    }
+    stockGuardPurposeRef.current = 'action';
+    setStockGuardPurpose('action');
     pendingStockGuardActionRef.current = action;
     setStockGuardError(null);
     setStockGuardOpen(true);
   }, []);
 
+  const requestActivateBalanceMode = useCallback(() => {
+    if (balanceModeActiveRef.current) {
+      if (
+        window.confirm(
+          'Desativar o modo Balanço?\n\nA senha da Gerência voltará a ser pedida em cada alteração do estoque.'
+        )
+      ) {
+        clearBalanceMode();
+      }
+      return;
+    }
+    stockGuardPurposeRef.current = 'balance';
+    setStockGuardPurpose('balance');
+    pendingStockGuardActionRef.current = null;
+    setStockGuardError(null);
+    setStockGuardOpen(true);
+  }, [clearBalanceMode]);
+
   const closeStockGuard = useCallback(() => {
     if (stockGuardBusy) return;
     pendingStockGuardActionRef.current = null;
+    stockGuardPurposeRef.current = 'action';
+    setStockGuardPurpose('action');
     setStockGuardOpen(false);
     setStockGuardError(null);
   }, [stockGuardBusy]);
@@ -272,6 +343,16 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
     setStockGuardError(null);
     try {
       await verifyStockGuardPassword(_password);
+      if (stockGuardPurposeRef.current === 'balance') {
+        balancePasswordRef.current = _password;
+        balanceModeActiveRef.current = true;
+        setBalanceModeActive(true);
+        pendingStockGuardActionRef.current = null;
+        stockGuardPurposeRef.current = 'action';
+        setStockGuardPurpose('action');
+        setStockGuardOpen(false);
+        return;
+      }
       const action = pendingStockGuardActionRef.current;
       pendingStockGuardActionRef.current = null;
       setStockGuardOpen(false);
@@ -1148,7 +1229,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
       cropShape="square"
     />
 
-    <ModalPortal manageBackLayer onRequestClose={onClose}>
+    <ModalPortal manageBackLayer onRequestClose={requestClose}>
     <div
       className={`${desktopShellViewportOverlayClass(isDesktopShell, SETTINGS_CHILD_MODAL_Z)} flex min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden bg-[#F4F5F7] dark:bg-zinc-950 p-0${isDesktopShell ? '' : ' h-[100dvh] max-h-[100dvh]'}`}
     >
@@ -1156,7 +1237,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
         {!isDesktopShell ? (
           <button
             type="button"
-            onClick={onClose}
+            onClick={requestClose}
             className={`${iosModalClose} top-[max(1rem,env(safe-area-inset-top))] right-[max(1rem,env(safe-area-inset-right))]`}
             aria-label="Fechar"
           >
@@ -1212,6 +1293,8 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
             onOpenScan={() => setScanHubOpen(true)}
             onOpenAnalytics={() => setIsAnalyticsOpen(true)}
             onOpenCategories={() => setIsCategoriesModalOpen(true)}
+            balanceModeActive={balanceModeActive}
+            onToggleBalanceMode={requestActivateBalanceMode}
             onAddPart={() => openCreateRegistration()}
             onOpenPart={(p) => void openProductView(p)}
             onEditPart={(p) => void openEditRegistration(p)}
@@ -1618,18 +1701,31 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
         onStockChanged={handleOutboundStockChanged}
         catalogParts={parts}
         onRegisterMissingProduct={openRegisterFromMissingBarcode}
+        stockGuardBypassPassword={balanceModeActive ? balancePasswordRef.current : null}
       />
     ) : null}
 
     <StockGuardPasswordModal
       open={stockGuardOpen}
       title={
-        registrationMode === 'create'
-          ? 'Confirmar cadastro da peça'
-          : 'Confirmar alteração da peça'
+        stockGuardPurpose === 'balance'
+          ? 'Ativar modo Balanço'
+          : registrationMode === 'create'
+            ? 'Confirmar cadastro da peça'
+            : 'Confirmar alteração da peça'
       }
-      subtitle="Use a senha da Gerência ou a senha de proteção do estoque (Alterar senhas)."
-      confirmLabel={registrationMode === 'create' ? 'Autorizar cadastro' : 'Autorizar alteração'}
+      subtitle={
+        stockGuardPurpose === 'balance'
+          ? 'Informe a senha da Gerência ou a de proteção do estoque. Enquanto o modo Balanço estiver ativo, as alterações no Estoque não pedirão senha de novo.'
+          : 'Use a senha da Gerência ou a senha de proteção do estoque (Alterar senhas).'
+      }
+      confirmLabel={
+        stockGuardPurpose === 'balance'
+          ? 'Ativar Balanço'
+          : registrationMode === 'create'
+            ? 'Autorizar cadastro'
+            : 'Autorizar alteração'
+      }
       error={stockGuardError}
       busy={stockGuardBusy}
       onClose={closeStockGuard}

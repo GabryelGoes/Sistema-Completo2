@@ -12,6 +12,7 @@ import {
   Pencil,
   Plus,
   QrCode,
+  Scale,
   ScanLine,
   Search,
   Tags,
@@ -65,6 +66,9 @@ export type WorkshopPartsHomeDashboardProps = {
   onOpenScan: () => void;
   onOpenAnalytics: () => void;
   onOpenCategories: () => void;
+  /** Modo Balanço: senha uma vez; alterações sem novo prompt até sair do Estoque. */
+  balanceModeActive: boolean;
+  onToggleBalanceMode: () => void;
   /** Opcional: só aparece se o fluxo de módulos ABS estiver disponível nesta build. */
   onOpenAbsModules?: () => void;
   onAddPart: () => void;
@@ -135,6 +139,8 @@ export function WorkshopPartsHomeDashboard({
   onOpenScan,
   onOpenAnalytics,
   onOpenCategories,
+  balanceModeActive,
+  onToggleBalanceMode,
   onOpenAbsModules,
   onAddPart,
   onOpenPart,
@@ -248,6 +254,19 @@ export function WorkshopPartsHomeDashboard({
         )}
 
         <div className="flex flex-wrap gap-2 justify-end shrink-0">
+          <button
+            type="button"
+            onClick={onToggleBalanceMode}
+            aria-pressed={balanceModeActive}
+            className={
+              balanceModeActive
+                ? 'inline-flex items-center justify-center gap-2 rounded-2xl border-0 bg-amber-500 px-4 py-3 text-[14px] font-semibold text-white shadow-none transition-colors hover:bg-amber-600'
+                : actionBtnSecondary
+            }
+          >
+            <Scale className="h-4 w-4" aria-hidden />
+            {balanceModeActive ? 'Balanço ativo' : 'Balanço'}
+          </button>
           <button type="button" onClick={onOpenScan} className={actionBtnGreen}>
             <ScanLine className="h-4 w-4" aria-hidden />
             Escanear código
@@ -272,6 +291,14 @@ export function WorkshopPartsHomeDashboard({
           </button>
         </div>
       </div>
+
+      {balanceModeActive ? (
+        <div className="mb-4 rounded-xl border-0 bg-amber-50 px-4 py-3 text-sm text-amber-950 shadow-none dark:bg-amber-950/35 dark:text-amber-100">
+          <span className="font-semibold">Modo Balanço ativo.</span>{' '}
+          Alterações no estoque não pedem senha até você sair desta página. Ao sair, o modo será
+          desativado.
+        </div>
+      ) : null}
 
       {error ? (
         <div className="mb-4 rounded-xl border-0 bg-red-50 px-4 py-3 text-sm text-red-700 shadow-none dark:bg-red-950/30 dark:text-red-300">
