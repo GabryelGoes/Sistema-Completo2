@@ -48,7 +48,7 @@ export function usePatioBudgetsHubLiveSync(
   const startFallback = () => {
     clearFallback();
     subscribedRef.current = false;
-    fallbackIntervalRef.current = window.setInterval(() => {
+    fallbackIntervalRef.current = setInterval(() => {
       if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
       void Promise.resolve(onSyncRef.current());
     }, FALLBACK_POLL_MS);
@@ -100,7 +100,7 @@ export function usePatioBudgetsHubLiveSync(
       () => schedule()
     );
 
-    fallbackBootTimerRef.current = window.setTimeout(() => {
+    fallbackBootTimerRef.current = setTimeout(() => {
       if (!subscribedRef.current) {
         console.warn("[usePatioBudgetsHubLiveSync] Realtime não subscreveu a tempo — fallback lento.");
         startFallback();

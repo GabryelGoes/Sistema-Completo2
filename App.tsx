@@ -326,8 +326,8 @@ export default function App() {
       const id = window.requestIdleCallback(prefetchHeavyViews, { timeout: 900 });
       return () => window.cancelIdleCallback(id);
     }
-    const timer = window.setTimeout(prefetchHeavyViews, 400);
-    return () => window.clearTimeout(timer);
+    const timer = setTimeout(prefetchHeavyViews, 400);
+    return () => clearTimeout(timer);
   }, [authSession]);
 
   const desktopTopbarCountLabel = useMemo(() => {

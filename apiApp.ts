@@ -308,6 +308,11 @@ function countBudgetApprovalDecisions(services: unknown, parts: unknown): {
 }
 
 export function createApiApp() {
+  function isMissingRelationError(msg: string | undefined | null): boolean {
+    if (!msg) return false;
+    return /does not exist|relation|Could not find the table|schema cache/i.test(msg);
+  }
+
   const app = express();
   const WORKSHOP_ID = process.env.WORKSHOP_ID;
   const corsAllowedOrigins = parseCorsAllowedOrigins();
@@ -2231,7 +2236,7 @@ export function createApiApp() {
     color: string;
     sortOrder: number;
     absOnly: boolean;
-    allowPreApproval: boolean;
+    allowPreApproval?: boolean;
   }[] {
     if (!Array.isArray(list) || list.length === 0) return [...DEFAULT_LAB_QUICK_SERVICES];
     const seen = new Set<string>();
@@ -2241,7 +2246,7 @@ export function createApiApp() {
       color: string;
       sortOrder: number;
       absOnly: boolean;
-      allowPreApproval: boolean;
+      allowPreApproval?: boolean;
     }[] = [];
     for (const item of list) {
       const label = String(item?.label ?? "").trim();
@@ -3065,7 +3070,7 @@ export function createApiApp() {
       ({ data, error } = await run(TV_SLIDE_COLUMNS_BASE));
     }
     return {
-      data: (data ?? null) as Record<string, unknown>[] | null,
+      data: (data ?? null) as unknown as Record<string, unknown>[] | null,
       error: error ? { message: error.message } : null,
     };
   }
@@ -4069,7 +4074,7 @@ export function createApiApp() {
       }
       const { data, error } = await query;
       if (error) throw error;
-      const batch = (data ?? []) as Record<string, unknown>[];
+      const batch = (data ?? []) as unknown as Record<string, unknown>[];
       all.push(...batch);
       if (batch.length < SERVICE_ORDERS_PAGE_SIZE) break;
       offset += SERVICE_ORDERS_PAGE_SIZE;
@@ -6377,12 +6382,12 @@ export function createApiApp() {
 
       const approved = await loadApprovedServicesForOrder(serviceOrderId);
       const validation = validateServiceTechnicianLines(lines, approved);
-      if (!validation.ok) {
+      if (validation.ok === false) {
         return res.status(400).json({ error: validation.error });
       }
 
       const techCheck = await validateTechnicianIds(lines.map((l) => l.technicianId));
-      if (!techCheck.ok) {
+      if (techCheck.ok === false) {
         return res.status(400).json({ error: techCheck.error });
       }
 
@@ -7141,8 +7146,8 @@ export function createApiApp() {
         return res.status(500).json({ error: error.message });
       }
 
-      const rows = (data ?? []).slice();
-      rows.sort((a: { created_at?: string; updated_at?: string }, b: { created_at?: string; updated_at?: string }) => {
+      const rows = ((data ?? []) as unknown as Array<{ created_at?: string; updated_at?: string }>).slice();
+      rows.sort((a, b) => {
         const ta = Math.max(
           new Date(a.created_at ?? 0).getTime(),
           new Date((a.updated_at ?? a.created_at) ?? 0).getTime()
@@ -7154,7 +7159,7 @@ export function createApiApp() {
         return tb - ta;
       });
       return res.json(
-        rows.map((row) => withBudgetVerifyDefaults(row as Record<string, unknown>))
+        rows.map((row) => withBudgetVerifyDefaults(row as unknown as Record<string, unknown>))
       );
     } catch (err: any) {
       console.error("[API] Erro em GET /api/service-orders/:id/budgets:", err);
@@ -9743,12 +9748,7 @@ export function createApiApp() {
       }
 
       const result = collectPendingStockReservations({
-        budgets: (budgets ?? []) as Array<{
-          id: string;
-          card_name?: string | null;
-          parts?: unknown;
-          service_order_id?: string;
-        }>,
+        budgets: (budgets ?? []) as unknown as import("./utils/workshopPartReservations.js").BudgetForReservation[],
         serviceOrders: orders,
       });
 
@@ -9808,11 +9808,11 @@ export function createApiApp() {
             .limit(1)
             .maybeSingle();
           if (retry.error) throw new Error(retry.error.message);
-          return (retry.data as Record<string, unknown> | null) ?? null;
+          return (retry.data as unknown as Record<string, unknown> | null) ?? null;
         }
         throw new Error(error.message);
       }
-      return (data as Record<string, unknown> | null) ?? null;
+      return (data as unknown as Record<string, unknown> | null) ?? null;
     };
 
     return (
@@ -10001,9 +10001,9 @@ export function createApiApp() {
       movementsHaveServiceOrderId = true;
     }
 
-    const part = partRow as Record<string, unknown>;
+    const part = partRow as unknown as Record<string, unknown>;
     return {
-      movement: movement as Record<string, unknown>,
+      movement: movement as unknown as Record<string, unknown>,
       part: {
         id: part.id,
         name: part.name,
@@ -10123,7 +10123,7 @@ export function createApiApp() {
         return res.status(500).json({ error: error.message });
       }
 
-      let rows = (data ?? []) as Array<Record<string, unknown>>;
+      let rows = (data ?? []) as unknown as Array<Record<string, unknown>>;
       // Sem coluna (ou ainda não confirmada): filtra pelo marcador nas notes.
       if (serviceOrderId && movementsHaveServiceOrderId !== true) {
         const marker = `OS_ID:${serviceOrderId}`;
@@ -10386,7 +10386,7 @@ export function createApiApp() {
         return res.status(500).json({ error: delErr.message });
       }
 
-      const part = partRow as Record<string, unknown>;
+      const part = partRow as unknown as Record<string, unknown>;
       return res.json({
         ok: true,
         part: {
@@ -10440,13 +10440,13 @@ export function createApiApp() {
         return res.status(500).json({ error: error.message });
       }
 
-      const list = data ?? [];
-      const partIds = list.map((p: { id: string }) => p.id);
+      const list = (data ?? []) as unknown as Array<{ id: string }>;
+      const partIds = list.map((p) => p.id);
       const [catMap, photosMap] = await Promise.all([
         loadWorkshopPartCategoryMap(partIds),
         loadWorkshopPartPhotosMap(partIds),
       ]);
-      const enrichedList = (list as Record<string, unknown>[]).map((row) => {
+      const enrichedList = (list as unknown as Record<string, unknown>[]).map((row) => {
         const id = row.id as string;
         const gallery = photosMap.get(id) ?? [];
         const coverFromGallery =
@@ -10503,7 +10503,7 @@ export function createApiApp() {
         return res.status(500).json({ error: error.message });
       }
 
-      return respondWorkshopPart(res.status(201), data as Record<string, unknown>);
+      return respondWorkshopPart(res.status(201), data as unknown as Record<string, unknown>);
     } catch (err: any) {
       console.error("[API] Erro em POST /api/workshop-parts:", err);
       return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
@@ -10566,7 +10566,7 @@ export function createApiApp() {
       }
 
       if (!data) return res.status(404).json({ error: "Peça não encontrada." });
-      return respondWorkshopPart(res, data as Record<string, unknown>);
+      return respondWorkshopPart(res, data as unknown as Record<string, unknown>);
     } catch (err: any) {
       console.error("[API] Erro em PUT /api/workshop-parts/:id:", err);
       return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
@@ -10676,7 +10676,7 @@ export function createApiApp() {
 
       const bucket = VEHICLE_PHOTOS_BUCKET;
       const ext = (file.originalname?.split(".").pop() || "jpg").toLowerCase();
-      const safeExt = /^[a-z0-9]+$/.test/ext ? ext : "jpg";
+      const safeExt = /^[a-z0-9]+$/.test(ext) ? ext : "jpg";
       const pathInBucket = `${WORKSHOP_ID}/parts/${id}/${Date.now()}.${safeExt}`;
 
       const { error: uploadErr } = await supabaseAdmin.storage
@@ -10713,7 +10713,7 @@ export function createApiApp() {
         console.error("[API] Erro ao recarregar peça após foto:", error);
         return res.status(500).json({ error: error?.message ?? "Peça não encontrada." });
       }
-      return respondWorkshopPart(res, data as Record<string, unknown>);
+      return respondWorkshopPart(res, data as unknown as Record<string, unknown>);
     } catch (err: any) {
       console.error("[API] Erro em POST /api/workshop-parts/:id/photo:", err);
       return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
@@ -10748,7 +10748,7 @@ export function createApiApp() {
       if (loadErr || !data) {
         return res.status(404).json({ error: "Peça não encontrada." });
       }
-      return respondWorkshopPart(res, data as Record<string, unknown>);
+      return respondWorkshopPart(res, data as unknown as Record<string, unknown>);
     } catch (err: any) {
       console.error("[API] Erro em DELETE /api/workshop-parts/:id/photos/:photoId:", err);
       return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
@@ -11152,7 +11152,7 @@ export function createApiApp() {
       if (fullErr || !fullPart) {
         return res.status(500).json({ error: fullErr?.message ?? "Peça não encontrada após atualizar." });
       }
-      return respondWorkshopPart(res, fullPart as Record<string, unknown>);
+      return respondWorkshopPart(res, fullPart as unknown as Record<string, unknown>);
     } catch (err: any) {
       console.error("[API] Erro em PUT /api/workshop-parts/:partId/categories:", err);
       return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
@@ -12074,7 +12074,7 @@ export function createApiApp() {
       ) {
         try {
           const techCheck = await assertServiceTechniciansCompleteForFinalize(id);
-          if (!techCheck.ok) {
+          if (techCheck.ok === false) {
             return res.status(400).json({ error: techCheck.error });
           }
         } catch (finalizeCheckErr: unknown) {

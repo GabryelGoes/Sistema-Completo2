@@ -67,7 +67,7 @@ export function usePatioBoardLiveSync(opts: {
   const startFallback = (intervalMs: number) => {
     clearFallback();
     subscribedRef.current = false;
-    fallbackIntervalRef.current = window.setInterval(() => {
+    fallbackIntervalRef.current = setInterval(() => {
       if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
       void Promise.resolve(boardRef.current());
       void Promise.resolve(remindersRef.current());
@@ -137,7 +137,7 @@ export function usePatioBoardLiveSync(opts: {
       () => scheduleReminders()
     );
 
-    fallbackBootTimerRef.current = window.setTimeout(() => {
+    fallbackBootTimerRef.current = setTimeout(() => {
       if (!subscribedRef.current) {
         console.warn(
           "[usePatioBoardLiveSync] Realtime não subscreveu a tempo — usando poll de fallback."

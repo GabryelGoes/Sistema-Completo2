@@ -271,7 +271,11 @@ export const QualityIncidentEditorModal: React.FC<Props> = ({
       setError(null);
       try {
         for (const file of Array.from(files)) {
-          const toSend = file.type.startsWith('image/') ? await compressImageForUpload(file) : file;
+          const compressed = file.type.startsWith('image/') ? await compressImageForUpload(file) : file;
+          const toSend =
+            compressed instanceof File
+              ? compressed
+              : new File([compressed], file.name, { type: compressed.type || file.type });
           const att = await uploadQualityIncidentAttachment(incidentId, toSend);
           setAttachments((prev) => [...prev, att]);
         }

@@ -16,6 +16,7 @@ import {
   ServiceOrderListItem,
   type ServiceOrderUpdateActor,
 } from "../../services/apiService";
+import type { ServiceOrderStatus } from "../../constants/serviceOrderStages";
 
 interface PatioViewSupabaseProps {
   onUseCustomerData?: (data: Customer) => void;
@@ -76,9 +77,9 @@ export const PatioViewSupabase: React.FC<PatioViewSupabaseProps> = ({
   ) => {
     setMovingId(id);
     try {
-      await updateServiceOrderStatus(id, newStatus, actorOptions);
+      await updateServiceOrderStatus(id, newStatus as ServiceOrderStatus, actorOptions);
       setOrders((prev) =>
-        prev.map((o) => (o.id === id ? { ...o, status: newStatus } : o))
+        prev.map((o) => (o.id === id ? { ...o, status: newStatus as ServiceOrderStatus } : o))
       );
     } catch (e: any) {
       alert(e?.message ?? "Erro ao movimentar.");
@@ -119,7 +120,7 @@ export const PatioViewSupabase: React.FC<PatioViewSupabaseProps> = ({
   };
 
   const byStatus = (status: "RECEPTION" | "YARD" | "FINISHED") =>
-    orders.filter((o) => o.status === status);
+    orders.filter((o) => (o.status as string) === status);
 
   return (
     <div className="w-full max-w-6xl mx-auto pb-24 animate-in fade-in duration-300">

@@ -71,7 +71,7 @@ export function useServiceOrderLiveSync(
 
   const startFallback = () => {
     clearFallback();
-    fallbackIntervalRef.current = window.setInterval(() => {
+    fallbackIntervalRef.current = setInterval(() => {
       if (typeof document !== "undefined" && document.visibilityState !== "visible") return;
       void Promise.resolve(onSyncRef.current());
     }, fallbackPollMs);
@@ -256,7 +256,7 @@ export function useServiceOrderLiveSync(
         }
       };
 
-    fallbackBootTimerRef.current = window.setTimeout(() => {
+    fallbackBootTimerRef.current = setTimeout(() => {
       if (!(coreOk && extraOk)) {
         console.warn(
           `[useServiceOrderLiveSync] Realtime não subscreveu a tempo — poll de segurança a cada ${fallbackPollMs / 1000}s.`

@@ -47,7 +47,7 @@ function emitPdf(doc: jsPDF, mode: 'save' | 'print', filename: string): void {
   const win = window.open(blobUrl, '_blank');
   if (!win) {
     doc.save(filename);
-    URL.revokeObjectURL(blobUrl);
+    URL.revokeObjectURL(String(blobUrl));
     return;
   }
   const triggerPrint = () => {

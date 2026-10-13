@@ -309,7 +309,7 @@ export const ServiceTechnicianClosingModal: React.FC<ServiceTechnicianClosingMod
       .filter((l) => l.description || l.technicianId);
 
     const check = validateServiceTechnicianLines(payload, approvedServices);
-    if (!check.ok) {
+    if (check.ok === false) {
       setError(check.error);
       return;
     }

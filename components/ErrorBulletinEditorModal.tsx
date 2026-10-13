@@ -382,7 +382,11 @@ export const ErrorBulletinEditorModal: React.FC<Props> = ({
       setError(null);
       try {
         for (const file of Array.from(files)) {
-          const toSend = file.type.startsWith('image/') ? await compressImageForUpload(file) : file;
+          const compressed = file.type.startsWith('image/') ? await compressImageForUpload(file) : file;
+          const toSend =
+            compressed instanceof File
+              ? compressed
+              : new File([compressed], file.name, { type: compressed.type || file.type });
           if (bulletinId) {
             const att = await uploadErrorBulletinAttachment(bulletinId, toSend);
             setAttachments((prev) => [...prev, att]);
@@ -518,7 +522,7 @@ export const ErrorBulletinEditorModal: React.FC<Props> = ({
                     <div className="mb-3 flex flex-wrap gap-2">
                       {(
                         [
-                          { id: 'manual' as const, label: 'Digitar manualmente' },
+                          { id: 'manual' as const, label: 'Digitar manualmente', icon: undefined },
                           { id: 'patio' as const, label: 'No pátio', icon: Car },
                           { id: 'archived' as const, label: 'Arquivados', icon: Archive },
                         ] as const

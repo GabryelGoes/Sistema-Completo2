@@ -128,7 +128,9 @@ export function normalizeLabQuickServices(
   return cleaned.length ? cleaned : [...DEFAULT_LAB_QUICK_SERVICES];
 }
 
-export function setLabQuickServices(list: LabQuickService[]): void {
+export function setLabQuickServices(
+  list: Parameters<typeof normalizeLabQuickServices>[0]
+): void {
   LAB_QUICK_SERVICES = normalizeLabQuickServices(list);
 }
 

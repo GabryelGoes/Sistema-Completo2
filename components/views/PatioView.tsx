@@ -8,6 +8,18 @@ import { MechanicIcon } from '../ui/MechanicIcon';
 import { ReminderIcon } from '../ui/ReminderIcon';
 import { NotificationCenter } from '../NotificationCenter';
 import { TrelloList, TrelloCard, TrelloMember, TrelloAction, TrelloAttachment, Customer, type LabServiceLink, type VehicleReferenceLink } from '../../types';
+
+/** Aliases legados usados no Pátio (mesmo shape do Trello*). */
+type BoardList = TrelloList;
+type BoardCard = TrelloCard;
+type BoardAction = TrelloAction;
+type BoardAttachment = TrelloAttachment;
+
+function isPdfAttachmentUrl(url: string): boolean {
+  const u = (url || '').trim().toLowerCase();
+  if (!u) return false;
+  return u.includes('.pdf') || u.includes('application/pdf');
+}
 import {
   getServiceOrders,
   getServiceOrderById,
@@ -3085,7 +3097,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
     };
     const debouncedPortrait = () => {
       if (patioOrientationDebounceRef.current) clearTimeout(patioOrientationDebounceRef.current);
-      patioOrientationDebounceRef.current = window.setTimeout(() => {
+      patioOrientationDebounceRef.current = setTimeout(() => {
         patioOrientationDebounceRef.current = null;
         applyPortrait();
       }, 140);
@@ -7088,7 +7100,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
         />
       ) : (
       (() => {
-        const stageOrder = boardStages.map((s) => s.id);
+        const stageOrder = boardStages.map((s) => s.id as string);
         const byStage = (a: TrelloCard, b: TrelloCard) => {
           const ia = stageOrder.indexOf(a.idList);
           const ib = stageOrder.indexOf(b.idList);
@@ -10312,6 +10324,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                     vehicleColor: serviceOrderDetail.vehicle_color ?? '',
                                     vehicleYear: serviceOrderDetail.vehicle_year ?? '',
                                     vehicleEngineInfo: serviceOrderDetail.vehicle_engine_info ?? '',
+                                    moduleKind: parseModuleKind(serviceOrderDetail.module_kind) ?? '',
+                                    moduleVehicleKind: parseModuleVehicleKind(serviceOrderDetail.module_vehicle_kind) ?? '',
+                                    moduleProductOther: serviceOrderDetail.module_product_other ?? '',
                                   });
                                   setIsDadosFichaExpanded(false);
                                 }}

@@ -10,7 +10,10 @@ const MIN_SCALE = 0.3;
 const MAX_SCALE = 4;
 const WHEEL_ZOOM_STEP = 0.15;
 
-function getTouchDistance(t1: Touch, t2: Touch): number {
+function getTouchDistance(
+  t1: Pick<Touch, 'clientX' | 'clientY'>,
+  t2: Pick<Touch, 'clientX' | 'clientY'>
+): number {
   return Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
 }
 

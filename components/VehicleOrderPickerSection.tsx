@@ -91,7 +91,7 @@ export const VehicleOrderPickerSection: React.FC<Props> = ({
       <div className="mb-3 flex flex-wrap gap-2">
         {(
           [
-            { id: 'manual' as const, label: 'Digitar manualmente' },
+            { id: 'manual' as const, label: 'Digitar manualmente', icon: undefined },
             { id: 'patio' as const, label: 'No pátio', icon: Car },
             { id: 'archived' as const, label: 'Arquivados', icon: Archive },
           ] as const

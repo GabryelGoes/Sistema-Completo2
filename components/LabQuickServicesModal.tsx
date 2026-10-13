@@ -56,10 +56,14 @@ export const LabQuickServicesModal: React.FC<LabQuickServicesModalProps> = ({ is
     getWorkshopSettings()
       .then((s) => {
         if (cancelled) return;
-        const list = (s.labQuickServices ?? []).map((k, i) => ({
+        const list: DraftService[] = (s.labQuickServices ?? []).map((k, i) => ({
           id: k.id,
           label: k.label,
-          color: k.color,
+          color: (['violet', 'sky', 'amber', 'indigo', 'teal', 'rose', 'emerald'] as const).includes(
+            k.color as LabQuickServiceColor
+          )
+            ? (k.color as LabQuickServiceColor)
+            : 'violet',
           sortOrder: k.sortOrder ?? i,
           absOnly: k.absOnly !== false,
           allowPreApproval: k.allowPreApproval === true,
@@ -123,7 +127,7 @@ export const LabQuickServicesModal: React.FC<LabQuickServicesModalProps> = ({ is
     setError(null);
     try {
       const saved = await updateWorkshopSettings({ labQuickServices: cleaned });
-      setLabQuickServices(saved.labQuickServices ?? cleaned);
+      setLabQuickServices(saved.labQuickServices ?? (cleaned as LabQuickService[]));
       try {
         window.dispatchEvent(new CustomEvent(LAB_QUICK_SERVICES_CHANGED_EVENT));
       } catch {

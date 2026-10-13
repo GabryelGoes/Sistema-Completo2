@@ -3600,7 +3600,7 @@ export async function getWorkshopParts(): Promise<WorkshopPart[]> {
 function normalizeWorkshopPartRow(row: Record<string, unknown>): WorkshopPart {
   const fiscal = row.fiscal_extra;
   return {
-    ...(row as WorkshopPart),
+    ...(row as unknown as WorkshopPart),
     unit_price: Number(row.unit_price ?? 0),
     stock_qty: Number(row.stock_qty ?? 0),
     min_stock_qty: Number(row.min_stock_qty ?? 0),

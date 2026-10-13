@@ -350,7 +350,7 @@ export function rotateImageElement(
   direction: "cw" | "ccw",
   fileName?: string
 ): Promise<Blob> {
-  const outputMime = outputMimeForImage(new Blob([], { type: img.type || "" }), fileName);
+  const outputMime = outputMimeForImage(new Blob([], { type: "" }), fileName);
   const outputQuality = outputMime === "image/png" ? undefined : 0.85;
 
   return new Promise((resolve, reject) => {

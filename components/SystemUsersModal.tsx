@@ -233,7 +233,7 @@ function CollapsibleSection({
   children: React.ReactNode;
 }) {
   return (
-    <details defaultOpen={defaultOpen} className={`${iosModalInsetCard} group overflow-hidden`}>
+    <details {...({ defaultOpen } as React.DetailsHTMLAttributes<HTMLDetailsElement>)} className={`${iosModalInsetCard} group overflow-hidden`}>
       <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3.5 marker:content-none [&::-webkit-details-marker]:hidden hover:bg-zinc-100/60 dark:hover:bg-white/[0.04]">
         <span className="flex min-w-0 items-center gap-2.5">
           <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-zinc-200/80 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200">

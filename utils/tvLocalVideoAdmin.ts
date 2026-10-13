@@ -88,8 +88,13 @@ async function idbSet(key: string, value: unknown): Promise<void> {
 async function verifyDirPermission(dir: FileSystemDirectoryHandle): Promise<boolean> {
   try {
     const opts = { mode: "readwrite" as const };
-    if ((await dir.queryPermission(opts)) === "granted") return true;
-    return (await dir.requestPermission(opts)) === "granted";
+    const handle = dir as FileSystemDirectoryHandle & {
+      queryPermission?: (o: { mode: "readwrite" }) => Promise<PermissionState>;
+      requestPermission?: (o: { mode: "readwrite" }) => Promise<PermissionState>;
+    };
+    if (handle.queryPermission && (await handle.queryPermission(opts)) === "granted") return true;
+    if (!handle.requestPermission) return false;
+    return (await handle.requestPermission(opts)) === "granted";
   } catch {
     return false;
   }

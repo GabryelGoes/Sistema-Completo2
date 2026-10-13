@@ -15,8 +15,8 @@ export interface Customer {
   vehicleModel: string;
   /** Apenas modo módulo (Laboratório): identificação do módulo */
   moduleIdentification?: string;
-  /** Laboratório: tipo de produto (módulos, pinça, outro) */
-  moduleKind?: 'completo' | 'eletronico' | 'hidraulico' | 'pinca_freio' | 'outro';
+  /** Laboratório: tipo de produto (slug configurável; ex.: completo, eletronico, outro) */
+  moduleKind?: string;
   /** Quando moduleKind=outro: descrição livre da peça */
   moduleProductOther?: string;
   /** Modo módulo: módulo de carro ou moto */
