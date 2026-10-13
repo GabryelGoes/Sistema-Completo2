@@ -13,11 +13,13 @@ import {
   QrCode,
   Scissors,
   Search,
+  Trash2,
   X,
 } from 'lucide-react';
 import {
   createWorkshopAbsModule,
   createWorkshopAbsModuleMovement,
+  deleteWorkshopAbsModule,
   disassembleWorkshopAbsModule,
   getWorkshopAbsModuleModel,
   getWorkshopAbsModuleModels,
@@ -75,6 +77,12 @@ export type WorkshopAbsModulesModalProps = {
   initialPublicId?: string | null;
   /** Abre o assistente de desmembramento para o módulo. */
   initialDisassemblePublicId?: string | null;
+  /** Abre unidades de um modelo técnico. */
+  initialModelId?: string | null;
+  /** Abre direto o formulário de novo módulo. */
+  initialShowForm?: boolean;
+  /** Abre a listagem com foco em leitura de código. */
+  initialShowScan?: boolean;
 };
 
 type View =
@@ -367,6 +375,9 @@ export function WorkshopAbsModulesModal({
   initialMissingPublicId = null,
   initialPublicId = null,
   initialDisassemblePublicId = null,
+  initialModelId = null,
+  initialShowForm = false,
+  initialShowScan = false,
 }: WorkshopAbsModulesModalProps) {
   const isDesktopShell = useDesktopShellLayout();
   const [view, setView] = useState<View>({ kind: 'models' });
@@ -537,6 +548,25 @@ export function WorkshopAbsModulesModal({
         }
         return;
       }
+      if (initialModelId) {
+        setLoading(true);
+        try {
+          const fresh = await getWorkshopAbsModuleModel(initialModelId);
+          setView({ kind: 'model', model: fresh });
+        } catch (e) {
+          setError(e instanceof Error ? e.message : 'Falha ao abrir modelo.');
+          setView({ kind: 'models' });
+          await loadModels();
+        } finally {
+          setLoading(false);
+        }
+        return;
+      }
+      if (initialShowForm) {
+        setWizard(emptyWizard());
+        setView({ kind: 'form' });
+        return;
+      }
       if (initialMissingPublicId) {
         const pid =
           normalizeAbsModuleCode(initialMissingPublicId) ||
@@ -545,11 +575,54 @@ export function WorkshopAbsModulesModal({
         return;
       }
       setView({ kind: 'models' });
+      if (initialShowScan) {
+        // listagem com campo de scan já visível
+      }
       await loadModels();
     };
     void boot();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- boot only on open / initial ids
-  }, [isOpen, initialMissingPublicId, initialPublicId, initialDisassemblePublicId]);
+  }, [
+    isOpen,
+    initialMissingPublicId,
+    initialPublicId,
+    initialDisassemblePublicId,
+    initialModelId,
+    initialShowForm,
+    initialShowScan,
+  ]);
+
+  const handleDeleteUnit = useCallback(
+    async (mod: WorkshopAbsModule) => {
+      const label = `${formatAbsModuleSequence(mod.sequence_number)} · ${mod.public_id}`;
+      if (
+        !window.confirm(
+          `Excluir a unidade ${label}?\n\nO código ${mod.public_id} não será reutilizado.`
+        )
+      ) {
+        return;
+      }
+      setActionBusy(true);
+      setActionError(null);
+      try {
+        await deleteWorkshopAbsModule(mod.public_id);
+        setSuccessMsg(`Unidade ${mod.public_id} excluída.`);
+        if (mod.model_id) {
+          const fresh = await getWorkshopAbsModuleModel(mod.model_id);
+          setView({ kind: 'model', model: fresh });
+        } else {
+          setView({ kind: 'models' });
+          await loadModels();
+        }
+        setAction(null);
+      } catch (e) {
+        setActionError(e instanceof Error ? e.message : 'Falha ao excluir unidade.');
+      } finally {
+        setActionBusy(false);
+      }
+    },
+    [loadModels]
+  );
 
   const handleScan = useCallback(
     async (raw: string) => {
@@ -1188,6 +1261,15 @@ export function WorkshopAbsModulesModal({
                                     Desmembrar
                                   </button>
                                 ) : null}
+                                <button
+                                  type="button"
+                                  disabled={actionBusy}
+                                  onClick={() => void handleDeleteUnit(u)}
+                                  className="inline-flex items-center gap-1 rounded-xl bg-red-500/10 px-2.5 py-1.5 text-[12px] font-semibold text-red-700 dark:text-red-300 disabled:opacity-50"
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                  Excluir
+                                </button>
                               </div>
                             </td>
                           </tr>
@@ -1697,6 +1779,19 @@ export function WorkshopAbsModulesModal({
                       Desmembrar módulo
                     </button>
                   ) : null}
+                  <button
+                    type="button"
+                    disabled={actionBusy}
+                    onClick={() => void handleDeleteUnit(detail)}
+                    className="inline-flex items-center justify-center gap-2 rounded-2xl bg-red-500/10 px-4 py-3.5 text-[15px] font-semibold text-red-700 dark:text-red-300 sm:col-span-2 disabled:opacity-50"
+                  >
+                    {actionBusy ? (
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                    ) : (
+                      <Trash2 className="h-5 w-5" />
+                    )}
+                    Excluir unidade
+                  </button>
                 </div>
 
                 {actionError ? (

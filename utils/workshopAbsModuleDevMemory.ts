@@ -1074,6 +1074,54 @@ export function disassembleDevAbsModule(
   };
 }
 
+/** Remove unidade física e vínculos de desmembramento. Não reutiliza public_id/sequência. */
+export function deleteDevAbsModule(publicId: string): boolean {
+  const key = String(publicId || '').trim().toUpperCase();
+  const row = modules.get(key);
+  if (!row) return false;
+
+  for (const [id, d] of [...disassemblies.entries()]) {
+    if (
+      d.source_module_id === row.id ||
+      d.remaining_module_id === row.id ||
+      d.withdrawn_module_id === row.id
+    ) {
+      disassemblies.delete(id);
+    }
+  }
+  for (const other of modules.values()) {
+    if (other.parent_complete_id === row.id) {
+      other.parent_complete_id = null;
+      other.updated_at = nowIso();
+    }
+  }
+  modules.delete(key);
+  return true;
+}
+
+/** Remove modelo técnico. Com force, remove também todas as unidades. */
+export function deleteDevAbsModuleModel(modelId: string, opts?: { force?: boolean }): {
+  ok: boolean;
+  error?: string;
+  deletedUnits?: number;
+} {
+  const id = String(modelId || '').trim();
+  if (!models.has(id)) return { ok: false, error: 'Modelo ABS não encontrado.' };
+  const units = Array.from(modules.values()).filter((u) => u.model_id === id);
+  if (units.length > 0 && !opts?.force) {
+    return {
+      ok: false,
+      error: `Este modelo possui ${units.length} unidade(s). Exclua as unidades ou confirme a exclusão completa.`,
+    };
+  }
+  for (const u of units) {
+    deleteDevAbsModule(u.public_id);
+  }
+  models.delete(id);
+  modelSeq.delete(id);
+  return { ok: true, deletedUnits: units.length };
+}
+
 export function resetDevAbsModulesForTests() {
   modules.clear();
   models.clear();

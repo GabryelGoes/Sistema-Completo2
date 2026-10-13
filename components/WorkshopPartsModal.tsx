@@ -90,7 +90,7 @@ import {
 } from '../utils/workshopPartStock';
 import { storageSiteLabel } from '../utils/workshopPartFields';
 import { WorkshopPartsHomeDashboard } from './WorkshopPartsHomeDashboard';
-import { WorkshopAbsModulesModal } from './WorkshopAbsModulesModal';
+import { WorkshopAbsModulesHomeDashboard } from './WorkshopAbsModulesHomeDashboard';
 
 interface WorkshopPartsModalProps {
   isOpen: boolean;
@@ -1194,10 +1194,16 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
   const isDesktopShell = useDesktopShellLayout();
 
   useBrowserBackLayer(isAnalyticsOpen, () => setIsAnalyticsOpen(false));
+  useBrowserBackLayer(absModulesOpen, () => {
+    setAbsModulesOpen(false);
+    setAbsModulesInitialPublicId(null);
+  });
 
   useEffect(() => {
     if (!isOpen) {
       setIsAnalyticsOpen(false);
+      setAbsModulesOpen(false);
+      setAbsModulesInitialPublicId(null);
       setOutboundMode(null);
       setScanHubOpen(false);
       setScanHubExternal(null);
@@ -1329,6 +1335,15 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
 
         {isAnalyticsOpen ? (
           <WorkshopPartsAnalyticsView onBack={() => setIsAnalyticsOpen(false)} />
+        ) : absModulesOpen ? (
+          <WorkshopAbsModulesHomeDashboard
+            onBack={() => {
+              setAbsModulesOpen(false);
+              setAbsModulesInitialPublicId(null);
+            }}
+            initialPublicId={absModulesInitialPublicId}
+            onInitialPublicIdConsumed={() => setAbsModulesInitialPublicId(null)}
+          />
         ) : (
           <WorkshopPartsHomeDashboard
             loading={loading}
@@ -1382,7 +1397,6 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
             onCancelEdit={cancelEdit}
             listScrollRef={listScrollRef}
           />
-
         )}
         </div>
       </div>
@@ -1749,17 +1763,6 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
           setAbsModulesInitialPublicId(publicId);
           setAbsModulesOpen(true);
         }}
-      />
-    ) : null}
-
-    {absModulesOpen ? (
-      <WorkshopAbsModulesModal
-        isOpen
-        onClose={() => {
-          setAbsModulesOpen(false);
-          setAbsModulesInitialPublicId(null);
-        }}
-        initialPublicId={absModulesInitialPublicId}
       />
     ) : null}
 

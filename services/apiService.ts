@@ -3871,6 +3871,36 @@ export async function searchWorkshopAbsModules(q: string): Promise<WorkshopAbsMo
   };
 }
 
+/** Exclui uma unidade física ABS (public_id). Sequência e public_id não são reutilizados. */
+export async function deleteWorkshopAbsModule(publicId: string): Promise<void> {
+  const pid = String(publicId || '').trim().toUpperCase();
+  const response = await fetch(`${API_BASE}/abs-modules/${encodeURIComponent(pid)}`, {
+    method: 'DELETE',
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao excluir módulo ABS (${response.status})`);
+  }
+}
+
+/** Exclui modelo técnico. Com force=true remove também as unidades. */
+export async function deleteWorkshopAbsModuleModel(
+  modelId: string,
+  opts?: { force?: boolean }
+): Promise<{ deletedUnits: number }> {
+  const id = String(modelId || '').trim();
+  const qs = opts?.force ? '?force=1' : '';
+  const response = await fetch(`${API_BASE}/abs-module-models/${encodeURIComponent(id)}${qs}`, {
+    method: 'DELETE',
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao excluir modelo ABS (${response.status})`);
+  }
+  const data = (await response.json()) as { deletedUnits?: number };
+  return { deletedUnits: Number(data.deletedUnits ?? 0) };
+}
+
 export async function disassembleWorkshopAbsModule(
   publicId: string,
   input: WorkshopAbsDisassembleInput & { recorded_by_name?: string | null }

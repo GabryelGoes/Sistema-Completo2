@@ -4,6 +4,8 @@ import {
   applyDevAbsModuleMovement,
   createDevAbsModule,
   createDevAbsModuleModel,
+  deleteDevAbsModule,
+  deleteDevAbsModuleModel,
   disassembleDevAbsModule,
   getDevAbsModuleByPublicId,
   getDevAbsModuleModel,
@@ -230,6 +232,56 @@ function primaryCodeFromCodes(
 
 function isDevMemoryActive(deps: AbsRouteDeps): boolean {
   return !(deps.supabaseAdmin && deps.WORKSHOP_ID);
+}
+
+/** Exclui unidade física e vínculos (desmembramentos / parent). Não reutiliza public_id. */
+async function deleteAbsModuleUnit(
+  supabaseAdmin: SupabaseClient,
+  workshopId: string,
+  publicId: string
+): Promise<{ ok: true } | { ok: false; status: number; error: string }> {
+  const { data: mod, error: modErr } = await supabaseAdmin
+    .from('workshop_abs_modules')
+    .select('id, public_id')
+    .eq('workshop_id', workshopId)
+    .eq('public_id', publicId)
+    .maybeSingle();
+  if (modErr) return { ok: false, status: 500, error: modErr.message };
+  if (!mod) return { ok: false, status: 404, error: 'Módulo ABS não encontrado.' };
+
+  await supabaseAdmin
+    .from('workshop_abs_module_disassemblies')
+    .delete()
+    .eq('workshop_id', workshopId)
+    .or(
+      `source_module_id.eq.${mod.id},remaining_module_id.eq.${mod.id},withdrawn_module_id.eq.${mod.id}`
+    );
+
+  await supabaseAdmin
+    .from('workshop_abs_modules')
+    .update({ parent_complete_id: null, updated_at: new Date().toISOString() })
+    .eq('workshop_id', workshopId)
+    .eq('parent_complete_id', mod.id);
+
+  await supabaseAdmin
+    .from('workshop_abs_module_unit_photos')
+    .delete()
+    .eq('module_id', mod.id)
+    .eq('workshop_id', workshopId);
+
+  await supabaseAdmin
+    .from('workshop_abs_module_movements')
+    .delete()
+    .eq('module_id', mod.id)
+    .eq('workshop_id', workshopId);
+
+  const { error: delErr } = await supabaseAdmin
+    .from('workshop_abs_modules')
+    .delete()
+    .eq('id', mod.id)
+    .eq('workshop_id', workshopId);
+  if (delErr) return { ok: false, status: 500, error: delErr.message };
+  return { ok: true };
 }
 
 async function replaceModelCodes(
@@ -690,6 +742,79 @@ export function registerAbsModuleRoutes(app: Express, deps: AbsRouteDeps) {
       return res.json({ model });
     } catch (err: any) {
       console.error('[API] PUT /api/abs-module-models/:id:', err);
+      return res.status(500).json({ error: err?.message ?? 'Erro desconhecido' });
+    }
+  });
+
+  app.delete('/api/abs-module-models/:id', async (req, res) => {
+    try {
+      const id = String(req.params.id || '').trim();
+      if (!id) return res.status(400).json({ error: 'ID do modelo inválido.' });
+      const force =
+        String(req.query.force || req.body?.force || '').toLowerCase() === '1' ||
+        String(req.query.force || req.body?.force || '').toLowerCase() === 'true';
+
+      if (isDevMemoryActive(deps)) {
+        const result = deleteDevAbsModuleModel(id, { force });
+        if (!result.ok) {
+          return res.status(result.error?.includes('possui') ? 409 : 404).json({ error: result.error });
+        }
+        return res.json({ ok: true, deletedUnits: result.deletedUnits ?? 0 });
+      }
+
+      const { data: existing, error: exErr } = await supabaseAdmin!
+        .from('workshop_abs_module_models')
+        .select('id')
+        .eq('workshop_id', WORKSHOP_ID!)
+        .eq('id', id)
+        .maybeSingle();
+      if (exErr) return res.status(500).json({ error: exErr.message });
+      if (!existing) return res.status(404).json({ error: 'Modelo ABS não encontrado.' });
+
+      const { data: unitRows, error: uErr } = await supabaseAdmin!
+        .from('workshop_abs_modules')
+        .select('public_id')
+        .eq('workshop_id', WORKSHOP_ID!)
+        .eq('model_id', id);
+      if (uErr) return res.status(500).json({ error: uErr.message });
+      const units = unitRows || [];
+      if (units.length > 0 && !force) {
+        return res.status(409).json({
+          error: `Este modelo possui ${units.length} unidade(s). Exclua as unidades ou confirme a exclusão completa.`,
+          unit_count: units.length,
+        });
+      }
+
+      for (const u of units) {
+        const pid = String(u.public_id || '').toUpperCase();
+        await deleteAbsModuleUnit(supabaseAdmin!, WORKSHOP_ID!, pid);
+      }
+
+      await supabaseAdmin!
+        .from('workshop_abs_module_codes')
+        .delete()
+        .eq('model_id', id)
+        .eq('workshop_id', WORKSHOP_ID!);
+      await supabaseAdmin!
+        .from('workshop_abs_module_applications')
+        .delete()
+        .eq('model_id', id)
+        .eq('workshop_id', WORKSHOP_ID!);
+      await supabaseAdmin!
+        .from('workshop_abs_module_model_photos')
+        .delete()
+        .eq('model_id', id)
+        .eq('workshop_id', WORKSHOP_ID!);
+
+      const { error: delErr } = await supabaseAdmin!
+        .from('workshop_abs_module_models')
+        .delete()
+        .eq('id', id)
+        .eq('workshop_id', WORKSHOP_ID!);
+      if (delErr) return res.status(500).json({ error: delErr.message });
+      return res.json({ ok: true, deletedUnits: units.length });
+    } catch (err: any) {
+      console.error('[API] DELETE /api/abs-module-models/:id:', err);
       return res.status(500).json({ error: err?.message ?? 'Erro desconhecido' });
     }
   });
@@ -1288,6 +1413,30 @@ export function registerAbsModuleRoutes(app: Express, deps: AbsRouteDeps) {
       return res.status(201).json({ module: row.module, movement: row.movement });
     } catch (err: any) {
       console.error('[API] POST /api/abs-modules/:publicId/movements:', err);
+      return res.status(500).json({ error: err?.message ?? 'Erro desconhecido' });
+    }
+  });
+
+  app.delete('/api/abs-modules/:publicId', async (req, res) => {
+    try {
+      const publicId = normalizeAbsModuleCode(String(req.params.publicId || '')) || '';
+      if (!isValidAbsModulePublicId(publicId)) {
+        return res.status(400).json({ error: 'ID de módulo ABS inválido.' });
+      }
+
+      if (isDevMemoryActive(deps)) {
+        const ok = deleteDevAbsModule(publicId);
+        if (!ok) return res.status(404).json({ error: 'Módulo ABS não encontrado.' });
+        return res.json({ ok: true, public_id: publicId });
+      }
+
+      const result = await deleteAbsModuleUnit(supabaseAdmin!, WORKSHOP_ID!, publicId);
+      if (result.ok === false) {
+        return res.status(result.status).json({ error: result.error });
+      }
+      return res.json({ ok: true, public_id: publicId });
+    } catch (err: any) {
+      console.error('[API] DELETE /api/abs-modules/:publicId:', err);
       return res.status(500).json({ error: err?.message ?? 'Erro desconhecido' });
     }
   });
