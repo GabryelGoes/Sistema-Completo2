@@ -376,7 +376,8 @@ export const ServiceTechnicianClosingModal: React.FC<ServiceTechnicianClosingMod
           <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-[#F2F2F7] px-6 py-5 dark:bg-black/25 custom-scrollbar sm:px-8">
             <p className="mb-4 text-[13px] leading-relaxed text-zinc-600 dark:text-zinc-400">
               Para mover o veículo para <strong className="font-semibold text-zinc-800 dark:text-zinc-200">Finalizado</strong>,
-              confirme os técnicos dos serviços aprovados. A baixa de estoque é feita à parte (leitor ou manual).
+              confirme os técnicos dos serviços aprovados. Serviços e peças adicionados aqui entram no orçamento do
+              veículo já aprovados. A baixa de estoque é feita à parte (leitor ou manual).
             </p>
             {approvedServices.length > 0 ? (
               <p className="mb-4 rounded-xl border border-sky-500/25 bg-sky-500/10 px-3 py-2.5 text-[12px] leading-relaxed text-sky-900 dark:text-sky-200">
