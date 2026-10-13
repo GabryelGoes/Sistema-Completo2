@@ -7,7 +7,7 @@
 const LABEL_W = 384;
 const LABEL_H = 240;
 
-export type LabelTemplateId = 'lab_os' | 'estoque' | 'chave';
+export type LabelTemplateId = 'lab_os' | 'estoque' | 'chave' | 'abs_modulo';
 
 export type LabelFontFamily =
   | 'Arial'
@@ -93,6 +93,11 @@ export const LABEL_TEMPLATE_META: Array<{
     id: 'chave',
     title: 'Chave (pátio)',
     description: 'Duas faces verticais — cliente, carro, cor e placa',
+  },
+  {
+    id: 'abs_modulo',
+    title: 'Módulo ABS',
+    description: 'Sequência #N grande, marca, tipo, código e QR/barra',
   },
 ];
 
@@ -380,9 +385,129 @@ export function createDefaultChaveTemplate(): LabelTemplateLayout {
   };
 }
 
+export function createDefaultAbsModuloTemplate(): LabelTemplateLayout {
+  return {
+    id: 'abs_modulo',
+    version: 1,
+    canvasW: LABEL_W,
+    canvasH: LABEL_H,
+    elements: [
+      el({
+        id: 'sequence',
+        kind: 'text',
+        name: 'Sequência #N',
+        visible: true,
+        x: 10,
+        y: 4,
+        w: 200,
+        h: 56,
+        fontSize: 48,
+        fontWeight: '900',
+        labelText: '',
+        align: 'left',
+      }),
+      el({
+        id: 'brand',
+        kind: 'text',
+        name: 'Marca',
+        visible: true,
+        x: 210,
+        y: 8,
+        w: 164,
+        h: 22,
+        fontSize: 14,
+        labelText: '',
+        align: 'right',
+      }),
+      el({
+        id: 'kind',
+        kind: 'text',
+        name: 'Tipo',
+        visible: true,
+        x: 210,
+        y: 32,
+        w: 164,
+        h: 20,
+        fontSize: 12,
+        fontWeight: 'normal',
+        labelText: '',
+        align: 'right',
+      }),
+      el({
+        id: 'code_line',
+        kind: 'text_field',
+        name: 'Código',
+        visible: true,
+        x: 10,
+        y: 64,
+        w: 240,
+        h: 22,
+        fontSize: 14,
+        fontWeight: 'normal',
+        valueFontSize: 14,
+        labelText: '',
+        maxLines: 1,
+      }),
+      el({
+        id: 'location',
+        kind: 'text_field',
+        name: 'Local',
+        visible: true,
+        x: 10,
+        y: 90,
+        w: 240,
+        h: 20,
+        fontSize: 12,
+        fontWeight: 'normal',
+        valueFontSize: 12,
+        labelText: 'Local:',
+        maxLines: 1,
+      }),
+      el({
+        id: 'qr',
+        kind: 'qr',
+        name: 'QR Code',
+        visible: true,
+        x: 262,
+        y: 60,
+        w: 112,
+        h: 112,
+        fontSize: 12,
+        labelText: '',
+      }),
+      el({
+        id: 'barcode',
+        kind: 'barcode',
+        name: 'Código de barras',
+        visible: true,
+        x: 10,
+        y: 120,
+        w: 240,
+        h: 64,
+        fontSize: 12,
+        labelText: '',
+      }),
+      el({
+        id: 'human_code',
+        kind: 'human_code',
+        name: 'ID legível',
+        visible: true,
+        x: 10,
+        y: 192,
+        w: 364,
+        h: 28,
+        fontSize: 16,
+        labelText: '',
+        align: 'center',
+      }),
+    ],
+  };
+}
+
 export function createDefaultTemplate(id: LabelTemplateId): LabelTemplateLayout {
   if (id === 'estoque') return createDefaultEstoqueTemplate();
   if (id === 'chave') return createDefaultChaveTemplate();
+  if (id === 'abs_modulo') return createDefaultAbsModuloTemplate();
   return createDefaultLabOsTemplate();
 }
 
@@ -534,6 +659,7 @@ export function loadAllLabelTemplates(): LabelTemplatesStore {
     lab_os: createDefaultLabOsTemplate(),
     estoque: createDefaultEstoqueTemplate(),
     chave: createDefaultChaveTemplate(),
+    abs_modulo: createDefaultAbsModuloTemplate(),
   };
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -543,6 +669,7 @@ export function loadAllLabelTemplates(): LabelTemplatesStore {
         lab_os: normalizeLabelTemplate('lab_os', parsed.lab_os),
         estoque: normalizeLabelTemplate('estoque', parsed.estoque),
         chave: normalizeLabelTemplate('chave', parsed.chave),
+        abs_modulo: normalizeLabelTemplate('abs_modulo', parsed.abs_modulo),
       };
     }
   } catch {
@@ -579,6 +706,7 @@ export function saveAllLabelTemplates(store: LabelTemplatesStore): void {
     lab_os: normalizeLabelTemplate('lab_os', store.lab_os),
     estoque: normalizeLabelTemplate('estoque', store.estoque),
     chave: normalizeLabelTemplate('chave', store.chave),
+    abs_modulo: normalizeLabelTemplate('abs_modulo', store.abs_modulo),
   };
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
@@ -619,5 +747,13 @@ export const LABEL_SAMPLE_DATA = {
     vehicleModel: 'COROLLA XEI',
     vehicleColor: 'PRATA',
     plate: 'ABC1D23',
+  },
+  abs_modulo: {
+    brand: 'REI DO ABS',
+    sequenceNumber: 12,
+    publicId: 'ABS-000012',
+    moduleKind: 'completo',
+    code: '0265231548',
+    location: 'Prateleira B3',
   },
 } as const;

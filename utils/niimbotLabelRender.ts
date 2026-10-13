@@ -1,3 +1,4 @@
+import QRCode from 'qrcode';
 import { drawCode128B } from './niimbotCode128';
 import {
   cssFontForElement,
@@ -6,6 +7,10 @@ import {
   type LabelTemplateLayout,
 } from './labelTemplates';
 import { generateInternalEan13 } from './workshopPartLabelCode';
+import {
+  absModuleKindLabel,
+  formatAbsModuleSequence,
+} from './workshopAbsModules';
 
 export const NIIMBOT_LABEL_W_PX = 384;
 export const NIIMBOT_LABEL_H_PX = 240;
@@ -168,4 +173,135 @@ export function renderNiimbotTestLabelDataUrl(): string {
     name: 'ETIQUETA DE TESTE',
     code: 'TESTE-B1',
   });
+}
+
+export type NiimbotAbsModuleLabelInput = {
+  publicId: string;
+  sequenceNumber?: number | null;
+  moduleKind?: string | null;
+  code?: string | null;
+  location?: string | null;
+  brand?: string;
+  manufacturer?: string | null;
+};
+
+function loadImage(src: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error('Falha ao montar QR Code'));
+    img.src = src;
+  });
+}
+
+/** Renderiza etiqueta Niimbot 50×30 mm para módulo ABS (#N grande + QR). */
+export async function renderNiimbotAbsModuleLabelDataUrl(
+  input: NiimbotAbsModuleLabelInput,
+  layoutInput?: LabelTemplateLayout | null
+): Promise<string> {
+  const publicId = String(input.publicId || '').trim().toUpperCase();
+  if (!publicId) throw new Error('ID do módulo ausente para a etiqueta.');
+
+  const brand = (input.brand ?? 'REI DO ABS').trim() || 'REI DO ABS';
+  const seq = formatAbsModuleSequence(input.sequenceNumber);
+  const kind = absModuleKindLabel(input.moduleKind);
+  const code = String(input.code || publicId).trim();
+  const location = String(input.location || '').trim();
+  const layout = layoutInput ?? loadLabelTemplate('abs_modulo');
+
+  const w = layout.canvasW || NIIMBOT_LABEL_W_PX;
+  const h = layout.canvasH || NIIMBOT_LABEL_H_PX;
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('Canvas 2D indisponível.');
+
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, w, h);
+  ctx.fillStyle = '#000000';
+  ctx.textBaseline = 'top';
+
+  const seqEl = findEl(layout, 'sequence');
+  if (seqEl) drawPlainText(ctx, seqEl, seq);
+
+  const brandEl = findEl(layout, 'brand');
+  if (brandEl) drawPlainText(ctx, brandEl, brand);
+
+  const kindEl = findEl(layout, 'kind');
+  if (kindEl) drawPlainText(ctx, kindEl, kind);
+
+  const codeLineEl = findEl(layout, 'code_line');
+  if (codeLineEl?.visible) {
+    ctx.font = cssFontForElement(codeLineEl);
+    ctx.textBaseline = 'top';
+    const prefix = codeLineEl.labelText
+      ? codeLineEl.labelText.endsWith(' ')
+        ? codeLineEl.labelText
+        : `${codeLineEl.labelText} `
+      : '';
+    const line = truncateToWidth(ctx, `${prefix}${code}`, codeLineEl.w);
+    let x = codeLineEl.x;
+    if (codeLineEl.align === 'center') {
+      x = codeLineEl.x + (codeLineEl.w - ctx.measureText(line).width) / 2;
+    } else if (codeLineEl.align === 'right') {
+      x = codeLineEl.x + codeLineEl.w - ctx.measureText(line).width;
+    }
+    ctx.fillText(line, x, codeLineEl.y);
+  }
+
+  const locEl = findEl(layout, 'location');
+  if (locEl?.visible && location) {
+    ctx.font = cssFontForElement(locEl);
+    const prefix = locEl.labelText
+      ? locEl.labelText.endsWith(' ')
+        ? locEl.labelText
+        : `${locEl.labelText} `
+      : '';
+    const line = truncateToWidth(ctx, `${prefix}${location}`, locEl.w);
+    ctx.fillText(line, locEl.x, locEl.y);
+  }
+
+  const qrEl = findEl(layout, 'qr');
+  if (qrEl?.visible) {
+    const qrSize = Math.min(qrEl.w, qrEl.h);
+    const qrDataUrl = await QRCode.toDataURL(publicId, {
+      errorCorrectionLevel: 'M',
+      margin: 0,
+      width: qrSize,
+      color: { dark: '#000000', light: '#ffffff' },
+    });
+    const qrImg = await loadImage(qrDataUrl);
+    ctx.drawImage(qrImg, qrEl.x, qrEl.y, qrSize, qrSize);
+  }
+
+  const barcodeEl = findEl(layout, 'barcode');
+  if (barcodeEl?.visible) {
+    try {
+      drawCode128B(ctx, publicId, barcodeEl.x, barcodeEl.y, barcodeEl.w, barcodeEl.h);
+    } catch {
+      // Code128 pode falhar com caracteres especiais — QR já cobre identificação.
+    }
+  }
+
+  const humanEl = findEl(layout, 'human_code');
+  if (humanEl?.visible) {
+    ctx.font = cssFontForElement(humanEl);
+    ctx.textBaseline = 'alphabetic';
+    const human = truncateToWidth(ctx, publicId, humanEl.w);
+    const textY = humanEl.y + humanEl.h - 4;
+    if (humanEl.align === 'center') {
+      ctx.textAlign = 'center';
+      ctx.fillText(human, humanEl.x + humanEl.w / 2, textY);
+      ctx.textAlign = 'left';
+    } else if (humanEl.align === 'right') {
+      ctx.textAlign = 'right';
+      ctx.fillText(human, humanEl.x + humanEl.w, textY);
+      ctx.textAlign = 'left';
+    } else {
+      ctx.fillText(human, humanEl.x, textY);
+    }
+  }
+
+  return canvas.toDataURL('image/png');
 }

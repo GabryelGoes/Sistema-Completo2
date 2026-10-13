@@ -31,7 +31,12 @@ import {
   type LabelTemplatesStore,
 } from '../utils/labelTemplates';
 import { renderLabOsLabelDataUrl } from '../utils/labOsLabelRender';
-import { NIIMBOT_LABEL_H_PX, NIIMBOT_LABEL_W_PX, renderNiimbotPartLabelDataUrl } from '../utils/niimbotLabelRender';
+import {
+  NIIMBOT_LABEL_H_PX,
+  NIIMBOT_LABEL_W_PX,
+  renderNiimbotAbsModuleLabelDataUrl,
+  renderNiimbotPartLabelDataUrl,
+} from '../utils/niimbotLabelRender';
 import { renderPatioKeyLabelDataUrl } from '../utils/patioKeyLabelRender';
 import { ModalPortal } from './ui/ModalPortal';
 import { IosModalHeader } from './ui/IosModalHeader';
@@ -138,6 +143,9 @@ async function buildPreview(
   if (id === 'estoque') {
     return renderNiimbotPartLabelDataUrl({ ...LABEL_SAMPLE_DATA.estoque }, layout);
   }
+  if (id === 'abs_modulo') {
+    return renderNiimbotAbsModuleLabelDataUrl({ ...LABEL_SAMPLE_DATA.abs_modulo }, layout);
+  }
   return renderPatioKeyLabelDataUrl({ ...LABEL_SAMPLE_DATA.chave }, layout);
 }
 
@@ -181,6 +189,7 @@ export function LabelTemplatesEditorModal({
       lab_os: normalizeLabelTemplate('lab_os', next.lab_os),
       estoque: normalizeLabelTemplate('estoque', next.estoque),
       chave: normalizeLabelTemplate('chave', next.chave),
+      abs_modulo: normalizeLabelTemplate('abs_modulo', next.abs_modulo),
     };
     setStore(normalized);
     saveAllLabelTemplates(normalized);

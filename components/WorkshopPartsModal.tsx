@@ -90,6 +90,7 @@ import {
 } from '../utils/workshopPartStock';
 import { storageSiteLabel } from '../utils/workshopPartFields';
 import { WorkshopPartsHomeDashboard } from './WorkshopPartsHomeDashboard';
+import { WorkshopAbsModulesModal } from './WorkshopAbsModulesModal';
 
 interface WorkshopPartsModalProps {
   isOpen: boolean;
@@ -225,6 +226,8 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
   const [inboundPart, setInboundPart] = useState<WorkshopPart | null>(null);
   const [scanHubOpen, setScanHubOpen] = useState(false);
   const [scanHubExternal, setScanHubExternal] = useState<{ code: string; token: number } | null>(null);
+  const [absModulesOpen, setAbsModulesOpen] = useState(false);
+  const [absModulesInitialPublicId, setAbsModulesInitialPublicId] = useState<string | null>(null);
   const [registrationPrefillBarcode, setRegistrationPrefillBarcode] = useState<string | null>(null);
   const [categories, setCategories] = useState<WorkshopPartCategory[]>([]);
   const [isCategoriesModalOpen, setIsCategoriesModalOpen] = useState(false);
@@ -1213,6 +1216,10 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
             onOpenScan={() => setScanHubOpen(true)}
             onOpenAnalytics={() => setIsAnalyticsOpen(true)}
             onOpenCategories={() => setIsCategoriesModalOpen(true)}
+            onOpenAbsModules={() => {
+              setAbsModulesInitialPublicId(null);
+              setAbsModulesOpen(true);
+            }}
             onAddPart={() => openCreateRegistration()}
             onOpenPart={(p) => void openProductView(p)}
             onEditPart={(p) => void openEditRegistration(p)}
@@ -1588,6 +1595,23 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
           setOutboundInitialPart(part);
           setOutboundMode('consumable');
         }}
+        onOpenAbsModule={(publicId) => {
+          setScanHubOpen(false);
+          setScanHubExternal(null);
+          setAbsModulesInitialPublicId(publicId);
+          setAbsModulesOpen(true);
+        }}
+      />
+    ) : null}
+
+    {absModulesOpen ? (
+      <WorkshopAbsModulesModal
+        isOpen
+        onClose={() => {
+          setAbsModulesOpen(false);
+          setAbsModulesInitialPublicId(null);
+        }}
+        initialPublicId={absModulesInitialPublicId}
       />
     ) : null}
 
