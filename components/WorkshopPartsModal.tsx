@@ -252,6 +252,11 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
   const createPhotoInputRef = useRef<HTMLInputElement>(null);
   const createCameraInputRef = useRef<HTMLInputElement>(null);
   const categoryFilterDropdownRef = useRef<HTMLDivElement>(null);
+  /** Container rolável da lista na home do Estoque. */
+  const listScrollRef = useRef<HTMLDivElement>(null);
+  /** Posição de scroll preservada ao abrir edição/ficha do produto. */
+  const savedListScrollTopRef = useRef(0);
+  const pendingListScrollRestoreRef = useRef(false);
   /** Evita fechar cadastro no popstate ao abrir câmera/galeria nativa (mobile). */
   const suspendRegistrationBackRef = useRef(false);
   /** Evita clique fantasma no overlay ao voltar do seletor de arquivo. */
@@ -412,9 +417,38 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
     setPhotoEditorFile(f);
   };
 
-  const fetchParts = useCallback(async () => {
+  const saveListScroll = useCallback(() => {
+    savedListScrollTopRef.current = listScrollRef.current?.scrollTop ?? 0;
+    pendingListScrollRestoreRef.current = true;
+  }, []);
+
+  const applySavedListScroll = useCallback(() => {
+    const el = listScrollRef.current;
+    if (!el) return;
+    el.scrollTop = savedListScrollTopRef.current;
+  }, []);
+
+  /** Restaura o scroll da lista após fechar ficha/edição (mantém pending até estabilizar). */
+  const restoreListScroll = useCallback(() => {
+    if (!pendingListScrollRestoreRef.current) return;
+    applySavedListScroll();
+    requestAnimationFrame(() => {
+      applySavedListScroll();
+      requestAnimationFrame(() => {
+        applySavedListScroll();
+        window.setTimeout(() => {
+          applySavedListScroll();
+          pendingListScrollRestoreRef.current = false;
+        }, 80);
+      });
+    });
+  }, [applySavedListScroll]);
+
+  const fetchParts = useCallback(async (opts?: { silent?: boolean }) => {
     if (!isOpen) return;
-    setLoading(true);
+    // Evita spinner que desmonta a lista e zera o scroll ao voltar da edição.
+    const silent = opts?.silent === true;
+    if (!silent) setLoading(true);
     setError(null);
     try {
       const [list, cats, reservations] = await Promise.all([
@@ -432,9 +466,12 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Erro ao carregar peças.');
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
+      // Após refresh silencioso, reaplica a posição (setParts pode alterar a altura da lista).
+      if (silent) applySavedListScroll();
+      if (pendingListScrollRestoreRef.current) restoreListScroll();
     }
-  }, [isOpen]);
+  }, [isOpen, applySavedListScroll, restoreListScroll]);
 
   useEffect(() => {
     if (isOpen) fetchParts();
@@ -495,6 +532,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
   }, [isOpen, closeRegistration, closeProductView]);
 
   const openCreateRegistration = useCallback((prefillBarcode?: string | null) => {
+    saveListScroll();
     closeProductView();
     setRegistrationMode('create');
     setRegistrationPart(null);
@@ -502,7 +540,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
     setRegistrationPrefillBarcode(prefillBarcode?.trim() || null);
     resetNewProductDraft();
     setError(null);
-  }, [resetNewProductDraft, closeProductView]);
+  }, [resetNewProductDraft, closeProductView, saveListScroll]);
 
   const openRegisterFromMissingBarcode = useCallback(
     (barcode: string) => {
@@ -513,6 +551,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
   );
 
   const openProductView = useCallback(async (part: WorkshopPart) => {
+    saveListScroll();
     const latest = parts.find((p) => p.id === part.id) ?? part;
     setViewPart(latest);
     setLoadingViewPart(true);
@@ -533,10 +572,17 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
     } finally {
       setLoadingViewPart(false);
     }
-  }, [parts]);
+  }, [parts, saveListScroll]);
 
   const openEditRegistration = useCallback(async (part: WorkshopPart) => {
-    closeProductView();
+    saveListScroll();
+    // Fecha a ficha sem restaurar scroll — a lista continua coberta pelo cadastro.
+    pendingListScrollRestoreRef.current = true;
+    setViewPart(null);
+    setViewPhotos([]);
+    setViewPurchases([]);
+    setViewLabContext(null);
+    setLoadingViewPart(false);
     setRegistrationMode('edit');
     setRegistrationPart(part);
     setPendingPhotos((prev) => {
@@ -558,14 +604,32 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
     } finally {
       setLoadingRegistrationPurchases(false);
     }
-  }, [closeProductView]);
+  }, [saveListScroll]);
 
   const handleEditFromView = useCallback(() => {
     if (!viewPart) return;
-    const part = viewPart;
-    closeProductView();
-    void openEditRegistration(part);
-  }, [viewPart, closeProductView, openEditRegistration]);
+    void openEditRegistration(viewPart);
+  }, [viewPart, openEditRegistration]);
+
+  // Restaura a posição da lista só quando nenhum overlay de ficha/cadastro está aberto.
+  useEffect(() => {
+    if (registrationMode || viewPart) return;
+    if (!pendingListScrollRestoreRef.current) return;
+    restoreListScroll();
+  }, [registrationMode, viewPart, restoreListScroll]);
+
+  // Impede o browser de zerar o scroll da lista enquanto o overlay cobre a home.
+  useEffect(() => {
+    const el = listScrollRef.current;
+    if (!el || (!registrationMode && !viewPart)) return;
+    const top = savedListScrollTopRef.current;
+    el.scrollTop = top;
+    const onScroll = () => {
+      if (el.scrollTop !== top) el.scrollTop = top;
+    };
+    el.addEventListener('scroll', onScroll, { passive: true });
+    return () => el.removeEventListener('scroll', onScroll);
+  }, [registrationMode, viewPart]);
 
   useEffect(() => {
     if (!registrationMode) return;
@@ -670,7 +734,8 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
         }
 
         closeRegistration();
-        await fetchParts();
+        // silent: não mostra spinner (senão a lista desmonta e o scroll volta ao topo).
+        await fetchParts({ silent: true });
       } catch (e) {
         setError(e instanceof Error ? e.message : 'Erro ao salvar peça.');
       } finally {
@@ -1308,6 +1373,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
             onEditingStockChange={setEditingStock}
             onSaveEdit={() => void handleSaveEdit()}
             onCancelEdit={cancelEdit}
+            listScrollRef={listScrollRef}
           />
 
         )}

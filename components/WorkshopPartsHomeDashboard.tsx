@@ -84,6 +84,8 @@ export type WorkshopPartsHomeDashboardProps = {
   onEditingStockChange: (v: string) => void;
   onSaveEdit: () => void;
   onCancelEdit: () => void;
+  /** Ref do container rolável da lista — usado para preservar a posição ao editar/abrir ficha. */
+  listScrollRef?: React.RefObject<HTMLDivElement | null>;
 };
 
 const actionBtnSecondary =
@@ -155,6 +157,7 @@ export function WorkshopPartsHomeDashboard({
   onEditingStockChange,
   onSaveEdit,
   onCancelEdit,
+  listScrollRef,
 }: WorkshopPartsHomeDashboardProps) {
   const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -186,7 +189,10 @@ export function WorkshopPartsHomeDashboard({
     'lg:grid-cols-[minmax(14rem,2.2fr)_minmax(7rem,0.9fr)_minmax(7rem,0.9fr)_minmax(5.5rem,0.7fr)_minmax(5.5rem,0.7fr)_minmax(4.5rem,0.55fr)_minmax(7.5rem,0.9fr)_5.5rem]';
 
   return (
-    <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-auto touch-pan-y px-4 pb-[max(2rem,env(safe-area-inset-bottom))] custom-scrollbar [scrollbar-gutter:stable] sm:px-6 lg:px-8">
+    <div
+      ref={listScrollRef}
+      className="min-h-0 flex-1 overflow-y-auto overscroll-y-auto touch-pan-y px-4 pb-[max(2rem,env(safe-area-inset-bottom))] custom-scrollbar [scrollbar-gutter:stable] sm:px-6 lg:px-8"
+    >
       {/* Barra de ações — sobe e some ao rolar */}
       <div className="mb-5 flex flex-col gap-3 pt-1 sm:mb-6 sm:flex-row sm:items-start sm:justify-between">
         {!loading ? (
