@@ -13,6 +13,8 @@ export type AuthenticatedAppFrameProps = {
   currentTab: TabId;
   onTabChange: (tab: TabId) => void;
   onBackFromOverlay: () => void;
+  /** Label do botão Fechar nas páginas overlay (mobile). */
+  overlayBackLabel?: string;
   allowedTabs?: TabId[];
   desktopSidebarAccess?: DesktopSidebarAccess;
   onDesktopSidebarAction?: (action: DesktopSidebarActionId) => void;
@@ -40,6 +42,7 @@ export function AuthenticatedAppFrame({
   currentTab,
   onTabChange,
   onBackFromOverlay,
+  overlayBackLabel = 'Fechar',
   allowedTabs,
   desktopSidebarAccess,
   onDesktopSidebarAction,
@@ -101,6 +104,7 @@ export function AuthenticatedAppFrame({
       <OverlayPageNavBar
         visible={currentTab !== 'home' && currentTab !== 'patio' && currentTab !== 'laboratorio'}
         onBack={onBackFromOverlay}
+        label={overlayBackLabel}
       />
       <main className="relative z-10 flex-1 min-h-0 flex flex-col overflow-hidden">{children}</main>
     </div>
