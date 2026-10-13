@@ -632,9 +632,6 @@ export function WorkshopPartsHomeDashboard({
                           <span className="truncate text-[15px] font-bold leading-snug text-zinc-900 dark:text-white">
                             {p.name}
                           </span>
-                          <span className="truncate text-[12px] text-zinc-500 dark:text-zinc-400">
-                            {storageSiteLabel(p.storage_site)}
-                          </span>
                           <span className="lg:hidden">
                             <WorkshopPartStockBadge status={stockStatus} showOk className="mt-1" />
                           </span>
@@ -677,8 +674,13 @@ export function WorkshopPartsHomeDashboard({
                         )}
                       </div>
 
-                      <span className="mt-2 block text-[13px] font-medium tabular-nums text-zinc-700 dark:text-zinc-300 lg:mt-0">
-                        {location}
+                      <span className="mt-2 flex min-w-0 flex-col gap-0.5 lg:mt-0">
+                        <span className="truncate text-[12px] font-medium leading-snug text-zinc-500 dark:text-zinc-400">
+                          {storageSiteLabel(p.storage_site)}
+                        </span>
+                        <span className="truncate text-[13px] font-semibold tabular-nums leading-snug text-zinc-800 dark:text-zinc-200">
+                          {location}
+                        </span>
                       </span>
 
                       <span className="mt-2 block text-[13px] font-medium tabular-nums text-zinc-800 dark:text-zinc-200 lg:mt-0 lg:text-right">
