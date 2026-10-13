@@ -3,8 +3,11 @@
 export const ABS_MODULE_ID_REGEX = /^ABS-\d{6}$/i;
 
 export type AbsModuleKind = 'completo' | 'eletronico' | 'hidraulico' | 'outro';
+/** @deprecated Prefer AbsModuleItemState + AbsModuleItemCondition */
 export type AbsModuleCondition = 'novo' | 'usado' | 'revisado' | 'recuperado';
-export type AbsModuleStatus = 'disponivel' | 'fora_estoque';
+export type AbsModuleItemState = 'novo' | 'usado' | 'recondicionado';
+export type AbsModuleItemCondition = 'perfeito' | 'com_avarias' | 'defeituoso' | 'nao_testado';
+export type AbsModuleStatus = 'disponivel' | 'fora_estoque' | 'desmembrado' | 'reservado';
 export type AbsModuleMovementType = 'entry' | 'exit' | 'transfer';
 export type AbsModuleExitReason =
   | 'venda_avulsa'
@@ -13,7 +16,16 @@ export type AbsModuleExitReason =
   | 'veiculo'
   | 'retorno'
   | 'ajuste'
+  | 'laboratorio'
+  | 'desmembramento'
   | 'outro';
+export type AbsComponentScope = 'completo' | 'eletronico' | 'hidraulico';
+export type AbsCodeRole = 'fabricante' | 'montadora' | 'alternativo';
+export type AbsDisassembleDestination =
+  | 'ordem_servico'
+  | 'venda_direta'
+  | 'laboratorio'
+  | 'estoque';
 
 export const ABS_MODULE_KIND_OPTIONS: { value: AbsModuleKind; label: string }[] = [
   { value: 'completo', label: 'Módulo completo' },
@@ -29,22 +41,112 @@ export const ABS_MODULE_CONDITION_OPTIONS: { value: AbsModuleCondition; label: s
   { value: 'recuperado', label: 'Recuperado' },
 ];
 
+export const ABS_MODULE_ITEM_STATE_OPTIONS: { value: AbsModuleItemState; label: string }[] = [
+  { value: 'novo', label: 'Novo' },
+  { value: 'usado', label: 'Usado' },
+  { value: 'recondicionado', label: 'Recondicionado' },
+];
+
+export const ABS_MODULE_ITEM_CONDITION_OPTIONS: {
+  value: AbsModuleItemCondition;
+  label: string;
+}[] = [
+  { value: 'perfeito', label: 'Perfeito' },
+  { value: 'com_avarias', label: 'Com avarias' },
+  { value: 'defeituoso', label: 'Defeituoso' },
+  { value: 'nao_testado', label: 'Não testado' },
+];
+
 export const ABS_MODULE_STATUS_OPTIONS: { value: AbsModuleStatus; label: string }[] = [
   { value: 'disponivel', label: 'Disponível' },
+  { value: 'reservado', label: 'Reservado' },
   { value: 'fora_estoque', label: 'Fora do estoque' },
+  { value: 'desmembrado', label: 'Desmembrado' },
 ];
 
 export const ABS_MODULE_EXIT_REASON_OPTIONS: { value: AbsModuleExitReason; label: string }[] = [
   { value: 'venda_avulsa', label: 'Baixa por venda' },
   { value: 'ordem_servico', label: 'Ordem de serviço' },
+  { value: 'laboratorio', label: 'Laboratório' },
   { value: 'cliente', label: 'Cliente' },
   { value: 'veiculo', label: 'Veículo' },
+  { value: 'desmembramento', label: 'Desmembramento' },
   { value: 'outro', label: 'Outro motivo' },
+];
+
+export const ABS_CODE_ROLE_OPTIONS: { value: AbsCodeRole; label: string }[] = [
+  { value: 'fabricante', label: 'Fabricante' },
+  { value: 'montadora', label: 'Montadora' },
+  { value: 'alternativo', label: 'Alternativo' },
+];
+
+export const ABS_DISASSEMBLE_DESTINATION_OPTIONS: {
+  value: AbsDisassembleDestination;
+  label: string;
+}[] = [
+  { value: 'ordem_servico', label: 'Ordem de serviço' },
+  { value: 'venda_direta', label: 'Venda direta' },
+  { value: 'laboratorio', label: 'Laboratório' },
+  { value: 'estoque', label: 'Estoque' },
 ];
 
 export const ABS_MODULE_KINDS = ABS_MODULE_KIND_OPTIONS.map((o) => o.value);
 export const ABS_MODULE_CONDITIONS = ABS_MODULE_CONDITION_OPTIONS.map((o) => o.value);
 export const ABS_MODULE_STATUSES = ABS_MODULE_STATUS_OPTIONS.map((o) => o.value);
+export const ABS_MODULE_ITEM_STATES = ABS_MODULE_ITEM_STATE_OPTIONS.map((o) => o.value);
+export const ABS_MODULE_ITEM_CONDITIONS = ABS_MODULE_ITEM_CONDITION_OPTIONS.map((o) => o.value);
+
+export type WorkshopAbsModuleCode = {
+  id: string;
+  workshop_id?: string;
+  model_id: string;
+  component_scope: AbsComponentScope;
+  code_role: AbsCodeRole;
+  code_value: string;
+  sort_order: number;
+  created_at?: string;
+};
+
+export type WorkshopAbsModuleApplication = {
+  id: string;
+  workshop_id?: string;
+  model_id: string;
+  component_scope: AbsComponentScope;
+  vehicle_brand: string | null;
+  vehicle_model: string | null;
+  generation: string | null;
+  year_from: number | null;
+  year_to: number | null;
+  engine: string | null;
+  version: string | null;
+  notes: string | null;
+  sort_order: number;
+  created_at?: string;
+};
+
+export type WorkshopAbsModulePhoto = {
+  id: string;
+  photo_url: string;
+  sort_order: number;
+};
+
+export type WorkshopAbsModuleModel = {
+  id: string;
+  workshop_id?: string;
+  manufacturer: string | null;
+  family: string | null;
+  module_kind: AbsModuleKind;
+  notes: string | null;
+  fingerprint?: string;
+  created_at: string;
+  updated_at: string;
+  codes?: WorkshopAbsModuleCode[];
+  applications?: WorkshopAbsModuleApplication[];
+  photos?: WorkshopAbsModulePhoto[];
+  available_qty?: number;
+  total_qty?: number;
+  units?: WorkshopAbsModule[];
+};
 
 export type WorkshopAbsModule = {
   id: string;
@@ -57,15 +159,23 @@ export type WorkshopAbsModule = {
   year_label: string | null;
   module_kind: AbsModuleKind;
   condition: AbsModuleCondition;
+  item_state: AbsModuleItemState;
+  item_condition: AbsModuleItemCondition;
+  damage_description: string | null;
   unit_cost: number;
   unit_price: number;
   supplier: string | null;
   location: string | null;
   notes: string | null;
   status: AbsModuleStatus;
+  model_id: string | null;
+  sequence_number: number | null;
+  parent_complete_id: string | null;
   received_at: string;
   created_at: string;
   updated_at: string;
+  catalog_model?: WorkshopAbsModuleModel | null;
+  photos?: WorkshopAbsModulePhoto[];
 };
 
 export type WorkshopAbsModuleMovement = {
@@ -81,7 +191,58 @@ export type WorkshopAbsModuleMovement = {
   reason_ref: string | null;
   notes: string | null;
   recorded_by_name: string | null;
+  service_order_id?: string | null;
   created_at: string;
+};
+
+export type WorkshopAbsModuleDisassembly = {
+  id: string;
+  workshop_id?: string;
+  source_module_id: string;
+  withdrawn_kind: 'eletronico' | 'hidraulico';
+  remaining_module_id: string;
+  withdrawn_module_id: string;
+  destination: AbsDisassembleDestination;
+  destination_ref: string | null;
+  service_order_id: string | null;
+  cost_original: number;
+  cost_remaining: number;
+  cost_withdrawn: number;
+  cost_adjustment_authorized: boolean;
+  cost_adjustment_note: string | null;
+  notes: string | null;
+  recorded_by_name: string | null;
+  created_at: string;
+};
+
+export type WorkshopAbsModuleCodeInput = {
+  component_scope: AbsComponentScope;
+  code_role?: AbsCodeRole;
+  code_value: string;
+  sort_order?: number;
+};
+
+export type WorkshopAbsModuleApplicationInput = {
+  component_scope: AbsComponentScope;
+  vehicle_brand?: string | null;
+  vehicle_model?: string | null;
+  generation?: string | null;
+  year_from?: number | null;
+  year_to?: number | null;
+  engine?: string | null;
+  version?: string | null;
+  notes?: string | null;
+  sort_order?: number;
+};
+
+export type WorkshopAbsModuleModelWriteInput = {
+  manufacturer?: string | null;
+  family?: string | null;
+  module_kind?: AbsModuleKind;
+  notes?: string | null;
+  codes?: WorkshopAbsModuleCodeInput[];
+  applications?: WorkshopAbsModuleApplicationInput[];
+  photo_urls?: string[];
 };
 
 export type WorkshopAbsModuleWriteInput = {
@@ -92,6 +253,9 @@ export type WorkshopAbsModuleWriteInput = {
   year_label?: string | null;
   module_kind?: AbsModuleKind;
   condition?: AbsModuleCondition;
+  item_state?: AbsModuleItemState;
+  item_condition?: AbsModuleItemCondition;
+  damage_description?: string | null;
   unit_cost?: number;
   unit_price?: number;
   supplier?: string | null;
@@ -99,6 +263,40 @@ export type WorkshopAbsModuleWriteInput = {
   notes?: string | null;
   status?: AbsModuleStatus;
   received_at?: string | null;
+  model_id?: string | null;
+  /** Cadastro em um passo: cria/resolve modelo + unidade */
+  catalog?: WorkshopAbsModuleModelWriteInput;
+  photo_urls?: string[];
+};
+
+export type WorkshopAbsModuleSearchResult = {
+  query: string;
+  availableUnits: WorkshopAbsModule[];
+  availableViaDisassembly: WorkshopAbsModule[];
+};
+
+export type WorkshopAbsDisassembleInput = {
+  withdrawn_kind: 'eletronico' | 'hidraulico';
+  destination: AbsDisassembleDestination;
+  destination_ref?: string | null;
+  service_order_id?: string | null;
+  cost_remaining?: number | null;
+  cost_withdrawn?: number | null;
+  cost_adjustment_authorized?: boolean;
+  cost_adjustment_note?: string | null;
+  remaining_location?: string | null;
+  withdrawn_location?: string | null;
+  notes?: string | null;
+  recorded_by_name?: string | null;
+  remaining_primary_code?: string | null;
+  withdrawn_primary_code?: string | null;
+};
+
+export type WorkshopAbsDisassembleResult = {
+  source: WorkshopAbsModule;
+  remaining: WorkshopAbsModule;
+  withdrawn: WorkshopAbsModule;
+  disassembly: WorkshopAbsModuleDisassembly;
 };
 
 /** Normaliza conteúdo lido da câmera/pistola para ID ABS (remove URL/espaços). */
@@ -152,6 +350,22 @@ export function isValidAbsModulePublicId(raw: string): boolean {
   return ABS_MODULE_ID_REGEX.test(String(raw || '').trim());
 }
 
+export function formatAbsModuleSequence(n: number | null | undefined): string {
+  if (n == null || !Number.isFinite(Number(n))) return '—';
+  return `#${Math.floor(Number(n))}`;
+}
+
+export function absModelFingerprint(
+  manufacturer: string | null | undefined,
+  primaryCode: string | null | undefined,
+  moduleKind: string | null | undefined
+): string {
+  const m = String(manufacturer || '').trim() || '_';
+  const c = String(primaryCode || '').trim() || '_';
+  const k = String(moduleKind || 'outro').trim() || 'outro';
+  return `${m}|${c}|${k}`.toLowerCase();
+}
+
 export function absModuleKindLabel(kind: string | null | undefined): string {
   return ABS_MODULE_KIND_OPTIONS.find((o) => o.value === kind)?.label ?? 'Módulo ABS';
 }
@@ -160,8 +374,16 @@ export function absModuleConditionLabel(condition: string | null | undefined): s
   return ABS_MODULE_CONDITION_OPTIONS.find((o) => o.value === condition)?.label ?? '—';
 }
 
+export function absModuleItemStateLabel(state: string | null | undefined): string {
+  return ABS_MODULE_ITEM_STATE_OPTIONS.find((o) => o.value === state)?.label ?? '—';
+}
+
+export function absModuleItemConditionLabel(condition: string | null | undefined): string {
+  return ABS_MODULE_ITEM_CONDITION_OPTIONS.find((o) => o.value === condition)?.label ?? '—';
+}
+
 export function absModuleStatusLabel(status: string | null | undefined): string {
-  return status === 'fora_estoque' ? 'Fora do estoque' : 'Disponível';
+  return ABS_MODULE_STATUS_OPTIONS.find((o) => o.value === status)?.label ?? String(status || '—');
 }
 
 export function absModuleMovementLabel(type: AbsModuleMovementType | string): string {
@@ -173,6 +395,10 @@ export function absModuleMovementLabel(type: AbsModuleMovementType | string): st
 
 export function absModuleExitReasonLabel(reason: string | null | undefined): string {
   return ABS_MODULE_EXIT_REASON_OPTIONS.find((o) => o.value === reason)?.label ?? reason ?? '—';
+}
+
+export function absDisassembleDestinationLabel(d: string | null | undefined): string {
+  return ABS_DISASSEMBLE_DESTINATION_OPTIONS.find((o) => o.value === d)?.label ?? d ?? '—';
 }
 
 export function formatAbsModuleMoney(n: number | null | undefined): string {
@@ -209,4 +435,25 @@ export function describeAbsModuleMovement(m: WorkshopAbsModuleMovement): string 
     return m.notes || m.reason_ref || 'Entrada / retorno ao estoque';
   }
   return type;
+}
+
+export function primaryCodeForScope(
+  codes: WorkshopAbsModuleCode[] | undefined,
+  scope: AbsComponentScope
+): string | null {
+  const list = (codes || [])
+    .filter((c) => c.component_scope === scope && String(c.code_value || '').trim())
+    .sort((a, b) => a.sort_order - b.sort_order);
+  return list[0]?.code_value ?? null;
+}
+
+export function legacyConditionToItemFields(condition: AbsModuleCondition | string | undefined): {
+  item_state: AbsModuleItemState;
+  item_condition: AbsModuleItemCondition;
+} {
+  if (condition === 'novo') return { item_state: 'novo', item_condition: 'perfeito' };
+  if (condition === 'revisado' || condition === 'recuperado') {
+    return { item_state: 'recondicionado', item_condition: 'nao_testado' };
+  }
+  return { item_state: 'usado', item_condition: 'nao_testado' };
 }
