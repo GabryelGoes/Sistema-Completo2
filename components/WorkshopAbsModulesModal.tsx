@@ -23,9 +23,11 @@ import {
   getWorkshopAbsModuleModels,
   getWorkshopAbsModuleMovements,
   lookupWorkshopAbsModuleByCode,
+  searchWorkshopAbsModules,
   type WorkshopAbsModule,
   type WorkshopAbsModuleModel,
   type WorkshopAbsModuleMovement,
+  type WorkshopAbsModuleSearchResult,
 } from '../services/apiService';
 import {
   ABS_CODE_ROLE_OPTIONS,
@@ -399,6 +401,8 @@ export function WorkshopAbsModulesModal({
   const [disCostRemaining, setDisCostRemaining] = useState('');
   const [disCostWithdrawn, setDisCostWithdrawn] = useState('');
   const [disNotes, setDisNotes] = useState('');
+  const [smartSearch, setSmartSearch] = useState<WorkshopAbsModuleSearchResult | null>(null);
+  const [smartSearchBusy, setSmartSearchBusy] = useState(false);
 
   useBrowserBackLayer(isOpen, onClose);
 
@@ -420,6 +424,19 @@ export function WorkshopAbsModulesModal({
         status: filterStatus || undefined,
       });
       setModels(list);
+      const q = query.trim();
+      if (q.length >= 2) {
+        setSmartSearchBusy(true);
+        try {
+          setSmartSearch(await searchWorkshopAbsModules(q));
+        } catch {
+          setSmartSearch(null);
+        } finally {
+          setSmartSearchBusy(false);
+        }
+      } else {
+        setSmartSearch(null);
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Falha ao listar modelos ABS.');
     } finally {
@@ -726,9 +743,12 @@ export function WorkshopAbsModulesModal({
         recorded_by_name: recordedByName,
       });
       setSuccessMsg(
-        `Desmembrado: restante ${result.remaining.public_id} · retirado ${result.withdrawn.public_id}`
+        `Desmembrado: restante ${result.remaining.public_id} · retirado ${result.withdrawn.public_id}. Imprima a etiqueta do componente em estoque.`
       );
-      openDetail(result.withdrawn);
+      // Prioriza o componente que permanece disponível para etiqueta.
+      openDetail(
+        result.remaining.status === 'disponivel' ? result.remaining : result.withdrawn
+      );
       void loadModels();
     } catch (e) {
       setActionError(e instanceof Error ? e.message : 'Falha ao desmembrar.');
@@ -960,6 +980,83 @@ export function WorkshopAbsModulesModal({
                   </select>
                 </div>
 
+                {smartSearchBusy ? (
+                  <p className="text-[13px] text-zinc-500">Buscando componentes…</p>
+                ) : null}
+                {smartSearch &&
+                (smartSearch.availableUnits.length > 0 ||
+                  smartSearch.availableViaDisassembly.length > 0) ? (
+                  <div className="space-y-3">
+                    {smartSearch.availableUnits.length > 0 ? (
+                      <section className="space-y-2">
+                        <h3 className="text-[12px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-300">
+                          Disponíveis individualmente
+                        </h3>
+                        <ul className="space-y-2">
+                          {smartSearch.availableUnits.map((u) => (
+                            <li key={u.id}>
+                              <button
+                                type="button"
+                                onClick={() => openDetail(u)}
+                                className="flex w-full items-center gap-3 rounded-3xl border-0 bg-white px-4 py-3 text-left shadow-none hover:bg-zinc-50 dark:bg-white/5 dark:hover:bg-white/10"
+                              >
+                                <span className="min-w-0 flex-1">
+                                  <span className="block text-[15px] font-bold text-zinc-900 dark:text-white">
+                                    {formatAbsModuleSequence(u.sequence_number)} · {u.public_id}
+                                  </span>
+                                  <span className="mt-0.5 block text-[13px] text-zinc-600 dark:text-zinc-300">
+                                    {absModuleKindLabel(u.module_kind)}
+                                    {u.manufacturer ? ` · ${u.manufacturer}` : ''}
+                                    {u.original_code ? ` · ${u.original_code}` : ''}
+                                  </span>
+                                </span>
+                                <StatusPill status={u.status} />
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      </section>
+                    ) : null}
+                    {smartSearch.availableViaDisassembly.length > 0 ? (
+                      <section className="space-y-2">
+                        <h3 className="text-[12px] font-bold uppercase tracking-wider text-amber-700 dark:text-amber-300">
+                          Disponíveis mediante desmembramento
+                        </h3>
+                        <ul className="space-y-2">
+                          {smartSearch.availableViaDisassembly.map((u) => (
+                            <li key={u.id}>
+                              <div className="flex flex-wrap items-center gap-2 rounded-3xl border-0 bg-white px-4 py-3 shadow-none dark:bg-white/5">
+                                <button
+                                  type="button"
+                                  onClick={() => openDetail(u)}
+                                  className="min-w-0 flex-1 text-left"
+                                >
+                                  <span className="block text-[15px] font-bold text-zinc-900 dark:text-white">
+                                    {formatAbsModuleSequence(u.sequence_number)} · {u.public_id}
+                                  </span>
+                                  <span className="mt-0.5 block text-[13px] text-zinc-600 dark:text-zinc-300">
+                                    Completo
+                                    {u.manufacturer ? ` · ${u.manufacturer}` : ''}
+                                    {u.original_code ? ` · ${u.original_code}` : ''}
+                                  </span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => openDisassemble(u)}
+                                  className="inline-flex items-center gap-1.5 rounded-2xl bg-amber-600 px-3 py-2 text-[13px] font-semibold text-white"
+                                >
+                                  <Scissors className="h-3.5 w-3.5" />
+                                  Desmembrar
+                                </button>
+                              </div>
+                            </li>
+                          ))}
+                        </ul>
+                      </section>
+                    ) : null}
+                  </div>
+                ) : null}
+
                 {loading ? (
                   <div className="flex justify-center py-10 text-zinc-500">
                     <Loader2 className="h-6 w-6 animate-spin" />
@@ -970,6 +1067,9 @@ export function WorkshopAbsModulesModal({
                   </div>
                 ) : (
                   <ul className="space-y-2">
+                    <li className="px-1 pt-1 text-[12px] font-bold uppercase tracking-wider text-zinc-500">
+                      Modelos técnicos
+                    </li>
                     {models.map((m) => (
                       <li key={m.id}>
                         <button
