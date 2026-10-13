@@ -3,22 +3,42 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import {
   applyDevAbsModuleMovement,
   createDevAbsModule,
+  createDevAbsModuleModel,
+  disassembleDevAbsModule,
   getDevAbsModuleByPublicId,
+  getDevAbsModuleModel,
   getDevAbsModuleMovements,
+  listDevAbsModuleModels,
   listDevAbsModules,
+  searchDevAbsModules,
   updateDevAbsModule,
+  updateDevAbsModuleModel,
 } from './workshopAbsModuleDevMemory.js';
 import {
   ABS_MODULE_CONDITIONS,
+  ABS_MODULE_ITEM_CONDITIONS,
+  ABS_MODULE_ITEM_STATES,
   ABS_MODULE_KINDS,
   ABS_MODULE_STATUSES,
+  absModelFingerprint,
   isValidAbsModulePublicId,
+  legacyConditionToItemFields,
   looksLikeAbsModuleCode,
   normalizeAbsModuleCode,
+  primaryCodeForScope,
+  type AbsCodeRole,
+  type AbsComponentScope,
+  type AbsDisassembleDestination,
   type AbsModuleCondition,
+  type AbsModuleItemCondition,
+  type AbsModuleItemState,
   type AbsModuleKind,
   type AbsModuleMovementType,
   type AbsModuleStatus,
+  type WorkshopAbsDisassembleInput,
+  type WorkshopAbsModuleApplicationInput,
+  type WorkshopAbsModuleCodeInput,
+  type WorkshopAbsModuleModelWriteInput,
   type WorkshopAbsModuleWriteInput,
 } from './workshopAbsModules.js';
 
@@ -58,7 +78,105 @@ function parseStatus(value: unknown): AbsModuleStatus {
     : 'disponivel';
 }
 
+function parseItemState(value: unknown, fallback: AbsModuleItemState = 'usado'): AbsModuleItemState {
+  const v = String(value || '').trim();
+  return (ABS_MODULE_ITEM_STATES as readonly string[]).includes(v)
+    ? (v as AbsModuleItemState)
+    : fallback;
+}
+
+function parseItemCondition(
+  value: unknown,
+  fallback: AbsModuleItemCondition = 'nao_testado'
+): AbsModuleItemCondition {
+  const v = String(value || '').trim();
+  return (ABS_MODULE_ITEM_CONDITIONS as readonly string[]).includes(v)
+    ? (v as AbsModuleItemCondition)
+    : fallback;
+}
+
+function parseScope(value: unknown, fallback: AbsComponentScope = 'completo'): AbsComponentScope {
+  const v = String(value || '').trim();
+  if (v === 'completo' || v === 'eletronico' || v === 'hidraulico') return v;
+  return fallback;
+}
+
+function parseCodeRole(value: unknown): AbsCodeRole {
+  const v = String(value || '').trim();
+  if (v === 'fabricante' || v === 'montadora' || v === 'alternativo') return v;
+  return 'fabricante';
+}
+
+function scopeForKind(kind: AbsModuleKind): AbsComponentScope {
+  if (kind === 'hidraulico') return 'hidraulico';
+  if (kind === 'eletronico') return 'eletronico';
+  if (kind === 'completo') return 'completo';
+  return 'eletronico';
+}
+
+function parseCodes(raw: unknown): WorkshopAbsModuleCodeInput[] | undefined {
+  if (!Array.isArray(raw)) return undefined;
+  const out: WorkshopAbsModuleCodeInput[] = [];
+  raw.forEach((c, i) => {
+    if (!c || typeof c !== 'object') return;
+    const row = c as Record<string, unknown>;
+    const code_value = parseOptionalText(row.code_value);
+    if (!code_value) return;
+    out.push({
+      component_scope: parseScope(row.component_scope),
+      code_role: parseCodeRole(row.code_role),
+      code_value,
+      sort_order: Number.isFinite(Number(row.sort_order)) ? Number(row.sort_order) : i,
+    });
+  });
+  return out;
+}
+
+function parseApplications(raw: unknown): WorkshopAbsModuleApplicationInput[] | undefined {
+  if (!Array.isArray(raw)) return undefined;
+  return raw.map((a, i) => {
+    const row = (a && typeof a === 'object' ? a : {}) as Record<string, unknown>;
+    return {
+      component_scope: parseScope(row.component_scope),
+      vehicle_brand: parseOptionalText(row.vehicle_brand),
+      vehicle_model: parseOptionalText(row.vehicle_model),
+      generation: parseOptionalText(row.generation),
+      year_from:
+        row.year_from != null && Number.isFinite(Number(row.year_from))
+          ? Number(row.year_from)
+          : null,
+      year_to:
+        row.year_to != null && Number.isFinite(Number(row.year_to)) ? Number(row.year_to) : null,
+      engine: parseOptionalText(row.engine),
+      version: parseOptionalText(row.version),
+      notes: parseOptionalText(row.notes),
+      sort_order: Number.isFinite(Number(row.sort_order)) ? Number(row.sort_order) : i,
+    } satisfies WorkshopAbsModuleApplicationInput;
+  });
+}
+
+function parsePhotoUrls(raw: unknown): string[] | undefined {
+  if (!Array.isArray(raw)) return undefined;
+  return raw.map((u) => String(u || '').trim()).filter(Boolean);
+}
+
+function parseCatalog(raw: unknown): WorkshopAbsModuleModelWriteInput | undefined {
+  if (!raw || typeof raw !== 'object') return undefined;
+  const c = raw as Record<string, unknown>;
+  return {
+    manufacturer: parseOptionalText(c.manufacturer),
+    family: parseOptionalText(c.family),
+    module_kind: c.module_kind != null ? parseKind(c.module_kind) : undefined,
+    notes: parseOptionalText(c.notes),
+    codes: parseCodes(c.codes),
+    applications: parseApplications(c.applications),
+    photo_urls: parsePhotoUrls(c.photo_urls),
+  };
+}
+
 function modulePayloadFromBody(body: Record<string, unknown>): WorkshopAbsModuleWriteInput {
+  const condition = parseCondition(body.condition);
+  const legacy = legacyConditionToItemFields(condition);
   return {
     manufacturer: parseOptionalText(body.manufacturer),
     original_code: parseOptionalText(body.original_code ?? body.oem_code),
@@ -66,7 +184,10 @@ function modulePayloadFromBody(body: Record<string, unknown>): WorkshopAbsModule
     model: parseOptionalText(body.model),
     year_label: parseOptionalText(body.year_label ?? body.year),
     module_kind: parseKind(body.module_kind ?? body.module_type),
-    condition: parseCondition(body.condition),
+    condition,
+    item_state: parseItemState(body.item_state, legacy.item_state),
+    item_condition: parseItemCondition(body.item_condition, legacy.item_condition),
+    damage_description: parseOptionalText(body.damage_description),
     unit_cost: parseMoney(body.unit_cost ?? body.cost, 0),
     unit_price: parseMoney(body.unit_price ?? body.sale_price, 0),
     supplier: parseOptionalText(body.supplier),
@@ -74,16 +195,506 @@ function modulePayloadFromBody(body: Record<string, unknown>): WorkshopAbsModule
     notes: parseOptionalText(body.notes),
     status: body.status != null ? parseStatus(body.status) : 'disponivel',
     received_at: parseOptionalText(body.received_at ?? body.entry_date),
+    model_id: parseOptionalText(body.model_id),
+    catalog: parseCatalog(body.catalog),
+    photo_urls: parsePhotoUrls(body.photo_urls),
   };
+}
+
+function modelPayloadFromBody(body: Record<string, unknown>): WorkshopAbsModuleModelWriteInput {
+  return {
+    manufacturer: parseOptionalText(body.manufacturer),
+    family: parseOptionalText(body.family),
+    module_kind: body.module_kind != null ? parseKind(body.module_kind) : undefined,
+    notes: parseOptionalText(body.notes),
+    codes: parseCodes(body.codes),
+    applications: parseApplications(body.applications),
+    photo_urls: parsePhotoUrls(body.photo_urls),
+  };
+}
+
+function primaryCodeFromCodes(
+  codes: WorkshopAbsModuleCodeInput[] | undefined,
+  kind: AbsModuleKind,
+  fallback?: string | null
+): string | null {
+  const scope = scopeForKind(kind);
+  const scoped = (codes || [])
+    .filter((c) => c.component_scope === scope && String(c.code_value || '').trim())
+    .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+  if (scoped[0]) return scoped[0].code_value;
+  const any = (codes || []).find((c) => String(c.code_value || '').trim());
+  if (any) return any.code_value;
+  return parseOptionalText(fallback);
 }
 
 function isDevMemoryActive(deps: AbsRouteDeps): boolean {
   return !(deps.supabaseAdmin && deps.WORKSHOP_ID);
 }
 
+async function replaceModelCodes(
+  supabaseAdmin: SupabaseClient,
+  workshopId: string,
+  modelId: string,
+  codes: WorkshopAbsModuleCodeInput[]
+) {
+  await supabaseAdmin.from('workshop_abs_module_codes').delete().eq('model_id', modelId);
+  if (!codes.length) return;
+  const rows = codes.map((c, i) => ({
+    workshop_id: workshopId,
+    model_id: modelId,
+    component_scope: c.component_scope,
+    code_role: c.code_role || 'fabricante',
+    code_value: c.code_value,
+    sort_order: c.sort_order ?? i,
+  }));
+  const { error } = await supabaseAdmin.from('workshop_abs_module_codes').insert(rows);
+  if (error) throw new Error(error.message);
+}
+
+async function replaceModelApplications(
+  supabaseAdmin: SupabaseClient,
+  workshopId: string,
+  modelId: string,
+  apps: WorkshopAbsModuleApplicationInput[]
+) {
+  await supabaseAdmin.from('workshop_abs_module_applications').delete().eq('model_id', modelId);
+  if (!apps.length) return;
+  const rows = apps.map((a, i) => ({
+    workshop_id: workshopId,
+    model_id: modelId,
+    component_scope: a.component_scope,
+    vehicle_brand: a.vehicle_brand ?? null,
+    vehicle_model: a.vehicle_model ?? null,
+    generation: a.generation ?? null,
+    year_from: a.year_from ?? null,
+    year_to: a.year_to ?? null,
+    engine: a.engine ?? null,
+    version: a.version ?? null,
+    notes: a.notes ?? null,
+    sort_order: a.sort_order ?? i,
+  }));
+  const { error } = await supabaseAdmin.from('workshop_abs_module_applications').insert(rows);
+  if (error) throw new Error(error.message);
+}
+
+async function replaceModelPhotos(
+  supabaseAdmin: SupabaseClient,
+  workshopId: string,
+  modelId: string,
+  urls: string[]
+) {
+  await supabaseAdmin.from('workshop_abs_module_model_photos').delete().eq('model_id', modelId);
+  if (!urls.length) return;
+  const rows = urls.map((photo_url, i) => ({
+    workshop_id: workshopId,
+    model_id: modelId,
+    photo_url,
+    sort_order: i,
+  }));
+  const { error } = await supabaseAdmin.from('workshop_abs_module_model_photos').insert(rows);
+  if (error) throw new Error(error.message);
+}
+
+async function insertUnitPhotos(
+  supabaseAdmin: SupabaseClient,
+  workshopId: string,
+  moduleId: string,
+  urls: string[] | undefined
+) {
+  if (!urls?.length) return;
+  const rows = urls.map((photo_url, i) => ({
+    workshop_id: workshopId,
+    module_id: moduleId,
+    photo_url,
+    sort_order: i,
+  }));
+  const { error } = await supabaseAdmin.from('workshop_abs_module_unit_photos').insert(rows);
+  if (error) throw new Error(error.message);
+}
+
+async function resolveOrCreateModelId(
+  supabaseAdmin: SupabaseClient,
+  workshopId: string,
+  opts: {
+    manufacturer?: string | null;
+    family?: string | null;
+    module_kind: AbsModuleKind;
+    primary_code?: string | null;
+    notes?: string | null;
+    codes?: WorkshopAbsModuleCodeInput[];
+    applications?: WorkshopAbsModuleApplicationInput[];
+    photo_urls?: string[];
+  }
+): Promise<string> {
+  const { data: modelId, error } = await supabaseAdmin.rpc('resolve_or_create_abs_module_model', {
+    p_workshop_id: workshopId,
+    p_manufacturer: opts.manufacturer ?? null,
+    p_family: opts.family ?? null,
+    p_module_kind: opts.module_kind,
+    p_primary_code: opts.primary_code ?? null,
+    p_notes: opts.notes ?? null,
+  });
+  if (error) throw new Error(error.message);
+  const id = String(modelId);
+  if (opts.codes?.length) {
+    // merge: insert missing codes (do not wipe if resolve reused existing model)
+    const { data: existing } = await supabaseAdmin
+      .from('workshop_abs_module_codes')
+      .select('code_value, component_scope')
+      .eq('model_id', id);
+    const have = new Set(
+      (existing || []).map((c) => `${c.component_scope}|${String(c.code_value).trim().toLowerCase()}`)
+    );
+    const toInsert = opts.codes
+      .filter((c) => {
+        const key = `${c.component_scope}|${c.code_value.trim().toLowerCase()}`;
+        return c.code_value.trim() && !have.has(key);
+      })
+      .map((c, i) => ({
+        workshop_id: workshopId,
+        model_id: id,
+        component_scope: c.component_scope,
+        code_role: c.code_role || 'fabricante',
+        code_value: c.code_value,
+        sort_order: c.sort_order ?? i,
+      }));
+    if (toInsert.length) {
+      const { error: cErr } = await supabaseAdmin.from('workshop_abs_module_codes').insert(toInsert);
+      if (cErr) throw new Error(cErr.message);
+    }
+  }
+  if (opts.applications?.length) {
+    const { count } = await supabaseAdmin
+      .from('workshop_abs_module_applications')
+      .select('id', { count: 'exact', head: true })
+      .eq('model_id', id);
+    if (!count) {
+      await replaceModelApplications(supabaseAdmin, workshopId, id, opts.applications);
+    }
+  }
+  if (opts.photo_urls?.length) {
+    const { count } = await supabaseAdmin
+      .from('workshop_abs_module_model_photos')
+      .select('id', { count: 'exact', head: true })
+      .eq('model_id', id);
+    if (!count) {
+      await replaceModelPhotos(supabaseAdmin, workshopId, id, opts.photo_urls);
+    }
+  }
+  return id;
+}
+
+async function fetchModelBundle(
+  supabaseAdmin: SupabaseClient,
+  workshopId: string,
+  modelId: string,
+  includeUnits: boolean
+) {
+  const { data: model, error } = await supabaseAdmin
+    .from('workshop_abs_module_models')
+    .select('*')
+    .eq('workshop_id', workshopId)
+    .eq('id', modelId)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!model) return null;
+
+  const [{ data: codes }, { data: applications }, { data: photos }, { data: units }] =
+    await Promise.all([
+      supabaseAdmin
+        .from('workshop_abs_module_codes')
+        .select('*')
+        .eq('model_id', modelId)
+        .order('sort_order', { ascending: true }),
+      supabaseAdmin
+        .from('workshop_abs_module_applications')
+        .select('*')
+        .eq('model_id', modelId)
+        .order('sort_order', { ascending: true }),
+      supabaseAdmin
+        .from('workshop_abs_module_model_photos')
+        .select('id, photo_url, sort_order')
+        .eq('model_id', modelId)
+        .order('sort_order', { ascending: true }),
+      includeUnits
+        ? supabaseAdmin
+            .from('workshop_abs_modules')
+            .select('*')
+            .eq('workshop_id', workshopId)
+            .eq('model_id', modelId)
+            .order('sequence_number', { ascending: true })
+        : Promise.resolve({ data: null as unknown[] | null }),
+    ]);
+
+  const unitList = includeUnits ? units || [] : [];
+  const available_qty = (unitList as { status?: string }[]).filter(
+    (u) => u.status === 'disponivel'
+  ).length;
+
+  return {
+    ...model,
+    codes: codes || [],
+    applications: applications || [],
+    photos: photos || [],
+    available_qty: includeUnits
+      ? available_qty
+      : undefined,
+    total_qty: includeUnits ? unitList.length : undefined,
+    units: includeUnits ? unitList : undefined,
+  };
+}
+
 export function registerAbsModuleRoutes(app: Express, deps: AbsRouteDeps) {
   const { WORKSHOP_ID, supabaseAdmin } = deps;
 
+  // -------- Models --------
+  app.get('/api/abs-module-models', async (req, res) => {
+    try {
+      const q = String(req.query.q || '').trim();
+      const kindRaw = String(req.query.kind || '').trim();
+      const kind =
+        kindRaw && (ABS_MODULE_KINDS as readonly string[]).includes(kindRaw)
+          ? (kindRaw as AbsModuleKind)
+          : '';
+
+      if (isDevMemoryActive(deps)) {
+        return res.json({ models: listDevAbsModuleModels({ q, kind }) });
+      }
+
+      let query = supabaseAdmin!
+        .from('workshop_abs_module_models')
+        .select('*')
+        .eq('workshop_id', WORKSHOP_ID!)
+        .order('updated_at', { ascending: false });
+      if (kind) query = query.eq('module_kind', kind);
+      const { data: modelRows, error } = await query.limit(300);
+      if (error) {
+        console.error('[API] GET /api/abs-module-models:', error);
+        return res.status(500).json({ error: error.message });
+      }
+
+      const ids = (modelRows || []).map((m) => m.id);
+      const [{ data: codes }, { data: units }] = await Promise.all([
+        ids.length
+          ? supabaseAdmin!
+              .from('workshop_abs_module_codes')
+              .select('*')
+              .in('model_id', ids)
+              .order('sort_order', { ascending: true })
+          : Promise.resolve({ data: [] as Record<string, unknown>[] }),
+        ids.length
+          ? supabaseAdmin!
+              .from('workshop_abs_modules')
+              .select('id, model_id, status')
+              .eq('workshop_id', WORKSHOP_ID!)
+              .in('model_id', ids)
+          : Promise.resolve({ data: [] as { id: string; model_id: string; status: string }[] }),
+      ]);
+
+      const codesByModel = new Map<string, unknown[]>();
+      for (const c of codes || []) {
+        const mid = String((c as { model_id: string }).model_id);
+        if (!codesByModel.has(mid)) codesByModel.set(mid, []);
+        codesByModel.get(mid)!.push(c);
+      }
+      const qtyByModel = new Map<string, number>();
+      for (const u of units || []) {
+        if (u.status !== 'disponivel') continue;
+        qtyByModel.set(u.model_id, (qtyByModel.get(u.model_id) || 0) + 1);
+      }
+
+      let models = (modelRows || []).map((m) => ({
+        ...m,
+        codes: codesByModel.get(m.id) || [],
+        available_qty: qtyByModel.get(m.id) || 0,
+      }));
+
+      if (q) {
+        const ql = q.toLowerCase();
+        models = models.filter((m) => {
+          const hay = [
+            m.manufacturer,
+            m.family,
+            m.notes,
+            m.module_kind,
+            ...((m.codes as { code_value?: string }[]) || []).map((c) => c.code_value),
+          ]
+            .join(' ')
+            .toLowerCase();
+          return hay.includes(ql);
+        });
+      }
+
+      return res.json({ models });
+    } catch (err: any) {
+      console.error('[API] GET /api/abs-module-models:', err);
+      return res.status(500).json({ error: err?.message ?? 'Erro desconhecido' });
+    }
+  });
+
+  app.get('/api/abs-module-models/:id', async (req, res) => {
+    try {
+      const id = String(req.params.id || '').trim();
+      if (!id) return res.status(400).json({ error: 'ID do modelo inválido.' });
+
+      if (isDevMemoryActive(deps)) {
+        const model = getDevAbsModuleModel(id);
+        if (!model) return res.status(404).json({ error: 'Modelo ABS não encontrado.' });
+        return res.json({ model });
+      }
+
+      const model = await fetchModelBundle(supabaseAdmin!, WORKSHOP_ID!, id, true);
+      if (!model) return res.status(404).json({ error: 'Modelo ABS não encontrado.' });
+      return res.json({ model });
+    } catch (err: any) {
+      console.error('[API] GET /api/abs-module-models/:id:', err);
+      return res.status(500).json({ error: err?.message ?? 'Erro desconhecido' });
+    }
+  });
+
+  app.post('/api/abs-module-models', async (req, res) => {
+    try {
+      const body = (req.body || {}) as Record<string, unknown>;
+      const payload = modelPayloadFromBody(body);
+      const kind = payload.module_kind || 'completo';
+      const primary = primaryCodeFromCodes(payload.codes, kind, null);
+
+      if (isDevMemoryActive(deps)) {
+        try {
+          const model = createDevAbsModuleModel({ ...payload, module_kind: kind });
+          return res.status(201).json({ model });
+        } catch (e: any) {
+          return res.status(400).json({ error: e?.message ?? 'Falha ao criar modelo.' });
+        }
+      }
+
+      const fingerprint = absModelFingerprint(payload.manufacturer, primary, kind);
+      const insertRow = {
+        workshop_id: WORKSHOP_ID,
+        manufacturer: payload.manufacturer ?? null,
+        family: payload.family ?? null,
+        module_kind: kind,
+        notes: payload.notes ?? null,
+        fingerprint,
+      };
+      const { data: created, error } = await supabaseAdmin!
+        .from('workshop_abs_module_models')
+        .insert(insertRow)
+        .select('*')
+        .single();
+      if (error) {
+        if (/unique|duplicate/i.test(error.message)) {
+          return res.status(400).json({
+            error: 'Já existe um modelo ABS com este fingerprint (fabricante/código/tipo).',
+          });
+        }
+        return res.status(500).json({ error: error.message });
+      }
+
+      if (payload.codes) {
+        await replaceModelCodes(supabaseAdmin!, WORKSHOP_ID!, created.id, payload.codes);
+      } else if (primary) {
+        await replaceModelCodes(supabaseAdmin!, WORKSHOP_ID!, created.id, [
+          {
+            component_scope: scopeForKind(kind),
+            code_role: 'fabricante',
+            code_value: primary,
+            sort_order: 0,
+          },
+        ]);
+      }
+      if (payload.applications) {
+        await replaceModelApplications(
+          supabaseAdmin!,
+          WORKSHOP_ID!,
+          created.id,
+          payload.applications
+        );
+      }
+      if (payload.photo_urls) {
+        await replaceModelPhotos(supabaseAdmin!, WORKSHOP_ID!, created.id, payload.photo_urls);
+      }
+
+      const model = await fetchModelBundle(supabaseAdmin!, WORKSHOP_ID!, created.id, true);
+      return res.status(201).json({ model });
+    } catch (err: any) {
+      console.error('[API] POST /api/abs-module-models:', err);
+      return res.status(500).json({ error: err?.message ?? 'Erro desconhecido' });
+    }
+  });
+
+  app.put('/api/abs-module-models/:id', async (req, res) => {
+    try {
+      const id = String(req.params.id || '').trim();
+      if (!id) return res.status(400).json({ error: 'ID do modelo inválido.' });
+      const body = (req.body || {}) as Record<string, unknown>;
+      const payload = modelPayloadFromBody(body);
+
+      if (isDevMemoryActive(deps)) {
+        const model = updateDevAbsModuleModel(id, payload);
+        if (!model) return res.status(404).json({ error: 'Modelo ABS não encontrado.' });
+        return res.json({ model });
+      }
+
+      const { data: existing, error: exErr } = await supabaseAdmin!
+        .from('workshop_abs_module_models')
+        .select('*')
+        .eq('workshop_id', WORKSHOP_ID!)
+        .eq('id', id)
+        .maybeSingle();
+      if (exErr) return res.status(500).json({ error: exErr.message });
+      if (!existing) return res.status(404).json({ error: 'Modelo ABS não encontrado.' });
+
+      if (payload.codes !== undefined) {
+        await replaceModelCodes(supabaseAdmin!, WORKSHOP_ID!, id, payload.codes);
+      }
+      if (payload.applications !== undefined) {
+        await replaceModelApplications(supabaseAdmin!, WORKSHOP_ID!, id, payload.applications);
+      }
+      if (payload.photo_urls !== undefined) {
+        await replaceModelPhotos(supabaseAdmin!, WORKSHOP_ID!, id, payload.photo_urls);
+      }
+
+      const { data: codesAfter } = await supabaseAdmin!
+        .from('workshop_abs_module_codes')
+        .select('*')
+        .eq('model_id', id)
+        .order('sort_order', { ascending: true });
+      const kind = payload.module_kind ?? (existing.module_kind as AbsModuleKind);
+      const manufacturer =
+        payload.manufacturer !== undefined ? payload.manufacturer : existing.manufacturer;
+      const primary =
+        primaryCodeForScope(
+          (codesAfter || []) as Parameters<typeof primaryCodeForScope>[0],
+          scopeForKind(kind)
+        ) ||
+        (codesAfter || [])[0]?.code_value ||
+        null;
+
+      const { error: upErr } = await supabaseAdmin!
+        .from('workshop_abs_module_models')
+        .update({
+          manufacturer,
+          family: payload.family !== undefined ? payload.family : existing.family,
+          module_kind: kind,
+          notes: payload.notes !== undefined ? payload.notes : existing.notes,
+          fingerprint: absModelFingerprint(manufacturer, primary, kind),
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', id)
+        .eq('workshop_id', WORKSHOP_ID!);
+      if (upErr) return res.status(500).json({ error: upErr.message });
+
+      const model = await fetchModelBundle(supabaseAdmin!, WORKSHOP_ID!, id, true);
+      return res.json({ model });
+    } catch (err: any) {
+      console.error('[API] PUT /api/abs-module-models/:id:', err);
+      return res.status(500).json({ error: err?.message ?? 'Erro desconhecido' });
+    }
+  });
+
+  // -------- Modules list / create --------
   app.get('/api/abs-modules', async (req, res) => {
     try {
       const q = String(req.query.q || '').trim();
@@ -171,6 +782,130 @@ export function registerAbsModuleRoutes(app: Express, deps: AbsRouteDeps) {
     }
   });
 
+  // Register BEFORE /api/abs-modules/:publicId
+  app.get('/api/abs-modules/search', async (req, res) => {
+    try {
+      const q = String(req.query.q || '').trim();
+
+      if (isDevMemoryActive(deps)) {
+        return res.json(searchDevAbsModules(q));
+      }
+
+      if (!q) {
+        return res.json({ query: q, availableUnits: [], availableViaDisassembly: [] });
+      }
+
+      const like = `%${q}%`;
+      const { data: codeHits } = await supabaseAdmin!
+        .from('workshop_abs_module_codes')
+        .select('model_id')
+        .eq('workshop_id', WORKSHOP_ID!)
+        .ilike('code_value', like);
+      const { data: appHits } = await supabaseAdmin!
+        .from('workshop_abs_module_applications')
+        .select('model_id')
+        .eq('workshop_id', WORKSHOP_ID!)
+        .or(
+          [
+            `vehicle_brand.ilike.${like}`,
+            `vehicle_model.ilike.${like}`,
+            `generation.ilike.${like}`,
+            `engine.ilike.${like}`,
+            `version.ilike.${like}`,
+            `notes.ilike.${like}`,
+          ].join(',')
+        );
+
+      const modelIds = [
+        ...new Set([
+          ...(codeHits || []).map((r) => r.model_id),
+          ...(appHits || []).map((r) => r.model_id),
+        ]),
+      ];
+
+      let unitsQuery = supabaseAdmin!
+        .from('workshop_abs_modules')
+        .select('*')
+        .eq('workshop_id', WORKSHOP_ID!)
+        .eq('status', 'disponivel')
+        .in('module_kind', ['eletronico', 'hidraulico'])
+        .or(
+          [
+            `public_id.ilike.${like}`,
+            `manufacturer.ilike.${like}`,
+            `original_code.ilike.${like}`,
+            `application.ilike.${like}`,
+            `model.ilike.${like}`,
+            ...(modelIds.length ? [`model_id.in.(${modelIds.join(',')})`] : []),
+          ].join(',')
+        )
+        .order('public_id', { ascending: true })
+        .limit(100);
+
+      // sequence_number match when q is numeric
+      const seqNum = Number(q.replace(/^#/, ''));
+      if (Number.isFinite(seqNum) && String(Math.floor(seqNum)) === q.replace(/^#/, '')) {
+        unitsQuery = supabaseAdmin!
+          .from('workshop_abs_modules')
+          .select('*')
+          .eq('workshop_id', WORKSHOP_ID!)
+          .eq('status', 'disponivel')
+          .in('module_kind', ['eletronico', 'hidraulico'])
+          .or(
+            [
+              `public_id.ilike.${like}`,
+              `manufacturer.ilike.${like}`,
+              `original_code.ilike.${like}`,
+              `application.ilike.${like}`,
+              `model.ilike.${like}`,
+              `sequence_number.eq.${Math.floor(seqNum)}`,
+              ...(modelIds.length ? [`model_id.in.(${modelIds.join(',')})`] : []),
+            ].join(',')
+          )
+          .order('public_id', { ascending: true })
+          .limit(100);
+      }
+
+      const { data: availableUnits, error: uErr } = await unitsQuery;
+      if (uErr) {
+        console.error('[API] GET /api/abs-modules/search units:', uErr);
+        return res.status(500).json({ error: uErr.message });
+      }
+
+      const { data: availableViaDisassembly, error: cErr } = await supabaseAdmin!
+        .from('workshop_abs_modules')
+        .select('*')
+        .eq('workshop_id', WORKSHOP_ID!)
+        .eq('status', 'disponivel')
+        .eq('module_kind', 'completo')
+        .or(
+          [
+            `public_id.ilike.${like}`,
+            `manufacturer.ilike.${like}`,
+            `original_code.ilike.${like}`,
+            `application.ilike.${like}`,
+            `model.ilike.${like}`,
+            ...(modelIds.length ? [`model_id.in.(${modelIds.join(',')})`] : []),
+          ].join(',')
+        )
+        .order('public_id', { ascending: true })
+        .limit(100);
+      if (cErr) {
+        console.error('[API] GET /api/abs-modules/search completo:', cErr);
+        return res.status(500).json({ error: cErr.message });
+      }
+
+      return res.json({
+        query: q,
+        availableUnits: availableUnits || [],
+        availableViaDisassembly: availableViaDisassembly || [],
+      });
+    } catch (err: any) {
+      console.error('[API] GET /api/abs-modules/search:', err);
+      return res.status(500).json({ error: err?.message ?? 'Erro desconhecido' });
+    }
+  });
+
   app.get('/api/abs-modules/:publicId/movements', async (req, res) => {
     try {
       const publicId = normalizeAbsModuleCode(String(req.params.publicId || '')) || '';
@@ -203,6 +938,95 @@ export function registerAbsModuleRoutes(app: Express, deps: AbsRouteDeps) {
       return res.json({ movements: data || [] });
     } catch (err: any) {
       console.error('[API] GET /api/abs-modules/:publicId/movements:', err);
+      return res.status(500).json({ error: err?.message ?? 'Erro desconhecido' });
+    }
+  });
+
+  app.post('/api/abs-modules/:publicId/disassemble', async (req, res) => {
+    try {
+      const publicId = normalizeAbsModuleCode(String(req.params.publicId || '')) || '';
+      if (!isValidAbsModulePublicId(publicId)) {
+        return res.status(400).json({ error: 'ID de módulo ABS inválido.' });
+      }
+      const body = (req.body || {}) as Record<string, unknown>;
+      const input: WorkshopAbsDisassembleInput = {
+        withdrawn_kind: String(body.withdrawn_kind || '').trim() as 'eletronico' | 'hidraulico',
+        destination: String(body.destination || '').trim() as AbsDisassembleDestination,
+        destination_ref: parseOptionalText(body.destination_ref),
+        service_order_id: parseOptionalText(body.service_order_id),
+        cost_remaining:
+          body.cost_remaining != null && body.cost_remaining !== ''
+            ? parseMoney(body.cost_remaining, NaN)
+            : null,
+        cost_withdrawn:
+          body.cost_withdrawn != null && body.cost_withdrawn !== ''
+            ? parseMoney(body.cost_withdrawn, NaN)
+            : null,
+        cost_adjustment_authorized: Boolean(body.cost_adjustment_authorized),
+        cost_adjustment_note: parseOptionalText(body.cost_adjustment_note),
+        remaining_location: parseOptionalText(body.remaining_location),
+        withdrawn_location: parseOptionalText(body.withdrawn_location),
+        notes: parseOptionalText(body.notes),
+        recorded_by_name: parseOptionalText(body.recorded_by_name),
+        remaining_primary_code: parseOptionalText(body.remaining_primary_code),
+        withdrawn_primary_code: parseOptionalText(body.withdrawn_primary_code),
+      };
+
+      if (isDevMemoryActive(deps)) {
+        try {
+          const result = disassembleDevAbsModule(publicId, input);
+          return res.status(201).json(result);
+        } catch (e: any) {
+          const msg = e?.message ?? 'Falha no desmembramento.';
+          const status = /não encontrado/i.test(msg)
+            ? 404
+            : /inválid|informe|somente|já foi|deve igualar|não está/i.test(msg)
+              ? 400
+              : 500;
+          return res.status(status).json({ error: msg });
+        }
+      }
+
+      const { data: mod, error: modErr } = await supabaseAdmin!
+        .from('workshop_abs_modules')
+        .select('id')
+        .eq('workshop_id', WORKSHOP_ID!)
+        .eq('public_id', publicId)
+        .maybeSingle();
+      if (modErr) return res.status(500).json({ error: modErr.message });
+      if (!mod) return res.status(404).json({ error: 'Módulo ABS não encontrado.' });
+
+      const { data, error } = await supabaseAdmin!.rpc('disassemble_workshop_abs_module', {
+        p_workshop_id: WORKSHOP_ID,
+        p_source_module_id: mod.id,
+        p_withdrawn_kind: input.withdrawn_kind,
+        p_destination: input.destination,
+        p_destination_ref: input.destination_ref,
+        p_service_order_id: input.service_order_id,
+        p_cost_remaining: input.cost_remaining,
+        p_cost_withdrawn: input.cost_withdrawn,
+        p_cost_adjustment_authorized: input.cost_adjustment_authorized ?? false,
+        p_cost_adjustment_note: input.cost_adjustment_note,
+        p_remaining_location: input.remaining_location,
+        p_withdrawn_location: input.withdrawn_location,
+        p_notes: input.notes,
+        p_recorded_by_name: input.recorded_by_name,
+        p_remaining_primary_code: input.remaining_primary_code,
+        p_withdrawn_primary_code: input.withdrawn_primary_code,
+      });
+      if (error) return res.status(400).json({ error: error.message });
+      const row = data as {
+        source?: unknown;
+        remaining?: unknown;
+        withdrawn?: unknown;
+        disassembly?: unknown;
+      } | null;
+      if (!row?.source || !row?.remaining || !row?.withdrawn || !row?.disassembly) {
+        return res.status(500).json({ error: 'Resposta inválida do desmembramento.' });
+      }
+      return res.status(201).json(row);
+    } catch (err: any) {
+      console.error('[API] POST /api/abs-modules/:publicId/disassemble:', err);
       return res.status(500).json({ error: err?.message ?? 'Erro desconhecido' });
     }
   });
@@ -246,6 +1070,41 @@ export function registerAbsModuleRoutes(app: Express, deps: AbsRouteDeps) {
         return res.status(201).json({ module: created });
       }
 
+      const kind = payload.module_kind || 'completo';
+      let modelId = payload.model_id || null;
+
+      if (!modelId && payload.catalog) {
+        const cat = payload.catalog;
+        const catKind = cat.module_kind || kind;
+        modelId = await resolveOrCreateModelId(supabaseAdmin!, WORKSHOP_ID!, {
+          manufacturer: cat.manufacturer ?? payload.manufacturer,
+          family: cat.family ?? payload.model,
+          module_kind: catKind,
+          primary_code: primaryCodeFromCodes(
+            cat.codes,
+            catKind,
+            payload.original_code
+          ),
+          notes: cat.notes,
+          codes: cat.codes,
+          applications: cat.applications,
+          photo_urls: cat.photo_urls,
+        });
+      } else if (!modelId) {
+        modelId = await resolveOrCreateModelId(supabaseAdmin!, WORKSHOP_ID!, {
+          manufacturer: payload.manufacturer,
+          family: payload.model,
+          module_kind: kind,
+          primary_code: payload.original_code,
+        });
+      }
+
+      const { data: sequenceNumber, error: seqErr } = await supabaseAdmin!.rpc(
+        'next_workshop_abs_module_sequence',
+        { p_model_id: modelId }
+      );
+      if (seqErr) return res.status(500).json({ error: seqErr.message });
+
       const { data: publicId, error: idErr } = await supabaseAdmin!.rpc(
         'next_workshop_abs_module_public_id',
         { p_workshop_id: WORKSHOP_ID }
@@ -260,8 +1119,11 @@ export function registerAbsModuleRoutes(app: Express, deps: AbsRouteDeps) {
         application: payload.application,
         model: payload.model,
         year_label: payload.year_label,
-        module_kind: payload.module_kind || 'completo',
+        module_kind: kind,
         condition: payload.condition || 'usado',
+        item_state: payload.item_state || 'usado',
+        item_condition: payload.item_condition || 'nao_testado',
+        damage_description: payload.damage_description ?? null,
         unit_cost: payload.unit_cost ?? 0,
         unit_price: payload.unit_price ?? 0,
         supplier: payload.supplier,
@@ -269,6 +1131,8 @@ export function registerAbsModuleRoutes(app: Express, deps: AbsRouteDeps) {
         notes: payload.notes,
         status: payload.status || 'disponivel',
         received_at: payload.received_at || new Date().toISOString(),
+        model_id: modelId,
+        sequence_number: sequenceNumber,
       };
 
       const { data, error } = await supabaseAdmin!
@@ -279,6 +1143,12 @@ export function registerAbsModuleRoutes(app: Express, deps: AbsRouteDeps) {
       if (error) {
         console.error('[API] POST /api/abs-modules:', error);
         return res.status(500).json({ error: error.message });
+      }
+
+      try {
+        await insertUnitPhotos(supabaseAdmin!, WORKSHOP_ID!, data.id, payload.photo_urls);
+      } catch (photoErr: any) {
+        console.error('[API] POST /api/abs-modules photos:', photoErr);
       }
 
       await supabaseAdmin!.from('workshop_abs_module_movements').insert({
@@ -325,12 +1195,16 @@ export function registerAbsModuleRoutes(app: Express, deps: AbsRouteDeps) {
           year_label: payload.year_label,
           module_kind: payload.module_kind,
           condition: payload.condition,
+          item_state: payload.item_state,
+          item_condition: payload.item_condition,
+          damage_description: payload.damage_description,
           unit_cost: payload.unit_cost,
           unit_price: payload.unit_price,
           supplier: payload.supplier,
           location: payload.location,
           notes: payload.notes,
           status: payload.status,
+          ...(payload.model_id ? { model_id: payload.model_id } : {}),
           ...(payload.received_at ? { received_at: payload.received_at } : {}),
           updated_at: new Date().toISOString(),
         })
@@ -368,6 +1242,7 @@ export function registerAbsModuleRoutes(app: Express, deps: AbsRouteDeps) {
         reason_ref: parseOptionalText(body.reason_ref ?? body.related_label ?? body.related_id),
         notes: parseOptionalText(body.notes),
         recorded_by_name: parseOptionalText(body.recorded_by_name),
+        service_order_id: parseOptionalText(body.service_order_id),
       };
 
       if (isDevMemoryActive(deps)) {
@@ -378,7 +1253,7 @@ export function registerAbsModuleRoutes(app: Express, deps: AbsRouteDeps) {
           const msg = e?.message ?? 'Falha na movimentação.';
           const status = /não encontrado/i.test(msg)
             ? 404
-            : /inválid|informe|não está|já está/i.test(msg)
+            : /inválid|informe|não está|já está|desmembrado|não pode/i.test(msg)
               ? 400
               : 500;
           return res.status(status).json({ error: msg });
@@ -403,6 +1278,7 @@ export function registerAbsModuleRoutes(app: Express, deps: AbsRouteDeps) {
         p_reason_ref: payload.reason_ref,
         p_notes: payload.notes,
         p_recorded_by_name: payload.recorded_by_name,
+        p_service_order_id: payload.service_order_id,
       });
       if (error) return res.status(400).json({ error: error.message });
       const row = data as { module?: unknown; movement?: unknown } | null;
