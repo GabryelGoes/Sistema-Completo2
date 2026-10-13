@@ -1188,7 +1188,6 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
             filteredParts={filteredParts}
             partsInCategoryScopeCount={partsInCategoryScope.length}
             partsAfterStockFilterEmpty={partsAfterStockFilter.length === 0 && stockAlertFilter !== 'all'}
-            categories={categories}
             categoryCounts={categoryCounts}
             stockAlerts={stockAlertsGlobal}
             pendingReservations={pendingReservations}

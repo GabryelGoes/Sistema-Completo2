@@ -37,7 +37,6 @@ export type WorkshopPartsHomeDashboardProps = {
   filteredParts: WorkshopPart[];
   partsInCategoryScopeCount: number;
   partsAfterStockFilterEmpty: boolean;
-  categories: WorkshopPartCategory[];
   categoryCounts: {
     counts: Map<string, number>;
     uncategorized: number;
@@ -112,7 +111,6 @@ export function WorkshopPartsHomeDashboard({
   filteredParts,
   partsInCategoryScopeCount,
   partsAfterStockFilterEmpty,
-  categories,
   categoryCounts,
   stockAlerts,
   pendingReservations,
