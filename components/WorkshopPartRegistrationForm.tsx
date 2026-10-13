@@ -601,9 +601,20 @@ export function WorkshopPartRegistrationForm({
                 type="text"
                 value={values.barcode}
                 onChange={(e) => patch({ barcode: e.target.value })}
+                onKeyDown={(e) => {
+                  // Pistola USB termina com Enter: mantém o código no campo
+                  // (data-wedge-local evita o listener global) e não submete o form.
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    const normalized = normalizeBarcodeInput(e.currentTarget.value);
+                    if (normalized !== values.barcode) patch({ barcode: normalized });
+                  }
+                }}
                 placeholder="7891234567890"
                 className={`${inputCls} flex-1 tabular-nums`}
                 autoComplete="off"
+                data-wedge-local
+                aria-label="Código de barras — digite ou leia com pistola USB"
               />
               <button
                 type="button"

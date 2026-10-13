@@ -39,6 +39,8 @@ export type WorkshopPartStockOutboundModalProps = {
   catalogParts?: WorkshopPart[];
   /** Abre o cadastro de produto com o código lido pré-preenchido. */
   onRegisterMissingProduct?: (barcode: string) => void;
+  /** Senha já validada no modo Balanço — cancela baixa sem novo prompt. */
+  stockGuardBypassPassword?: string | null;
 };
 
 const PAYMENT_OPTIONS = ['PIX', 'Dinheiro', 'Cartão de crédito', 'Cartão de débito', 'Transferência', 'Outro'];
@@ -75,6 +77,7 @@ export function WorkshopPartStockOutboundModal({
   initialPart = null,
   catalogParts = [],
   onRegisterMissingProduct,
+  stockGuardBypassPassword = null,
 }: WorkshopPartStockOutboundModalProps) {
   const isDesktopShell = useDesktopShellLayout();
   const isSale = mode === 'sale';
@@ -373,12 +376,15 @@ export function WorkshopPartStockOutboundModal({
   const overlayClass = resolveIosModalOverlayClass(isDesktopShell, NESTED_STOCK_OVERLAY_Z);
   const showNameList = nameQuery.trim().length > 0 && (!part || nameQuery.trim() !== part.name);
 
-  const handleCancelMovement = async (password: string) => {
-    if (!cancelTarget) return;
+  const handleCancelMovement = async (
+    password: string,
+    movement: WorkshopPartStockMovement | null = cancelTarget
+  ) => {
+    if (!movement) return;
     setCancelBusy(true);
     setCancelError(null);
     try {
-      const updatedPart = await cancelWorkshopPartStockMovement(cancelTarget.id, password);
+      const updatedPart = await cancelWorkshopPartStockMovement(movement.id, password);
       if (part && part.id === updatedPart.id) {
         const next = { ...part, stock_qty: Number(updatedPart.stock_qty) };
         setPart(next);
@@ -877,11 +883,17 @@ export function WorkshopPartStockOutboundModal({
                             <button
                               type="button"
                               title="Cancelar consumo"
+                              disabled={cancelBusy}
                               onClick={() => {
                                 setCancelError(null);
+                                const bypass = stockGuardBypassPassword?.trim();
+                                if (bypass) {
+                                  void handleCancelMovement(bypass, row);
+                                  return;
+                                }
                                 setCancelTarget(row);
                               }}
-                              className="inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-[12px] font-semibold text-red-600 hover:bg-red-500/10"
+                              className="inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-[12px] font-semibold text-red-600 hover:bg-red-500/10 disabled:opacity-50"
                               aria-label="Cancelar consumo"
                             >
                               <Trash2 className="h-3.5 w-3.5" />
