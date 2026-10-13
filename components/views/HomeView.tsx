@@ -116,6 +116,19 @@ const iosSectionTitle =
 const iosSectionHint = 'text-[13px] text-zinc-950 dark:text-zinc-400 mb-4 leading-relaxed';
 const QUICK_APPS_LAYOUT_KEY = 'app_home_quick_apps_layout_v1';
 
+/** Classe base dos PNGs nos tiles da home — preenche a caixa fixa do squircle. */
+const HOME_TILE_ICON_IMG =
+  'h-full w-full border-0 object-fill outline-none [box-shadow:none]';
+
+/**
+ * Escala visual por ícone (compensação de margem transparente / borda escura no PNG).
+ * Medido contra Agenda/Pátio/Orçamentos/Laboratório — não altera os arquivos.
+ */
+const HOME_TILE_ICON_SHELL_SCALE: Partial<Record<string, string>> = {
+  tv_patio: '[&_img]:origin-center [&_img]:scale-[1.11]',
+  radar_qualidade: '[&_img]:origin-center [&_img]:scale-[1.07]',
+};
+
 const OPERATIONAL_APPS: {
   id: HomeAppId;
   label: string;
@@ -124,22 +137,22 @@ const OPERATIONAL_APPS: {
   {
     id: 'agenda',
     label: 'Agenda',
-    icon: <img src="/icons/agenda-ios.png" alt="Agenda" className="h-full w-full object-cover" />,
+    icon: <img src="/icons/agenda-ios.png" alt="Agenda" className={HOME_TILE_ICON_IMG} />,
   },
   {
     id: 'patio',
     label: 'Pátio',
-    icon: <img src="/icons/patio-ios.png" alt="Pátio" className="h-full w-full object-cover" />,
+    icon: <img src="/icons/patio-ios.png" alt="Pátio" className={HOME_TILE_ICON_IMG} />,
   },
   {
     id: 'orcamentos',
     label: 'Orçamentos',
-    icon: <img src="/icons/orcamentos-ios.png" alt="" className="h-full w-full object-cover" />,
+    icon: <img src="/icons/orcamentos-ios.png" alt="" className={HOME_TILE_ICON_IMG} />,
   },
   {
     id: 'laboratorio',
     label: 'Laboratório',
-    icon: <img src="/icons/laboratorio-ios.png" alt="Laboratório" className="h-full w-full object-cover" />,
+    icon: <img src="/icons/laboratorio-ios.png" alt="Laboratório" className={HOME_TILE_ICON_IMG} />,
   },
 ];
 
@@ -545,7 +558,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
       id: 'settings_hub' as QuickTileId,
       label: 'Configurações',
       icon: (
-        <img src="/icons/configuracoes-ios.png" alt="Configurações" className="h-full w-full object-cover" />
+        <img src="/icons/configuracoes-ios.png" alt="Configurações" className={HOME_TILE_ICON_IMG} />
       ),
       onOpen: () => openSettingsHubOnly(),
     };
@@ -559,7 +572,13 @@ export const HomeView: React.FC<HomeViewProps> = ({
       extraTiles.push({
         id: 'tv_patio',
         label: 'Painéis de TV',
-        icon: <img src="/icons/tv-patio-ios.png" alt="TVs Pátio e Laboratório" className="h-full w-full object-cover" />,
+        icon: (
+          <img
+            src="/icons/tv-patio-ios.png"
+            alt="TVs Pátio e Laboratório"
+            className={HOME_TILE_ICON_IMG}
+          />
+        ),
         onOpen: () => (onOpenTvPatio ? onOpenTvPatio() : setIsTvPatioOpen(true)),
       });
     }
@@ -567,7 +586,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
       extraTiles.push({
         id: 'parts_stock',
         label: 'Estoque',
-        icon: <img src="/icons/estoque-ios.png" alt="Estoque" className="h-full w-full object-cover" />,
+        icon: <img src="/icons/estoque-ios.png" alt="Estoque" className={HOME_TILE_ICON_IMG} />,
         onOpen: () => (onOpenPartsStock ? onOpenPartsStock() : setIsPartsModalOpen(true)),
       });
     }
@@ -575,9 +594,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
       extraTiles.push({
         id: 'relatorios',
         label: 'Relatórios',
-        icon: (
-          <img src="/icons/relatorios-ios.png" alt="Relatórios" className="h-full w-full object-cover" />
-        ),
+        icon: <img src="/icons/relatorios-ios.png" alt="Relatórios" className={HOME_TILE_ICON_IMG} />,
         onOpen: () => onOpenApp('relatorios'),
       });
     }
@@ -586,7 +603,11 @@ export const HomeView: React.FC<HomeViewProps> = ({
         id: 'boletim_erros',
         label: TECHNICAL_BULLETINS_MODULE_LABEL,
         icon: (
-          <img src={ERROR_BULLETIN_ICON} alt={TECHNICAL_BULLETINS_MODULE_LABEL} className="h-full w-full object-cover" />
+          <img
+            src={ERROR_BULLETIN_ICON}
+            alt={TECHNICAL_BULLETINS_MODULE_LABEL}
+            className={HOME_TILE_ICON_IMG}
+          />
         ),
         onOpen: () => onOpenApp('boletim_erros'),
       });
@@ -595,9 +616,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
       extraTiles.push({
         id: 'radar_qualidade',
         label: 'Radar de Qualidade',
-        icon: (
-          <img src={QUALITY_RADAR_ICON} alt="Radar de Qualidade" className="h-full w-full object-cover" />
-        ),
+        icon: <img src={QUALITY_RADAR_ICON} alt="Radar de Qualidade" className={HOME_TILE_ICON_IMG} />,
         onOpen: () => onOpenApp('radar_qualidade'),
       });
     }
@@ -958,7 +977,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
                         >
                           <IosAccentIconSquircle
                             variant="tile"
-                            className="pointer-events-none shrink-0 transition-transform duration-300 group-hover:scale-105"
+                            className={`pointer-events-none shrink-0 transition-transform duration-300 group-hover:scale-105 ${
+                              HOME_TILE_ICON_SHELL_SCALE[app.id] ?? ''
+                            }`.trim()}
                             strokeWidth={2.2}
                           >
                             {app.icon}
@@ -990,7 +1011,11 @@ export const HomeView: React.FC<HomeViewProps> = ({
                   <div
                     className={`group relative flex h-full w-full flex-col items-center gap-3 p-3 sm:p-4 text-center ${hubCardClass} border-[#007AFF]/40 shadow-[0_22px_50px_-18px_rgba(0,0,0,0.45)] scale-[1.05] home-tile-lift`}
                   >
-                    <IosAccentIconSquircle variant="tile" className="scale-105" strokeWidth={2.2}>
+                    <IosAccentIconSquircle
+                      variant="tile"
+                      className={`scale-105 ${HOME_TILE_ICON_SHELL_SCALE[quickGhostMeta.id] ?? ''}`.trim()}
+                      strokeWidth={2.2}
+                    >
                       {operationalById[quickGhostMeta.id as QuickTileId].icon}
                     </IosAccentIconSquircle>
                     <span className="text-[15px] font-semibold text-zinc-900 dark:text-white leading-tight">
