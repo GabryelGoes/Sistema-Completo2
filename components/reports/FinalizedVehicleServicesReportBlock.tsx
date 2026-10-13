@@ -1,5 +1,6 @@
 import React from 'react';
-import { Car, ExternalLink, User, Wrench } from 'lucide-react';
+import { Car, ExternalLink, Trash2, User, Wrench } from 'lucide-react';
+import type { TechnicianServiceReportItem } from '../../services/apiService';
 import type { FinalizedVehicleReportGroup } from '../../utils/workshopReports';
 import {
   formatFinalizedVehicleTitle,
@@ -26,10 +27,16 @@ export function FinalizedVehicleServicesReportBlock({
   groups,
   blurPlates,
   onOpenOrder,
+  canDelete = false,
+  deletingLineId = null,
+  onDeleteService,
 }: {
   groups: FinalizedVehicleReportGroup[];
   blurPlates: boolean;
   onOpenOrder: (serviceOrderId: string) => void;
+  canDelete?: boolean;
+  deletingLineId?: string | null;
+  onDeleteService?: (service: Pick<TechnicianServiceReportItem, 'lineId' | 'description'>) => void;
 }) {
   if (groups.length === 0) {
     return (
@@ -91,20 +98,38 @@ export function FinalizedVehicleServicesReportBlock({
                 Serviços executados ({group.services.length})
               </p>
               <ul className="divide-y divide-zinc-200/70 rounded-xl border border-zinc-200/60 bg-white/80 dark:divide-white/[0.06] dark:border-white/[0.08] dark:bg-zinc-950/35">
-                {group.services.map((svc) => (
-                  <li
-                    key={svc.lineId}
-                    className="flex flex-wrap items-center justify-between gap-2 px-3.5 py-2.5 sm:gap-4"
-                  >
-                    <p className="min-w-0 flex-1 text-[14px] font-medium leading-snug text-zinc-900 dark:text-zinc-100">
-                      {svc.description || '—'}
-                    </p>
-                    <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-violet-400/30 bg-violet-500/10 px-2.5 py-1 text-[12px] font-semibold text-violet-900 dark:border-violet-400/25 dark:bg-violet-500/15 dark:text-violet-100">
-                      <User className="h-3.5 w-3.5 opacity-80" />
-                      {svc.technicianName || 'Técnico'}
-                    </span>
-                  </li>
-                ))}
+                {group.services.map((svc) => {
+                  const isDeleting = deletingLineId === svc.lineId;
+                  return (
+                    <li
+                      key={svc.lineId}
+                      className="flex flex-wrap items-center justify-between gap-2 px-3.5 py-2.5 sm:gap-4"
+                    >
+                      <p className="min-w-0 flex-1 text-[14px] font-medium leading-snug text-zinc-900 dark:text-zinc-100">
+                        {svc.description || '—'}
+                      </p>
+                      <div className="flex shrink-0 flex-wrap items-center gap-1.5">
+                        <span className="inline-flex items-center gap-1.5 rounded-full border border-violet-400/30 bg-violet-500/10 px-2.5 py-1 text-[12px] font-semibold text-violet-900 dark:border-violet-400/25 dark:bg-violet-500/15 dark:text-violet-100">
+                          <User className="h-3.5 w-3.5 opacity-80" />
+                          {svc.technicianName || 'Técnico'}
+                        </span>
+                        {canDelete && onDeleteService ? (
+                          <button
+                            type="button"
+                            onClick={() => onDeleteService(svc)}
+                            disabled={isDeleting || deletingLineId != null}
+                            title="Excluir do relatório"
+                            aria-label={`Excluir serviço ${svc.description || ''} do relatório`}
+                            className="inline-flex items-center gap-1 rounded-lg border border-rose-200/90 bg-rose-500/10 px-2 py-1 text-[11px] font-semibold text-rose-800 transition hover:bg-rose-500/20 disabled:opacity-50 dark:border-rose-500/25 dark:bg-rose-500/10 dark:text-rose-100 dark:hover:bg-rose-500/20"
+                          >
+                            <Trash2 className={`h-3.5 w-3.5 ${isDeleting ? 'animate-pulse' : ''}`} />
+                            Excluir
+                          </button>
+                        ) : null}
+                      </div>
+                    </li>
+                  );
+                })}
               </ul>
             </div>
           </article>
