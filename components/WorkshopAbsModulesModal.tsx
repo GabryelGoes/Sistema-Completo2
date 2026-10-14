@@ -1,12 +1,14 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowDownToLine,
   ArrowLeft,
   ArrowUpFromLine,
   ChevronDown,
   ChevronRight,
+  Camera,
   HelpCircle,
   History,
+  Images,
   Loader2,
   MapPin,
   Pencil,
@@ -20,10 +22,13 @@ import {
   X,
 } from 'lucide-react';
 import {
+  ABS_MODULE_PHOTOS_MAX,
   createWorkshopAbsModule,
   createWorkshopAbsModuleMovement,
   deleteWorkshopAbsModule,
+  deleteWorkshopAbsModulePhoto,
   disassembleWorkshopAbsModule,
+  getWorkshopAbsModule,
   getWorkshopAbsModuleModel,
   getWorkshopAbsModuleModels,
   getWorkshopAbsModuleMovements,
@@ -31,11 +36,14 @@ import {
   searchWorkshopAbsModules,
   updateWorkshopAbsModule,
   updateWorkshopAbsModuleModel,
+  uploadWorkshopAbsModulePhoto,
   type WorkshopAbsModule,
   type WorkshopAbsModuleModel,
   type WorkshopAbsModuleMovement,
+  type WorkshopAbsModulePhoto,
   type WorkshopAbsModuleSearchResult,
 } from '../services/apiService';
+import { parseCurrencyStringToNumber } from '../utils/currencyMaskInput';
 import {
   ABS_CODE_ROLE_OPTIONS,
   ABS_DISASSEMBLE_DESTINATION_OPTIONS,
@@ -68,6 +76,8 @@ import {
 import { getStoredAuth } from './views/LoginView';
 import { BarcodeScanField } from './BarcodeScanField';
 import { NiimbotAbsModuleLabelPrintModal } from './NiimbotAbsModuleLabelPrintModal';
+import { CurrencyMaskInput } from './ui/CurrencyMaskInput';
+import { PartPhotoImg } from './ui/PartPhotoImg';
 import { RegistrationPortal } from './ui/RegistrationPortal';
 import { resolveIosModalOverlayClass, NESTED_STOCK_OVERLAY_Z } from './ui/iosModalStyles';
 import { useDesktopShellLayout } from './ui/DesktopShellContext';
@@ -122,11 +132,18 @@ type WizardState = {
   item_state: AbsModuleItemState;
   item_condition: AbsModuleItemCondition;
   damage_description: string;
-  unit_cost: number;
-  unit_price: number;
+  /** String monetária BR (ex.: "123.45") para CurrencyMaskInput. */
+  unit_cost: string;
+  unit_price: string;
   supplier: string;
   location: string;
   unit_notes: string;
+};
+
+type PendingAbsPhoto = {
+  id: string;
+  file: File;
+  previewUrl: string;
 };
 
 const emptyApp = (): AppDraft => ({
@@ -151,8 +168,8 @@ const emptyWizard = (): WizardState => ({
   item_state: 'usado',
   item_condition: 'nao_testado',
   damage_description: '',
-  unit_cost: 0,
-  unit_price: 0,
+  unit_cost: '0',
+  unit_price: '0',
   supplier: '',
   location: '',
   unit_notes: '',
@@ -446,6 +463,11 @@ export function WorkshopAbsModulesModal({
   /** Cadastro de nova unidade vinculada a um modelo já existente. */
   const [createForModelId, setCreateForModelId] = useState<string | null>(null);
   const [labelPrintModule, setLabelPrintModule] = useState<WorkshopAbsModule | null>(null);
+  const [pendingPhotos, setPendingPhotos] = useState<PendingAbsPhoto[]>([]);
+  const [existingPhotos, setExistingPhotos] = useState<WorkshopAbsModulePhoto[]>([]);
+  const [photoBusy, setPhotoBusy] = useState(false);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
   const [saving, setSaving] = useState(false);
   const [action, setAction] = useState<ActionPanel>(null);
   const [history, setHistory] = useState<WorkshopAbsModuleMovement[]>([]);
@@ -519,6 +541,17 @@ export function WorkshopAbsModulesModal({
     setExitNotes('');
     setTransferLocation(mod.location || '');
     setEntryLocation(mod.location || '');
+    void getWorkshopAbsModule(mod.public_id)
+      .then((fresh) => {
+        setView((v) =>
+          v.kind === 'detail' && v.module.public_id === fresh.public_id
+            ? { kind: 'detail', module: fresh }
+            : v
+        );
+      })
+      .catch(() => {
+        /* mantém o módulo já exibido */
+      });
   }, []);
 
   const openDisassemble = useCallback((mod: WorkshopAbsModule) => {
@@ -562,6 +595,11 @@ export function WorkshopAbsModulesModal({
     setEditingModule(null);
     setCreateForModelId(null);
     setLabelPrintModule(null);
+    setPendingPhotos((prev) => {
+      prev.forEach((p) => URL.revokeObjectURL(p.previewUrl));
+      return [];
+    });
+    setExistingPhotos([]);
 
     const boot = async () => {
       if (initialDisassemblePublicId) {
@@ -814,11 +852,23 @@ export function WorkshopAbsModulesModal({
           item_state: mod.item_state,
           item_condition: mod.item_condition,
           damage_description: mod.damage_description || '',
-          unit_cost: Number(mod.unit_cost) || 0,
-          unit_price: Number(mod.unit_price) || 0,
+          unit_cost: String(Number(mod.unit_cost) || 0),
+          unit_price: String(Number(mod.unit_price) || 0),
           supplier: mod.supplier || '',
           location: mod.location || '',
           unit_notes: mod.notes || '',
+        });
+        let photos = mod.photos || [];
+        try {
+          const fresh = await getWorkshopAbsModule(mod.public_id);
+          photos = fresh.photos || photos;
+        } catch {
+          // mantém photos do objeto atual
+        }
+        setExistingPhotos(photos);
+        setPendingPhotos((prev) => {
+          prev.forEach((p) => URL.revokeObjectURL(p.previewUrl));
+          return [];
         });
         setView({ kind: 'form' });
       } catch (e) {
@@ -826,6 +876,75 @@ export function WorkshopAbsModulesModal({
       } finally {
         setLoading(false);
       }
+    },
+    []
+  );
+
+  const clearPendingPhotos = useCallback(() => {
+    setPendingPhotos((prev) => {
+      prev.forEach((p) => URL.revokeObjectURL(p.previewUrl));
+      return [];
+    });
+  }, []);
+
+  const addPendingPhotosFromFiles = useCallback(
+    (files: FileList | File[] | null) => {
+      if (!files) return;
+      const list = Array.from(files).filter((f) => f.type.startsWith('image/'));
+      if (!list.length) return;
+      setPendingPhotos((prev) => {
+        const room = ABS_MODULE_PHOTOS_MAX - existingPhotos.length - prev.length;
+        if (room <= 0) return prev;
+        const slice = list.slice(0, room);
+        return [
+          ...prev,
+          ...slice.map((file) => ({
+            id: crypto.randomUUID(),
+            file,
+            previewUrl: URL.createObjectURL(file),
+          })),
+        ];
+      });
+    },
+    [existingPhotos.length]
+  );
+
+  const removePendingPhoto = useCallback((id: string) => {
+    setPendingPhotos((prev) => {
+      const hit = prev.find((p) => p.id === id);
+      if (hit) URL.revokeObjectURL(hit.previewUrl);
+      return prev.filter((p) => p.id !== id);
+    });
+  }, []);
+
+  const removeExistingPhoto = useCallback(
+    async (photoId: string) => {
+      if (!editingModule) {
+        setExistingPhotos((prev) => prev.filter((p) => p.id !== photoId));
+        return;
+      }
+      setPhotoBusy(true);
+      setError(null);
+      try {
+        const updated = await deleteWorkshopAbsModulePhoto(editingModule.public_id, photoId);
+        setExistingPhotos(updated.photos || []);
+        setEditingModule(updated);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : 'Falha ao remover foto.');
+      } finally {
+        setPhotoBusy(false);
+      }
+    },
+    [editingModule]
+  );
+
+  const syncPhotosForModule = useCallback(
+    async (publicId: string, pending: PendingAbsPhoto[]) => {
+      let last: WorkshopAbsModule | null = null;
+      for (const photo of pending) {
+        last = await uploadWorkshopAbsModulePhoto(publicId, photo.file, photo.file.name);
+      }
+      return last;
     },
     []
   );
@@ -843,12 +962,16 @@ export function WorkshopAbsModulesModal({
         codes,
         applications,
       };
+      const unitCost = parseCurrencyStringToNumber(wizard.unit_cost);
+      const unitPrice = parseCurrencyStringToNumber(wizard.unit_price);
+      const photosSnapshot = [...pendingPhotos];
 
+      let saved: WorkshopAbsModule;
       if (editingModule) {
         if (editingModule.model_id) {
           await updateWorkshopAbsModuleModel(editingModule.model_id, catalog);
         }
-        const updated = await updateWorkshopAbsModule(editingModule.public_id, {
+        saved = await updateWorkshopAbsModule(editingModule.public_id, {
           manufacturer: wizard.manufacturer || null,
           original_code: primary,
           application:
@@ -858,23 +981,18 @@ export function WorkshopAbsModulesModal({
           item_state: wizard.item_state,
           item_condition: wizard.item_condition,
           damage_description: wizard.damage_description || null,
-          unit_cost: wizard.unit_cost,
-          unit_price: wizard.unit_price,
+          unit_cost: unitCost,
+          unit_price: unitPrice,
           supplier: wizard.supplier || null,
           location: wizard.location || null,
           notes: wizard.unit_notes || wizard.notes || null,
           model_id: editingModule.model_id,
         });
-        setEditingModule(null);
-        openDetail(updated);
-        setSuccessMsg(
-          `Unidade ${formatAbsModuleSequence(updated.sequence_number)} (${updated.public_id}) atualizada.`
-        );
       } else {
         if (createForModelId) {
           await updateWorkshopAbsModuleModel(createForModelId, catalog);
         }
-        const created = await createWorkshopAbsModule({
+        saved = await createWorkshopAbsModule({
           manufacturer: wizard.manufacturer || null,
           original_code: primary,
           application:
@@ -884,8 +1002,8 @@ export function WorkshopAbsModulesModal({
           item_state: wizard.item_state,
           item_condition: wizard.item_condition,
           damage_description: wizard.damage_description || null,
-          unit_cost: wizard.unit_cost,
-          unit_price: wizard.unit_price,
+          unit_cost: unitCost,
+          unit_price: unitPrice,
           supplier: wizard.supplier || null,
           location: wizard.location || null,
           notes: wizard.unit_notes || wizard.notes || null,
@@ -894,25 +1012,45 @@ export function WorkshopAbsModulesModal({
           catalog: createForModelId ? undefined : catalog,
           recorded_by_name: recordedByName,
         });
-        setCreateForModelId(null);
-        openDetail(created);
-        setSuccessMsg(
-          `Unidade ${formatAbsModuleSequence(created.sequence_number)} (${created.public_id}) cadastrada.`
-        );
       }
+
+      if (photosSnapshot.length > 0) {
+        setPhotoBusy(true);
+        try {
+          const withPhotos = await syncPhotosForModule(saved.public_id, photosSnapshot);
+          if (withPhotos) saved = withPhotos;
+        } finally {
+          setPhotoBusy(false);
+        }
+      }
+
+      clearPendingPhotos();
+      setExistingPhotos([]);
+      setEditingModule(null);
+      setCreateForModelId(null);
+      openDetail(saved);
+      setSuccessMsg(
+        editingModule
+          ? `Unidade ${formatAbsModuleSequence(saved.sequence_number)} (${saved.public_id}) atualizada.`
+          : `Unidade ${formatAbsModuleSequence(saved.sequence_number)} (${saved.public_id}) cadastrada.`
+      );
       void loadModels();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Falha ao salvar.');
     } finally {
       setSaving(false);
+      setPhotoBusy(false);
     }
   }, [
     buildCatalogPayload,
+    clearPendingPhotos,
     createForModelId,
     editingModule,
     loadModels,
     openDetail,
+    pendingPhotos,
     recordedByName,
+    syncPhotosForModule,
     wizard,
   ]);
 
@@ -1150,6 +1288,8 @@ export function WorkshopAbsModulesModal({
                       setEditingModule(null);
                       setCreateForModelId(null);
                       setWizard(emptyWizard());
+                      clearPendingPhotos();
+                      setExistingPhotos([]);
                       setView({ kind: 'form' });
                       requestAnimationFrame(() => {
                         document
@@ -1466,6 +1606,8 @@ export function WorkshopAbsModulesModal({
                       family: view.model.family || '',
                       module_kind: view.model.module_kind,
                     });
+                    clearPendingPhotos();
+                    setExistingPhotos([]);
                     setView({ kind: 'form' });
                   }}
                   className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 py-3.5 text-[15px] font-semibold text-white"
@@ -1491,6 +1633,8 @@ export function WorkshopAbsModulesModal({
                     setEditingModule(null);
                     setCreateForModelId(null);
                     setWizard(emptyWizard());
+                    clearPendingPhotos();
+                    setExistingPhotos([]);
                     setView({ kind: 'form' });
                   }}
                   className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 py-3.5 text-[15px] font-semibold text-white"
@@ -1663,27 +1807,19 @@ export function WorkshopAbsModulesModal({
                       </select>
                     </Field>
                     <Field label="Custo" hint="Custo individual desta unidade (não do modelo).">
-                      <input
-                        type="number"
-                        min={0}
-                        step="0.01"
-                        className={inputClass}
+                      <CurrencyMaskInput
                         value={wizard.unit_cost}
-                        onChange={(e) =>
-                          setWizard((w) => ({ ...w, unit_cost: Number(e.target.value) || 0 }))
-                        }
+                        onChange={(v) => setWizard((w) => ({ ...w, unit_cost: v }))}
+                        inputClassName={inputClass}
+                        aria-label="Custo da unidade"
                       />
                     </Field>
                     <Field label="Preço" hint="Preço de venda individual desta unidade.">
-                      <input
-                        type="number"
-                        min={0}
-                        step="0.01"
-                        className={inputClass}
+                      <CurrencyMaskInput
                         value={wizard.unit_price}
-                        onChange={(e) =>
-                          setWizard((w) => ({ ...w, unit_price: Number(e.target.value) || 0 }))
-                        }
+                        onChange={(v) => setWizard((w) => ({ ...w, unit_price: v }))}
+                        inputClassName={inputClass}
+                        aria-label="Preço de venda da unidade"
                       />
                     </Field>
                     <Field
@@ -1728,11 +1864,156 @@ export function WorkshopAbsModulesModal({
                       onChange={(e) => setWizard((w) => ({ ...w, unit_notes: e.target.value }))}
                     />
                   </Field>
+
+                  <div className="space-y-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <SectionHint
+                        title="Fotos do módulo"
+                        hint={`A primeira foto é a capa. Até ${ABS_MODULE_PHOTOS_MAX} imagens.`}
+                      />
+                      <span className="text-[12px] font-semibold tabular-nums text-zinc-500 dark:text-zinc-400">
+                        {existingPhotos.length + pendingPhotos.length}/{ABS_MODULE_PHOTOS_MAX}
+                      </span>
+                    </div>
+                    <input
+                      ref={galleryInputRef}
+                      type="file"
+                      accept="image/*,.png,.jpg,.jpeg,.webp,.heic,.heif"
+                      multiple
+                      className="sr-only fixed left-0 top-0 h-px w-px opacity-0"
+                      tabIndex={-1}
+                      aria-hidden
+                      onChange={(e) => {
+                        addPendingPhotosFromFiles(e.target.files);
+                        e.target.value = '';
+                      }}
+                    />
+                    <input
+                      ref={cameraInputRef}
+                      type="file"
+                      accept="image/*,.png,.jpg,.jpeg,.webp,.heic,.heif"
+                      capture="environment"
+                      className="sr-only fixed left-0 top-0 h-px w-px opacity-0"
+                      tabIndex={-1}
+                      aria-hidden
+                      onChange={(e) => {
+                        addPendingPhotosFromFiles(e.target.files);
+                        e.target.value = '';
+                      }}
+                    />
+                    <div className="grid max-w-[min(100%,520px)] grid-cols-3 gap-3 sm:grid-cols-4">
+                      {existingPhotos.map((photo, index) => (
+                        <div key={photo.id} className="relative aspect-square">
+                          <div
+                            className={`relative isolate h-full w-full overflow-hidden rounded-xl border-0 bg-zinc-100 dark:bg-white/[0.03] ${
+                              index === 0 ? 'ring-2 ring-emerald-500/45' : ''
+                            }`}
+                          >
+                            {index === 0 ? (
+                              <span className="absolute left-1 top-1 z-10 rounded-md bg-emerald-600 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-white">
+                                Capa
+                              </span>
+                            ) : null}
+                            <PartPhotoImg
+                              src={photo.photo_url}
+                              alt=""
+                              className="h-full w-full object-cover [transform:translateZ(0)]"
+                            />
+                            {photoBusy ? (
+                              <span className="absolute inset-0 flex items-center justify-center bg-black/40">
+                                <Loader2 className="h-6 w-6 animate-spin text-white" />
+                              </span>
+                            ) : null}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => void removeExistingPhoto(photo.id)}
+                            disabled={photoBusy || saving}
+                            className="absolute -right-1.5 -top-1.5 flex h-7 w-7 items-center justify-center rounded-full border-0 bg-white text-red-600 shadow-none hover:bg-red-50 disabled:opacity-50 dark:bg-zinc-900"
+                            aria-label="Remover foto"
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      ))}
+                      {pendingPhotos.map((photo, index) => {
+                        const coverIndex = existingPhotos.length + index;
+                        return (
+                          <div key={photo.id} className="relative aspect-square">
+                            <div
+                              className={`relative isolate h-full w-full overflow-hidden rounded-xl border-0 bg-zinc-100 dark:bg-white/[0.03] ${
+                                coverIndex === 0 ? 'ring-2 ring-emerald-500/45' : ''
+                              }`}
+                            >
+                              {coverIndex === 0 ? (
+                                <span className="absolute left-1 top-1 z-10 rounded-md bg-emerald-600 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-white">
+                                  Capa
+                                </span>
+                              ) : null}
+                              <PartPhotoImg
+                                src={photo.previewUrl}
+                                alt=""
+                                className="h-full w-full object-cover [transform:translateZ(0)]"
+                              />
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => removePendingPhoto(photo.id)}
+                              disabled={photoBusy || saving}
+                              className="absolute -right-1.5 -top-1.5 flex h-7 w-7 items-center justify-center rounded-full border-0 bg-white text-red-600 shadow-none hover:bg-red-50 disabled:opacity-50 dark:bg-zinc-900"
+                              aria-label="Remover foto"
+                            >
+                              <X className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        );
+                      })}
+                      {existingPhotos.length + pendingPhotos.length < ABS_MODULE_PHOTOS_MAX ? (
+                        <button
+                          type="button"
+                          onClick={() => galleryInputRef.current?.click()}
+                          disabled={photoBusy || saving}
+                          className="flex aspect-square h-full w-full flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed border-zinc-300/90 bg-zinc-100 text-zinc-500 transition-colors hover:border-emerald-500/50 hover:text-emerald-700 disabled:opacity-50 dark:border-white/15 dark:bg-white/[0.03] dark:hover:text-emerald-400"
+                        >
+                          <Plus className="h-6 w-6" aria-hidden />
+                          <span className="text-[10px] font-bold uppercase tracking-wide">
+                            Adicionar
+                          </span>
+                        </button>
+                      ) : null}
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={() => galleryInputRef.current?.click()}
+                        disabled={
+                          photoBusy ||
+                          saving ||
+                          existingPhotos.length + pendingPhotos.length >= ABS_MODULE_PHOTOS_MAX
+                        }
+                        className="inline-flex items-center gap-1 rounded-lg border-0 bg-zinc-100 px-2.5 py-1.5 text-[12px] font-semibold text-zinc-700 disabled:opacity-50 dark:bg-transparent dark:text-zinc-200"
+                      >
+                        <Images className="h-3.5 w-3.5" /> Galeria
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => cameraInputRef.current?.click()}
+                        disabled={
+                          photoBusy ||
+                          saving ||
+                          existingPhotos.length + pendingPhotos.length >= ABS_MODULE_PHOTOS_MAX
+                        }
+                        className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-2.5 py-1.5 text-[12px] font-semibold text-white shadow-none disabled:opacity-50"
+                      >
+                        <Camera className="h-3.5 w-3.5" /> Câmera
+                      </button>
+                    </div>
+                  </div>
                 </section>
 
                 <button
                   type="button"
-                  disabled={saving}
+                  disabled={saving || photoBusy}
                   onClick={() => void handleSave()}
                   className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 py-3.5 text-[15px] font-semibold text-white disabled:opacity-50"
                 >
@@ -1927,6 +2208,34 @@ export function WorkshopAbsModulesModal({
                     <p className="mt-3 rounded-2xl bg-zinc-100 px-3 py-2 text-[13px] text-zinc-700 dark:bg-white/10 dark:text-zinc-200">
                       {detail.damage_description}
                     </p>
+                  ) : null}
+                  {(detail.photos || []).length > 0 ? (
+                    <div className="mt-4 space-y-2">
+                      <p className="text-[12px] font-semibold uppercase tracking-wide text-zinc-500">
+                        Fotos
+                      </p>
+                      <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+                        {(detail.photos || []).map((photo, index) => (
+                          <div
+                            key={photo.id}
+                            className={`relative aspect-square overflow-hidden rounded-xl bg-zinc-100 dark:bg-white/[0.03] ${
+                              index === 0 ? 'ring-2 ring-emerald-500/45' : ''
+                            }`}
+                          >
+                            {index === 0 ? (
+                              <span className="absolute left-1 top-1 z-10 rounded-md bg-emerald-600 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-white">
+                                Capa
+                              </span>
+                            ) : null}
+                            <PartPhotoImg
+                              src={photo.photo_url}
+                              alt=""
+                              className="h-full w-full object-cover"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
                   ) : null}
                 </div>
 

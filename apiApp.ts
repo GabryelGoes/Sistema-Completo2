@@ -11306,7 +11306,12 @@ export function createApiApp() {
   });
 
   // ----------------- MÓDULOS ABS (inventário individual + QR) -----------------
-  registerAbsModuleRoutes(app, { WORKSHOP_ID, supabaseAdmin });
+  registerAbsModuleRoutes(app, {
+    WORKSHOP_ID,
+    supabaseAdmin,
+    upload,
+    photosBucket: VEHICLE_PHOTOS_BUCKET,
+  });
 
   // ----------------- TÉCNICOS DA OFICINA (atribuição nos cards) -----------------
   const capitalizeTechnicianName = (s: string) =>

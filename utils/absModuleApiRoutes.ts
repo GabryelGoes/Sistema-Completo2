@@ -47,7 +47,12 @@ import {
 type AbsRouteDeps = {
   WORKSHOP_ID: string | undefined;
   supabaseAdmin: SupabaseClient | null;
+  /** Instância multer (memoryStorage) para upload de fotos. */
+  upload?: { single: (field: string) => unknown };
+  photosBucket?: string;
 };
+
+export const ABS_MODULE_PHOTOS_MAX = 8;
 
 function parseOptionalText(value: unknown): string | null {
   if (value == null) return null;
@@ -365,6 +370,36 @@ async function insertUnitPhotos(
   if (error) throw new Error(error.message);
 }
 
+async function loadUnitPhotos(
+  supabaseAdmin: SupabaseClient,
+  workshopId: string,
+  moduleId: string
+): Promise<{ id: string; photo_url: string; sort_order: number }[]> {
+  const { data, error } = await supabaseAdmin
+    .from('workshop_abs_module_unit_photos')
+    .select('id, photo_url, sort_order')
+    .eq('workshop_id', workshopId)
+    .eq('module_id', moduleId)
+    .order('sort_order', { ascending: true });
+  if (error) throw new Error(error.message);
+  return (data || []).map((p) => ({
+    id: String(p.id),
+    photo_url: String(p.photo_url),
+    sort_order: Number(p.sort_order ?? 0),
+  }));
+}
+
+async function attachUnitPhotos(
+  supabaseAdmin: SupabaseClient,
+  workshopId: string,
+  mod: Record<string, unknown>
+): Promise<Record<string, unknown>> {
+  const id = String(mod.id || '');
+  if (!id) return { ...mod, photos: [] };
+  const photos = await loadUnitPhotos(supabaseAdmin, workshopId, id);
+  return { ...mod, photos };
+}
+
 async function resolveOrCreateModelId(
   supabaseAdmin: SupabaseClient,
   workshopId: string,
@@ -498,7 +533,10 @@ async function fetchModelBundle(
 }
 
 export function registerAbsModuleRoutes(app: Express, deps: AbsRouteDeps) {
-  const { WORKSHOP_ID, supabaseAdmin } = deps;
+  const { WORKSHOP_ID, supabaseAdmin, upload, photosBucket } = deps;
+  const photoUpload = upload?.single?.('file') as
+    | ((req: unknown, res: unknown, next: (err?: unknown) => void) => void)
+    | undefined;
 
   // -------- Models --------
   app.get('/api/abs-module-models', async (req, res) => {
@@ -1177,7 +1215,12 @@ export function registerAbsModuleRoutes(app: Express, deps: AbsRouteDeps) {
         .maybeSingle();
       if (error) return res.status(500).json({ error: error.message });
       if (!data) return res.status(404).json({ error: 'Módulo ABS não encontrado.' });
-      return res.json({ module: data });
+      const withPhotos = await attachUnitPhotos(
+        supabaseAdmin!,
+        WORKSHOP_ID!,
+        data as Record<string, unknown>
+      );
+      return res.json({ module: withPhotos });
     } catch (err: any) {
       console.error('[API] GET /api/abs-modules/:publicId:', err);
       return res.status(500).json({ error: err?.message ?? 'Erro desconhecido' });
@@ -1413,6 +1456,184 @@ export function registerAbsModuleRoutes(app: Express, deps: AbsRouteDeps) {
       return res.status(201).json({ module: row.module, movement: row.movement });
     } catch (err: any) {
       console.error('[API] POST /api/abs-modules/:publicId/movements:', err);
+      return res.status(500).json({ error: err?.message ?? 'Erro desconhecido' });
+    }
+  });
+
+  app.post('/api/abs-modules/:publicId/photo', async (req, res, next) => {
+    const run = async () => {
+      try {
+        const publicId = normalizeAbsModuleCode(String(req.params.publicId || '')) || '';
+        if (!isValidAbsModulePublicId(publicId)) {
+          return res.status(400).json({ error: 'ID de módulo ABS inválido.' });
+        }
+
+        const file = (req as { file?: { buffer: Buffer; mimetype?: string; originalname?: string } })
+          .file;
+        if (!file) return res.status(400).json({ error: 'Arquivo não enviado.' });
+        const mime = file.mimetype || 'application/octet-stream';
+        if (!mime.startsWith('image/')) {
+          return res.status(400).json({ error: 'Envie apenas imagem.' });
+        }
+
+        if (isDevMemoryActive(deps)) {
+          const mod = getDevAbsModuleByPublicId(publicId);
+          if (!mod) return res.status(404).json({ error: 'Módulo ABS não encontrado.' });
+          const dataUrl = `data:${mime};base64,${file.buffer.toString('base64')}`;
+          const updated = updateDevAbsModule(publicId, {
+            photo_urls: [...(mod.photos || []).map((p) => p.photo_url), dataUrl],
+          });
+          return res.status(201).json({ module: updated });
+        }
+
+        if (!photosBucket) {
+          return res.status(500).json({ error: 'Bucket de fotos não configurado.' });
+        }
+
+        const { data: mod, error: modErr } = await supabaseAdmin!
+          .from('workshop_abs_modules')
+          .select('id, public_id')
+          .eq('workshop_id', WORKSHOP_ID!)
+          .eq('public_id', publicId)
+          .maybeSingle();
+        if (modErr) return res.status(500).json({ error: modErr.message });
+        if (!mod) return res.status(404).json({ error: 'Módulo ABS não encontrado.' });
+
+        const { count, error: countErr } = await supabaseAdmin!
+          .from('workshop_abs_module_unit_photos')
+          .select('id', { count: 'exact', head: true })
+          .eq('module_id', mod.id)
+          .eq('workshop_id', WORKSHOP_ID!);
+        if (countErr) return res.status(500).json({ error: countErr.message });
+        if ((count ?? 0) >= ABS_MODULE_PHOTOS_MAX) {
+          return res
+            .status(400)
+            .json({ error: `Máximo de ${ABS_MODULE_PHOTOS_MAX} fotos por módulo.` });
+        }
+
+        const ext = (file.originalname?.split('.').pop() || 'jpg').toLowerCase();
+        const safeExt = /^[a-z0-9]+$/.test(ext) ? ext : 'jpg';
+        const pathInBucket = `${WORKSHOP_ID}/abs-modules/${mod.id}/${Date.now()}.${safeExt}`;
+
+        const { error: uploadErr } = await supabaseAdmin!.storage
+          .from(photosBucket)
+          .upload(pathInBucket, file.buffer, { contentType: mime, upsert: true });
+        if (uploadErr) return res.status(500).json({ error: uploadErr.message });
+
+        const {
+          data: { publicUrl },
+        } = supabaseAdmin!.storage.from(photosBucket).getPublicUrl(pathInBucket);
+        const photoUrl = `${publicUrl}${publicUrl.includes('?') ? '&' : '?'}v=${Date.now()}`;
+
+        const { error: insertErr } = await supabaseAdmin!
+          .from('workshop_abs_module_unit_photos')
+          .insert({
+            workshop_id: WORKSHOP_ID,
+            module_id: mod.id,
+            photo_url: photoUrl,
+            sort_order: count ?? 0,
+          });
+        if (insertErr) return res.status(500).json({ error: insertErr.message });
+
+        const { data: full, error: loadErr } = await supabaseAdmin!
+          .from('workshop_abs_modules')
+          .select('*')
+          .eq('id', mod.id)
+          .maybeSingle();
+        if (loadErr || !full) {
+          return res.status(500).json({ error: loadErr?.message ?? 'Falha ao recarregar módulo.' });
+        }
+        const withPhotos = await attachUnitPhotos(
+          supabaseAdmin!,
+          WORKSHOP_ID!,
+          full as Record<string, unknown>
+        );
+        return res.status(201).json({ module: withPhotos });
+      } catch (err: any) {
+        console.error('[API] POST /api/abs-modules/:publicId/photo:', err);
+        return res.status(500).json({ error: err?.message ?? 'Erro desconhecido' });
+      }
+    };
+
+    if (photoUpload) {
+      photoUpload(req, res, (err?: unknown) => {
+        if (err) {
+          const msg = err instanceof Error ? err.message : 'Falha no upload.';
+          return res.status(400).json({ error: msg });
+        }
+        void run();
+      });
+      return;
+    }
+    return res.status(500).json({ error: 'Upload multipart não configurado.' });
+  });
+
+  app.delete('/api/abs-modules/:publicId/photos/:photoId', async (req, res) => {
+    try {
+      const publicId = normalizeAbsModuleCode(String(req.params.publicId || '')) || '';
+      const photoId = String(req.params.photoId || '').trim();
+      if (!isValidAbsModulePublicId(publicId)) {
+        return res.status(400).json({ error: 'ID de módulo ABS inválido.' });
+      }
+      if (!photoId) return res.status(400).json({ error: 'ID da foto inválido.' });
+
+      if (isDevMemoryActive(deps)) {
+        const mod = getDevAbsModuleByPublicId(publicId);
+        if (!mod) return res.status(404).json({ error: 'Módulo ABS não encontrado.' });
+        const nextUrls = (mod.photos || [])
+          .filter((p) => p.id !== photoId)
+          .map((p) => p.photo_url);
+        const updated = updateDevAbsModule(publicId, { photo_urls: nextUrls });
+        return res.json({ module: updated });
+      }
+
+      const { data: mod, error: modErr } = await supabaseAdmin!
+        .from('workshop_abs_modules')
+        .select('id')
+        .eq('workshop_id', WORKSHOP_ID!)
+        .eq('public_id', publicId)
+        .maybeSingle();
+      if (modErr) return res.status(500).json({ error: modErr.message });
+      if (!mod) return res.status(404).json({ error: 'Módulo ABS não encontrado.' });
+
+      const { error: delErr } = await supabaseAdmin!
+        .from('workshop_abs_module_unit_photos')
+        .delete()
+        .eq('id', photoId)
+        .eq('module_id', mod.id)
+        .eq('workshop_id', WORKSHOP_ID!);
+      if (delErr) return res.status(500).json({ error: delErr.message });
+
+      const { data: remaining } = await supabaseAdmin!
+        .from('workshop_abs_module_unit_photos')
+        .select('id')
+        .eq('module_id', mod.id)
+        .eq('workshop_id', WORKSHOP_ID!)
+        .order('sort_order', { ascending: true });
+      let order = 0;
+      for (const row of remaining || []) {
+        await supabaseAdmin!
+          .from('workshop_abs_module_unit_photos')
+          .update({ sort_order: order++ })
+          .eq('id', row.id);
+      }
+
+      const { data: full, error: loadErr } = await supabaseAdmin!
+        .from('workshop_abs_modules')
+        .select('*')
+        .eq('id', mod.id)
+        .maybeSingle();
+      if (loadErr || !full) {
+        return res.status(500).json({ error: loadErr?.message ?? 'Falha ao recarregar módulo.' });
+      }
+      const withPhotos = await attachUnitPhotos(
+        supabaseAdmin!,
+        WORKSHOP_ID!,
+        full as Record<string, unknown>
+      );
+      return res.json({ module: withPhotos });
+    } catch (err: any) {
+      console.error('[API] DELETE /api/abs-modules/:publicId/photos/:photoId:', err);
       return res.status(500).json({ error: err?.message ?? 'Erro desconhecido' });
     }
   });

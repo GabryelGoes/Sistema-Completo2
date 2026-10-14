@@ -3871,6 +3871,49 @@ export async function searchWorkshopAbsModules(q: string): Promise<WorkshopAbsMo
   };
 }
 
+export const ABS_MODULE_PHOTOS_MAX = 8;
+
+/** Envia foto da unidade ABS (multipart). */
+export async function uploadWorkshopAbsModulePhoto(
+  publicId: string,
+  file: Blob,
+  fileName?: string
+): Promise<WorkshopAbsModule> {
+  const pid = String(publicId || '').trim().toUpperCase();
+  const formData = new FormData();
+  formData.append('file', file, fileName ?? 'abs-module.jpg');
+  const response = await fetch(`${API_BASE}/abs-modules/${encodeURIComponent(pid)}/photo`, {
+    method: 'POST',
+    body: formData,
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao enviar foto do módulo ABS (${response.status})`);
+  }
+  const data = (await response.json()) as { module?: Record<string, unknown> };
+  if (!data.module) throw new Error('Resposta inválida ao enviar foto.');
+  return normalizeAbsModuleRow(data.module);
+}
+
+/** Remove foto da unidade ABS. */
+export async function deleteWorkshopAbsModulePhoto(
+  publicId: string,
+  photoId: string
+): Promise<WorkshopAbsModule> {
+  const pid = String(publicId || '').trim().toUpperCase();
+  const response = await fetch(
+    `${API_BASE}/abs-modules/${encodeURIComponent(pid)}/photos/${encodeURIComponent(photoId)}`,
+    { method: 'DELETE' }
+  );
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao excluir foto do módulo ABS (${response.status})`);
+  }
+  const data = (await response.json()) as { module?: Record<string, unknown> };
+  if (!data.module) throw new Error('Resposta inválida ao excluir foto.');
+  return normalizeAbsModuleRow(data.module);
+}
+
 /** Exclui uma unidade física ABS (public_id). Sequência e public_id não são reutilizados. */
 export async function deleteWorkshopAbsModule(publicId: string): Promise<void> {
   const pid = String(publicId || '').trim().toUpperCase();
