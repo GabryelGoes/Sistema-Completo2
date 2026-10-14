@@ -299,6 +299,20 @@ export type WorkshopAbsDisassembleResult = {
   disassembly: WorkshopAbsModuleDisassembly;
 };
 
+/**
+ * Pistolas USB (HID) muitas vezes assumem teclado US enquanto o SO está em
+ * ABNT/outro layout: o hífen de ABS-000001 vira `;`, `/`, `'` etc.
+ */
+function normalizeAbsScanText(raw: string): string {
+  return String(raw ?? '')
+    .replace(/[\u200B-\u200D\uFEFF]/g, '')
+    .trim()
+    .replace(/\s+/g, '')
+    .replace(/[;/_·–—´`'′]/g, '-')
+    .replace(/﹣|－/g, '-')
+    .toUpperCase();
+}
+
 /** Normaliza conteúdo lido da câmera/pistola para ID ABS (remove URL/espaços). */
 export function normalizeAbsModuleCode(raw: string): string | null {
   let s = String(raw ?? '')
@@ -312,29 +326,42 @@ export function normalizeAbsModuleCode(raw: string): string | null {
       const parts = u.pathname.split('/').filter(Boolean);
       s = parts[parts.length - 1] || s;
       const q = u.searchParams.get('id') || u.searchParams.get('code');
-      if (q && ABS_MODULE_ID_REGEX.test(q.trim())) s = q.trim();
+      if (q) {
+        const fromQuery = normalizeAbsModuleCode(q);
+        if (fromQuery) return fromQuery;
+      }
     }
   } catch {
     // ignore
   }
 
-  s = s.replace(/\s+/g, '').toUpperCase();
-  if (!ABS_MODULE_ID_REGEX.test(s)) return null;
-  return s;
+  s = normalizeAbsScanText(s);
+
+  if (ABS_MODULE_ID_REGEX.test(s)) return s;
+
+  // ABS000001 / ABS.000001 / ABS_000001 → ABS-000001
+  const glued = s.match(/^ABS[-_.]?(\d{6})$/i);
+  if (glued?.[1]) return `ABS-${glued[1]}`;
+
+  // Só os 6 dígitos com prefixo ABS truncado por layout (ex.: "ABS000001").
+  const digits = s.match(/^ABS(\d{6})$/i);
+  if (digits?.[1]) return `ABS-${digits[1]}`;
+
+  return null;
 }
 
 export function isAbsModuleCode(raw: string): boolean {
   return normalizeAbsModuleCode(raw) != null;
 }
 
-/** Heurística rápida: começa com ABS- (mesmo se dígitos incompletos). */
+/** Heurística rápida: parece ID de módulo ABS (mesmo com hífen deformado pelo teclado). */
 export function looksLikeAbsModuleCode(raw: string): boolean {
-  const s = String(raw ?? '')
-    .replace(/[\u200B-\u200D\uFEFF]/g, '')
-    .trim()
-    .replace(/\s+/g, '')
-    .toUpperCase();
-  return /^ABS-/i.test(s);
+  const s = normalizeAbsScanText(raw);
+  if (!s) return false;
+  if (/^ABS-/i.test(s)) return true;
+  if (/^ABS[-_.]?\d{4,}/i.test(s)) return true;
+  if (/^ABS\d{4,}/i.test(s)) return true;
+  return normalizeAbsModuleCode(raw) != null;
 }
 
 export function formatAbsModulePublicId(n: number): string {

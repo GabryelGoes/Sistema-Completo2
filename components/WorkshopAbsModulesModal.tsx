@@ -670,6 +670,7 @@ export function WorkshopAbsModulesModal({
   const openModel = useCallback(async (model: WorkshopAbsModuleModel) => {
     setLoading(true);
     setError(null);
+    setModelAddQty('1');
     try {
       const fresh = await getWorkshopAbsModuleModel(model.id);
       setView({ kind: 'model', model: fresh });
@@ -852,7 +853,7 @@ export function WorkshopAbsModulesModal({
   /** Pistola USB na página/modal ABS: abre a unidade pelo código de barras. */
   useEffect(() => {
     if (!isOpen) return;
-    setActiveBarcodeScanClaim((raw) => {
+    return setActiveBarcodeScanClaim((raw) => {
       const code = normalizeBarcodeInput(raw);
       if (!code) return false;
       if (isLabOsQrPayload(code)) return false;
@@ -863,7 +864,6 @@ export function WorkshopAbsModulesModal({
       void handleScan(code);
       return true;
     });
-    return () => setActiveBarcodeScanClaim(null);
   }, [handleScan, isOpen, view.kind]);
 
   const buildCatalogPayload = useCallback(() => {
@@ -1897,7 +1897,8 @@ export function WorkshopAbsModulesModal({
                   <div className="rounded-2xl bg-sky-50 px-4 py-3 text-[13px] text-sky-950 dark:bg-sky-950/40 dark:text-sky-100">
                     Editando {formatAbsModuleSequence(editingModule.sequence_number)} ·{' '}
                     <span className="font-mono font-semibold">{editingModule.public_id}</span>
-                    {' — '}o código ABS e o número sequencial não mudam.
+                    {' — '}o código ABS e o número sequencial não mudam. Use “Adicionar mais
+                    unidades” para incluir novas peças iguais a esta.
                   </div>
                 ) : null}
                 <section className="space-y-3">

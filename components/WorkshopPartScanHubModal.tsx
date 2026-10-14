@@ -143,17 +143,17 @@ export function WorkshopPartScanHubModal({
       setLookingUp(true);
       setError(null);
       try {
-        if (looksLikeAbsModuleCode(trimmed) || normalizeAbsModuleCode(trimmed)) {
-          if (looksLikeAbsModuleCode(trimmed) && !normalizeAbsModuleCode(trimmed)) {
-            if (seq !== lookupSeqRef.current) return;
-            setError('ID de módulo ABS inválido. Use o formato ABS-000001.');
-            return;
-          }
+        {
           const absId = normalizeAbsModuleCode(trimmed);
           if (absId && onOpenAbsModule) {
             const abs = await lookupWorkshopAbsModuleByCode(absId);
             if (seq !== lookupSeqRef.current) return;
-            onOpenAbsModule(abs.public_id || absId);
+            onOpenAbsModule(abs.module?.public_id || abs.public_id || absId);
+            return;
+          }
+          if (looksLikeAbsModuleCode(trimmed) && !absId) {
+            if (seq !== lookupSeqRef.current) return;
+            setError('ID de módulo ABS inválido. Use o formato ABS-000001.');
             return;
           }
         }

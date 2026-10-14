@@ -205,8 +205,7 @@ export const VehicleOsStockCheckoutSection: React.FC<VehicleOsStockCheckoutSecti
       if (!budgetScanOpen) setActiveBarcodeScanClaim(null);
       return;
     }
-    setActiveBarcodeScanClaim((code) => registerRef.current(code));
-    return () => setActiveBarcodeScanClaim(null);
+    return setActiveBarcodeScanClaim((code) => registerRef.current(code));
   }, [budgetScanOpen, claimUsbScanner, serviceOrderId]);
 
   const handleCancel = async (password: string) => {

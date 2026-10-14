@@ -108,7 +108,7 @@ export function WorkshopAbsModulesHomeDashboard({
    */
   useEffect(() => {
     if (flowOpen) return;
-    setActiveBarcodeScanClaim((raw) => {
+    return setActiveBarcodeScanClaim((raw) => {
       const code = normalizeBarcodeInput(raw);
       if (!code) return false;
       if (isLabOsQrPayload(code)) return false;
@@ -131,7 +131,6 @@ export function WorkshopAbsModulesHomeDashboard({
       setFlowOpen(true);
       return true;
     });
-    return () => setActiveBarcodeScanClaim(null);
   }, [flowOpen]);
 
   useEffect(() => {

@@ -1228,15 +1228,15 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
 
   useEffect(() => {
     if (!isOpen || stockUsbClaimBlocked) return;
-    setActiveBarcodeScanClaim((raw) => {
+    return setActiveBarcodeScanClaim((raw) => {
       const code = normalizeBarcodeInput(raw);
       if (!code) return false;
       if (isLabOsQrPayload(code)) return false;
+      // Com a página ABS aberta o claim fica com ela; aqui só hub de peças.
       setScanHubOpen(true);
       setScanHubExternal({ code, token: Date.now() });
       return true;
     });
-    return () => setActiveBarcodeScanClaim(null);
   }, [isOpen, stockUsbClaimBlocked]);
 
   /** Intenção vinda da leitura USB global (editar / cadastrar / saída). */
