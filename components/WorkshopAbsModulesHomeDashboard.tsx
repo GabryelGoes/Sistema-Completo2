@@ -276,9 +276,9 @@ export function WorkshopAbsModulesHomeDashboard({
     }
   };
 
-  // Colunas assimétricas: modelo/veículos mais largos; tipo/disp./ações mais estreitos.
+  // Colunas assimétricas: modelo enxuto para aproximar família; veículos mais largos.
   const gridCols =
-    'lg:grid-cols-[minmax(11rem,1.7fr)_minmax(5.5rem,0.75fr)_minmax(5.5rem,0.8fr)_minmax(5.5rem,0.85fr)_minmax(8rem,1.35fr)_minmax(5.25rem,0.7fr)_minmax(3.25rem,0.4fr)_4.75rem]';
+    'lg:grid-cols-[minmax(9.5rem,1.05fr)_minmax(4.75rem,0.7fr)_minmax(5.5rem,0.85fr)_minmax(5.5rem,0.9fr)_minmax(8.5rem,1.45fr)_minmax(5.25rem,0.7fr)_minmax(3.25rem,0.4fr)_4.75rem]';
   // labKindsTick: garante que miniaturas atualizem quando as fotos do lab mudarem
   void labKindsTick;
 
@@ -443,7 +443,7 @@ export function WorkshopAbsModulesHomeDashboard({
 
         <div className="rounded-[22px] border-0 bg-white shadow-none dark:bg-zinc-900">
           <div
-            className={`hidden border-b border-zinc-100 px-3 py-3 text-[11px] font-bold uppercase tracking-[0.12em] text-zinc-400 dark:border-white/[0.06] dark:text-zinc-500 lg:grid lg:gap-x-4 lg:gap-y-0 ${gridCols}`}
+            className={`hidden border-b border-zinc-100 px-3 py-3 text-[11px] font-bold uppercase tracking-[0.12em] text-zinc-400 dark:border-white/[0.06] dark:text-zinc-500 lg:grid lg:gap-x-2.5 lg:gap-y-0 ${gridCols}`}
           >
             <span>Modelo</span>
             <span>Família</span>
@@ -484,7 +484,7 @@ export function WorkshopAbsModulesHomeDashboard({
                 return (
                   <div
                     key={m.id}
-                    className={`min-h-[64px] px-3 py-3 transition-colors hover:bg-zinc-50/80 dark:hover:bg-white/[0.03] lg:grid lg:items-center lg:gap-x-4 lg:gap-y-0 ${gridCols}`}
+                    className={`min-h-[64px] px-3 py-3 transition-colors hover:bg-zinc-50/80 dark:hover:bg-white/[0.03] lg:grid lg:items-center lg:gap-x-2.5 lg:gap-y-0 ${gridCols}`}
                   >
                     <button
                       type="button"
