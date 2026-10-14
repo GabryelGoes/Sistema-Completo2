@@ -139,14 +139,20 @@ type WizardState = {
   /** String monetária BR (ex.: "123.45") para CurrencyMaskInput. */
   unit_cost: string;
   unit_price: string;
-  /** Quantidade de unidades físicas a criar neste cadastro (só criação). */
-  unit_qty: number;
+  /** Quantidade de unidades físicas a criar neste cadastro (só criação). String para digitação livre. */
+  unit_qty: string;
   supplier: string;
   location: string;
   unit_notes: string;
 };
 
 const ABS_MODULE_CREATE_QTY_MAX = 50;
+
+function parseAbsCreateQty(raw: string | number | null | undefined): number {
+  const n = Math.floor(Number(raw));
+  if (!Number.isFinite(n) || n < 1) return 1;
+  return Math.min(ABS_MODULE_CREATE_QTY_MAX, n);
+}
 
 type PendingAbsPhoto = {
   id: string;
@@ -178,7 +184,7 @@ const emptyWizard = (): WizardState => ({
   damage_description: '',
   unit_cost: '0',
   unit_price: '0',
-  unit_qty: 1,
+  unit_qty: '1',
   supplier: '',
   location: '',
   unit_notes: '',
@@ -960,7 +966,7 @@ export function WorkshopAbsModulesModal({
           damage_description: mod.damage_description || '',
           unit_cost: String(Number(mod.unit_cost) || 0),
           unit_price: String(Number(mod.unit_price) || 0),
-          unit_qty: 1,
+          unit_qty: '1',
           supplier: mod.supplier || '',
           location: mod.location || '',
           unit_notes: mod.notes || '',
@@ -1108,10 +1114,7 @@ export function WorkshopAbsModulesModal({
           }
         }
       } else {
-        const qty = Math.max(
-          1,
-          Math.min(ABS_MODULE_CREATE_QTY_MAX, Math.floor(Number(wizard.unit_qty) || 1))
-        );
+        const qty = parseAbsCreateQty(wizard.unit_qty);
         if (createForModelId) {
           await updateWorkshopAbsModuleModel(createForModelId, catalog);
         }
@@ -1982,21 +1985,23 @@ export function WorkshopAbsModulesModal({
                         hint={`Quantas unidades físicas iguais cadastrar agora (1–${ABS_MODULE_CREATE_QTY_MAX}). Cada uma recebe seu #N e ABS-######; ao salvar, abre a impressão em sequência.`}
                       >
                         <input
-                          type="number"
-                          min={1}
-                          max={ABS_MODULE_CREATE_QTY_MAX}
-                          step={1}
+                          type="text"
+                          inputMode="numeric"
+                          pattern="[0-9]*"
+                          autoComplete="off"
                           className={`${inputClass} tabular-nums`}
                           value={wizard.unit_qty}
                           onChange={(e) => {
-                            const n = Number(e.target.value);
+                            const digits = e.target.value.replace(/\D/g, '').slice(0, 3);
+                            setWizard((w) => ({ ...w, unit_qty: digits }));
+                          }}
+                          onBlur={() => {
                             setWizard((w) => ({
                               ...w,
-                              unit_qty: Number.isFinite(n)
-                                ? Math.max(1, Math.min(ABS_MODULE_CREATE_QTY_MAX, Math.floor(n)))
-                                : 1,
+                              unit_qty: String(parseAbsCreateQty(w.unit_qty)),
                             }));
                           }}
+                          aria-label="Quantidade de unidades"
                         />
                       </Field>
                     ) : null}
@@ -2220,8 +2225,8 @@ export function WorkshopAbsModulesModal({
                   )}
                   {editingModule
                     ? 'Salvar alterações'
-                    : wizard.unit_qty > 1
-                      ? `Salvar ${wizard.unit_qty} unidades e gerar IDs`
+                    : parseAbsCreateQty(wizard.unit_qty) > 1
+                      ? `Salvar ${parseAbsCreateQty(wizard.unit_qty)} unidades e gerar IDs`
                       : 'Salvar modelo + unidade e gerar ID'}
                 </button>
               </div>
