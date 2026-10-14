@@ -148,9 +148,14 @@ type WizardState = {
 
 const ABS_MODULE_CREATE_QTY_MAX = 50;
 
-function parseAbsCreateQty(raw: string | number | null | undefined): number {
+function parseAbsCreateQty(
+  raw: string | number | null | undefined,
+  opts?: { allowZero?: boolean }
+): number {
+  const allowZero = Boolean(opts?.allowZero);
   const n = Math.floor(Number(raw));
-  if (!Number.isFinite(n) || n < 1) return 1;
+  if (!Number.isFinite(n) || n < 0) return allowZero ? 0 : 1;
+  if (n === 0) return allowZero ? 0 : 1;
   return Math.min(ABS_MODULE_CREATE_QTY_MAX, n);
 }
 
@@ -558,6 +563,7 @@ export function WorkshopAbsModulesModal({
   /** Cadastro de nova unidade vinculada a um modelo já existente. */
   const [createForModelId, setCreateForModelId] = useState<string | null>(null);
   const [labelPrintModules, setLabelPrintModules] = useState<WorkshopAbsModule[] | null>(null);
+  const [modelAddQty, setModelAddQty] = useState('1');
   const [pendingPhotos, setPendingPhotos] = useState<PendingAbsPhoto[]>([]);
   const [existingPhotos, setExistingPhotos] = useState<WorkshopAbsModulePhoto[]>([]);
   const [photoBusy, setPhotoBusy] = useState(false);
@@ -966,7 +972,7 @@ export function WorkshopAbsModulesModal({
           damage_description: mod.damage_description || '',
           unit_cost: String(Number(mod.unit_cost) || 0),
           unit_price: String(Number(mod.unit_price) || 0),
-          unit_qty: '1',
+          unit_qty: '0',
           supplier: mod.supplier || '',
           location: mod.location || '',
           unit_notes: mod.notes || '',
@@ -1083,6 +1089,59 @@ export function WorkshopAbsModulesModal({
       let saved: WorkshopAbsModule;
       let createdBatch: WorkshopAbsModule[] = [];
 
+      const createUnits = async (opts: {
+        qty: number;
+        modelId: string | null;
+        withCatalog: boolean;
+        photoUrls?: string[];
+        uploadPendingToFirst: boolean;
+      }) => {
+        const batch: WorkshopAbsModule[] = [];
+        let modelId = opts.modelId;
+        let sharedPhotoUrls = opts.photoUrls;
+        for (let i = 0; i < opts.qty; i++) {
+          let created = await createWorkshopAbsModule({
+            manufacturer: wizard.manufacturer || null,
+            original_code: primary,
+            application:
+              applications[0]?.vehicle_model || applications[0]?.vehicle_brand || null,
+            model: wizard.family || null,
+            module_kind: kind,
+            item_state: wizard.item_state,
+            item_condition: wizard.item_condition,
+            damage_description: wizard.damage_description || null,
+            unit_cost: unitCost,
+            unit_price: unitPrice,
+            supplier: wizard.supplier || null,
+            location: wizard.location || null,
+            notes: wizard.unit_notes || wizard.notes || null,
+            status: 'disponivel',
+            model_id: modelId,
+            catalog: opts.withCatalog && i === 0 && !modelId ? catalog : undefined,
+            photo_urls: i > 0 || !opts.uploadPendingToFirst ? sharedPhotoUrls : undefined,
+            recorded_by_name: recordedByName,
+          });
+          if (!modelId && created.model_id) modelId = created.model_id;
+
+          if (opts.uploadPendingToFirst && i === 0 && photosSnapshot.length > 0) {
+            setPhotoBusy(true);
+            try {
+              const withPhotos = await syncPhotosForModule(created.public_id, photosSnapshot);
+              if (withPhotos) {
+                created = withPhotos;
+                sharedPhotoUrls = (withPhotos.photos || [])
+                  .map((p) => p.photo_url)
+                  .filter(Boolean);
+              }
+            } finally {
+              setPhotoBusy(false);
+            }
+          }
+          batch.push(created);
+        }
+        return { batch, modelId };
+      };
+
       if (editingModule) {
         if (editingModule.model_id) {
           await updateWorkshopAbsModuleModel(editingModule.model_id, catalog);
@@ -1113,55 +1172,31 @@ export function WorkshopAbsModulesModal({
             setPhotoBusy(false);
           }
         }
+
+        const extraQty = parseAbsCreateQty(wizard.unit_qty, { allowZero: true });
+        if (extraQty > 0) {
+          const photoUrls = (saved.photos || []).map((p) => p.photo_url).filter(Boolean);
+          const { batch } = await createUnits({
+            qty: extraQty,
+            modelId: saved.model_id || editingModule.model_id,
+            withCatalog: !saved.model_id && !editingModule.model_id,
+            photoUrls: photoUrls.length ? photoUrls : undefined,
+            uploadPendingToFirst: false,
+          });
+          createdBatch = batch;
+        }
       } else {
-        const qty = parseAbsCreateQty(wizard.unit_qty);
         if (createForModelId) {
           await updateWorkshopAbsModuleModel(createForModelId, catalog);
         }
-        let modelId = createForModelId;
-        let sharedPhotoUrls: string[] | undefined;
-        createdBatch = [];
-
-        for (let i = 0; i < qty; i++) {
-          let created = await createWorkshopAbsModule({
-            manufacturer: wizard.manufacturer || null,
-            original_code: primary,
-            application:
-              applications[0]?.vehicle_model || applications[0]?.vehicle_brand || null,
-            model: wizard.family || null,
-            module_kind: kind,
-            item_state: wizard.item_state,
-            item_condition: wizard.item_condition,
-            damage_description: wizard.damage_description || null,
-            unit_cost: unitCost,
-            unit_price: unitPrice,
-            supplier: wizard.supplier || null,
-            location: wizard.location || null,
-            notes: wizard.unit_notes || wizard.notes || null,
-            status: 'disponivel',
-            model_id: modelId,
-            catalog: i === 0 && !modelId ? catalog : undefined,
-            photo_urls: i > 0 ? sharedPhotoUrls : undefined,
-            recorded_by_name: recordedByName,
-          });
-          if (!modelId && created.model_id) modelId = created.model_id;
-
-          if (i === 0 && photosSnapshot.length > 0) {
-            setPhotoBusy(true);
-            try {
-              const withPhotos = await syncPhotosForModule(created.public_id, photosSnapshot);
-              if (withPhotos) {
-                created = withPhotos;
-                sharedPhotoUrls = (withPhotos.photos || [])
-                  .map((p) => p.photo_url)
-                  .filter(Boolean);
-              }
-            } finally {
-              setPhotoBusy(false);
-            }
-          }
-          createdBatch.push(created);
-        }
+        const qty = parseAbsCreateQty(wizard.unit_qty);
+        const { batch } = await createUnits({
+          qty,
+          modelId: createForModelId,
+          withCatalog: !createForModelId,
+          uploadPendingToFirst: true,
+        });
+        createdBatch = batch;
         saved = createdBatch[0]!;
       }
 
@@ -1171,7 +1206,14 @@ export function WorkshopAbsModulesModal({
       setCreateForModelId(null);
       openDetail(saved);
 
-      if (wasEditing) {
+      if (wasEditing && createdBatch.length > 0) {
+        const first = createdBatch[0]!;
+        const last = createdBatch[createdBatch.length - 1]!;
+        setSuccessMsg(
+          `Cadastro atualizado e ${createdBatch.length} unidade(s) adicionada(s): ${formatAbsModuleSequence(first.sequence_number)}–${formatAbsModuleSequence(last.sequence_number)}.`
+        );
+        setLabelPrintModules(createdBatch);
+      } else if (wasEditing) {
         setSuccessMsg(
           `Unidade ${formatAbsModuleSequence(saved.sequence_number)} (${saved.public_id}) atualizada.`
         );
@@ -1768,26 +1810,57 @@ export function WorkshopAbsModulesModal({
                     </tbody>
                   </table>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setEditingModule(null);
-                    setCreateForModelId(view.model.id);
-                    setWizard({
-                      ...emptyWizard(),
-                      manufacturer: view.model.manufacturer || '',
-                      family: view.model.family || '',
-                      module_kind: view.model.module_kind,
-                    });
-                    clearPendingPhotos();
-                    setExistingPhotos([]);
-                    setView({ kind: 'form' });
-                  }}
-                  className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 py-3.5 text-[15px] font-semibold text-white"
-                >
-                  <Plus className="h-5 w-5" />
-                  Adicionar unidade neste modelo
-                </button>
+                <div className="rounded-3xl border-0 bg-white p-4 shadow-none dark:bg-white/5">
+                  <p className="text-[12px] font-semibold uppercase tracking-wide text-zinc-500">
+                    Adicionar unidades neste modelo
+                  </p>
+                  <p className="mt-1 text-[13px] text-zinc-600 dark:text-zinc-300">
+                    Já cadastrado: {view.model.total_qty ?? (view.model.units || []).length} unidade(s).
+                    Informe quantas deseja incluir agora.
+                  </p>
+                  <div className="mt-3 flex flex-wrap items-end gap-2">
+                    <label className="min-w-[7rem] flex-1 space-y-1.5">
+                      <span className="text-[12px] font-semibold uppercase tracking-wide text-zinc-500">
+                        Quantidade
+                      </span>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        autoComplete="off"
+                        className={`${inputClass} tabular-nums`}
+                        value={modelAddQty}
+                        onChange={(e) =>
+                          setModelAddQty(e.target.value.replace(/\D/g, '').slice(0, 3))
+                        }
+                        onBlur={() => setModelAddQty(String(parseAbsCreateQty(modelAddQty)))}
+                        aria-label="Quantidade a adicionar"
+                      />
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const qty = parseAbsCreateQty(modelAddQty);
+                        setEditingModule(null);
+                        setCreateForModelId(view.model.id);
+                        setWizard({
+                          ...emptyWizard(),
+                          manufacturer: view.model.manufacturer || '',
+                          family: view.model.family || '',
+                          module_kind: view.model.module_kind,
+                          unit_qty: String(qty),
+                        });
+                        clearPendingPhotos();
+                        setExistingPhotos([]);
+                        setView({ kind: 'form' });
+                      }}
+                      className="inline-flex flex-1 items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 py-3.5 text-[15px] font-semibold text-white sm:flex-none sm:min-w-[14rem]"
+                    >
+                      <Plus className="h-5 w-5" />
+                      Adicionar {parseAbsCreateQty(modelAddQty)} unidade(s)
+                    </button>
+                  </div>
+                </div>
               </div>
             ) : null}
 
@@ -1979,32 +2052,40 @@ export function WorkshopAbsModulesModal({
                         ))}
                       </select>
                     </Field>
-                    {!editingModule ? (
-                      <Field
-                        label="Quantidade de unidades"
-                        hint={`Quantas unidades físicas iguais cadastrar agora (1–${ABS_MODULE_CREATE_QTY_MAX}). Cada uma recebe seu #N e ABS-######; ao salvar, abre a impressão em sequência.`}
-                      >
-                        <input
-                          type="text"
-                          inputMode="numeric"
-                          pattern="[0-9]*"
-                          autoComplete="off"
-                          className={`${inputClass} tabular-nums`}
-                          value={wizard.unit_qty}
-                          onChange={(e) => {
-                            const digits = e.target.value.replace(/\D/g, '').slice(0, 3);
-                            setWizard((w) => ({ ...w, unit_qty: digits }));
-                          }}
-                          onBlur={() => {
-                            setWizard((w) => ({
-                              ...w,
-                              unit_qty: String(parseAbsCreateQty(w.unit_qty)),
-                            }));
-                          }}
-                          aria-label="Quantidade de unidades"
-                        />
-                      </Field>
-                    ) : null}
+                    <Field
+                      label={
+                        editingModule ? 'Adicionar mais unidades' : 'Quantidade de unidades'
+                      }
+                      hint={
+                        editingModule
+                          ? `Quantas unidades iguais criar agora além desta (0 = só salvar alterações; máx. ${ABS_MODULE_CREATE_QTY_MAX}). Cada nova recebe seu #N e ABS-######.`
+                          : `Quantas unidades físicas iguais cadastrar agora (1–${ABS_MODULE_CREATE_QTY_MAX}). Cada uma recebe seu #N e ABS-######; ao salvar, abre a impressão em sequência.`
+                      }
+                    >
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        autoComplete="off"
+                        className={`${inputClass} tabular-nums`}
+                        value={wizard.unit_qty}
+                        onChange={(e) => {
+                          const digits = e.target.value.replace(/\D/g, '').slice(0, 3);
+                          setWizard((w) => ({ ...w, unit_qty: digits }));
+                        }}
+                        onBlur={() => {
+                          setWizard((w) => ({
+                            ...w,
+                            unit_qty: String(
+                              parseAbsCreateQty(w.unit_qty, { allowZero: Boolean(editingModule) })
+                            ),
+                          }));
+                        }}
+                        aria-label={
+                          editingModule ? 'Adicionar mais unidades' : 'Quantidade de unidades'
+                        }
+                      />
+                    </Field>
                     <Field label="Custo" hint="Custo individual desta unidade (não do modelo).">
                       <CurrencyMaskInput
                         value={wizard.unit_cost}
@@ -2224,7 +2305,9 @@ export function WorkshopAbsModulesModal({
                     <Plus className="h-5 w-5" />
                   )}
                   {editingModule
-                    ? 'Salvar alterações'
+                    ? parseAbsCreateQty(wizard.unit_qty, { allowZero: true }) > 0
+                      ? `Salvar e adicionar ${parseAbsCreateQty(wizard.unit_qty, { allowZero: true })} unidade(s)`
+                      : 'Salvar alterações'
                     : parseAbsCreateQty(wizard.unit_qty) > 1
                       ? `Salvar ${parseAbsCreateQty(wizard.unit_qty)} unidades e gerar IDs`
                       : 'Salvar modelo + unidade e gerar ID'}
