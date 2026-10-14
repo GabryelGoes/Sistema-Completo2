@@ -313,10 +313,12 @@ function FieldHintButton({ hint }: { hint: string }) {
 function SameModelUnitsButton({
   currentPublicId,
   units,
+  photoUrl,
   onSelect,
 }: {
   currentPublicId: string;
   units: WorkshopAbsModule[];
+  photoUrl?: string | null;
   onSelect: (mod: WorkshopAbsModule) => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -334,17 +336,16 @@ function SameModelUnitsButton({
   }, [units]);
 
   const total = sorted.length;
-  const available = sorted.filter((u) => u.status === 'disponivel').length;
 
   const placePopover = useCallback(() => {
     const btn = btnRef.current;
     if (!btn) return;
     const rect = btn.getBoundingClientRect();
-    const width = Math.min(320, window.innerWidth - 24);
+    const width = Math.min(300, window.innerWidth - 24);
     let left = rect.right - width;
     if (left < 12) left = 12;
     if (left + width > window.innerWidth - 12) left = window.innerWidth - 12 - width;
-    const approxH = Math.min(280, 52 + total * 52);
+    const approxH = Math.min(260, 44 + total * 48);
     const below = rect.bottom + 8;
     const top =
       below + approxH > window.innerHeight - 12
@@ -392,30 +393,31 @@ function SameModelUnitsButton({
           e.stopPropagation();
           setOpen((v) => !v);
         }}
-        className="flex min-w-0 flex-1 items-center gap-3 rounded-2xl bg-zinc-100 px-3.5 py-3.5 text-left transition-colors hover:bg-zinc-200 dark:bg-zinc-900 dark:hover:bg-zinc-800"
+        className="flex min-w-0 flex-1 items-center gap-2.5 rounded-xl bg-zinc-100 px-3 py-2.5 text-left transition-colors hover:bg-zinc-200 dark:bg-zinc-900 dark:hover:bg-zinc-800"
         aria-expanded={open}
         aria-haspopup="dialog"
         aria-label="Ver unidades do mesmo modelo"
       >
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-zinc-900/5 text-zinc-700 dark:bg-white/10 dark:text-zinc-200">
-          <Package className="h-5 w-5" />
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-zinc-200 dark:bg-white/10">
+          {photoUrl ? (
+            <PartPhotoImg src={photoUrl} alt="" className="h-full w-full object-cover" />
+          ) : (
+            <Package className="h-4 w-4 text-zinc-500 dark:text-zinc-300" />
+          )}
         </span>
         <span className="min-w-0 flex-1">
-          <span className="flex items-center gap-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400">
+          <span className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400">
             Mesmo modelo
             <ChevronDown
               className={`h-3.5 w-3.5 transition-transform ${open ? 'rotate-180' : ''}`}
               aria-hidden
             />
           </span>
-          <span className="mt-0.5 block text-[20px] font-bold tracking-tight tabular-nums text-zinc-900 dark:text-white">
+          <span className="mt-0.5 block text-[17px] font-bold tracking-tight tabular-nums text-zinc-900 dark:text-white">
             {total}
-            <span className="ml-1.5 text-[13px] font-semibold text-zinc-500 dark:text-zinc-400">
+            <span className="ml-1.5 text-[12px] font-semibold text-zinc-500 dark:text-zinc-400">
               {total === 1 ? 'unidade' : 'unidades'}
             </span>
-          </span>
-          <span className="mt-0.5 block text-[12px] font-medium text-emerald-700 dark:text-emerald-400">
-            {available} disp.
           </span>
         </span>
       </button>
@@ -432,11 +434,8 @@ function SameModelUnitsButton({
                 <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
                   Unidades deste modelo
                 </p>
-                <p className="text-[12px] text-zinc-400">
-                  {total} no total · {available} disponível{available === 1 ? '' : 'is'}
-                </p>
               </div>
-              <ul className="max-h-[min(280px,50vh)] overflow-y-auto overscroll-contain py-1 custom-scrollbar">
+              <ul className="max-h-[min(260px,45vh)] overflow-y-auto overscroll-contain py-1 custom-scrollbar">
                 {sorted.map((u) => {
                   const current = u.public_id === currentPublicId;
                   return (
@@ -2685,7 +2684,7 @@ export function WorkshopAbsModulesModal({
             ) : null}
 
             {detail ? (
-              <div className="space-y-4">
+              <div className="space-y-3">
                 {(() => {
                   const heroPhoto = detailHeroPhotoUrl(detail);
                   const catalog = detail.catalog_model;
@@ -2694,16 +2693,16 @@ export function WorkshopAbsModulesModal({
                   const codes = detailCodes(detail);
                   const showBothCodes = Boolean(codes.eletronico && codes.hidraulico);
                   const fieldCard =
-                    'rounded-2xl bg-zinc-100 px-3.5 py-3 dark:bg-zinc-900';
+                    'rounded-xl bg-zinc-100 px-3 py-2.5 dark:bg-zinc-900';
                   const fieldLabel =
-                    'text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500';
-                  const fieldValue = 'mt-1 text-[15px] font-semibold text-zinc-900 dark:text-white';
+                    'text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-500';
+                  const fieldValue = 'mt-0.5 text-[14px] font-semibold text-zinc-900 dark:text-white';
                   const secondaryBtn =
-                    'inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[12px] font-medium text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-300 dark:hover:bg-white/10 dark:hover:text-white';
+                    'inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-[11px] font-medium text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-300 dark:hover:bg-white/10 dark:hover:text-white';
                   const siblingUnits =
                     catalog?.units && catalog.units.length > 0 ? catalog.units : [detail];
                   return (
-                    <div className="overflow-hidden rounded-[1.5rem] border-0 bg-white shadow-none dark:bg-zinc-950">
+                    <div className="overflow-hidden rounded-[1.25rem] border-0 bg-white shadow-none dark:bg-zinc-950">
                       {/* Identidade + campos sobre a foto; rodapé sólido sem imagem */}
                       <div className="relative isolate">
                         {heroPhoto ? (
@@ -2714,7 +2713,7 @@ export function WorkshopAbsModulesModal({
                             <PartPhotoImg
                               src={heroPhoto}
                               alt=""
-                              className="absolute inset-0 h-full w-full object-cover object-center"
+                              className="absolute inset-0 h-full w-full scale-105 object-cover object-center blur-[2.5px] dark:brightness-[0.55]"
                             />
                           </div>
                         ) : (
@@ -2723,29 +2722,33 @@ export function WorkshopAbsModulesModal({
                             className="pointer-events-none absolute inset-0 bg-gradient-to-br from-zinc-200 via-zinc-100 to-emerald-50 dark:from-zinc-900 dark:via-zinc-900 dark:to-emerald-950/50"
                           />
                         )}
+                        {/* Escurece um pouco mais a foto no modo escuro */}
+                        <div
+                          aria-hidden
+                          className="pointer-events-none absolute inset-0 hidden bg-black/25 dark:block"
+                        />
 
-                        {/* Topo: foto mais visível + status / fabricante / meta discreta */}
-                        <div className="relative min-h-[9.5rem] px-4 pb-4 pt-3 sm:min-h-[10.5rem] sm:px-5 sm:pt-3.5">
-                          <div className="absolute inset-0 bg-gradient-to-b from-black/25 via-black/15 to-black/55" />
+                        {/* Topo: fabricante + meta (sem etiqueta de status) */}
+                        <div className="relative min-h-[7.25rem] px-3.5 pb-3 pt-2.5 sm:min-h-[7.75rem] sm:px-4">
+                          <div className="absolute inset-0 bg-gradient-to-b from-black/20 via-black/25 to-black/60" />
                           {!heroPhoto ? (
                             <div className="absolute inset-0 flex items-center justify-center">
-                              <Package className="h-12 w-12 text-white/40" />
+                              <Package className="h-9 w-9 text-white/40" />
                             </div>
                           ) : null}
-                          <div className="relative flex h-full min-h-[8.5rem] flex-col justify-between gap-3 sm:min-h-[9.5rem]">
-                            <StatusPill status={detail.status} />
+                          <div className="relative flex h-full min-h-[6.25rem] flex-col justify-end sm:min-h-[6.75rem]">
                             <div className="min-w-0">
-                              <p className="truncate text-[26px] font-bold tracking-tight text-white drop-shadow-sm sm:text-[28px]">
+                              <p className="truncate text-[22px] font-bold tracking-tight text-white drop-shadow-sm sm:text-[24px]">
                                 {detail.manufacturer || 'Módulo ABS'}
                               </p>
-                              <p className="mt-1 truncate text-[12px] font-medium text-white/65">
+                              <p className="mt-0.5 truncate text-[11px] font-medium text-white/60">
                                 {absModuleKindLabel(detail.module_kind)}
                                 <span className="mx-1.5 text-white/30">·</span>
-                                <span className="tabular-nums text-white/55">
+                                <span className="tabular-nums text-white/50">
                                   {formatAbsModuleSequence(detail.sequence_number)}
                                 </span>
                                 <span className="mx-1.5 text-white/30">·</span>
-                                <span className="font-mono tracking-wide text-white/55">
+                                <span className="font-mono tracking-wide text-white/50">
                                   {detail.public_id}
                                 </span>
                               </p>
@@ -2753,23 +2756,20 @@ export function WorkshopAbsModulesModal({
                           </div>
                         </div>
 
-                        {/* Campos: degradê severo desde o início (localização); foto ~60% mais discreta */}
-                        <div className="relative px-3 pb-3 pt-1 sm:px-4 sm:pb-4">
+                        {/* Campos: degradê agressivo + foto embassada atrás */}
+                        <div className="relative px-2.5 pb-2.5 pt-0.5 sm:px-3.5 sm:pb-3">
                           <div
                             aria-hidden
-                            className="pointer-events-none absolute inset-0 bg-gradient-to-b from-white/[0.72] via-white/[0.9] to-white dark:from-zinc-950/[0.72] dark:via-zinc-950/[0.9] dark:to-zinc-950"
+                            className="pointer-events-none absolute inset-0 bg-gradient-to-b from-white/[0.82] via-white/[0.94] to-white dark:from-zinc-950/[0.84] dark:via-zinc-950/[0.94] dark:to-zinc-950"
                           />
-                          <div className="relative space-y-2.5">
-                            <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-                              <div className="flex min-w-0 items-center gap-3 rounded-2xl bg-emerald-50 px-3.5 py-3.5 dark:bg-emerald-950">
-                                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-600/15 text-emerald-700 dark:text-emerald-300">
-                                  <MapPin className="h-5 w-5" />
-                                </span>
+                          <div className="relative space-y-2">
+                            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                              <div className="flex min-w-0 items-center rounded-xl bg-emerald-50 px-3 py-2.5 dark:bg-emerald-950">
                                 <div className="min-w-0">
-                                  <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-700 dark:text-emerald-400">
+                                  <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-emerald-700 dark:text-emerald-400">
                                     Localização
                                   </p>
-                                  <p className="mt-0.5 truncate text-[20px] font-bold tracking-tight text-emerald-950 dark:text-emerald-50">
+                                  <p className="mt-0.5 truncate text-[17px] font-bold tracking-tight text-emerald-950 dark:text-emerald-50">
                                     {detail.location?.trim() || 'Sem local definido'}
                                   </p>
                                 </div>
@@ -2777,11 +2777,12 @@ export function WorkshopAbsModulesModal({
                               <SameModelUnitsButton
                                 currentPublicId={detail.public_id}
                                 units={siblingUnits as WorkshopAbsModule[]}
+                                photoUrl={heroPhoto}
                                 onSelect={(u) => openDetail(u)}
                               />
                             </div>
 
-                            <dl className="grid grid-cols-2 gap-2.5">
+                            <dl className="grid grid-cols-2 gap-2">
                               <div className={fieldCard}>
                                 <dt className={fieldLabel}>Fabricante</dt>
                                 <dd className={fieldValue}>{detail.manufacturer || '—'}</dd>
@@ -2796,16 +2797,16 @@ export function WorkshopAbsModulesModal({
                               </div>
                               <div className={`${fieldCard} col-span-2`}>
                                 <dt className={fieldLabel}>Código</dt>
-                                <dd className="mt-1.5 space-y-1">
+                                <dd className="mt-1 space-y-0.5">
                                   {showBothCodes ? (
                                     <>
-                                      <p className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-[14px] font-semibold tabular-nums text-emerald-700 dark:text-emerald-400">
+                                      <p className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-[13px] font-semibold tabular-nums text-emerald-700 dark:text-emerald-400">
                                         <span className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
                                           Eletrônico
                                         </span>
                                         {codes.eletronico}
                                       </p>
-                                      <p className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-[14px] font-semibold tabular-nums text-emerald-700 dark:text-emerald-400">
+                                      <p className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-[13px] font-semibold tabular-nums text-emerald-700 dark:text-emerald-400">
                                         <span className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
                                           Hidráulico
                                         </span>
@@ -2813,7 +2814,7 @@ export function WorkshopAbsModulesModal({
                                       </p>
                                     </>
                                   ) : (
-                                    <p className="text-[15px] font-semibold tabular-nums text-emerald-700 dark:text-emerald-400">
+                                    <p className="text-[14px] font-semibold tabular-nums text-emerald-700 dark:text-emerald-400">
                                       {codes.primary || '—'}
                                     </p>
                                   )}
@@ -2828,7 +2829,7 @@ export function WorkshopAbsModulesModal({
                               </div>
                               <div className={fieldCard}>
                                 <dt className={fieldLabel}>Preços</dt>
-                                <dd className="mt-1 flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-[14px] font-semibold text-zinc-900 dark:text-white">
+                                <dd className="mt-0.5 flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-[13px] font-semibold text-zinc-900 dark:text-white">
                                   <span>
                                     <span className="mr-1 text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
                                       Custo
@@ -2847,21 +2848,21 @@ export function WorkshopAbsModulesModal({
                             </dl>
 
                             {detail.damage_description ? (
-                              <p className="rounded-2xl bg-amber-50 px-3.5 py-2.5 text-[13px] text-amber-950 dark:bg-amber-950 dark:text-amber-100">
+                              <p className="rounded-xl bg-amber-50 px-3 py-2 text-[12px] text-amber-950 dark:bg-amber-950 dark:text-amber-100">
                                 {detail.damage_description}
                               </p>
                             ) : null}
 
                             {(detail.photos || []).length > 1 ? (
-                              <div className="space-y-2">
-                                <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+                              <div className="space-y-1.5">
+                                <p className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
                                   Mais fotos
                                 </p>
-                                <div className="grid grid-cols-4 gap-2">
+                                <div className="grid grid-cols-4 gap-1.5">
                                   {(detail.photos || []).slice(1).map((photo) => (
                                     <div
                                       key={photo.id}
-                                      className="aspect-square overflow-hidden rounded-xl bg-zinc-100 dark:bg-zinc-900"
+                                      className="aspect-square overflow-hidden rounded-lg bg-zinc-100 dark:bg-zinc-900"
                                     >
                                       <PartPhotoImg
                                         src={photo.photo_url}
@@ -2878,7 +2879,7 @@ export function WorkshopAbsModulesModal({
                       </div>
 
                       {/* Rodapé: ações modestas + CTAs; sem foto */}
-                      <div className="space-y-2.5 border-t border-zinc-100 bg-white px-3 py-3 dark:border-white/[0.06] dark:bg-zinc-950 sm:px-4">
+                      <div className="space-y-2 border-t border-zinc-100 bg-white px-2.5 py-2.5 dark:border-white/[0.06] dark:bg-zinc-950 sm:px-3.5">
                         <div className="flex flex-wrap items-center gap-0.5">
                           <button
                             type="button"
@@ -2948,7 +2949,7 @@ export function WorkshopAbsModulesModal({
                                 setAction('entry');
                                 setActionError(null);
                               }}
-                              className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-3 py-3 text-[14px] font-semibold text-white transition hover:bg-emerald-700"
+                              className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-3 py-2.5 text-[13px] font-semibold text-white transition hover:bg-emerald-700"
                             >
                               <ArrowDownToLine className="h-4 w-4" />
                               Registrar entrada
@@ -2961,7 +2962,7 @@ export function WorkshopAbsModulesModal({
                                 setConfirmExit(false);
                                 setActionError(null);
                               }}
-                              className="inline-flex items-center justify-center gap-2 rounded-xl bg-rose-600 px-3 py-3 text-[14px] font-semibold text-white transition hover:bg-rose-700"
+                              className="inline-flex items-center justify-center gap-2 rounded-xl bg-rose-600 px-3 py-2.5 text-[13px] font-semibold text-white transition hover:bg-rose-700"
                             >
                               <ArrowUpFromLine className="h-4 w-4" />
                               Dar saída
@@ -2971,7 +2972,7 @@ export function WorkshopAbsModulesModal({
                             <button
                               type="button"
                               onClick={() => openDisassemble(detail)}
-                              className="inline-flex items-center justify-center gap-2 rounded-xl bg-amber-500 px-3 py-3 text-[14px] font-semibold text-amber-950 transition hover:bg-amber-400"
+                              className="inline-flex items-center justify-center gap-2 rounded-xl bg-amber-500 px-3 py-2.5 text-[13px] font-semibold text-amber-950 transition hover:bg-amber-400"
                             >
                               <Scissors className="h-4 w-4" />
                               Desmembrar
