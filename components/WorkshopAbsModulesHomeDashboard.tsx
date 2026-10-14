@@ -76,6 +76,21 @@ function modelApplicationLabel(m: WorkshopAbsModuleModel): string {
   return brands.length ? brands.join(', ') : '—';
 }
 
+/** Modelos de veículo da aplicação — coluna "Modelo aplic.". */
+function modelApplicationVehiclesLabel(m: WorkshopAbsModuleModel): string {
+  const models: string[] = [];
+  const seen = new Set<string>();
+  for (const a of m.applications || []) {
+    const model = String(a.vehicle_model || '').trim();
+    if (!model) continue;
+    const key = model.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    models.push(model);
+  }
+  return models.length ? models.join(', ') : '—';
+}
+
 function absKindPhotoUrl(kind: AbsModuleKind | string | null | undefined): string | null {
   const raw = getLabProductKindPhotoUrl(kind);
   if (!raw) return null;
@@ -261,8 +276,9 @@ export function WorkshopAbsModulesHomeDashboard({
     }
   };
 
+  // Colunas assimétricas: modelo/veículos mais largos; tipo/disp./ações mais estreitos.
   const gridCols =
-    'lg:grid-cols-[minmax(12rem,2fr)_minmax(7rem,1fr)_minmax(6.5rem,0.9fr)_minmax(6rem,0.85fr)_minmax(4.5rem,0.55fr)_minmax(6rem,0.85fr)_5.5rem]';
+    'lg:grid-cols-[minmax(11rem,1.7fr)_minmax(5.5rem,0.75fr)_minmax(5.5rem,0.8fr)_minmax(5.5rem,0.85fr)_minmax(8rem,1.35fr)_minmax(5.25rem,0.7fr)_minmax(3.25rem,0.4fr)_4.75rem]';
   // labKindsTick: garante que miniaturas atualizem quando as fotos do lab mudarem
   void labKindsTick;
 
@@ -427,14 +443,15 @@ export function WorkshopAbsModulesHomeDashboard({
 
         <div className="rounded-[22px] border-0 bg-white shadow-none dark:bg-zinc-900">
           <div
-            className={`hidden border-b border-zinc-100 px-4 py-3 text-[11px] font-bold uppercase tracking-[0.12em] text-zinc-400 dark:border-white/[0.06] dark:text-zinc-500 lg:grid lg:gap-3 ${gridCols}`}
+            className={`hidden border-b border-zinc-100 px-3 py-3 text-[11px] font-bold uppercase tracking-[0.12em] text-zinc-400 dark:border-white/[0.06] dark:text-zinc-500 lg:grid lg:gap-x-4 lg:gap-y-0 ${gridCols}`}
           >
             <span>Modelo</span>
-            <span>Aplicação</span>
+            <span>Família</span>
             <span>Código</span>
+            <span>Aplicação</span>
+            <span>Modelo aplic.</span>
             <span>Tipo</span>
             <span className="text-right">Disp.</span>
-            <span>Família</span>
             <span className="text-center">Ações</span>
           </div>
 
@@ -461,19 +478,20 @@ export function WorkshopAbsModulesHomeDashboard({
               {models.map((m) => {
                 const code = modelPrimaryCode(m);
                 const application = modelApplicationLabel(m);
+                const vehicles = modelApplicationVehiclesLabel(m);
                 const modelName = m.manufacturer?.trim() || '—';
                 const kindPhoto = absKindPhotoUrl(m.module_kind);
                 return (
                   <div
                     key={m.id}
-                    className={`min-h-[64px] px-4 py-3 transition-colors hover:bg-zinc-50/80 dark:hover:bg-white/[0.03] lg:grid lg:items-center lg:gap-3 ${gridCols}`}
+                    className={`min-h-[64px] px-3 py-3 transition-colors hover:bg-zinc-50/80 dark:hover:bg-white/[0.03] lg:grid lg:items-center lg:gap-x-4 lg:gap-y-0 ${gridCols}`}
                   >
                     <button
                       type="button"
                       onClick={() => openModel(m)}
-                      className="flex min-w-0 w-full items-center gap-3 rounded-xl text-left transition hover:bg-zinc-100/70 dark:hover:bg-white/[0.05] lg:w-auto"
+                      className="flex min-w-0 w-full items-center gap-2.5 rounded-xl text-left transition hover:bg-zinc-100/70 dark:hover:bg-white/[0.05] lg:w-auto"
                     >
-                      <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-zinc-100 dark:bg-white/5">
+                      <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-zinc-100 dark:bg-white/5">
                         {kindPhoto ? (
                           <PartPhotoImg
                             src={kindPhoto}
@@ -489,30 +507,41 @@ export function WorkshopAbsModulesHomeDashboard({
                           {modelName}
                         </span>
                         <span className="mt-0.5 block text-[12px] text-zinc-500 lg:hidden">
+                          {m.family ? `${m.family} · ` : ''}
                           {application !== '—' ? `${application} · ` : ''}
+                          {vehicles !== '—' ? `${vehicles} · ` : ''}
                           {absModuleKindLabel(m.module_kind)} · {m.available_qty ?? 0} disp.
                         </span>
                       </span>
                     </button>
+                    <span
+                      className="mt-2 truncate text-[13px] text-zinc-600 dark:text-zinc-400 lg:mt-0"
+                      title={m.family || undefined}
+                    >
+                      {m.family || '—'}
+                    </span>
+                    <span className="mt-2 truncate text-[13px] font-semibold tabular-nums text-emerald-700 dark:text-emerald-400 lg:mt-0">
+                      {code}
+                    </span>
                     <span
                       className="mt-2 truncate text-[13px] font-medium text-zinc-700 dark:text-zinc-300 lg:mt-0"
                       title={application}
                     >
                       {application}
                     </span>
-                    <span className="mt-2 truncate text-[13px] font-semibold tabular-nums text-emerald-700 dark:text-emerald-400 lg:mt-0">
-                      {code}
+                    <span
+                      className="mt-2 truncate text-[13px] font-medium text-zinc-700 dark:text-zinc-300 lg:mt-0"
+                      title={vehicles}
+                    >
+                      {vehicles}
                     </span>
-                    <span className="mt-2 text-[13px] font-medium text-zinc-700 dark:text-zinc-300 lg:mt-0">
+                    <span className="mt-2 truncate text-[13px] font-medium text-zinc-700 dark:text-zinc-300 lg:mt-0">
                       {absModuleKindLabel(m.module_kind)}
                     </span>
                     <span className="mt-2 text-[14px] font-bold tabular-nums text-zinc-900 dark:text-white lg:mt-0 lg:text-right">
                       {m.available_qty ?? 0}
                     </span>
-                    <span className="mt-2 truncate text-[13px] text-zinc-600 dark:text-zinc-400 lg:mt-0">
-                      {m.family || '—'}
-                    </span>
-                    <div className="mt-2 flex items-center justify-end gap-1 lg:mt-0 lg:justify-center">
+                    <div className="mt-2 flex items-center justify-end gap-0.5 lg:mt-0 lg:justify-center">
                       <button
                         type="button"
                         onClick={() => openModel(m)}
