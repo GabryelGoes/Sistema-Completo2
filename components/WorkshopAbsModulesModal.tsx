@@ -2516,168 +2516,186 @@ export function WorkshopAbsModulesModal({
                   const secondaryBtn =
                     'inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[12px] font-medium text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-300 dark:hover:bg-white/10 dark:hover:text-white';
                   return (
-                    <div className="overflow-hidden rounded-[1.5rem] border-0 bg-white shadow-none dark:bg-white/[0.04]">
-                      <div className="relative aspect-[2.2/1] min-h-[148px] bg-gradient-to-br from-zinc-100 via-zinc-50 to-emerald-50/40 dark:from-zinc-900 dark:via-zinc-900 dark:to-emerald-950/30">
+                    <div className="overflow-hidden rounded-[1.5rem] border-0 bg-white shadow-none dark:bg-zinc-950">
+                      {/* Cabeçalho curto + infos: foto contínua por trás; rodapé de ações fica fora. */}
+                      <div className="relative isolate">
                         {heroPhoto ? (
-                          <PartPhotoImg
-                            src={heroPhoto}
-                            alt=""
-                            className="absolute inset-0 h-full w-full object-cover"
-                          />
-                        ) : (
-                          <div className="absolute inset-0 flex items-center justify-center">
-                            <Package className="h-14 w-14 text-zinc-300 dark:text-zinc-600" />
+                          <div
+                            aria-hidden
+                            className="pointer-events-none absolute inset-0 overflow-hidden"
+                          >
+                            <PartPhotoImg
+                              src={heroPhoto}
+                              alt=""
+                              className="absolute inset-0 h-full w-full scale-[1.02] object-cover object-[center_18%]"
+                            />
                           </div>
+                        ) : (
+                          <div
+                            aria-hidden
+                            className="pointer-events-none absolute inset-0 bg-gradient-to-br from-zinc-100 via-zinc-50 to-emerald-50/50 dark:from-zinc-900 dark:via-zinc-900 dark:to-emerald-950/40"
+                          />
                         )}
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/10 to-transparent" />
-                        <div className="absolute left-3 top-3">
-                          <StatusPill status={detail.status} />
-                        </div>
-                        <div className="absolute bottom-3 left-4 right-4 flex items-end justify-between gap-3">
-                          <div className="min-w-0">
-                            <p className="truncate text-[22px] font-bold tracking-tight text-white drop-shadow-sm">
+
+                        {/* Faixa do cabeçalho: pouco da foto, bem visível */}
+                        <div className="relative h-[4.75rem] sm:h-[5.25rem]">
+                          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/25 to-black/10" />
+                          {!heroPhoto ? (
+                            <div className="absolute inset-0 flex items-center justify-center">
+                              <Package className="h-8 w-8 text-white/50" />
+                            </div>
+                          ) : null}
+                          <div className="absolute left-3 top-2.5">
+                            <StatusPill status={detail.status} />
+                          </div>
+                          <div className="absolute bottom-2 left-3.5 right-3.5 min-w-0">
+                            <p className="truncate text-[18px] font-bold tracking-tight text-white drop-shadow-sm sm:text-[20px]">
                               {detail.manufacturer || 'Módulo ABS'}
                             </p>
-                            <p className="mt-0.5 text-[12px] font-medium text-white/75">
+                            <p className="mt-0.5 truncate text-[11px] font-medium text-white/70">
                               {absModuleKindLabel(detail.module_kind)}
-                              <span className="mx-1.5 text-white/40">·</span>
+                              <span className="mx-1.5 text-white/35">·</span>
                               <span className="tabular-nums">
                                 {formatAbsModuleSequence(detail.sequence_number)}
                               </span>
-                              <span className="mx-1.5 text-white/40">·</span>
+                              <span className="mx-1.5 text-white/35">·</span>
                               <span className="font-mono tracking-wide">{detail.public_id}</span>
                             </p>
                           </div>
                         </div>
-                      </div>
 
-                      <div className="space-y-4 p-4 sm:p-5">
-                        <div className="flex items-start gap-3 rounded-2xl bg-emerald-50/90 px-4 py-3.5 dark:bg-emerald-950/35">
-                          <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-600/15 text-emerald-700 dark:text-emerald-300">
-                            <MapPin className="h-4.5 w-4.5 h-[18px] w-[18px]" />
-                          </span>
-                          <div className="min-w-0">
-                            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-700/80 dark:text-emerald-400/90">
-                              Localização
-                            </p>
-                            <p className="mt-0.5 text-[18px] font-bold tracking-tight text-emerald-950 dark:text-emerald-50">
-                              {detail.location?.trim() || 'Sem local definido'}
-                            </p>
-                          </div>
-                        </div>
-
-                        <dl className="grid gap-3 sm:grid-cols-2">
-                          <div className="rounded-xl bg-zinc-50 px-3.5 py-3 dark:bg-white/[0.03]">
-                            <dt className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
-                              Fabricante
-                            </dt>
-                            <dd className="mt-1 text-[15px] font-semibold text-zinc-900 dark:text-white">
-                              {detail.manufacturer || '—'}
-                            </dd>
-                          </div>
-                          <div className="rounded-xl bg-zinc-50 px-3.5 py-3 dark:bg-white/[0.03]">
-                            <dt className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
-                              Família
-                            </dt>
-                            <dd className="mt-1 text-[15px] font-semibold text-zinc-900 dark:text-white">
-                              {family || '—'}
-                            </dd>
-                          </div>
-                          <div className="rounded-xl bg-zinc-50 px-3.5 py-3 sm:col-span-2 dark:bg-white/[0.03]">
-                            <dt className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
-                              Aplicação
-                            </dt>
-                            <dd className="mt-1 text-[15px] font-semibold text-zinc-900 dark:text-white">
-                              {appsLabel}
-                            </dd>
-                          </div>
-                          <div className="rounded-xl bg-zinc-50 px-3.5 py-3 sm:col-span-2 dark:bg-white/[0.03]">
-                            <dt className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
-                              Código
-                            </dt>
-                            <dd className="mt-1 space-y-1">
-                              {showBothCodes ? (
-                                <>
-                                  <p className="text-[14px] font-semibold tabular-nums text-emerald-700 dark:text-emerald-400">
-                                    <span className="mr-2 text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
-                                      Eletrônico
-                                    </span>
-                                    {codes.eletronico}
-                                  </p>
-                                  <p className="text-[14px] font-semibold tabular-nums text-emerald-700 dark:text-emerald-400">
-                                    <span className="mr-2 text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
-                                      Hidráulico
-                                    </span>
-                                    {codes.hidraulico}
-                                  </p>
-                                </>
-                              ) : (
-                                <p className="text-[15px] font-semibold tabular-nums text-emerald-700 dark:text-emerald-400">
-                                  {codes.primary || '—'}
-                                </p>
-                              )}
-                            </dd>
-                          </div>
-                          <div className="rounded-xl bg-zinc-50 px-3.5 py-3 dark:bg-white/[0.03]">
-                            <dt className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
-                              Estado / condição
-                            </dt>
-                            <dd className="mt-1 text-[15px] font-semibold text-zinc-900 dark:text-white">
-                              {absModuleItemStateLabel(detail.item_state)} ·{' '}
-                              {absModuleItemConditionLabel(detail.item_condition)}
-                            </dd>
-                          </div>
-                          <div className="rounded-xl bg-zinc-50 px-3.5 py-3 dark:bg-white/[0.03]">
-                            <dt className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
-                              Preços
-                            </dt>
-                            <dd className="mt-1 flex flex-wrap items-baseline gap-x-3 gap-y-0.5 text-[15px] font-semibold text-zinc-900 dark:text-white">
-                              <span>
-                                <span className="mr-1 text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
-                                  Custo
-                                </span>
-                                {formatAbsModuleMoney(detail.unit_cost)}
-                              </span>
-                              <span className="text-zinc-300 dark:text-zinc-600">|</span>
-                              <span>
-                                <span className="mr-1 text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
-                                  Venda
-                                </span>
-                                {formatAbsModuleMoney(detail.unit_price)}
-                              </span>
-                            </dd>
-                          </div>
-                        </dl>
-
-                        {detail.damage_description ? (
-                          <p className="rounded-xl bg-amber-50 px-3.5 py-2.5 text-[13px] text-amber-950 dark:bg-amber-950/30 dark:text-amber-100">
-                            {detail.damage_description}
-                          </p>
-                        ) : null}
-
-                        {(detail.photos || []).length > 1 ? (
-                          <div className="space-y-2">
-                            <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
-                              Mais fotos
-                            </p>
-                            <div className="grid grid-cols-4 gap-2">
-                              {(detail.photos || []).slice(1).map((photo) => (
-                                <div
-                                  key={photo.id}
-                                  className="aspect-square overflow-hidden rounded-xl bg-zinc-100 dark:bg-white/[0.03]"
-                                >
-                                  <PartPhotoImg
-                                    src={photo.photo_url}
-                                    alt=""
-                                    className="h-full w-full object-cover"
-                                  />
-                                </div>
-                              ))}
+                        {/* Infos: mesma foto bem leve por trás (véu quase opaco) */}
+                        <div className="relative space-y-4 bg-white/[0.93] px-4 py-4 backdrop-blur-[1.5px] dark:bg-zinc-950/[0.9] sm:px-5 sm:py-5">
+                          <div className="flex items-start gap-3 rounded-2xl bg-emerald-50/95 px-4 py-3.5 dark:bg-emerald-950/55">
+                            <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-600/15 text-emerald-700 dark:text-emerald-300">
+                              <MapPin className="h-[18px] w-[18px]" />
+                            </span>
+                            <div className="min-w-0">
+                              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-700/80 dark:text-emerald-400/90">
+                                Localização
+                              </p>
+                              <p className="mt-0.5 text-[18px] font-bold tracking-tight text-emerald-950 dark:text-emerald-50">
+                                {detail.location?.trim() || 'Sem local definido'}
+                              </p>
                             </div>
                           </div>
-                        ) : null}
 
-                        <div className="flex flex-wrap items-center gap-1 border-t border-zinc-100 pt-3 dark:border-white/[0.06]">
+                          <dl className="grid gap-3 sm:grid-cols-2">
+                            <div className="rounded-xl bg-white/80 px-3.5 py-3 dark:bg-white/[0.04]">
+                              <dt className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+                                Fabricante
+                              </dt>
+                              <dd className="mt-1 text-[15px] font-semibold text-zinc-900 dark:text-white">
+                                {detail.manufacturer || '—'}
+                              </dd>
+                            </div>
+                            <div className="rounded-xl bg-white/80 px-3.5 py-3 dark:bg-white/[0.04]">
+                              <dt className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+                                Família
+                              </dt>
+                              <dd className="mt-1 text-[15px] font-semibold text-zinc-900 dark:text-white">
+                                {family || '—'}
+                              </dd>
+                            </div>
+                            <div className="rounded-xl bg-white/80 px-3.5 py-3 sm:col-span-2 dark:bg-white/[0.04]">
+                              <dt className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+                                Aplicação
+                              </dt>
+                              <dd className="mt-1 text-[15px] font-semibold text-zinc-900 dark:text-white">
+                                {appsLabel}
+                              </dd>
+                            </div>
+                            <div className="rounded-xl bg-white/80 px-3.5 py-3 sm:col-span-2 dark:bg-white/[0.04]">
+                              <dt className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+                                Código
+                              </dt>
+                              <dd className="mt-1 space-y-1">
+                                {showBothCodes ? (
+                                  <>
+                                    <p className="text-[14px] font-semibold tabular-nums text-emerald-700 dark:text-emerald-400">
+                                      <span className="mr-2 text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+                                        Eletrônico
+                                      </span>
+                                      {codes.eletronico}
+                                    </p>
+                                    <p className="text-[14px] font-semibold tabular-nums text-emerald-700 dark:text-emerald-400">
+                                      <span className="mr-2 text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+                                        Hidráulico
+                                      </span>
+                                      {codes.hidraulico}
+                                    </p>
+                                  </>
+                                ) : (
+                                  <p className="text-[15px] font-semibold tabular-nums text-emerald-700 dark:text-emerald-400">
+                                    {codes.primary || '—'}
+                                  </p>
+                                )}
+                              </dd>
+                            </div>
+                            <div className="rounded-xl bg-white/80 px-3.5 py-3 dark:bg-white/[0.04]">
+                              <dt className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+                                Estado / condição
+                              </dt>
+                              <dd className="mt-1 text-[15px] font-semibold text-zinc-900 dark:text-white">
+                                {absModuleItemStateLabel(detail.item_state)} ·{' '}
+                                {absModuleItemConditionLabel(detail.item_condition)}
+                              </dd>
+                            </div>
+                            <div className="rounded-xl bg-white/80 px-3.5 py-3 dark:bg-white/[0.04]">
+                              <dt className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+                                Preços
+                              </dt>
+                              <dd className="mt-1 flex flex-wrap items-baseline gap-x-3 gap-y-0.5 text-[15px] font-semibold text-zinc-900 dark:text-white">
+                                <span>
+                                  <span className="mr-1 text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+                                    Custo
+                                  </span>
+                                  {formatAbsModuleMoney(detail.unit_cost)}
+                                </span>
+                                <span className="text-zinc-300 dark:text-zinc-600">|</span>
+                                <span>
+                                  <span className="mr-1 text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+                                    Venda
+                                  </span>
+                                  {formatAbsModuleMoney(detail.unit_price)}
+                                </span>
+                              </dd>
+                            </div>
+                          </dl>
+
+                          {detail.damage_description ? (
+                            <p className="rounded-xl bg-amber-50/95 px-3.5 py-2.5 text-[13px] text-amber-950 dark:bg-amber-950/40 dark:text-amber-100">
+                              {detail.damage_description}
+                            </p>
+                          ) : null}
+
+                          {(detail.photos || []).length > 1 ? (
+                            <div className="space-y-2">
+                              <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+                                Mais fotos
+                              </p>
+                              <div className="grid grid-cols-4 gap-2">
+                                {(detail.photos || []).slice(1).map((photo) => (
+                                  <div
+                                    key={photo.id}
+                                    className="aspect-square overflow-hidden rounded-xl bg-zinc-100/90 dark:bg-white/[0.03]"
+                                  >
+                                    <PartPhotoImg
+                                      src={photo.photo_url}
+                                      alt=""
+                                      className="h-full w-full object-cover"
+                                    />
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          ) : null}
+                        </div>
+                      </div>
+
+                      {/* Rodapé de ações: fundo sólido, sem foto por trás */}
+                      <div className="space-y-3 border-t border-zinc-100 bg-white px-4 py-3.5 dark:border-white/[0.06] dark:bg-zinc-950 sm:px-5">
+                        <div className="flex flex-wrap items-center gap-1">
                           <button
                             type="button"
                             onClick={() => {
