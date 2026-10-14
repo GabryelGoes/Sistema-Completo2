@@ -309,6 +309,185 @@ function FieldHintButton({ hint }: { hint: string }) {
   );
 }
 
+/** Botão + popover com as unidades físicas do mesmo modelo técnico. */
+function SameModelUnitsButton({
+  currentPublicId,
+  units,
+  onSelect,
+}: {
+  currentPublicId: string;
+  units: WorkshopAbsModule[];
+  onSelect: (mod: WorkshopAbsModule) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [coords, setCoords] = useState<{ top: number; left: number; width: number } | null>(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const popRef = useRef<HTMLDivElement>(null);
+
+  const sorted = useMemo(() => {
+    return [...units].sort((a, b) => {
+      const sa = Number(a.sequence_number ?? 0);
+      const sb = Number(b.sequence_number ?? 0);
+      if (sa !== sb) return sa - sb;
+      return String(a.public_id).localeCompare(String(b.public_id));
+    });
+  }, [units]);
+
+  const total = sorted.length;
+  const available = sorted.filter((u) => u.status === 'disponivel').length;
+
+  const placePopover = useCallback(() => {
+    const btn = btnRef.current;
+    if (!btn) return;
+    const rect = btn.getBoundingClientRect();
+    const width = Math.min(320, window.innerWidth - 24);
+    let left = rect.right - width;
+    if (left < 12) left = 12;
+    if (left + width > window.innerWidth - 12) left = window.innerWidth - 12 - width;
+    const approxH = Math.min(280, 52 + total * 52);
+    const below = rect.bottom + 8;
+    const top =
+      below + approxH > window.innerHeight - 12
+        ? Math.max(12, rect.top - approxH - 8)
+        : below;
+    setCoords({ top, left, width });
+  }, [total]);
+
+  useEffect(() => {
+    if (!open) return;
+    placePopover();
+    const onPointer = (e: MouseEvent | TouchEvent) => {
+      const t = e.target;
+      if (!(t instanceof Node)) return;
+      if (btnRef.current?.contains(t) || popRef.current?.contains(t)) return;
+      setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false);
+    };
+    const onReposition = () => placePopover();
+    document.addEventListener('mousedown', onPointer);
+    document.addEventListener('touchstart', onPointer);
+    document.addEventListener('keydown', onKey);
+    window.addEventListener('resize', onReposition);
+    window.addEventListener('scroll', onReposition, true);
+    return () => {
+      document.removeEventListener('mousedown', onPointer);
+      document.removeEventListener('touchstart', onPointer);
+      document.removeEventListener('keydown', onKey);
+      window.removeEventListener('resize', onReposition);
+      window.removeEventListener('scroll', onReposition, true);
+    };
+  }, [open, placePopover]);
+
+  if (total <= 0) return null;
+
+  return (
+    <>
+      <button
+        ref={btnRef}
+        type="button"
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          setOpen((v) => !v);
+        }}
+        className="flex min-w-0 flex-1 items-start gap-3 rounded-2xl bg-zinc-100/90 px-4 py-3.5 text-left transition-colors hover:bg-zinc-200/80 dark:bg-white/[0.06] dark:hover:bg-white/[0.1]"
+        aria-expanded={open}
+        aria-haspopup="dialog"
+        aria-label="Ver unidades do mesmo modelo"
+      >
+        <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-zinc-900/5 text-zinc-700 dark:bg-white/10 dark:text-zinc-200">
+          <Package className="h-[18px] w-[18px]" />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="flex items-center gap-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400">
+            Mesmo modelo
+            <ChevronDown
+              className={`h-3.5 w-3.5 transition-transform ${open ? 'rotate-180' : ''}`}
+              aria-hidden
+            />
+          </span>
+          <span className="mt-0.5 block text-[18px] font-bold tracking-tight tabular-nums text-zinc-900 dark:text-white">
+            {total}
+            <span className="ml-1.5 text-[13px] font-semibold text-zinc-500 dark:text-zinc-400">
+              {total === 1 ? 'unidade' : 'unidades'}
+            </span>
+          </span>
+          <span className="mt-0.5 block text-[12px] font-medium text-emerald-700 dark:text-emerald-400">
+            {available} disp.
+          </span>
+        </span>
+      </button>
+      {open && coords
+        ? createPortal(
+            <div
+              ref={popRef}
+              role="dialog"
+              aria-label="Unidades do mesmo modelo"
+              style={{ top: coords.top, left: coords.left, width: coords.width }}
+              className="fixed z-[200] overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-lg dark:border-white/10 dark:bg-zinc-900"
+            >
+              <div className="border-b border-zinc-100 px-3 py-2 dark:border-white/[0.06]">
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+                  Unidades deste modelo
+                </p>
+                <p className="text-[12px] text-zinc-400">
+                  {total} no total · {available} disponível{available === 1 ? '' : 'is'}
+                </p>
+              </div>
+              <ul className="max-h-[min(280px,50vh)] overflow-y-auto overscroll-contain py-1 custom-scrollbar">
+                {sorted.map((u) => {
+                  const current = u.public_id === currentPublicId;
+                  return (
+                    <li key={u.id || u.public_id}>
+                      <button
+                        type="button"
+                        disabled={current}
+                        onClick={() => {
+                          setOpen(false);
+                          onSelect(u);
+                        }}
+                        className={`flex w-full items-center gap-2.5 px-3 py-2.5 text-left transition-colors ${
+                          current
+                            ? 'bg-emerald-50/80 dark:bg-emerald-950/40'
+                            : 'hover:bg-zinc-50 dark:hover:bg-white/[0.05]'
+                        } disabled:cursor-default`}
+                      >
+                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-zinc-100 text-[13px] font-bold tabular-nums text-zinc-800 dark:bg-white/10 dark:text-zinc-100">
+                          {formatAbsModuleSequence(u.sequence_number)}
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate font-mono text-[12px] font-semibold tracking-wide text-zinc-800 dark:text-zinc-100">
+                            {u.public_id}
+                            {current ? (
+                              <span className="ml-1.5 text-[10px] font-bold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">
+                                atual
+                              </span>
+                            ) : null}
+                          </span>
+                          <span className="mt-0.5 block truncate text-[11px] text-zinc-500">
+                            {absModuleStatusLabel(u.status)}
+                            {u.location ? ` · ${u.location}` : ''}
+                            {` · ${formatAbsModuleMoney(u.unit_price)}`}
+                          </span>
+                        </span>
+                        {!current ? (
+                          <ChevronRight className="h-3.5 w-3.5 shrink-0 text-zinc-400" aria-hidden />
+                        ) : null}
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>,
+            document.body
+          )
+        : null}
+    </>
+  );
+}
+
 function Field({
   label,
   hint,
@@ -693,7 +872,8 @@ export function WorkshopAbsModulesModal({
     void (async () => {
       try {
         let fresh = await getWorkshopAbsModule(mod.public_id);
-        if (!fresh.catalog_model && fresh.model_id) {
+        // Sempre busca o modelo com unidades (irmãs) para o popover do detalhe.
+        if (fresh.model_id) {
           try {
             const catalog = await getWorkshopAbsModuleModel(fresh.model_id);
             fresh = { ...fresh, catalog_model: catalog };
@@ -2566,18 +2746,29 @@ export function WorkshopAbsModulesModal({
 
                         {/* Infos: mesma foto bem leve por trás (véu quase opaco) */}
                         <div className="relative space-y-4 bg-white/[0.93] px-4 py-4 backdrop-blur-[1.5px] dark:bg-zinc-950/[0.9] sm:px-5 sm:py-5">
-                          <div className="flex items-start gap-3 rounded-2xl bg-emerald-50/95 px-4 py-3.5 dark:bg-emerald-950/55">
-                            <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-600/15 text-emerald-700 dark:text-emerald-300">
-                              <MapPin className="h-[18px] w-[18px]" />
-                            </span>
-                            <div className="min-w-0">
-                              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-700/80 dark:text-emerald-400/90">
-                                Localização
-                              </p>
-                              <p className="mt-0.5 text-[18px] font-bold tracking-tight text-emerald-950 dark:text-emerald-50">
-                                {detail.location?.trim() || 'Sem local definido'}
-                              </p>
+                          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-3">
+                            <div className="flex min-w-0 items-start gap-3 rounded-2xl bg-emerald-50/95 px-4 py-3.5 dark:bg-emerald-950/55">
+                              <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-600/15 text-emerald-700 dark:text-emerald-300">
+                                <MapPin className="h-[18px] w-[18px]" />
+                              </span>
+                              <div className="min-w-0">
+                                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-700/80 dark:text-emerald-400/90">
+                                  Localização
+                                </p>
+                                <p className="mt-0.5 text-[18px] font-bold tracking-tight text-emerald-950 dark:text-emerald-50">
+                                  {detail.location?.trim() || 'Sem local definido'}
+                                </p>
+                              </div>
                             </div>
+                            <SameModelUnitsButton
+                              currentPublicId={detail.public_id}
+                              units={
+                                (catalog?.units && catalog.units.length > 0
+                                  ? catalog.units
+                                  : [detail]) as WorkshopAbsModule[]
+                              }
+                              onSelect={(u) => openDetail(u)}
+                            />
                           </div>
 
                           <dl className="grid gap-3 sm:grid-cols-2">
