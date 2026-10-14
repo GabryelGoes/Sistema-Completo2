@@ -1,5 +1,14 @@
-import React, { useEffect, useState } from 'react';
-import { Bluetooth, BluetoothConnected, Loader2, Printer, Tag, X } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import {
+  Bluetooth,
+  BluetoothConnected,
+  ChevronLeft,
+  ChevronRight,
+  Loader2,
+  Printer,
+  Tag,
+  X,
+} from 'lucide-react';
 import {
   NIIMBOT_BLE_HELP,
   NIIMBOT_MODEL_LABEL,
@@ -20,7 +29,8 @@ import { useBrowserBackLayer } from './ui/BackNavigationContext';
 
 export type NiimbotAbsModuleLabelPrintModalProps = {
   open: boolean;
-  module: WorkshopAbsModule | null;
+  /** Uma ou mais unidades — com várias, imprime em sequência (#1, #2…). */
+  modules: WorkshopAbsModule[] | null;
   onClose: () => void;
 };
 
@@ -56,24 +66,55 @@ function statusLabel(snap: NiimbotServiceSnapshot): string {
   }
 }
 
+async function renderModuleLabel(module: WorkshopAbsModule): Promise<string> {
+  return renderNiimbotAbsModuleLabelDataUrl({
+    publicId: module.public_id,
+    sequenceNumber: module.sequence_number,
+    moduleKind: module.module_kind,
+    code: module.original_code || module.public_id,
+    location: module.location,
+    manufacturer: module.manufacturer,
+    brand: 'REI DO ABS',
+  });
+}
+
 export function NiimbotAbsModuleLabelPrintModal({
   open,
-  module,
+  modules,
   onClose,
 }: NiimbotAbsModuleLabelPrintModalProps) {
+  const list = useMemo(
+    () => (Array.isArray(modules) ? modules.filter(Boolean) : []),
+    [modules]
+  );
+  const batch = list.length > 1;
+  const [index, setIndex] = useState(0);
   const [snap, setSnap] = useState<NiimbotServiceSnapshot>(() => niimbotService.snapshot());
   const [copies, setCopies] = useState(1);
   const [busy, setBusy] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [localError, setLocalError] = useState<string | null>(null);
   const [buildingPreview, setBuildingPreview] = useState(false);
+  const [batchProgress, setBatchProgress] = useState<string | null>(null);
 
   useBrowserBackLayer(open, onClose);
+
+  const listKey = useMemo(() => list.map((m) => m.public_id).join('|'), [list]);
+
+  useEffect(() => {
+    if (!open) return;
+    setIndex(0);
+    setCopies(1);
+    setBatchProgress(null);
+    setLocalError(null);
+  }, [open, listKey]);
 
   useEffect(() => {
     if (!open) return;
     return niimbotService.subscribe(setSnap);
   }, [open]);
+
+  const module = list[Math.min(index, Math.max(0, list.length - 1))] ?? null;
 
   useEffect(() => {
     if (!open || !module) {
@@ -86,15 +127,7 @@ export function NiimbotAbsModuleLabelPrintModal({
     setLocalError(null);
     void (async () => {
       try {
-        const url = await renderNiimbotAbsModuleLabelDataUrl({
-          publicId: module.public_id,
-          sequenceNumber: module.sequence_number,
-          moduleKind: module.module_kind,
-          code: module.original_code || module.public_id,
-          location: module.location,
-          manufacturer: module.manufacturer,
-          brand: 'REI DO ABS',
-        });
+        const url = await renderModuleLabel(module);
         if (!cancelled) setPreviewUrl(url);
       } catch (err) {
         if (!cancelled) {
@@ -110,7 +143,7 @@ export function NiimbotAbsModuleLabelPrintModal({
     };
   }, [open, module]);
 
-  if (!open || !module) return null;
+  if (!open || !module || list.length === 0) return null;
 
   const unsupported = snap.status === 'unsupported';
   const printing = snap.status === 'printing' || busy || buildingPreview;
@@ -125,6 +158,7 @@ export function NiimbotAbsModuleLabelPrintModal({
       setLocalError(err instanceof Error ? err.message : 'Operação falhou');
     } finally {
       setBusy(false);
+      setBatchProgress(null);
     }
   };
 
@@ -138,20 +172,24 @@ export function NiimbotAbsModuleLabelPrintModal({
       await niimbotService.disconnect();
     });
 
-  const handlePrint = () =>
+  const handlePrintCurrent = () =>
     run(async () => {
-      const url =
-        previewUrl ||
-        (await renderNiimbotAbsModuleLabelDataUrl({
-          publicId: module.public_id,
-          sequenceNumber: module.sequence_number,
-          moduleKind: module.module_kind,
-          code: module.original_code || module.public_id,
-          location: module.location,
-          manufacturer: module.manufacturer,
-          brand: 'REI DO ABS',
-        }));
-      await niimbotService.printLabelImageUrl(url, { copies });
+      const url = previewUrl || (await renderModuleLabel(module));
+      await niimbotService.printLabelImageUrl(url, { copies: batch ? 1 : copies });
+      if (batch && index < list.length - 1) {
+        setIndex((i) => i + 1);
+      }
+    });
+
+  const handlePrintAll = () =>
+    run(async () => {
+      for (let i = 0; i < list.length; i++) {
+        setIndex(i);
+        setBatchProgress(`Imprimindo ${i + 1} de ${list.length}…`);
+        const url = await renderModuleLabel(list[i]!);
+        await niimbotService.printLabelImageUrl(url, { copies: 1 });
+      }
+      setBatchProgress(`${list.length} etiquetas enviadas`);
     });
 
   const handleTest = () =>
@@ -179,25 +217,54 @@ export function NiimbotAbsModuleLabelPrintModal({
             <X className="h-5 w-5" />
           </button>
 
-          <div className="shrink-0 border-b border-zinc-200/70 bg-white px-5 pb-4 pt-8 pr-24 dark:border-white/[0.06] dark:bg-transparent">
+          <div className="shrink-0 border-b border-zinc-200/70 bg-white px-5 pb-4 pt-8 pr-14 dark:border-white/[0.06] dark:bg-transparent">
             <IosModalHeader
               icon={<Tag className="h-5 w-5 text-zinc-800" />}
-              title="Imprimir etiqueta ABS"
+              title={batch ? 'Imprimir etiquetas ABS' : 'Imprimir etiqueta ABS'}
               subtitle={`${NIIMBOT_MODEL_LABEL} · ${NIIMBOT_SIZE_LABEL}`}
             />
           </div>
 
           <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-4 custom-scrollbar">
-            <div>
-              <p className="text-[13px] font-semibold text-zinc-900 dark:text-zinc-100">
-                {formatAbsModuleSequence(module.sequence_number)} · {module.public_id}
-              </p>
-              <p className="mt-0.5 text-[12px] text-zinc-500 dark:text-zinc-400">
-                {absModuleKindLabel(module.module_kind)}
-                {module.manufacturer ? ` · ${module.manufacturer}` : ''}
-                {module.original_code ? ` · ${module.original_code}` : ''}
-              </p>
-            </div>
+            {batch ? (
+              <div className="flex items-center justify-between gap-2 rounded-xl bg-emerald-50 px-3 py-2 dark:bg-emerald-950/40">
+                <button
+                  type="button"
+                  disabled={printing || index <= 0}
+                  onClick={() => setIndex((i) => Math.max(0, i - 1))}
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-emerald-800 disabled:opacity-40 dark:text-emerald-200"
+                  aria-label="Etiqueta anterior"
+                >
+                  <ChevronLeft className="h-5 w-5" />
+                </button>
+                <p className="min-w-0 flex-1 text-center text-[13px] font-semibold text-emerald-900 dark:text-emerald-100">
+                  {index + 1} de {list.length}
+                  <span className="mt-0.5 block font-mono text-[12px] font-bold tabular-nums">
+                    {formatAbsModuleSequence(module.sequence_number)} · {module.public_id}
+                  </span>
+                </p>
+                <button
+                  type="button"
+                  disabled={printing || index >= list.length - 1}
+                  onClick={() => setIndex((i) => Math.min(list.length - 1, i + 1))}
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-emerald-800 disabled:opacity-40 dark:text-emerald-200"
+                  aria-label="Próxima etiqueta"
+                >
+                  <ChevronRight className="h-5 w-5" />
+                </button>
+              </div>
+            ) : (
+              <div>
+                <p className="text-[13px] font-semibold text-zinc-900 dark:text-zinc-100">
+                  {formatAbsModuleSequence(module.sequence_number)} · {module.public_id}
+                </p>
+                <p className="mt-0.5 text-[12px] text-zinc-500 dark:text-zinc-400">
+                  {absModuleKindLabel(module.module_kind)}
+                  {module.manufacturer ? ` · ${module.manufacturer}` : ''}
+                  {module.original_code ? ` · ${module.original_code}` : ''}
+                </p>
+              </div>
+            )}
 
             {previewUrl ? (
               <div className="overflow-hidden rounded-xl bg-zinc-100 p-3 dark:bg-white/[0.04]">
@@ -226,9 +293,9 @@ export function NiimbotAbsModuleLabelPrintModal({
                   <p className={`truncate text-[13px] font-medium ${statusTone(snap.status)}`}>
                     {statusLabel(snap)}
                   </p>
-                  {snap.message ? (
+                  {batchProgress || snap.message ? (
                     <p className="truncate text-[11px] text-zinc-500 dark:text-zinc-400">
-                      {snap.message}
+                      {batchProgress || snap.message}
                     </p>
                   ) : null}
                 </div>
@@ -258,23 +325,30 @@ export function NiimbotAbsModuleLabelPrintModal({
 
             <p className="text-[11px] leading-snug text-zinc-500 dark:text-zinc-400">{NIIMBOT_BLE_HELP}</p>
 
-            <label className="block">
-              <span className="text-[11px] font-bold uppercase tracking-wide text-zinc-500">
-                Quantidade
-              </span>
-              <input
-                type="number"
-                min={1}
-                max={99}
-                value={copies}
-                onChange={(e) => {
-                  const n = Number(e.target.value);
-                  setCopies(Number.isFinite(n) ? Math.max(1, Math.min(99, Math.floor(n))) : 1);
-                }}
-                disabled={printing}
-                className="mt-1 w-full rounded-xl border-0 bg-zinc-100 px-3 py-2.5 text-[15px] tabular-nums text-zinc-900 outline-none disabled:opacity-50 dark:bg-white/[0.06] dark:text-zinc-100"
-              />
-            </label>
+            {!batch ? (
+              <label className="block">
+                <span className="text-[11px] font-bold uppercase tracking-wide text-zinc-500">
+                  Cópias desta etiqueta
+                </span>
+                <input
+                  type="number"
+                  min={1}
+                  max={99}
+                  value={copies}
+                  onChange={(e) => {
+                    const n = Number(e.target.value);
+                    setCopies(Number.isFinite(n) ? Math.max(1, Math.min(99, Math.floor(n))) : 1);
+                  }}
+                  disabled={printing}
+                  className="mt-1 w-full rounded-xl border-0 bg-zinc-100 px-3 py-2.5 text-[15px] tabular-nums text-zinc-900 outline-none disabled:opacity-50 dark:bg-white/[0.06] dark:text-zinc-100"
+                />
+              </label>
+            ) : (
+              <p className="rounded-xl bg-zinc-50 px-3 py-2 text-[12px] text-zinc-600 dark:bg-white/[0.03] dark:text-zinc-300">
+                Cada unidade tem seu próprio código (`ABS-######`) e número de sequência (#1, #2…).
+                Use “Imprimir todas” para enviar a fila na ordem.
+              </p>
+            )}
 
             {(localError || unsupported) && (
               <p className="rounded-xl bg-red-50 px-3 py-2 text-[13px] text-red-800 dark:bg-red-950/40 dark:text-red-200">
@@ -284,19 +358,45 @@ export function NiimbotAbsModuleLabelPrintModal({
           </div>
 
           <div className="shrink-0 space-y-2 border-t border-zinc-200/60 px-5 py-4 dark:border-white/[0.06]">
-            <button
-              type="button"
-              onClick={handlePrint}
-              disabled={printing || unsupported || !previewUrl}
-              className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 text-[15px] font-semibold text-white hover:bg-emerald-500 disabled:opacity-50"
-            >
-              {printing ? (
-                <Loader2 className="h-5 w-5 animate-spin" />
-              ) : (
-                <Printer className="h-5 w-5" />
-              )}
-              {printing ? 'Imprimindo…' : copies > 1 ? `Imprimir ${copies} etiquetas` : 'Imprimir'}
-            </button>
+            {batch ? (
+              <>
+                <button
+                  type="button"
+                  onClick={handlePrintAll}
+                  disabled={printing || unsupported}
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 text-[15px] font-semibold text-white hover:bg-emerald-500 disabled:opacity-50"
+                >
+                  {printing ? (
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                  ) : (
+                    <Printer className="h-5 w-5" />
+                  )}
+                  {printing ? 'Imprimindo…' : `Imprimir todas (${list.length})`}
+                </button>
+                <button
+                  type="button"
+                  onClick={handlePrintCurrent}
+                  disabled={printing || unsupported || !previewUrl}
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-xl border-0 bg-zinc-100 px-4 py-2.5 text-[14px] font-semibold text-zinc-800 hover:bg-zinc-200 disabled:opacity-50 dark:bg-white/[0.06] dark:text-zinc-100"
+                >
+                  Imprimir esta e avançar
+                </button>
+              </>
+            ) : (
+              <button
+                type="button"
+                onClick={handlePrintCurrent}
+                disabled={printing || unsupported || !previewUrl}
+                className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 text-[15px] font-semibold text-white hover:bg-emerald-500 disabled:opacity-50"
+              >
+                {printing ? (
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                ) : (
+                  <Printer className="h-5 w-5" />
+                )}
+                {printing ? 'Imprimindo…' : copies > 1 ? `Imprimir ${copies} etiquetas` : 'Imprimir'}
+              </button>
+            )}
             <button
               type="button"
               onClick={handleTest}

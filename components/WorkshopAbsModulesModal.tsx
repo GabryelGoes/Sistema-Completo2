@@ -139,10 +139,14 @@ type WizardState = {
   /** String monetária BR (ex.: "123.45") para CurrencyMaskInput. */
   unit_cost: string;
   unit_price: string;
+  /** Quantidade de unidades físicas a criar neste cadastro (só criação). */
+  unit_qty: number;
   supplier: string;
   location: string;
   unit_notes: string;
 };
+
+const ABS_MODULE_CREATE_QTY_MAX = 50;
 
 type PendingAbsPhoto = {
   id: string;
@@ -174,6 +178,7 @@ const emptyWizard = (): WizardState => ({
   damage_description: '',
   unit_cost: '0',
   unit_price: '0',
+  unit_qty: 1,
   supplier: '',
   location: '',
   unit_notes: '',
@@ -546,7 +551,7 @@ export function WorkshopAbsModulesModal({
   const [editingModule, setEditingModule] = useState<WorkshopAbsModule | null>(null);
   /** Cadastro de nova unidade vinculada a um modelo já existente. */
   const [createForModelId, setCreateForModelId] = useState<string | null>(null);
-  const [labelPrintModule, setLabelPrintModule] = useState<WorkshopAbsModule | null>(null);
+  const [labelPrintModules, setLabelPrintModules] = useState<WorkshopAbsModule[] | null>(null);
   const [pendingPhotos, setPendingPhotos] = useState<PendingAbsPhoto[]>([]);
   const [existingPhotos, setExistingPhotos] = useState<WorkshopAbsModulePhoto[]>([]);
   const [photoBusy, setPhotoBusy] = useState(false);
@@ -678,7 +683,7 @@ export function WorkshopAbsModulesModal({
     setWizard(emptyWizard());
     setEditingModule(null);
     setCreateForModelId(null);
-    setLabelPrintModule(null);
+    setLabelPrintModules(null);
     setPendingPhotos((prev) => {
       prev.forEach((p) => URL.revokeObjectURL(p.previewUrl));
       return [];
@@ -955,6 +960,7 @@ export function WorkshopAbsModulesModal({
           damage_description: mod.damage_description || '',
           unit_cost: String(Number(mod.unit_cost) || 0),
           unit_price: String(Number(mod.unit_price) || 0),
+          unit_qty: 1,
           supplier: mod.supplier || '',
           location: mod.location || '',
           unit_notes: mod.notes || '',
@@ -1066,8 +1072,11 @@ export function WorkshopAbsModulesModal({
       const unitCost = parseCurrencyStringToNumber(wizard.unit_cost);
       const unitPrice = parseCurrencyStringToNumber(wizard.unit_price);
       const photosSnapshot = [...pendingPhotos];
+      const wasEditing = Boolean(editingModule);
 
       let saved: WorkshopAbsModule;
+      let createdBatch: WorkshopAbsModule[] = [];
+
       if (editingModule) {
         if (editingModule.model_id) {
           await updateWorkshopAbsModuleModel(editingModule.model_id, catalog);
@@ -1089,40 +1098,68 @@ export function WorkshopAbsModulesModal({
           notes: wizard.unit_notes || wizard.notes || null,
           model_id: editingModule.model_id,
         });
+        if (photosSnapshot.length > 0) {
+          setPhotoBusy(true);
+          try {
+            const withPhotos = await syncPhotosForModule(saved.public_id, photosSnapshot);
+            if (withPhotos) saved = withPhotos;
+          } finally {
+            setPhotoBusy(false);
+          }
+        }
       } else {
+        const qty = Math.max(
+          1,
+          Math.min(ABS_MODULE_CREATE_QTY_MAX, Math.floor(Number(wizard.unit_qty) || 1))
+        );
         if (createForModelId) {
           await updateWorkshopAbsModuleModel(createForModelId, catalog);
         }
-        saved = await createWorkshopAbsModule({
-          manufacturer: wizard.manufacturer || null,
-          original_code: primary,
-          application:
-            applications[0]?.vehicle_model || applications[0]?.vehicle_brand || null,
-          model: wizard.family || null,
-          module_kind: kind,
-          item_state: wizard.item_state,
-          item_condition: wizard.item_condition,
-          damage_description: wizard.damage_description || null,
-          unit_cost: unitCost,
-          unit_price: unitPrice,
-          supplier: wizard.supplier || null,
-          location: wizard.location || null,
-          notes: wizard.unit_notes || wizard.notes || null,
-          status: 'disponivel',
-          model_id: createForModelId,
-          catalog: createForModelId ? undefined : catalog,
-          recorded_by_name: recordedByName,
-        });
-      }
+        let modelId = createForModelId;
+        let sharedPhotoUrls: string[] | undefined;
+        createdBatch = [];
 
-      if (photosSnapshot.length > 0) {
-        setPhotoBusy(true);
-        try {
-          const withPhotos = await syncPhotosForModule(saved.public_id, photosSnapshot);
-          if (withPhotos) saved = withPhotos;
-        } finally {
-          setPhotoBusy(false);
+        for (let i = 0; i < qty; i++) {
+          let created = await createWorkshopAbsModule({
+            manufacturer: wizard.manufacturer || null,
+            original_code: primary,
+            application:
+              applications[0]?.vehicle_model || applications[0]?.vehicle_brand || null,
+            model: wizard.family || null,
+            module_kind: kind,
+            item_state: wizard.item_state,
+            item_condition: wizard.item_condition,
+            damage_description: wizard.damage_description || null,
+            unit_cost: unitCost,
+            unit_price: unitPrice,
+            supplier: wizard.supplier || null,
+            location: wizard.location || null,
+            notes: wizard.unit_notes || wizard.notes || null,
+            status: 'disponivel',
+            model_id: modelId,
+            catalog: i === 0 && !modelId ? catalog : undefined,
+            photo_urls: i > 0 ? sharedPhotoUrls : undefined,
+            recorded_by_name: recordedByName,
+          });
+          if (!modelId && created.model_id) modelId = created.model_id;
+
+          if (i === 0 && photosSnapshot.length > 0) {
+            setPhotoBusy(true);
+            try {
+              const withPhotos = await syncPhotosForModule(created.public_id, photosSnapshot);
+              if (withPhotos) {
+                created = withPhotos;
+                sharedPhotoUrls = (withPhotos.photos || [])
+                  .map((p) => p.photo_url)
+                  .filter(Boolean);
+              }
+            } finally {
+              setPhotoBusy(false);
+            }
+          }
+          createdBatch.push(created);
         }
+        saved = createdBatch[0]!;
       }
 
       clearPendingPhotos();
@@ -1130,11 +1167,23 @@ export function WorkshopAbsModulesModal({
       setEditingModule(null);
       setCreateForModelId(null);
       openDetail(saved);
-      setSuccessMsg(
-        editingModule
-          ? `Unidade ${formatAbsModuleSequence(saved.sequence_number)} (${saved.public_id}) atualizada.`
-          : `Unidade ${formatAbsModuleSequence(saved.sequence_number)} (${saved.public_id}) cadastrada.`
-      );
+
+      if (wasEditing) {
+        setSuccessMsg(
+          `Unidade ${formatAbsModuleSequence(saved.sequence_number)} (${saved.public_id}) atualizada.`
+        );
+      } else if (createdBatch.length > 1) {
+        const first = createdBatch[0]!;
+        const last = createdBatch[createdBatch.length - 1]!;
+        setSuccessMsg(
+          `${createdBatch.length} unidades cadastradas: ${formatAbsModuleSequence(first.sequence_number)}–${formatAbsModuleSequence(last.sequence_number)}. Imprima as etiquetas na ordem.`
+        );
+        setLabelPrintModules(createdBatch);
+      } else {
+        setSuccessMsg(
+          `Unidade ${formatAbsModuleSequence(saved.sequence_number)} (${saved.public_id}) cadastrada.`
+        );
+      }
       void loadModels();
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Falha ao salvar.');
@@ -1156,7 +1205,15 @@ export function WorkshopAbsModulesModal({
   ]);
 
   const handlePrint = useCallback((mod: WorkshopAbsModule) => {
-    setLabelPrintModule(mod);
+    setLabelPrintModules([mod]);
+  }, []);
+
+  const handlePrintUnits = useCallback((units: WorkshopAbsModule[]) => {
+    const list = [...units]
+      .filter(Boolean)
+      .sort((a, b) => Number(a.sequence_number ?? 0) - Number(b.sequence_number ?? 0));
+    if (!list.length) return;
+    setLabelPrintModules(list);
   }, []);
 
   const loadHistory = useCallback(async (publicId: string) => {
@@ -1603,6 +1660,16 @@ export function WorkshopAbsModulesModal({
                     {view.model.available_qty ?? 0} disponíveis
                   </p>
                 </div>
+                {(view.model.units || []).length > 0 ? (
+                  <button
+                    type="button"
+                    onClick={() => handlePrintUnits(view.model.units || [])}
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border-0 bg-zinc-100 px-4 py-3 text-[14px] font-semibold text-zinc-800 shadow-none dark:bg-white/5 dark:text-white"
+                  >
+                    <Printer className="h-4 w-4" />
+                    Imprimir etiquetas de todas ({(view.model.units || []).length})
+                  </button>
+                ) : null}
                 <div className="overflow-x-auto rounded-3xl border-0 bg-white shadow-none dark:bg-white/5">
                   <table className="w-full min-w-[640px] text-left text-[13px]">
                     <thead className="border-b border-zinc-100 text-[11px] uppercase tracking-wide text-zinc-500 dark:border-white/10">
@@ -1666,8 +1733,10 @@ export function WorkshopAbsModulesModal({
                                 <button
                                   type="button"
                                   onClick={() => handlePrint(u)}
-                                  className="rounded-xl bg-zinc-100 px-2.5 py-1.5 text-[12px] font-semibold dark:bg-white/10"
+                                  className="inline-flex items-center gap-1 rounded-xl bg-emerald-500/15 px-2.5 py-1.5 text-[12px] font-semibold text-emerald-800 dark:text-emerald-200"
+                                  title="Reimprimir etiqueta"
                                 >
+                                  <Printer className="h-3.5 w-3.5" />
                                   Etiqueta
                                 </button>
                                 {u.module_kind === 'completo' && u.status === 'disponivel' ? (
@@ -1907,6 +1976,30 @@ export function WorkshopAbsModulesModal({
                         ))}
                       </select>
                     </Field>
+                    {!editingModule ? (
+                      <Field
+                        label="Quantidade de unidades"
+                        hint={`Quantas unidades físicas iguais cadastrar agora (1–${ABS_MODULE_CREATE_QTY_MAX}). Cada uma recebe seu #N e ABS-######; ao salvar, abre a impressão em sequência.`}
+                      >
+                        <input
+                          type="number"
+                          min={1}
+                          max={ABS_MODULE_CREATE_QTY_MAX}
+                          step={1}
+                          className={`${inputClass} tabular-nums`}
+                          value={wizard.unit_qty}
+                          onChange={(e) => {
+                            const n = Number(e.target.value);
+                            setWizard((w) => ({
+                              ...w,
+                              unit_qty: Number.isFinite(n)
+                                ? Math.max(1, Math.min(ABS_MODULE_CREATE_QTY_MAX, Math.floor(n)))
+                                : 1,
+                            }));
+                          }}
+                        />
+                      </Field>
+                    ) : null}
                     <Field label="Custo" hint="Custo individual desta unidade (não do modelo).">
                       <CurrencyMaskInput
                         value={wizard.unit_cost}
@@ -2127,7 +2220,9 @@ export function WorkshopAbsModulesModal({
                   )}
                   {editingModule
                     ? 'Salvar alterações'
-                    : 'Salvar modelo + unidade e gerar ID'}
+                    : wizard.unit_qty > 1
+                      ? `Salvar ${wizard.unit_qty} unidades e gerar IDs`
+                      : 'Salvar modelo + unidade e gerar ID'}
                 </button>
               </div>
             ) : null}
@@ -2621,9 +2716,9 @@ export function WorkshopAbsModulesModal({
       </div>
     </RegistrationPortal>
       <NiimbotAbsModuleLabelPrintModal
-        open={Boolean(labelPrintModule)}
-        module={labelPrintModule}
-        onClose={() => setLabelPrintModule(null)}
+        open={Boolean(labelPrintModules?.length)}
+        modules={labelPrintModules}
+        onClose={() => setLabelPrintModules(null)}
       />
     </>
   );
