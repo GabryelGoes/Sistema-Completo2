@@ -392,13 +392,13 @@ function SameModelUnitsButton({
           e.stopPropagation();
           setOpen((v) => !v);
         }}
-        className="flex min-w-0 flex-1 items-start gap-3 rounded-2xl bg-zinc-100 px-4 py-3.5 text-left transition-colors hover:bg-zinc-200 dark:bg-zinc-900 dark:hover:bg-zinc-800"
+        className="flex min-w-0 flex-1 items-center gap-3 rounded-2xl bg-zinc-100 px-3.5 py-3.5 text-left transition-colors hover:bg-zinc-200 dark:bg-zinc-900 dark:hover:bg-zinc-800"
         aria-expanded={open}
         aria-haspopup="dialog"
         aria-label="Ver unidades do mesmo modelo"
       >
-        <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-zinc-900/5 text-zinc-700 dark:bg-white/10 dark:text-zinc-200">
-          <Package className="h-[18px] w-[18px]" />
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-zinc-900/5 text-zinc-700 dark:bg-white/10 dark:text-zinc-200">
+          <Package className="h-5 w-5" />
         </span>
         <span className="min-w-0 flex-1">
           <span className="flex items-center gap-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-500 dark:text-zinc-400">
@@ -408,7 +408,7 @@ function SameModelUnitsButton({
               aria-hidden
             />
           </span>
-          <span className="mt-0.5 block text-[18px] font-bold tracking-tight tabular-nums text-zinc-900 dark:text-white">
+          <span className="mt-0.5 block text-[20px] font-bold tracking-tight tabular-nums text-zinc-900 dark:text-white">
             {total}
             <span className="ml-1.5 text-[13px] font-semibold text-zinc-500 dark:text-zinc-400">
               {total === 1 ? 'unidade' : 'unidades'}
@@ -2693,11 +2693,18 @@ export function WorkshopAbsModulesModal({
                   const appsLabel = detailApplicationLabel(detail);
                   const codes = detailCodes(detail);
                   const showBothCodes = Boolean(codes.eletronico && codes.hidraulico);
+                  const fieldCard =
+                    'rounded-2xl bg-zinc-100 px-3.5 py-3 dark:bg-zinc-900';
+                  const fieldLabel =
+                    'text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500';
+                  const fieldValue = 'mt-1 text-[15px] font-semibold text-zinc-900 dark:text-white';
                   const secondaryBtn =
                     'inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[12px] font-medium text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-300 dark:hover:bg-white/10 dark:hover:text-white';
+                  const siblingUnits =
+                    catalog?.units && catalog.units.length > 0 ? catalog.units : [detail];
                   return (
                     <div className="overflow-hidden rounded-[1.5rem] border-0 bg-white shadow-none dark:bg-zinc-950">
-                      {/* Cabeçalho curto + infos: foto contínua por trás; rodapé de ações fica fora. */}
+                      {/* Identidade + campos sobre a foto; rodapé sólido sem imagem */}
                       <div className="relative isolate">
                         {heroPhoto ? (
                           <div
@@ -2707,192 +2714,172 @@ export function WorkshopAbsModulesModal({
                             <PartPhotoImg
                               src={heroPhoto}
                               alt=""
-                              className="absolute inset-0 h-full w-full scale-[1.04] object-cover object-center"
+                              className="absolute inset-0 h-full w-full object-cover object-center"
                             />
                           </div>
                         ) : (
                           <div
                             aria-hidden
-                            className="pointer-events-none absolute inset-0 bg-gradient-to-br from-zinc-100 via-zinc-50 to-emerald-50/50 dark:from-zinc-900 dark:via-zinc-900 dark:to-emerald-950/40"
+                            className="pointer-events-none absolute inset-0 bg-gradient-to-br from-zinc-200 via-zinc-100 to-emerald-50 dark:from-zinc-900 dark:via-zinc-900 dark:to-emerald-950/50"
                           />
                         )}
 
-                        {/* Faixa do cabeçalho: pouco da foto, bem visível */}
-                        <div className="relative h-[4.75rem] sm:h-[5.25rem]">
-                          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/25 to-black/10" />
+                        {/* Topo: foto mais visível + status / fabricante / meta discreta */}
+                        <div className="relative min-h-[9.5rem] px-4 pb-4 pt-3 sm:min-h-[10.5rem] sm:px-5 sm:pt-3.5">
+                          <div className="absolute inset-0 bg-gradient-to-b from-black/25 via-black/15 to-black/55" />
                           {!heroPhoto ? (
                             <div className="absolute inset-0 flex items-center justify-center">
-                              <Package className="h-8 w-8 text-white/50" />
+                              <Package className="h-12 w-12 text-white/40" />
                             </div>
                           ) : null}
-                          <div className="absolute left-3 top-2.5">
+                          <div className="relative flex h-full min-h-[8.5rem] flex-col justify-between gap-3 sm:min-h-[9.5rem]">
                             <StatusPill status={detail.status} />
-                          </div>
-                          <div className="absolute bottom-2 left-3.5 right-3.5 min-w-0">
-                            <p className="truncate text-[18px] font-bold tracking-tight text-white drop-shadow-sm sm:text-[20px]">
-                              {detail.manufacturer || 'Módulo ABS'}
-                            </p>
-                            <p className="mt-0.5 truncate text-[11px] font-medium text-white/70">
-                              {absModuleKindLabel(detail.module_kind)}
-                              <span className="mx-1.5 text-white/35">·</span>
-                              <span className="tabular-nums">
-                                {formatAbsModuleSequence(detail.sequence_number)}
-                              </span>
-                              <span className="mx-1.5 text-white/35">·</span>
-                              <span className="font-mono tracking-wide">{detail.public_id}</span>
-                            </p>
+                            <div className="min-w-0">
+                              <p className="truncate text-[26px] font-bold tracking-tight text-white drop-shadow-sm sm:text-[28px]">
+                                {detail.manufacturer || 'Módulo ABS'}
+                              </p>
+                              <p className="mt-1 truncate text-[12px] font-medium text-white/65">
+                                {absModuleKindLabel(detail.module_kind)}
+                                <span className="mx-1.5 text-white/30">·</span>
+                                <span className="tabular-nums text-white/55">
+                                  {formatAbsModuleSequence(detail.sequence_number)}
+                                </span>
+                                <span className="mx-1.5 text-white/30">·</span>
+                                <span className="font-mono tracking-wide text-white/55">
+                                  {detail.public_id}
+                                </span>
+                              </p>
+                            </div>
                           </div>
                         </div>
 
-                        {/* Infos: foto continua no fundo com degradê; cards opacos */}
-                        <div className="relative px-4 py-4 sm:px-5 sm:py-5">
+                        {/* Campos: degradê sobre a foto; cards opacos */}
+                        <div className="relative px-3 pb-3 pt-1 sm:px-4 sm:pb-4">
                           <div
                             aria-hidden
-                            className="pointer-events-none absolute inset-0 bg-gradient-to-b from-white/40 via-white/78 to-white dark:from-zinc-950/45 dark:via-zinc-950/82 dark:to-zinc-950"
+                            className="pointer-events-none absolute inset-0 bg-gradient-to-b from-transparent via-white/70 to-white dark:via-zinc-950/75 dark:to-zinc-950"
                           />
-                          <div className="relative space-y-4">
-                          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-3">
-                            <div className="flex min-w-0 items-start gap-3 rounded-2xl bg-emerald-50 px-4 py-3.5 dark:bg-emerald-950">
-                              <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-600/15 text-emerald-700 dark:text-emerald-300">
-                                <MapPin className="h-[18px] w-[18px]" />
-                              </span>
-                              <div className="min-w-0">
-                                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-700 dark:text-emerald-400">
-                                  Localização
-                                </p>
-                                <p className="mt-0.5 text-[18px] font-bold tracking-tight text-emerald-950 dark:text-emerald-50">
-                                  {detail.location?.trim() || 'Sem local definido'}
-                                </p>
-                              </div>
-                            </div>
-                            <SameModelUnitsButton
-                              currentPublicId={detail.public_id}
-                              units={
-                                (catalog?.units && catalog.units.length > 0
-                                  ? catalog.units
-                                  : [detail]) as WorkshopAbsModule[]
-                              }
-                              onSelect={(u) => openDetail(u)}
-                            />
-                          </div>
-
-                          <dl className="grid gap-3 sm:grid-cols-2">
-                            <div className="rounded-xl bg-white px-3.5 py-3 dark:bg-zinc-900">
-                              <dt className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
-                                Fabricante
-                              </dt>
-                              <dd className="mt-1 text-[15px] font-semibold text-zinc-900 dark:text-white">
-                                {detail.manufacturer || '—'}
-                              </dd>
-                            </div>
-                            <div className="rounded-xl bg-white px-3.5 py-3 dark:bg-zinc-900">
-                              <dt className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
-                                Família
-                              </dt>
-                              <dd className="mt-1 text-[15px] font-semibold text-zinc-900 dark:text-white">
-                                {family || '—'}
-                              </dd>
-                            </div>
-                            <div className="rounded-xl bg-white px-3.5 py-3 sm:col-span-2 dark:bg-zinc-900">
-                              <dt className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
-                                Aplicação
-                              </dt>
-                              <dd className="mt-1 text-[15px] font-semibold text-zinc-900 dark:text-white">
-                                {appsLabel}
-                              </dd>
-                            </div>
-                            <div className="rounded-xl bg-white px-3.5 py-3 sm:col-span-2 dark:bg-zinc-900">
-                              <dt className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
-                                Código
-                              </dt>
-                              <dd className="mt-1 space-y-1">
-                                {showBothCodes ? (
-                                  <>
-                                    <p className="text-[14px] font-semibold tabular-nums text-emerald-700 dark:text-emerald-400">
-                                      <span className="mr-2 text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
-                                        Eletrônico
-                                      </span>
-                                      {codes.eletronico}
-                                    </p>
-                                    <p className="text-[14px] font-semibold tabular-nums text-emerald-700 dark:text-emerald-400">
-                                      <span className="mr-2 text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
-                                        Hidráulico
-                                      </span>
-                                      {codes.hidraulico}
-                                    </p>
-                                  </>
-                                ) : (
-                                  <p className="text-[15px] font-semibold tabular-nums text-emerald-700 dark:text-emerald-400">
-                                    {codes.primary || '—'}
+                          <div className="relative space-y-2.5">
+                            <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+                              <div className="flex min-w-0 items-center gap-3 rounded-2xl bg-emerald-50 px-3.5 py-3.5 dark:bg-emerald-950">
+                                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-600/15 text-emerald-700 dark:text-emerald-300">
+                                  <MapPin className="h-5 w-5" />
+                                </span>
+                                <div className="min-w-0">
+                                  <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-700 dark:text-emerald-400">
+                                    Localização
                                   </p>
-                                )}
-                              </dd>
-                            </div>
-                            <div className="rounded-xl bg-white px-3.5 py-3 dark:bg-zinc-900">
-                              <dt className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
-                                Estado / condição
-                              </dt>
-                              <dd className="mt-1 text-[15px] font-semibold text-zinc-900 dark:text-white">
-                                {absModuleItemStateLabel(detail.item_state)} ·{' '}
-                                {absModuleItemConditionLabel(detail.item_condition)}
-                              </dd>
-                            </div>
-                            <div className="rounded-xl bg-white px-3.5 py-3 dark:bg-zinc-900">
-                              <dt className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
-                                Preços
-                              </dt>
-                              <dd className="mt-1 flex flex-wrap items-baseline gap-x-3 gap-y-0.5 text-[15px] font-semibold text-zinc-900 dark:text-white">
-                                <span>
-                                  <span className="mr-1 text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
-                                    Custo
-                                  </span>
-                                  {formatAbsModuleMoney(detail.unit_cost)}
-                                </span>
-                                <span className="text-zinc-300 dark:text-zinc-600">|</span>
-                                <span>
-                                  <span className="mr-1 text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
-                                    Venda
-                                  </span>
-                                  {formatAbsModuleMoney(detail.unit_price)}
-                                </span>
-                              </dd>
-                            </div>
-                          </dl>
-
-                          {detail.damage_description ? (
-                            <p className="rounded-xl bg-amber-50 px-3.5 py-2.5 text-[13px] text-amber-950 dark:bg-amber-950 dark:text-amber-100">
-                              {detail.damage_description}
-                            </p>
-                          ) : null}
-
-                          {(detail.photos || []).length > 1 ? (
-                            <div className="space-y-2">
-                              <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
-                                Mais fotos
-                              </p>
-                              <div className="grid grid-cols-4 gap-2">
-                                {(detail.photos || []).slice(1).map((photo) => (
-                                  <div
-                                    key={photo.id}
-                                    className="aspect-square overflow-hidden rounded-xl bg-zinc-100 dark:bg-zinc-900"
-                                  >
-                                    <PartPhotoImg
-                                      src={photo.photo_url}
-                                      alt=""
-                                      className="h-full w-full object-cover"
-                                    />
-                                  </div>
-                                ))}
+                                  <p className="mt-0.5 truncate text-[20px] font-bold tracking-tight text-emerald-950 dark:text-emerald-50">
+                                    {detail.location?.trim() || 'Sem local definido'}
+                                  </p>
+                                </div>
                               </div>
+                              <SameModelUnitsButton
+                                currentPublicId={detail.public_id}
+                                units={siblingUnits as WorkshopAbsModule[]}
+                                onSelect={(u) => openDetail(u)}
+                              />
                             </div>
-                          ) : null}
+
+                            <dl className="grid grid-cols-2 gap-2.5">
+                              <div className={fieldCard}>
+                                <dt className={fieldLabel}>Fabricante</dt>
+                                <dd className={fieldValue}>{detail.manufacturer || '—'}</dd>
+                              </div>
+                              <div className={fieldCard}>
+                                <dt className={fieldLabel}>Família</dt>
+                                <dd className={fieldValue}>{family || '—'}</dd>
+                              </div>
+                              <div className={`${fieldCard} col-span-2`}>
+                                <dt className={fieldLabel}>Aplicação</dt>
+                                <dd className={fieldValue}>{appsLabel}</dd>
+                              </div>
+                              <div className={`${fieldCard} col-span-2`}>
+                                <dt className={fieldLabel}>Código</dt>
+                                <dd className="mt-1.5 space-y-1">
+                                  {showBothCodes ? (
+                                    <>
+                                      <p className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-[14px] font-semibold tabular-nums text-emerald-700 dark:text-emerald-400">
+                                        <span className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
+                                          Eletrônico
+                                        </span>
+                                        {codes.eletronico}
+                                      </p>
+                                      <p className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-[14px] font-semibold tabular-nums text-emerald-700 dark:text-emerald-400">
+                                        <span className="text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
+                                          Hidráulico
+                                        </span>
+                                        {codes.hidraulico}
+                                      </p>
+                                    </>
+                                  ) : (
+                                    <p className="text-[15px] font-semibold tabular-nums text-emerald-700 dark:text-emerald-400">
+                                      {codes.primary || '—'}
+                                    </p>
+                                  )}
+                                </dd>
+                              </div>
+                              <div className={fieldCard}>
+                                <dt className={fieldLabel}>Estado / condição</dt>
+                                <dd className={fieldValue}>
+                                  {absModuleItemStateLabel(detail.item_state)} ·{' '}
+                                  {absModuleItemConditionLabel(detail.item_condition)}
+                                </dd>
+                              </div>
+                              <div className={fieldCard}>
+                                <dt className={fieldLabel}>Preços</dt>
+                                <dd className="mt-1 flex flex-wrap items-baseline gap-x-2 gap-y-0.5 text-[14px] font-semibold text-zinc-900 dark:text-white">
+                                  <span>
+                                    <span className="mr-1 text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
+                                      Custo
+                                    </span>
+                                    {formatAbsModuleMoney(detail.unit_cost)}
+                                  </span>
+                                  <span className="text-zinc-300 dark:text-zinc-600">|</span>
+                                  <span>
+                                    <span className="mr-1 text-[10px] font-semibold uppercase tracking-wide text-zinc-500">
+                                      Venda
+                                    </span>
+                                    {formatAbsModuleMoney(detail.unit_price)}
+                                  </span>
+                                </dd>
+                              </div>
+                            </dl>
+
+                            {detail.damage_description ? (
+                              <p className="rounded-2xl bg-amber-50 px-3.5 py-2.5 text-[13px] text-amber-950 dark:bg-amber-950 dark:text-amber-100">
+                                {detail.damage_description}
+                              </p>
+                            ) : null}
+
+                            {(detail.photos || []).length > 1 ? (
+                              <div className="space-y-2">
+                                <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+                                  Mais fotos
+                                </p>
+                                <div className="grid grid-cols-4 gap-2">
+                                  {(detail.photos || []).slice(1).map((photo) => (
+                                    <div
+                                      key={photo.id}
+                                      className="aspect-square overflow-hidden rounded-xl bg-zinc-100 dark:bg-zinc-900"
+                                    >
+                                      <PartPhotoImg
+                                        src={photo.photo_url}
+                                        alt=""
+                                        className="h-full w-full object-cover"
+                                      />
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            ) : null}
                           </div>
                         </div>
                       </div>
 
-                      {/* Rodapé de ações: fundo sólido, sem foto por trás */}
-                      <div className="space-y-3 border-t border-zinc-100 bg-white px-4 py-3.5 dark:border-white/[0.06] dark:bg-zinc-950 sm:px-5">
-                        <div className="flex flex-wrap items-center gap-1">
+                      {/* Rodapé: ações modestas + CTAs; sem foto */}
+                      <div className="space-y-2.5 border-t border-zinc-100 bg-white px-3 py-3 dark:border-white/[0.06] dark:bg-zinc-950 sm:px-4">
+                        <div className="flex flex-wrap items-center gap-0.5">
                           <button
                             type="button"
                             onClick={() => {
@@ -2936,7 +2923,7 @@ export function WorkshopAbsModulesModal({
                             type="button"
                             disabled={actionBusy}
                             onClick={() => void handleDeleteUnit(detail)}
-                            className="ml-auto inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[12px] font-medium text-red-600/80 transition-colors hover:bg-red-50 hover:text-red-700 disabled:opacity-50 dark:text-red-400 dark:hover:bg-red-950/40"
+                            className="ml-auto inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[12px] font-medium text-red-600 transition-colors hover:bg-red-50 hover:text-red-700 disabled:opacity-50 dark:text-red-400 dark:hover:bg-red-950/40"
                           >
                             {actionBusy ? (
                               <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -2950,7 +2937,7 @@ export function WorkshopAbsModulesModal({
                         <div
                           className={`grid gap-2 ${
                             detail.module_kind === 'completo' && detail.status === 'disponivel'
-                              ? 'sm:grid-cols-2'
+                              ? 'grid-cols-2'
                               : ''
                           }`}
                         >
@@ -2961,7 +2948,7 @@ export function WorkshopAbsModulesModal({
                                 setAction('entry');
                                 setActionError(null);
                               }}
-                              className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 text-[14px] font-semibold text-white transition hover:bg-emerald-700"
+                              className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-3 py-3 text-[14px] font-semibold text-white transition hover:bg-emerald-700"
                             >
                               <ArrowDownToLine className="h-4 w-4" />
                               Registrar entrada
@@ -2974,7 +2961,7 @@ export function WorkshopAbsModulesModal({
                                 setConfirmExit(false);
                                 setActionError(null);
                               }}
-                              className="inline-flex items-center justify-center gap-2 rounded-xl bg-rose-600 px-4 py-3 text-[14px] font-semibold text-white transition hover:bg-rose-700"
+                              className="inline-flex items-center justify-center gap-2 rounded-xl bg-rose-600 px-3 py-3 text-[14px] font-semibold text-white transition hover:bg-rose-700"
                             >
                               <ArrowUpFromLine className="h-4 w-4" />
                               Dar saída
@@ -2984,7 +2971,7 @@ export function WorkshopAbsModulesModal({
                             <button
                               type="button"
                               onClick={() => openDisassemble(detail)}
-                              className="inline-flex items-center justify-center gap-2 rounded-xl bg-amber-500 px-4 py-3 text-[14px] font-semibold text-amber-950 transition hover:bg-amber-400"
+                              className="inline-flex items-center justify-center gap-2 rounded-xl bg-amber-500 px-3 py-3 text-[14px] font-semibold text-amber-950 transition hover:bg-amber-400"
                             >
                               <Scissors className="h-4 w-4" />
                               Desmembrar
