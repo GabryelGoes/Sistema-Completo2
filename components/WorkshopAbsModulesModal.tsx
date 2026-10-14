@@ -392,7 +392,7 @@ function SameModelUnitsButton({
           e.stopPropagation();
           setOpen((v) => !v);
         }}
-        className="flex min-w-0 flex-1 items-start gap-3 rounded-2xl bg-zinc-100/90 px-4 py-3.5 text-left transition-colors hover:bg-zinc-200/80 dark:bg-white/[0.06] dark:hover:bg-white/[0.1]"
+        className="flex min-w-0 flex-1 items-start gap-3 rounded-2xl bg-zinc-100 px-4 py-3.5 text-left transition-colors hover:bg-zinc-200 dark:bg-zinc-900 dark:hover:bg-zinc-800"
         aria-expanded={open}
         aria-haspopup="dialog"
         aria-label="Ver unidades do mesmo modelo"
@@ -2707,7 +2707,7 @@ export function WorkshopAbsModulesModal({
                             <PartPhotoImg
                               src={heroPhoto}
                               alt=""
-                              className="absolute inset-0 h-full w-full scale-[1.02] object-cover object-[center_18%]"
+                              className="absolute inset-0 h-full w-full scale-[1.04] object-cover object-center"
                             />
                           </div>
                         ) : (
@@ -2744,15 +2744,20 @@ export function WorkshopAbsModulesModal({
                           </div>
                         </div>
 
-                        {/* Infos: mesma foto bem leve por trás (véu quase opaco) */}
-                        <div className="relative space-y-4 bg-white/[0.93] px-4 py-4 backdrop-blur-[1.5px] dark:bg-zinc-950/[0.9] sm:px-5 sm:py-5">
+                        {/* Infos: foto continua no fundo com degradê; cards opacos */}
+                        <div className="relative px-4 py-4 sm:px-5 sm:py-5">
+                          <div
+                            aria-hidden
+                            className="pointer-events-none absolute inset-0 bg-gradient-to-b from-white/40 via-white/78 to-white dark:from-zinc-950/45 dark:via-zinc-950/82 dark:to-zinc-950"
+                          />
+                          <div className="relative space-y-4">
                           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-3">
-                            <div className="flex min-w-0 items-start gap-3 rounded-2xl bg-emerald-50/95 px-4 py-3.5 dark:bg-emerald-950/55">
+                            <div className="flex min-w-0 items-start gap-3 rounded-2xl bg-emerald-50 px-4 py-3.5 dark:bg-emerald-950">
                               <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-600/15 text-emerald-700 dark:text-emerald-300">
                                 <MapPin className="h-[18px] w-[18px]" />
                               </span>
                               <div className="min-w-0">
-                                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-700/80 dark:text-emerald-400/90">
+                                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-700 dark:text-emerald-400">
                                   Localização
                                 </p>
                                 <p className="mt-0.5 text-[18px] font-bold tracking-tight text-emerald-950 dark:text-emerald-50">
@@ -2772,7 +2777,7 @@ export function WorkshopAbsModulesModal({
                           </div>
 
                           <dl className="grid gap-3 sm:grid-cols-2">
-                            <div className="rounded-xl bg-white/80 px-3.5 py-3 dark:bg-white/[0.04]">
+                            <div className="rounded-xl bg-white px-3.5 py-3 dark:bg-zinc-900">
                               <dt className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
                                 Fabricante
                               </dt>
@@ -2780,7 +2785,7 @@ export function WorkshopAbsModulesModal({
                                 {detail.manufacturer || '—'}
                               </dd>
                             </div>
-                            <div className="rounded-xl bg-white/80 px-3.5 py-3 dark:bg-white/[0.04]">
+                            <div className="rounded-xl bg-white px-3.5 py-3 dark:bg-zinc-900">
                               <dt className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
                                 Família
                               </dt>
@@ -2788,7 +2793,7 @@ export function WorkshopAbsModulesModal({
                                 {family || '—'}
                               </dd>
                             </div>
-                            <div className="rounded-xl bg-white/80 px-3.5 py-3 sm:col-span-2 dark:bg-white/[0.04]">
+                            <div className="rounded-xl bg-white px-3.5 py-3 sm:col-span-2 dark:bg-zinc-900">
                               <dt className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
                                 Aplicação
                               </dt>
@@ -2796,7 +2801,7 @@ export function WorkshopAbsModulesModal({
                                 {appsLabel}
                               </dd>
                             </div>
-                            <div className="rounded-xl bg-white/80 px-3.5 py-3 sm:col-span-2 dark:bg-white/[0.04]">
+                            <div className="rounded-xl bg-white px-3.5 py-3 sm:col-span-2 dark:bg-zinc-900">
                               <dt className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
                                 Código
                               </dt>
@@ -2823,7 +2828,7 @@ export function WorkshopAbsModulesModal({
                                 )}
                               </dd>
                             </div>
-                            <div className="rounded-xl bg-white/80 px-3.5 py-3 dark:bg-white/[0.04]">
+                            <div className="rounded-xl bg-white px-3.5 py-3 dark:bg-zinc-900">
                               <dt className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
                                 Estado / condição
                               </dt>
@@ -2832,7 +2837,7 @@ export function WorkshopAbsModulesModal({
                                 {absModuleItemConditionLabel(detail.item_condition)}
                               </dd>
                             </div>
-                            <div className="rounded-xl bg-white/80 px-3.5 py-3 dark:bg-white/[0.04]">
+                            <div className="rounded-xl bg-white px-3.5 py-3 dark:bg-zinc-900">
                               <dt className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
                                 Preços
                               </dt>
@@ -2855,7 +2860,7 @@ export function WorkshopAbsModulesModal({
                           </dl>
 
                           {detail.damage_description ? (
-                            <p className="rounded-xl bg-amber-50/95 px-3.5 py-2.5 text-[13px] text-amber-950 dark:bg-amber-950/40 dark:text-amber-100">
+                            <p className="rounded-xl bg-amber-50 px-3.5 py-2.5 text-[13px] text-amber-950 dark:bg-amber-950 dark:text-amber-100">
                               {detail.damage_description}
                             </p>
                           ) : null}
@@ -2869,7 +2874,7 @@ export function WorkshopAbsModulesModal({
                                 {(detail.photos || []).slice(1).map((photo) => (
                                   <div
                                     key={photo.id}
-                                    className="aspect-square overflow-hidden rounded-xl bg-zinc-100/90 dark:bg-white/[0.03]"
+                                    className="aspect-square overflow-hidden rounded-xl bg-zinc-100 dark:bg-zinc-900"
                                   >
                                     <PartPhotoImg
                                       src={photo.photo_url}
@@ -2881,6 +2886,7 @@ export function WorkshopAbsModulesModal({
                               </div>
                             </div>
                           ) : null}
+                          </div>
                         </div>
                       </div>
 
