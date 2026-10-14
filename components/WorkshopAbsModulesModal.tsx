@@ -2753,11 +2753,11 @@ export function WorkshopAbsModulesModal({
                           </div>
                         </div>
 
-                        {/* Campos: degradê sobre a foto; cards opacos */}
+                        {/* Campos: degradê severo desde o início (localização); foto ~60% mais discreta */}
                         <div className="relative px-3 pb-3 pt-1 sm:px-4 sm:pb-4">
                           <div
                             aria-hidden
-                            className="pointer-events-none absolute inset-0 bg-gradient-to-b from-transparent via-white/70 to-white dark:via-zinc-950/75 dark:to-zinc-950"
+                            className="pointer-events-none absolute inset-0 bg-gradient-to-b from-white/[0.72] via-white/[0.9] to-white dark:from-zinc-950/[0.72] dark:via-zinc-950/[0.9] dark:to-zinc-950"
                           />
                           <div className="relative space-y-2.5">
                             <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
