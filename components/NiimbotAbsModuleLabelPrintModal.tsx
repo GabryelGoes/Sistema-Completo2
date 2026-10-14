@@ -16,10 +16,19 @@ import {
   niimbotService,
   type NiimbotServiceSnapshot,
 } from '../services/niimbotService';
-import type { WorkshopAbsModule } from '../services/apiService';
-import { renderNiimbotAbsModuleLabelDataUrl } from '../utils/niimbotLabelRender';
+import {
+  getWorkshopAbsModuleModel,
+  type WorkshopAbsModule,
+  type WorkshopAbsModuleApplication,
+} from '../services/apiService';
+import {
+  renderNiimbotAbsModuleLabelDataUrl,
+  type NiimbotAbsModuleLabelInput,
+} from '../utils/niimbotLabelRender';
 import {
   absModuleKindLabel,
+  formatAbsApplicationBrands,
+  formatAbsApplicationVehicles,
   formatAbsModuleSequence,
 } from '../utils/workshopAbsModules';
 import { ModalPortal } from './ui/ModalPortal';
@@ -33,6 +42,45 @@ export type NiimbotAbsModuleLabelPrintModalProps = {
   modules: WorkshopAbsModule[] | null;
   onClose: () => void;
 };
+
+const appCache = new Map<string, WorkshopAbsModuleApplication[]>();
+
+async function resolveAbsLabelInput(module: WorkshopAbsModule): Promise<NiimbotAbsModuleLabelInput> {
+  let apps = module.catalog_model?.applications || [];
+  const modelId = module.model_id || module.catalog_model?.id || null;
+  if ((!apps || apps.length === 0) && modelId) {
+    if (appCache.has(modelId)) {
+      apps = appCache.get(modelId) || [];
+    } else {
+      try {
+        const model = await getWorkshopAbsModuleModel(modelId);
+        apps = model.applications || [];
+        appCache.set(modelId, apps);
+      } catch {
+        apps = [];
+      }
+    }
+  }
+
+  const applicationBrand = formatAbsApplicationBrands(apps);
+  const applicationVehicles =
+    formatAbsApplicationVehicles(apps) || String(module.application || '').trim();
+
+  return {
+    publicId: module.public_id,
+    sequenceNumber: module.sequence_number,
+    moduleKind: module.module_kind,
+    manufacturer: module.manufacturer,
+    applicationBrand,
+    applicationVehicles,
+    code: module.original_code || '',
+    location: module.location,
+  };
+}
+
+async function renderModuleLabel(module: WorkshopAbsModule): Promise<string> {
+  return renderNiimbotAbsModuleLabelDataUrl(await resolveAbsLabelInput(module));
+}
 
 function statusTone(status: NiimbotServiceSnapshot['status']): string {
   switch (status) {
@@ -64,18 +112,6 @@ function statusLabel(snap: NiimbotServiceSnapshot): string {
     default:
       return snap.status;
   }
-}
-
-async function renderModuleLabel(module: WorkshopAbsModule): Promise<string> {
-  return renderNiimbotAbsModuleLabelDataUrl({
-    publicId: module.public_id,
-    sequenceNumber: module.sequence_number,
-    moduleKind: module.module_kind,
-    code: module.original_code || module.public_id,
-    location: module.location,
-    manufacturer: module.manufacturer,
-    brand: 'REI DO ABS',
-  });
 }
 
 export function NiimbotAbsModuleLabelPrintModal({

@@ -97,7 +97,7 @@ export const LABEL_TEMPLATE_META: Array<{
   {
     id: 'abs_modulo',
     title: 'Módulo ABS',
-    description: 'Sequência #N, marca, tipo e código de barras (Code128)',
+    description: 'Fabricante, aplicação, código, local e Code128',
   },
 ];
 
@@ -388,7 +388,7 @@ export function createDefaultChaveTemplate(): LabelTemplateLayout {
 export function createDefaultAbsModuloTemplate(): LabelTemplateLayout {
   return {
     id: 'abs_modulo',
-    version: 2,
+    version: 3,
     canvasW: LABEL_W,
     canvasH: LABEL_H,
     elements: [
@@ -397,55 +397,87 @@ export function createDefaultAbsModuloTemplate(): LabelTemplateLayout {
         kind: 'text',
         name: 'Sequência #N',
         visible: true,
-        x: 10,
+        x: 8,
         y: 4,
-        w: 200,
-        h: 48,
-        fontSize: 44,
+        w: 72,
+        h: 22,
+        fontSize: 20,
         fontWeight: '900',
         labelText: '',
         align: 'left',
-      }),
-      el({
-        id: 'brand',
-        kind: 'text',
-        name: 'Marca',
-        visible: true,
-        x: 210,
-        y: 8,
-        w: 164,
-        h: 22,
-        fontSize: 14,
-        labelText: '',
-        align: 'right',
       }),
       el({
         id: 'kind',
         kind: 'text',
         name: 'Tipo',
         visible: true,
-        x: 210,
-        y: 32,
-        w: 164,
-        h: 20,
-        fontSize: 12,
-        fontWeight: 'normal',
+        x: 200,
+        y: 6,
+        w: 176,
+        h: 16,
+        fontSize: 11,
+        fontWeight: 'bold',
         labelText: '',
         align: 'right',
+      }),
+      el({
+        id: 'manufacturer',
+        kind: 'text_field',
+        name: 'Fabricante',
+        visible: true,
+        x: 8,
+        y: 26,
+        w: 368,
+        h: 22,
+        fontSize: 11,
+        fontWeight: 'bold',
+        valueFontSize: 18,
+        labelText: 'Fab.',
+        maxLines: 1,
+      }),
+      el({
+        id: 'app_brand',
+        kind: 'text_field',
+        name: 'Marca da aplicação',
+        visible: true,
+        x: 8,
+        y: 50,
+        w: 368,
+        h: 18,
+        fontSize: 10,
+        fontWeight: 'bold',
+        valueFontSize: 13,
+        labelText: 'Apl.',
+        maxLines: 1,
+      }),
+      el({
+        id: 'app_vehicles',
+        kind: 'text_field',
+        name: 'Veículos de aplicação',
+        visible: true,
+        x: 8,
+        y: 70,
+        w: 368,
+        h: 28,
+        fontSize: 10,
+        fontWeight: 'normal',
+        valueFontSize: 12,
+        labelText: 'Veíc.',
+        maxLines: 2,
       }),
       el({
         id: 'code_line',
         kind: 'text_field',
         name: 'Código',
         visible: true,
-        x: 10,
-        y: 56,
-        w: 364,
-        h: 22,
-        fontSize: 14,
-        fontWeight: 'normal',
-        valueFontSize: 14,
-        labelText: '',
+        x: 8,
+        y: 100,
+        w: 200,
+        h: 16,
+        fontSize: 10,
+        fontWeight: 'bold',
+        valueFontSize: 12,
+        labelText: 'Cód.',
         maxLines: 1,
       }),
       el({
@@ -453,15 +485,28 @@ export function createDefaultAbsModuloTemplate(): LabelTemplateLayout {
         kind: 'text_field',
         name: 'Local',
         visible: true,
-        x: 10,
-        y: 80,
-        w: 364,
-        h: 20,
-        fontSize: 12,
-        fontWeight: 'normal',
+        x: 212,
+        y: 100,
+        w: 164,
+        h: 16,
+        fontSize: 10,
+        fontWeight: 'bold',
         valueFontSize: 12,
-        labelText: 'Local:',
+        labelText: 'Local',
         maxLines: 1,
+      }),
+      el({
+        id: 'brand',
+        kind: 'text',
+        name: 'Marca da oficina',
+        visible: false,
+        x: 8,
+        y: 4,
+        w: 120,
+        h: 14,
+        fontSize: 10,
+        labelText: '',
+        align: 'left',
       }),
       el({
         id: 'qr',
@@ -481,9 +526,9 @@ export function createDefaultAbsModuloTemplate(): LabelTemplateLayout {
         kind: 'barcode',
         name: 'Código de barras',
         visible: true,
-        x: 10,
-        y: 108,
-        w: 364,
+        x: 8,
+        y: 122,
+        w: 368,
         h: 78,
         fontSize: 12,
         labelText: '',
@@ -493,11 +538,11 @@ export function createDefaultAbsModuloTemplate(): LabelTemplateLayout {
         kind: 'human_code',
         name: 'ID legível',
         visible: true,
-        x: 10,
-        y: 192,
-        w: 364,
+        x: 8,
+        y: 204,
+        w: 368,
         h: 28,
-        fontSize: 16,
+        fontSize: 14,
         labelText: '',
         align: 'center',
       }),
@@ -603,38 +648,44 @@ export function normalizeLabelTemplate(
     );
   }
 
-  // ABS: só código de barras (sem QR). Migrar layout antigo (v1) para a geometria v2.
+  // ABS: só código de barras (sem QR). Migrar layouts antigos para a geometria atual.
   if (id === 'abs_modulo') {
     const savedVersion = Number(raw?.version ?? 0);
+    const targetVersion = Number(def.version) || 3;
     elements = elements.map((e) => {
       if (e.id === 'qr') return { ...e, visible: false };
-      if (savedVersion >= 2) return e;
+      if (e.id === 'brand' && savedVersion < targetVersion) {
+        const fb = def.elements.find((d) => d.id === e.id);
+        return fb ? { ...fb } : { ...e, visible: false };
+      }
+      if (savedVersion >= targetVersion) return e;
       const fb = def.elements.find((d) => d.id === e.id);
       if (!fb) return e;
-      if (
-        e.id === 'barcode' ||
-        e.id === 'human_code' ||
-        e.id === 'code_line' ||
-        e.id === 'location' ||
-        e.id === 'sequence'
-      ) {
-        return {
-          ...e,
-          x: fb.x,
-          y: fb.y,
-          w: fb.w,
-          h: fb.h,
-          fontSize: fb.fontSize,
-          visible: fb.visible,
-        };
-      }
-      return e;
+      return {
+        ...e,
+        x: fb.x,
+        y: fb.y,
+        w: fb.w,
+        h: fb.h,
+        fontSize: fb.fontSize,
+        valueFontSize: fb.valueFontSize,
+        fontWeight: fb.fontWeight,
+        labelText: fb.labelText,
+        align: fb.align,
+        maxLines: fb.maxLines,
+        visible: fb.visible,
+      };
     });
+    // Garante elementos novos (manufacturer / app_*) mesmo em saves antigos.
+    for (const fb of def.elements) {
+      if (elements.some((e) => e.id === fb.id)) continue;
+      elements.push({ ...fb });
+    }
   }
 
   return {
     id,
-    version: id === 'abs_modulo' ? 2 : 1,
+    version: id === 'abs_modulo' ? Number(def.version) || 3 : 1,
     canvasW: LABEL_W,
     canvasH: LABEL_H,
     elements,
@@ -784,6 +835,9 @@ export const LABEL_SAMPLE_DATA = {
     sequenceNumber: 12,
     publicId: 'ABS-000012',
     moduleKind: 'completo',
+    manufacturer: 'Bosch',
+    applicationBrand: 'Volkswagen',
+    applicationVehicles: 'Gol · Fox · Voyage · Saveiro',
     code: '0265231548',
     location: 'Prateleira B3',
   },

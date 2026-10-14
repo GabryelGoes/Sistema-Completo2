@@ -382,6 +382,53 @@ export function formatAbsModuleSequence(n: number | null | undefined): string {
   return `#${Math.floor(Number(n))}`;
 }
 
+/** Marcas de aplicação (veículo) únicas, na ordem cadastrada. */
+export function formatAbsApplicationBrands(
+  apps: WorkshopAbsModuleApplication[] | null | undefined
+): string {
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const a of apps || []) {
+    const brand = String(a.vehicle_brand || '').trim();
+    if (!brand) continue;
+    const key = brand.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(brand);
+  }
+  return out.join(' · ');
+}
+
+/**
+ * Veículos de aplicação para etiqueta.
+ * Uma marca: só os modelos. Várias marcas: "VW Gol · Fiat Palio".
+ */
+export function formatAbsApplicationVehicles(
+  apps: WorkshopAbsModuleApplication[] | null | undefined
+): string {
+  const list = apps || [];
+  const brands = new Set(
+    list.map((a) => String(a.vehicle_brand || '').trim()).filter(Boolean).map((b) => b.toLowerCase())
+  );
+  const multiBrand = brands.size > 1;
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const a of list) {
+    const brand = String(a.vehicle_brand || '').trim();
+    const model = String(a.vehicle_model || '').trim();
+    if (!model && !brand) continue;
+    const label = multiBrand
+      ? [brand, model].filter(Boolean).join(' ')
+      : model || brand;
+    if (!label) continue;
+    const key = label.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(label);
+  }
+  return out.join(' · ');
+}
+
 export function absModelFingerprint(
   manufacturer: string | null | undefined,
   primaryCode: string | null | undefined,

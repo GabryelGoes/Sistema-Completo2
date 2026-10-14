@@ -182,9 +182,71 @@ export type NiimbotAbsModuleLabelInput = {
   location?: string | null;
   brand?: string;
   manufacturer?: string | null;
+  /** Marca(s) de aplicação do veículo (ex.: Volkswagen). */
+  applicationBrand?: string | null;
+  /** Modelos de veículo de aplicação (ex.: Gol · Fox · Voyage). */
+  applicationVehicles?: string | null;
 };
 
-/** Renderiza etiqueta Niimbot 50×30 mm para módulo ABS (#N + código de barras). */
+const ABS_FIELD_LABEL_W = 42;
+
+function drawAbsLabeledField(
+  ctx: CanvasRenderingContext2D,
+  elDef: LabelElementDef,
+  value: string,
+  opts?: { hideIfEmpty?: boolean; maxLines?: number }
+): void {
+  if (!elDef.visible) return;
+  const text = String(value || '').trim();
+  if (!text && opts?.hideIfEmpty !== false) return;
+
+  const label = String(elDef.labelText || '').trim();
+  const labelW = label ? ABS_FIELD_LABEL_W : 0;
+  const valueX = elDef.x + labelW;
+  const valueW = Math.max(24, elDef.w - labelW);
+  const maxLines = Math.max(1, opts?.maxLines ?? elDef.maxLines ?? 1);
+
+  ctx.fillStyle = '#000000';
+  ctx.textBaseline = 'top';
+
+  if (label) {
+    ctx.font = cssFontForElement({ ...elDef, fontSize: elDef.fontSize, fontWeight: 'bold' });
+    const lab = label.endsWith('.') || label.endsWith(':') ? label : `${label}`;
+    ctx.fillText(truncateToWidth(ctx, lab, labelW - 2), elDef.x, elDef.y);
+  }
+
+  const valueSize = elDef.valueFontSize || elDef.fontSize;
+  ctx.font = cssFontForElement({ ...elDef, fontSize: valueSize });
+
+  if (maxLines <= 1) {
+    ctx.fillText(truncateToWidth(ctx, text || '—', valueW), valueX, elDef.y);
+    return;
+  }
+
+  const words = (text || '—').split(/\s+/).filter(Boolean);
+  const lines: string[] = [];
+  let current = '';
+  for (const word of words) {
+    const trial = current ? `${current} ${word}` : word;
+    if (ctx.measureText(trial).width <= valueW || !current) {
+      current = trial;
+    } else {
+      lines.push(current);
+      current = word;
+      if (lines.length >= maxLines) break;
+    }
+  }
+  if (current && lines.length < maxLines) lines.push(current);
+  if (lines.length === maxLines && words.join(' ').length > lines.join(' ').length) {
+    lines[maxLines - 1] = truncateToWidth(ctx, lines[maxLines - 1]!, valueW);
+  }
+  const lineH = Math.max(valueSize + 2, Math.floor(elDef.h / maxLines));
+  lines.forEach((line, i) => {
+    ctx.fillText(line, valueX, elDef.y + i * lineH);
+  });
+}
+
+/** Renderiza etiqueta Niimbot 50×30 mm para módulo ABS (dados + Code128). */
 export async function renderNiimbotAbsModuleLabelDataUrl(
   input: NiimbotAbsModuleLabelInput,
   layoutInput?: LabelTemplateLayout | null
@@ -192,10 +254,13 @@ export async function renderNiimbotAbsModuleLabelDataUrl(
   const publicId = String(input.publicId || '').trim().toUpperCase();
   if (!publicId) throw new Error('ID do módulo ausente para a etiqueta.');
 
-  const brand = (input.brand ?? 'REI DO ABS').trim() || 'REI DO ABS';
+  const shopBrand = (input.brand ?? '').trim();
   const seq = formatAbsModuleSequence(input.sequenceNumber);
   const kind = absModuleKindLabel(input.moduleKind);
-  const code = String(input.code || publicId).trim();
+  const manufacturer = String(input.manufacturer || '').trim();
+  const appBrand = String(input.applicationBrand || '').trim();
+  const appVehicles = String(input.applicationVehicles || '').trim();
+  const code = String(input.code || '').trim();
   const location = String(input.location || '').trim();
   const layout = layoutInput ?? loadLabelTemplate('abs_modulo');
 
@@ -215,51 +280,40 @@ export async function renderNiimbotAbsModuleLabelDataUrl(
   const seqEl = findEl(layout, 'sequence');
   if (seqEl) drawPlainText(ctx, seqEl, seq);
 
-  const brandEl = findEl(layout, 'brand');
-  if (brandEl) drawPlainText(ctx, brandEl, brand);
-
   const kindEl = findEl(layout, 'kind');
   if (kindEl) drawPlainText(ctx, kindEl, kind);
 
-  const codeLineEl = findEl(layout, 'code_line');
-  if (codeLineEl?.visible) {
-    ctx.font = cssFontForElement(codeLineEl);
-    ctx.textBaseline = 'top';
-    const prefix = codeLineEl.labelText
-      ? codeLineEl.labelText.endsWith(' ')
-        ? codeLineEl.labelText
-        : `${codeLineEl.labelText} `
-      : '';
-    const line = truncateToWidth(ctx, `${prefix}${code}`, codeLineEl.w);
-    let x = codeLineEl.x;
-    if (codeLineEl.align === 'center') {
-      x = codeLineEl.x + (codeLineEl.w - ctx.measureText(line).width) / 2;
-    } else if (codeLineEl.align === 'right') {
-      x = codeLineEl.x + codeLineEl.w - ctx.measureText(line).width;
-    }
-    ctx.fillText(line, x, codeLineEl.y);
+  const brandEl = findEl(layout, 'brand');
+  if (brandEl && shopBrand) drawPlainText(ctx, brandEl, shopBrand);
+
+  const mfrEl = findEl(layout, 'manufacturer');
+  if (mfrEl) drawAbsLabeledField(ctx, mfrEl, manufacturer || '—', { hideIfEmpty: false });
+
+  const appBrandEl = findEl(layout, 'app_brand');
+  if (appBrandEl) drawAbsLabeledField(ctx, appBrandEl, appBrand || '—', { hideIfEmpty: false });
+
+  const appVehEl = findEl(layout, 'app_vehicles');
+  if (appVehEl) {
+    drawAbsLabeledField(ctx, appVehEl, appVehicles || '—', {
+      hideIfEmpty: false,
+      maxLines: appVehEl.maxLines || 2,
+    });
   }
 
+  const codeLineEl = findEl(layout, 'code_line');
+  if (codeLineEl) drawAbsLabeledField(ctx, codeLineEl, code || '—', { hideIfEmpty: false });
+
   const locEl = findEl(layout, 'location');
-  if (locEl?.visible && location) {
-    ctx.font = cssFontForElement(locEl);
-    const prefix = locEl.labelText
-      ? locEl.labelText.endsWith(' ')
-        ? locEl.labelText
-        : `${locEl.labelText} `
-      : '';
-    const line = truncateToWidth(ctx, `${prefix}${location}`, locEl.w);
-    ctx.fillText(line, locEl.x, locEl.y);
-  }
+  if (locEl) drawAbsLabeledField(ctx, locEl, location || '—', { hideIfEmpty: false });
 
   // Etiqueta ABS: apenas código de barras (sem QR), para leitura pela pistola USB.
   const barcodeEl = findEl(layout, 'barcode');
   if (barcodeEl?.visible !== false) {
     try {
-      const bw = barcodeEl?.w ?? Math.min(364, w - 20);
+      const bw = barcodeEl?.w ?? Math.min(368, w - 16);
       const bh = barcodeEl?.h ?? 78;
-      const bx = barcodeEl?.x ?? 10;
-      const by = barcodeEl?.y ?? Math.max(100, h - bh - 36);
+      const bx = barcodeEl?.x ?? 8;
+      const by = barcodeEl?.y ?? Math.max(120, h - bh - 32);
       drawCode128B(ctx, publicId, bx, by, bw, bh);
     } catch {
       // Code128 pode falhar com caracteres especiais — human_code ainda identifica.
