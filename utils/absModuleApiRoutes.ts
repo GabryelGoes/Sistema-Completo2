@@ -565,10 +565,17 @@ export function registerAbsModuleRoutes(app: Express, deps: AbsRouteDeps) {
       }
 
       const ids = (modelRows || []).map((m) => m.id);
-      const [{ data: codes }, { data: units }] = await Promise.all([
+      const [{ data: codes }, { data: applications }, { data: units }] = await Promise.all([
         ids.length
           ? supabaseAdmin!
               .from('workshop_abs_module_codes')
+              .select('*')
+              .in('model_id', ids)
+              .order('sort_order', { ascending: true })
+          : Promise.resolve({ data: [] as Record<string, unknown>[] }),
+        ids.length
+          ? supabaseAdmin!
+              .from('workshop_abs_module_applications')
               .select('*')
               .in('model_id', ids)
               .order('sort_order', { ascending: true })
@@ -588,16 +595,26 @@ export function registerAbsModuleRoutes(app: Express, deps: AbsRouteDeps) {
         if (!codesByModel.has(mid)) codesByModel.set(mid, []);
         codesByModel.get(mid)!.push(c);
       }
-      const qtyByModel = new Map<string, number>();
+      const appsByModel = new Map<string, unknown[]>();
+      for (const a of applications || []) {
+        const mid = String((a as { model_id: string }).model_id);
+        if (!appsByModel.has(mid)) appsByModel.set(mid, []);
+        appsByModel.get(mid)!.push(a);
+      }
+      const availableByModel = new Map<string, number>();
+      const totalByModel = new Map<string, number>();
       for (const u of units || []) {
+        totalByModel.set(u.model_id, (totalByModel.get(u.model_id) || 0) + 1);
         if (u.status !== 'disponivel') continue;
-        qtyByModel.set(u.model_id, (qtyByModel.get(u.model_id) || 0) + 1);
+        availableByModel.set(u.model_id, (availableByModel.get(u.model_id) || 0) + 1);
       }
 
       let models = (modelRows || []).map((m) => ({
         ...m,
         codes: codesByModel.get(m.id) || [],
-        available_qty: qtyByModel.get(m.id) || 0,
+        applications: appsByModel.get(m.id) || [],
+        available_qty: availableByModel.get(m.id) || 0,
+        total_qty: totalByModel.get(m.id) || 0,
       }));
 
       if (q) {
@@ -609,6 +626,9 @@ export function registerAbsModuleRoutes(app: Express, deps: AbsRouteDeps) {
             m.notes,
             m.module_kind,
             ...((m.codes as { code_value?: string }[]) || []).map((c) => c.code_value),
+            ...((m.applications as { vehicle_brand?: string; vehicle_model?: string }[]) || []).flatMap(
+              (a) => [a.vehicle_brand, a.vehicle_model]
+            ),
           ]
             .join(' ')
             .toLowerCase();

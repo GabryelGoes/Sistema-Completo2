@@ -14,10 +14,17 @@ import {
 import {
   deleteWorkshopAbsModuleModel,
   getWorkshopAbsModuleModels,
+  getWorkshopSettings,
   type WorkshopAbsModuleModel,
 } from '../services/apiService';
 import { setActiveBarcodeScanClaim } from '../utils/activeBarcodeScanClaim';
 import { isLabOsQrPayload } from '../utils/labOsQrCode';
+import {
+  getLabProductKindPhotoUrl,
+  LAB_PRODUCT_KINDS_CHANGED_EVENT,
+  setLabProductKinds,
+} from '../utils/moduleMetadata';
+import { storageThumbnailUrl } from '../utils/storageThumbnailUrl';
 import { normalizeBarcodeInput } from '../utils/workshopPartBarcode';
 import {
   ABS_MODULE_KIND_OPTIONS,
@@ -30,6 +37,7 @@ import {
   type AbsModuleKind,
   type AbsModuleStatus,
 } from '../utils/workshopAbsModules';
+import { PartPhotoImg } from './ui/PartPhotoImg';
 import { WorkshopAbsModulesModal } from './WorkshopAbsModulesModal';
 
 export type WorkshopAbsModulesHomeDashboardProps = {
@@ -53,6 +61,27 @@ function modelPrimaryCode(m: WorkshopAbsModuleModel): string {
   return primaryCodeForScope(m.codes, scope) || primaryCodeForScope(m.codes, 'completo') || '—';
 }
 
+/** Marcas de aplicação (veículo) do modelo — coluna "Aplicação". */
+function modelApplicationLabel(m: WorkshopAbsModuleModel): string {
+  const brands: string[] = [];
+  const seen = new Set<string>();
+  for (const a of m.applications || []) {
+    const brand = String(a.vehicle_brand || '').trim();
+    if (!brand) continue;
+    const key = brand.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    brands.push(brand);
+  }
+  return brands.length ? brands.join(', ') : '—';
+}
+
+function absKindPhotoUrl(kind: AbsModuleKind | string | null | undefined): string | null {
+  const raw = getLabProductKindPhotoUrl(kind);
+  if (!raw) return null;
+  return storageThumbnailUrl(raw, { maxWidth: 128, maxHeight: 128, resize: 'cover' }) || raw;
+}
+
 export function WorkshopAbsModulesHomeDashboard({
   onBack,
   initialPublicId,
@@ -66,6 +95,8 @@ export function WorkshopAbsModulesHomeDashboard({
   const [filterKind, setFilterKind] = useState<AbsModuleKind | ''>('');
   const [filterStatus, setFilterStatus] = useState<AbsModuleStatus | ''>('disponivel');
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  /** Força re-render quando as fotos dos tipos de produto do lab mudam. */
+  const [labKindsTick, setLabKindsTick] = useState(0);
 
   const [flowOpen, setFlowOpen] = useState(false);
   const [flowPublicId, setFlowPublicId] = useState<string | null>(null);
@@ -94,6 +125,25 @@ export function WorkshopAbsModulesHomeDashboard({
   useEffect(() => {
     void loadModels();
   }, [loadModels]);
+
+  useEffect(() => {
+    let cancelled = false;
+    getWorkshopSettings()
+      .then((s) => {
+        if (cancelled) return;
+        setLabProductKinds(s.labProductKinds ?? null);
+        setLabKindsTick((n) => n + 1);
+      })
+      .catch(() => {
+        /* mantém kinds já carregados no App */
+      });
+    const onKindsChanged = () => setLabKindsTick((n) => n + 1);
+    window.addEventListener(LAB_PRODUCT_KINDS_CHANGED_EVENT, onKindsChanged);
+    return () => {
+      cancelled = true;
+      window.removeEventListener(LAB_PRODUCT_KINDS_CHANGED_EVENT, onKindsChanged);
+    };
+  }, []);
 
   useEffect(() => {
     if (!initialPublicId) return;
@@ -212,7 +262,9 @@ export function WorkshopAbsModulesHomeDashboard({
   };
 
   const gridCols =
-    'lg:grid-cols-[minmax(14rem,2.4fr)_minmax(7rem,0.9fr)_minmax(6rem,0.8fr)_minmax(5rem,0.7fr)_minmax(5rem,0.7fr)_minmax(6rem,0.8fr)_5.5rem]';
+    'lg:grid-cols-[minmax(12rem,2fr)_minmax(7rem,1fr)_minmax(6.5rem,0.9fr)_minmax(6rem,0.85fr)_minmax(4.5rem,0.55fr)_minmax(6rem,0.85fr)_5.5rem]';
+  // labKindsTick: garante que miniaturas atualizem quando as fotos do lab mudarem
+  void labKindsTick;
 
   return (
     <>
@@ -378,10 +430,10 @@ export function WorkshopAbsModulesHomeDashboard({
             className={`hidden border-b border-zinc-100 px-4 py-3 text-[11px] font-bold uppercase tracking-[0.12em] text-zinc-400 dark:border-white/[0.06] dark:text-zinc-500 lg:grid lg:gap-3 ${gridCols}`}
           >
             <span>Modelo</span>
+            <span>Aplicação</span>
             <span>Código</span>
             <span>Tipo</span>
             <span className="text-right">Disp.</span>
-            <span className="text-right">Total</span>
             <span>Família</span>
             <span className="text-center">Ações</span>
           </div>
@@ -408,9 +460,9 @@ export function WorkshopAbsModulesHomeDashboard({
             <div className="divide-y divide-zinc-100 dark:divide-white/[0.06]">
               {models.map((m) => {
                 const code = modelPrimaryCode(m);
-                const title =
-                  [m.manufacturer, code !== '—' ? code : null].filter(Boolean).join(' · ') ||
-                  absModuleKindLabel(m.module_kind);
+                const application = modelApplicationLabel(m);
+                const modelName = m.manufacturer?.trim() || '—';
+                const kindPhoto = absKindPhotoUrl(m.module_kind);
                 return (
                   <div
                     key={m.id}
@@ -422,17 +474,32 @@ export function WorkshopAbsModulesHomeDashboard({
                       className="flex min-w-0 w-full items-center gap-3 rounded-xl text-left transition hover:bg-zinc-100/70 dark:hover:bg-white/[0.05] lg:w-auto"
                     >
                       <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-zinc-100 dark:bg-white/5">
-                        <Package className="h-5 w-5 text-zinc-400" />
+                        {kindPhoto ? (
+                          <PartPhotoImg
+                            src={kindPhoto}
+                            alt=""
+                            className="h-full w-full object-cover"
+                          />
+                        ) : (
+                          <Package className="h-5 w-5 text-zinc-400" />
+                        )}
                       </div>
                       <span className="min-w-0">
                         <span className="block truncate text-[15px] font-bold text-zinc-900 dark:text-white">
-                          {title}
+                          {modelName}
                         </span>
                         <span className="mt-0.5 block text-[12px] text-zinc-500 lg:hidden">
+                          {application !== '—' ? `${application} · ` : ''}
                           {absModuleKindLabel(m.module_kind)} · {m.available_qty ?? 0} disp.
                         </span>
                       </span>
                     </button>
+                    <span
+                      className="mt-2 truncate text-[13px] font-medium text-zinc-700 dark:text-zinc-300 lg:mt-0"
+                      title={application}
+                    >
+                      {application}
+                    </span>
                     <span className="mt-2 truncate text-[13px] font-semibold tabular-nums text-emerald-700 dark:text-emerald-400 lg:mt-0">
                       {code}
                     </span>
@@ -441,9 +508,6 @@ export function WorkshopAbsModulesHomeDashboard({
                     </span>
                     <span className="mt-2 text-[14px] font-bold tabular-nums text-zinc-900 dark:text-white lg:mt-0 lg:text-right">
                       {m.available_qty ?? 0}
-                    </span>
-                    <span className="mt-2 text-[13px] font-medium tabular-nums text-zinc-600 dark:text-zinc-400 lg:mt-0 lg:text-right">
-                      {m.total_qty ?? 0}
                     </span>
                     <span className="mt-2 truncate text-[13px] text-zinc-600 dark:text-zinc-400 lg:mt-0">
                       {m.family || '—'}

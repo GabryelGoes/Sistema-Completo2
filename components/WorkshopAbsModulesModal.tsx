@@ -12,6 +12,7 @@ import {
   Images,
   Loader2,
   MapPin,
+  Package,
   Pencil,
   Plus,
   Printer,
@@ -47,6 +48,8 @@ import {
 import { setActiveBarcodeScanClaim } from '../utils/activeBarcodeScanClaim';
 import { parseCurrencyStringToNumber } from '../utils/currencyMaskInput';
 import { isLabOsQrPayload } from '../utils/labOsQrCode';
+import { getLabProductKindPhotoUrl } from '../utils/moduleMetadata';
+import { storageThumbnailUrl } from '../utils/storageThumbnailUrl';
 import { normalizeBarcodeInput } from '../utils/workshopPartBarcode';
 import {
   ABS_CODE_ROLE_OPTIONS,
@@ -1656,35 +1659,61 @@ export function WorkshopAbsModulesModal({
                     <li className="px-1 pt-1 text-[12px] font-bold uppercase tracking-wider text-zinc-500">
                       Modelos técnicos
                     </li>
-                    {models.map((m) => (
-                      <li key={m.id}>
-                        <button
-                          type="button"
-                          onClick={() => void openModel(m)}
-                          className="flex w-full items-center gap-3 rounded-3xl border-0 bg-white px-4 py-3.5 text-left shadow-none transition hover:bg-zinc-50 dark:bg-white/5 dark:hover:bg-white/10"
-                        >
-                          <ChevronRight className="h-5 w-5 shrink-0 text-zinc-400" />
-                          <span className="min-w-0 flex-1">
-                            <span className="block text-[15px] font-bold text-zinc-900 dark:text-white">
-                              {[m.manufacturer, modelPrimaryCode(m)].filter(Boolean).join(' · ') ||
-                                absModuleKindLabel(m.module_kind)}
+                    {models.map((m) => {
+                      const kindPhotoRaw = getLabProductKindPhotoUrl(m.module_kind);
+                      const kindPhoto = kindPhotoRaw
+                        ? storageThumbnailUrl(kindPhotoRaw, {
+                            maxWidth: 96,
+                            maxHeight: 96,
+                            resize: 'cover',
+                          }) || kindPhotoRaw
+                        : null;
+                      const apps = [
+                        ...new Set(
+                          (m.applications || [])
+                            .map((a) => String(a.vehicle_brand || '').trim())
+                            .filter(Boolean)
+                        ),
+                      ];
+                      return (
+                        <li key={m.id}>
+                          <button
+                            type="button"
+                            onClick={() => void openModel(m)}
+                            className="flex w-full items-center gap-3 rounded-3xl border-0 bg-white px-4 py-3.5 text-left shadow-none transition hover:bg-zinc-50 dark:bg-white/5 dark:hover:bg-white/10"
+                          >
+                            <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-zinc-100 dark:bg-white/5">
+                              {kindPhoto ? (
+                                <PartPhotoImg
+                                  src={kindPhoto}
+                                  alt=""
+                                  className="h-full w-full object-cover"
+                                />
+                              ) : (
+                                <Package className="h-5 w-5 text-zinc-400" />
+                              )}
+                            </div>
+                            <span className="min-w-0 flex-1">
+                              <span className="block text-[15px] font-bold text-zinc-900 dark:text-white">
+                                {m.manufacturer?.trim() || '—'}
+                              </span>
+                              <span className="mt-0.5 block text-[13px] text-zinc-600 dark:text-zinc-300">
+                                {apps.length ? `${apps.join(', ')} · ` : ''}
+                                {modelPrimaryCode(m)} · {absModuleKindLabel(m.module_kind)}
+                                {m.family ? ` · ${m.family}` : ''}
+                              </span>
                             </span>
-                            <span className="mt-0.5 block text-[13px] text-zinc-600 dark:text-zinc-300">
-                              {absModuleKindLabel(m.module_kind)}
-                              {m.family ? ` · ${m.family}` : ''}
+                            <span className="shrink-0 text-right">
+                              <span className="block text-[15px] font-bold tabular-nums text-emerald-700 dark:text-emerald-300">
+                                {m.available_qty ?? 0}
+                              </span>
+                              <span className="text-[11px] text-zinc-500">disp.</span>
                             </span>
-                          </span>
-                          <span className="shrink-0 text-right">
-                            <span className="block text-[15px] font-bold tabular-nums text-emerald-700 dark:text-emerald-300">
-                              {m.available_qty ?? 0}
-                            </span>
-                            <span className="text-[11px] text-zinc-500">
-                              disp. / {m.total_qty ?? 0}
-                            </span>
-                          </span>
-                        </button>
-                      </li>
-                    ))}
+                            <ChevronRight className="h-5 w-5 shrink-0 text-zinc-400" />
+                          </button>
+                        </li>
+                      );
+                    })}
                   </ul>
                 )}
               </>
