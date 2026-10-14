@@ -429,6 +429,58 @@ export function formatAbsApplicationVehicles(
   return out.join(' · ');
 }
 
+/** Formata faixa de anos de uma aplicação (ex.: 2010–2014, 2012, 2015+). */
+export function formatAbsApplicationYearRange(
+  yearFrom: number | null | undefined,
+  yearTo: number | null | undefined
+): string | null {
+  const from =
+    yearFrom != null && Number.isFinite(Number(yearFrom)) ? Math.floor(Number(yearFrom)) : null;
+  const to = yearTo != null && Number.isFinite(Number(yearTo)) ? Math.floor(Number(yearTo)) : null;
+  if (from != null && to != null) {
+    if (from === to) return String(from);
+    return from < to ? `${from}–${to}` : `${to}–${from}`;
+  }
+  if (from != null) return `${from}+`;
+  if (to != null) return `até ${to}`;
+  return null;
+}
+
+/**
+ * Anos de aplicação para etiqueta.
+ * Poucas faixas: lista ("2010–2014 · 2015–2018"). Muitas: colapsa no intervalo geral.
+ */
+export function formatAbsApplicationYears(
+  apps: WorkshopAbsModuleApplication[] | null | undefined
+): string {
+  const ranges: string[] = [];
+  const seen = new Set<string>();
+  let min: number | null = null;
+  let max: number | null = null;
+  for (const a of apps || []) {
+    const from =
+      a.year_from != null && Number.isFinite(Number(a.year_from))
+        ? Math.floor(Number(a.year_from))
+        : null;
+    const to =
+      a.year_to != null && Number.isFinite(Number(a.year_to)) ? Math.floor(Number(a.year_to)) : null;
+    if (from != null) min = min == null ? from : Math.min(min, from);
+    if (to != null) max = max == null ? to : Math.max(max, to);
+    if (from == null && to != null) min = min == null ? to : Math.min(min, to);
+    if (to == null && from != null) max = max == null ? from : Math.max(max, from);
+    const label = formatAbsApplicationYearRange(from, to);
+    if (!label || seen.has(label)) continue;
+    seen.add(label);
+    ranges.push(label);
+  }
+  if (ranges.length === 0) return '';
+  if (ranges.length <= 2) return ranges.join(' · ');
+  if (min != null && max != null) {
+    return formatAbsApplicationYearRange(min, max) || ranges.join(' · ');
+  }
+  return ranges.join(' · ');
+}
+
 export function absModelFingerprint(
   manufacturer: string | null | undefined,
   primaryCode: string | null | undefined,

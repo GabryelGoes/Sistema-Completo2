@@ -29,6 +29,7 @@ import {
   absModuleKindLabel,
   formatAbsApplicationBrands,
   formatAbsApplicationVehicles,
+  formatAbsApplicationYears,
   formatAbsModuleSequence,
 } from '../utils/workshopAbsModules';
 import { ModalPortal } from './ui/ModalPortal';
@@ -65,6 +66,8 @@ async function resolveAbsLabelInput(module: WorkshopAbsModule): Promise<NiimbotA
   const applicationBrand = formatAbsApplicationBrands(apps);
   const applicationVehicles =
     formatAbsApplicationVehicles(apps) || String(module.application || '').trim();
+  const applicationYears =
+    formatAbsApplicationYears(apps) || String(module.year_label || '').trim();
 
   return {
     publicId: module.public_id,
@@ -73,6 +76,7 @@ async function resolveAbsLabelInput(module: WorkshopAbsModule): Promise<NiimbotA
     manufacturer: module.manufacturer,
     applicationBrand,
     applicationVehicles,
+    applicationYears,
     code: module.original_code || '',
     location: module.location,
   };

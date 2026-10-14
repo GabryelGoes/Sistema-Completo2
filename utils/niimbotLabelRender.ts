@@ -186,6 +186,8 @@ export type NiimbotAbsModuleLabelInput = {
   applicationBrand?: string | null;
   /** Modelos de veículo de aplicação (ex.: Gol · Fox · Voyage). */
   applicationVehicles?: string | null;
+  /** Anos / faixa de anos da aplicação (ex.: 2010–2014). */
+  applicationYears?: string | null;
 };
 
 const ABS_FIELD_LABEL_W = 42;
@@ -260,6 +262,7 @@ export async function renderNiimbotAbsModuleLabelDataUrl(
   const manufacturer = String(input.manufacturer || '').trim();
   const appBrand = String(input.applicationBrand || '').trim();
   const appVehicles = String(input.applicationVehicles || '').trim();
+  const appYears = String(input.applicationYears || '').trim();
   const code = String(input.code || '').trim();
   const location = String(input.location || '').trim();
   const layout = layoutInput ?? loadLabelTemplate('abs_modulo');
@@ -298,6 +301,11 @@ export async function renderNiimbotAbsModuleLabelDataUrl(
       hideIfEmpty: false,
       maxLines: appVehEl.maxLines || 2,
     });
+  }
+
+  const appYearsEl = findEl(layout, 'app_years');
+  if (appYearsEl) {
+    drawAbsLabeledField(ctx, appYearsEl, appYears || '—', { hideIfEmpty: false });
   }
 
   const codeLineEl = findEl(layout, 'code_line');
