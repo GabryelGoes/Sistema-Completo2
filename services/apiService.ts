@@ -4758,6 +4758,11 @@ export interface WorkshopSettings {
     absOnly: boolean;
     allowPreApproval?: boolean;
   }[];
+  /**
+   * Layouts do editor de etiquetas (lab_os / estoque / chave / abs_modulo).
+   * null = ainda não sincronizado no servidor.
+   */
+  labelTemplates?: Record<string, unknown> | null;
 }
 
 export async function getWorkshopSettings(): Promise<WorkshopSettings> {
@@ -4786,6 +4791,7 @@ export async function updateWorkshopSettings(
       absOnly: boolean;
       allowPreApproval?: boolean;
     }[];
+    labelTemplates?: Record<string, unknown> | null;
   }
 ): Promise<WorkshopSettings> {
   const response = await fetch(`${API_BASE}/workshop-settings`, {

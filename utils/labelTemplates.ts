@@ -663,17 +663,19 @@ export function normalizeLabelTemplate(
     );
   }
 
-  // ABS: só código de barras (sem QR). Migrar layouts antigos para a geometria atual.
+  // ABS: só código de barras (sem QR).
+  // v1/v2 → v3: remapeia geometria (introdução Fab/Apl/Veíc).
+  // v3+ → v4+: NÃO remapeia posições customizadas — só adiciona campos novos (ex.: Ano).
   if (id === 'abs_modulo') {
     const savedVersion = Number(raw?.version ?? 0);
-    const targetVersion = Number(def.version) || 4;
+    const remapGeometry = savedVersion > 0 && savedVersion < 3;
     elements = elements.map((e) => {
       if (e.id === 'qr') return { ...e, visible: false };
-      if (e.id === 'brand' && savedVersion < targetVersion) {
+      if (e.id === 'brand' && remapGeometry) {
         const fb = def.elements.find((d) => d.id === e.id);
         return fb ? { ...fb } : { ...e, visible: false };
       }
-      if (savedVersion >= targetVersion) return e;
+      if (!remapGeometry) return e;
       const fb = def.elements.find((d) => d.id === e.id);
       if (!fb) return e;
       return {
@@ -700,7 +702,11 @@ export function normalizeLabelTemplate(
 
   return {
     id,
-    version: id === 'abs_modulo' ? Number(def.version) || 4 : 1,
+    // Mantém a versão salva se já for >= padrão; senão sobe para o default atual.
+    version:
+      id === 'abs_modulo'
+        ? Math.max(Number(raw?.version) || 0, Number(def.version) || 4)
+        : 1,
     canvasW: LABEL_W,
     canvasH: LABEL_H,
     elements,
@@ -751,23 +757,44 @@ function migrateLegacyChave(): LabelTemplateLayout | null {
   }
 }
 
-export function loadAllLabelTemplates(): LabelTemplatesStore {
-  const defaults: LabelTemplatesStore = {
+export function createDefaultLabelTemplatesStore(): LabelTemplatesStore {
+  return {
     lab_os: createDefaultLabOsTemplate(),
     estoque: createDefaultEstoqueTemplate(),
     chave: createDefaultChaveTemplate(),
     abs_modulo: createDefaultAbsModuloTemplate(),
   };
+}
+
+/** Normaliza um store parcial (localStorage / API) para o formato canônico. */
+export function normalizeLabelTemplatesStore(
+  raw: Partial<Record<LabelTemplateId, Partial<LabelTemplateLayout>>> | null | undefined
+): LabelTemplatesStore {
+  const parsed = raw && typeof raw === 'object' ? raw : {};
+  return {
+    lab_os: normalizeLabelTemplate('lab_os', parsed.lab_os),
+    estoque: normalizeLabelTemplate('estoque', parsed.estoque),
+    chave: normalizeLabelTemplate('chave', parsed.chave),
+    abs_modulo: normalizeLabelTemplate('abs_modulo', parsed.abs_modulo),
+  };
+}
+
+/** True se este dispositivo já tem templates salvos localmente (edições do usuário). */
+export function hasLocalLabelTemplates(): boolean {
+  try {
+    return Boolean(localStorage.getItem(STORAGE_KEY)?.trim());
+  } catch {
+    return false;
+  }
+}
+
+export function loadAllLabelTemplates(): LabelTemplatesStore {
+  const defaults = createDefaultLabelTemplatesStore();
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw) as Partial<Record<LabelTemplateId, Partial<LabelTemplateLayout>>>;
-      return {
-        lab_os: normalizeLabelTemplate('lab_os', parsed.lab_os),
-        estoque: normalizeLabelTemplate('estoque', parsed.estoque),
-        chave: normalizeLabelTemplate('chave', parsed.chave),
-        abs_modulo: normalizeLabelTemplate('abs_modulo', parsed.abs_modulo),
-      };
+      return normalizeLabelTemplatesStore(parsed);
     }
   } catch {
     /* ignore */
@@ -799,12 +826,7 @@ export function saveLabelTemplate(layout: LabelTemplateLayout): void {
 }
 
 export function saveAllLabelTemplates(store: LabelTemplatesStore): void {
-  const next: LabelTemplatesStore = {
-    lab_os: normalizeLabelTemplate('lab_os', store.lab_os),
-    estoque: normalizeLabelTemplate('estoque', store.estoque),
-    chave: normalizeLabelTemplate('chave', store.chave),
-    abs_modulo: normalizeLabelTemplate('abs_modulo', store.abs_modulo),
-  };
+  const next = normalizeLabelTemplatesStore(store);
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
   } catch {

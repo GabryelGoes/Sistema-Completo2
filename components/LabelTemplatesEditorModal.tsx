@@ -22,7 +22,6 @@ import {
   cssFontForElement,
   loadAllLabelTemplates,
   normalizeLabelTemplate,
-  saveAllLabelTemplates,
   type LabelElementDef,
   type LabelFontFamily,
   type LabelFontWeight,
@@ -30,6 +29,10 @@ import {
   type LabelTemplateLayout,
   type LabelTemplatesStore,
 } from '../utils/labelTemplates';
+import {
+  persistLabelTemplatesToServer,
+  syncLabelTemplatesFromServer,
+} from '../utils/labelTemplatesSync';
 import { renderLabOsLabelDataUrl } from '../utils/labOsLabelRender';
 import {
   NIIMBOT_LABEL_H_PX,
@@ -159,6 +162,8 @@ export function LabelTemplatesEditorModal({
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [building, setBuilding] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const [syncError, setSyncError] = useState<string | null>(null);
   const [drag, setDrag] = useState<{
     elId: string;
     startX: number;
@@ -167,16 +172,68 @@ export function LabelTemplatesEditorModal({
     origY: number;
   } | null>(null);
   const previewWrapRef = useRef<HTMLDivElement | null>(null);
+  const persistTimerRef = useRef<number | null>(null);
 
-  useBrowserBackLayer(open, onClose);
+  const flushPersist = useCallback(() => {
+    if (persistTimerRef.current == null) return;
+    window.clearTimeout(persistTimerRef.current);
+    persistTimerRef.current = null;
+    void persistLabelTemplatesToServer(store).catch(() => {
+      /* já está no localStorage */
+    });
+  }, [store]);
+
+  const handleClose = useCallback(() => {
+    flushPersist();
+    onClose();
+  }, [flushPersist, onClose]);
+
+  useBrowserBackLayer(open, handleClose);
 
   useEffect(() => {
     if (!open) return;
-    const loaded = loadAllLabelTemplates();
-    setStore(loaded);
+    let cancelled = false;
+    // Mostra cache local imediatamente; depois sincroniza com o servidor.
+    const local = loadAllLabelTemplates();
+    setStore(local);
     setActiveId(initialTemplateId);
-    setSelectedId(loaded[initialTemplateId]?.elements[0]?.id ?? null);
+    setSelectedId(local[initialTemplateId]?.elements[0]?.id ?? null);
+    setSyncError(null);
+    setSyncing(true);
+    void syncLabelTemplatesFromServer({ force: true })
+      .then((remote) => {
+        if (cancelled) return;
+        setStore(remote);
+        setSelectedId((prev) => {
+          const still = remote[initialTemplateId]?.elements.some((e) => e.id === prev);
+          return still ? prev : remote[initialTemplateId]?.elements[0]?.id ?? null;
+        });
+      })
+      .catch((e) => {
+        if (cancelled) return;
+        setSyncError(e instanceof Error ? e.message : 'Falha ao sincronizar etiquetas.');
+      })
+      .finally(() => {
+        if (!cancelled) setSyncing(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [open, initialTemplateId]);
+
+  useEffect(() => {
+    if (open) return;
+    flushPersist();
+  }, [open, flushPersist]);
+
+  useEffect(() => {
+    return () => {
+      if (persistTimerRef.current != null) {
+        window.clearTimeout(persistTimerRef.current);
+        persistTimerRef.current = null;
+      }
+    };
+  }, []);
 
   const layout = store[activeId];
   const selected = useMemo(
@@ -192,7 +249,19 @@ export function LabelTemplatesEditorModal({
       abs_modulo: normalizeLabelTemplate('abs_modulo', next.abs_modulo),
     };
     setStore(normalized);
-    saveAllLabelTemplates(normalized);
+    setSyncError(null);
+    // Debounce: grava no servidor após pausa na edição (e já no cache local).
+    if (persistTimerRef.current != null) window.clearTimeout(persistTimerRef.current);
+    persistTimerRef.current = window.setTimeout(() => {
+      persistTimerRef.current = null;
+      void persistLabelTemplatesToServer(normalized).catch((e) => {
+        setSyncError(
+          e instanceof Error
+            ? e.message
+            : 'Não foi possível salvar no servidor. As alterações ficaram só neste dispositivo.'
+        );
+      });
+    }, 450);
   }, []);
 
   const patchLayout = useCallback(
@@ -285,7 +354,7 @@ export function LabelTemplatesEditorModal({
     <ModalPortal>
       <div
         className="fixed inset-0 z-[250] flex items-center justify-center bg-black/55 p-2 sm:p-4"
-        onClick={onClose}
+        onClick={handleClose}
         role="presentation"
       >
         <div
@@ -295,7 +364,7 @@ export function LabelTemplatesEditorModal({
           aria-modal="true"
           aria-labelledby="label-templates-editor-title"
         >
-          <button type="button" onClick={onClose} className={iosModalClose} aria-label="Fechar">
+          <button type="button" onClick={handleClose} className={iosModalClose} aria-label="Fechar">
             <X className="h-5 w-5" />
           </button>
 
@@ -303,7 +372,13 @@ export function LabelTemplatesEditorModal({
             <IosModalHeader
               icon={<Tag className="h-5 w-5 text-zinc-800" />}
               title="Editor de etiquetas"
-              subtitle="Laboratório, estoque, chave · 50 × 30 mm · salvo neste dispositivo"
+              subtitle={
+                syncing
+                  ? 'Sincronizando com todos os dispositivos…'
+                  : syncError
+                    ? syncError
+                    : 'Laboratório, estoque, chave · 50 × 30 mm · sincronizado em todos os dispositivos'
+              }
             />
             <div className="mt-3 flex flex-wrap gap-1.5">
               {LABEL_TEMPLATE_META.map((meta) => {
@@ -832,7 +907,7 @@ export function LabelTemplatesEditorModal({
           <div className="shrink-0 border-t border-zinc-200/60 px-5 py-4 dark:border-white/[0.06] sm:px-6">
             <button
               type="button"
-              onClick={onClose}
+              onClick={handleClose}
               className="inline-flex w-full items-center justify-center rounded-xl bg-zinc-900 px-4 py-3 text-[15px] font-semibold text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900"
             >
               Concluir

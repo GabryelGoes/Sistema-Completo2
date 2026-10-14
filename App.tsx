@@ -72,6 +72,7 @@ import {
   saveLabScanMode,
   type LabScanMode,
 } from './utils/labScanMode';
+import { syncLabelTemplatesFromServer } from './utils/labelTemplatesSync';
 
 import { lazyWithRetry } from './utils/lazyWithRetry';
 
@@ -1326,6 +1327,8 @@ export default function App() {
         }
       })
       .catch(() => {});
+    // Templates de etiquetas: baixa do servidor (ou sobe o local se o servidor estiver vazio).
+    void syncLabelTemplatesFromServer({ force: true }).catch(() => {});
     return () => {
       cancelled = true;
     };
