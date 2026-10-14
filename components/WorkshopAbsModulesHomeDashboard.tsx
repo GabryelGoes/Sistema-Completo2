@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import {
   deleteWorkshopAbsModuleModel,
+  getWorkshopAbsModuleModel,
   getWorkshopAbsModuleModels,
   getWorkshopSettings,
   type WorkshopAbsModuleModel,
@@ -104,14 +105,19 @@ export function WorkshopAbsModulesHomeDashboard({
 }: WorkshopAbsModulesHomeDashboardProps) {
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [models, setModels] = useState<WorkshopAbsModuleModel[]>([]);
+  /** Texto digitado no campo (não dispara fetch a cada tecla). */
+  const [queryInput, setQueryInput] = useState('');
+  /** Termo aplicado na API (debounced). */
   const [query, setQuery] = useState('');
   const [filterKind, setFilterKind] = useState<AbsModuleKind | ''>('');
   const [filterStatus, setFilterStatus] = useState<AbsModuleStatus | ''>('disponivel');
   const [deletingId, setDeletingId] = useState<string | null>(null);
   /** Força re-render quando as fotos dos tipos de produto do lab mudam. */
   const [labKindsTick, setLabKindsTick] = useState(0);
+  const hasLoadedOnceRef = useRef(false);
 
   const [flowOpen, setFlowOpen] = useState(false);
   const [flowPublicId, setFlowPublicId] = useState<string | null>(null);
@@ -120,8 +126,15 @@ export function WorkshopAbsModulesHomeDashboard({
   const [flowModelId, setFlowModelId] = useState<string | null>(null);
   const [flowScan, setFlowScan] = useState(false);
 
+  useEffect(() => {
+    const t = window.setTimeout(() => setQuery(queryInput), 320);
+    return () => window.clearTimeout(t);
+  }, [queryInput]);
+
   const loadModels = useCallback(async () => {
-    setLoading(true);
+    const soft = hasLoadedOnceRef.current;
+    if (soft) setRefreshing(true);
+    else setLoading(true);
     setError(null);
     try {
       const list = await getWorkshopAbsModuleModels({
@@ -130,10 +143,12 @@ export function WorkshopAbsModulesHomeDashboard({
         status: filterStatus || undefined,
       });
       setModels(list);
+      hasLoadedOnceRef.current = true;
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Falha ao listar módulos ABS.');
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   }, [filterKind, filterStatus, query]);
 
@@ -247,12 +262,30 @@ export function WorkshopAbsModulesHomeDashboard({
     setFlowOpen(true);
   };
 
-  const openModel = (model: WorkshopAbsModuleModel) => {
-    setFlowModelId(model.id);
-    setFlowPublicId(null);
+  /** Abre o detalhe da unidade (preferindo disponível); sem unidades, cai no modelo. */
+  const openModel = async (model: WorkshopAbsModuleModel) => {
     setFlowMissingId(null);
     setFlowForm(false);
     setFlowScan(false);
+    setError(null);
+    try {
+      const fresh = await getWorkshopAbsModuleModel(model.id);
+      const units = fresh.units || [];
+      const preferred =
+        units.find((u) => u.status === 'disponivel') ||
+        units.find((u) => u.status !== 'desmembrado') ||
+        units[0];
+      if (preferred?.public_id) {
+        setFlowModelId(null);
+        setFlowPublicId(preferred.public_id);
+        setFlowOpen(true);
+        return;
+      }
+    } catch {
+      /* fallback abaixo */
+    }
+    setFlowPublicId(null);
+    setFlowModelId(model.id);
     setFlowOpen(true);
   };
 
@@ -328,6 +361,7 @@ export function WorkshopAbsModulesHomeDashboard({
               onClick={() => {
                 setFilterStatus('');
                 setFilterKind('');
+                setQueryInput('');
                 setQuery('');
               }}
               className="flex items-center gap-3 rounded-2xl border-0 bg-white px-4 py-3.5 text-left shadow-none transition-colors hover:bg-zinc-50 dark:bg-zinc-900 dark:hover:bg-zinc-800/80"
@@ -379,67 +413,76 @@ export function WorkshopAbsModulesHomeDashboard({
           </div>
         ) : null}
 
-        {!loading ? (
-          <div className="sticky top-0 z-30 -mx-4 mb-4 border-b border-zinc-200/60 bg-[#F4F5F7] px-4 pb-2.5 pt-1 dark:border-white/[0.06] dark:bg-zinc-950 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
-            <div className="flex flex-col gap-3 lg:flex-row lg:items-stretch">
-              <div className="relative min-w-0 flex-1">
-                <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
-                <input
-                  ref={searchInputRef}
-                  type="search"
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') void loadModels();
+        <div className="sticky top-0 z-30 -mx-4 mb-4 border-b border-zinc-200/60 bg-[#F4F5F7] px-4 pb-2.5 pt-1 dark:border-white/[0.06] dark:bg-zinc-950 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-stretch">
+            <div className="relative min-w-0 flex-1">
+              <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+              <input
+                ref={searchInputRef}
+                type="text"
+                inputMode="search"
+                value={queryInput}
+                onChange={(e) => setQueryInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key !== 'Enter') return;
+                  e.preventDefault();
+                  if (queryInput === query) void loadModels();
+                  else setQuery(queryInput);
+                }}
+                placeholder="Pesquisar fabricante, código, família…"
+                autoComplete="off"
+                autoCorrect="off"
+                spellCheck={false}
+                data-wedge-local
+                className="w-full rounded-2xl border-0 bg-white py-3 pl-11 pr-20 text-[15px] text-zinc-900 shadow-none placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/35 dark:bg-zinc-900 dark:text-white"
+              />
+              <span className="pointer-events-none absolute right-3 top-1/2 hidden -translate-y-1/2 items-center gap-0.5 rounded-md border border-zinc-200 bg-zinc-50 px-1.5 py-0.5 text-[11px] font-semibold text-zinc-500 sm:inline-flex dark:border-white/10 dark:bg-white/5">
+                {refreshing ? <Loader2 className="h-3 w-3 animate-spin" /> : <Command className="h-3 w-3" />}
+                {refreshing ? '' : 'K'}
+              </span>
+              {queryInput ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setQueryInput('');
+                    setQuery('');
                   }}
-                  placeholder="Pesquisar fabricante, código, família…"
-                  autoComplete="off"
-                  className="w-full rounded-2xl border-0 bg-white py-3 pl-11 pr-20 text-[15px] text-zinc-900 shadow-none placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/35 dark:bg-zinc-900 dark:text-white"
-                />
-                <span className="pointer-events-none absolute right-3 top-1/2 hidden -translate-y-1/2 items-center gap-0.5 rounded-md border border-zinc-200 bg-zinc-50 px-1.5 py-0.5 text-[11px] font-semibold text-zinc-500 sm:inline-flex dark:border-white/10 dark:bg-white/5">
-                  <Command className="h-3 w-3" />K
-                </span>
-                {query ? (
-                  <button
-                    type="button"
-                    onClick={() => setQuery('')}
-                    className="absolute right-14 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-zinc-500 hover:bg-zinc-100 sm:right-16"
-                    aria-label="Limpar pesquisa"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                ) : null}
-              </div>
-              <select
-                className="w-full rounded-2xl border-0 bg-white px-4 py-3 text-[14px] font-semibold text-zinc-800 shadow-none dark:bg-zinc-900 dark:text-white lg:w-[200px]"
-                value={filterKind}
-                onChange={(e) => setFilterKind(e.target.value as AbsModuleKind | '')}
-              >
-                <option value="">Todos os tipos</option>
-                {ABS_MODULE_KIND_OPTIONS.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
-              <select
-                className="w-full rounded-2xl border-0 bg-white px-4 py-3 text-[14px] font-semibold text-zinc-800 shadow-none dark:bg-zinc-900 dark:text-white lg:w-[200px]"
-                value={filterStatus}
-                onChange={(e) => setFilterStatus(e.target.value as AbsModuleStatus | '')}
-              >
-                <option value="">Qualquer status</option>
-                {ABS_MODULE_STATUS_OPTIONS.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
-              <button type="button" onClick={() => void loadModels()} className={actionBtnSecondary}>
-                Filtrar
-              </button>
+                  className="absolute right-14 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-zinc-500 hover:bg-zinc-100 sm:right-16"
+                  aria-label="Limpar pesquisa"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              ) : null}
             </div>
+            <select
+              className="w-full rounded-2xl border-0 bg-white px-4 py-3 text-[14px] font-semibold text-zinc-800 shadow-none dark:bg-zinc-900 dark:text-white lg:w-[200px]"
+              value={filterKind}
+              onChange={(e) => setFilterKind(e.target.value as AbsModuleKind | '')}
+            >
+              <option value="">Todos os tipos</option>
+              {ABS_MODULE_KIND_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+            <select
+              className="w-full rounded-2xl border-0 bg-white px-4 py-3 text-[14px] font-semibold text-zinc-800 shadow-none dark:bg-zinc-900 dark:text-white lg:w-[200px]"
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value as AbsModuleStatus | '')}
+            >
+              <option value="">Qualquer status</option>
+              {ABS_MODULE_STATUS_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+            <button type="button" onClick={() => void loadModels()} className={actionBtnSecondary}>
+              Filtrar
+            </button>
           </div>
-        ) : null}
+        </div>
 
         <div className="rounded-[22px] border-0 bg-white shadow-none dark:bg-zinc-900">
           <div
@@ -488,7 +531,7 @@ export function WorkshopAbsModulesHomeDashboard({
                   >
                     <button
                       type="button"
-                      onClick={() => openModel(m)}
+                      onClick={() => void openModel(m)}
                       className="flex min-w-0 w-full items-center gap-2.5 rounded-xl text-left transition hover:bg-zinc-100/70 dark:hover:bg-white/[0.05] lg:w-auto"
                     >
                       <div className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-zinc-100 dark:bg-white/5">
@@ -538,15 +581,15 @@ export function WorkshopAbsModulesHomeDashboard({
                     <span className="mt-2 truncate text-[13px] font-medium text-zinc-700 dark:text-zinc-300 lg:mt-0">
                       {absModuleKindLabel(m.module_kind)}
                     </span>
-                    <span className="mt-2 text-[14px] font-bold tabular-nums text-zinc-900 dark:text-white lg:mt-0 lg:text-right">
+                    <span className="mt-2 text-[14px] font-bold tabular-nums text-emerald-700 dark:text-emerald-400 lg:mt-0 lg:text-right">
                       {m.available_qty ?? 0}
                     </span>
                     <div className="mt-2 flex items-center justify-end gap-0.5 lg:mt-0 lg:justify-center">
                       <button
                         type="button"
-                        onClick={() => openModel(m)}
+                        onClick={() => void openModel(m)}
                         className="flex h-9 w-9 items-center justify-center rounded-lg text-zinc-500 transition-colors hover:bg-emerald-500/10 hover:text-emerald-700"
-                        aria-label="Abrir modelo"
+                        aria-label="Abrir unidade"
                       >
                         <ChevronRight className="h-4 w-4" />
                       </button>

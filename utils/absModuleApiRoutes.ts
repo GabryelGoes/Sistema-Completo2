@@ -1240,7 +1240,18 @@ export function registerAbsModuleRoutes(app: Express, deps: AbsRouteDeps) {
         WORKSHOP_ID!,
         data as Record<string, unknown>
       );
-      return res.json({ module: withPhotos });
+      const modelId = withPhotos.model_id != null ? String(withPhotos.model_id) : '';
+      let catalog_model: Record<string, unknown> | null = null;
+      if (modelId) {
+        try {
+          catalog_model = (await fetchModelBundle(supabaseAdmin!, WORKSHOP_ID!, modelId, false)) as
+            | Record<string, unknown>
+            | null;
+        } catch {
+          catalog_model = null;
+        }
+      }
+      return res.json({ module: { ...withPhotos, catalog_model } });
     } catch (err: any) {
       console.error('[API] GET /api/abs-modules/:publicId:', err);
       return res.status(500).json({ error: err?.message ?? 'Erro desconhecido' });

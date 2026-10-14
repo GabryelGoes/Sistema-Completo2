@@ -64,6 +64,8 @@ import {
   absModuleKindLabel,
   absModuleStatusLabel,
   describeAbsModuleMovement,
+  formatAbsApplicationBrands,
+  formatAbsApplicationVehicles,
   formatAbsModuleMoney,
   formatAbsModuleSequence,
   formatAbsModuleWhen,
@@ -384,6 +386,49 @@ function modelPrimaryCode(model: WorkshopAbsModuleModel): string {
   );
 }
 
+function detailHeroPhotoUrl(mod: WorkshopAbsModule): string | null {
+  const unitPhoto = (mod.photos || [])[0]?.photo_url;
+  if (unitPhoto) {
+    return storageThumbnailUrl(unitPhoto, { maxWidth: 960, maxHeight: 640, resize: 'cover' }) || unitPhoto;
+  }
+  const kindRaw = getLabProductKindPhotoUrl(mod.module_kind);
+  if (!kindRaw) return null;
+  return storageThumbnailUrl(kindRaw, { maxWidth: 960, maxHeight: 640, resize: 'cover' }) || kindRaw;
+}
+
+function detailApplicationLabel(mod: WorkshopAbsModule): string {
+  const apps = mod.catalog_model?.applications || [];
+  if (apps.length) {
+    const brands = formatAbsApplicationBrands(apps);
+    const vehicles = formatAbsApplicationVehicles(apps);
+    if (brands && vehicles) {
+      const multiBrand = new Set(
+        apps.map((a) => String(a.vehicle_brand || '').trim().toLowerCase()).filter(Boolean)
+      ).size > 1;
+      if (multiBrand) return vehicles;
+      return `${brands} · ${vehicles}`;
+    }
+    return brands || vehicles || '—';
+  }
+  return [mod.application, mod.model, mod.year_label].filter(Boolean).join(' · ') || '—';
+}
+
+function detailCodes(mod: WorkshopAbsModule): { eletronico: string | null; hidraulico: string | null; primary: string | null } {
+  const codes = mod.catalog_model?.codes;
+  const eletronico =
+    primaryCodeForScope(codes, 'eletronico') ||
+    (mod.module_kind === 'eletronico' ? mod.original_code : null);
+  const hidraulico =
+    primaryCodeForScope(codes, 'hidraulico') ||
+    (mod.module_kind === 'hidraulico' ? mod.original_code : null);
+  const primary =
+    primaryCodeForScope(codes, 'completo') ||
+    mod.original_code ||
+    eletronico ||
+    hidraulico;
+  return { eletronico, hidraulico, primary };
+}
+
 function AppsEditor({
   title,
   hint,
@@ -645,17 +690,26 @@ export function WorkshopAbsModulesModal({
     setExitNotes('');
     setTransferLocation(mod.location || '');
     setEntryLocation(mod.location || '');
-    void getWorkshopAbsModule(mod.public_id)
-      .then((fresh) => {
+    void (async () => {
+      try {
+        let fresh = await getWorkshopAbsModule(mod.public_id);
+        if (!fresh.catalog_model && fresh.model_id) {
+          try {
+            const catalog = await getWorkshopAbsModuleModel(fresh.model_id);
+            fresh = { ...fresh, catalog_model: catalog };
+          } catch {
+            /* sem catálogo */
+          }
+        }
         setView((v) =>
           v.kind === 'detail' && v.module.public_id === fresh.public_id
             ? { kind: 'detail', module: fresh }
             : v
         );
-      })
-      .catch(() => {
+      } catch {
         /* mantém o módulo já exibido */
-      });
+      }
+    })();
   }, []);
 
   const openDisassemble = useCallback((mod: WorkshopAbsModule) => {
@@ -2452,199 +2506,280 @@ export function WorkshopAbsModulesModal({
 
             {detail ? (
               <div className="space-y-4">
-                <div className="rounded-3xl border-0 bg-white p-4 shadow-none dark:bg-white/5">
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div>
-                      <p className="text-[12px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-300">
-                        Unidade ABS
-                      </p>
-                      <p className="mt-1 text-[28px] font-black tabular-nums tracking-tight text-zinc-900 dark:text-white">
-                        {formatAbsModuleSequence(detail.sequence_number)}
-                      </p>
-                      <p className="mt-0.5 font-mono text-[15px] font-bold tracking-wide text-zinc-600 dark:text-zinc-300">
-                        {detail.public_id}
-                      </p>
-                    </div>
-                    <StatusPill status={detail.status} />
-                  </div>
-                  <dl className="mt-4 grid gap-2 text-[14px] sm:grid-cols-2">
-                    <div>
-                      <dt className="text-zinc-500">Fabricante</dt>
-                      <dd className="font-semibold text-zinc-900 dark:text-white">
-                        {detail.manufacturer || '—'}
-                      </dd>
-                    </div>
-                    <div>
-                      <dt className="text-zinc-500">Código</dt>
-                      <dd className="font-semibold text-zinc-900 dark:text-white">
-                        {detail.original_code || '—'}
-                      </dd>
-                    </div>
-                    <div>
-                      <dt className="text-zinc-500">Tipo</dt>
-                      <dd className="font-semibold text-zinc-900 dark:text-white">
-                        {absModuleKindLabel(detail.module_kind)}
-                      </dd>
-                    </div>
-                    <div>
-                      <dt className="text-zinc-500">Estado / condição</dt>
-                      <dd className="font-semibold text-zinc-900 dark:text-white">
-                        {absModuleItemStateLabel(detail.item_state)} ·{' '}
-                        {absModuleItemConditionLabel(detail.item_condition)}
-                      </dd>
-                    </div>
-                    <div>
-                      <dt className="text-zinc-500">Aplicação</dt>
-                      <dd className="font-semibold text-zinc-900 dark:text-white">
-                        {[detail.application, detail.year_label].filter(Boolean).join(' ') || '—'}
-                      </dd>
-                    </div>
-                    <div>
-                      <dt className="text-zinc-500">Localização</dt>
-                      <dd className="font-semibold text-zinc-900 dark:text-white">
-                        {detail.location || '—'}
-                      </dd>
-                    </div>
-                    <div>
-                      <dt className="text-zinc-500">Custo</dt>
-                      <dd className="font-semibold text-zinc-900 dark:text-white">
-                        {formatAbsModuleMoney(detail.unit_cost)}
-                      </dd>
-                    </div>
-                    <div>
-                      <dt className="text-zinc-500">Preço</dt>
-                      <dd className="font-semibold text-zinc-900 dark:text-white">
-                        {formatAbsModuleMoney(detail.unit_price)}
-                      </dd>
-                    </div>
-                  </dl>
-                  {detail.damage_description ? (
-                    <p className="mt-3 rounded-2xl bg-zinc-100 px-3 py-2 text-[13px] text-zinc-700 dark:bg-white/10 dark:text-zinc-200">
-                      {detail.damage_description}
-                    </p>
-                  ) : null}
-                  {(detail.photos || []).length > 0 ? (
-                    <div className="mt-4 space-y-2">
-                      <p className="text-[12px] font-semibold uppercase tracking-wide text-zinc-500">
-                        Fotos
-                      </p>
-                      <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
-                        {(detail.photos || []).map((photo, index) => (
-                          <div
-                            key={photo.id}
-                            className={`relative aspect-square overflow-hidden rounded-xl bg-zinc-100 dark:bg-white/[0.03] ${
-                              index === 0 ? 'ring-2 ring-emerald-500/45' : ''
-                            }`}
-                          >
-                            {index === 0 ? (
-                              <span className="absolute left-1 top-1 z-10 rounded-md bg-emerald-600 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-white">
-                                Capa
-                              </span>
-                            ) : null}
-                            <PartPhotoImg
-                              src={photo.photo_url}
-                              alt=""
-                              className="h-full w-full object-cover"
-                            />
+                {(() => {
+                  const heroPhoto = detailHeroPhotoUrl(detail);
+                  const catalog = detail.catalog_model;
+                  const family = catalog?.family || null;
+                  const appsLabel = detailApplicationLabel(detail);
+                  const codes = detailCodes(detail);
+                  const showBothCodes = Boolean(codes.eletronico && codes.hidraulico);
+                  const secondaryBtn =
+                    'inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[12px] font-medium text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-300 dark:hover:bg-white/10 dark:hover:text-white';
+                  return (
+                    <div className="overflow-hidden rounded-[1.5rem] border-0 bg-white shadow-none dark:bg-white/[0.04]">
+                      <div className="relative aspect-[2.2/1] min-h-[148px] bg-gradient-to-br from-zinc-100 via-zinc-50 to-emerald-50/40 dark:from-zinc-900 dark:via-zinc-900 dark:to-emerald-950/30">
+                        {heroPhoto ? (
+                          <PartPhotoImg
+                            src={heroPhoto}
+                            alt=""
+                            className="absolute inset-0 h-full w-full object-cover"
+                          />
+                        ) : (
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <Package className="h-14 w-14 text-zinc-300 dark:text-zinc-600" />
                           </div>
-                        ))}
+                        )}
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/55 via-black/10 to-transparent" />
+                        <div className="absolute left-3 top-3">
+                          <StatusPill status={detail.status} />
+                        </div>
+                        <div className="absolute bottom-3 left-4 right-4 flex items-end justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="truncate text-[22px] font-bold tracking-tight text-white drop-shadow-sm">
+                              {detail.manufacturer || 'Módulo ABS'}
+                            </p>
+                            <p className="mt-0.5 text-[12px] font-medium text-white/75">
+                              {absModuleKindLabel(detail.module_kind)}
+                              <span className="mx-1.5 text-white/40">·</span>
+                              <span className="tabular-nums">
+                                {formatAbsModuleSequence(detail.sequence_number)}
+                              </span>
+                              <span className="mx-1.5 text-white/40">·</span>
+                              <span className="font-mono tracking-wide">{detail.public_id}</span>
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="space-y-4 p-4 sm:p-5">
+                        <div className="flex items-start gap-3 rounded-2xl bg-emerald-50/90 px-4 py-3.5 dark:bg-emerald-950/35">
+                          <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-600/15 text-emerald-700 dark:text-emerald-300">
+                            <MapPin className="h-4.5 w-4.5 h-[18px] w-[18px]" />
+                          </span>
+                          <div className="min-w-0">
+                            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-700/80 dark:text-emerald-400/90">
+                              Localização
+                            </p>
+                            <p className="mt-0.5 text-[18px] font-bold tracking-tight text-emerald-950 dark:text-emerald-50">
+                              {detail.location?.trim() || 'Sem local definido'}
+                            </p>
+                          </div>
+                        </div>
+
+                        <dl className="grid gap-3 sm:grid-cols-2">
+                          <div className="rounded-xl bg-zinc-50 px-3.5 py-3 dark:bg-white/[0.03]">
+                            <dt className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+                              Fabricante
+                            </dt>
+                            <dd className="mt-1 text-[15px] font-semibold text-zinc-900 dark:text-white">
+                              {detail.manufacturer || '—'}
+                            </dd>
+                          </div>
+                          <div className="rounded-xl bg-zinc-50 px-3.5 py-3 dark:bg-white/[0.03]">
+                            <dt className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+                              Família
+                            </dt>
+                            <dd className="mt-1 text-[15px] font-semibold text-zinc-900 dark:text-white">
+                              {family || '—'}
+                            </dd>
+                          </div>
+                          <div className="rounded-xl bg-zinc-50 px-3.5 py-3 sm:col-span-2 dark:bg-white/[0.03]">
+                            <dt className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+                              Aplicação
+                            </dt>
+                            <dd className="mt-1 text-[15px] font-semibold text-zinc-900 dark:text-white">
+                              {appsLabel}
+                            </dd>
+                          </div>
+                          <div className="rounded-xl bg-zinc-50 px-3.5 py-3 sm:col-span-2 dark:bg-white/[0.03]">
+                            <dt className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+                              Código
+                            </dt>
+                            <dd className="mt-1 space-y-1">
+                              {showBothCodes ? (
+                                <>
+                                  <p className="text-[14px] font-semibold tabular-nums text-emerald-700 dark:text-emerald-400">
+                                    <span className="mr-2 text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+                                      Eletrônico
+                                    </span>
+                                    {codes.eletronico}
+                                  </p>
+                                  <p className="text-[14px] font-semibold tabular-nums text-emerald-700 dark:text-emerald-400">
+                                    <span className="mr-2 text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+                                      Hidráulico
+                                    </span>
+                                    {codes.hidraulico}
+                                  </p>
+                                </>
+                              ) : (
+                                <p className="text-[15px] font-semibold tabular-nums text-emerald-700 dark:text-emerald-400">
+                                  {codes.primary || '—'}
+                                </p>
+                              )}
+                            </dd>
+                          </div>
+                          <div className="rounded-xl bg-zinc-50 px-3.5 py-3 dark:bg-white/[0.03]">
+                            <dt className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+                              Estado / condição
+                            </dt>
+                            <dd className="mt-1 text-[15px] font-semibold text-zinc-900 dark:text-white">
+                              {absModuleItemStateLabel(detail.item_state)} ·{' '}
+                              {absModuleItemConditionLabel(detail.item_condition)}
+                            </dd>
+                          </div>
+                          <div className="rounded-xl bg-zinc-50 px-3.5 py-3 dark:bg-white/[0.03]">
+                            <dt className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+                              Preços
+                            </dt>
+                            <dd className="mt-1 flex flex-wrap items-baseline gap-x-3 gap-y-0.5 text-[15px] font-semibold text-zinc-900 dark:text-white">
+                              <span>
+                                <span className="mr-1 text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+                                  Custo
+                                </span>
+                                {formatAbsModuleMoney(detail.unit_cost)}
+                              </span>
+                              <span className="text-zinc-300 dark:text-zinc-600">|</span>
+                              <span>
+                                <span className="mr-1 text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+                                  Venda
+                                </span>
+                                {formatAbsModuleMoney(detail.unit_price)}
+                              </span>
+                            </dd>
+                          </div>
+                        </dl>
+
+                        {detail.damage_description ? (
+                          <p className="rounded-xl bg-amber-50 px-3.5 py-2.5 text-[13px] text-amber-950 dark:bg-amber-950/30 dark:text-amber-100">
+                            {detail.damage_description}
+                          </p>
+                        ) : null}
+
+                        {(detail.photos || []).length > 1 ? (
+                          <div className="space-y-2">
+                            <p className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
+                              Mais fotos
+                            </p>
+                            <div className="grid grid-cols-4 gap-2">
+                              {(detail.photos || []).slice(1).map((photo) => (
+                                <div
+                                  key={photo.id}
+                                  className="aspect-square overflow-hidden rounded-xl bg-zinc-100 dark:bg-white/[0.03]"
+                                >
+                                  <PartPhotoImg
+                                    src={photo.photo_url}
+                                    alt=""
+                                    className="h-full w-full object-cover"
+                                  />
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        ) : null}
+
+                        <div className="flex flex-wrap items-center gap-1 border-t border-zinc-100 pt-3 dark:border-white/[0.06]">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setAction('transfer');
+                              setTransferLocation(detail.location || '');
+                              setActionError(null);
+                            }}
+                            className={secondaryBtn}
+                          >
+                            <MapPin className="h-3.5 w-3.5" />
+                            Transferir local
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setAction('history');
+                              void loadHistory(detail.public_id);
+                            }}
+                            className={secondaryBtn}
+                          >
+                            <History className="h-3.5 w-3.5" />
+                            Histórico
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => void openEdit(detail)}
+                            className={secondaryBtn}
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                            Editar
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handlePrint(detail)}
+                            className={secondaryBtn}
+                          >
+                            <Printer className="h-3.5 w-3.5" />
+                            Etiqueta
+                          </button>
+                          <button
+                            type="button"
+                            disabled={actionBusy}
+                            onClick={() => void handleDeleteUnit(detail)}
+                            className="ml-auto inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[12px] font-medium text-red-600/80 transition-colors hover:bg-red-50 hover:text-red-700 disabled:opacity-50 dark:text-red-400 dark:hover:bg-red-950/40"
+                          >
+                            {actionBusy ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <Trash2 className="h-3.5 w-3.5" />
+                            )}
+                            Excluir
+                          </button>
+                        </div>
+
+                        <div
+                          className={`grid gap-2 ${
+                            detail.module_kind === 'completo' && detail.status === 'disponivel'
+                              ? 'sm:grid-cols-2'
+                              : ''
+                          }`}
+                        >
+                          {detail.status === 'fora_estoque' ? (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setAction('entry');
+                                setActionError(null);
+                              }}
+                              className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 text-[14px] font-semibold text-white transition hover:bg-emerald-700"
+                            >
+                              <ArrowDownToLine className="h-4 w-4" />
+                              Registrar entrada
+                            </button>
+                          ) : detail.status !== 'desmembrado' ? (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setAction('exit');
+                                setConfirmExit(false);
+                                setActionError(null);
+                              }}
+                              className="inline-flex items-center justify-center gap-2 rounded-xl bg-rose-600 px-4 py-3 text-[14px] font-semibold text-white transition hover:bg-rose-700"
+                            >
+                              <ArrowUpFromLine className="h-4 w-4" />
+                              Dar saída
+                            </button>
+                          ) : null}
+                          {detail.module_kind === 'completo' && detail.status === 'disponivel' ? (
+                            <button
+                              type="button"
+                              onClick={() => openDisassemble(detail)}
+                              className="inline-flex items-center justify-center gap-2 rounded-xl bg-amber-500 px-4 py-3 text-[14px] font-semibold text-amber-950 transition hover:bg-amber-400"
+                            >
+                              <Scissors className="h-4 w-4" />
+                              Desmembrar
+                            </button>
+                          ) : null}
+                        </div>
                       </div>
                     </div>
-                  ) : null}
-                </div>
-
-                <div className="grid gap-2 sm:grid-cols-2">
-                  {detail.status === 'fora_estoque' ? (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setAction('entry');
-                        setActionError(null);
-                      }}
-                      className="inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 py-3.5 text-[15px] font-semibold text-white"
-                    >
-                      <ArrowDownToLine className="h-5 w-5" />
-                      Registrar entrada
-                    </button>
-                  ) : detail.status !== 'desmembrado' ? (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setAction('exit');
-                        setConfirmExit(false);
-                        setActionError(null);
-                      }}
-                      className="inline-flex items-center justify-center gap-2 rounded-2xl bg-rose-600 px-4 py-3.5 text-[15px] font-semibold text-white"
-                    >
-                      <ArrowUpFromLine className="h-5 w-5" />
-                      Dar saída
-                    </button>
-                  ) : (
-                    <div />
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setAction('transfer');
-                      setTransferLocation(detail.location || '');
-                      setActionError(null);
-                    }}
-                    className="inline-flex items-center justify-center gap-2 rounded-2xl border border-sky-300 bg-sky-50 px-4 py-3.5 text-[15px] font-semibold text-sky-900 dark:border-sky-500/30 dark:bg-sky-950/40 dark:text-sky-100"
-                  >
-                    <MapPin className="h-5 w-5" />
-                    Transferir local
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setAction('history');
-                      void loadHistory(detail.public_id);
-                    }}
-                    className="inline-flex items-center justify-center gap-2 rounded-2xl border-0 bg-zinc-100 px-4 py-3.5 text-[15px] font-semibold text-zinc-800 shadow-none dark:bg-white/5 dark:text-white"
-                  >
-                    <History className="h-5 w-5" />
-                    Ver histórico
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => void openEdit(detail)}
-                    className="inline-flex items-center justify-center gap-2 rounded-2xl border-0 bg-zinc-100 px-4 py-3.5 text-[15px] font-semibold text-zinc-800 shadow-none dark:bg-white/5 dark:text-white"
-                  >
-                    <Pencil className="h-5 w-5" />
-                    Editar cadastro
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handlePrint(detail)}
-                    className="inline-flex items-center justify-center gap-2 rounded-2xl border-0 bg-zinc-100 px-4 py-3.5 text-[15px] font-semibold text-zinc-800 shadow-none dark:bg-white/5 dark:text-white"
-                  >
-                    <Printer className="h-5 w-5" />
-                    Imprimir etiqueta
-                  </button>
-                  {detail.module_kind === 'completo' && detail.status === 'disponivel' ? (
-                    <button
-                      type="button"
-                      onClick={() => openDisassemble(detail)}
-                      className="inline-flex items-center justify-center gap-2 rounded-2xl bg-amber-500/15 px-4 py-3.5 text-[15px] font-semibold text-amber-950 dark:text-amber-100 sm:col-span-2"
-                    >
-                      <Scissors className="h-5 w-5" />
-                      Desmembrar módulo
-                    </button>
-                  ) : null}
-                  <button
-                    type="button"
-                    disabled={actionBusy}
-                    onClick={() => void handleDeleteUnit(detail)}
-                    className="inline-flex items-center justify-center gap-2 rounded-2xl bg-red-500/10 px-4 py-3.5 text-[15px] font-semibold text-red-700 dark:text-red-300 sm:col-span-2 disabled:opacity-50"
-                  >
-                    {actionBusy ? (
-                      <Loader2 className="h-5 w-5 animate-spin" />
-                    ) : (
-                      <Trash2 className="h-5 w-5" />
-                    )}
-                    Excluir unidade
-                  </button>
-                </div>
+                  );
+                })()}
 
                 {actionError ? (
                   <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300">
