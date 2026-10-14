@@ -1223,7 +1223,8 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
     !!inboundPart ||
     !!viewPart ||
     stockGuardOpen ||
-    !!photoEditorFile;
+    !!photoEditorFile ||
+    absModulesOpen;
 
   useEffect(() => {
     if (!isOpen || stockUsbClaimBlocked) return;

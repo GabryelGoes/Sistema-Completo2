@@ -1,4 +1,3 @@
-import QRCode from 'qrcode';
 import { drawCode128B } from './niimbotCode128';
 import {
   cssFontForElement,
@@ -185,16 +184,7 @@ export type NiimbotAbsModuleLabelInput = {
   manufacturer?: string | null;
 };
 
-function loadImage(src: string): Promise<HTMLImageElement> {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => resolve(img);
-    img.onerror = () => reject(new Error('Falha ao montar QR Code'));
-    img.src = src;
-  });
-}
-
-/** Renderiza etiqueta Niimbot 50×30 mm para módulo ABS (#N grande + QR). */
+/** Renderiza etiqueta Niimbot 50×30 mm para módulo ABS (#N + código de barras). */
 export async function renderNiimbotAbsModuleLabelDataUrl(
   input: NiimbotAbsModuleLabelInput,
   layoutInput?: LabelTemplateLayout | null
@@ -262,25 +252,17 @@ export async function renderNiimbotAbsModuleLabelDataUrl(
     ctx.fillText(line, locEl.x, locEl.y);
   }
 
-  const qrEl = findEl(layout, 'qr');
-  if (qrEl?.visible) {
-    const qrSize = Math.min(qrEl.w, qrEl.h);
-    const qrDataUrl = await QRCode.toDataURL(publicId, {
-      errorCorrectionLevel: 'M',
-      margin: 0,
-      width: qrSize,
-      color: { dark: '#000000', light: '#ffffff' },
-    });
-    const qrImg = await loadImage(qrDataUrl);
-    ctx.drawImage(qrImg, qrEl.x, qrEl.y, qrSize, qrSize);
-  }
-
+  // Etiqueta ABS: apenas código de barras (sem QR), para leitura pela pistola USB.
   const barcodeEl = findEl(layout, 'barcode');
-  if (barcodeEl?.visible) {
+  if (barcodeEl?.visible !== false) {
     try {
-      drawCode128B(ctx, publicId, barcodeEl.x, barcodeEl.y, barcodeEl.w, barcodeEl.h);
+      const bw = barcodeEl?.w ?? Math.min(364, w - 20);
+      const bh = barcodeEl?.h ?? 78;
+      const bx = barcodeEl?.x ?? 10;
+      const by = barcodeEl?.y ?? Math.max(100, h - bh - 36);
+      drawCode128B(ctx, publicId, bx, by, bw, bh);
     } catch {
-      // Code128 pode falhar com caracteres especiais — QR já cobre identificação.
+      // Code128 pode falhar com caracteres especiais — human_code ainda identifica.
     }
   }
 

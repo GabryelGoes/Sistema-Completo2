@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   ArrowDownToLine,
   ArrowLeft,
@@ -43,7 +44,10 @@ import {
   type WorkshopAbsModulePhoto,
   type WorkshopAbsModuleSearchResult,
 } from '../services/apiService';
+import { setActiveBarcodeScanClaim } from '../utils/activeBarcodeScanClaim';
 import { parseCurrencyStringToNumber } from '../utils/currencyMaskInput';
+import { isLabOsQrPayload } from '../utils/labOsQrCode';
+import { normalizeBarcodeInput } from '../utils/workshopPartBarcode';
 import {
   ABS_CODE_ROLE_OPTIONS,
   ABS_DISASSEMBLE_DESTINATION_OPTIONS,
@@ -198,6 +202,92 @@ function StatusPill({ status }: { status: string }) {
   );
 }
 
+function FieldHintButton({ hint }: { hint: string }) {
+  const [open, setOpen] = useState(false);
+  const [coords, setCoords] = useState<{ top: number; left: number } | null>(null);
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const popRef = useRef<HTMLSpanElement>(null);
+
+  const placePopover = useCallback(() => {
+    const btn = btnRef.current;
+    if (!btn) return;
+    const rect = btn.getBoundingClientRect();
+    const width = Math.min(288, window.innerWidth - 24);
+    let left = rect.left;
+    if (left + width > window.innerWidth - 12) left = window.innerWidth - 12 - width;
+    if (left < 12) left = 12;
+    const below = rect.bottom + 8;
+    const approxH = 88;
+    const top =
+      below + approxH > window.innerHeight - 12 ? Math.max(12, rect.top - approxH - 8) : below;
+    setCoords({ top, left });
+  }, []);
+
+  useEffect(() => {
+    if (!open) return;
+    placePopover();
+    const onPointer = (e: MouseEvent | TouchEvent) => {
+      const t = e.target;
+      if (!(t instanceof Node)) return;
+      if (btnRef.current?.contains(t) || popRef.current?.contains(t)) return;
+      setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false);
+    };
+    const onReposition = () => placePopover();
+    document.addEventListener('mousedown', onPointer);
+    document.addEventListener('touchstart', onPointer);
+    document.addEventListener('keydown', onKey);
+    window.addEventListener('resize', onReposition);
+    window.addEventListener('scroll', onReposition, true);
+    return () => {
+      document.removeEventListener('mousedown', onPointer);
+      document.removeEventListener('touchstart', onPointer);
+      document.removeEventListener('keydown', onKey);
+      window.removeEventListener('resize', onReposition);
+      window.removeEventListener('scroll', onReposition, true);
+    };
+  }, [open, placePopover]);
+
+  return (
+    <span className="relative inline-flex shrink-0">
+      <button
+        ref={btnRef}
+        type="button"
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          setOpen((v) => !v);
+        }}
+        onMouseDown={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+        }}
+        className="inline-flex h-6 w-6 items-center justify-center rounded-full text-zinc-400 transition-colors hover:bg-zinc-200/80 hover:text-zinc-700 dark:text-zinc-500 dark:hover:bg-white/10 dark:hover:text-zinc-200"
+        aria-label="Ajuda sobre este campo"
+        aria-expanded={open}
+        aria-haspopup="dialog"
+      >
+        <HelpCircle className="h-3.5 w-3.5" aria-hidden />
+      </button>
+      {open && coords
+        ? createPortal(
+            <span
+              ref={popRef}
+              role="dialog"
+              style={{ top: coords.top, left: coords.left, width: Math.min(288, window.innerWidth - 24) }}
+              className="fixed z-[200] rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-[13px] font-medium leading-snug text-zinc-700 shadow-lg dark:border-white/10 dark:bg-zinc-900 dark:text-zinc-100"
+            >
+              {hint}
+            </span>,
+            document.body
+          )
+        : null}
+    </span>
+  );
+}
+
 function Field({
   label,
   hint,
@@ -213,11 +303,7 @@ function Field({
         <span className="text-[12px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
           {label}
         </span>
-        {hint ? (
-          <span title={hint} className="text-zinc-400 dark:text-zinc-500">
-            <HelpCircle className="h-3.5 w-3.5" aria-hidden />
-          </span>
-        ) : null}
+        {hint ? <FieldHintButton hint={hint} /> : null}
       </span>
       {children}
     </label>
@@ -228,9 +314,7 @@ function SectionHint({ title, hint }: { title: string; hint: string }) {
   return (
     <span className="flex items-center gap-1.5">
       <span className="text-[12px] font-semibold uppercase tracking-wide text-zinc-500">{title}</span>
-      <span title={hint} className="text-zinc-400 dark:text-zinc-500">
-        <HelpCircle className="h-3.5 w-3.5" aria-hidden />
-      </span>
+      <FieldHintButton hint={hint} />
     </span>
   );
 }
@@ -728,7 +812,7 @@ export function WorkshopAbsModulesModal({
       }
       const publicId = normalizeAbsModuleCode(raw);
       if (!publicId) {
-        setError('Este leitor de módulos ABS espera um código ABS-000001.');
+        setError('Leia o código de barras do módulo (ABS-000001).');
         return;
       }
       setLoading(true);
@@ -747,6 +831,23 @@ export function WorkshopAbsModulesModal({
     },
     [openDetail]
   );
+
+  /** Pistola USB na página/modal ABS: abre a unidade pelo código de barras. */
+  useEffect(() => {
+    if (!isOpen) return;
+    setActiveBarcodeScanClaim((raw) => {
+      const code = normalizeBarcodeInput(raw);
+      if (!code) return false;
+      if (isLabOsQrPayload(code)) return false;
+      if (view.kind === 'form' && !normalizeAbsModuleCode(code) && !looksLikeAbsModuleCode(code)) {
+        // No formulário, deixa códigos de peça/outros seguirem para o campo focado.
+        return false;
+      }
+      void handleScan(code);
+      return true;
+    });
+    return () => setActiveBarcodeScanClaim(null);
+  }, [handleScan, isOpen, view.kind]);
 
   const buildCatalogPayload = useCallback(() => {
     const kind = wizard.module_kind;
@@ -1226,7 +1327,7 @@ export function WorkshopAbsModulesModal({
                   (editingModule ? 'Editar módulo cadastrado' : 'Novo módulo — modelo + unidade')}
                 {view.kind === 'detail' && 'Detalhe da unidade'}
                 {view.kind === 'disassemble' && 'Desmembrar módulo completo'}
-                {view.kind === 'missing' && 'QR não encontrado'}
+                {view.kind === 'missing' && 'Código não encontrado'}
               </p>
             </div>
             <button
@@ -1260,7 +1361,7 @@ export function WorkshopAbsModulesModal({
                   value={scanCode}
                   onChange={setScanCode}
                   onSubmitCode={handleScan}
-                  placeholder="Leia o QR ABS-000001 ou digite o ID"
+                  placeholder="Leia o código de barras ABS-000001 ou digite o ID"
                 />
                 <div className="flex flex-wrap gap-2">
                   <div className="relative min-w-0 flex-1 basis-[200px]">
@@ -1621,7 +1722,7 @@ export function WorkshopAbsModulesModal({
             {view.kind === 'missing' ? (
               <div className="space-y-4 rounded-3xl border border-amber-200 bg-amber-50/80 px-4 py-5 dark:border-amber-500/30 dark:bg-amber-950/30">
                 <p className="text-[16px] font-semibold text-amber-950 dark:text-amber-100">
-                  QR Code não encontrado.
+                  Código de barras não encontrado.
                 </p>
                 <p className="text-[14px] text-amber-900/80 dark:text-amber-200/80">
                   O identificador <span className="font-mono font-bold">{view.publicId}</span> não

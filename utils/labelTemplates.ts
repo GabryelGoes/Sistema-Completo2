@@ -67,7 +67,7 @@ export type LabelKeyOptions = {
 
 export type LabelTemplateLayout = {
   id: LabelTemplateId;
-  version: 1;
+  version: number;
   canvasW: number;
   canvasH: number;
   elements: LabelElementDef[];
@@ -97,7 +97,7 @@ export const LABEL_TEMPLATE_META: Array<{
   {
     id: 'abs_modulo',
     title: 'Módulo ABS',
-    description: 'Sequência #N grande, marca, tipo, código e QR/barra',
+    description: 'Sequência #N, marca, tipo e código de barras (Code128)',
   },
 ];
 
@@ -388,7 +388,7 @@ export function createDefaultChaveTemplate(): LabelTemplateLayout {
 export function createDefaultAbsModuloTemplate(): LabelTemplateLayout {
   return {
     id: 'abs_modulo',
-    version: 1,
+    version: 2,
     canvasW: LABEL_W,
     canvasH: LABEL_H,
     elements: [
@@ -400,8 +400,8 @@ export function createDefaultAbsModuloTemplate(): LabelTemplateLayout {
         x: 10,
         y: 4,
         w: 200,
-        h: 56,
-        fontSize: 48,
+        h: 48,
+        fontSize: 44,
         fontWeight: '900',
         labelText: '',
         align: 'left',
@@ -439,8 +439,8 @@ export function createDefaultAbsModuloTemplate(): LabelTemplateLayout {
         name: 'Código',
         visible: true,
         x: 10,
-        y: 64,
-        w: 240,
+        y: 56,
+        w: 364,
         h: 22,
         fontSize: 14,
         fontWeight: 'normal',
@@ -454,8 +454,8 @@ export function createDefaultAbsModuloTemplate(): LabelTemplateLayout {
         name: 'Local',
         visible: true,
         x: 10,
-        y: 90,
-        w: 240,
+        y: 80,
+        w: 364,
         h: 20,
         fontSize: 12,
         fontWeight: 'normal',
@@ -467,7 +467,8 @@ export function createDefaultAbsModuloTemplate(): LabelTemplateLayout {
         id: 'qr',
         kind: 'qr',
         name: 'QR Code',
-        visible: true,
+        /** Etiqueta ABS usa só código de barras (pistola USB). */
+        visible: false,
         x: 262,
         y: 60,
         w: 112,
@@ -481,9 +482,9 @@ export function createDefaultAbsModuloTemplate(): LabelTemplateLayout {
         name: 'Código de barras',
         visible: true,
         x: 10,
-        y: 120,
-        w: 240,
-        h: 64,
+        y: 108,
+        w: 364,
+        h: 78,
         fontSize: 12,
         labelText: '',
       }),
@@ -534,7 +535,7 @@ function normalizeElement(raw: Partial<LabelElementDef>, fallback: LabelElementD
     id: fallback.id,
     kind: fallback.kind,
     name: typeof raw.name === 'string' && raw.name.trim() ? raw.name : fallback.name,
-    visible: raw.visible !== false,
+    visible: typeof raw.visible === 'boolean' ? raw.visible : fallback.visible,
     x: clamp(Math.round(Number(raw.x ?? fallback.x)), -40, LABEL_W + 40),
     y: clamp(Math.round(Number(raw.y ?? fallback.y)), -40, LABEL_H + 40),
     w: clamp(Math.round(Number(raw.w ?? fallback.w)), 8, LABEL_W),
@@ -576,7 +577,7 @@ export function normalizeLabelTemplate(
 ): LabelTemplateLayout {
   const def = createDefaultTemplate(id);
   const byId = new Map((raw?.elements ?? []).map((e) => [e.id, e]));
-  const elements = def.elements.map((fallback) =>
+  let elements = def.elements.map((fallback) =>
     normalizeElement(byId.get(fallback.id) ?? {}, fallback)
   );
   // Elementos extras salvos (futuras etiquetas) — preserva se tiverem id/kind
@@ -601,9 +602,39 @@ export function normalizeLabelTemplate(
       })
     );
   }
+
+  // ABS: só código de barras (sem QR). Migrar layout antigo (v1) para a geometria v2.
+  if (id === 'abs_modulo') {
+    const savedVersion = Number(raw?.version ?? 0);
+    elements = elements.map((e) => {
+      if (e.id === 'qr') return { ...e, visible: false };
+      if (savedVersion >= 2) return e;
+      const fb = def.elements.find((d) => d.id === e.id);
+      if (!fb) return e;
+      if (
+        e.id === 'barcode' ||
+        e.id === 'human_code' ||
+        e.id === 'code_line' ||
+        e.id === 'location' ||
+        e.id === 'sequence'
+      ) {
+        return {
+          ...e,
+          x: fb.x,
+          y: fb.y,
+          w: fb.w,
+          h: fb.h,
+          fontSize: fb.fontSize,
+          visible: fb.visible,
+        };
+      }
+      return e;
+    });
+  }
+
   return {
     id,
-    version: 1,
+    version: id === 'abs_modulo' ? 2 : 1,
     canvasW: LABEL_W,
     canvasH: LABEL_H,
     elements,

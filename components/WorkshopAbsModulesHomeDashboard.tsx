@@ -16,11 +16,16 @@ import {
   getWorkshopAbsModuleModels,
   type WorkshopAbsModuleModel,
 } from '../services/apiService';
+import { setActiveBarcodeScanClaim } from '../utils/activeBarcodeScanClaim';
+import { isLabOsQrPayload } from '../utils/labOsQrCode';
+import { normalizeBarcodeInput } from '../utils/workshopPartBarcode';
 import {
   ABS_MODULE_KIND_OPTIONS,
   ABS_MODULE_STATUS_OPTIONS,
   absModuleKindLabel,
   formatAbsModuleMoney,
+  looksLikeAbsModuleCode,
+  normalizeAbsModuleCode,
   primaryCodeForScope,
   type AbsModuleKind,
   type AbsModuleStatus,
@@ -96,6 +101,38 @@ export function WorkshopAbsModulesHomeDashboard({
     setFlowOpen(true);
     onInitialPublicIdConsumed?.();
   }, [initialPublicId, onInitialPublicIdConsumed]);
+
+  /**
+   * Com a página de Módulos ABS aberta (e o fluxo interno fechado), a pistola USB
+   * abre a unidade correspondente (ABS-000001). O modal assume o claim quando aberto.
+   */
+  useEffect(() => {
+    if (flowOpen) return;
+    setActiveBarcodeScanClaim((raw) => {
+      const code = normalizeBarcodeInput(raw);
+      if (!code) return false;
+      if (isLabOsQrPayload(code)) return false;
+      const publicId = normalizeAbsModuleCode(code);
+      if (!publicId) {
+        // Código não-ABS nesta página: não abre hub de peças.
+        if (looksLikeAbsModuleCode(code)) {
+          setError('ID de módulo ABS inválido. Use o formato ABS-000001.');
+          return true;
+        }
+        setError('Leia o código de barras do módulo (ABS-000001).');
+        return true;
+      }
+      setError(null);
+      setFlowMissingId(null);
+      setFlowModelId(null);
+      setFlowForm(false);
+      setFlowScan(false);
+      setFlowPublicId(publicId);
+      setFlowOpen(true);
+      return true;
+    });
+    return () => setActiveBarcodeScanClaim(null);
+  }, [flowOpen]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
