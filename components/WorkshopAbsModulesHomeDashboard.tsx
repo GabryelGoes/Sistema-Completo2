@@ -40,7 +40,7 @@ import {
 } from '../utils/workshopAbsModules';
 import { PartPhotoImg } from './ui/PartPhotoImg';
 import { useBrowserBackLayer } from './ui/BackNavigationContext';
-import { WorkshopAbsModulesAnalyticsView } from './WorkshopAbsModulesAnalyticsView';
+import { WorkshopAbsModuleDetailView } from './WorkshopAbsModuleDetailView';
 import { WorkshopAbsModulesModal } from './WorkshopAbsModulesModal';
 
 export type WorkshopAbsModulesHomeDashboardProps = {
@@ -127,9 +127,10 @@ export function WorkshopAbsModulesHomeDashboard({
   const [flowForm, setFlowForm] = useState(false);
   const [flowModelId, setFlowModelId] = useState<string | null>(null);
   const [flowScan, setFlowScan] = useState(false);
-  const [analyticsOpen, setAnalyticsOpen] = useState(false);
+  /** Ficha expandida completa (botão Expandir no detalhe). */
+  const [expandedPublicId, setExpandedPublicId] = useState<string | null>(null);
 
-  useBrowserBackLayer(analyticsOpen, () => setAnalyticsOpen(false));
+  useBrowserBackLayer(!!expandedPublicId, () => setExpandedPublicId(null));
 
   useEffect(() => {
     const t = window.setTimeout(() => setQuery(queryInput), 320);
@@ -320,8 +321,29 @@ export function WorkshopAbsModulesHomeDashboard({
   // labKindsTick: garante que miniaturas atualizem quando as fotos do lab mudarem
   void labKindsTick;
 
-  if (analyticsOpen) {
-    return <WorkshopAbsModulesAnalyticsView onBack={() => setAnalyticsOpen(false)} />;
+  if (expandedPublicId) {
+    return (
+      <WorkshopAbsModuleDetailView
+        publicId={expandedPublicId}
+        onBack={() => {
+          setExpandedPublicId(null);
+          void loadModels();
+        }}
+        onEdit={(mod) => {
+          setExpandedPublicId(null);
+          setFlowPublicId(mod.public_id);
+          setFlowMissingId(null);
+          setFlowModelId(null);
+          setFlowForm(false);
+          setFlowScan(false);
+          setFlowOpen(true);
+        }}
+        onDeleted={() => {
+          setExpandedPublicId(null);
+          void loadModels();
+        }}
+      />
+    );
   }
 
   return (
@@ -641,14 +663,14 @@ export function WorkshopAbsModulesHomeDashboard({
           initialModelId={flowModelId}
           initialShowForm={flowForm}
           initialShowScan={flowScan}
-          onExpandAnalytics={() => {
+          onExpandDetail={(mod) => {
             setFlowOpen(false);
             setFlowPublicId(null);
             setFlowMissingId(null);
             setFlowModelId(null);
             setFlowForm(false);
             setFlowScan(false);
-            setAnalyticsOpen(true);
+            setExpandedPublicId(mod.public_id);
           }}
         />
       ) : null}

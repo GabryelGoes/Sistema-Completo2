@@ -109,8 +109,8 @@ export type WorkshopAbsModulesModalProps = {
   initialShowForm?: boolean;
   /** Abre a listagem com foco em leitura de código. */
   initialShowScan?: boolean;
-  /** Abre a página de visualização/gráficos dos módulos ABS. */
-  onExpandAnalytics?: () => void;
+  /** Abre a ficha expandida completa da unidade (fotos, aplicações, etc.). */
+  onExpandDetail?: (module: WorkshopAbsModule) => void;
 };
 
 type View =
@@ -774,7 +774,7 @@ export function WorkshopAbsModulesModal({
   initialModelId = null,
   initialShowForm = false,
   initialShowScan = false,
-  onExpandAnalytics,
+  onExpandDetail,
 }: WorkshopAbsModulesModalProps) {
   const isDesktopShell = useDesktopShellLayout();
   const [view, setView] = useState<View>({ kind: 'models' });
@@ -2899,10 +2899,10 @@ export function WorkshopAbsModulesModal({
                       {/* Rodapé: ações modestas + CTAs; sem foto */}
                       <div className="space-y-2 border-t border-zinc-100 bg-white px-2.5 py-2.5 dark:border-white/[0.06] dark:bg-zinc-950 sm:px-3.5">
                         <div className="flex flex-wrap items-center gap-0.5">
-                          {onExpandAnalytics ? (
+                          {onExpandDetail ? (
                             <button
                               type="button"
-                              onClick={() => onExpandAnalytics()}
+                              onClick={() => onExpandDetail(detail)}
                               className={secondaryBtn}
                             >
                               <Maximize2 className="h-3.5 w-3.5" />
