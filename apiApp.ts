@@ -10408,6 +10408,23 @@ export function createApiApp() {
         });
       }
       const { id } = req.params;
+
+      // Movimentações referenciam a peça com ON DELETE RESTRICT (legado).
+      // Remover antes de excluir o produto evita violação de FK.
+      const { error: movError } = await supabaseAdmin
+        .from("workshop_part_stock_movements")
+        .delete()
+        .eq("part_id", id)
+        .eq("workshop_id", WORKSHOP_ID);
+      if (movError) {
+        console.error("[API] Erro ao excluir movimentações da peça:", movError);
+        return res.status(500).json({
+          error:
+            movError.message ||
+            "Não foi possível excluir as movimentações vinculadas a este produto.",
+        });
+      }
+
       const { error } = await supabaseAdmin
         .from("workshop_parts")
         .delete()
@@ -10415,6 +10432,13 @@ export function createApiApp() {
         .eq("workshop_id", WORKSHOP_ID);
       if (error) {
         console.error("[API] Erro ao excluir peça:", error);
+        const msg = String(error.message || "");
+        if (/workshop_part_stock_movements_part_id_fkey|foreign key/i.test(msg)) {
+          return res.status(500).json({
+            error:
+              "Este produto ainda tem movimentações de estoque vinculadas. Aplique a migration que remove a restrição (CASCADE) ou tente novamente.",
+          });
+        }
         return res.status(500).json({ error: error.message });
       }
       return res.status(204).send();
