@@ -1,13 +1,10 @@
 import React from 'react';
 import type { AbsModuleKind, WorkshopAbsModuleApplication } from '../utils/workshopAbsModules';
 import {
-  absComponentScopeLabel,
   formatAbsApplicationLine,
   groupAbsModuleApplications,
 } from '../utils/workshopAbsModules';
 
-const ORIGINAL_HINT =
-  'Aplicação cadastrada inicialmente para este módulo (montadora/modelo de origem).';
 const SECONDARY_HINT =
   'Outros veículos em que o módulo (ou só uma das partes) também serve.';
 
@@ -64,16 +61,7 @@ export function AbsApplicationsPanel({
             : 'rounded-xl bg-emerald-50 px-3.5 py-3 dark:bg-emerald-950/40'
         }
       >
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-          <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-emerald-700 dark:text-emerald-300">
-            Aplicação original
-          </p>
-          <span className="rounded-md bg-emerald-600/15 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-200">
-            {absComponentScopeLabel(grouped.primaryScope)}
-          </span>
-        </div>
-        {!compact ? <p className="mt-0.5 text-[11px] text-emerald-800/80 dark:text-emerald-200/80">{ORIGINAL_HINT}</p> : null}
-        <p className={`mt-1 ${valueCls}`}>
+        <p className={valueCls}>
           {grouped.primary ? formatAbsApplicationLine(grouped.primary) : fallback || '—'}
         </p>
         {grouped.primary?.notes?.trim() ? (
@@ -85,7 +73,9 @@ export function AbsApplicationsPanel({
         <div className={compact ? 'space-y-2' : 'space-y-3'}>
           <div>
             <p className={titleCls}>Aplicações secundárias</p>
-            {!compact ? <p className="mt-0.5 text-[11px] text-zinc-500 dark:text-zinc-400">{SECONDARY_HINT}</p> : null}
+            {!compact ? (
+              <p className="mt-0.5 text-[11px] text-zinc-500 dark:text-zinc-400">{SECONDARY_HINT}</p>
+            ) : null}
           </div>
           {grouped.secondaryByScope.map((group) => (
             <div

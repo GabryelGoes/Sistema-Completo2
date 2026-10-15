@@ -118,8 +118,6 @@ export function WorkshopAbsModulesHomeDashboard({
   const [expandedPublicId, setExpandedPublicId] = useState<string | null>(null);
   const [expandedTick, setExpandedTick] = useState(0);
 
-  useBrowserBackLayer(!!expandedPublicId && !flowOpen, () => setExpandedPublicId(null));
-
   const resetFlow = useCallback(() => {
     setFlowOpen(false);
     setFlowPublicId(null);
@@ -160,6 +158,24 @@ export function WorkshopAbsModulesHomeDashboard({
   useEffect(() => {
     void loadModels();
   }, [loadModels]);
+
+  const closeExpandedToDetail = useCallback(() => {
+    const id = expandedPublicId;
+    setExpandedPublicId(null);
+    void loadModels();
+    if (!id) return;
+    setFlowEditPublicId(null);
+    setFlowDisassembleId(null);
+    setFlowMissingId(null);
+    setFlowModelId(null);
+    setFlowForm(false);
+    setFlowScan(false);
+    setFlowPublicId(id);
+    setFlowOpen(true);
+  }, [expandedPublicId, loadModels]);
+
+  // Esc / voltar na ficha completa reabre o modal "detalhe da unidade".
+  useBrowserBackLayer(!!expandedPublicId && !flowOpen, closeExpandedToDetail);
 
   useEffect(() => {
     let cancelled = false;
@@ -326,21 +342,7 @@ export function WorkshopAbsModulesHomeDashboard({
         <WorkshopAbsModuleDetailView
           key={`${expandedPublicId}-${expandedTick}`}
           publicId={expandedPublicId}
-          onBack={() => {
-            const id = expandedPublicId;
-            setExpandedPublicId(null);
-            void loadModels();
-            if (id) {
-              setFlowEditPublicId(null);
-              setFlowDisassembleId(null);
-              setFlowMissingId(null);
-              setFlowModelId(null);
-              setFlowForm(false);
-              setFlowScan(false);
-              setFlowPublicId(id);
-              setFlowOpen(true);
-            }
-          }}
+          onBack={closeExpandedToDetail}
           onEdit={(mod) => {
             setFlowPublicId(null);
             setFlowMissingId(null);
@@ -385,9 +387,6 @@ export function WorkshopAbsModulesHomeDashboard({
             <h2 className="text-[22px] font-bold tracking-tight text-zinc-900 dark:text-white">
               Módulos ABS
             </h2>
-            <p className="mt-0.5 text-[14px] text-zinc-500 dark:text-zinc-400">
-              Catálogo técnico, unidades físicas e desmembramento
-            </p>
           </div>
 
           <div className="flex flex-wrap gap-2 justify-end shrink-0">

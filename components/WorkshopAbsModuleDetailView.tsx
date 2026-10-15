@@ -202,6 +202,8 @@ function SiblingUnitCard({
   const [labelOpen, setLabelOpen] = useState(false);
   const [dirty, setDirty] = useState(false);
 
+  useBrowserBackLayer(expanded, () => setExpanded(false));
+
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);

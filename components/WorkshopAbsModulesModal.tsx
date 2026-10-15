@@ -88,6 +88,7 @@ import {
 import { getStoredAuth } from './views/LoginView';
 import { AbsApplicationsPanel } from './AbsApplicationsPanel';
 import { BarcodeScanField } from './BarcodeScanField';
+import { Lightbox } from './Lightbox';
 import { NiimbotAbsModuleLabelPrintModal } from './NiimbotAbsModuleLabelPrintModal';
 import { CurrencyMaskInput } from './ui/CurrencyMaskInput';
 import { PartPhotoImg } from './ui/PartPhotoImg';
@@ -856,8 +857,17 @@ export function WorkshopAbsModulesModal({
   const [disNotes, setDisNotes] = useState('');
   const [smartSearch, setSmartSearch] = useState<WorkshopAbsModuleSearchResult | null>(null);
   const [smartSearchBusy, setSmartSearchBusy] = useState(false);
+  const [detailPreview, setDetailPreview] = useState<{
+    urls: string[];
+    currentIndex: number;
+  } | null>(null);
 
   useBrowserBackLayer(isOpen, onClose);
+  useBrowserBackLayer(!!detailPreview, () => setDetailPreview(null));
+
+  useEffect(() => {
+    if (view.kind !== 'detail' && detailPreview) setDetailPreview(null);
+  }, [view.kind, detailPreview]);
 
   const recordedByName = useMemo(() => {
     const auth = getStoredAuth();
@@ -1744,15 +1754,16 @@ export function WorkshopAbsModulesModal({
                 Estoque · ABS
               </p>
               <h2 className="text-[18px] font-bold text-zinc-900 dark:text-white">Módulos ABS</h2>
-              <p className="text-[13px] text-zinc-500 dark:text-zinc-400">
-                {view.kind === 'models' && 'Catálogo técnico e unidades físicas'}
-                {view.kind === 'model' && 'Unidades do modelo'}
-                {view.kind === 'form' &&
-                  (editingModule ? 'Editar módulo cadastrado' : 'Novo módulo — modelo + unidade')}
-                {view.kind === 'detail' && 'Detalhe da unidade'}
-                {view.kind === 'disassemble' && 'Desmembrar módulo completo'}
-                {view.kind === 'missing' && 'Código não encontrado'}
-              </p>
+              {view.kind !== 'models' ? (
+                <p className="text-[13px] text-zinc-500 dark:text-zinc-400">
+                  {view.kind === 'model' && 'Unidades do modelo'}
+                  {view.kind === 'form' &&
+                    (editingModule ? 'Editar módulo cadastrado' : 'Novo módulo — modelo + unidade')}
+                  {view.kind === 'detail' && 'Detalhe da unidade'}
+                  {view.kind === 'disassemble' && 'Desmembrar módulo completo'}
+                  {view.kind === 'missing' && 'Código não encontrado'}
+                </p>
+              ) : null}
             </div>
             <div className="flex shrink-0 items-center gap-1.5">
               {view.kind === 'detail' && onExpandDetail ? (
@@ -2964,19 +2975,37 @@ export function WorkshopAbsModulesModal({
                               <p className="truncate text-[22px] font-bold tracking-tight text-white drop-shadow-sm sm:text-[24px]">
                                 {detail.manufacturer || 'Módulo ABS'}
                               </p>
-                              <p className="mt-0.5 truncate text-[11px] font-medium text-white/60">
-                                {absModuleKindLabel(detail.module_kind)}
-                                <span className="mx-1.5 text-white/30">·</span>
-                                <span className="tabular-nums text-white/50">
-                                  {formatAbsModuleSequence(detail.sequence_number)}
+                              <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1">
+                                <span className="inline-flex rounded-md bg-emerald-500/90 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white shadow-sm">
+                                  {absModuleKindLabel(detail.module_kind)}
                                 </span>
-                                <span className="mx-1.5 text-white/30">·</span>
-                                <span className="font-mono tracking-wide text-white/50">
-                                  {detail.public_id}
+                                <span className="truncate text-[11px] font-medium text-white/60">
+                                  <span className="tabular-nums text-white/70">
+                                    {formatAbsModuleSequence(detail.sequence_number)}
+                                  </span>
+                                  <span className="mx-1.5 text-white/30">·</span>
+                                  <span className="font-mono tracking-wide text-white/50">
+                                    {detail.public_id}
+                                  </span>
                                 </span>
-                              </p>
+                              </div>
                             </div>
                           </div>
+                          {heroPhoto ? (
+                            <button
+                              type="button"
+                              className="absolute inset-0 z-[1] cursor-zoom-in rounded-none bg-transparent"
+                              aria-label="Ampliar fotos do módulo"
+                              title="Ampliar fotos"
+                              onClick={() => {
+                                const urls = (detail.photos || [])
+                                  .map((p) => String(p.photo_url || '').trim())
+                                  .filter(Boolean);
+                                const list = urls.length > 0 ? urls : [heroPhoto];
+                                setDetailPreview({ urls: list, currentIndex: 0 });
+                              }}
+                            />
+                          ) : null}
                         </div>
 
                         {/* Campos: degradê agressivo + foto embassada atrás */}
@@ -3102,17 +3131,28 @@ export function WorkshopAbsModulesModal({
                                   Mais fotos
                                 </p>
                                 <div className="grid grid-cols-4 gap-1.5">
-                                  {(detail.photos || []).slice(1).map((photo) => (
-                                    <div
+                                  {(detail.photos || []).slice(1).map((photo, idx) => (
+                                    <button
                                       key={photo.id}
-                                      className="aspect-square overflow-hidden rounded-lg bg-zinc-100 dark:bg-zinc-900"
+                                      type="button"
+                                      className="aspect-square overflow-hidden rounded-lg bg-zinc-100 transition hover:ring-2 hover:ring-emerald-500/50 dark:bg-zinc-900"
+                                      aria-label={`Ampliar foto ${idx + 2}`}
+                                      onClick={() => {
+                                        const urls = (detail.photos || [])
+                                          .map((p) => String(p.photo_url || '').trim())
+                                          .filter(Boolean);
+                                        setDetailPreview({
+                                          urls,
+                                          currentIndex: Math.min(idx + 1, urls.length - 1),
+                                        });
+                                      }}
                                     >
                                       <PartPhotoImg
                                         src={photo.photo_url}
                                         alt=""
                                         className="h-full w-full object-cover"
                                       />
-                                    </div>
+                                    </button>
                                   ))}
                                 </div>
                               </div>
@@ -3414,6 +3454,13 @@ export function WorkshopAbsModulesModal({
         </div>
       </div>
     </RegistrationPortal>
+      {detailPreview ? (
+        <Lightbox
+          images={detailPreview.urls}
+          initialIndex={detailPreview.currentIndex >= 0 ? detailPreview.currentIndex : 0}
+          onClose={() => setDetailPreview(null)}
+        />
+      ) : null}
       <NiimbotAbsModuleLabelPrintModal
         open={Boolean(labelPrintModules?.length)}
         modules={labelPrintModules}
