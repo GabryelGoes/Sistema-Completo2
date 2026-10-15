@@ -85,6 +85,7 @@ import {
   type WorkshopAbsModuleCodeInput,
 } from '../utils/workshopAbsModules';
 import { getStoredAuth } from './views/LoginView';
+import { AbsApplicationsPanel } from './AbsApplicationsPanel';
 import { BarcodeScanField } from './BarcodeScanField';
 import { NiimbotAbsModuleLabelPrintModal } from './NiimbotAbsModuleLabelPrintModal';
 import { CurrencyMaskInput } from './ui/CurrencyMaskInput';
@@ -619,11 +620,14 @@ function AppsEditor({
   hint,
   apps,
   onChange,
+  markFirstAsOriginal = false,
 }: {
   title: string;
   hint: string;
   apps: AppDraft[];
   onChange: (next: AppDraft[]) => void;
+  /** Primeira linha = aplicação original deste escopo. */
+  markFirstAsOriginal?: boolean;
 }) {
   return (
     <div className="space-y-2 rounded-2xl bg-zinc-100/80 p-3 dark:bg-white/[0.04]">
@@ -637,68 +641,92 @@ function AppsEditor({
           + aplicação
         </button>
       </div>
-      {apps.map((app, idx) => (
-        <div key={idx} className="grid gap-2 sm:grid-cols-2">
-          <Field label="Marca" hint="Marca do veículo compatível (ex.: VW, Fiat).">
-            <input
-              className={inputClass}
-              value={app.vehicle_brand}
-              onChange={(e) => {
-                const next = [...apps];
-                next[idx] = { ...app, vehicle_brand: e.target.value };
-                onChange(next);
-              }}
-            />
-          </Field>
-          <Field label="Modelo" hint="Modelo do veículo (ex.: Gol, Palio).">
-            <input
-              className={inputClass}
-              value={app.vehicle_model}
-              onChange={(e) => {
-                const next = [...apps];
-                next[idx] = { ...app, vehicle_model: e.target.value };
-                onChange(next);
-              }}
-            />
-          </Field>
-          <Field label="Ano de" hint="Ano inicial da faixa de aplicação.">
-            <input
-              className={inputClass}
-              value={app.year_from}
-              onChange={(e) => {
-                const next = [...apps];
-                next[idx] = { ...app, year_from: e.target.value };
-                onChange(next);
-              }}
-            />
-          </Field>
-          <Field label="Ano até" hint="Ano final da faixa de aplicação.">
-            <input
-              className={inputClass}
-              value={app.year_to}
-              onChange={(e) => {
-                const next = [...apps];
-                next[idx] = { ...app, year_to: e.target.value };
-                onChange(next);
-              }}
-            />
-          </Field>
-          <Field
-            label="Motor / versão / notas"
-            hint="Motorização, versão ou observação técnica desta aplicação."
+      {apps.map((app, idx) => {
+        const isOriginal = markFirstAsOriginal && idx === 0;
+        return (
+          <div
+            key={idx}
+            className={
+              isOriginal
+                ? 'space-y-2 rounded-xl bg-emerald-50/90 p-2.5 ring-1 ring-emerald-500/20 dark:bg-emerald-950/35 dark:ring-emerald-400/20'
+                : 'space-y-2'
+            }
           >
-            <input
-              className={inputClass}
-              value={app.engine || app.notes}
-              onChange={(e) => {
-                const next = [...apps];
-                next[idx] = { ...app, engine: e.target.value };
-                onChange(next);
-              }}
-            />
-          </Field>
-        </div>
-      ))}
+            {isOriginal ? (
+              <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-emerald-700 dark:text-emerald-300">
+                Aplicação original
+                <span className="ml-1.5 font-medium normal-case tracking-normal text-emerald-800/70 dark:text-emerald-200/70">
+                  — cadastrada inicialmente
+                </span>
+              </p>
+            ) : apps.length > 1 ? (
+              <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-zinc-500 dark:text-zinc-400">
+                Aplicação secundária {markFirstAsOriginal ? idx : idx + 1}
+              </p>
+            ) : null}
+            <div className="grid gap-2 sm:grid-cols-2">
+              <Field label="Marca" hint="Marca do veículo compatível (ex.: VW, Fiat).">
+                <input
+                  className={inputClass}
+                  value={app.vehicle_brand}
+                  onChange={(e) => {
+                    const next = [...apps];
+                    next[idx] = { ...app, vehicle_brand: e.target.value };
+                    onChange(next);
+                  }}
+                />
+              </Field>
+              <Field label="Modelo" hint="Modelo do veículo (ex.: Gol, Palio).">
+                <input
+                  className={inputClass}
+                  value={app.vehicle_model}
+                  onChange={(e) => {
+                    const next = [...apps];
+                    next[idx] = { ...app, vehicle_model: e.target.value };
+                    onChange(next);
+                  }}
+                />
+              </Field>
+              <Field label="Ano de" hint="Ano inicial da faixa de aplicação.">
+                <input
+                  className={inputClass}
+                  value={app.year_from}
+                  onChange={(e) => {
+                    const next = [...apps];
+                    next[idx] = { ...app, year_from: e.target.value };
+                    onChange(next);
+                  }}
+                />
+              </Field>
+              <Field label="Ano até" hint="Ano final da faixa de aplicação.">
+                <input
+                  className={inputClass}
+                  value={app.year_to}
+                  onChange={(e) => {
+                    const next = [...apps];
+                    next[idx] = { ...app, year_to: e.target.value };
+                    onChange(next);
+                  }}
+                />
+              </Field>
+              <Field
+                label="Motor / versão / notas"
+                hint="Motorização, versão ou observação técnica desta aplicação."
+              >
+                <input
+                  className={inputClass}
+                  value={app.engine || app.notes}
+                  onChange={(e) => {
+                    const next = [...apps];
+                    next[idx] = { ...app, engine: e.target.value };
+                    onChange(next);
+                  }}
+                />
+              </Field>
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -2378,28 +2406,46 @@ export function WorkshopAbsModulesModal({
                   <h3 className="text-[14px] font-bold text-zinc-900 dark:text-white">
                     2. Aplicações (3 escopos)
                   </h3>
+                  <p className="text-[12px] text-zinc-500 dark:text-zinc-400">
+                    A primeira aplicação do escopo nativo do módulo é a original. As demais (e as
+                    dos outros escopos) são secundárias — outros veículos/montadoras, ou só
+                    hidráulica/eletrônica.
+                  </p>
                   {(wizard.module_kind === 'completo' || wizard.module_kind === 'outro') && (
                     <AppsEditor
                       title="Escopo completo"
-                      hint="Veículos compatíveis com o módulo completo (não se aplicam automaticamente aos componentes)."
+                      hint="1ª linha = aplicação original do módulo. Demais = outros veículos em que o módulo completo também serve."
                       apps={wizard.appsCompleto}
                       onChange={(appsCompleto) => setWizard((w) => ({ ...w, appsCompleto }))}
+                      markFirstAsOriginal={
+                        wizard.module_kind === 'completo' || wizard.module_kind === 'outro'
+                      }
                     />
                   )}
                   {(wizard.module_kind === 'completo' || wizard.module_kind === 'eletronico') && (
                     <AppsEditor
                       title="Escopo eletrônico"
-                      hint="Veículos compatíveis só com a parte eletrônica."
+                      hint={
+                        wizard.module_kind === 'eletronico'
+                          ? '1ª linha = aplicação original desta unidade eletrônica. Demais = outros veículos compatíveis só com a parte eletrônica.'
+                          : 'Veículos em que apenas a parte eletrônica também serve (não o módulo completo).'
+                      }
                       apps={wizard.appsEletronico}
                       onChange={(appsEletronico) => setWizard((w) => ({ ...w, appsEletronico }))}
+                      markFirstAsOriginal={wizard.module_kind === 'eletronico'}
                     />
                   )}
                   {(wizard.module_kind === 'completo' || wizard.module_kind === 'hidraulico') && (
                     <AppsEditor
                       title="Escopo hidráulico"
-                      hint="Veículos compatíveis só com a parte hidráulica."
+                      hint={
+                        wizard.module_kind === 'hidraulico'
+                          ? '1ª linha = aplicação original desta unidade hidráulica. Demais = outros veículos compatíveis só com a parte hidráulica.'
+                          : 'Veículos em que apenas a parte hidráulica também serve (não o módulo completo).'
+                      }
                       apps={wizard.appsHidraulico}
                       onChange={(appsHidraulico) => setWizard((w) => ({ ...w, appsHidraulico }))}
+                      markFirstAsOriginal={wizard.module_kind === 'hidraulico'}
                     />
                   )}
                 </section>
@@ -2869,8 +2915,9 @@ export function WorkshopAbsModulesModal({
                   const heroPhoto = detailHeroPhotoUrl(detail);
                   const catalog = detail.catalog_model;
                   const family = catalog?.family || null;
-                  const appsLabel = detailApplicationLabel(detail);
                   const codes = detailCodes(detail);
+                  const detailApps = catalog?.applications || [];
+                  const detailAppsFallback = detailApplicationLabel(detail);
                   const showBothCodes = Boolean(codes.eletronico && codes.hidraulico);
                   const fieldCard =
                     'rounded-xl bg-zinc-100 px-3 py-2.5 dark:bg-zinc-900';
@@ -2985,8 +3032,15 @@ export function WorkshopAbsModulesModal({
                                 <dd className={fieldValue}>{family || '—'}</dd>
                               </div>
                               <div className={`${fieldCard} col-span-2`}>
-                                <dt className={fieldLabel}>Aplicação</dt>
-                                <dd className={fieldValue}>{appsLabel}</dd>
+                                <dt className={fieldLabel}>Aplicações</dt>
+                                <dd className="mt-1.5">
+                                  <AbsApplicationsPanel
+                                    applications={detailApps}
+                                    moduleKind={detail.module_kind}
+                                    fallbackText={detailAppsFallback}
+                                    compact
+                                  />
+                                </dd>
                               </div>
                               <div className={`${fieldCard} col-span-2`}>
                                 <dt className={fieldLabel}>Código</dt>

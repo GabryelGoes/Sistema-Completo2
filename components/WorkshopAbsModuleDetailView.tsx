@@ -30,7 +30,6 @@ import {
   updateWorkshopAbsModule,
   uploadWorkshopAbsModulePhoto,
   type WorkshopAbsModule,
-  type WorkshopAbsModuleApplication,
   type WorkshopAbsModuleModel,
   type WorkshopAbsModuleMovement,
   type WorkshopAbsModulePhoto,
@@ -42,12 +41,12 @@ import {
   absModuleKindLabel,
   absModuleStatusLabel,
   describeAbsModuleMovement,
-  formatAbsApplicationYearRange,
   formatAbsModuleMoney,
   formatAbsModuleSequence,
   primaryCodeForScope,
   type AbsModuleExitReason,
 } from '../utils/workshopAbsModules';
+import { AbsApplicationsPanel } from './AbsApplicationsPanel';
 import { Lightbox } from './Lightbox';
 import { NiimbotAbsModuleLabelPrintModal } from './NiimbotAbsModuleLabelPrintModal';
 import { PartPhotoImg } from './ui/PartPhotoImg';
@@ -73,13 +72,6 @@ function DetailRow({ label, value }: { label: string; value: React.ReactNode }) 
       <div className={valueCls}>{value}</div>
     </div>
   );
-}
-
-function formatAppRow(app: WorkshopAbsModuleApplication): string {
-  const vehicle = [app.vehicle_brand, app.vehicle_model].filter(Boolean).join(' ').trim();
-  const years = formatAbsApplicationYearRange(app.year_from, app.year_to);
-  const extra = [app.generation, app.engine, app.version].filter(Boolean).join(' · ');
-  return [vehicle || '—', years, extra].filter(Boolean).join(' · ');
 }
 
 function PhotoGrid({
@@ -806,29 +798,13 @@ export function WorkshopAbsModuleDetailView({
                   <h3 className="mb-3 text-[13px] font-bold text-zinc-800 dark:text-zinc-200">
                     Aplicações (veículos)
                   </h3>
-                  {applications.length === 0 ? (
-                    <p className="text-[14px] text-zinc-500 dark:text-zinc-400">
-                      {module.application?.trim()
-                        ? module.application
-                        : 'Nenhuma aplicação cadastrada.'}
-                      {module.year_label?.trim() ? ` · ${module.year_label}` : ''}
-                    </p>
-                  ) : (
-                    <ul className="divide-y divide-zinc-200/60 dark:divide-white/[0.06]">
-                      {applications.map((app) => (
-                        <li key={app.id} className="py-3">
-                          <p className="text-[14px] font-semibold text-zinc-900 dark:text-white">
-                            {formatAppRow(app)}
-                          </p>
-                          {app.notes?.trim() ? (
-                            <p className="mt-1 text-[12px] text-zinc-500 dark:text-zinc-400">
-                              {app.notes}
-                            </p>
-                          ) : null}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
+                  <AbsApplicationsPanel
+                    applications={applications}
+                    moduleKind={module.module_kind}
+                    fallbackText={
+                      [module.application, module.year_label].filter(Boolean).join(' · ') || null
+                    }
+                  />
                 </div>
 
                 {(module.notes?.trim() || catalog?.notes?.trim()) ? (

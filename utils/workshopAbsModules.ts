@@ -382,6 +382,106 @@ export function formatAbsModuleSequence(n: number | null | undefined): string {
   return `#${Math.floor(Number(n))}`;
 }
 
+/** Escopo nativo da aplicação original conforme o tipo do módulo. */
+export function absModulePrimaryApplicationScope(
+  moduleKind: AbsModuleKind | string | null | undefined
+): AbsComponentScope {
+  const k = String(moduleKind || '').trim();
+  if (k === 'eletronico') return 'eletronico';
+  if (k === 'hidraulico') return 'hidraulico';
+  return 'completo';
+}
+
+export function absComponentScopeLabel(scope: AbsComponentScope | string | null | undefined): string {
+  const s = String(scope || '').trim();
+  if (s === 'eletronico') return 'Parte eletrônica';
+  if (s === 'hidraulico') return 'Parte hidráulica';
+  if (s === 'completo') return 'Módulo completo';
+  return 'Aplicação';
+}
+
+/** Rótulo para blocos de aplicações secundárias (compatíveis). */
+export function absSecondaryScopeLabel(scope: AbsComponentScope | string | null | undefined): string {
+  const s = String(scope || '').trim();
+  if (s === 'eletronico') return 'Apenas parte eletrônica';
+  if (s === 'hidraulico') return 'Apenas parte hidráulica';
+  if (s === 'completo') return 'Módulo completo (outros veículos)';
+  return 'Aplicação';
+}
+
+/** Linha legível de uma aplicação (marca · modelo · anos · extras). */
+export function formatAbsApplicationLine(
+  app: Pick<
+    WorkshopAbsModuleApplication,
+    | 'vehicle_brand'
+    | 'vehicle_model'
+    | 'year_from'
+    | 'year_to'
+    | 'generation'
+    | 'engine'
+    | 'version'
+  > | null | undefined
+): string {
+  if (!app) return '—';
+  const vehicle = [app.vehicle_brand, app.vehicle_model].filter(Boolean).join(' ').trim();
+  const years = formatAbsApplicationYearRange(app.year_from, app.year_to);
+  const extra = [app.generation, app.engine, app.version].filter(Boolean).join(' · ');
+  return [vehicle || null, years, extra].filter(Boolean).join(' · ') || '—';
+}
+
+export type AbsApplicationsGrouped = {
+  primary: WorkshopAbsModuleApplication | null;
+  primaryScope: AbsComponentScope;
+  /** Secundárias agrupadas por escopo (sem a original). */
+  secondaryByScope: Array<{
+    scope: AbsComponentScope;
+    label: string;
+    apps: WorkshopAbsModuleApplication[];
+  }>;
+  /** Total de aplicações cadastradas. */
+  total: number;
+};
+
+/**
+ * Separa aplicação original (1ª do escopo nativo do módulo) das secundárias,
+ * agrupadas por completo / eletrônico / hidráulico.
+ */
+export function groupAbsModuleApplications(
+  apps: WorkshopAbsModuleApplication[] | null | undefined,
+  moduleKind: AbsModuleKind | string | null | undefined
+): AbsApplicationsGrouped {
+  const list = [...(apps || [])].sort((a, b) => {
+    const so = (a.sort_order ?? 0) - (b.sort_order ?? 0);
+    if (so !== 0) return so;
+    return String(a.id || '').localeCompare(String(b.id || ''));
+  });
+  const primaryScope = absModulePrimaryApplicationScope(moduleKind);
+  const inNative = list.filter((a) => a.component_scope === primaryScope);
+  const primary = inNative[0] || list[0] || null;
+  const primaryId = primary?.id ?? null;
+
+  const scopes: AbsComponentScope[] = ['completo', 'eletronico', 'hidraulico'];
+  const secondaryByScope: AbsApplicationsGrouped['secondaryByScope'] = [];
+  for (const scope of scopes) {
+    const appsInScope = list.filter(
+      (a) => a.component_scope === scope && (primaryId == null || a.id !== primaryId)
+    );
+    if (appsInScope.length === 0) continue;
+    secondaryByScope.push({
+      scope,
+      label: absSecondaryScopeLabel(scope),
+      apps: appsInScope,
+    });
+  }
+
+  return {
+    primary,
+    primaryScope,
+    secondaryByScope,
+    total: list.length,
+  };
+}
+
 /** Marcas de aplicação (veículo) únicas, na ordem cadastrada. */
 export function formatAbsApplicationBrands(
   apps: WorkshopAbsModuleApplication[] | null | undefined
