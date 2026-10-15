@@ -651,7 +651,13 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
   };
 
   const handleDelete = async (id: string) => {
-    if (!window.confirm('Excluir esta peça do estoque?')) return;
+    if (
+      !window.confirm(
+        'Excluir este produto do estoque? O histórico de saídas/consumo vinculado a ele também será removido.'
+      )
+    ) {
+      return;
+    }
     setError(null);
     try {
       await deleteWorkshopPart(id);
