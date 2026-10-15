@@ -7,6 +7,7 @@ import {
   ChevronDown,
   ChevronRight,
   Camera,
+  Hash,
   HelpCircle,
   History,
   Images,
@@ -2768,14 +2769,27 @@ export function WorkshopAbsModulesModal({
                           />
                           <div className="relative space-y-2">
                             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                              <div className="flex min-w-0 items-center rounded-xl bg-emerald-50 px-3 py-2.5 dark:bg-emerald-950">
-                                <div className="min-w-0">
+                              <div className="flex min-w-0 items-center gap-2.5 rounded-xl bg-emerald-50 px-3 py-2.5 dark:bg-emerald-950">
+                                <div className="min-w-0 flex-1">
                                   <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-emerald-700 dark:text-emerald-400">
                                     Localização
                                   </p>
                                   <p className="mt-0.5 truncate text-[17px] font-bold tracking-tight text-emerald-950 dark:text-emerald-50">
                                     {detail.location?.trim() || 'Sem local definido'}
                                   </p>
+                                </div>
+                                <div
+                                  className="flex h-11 min-w-[2.85rem] shrink-0 items-center justify-center gap-0.5 rounded-xl bg-emerald-600 px-2.5 text-white shadow-none dark:bg-emerald-500"
+                                  title={`Unidade ${formatAbsModuleSequence(detail.sequence_number)}`}
+                                  aria-label={`Número da unidade ${formatAbsModuleSequence(detail.sequence_number)}`}
+                                >
+                                  <Hash className="h-3.5 w-3.5 shrink-0 opacity-90" aria-hidden />
+                                  <span className="text-[17px] font-black leading-none tabular-nums tracking-tight">
+                                    {detail.sequence_number != null &&
+                                    Number.isFinite(Number(detail.sequence_number))
+                                      ? Math.floor(Number(detail.sequence_number))
+                                      : '—'}
+                                  </span>
                                 </div>
                               </div>
                               <SameModelUnitsButton
