@@ -1,4 +1,5 @@
 import { drawCode128B } from './niimbotCode128';
+import { withLabelElementStyle } from './labelElementStyle';
 import {
   cssFontForElement,
   loadLabelTemplate,
@@ -126,7 +127,9 @@ async function drawAbsBrandLogo(
     octx.putImageData(data, 0, 0);
     const dx = elDef.x + Math.max(0, (elDef.w - size) / 2);
     const dy = elDef.y + Math.max(0, (elDef.h - size) / 2);
-    ctx.drawImage(off, dx, dy, size, size);
+    withLabelElementStyle(ctx, elDef, (c) => {
+      c.drawImage(off, dx, dy, size, size);
+    });
   } catch {
     // Sem logo: etiqueta segue sem bloquear a impressão.
   }
@@ -138,19 +141,21 @@ function drawPlainText(
   text: string
 ): void {
   if (!elDef.visible) return;
-  ctx.fillStyle = '#000000';
-  ctx.textBaseline = 'top';
-  ctx.font = cssFontForElement(elDef);
-  const drawn = truncateToWidth(ctx, text, elDef.w);
-  let x = elDef.x;
-  if (elDef.align === 'center') {
-    const tw = ctx.measureText(drawn).width;
-    x = elDef.x + (elDef.w - tw) / 2;
-  } else if (elDef.align === 'right') {
-    const tw = ctx.measureText(drawn).width;
-    x = elDef.x + elDef.w - tw;
-  }
-  ctx.fillText(drawn, x, elDef.y);
+  withLabelElementStyle(ctx, elDef, (c) => {
+    c.fillStyle = '#000000';
+    c.textBaseline = 'top';
+    c.font = cssFontForElement(elDef);
+    const drawn = truncateToWidth(c, text, elDef.w);
+    let x = elDef.x;
+    if (elDef.align === 'center') {
+      const tw = c.measureText(drawn).width;
+      x = elDef.x + (elDef.w - tw) / 2;
+    } else if (elDef.align === 'right') {
+      const tw = c.measureText(drawn).width;
+      x = elDef.x + elDef.w - tw;
+    }
+    c.fillText(drawn, x, elDef.y);
+  });
 }
 
 /** Renderiza a etiqueta 50×30 mm (384×240 @ 203 dpi) e devolve data URL PNG. */
@@ -187,39 +192,47 @@ export function renderNiimbotPartLabelDataUrl(
 
   const codeLineEl = findEl(layout, 'code_line');
   if (codeLineEl?.visible) {
-    ctx.font = cssFontForElement(codeLineEl);
-    ctx.textBaseline = 'top';
-    const prefix = codeLineEl.labelText
-      ? codeLineEl.labelText.endsWith(' ')
-        ? codeLineEl.labelText
-        : `${codeLineEl.labelText} `
-      : '';
-    const line = truncateToWidth(ctx, `${prefix}${code}`, codeLineEl.w);
-    ctx.fillText(line, codeLineEl.x, codeLineEl.y);
+    withLabelElementStyle(ctx, codeLineEl, (c) => {
+      c.font = cssFontForElement(codeLineEl);
+      c.textBaseline = 'top';
+      c.fillStyle = '#000000';
+      const prefix = codeLineEl.labelText
+        ? codeLineEl.labelText.endsWith(' ')
+          ? codeLineEl.labelText
+          : `${codeLineEl.labelText} `
+        : '';
+      const line = truncateToWidth(c, `${prefix}${code}`, codeLineEl.w);
+      c.fillText(line, codeLineEl.x, codeLineEl.y);
+    });
   }
 
   const barcodeEl = findEl(layout, 'barcode');
   if (barcodeEl?.visible) {
-    drawCode128B(ctx, code, barcodeEl.x, barcodeEl.y, barcodeEl.w, barcodeEl.h);
+    withLabelElementStyle(ctx, barcodeEl, (c) => {
+      drawCode128B(c, code, barcodeEl.x, barcodeEl.y, barcodeEl.w, barcodeEl.h);
+    });
   }
 
   const humanEl = findEl(layout, 'human_code');
   if (humanEl?.visible) {
-    ctx.font = cssFontForElement(humanEl);
-    ctx.textBaseline = 'alphabetic';
-    const human = truncateToWidth(ctx, code, humanEl.w);
-    const textY = humanEl.y + humanEl.h - 4;
-    if (humanEl.align === 'center') {
-      ctx.textAlign = 'center';
-      ctx.fillText(human, humanEl.x + humanEl.w / 2, textY);
-      ctx.textAlign = 'left';
-    } else if (humanEl.align === 'right') {
-      ctx.textAlign = 'right';
-      ctx.fillText(human, humanEl.x + humanEl.w, textY);
-      ctx.textAlign = 'left';
-    } else {
-      ctx.fillText(human, humanEl.x, textY);
-    }
+    withLabelElementStyle(ctx, humanEl, (c) => {
+      c.font = cssFontForElement(humanEl);
+      c.textBaseline = 'alphabetic';
+      c.fillStyle = '#000000';
+      const human = truncateToWidth(c, code, humanEl.w);
+      const textY = humanEl.y + humanEl.h - 4;
+      if (humanEl.align === 'center') {
+        c.textAlign = 'center';
+        c.fillText(human, humanEl.x + humanEl.w / 2, textY);
+        c.textAlign = 'left';
+      } else if (humanEl.align === 'right') {
+        c.textAlign = 'right';
+        c.fillText(human, humanEl.x + humanEl.w, textY);
+        c.textAlign = 'left';
+      } else {
+        c.fillText(human, humanEl.x, textY);
+      }
+    });
   }
 
   return canvas.toDataURL('image/png');
@@ -262,49 +275,51 @@ function drawAbsLabeledField(
   const text = String(value || '').trim();
   if (!text && opts?.hideIfEmpty !== false) return;
 
-  const label = String(elDef.labelText || '').trim();
-  const labelW = label ? ABS_FIELD_LABEL_W : 0;
-  const valueX = elDef.x + labelW;
-  const valueW = Math.max(24, elDef.w - labelW);
-  const maxLines = Math.max(1, opts?.maxLines ?? elDef.maxLines ?? 1);
+  withLabelElementStyle(ctx, elDef, (c) => {
+    const label = String(elDef.labelText || '').trim();
+    const labelW = label ? ABS_FIELD_LABEL_W : 0;
+    const valueX = elDef.x + labelW;
+    const valueW = Math.max(24, elDef.w - labelW);
+    const maxLines = Math.max(1, opts?.maxLines ?? elDef.maxLines ?? 1);
 
-  ctx.fillStyle = '#000000';
-  ctx.textBaseline = 'top';
+    c.fillStyle = '#000000';
+    c.textBaseline = 'top';
 
-  if (label) {
-    ctx.font = cssFontForElement({ ...elDef, fontSize: elDef.fontSize, fontWeight: 'bold' });
-    const lab = label.endsWith('.') || label.endsWith(':') ? label : `${label}`;
-    ctx.fillText(truncateToWidth(ctx, lab, labelW - 2), elDef.x, elDef.y);
-  }
-
-  const valueSize = elDef.valueFontSize || elDef.fontSize;
-  ctx.font = cssFontForElement({ ...elDef, fontSize: valueSize });
-
-  if (maxLines <= 1) {
-    ctx.fillText(truncateToWidth(ctx, text || '—', valueW), valueX, elDef.y);
-    return;
-  }
-
-  const words = (text || '—').split(/\s+/).filter(Boolean);
-  const lines: string[] = [];
-  let current = '';
-  for (const word of words) {
-    const trial = current ? `${current} ${word}` : word;
-    if (ctx.measureText(trial).width <= valueW || !current) {
-      current = trial;
-    } else {
-      lines.push(current);
-      current = word;
-      if (lines.length >= maxLines) break;
+    if (label) {
+      c.font = cssFontForElement({ ...elDef, fontSize: elDef.fontSize, fontWeight: 'bold' });
+      const lab = label.endsWith('.') || label.endsWith(':') ? label : `${label}`;
+      c.fillText(truncateToWidth(c, lab, labelW - 2), elDef.x, elDef.y);
     }
-  }
-  if (current && lines.length < maxLines) lines.push(current);
-  if (lines.length === maxLines && words.join(' ').length > lines.join(' ').length) {
-    lines[maxLines - 1] = truncateToWidth(ctx, lines[maxLines - 1]!, valueW);
-  }
-  const lineH = Math.max(valueSize + 2, Math.floor(elDef.h / maxLines));
-  lines.forEach((line, i) => {
-    ctx.fillText(line, valueX, elDef.y + i * lineH);
+
+    const valueSize = elDef.valueFontSize || elDef.fontSize;
+    c.font = cssFontForElement({ ...elDef, fontSize: valueSize });
+
+    if (maxLines <= 1) {
+      c.fillText(truncateToWidth(c, text || '—', valueW), valueX, elDef.y);
+      return;
+    }
+
+    const words = (text || '—').split(/\s+/).filter(Boolean);
+    const lines: string[] = [];
+    let current = '';
+    for (const word of words) {
+      const trial = current ? `${current} ${word}` : word;
+      if (c.measureText(trial).width <= valueW || !current) {
+        current = trial;
+      } else {
+        lines.push(current);
+        current = word;
+        if (lines.length >= maxLines) break;
+      }
+    }
+    if (current && lines.length < maxLines) lines.push(current);
+    if (lines.length === maxLines && words.join(' ').length > lines.join(' ').length) {
+      lines[maxLines - 1] = truncateToWidth(c, lines[maxLines - 1]!, valueW);
+    }
+    const lineH = Math.max(valueSize + 2, Math.floor(elDef.h / maxLines));
+    lines.forEach((line, i) => {
+      c.fillText(line, valueX, elDef.y + i * lineH);
+    });
   });
 }
 
@@ -385,7 +400,17 @@ export async function renderNiimbotAbsModuleLabelDataUrl(
       const bh = barcodeEl?.h ?? 78;
       const bx = barcodeEl?.x ?? 8;
       const by = barcodeEl?.y ?? Math.max(120, h - bh - 32);
-      drawCode128B(ctx, publicId, bx, by, bw, bh);
+      const elForStyle = barcodeEl ?? {
+        x: bx,
+        y: by,
+        w: bw,
+        h: bh,
+        opacity: 100,
+        rotation: 0,
+      };
+      withLabelElementStyle(ctx, elForStyle, (c) => {
+        drawCode128B(c, publicId, bx, by, bw, bh);
+      });
     } catch {
       // Code128 pode falhar com caracteres especiais — human_code ainda identifica.
     }
@@ -393,21 +418,24 @@ export async function renderNiimbotAbsModuleLabelDataUrl(
 
   const humanEl = findEl(layout, 'human_code');
   if (humanEl?.visible) {
-    ctx.font = cssFontForElement(humanEl);
-    ctx.textBaseline = 'alphabetic';
-    const human = truncateToWidth(ctx, publicId, humanEl.w);
-    const textY = humanEl.y + humanEl.h - 4;
-    if (humanEl.align === 'center') {
-      ctx.textAlign = 'center';
-      ctx.fillText(human, humanEl.x + humanEl.w / 2, textY);
-      ctx.textAlign = 'left';
-    } else if (humanEl.align === 'right') {
-      ctx.textAlign = 'right';
-      ctx.fillText(human, humanEl.x + humanEl.w, textY);
-      ctx.textAlign = 'left';
-    } else {
-      ctx.fillText(human, humanEl.x, textY);
-    }
+    withLabelElementStyle(ctx, humanEl, (c) => {
+      c.font = cssFontForElement(humanEl);
+      c.textBaseline = 'alphabetic';
+      c.fillStyle = '#000000';
+      const human = truncateToWidth(c, publicId, humanEl.w);
+      const textY = humanEl.y + humanEl.h - 4;
+      if (humanEl.align === 'center') {
+        c.textAlign = 'center';
+        c.fillText(human, humanEl.x + humanEl.w / 2, textY);
+        c.textAlign = 'left';
+      } else if (humanEl.align === 'right') {
+        c.textAlign = 'right';
+        c.fillText(human, humanEl.x + humanEl.w, textY);
+        c.textAlign = 'left';
+      } else {
+        c.fillText(human, humanEl.x, textY);
+      }
+    });
   }
 
   return canvas.toDataURL('image/png');

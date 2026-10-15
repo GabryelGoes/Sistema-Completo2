@@ -1,3 +1,4 @@
+import { withLabelElementStyle } from './labelElementStyle';
 import {
   cssFontForElement,
   loadLabelTemplate,
@@ -269,12 +270,28 @@ function renderKeyBlock(
       x = margin + opts.offsetX + (contentW - fullW);
     }
 
-    if (labelText) {
-      ctx.fillText(labelText, x, y);
-      ctx.fillText(valueText, x + labelW, y);
-    } else {
-      ctx.fillText(valueText, x, y);
-    }
+    withLabelElementStyle(
+      ctx,
+      {
+        x,
+        y,
+        w: Math.max(fullW, 8),
+        h: lineHeight,
+        opacity: row.opacity ?? 100,
+        rotation: row.rotation ?? 0,
+      },
+      (c) => {
+        c.fillStyle = '#000000';
+        c.font = font;
+        c.textBaseline = 'top';
+        if (labelText) {
+          c.fillText(labelText, x, y);
+          c.fillText(valueText, x + labelW, y);
+        } else {
+          c.fillText(valueText, x, y);
+        }
+      }
+    );
   }
 
   return canvas;

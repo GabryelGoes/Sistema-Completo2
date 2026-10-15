@@ -52,6 +52,13 @@ export type LabelElementDef = {
   valueFontSize: number;
   align: LabelAlign;
   maxLines: number;
+  /**
+   * Opacidade 0–100 (100 = sólido). Valores menores criam marca d'água
+   * (dither na impressão térmica).
+   */
+  opacity: number;
+  /** Rotação em graus (horário; centro do elemento). */
+  rotation: number;
 };
 
 export type LabelKeyOptions = {
@@ -123,8 +130,16 @@ function clamp(n: number, min: number, max: number): number {
 }
 
 function el(
-  partial: Omit<LabelElementDef, 'fontFamily' | 'fontWeight' | 'align' | 'maxLines' | 'valueFontSize'> &
-    Partial<Pick<LabelElementDef, 'fontFamily' | 'fontWeight' | 'align' | 'maxLines' | 'valueFontSize'>>
+  partial: Omit<
+    LabelElementDef,
+    'fontFamily' | 'fontWeight' | 'align' | 'maxLines' | 'valueFontSize' | 'opacity' | 'rotation'
+  > &
+    Partial<
+      Pick<
+        LabelElementDef,
+        'fontFamily' | 'fontWeight' | 'align' | 'maxLines' | 'valueFontSize' | 'opacity' | 'rotation'
+      >
+    >
 ): LabelElementDef {
   return {
     fontFamily: 'Arial',
@@ -132,6 +147,8 @@ function el(
     align: 'left',
     maxLines: 1,
     valueFontSize: partial.fontSize,
+    opacity: 100,
+    rotation: 0,
     ...partial,
   };
 }
@@ -604,6 +621,12 @@ function normalizeVAlign(v: unknown): LabelVAlign {
 }
 
 function normalizeElement(raw: Partial<LabelElementDef>, fallback: LabelElementDef): LabelElementDef {
+  const opacityRaw = raw.opacity ?? fallback.opacity ?? 100;
+  const rotationRaw = raw.rotation ?? fallback.rotation ?? 0;
+  let rotation = Math.round(Number(rotationRaw));
+  if (!Number.isFinite(rotation)) rotation = 0;
+  rotation = ((rotation % 360) + 360) % 360;
+  if (rotation > 180) rotation -= 360;
   return {
     id: fallback.id,
     kind: fallback.kind,
@@ -624,6 +647,8 @@ function normalizeElement(raw: Partial<LabelElementDef>, fallback: LabelElementD
     ),
     align: normalizeAlign(raw.align ?? fallback.align),
     maxLines: clamp(Math.round(Number(raw.maxLines ?? fallback.maxLines)), 1, 12),
+    opacity: clamp(Math.round(Number(opacityRaw)), 0, 100),
+    rotation,
   };
 }
 

@@ -1,5 +1,6 @@
 import QRCode from 'qrcode';
 import { buildLabOsQrPayload } from './labOsQrCode';
+import { withLabelElementStyle } from './labelElementStyle';
 import {
   cssFontForElement,
   loadLabelTemplate,
@@ -81,26 +82,28 @@ function drawBanner(
   value: string
 ): void {
   if (!elDef.visible) return;
-  const { x, y, w, h } = elDef;
-  ctx.fillStyle = '#000000';
-  ctx.fillRect(x, y, w, h);
+  withLabelElementStyle(ctx, elDef, (c) => {
+    const { x, y, w, h } = elDef;
+    c.fillStyle = '#000000';
+    c.fillRect(x, y, w, h);
 
-  ctx.fillStyle = '#ffffff';
-  ctx.textBaseline = 'middle';
-  const midY = y + h / 2;
-  const padX = 6;
+    c.fillStyle = '#ffffff';
+    c.textBaseline = 'middle';
+    const midY = y + h / 2;
+    const padX = 6;
 
-  const tag = (elDef.labelText || '').trim();
-  ctx.font = cssFontForElement(elDef, elDef.fontSize);
-  if (tag) ctx.fillText(tag, x + padX, midY);
+    const tag = (elDef.labelText || '').trim();
+    c.font = cssFontForElement(elDef, elDef.fontSize);
+    if (tag) c.fillText(tag, x + padX, midY);
 
-  const tagW = tag ? ctx.measureText(tag).width : 0;
-  ctx.font = cssFontForElement(elDef, elDef.valueFontSize || elDef.fontSize);
-  const numText = value.trim() || '—';
-  ctx.fillText(numText, x + padX + (tag ? tagW + 8 : 0), midY);
+    const tagW = tag ? c.measureText(tag).width : 0;
+    c.font = cssFontForElement(elDef, elDef.valueFontSize || elDef.fontSize);
+    const numText = value.trim() || '—';
+    c.fillText(numText, x + padX + (tag ? tagW + 8 : 0), midY);
 
-  ctx.fillStyle = '#000000';
-  ctx.textBaseline = 'top';
+    c.fillStyle = '#000000';
+    c.textBaseline = 'top';
+  });
 }
 
 function drawLabeledField(
@@ -109,62 +112,64 @@ function drawLabeledField(
   value: string
 ): void {
   if (!elDef.visible) return;
-  const { x, y, w } = elDef;
-  const labelFont = cssFontForElement(elDef, elDef.fontSize);
-  const valueFont = cssFontForElement(
-    { ...elDef, fontWeight: elDef.fontWeight },
-    elDef.valueFontSize || elDef.fontSize
-  );
-  const lineHeight = Math.max(
-    (elDef.valueFontSize || elDef.fontSize) * 1.15,
-    elDef.fontSize * 1.15
-  );
+  withLabelElementStyle(ctx, elDef, (c) => {
+    const { x, y, w } = elDef;
+    const labelFont = cssFontForElement(elDef, elDef.fontSize);
+    const valueFont = cssFontForElement(
+      { ...elDef, fontWeight: elDef.fontWeight },
+      elDef.valueFontSize || elDef.fontSize
+    );
+    const lineHeight = Math.max(
+      (elDef.valueFontSize || elDef.fontSize) * 1.15,
+      elDef.fontSize * 1.15
+    );
 
-  ctx.font = labelFont;
-  const labelText = elDef.labelText
-    ? elDef.labelText.endsWith(' ')
-      ? elDef.labelText
-      : `${elDef.labelText} `
-    : '';
-  const labelW = labelText ? ctx.measureText(labelText).width : 0;
+    c.font = labelFont;
+    const labelText = elDef.labelText
+      ? elDef.labelText.endsWith(' ')
+        ? elDef.labelText
+        : `${elDef.labelText} `
+      : '';
+    const labelW = labelText ? c.measureText(labelText).width : 0;
 
-  ctx.font = valueFont;
-  const firstMax = Math.max(20, w - labelW);
-  const valueNorm = (value || '').trim().replace(/\s+/g, ' ') || '—';
+    c.font = valueFont;
+    const firstMax = Math.max(20, w - labelW);
+    const valueNorm = (value || '').trim().replace(/\s+/g, ' ') || '—';
 
-  const words = valueNorm.split(' ');
-  let first = '';
-  let wordIdx = 0;
-  for (; wordIdx < words.length; wordIdx++) {
-    const next = first ? `${first} ${words[wordIdx]}` : words[wordIdx]!;
-    if (ctx.measureText(next).width <= firstMax) first = next;
-    else break;
-  }
-  if (!first && words[0]) {
-    let t = words[0];
-    while (t.length > 1 && ctx.measureText(`${t}…`).width > firstMax) t = t.slice(0, -1);
-    first = `${t}…`;
-    wordIdx = words.length;
-  }
-
-  ctx.textBaseline = 'top';
-  ctx.fillStyle = '#000000';
-  if (labelText) {
-    ctx.font = labelFont;
-    ctx.fillText(labelText, x, y);
-  }
-  ctx.font = valueFont;
-  ctx.fillText(first || '—', x + labelW, y);
-
-  let cy = y + lineHeight;
-  const rest = words.slice(wordIdx).join(' ').trim();
-  if (rest && elDef.maxLines > 1) {
-    const more = wrapTextLines(ctx, rest, w, elDef.maxLines - 1);
-    for (const line of more) {
-      ctx.fillText(line, x, cy);
-      cy += lineHeight;
+    const words = valueNorm.split(' ');
+    let first = '';
+    let wordIdx = 0;
+    for (; wordIdx < words.length; wordIdx++) {
+      const next = first ? `${first} ${words[wordIdx]}` : words[wordIdx]!;
+      if (c.measureText(next).width <= firstMax) first = next;
+      else break;
     }
-  }
+    if (!first && words[0]) {
+      let t = words[0];
+      while (t.length > 1 && c.measureText(`${t}…`).width > firstMax) t = t.slice(0, -1);
+      first = `${t}…`;
+      wordIdx = words.length;
+    }
+
+    c.textBaseline = 'top';
+    c.fillStyle = '#000000';
+    if (labelText) {
+      c.font = labelFont;
+      c.fillText(labelText, x, y);
+    }
+    c.font = valueFont;
+    c.fillText(first || '—', x + labelW, y);
+
+    let cy = y + lineHeight;
+    const rest = words.slice(wordIdx).join(' ').trim();
+    if (rest && elDef.maxLines > 1) {
+      const more = wrapTextLines(c, rest, w, elDef.maxLines - 1);
+      for (const line of more) {
+        c.fillText(line, x, cy);
+        cy += lineHeight;
+      }
+    }
+  });
 }
 
 function findEl(layout: LabelTemplateLayout, id: string): LabelElementDef | undefined {
@@ -203,7 +208,9 @@ export async function renderLabOsLabelDataUrl(
       color: { dark: '#000000', light: '#ffffff' },
     });
     const qrImg = await loadImage(qrDataUrl);
-    ctx.drawImage(qrImg, qrEl.x, qrEl.y, qrSize, qrSize);
+    withLabelElementStyle(ctx, qrEl, (c) => {
+      c.drawImage(qrImg, qrEl.x, qrEl.y, qrSize, qrSize);
+    });
   }
 
   // Etiqueta: só o número da vaga no laboratório (sem letra da oficina).

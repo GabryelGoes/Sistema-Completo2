@@ -4,12 +4,14 @@ import {
   AlignLeft,
   AlignRight,
   Bold,
+  Droplets,
   Eye,
   EyeOff,
   Minus,
   Move,
   Plus,
   RotateCcw,
+  RotateCw,
   Tag,
   Type,
   X,
@@ -459,6 +461,7 @@ export function LabelTemplatesEditorModal({
                       const width = `${(elDef.w / NIIMBOT_LABEL_W_PX) * 100}%`;
                       const height = `${(elDef.h / NIIMBOT_LABEL_H_PX) * 100}%`;
                       const active = selectedId === elDef.id;
+                      const rot = Number(elDef.rotation) || 0;
                       return (
                         <button
                           key={elDef.id}
@@ -468,7 +471,15 @@ export function LabelTemplatesEditorModal({
                               ? 'border-sky-500 bg-sky-400/15 shadow-[0_0_0_1px_rgba(14,165,233,0.5)]'
                               : 'border-transparent hover:border-sky-300/80 hover:bg-sky-300/10'
                           }`}
-                          style={{ left, top, width, height, cursor: 'move' }}
+                          style={{
+                            left,
+                            top,
+                            width,
+                            height,
+                            cursor: 'move',
+                            transform: rot ? `rotate(${rot}deg)` : undefined,
+                            transformOrigin: 'center center',
+                          }}
                           onPointerDown={(e) => onPointerDownOverlay(e, elDef.id)}
                           title={`Arrastar: ${elDef.name}`}
                           aria-label={`Selecionar ${elDef.name}`}
@@ -720,6 +731,123 @@ export function LabelTemplatesEditorModal({
                       onDec={() => patchElement(selected.id, { h: selected.h - 2 })}
                       onInc={() => patchElement(selected.id, { h: selected.h + 2 })}
                     />
+                  </div>
+
+                  <div className="space-y-3 rounded-2xl border-0 bg-zinc-50 p-3.5 dark:bg-white/[0.03] sm:p-4">
+                    <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wide text-zinc-500">
+                      <Droplets className="h-3.5 w-3.5" />
+                      Marca d&apos;água e rotação
+                    </div>
+
+                    <label className="block space-y-1.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-[12px] font-medium text-zinc-600 dark:text-zinc-300">
+                          Opacidade
+                        </span>
+                        <span className="tabular-nums text-[12px] font-semibold text-zinc-800 dark:text-zinc-100">
+                          {selected.opacity ?? 100}%
+                        </span>
+                      </div>
+                      <input
+                        type="range"
+                        min={5}
+                        max={100}
+                        step={5}
+                        value={selected.opacity ?? 100}
+                        onChange={(e) =>
+                          patchElement(selected.id, {
+                            opacity: Math.max(5, Math.min(100, Number(e.target.value) || 100)),
+                          })
+                        }
+                        className="w-full accent-emerald-600"
+                        aria-label="Opacidade do elemento"
+                      />
+                      <p className="text-[11px] text-zinc-500">
+                        Valores mais baixos deixam o elemento mais claro (marca d&apos;água na
+                        impressão térmica).
+                      </p>
+                    </label>
+
+                    <div className="flex flex-wrap gap-1.5">
+                      {[100, 70, 45, 25].map((pct) => (
+                        <button
+                          key={pct}
+                          type="button"
+                          onClick={() => patchElement(selected.id, { opacity: pct })}
+                          className={`rounded-lg px-2.5 py-1.5 text-[12px] font-semibold ${
+                            (selected.opacity ?? 100) === pct
+                              ? 'bg-emerald-600 text-white'
+                              : 'bg-white text-zinc-700 dark:bg-zinc-900 dark:text-zinc-200'
+                          }`}
+                        >
+                          {pct}%
+                        </button>
+                      ))}
+                    </div>
+
+                    <Stepper
+                      label="Rotação"
+                      value={selected.rotation ?? 0}
+                      display={`${selected.rotation ?? 0}°`}
+                      onDec={() =>
+                        patchElement(selected.id, {
+                          rotation: (selected.rotation ?? 0) - 5,
+                        })
+                      }
+                      onInc={() =>
+                        patchElement(selected.id, {
+                          rotation: (selected.rotation ?? 0) + 5,
+                        })
+                      }
+                    />
+
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      {[
+                        { deg: -90, label: '-90°' },
+                        { deg: -45, label: '-45°' },
+                        { deg: 0, label: '0°' },
+                        { deg: 45, label: '45°' },
+                        { deg: 90, label: '90°' },
+                        { deg: 180, label: '180°' },
+                      ].map((opt) => (
+                        <button
+                          key={opt.deg}
+                          type="button"
+                          onClick={() => patchElement(selected.id, { rotation: opt.deg })}
+                          className={`rounded-lg px-2.5 py-1.5 text-[12px] font-semibold ${
+                            (selected.rotation ?? 0) === opt.deg
+                              ? 'bg-sky-600 text-white'
+                              : 'bg-white text-zinc-700 dark:bg-zinc-900 dark:text-zinc-200'
+                          }`}
+                        >
+                          {opt.label}
+                        </button>
+                      ))}
+                      <button
+                        type="button"
+                        onClick={() =>
+                          patchElement(selected.id, {
+                            rotation: (selected.rotation ?? 0) - 90,
+                          })
+                        }
+                        className="inline-flex items-center gap-1 rounded-lg bg-white px-2.5 py-1.5 text-[12px] font-semibold text-zinc-700 dark:bg-zinc-900 dark:text-zinc-200"
+                        title="Girar −90°"
+                      >
+                        <RotateCcw className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          patchElement(selected.id, {
+                            rotation: (selected.rotation ?? 0) + 90,
+                          })
+                        }
+                        className="inline-flex items-center gap-1 rounded-lg bg-white px-2.5 py-1.5 text-[12px] font-semibold text-zinc-700 dark:bg-zinc-900 dark:text-zinc-200"
+                        title="Girar +90°"
+                      >
+                        <RotateCw className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
                   </div>
                 </>
               )}
