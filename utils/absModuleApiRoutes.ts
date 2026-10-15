@@ -43,6 +43,7 @@ import {
   type WorkshopAbsModuleModelWriteInput,
   type WorkshopAbsModuleWriteInput,
 } from './workshopAbsModules.js';
+import { buildWorkshopAbsModulesAnalytics } from './workshopAbsModulesAnalytics.js';
 
 type AbsRouteDeps = {
   WORKSHOP_ID: string | undefined;
@@ -880,8 +881,6 @@ export function registerAbsModuleRoutes(app: Express, deps: AbsRouteDeps) {
   // -------- Analytics (antes de :publicId) --------
   app.get('/api/abs-modules/analytics', async (req, res) => {
     try {
-      const { buildWorkshopAbsModulesAnalytics } = await import('./workshopAbsModulesAnalytics');
-
       const presetRaw = String(req.query.preset || '30d');
       const validPresets = new Set(['7d', '30d', '90d', 'month', 'year']);
       const preset = validPresets.has(presetRaw) ? presetRaw : '30d';
