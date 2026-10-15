@@ -482,6 +482,18 @@ export function groupAbsModuleApplications(
   };
 }
 
+/**
+ * Só a aplicação original — usada na lista de modelos e na etiqueta
+ * (secundárias ficam só na ficha/detalhe).
+ */
+export function absModulePrimaryApplicationOnly(
+  apps: WorkshopAbsModuleApplication[] | null | undefined,
+  moduleKind: AbsModuleKind | string | null | undefined
+): WorkshopAbsModuleApplication[] {
+  const primary = groupAbsModuleApplications(apps, moduleKind).primary;
+  return primary ? [primary] : [];
+}
+
 /** Marcas de aplicação (veículo) únicas, na ordem cadastrada. */
 export function formatAbsApplicationBrands(
   apps: WorkshopAbsModuleApplication[] | null | undefined

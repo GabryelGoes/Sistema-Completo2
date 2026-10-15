@@ -66,6 +66,7 @@ import {
   absModuleKindLabel,
   absModuleStatusLabel,
   describeAbsModuleMovement,
+  absModulePrimaryApplicationOnly,
   formatAbsApplicationBrands,
   formatAbsApplicationVehicles,
   formatAbsModuleMoney,
@@ -583,17 +584,14 @@ function detailHeroPhotoUrl(mod: WorkshopAbsModule): string | null {
 }
 
 function detailApplicationLabel(mod: WorkshopAbsModule): string {
-  const apps = mod.catalog_model?.applications || [];
+  const apps = absModulePrimaryApplicationOnly(
+    mod.catalog_model?.applications,
+    mod.module_kind
+  );
   if (apps.length) {
     const brands = formatAbsApplicationBrands(apps);
     const vehicles = formatAbsApplicationVehicles(apps);
-    if (brands && vehicles) {
-      const multiBrand = new Set(
-        apps.map((a) => String(a.vehicle_brand || '').trim().toLowerCase()).filter(Boolean)
-      ).size > 1;
-      if (multiBrand) return vehicles;
-      return `${brands} · ${vehicles}`;
-    }
+    if (brands && vehicles) return `${brands} · ${vehicles}`;
     return brands || vehicles || '—';
   }
   return [mod.application, mod.model, mod.year_label].filter(Boolean).join(' · ') || '—';
@@ -2003,13 +2001,11 @@ export function WorkshopAbsModulesModal({
                             resize: 'cover',
                           }) || kindPhotoRaw
                         : null;
-                      const apps = [
-                        ...new Set(
-                          (m.applications || [])
-                            .map((a) => String(a.vehicle_brand || '').trim())
-                            .filter(Boolean)
-                        ),
-                      ];
+                      const primaryApp = absModulePrimaryApplicationOnly(
+                        m.applications,
+                        m.module_kind
+                      )[0];
+                      const appBrand = String(primaryApp?.vehicle_brand || '').trim();
                       return (
                         <li key={m.id}>
                           <button
@@ -2033,7 +2029,7 @@ export function WorkshopAbsModulesModal({
                                 {m.manufacturer?.trim() || '—'}
                               </span>
                               <span className="mt-0.5 block text-[13px] text-zinc-600 dark:text-zinc-300">
-                                {apps.length ? `${apps.join(', ')} · ` : ''}
+                                {appBrand ? `${appBrand} · ` : ''}
                                 {modelPrimaryCode(m)} · {absModuleKindLabel(m.module_kind)}
                                 {m.family ? ` · ${m.family}` : ''}
                               </span>

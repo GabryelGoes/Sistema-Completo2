@@ -31,6 +31,7 @@ import {
   ABS_MODULE_KIND_OPTIONS,
   ABS_MODULE_STATUS_OPTIONS,
   absModuleKindLabel,
+  absModulePrimaryApplicationOnly,
   formatAbsModuleMoney,
   looksLikeAbsModuleCode,
   normalizeAbsModuleCode,
@@ -64,34 +65,18 @@ function modelPrimaryCode(m: WorkshopAbsModuleModel): string {
   return primaryCodeForScope(m.codes, scope) || primaryCodeForScope(m.codes, 'completo') || '—';
 }
 
-/** Marcas de aplicação (veículo) do modelo — coluna "Aplicação". */
+/** Marca da aplicação original — coluna "Aplicação" (ignora secundárias). */
 function modelApplicationLabel(m: WorkshopAbsModuleModel): string {
-  const brands: string[] = [];
-  const seen = new Set<string>();
-  for (const a of m.applications || []) {
-    const brand = String(a.vehicle_brand || '').trim();
-    if (!brand) continue;
-    const key = brand.toLowerCase();
-    if (seen.has(key)) continue;
-    seen.add(key);
-    brands.push(brand);
-  }
-  return brands.length ? brands.join(', ') : '—';
+  const primary = absModulePrimaryApplicationOnly(m.applications, m.module_kind)[0];
+  const brand = String(primary?.vehicle_brand || '').trim();
+  return brand || '—';
 }
 
-/** Modelos de veículo da aplicação — coluna "Modelo aplic.". */
+/** Modelo de veículo da aplicação original — coluna "Modelo aplic.". */
 function modelApplicationVehiclesLabel(m: WorkshopAbsModuleModel): string {
-  const models: string[] = [];
-  const seen = new Set<string>();
-  for (const a of m.applications || []) {
-    const model = String(a.vehicle_model || '').trim();
-    if (!model) continue;
-    const key = model.toLowerCase();
-    if (seen.has(key)) continue;
-    seen.add(key);
-    models.push(model);
-  }
-  return models.length ? models.join(', ') : '—';
+  const primary = absModulePrimaryApplicationOnly(m.applications, m.module_kind)[0];
+  const model = String(primary?.vehicle_model || '').trim();
+  return model || '—';
 }
 
 function absKindPhotoUrl(kind: AbsModuleKind | string | null | undefined): string | null {

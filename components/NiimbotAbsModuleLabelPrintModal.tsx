@@ -27,6 +27,7 @@ import {
 } from '../utils/niimbotLabelRender';
 import {
   absModuleKindLabel,
+  absModulePrimaryApplicationOnly,
   formatAbsApplicationBrands,
   formatAbsApplicationVehicles,
   formatAbsApplicationYears,
@@ -63,11 +64,13 @@ async function resolveAbsLabelInput(module: WorkshopAbsModule): Promise<NiimbotA
     }
   }
 
-  const applicationBrand = formatAbsApplicationBrands(apps);
+  // Etiqueta: só a aplicação original (não as secundárias).
+  const primaryApps = absModulePrimaryApplicationOnly(apps, module.module_kind);
+  const applicationBrand = formatAbsApplicationBrands(primaryApps);
   const applicationVehicles =
-    formatAbsApplicationVehicles(apps) || String(module.application || '').trim();
+    formatAbsApplicationVehicles(primaryApps) || String(module.application || '').trim();
   const applicationYears =
-    formatAbsApplicationYears(apps) || String(module.year_label || '').trim();
+    formatAbsApplicationYears(primaryApps) || String(module.year_label || '').trim();
 
   return {
     publicId: module.public_id,
