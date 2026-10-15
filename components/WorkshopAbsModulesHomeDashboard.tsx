@@ -342,8 +342,19 @@ export function WorkshopAbsModulesHomeDashboard({
           key={`${expandedPublicId}-${expandedTick}`}
           publicId={expandedPublicId}
           onBack={() => {
+            const id = expandedPublicId;
             setExpandedPublicId(null);
             void loadModels();
+            if (id) {
+              setFlowEditPublicId(null);
+              setFlowDisassembleId(null);
+              setFlowMissingId(null);
+              setFlowModelId(null);
+              setFlowForm(false);
+              setFlowScan(false);
+              setFlowPublicId(id);
+              setFlowOpen(true);
+            }
           }}
           onEdit={(mod) => {
             setFlowPublicId(null);

@@ -781,7 +781,9 @@ export function WorkshopAbsModulesModal({
   onExpandDetail,
 }: WorkshopAbsModulesModalProps) {
   const isDesktopShell = useDesktopShellLayout();
-  const [view, setView] = useState<View>({ kind: 'models' });
+  const [view, setView] = useState<View>(() =>
+    initialEditPublicId || initialShowForm ? { kind: 'form' } : { kind: 'models' }
+  );
   const isFullscreenShell = isDesktopShell && view.kind === 'form';
   const [models, setModels] = useState<WorkshopAbsModuleModel[]>([]);
   const [loading, setLoading] = useState(false);
@@ -799,6 +801,8 @@ export function WorkshopAbsModulesModal({
   /** Cadastro de nova unidade vinculada a um modelo já existente. */
   const [createForModelId, setCreateForModelId] = useState<string | null>(null);
   const [labelPrintModules, setLabelPrintModules] = useState<WorkshopAbsModule[] | null>(null);
+  /** Unidades recém-criadas na edição — painel didático de etiquetas. */
+  const [createdUnitsPreview, setCreatedUnitsPreview] = useState<WorkshopAbsModule[] | null>(null);
   const [modelAddQty, setModelAddQty] = useState('1');
   const [pendingPhotos, setPendingPhotos] = useState<PendingAbsPhoto[]>([]);
   const [existingPhotos, setExistingPhotos] = useState<WorkshopAbsModulePhoto[]>([]);
@@ -943,6 +947,7 @@ export function WorkshopAbsModulesModal({
     setEditingModule(null);
     setCreateForModelId(null);
     setLabelPrintModules(null);
+    setCreatedUnitsPreview(null);
     setPendingPhotos((prev) => {
       prev.forEach((p) => URL.revokeObjectURL(p.previewUrl));
       return [];
@@ -1480,30 +1485,31 @@ export function WorkshopAbsModulesModal({
       setExistingPhotos([]);
       setEditingModule(null);
       setCreateForModelId(null);
-      openDetail(saved);
 
-      if (wasEditing && createdBatch.length > 0) {
+      if (createdBatch.length > 0) {
         const first = createdBatch[0]!;
         const last = createdBatch[createdBatch.length - 1]!;
+        setCreatedUnitsPreview(createdBatch);
+        setView({ kind: 'form' });
         setSuccessMsg(
-          `Cadastro atualizado e ${createdBatch.length} unidade(s) adicionada(s): ${formatAbsModuleSequence(first.sequence_number)}–${formatAbsModuleSequence(last.sequence_number)}.`
+          wasEditing
+            ? `Cadastro atualizado e ${createdBatch.length} unidade(s) adicionada(s): ${formatAbsModuleSequence(first.sequence_number)}–${formatAbsModuleSequence(last.sequence_number)}.`
+            : createdBatch.length > 1
+              ? `${createdBatch.length} unidades cadastradas: ${formatAbsModuleSequence(first.sequence_number)}–${formatAbsModuleSequence(last.sequence_number)}.`
+              : `Unidade ${formatAbsModuleSequence(saved.sequence_number)} (${saved.public_id}) cadastrada.`
         );
-        setLabelPrintModules(createdBatch);
-      } else if (wasEditing) {
-        setSuccessMsg(
-          `Unidade ${formatAbsModuleSequence(saved.sequence_number)} (${saved.public_id}) atualizada.`
-        );
-      } else if (createdBatch.length > 1) {
-        const first = createdBatch[0]!;
-        const last = createdBatch[createdBatch.length - 1]!;
-        setSuccessMsg(
-          `${createdBatch.length} unidades cadastradas: ${formatAbsModuleSequence(first.sequence_number)}–${formatAbsModuleSequence(last.sequence_number)}. Imprima as etiquetas na ordem.`
-        );
-        setLabelPrintModules(createdBatch);
       } else {
-        setSuccessMsg(
-          `Unidade ${formatAbsModuleSequence(saved.sequence_number)} (${saved.public_id}) cadastrada.`
-        );
+        setCreatedUnitsPreview(null);
+        openDetail(saved);
+        if (wasEditing) {
+          setSuccessMsg(
+            `Unidade ${formatAbsModuleSequence(saved.sequence_number)} (${saved.public_id}) atualizada.`
+          );
+        } else {
+          setSuccessMsg(
+            `Unidade ${formatAbsModuleSequence(saved.sequence_number)} (${saved.public_id}) cadastrada.`
+          );
+        }
       }
       void loadModels();
     } catch (e) {
@@ -1621,6 +1627,12 @@ export function WorkshopAbsModulesModal({
   const goBack = useCallback(() => {
     setAction(null);
     setActionError(null);
+    if (view.kind === 'form' && createdUnitsPreview?.length) {
+      const first = createdUnitsPreview[0]!;
+      setCreatedUnitsPreview(null);
+      openDetail(first);
+      return;
+    }
     if (view.kind === 'form' && editingModule) {
       openDetail(editingModule);
       setEditingModule(null);
@@ -1650,7 +1662,7 @@ export function WorkshopAbsModulesModal({
     }
     setView({ kind: 'models' });
     void loadModels();
-  }, [editingModule, loadModels, openDetail, openModel, view]);
+  }, [createdUnitsPreview, editingModule, loadModels, openDetail, openModel, view]);
 
   if (!isOpen) return null;
 
@@ -2217,14 +2229,73 @@ export function WorkshopAbsModulesModal({
 
             {view.kind === 'form' ? (
               <div className="space-y-4">
-                {editingModule ? (
-                  <div className="rounded-2xl bg-sky-50 px-4 py-3 text-[13px] text-sky-950 dark:bg-sky-950/40 dark:text-sky-100">
-                    Editando {formatAbsModuleSequence(editingModule.sequence_number)} ·{' '}
-                    <span className="font-mono font-semibold">{editingModule.public_id}</span>
-                    {' — '}o código ABS e o número sequencial não mudam. Use “Adicionar mais
-                    unidades” para incluir novas peças iguais a esta.
+                {createdUnitsPreview && createdUnitsPreview.length > 0 ? (
+                  <div className="space-y-4 rounded-2xl border-0 bg-emerald-50 p-4 dark:bg-emerald-950/40 sm:p-5">
+                    <div>
+                      <h3 className="text-[16px] font-bold text-emerald-950 dark:text-emerald-50">
+                        {createdUnitsPreview.length === 1
+                          ? 'Nova unidade pronta'
+                          : `${createdUnitsPreview.length} novas unidades prontas`}
+                      </h3>
+                      <p className="mt-1 text-[13px] text-emerald-900/80 dark:text-emerald-100/80">
+                        Cada unidade recebeu seu próprio número (#N) e código ABS. Imprima as
+                        etiquetas agora ou continue para o detalhe.
+                      </p>
+                    </div>
+                    <ul className="space-y-2">
+                      {createdUnitsPreview.map((u) => (
+                        <li
+                          key={u.id}
+                          className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-white/80 px-3 py-2.5 dark:bg-zinc-950/50"
+                        >
+                          <div className="min-w-0">
+                            <p className="text-[14px] font-bold tabular-nums text-zinc-900 dark:text-white">
+                              {formatAbsModuleSequence(u.sequence_number)}{' '}
+                              <span className="font-mono text-[13px] font-semibold text-emerald-700 dark:text-emerald-300">
+                                {u.public_id}
+                              </span>
+                            </p>
+                            <p className="text-[12px] text-zinc-500">
+                              {absModuleKindLabel(u.module_kind)}
+                              {u.location ? ` · ${u.location}` : ''}
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setLabelPrintModules([u])}
+                            className="inline-flex items-center gap-1.5 rounded-xl bg-amber-50 px-3 py-2 text-[12px] font-semibold text-amber-950 hover:bg-amber-100 dark:bg-amber-950/50 dark:text-amber-100"
+                          >
+                            <Printer className="h-3.5 w-3.5" />
+                            Etiqueta
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                    <div className="flex flex-col gap-2 sm:flex-row">
+                      <button
+                        type="button"
+                        onClick={() => setLabelPrintModules(createdUnitsPreview)}
+                        className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-amber-500 px-4 py-3 text-[14px] font-semibold text-amber-950 hover:bg-amber-400"
+                      >
+                        <Printer className="h-4 w-4" />
+                        Imprimir todas as novas
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const first = createdUnitsPreview[0]!;
+                          setCreatedUnitsPreview(null);
+                          openDetail(first);
+                        }}
+                        className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 text-[14px] font-semibold text-white hover:bg-emerald-500"
+                      >
+                        Continuar
+                      </button>
+                    </div>
                   </div>
                 ) : null}
+                {!createdUnitsPreview ? (
+                <>
                 <section className="space-y-3">
                   <h3 className="text-[14px] font-bold text-zinc-900 dark:text-white">
                     1. Modelo técnico
@@ -2379,12 +2450,12 @@ export function WorkshopAbsModulesModal({
                     </Field>
                     <Field
                       label={
-                        editingModule ? 'Adicionar mais unidades' : 'Quantidade de unidades'
+                        editingModule ? 'Adicionar mais unidades iguais' : 'Quantidade de unidades'
                       }
                       hint={
                         editingModule
-                          ? `Quantas unidades iguais criar agora além desta (0 = só salvar alterações; máx. ${ABS_MODULE_CREATE_QTY_MAX}). Cada nova recebe seu #N e ABS-######.`
-                          : `Quantas unidades físicas iguais cadastrar agora (1–${ABS_MODULE_CREATE_QTY_MAX}). Cada uma recebe seu #N e ABS-######; ao salvar, abre a impressão em sequência.`
+                          ? `0 = só salvar esta unidade. 1–${ABS_MODULE_CREATE_QTY_MAX} = criar cópias novas (novo #N e ABS-###### cada).`
+                          : `Quantas unidades físicas iguais cadastrar agora (1–${ABS_MODULE_CREATE_QTY_MAX}).`
                       }
                     >
                       <input
@@ -2410,6 +2481,51 @@ export function WorkshopAbsModulesModal({
                           editingModule ? 'Adicionar mais unidades' : 'Quantidade de unidades'
                         }
                       />
+                      {editingModule &&
+                      parseAbsCreateQty(wizard.unit_qty, { allowZero: true }) > 0 ? (
+                        <div className="mt-2 rounded-xl bg-emerald-50 px-3 py-2.5 text-[12px] leading-snug text-emerald-950 dark:bg-emerald-950/40 dark:text-emerald-100">
+                          <p className="font-semibold">
+                            Ao salvar, serão criadas{' '}
+                            {parseAbsCreateQty(wizard.unit_qty, { allowZero: true })} unidade(s)
+                            nova(s).
+                          </p>
+                          <p className="mt-1 opacity-90">
+                            Elas herdam fabricante, códigos e aplicação deste modelo. Depois do
+                            salvamento você verá a lista com as etiquetas disponíveis para
+                            impressão.
+                          </p>
+                          <div className="mt-2 flex flex-wrap gap-1.5">
+                            {[1, 2, 3, 5].map((n) => (
+                              <button
+                                key={n}
+                                type="button"
+                                onClick={() => setWizard((w) => ({ ...w, unit_qty: String(n) }))}
+                                className={`rounded-lg px-2.5 py-1 text-[11px] font-bold ${
+                                  parseAbsCreateQty(wizard.unit_qty, { allowZero: true }) === n
+                                    ? 'bg-emerald-600 text-white'
+                                    : 'bg-white text-emerald-900 dark:bg-zinc-900 dark:text-emerald-100'
+                                }`}
+                              >
+                                +{n}
+                              </button>
+                            ))}
+                            <button
+                              type="button"
+                              onClick={() => setWizard((w) => ({ ...w, unit_qty: '0' }))}
+                              className="rounded-lg bg-white px-2.5 py-1 text-[11px] font-bold text-zinc-600 dark:bg-zinc-900 dark:text-zinc-300"
+                            >
+                              Só salvar
+                            </button>
+                          </div>
+                        </div>
+                      ) : null}
+                      {!editingModule && parseAbsCreateQty(wizard.unit_qty) > 1 ? (
+                        <p className="mt-2 rounded-xl bg-emerald-50 px-3 py-2 text-[12px] text-emerald-950 dark:bg-emerald-950/40 dark:text-emerald-100">
+                          Serão gerados {parseAbsCreateQty(wizard.unit_qty)} códigos ABS e
+                          sequências (#1, #2…). Após salvar, você poderá imprimir todas as
+                          etiquetas de uma vez.
+                        </p>
+                      ) : null}
                     </Field>
                     <Field label="Custo" hint="Custo individual desta unidade (não do modelo).">
                       <CurrencyMaskInput
@@ -2637,6 +2753,8 @@ export function WorkshopAbsModulesModal({
                       ? `Salvar ${parseAbsCreateQty(wizard.unit_qty)} unidades e gerar IDs`
                       : 'Salvar modelo + unidade e gerar ID'}
                 </button>
+                </>
+                ) : null}
               </div>
             ) : null}
 
