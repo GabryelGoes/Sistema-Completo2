@@ -127,10 +127,24 @@ export function WorkshopAbsModulesHomeDashboard({
   const [flowForm, setFlowForm] = useState(false);
   const [flowModelId, setFlowModelId] = useState<string | null>(null);
   const [flowScan, setFlowScan] = useState(false);
+  const [flowEditPublicId, setFlowEditPublicId] = useState<string | null>(null);
+  const [flowDisassembleId, setFlowDisassembleId] = useState<string | null>(null);
   /** Ficha expandida completa (botão Expandir no detalhe). */
   const [expandedPublicId, setExpandedPublicId] = useState<string | null>(null);
+  const [expandedTick, setExpandedTick] = useState(0);
 
-  useBrowserBackLayer(!!expandedPublicId, () => setExpandedPublicId(null));
+  useBrowserBackLayer(!!expandedPublicId && !flowOpen, () => setExpandedPublicId(null));
+
+  const resetFlow = useCallback(() => {
+    setFlowOpen(false);
+    setFlowPublicId(null);
+    setFlowMissingId(null);
+    setFlowModelId(null);
+    setFlowForm(false);
+    setFlowScan(false);
+    setFlowEditPublicId(null);
+    setFlowDisassembleId(null);
+  }, []);
 
   useEffect(() => {
     const t = window.setTimeout(() => setQuery(queryInput), 320);
@@ -321,33 +335,46 @@ export function WorkshopAbsModulesHomeDashboard({
   // labKindsTick: garante que miniaturas atualizem quando as fotos do lab mudarem
   void labKindsTick;
 
-  if (expandedPublicId) {
-    return (
-      <WorkshopAbsModuleDetailView
-        publicId={expandedPublicId}
-        onBack={() => {
-          setExpandedPublicId(null);
-          void loadModels();
-        }}
-        onEdit={(mod) => {
-          setExpandedPublicId(null);
-          setFlowPublicId(mod.public_id);
-          setFlowMissingId(null);
-          setFlowModelId(null);
-          setFlowForm(false);
-          setFlowScan(false);
-          setFlowOpen(true);
-        }}
-        onDeleted={() => {
-          setExpandedPublicId(null);
-          void loadModels();
-        }}
-      />
-    );
-  }
-
   return (
     <>
+      {expandedPublicId ? (
+        <WorkshopAbsModuleDetailView
+          key={`${expandedPublicId}-${expandedTick}`}
+          publicId={expandedPublicId}
+          onBack={() => {
+            setExpandedPublicId(null);
+            void loadModels();
+          }}
+          onEdit={(mod) => {
+            setFlowPublicId(null);
+            setFlowMissingId(null);
+            setFlowModelId(null);
+            setFlowForm(false);
+            setFlowScan(false);
+            setFlowDisassembleId(null);
+            setFlowEditPublicId(mod.public_id);
+            setFlowOpen(true);
+          }}
+          onDisassemble={(mod) => {
+            setFlowPublicId(null);
+            setFlowMissingId(null);
+            setFlowModelId(null);
+            setFlowForm(false);
+            setFlowScan(false);
+            setFlowEditPublicId(null);
+            setFlowDisassembleId(mod.public_id);
+            setFlowOpen(true);
+          }}
+          onOpenUnit={(id) => {
+            setExpandedPublicId(id);
+            setExpandedTick((t) => t + 1);
+          }}
+          onDeleted={() => {
+            setExpandedPublicId(null);
+            void loadModels();
+          }}
+        />
+      ) : (
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-auto touch-pan-y px-4 pb-[max(2rem,env(safe-area-inset-bottom))] custom-scrollbar [scrollbar-gutter:stable] sm:px-6 lg:px-8">
         <div className="mb-5 flex flex-col gap-3 pt-1 sm:mb-6 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0">
@@ -645,32 +672,27 @@ export function WorkshopAbsModulesHomeDashboard({
           )}
         </div>
       </div>
+      )}
 
       {flowOpen ? (
         <WorkshopAbsModulesModal
           isOpen
           onClose={() => {
-            setFlowOpen(false);
-            setFlowPublicId(null);
-            setFlowMissingId(null);
-            setFlowModelId(null);
-            setFlowForm(false);
-            setFlowScan(false);
+            resetFlow();
+            setExpandedTick((t) => t + 1);
             void loadModels();
           }}
-          initialPublicId={flowPublicId}
+          initialPublicId={flowEditPublicId || flowDisassembleId ? null : flowPublicId}
           initialMissingPublicId={flowMissingId}
           initialModelId={flowModelId}
           initialShowForm={flowForm}
           initialShowScan={flowScan}
+          initialEditPublicId={flowEditPublicId}
+          initialDisassemblePublicId={flowDisassembleId}
           onExpandDetail={(mod) => {
-            setFlowOpen(false);
-            setFlowPublicId(null);
-            setFlowMissingId(null);
-            setFlowModelId(null);
-            setFlowForm(false);
-            setFlowScan(false);
+            resetFlow();
             setExpandedPublicId(mod.public_id);
+            setExpandedTick((t) => t + 1);
           }}
         />
       ) : null}

@@ -93,6 +93,7 @@ import { RegistrationPortal } from './ui/RegistrationPortal';
 import { resolveIosModalOverlayClass, NESTED_STOCK_OVERLAY_Z } from './ui/iosModalStyles';
 import { useDesktopShellLayout } from './ui/DesktopShellContext';
 import { useBrowserBackLayer } from './ui/BackNavigationContext';
+import { desktopShellPortaledChildOverlayClass } from '../utils/desktopShellOverlay';
 
 export type WorkshopAbsModulesModalProps = {
   isOpen: boolean;
@@ -109,6 +110,8 @@ export type WorkshopAbsModulesModalProps = {
   initialShowForm?: boolean;
   /** Abre a listagem com foco em leitura de código. */
   initialShowScan?: boolean;
+  /** Abre direto o formulário de edição da unidade. */
+  initialEditPublicId?: string | null;
   /** Abre a ficha expandida completa da unidade (fotos, aplicações, etc.). */
   onExpandDetail?: (module: WorkshopAbsModule) => void;
 };
@@ -774,10 +777,12 @@ export function WorkshopAbsModulesModal({
   initialModelId = null,
   initialShowForm = false,
   initialShowScan = false,
+  initialEditPublicId = null,
   onExpandDetail,
 }: WorkshopAbsModulesModalProps) {
   const isDesktopShell = useDesktopShellLayout();
   const [view, setView] = useState<View>({ kind: 'models' });
+  const isFullscreenShell = isDesktopShell && view.kind === 'form';
   const [models, setModels] = useState<WorkshopAbsModuleModel[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -945,6 +950,10 @@ export function WorkshopAbsModulesModal({
     setExistingPhotos([]);
 
     const boot = async () => {
+      if (initialEditPublicId) {
+        // Edição fullscreen tratada em efeito dedicado (openEdit).
+        return;
+      }
       if (initialDisassemblePublicId) {
         setLoading(true);
         try {
@@ -1024,6 +1033,7 @@ export function WorkshopAbsModulesModal({
     initialMissingPublicId,
     initialPublicId,
     initialDisassemblePublicId,
+    initialEditPublicId,
     initialModelId,
     initialShowForm,
     initialShowScan,
@@ -1239,6 +1249,31 @@ export function WorkshopAbsModulesModal({
     },
     []
   );
+
+  useEffect(() => {
+    if (!isOpen || !initialEditPublicId) return;
+    let cancelled = false;
+    const run = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const mod = await getWorkshopAbsModule(initialEditPublicId);
+        if (cancelled) return;
+        await openEdit(mod);
+      } catch (e) {
+        if (!cancelled) {
+          setError(e instanceof Error ? e.message : 'Falha ao abrir edição.');
+          setView({ kind: 'models' });
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    };
+    void run();
+    return () => {
+      cancelled = true;
+    };
+  }, [isOpen, initialEditPublicId, openEdit]);
 
   const clearPendingPhotos = useCallback(() => {
     setPendingPhotos((prev) => {
@@ -1631,17 +1666,25 @@ export function WorkshopAbsModulesModal({
     <>
     <RegistrationPortal>
       <div
-        className={resolveIosModalOverlayClass(isDesktopShell, NESTED_STOCK_OVERLAY_Z)}
+        className={
+          isFullscreenShell
+            ? `${desktopShellPortaledChildOverlayClass(true, NESTED_STOCK_OVERLAY_Z)} flex min-h-0 w-full flex-col overflow-hidden bg-white dark:bg-zinc-950`
+            : resolveIosModalOverlayClass(isDesktopShell, NESTED_STOCK_OVERLAY_Z)
+        }
         role="dialog"
         aria-modal="true"
         aria-label="Módulos ABS"
       >
         <div
-          className={`flex w-full flex-col overflow-hidden rounded-[1.75rem] border-0 bg-zinc-50 shadow-none dark:bg-zinc-950 sm:rounded-[28px] ${
-            isDesktopShell
-              ? 'max-h-[min(860px,94vh)] max-w-5xl'
-              : 'max-h-[min(920px,94dvh)] max-w-3xl'
-          }`}
+          className={
+            isFullscreenShell
+              ? 'relative flex h-full min-h-0 w-full max-w-none flex-1 flex-col overflow-hidden bg-white dark:bg-zinc-950'
+              : `flex w-full flex-col overflow-hidden rounded-[1.75rem] border-0 bg-zinc-50 shadow-none dark:bg-zinc-950 sm:rounded-[28px] ${
+                  isDesktopShell
+                    ? 'max-h-[min(860px,94vh)] max-w-5xl'
+                    : 'max-h-[min(920px,94dvh)] max-w-3xl'
+                }`
+          }
         >
           <header className="flex shrink-0 items-center gap-3 border-b border-zinc-200/80 px-4 py-4 dark:border-white/10">
             {view.kind !== 'models' ? (
@@ -1673,14 +1716,28 @@ export function WorkshopAbsModulesModal({
                 {view.kind === 'missing' && 'Código não encontrado'}
               </p>
             </div>
-            <button
-              type="button"
-              onClick={onClose}
-              className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border-0 bg-zinc-100 text-zinc-700 shadow-none dark:bg-white/5 dark:text-white"
-              aria-label="Fechar"
-            >
-              <X className="h-5 w-5" />
-            </button>
+            <div className="flex shrink-0 items-center gap-1.5">
+              {view.kind === 'detail' && onExpandDetail ? (
+                <button
+                  type="button"
+                  onClick={() => onExpandDetail(view.module)}
+                  className="inline-flex h-11 items-center gap-1.5 rounded-2xl border-0 bg-emerald-600 px-3.5 text-[13px] font-semibold text-white shadow-none hover:bg-emerald-500 dark:bg-emerald-500 dark:hover:bg-emerald-400"
+                  aria-label="Expandir ficha completa"
+                  title="Expandir ficha completa"
+                >
+                  <Maximize2 className="h-4 w-4" />
+                  Expandir
+                </button>
+              ) : null}
+              <button
+                type="button"
+                onClick={onClose}
+                className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border-0 bg-zinc-100 text-zinc-700 shadow-none dark:bg-white/5 dark:text-white"
+                aria-label="Fechar"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
           </header>
 
           <div
@@ -2899,16 +2956,6 @@ export function WorkshopAbsModulesModal({
                       {/* Rodapé: ações modestas + CTAs; sem foto */}
                       <div className="space-y-2 border-t border-zinc-100 bg-white px-2.5 py-2.5 dark:border-white/[0.06] dark:bg-zinc-950 sm:px-3.5">
                         <div className="flex flex-wrap items-center gap-0.5">
-                          {onExpandDetail ? (
-                            <button
-                              type="button"
-                              onClick={() => onExpandDetail(detail)}
-                              className={secondaryBtn}
-                            >
-                              <Maximize2 className="h-3.5 w-3.5" />
-                              Expandir
-                            </button>
-                          ) : null}
                           <button
                             type="button"
                             onClick={() => {
