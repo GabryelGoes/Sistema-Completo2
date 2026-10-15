@@ -877,6 +877,135 @@ export function registerAbsModuleRoutes(app: Express, deps: AbsRouteDeps) {
     }
   });
 
+  // -------- Analytics (antes de :publicId) --------
+  app.get('/api/abs-modules/analytics', async (req, res) => {
+    try {
+      const { buildWorkshopAbsModulesAnalytics } = await import('./workshopAbsModulesAnalytics');
+
+      const presetRaw = String(req.query.preset || '30d');
+      const validPresets = new Set(['7d', '30d', '90d', 'month', 'year']);
+      const preset = validPresets.has(presetRaw) ? presetRaw : '30d';
+
+      const now = new Date();
+      const to = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+      let from: Date;
+      let periodLabel: string;
+      if (preset === '7d') {
+        from = new Date(to);
+        from.setDate(from.getDate() - 6);
+        periodLabel = 'Últimos 7 dias';
+      } else if (preset === '90d') {
+        from = new Date(to);
+        from.setDate(from.getDate() - 89);
+        periodLabel = 'Últimos 90 dias';
+      } else if (preset === 'year') {
+        from = new Date(now.getFullYear(), 0, 1);
+        periodLabel = `Ano ${now.getFullYear()}`;
+      } else if (preset === 'month') {
+        from = new Date(now.getFullYear(), now.getMonth(), 1);
+        periodLabel = 'Este mês';
+      } else {
+        from = new Date(to);
+        from.setDate(from.getDate() - 29);
+        periodLabel = 'Últimos 30 dias';
+      }
+      from.setHours(0, 0, 0, 0);
+
+      if (isDevMemoryActive(deps)) {
+        const modules = listDevAbsModules({}).map((m) => ({
+          id: m.id,
+          public_id: m.public_id,
+          manufacturer: m.manufacturer,
+          original_code: m.original_code,
+          module_kind: m.module_kind,
+          status: m.status,
+          unit_price: Number(m.unit_price) || 0,
+          unit_cost: Number(m.unit_cost) || 0,
+          model_id: m.model_id,
+          created_at: m.created_at,
+        }));
+        const movements = modules.flatMap((m) =>
+          getDevAbsModuleMovements(m.public_id).map((mv) => ({
+            id: mv.id,
+            module_id: m.id,
+            movement_type: mv.movement_type,
+            created_at: mv.created_at,
+          }))
+        );
+        return res.json(
+          buildWorkshopAbsModulesAnalytics({
+            modules,
+            movements,
+            from,
+            to,
+            periodLabel: `${periodLabel} (dev)`,
+          })
+        );
+      }
+
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({ error: 'Servidor não configurado.' });
+      }
+
+      const fromIso = from.toISOString();
+      const toIso = to.toISOString();
+      const [modulesRes, movementsRes] = await Promise.all([
+        supabaseAdmin
+          .from('workshop_abs_modules')
+          .select(
+            'id, public_id, manufacturer, original_code, module_kind, status, unit_price, unit_cost, model_id, created_at'
+          )
+          .eq('workshop_id', WORKSHOP_ID),
+        supabaseAdmin
+          .from('workshop_abs_module_movements')
+          .select('id, module_id, movement_type, created_at')
+          .eq('workshop_id', WORKSHOP_ID)
+          .gte('created_at', fromIso)
+          .lte('created_at', toIso),
+      ]);
+      if (modulesRes.error) {
+        console.error('[API] GET /api/abs-modules/analytics modules:', modulesRes.error);
+        return res.status(500).json({ error: modulesRes.error.message });
+      }
+      if (movementsRes.error) {
+        console.error('[API] GET /api/abs-modules/analytics movements:', movementsRes.error);
+        return res.status(500).json({ error: movementsRes.error.message });
+      }
+
+      const modules = (modulesRes.data || []).map((m) => ({
+        id: String(m.id),
+        public_id: String(m.public_id || ''),
+        manufacturer: (m.manufacturer as string) ?? null,
+        original_code: (m.original_code as string) ?? null,
+        module_kind: String(m.module_kind || 'outro'),
+        status: String(m.status || 'disponivel'),
+        unit_price: Number(m.unit_price) || 0,
+        unit_cost: Number(m.unit_cost) || 0,
+        model_id: m.model_id != null ? String(m.model_id) : null,
+        created_at: String(m.created_at || ''),
+      }));
+      const movements = (movementsRes.data || []).map((mv) => ({
+        id: String(mv.id),
+        module_id: String(mv.module_id),
+        movement_type: String(mv.movement_type || ''),
+        created_at: String(mv.created_at || ''),
+      }));
+
+      return res.json(
+        buildWorkshopAbsModulesAnalytics({
+          modules,
+          movements,
+          from,
+          to,
+          periodLabel,
+        })
+      );
+    } catch (err: any) {
+      console.error('[API] GET /api/abs-modules/analytics:', err);
+      return res.status(500).json({ error: err?.message ?? 'Erro desconhecido' });
+    }
+  });
+
   // -------- Modules list / create --------
   app.get('/api/abs-modules', async (req, res) => {
     try {

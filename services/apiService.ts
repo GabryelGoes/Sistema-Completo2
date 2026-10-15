@@ -3644,6 +3644,19 @@ export async function getWorkshopAbsModule(publicId: string): Promise<WorkshopAb
   return normalizeAbsModuleRow(data.module);
 }
 
+export async function getWorkshopAbsModulesAnalytics(
+  preset: '7d' | '30d' | '90d' | 'month' | 'year' = '30d'
+): Promise<import('../utils/workshopAbsModulesAnalytics').AbsModulesAnalyticsResponse> {
+  const response = await fetch(
+    `${API_BASE}/abs-modules/analytics?preset=${encodeURIComponent(preset)}`
+  );
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao carregar gráficos dos módulos ABS (${response.status})`);
+  }
+  return response.json();
+}
+
 export async function getWorkshopAbsModuleMovements(
   publicId: string
 ): Promise<WorkshopAbsModuleMovement[]> {

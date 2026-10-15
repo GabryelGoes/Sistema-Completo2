@@ -39,6 +39,8 @@ import {
   type AbsModuleStatus,
 } from '../utils/workshopAbsModules';
 import { PartPhotoImg } from './ui/PartPhotoImg';
+import { useBrowserBackLayer } from './ui/BackNavigationContext';
+import { WorkshopAbsModulesAnalyticsView } from './WorkshopAbsModulesAnalyticsView';
 import { WorkshopAbsModulesModal } from './WorkshopAbsModulesModal';
 
 export type WorkshopAbsModulesHomeDashboardProps = {
@@ -125,6 +127,9 @@ export function WorkshopAbsModulesHomeDashboard({
   const [flowForm, setFlowForm] = useState(false);
   const [flowModelId, setFlowModelId] = useState<string | null>(null);
   const [flowScan, setFlowScan] = useState(false);
+  const [analyticsOpen, setAnalyticsOpen] = useState(false);
+
+  useBrowserBackLayer(analyticsOpen, () => setAnalyticsOpen(false));
 
   useEffect(() => {
     const t = window.setTimeout(() => setQuery(queryInput), 320);
@@ -314,6 +319,10 @@ export function WorkshopAbsModulesHomeDashboard({
     'lg:grid-cols-[minmax(9.5rem,1.05fr)_minmax(4.75rem,0.7fr)_minmax(5.5rem,0.85fr)_minmax(5.5rem,0.9fr)_minmax(8.5rem,1.45fr)_minmax(5.25rem,0.7fr)_minmax(3.25rem,0.4fr)_4.75rem]';
   // labKindsTick: garante que miniaturas atualizem quando as fotos do lab mudarem
   void labKindsTick;
+
+  if (analyticsOpen) {
+    return <WorkshopAbsModulesAnalyticsView onBack={() => setAnalyticsOpen(false)} />;
+  }
 
   return (
     <>
@@ -632,6 +641,15 @@ export function WorkshopAbsModulesHomeDashboard({
           initialModelId={flowModelId}
           initialShowForm={flowForm}
           initialShowScan={flowScan}
+          onExpandAnalytics={() => {
+            setFlowOpen(false);
+            setFlowPublicId(null);
+            setFlowMissingId(null);
+            setFlowModelId(null);
+            setFlowForm(false);
+            setFlowScan(false);
+            setAnalyticsOpen(true);
+          }}
         />
       ) : null}
     </>

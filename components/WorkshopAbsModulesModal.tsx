@@ -12,6 +12,7 @@ import {
   Images,
   Loader2,
   MapPin,
+  Maximize2,
   Package,
   Pencil,
   Plus,
@@ -107,6 +108,8 @@ export type WorkshopAbsModulesModalProps = {
   initialShowForm?: boolean;
   /** Abre a listagem com foco em leitura de código. */
   initialShowScan?: boolean;
+  /** Abre a página de visualização/gráficos dos módulos ABS. */
+  onExpandAnalytics?: () => void;
 };
 
 type View =
@@ -770,6 +773,7 @@ export function WorkshopAbsModulesModal({
   initialModelId = null,
   initialShowForm = false,
   initialShowScan = false,
+  onExpandAnalytics,
 }: WorkshopAbsModulesModalProps) {
   const isDesktopShell = useDesktopShellLayout();
   const [view, setView] = useState<View>({ kind: 'models' });
@@ -2881,6 +2885,16 @@ export function WorkshopAbsModulesModal({
                       {/* Rodapé: ações modestas + CTAs; sem foto */}
                       <div className="space-y-2 border-t border-zinc-100 bg-white px-2.5 py-2.5 dark:border-white/[0.06] dark:bg-zinc-950 sm:px-3.5">
                         <div className="flex flex-wrap items-center gap-0.5">
+                          {onExpandAnalytics ? (
+                            <button
+                              type="button"
+                              onClick={() => onExpandAnalytics()}
+                              className={secondaryBtn}
+                            >
+                              <Maximize2 className="h-3.5 w-3.5" />
+                              Expandir
+                            </button>
+                          ) : null}
                           <button
                             type="button"
                             onClick={() => {
