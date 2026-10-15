@@ -30,7 +30,8 @@ export type LabelElementKind =
   | 'banner'
   | 'text_field'
   | 'text'
-  | 'human_code';
+  | 'human_code'
+  | 'logo';
 
 export type LabelElementDef = {
   id: string;
@@ -388,7 +389,7 @@ export function createDefaultChaveTemplate(): LabelTemplateLayout {
 export function createDefaultAbsModuloTemplate(): LabelTemplateLayout {
   return {
     id: 'abs_modulo',
-    version: 4,
+    version: 5,
     canvasW: LABEL_W,
     canvasH: LABEL_H,
     elements: [
@@ -407,13 +408,25 @@ export function createDefaultAbsModuloTemplate(): LabelTemplateLayout {
         align: 'left',
       }),
       el({
+        id: 'logo',
+        kind: 'logo',
+        name: 'Logo Rei do ABS',
+        visible: true,
+        x: 348,
+        y: 2,
+        w: 30,
+        h: 30,
+        fontSize: 10,
+        labelText: '',
+      }),
+      el({
         id: 'kind',
         kind: 'text',
         name: 'Tipo',
         visible: true,
-        x: 200,
+        x: 180,
         y: 5,
-        w: 176,
+        w: 162,
         h: 14,
         fontSize: 10,
         fontWeight: 'bold',
@@ -665,7 +678,7 @@ export function normalizeLabelTemplate(
 
   // ABS: só código de barras (sem QR).
   // v1/v2 → v3: remapeia geometria (introdução Fab/Apl/Veíc).
-  // v3+ → v4+: NÃO remapeia posições customizadas — só adiciona campos novos (ex.: Ano).
+  // v3+ → v5+: NÃO remapeia posições customizadas — só adiciona campos novos (Ano, logo).
   if (id === 'abs_modulo') {
     const savedVersion = Number(raw?.version ?? 0);
     const remapGeometry = savedVersion > 0 && savedVersion < 3;
@@ -705,7 +718,7 @@ export function normalizeLabelTemplate(
     // Mantém a versão salva se já for >= padrão; senão sobe para o default atual.
     version:
       id === 'abs_modulo'
-        ? Math.max(Number(raw?.version) || 0, Number(def.version) || 4)
+        ? Math.max(Number(raw?.version) || 0, Number(def.version) || 5)
         : 1,
     canvasW: LABEL_W,
     canvasH: LABEL_H,

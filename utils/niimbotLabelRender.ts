@@ -72,6 +72,66 @@ function findEl(layout: LabelTemplateLayout, id: string): LabelElementDef | unde
   return layout.elements.find((e) => e.id === id);
 }
 
+function loadImage(src: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error(`Falha ao carregar imagem: ${src}`));
+    img.src = src;
+  });
+}
+
+/**
+ * Desenha a logo Rei do ABS em preto sólido para impressão térmica.
+ * A arte original é dourada sobre fundo preto — mantém só os pixels claros como tinta.
+ */
+async function drawAbsBrandLogo(
+  ctx: CanvasRenderingContext2D,
+  elDef: LabelElementDef,
+  logoSrc = '/logo.png'
+): Promise<void> {
+  if (!elDef.visible) return;
+  const size = Math.max(8, Math.min(elDef.w, elDef.h));
+  try {
+    const img = await loadImage(logoSrc);
+    const off = document.createElement('canvas');
+    off.width = size;
+    off.height = size;
+    const octx = off.getContext('2d');
+    if (!octx) return;
+    octx.clearRect(0, 0, size, size);
+    octx.drawImage(img, 0, 0, size, size);
+    const data = octx.getImageData(0, 0, size, size);
+    const px = data.data;
+    for (let i = 0; i < px.length; i += 4) {
+      const r = px[i]!;
+      const g = px[i + 1]!;
+      const b = px[i + 2]!;
+      const a = px[i + 3]!;
+      const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+      // Dourado/amarelo claro → preto; fundo escuro → transparente
+      if (a < 40 || lum < 48) {
+        px[i] = 0;
+        px[i + 1] = 0;
+        px[i + 2] = 0;
+        px[i + 3] = 0;
+      } else {
+        px[i] = 0;
+        px[i + 1] = 0;
+        px[i + 2] = 0;
+        px[i + 3] = 255;
+      }
+    }
+    octx.putImageData(data, 0, 0);
+    const dx = elDef.x + Math.max(0, (elDef.w - size) / 2);
+    const dy = elDef.y + Math.max(0, (elDef.h - size) / 2);
+    ctx.drawImage(off, dx, dy, size, size);
+  } catch {
+    // Sem logo: etiqueta segue sem bloquear a impressão.
+  }
+}
+
 function drawPlainText(
   ctx: CanvasRenderingContext2D,
   elDef: LabelElementDef,
@@ -282,6 +342,9 @@ export async function renderNiimbotAbsModuleLabelDataUrl(
 
   const seqEl = findEl(layout, 'sequence');
   if (seqEl) drawPlainText(ctx, seqEl, seq);
+
+  const logoEl = findEl(layout, 'logo');
+  if (logoEl) await drawAbsBrandLogo(ctx, logoEl);
 
   const kindEl = findEl(layout, 'kind');
   if (kindEl) drawPlainText(ctx, kindEl, kind);

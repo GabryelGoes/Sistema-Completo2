@@ -76,12 +76,11 @@ export async function printAbsModuleLabel(input: AbsModuleLabelInput): Promise<v
     .brand {
       grid-column: 2;
       grid-row: 1;
-      font-size: 6.5pt;
-      font-weight: 800;
-      letter-spacing: 0.04em;
-      text-transform: uppercase;
-      text-align: right;
+      justify-self: end;
       align-self: center;
+      width: 7mm;
+      height: 7mm;
+      object-fit: contain;
     }
     .kind {
       grid-column: 1 / -1;
@@ -135,7 +134,7 @@ export async function printAbsModuleLabel(input: AbsModuleLabelInput): Promise<v
 <body>
   <div class="label">
     <div class="seq">${seq}</div>
-    <div class="brand">REI DO ABS</div>
+    <img class="brand" src="/logo.png" alt="Rei do ABS" />
     <div class="kind">${kind.toUpperCase().includes('MÓDULO') ? kind.toUpperCase() : `MÓDULO ABS · ${kind.toUpperCase()}`}</div>
     <div class="qr-wrap"><img class="qr" src="${qr}" alt="QR ${publicId}" /></div>
     ${meta ? `<div class="meta">${meta.replace(/</g, '&lt;')}</div>` : '<div class="meta"></div>'}
