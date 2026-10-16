@@ -65,6 +65,8 @@ import { WorkshopPartsAnalyticsView } from './WorkshopPartsAnalyticsView';
 import { WorkshopPartStockOutboundModal } from './WorkshopPartStockOutboundModal';
 import { WorkshopPartStockInboundModal } from './WorkshopPartStockInboundModal';
 import { WorkshopPartScanHubModal } from './WorkshopPartScanHubModal';
+import { WorkshopEstoqueLedgerModal } from './WorkshopEstoqueLedgerModal';
+import { WorkshopSuppliersModal } from './WorkshopSuppliersModal';
 import { setActiveBarcodeScanClaim } from '../utils/activeBarcodeScanClaim';
 import { isLabOsQrPayload } from '../utils/labOsQrCode';
 import { normalizeBarcodeInput } from '../utils/workshopPartBarcode';
@@ -237,6 +239,8 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
   const [registrationPrefillBarcode, setRegistrationPrefillBarcode] = useState<string | null>(null);
   const [categories, setCategories] = useState<WorkshopPartCategory[]>([]);
   const [isCategoriesModalOpen, setIsCategoriesModalOpen] = useState(false);
+  const [isLedgerModalOpen, setIsLedgerModalOpen] = useState(false);
+  const [isSuppliersModalOpen, setIsSuppliersModalOpen] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
   const [categoryCreating, setCategoryCreating] = useState(false);
   const [categoryEditingId, setCategoryEditingId] = useState<string | null>(null);
@@ -486,6 +490,8 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
       setCategoryFilter('all');
       setCategoryFilterMenuOpen(false);
       setIsCategoriesModalOpen(false);
+      setIsLedgerModalOpen(false);
+      setIsSuppliersModalOpen(false);
       setNewCategoryName('');
       setCategoryEditingId(null);
       setCategoryEditingName('');
@@ -1376,7 +1382,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
             categoryNamesForPart={categoryNamesForPart}
             onOpenScan={() => setScanHubOpen(true)}
             onOpenAnalytics={() => setIsAnalyticsOpen(true)}
-            onOpenCategories={() => setIsCategoriesModalOpen(true)}
+            onOpenHistory={() => setIsLedgerModalOpen(true)}
             onOpenAbsModules={() => {
               setAbsModulesInitialPublicId(null);
               setAbsModulesOpen(true);
@@ -1780,8 +1786,20 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
           setInboundPart(null);
           void openEditRegistration(part);
         }}
+        onOpenSuppliers={() => setIsSuppliersModalOpen(true)}
       />
     ) : null}
+
+    <WorkshopEstoqueLedgerModal
+      isOpen={isLedgerModalOpen}
+      onClose={() => setIsLedgerModalOpen(false)}
+      onOpenSuppliers={() => setIsSuppliersModalOpen(true)}
+    />
+
+    <WorkshopSuppliersModal
+      isOpen={isSuppliersModalOpen}
+      onClose={() => setIsSuppliersModalOpen(false)}
+    />
 
     {outboundMode ? (
       <WorkshopPartStockOutboundModal

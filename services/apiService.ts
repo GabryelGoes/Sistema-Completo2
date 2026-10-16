@@ -30,8 +30,20 @@ import {
   type TvVideoLayoutMode,
   type TvVideoSettings,
 } from "@/utils/tvVideoSettings";
+import type {
+  WorkshopPartStockMovement,
+  WorkshopPartStockMovementType,
+} from "../utils/workshopPartStockOutbound";
+import type { WorkshopSupplier, WorkshopSupplierWriteInput } from "../utils/workshopSuppliers";
+import type { EstoqueLedgerEntry } from "../utils/estoqueLedger";
 
 export type { TvChimeAlert, TvChimeKind, TvChimeSoundPreset } from "@/utils/tvChimeSchedule";
+export type {
+  WorkshopPartStockMovementType,
+  WorkshopPartStockMovement,
+} from "../utils/workshopPartStockOutbound";
+export type { WorkshopSupplier, WorkshopSupplierWriteInput } from "../utils/workshopSuppliers";
+export type { EstoqueLedgerEntry } from "../utils/estoqueLedger";
 
 export interface ApiCustomer {
   id: string;
@@ -3121,11 +3133,16 @@ export interface WorkshopPartPurchase {
   id: string;
   part_id: string;
   supplier_name: string | null;
+  supplier_id?: string | null;
   quantity: number;
   unit_cost: number;
+  product_total?: number | null;
+  invoice_total?: number | null;
+  nfe_number?: string | null;
   expected_date: string | null;
   notes: string | null;
   status: WorkshopPartPurchaseStatus;
+  recorded_by_name?: string | null;
   created_at: string;
 }
 
@@ -3316,34 +3333,16 @@ export async function getWorkshopPartPendingReservations(): Promise<WorkshopPart
   };
 }
 
-export type WorkshopPartStockMovementType = 'sale' | 'consumable';
-
-export type WorkshopPartStockMovement = {
-  id: string;
-  workshop_id: string;
-  part_id: string;
-  movement_type: WorkshopPartStockMovementType;
-  quantity: number;
-  unit_price: number | null;
-  total_amount: number | null;
-  notes: string | null;
-  barcode_scanned: string | null;
-  recorded_by_name: string | null;
-  stock_before: number;
-  stock_after: number;
-  created_at: string;
-  service_order_id?: string | null;
-  part_name?: string | null;
-  part_unit_of_measure?: string | null;
-  part_photo_url?: string | null;
-};
-
 export type WorkshopPartStockOutboundResult = {
   movement: WorkshopPartStockMovement;
   part: Pick<
     WorkshopPart,
     'id' | 'name' | 'stock_qty' | 'unit_price' | 'unit_of_measure' | 'photo_url' | 'barcode'
   >;
+};
+
+export type WorkshopPartStockInboundResult = WorkshopPartStockOutboundResult & {
+  purchase?: WorkshopPartPurchase;
 };
 
 /** Busca produto por código de barras, original ou numérico. */
@@ -3414,6 +3413,144 @@ export async function createWorkshopPartStockMovement(input: {
       unit_price: Number(data.part?.unit_price ?? 0),
     },
   };
+}
+
+/** Recebimento de mercadoria (entrada + NF-e + histórico). */
+export async function receiveWorkshopPartStock(
+  partId: string,
+  input: {
+    quantity: number;
+    unit_cost?: number | null;
+    product_total?: number | null;
+    invoice_total?: number | null;
+    nfe_number?: string | null;
+    supplier_id?: string | null;
+    supplier_name?: string | null;
+    notes?: string | null;
+    recorded_by_name?: string | null;
+    update_part_cost?: boolean;
+  }
+): Promise<WorkshopPartStockInboundResult> {
+  const response = await fetch(`${API_BASE}/workshop-parts/${partId}/receive`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao registrar recebimento (${response.status})`);
+  }
+  const data = (await response.json()) as WorkshopPartStockInboundResult;
+  return {
+    movement: data.movement,
+    purchase: data.purchase,
+    part: {
+      ...data.part,
+      stock_qty: Number(data.part?.stock_qty ?? 0),
+      unit_price: Number(data.part?.unit_price ?? 0),
+    },
+  };
+}
+
+/** Histórico unificado (peças + ABS). */
+export async function getEstoqueLedger(opts?: {
+  limit?: number;
+}): Promise<EstoqueLedgerEntry[]> {
+  const params = new URLSearchParams();
+  if (opts?.limit) params.set('limit', String(opts.limit));
+  const qs = params.toString();
+  const response = await fetch(`${API_BASE}/estoque/ledger${qs ? `?${qs}` : ''}`);
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao carregar histórico (${response.status})`);
+  }
+  const data = (await response.json()) as { items?: EstoqueLedgerEntry[] };
+  return Array.isArray(data.items) ? data.items : [];
+}
+
+function normalizeSupplierRow(row: Record<string, unknown>): WorkshopSupplier {
+  return {
+    id: String(row.id),
+    workshop_id: row.workshop_id != null ? String(row.workshop_id) : undefined,
+    name: String(row.name ?? ''),
+    trade_name: (row.trade_name as string) ?? null,
+    document: (row.document as string) ?? null,
+    email: (row.email as string) ?? null,
+    phone: (row.phone as string) ?? null,
+    whatsapp: (row.whatsapp as string) ?? null,
+    contact_name: (row.contact_name as string) ?? null,
+    address_street: (row.address_street as string) ?? null,
+    address_number: (row.address_number as string) ?? null,
+    address_complement: (row.address_complement as string) ?? null,
+    address_neighborhood: (row.address_neighborhood as string) ?? null,
+    address_city: (row.address_city as string) ?? null,
+    address_state: (row.address_state as string) ?? null,
+    address_zip: (row.address_zip as string) ?? null,
+    notes: (row.notes as string) ?? null,
+    active: row.active !== false,
+    created_at: String(row.created_at ?? ''),
+    updated_at: row.updated_at != null ? String(row.updated_at) : null,
+  };
+}
+
+export async function getWorkshopSuppliers(opts?: {
+  q?: string;
+  activeOnly?: boolean;
+}): Promise<WorkshopSupplier[]> {
+  const params = new URLSearchParams();
+  if (opts?.q) params.set('q', opts.q);
+  if (opts?.activeOnly === false) params.set('active', 'all');
+  const qs = params.toString();
+  const response = await fetch(`${API_BASE}/workshop-suppliers${qs ? `?${qs}` : ''}`);
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao listar fornecedores (${response.status})`);
+  }
+  const data = (await response.json()) as { items?: Record<string, unknown>[] };
+  return Array.isArray(data.items) ? data.items.map(normalizeSupplierRow) : [];
+}
+
+export async function createWorkshopSupplier(
+  input: WorkshopSupplierWriteInput
+): Promise<WorkshopSupplier> {
+  const response = await fetch(`${API_BASE}/workshop-suppliers`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao criar fornecedor (${response.status})`);
+  }
+  const data = (await response.json()) as Record<string, unknown>;
+  return normalizeSupplierRow(data);
+}
+
+export async function updateWorkshopSupplier(
+  id: string,
+  input: Partial<WorkshopSupplierWriteInput>
+): Promise<WorkshopSupplier> {
+  const response = await fetch(`${API_BASE}/workshop-suppliers/${encodeURIComponent(id)}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao atualizar fornecedor (${response.status})`);
+  }
+  const data = (await response.json()) as Record<string, unknown>;
+  return normalizeSupplierRow(data);
+}
+
+export async function deleteWorkshopSupplier(id: string): Promise<void> {
+  const response = await fetch(`${API_BASE}/workshop-suppliers/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao excluir fornecedor (${response.status})`);
+  }
 }
 
 /** Valida senha da Gerência ou senha dedicada de proteção do estoque. */
