@@ -63,6 +63,8 @@ import {
   ABS_MODULE_STATUS_OPTIONS,
   absModuleItemConditionLabel,
   absModuleItemStateLabel,
+  absDisassembleDestinationLabel,
+  absModelFingerprint,
   absModuleKindLabel,
   absModuleStatusLabel,
   describeAbsModuleMovement,
@@ -1638,13 +1640,17 @@ export function WorkshopAbsModulesModal({
         notes: disNotes || null,
         recorded_by_name: recordedByName,
       });
+      const stayKind =
+        disWithdrawn === 'eletronico' ? 'hidráulico' : 'eletrônico';
+      const exitKind = disWithdrawn === 'eletronico' ? 'eletrônico' : 'hidráulico';
       setSuccessMsg(
-        `Desmembrado: restante ${result.remaining.public_id} · retirado ${result.withdrawn.public_id}. Imprima a etiqueta do componente em estoque.`
+        `Desmembrado. Fica no estoque (${stayKind}): ${result.remaining.public_id} — imprima a nova etiqueta. Sai (${exitKind}): ${result.withdrawn.public_id}.`
       );
-      // Prioriza o componente que permanece disponível para etiqueta.
-      openDetail(
-        result.remaining.status === 'disponivel' ? result.remaining : result.withdrawn
-      );
+      // Abre a parte que ficou no estoque (precisa da nova etiqueta).
+      openDetail(result.remaining);
+      if (result.remaining.status === 'disponivel') {
+        setLabelPrintModules([result.remaining]);
+      }
       void loadModels();
     } catch (e) {
       setActionError(e instanceof Error ? e.message : 'Falha ao desmembrar.');
@@ -1663,6 +1669,7 @@ export function WorkshopAbsModulesModal({
     recordedByName,
     view,
   ]);
+  // setLabelPrintModules is stable setState — opens print for the unit that stays.
 
   const goBack = useCallback(() => {
     setAction(null);
@@ -2817,106 +2824,277 @@ export function WorkshopAbsModulesModal({
 
             {view.kind === 'disassemble' ? (
               <div className="space-y-4">
-                <div className="rounded-3xl border border-amber-200 bg-amber-50/80 p-4 dark:border-amber-500/30 dark:bg-amber-950/30">
-                  <p className="text-[15px] font-semibold text-amber-950 dark:text-amber-100">
-                    Desmembrar {formatAbsModuleSequence(view.module.sequence_number)} ·{' '}
-                    {view.module.public_id}
-                  </p>
-                  <p className="mt-1 text-[13px] text-amber-900/80 dark:text-amber-200/80">
-                    Gera duas unidades (restante + retirado) e marca o completo como desmembrado.
-                    Somente módulos completos e disponíveis.
-                  </p>
-                </div>
-                {view.module.module_kind !== 'completo' || view.module.status !== 'disponivel' ? (
-                  <p className="rounded-2xl bg-rose-50 px-3 py-2 text-sm text-rose-700 dark:bg-rose-950/30 dark:text-rose-200">
-                    Este módulo não pode ser desmembrado (precisa ser completo + disponível).
-                  </p>
-                ) : (
-                  <div className="space-y-3">
-                    <Field label="Parte retirada">
-                      <select
-                        className={selectClass}
-                        value={disWithdrawn}
-                        onChange={(e) =>
-                          setDisWithdrawn(e.target.value as 'eletronico' | 'hidraulico')
-                        }
-                      >
-                        <option value="eletronico">Eletrônico</option>
-                        <option value="hidraulico">Hidráulico</option>
-                      </select>
-                    </Field>
-                    <Field label="Destino da parte retirada">
-                      <select
-                        className={selectClass}
-                        value={disDestination}
-                        onChange={(e) =>
-                          setDisDestination(e.target.value as AbsDisassembleDestination)
-                        }
-                      >
-                        {ABS_DISASSEMBLE_DESTINATION_OPTIONS.map((o) => (
-                          <option key={o.value} value={o.value}>
-                            {o.label}
-                          </option>
-                        ))}
-                      </select>
-                    </Field>
-                    <Field label="Referência (OS / venda)">
-                      <input
-                        className={inputClass}
-                        value={disDestRef}
-                        onChange={(e) => setDisDestRef(e.target.value)}
-                      />
-                    </Field>
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      <Field label="Custo restante">
-                        <input
-                          type="number"
-                          min={0}
-                          step="0.01"
-                          className={inputClass}
-                          value={disCostRemaining}
-                          onChange={(e) => setDisCostRemaining(e.target.value)}
-                        />
-                      </Field>
-                      <Field label="Custo retirado">
-                        <input
-                          type="number"
-                          min={0}
-                          step="0.01"
-                          className={inputClass}
-                          value={disCostWithdrawn}
-                          onChange={(e) => setDisCostWithdrawn(e.target.value)}
-                        />
-                      </Field>
-                    </div>
-                    <Field label="Observações">
-                      <textarea
-                        rows={2}
-                        className={inputClass}
-                        value={disNotes}
-                        onChange={(e) => setDisNotes(e.target.value)}
-                      />
-                    </Field>
-                    {actionError ? (
-                      <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300">
-                        {actionError}
+                {(() => {
+                  const src = view.module;
+                  const catalog = src.catalog_model;
+                  const canDisassemble =
+                    src.module_kind === 'completo' && src.status === 'disponivel';
+                  const exitKind = disWithdrawn;
+                  const stayKind: 'eletronico' | 'hidraulico' =
+                    exitKind === 'eletronico' ? 'hidraulico' : 'eletronico';
+                  const codes = catalog?.codes || [];
+                  const stayCode =
+                    primaryCodeForScope(codes, stayKind) ||
+                    src.original_code ||
+                    '—';
+                  const exitCode =
+                    primaryCodeForScope(codes, exitKind) ||
+                    src.original_code ||
+                    '—';
+                  const stayFp = absModelFingerprint(src.manufacturer, stayCode, stayKind);
+                  const existingStayModel = models.find(
+                    (m) =>
+                      m.module_kind === stayKind &&
+                      absModelFingerprint(
+                        m.manufacturer,
+                        primaryCodeForScope(m.codes, stayKind) ||
+                          primaryCodeForScope(m.codes, 'completo'),
+                        stayKind
+                      ) === stayFp
+                  );
+                  const exitKeepsLabel = disDestination !== 'estoque';
+
+                  return (
+                    <>
+                      <div className="rounded-3xl border border-amber-200 bg-amber-50/80 p-4 dark:border-amber-500/30 dark:bg-amber-950/30">
+                        <p className="text-[15px] font-semibold text-amber-950 dark:text-amber-100">
+                          Desmembrar {formatAbsModuleSequence(src.sequence_number)} ·{' '}
+                          {src.public_id}
+                        </p>
+                        <p className="mt-1 text-[13px] leading-relaxed text-amber-900/85 dark:text-amber-200/85">
+                          O módulo completo será dividido em duas partes: uma{' '}
+                          <strong>fica no estoque</strong> (nova etiqueta ABS) e a outra{' '}
+                          <strong>dá saída</strong>
+                          {exitKeepsLabel
+                            ? ' (mantém a identificação desta operação — sem etiqueta nova de estoque)'
+                            : ' (também fica disponível no estoque)'}
+                          . O completo passa a constar como desmembrado.
+                        </p>
                       </div>
-                    ) : null}
-                    <button
-                      type="button"
-                      disabled={actionBusy}
-                      onClick={() => void handleDisassemble()}
-                      className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-amber-600 px-4 py-3.5 text-[15px] font-semibold text-white disabled:opacity-50"
-                    >
-                      {actionBusy ? (
-                        <Loader2 className="h-5 w-5 animate-spin" />
+
+                      {!canDisassemble ? (
+                        <p className="rounded-2xl bg-rose-50 px-3 py-2 text-sm text-rose-700 dark:bg-rose-950/30 dark:text-rose-200">
+                          Este módulo não pode ser desmembrado (precisa ser completo + disponível).
+                        </p>
                       ) : (
-                        <Scissors className="h-5 w-5" />
+                        <div className="space-y-4">
+                          <div>
+                            <p className="mb-2 text-[12px] font-semibold uppercase tracking-wide text-zinc-500">
+                              1. Qual parte vai sair?
+                            </p>
+                            <div className="grid grid-cols-2 gap-2">
+                              {(
+                                [
+                                  { value: 'eletronico' as const, label: 'Eletrônico' },
+                                  { value: 'hidraulico' as const, label: 'Hidráulico' },
+                                ] as const
+                              ).map((opt) => {
+                                const selected = disWithdrawn === opt.value;
+                                return (
+                                  <button
+                                    key={opt.value}
+                                    type="button"
+                                    onClick={() => setDisWithdrawn(opt.value)}
+                                    className={`rounded-2xl px-3 py-3.5 text-left text-[14px] font-semibold transition ${
+                                      selected
+                                        ? 'bg-rose-600 text-white ring-2 ring-rose-400/50'
+                                        : 'bg-zinc-100 text-zinc-800 hover:bg-zinc-200/90 dark:bg-white/5 dark:text-zinc-100'
+                                    }`}
+                                  >
+                                    {opt.label}
+                                    <span
+                                      className={`mt-0.5 block text-[11px] font-medium ${
+                                        selected ? 'text-rose-100' : 'text-zinc-500'
+                                      }`}
+                                    >
+                                      Parte da saída
+                                    </span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+
+                          <div className="grid gap-3 sm:grid-cols-2">
+                            <div className="rounded-2xl bg-emerald-50 p-3.5 ring-1 ring-emerald-500/25 dark:bg-emerald-950/35 dark:ring-emerald-400/20">
+                              <p className="text-[11px] font-bold uppercase tracking-wide text-emerald-800 dark:text-emerald-200">
+                                Fica no estoque
+                              </p>
+                              <p className="mt-1 text-[16px] font-bold text-emerald-950 dark:text-emerald-50">
+                                {absModuleKindLabel(stayKind)}
+                              </p>
+                              <p className="mt-0.5 font-mono text-[12px] font-semibold tabular-nums text-emerald-800 dark:text-emerald-200">
+                                Cód. {stayCode}
+                              </p>
+                              <ul className="mt-2 space-y-1.5 text-[12px] leading-snug text-emerald-900/90 dark:text-emerald-100/90">
+                                <li>
+                                  <strong>Nova etiqueta ABS</strong> será gerada e precisa ser
+                                  impressa.
+                                </li>
+                                <li>
+                                  {existingStayModel ? (
+                                    <>
+                                      Já existe cadastro deste {absModuleKindLabel(stayKind)} —
+                                      entra como <strong>+1 unidade disponível</strong> nesse
+                                      modelo
+                                      {existingStayModel.available_qty != null
+                                        ? ` (hoje ${existingStayModel.available_qty} disp.)`
+                                        : ''}
+                                      .
+                                    </>
+                                  ) : (
+                                    <>
+                                      Se ainda não houver cadastro só desta parte, um{' '}
+                                      <strong>novo modelo</strong> é criado; se já existir, soma
+                                      mais uma unidade disponível.
+                                    </>
+                                  )}
+                                </li>
+                              </ul>
+                            </div>
+
+                            <div className="rounded-2xl bg-rose-50 p-3.5 ring-1 ring-rose-500/25 dark:bg-rose-950/35 dark:ring-rose-400/20">
+                              <p className="text-[11px] font-bold uppercase tracking-wide text-rose-800 dark:text-rose-200">
+                                Dá saída
+                              </p>
+                              <p className="mt-1 text-[16px] font-bold text-rose-950 dark:text-rose-50">
+                                {absModuleKindLabel(exitKind)}
+                              </p>
+                              <p className="mt-0.5 font-mono text-[12px] font-semibold tabular-nums text-rose-800 dark:text-rose-200">
+                                Cód. {exitCode}
+                              </p>
+                              <ul className="mt-2 space-y-1.5 text-[12px] leading-snug text-rose-900/90 dark:text-rose-100/90">
+                                <li>
+                                  {exitKeepsLabel ? (
+                                    <>
+                                      <strong>Mantém a etiqueta / identificação</strong> desta
+                                      saída — não é necessária etiqueta nova de estoque.
+                                    </>
+                                  ) : (
+                                    <>
+                                      Destino = estoque: a peça também fica disponível (gera
+                                      unidade própria).
+                                    </>
+                                  )}
+                                </li>
+                                <li>
+                                  Destino atual:{' '}
+                                  <strong>{absDisassembleDestinationLabel(disDestination)}</strong>
+                                </li>
+                              </ul>
+                            </div>
+                          </div>
+
+                          <div>
+                            <p className="mb-2 text-[12px] font-semibold uppercase tracking-wide text-zinc-500">
+                              2. Destino da parte que sai
+                            </p>
+                            <Field label="Para onde vai a parte da saída?">
+                              <select
+                                className={selectClass}
+                                value={disDestination}
+                                onChange={(e) =>
+                                  setDisDestination(e.target.value as AbsDisassembleDestination)
+                                }
+                              >
+                                {ABS_DISASSEMBLE_DESTINATION_OPTIONS.map((o) => (
+                                  <option key={o.value} value={o.value}>
+                                    {o.label}
+                                  </option>
+                                ))}
+                              </select>
+                            </Field>
+                            <div className="mt-3">
+                              <Field label="Referência (OS / venda / obs. curta)">
+                                <input
+                                  className={inputClass}
+                                  value={disDestRef}
+                                  onChange={(e) => setDisDestRef(e.target.value)}
+                                  placeholder="Ex.: OS 1234 ou NF…"
+                                />
+                              </Field>
+                            </div>
+                          </div>
+
+                          <div>
+                            <p className="mb-2 text-[12px] font-semibold uppercase tracking-wide text-zinc-500">
+                              3. Rateio de custo (opcional)
+                            </p>
+                            <div className="grid gap-3 sm:grid-cols-2">
+                              <Field label={`Custo — fica (${absModuleKindLabel(stayKind)})`}>
+                                <input
+                                  type="number"
+                                  min={0}
+                                  step="0.01"
+                                  className={inputClass}
+                                  value={disCostRemaining}
+                                  onChange={(e) => setDisCostRemaining(e.target.value)}
+                                />
+                              </Field>
+                              <Field label={`Custo — sai (${absModuleKindLabel(exitKind)})`}>
+                                <input
+                                  type="number"
+                                  min={0}
+                                  step="0.01"
+                                  className={inputClass}
+                                  value={disCostWithdrawn}
+                                  onChange={(e) => setDisCostWithdrawn(e.target.value)}
+                                />
+                              </Field>
+                            </div>
+                          </div>
+
+                          <Field label="Observações">
+                            <textarea
+                              rows={2}
+                              className={inputClass}
+                              value={disNotes}
+                              onChange={(e) => setDisNotes(e.target.value)}
+                            />
+                          </Field>
+
+                          <div className="rounded-2xl bg-zinc-100 px-3.5 py-3 text-[13px] text-zinc-700 dark:bg-white/5 dark:text-zinc-200">
+                            <p className="font-semibold text-zinc-900 dark:text-white">Resumo</p>
+                            <p className="mt-1 leading-relaxed">
+                              <span className="text-emerald-700 dark:text-emerald-300">
+                                Fica: {absModuleKindLabel(stayKind)}
+                              </span>
+                              {' → '}nova etiqueta ABS
+                              {existingStayModel ? ' (+1 no modelo já cadastrado)' : ''}.
+                              <br />
+                              <span className="text-rose-700 dark:text-rose-300">
+                                Sai: {absModuleKindLabel(exitKind)}
+                              </span>
+                              {' → '}
+                              {absDisassembleDestinationLabel(disDestination)}
+                              {exitKeepsLabel ? ' · sem etiqueta nova de estoque' : ''}.
+                            </p>
+                          </div>
+
+                          {actionError ? (
+                            <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300">
+                              {actionError}
+                            </div>
+                          ) : null}
+                          <button
+                            type="button"
+                            disabled={actionBusy}
+                            onClick={() => void handleDisassemble()}
+                            className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-amber-600 px-4 py-3.5 text-[15px] font-semibold text-white disabled:opacity-50"
+                          >
+                            {actionBusy ? (
+                              <Loader2 className="h-5 w-5 animate-spin" />
+                            ) : (
+                              <Scissors className="h-5 w-5" />
+                            )}
+                            Confirmar: {absModuleKindLabel(stayKind)} fica ·{' '}
+                            {absModuleKindLabel(exitKind)} sai
+                          </button>
+                        </div>
                       )}
-                      Confirmar desmembramento
-                    </button>
-                  </div>
-                )}
+                    </>
+                  );
+                })()}
               </div>
             ) : null}
 
