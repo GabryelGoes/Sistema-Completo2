@@ -939,19 +939,28 @@ export function WorkshopAbsModuleDetailView({
                   <Tag className="h-4 w-4" />
                   Etiqueta
                 </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setActionPanel('transfer');
-                    setTransferLocation(module.location || '');
-                    setActionError(null);
-                  }}
-                  disabled={deleting || actionBusy}
-                  className="inline-flex items-center gap-2 rounded-xl bg-zinc-100 px-4 py-2.5 text-[13px] font-semibold text-zinc-800 hover:bg-zinc-200 dark:bg-white/10 dark:text-zinc-100"
-                >
-                  <MapPin className="h-4 w-4" />
-                  Transferir local
-                </button>
+                {module.status === 'disponivel' || module.status === 'reservado' ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const siblingLoc = siblingUnits
+                        .filter(
+                          (u) =>
+                            u.public_id !== module.public_id &&
+                            String(u.location || '').trim()
+                        )
+                        .map((u) => String(u.location || '').trim())[0];
+                      setTransferLocation(siblingLoc || module.location || '');
+                      setActionPanel('transfer');
+                      setActionError(null);
+                    }}
+                    disabled={deleting || actionBusy}
+                    className="inline-flex items-center gap-2 rounded-xl bg-sky-600 px-4 py-2.5 text-[13px] font-semibold text-white hover:bg-sky-700 disabled:opacity-50"
+                  >
+                    <MapPin className="h-4 w-4" />
+                    Mudar localização
+                  </button>
+                ) : null}
                 {module.status === 'fora_estoque' ? (
                   <button
                     type="button"
@@ -1150,16 +1159,25 @@ export function WorkshopAbsModuleDetailView({
 
               {actionPanel === 'transfer' ? (
                 <div className="space-y-3 rounded-xl bg-sky-50/80 p-3 dark:bg-sky-950/30">
-                  <p className="text-[14px] font-semibold text-sky-950 dark:text-sky-100">
-                    Local atual: {module.location || '—'}
-                  </p>
+                  <div>
+                    <p className="text-[14px] font-semibold text-sky-950 dark:text-sky-100">
+                      Mudar localização
+                    </p>
+                    <p className="mt-0.5 text-[13px] text-sky-900/80 dark:text-sky-200/80">
+                      Local atual: <strong>{module.location || '—'}</strong>
+                      {!module.location?.trim()
+                        ? ' — defina onde esta unidade ficará no estoque.'
+                        : ''}
+                    </p>
+                  </div>
                   <label className="block space-y-1">
-                    <span className={labelCls}>Novo local</span>
+                    <span className={labelCls}>Nova localização</span>
                     <input
                       className={inputCls}
                       value={transferLocation}
                       onChange={(e) => setTransferLocation(e.target.value)}
-                      placeholder="Prateleira…"
+                      placeholder="Ex.: Prateleira C2"
+                      autoFocus
                     />
                   </label>
                   <div className="flex gap-2">
@@ -1175,7 +1193,11 @@ export function WorkshopAbsModuleDetailView({
                       }
                       className="flex-1 rounded-xl bg-sky-600 px-3 py-2.5 text-[13px] font-semibold text-white disabled:opacity-50"
                     >
-                      {actionBusy ? <Loader2 className="mx-auto h-4 w-4 animate-spin" /> : 'Transferir'}
+                      {actionBusy ? (
+                        <Loader2 className="mx-auto h-4 w-4 animate-spin" />
+                      ) : (
+                        'Salvar'
+                      )}
                     </button>
                     <button
                       type="button"

@@ -833,6 +833,8 @@ export function WorkshopAbsModulesModal({
   /** Cadastro de nova unidade vinculada a um modelo já existente. */
   const [createForModelId, setCreateForModelId] = useState<string | null>(null);
   const [labelPrintModules, setLabelPrintModules] = useState<WorkshopAbsModule[] | null>(null);
+  /** Após desmembrar+etiqueta: ao fechar a impressão, reabre o painel de localização. */
+  const [focusLocationAfterLabelPrint, setFocusLocationAfterLabelPrint] = useState(false);
   /** Unidades recém-criadas na edição — painel didático de etiquetas. */
   const [createdUnitsPreview, setCreatedUnitsPreview] = useState<WorkshopAbsModule[] | null>(null);
   const [modelAddQty, setModelAddQty] = useState('1');
@@ -913,9 +915,12 @@ export function WorkshopAbsModulesModal({
     }
   }, [filterCondition, filterKind, filterManufacturer, filterState, filterStatus, query]);
 
-  const openDetail = useCallback((mod: WorkshopAbsModule) => {
+  const openDetail = useCallback((
+    mod: WorkshopAbsModule,
+    opts?: { focusLocation?: boolean }
+  ) => {
     setView({ kind: 'detail', module: mod });
-    setAction(null);
+    setAction(opts?.focusLocation ? 'transfer' : null);
     setActionError(null);
     setSuccessMsg(null);
     setConfirmExit(false);
@@ -935,6 +940,16 @@ export function WorkshopAbsModulesModal({
           } catch {
             /* sem catálogo */
           }
+        }
+        if (opts?.focusLocation) {
+          const siblingLoc = activeAbsSiblingUnits(fresh.catalog_model?.units)
+            .filter(
+              (u) =>
+                u.public_id !== fresh.public_id && String(u.location || '').trim()
+            )
+            .map((u) => String(u.location || '').trim())[0];
+          setTransferLocation(siblingLoc || fresh.location || '');
+          setAction('transfer');
         }
         setView((v) =>
           v.kind === 'detail' && v.module.public_id === fresh.public_id
@@ -1612,7 +1627,11 @@ export function WorkshopAbsModulesModal({
           recorded_by_name: recordedByName,
         });
         openDetail(result.module);
-        setSuccessMsg('Movimentação registrada.');
+        setSuccessMsg(
+          payload.movement_type === 'transfer'
+            ? 'Localização atualizada na ficha do módulo.'
+            : 'Movimentação registrada.'
+        );
         setAction(null);
         setConfirmExit(false);
         void loadModels();
@@ -1649,9 +1668,10 @@ export function WorkshopAbsModulesModal({
           ? `Desmembrado. Estoque (${stayKind}): ${result.remaining.public_id} — nova etiqueta. Saída (${exitKind}): ${result.withdrawn.public_id} — mesma etiqueta · registrado em vendas.`
           : `Desmembrado. Estoque (${stayKind}): ${result.remaining.public_id}. Saída (${exitKind}): ${result.withdrawn.public_id}.`
       );
-      // Só imprime etiqueta da parte que ficou (nunca da saída por venda).
-      openDetail(result.remaining);
+      // Etiqueta da parte que ficou; depois o detalhe abre focado em localização.
+      openDetail(result.remaining, { focusLocation: true });
       if (result.remaining.status === 'disponivel') {
+        setFocusLocationAfterLabelPrint(true);
         setLabelPrintModules([result.remaining]);
       }
       void loadModels();
@@ -3297,18 +3317,6 @@ export function WorkshopAbsModulesModal({
                           <button
                             type="button"
                             onClick={() => {
-                              setAction('transfer');
-                              setTransferLocation(detail.location || '');
-                              setActionError(null);
-                            }}
-                            className={secondaryBtn}
-                          >
-                            <MapPin className="h-3.5 w-3.5" />
-                            Transferir local
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
                               setAction('history');
                               void loadHistory(detail.public_id);
                             }}
@@ -3350,11 +3358,40 @@ export function WorkshopAbsModulesModal({
 
                         <div
                           className={`grid gap-2 ${
-                            detail.module_kind === 'completo' && detail.status === 'disponivel'
-                              ? 'grid-cols-2'
+                            detail.status === 'disponivel' || detail.status === 'reservado'
+                              ? detail.module_kind === 'completo' &&
+                                detail.status === 'disponivel'
+                                ? 'grid-cols-2 sm:grid-cols-3'
+                                : 'grid-cols-2'
                               : ''
                           }`}
                         >
+                          {detail.status === 'disponivel' ||
+                          detail.status === 'reservado' ? (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const siblingLoc = activeAbsSiblingUnits(
+                                  detail.catalog_model?.units
+                                )
+                                  .filter(
+                                    (u) =>
+                                      u.public_id !== detail.public_id &&
+                                      String(u.location || '').trim()
+                                  )
+                                  .map((u) => String(u.location || '').trim())[0];
+                                setTransferLocation(
+                                  siblingLoc || detail.location || ''
+                                );
+                                setAction('transfer');
+                                setActionError(null);
+                              }}
+                              className="inline-flex items-center justify-center gap-2 rounded-xl bg-sky-600 px-3 py-2.5 text-[13px] font-semibold text-white transition hover:bg-sky-700"
+                            >
+                              <MapPin className="h-4 w-4" />
+                              Mudar localização
+                            </button>
+                          ) : null}
                           {detail.status === 'fora_estoque' ? (
                             <button
                               type="button"
@@ -3526,32 +3563,50 @@ export function WorkshopAbsModulesModal({
 
                 {action === 'transfer' ? (
                   <div className="space-y-3 rounded-3xl border border-sky-200 bg-sky-50/70 p-4 dark:border-sky-500/30 dark:bg-sky-950/30">
-                    <p className="text-[14px] text-sky-950 dark:text-sky-100">
-                      Local atual: <strong>{detail.location || '—'}</strong>
-                    </p>
-                    <Field label="Novo local">
+                    <div>
+                      <p className="text-[15px] font-semibold text-sky-950 dark:text-sky-100">
+                        Mudar localização
+                      </p>
+                      <p className="mt-0.5 text-[13px] text-sky-900/80 dark:text-sky-200/80">
+                        Local atual: <strong>{detail.location || '—'}</strong>
+                        {!detail.location?.trim()
+                          ? ' — defina onde esta unidade ficará no estoque.'
+                          : ''}
+                      </p>
+                    </div>
+                    <Field label="Nova localização">
                       <input
                         className={inputClass}
                         value={transferLocation}
                         onChange={(e) => setTransferLocation(e.target.value)}
-                        placeholder="Prateleira C2"
+                        placeholder="Ex.: Prateleira C2"
+                        autoFocus
                       />
                     </Field>
-                    <button
-                      type="button"
-                      disabled={actionBusy || !transferLocation.trim()}
-                      onClick={() =>
-                        void runMovement(detail, {
-                          public_id: detail.public_id,
-                          movement_type: 'transfer',
-                          to_location: transferLocation.trim(),
-                        })
-                      }
-                      className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-sky-600 px-4 py-3.5 font-semibold text-white disabled:opacity-50"
-                    >
-                      {actionBusy ? <Loader2 className="h-5 w-5 animate-spin" /> : null}
-                      Confirmar transferência
-                    </button>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        disabled={actionBusy || !transferLocation.trim()}
+                        onClick={() =>
+                          void runMovement(detail, {
+                            public_id: detail.public_id,
+                            movement_type: 'transfer',
+                            to_location: transferLocation.trim(),
+                          })
+                        }
+                        className="inline-flex flex-1 items-center justify-center gap-2 rounded-2xl bg-sky-600 px-4 py-3.5 font-semibold text-white disabled:opacity-50"
+                      >
+                        {actionBusy ? <Loader2 className="h-5 w-5 animate-spin" /> : null}
+                        Salvar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setAction(null)}
+                        className="inline-flex items-center justify-center rounded-2xl bg-white/80 px-4 py-3.5 text-[14px] font-semibold text-sky-950 dark:bg-white/10 dark:text-sky-100"
+                      >
+                        Cancelar
+                      </button>
+                    </div>
                   </div>
                 ) : null}
 
@@ -3641,7 +3696,14 @@ export function WorkshopAbsModulesModal({
       <NiimbotAbsModuleLabelPrintModal
         open={Boolean(labelPrintModules?.length)}
         modules={labelPrintModules}
-        onClose={() => setLabelPrintModules(null)}
+        onClose={() => {
+          setLabelPrintModules(null);
+          if (focusLocationAfterLabelPrint) {
+            setFocusLocationAfterLabelPrint(false);
+            setAction('transfer');
+            setActionError(null);
+          }
+        }}
       />
     </>
   );
