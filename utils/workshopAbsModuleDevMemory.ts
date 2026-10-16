@@ -506,10 +506,10 @@ export function listDevAbsAllMovements(limit = 300): DevMovementListItem[] {
   );
 }
 
-/** Histórico de vendas (saídas com reason venda_avulsa). */
+/** Histórico de saídas/vendas (exit → fora_estoque). */
 export function listDevAbsSaleMovements(limit = 300): DevMovementListItem[] {
   return collectDevMovements()
-    .filter((m) => m.movement_type === 'exit' && m.reason_type === 'venda_avulsa')
+    .filter((m) => m.movement_type === 'exit' && String(m.to_status || '') === 'fora_estoque')
     .slice(0, Math.max(1, Math.min(1000, Math.floor(limit) || 300)));
 }
 
@@ -763,8 +763,10 @@ export function listDevAbsModuleModels(filters?: {
     })
     .map((m) => cloneModel(m))
     .filter((m) => {
-      if (!status) return true;
-      if (status === 'disponivel') return Number(m.available_qty || 0) > 0;
+      // Lista de estoque: nunca exibe modelo sem unidade disponível
+      // (vendidos / saídas ficam só no histórico de vendas).
+      if (Number(m.available_qty || 0) <= 0) return false;
+      if (!status || status === 'disponivel') return true;
       const units = Array.from(modules.values()).filter((u) => u.model_id === m.id);
       return units.some((u) => u.status === status);
     })

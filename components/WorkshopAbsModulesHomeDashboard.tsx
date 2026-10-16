@@ -32,6 +32,7 @@ import { normalizeBarcodeInput } from '../utils/workshopPartBarcode';
 import {
   ABS_MODULE_KIND_OPTIONS,
   ABS_MODULE_STATUS_OPTIONS,
+  absModelHasStock,
   absModuleKindLabel,
   absModuleListApplication,
   formatAbsModuleMoney,
@@ -154,7 +155,8 @@ export function WorkshopAbsModulesHomeDashboard({
         module_kind: filterKind || undefined,
         status: filterStatus || undefined,
       });
-      setModels(list);
+      // Reforço: nunca listar modelo sem unidade em estoque (saídas → histórico de vendas).
+      setModels(list.filter((m) => absModelHasStock(m)));
       hasLoadedOnceRef.current = true;
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Falha ao listar módulos ABS.');

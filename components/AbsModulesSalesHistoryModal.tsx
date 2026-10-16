@@ -5,6 +5,7 @@ import {
   type WorkshopAbsModuleMovementListItem,
 } from '../services/apiService';
 import {
+  absModuleExitReasonLabel,
   absModuleKindLabel,
   formatAbsModuleMoney,
   formatAbsModuleSequence,
@@ -20,10 +21,11 @@ export type AbsModulesSalesHistoryModalProps = {
 };
 
 function saleSourceLabel(m: WorkshopAbsModuleMovementListItem): string {
+  const reason = absModuleExitReasonLabel(m.reason_type);
   if (/desmembramento/i.test(String(m.notes || ''))) {
-    return 'Desmembramento · venda direta';
+    return `Desmembramento · ${reason}`;
   }
-  return 'Baixa por venda';
+  return reason;
 }
 
 export function AbsModulesSalesHistoryModal({
@@ -92,7 +94,7 @@ export function AbsModulesSalesHistoryModal({
                 Histórico de vendas
               </h2>
               <p className="mt-0.5 text-[13px] text-zinc-500 dark:text-zinc-400">
-                Módulos com saída registrada por venda.
+                Módulos que saíram do estoque (venda, OS, laboratório ou desmembramento).
               </p>
             </div>
             <button

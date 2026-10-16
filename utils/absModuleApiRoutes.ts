@@ -740,12 +740,12 @@ export function registerAbsModuleRoutes(app: Express, deps: AbsRouteDeps) {
         });
       }
 
-      // Filtro de status: "disponivel" = só modelos com unidade em estoque
-      // (vendidos/fora_estoque somem da lista padrão).
+      // Sempre omite modelos sem unidade disponível — vendidos/saídas não
+      // aparecem na lista ABS (ficam no histórico de vendas).
+      models = models.filter((m) => Number(m.available_qty || 0) > 0);
+
       const statusFilter = String(req.query.status || '').trim();
-      if (statusFilter === 'disponivel') {
-        models = models.filter((m) => Number(m.available_qty || 0) > 0);
-      } else if (statusFilter && (units || []).length) {
+      if (statusFilter && statusFilter !== 'disponivel' && (units || []).length) {
         const modelIdsWithStatus = new Set(
           (units || [])
             .filter((u) => String(u.status || '') === statusFilter)
@@ -1073,7 +1073,7 @@ export function registerAbsModuleRoutes(app: Express, deps: AbsRouteDeps) {
         .select(absMovementModuleSelect)
         .eq('workshop_id', WORKSHOP_ID!)
         .eq('movement_type', 'exit')
-        .eq('reason_type', 'venda_avulsa')
+        .eq('to_status', 'fora_estoque')
         .order('created_at', { ascending: false })
         .limit(limit);
       if (error) {

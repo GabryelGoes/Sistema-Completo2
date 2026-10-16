@@ -743,12 +743,21 @@ export function isAbsDisassemblyMovement(m: WorkshopAbsModuleMovement | null | u
   );
 }
 
-/** Saída registrada como venda (baixa direta ou desmembramento → venda direta). */
+/**
+ * Saída que tira a unidade do estoque (venda, OS, lab, desmembrar→saída).
+ * Usado no histórico de vendas — não inclui só transferência nem desmembrado.
+ */
 export function isAbsSaleMovement(m: WorkshopAbsModuleMovement | null | undefined): boolean {
   if (!m) return false;
   if (m.movement_type !== 'exit') return false;
-  const reason = String(m.reason_type || '').trim();
-  return reason === 'venda_avulsa';
+  return String(m.to_status || '').trim() === 'fora_estoque';
+}
+
+/** Modelo ainda tem unidade em estoque (lista ABS). */
+export function absModelHasStock(
+  model: { available_qty?: number | null } | null | undefined
+): boolean {
+  return Number(model?.available_qty ?? 0) > 0;
 }
 
 export type WorkshopAbsDisassemblyDetail = {

@@ -64,6 +64,7 @@ import {
   absModuleItemConditionLabel,
   absModuleItemStateLabel,
   absDisassembleDestinationLabel,
+  absModelHasStock,
   absModuleKindLabel,
   absModuleStatusLabel,
   describeAbsModuleMovement,
@@ -891,7 +892,7 @@ export function WorkshopAbsModulesModal({
         item_condition: filterCondition || undefined,
         status: filterStatus || undefined,
       });
-      setModels(list);
+      setModels(list.filter((m) => absModelHasStock(m)));
       const q = query.trim();
       if (q.length >= 2) {
         setSmartSearchBusy(true);
