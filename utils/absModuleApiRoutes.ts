@@ -54,7 +54,56 @@ type AbsRouteDeps = {
   /** Instância multer (memoryStorage) para upload de fotos. */
   upload?: { single: (field: string) => unknown };
   photosBucket?: string;
+  /**
+   * Senha exigida para excluir unidades/modelos ABS do estoque
+   * (Gerência e/ou senha de proteção do estoque).
+   */
+  verifyDeletePassword?: (password: string) => Promise<boolean>;
 };
+
+function passwordFromDeleteReq(req: {
+  body?: unknown;
+  query?: unknown;
+  headers?: Record<string, unknown>;
+}): string {
+  const body = (req.body || {}) as { password?: unknown; adminPassword?: unknown };
+  if (typeof body.password === 'string' && body.password.trim()) return body.password.trim();
+  if (typeof body.adminPassword === 'string' && body.adminPassword.trim()) {
+    return body.adminPassword.trim();
+  }
+  const q = (req.query || {}) as { password?: unknown; adminPassword?: unknown };
+  if (typeof q.password === 'string' && q.password.trim()) return q.password.trim();
+  if (typeof q.adminPassword === 'string' && q.adminPassword.trim()) {
+    return q.adminPassword.trim();
+  }
+  const header = req.headers?.['x-admin-password'];
+  if (typeof header === 'string' && header.trim()) return header.trim();
+  return '';
+}
+
+async function requireAbsDeletePassword(
+  deps: AbsRouteDeps,
+  req: { body?: unknown; query?: unknown; headers?: Record<string, unknown> }
+): Promise<{ ok: true } | { ok: false; status: number; error: string }> {
+  const pwd = passwordFromDeleteReq(req);
+  if (!pwd) {
+    return { ok: false, status: 400, error: 'Informe a senha do administrador para excluir.' };
+  }
+  if (!deps.verifyDeletePassword) {
+    // Dev memory / ambiente sem callback: exige senha não vazia (já validada acima).
+    return { ok: true };
+  }
+  const ok = await deps.verifyDeletePassword(pwd);
+  if (!ok) {
+    return {
+      ok: false,
+      status: 401,
+      error:
+        'Senha incorreta. Use a senha da Gerência (admin) ou a senha de proteção do estoque em Alterar senhas.',
+    };
+  }
+  return { ok: true };
+}
 
 export const ABS_MODULE_PHOTOS_MAX = 8;
 
@@ -1078,6 +1127,8 @@ export function registerAbsModuleRoutes(app: Express, deps: AbsRouteDeps) {
     try {
       const id = String(req.params.id || '').trim();
       if (!id) return res.status(400).json({ error: 'ID do modelo inválido.' });
+      const auth = await requireAbsDeletePassword(deps, req);
+      if (auth.ok === false) return res.status(auth.status).json({ error: auth.error });
       const force =
         String(req.query.force || req.body?.force || '').toLowerCase() === '1' ||
         String(req.query.force || req.body?.force || '').toLowerCase() === 'true';
@@ -2316,6 +2367,8 @@ export function registerAbsModuleRoutes(app: Express, deps: AbsRouteDeps) {
       if (!isValidAbsModulePublicId(publicId)) {
         return res.status(400).json({ error: 'ID de módulo ABS inválido.' });
       }
+      const auth = await requireAbsDeletePassword(deps, req);
+      if (auth.ok === false) return res.status(auth.status).json({ error: auth.error });
 
       if (isDevMemoryActive(deps)) {
         const ok = deleteDevAbsModule(publicId);

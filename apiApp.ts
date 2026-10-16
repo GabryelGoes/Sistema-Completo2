@@ -11335,6 +11335,8 @@ export function createApiApp() {
     supabaseAdmin,
     upload,
     photosBucket: VEHICLE_PHOTOS_BUCKET,
+    // Excluir módulos ABS do estoque: senha da Gerência (ou proteção do estoque).
+    verifyDeletePassword: verifyStockGuardPassword,
   });
 
   // ----------------- TÉCNICOS DA OFICINA (atribuição nos cards) -----------------

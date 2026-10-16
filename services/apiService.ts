@@ -3997,11 +3997,21 @@ export async function deleteWorkshopAbsModulePhoto(
   return normalizeAbsModuleRow(data.module);
 }
 
-/** Exclui uma unidade física ABS (public_id). Sequência e public_id não são reutilizados. */
-export async function deleteWorkshopAbsModule(publicId: string): Promise<void> {
+/** Exclui uma unidade física ABS (public_id). Exige senha do admin / proteção do estoque. */
+export async function deleteWorkshopAbsModule(
+  publicId: string,
+  password: string
+): Promise<void> {
   const pid = String(publicId || '').trim().toUpperCase();
+  const pwd = String(password || '').trim();
+  if (!pwd) throw new Error('Informe a senha do administrador para excluir.');
   const response = await fetch(`${API_BASE}/abs-modules/${encodeURIComponent(pid)}`, {
     method: 'DELETE',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Admin-Password': pwd,
+    },
+    body: JSON.stringify({ password: pwd, adminPassword: pwd }),
   });
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
@@ -4009,16 +4019,29 @@ export async function deleteWorkshopAbsModule(publicId: string): Promise<void> {
   }
 }
 
-/** Exclui modelo técnico. Com force=true remove também as unidades. */
+/** Exclui modelo técnico. Com force=true remove também as unidades. Exige senha do admin. */
 export async function deleteWorkshopAbsModuleModel(
   modelId: string,
-  opts?: { force?: boolean }
+  opts?: { force?: boolean; password?: string }
 ): Promise<{ deletedUnits: number }> {
   const id = String(modelId || '').trim();
-  const qs = opts?.force ? '?force=1' : '';
-  const response = await fetch(`${API_BASE}/abs-module-models/${encodeURIComponent(id)}${qs}`, {
-    method: 'DELETE',
-  });
+  const pwd = String(opts?.password || '').trim();
+  if (!pwd) throw new Error('Informe a senha do administrador para excluir.');
+  const qs = new URLSearchParams();
+  if (opts?.force) qs.set('force', '1');
+  qs.set('password', pwd);
+  const q = qs.toString();
+  const response = await fetch(
+    `${API_BASE}/abs-module-models/${encodeURIComponent(id)}${q ? `?${q}` : ''}`,
+    {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Admin-Password': pwd,
+      },
+      body: JSON.stringify({ password: pwd, adminPassword: pwd, force: opts?.force ? true : undefined }),
+    }
+  );
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
     throw new Error(err.error || `Falha ao excluir modelo ABS (${response.status})`);

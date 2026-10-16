@@ -44,6 +44,7 @@ import {
 } from '../utils/workshopAbsModules';
 import { AbsModulesGlobalMovementsModal } from './AbsModulesGlobalMovementsModal';
 import { AbsModulesSalesHistoryModal } from './AbsModulesSalesHistoryModal';
+import { StockGuardPasswordModal } from './StockGuardPasswordModal';
 import { PartPhotoImg } from './ui/PartPhotoImg';
 import { useBrowserBackLayer } from './ui/BackNavigationContext';
 import { WorkshopAbsModuleDetailView } from './WorkshopAbsModuleDetailView';
@@ -127,6 +128,10 @@ export function WorkshopAbsModulesHomeDashboard({
   const [expandedTick, setExpandedTick] = useState(0);
   const [globalHistoryOpen, setGlobalHistoryOpen] = useState(false);
   const [salesHistoryOpen, setSalesHistoryOpen] = useState(false);
+  const [deletePendingModel, setDeletePendingModel] = useState<WorkshopAbsModuleModel | null>(
+    null
+  );
+  const [deletePasswordError, setDeletePasswordError] = useState<string | null>(null);
 
   const resetFlow = useCallback(() => {
     setFlowOpen(false);
@@ -321,21 +326,26 @@ export function WorkshopAbsModulesHomeDashboard({
     setFlowOpen(true);
   };
 
-  const handleDeleteModel = async (model: WorkshopAbsModuleModel) => {
+  const handleDeleteModel = (model: WorkshopAbsModuleModel) => {
+    setDeletePasswordError(null);
+    setDeletePendingModel(model);
+  };
+
+  const confirmDeleteModelWithPassword = async (password: string) => {
+    const model = deletePendingModel;
+    if (!model) return;
     const qty = Number(model.total_qty ?? 0);
-    const label = [model.manufacturer, modelPrimaryCode(model)].filter(Boolean).join(' · ') || 'modelo';
-    const msg =
-      qty > 0
-        ? `Excluir “${label}” e suas ${qty} unidade(s)?\n\nOs códigos ABS-###### dessas unidades não serão reutilizados.`
-        : `Excluir o modelo técnico “${label}”?`;
-    if (!window.confirm(msg)) return;
     setDeletingId(model.id);
+    setDeletePasswordError(null);
     setError(null);
     try {
-      await deleteWorkshopAbsModuleModel(model.id, { force: qty > 0 });
+      await deleteWorkshopAbsModuleModel(model.id, { force: qty > 0, password });
+      setDeletePendingModel(null);
       await loadModels();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Falha ao excluir modelo.');
+      const msg = e instanceof Error ? e.message : 'Falha ao excluir modelo.';
+      setDeletePasswordError(msg);
+      setError(msg);
     } finally {
       setDeletingId(null);
     }
@@ -749,6 +759,34 @@ export function WorkshopAbsModulesHomeDashboard({
           setFlowPublicId(publicId);
           setFlowOpen(true);
         }}
+      />
+
+      <StockGuardPasswordModal
+        open={!!deletePendingModel}
+        title="Excluir modelo ABS"
+        subtitle={
+          deletePendingModel
+            ? (() => {
+                const qty = Number(deletePendingModel.total_qty ?? 0);
+                const label =
+                  [deletePendingModel.manufacturer, modelPrimaryCode(deletePendingModel)]
+                    .filter(Boolean)
+                    .join(' · ') || 'modelo';
+                return qty > 0
+                  ? `Excluir “${label}” e suas ${qty} unidade(s). Os códigos ABS não serão reutilizados. Informe a senha da Gerência (admin).`
+                  : `Excluir o modelo técnico “${label}”. Informe a senha da Gerência (admin).`;
+              })()
+            : 'Informe a senha da Gerência (admin) para excluir.'
+        }
+        confirmLabel="Excluir"
+        error={deletePasswordError}
+        busy={!!deletingId}
+        onClose={() => {
+          if (deletingId) return;
+          setDeletePendingModel(null);
+          setDeletePasswordError(null);
+        }}
+        onConfirm={(pwd) => void confirmDeleteModelWithPassword(pwd)}
       />
     </>
   );

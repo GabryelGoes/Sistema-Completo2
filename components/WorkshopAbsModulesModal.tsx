@@ -96,6 +96,7 @@ import { AbsDisassemblyDetailModal } from './AbsDisassemblyDetailModal';
 import { BarcodeScanField } from './BarcodeScanField';
 import { Lightbox } from './Lightbox';
 import { NiimbotAbsModuleLabelPrintModal } from './NiimbotAbsModuleLabelPrintModal';
+import { StockGuardPasswordModal } from './StockGuardPasswordModal';
 import { CurrencyMaskInput } from './ui/CurrencyMaskInput';
 import { PartPhotoImg } from './ui/PartPhotoImg';
 import { RegistrationPortal } from './ui/RegistrationPortal';
@@ -869,9 +870,16 @@ export function WorkshopAbsModulesModal({
     currentIndex: number;
   } | null>(null);
   const [disassemblyPublicId, setDisassemblyPublicId] = useState<string | null>(null);
+  const [deletePendingModule, setDeletePendingModule] = useState<WorkshopAbsModule | null>(null);
+  const [deletePasswordError, setDeletePasswordError] = useState<string | null>(null);
+  const [deletePasswordBusy, setDeletePasswordBusy] = useState(false);
 
   useBrowserBackLayer(isOpen, onClose);
   useBrowserBackLayer(!!detailPreview, () => setDetailPreview(null));
+  useBrowserBackLayer(!!deletePendingModule && !deletePasswordBusy, () => {
+    setDeletePendingModule(null);
+    setDeletePasswordError(null);
+  });
 
   useEffect(() => {
     if (view.kind !== 'detail' && detailPreview) setDetailPreview(null);
@@ -1101,20 +1109,22 @@ export function WorkshopAbsModulesModal({
     initialShowScan,
   ]);
 
-  const handleDeleteUnit = useCallback(
-    async (mod: WorkshopAbsModule) => {
-      const label = `${formatAbsModuleSequence(mod.sequence_number)} · ${mod.public_id}`;
-      if (
-        !window.confirm(
-          `Excluir a unidade ${label}?\n\nO código ${mod.public_id} não será reutilizado.`
-        )
-      ) {
-        return;
-      }
+  const handleDeleteUnit = useCallback((mod: WorkshopAbsModule) => {
+    setDeletePasswordError(null);
+    setDeletePendingModule(mod);
+  }, []);
+
+  const confirmDeleteUnitWithPassword = useCallback(
+    async (password: string) => {
+      const mod = deletePendingModule;
+      if (!mod) return;
+      setDeletePasswordBusy(true);
+      setDeletePasswordError(null);
       setActionBusy(true);
       setActionError(null);
       try {
-        await deleteWorkshopAbsModule(mod.public_id);
+        await deleteWorkshopAbsModule(mod.public_id, password);
+        setDeletePendingModule(null);
         setSuccessMsg(`Unidade ${mod.public_id} excluída.`);
         if (mod.model_id) {
           const fresh = await getWorkshopAbsModuleModel(mod.model_id);
@@ -1125,12 +1135,15 @@ export function WorkshopAbsModulesModal({
         }
         setAction(null);
       } catch (e) {
-        setActionError(e instanceof Error ? e.message : 'Falha ao excluir unidade.');
+        const msg = e instanceof Error ? e.message : 'Falha ao excluir unidade.';
+        setDeletePasswordError(msg);
+        setActionError(msg);
       } finally {
+        setDeletePasswordBusy(false);
         setActionBusy(false);
       }
     },
-    [loadModels]
+    [deletePendingModule, loadModels]
   );
 
   const handleScan = useCallback(
@@ -3718,6 +3731,24 @@ export function WorkshopAbsModulesModal({
             setActionError(null);
           }
         }}
+      />
+      <StockGuardPasswordModal
+        open={!!deletePendingModule}
+        title="Excluir módulo ABS"
+        subtitle={
+          deletePendingModule
+            ? `Excluir ${formatAbsModuleSequence(deletePendingModule.sequence_number)} · ${deletePendingModule.public_id}. O código não será reutilizado. Informe a senha da Gerência (admin).`
+            : 'Informe a senha da Gerência (admin) para excluir.'
+        }
+        confirmLabel="Excluir"
+        error={deletePasswordError}
+        busy={deletePasswordBusy}
+        onClose={() => {
+          if (deletePasswordBusy) return;
+          setDeletePendingModule(null);
+          setDeletePasswordError(null);
+        }}
+        onConfirm={(pwd) => void confirmDeleteUnitWithPassword(pwd)}
       />
     </>
   );

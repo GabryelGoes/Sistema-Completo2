@@ -52,6 +52,7 @@ import { AbsApplicationsPanel } from './AbsApplicationsPanel';
 import { AbsDisassemblyDetailModal } from './AbsDisassemblyDetailModal';
 import { Lightbox } from './Lightbox';
 import { NiimbotAbsModuleLabelPrintModal } from './NiimbotAbsModuleLabelPrintModal';
+import { StockGuardPasswordModal } from './StockGuardPasswordModal';
 import { PartPhotoImg } from './ui/PartPhotoImg';
 import { useBrowserBackLayer } from './ui/BackNavigationContext';
 
@@ -486,8 +487,14 @@ export function WorkshopAbsModuleDetailView({
     currentIndex: number;
   } | null>(null);
   const [disassemblyPublicId, setDisassemblyPublicId] = useState<string | null>(null);
+  const [deletePasswordOpen, setDeletePasswordOpen] = useState(false);
+  const [deletePasswordError, setDeletePasswordError] = useState<string | null>(null);
 
   useBrowserBackLayer(!!previewImages, () => setPreviewImages(null));
+  useBrowserBackLayer(deletePasswordOpen && !deleting, () => {
+    setDeletePasswordOpen(false);
+    setDeletePasswordError(null);
+  });
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -609,18 +616,26 @@ export function WorkshopAbsModuleDetailView({
     }
   };
 
-  const handleDelete = async () => {
+  const handleDelete = () => {
     if (!module) return;
-    const label = `${formatAbsModuleSequence(module.sequence_number)} · ${module.public_id}`;
-    if (!window.confirm(`Excluir a unidade ${label}? Esta ação não pode ser desfeita.`)) return;
+    setDeletePasswordError(null);
+    setDeletePasswordOpen(true);
+  };
+
+  const confirmDeleteWithPassword = async (password: string) => {
+    if (!module) return;
     setDeleting(true);
+    setDeletePasswordError(null);
     setError(null);
     try {
-      await deleteWorkshopAbsModule(module.public_id);
+      await deleteWorkshopAbsModule(module.public_id, password);
+      setDeletePasswordOpen(false);
       onDeleted?.(module.public_id);
       onBack();
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Falha ao excluir.');
+      const msg = e instanceof Error ? e.message : 'Falha ao excluir.';
+      setDeletePasswordError(msg);
+      setError(msg);
     } finally {
       setDeleting(false);
     }
@@ -1302,6 +1317,25 @@ export function WorkshopAbsModuleDetailView({
         open={!!labelPrintModules?.length}
         modules={labelPrintModules}
         onClose={() => setLabelPrintModules(null)}
+      />
+
+      <StockGuardPasswordModal
+        open={deletePasswordOpen && !!module}
+        title="Excluir módulo ABS"
+        subtitle={
+          module
+            ? `Excluir ${formatAbsModuleSequence(module.sequence_number)} · ${module.public_id}. O código não será reutilizado. Informe a senha da Gerência (admin).`
+            : 'Informe a senha da Gerência (admin) para excluir.'
+        }
+        confirmLabel="Excluir"
+        error={deletePasswordError}
+        busy={deleting}
+        onClose={() => {
+          if (deleting) return;
+          setDeletePasswordOpen(false);
+          setDeletePasswordError(null);
+        }}
+        onConfirm={(pwd) => void confirmDeleteWithPassword(pwd)}
       />
     </div>
   );
