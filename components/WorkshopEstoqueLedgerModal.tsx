@@ -110,7 +110,7 @@ export function WorkshopEstoqueLedgerModal({
     <RegistrationPortal>
       <div className={overlayClass} onClick={onClose} role="presentation">
         <div
-          className={`${iosModalShell} flex h-[min(96dvh,960px)] w-full max-w-4xl flex-col overflow-hidden`}
+          className={`${iosModalShell} flex h-[min(78vh,680px)] w-full max-w-6xl flex-col overflow-hidden`}
           onClick={(e) => e.stopPropagation()}
           role="dialog"
           aria-modal="true"
@@ -120,66 +120,68 @@ export function WorkshopEstoqueLedgerModal({
             <X className="h-5 w-5" />
           </button>
 
-          <div className="shrink-0 border-b border-zinc-200/60 px-5 pb-3 pt-8 pr-24 dark:border-white/[0.06] sm:px-6">
-            <IosModalHeader
-              icon={<History className="h-5 w-5 text-zinc-800" />}
-              title="Histórico de compras"
-              subtitle="Entradas e saídas de peças e módulos ABS"
-              gradientClass="from-emerald-500 to-teal-700"
-            />
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                onClick={() => void load()}
-                disabled={loading}
-                className="inline-flex items-center gap-1.5 rounded-xl bg-zinc-100 px-3 py-2 text-[12px] font-semibold text-zinc-700 hover:bg-zinc-200 disabled:opacity-50 dark:bg-white/10 dark:text-zinc-200"
-              >
-                <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
-                Atualizar
-              </button>
-              {onOpenSuppliers ? (
-                <button
-                  type="button"
-                  onClick={onOpenSuppliers}
-                  className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-50 px-3 py-2 text-[12px] font-semibold text-emerald-800 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-100"
-                >
-                  <Building2 className="h-3.5 w-3.5" />
-                  Fornecedores
-                </button>
-              ) : null}
-            </div>
-          </div>
-
-          <div className="shrink-0 space-y-3 border-b border-zinc-200/60 px-5 py-3 dark:border-white/[0.06] sm:px-6">
-            <div className="relative">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
-              <input
-                type="search"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Buscar produto, NF-e, fornecedor, usuário, OS…"
-                className="w-full rounded-xl border-0 bg-zinc-100 py-2.5 pl-9 pr-3 text-[14px] outline-none dark:bg-white/5 dark:text-white"
+          <div className="shrink-0 border-b border-zinc-200/60 px-5 pb-3 pt-7 pr-20 dark:border-white/[0.06] sm:px-6">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+              <IosModalHeader
+                icon={<History className="h-5 w-5 text-zinc-800" />}
+                title="Histórico de compras"
+                subtitle="Entradas e saídas de peças e módulos ABS"
+                gradientClass="from-emerald-500 to-teal-700"
               />
-            </div>
-            <div className="flex flex-wrap gap-1.5">
-              {chips.map((c) => (
+              <div className="flex flex-wrap items-center gap-2 lg:pb-0.5">
                 <button
-                  key={c.id}
                   type="button"
-                  onClick={() => setFilter(c.id)}
-                  className={`rounded-full px-3 py-1.5 text-[12px] font-semibold ${
-                    filter === c.id
-                      ? 'bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900'
-                      : 'bg-zinc-100 text-zinc-600 dark:bg-white/10 dark:text-zinc-300'
-                  }`}
+                  onClick={() => void load()}
+                  disabled={loading}
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-zinc-100 px-3 py-2 text-[12px] font-semibold text-zinc-700 hover:bg-zinc-200 disabled:opacity-50 dark:bg-white/10 dark:text-zinc-200"
                 >
-                  {c.label}
+                  <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
+                  Atualizar
                 </button>
-              ))}
+                {onOpenSuppliers ? (
+                  <button
+                    type="button"
+                    onClick={onOpenSuppliers}
+                    className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-50 px-3 py-2 text-[12px] font-semibold text-emerald-800 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-100"
+                  >
+                    <Building2 className="h-3.5 w-3.5" />
+                    Fornecedores
+                  </button>
+                ) : null}
+              </div>
+            </div>
+
+            <div className="mt-3 flex flex-col gap-2.5 sm:flex-row sm:items-center">
+              <div className="relative min-w-0 flex-1">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+                <input
+                  type="search"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Buscar produto, NF-e, fornecedor, usuário, OS…"
+                  className="w-full rounded-xl border-0 bg-zinc-100 py-2.5 pl-9 pr-3 text-[14px] outline-none dark:bg-white/5 dark:text-white"
+                />
+              </div>
+              <div className="flex shrink-0 flex-wrap gap-1.5">
+                {chips.map((c) => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => setFilter(c.id)}
+                    className={`rounded-full px-3 py-1.5 text-[12px] font-semibold ${
+                      filter === c.id
+                        ? 'bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900'
+                        : 'bg-zinc-100 text-zinc-600 dark:bg-white/10 dark:text-zinc-300'
+                    }`}
+                  >
+                    {c.label}
+                  </button>
+                ))}
+              </div>
             </div>
           </div>
 
-          <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4 custom-scrollbar sm:px-6">
+          <div className="min-h-0 flex-1 overflow-y-auto px-5 py-3.5 custom-scrollbar sm:px-6">
             {error ? (
               <p className="mb-3 rounded-xl bg-red-50 px-3 py-2 text-[13px] text-red-800 dark:bg-red-950/40 dark:text-red-200">
                 {error}
@@ -187,16 +189,16 @@ export function WorkshopEstoqueLedgerModal({
             ) : null}
 
             {loading && items.length === 0 ? (
-              <div className="flex items-center justify-center gap-2 py-16 text-zinc-500">
+              <div className="flex items-center justify-center gap-2 py-12 text-zinc-500">
                 <Loader2 className="h-5 w-5 animate-spin" />
                 Carregando histórico…
               </div>
             ) : filtered.length === 0 ? (
-              <p className="py-16 text-center text-[13px] text-zinc-500">
+              <p className="py-12 text-center text-[13px] text-zinc-500">
                 Nenhuma movimentação encontrada.
               </p>
             ) : (
-              <ul className="space-y-2.5">
+              <ul className="grid gap-2.5 md:grid-cols-2">
                 {filtered.map((row) => {
                   const { date, time } = formatLedgerDateTime(row.created_at);
                   const Icon =
@@ -214,27 +216,27 @@ export function WorkshopEstoqueLedgerModal({
                   return (
                     <li
                       key={row.id}
-                      className="rounded-2xl border-0 bg-white px-4 py-3.5 dark:bg-white/[0.04]"
+                      className="rounded-2xl border-0 bg-white px-3.5 py-3 dark:bg-white/[0.04]"
                     >
-                      <div className="flex items-start gap-3">
+                      <div className="flex items-start gap-2.5">
                         <span
-                          className={`mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${tone}`}
+                          className={`mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl ${tone}`}
                         >
                           <Icon className="h-4 w-4" />
                         </span>
                         <div className="min-w-0 flex-1">
-                          <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
-                            <p className="text-[15px] font-semibold text-zinc-900 dark:text-white">
+                          <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-0.5">
+                            <p className="truncate text-[14px] font-semibold text-zinc-900 dark:text-white">
                               {row.item_name}
                             </p>
-                            <p className="text-[12px] font-medium tabular-nums text-zinc-500">
+                            <p className="shrink-0 text-[11px] font-medium tabular-nums text-zinc-500">
                               {date}
                               {time ? ` · ${time}` : ''}
                             </p>
                           </div>
                           <p className="mt-0.5 text-[12px] font-semibold text-zinc-600 dark:text-zinc-300">
                             {row.type_label}
-                            {row.source === 'abs' ? ' · Módulo ABS' : ''}
+                            {row.source === 'abs' ? ' · ABS' : ''}
                             {row.quantity != null
                               ? ` · ${formatWorkshopPartQty(row.quantity)}${
                                   row.unit_label ? ` ${row.unit_label}` : ''
@@ -243,7 +245,7 @@ export function WorkshopEstoqueLedgerModal({
                             {row.money_label ? ` · ${row.money_label}` : ''}
                           </p>
 
-                          <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[12px] text-zinc-500">
+                          <div className="mt-1.5 flex flex-wrap gap-x-2.5 gap-y-0.5 text-[11px] text-zinc-500">
                             {row.recorded_by_name ? (
                               <span>
                                 <span className="font-semibold text-zinc-600 dark:text-zinc-300">
@@ -263,7 +265,7 @@ export function WorkshopEstoqueLedgerModal({
                             {row.supplier_name ? (
                               <span>
                                 <span className="font-semibold text-zinc-600 dark:text-zinc-300">
-                                  Fornecedor:
+                                  Forn.:
                                 </span>{' '}
                                 {row.supplier_name}
                               </span>
@@ -292,7 +294,7 @@ export function WorkshopEstoqueLedgerModal({
                             ) : null}
                           </div>
                           {row.notes ? (
-                            <p className="mt-1.5 text-[12px] leading-snug text-zinc-500 dark:text-zinc-400">
+                            <p className="mt-1 line-clamp-2 text-[11px] leading-snug text-zinc-500 dark:text-zinc-400">
                               {row.notes}
                             </p>
                           ) : null}
