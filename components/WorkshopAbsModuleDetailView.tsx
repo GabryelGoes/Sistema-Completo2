@@ -554,7 +554,14 @@ export function WorkshopAbsModuleDetailView({
     const list = [...units].sort(
       (a, b) => Number(a.sequence_number ?? 0) - Number(b.sequence_number ?? 0)
     );
-    if (list.length === 0 && module && module.status !== 'desmembrado') return [module];
+    // Se a unidade atual ainda está em estoque e não veio no catálogo, inclui.
+    if (
+      list.length === 0 &&
+      module &&
+      (module.status === 'disponivel' || module.status === 'reservado')
+    ) {
+      return [module];
+    }
     return list;
   }, [catalogModel, module]);
 

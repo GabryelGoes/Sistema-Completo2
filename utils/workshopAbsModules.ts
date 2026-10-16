@@ -720,11 +720,17 @@ export function describeAbsModuleMovement(m: WorkshopAbsModuleMovement): string 
   return type;
 }
 
-/** Unidades ativas do mesmo modelo (exclui desmembrados). */
+/**
+ * Unidades ainda em estoque do mesmo modelo (lista "mesmo modelo", etiquetas).
+ * Exclui desmembrados e fora de estoque (ex.: vendidos).
+ */
 export function activeAbsSiblingUnits(
   units: WorkshopAbsModule[] | null | undefined
 ): WorkshopAbsModule[] {
-  return (units || []).filter((u) => String(u.status || '') !== 'desmembrado');
+  return (units || []).filter((u) => {
+    const s = String(u.status || '').trim();
+    return s === 'disponivel' || s === 'reservado';
+  });
 }
 
 /** Movimentação ligada a desmembramento (abre modal de detalhes). */
