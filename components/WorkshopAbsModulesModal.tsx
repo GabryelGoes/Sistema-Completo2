@@ -1642,10 +1642,13 @@ export function WorkshopAbsModulesModal({
       const stayKind =
         disWithdrawn === 'eletronico' ? 'hidráulico' : 'eletrônico';
       const exitKind = disWithdrawn === 'eletronico' ? 'eletrônico' : 'hidráulico';
+      const sameLabel = result.withdrawn.public_id === mod.public_id;
       setSuccessMsg(
-        `Desmembrado. Fica no estoque (${stayKind}): ${result.remaining.public_id} — imprima a nova etiqueta. Sai (${exitKind}): ${result.withdrawn.public_id}.`
+        sameLabel
+          ? `Desmembrado. Estoque (${stayKind}): ${result.remaining.public_id} — nova etiqueta. Saída (${exitKind}): ${result.withdrawn.public_id} — mesma etiqueta · registrado em vendas.`
+          : `Desmembrado. Estoque (${stayKind}): ${result.remaining.public_id}. Saída (${exitKind}): ${result.withdrawn.public_id}.`
       );
-      // Abre a parte que ficou no estoque (precisa da nova etiqueta).
+      // Só imprime etiqueta da parte que ficou (nunca da saída por venda).
       openDetail(result.remaining);
       if (result.remaining.status === 'disponivel') {
         setLabelPrintModules([result.remaining]);
@@ -2921,6 +2924,12 @@ export function WorkshopAbsModulesModal({
                               <p className="mt-0.5 font-mono text-[12px] font-semibold tabular-nums text-rose-800 dark:text-rose-200">
                                 Cód. {exitCode}
                               </p>
+                              {disDestination !== 'estoque' ? (
+                                <p className="mt-2 text-[12px] leading-snug text-rose-900/90 dark:text-rose-100/90">
+                                  Mantém a etiqueta {src.public_id}. Sai da lista e registra no
+                                  histórico de vendas (quando for venda).
+                                </p>
+                              ) : null}
                             </div>
                           </div>
 

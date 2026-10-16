@@ -751,15 +751,23 @@ export function applyDevAbsModuleMovement(input: {
 export function listDevAbsModuleModels(filters?: {
   q?: string;
   kind?: AbsModuleKind | '';
+  status?: AbsModuleStatus | '';
 }): WorkshopAbsModuleModel[] {
   const q = String(filters?.q || '').trim().toLowerCase();
   const kind = filters?.kind || '';
+  const status = filters?.status || '';
   return Array.from(models.values())
     .filter((m) => {
       if (kind && m.module_kind !== kind) return false;
       return modelMatchesQuery(m, q);
     })
     .map((m) => cloneModel(m))
+    .filter((m) => {
+      if (!status) return true;
+      if (status === 'disponivel') return Number(m.available_qty || 0) > 0;
+      const units = Array.from(modules.values()).filter((u) => u.model_id === m.id);
+      return units.some((u) => u.status === status);
+    })
     .sort((a, b) => b.updated_at.localeCompare(a.updated_at));
 }
 
@@ -1086,31 +1094,18 @@ export function disassembleDevAbsModule(
   }
 
   const remainingSeq = nextSequenceForModel(remainingModel.id);
-  const withdrawnSeq = nextSequenceForModel(withdrawnModel.id);
   const remainingPublicId = nextPublicId();
-  const withdrawnPublicId = nextPublicId();
   const t = nowIso();
-  const withdrawnStatus: AbsModuleStatus =
-    destination === 'estoque' ? 'disponivel' : 'fora_estoque';
-
-  src.status = 'desmembrado';
-  src.updated_at = t;
-  src.movements.push({
-    id: crypto.randomUUID(),
-    workshop_id: WORKSHOP_DEV_ID,
-    module_id: src.id,
-    movement_type: 'exit',
-    from_status: 'disponivel',
-    to_status: 'desmembrado',
-    from_location: src.location,
-    to_location: src.location,
-    reason_type: 'desmembramento',
-    reason_ref: trimOrNull(input.destination_ref),
-    notes: trimOrNull(input.notes) || 'Desmembramento de módulo completo',
-    recorded_by_name: trimOrNull(input.recorded_by_name),
-    service_order_id: trimOrNull(input.service_order_id),
-    created_at: t,
-  });
+  const keepOriginalLabel = destination !== 'estoque';
+  const exitReasonType =
+    destination === 'ordem_servico'
+      ? 'ordem_servico'
+      : destination === 'venda_direta'
+        ? 'venda_avulsa'
+        : destination === 'laboratorio'
+          ? 'laboratorio'
+          : 'desmembramento';
+  const originalPublicId = src.public_id;
 
   const remaining: AbsModuleRow = {
     id: crypto.randomUUID(),
@@ -1130,7 +1125,7 @@ export function disassembleDevAbsModule(
     unit_price: src.unit_price,
     supplier: src.supplier,
     location: trimOrNull(input.remaining_location) || src.location,
-    notes: `Componente restante do desmembramento de ${src.public_id}`,
+    notes: `Componente restante do desmembramento de ${originalPublicId}`,
     status: 'disponivel',
     model_id: remainingModel.id,
     sequence_number: remainingSeq,
@@ -1151,71 +1146,121 @@ export function disassembleDevAbsModule(
     from_location: null,
     to_location: remaining.location,
     reason_type: 'desmembramento',
-    reason_ref: src.public_id,
-    notes: 'Unidade criada no desmembramento (restante)',
+    reason_ref: originalPublicId,
+    notes: 'Unidade criada no desmembramento (permanece em estoque · nova etiqueta)',
     recorded_by_name: trimOrNull(input.recorded_by_name),
     service_order_id: null,
     created_at: t,
   });
-
-  const withdrawn: AbsModuleRow = {
-    id: crypto.randomUUID(),
-    workshop_id: WORKSHOP_DEV_ID,
-    public_id: withdrawnPublicId,
-    manufacturer: src.manufacturer,
-    original_code: withdrawnCode,
-    application: src.application,
-    model: src.model,
-    year_label: src.year_label,
-    module_kind: withdrawnKind,
-    condition: src.condition,
-    item_state: src.item_state,
-    item_condition: src.item_condition,
-    damage_description: src.damage_description,
-    unit_cost: costWithdrawn,
-    unit_price: src.unit_price,
-    supplier: src.supplier,
-    location:
-      destination === 'estoque'
-        ? trimOrNull(input.withdrawn_location) || src.location
-        : trimOrNull(input.withdrawn_location),
-    notes: `Componente retirado do desmembramento de ${src.public_id}`,
-    status: withdrawnStatus,
-    model_id: withdrawnModel.id,
-    sequence_number: withdrawnSeq,
-    parent_complete_id: src.id,
-    received_at: t,
-    created_at: t,
-    updated_at: t,
-    photos: [],
-    movements: [],
-  };
-  withdrawn.movements.push({
-    id: crypto.randomUUID(),
-    workshop_id: WORKSHOP_DEV_ID,
-    module_id: withdrawn.id,
-    movement_type: destination === 'estoque' ? 'entry' : 'exit',
-    from_status: null,
-    to_status: withdrawnStatus,
-    from_location: null,
-    to_location: withdrawn.location,
-    reason_type:
-      destination === 'ordem_servico'
-        ? 'ordem_servico'
-        : destination === 'venda_direta'
-          ? 'venda_avulsa'
-          : destination === 'laboratorio'
-            ? 'laboratorio'
-            : 'desmembramento',
-    reason_ref: trimOrNull(input.destination_ref),
-    notes: `Unidade criada no desmembramento (retirada → ${destination})`,
-    recorded_by_name: trimOrNull(input.recorded_by_name),
-    service_order_id: trimOrNull(input.service_order_id),
-    created_at: t,
-  });
-
   modules.set(remainingPublicId, remaining);
-  modules.set(withdrawnPublicId, withdrawn);
+
+  let withdrawn: AbsModuleRow;
+
+  if (keepOriginalLabel) {
+    // Saída (venda/OS/lab): mantém a etiqueta ABS do completo — não gera novo public_id.
+    const withdrawnSeq = nextSequenceForModel(withdrawnModel.id);
+    const prevLocation = src.location;
+    src.module_kind = withdrawnKind;
+    src.model_id = withdrawnModel.id;
+    src.sequence_number = withdrawnSeq;
+    src.original_code = withdrawnCode;
+    src.unit_cost = costWithdrawn;
+    src.status = 'fora_estoque';
+    src.location = trimOrNull(input.withdrawn_location);
+    src.notes =
+      trimOrNull(input.notes) ||
+      `Desmembramento: saída ${withdrawnKind} (etiqueta original ${originalPublicId})`;
+    src.parent_complete_id = null;
+    src.updated_at = t;
+    src.movements.push({
+      id: crypto.randomUUID(),
+      workshop_id: WORKSHOP_DEV_ID,
+      module_id: src.id,
+      movement_type: 'exit',
+      from_status: 'disponivel',
+      to_status: 'fora_estoque',
+      from_location: prevLocation,
+      to_location: src.location,
+      reason_type: exitReasonType,
+      reason_ref: trimOrNull(input.destination_ref),
+      notes:
+        trimOrNull(input.notes) ||
+        `Desmembramento → ${destination} (mantém etiqueta ${originalPublicId})`,
+      recorded_by_name: trimOrNull(input.recorded_by_name),
+      service_order_id: trimOrNull(input.service_order_id),
+      created_at: t,
+    });
+    withdrawn = src;
+  } else {
+    // Destino estoque: completa vira desmembrado; geram-se duas unidades novas.
+    const withdrawnSeq = nextSequenceForModel(withdrawnModel.id);
+    const withdrawnPublicId = nextPublicId();
+    src.status = 'desmembrado';
+    src.updated_at = t;
+    src.movements.push({
+      id: crypto.randomUUID(),
+      workshop_id: WORKSHOP_DEV_ID,
+      module_id: src.id,
+      movement_type: 'exit',
+      from_status: 'disponivel',
+      to_status: 'desmembrado',
+      from_location: src.location,
+      to_location: src.location,
+      reason_type: 'desmembramento',
+      reason_ref: trimOrNull(input.destination_ref),
+      notes: trimOrNull(input.notes) || 'Desmembramento de módulo completo',
+      recorded_by_name: trimOrNull(input.recorded_by_name),
+      service_order_id: trimOrNull(input.service_order_id),
+      created_at: t,
+    });
+
+    withdrawn = {
+      id: crypto.randomUUID(),
+      workshop_id: WORKSHOP_DEV_ID,
+      public_id: withdrawnPublicId,
+      manufacturer: src.manufacturer,
+      original_code: withdrawnCode,
+      application: src.application,
+      model: src.model,
+      year_label: src.year_label,
+      module_kind: withdrawnKind,
+      condition: src.condition,
+      item_state: src.item_state,
+      item_condition: src.item_condition,
+      damage_description: src.damage_description,
+      unit_cost: costWithdrawn,
+      unit_price: src.unit_price,
+      supplier: src.supplier,
+      location: trimOrNull(input.withdrawn_location) || src.location,
+      notes: `Componente retirado do desmembramento de ${originalPublicId}`,
+      status: 'disponivel',
+      model_id: withdrawnModel.id,
+      sequence_number: withdrawnSeq,
+      parent_complete_id: src.id,
+      received_at: t,
+      created_at: t,
+      updated_at: t,
+      photos: [],
+      movements: [],
+    };
+    withdrawn.movements.push({
+      id: crypto.randomUUID(),
+      workshop_id: WORKSHOP_DEV_ID,
+      module_id: withdrawn.id,
+      movement_type: 'entry',
+      from_status: null,
+      to_status: 'disponivel',
+      from_location: null,
+      to_location: withdrawn.location,
+      reason_type: 'desmembramento',
+      reason_ref: originalPublicId,
+      notes: 'Unidade criada no desmembramento (retirada → estoque)',
+      recorded_by_name: trimOrNull(input.recorded_by_name),
+      service_order_id: trimOrNull(input.service_order_id),
+      created_at: t,
+    });
+    modules.set(withdrawnPublicId, withdrawn);
+  }
 
   const disassembly: WorkshopAbsModuleDisassembly = {
     id: crypto.randomUUID(),

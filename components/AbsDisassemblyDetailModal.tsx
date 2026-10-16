@@ -338,11 +338,11 @@ export function AbsDisassemblyDetailModal({
 
                 <section className="space-y-3">
                   <h3 className="text-[13px] font-bold text-zinc-800 dark:text-zinc-200">
-                    Unidades geradas
+                    Unidades
                   </h3>
                   <div className="grid gap-3 sm:grid-cols-2">
                     <UnitCard
-                      title="Ficou no estoque (nova etiqueta)"
+                      title="Permanece em estoque (nova etiqueta)"
                       badge={absModuleKindLabel(remainingKind)}
                       badgeClass="bg-emerald-600/15 text-emerald-800 dark:text-emerald-200"
                       module={detail.remaining}
@@ -350,7 +350,11 @@ export function AbsDisassemblyDetailModal({
                       onExpand={onExpandFiche}
                     />
                     <UnitCard
-                      title="Deu saída"
+                      title={
+                        detail.source.id === detail.withdrawn.id
+                          ? 'Saída (mesma etiqueta)'
+                          : 'Saída'
+                      }
                       badge={absModuleKindLabel(detail.disassembly.withdrawn_kind)}
                       badgeClass="bg-violet-600/15 text-violet-800 dark:text-violet-200"
                       module={detail.withdrawn}
@@ -358,14 +362,16 @@ export function AbsDisassemblyDetailModal({
                       onExpand={onExpandFiche}
                     />
                   </div>
-                  <UnitCard
-                    title="Completo de origem (etiqueta antiga)"
-                    badge="Desmembrado"
-                    badgeClass="bg-zinc-500/15 text-zinc-700 dark:text-zinc-300"
-                    module={detail.source}
-                    onOpenDetail={onOpenUnitDetail}
-                    onExpand={onExpandFiche}
-                  />
+                  {detail.source.id !== detail.withdrawn.id ? (
+                    <UnitCard
+                      title="Completo de origem"
+                      badge="Desmembrado"
+                      badgeClass="bg-zinc-500/15 text-zinc-700 dark:text-zinc-300"
+                      module={detail.source}
+                      onOpenDetail={onOpenUnitDetail}
+                      onExpand={onExpandFiche}
+                    />
+                  ) : null}
                 </section>
 
                 <section className="space-y-4 rounded-2xl bg-zinc-50 p-3.5 dark:bg-white/[0.04]">
@@ -375,16 +381,18 @@ export function AbsDisassemblyDetailModal({
                       Linha do tempo
                     </h3>
                   </div>
+                  {detail.source.id !== detail.withdrawn.id ? (
+                    <MovementTimeline
+                      title={`Origem · ${detail.source.public_id}`}
+                      movements={detail.movements.source}
+                    />
+                  ) : null}
                   <MovementTimeline
-                    title={`Origem · ${detail.source.public_id}`}
-                    movements={detail.movements.source}
-                  />
-                  <MovementTimeline
-                    title={`Restante · ${detail.remaining.public_id}`}
+                    title={`Estoque · ${detail.remaining.public_id}`}
                     movements={detail.movements.remaining}
                   />
                   <MovementTimeline
-                    title={`Retirada · ${detail.withdrawn.public_id}`}
+                    title={`Saída · ${detail.withdrawn.public_id}`}
                     movements={detail.movements.withdrawn}
                   />
                 </section>

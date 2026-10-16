@@ -553,7 +553,16 @@ export function registerAbsModuleRoutes(app: Express, deps: AbsRouteDeps) {
           : '';
 
       if (isDevMemoryActive(deps)) {
-        return res.json({ models: listDevAbsModuleModels({ q, kind }) });
+        const status = String(req.query.status || '').trim() as AbsModuleStatus | '';
+        return res.json({
+          models: listDevAbsModuleModels({
+            q,
+            kind,
+            status: (ABS_MODULE_STATUSES as readonly string[]).includes(status)
+              ? status
+              : '',
+          }),
+        });
       }
 
       let query = supabaseAdmin!
@@ -729,6 +738,20 @@ export function registerAbsModuleRoutes(app: Express, deps: AbsRouteDeps) {
             .toLowerCase();
           return hay.includes(ql);
         });
+      }
+
+      // Filtro de status: "disponivel" = só modelos com unidade em estoque
+      // (vendidos/fora_estoque somem da lista padrão).
+      const statusFilter = String(req.query.status || '').trim();
+      if (statusFilter === 'disponivel') {
+        models = models.filter((m) => Number(m.available_qty || 0) > 0);
+      } else if (statusFilter && (units || []).length) {
+        const modelIdsWithStatus = new Set(
+          (units || [])
+            .filter((u) => String(u.status || '') === statusFilter)
+            .map((u) => String(u.model_id))
+        );
+        models = models.filter((m) => modelIdsWithStatus.has(String(m.id)));
       }
 
       return res.json({ models });
