@@ -406,7 +406,8 @@ export function getDevAbsModuleByPublicId(publicId: string): WorkshopAbsModule |
   if (!row) return null;
   const mod = cloneModule(row);
   if (row.model_id && models.has(row.model_id)) {
-    mod.catalog_model = cloneModel(models.get(row.model_id)!);
+    // Inclui unidades irmãs — mesmo payload do detalhe em produção.
+    mod.catalog_model = cloneModel(models.get(row.model_id)!, { includeUnits: true });
   }
   return mod;
 }

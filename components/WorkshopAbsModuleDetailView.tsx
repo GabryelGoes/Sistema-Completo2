@@ -25,7 +25,6 @@ import {
   deleteWorkshopAbsModule,
   deleteWorkshopAbsModulePhoto,
   getWorkshopAbsModule,
-  getWorkshopAbsModuleModel,
   getWorkshopAbsModuleMovements,
   updateWorkshopAbsModule,
   uploadWorkshopAbsModulePhoto,
@@ -500,24 +499,17 @@ export function WorkshopAbsModuleDetailView({
     setLoading(true);
     setError(null);
     try {
+      // Módulo (já traz catálogo + irmãs) e histórico em paralelo — um único paint.
       const [mod, hist] = await Promise.all([
         getWorkshopAbsModule(publicId),
         getWorkshopAbsModuleMovements(publicId).catch(() => [] as WorkshopAbsModuleMovement[]),
       ]);
       setModule(mod);
       setMovements(hist);
-      if (mod.model_id) {
-        try {
-          const model = await getWorkshopAbsModuleModel(mod.model_id);
-          setCatalogModel(model);
-        } catch {
-          setCatalogModel(mod.catalog_model ?? null);
-        }
-      } else {
-        setCatalogModel(mod.catalog_model ?? null);
-      }
+      setCatalogModel(mod.catalog_model ?? null);
     } catch (e) {
       setModule(null);
+      setCatalogModel(null);
       setError(e instanceof Error ? e.message : 'Falha ao carregar o módulo.');
     } finally {
       setLoading(false);
@@ -696,12 +688,28 @@ export function WorkshopAbsModuleDetailView({
         ) : null}
 
         {loading && !module ? (
-          <div className="flex justify-center py-20">
-            <Loader2 className="h-10 w-10 animate-spin text-emerald-600" />
+          <div
+            className="w-full max-w-none space-y-5 pb-10"
+            aria-busy="true"
+            aria-label="Carregando ficha do módulo"
+          >
+            <div className="flex justify-center py-8">
+              <Loader2 className="h-9 w-9 animate-spin text-emerald-600" />
+            </div>
+            <div className="grid gap-5 xl:grid-cols-2">
+              <div className="space-y-3">
+                <div className="h-40 animate-pulse rounded-xl bg-zinc-100 dark:bg-white/5" />
+                <div className="h-48 animate-pulse rounded-xl bg-zinc-100 dark:bg-white/5" />
+              </div>
+              <div className="space-y-3">
+                <div className="h-36 animate-pulse rounded-xl bg-zinc-100 dark:bg-white/5" />
+                <div className="h-52 animate-pulse rounded-xl bg-zinc-100 dark:bg-white/5" />
+              </div>
+            </div>
           </div>
         ) : null}
 
-        {module ? (
+        {!loading && module ? (
           <div className="w-full max-w-none space-y-5 pb-10">
             <div className="grid gap-5 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
               <div className="space-y-5">

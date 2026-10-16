@@ -1934,23 +1934,20 @@ export function registerAbsModuleRoutes(app: Express, deps: AbsRouteDeps) {
         .maybeSingle();
       if (error) return res.status(500).json({ error: error.message });
       if (!data) return res.status(404).json({ error: 'Módulo ABS não encontrado.' });
-      const withPhotos = await attachUnitPhotos(
-        supabaseAdmin!,
-        WORKSHOP_ID!,
-        data as Record<string, unknown>
-      );
-      const modelId = withPhotos.model_id != null ? String(withPhotos.model_id) : '';
-      let catalog_model: Record<string, unknown> | null = null;
-      if (modelId) {
-        try {
-          catalog_model = (await fetchModelBundle(supabaseAdmin!, WORKSHOP_ID!, modelId, false)) as
-            | Record<string, unknown>
-            | null;
-        } catch {
-          catalog_model = null;
-        }
-      }
-      return res.json({ module: { ...withPhotos, catalog_model } });
+      const modelId = data.model_id != null ? String(data.model_id) : '';
+      // Fotos da unidade + catálogo (códigos, apps, fotos, irmãs) em paralelo.
+      const [withPhotos, catalog_model] = await Promise.all([
+        attachUnitPhotos(supabaseAdmin!, WORKSHOP_ID!, data as Record<string, unknown>),
+        modelId
+          ? fetchModelBundle(supabaseAdmin!, WORKSHOP_ID!, modelId, true).catch(() => null)
+          : Promise.resolve(null),
+      ]);
+      return res.json({
+        module: {
+          ...withPhotos,
+          catalog_model: (catalog_model as Record<string, unknown> | null) ?? null,
+        },
+      });
     } catch (err: any) {
       console.error('[API] GET /api/abs-modules/:publicId:', err);
       return res.status(500).json({ error: err?.message ?? 'Erro desconhecido' });

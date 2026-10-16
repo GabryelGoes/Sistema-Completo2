@@ -820,6 +820,9 @@ export function WorkshopAbsModulesModal({
   const isFullscreenShell = isDesktopShell && view.kind === 'form';
   const [models, setModels] = useState<WorkshopAbsModuleModel[]>([]);
   const [loading, setLoading] = useState(false);
+  /** Detalhe: aguarda payload completo (módulo + catálogo/irmãs) para não redimensionar o modal. */
+  const [detailLoading, setDetailLoading] = useState(false);
+  const detailLoadGenRef = useRef(0);
   const [error, setError] = useState<string | null>(null);
   const [scanCode, setScanCode] = useState('');
   const [query, setQuery] = useState('');
@@ -927,7 +930,15 @@ export function WorkshopAbsModulesModal({
     mod: WorkshopAbsModule,
     opts?: { focusLocation?: boolean }
   ) => {
+    const gen = ++detailLoadGenRef.current;
+    const hasCatalogReady = Boolean(
+      mod.catalog_model &&
+        (mod.catalog_model.units?.length ||
+          mod.catalog_model.codes?.length ||
+          mod.catalog_model.applications?.length)
+    );
     setView({ kind: 'detail', module: mod });
+    setDetailLoading(!hasCatalogReady);
     setAction(opts?.focusLocation ? 'transfer' : null);
     setActionError(null);
     setSuccessMsg(null);
@@ -939,16 +950,9 @@ export function WorkshopAbsModulesModal({
     setEntryLocation(mod.location || '');
     void (async () => {
       try {
-        let fresh = await getWorkshopAbsModule(mod.public_id);
-        // Sempre busca o modelo com unidades (irmãs) para o popover do detalhe.
-        if (fresh.model_id) {
-          try {
-            const catalog = await getWorkshopAbsModuleModel(fresh.model_id);
-            fresh = { ...fresh, catalog_model: catalog };
-          } catch {
-            /* sem catálogo */
-          }
-        }
+        // Um único GET: unidade + fotos + catálogo (códigos, apps, irmãs).
+        const fresh = await getWorkshopAbsModule(mod.public_id);
+        if (gen !== detailLoadGenRef.current) return;
         if (opts?.focusLocation) {
           const siblingLoc = activeAbsSiblingUnits(fresh.catalog_model?.units)
             .filter(
@@ -966,6 +970,8 @@ export function WorkshopAbsModulesModal({
         );
       } catch {
         /* mantém o módulo já exibido */
+      } finally {
+        if (gen === detailLoadGenRef.current) setDetailLoading(false);
       }
     })();
   }, []);
@@ -1716,6 +1722,8 @@ export function WorkshopAbsModulesModal({
   const goBack = useCallback(() => {
     setAction(null);
     setActionError(null);
+    setDetailLoading(false);
+    detailLoadGenRef.current += 1;
     if (view.kind === 'form' && createdUnitsPreview?.length) {
       const first = createdUnitsPreview[0]!;
       setCreatedUnitsPreview(null);
@@ -3092,7 +3100,41 @@ export function WorkshopAbsModulesModal({
               </div>
             ) : null}
 
-            {detail ? (
+            {detail && detailLoading ? (
+              <div
+                className="overflow-hidden rounded-[1.25rem] border-0 bg-white shadow-none dark:bg-zinc-950"
+                aria-busy="true"
+                aria-label="Carregando detalhe da unidade"
+              >
+                <div className="relative min-h-[7.25rem] bg-gradient-to-br from-zinc-200 via-zinc-100 to-emerald-50 dark:from-zinc-900 dark:via-zinc-900 dark:to-emerald-950/50 sm:min-h-[7.75rem]">
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <Loader2 className="h-8 w-8 animate-spin text-emerald-600/80" />
+                  </div>
+                </div>
+                <div className="space-y-2 px-2.5 py-3 sm:px-3.5">
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    <div className="h-[4.25rem] animate-pulse rounded-xl bg-zinc-100 dark:bg-white/5" />
+                    <div className="h-[4.25rem] animate-pulse rounded-xl bg-zinc-100 dark:bg-white/5" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="h-14 animate-pulse rounded-xl bg-zinc-100 dark:bg-white/5" />
+                    <div className="h-14 animate-pulse rounded-xl bg-zinc-100 dark:bg-white/5" />
+                    <div className="col-span-2 h-20 animate-pulse rounded-xl bg-zinc-100 dark:bg-white/5" />
+                    <div className="col-span-2 h-14 animate-pulse rounded-xl bg-zinc-100 dark:bg-white/5" />
+                  </div>
+                  <div className="h-12 animate-pulse rounded-xl bg-zinc-100 dark:bg-white/5" />
+                </div>
+                <div className="space-y-2 border-t border-zinc-100 px-2.5 py-2.5 dark:border-white/[0.06] sm:px-3.5">
+                  <div className="h-8 animate-pulse rounded-lg bg-zinc-100 dark:bg-white/5" />
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="h-11 animate-pulse rounded-xl bg-zinc-100 dark:bg-white/5" />
+                    <div className="h-11 animate-pulse rounded-xl bg-zinc-100 dark:bg-white/5" />
+                  </div>
+                </div>
+              </div>
+            ) : null}
+
+            {detail && !detailLoading ? (
               <div className="space-y-3">
                 {(() => {
                   const heroPhoto = detailHeroPhotoUrl(detail);
