@@ -950,7 +950,7 @@ export function WorkshopAbsModulesModal({
   const openDisassemble = useCallback((mod: WorkshopAbsModule) => {
     setView({ kind: 'disassemble', module: mod });
     setDisWithdrawn('eletronico');
-    setDisDestination('estoque');
+    setDisDestination('venda_direta');
     setDisDestRef('');
     setDisCostRemaining(String(Math.round((Number(mod.unit_cost) || 0) / 2)));
     setDisCostWithdrawn(String(Math.round((Number(mod.unit_cost) || 0) / 2)));
@@ -2840,18 +2840,6 @@ export function WorkshopAbsModulesModal({
                     primaryCodeForScope(codes, exitKind) ||
                     src.original_code ||
                     '—';
-                  const stayFp = absModelFingerprint(src.manufacturer, stayCode, stayKind);
-                  const existingStayModel = models.find(
-                    (m) =>
-                      m.module_kind === stayKind &&
-                      absModelFingerprint(
-                        m.manufacturer,
-                        primaryCodeForScope(m.codes, stayKind) ||
-                          primaryCodeForScope(m.codes, 'completo'),
-                        stayKind
-                      ) === stayFp
-                  );
-                  const exitKeepsLabel = disDestination !== 'estoque';
 
                   return (
                     <>
@@ -2861,25 +2849,22 @@ export function WorkshopAbsModulesModal({
                           {src.public_id}
                         </p>
                         <p className="mt-1 text-[13px] leading-relaxed text-amber-900/85 dark:text-amber-200/85">
-                          O módulo completo será dividido em duas partes: uma{' '}
-                          <strong>fica no estoque</strong> (nova etiqueta ABS) e a outra{' '}
-                          <strong>dá saída</strong>
-                          {exitKeepsLabel
-                            ? ' (mantém a identificação desta operação — sem etiqueta nova de estoque)'
-                            : ' (também fica disponível no estoque)'}
-                          . O completo passa a constar como desmembrado.
+                          Separação do módulo completo em dois componentes: um permanece
+                          disponível em estoque e o outro é registrado como saída. O completo
+                          passa ao status desmembrado.
                         </p>
                       </div>
 
                       {!canDisassemble ? (
                         <p className="rounded-2xl bg-rose-50 px-3 py-2 text-sm text-rose-700 dark:bg-rose-950/30 dark:text-rose-200">
-                          Este módulo não pode ser desmembrado (precisa ser completo + disponível).
+                          Desmembramento disponível apenas para módulos completos com status
+                          disponível.
                         </p>
                       ) : (
                         <div className="space-y-4">
                           <div>
                             <p className="mb-2 text-[12px] font-semibold uppercase tracking-wide text-zinc-500">
-                              1. Qual parte vai sair?
+                              1. Componente da saída
                             </p>
                             <div className="grid grid-cols-2 gap-2">
                               {(
@@ -2906,7 +2891,7 @@ export function WorkshopAbsModulesModal({
                                         selected ? 'text-rose-100' : 'text-zinc-500'
                                       }`}
                                     >
-                                      Parte da saída
+                                      Saída
                                     </span>
                                   </button>
                                 );
@@ -2917,7 +2902,7 @@ export function WorkshopAbsModulesModal({
                           <div className="grid gap-3 sm:grid-cols-2">
                             <div className="rounded-2xl bg-emerald-50 p-3.5 ring-1 ring-emerald-500/25 dark:bg-emerald-950/35 dark:ring-emerald-400/20">
                               <p className="text-[11px] font-bold uppercase tracking-wide text-emerald-800 dark:text-emerald-200">
-                                Fica no estoque
+                                Permanece em estoque
                               </p>
                               <p className="mt-1 text-[16px] font-bold text-emerald-950 dark:text-emerald-50">
                                 {absModuleKindLabel(stayKind)}
@@ -2925,36 +2910,11 @@ export function WorkshopAbsModulesModal({
                               <p className="mt-0.5 font-mono text-[12px] font-semibold tabular-nums text-emerald-800 dark:text-emerald-200">
                                 Cód. {stayCode}
                               </p>
-                              <ul className="mt-2 space-y-1.5 text-[12px] leading-snug text-emerald-900/90 dark:text-emerald-100/90">
-                                <li>
-                                  <strong>Nova etiqueta ABS</strong> será gerada e precisa ser
-                                  impressa.
-                                </li>
-                                <li>
-                                  {existingStayModel ? (
-                                    <>
-                                      Já existe cadastro deste {absModuleKindLabel(stayKind)} —
-                                      entra como <strong>+1 unidade disponível</strong> nesse
-                                      modelo
-                                      {existingStayModel.available_qty != null
-                                        ? ` (hoje ${existingStayModel.available_qty} disp.)`
-                                        : ''}
-                                      .
-                                    </>
-                                  ) : (
-                                    <>
-                                      Se ainda não houver cadastro só desta parte, um{' '}
-                                      <strong>novo modelo</strong> é criado; se já existir, soma
-                                      mais uma unidade disponível.
-                                    </>
-                                  )}
-                                </li>
-                              </ul>
                             </div>
 
                             <div className="rounded-2xl bg-rose-50 p-3.5 ring-1 ring-rose-500/25 dark:bg-rose-950/35 dark:ring-rose-400/20">
                               <p className="text-[11px] font-bold uppercase tracking-wide text-rose-800 dark:text-rose-200">
-                                Dá saída
+                                Saída
                               </p>
                               <p className="mt-1 text-[16px] font-bold text-rose-950 dark:text-rose-50">
                                 {absModuleKindLabel(exitKind)}
@@ -2962,33 +2922,14 @@ export function WorkshopAbsModulesModal({
                               <p className="mt-0.5 font-mono text-[12px] font-semibold tabular-nums text-rose-800 dark:text-rose-200">
                                 Cód. {exitCode}
                               </p>
-                              <ul className="mt-2 space-y-1.5 text-[12px] leading-snug text-rose-900/90 dark:text-rose-100/90">
-                                <li>
-                                  {exitKeepsLabel ? (
-                                    <>
-                                      <strong>Mantém a etiqueta / identificação</strong> desta
-                                      saída — não é necessária etiqueta nova de estoque.
-                                    </>
-                                  ) : (
-                                    <>
-                                      Destino = estoque: a peça também fica disponível (gera
-                                      unidade própria).
-                                    </>
-                                  )}
-                                </li>
-                                <li>
-                                  Destino atual:{' '}
-                                  <strong>{absDisassembleDestinationLabel(disDestination)}</strong>
-                                </li>
-                              </ul>
                             </div>
                           </div>
 
                           <div>
                             <p className="mb-2 text-[12px] font-semibold uppercase tracking-wide text-zinc-500">
-                              2. Destino da parte que sai
+                              2. Destino da saída
                             </p>
-                            <Field label="Para onde vai a parte da saída?">
+                            <Field label="Destino">
                               <select
                                 className={selectClass}
                                 value={disDestination}
@@ -3004,12 +2945,12 @@ export function WorkshopAbsModulesModal({
                               </select>
                             </Field>
                             <div className="mt-3">
-                              <Field label="Referência (OS / venda / obs. curta)">
+                              <Field label="Referência">
                                 <input
                                   className={inputClass}
                                   value={disDestRef}
                                   onChange={(e) => setDisDestRef(e.target.value)}
-                                  placeholder="Ex.: OS 1234 ou NF…"
+                                  placeholder="OS, NF ou identificação da operação"
                                 />
                               </Field>
                             </div>
@@ -3020,7 +2961,9 @@ export function WorkshopAbsModulesModal({
                               3. Rateio de custo (opcional)
                             </p>
                             <div className="grid gap-3 sm:grid-cols-2">
-                              <Field label={`Custo — fica (${absModuleKindLabel(stayKind)})`}>
+                              <Field
+                                label={`Custo — estoque (${absModuleKindLabel(stayKind)})`}
+                              >
                                 <input
                                   type="number"
                                   min={0}
@@ -3030,7 +2973,7 @@ export function WorkshopAbsModulesModal({
                                   onChange={(e) => setDisCostRemaining(e.target.value)}
                                 />
                               </Field>
-                              <Field label={`Custo — sai (${absModuleKindLabel(exitKind)})`}>
+                              <Field label={`Custo — saída (${absModuleKindLabel(exitKind)})`}>
                                 <input
                                   type="number"
                                   min={0}
@@ -3056,17 +2999,14 @@ export function WorkshopAbsModulesModal({
                             <p className="font-semibold text-zinc-900 dark:text-white">Resumo</p>
                             <p className="mt-1 leading-relaxed">
                               <span className="text-emerald-700 dark:text-emerald-300">
-                                Fica: {absModuleKindLabel(stayKind)}
+                                Estoque: {absModuleKindLabel(stayKind)}
                               </span>
-                              {' → '}nova etiqueta ABS
-                              {existingStayModel ? ' (+1 no modelo já cadastrado)' : ''}.
-                              <br />
+                              {' · '}
                               <span className="text-rose-700 dark:text-rose-300">
-                                Sai: {absModuleKindLabel(exitKind)}
+                                Saída: {absModuleKindLabel(exitKind)}
                               </span>
                               {' → '}
-                              {absDisassembleDestinationLabel(disDestination)}
-                              {exitKeepsLabel ? ' · sem etiqueta nova de estoque' : ''}.
+                              {absDisassembleDestinationLabel(disDestination)}.
                             </p>
                           </div>
 
@@ -3079,15 +3019,14 @@ export function WorkshopAbsModulesModal({
                             type="button"
                             disabled={actionBusy}
                             onClick={() => void handleDisassemble()}
-                            className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-amber-600 px-4 py-3.5 text-[15px] font-semibold text-white disabled:opacity-50"
+                            className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-amber-600 px-4 py-3.5 text-[15px] font-semibold uppercase tracking-wide text-white disabled:opacity-50"
                           >
                             {actionBusy ? (
                               <Loader2 className="h-5 w-5 animate-spin" />
                             ) : (
                               <Scissors className="h-5 w-5" />
                             )}
-                            Confirmar: {absModuleKindLabel(stayKind)} fica ·{' '}
-                            {absModuleKindLabel(exitKind)} sai
+                            Confirmar
                           </button>
                         </div>
                       )}
