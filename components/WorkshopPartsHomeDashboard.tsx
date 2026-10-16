@@ -15,7 +15,6 @@ import {
   Scale,
   ScanLine,
   Search,
-  Tags,
   Trash2,
   X,
 } from 'lucide-react';
@@ -65,7 +64,8 @@ export type WorkshopPartsHomeDashboardProps = {
   categoryNamesForPart: (part: WorkshopPart) => string[];
   onOpenScan: () => void;
   onOpenAnalytics: () => void;
-  onOpenCategories: () => void;
+  /** Histórico unificado de compras / entradas e saídas. */
+  onOpenHistory: () => void;
   /** Modo Balanço: senha uma vez; alterações sem novo prompt até sair do Estoque. */
   balanceModeActive: boolean;
   onToggleBalanceMode: () => void;
@@ -140,7 +140,7 @@ export function WorkshopPartsHomeDashboard({
   categoryNamesForPart,
   onOpenScan,
   onOpenAnalytics,
-  onOpenCategories,
+  onOpenHistory,
   balanceModeActive,
   onToggleBalanceMode,
   onOpenAbsModules,
@@ -281,9 +281,9 @@ export function WorkshopPartsHomeDashboard({
             <BarChart3 className="h-4 w-4" aria-hidden />
             Gráficos
           </button>
-          <button type="button" onClick={onOpenCategories} className={actionBtnSecondary}>
-            <Tags className="h-4 w-4" aria-hidden />
-            Categorias
+          <button type="button" onClick={onOpenHistory} className={actionBtnSecondary}>
+            <History className="h-4 w-4" aria-hidden />
+            Histórico de compras
           </button>
           {onOpenAbsModules ? (
             <button type="button" onClick={onOpenAbsModules} className={actionBtnSecondary}>
