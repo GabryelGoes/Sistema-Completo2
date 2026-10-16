@@ -45,6 +45,7 @@ import {
   renderNiimbotPartLabelDataUrl,
 } from '../utils/niimbotLabelRender';
 import { renderPatioKeyLabelDataUrl } from '../utils/patioKeyLabelRender';
+import { KEY_LABEL_ICON_PRESETS } from '../utils/keyLabelIcons';
 import { niimbotService } from '../services/niimbotService';
 import { ModalPortal } from './ui/ModalPortal';
 import { IosModalHeader } from './ui/IosModalHeader';
@@ -677,23 +678,69 @@ export function LabelTemplatesEditorModal({
                     {selected.kind !== 'qr' &&
                     selected.kind !== 'barcode' &&
                     !(activeId === 'chave' && selected.id === 'plate') ? (
-                      <label className="block space-y-1.5">
+                      <div className="space-y-1.5">
                         <span className="text-[11px] font-bold uppercase tracking-wide text-zinc-500">
                           Rótulo / prefixo
                         </span>
+                        {activeId === 'chave' &&
+                        (selected.id === 'customer' ||
+                          selected.id === 'vehicle' ||
+                          selected.id === 'color') ? (
+                          <div className="flex flex-wrap gap-1.5">
+                            {KEY_LABEL_ICON_PRESETS.map((preset) => {
+                              const active =
+                                (selected.labelText || '').trimStart().startsWith(preset.emoji);
+                              return (
+                                <button
+                                  key={preset.emoji}
+                                  type="button"
+                                  onClick={() =>
+                                    patchElement(selected.id, { labelText: preset.labelText })
+                                  }
+                                  className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-[13px] font-semibold transition ${
+                                    active
+                                      ? 'bg-emerald-600 text-white'
+                                      : 'bg-white text-zinc-800 hover:bg-zinc-100 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:bg-zinc-800'
+                                  }`}
+                                  title={`Usar ícone ${preset.name}`}
+                                >
+                                  <span className="text-[16px] leading-none">{preset.emoji}</span>
+                                  {preset.name}
+                                </button>
+                              );
+                            })}
+                            <button
+                              type="button"
+                              onClick={() => patchElement(selected.id, { labelText: '' })}
+                              className={`rounded-xl px-3 py-2 text-[12px] font-semibold ${
+                                !(selected.labelText || '').trim()
+                                  ? 'bg-zinc-800 text-white dark:bg-zinc-100 dark:text-zinc-900'
+                                  : 'bg-white text-zinc-600 dark:bg-zinc-900 dark:text-zinc-300'
+                              }`}
+                            >
+                              Sem ícone
+                            </button>
+                          </div>
+                        ) : null}
                         <input
                           type="text"
                           value={selected.labelText}
                           onChange={(e) =>
                             patchElement(selected.id, { labelText: e.target.value })
                           }
-                          placeholder="Ex.: Cliente: ou OFICINA"
+                          placeholder={
+                            activeId === 'chave'
+                              ? 'Ex.: 👤  ou Cliente:'
+                              : 'Ex.: Cliente: ou OFICINA'
+                          }
                           className="w-full rounded-xl border-0 bg-white px-3 py-2.5 text-[14px] font-medium text-zinc-900 outline-none dark:bg-zinc-900 dark:text-zinc-100"
                         />
                         <p className="text-[11px] text-zinc-500">
-                          Deixe vazio para imprimir só o valor (sem legenda).
+                          {activeId === 'chave'
+                            ? 'Ícones 👤 🚗 🎨 são desenhados em P&B para a Niimbot. Deixe vazio para só o valor.'
+                            : 'Deixe vazio para imprimir só o valor (sem legenda).'}
                         </p>
-                      </label>
+                      </div>
                     ) : null}
 
                     {activeId === 'chave' && selected.id === 'plate' ? (

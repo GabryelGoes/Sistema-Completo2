@@ -428,7 +428,7 @@ export function PatioKeyLabelPrintModal({ open, label, onClose }: PatioKeyLabelP
 
                 <label className="flex items-center justify-between gap-3 rounded-xl bg-white px-3 py-2.5 dark:bg-zinc-900">
                   <span className="text-[12px] font-medium text-zinc-700 dark:text-zinc-200">
-                    Mostrar rótulos (Cliente:, Carro:…)
+                    Mostrar ícones/rótulos (👤 🚗 🎨)
                   </span>
                   <input
                     type="checkbox"

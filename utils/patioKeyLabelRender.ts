@@ -12,6 +12,11 @@ import {
   type LabelVAlign,
 } from './labelTemplates';
 import { drawMercosulPlateOnCanvas } from './mercosulPlateCanvas';
+import {
+  drawKeyLabelIcon,
+  keyLabelIconSlotWidth,
+  splitKeyLabelPrefix,
+} from './keyLabelIcons';
 import { NIIMBOT_LABEL_H_PX, NIIMBOT_LABEL_W_PX } from './niimbotLabelRender';
 
 export type PatioKeyLabelInput = {
@@ -101,9 +106,9 @@ function applyStyleToTemplate(
 ): LabelTemplateLayout {
   const show = style.showLabels !== false;
   const defaults: Record<string, string> = {
-    customer: 'Cliente:',
-    vehicle: 'Carro:',
-    color: 'Cor:',
+    customer: '👤 ',
+    vehicle: '🚗 ',
+    color: '🎨 ',
     plate: '',
   };
   return {
@@ -302,21 +307,30 @@ function renderKeyBlock(
         c.fillStyle = '#000000';
         c.textBaseline = 'top';
 
-        const labelText = (row.labelText || '').trim()
-          ? row.labelText.endsWith(' ')
-            ? row.labelText
-            : `${row.labelText} `
+        const rawLabel = row.labelText || '';
+        const hasLabel = rawLabel.trim().length > 0;
+        const labelText = hasLabel
+          ? rawLabel.endsWith(' ')
+            ? rawLabel
+            : `${rawLabel} `
           : '';
+        const { icon, rest } = splitKeyLabelPrefix(labelText);
+        const iconSize = Math.max(
+          12,
+          Math.round((row.valueFontSize || row.fontSize) * 0.95)
+        );
+        const iconW = icon ? keyLabelIconSlotWidth(iconSize) : 0;
+
         c.font = font;
-        const labelW = labelText ? c.measureText(labelText).width : 0;
+        const restText = icon ? rest : labelText;
+        const restW = restText ? c.measureText(restText).width : 0;
+        const labelW = iconW + restW;
+
         c.font = valueFont;
         const valueMax = Math.max(8, boxW - labelW);
         const fitted = fitLineNoEllipsis(c, valueText, valueMax);
-        c.font = font;
-        const fullW = labelW + (() => {
-          c.font = valueFont;
-          return c.measureText(fitted).width;
-        })();
+        const valueW = c.measureText(fitted).width;
+        const fullW = labelW + valueW;
 
         let drawX = x;
         if (row.align === 'center') {
@@ -327,7 +341,8 @@ function renderKeyBlock(
 
         const lineH = Math.max(
           (row.valueFontSize || row.fontSize) * (opts.lineSpacing || 1),
-          row.valueFontSize || row.fontSize
+          row.valueFontSize || row.fontSize,
+          icon ? iconSize : 0
         );
         let drawY = y;
         if (opts.vAlign === 'middle') {
@@ -336,15 +351,28 @@ function renderKeyBlock(
           drawY = y + Math.max(0, boxH - lineH);
         }
 
-        if (labelText) {
-          c.font = font;
-          c.fillText(labelText, drawX, drawY);
-          c.font = valueFont;
-          c.fillText(fitted, drawX + labelW, drawY);
-        } else {
-          c.font = valueFont;
-          c.fillText(fitted, drawX, drawY);
+        let cursorX = drawX;
+        if (icon) {
+          const iconY = drawY + Math.max(0, (lineH - iconSize) / 2);
+          drawKeyLabelIcon(c, icon, cursorX, iconY, iconSize);
+          cursorX += iconW;
         }
+        if (restText) {
+          c.font = font;
+          c.fillStyle = '#000000';
+          c.textBaseline = 'top';
+          const textY =
+            drawY + Math.max(0, (lineH - (row.fontSize || 16)) / 2);
+          c.fillText(restText, cursorX, textY);
+          cursorX += restW;
+        }
+        c.font = valueFont;
+        c.fillStyle = '#000000';
+        c.textBaseline = 'top';
+        const valueY =
+          drawY +
+          Math.max(0, (lineH - (row.valueFontSize || row.fontSize)) / 2);
+        c.fillText(fitted, cursorX, valueY);
       }
     );
   }

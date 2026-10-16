@@ -340,7 +340,7 @@ export function createDefaultChaveTemplate(): LabelTemplateLayout {
   // Coordenadas no bloco vertical (240 × ~191) — a impressão rotaciona o par de faces.
   return {
     id: 'chave',
-    version: 2,
+    version: 3,
     canvasW: LABEL_W,
     canvasH: LABEL_H,
     keyOptions: {
@@ -366,7 +366,7 @@ export function createDefaultChaveTemplate(): LabelTemplateLayout {
         h: 26,
         fontSize: 16,
         valueFontSize: 18,
-        labelText: 'Cliente:',
+        labelText: '👤 ',
       }),
       el({
         id: 'vehicle',
@@ -379,7 +379,7 @@ export function createDefaultChaveTemplate(): LabelTemplateLayout {
         h: 26,
         fontSize: 16,
         valueFontSize: 18,
-        labelText: 'Carro:',
+        labelText: '🚗 ',
       }),
       el({
         id: 'color',
@@ -392,7 +392,7 @@ export function createDefaultChaveTemplate(): LabelTemplateLayout {
         h: 26,
         fontSize: 16,
         valueFontSize: 18,
-        labelText: 'Cor:',
+        labelText: '🎨 ',
       }),
       el({
         id: 'plate',
@@ -787,6 +787,7 @@ export function normalizeLabelTemplate(
   }
 
   // Chave v1 → v2: placa passa a ser caixa Mercosul (geometria padrão da placa).
+  // Chave v2 → v3: rótulos Cliente/Carro/Cor viram ícones 👤/🚗/🎨 (só se ainda forem o texto clássico).
   if (id === 'chave') {
     const savedVersion = Number(raw?.version ?? 0);
     if (savedVersion > 0 && savedVersion < 2) {
@@ -808,6 +809,32 @@ export function normalizeLabelTemplate(
         };
       });
     }
+    if (savedVersion > 0 && savedVersion < 3) {
+      const classicToIcon: Record<string, string> = {
+        customer: '👤 ',
+        vehicle: '🚗 ',
+        color: '🎨 ',
+      };
+      const classicLabels = new Set([
+        'Cliente:',
+        'Cliente',
+        'Carro:',
+        'Carro',
+        'Cor:',
+        'Cor',
+        'Veículo:',
+        'Veículo',
+      ]);
+      elements = elements.map((e) => {
+        const next = classicToIcon[e.id];
+        if (!next) return e;
+        const t = (e.labelText || '').trim();
+        if (!t || classicLabels.has(t)) {
+          return { ...e, labelText: next };
+        }
+        return e;
+      });
+    }
   }
 
   return {
@@ -817,7 +844,7 @@ export function normalizeLabelTemplate(
       id === 'abs_modulo'
         ? Math.max(Number(raw?.version) || 0, Number(def.version) || 5)
         : id === 'chave'
-          ? Math.max(Number(raw?.version) || 0, Number(def.version) || 2)
+          ? Math.max(Number(raw?.version) || 0, Number(def.version) || 3)
           : 1,
     canvasW: LABEL_W,
     canvasH: LABEL_H,
