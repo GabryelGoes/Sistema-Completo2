@@ -90,7 +90,14 @@ async function requireAbsDeletePassword(
     return { ok: false, status: 400, error: 'Informe a senha do administrador para excluir.' };
   }
   if (!deps.verifyDeletePassword) {
-    // Dev memory / ambiente sem callback: exige senha não vazia (já validada acima).
+    // Sem callback: só libera em modo memória (dev). Com Supabase, falha fechado.
+    if (!isDevMemoryActive(deps)) {
+      return {
+        ok: false,
+        status: 500,
+        error: 'Verificação de senha para exclusão ABS não configurada.',
+      };
+    }
     return { ok: true };
   }
   const ok = await deps.verifyDeletePassword(pwd);
