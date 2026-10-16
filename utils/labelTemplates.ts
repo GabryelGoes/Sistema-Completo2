@@ -100,7 +100,7 @@ export const LABEL_TEMPLATE_META: Array<{
   {
     id: 'chave',
     title: 'Chave (pátio)',
-    description: 'Duas faces verticais — cliente, carro, cor e placa',
+    description: 'Duas faces verticais — cliente, carro, cor e placa Mercosul',
   },
   {
     id: 'abs_modulo',
@@ -335,9 +335,10 @@ export function createDefaultEstoqueTemplate(): LabelTemplateLayout {
 }
 
 export function createDefaultChaveTemplate(): LabelTemplateLayout {
+  // Coordenadas no bloco vertical (240 × ~191) — a impressão rotaciona o par de faces.
   return {
     id: 'chave',
-    version: 1,
+    version: 2,
     canvasW: LABEL_W,
     canvasH: LABEL_H,
     keyOptions: {
@@ -345,7 +346,7 @@ export function createDefaultChaveTemplate(): LabelTemplateLayout {
       lineSpacing: 1,
       margin: 4,
       halfGap: 2,
-      vAlign: 'middle',
+      vAlign: 'top',
       dualCopy: true,
       offsetX: 0,
       offsetY: 0,
@@ -356,11 +357,12 @@ export function createDefaultChaveTemplate(): LabelTemplateLayout {
         kind: 'text_field',
         name: 'Cliente',
         visible: true,
-        x: 0,
-        y: 0,
-        w: 240,
-        h: 28,
-        fontSize: 18,
+        x: 6,
+        y: 6,
+        w: 228,
+        h: 26,
+        fontSize: 16,
+        valueFontSize: 18,
         labelText: 'Cliente:',
       }),
       el({
@@ -368,11 +370,12 @@ export function createDefaultChaveTemplate(): LabelTemplateLayout {
         kind: 'text_field',
         name: 'Carro',
         visible: true,
-        x: 0,
-        y: 28,
-        w: 240,
-        h: 28,
-        fontSize: 18,
+        x: 6,
+        y: 34,
+        w: 228,
+        h: 26,
+        fontSize: 16,
+        valueFontSize: 18,
         labelText: 'Carro:',
       }),
       el({
@@ -380,24 +383,27 @@ export function createDefaultChaveTemplate(): LabelTemplateLayout {
         kind: 'text_field',
         name: 'Cor',
         visible: true,
-        x: 0,
-        y: 56,
-        w: 240,
-        h: 28,
-        fontSize: 18,
+        x: 6,
+        y: 62,
+        w: 228,
+        h: 26,
+        fontSize: 16,
+        valueFontSize: 18,
         labelText: 'Cor:',
       }),
       el({
         id: 'plate',
         kind: 'text_field',
-        name: 'Placa',
+        name: 'Placa (Mercosul)',
         visible: true,
-        x: 0,
-        y: 84,
-        w: 240,
-        h: 28,
-        fontSize: 18,
-        labelText: 'Placa:',
+        x: 10,
+        y: 96,
+        w: 220,
+        h: 78,
+        fontSize: 12,
+        valueFontSize: 28,
+        labelText: '',
+        align: 'center',
       }),
     ],
   };
@@ -738,13 +744,39 @@ export function normalizeLabelTemplate(
     }
   }
 
+  // Chave v1 → v2: placa passa a ser caixa Mercosul (geometria padrão da placa).
+  if (id === 'chave') {
+    const savedVersion = Number(raw?.version ?? 0);
+    if (savedVersion > 0 && savedVersion < 2) {
+      elements = elements.map((e) => {
+        if (e.id !== 'plate') return e;
+        const fb = def.elements.find((d) => d.id === 'plate');
+        if (!fb) return e;
+        return {
+          ...e,
+          x: fb.x,
+          y: fb.y,
+          w: fb.w,
+          h: fb.h,
+          fontSize: fb.fontSize,
+          valueFontSize: fb.valueFontSize,
+          labelText: '',
+          align: 'center',
+          name: fb.name,
+        };
+      });
+    }
+  }
+
   return {
     id,
     // Mantém a versão salva se já for >= padrão; senão sobe para o default atual.
     version:
       id === 'abs_modulo'
         ? Math.max(Number(raw?.version) || 0, Number(def.version) || 5)
-        : 1,
+        : id === 'chave'
+          ? Math.max(Number(raw?.version) || 0, Number(def.version) || 2)
+          : 1,
     canvasW: LABEL_W,
     canvasH: LABEL_H,
     elements,

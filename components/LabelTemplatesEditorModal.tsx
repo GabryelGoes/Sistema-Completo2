@@ -333,13 +333,26 @@ export function LabelTemplatesEditorModal({
   const onPointerMove = (e: React.PointerEvent) => {
     if (!drag || !previewWrapRef.current) return;
     const rect = previewWrapRef.current.getBoundingClientRect();
-    const scaleX = NIIMBOT_LABEL_W_PX / rect.width;
-    const scaleY = NIIMBOT_LABEL_H_PX / rect.height;
-    const dx = (e.clientX - drag.startX) * scaleX;
-    const dy = (e.clientY - drag.startY) * scaleY;
+    // padding p-3 → área útil da imagem
+    const pad = 12;
+    const imgW = Math.max(1, rect.width - pad * 2);
+    const imgH = Math.max(1, rect.height - pad * 2);
+    const scaleX = NIIMBOT_LABEL_W_PX / imgW;
+    const scaleY = NIIMBOT_LABEL_H_PX / imgH;
+    const dPrintX = (e.clientX - drag.startX) * scaleX;
+    const dPrintY = (e.clientY - drag.startY) * scaleY;
+    // Chave: elementos vivem no bloco vertical; a prévia é a impressão rotacionada −90°.
+    // printX ≈ blockY · printY ≈ printH − blockX − blockW  →  dBlockX = −dPrintY · dBlockY = dPrintX
+    if (activeId === 'chave') {
+      patchElement(drag.elId, {
+        x: Math.round(drag.origX - dPrintY),
+        y: Math.round(drag.origY + dPrintX),
+      });
+      return;
+    }
     patchElement(drag.elId, {
-      x: Math.round(drag.origX + dx),
-      y: Math.round(drag.origY + dy),
+      x: Math.round(drag.origX + dPrintX),
+      y: Math.round(drag.origY + dPrintY),
     });
   };
 
@@ -347,10 +360,26 @@ export function LabelTemplatesEditorModal({
 
   if (!open) return null;
 
-  const overlayElements =
-    activeId === 'chave'
-      ? [] // chave é composta/rotacionada — edição por painel
-      : layout.elements.filter((e) => e.visible);
+  const overlayElements = layout.elements.filter((e) => e.visible);
+  const chaveHalfH = Math.floor(
+    (NIIMBOT_LABEL_W_PX - (layout.keyOptions?.halfGap ?? 2)) / 2
+  );
+
+  /** Mapeia retângulo do bloco da chave → caixa na prévia de impressão (rot −90°). */
+  const chaveOverlayBox = (elDef: LabelElementDef) => {
+    const ex = elDef.x;
+    const ey = elDef.y;
+    const ew = Math.max(4, elDef.w);
+    const eh = Math.max(4, elDef.h);
+    return {
+      left: ey,
+      top: NIIMBOT_LABEL_H_PX - ex - ew,
+      width: eh,
+      height: ew,
+      // Rotação do elemento no bloco + rotação da face na impressão
+      rot: (Number(elDef.rotation) || 0) - 90,
+    };
+  };
 
   return (
     <ModalPortal>
@@ -424,9 +453,10 @@ export function LabelTemplatesEditorModal({
               </div>
               <p className="text-[12px] text-zinc-500 dark:text-zinc-400">
                 {LABEL_TEMPLATE_META.find((m) => m.id === activeId)?.description}
-                {activeId !== 'chave'
-                  ? ' · Arraste os blocos na prévia para reposicionar.'
-                  : ' · Ajuste campos e opções no painel à direita.'}
+                {' · Arraste os textos na prévia · gire e edite cada um no painel.'}
+                {activeId === 'chave'
+                  ? ' A placa é desenhada no estilo Mercosul.'
+                  : ''}
               </p>
               <div
                 ref={previewWrapRef}
@@ -456,12 +486,26 @@ export function LabelTemplatesEditorModal({
                 {previewUrl && overlayElements.length > 0 ? (
                   <div className="pointer-events-none absolute inset-3">
                     {overlayElements.map((elDef) => {
-                      const left = `${(elDef.x / NIIMBOT_LABEL_W_PX) * 100}%`;
-                      const top = `${(elDef.y / NIIMBOT_LABEL_H_PX) * 100}%`;
-                      const width = `${(elDef.w / NIIMBOT_LABEL_W_PX) * 100}%`;
-                      const height = `${(elDef.h / NIIMBOT_LABEL_H_PX) * 100}%`;
+                      const mapped =
+                        activeId === 'chave'
+                          ? chaveOverlayBox(elDef)
+                          : {
+                              left: elDef.x,
+                              top: elDef.y,
+                              width: elDef.w,
+                              height: elDef.h,
+                              rot: Number(elDef.rotation) || 0,
+                            };
+                      // Chave: só destaca a 1ª face (metade esquerda da prévia após rotação).
+                      if (activeId === 'chave' && mapped.left > chaveHalfH + 8) {
+                        return null;
+                      }
+                      const left = `${(mapped.left / NIIMBOT_LABEL_W_PX) * 100}%`;
+                      const top = `${(mapped.top / NIIMBOT_LABEL_H_PX) * 100}%`;
+                      const width = `${(mapped.width / NIIMBOT_LABEL_W_PX) * 100}%`;
+                      const height = `${(mapped.height / NIIMBOT_LABEL_H_PX) * 100}%`;
                       const active = selectedId === elDef.id;
-                      const rot = Number(elDef.rotation) || 0;
+                      const rot = mapped.rot;
                       return (
                         <button
                           key={elDef.id}

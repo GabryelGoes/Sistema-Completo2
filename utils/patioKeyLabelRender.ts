@@ -11,6 +11,7 @@ import {
   type LabelTemplateLayout,
   type LabelVAlign,
 } from './labelTemplates';
+import { drawMercosulPlateOnCanvas } from './mercosulPlateCanvas';
 import { NIIMBOT_LABEL_H_PX, NIIMBOT_LABEL_W_PX } from './niimbotLabelRender';
 
 export type PatioKeyLabelInput = {
@@ -214,9 +215,6 @@ function renderKeyBlock(
   ctx.textBaseline = 'top';
 
   const opts = layout.keyOptions!;
-  const margin = opts.margin;
-  const contentW = Math.max(8, blockW - margin * 2);
-
   const valueById: Record<string, string> = {
     customer: formatKeyLabelCustomerName(input.customerName),
     vehicle: formatKeyLabelVehicleModel(input.vehicleModel),
@@ -227,19 +225,6 @@ function renderKeyBlock(
   const rows = layout.elements.filter((e) => e.visible !== false && e.kind === 'text_field');
   if (rows.length === 0) return canvas;
 
-  const fontSize = rows[0]!.fontSize;
-  const lineHeight = Math.max(fontSize * opts.lineSpacing, fontSize);
-  const blockTextH = lineHeight * rows.length;
-  const usableH = Math.max(0, blockH - margin * 2);
-
-  let startY = margin;
-  if (opts.vAlign === 'middle') {
-    startY = margin + Math.max(0, (usableH - blockTextH) / 2);
-  } else if (opts.vAlign === 'bottom') {
-    startY = margin + Math.max(0, usableH - blockTextH);
-  }
-  startY += opts.offsetY;
-
   try {
     (ctx as CanvasRenderingContext2D & { letterSpacing?: string }).letterSpacing =
       `${opts.letterSpacing}px`;
@@ -247,48 +232,95 @@ function renderKeyBlock(
     /* letterSpacing pode não existir em alguns browsers */
   }
 
-  for (let i = 0; i < rows.length; i++) {
-    const row = rows[i]!;
-    const y = startY + i * lineHeight;
-    const font = cssFontForElement(row);
-    ctx.font = font;
-
-    const labelText = (row.labelText || '').trim()
-      ? row.labelText.endsWith(' ')
-        ? row.labelText
-        : `${row.labelText} `
-      : '';
-    const labelW = labelText ? ctx.measureText(labelText).width : 0;
-    const valueMax = Math.max(8, contentW - labelW);
-    const valueText = fitLineNoEllipsis(ctx, valueById[row.id] ?? '—', valueMax);
-    const fullW = labelW + ctx.measureText(valueText).width;
-
-    let x = margin + opts.offsetX;
-    if (row.align === 'center') {
-      x = margin + opts.offsetX + (contentW - fullW) / 2;
-    } else if (row.align === 'right') {
-      x = margin + opts.offsetX + (contentW - fullW);
-    }
+  // Cada texto usa x/y/w/h/rotação próprios (igual ABS / lab / estoque).
+  for (const row of rows) {
+    const x = Math.round(row.x + opts.offsetX);
+    const y = Math.round(row.y + opts.offsetY);
+    const boxW = Math.max(8, row.w);
+    const boxH = Math.max(8, row.h);
+    const valueText = valueById[row.id] ?? '—';
 
     withLabelElementStyle(
       ctx,
       {
         x,
         y,
-        w: Math.max(fullW, 8),
-        h: lineHeight,
+        w: boxW,
+        h: boxH,
         opacity: row.opacity ?? 100,
         rotation: row.rotation ?? 0,
       },
       (c) => {
+        // Placa: desenha dentro de uma placa Mercosul (P&B para térmica).
+        if (row.id === 'plate') {
+          const labelText = (row.labelText || '').trim();
+          let plateY = y;
+          let plateH = boxH;
+          if (labelText) {
+            const labelSize = Math.max(8, Math.min(row.fontSize, Math.floor(boxH * 0.28)));
+            c.fillStyle = '#000000';
+            c.font = cssFontForElement({ ...row, fontSize: labelSize });
+            c.textBaseline = 'top';
+            const lab = labelText.endsWith(' ') ? labelText : `${labelText} `;
+            c.fillText(lab, x, y);
+            const gap = Math.max(2, Math.round(labelSize * 0.25));
+            plateY = y + labelSize + gap;
+            plateH = Math.max(12, boxH - (labelSize + gap));
+          }
+          drawMercosulPlateOnCanvas(c, x, plateY, boxW, plateH, valueText);
+          return;
+        }
+
+        const font = cssFontForElement(row);
+        const valueFont = cssFontForElement({
+          ...row,
+          fontSize: row.valueFontSize || row.fontSize,
+        });
         c.fillStyle = '#000000';
-        c.font = font;
         c.textBaseline = 'top';
+
+        const labelText = (row.labelText || '').trim()
+          ? row.labelText.endsWith(' ')
+            ? row.labelText
+            : `${row.labelText} `
+          : '';
+        c.font = font;
+        const labelW = labelText ? c.measureText(labelText).width : 0;
+        c.font = valueFont;
+        const valueMax = Math.max(8, boxW - labelW);
+        const fitted = fitLineNoEllipsis(c, valueText, valueMax);
+        c.font = font;
+        const fullW = labelW + (() => {
+          c.font = valueFont;
+          return c.measureText(fitted).width;
+        })();
+
+        let drawX = x;
+        if (row.align === 'center') {
+          drawX = x + (boxW - fullW) / 2;
+        } else if (row.align === 'right') {
+          drawX = x + (boxW - fullW);
+        }
+
+        const lineH = Math.max(
+          (row.valueFontSize || row.fontSize) * (opts.lineSpacing || 1),
+          row.valueFontSize || row.fontSize
+        );
+        let drawY = y;
+        if (opts.vAlign === 'middle') {
+          drawY = y + Math.max(0, (boxH - lineH) / 2);
+        } else if (opts.vAlign === 'bottom') {
+          drawY = y + Math.max(0, boxH - lineH);
+        }
+
         if (labelText) {
-          c.fillText(labelText, x, y);
-          c.fillText(valueText, x + labelW, y);
+          c.font = font;
+          c.fillText(labelText, drawX, drawY);
+          c.font = valueFont;
+          c.fillText(fitted, drawX + labelW, drawY);
         } else {
-          c.fillText(valueText, x, y);
+          c.font = valueFont;
+          c.fillText(fitted, drawX, drawY);
         }
       }
     );
