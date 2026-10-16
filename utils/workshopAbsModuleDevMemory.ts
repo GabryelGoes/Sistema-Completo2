@@ -802,21 +802,93 @@ export function searchDevAbsModules(qRaw: string): WorkshopAbsModuleSearchResult
 // Disassemble
 // ---------------------------------------------------------------------------
 
+function sameAbsVehicleApp(
+  a: Pick<WorkshopAbsModuleApplication, 'vehicle_brand' | 'vehicle_model' | 'year_from' | 'year_to'>,
+  b: Pick<WorkshopAbsModuleApplication, 'vehicle_brand' | 'vehicle_model' | 'year_from' | 'year_to'>
+): boolean {
+  return (
+    String(a.vehicle_brand || '')
+      .trim()
+      .toLowerCase() ===
+      String(b.vehicle_brand || '')
+        .trim()
+        .toLowerCase() &&
+    String(a.vehicle_model || '')
+      .trim()
+      .toLowerCase() ===
+      String(b.vehicle_model || '')
+        .trim()
+        .toLowerCase() &&
+    (a.year_from ?? null) === (b.year_from ?? null) &&
+    (a.year_to ?? null) === (b.year_to ?? null)
+  );
+}
+
+/**
+ * No desmembramento: a aplicação original do completo vira a principal do
+ * componente; apps do escopo da peça ficam secundárias.
+ */
 function copyAppsToModel(
   sourceModel: AbsModelRow,
   targetModel: AbsModelRow,
   scope: AbsComponentScope
 ) {
-  const has = targetModel.applications.some((a) => a.component_scope === scope);
-  if (has) return;
-  for (const a of sourceModel.applications.filter((x) => x.component_scope === scope)) {
+  const sortedSource = [...sourceModel.applications].sort(
+    (a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)
+  );
+  const original =
+    sortedSource.find((a) => a.component_scope === 'completo') || sortedSource[0] || null;
+  if (!original) return;
+
+  for (const a of targetModel.applications) {
+    if (a.component_scope === scope) a.sort_order = (a.sort_order ?? 0) + 100;
+  }
+
+  const existingOriginal = targetModel.applications.find(
+    (a) => a.component_scope === scope && sameAbsVehicleApp(a, original)
+  );
+  if (existingOriginal) {
+    existingOriginal.sort_order = 0;
+  } else {
+    targetModel.applications.push({
+      ...original,
+      id: crypto.randomUUID(),
+      model_id: targetModel.id,
+      component_scope: scope,
+      sort_order: 0,
+      created_at: nowIso(),
+    });
+  }
+
+  let secondarySort = 1;
+  for (const a of sortedSource.filter((x) => x.component_scope === scope)) {
+    if (sameAbsVehicleApp(a, original)) continue;
+    const exists = targetModel.applications.some(
+      (t) => t.component_scope === scope && sameAbsVehicleApp(t, a)
+    );
+    if (exists) continue;
     targetModel.applications.push({
       ...a,
       id: crypto.randomUUID(),
       model_id: targetModel.id,
+      component_scope: scope,
+      sort_order: secondarySort++,
       created_at: nowIso(),
     });
   }
+
+  // Renumerar: original=0, demais 1..n
+  const inScope = targetModel.applications
+    .filter((a) => a.component_scope === scope)
+    .sort((a, b) => {
+      const aOrig = sameAbsVehicleApp(a, original) ? 0 : 1;
+      const bOrig = sameAbsVehicleApp(b, original) ? 0 : 1;
+      if (aOrig !== bOrig) return aOrig - bOrig;
+      return (a.sort_order ?? 0) - (b.sort_order ?? 0);
+    });
+  inScope.forEach((a, i) => {
+    a.sort_order = i;
+  });
 }
 
 export function disassembleDevAbsModule(
