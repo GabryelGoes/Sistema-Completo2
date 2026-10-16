@@ -108,16 +108,27 @@ function applyStyleToTemplate(
   };
   return {
     ...layout,
-    elements: layout.elements.map((e) => ({
-      ...e,
-      fontFamily: style.fontFamily,
-      fontSize: style.fontSize,
-      valueFontSize: style.fontSize,
-      fontWeight: style.fontWeight,
-      align: style.align,
-      labelText: show ? e.labelText || defaults[e.id] || e.labelText : '',
-      visible: e.visible !== false,
-    })),
+    elements: layout.elements.map((e) => {
+      // Placa Mercosul: tipografia/tamanho vêm só do editor de etiquetas.
+      // Ajustes rápidos do modal de impressão não podem sobrescrever valueFontSize.
+      if (e.id === 'plate') {
+        return {
+          ...e,
+          labelText: '',
+          visible: e.visible !== false,
+        };
+      }
+      return {
+        ...e,
+        fontFamily: style.fontFamily,
+        fontSize: style.fontSize,
+        valueFontSize: style.fontSize,
+        fontWeight: style.fontWeight,
+        align: style.align,
+        labelText: show ? e.labelText || defaults[e.id] || e.labelText : '',
+        visible: e.visible !== false,
+      };
+    }),
     keyOptions: {
       letterSpacing: style.letterSpacing,
       lineSpacing: style.lineSpacing,
