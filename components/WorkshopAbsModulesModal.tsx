@@ -588,10 +588,11 @@ function detailHeroPhotoUrl(mod: WorkshopAbsModule): string | null {
 }
 
 function detailApplicationLabel(mod: WorkshopAbsModule): string {
-  const apps = absModulePrimaryApplicationOnly(
-    mod.catalog_model?.applications,
-    mod.module_kind
-  );
+  const catalogApps = mod.catalog_model?.applications;
+  const apps =
+    absModulePrimaryApplicationOnly(catalogApps, mod.module_kind).length > 0
+      ? absModulePrimaryApplicationOnly(catalogApps, mod.module_kind)
+      : absModulePrimaryApplicationOnly(catalogApps, 'completo');
   if (apps.length) {
     const brands = formatAbsApplicationBrands(apps);
     const vehicles = formatAbsApplicationVehicles(apps);
