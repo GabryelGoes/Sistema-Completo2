@@ -1669,7 +1669,6 @@ export function WorkshopAbsModulesModal({
     recordedByName,
     view,
   ]);
-  // setLabelPrintModules is stable setState — opens print for the unit that stays.
 
   const goBack = useCallback(() => {
     setAction(null);
@@ -1771,7 +1770,7 @@ export function WorkshopAbsModulesModal({
                   {view.kind === 'form' &&
                     (editingModule ? 'Editar módulo cadastrado' : 'Novo módulo — modelo + unidade')}
                   {view.kind === 'detail' && 'Detalhe da unidade'}
-                  {view.kind === 'disassemble' && 'Desmembrar módulo completo'}
+                  {view.kind === 'disassemble' && 'Desmembrar: o que fica × o que sai'}
                   {view.kind === 'missing' && 'Código não encontrado'}
                 </p>
               ) : null}
