@@ -854,9 +854,14 @@ export function WorkshopAbsModuleDetailView({
                 <div className={cardCls}>
                   <div className="mb-3 flex items-center gap-2">
                     <History className="h-4 w-4 text-zinc-500" />
-                    <h3 className="text-[13px] font-bold text-zinc-800 dark:text-zinc-200">
-                      Histórico de movimentações
-                    </h3>
+                    <div className="min-w-0">
+                      <h3 className="text-[13px] font-bold text-zinc-800 dark:text-zinc-200">
+                        Histórico desta unidade
+                      </h3>
+                      <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
+                        Somente movimentações de {module?.public_id || 'este módulo'}
+                      </p>
+                    </div>
                   </div>
                   {movements.length === 0 ? (
                     <p className="text-[14px] text-zinc-500 dark:text-zinc-400">

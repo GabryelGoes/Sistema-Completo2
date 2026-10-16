@@ -3,6 +3,7 @@ import {
   ArrowLeft,
   ChevronRight,
   Command,
+  History,
   Loader2,
   Package,
   Plus,
@@ -31,7 +32,7 @@ import {
   ABS_MODULE_KIND_OPTIONS,
   ABS_MODULE_STATUS_OPTIONS,
   absModuleKindLabel,
-  absModulePrimaryApplicationOnly,
+  absModuleListApplication,
   formatAbsModuleMoney,
   looksLikeAbsModuleCode,
   normalizeAbsModuleCode,
@@ -39,6 +40,7 @@ import {
   type AbsModuleKind,
   type AbsModuleStatus,
 } from '../utils/workshopAbsModules';
+import { AbsModulesGlobalMovementsModal } from './AbsModulesGlobalMovementsModal';
 import { PartPhotoImg } from './ui/PartPhotoImg';
 import { useBrowserBackLayer } from './ui/BackNavigationContext';
 import { WorkshopAbsModuleDetailView } from './WorkshopAbsModuleDetailView';
@@ -65,13 +67,9 @@ function modelPrimaryCode(m: WorkshopAbsModuleModel): string {
   return primaryCodeForScope(m.codes, scope) || primaryCodeForScope(m.codes, 'completo') || '—';
 }
 
-/** Aplicação original do modelo (mesmo após desmembrar em eletrônico/hidráulico). */
+/** Aplicação original do cadastro (escopo completo) — mesmo após desmembrar. */
 function modelOriginalApplication(m: WorkshopAbsModuleModel) {
-  return (
-    absModulePrimaryApplicationOnly(m.applications, m.module_kind)[0] ||
-    absModulePrimaryApplicationOnly(m.applications, 'completo')[0] ||
-    null
-  );
+  return absModuleListApplication(m.applications, m.module_kind);
 }
 
 /** Marca da aplicação original — coluna "Aplicação" (ignora secundárias). */
@@ -124,6 +122,7 @@ export function WorkshopAbsModulesHomeDashboard({
   /** Ficha expandida completa (botão Expandir no detalhe). */
   const [expandedPublicId, setExpandedPublicId] = useState<string | null>(null);
   const [expandedTick, setExpandedTick] = useState(0);
+  const [globalHistoryOpen, setGlobalHistoryOpen] = useState(false);
 
   const resetFlow = useCallback(() => {
     setFlowOpen(false);
@@ -397,6 +396,14 @@ export function WorkshopAbsModulesHomeDashboard({
           </div>
 
           <div className="flex flex-wrap gap-2 justify-end shrink-0">
+            <button
+              type="button"
+              onClick={() => setGlobalHistoryOpen(true)}
+              className={actionBtnSecondary}
+            >
+              <History className="h-4 w-4" aria-hidden />
+              Histórico
+            </button>
             <button type="button" onClick={openScan} className={actionBtnGreen}>
               <ScanLine className="h-4 w-4" aria-hidden />
               Escanear código
@@ -698,6 +705,22 @@ export function WorkshopAbsModulesHomeDashboard({
           }}
         />
       ) : null}
+
+      <AbsModulesGlobalMovementsModal
+        open={globalHistoryOpen}
+        onClose={() => setGlobalHistoryOpen(false)}
+        onOpenUnit={(publicId) => {
+          setGlobalHistoryOpen(false);
+          setFlowMissingId(null);
+          setFlowForm(false);
+          setFlowScan(false);
+          setFlowModelId(null);
+          setFlowEditPublicId(null);
+          setFlowDisassembleId(null);
+          setFlowPublicId(publicId);
+          setFlowOpen(true);
+        }}
+      />
     </>
   );
 }

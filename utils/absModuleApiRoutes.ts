@@ -11,6 +11,7 @@ import {
   getDevAbsModuleByPublicId,
   getDevAbsModuleModel,
   getDevAbsModuleMovements,
+  listDevAbsAllMovements,
   listDevAbsModuleModels,
   listDevAbsModules,
   searchDevAbsModules,
@@ -614,10 +615,101 @@ export function registerAbsModuleRoutes(app: Express, deps: AbsRouteDeps) {
       let models = (modelRows || []).map((m) => ({
         ...m,
         codes: codesByModel.get(m.id) || [],
-        applications: appsByModel.get(m.id) || [],
+        applications: (appsByModel.get(m.id) || []) as Array<Record<string, unknown>>,
         available_qty: availableByModel.get(m.id) || 0,
         total_qty: totalByModel.get(m.id) || 0,
       }));
+
+      // Componentes sem app `completo`: herdam a original do módulo completo pai
+      // (desmembramento), para a lista não mostrar montadora/modelo secundários.
+      const needOriginal = models.filter(
+        (m) =>
+          (m.module_kind === 'eletronico' || m.module_kind === 'hidraulico') &&
+          !(m.applications || []).some((a) => String(a.component_scope || '') === 'completo')
+      );
+      if (needOriginal.length && (units || []).length) {
+        const needIds = new Set(needOriginal.map((m) => String(m.id)));
+        const unitIds = (units || [])
+          .filter((u) => needIds.has(String(u.model_id)))
+          .map((u) => String(u.id));
+        if (unitIds.length) {
+          const { data: disRows } = await supabaseAdmin!
+            .from('workshop_abs_module_disassemblies')
+            .select('source_module_id, remaining_module_id, withdrawn_module_id')
+            .eq('workshop_id', WORKSHOP_ID!)
+            .or(
+              `remaining_module_id.in.(${unitIds.join(',')}),withdrawn_module_id.in.(${unitIds.join(',')})`
+            );
+          const unitToSource = new Map<string, string>();
+          for (const d of disRows || []) {
+            const src = String(d.source_module_id || '');
+            if (!src) continue;
+            if (d.remaining_module_id) unitToSource.set(String(d.remaining_module_id), src);
+            if (d.withdrawn_module_id) unitToSource.set(String(d.withdrawn_module_id), src);
+          }
+          const sourceModuleIds = [...new Set(unitToSource.values())];
+          if (sourceModuleIds.length) {
+            const { data: srcMods } = await supabaseAdmin!
+              .from('workshop_abs_modules')
+              .select('id, model_id')
+              .in('id', sourceModuleIds);
+            const sourceModelByUnit = new Map<string, string>();
+            const srcModelByModule = new Map(
+              (srcMods || []).map((s) => [String(s.id), String(s.model_id || '')])
+            );
+            for (const [unitId, srcModId] of unitToSource) {
+              const mid = srcModelByModule.get(srcModId);
+              if (mid) sourceModelByUnit.set(unitId, mid);
+            }
+            const sourceModelIds = [...new Set(sourceModelByUnit.values())].filter(Boolean);
+            const { data: srcApps } =
+              sourceModelIds.length > 0
+                ? await supabaseAdmin!
+                    .from('workshop_abs_module_applications')
+                    .select('*')
+                    .in('model_id', sourceModelIds)
+                    .eq('component_scope', 'completo')
+                    .order('sort_order', { ascending: true })
+                : { data: [] as Record<string, unknown>[] };
+            const firstCompletoByModel = new Map<string, Record<string, unknown>>();
+            for (const a of srcApps || []) {
+              const mid = String((a as { model_id: string }).model_id);
+              if (!firstCompletoByModel.has(mid)) firstCompletoByModel.set(mid, a as Record<string, unknown>);
+            }
+            const unitModelId = new Map(
+              (units || []).map((u) => [String(u.id), String(u.model_id)])
+            );
+            const injectByTargetModel = new Map<string, Record<string, unknown>>();
+            for (const [unitId, srcModelId] of sourceModelByUnit) {
+              const targetModelId = unitModelId.get(unitId);
+              const app = firstCompletoByModel.get(srcModelId);
+              if (targetModelId && app && !injectByTargetModel.has(targetModelId)) {
+                injectByTargetModel.set(targetModelId, app);
+              }
+            }
+            models = models.map((m) => {
+              const inject = injectByTargetModel.get(String(m.id));
+              if (!inject) return m;
+              if ((m.applications || []).some((a) => String(a.component_scope || '') === 'completo')) {
+                return m;
+              }
+              return {
+                ...m,
+                applications: [
+                  {
+                    ...inject,
+                    id: `inherited-${m.id}`,
+                    model_id: m.id,
+                    component_scope: 'completo',
+                    sort_order: 0,
+                  },
+                  ...(m.applications || []),
+                ],
+              };
+            });
+          }
+        }
+      }
 
       if (q) {
         const ql = q.toLowerCase();
@@ -875,6 +967,59 @@ export function registerAbsModuleRoutes(app: Express, deps: AbsRouteDeps) {
       return res.json({ ok: true, deletedUnits: units.length });
     } catch (err: any) {
       console.error('[API] DELETE /api/abs-module-models/:id:', err);
+      return res.status(500).json({ error: err?.message ?? 'Erro desconhecido' });
+    }
+  });
+
+  // -------- Histórico global (antes de :publicId) --------
+  app.get('/api/abs-modules/movements', async (req, res) => {
+    try {
+      const limitRaw = Number(req.query.limit);
+      const limit = Number.isFinite(limitRaw)
+        ? Math.max(1, Math.min(1000, Math.floor(limitRaw)))
+        : 300;
+
+      if (isDevMemoryActive(deps)) {
+        return res.json({ movements: listDevAbsAllMovements(limit) });
+      }
+
+      const { data, error } = await supabaseAdmin!
+        .from('workshop_abs_module_movements')
+        .select(
+          `
+          *,
+          module:workshop_abs_modules!inner (
+            public_id,
+            module_kind,
+            manufacturer,
+            sequence_number,
+            status
+          )
+        `
+        )
+        .eq('workshop_id', WORKSHOP_ID!)
+        .order('created_at', { ascending: false })
+        .limit(limit);
+      if (error) {
+        console.error('[API] GET /api/abs-modules/movements:', error);
+        return res.status(500).json({ error: error.message });
+      }
+
+      const movements = (data || []).map((row: Record<string, unknown>) => {
+        const mod = (row.module || {}) as Record<string, unknown>;
+        const { module: _drop, ...rest } = row;
+        return {
+          ...rest,
+          public_id: String(mod.public_id || ''),
+          module_kind: mod.module_kind ?? null,
+          manufacturer: mod.manufacturer ?? null,
+          sequence_number: mod.sequence_number ?? null,
+          status: mod.status ?? null,
+        };
+      });
+      return res.json({ movements });
+    } catch (err: any) {
+      console.error('[API] GET /api/abs-modules/movements:', err);
       return res.status(500).json({ error: err?.message ?? 'Erro desconhecido' });
     }
   });

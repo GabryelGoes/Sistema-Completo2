@@ -3245,6 +3245,7 @@ export type {
   WorkshopAbsModuleModel,
   WorkshopAbsModuleModelWriteInput,
   WorkshopAbsModuleMovement,
+  WorkshopAbsModuleMovementListItem,
   WorkshopAbsModulePhoto,
   WorkshopAbsModuleSearchResult,
   WorkshopAbsModuleWriteInput,
@@ -3262,6 +3263,7 @@ import type {
   WorkshopAbsModuleModel,
   WorkshopAbsModuleModelWriteInput,
   WorkshopAbsModuleMovement,
+  WorkshopAbsModuleMovementListItem,
   WorkshopAbsModuleSearchResult,
   WorkshopAbsModuleWriteInput,
 } from '../utils/workshopAbsModules';
@@ -3670,6 +3672,22 @@ export async function getWorkshopAbsModuleMovements(
     throw new Error(err.error || `Falha ao carregar histórico (${response.status})`);
   }
   const data = (await response.json()) as { movements?: WorkshopAbsModuleMovement[] };
+  return Array.isArray(data.movements) ? data.movements : [];
+}
+
+/** Histórico global de movimentações de todos os módulos ABS. */
+export async function getWorkshopAbsModulesAllMovements(opts?: {
+  limit?: number;
+}): Promise<WorkshopAbsModuleMovementListItem[]> {
+  const qs = new URLSearchParams();
+  if (opts?.limit != null) qs.set('limit', String(opts.limit));
+  const suffix = qs.toString() ? `?${qs.toString()}` : '';
+  const response = await fetch(`${API_BASE}/abs-modules/movements${suffix}`);
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao carregar histórico global (${response.status})`);
+  }
+  const data = (await response.json()) as { movements?: WorkshopAbsModuleMovementListItem[] };
   return Array.isArray(data.movements) ? data.movements : [];
 }
 

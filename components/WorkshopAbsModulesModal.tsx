@@ -66,6 +66,7 @@ import {
   absModuleKindLabel,
   absModuleStatusLabel,
   describeAbsModuleMovement,
+  absModuleListApplication,
   absModulePrimaryApplicationOnly,
   activeAbsSiblingUnits,
   formatAbsApplicationBrands,
@@ -589,11 +590,9 @@ function detailHeroPhotoUrl(mod: WorkshopAbsModule): string | null {
 
 function detailApplicationLabel(mod: WorkshopAbsModule): string {
   const catalogApps = mod.catalog_model?.applications;
-  const apps =
-    absModulePrimaryApplicationOnly(catalogApps, mod.module_kind).length > 0
-      ? absModulePrimaryApplicationOnly(catalogApps, mod.module_kind)
-      : absModulePrimaryApplicationOnly(catalogApps, 'completo');
-  if (apps.length) {
+  const primary = absModuleListApplication(catalogApps, mod.module_kind);
+  if (primary) {
+    const apps = [primary];
     const brands = formatAbsApplicationBrands(apps);
     const vehicles = formatAbsApplicationVehicles(apps);
     if (brands && vehicles) return `${brands} · ${vehicles}`;
@@ -2017,10 +2016,10 @@ export function WorkshopAbsModulesModal({
                             resize: 'cover',
                           }) || kindPhotoRaw
                         : null;
-                      const primaryApp = absModulePrimaryApplicationOnly(
+                      const primaryApp = absModuleListApplication(
                         m.applications,
                         m.module_kind
-                      )[0];
+                      );
                       const appBrand = String(primaryApp?.vehicle_brand || '').trim();
                       return (
                         <li key={m.id}>
@@ -3433,10 +3432,13 @@ export function WorkshopAbsModulesModal({
 
                 {action === 'history' ? (
                   <div className="rounded-3xl border-0 bg-white p-4 shadow-none dark:bg-white/5">
-                    <h3 className="mb-3 flex items-center gap-2 text-[15px] font-bold text-zinc-900 dark:text-white">
+                    <h3 className="mb-1 flex items-center gap-2 text-[15px] font-bold text-zinc-900 dark:text-white">
                       <ChevronDown className="h-4 w-4" />
-                      Histórico — {detail.public_id}
+                      Histórico desta unidade — {detail.public_id}
                     </h3>
+                    <p className="mb-3 text-[12px] text-zinc-500 dark:text-zinc-400">
+                      Somente movimentações relacionadas a este módulo.
+                    </p>
                     {loadingHistory ? (
                       <div className="flex justify-center py-6">
                         <Loader2 className="h-5 w-5 animate-spin text-zinc-400" />

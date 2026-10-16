@@ -467,6 +467,42 @@ export function getDevAbsModuleMovements(publicId: string): WorkshopAbsModuleMov
   return [...row.movements].sort((a, b) => b.created_at.localeCompare(a.created_at));
 }
 
+/** Histórico global de todas as unidades ABS (mais recentes primeiro). */
+export function listDevAbsAllMovements(limit = 300): Array<
+  WorkshopAbsModuleMovement & {
+    public_id: string;
+    module_kind: AbsModuleKind;
+    manufacturer: string | null;
+    sequence_number: number | null;
+    status: AbsModuleStatus;
+  }
+> {
+  const out: Array<
+    WorkshopAbsModuleMovement & {
+      public_id: string;
+      module_kind: AbsModuleKind;
+      manufacturer: string | null;
+      sequence_number: number | null;
+      status: AbsModuleStatus;
+    }
+  > = [];
+  for (const row of modules.values()) {
+    for (const m of row.movements) {
+      out.push({
+        ...m,
+        public_id: row.public_id,
+        module_kind: row.module_kind,
+        manufacturer: row.manufacturer,
+        sequence_number: row.sequence_number,
+        status: row.status,
+      });
+    }
+  }
+  return out
+    .sort((a, b) => b.created_at.localeCompare(a.created_at))
+    .slice(0, Math.max(1, Math.min(1000, Math.floor(limit) || 300)));
+}
+
 export function createDevAbsModule(
   input: WorkshopAbsModuleWriteInput,
   recordedByName?: string | null
@@ -867,8 +903,9 @@ function sameAbsVehicleApp(
 }
 
 /**
- * No desmembramento: a aplicação original do completo vira a principal do
- * componente; apps do escopo da peça ficam secundárias.
+ * No desmembramento: a aplicação ORIGINAL do completo fica no escopo `completo`
+ * do modelo do componente (lista/etiqueta); apps do escopo da peça ficam
+ * secundárias (compatibilidade).
  */
 function copyAppsToModel(
   sourceModel: AbsModelRow,
@@ -882,25 +919,30 @@ function copyAppsToModel(
     sortedSource.find((a) => a.component_scope === 'completo') || sortedSource[0] || null;
   if (!original) return;
 
+  // Cadastro original sempre em `completo` no modelo do componente.
   for (const a of targetModel.applications) {
-    if (a.component_scope === scope) a.sort_order = (a.sort_order ?? 0) + 100;
+    if (a.component_scope === 'completo') a.sort_order = (a.sort_order ?? 0) + 100;
   }
-
-  const existingOriginal = targetModel.applications.find(
-    (a) => a.component_scope === scope && sameAbsVehicleApp(a, original)
+  const existingCompleto = targetModel.applications.find(
+    (a) => a.component_scope === 'completo' && sameAbsVehicleApp(a, original)
   );
-  if (existingOriginal) {
-    existingOriginal.sort_order = 0;
+  if (existingCompleto) {
+    existingCompleto.sort_order = 0;
   } else {
     targetModel.applications.push({
       ...original,
       id: crypto.randomUUID(),
       model_id: targetModel.id,
-      component_scope: scope,
+      component_scope: 'completo',
       sort_order: 0,
       created_at: nowIso(),
     });
   }
+
+  // Remove cópia antiga da original no escopo da peça (evita virar "principal" errada).
+  targetModel.applications = targetModel.applications.filter(
+    (a) => !(a.component_scope === scope && sameAbsVehicleApp(a, original))
+  );
 
   let secondarySort = 1;
   for (const a of sortedSource.filter((x) => x.component_scope === scope)) {
@@ -919,16 +961,22 @@ function copyAppsToModel(
     });
   }
 
-  // Renumerar: original=0, demais 1..n
-  const inScope = targetModel.applications
-    .filter((a) => a.component_scope === scope)
+  const completoOrdered = targetModel.applications
+    .filter((a) => a.component_scope === 'completo')
     .sort((a, b) => {
       const aOrig = sameAbsVehicleApp(a, original) ? 0 : 1;
       const bOrig = sameAbsVehicleApp(b, original) ? 0 : 1;
       if (aOrig !== bOrig) return aOrig - bOrig;
       return (a.sort_order ?? 0) - (b.sort_order ?? 0);
     });
-  inScope.forEach((a, i) => {
+  completoOrdered.forEach((a, i) => {
+    a.sort_order = i;
+  });
+
+  const partOrdered = targetModel.applications
+    .filter((a) => a.component_scope === scope)
+    .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+  partOrdered.forEach((a, i) => {
     a.sort_order = i;
   });
 }

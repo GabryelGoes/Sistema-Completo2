@@ -195,6 +195,15 @@ export type WorkshopAbsModuleMovement = {
   created_at: string;
 };
 
+/** Movimentação no histórico global (com dados da unidade). */
+export type WorkshopAbsModuleMovementListItem = WorkshopAbsModuleMovement & {
+  public_id: string;
+  module_kind?: AbsModuleKind | string | null;
+  manufacturer?: string | null;
+  sequence_number?: number | null;
+  status?: AbsModuleStatus | string | null;
+};
+
 export type WorkshopAbsModuleDisassembly = {
   id: string;
   workshop_id?: string;
@@ -443,8 +452,11 @@ export type AbsApplicationsGrouped = {
 };
 
 /**
- * Separa aplicação original (1ª do escopo nativo do módulo) das secundárias,
- * agrupadas por completo / eletrônico / hidráulico.
+ * Separa a aplicação de cadastro original das secundárias.
+ *
+ * Regra da lista / etiqueta: a original é sempre a 1ª do escopo `completo`
+ * quando existir (mesmo em modelos eletrônico/hidráulico vindos de desmembramento).
+ * Só cai no escopo nativo do tipo se não houver app `completo`.
  */
 export function groupAbsModuleApplications(
   apps: WorkshopAbsModuleApplication[] | null | undefined,
@@ -455,9 +467,13 @@ export function groupAbsModuleApplications(
     if (so !== 0) return so;
     return String(a.id || '').localeCompare(String(b.id || ''));
   });
-  const primaryScope = absModulePrimaryApplicationScope(moduleKind);
-  const inNative = list.filter((a) => a.component_scope === primaryScope);
-  const primary = inNative[0] || list[0] || null;
+  const nativeScope = absModulePrimaryApplicationScope(moduleKind);
+  const completoApps = list.filter((a) => a.component_scope === 'completo');
+  const inNative = list.filter((a) => a.component_scope === nativeScope);
+  const primary = completoApps[0] || inNative[0] || list[0] || null;
+  const primaryScope: AbsComponentScope = completoApps[0]
+    ? 'completo'
+    : nativeScope;
   const primaryId = primary?.id ?? null;
 
   const scopes: AbsComponentScope[] = ['completo', 'eletronico', 'hidraulico'];
@@ -492,6 +508,17 @@ export function absModulePrimaryApplicationOnly(
 ): WorkshopAbsModuleApplication[] {
   const primary = groupAbsModuleApplications(apps, moduleKind).primary;
   return primary ? [primary] : [];
+}
+
+/**
+ * Aplicação exibida nas colunas da lista ABS (montadora / modelo de veículo).
+ * Prefere sempre o cadastro original (`completo`).
+ */
+export function absModuleListApplication(
+  apps: WorkshopAbsModuleApplication[] | null | undefined,
+  moduleKind?: AbsModuleKind | string | null
+): WorkshopAbsModuleApplication | null {
+  return absModulePrimaryApplicationOnly(apps, moduleKind || 'completo')[0] || null;
 }
 
 /** Marcas de aplicação (veículo) únicas, na ordem cadastrada. */
