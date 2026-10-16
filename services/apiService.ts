@@ -3235,6 +3235,7 @@ export type {
   AbsModuleStatus,
   WorkshopAbsDisassembleInput,
   WorkshopAbsDisassembleResult,
+  WorkshopAbsDisassemblyDetail,
   WorkshopAbsModule,
   WorkshopAbsModuleApplication,
   WorkshopAbsModuleApplicationInput,
@@ -3256,6 +3257,7 @@ import type {
   AbsModuleStatus,
   WorkshopAbsDisassembleInput,
   WorkshopAbsDisassembleResult,
+  WorkshopAbsDisassemblyDetail,
   WorkshopAbsModule,
   WorkshopAbsModuleModel,
   WorkshopAbsModuleModelWriteInput,
@@ -3669,6 +3671,40 @@ export async function getWorkshopAbsModuleMovements(
   }
   const data = (await response.json()) as { movements?: WorkshopAbsModuleMovement[] };
   return Array.isArray(data.movements) ? data.movements : [];
+}
+
+export async function getWorkshopAbsModuleDisassembly(
+  publicId: string
+): Promise<WorkshopAbsDisassemblyDetail> {
+  const pid = String(publicId || '').trim().toUpperCase();
+  const response = await fetch(
+    `${API_BASE}/abs-modules/${encodeURIComponent(pid)}/disassembly`
+  );
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao carregar desmembramento (${response.status})`);
+  }
+  const data = (await response.json()) as {
+    disassembly?: WorkshopAbsDisassembleResult['disassembly'];
+    source?: Record<string, unknown>;
+    remaining?: Record<string, unknown>;
+    withdrawn?: Record<string, unknown>;
+    movements?: WorkshopAbsDisassemblyDetail['movements'];
+  };
+  if (!data.disassembly || !data.source || !data.remaining || !data.withdrawn) {
+    throw new Error('Resposta inválida do desmembramento.');
+  }
+  return {
+    disassembly: data.disassembly,
+    source: normalizeAbsModuleRow(data.source),
+    remaining: normalizeAbsModuleRow(data.remaining),
+    withdrawn: normalizeAbsModuleRow(data.withdrawn),
+    movements: {
+      source: Array.isArray(data.movements?.source) ? data.movements!.source : [],
+      remaining: Array.isArray(data.movements?.remaining) ? data.movements!.remaining : [],
+      withdrawn: Array.isArray(data.movements?.withdrawn) ? data.movements!.withdrawn : [],
+    },
+  };
 }
 
 export async function createWorkshopAbsModule(

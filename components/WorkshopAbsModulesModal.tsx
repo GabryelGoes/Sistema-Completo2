@@ -67,11 +67,13 @@ import {
   absModuleStatusLabel,
   describeAbsModuleMovement,
   absModulePrimaryApplicationOnly,
+  activeAbsSiblingUnits,
   formatAbsApplicationBrands,
   formatAbsApplicationVehicles,
   formatAbsModuleMoney,
   formatAbsModuleSequence,
   formatAbsModuleWhen,
+  isAbsDisassemblyMovement,
   looksLikeAbsModuleCode,
   normalizeAbsModuleCode,
   primaryCodeForScope,
@@ -87,6 +89,7 @@ import {
 } from '../utils/workshopAbsModules';
 import { getStoredAuth } from './views/LoginView';
 import { AbsApplicationsPanel } from './AbsApplicationsPanel';
+import { AbsDisassemblyDetailModal } from './AbsDisassemblyDetailModal';
 import { BarcodeScanField } from './BarcodeScanField';
 import { Lightbox } from './Lightbox';
 import { NiimbotAbsModuleLabelPrintModal } from './NiimbotAbsModuleLabelPrintModal';
@@ -337,7 +340,7 @@ function SameModelUnitsButton({
   const popRef = useRef<HTMLDivElement>(null);
 
   const sorted = useMemo(() => {
-    return [...units].sort((a, b) => {
+    return activeAbsSiblingUnits(units).sort((a, b) => {
       const sa = Number(a.sequence_number ?? 0);
       const sb = Number(b.sequence_number ?? 0);
       if (sa !== sb) return sa - sb;
@@ -861,6 +864,7 @@ export function WorkshopAbsModulesModal({
     urls: string[];
     currentIndex: number;
   } | null>(null);
+  const [disassemblyPublicId, setDisassemblyPublicId] = useState<string | null>(null);
 
   useBrowserBackLayer(isOpen, onClose);
   useBrowserBackLayer(!!detailPreview, () => setDetailPreview(null));
@@ -2100,14 +2104,14 @@ export function WorkshopAbsModulesModal({
                       </tr>
                     </thead>
                     <tbody>
-                      {(view.model.units || []).length === 0 ? (
+                      {activeAbsSiblingUnits(view.model.units).length === 0 ? (
                         <tr>
                           <td colSpan={7} className="px-3 py-8 text-center text-zinc-500">
                             Nenhuma unidade neste modelo.
                           </td>
                         </tr>
                       ) : (
-                        (view.model.units || []).map((u) => (
+                        activeAbsSiblingUnits(view.model.units).map((u) => (
                           <tr
                             key={u.id}
                             className="border-b border-zinc-50 last:border-0 dark:border-white/[0.04]"
@@ -2933,8 +2937,9 @@ export function WorkshopAbsModulesModal({
                   const fieldValue = 'mt-0.5 text-[14px] font-semibold text-zinc-900 dark:text-white';
                   const secondaryBtn =
                     'inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-[11px] font-medium text-zinc-600 transition-colors hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-300 dark:hover:bg-white/10 dark:hover:text-white';
-                  const siblingUnits =
-                    catalog?.units && catalog.units.length > 0 ? catalog.units : [detail];
+                  const siblingUnits = activeAbsSiblingUnits(
+                    catalog?.units && catalog.units.length > 0 ? catalog.units : [detail]
+                  );
                   return (
                     <div className="overflow-hidden rounded-[1.25rem] border-0 bg-white shadow-none dark:bg-zinc-950">
                       {/* Identidade + campos sobre a foto; rodapé sólido sem imagem */}
@@ -3237,7 +3242,16 @@ export function WorkshopAbsModulesModal({
                               <ArrowDownToLine className="h-4 w-4" />
                               Registrar entrada
                             </button>
-                          ) : detail.status !== 'desmembrado' ? (
+                          ) : detail.status === 'desmembrado' ? (
+                            <button
+                              type="button"
+                              onClick={() => setDisassemblyPublicId(detail.public_id)}
+                              className="inline-flex items-center justify-center gap-2 rounded-xl bg-amber-500 px-3 py-2.5 text-[13px] font-semibold text-amber-950 transition hover:bg-amber-400"
+                            >
+                              <Scissors className="h-4 w-4" />
+                              Ver desmembramento
+                            </button>
+                          ) : (
                             <button
                               type="button"
                               onClick={() => {
@@ -3250,7 +3264,7 @@ export function WorkshopAbsModulesModal({
                               <ArrowUpFromLine className="h-4 w-4" />
                               Dar saída
                             </button>
-                          ) : null}
+                          )}
                           {detail.module_kind === 'completo' && detail.status === 'disponivel' ? (
                             <button
                               type="button"
@@ -3430,20 +3444,38 @@ export function WorkshopAbsModulesModal({
                       <p className="text-sm text-zinc-500">Sem movimentações.</p>
                     ) : (
                       <ul className="space-y-2">
-                        {history.map((h) => (
-                          <li
-                            key={h.id}
-                            className="rounded-2xl bg-zinc-50 px-3 py-2.5 text-[13px] dark:bg-black/25"
-                          >
-                            <span className="font-semibold text-zinc-900 dark:text-white">
-                              {formatAbsModuleWhen(h.created_at)}
-                            </span>
-                            <span className="mt-0.5 block text-zinc-700 dark:text-zinc-300">
-                              {describeAbsModuleMovement(h)}
-                              {h.recorded_by_name ? ` — ${h.recorded_by_name}` : ''}
-                            </span>
-                          </li>
-                        ))}
+                        {history.map((h) => {
+                          const isDis = isAbsDisassemblyMovement(h);
+                          return (
+                            <li key={h.id}>
+                              <button
+                                type="button"
+                                disabled={!isDis}
+                                onClick={() => {
+                                  if (isDis && detail) setDisassemblyPublicId(detail.public_id);
+                                }}
+                                className={`w-full rounded-2xl px-3 py-2.5 text-left text-[13px] transition-colors ${
+                                  isDis
+                                    ? 'bg-amber-50 ring-1 ring-amber-500/25 hover:bg-amber-100/80 dark:bg-amber-950/40 dark:ring-amber-400/20 dark:hover:bg-amber-950/60'
+                                    : 'bg-zinc-50 dark:bg-black/25'
+                                } disabled:cursor-default`}
+                              >
+                                <span className="font-semibold text-zinc-900 dark:text-white">
+                                  {formatAbsModuleWhen(h.created_at)}
+                                  {isDis ? (
+                                    <span className="ml-2 text-[10px] font-bold uppercase tracking-wide text-amber-700 dark:text-amber-300">
+                                      Ver detalhes
+                                    </span>
+                                  ) : null}
+                                </span>
+                                <span className="mt-0.5 block text-zinc-700 dark:text-zinc-300">
+                                  {describeAbsModuleMovement(h)}
+                                  {h.recorded_by_name ? ` — ${h.recorded_by_name}` : ''}
+                                </span>
+                              </button>
+                            </li>
+                          );
+                        })}
                       </ul>
                     )}
                   </div>
@@ -3461,6 +3493,23 @@ export function WorkshopAbsModulesModal({
           onClose={() => setDetailPreview(null)}
         />
       ) : null}
+      <AbsDisassemblyDetailModal
+        open={!!disassemblyPublicId}
+        publicId={disassemblyPublicId}
+        onClose={() => setDisassemblyPublicId(null)}
+        onOpenUnitDetail={(mod) => {
+          setDisassemblyPublicId(null);
+          openDetail(mod);
+        }}
+        onExpandFiche={
+          onExpandDetail
+            ? (mod) => {
+                setDisassemblyPublicId(null);
+                onExpandDetail(mod);
+              }
+            : undefined
+        }
+      />
       <NiimbotAbsModuleLabelPrintModal
         open={Boolean(labelPrintModules?.length)}
         modules={labelPrintModules}

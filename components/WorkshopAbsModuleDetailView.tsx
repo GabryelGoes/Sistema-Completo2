@@ -40,13 +40,16 @@ import {
   absModuleItemStateLabel,
   absModuleKindLabel,
   absModuleStatusLabel,
+  activeAbsSiblingUnits,
   describeAbsModuleMovement,
   formatAbsModuleMoney,
   formatAbsModuleSequence,
+  isAbsDisassemblyMovement,
   primaryCodeForScope,
   type AbsModuleExitReason,
 } from '../utils/workshopAbsModules';
 import { AbsApplicationsPanel } from './AbsApplicationsPanel';
+import { AbsDisassemblyDetailModal } from './AbsDisassemblyDetailModal';
 import { Lightbox } from './Lightbox';
 import { NiimbotAbsModuleLabelPrintModal } from './NiimbotAbsModuleLabelPrintModal';
 import { PartPhotoImg } from './ui/PartPhotoImg';
@@ -482,6 +485,7 @@ export function WorkshopAbsModuleDetailView({
     urls: string[];
     currentIndex: number;
   } | null>(null);
+  const [disassemblyPublicId, setDisassemblyPublicId] = useState<string | null>(null);
 
   useBrowserBackLayer(!!previewImages, () => setPreviewImages(null));
 
@@ -546,11 +550,11 @@ export function WorkshopAbsModuleDetailView({
     null;
 
   const siblingUnits = useMemo(() => {
-    const units = catalogModel?.units || [];
+    const units = activeAbsSiblingUnits(catalogModel?.units || []);
     const list = [...units].sort(
       (a, b) => Number(a.sequence_number ?? 0) - Number(b.sequence_number ?? 0)
     );
-    if (list.length === 0 && module) return [module];
+    if (list.length === 0 && module && module.status !== 'desmembrado') return [module];
     return list;
   }, [catalogModel, module]);
 
@@ -860,17 +864,38 @@ export function WorkshopAbsModuleDetailView({
                     </p>
                   ) : (
                     <ul className="divide-y divide-zinc-200/60 dark:divide-white/[0.06]">
-                      {movements.map((m) => (
-                        <li key={m.id} className="py-2.5">
-                          <p className="text-[14px] font-medium text-zinc-900 dark:text-white">
-                            {describeAbsModuleMovement(m)}
-                          </p>
-                          <p className="mt-0.5 text-[12px] text-zinc-500 dark:text-zinc-400">
-                            {new Date(m.created_at).toLocaleString('pt-BR')}
-                            {m.recorded_by_name ? ` · ${m.recorded_by_name}` : ''}
-                          </p>
-                        </li>
-                      ))}
+                      {movements.map((m) => {
+                        const isDis = isAbsDisassemblyMovement(m);
+                        return (
+                          <li key={m.id} className="py-2.5">
+                            <button
+                              type="button"
+                              disabled={!isDis || !module}
+                              onClick={() => {
+                                if (isDis && module) setDisassemblyPublicId(module.public_id);
+                              }}
+                              className={`w-full text-left ${
+                                isDis
+                                  ? 'rounded-xl bg-amber-50/80 px-2.5 py-2 ring-1 ring-amber-500/20 hover:bg-amber-100/70 dark:bg-amber-950/35 dark:ring-amber-400/20'
+                                  : ''
+                              } disabled:cursor-default`}
+                            >
+                              <p className="text-[14px] font-medium text-zinc-900 dark:text-white">
+                                {describeAbsModuleMovement(m)}
+                                {isDis ? (
+                                  <span className="ml-2 text-[10px] font-bold uppercase tracking-wide text-amber-700 dark:text-amber-300">
+                                    Ver detalhes
+                                  </span>
+                                ) : null}
+                              </p>
+                              <p className="mt-0.5 text-[12px] text-zinc-500 dark:text-zinc-400">
+                                {new Date(m.created_at).toLocaleString('pt-BR')}
+                                {m.recorded_by_name ? ` · ${m.recorded_by_name}` : ''}
+                              </p>
+                            </button>
+                          </li>
+                        );
+                      })}
                     </ul>
                   )}
                 </div>
@@ -929,7 +954,17 @@ export function WorkshopAbsModuleDetailView({
                     <ArrowDownToLine className="h-4 w-4" />
                     Registrar entrada
                   </button>
-                ) : module.status !== 'desmembrado' ? (
+                ) : module.status === 'desmembrado' ? (
+                  <button
+                    type="button"
+                    onClick={() => setDisassemblyPublicId(module.public_id)}
+                    disabled={deleting || actionBusy}
+                    className="inline-flex items-center gap-2 rounded-xl bg-amber-500 px-4 py-2.5 text-[13px] font-semibold text-amber-950 hover:bg-amber-400 disabled:opacity-50"
+                  >
+                    <Scissors className="h-4 w-4" />
+                    Ver desmembramento
+                  </button>
+                ) : (
                   <button
                     type="button"
                     onClick={() => {
@@ -943,7 +978,7 @@ export function WorkshopAbsModuleDetailView({
                     <ArrowUpFromLine className="h-4 w-4" />
                     Dar saída
                   </button>
-                ) : null}
+                )}
                 {module.module_kind === 'completo' &&
                 module.status === 'disponivel' &&
                 onDisassemble ? (
@@ -1214,6 +1249,20 @@ export function WorkshopAbsModuleDetailView({
           onClose={() => setPreviewImages(null)}
         />
       ) : null}
+
+      <AbsDisassemblyDetailModal
+        open={!!disassemblyPublicId}
+        publicId={disassemblyPublicId}
+        onClose={() => setDisassemblyPublicId(null)}
+        onOpenUnitDetail={(mod) => {
+          setDisassemblyPublicId(null);
+          onOpenUnit?.(mod.public_id);
+        }}
+        onExpandFiche={(mod) => {
+          setDisassemblyPublicId(null);
+          onOpenUnit?.(mod.public_id);
+        }}
+      />
 
       <NiimbotAbsModuleLabelPrintModal
         open={!!labelPrintModules?.length}

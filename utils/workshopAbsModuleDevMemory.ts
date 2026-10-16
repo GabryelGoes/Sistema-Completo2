@@ -418,6 +418,48 @@ export function getDevAbsModuleById(id: string): WorkshopAbsModule | null {
   return null;
 }
 
+export function getDevAbsDisassemblyForModule(publicId: string): {
+  disassembly: WorkshopAbsModuleDisassembly;
+  source: WorkshopAbsModule;
+  remaining: WorkshopAbsModule;
+  withdrawn: WorkshopAbsModule;
+  movements: {
+    source: WorkshopAbsModuleMovement[];
+    remaining: WorkshopAbsModuleMovement[];
+    withdrawn: WorkshopAbsModuleMovement[];
+  };
+} | null {
+  const mod = getDevAbsModuleByPublicId(publicId);
+  if (!mod) return null;
+  let found: WorkshopAbsModuleDisassembly | null = null;
+  for (const d of disassemblies.values()) {
+    if (
+      d.source_module_id === mod.id ||
+      d.remaining_module_id === mod.id ||
+      d.withdrawn_module_id === mod.id
+    ) {
+      found = d;
+      break;
+    }
+  }
+  if (!found) return null;
+  const source = getDevAbsModuleById(found.source_module_id);
+  const remaining = getDevAbsModuleById(found.remaining_module_id);
+  const withdrawn = getDevAbsModuleById(found.withdrawn_module_id);
+  if (!source || !remaining || !withdrawn) return null;
+  return {
+    disassembly: { ...found },
+    source,
+    remaining,
+    withdrawn,
+    movements: {
+      source: getDevAbsModuleMovements(source.public_id),
+      remaining: getDevAbsModuleMovements(remaining.public_id),
+      withdrawn: getDevAbsModuleMovements(withdrawn.public_id),
+    },
+  };
+}
+
 export function getDevAbsModuleMovements(publicId: string): WorkshopAbsModuleMovement[] {
   const key = String(publicId || '').trim().toUpperCase();
   const row = modules.get(key);

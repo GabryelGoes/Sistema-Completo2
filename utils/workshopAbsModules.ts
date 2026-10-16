@@ -661,6 +661,21 @@ export function formatAbsModuleWhen(iso: string | null | undefined): string {
 
 export function describeAbsModuleMovement(m: WorkshopAbsModuleMovement): string {
   const type = absModuleMovementLabel(m.movement_type);
+  if (
+    m.reason_type === 'desmembramento' ||
+    String(m.to_status || '') === 'desmembrado' ||
+    /desmembramento/i.test(String(m.notes || ''))
+  ) {
+    if (m.movement_type === 'exit' && String(m.to_status || '') === 'desmembrado') {
+      return 'Desmembramento — módulo completo dividido';
+    }
+    if (m.movement_type === 'entry') {
+      return m.notes?.trim() || 'Entrada por desmembramento';
+    }
+    if (m.movement_type === 'exit') {
+      return m.notes?.trim() || 'Saída por desmembramento';
+    }
+  }
   if (m.movement_type === 'transfer') {
     return `Transferido ${m.from_location || '—'} → ${m.to_location || '—'}`;
   }
@@ -674,6 +689,35 @@ export function describeAbsModuleMovement(m: WorkshopAbsModuleMovement): string 
   }
   return type;
 }
+
+/** Unidades ativas do mesmo modelo (exclui desmembrados). */
+export function activeAbsSiblingUnits(
+  units: WorkshopAbsModule[] | null | undefined
+): WorkshopAbsModule[] {
+  return (units || []).filter((u) => String(u.status || '') !== 'desmembrado');
+}
+
+/** Movimentação ligada a desmembramento (abre modal de detalhes). */
+export function isAbsDisassemblyMovement(m: WorkshopAbsModuleMovement | null | undefined): boolean {
+  if (!m) return false;
+  return (
+    m.reason_type === 'desmembramento' ||
+    String(m.to_status || '') === 'desmembrado' ||
+    /desmembramento/i.test(String(m.notes || ''))
+  );
+}
+
+export type WorkshopAbsDisassemblyDetail = {
+  disassembly: WorkshopAbsModuleDisassembly;
+  source: WorkshopAbsModule;
+  remaining: WorkshopAbsModule;
+  withdrawn: WorkshopAbsModule;
+  movements: {
+    source: WorkshopAbsModuleMovement[];
+    remaining: WorkshopAbsModuleMovement[];
+    withdrawn: WorkshopAbsModuleMovement[];
+  };
+};
 
 export function primaryCodeForScope(
   codes: WorkshopAbsModuleCode[] | undefined,

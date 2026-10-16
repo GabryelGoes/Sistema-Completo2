@@ -7,6 +7,7 @@ import {
   deleteDevAbsModule,
   deleteDevAbsModuleModel,
   disassembleDevAbsModule,
+  getDevAbsDisassemblyForModule,
   getDevAbsModuleByPublicId,
   getDevAbsModuleModel,
   getDevAbsModuleMovements,
@@ -1249,6 +1250,120 @@ export function registerAbsModuleRoutes(app: Express, deps: AbsRouteDeps) {
       return res.json({ movements: data || [] });
     } catch (err: any) {
       console.error('[API] GET /api/abs-modules/:publicId/movements:', err);
+      return res.status(500).json({ error: err?.message ?? 'Erro desconhecido' });
+    }
+  });
+
+  app.get('/api/abs-modules/:publicId/disassembly', async (req, res) => {
+    try {
+      const publicId = normalizeAbsModuleCode(String(req.params.publicId || '')) || '';
+      if (!isValidAbsModulePublicId(publicId)) {
+        return res.status(400).json({ error: 'ID de módulo ABS inválido.' });
+      }
+
+      if (isDevMemoryActive(deps)) {
+        const detail = getDevAbsDisassemblyForModule(publicId);
+        if (!detail) {
+          return res.status(404).json({ error: 'Desmembramento não encontrado para este módulo.' });
+        }
+        return res.json(detail);
+      }
+
+      const { data: mod, error: modErr } = await supabaseAdmin!
+        .from('workshop_abs_modules')
+        .select('*')
+        .eq('workshop_id', WORKSHOP_ID!)
+        .eq('public_id', publicId)
+        .maybeSingle();
+      if (modErr) return res.status(500).json({ error: modErr.message });
+      if (!mod) return res.status(404).json({ error: 'Módulo ABS não encontrado.' });
+
+      const { data: disRow, error: disErr } = await supabaseAdmin!
+        .from('workshop_abs_module_disassemblies')
+        .select('*')
+        .eq('workshop_id', WORKSHOP_ID!)
+        .or(
+          `source_module_id.eq.${mod.id},remaining_module_id.eq.${mod.id},withdrawn_module_id.eq.${mod.id}`
+        )
+        .maybeSingle();
+      if (disErr) return res.status(500).json({ error: disErr.message });
+      if (!disRow) {
+        return res.status(404).json({ error: 'Desmembramento não encontrado para este módulo.' });
+      }
+
+      const ids = [
+        disRow.source_module_id,
+        disRow.remaining_module_id,
+        disRow.withdrawn_module_id,
+      ].filter(Boolean);
+
+      const { data: modulesRows, error: modsErr } = await supabaseAdmin!
+        .from('workshop_abs_modules')
+        .select('*')
+        .eq('workshop_id', WORKSHOP_ID!)
+        .in('id', ids);
+      if (modsErr) return res.status(500).json({ error: modsErr.message });
+
+      const byId = new Map((modulesRows || []).map((m) => [String(m.id), m]));
+      const source = byId.get(String(disRow.source_module_id));
+      const remaining = byId.get(String(disRow.remaining_module_id));
+      const withdrawn = byId.get(String(disRow.withdrawn_module_id));
+      if (!source || !remaining || !withdrawn) {
+        return res.status(500).json({ error: 'Unidades do desmembramento incompletas.' });
+      }
+
+      const loadMovements = async (moduleId: string) => {
+        const { data, error } = await supabaseAdmin!
+          .from('workshop_abs_module_movements')
+          .select('*')
+          .eq('module_id', moduleId)
+          .order('created_at', { ascending: true })
+          .limit(100);
+        if (error) throw new Error(error.message);
+        return data || [];
+      };
+
+      const [sourceMov, remainingMov, withdrawnMov] = await Promise.all([
+        loadMovements(String(source.id)),
+        loadMovements(String(remaining.id)),
+        loadMovements(String(withdrawn.id)),
+      ]);
+
+      const attachCatalog = async (row: Record<string, unknown>) => {
+        const modelId = row.model_id ? String(row.model_id) : null;
+        if (!modelId) return { ...row, catalog_model: null };
+        try {
+          const catalog_model = await fetchModelBundle(
+            supabaseAdmin!,
+            WORKSHOP_ID!,
+            modelId,
+            false
+          );
+          return { ...row, catalog_model };
+        } catch {
+          return { ...row, catalog_model: null };
+        }
+      };
+
+      const [sourceFull, remainingFull, withdrawnFull] = await Promise.all([
+        attachCatalog(source as Record<string, unknown>),
+        attachCatalog(remaining as Record<string, unknown>),
+        attachCatalog(withdrawn as Record<string, unknown>),
+      ]);
+
+      return res.json({
+        disassembly: disRow,
+        source: sourceFull,
+        remaining: remainingFull,
+        withdrawn: withdrawnFull,
+        movements: {
+          source: sourceMov,
+          remaining: remainingMov,
+          withdrawn: withdrawnMov,
+        },
+      });
+    } catch (err: any) {
+      console.error('[API] GET /api/abs-modules/:publicId/disassembly:', err);
       return res.status(500).json({ error: err?.message ?? 'Erro desconhecido' });
     }
   });

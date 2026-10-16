@@ -65,17 +65,24 @@ function modelPrimaryCode(m: WorkshopAbsModuleModel): string {
   return primaryCodeForScope(m.codes, scope) || primaryCodeForScope(m.codes, 'completo') || '—';
 }
 
+/** Aplicação original do modelo (mesmo após desmembrar em eletrônico/hidráulico). */
+function modelOriginalApplication(m: WorkshopAbsModuleModel) {
+  return (
+    absModulePrimaryApplicationOnly(m.applications, m.module_kind)[0] ||
+    absModulePrimaryApplicationOnly(m.applications, 'completo')[0] ||
+    null
+  );
+}
+
 /** Marca da aplicação original — coluna "Aplicação" (ignora secundárias). */
 function modelApplicationLabel(m: WorkshopAbsModuleModel): string {
-  const primary = absModulePrimaryApplicationOnly(m.applications, m.module_kind)[0];
-  const brand = String(primary?.vehicle_brand || '').trim();
+  const brand = String(modelOriginalApplication(m)?.vehicle_brand || '').trim();
   return brand || '—';
 }
 
 /** Modelo de veículo da aplicação original — coluna "Modelo aplic.". */
 function modelApplicationVehiclesLabel(m: WorkshopAbsModuleModel): string {
-  const primary = absModulePrimaryApplicationOnly(m.applications, m.module_kind)[0];
-  const model = String(primary?.vehicle_model || '').trim();
+  const model = String(modelOriginalApplication(m)?.vehicle_model || '').trim();
   return model || '—';
 }
 
