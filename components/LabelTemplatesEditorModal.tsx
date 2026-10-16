@@ -7,9 +7,11 @@ import {
   Droplets,
   Eye,
   EyeOff,
+  Loader2,
   Minus,
   Move,
   Plus,
+  Printer,
   RotateCcw,
   RotateCw,
   Tag,
@@ -43,6 +45,7 @@ import {
   renderNiimbotPartLabelDataUrl,
 } from '../utils/niimbotLabelRender';
 import { renderPatioKeyLabelDataUrl } from '../utils/patioKeyLabelRender';
+import { niimbotService } from '../services/niimbotService';
 import { ModalPortal } from './ui/ModalPortal';
 import { IosModalHeader } from './ui/IosModalHeader';
 import { iosModalClose, iosModalShell } from './ui/iosModalStyles';
@@ -173,6 +176,8 @@ export function LabelTemplatesEditorModal({
     origX: number;
     origY: number;
   } | null>(null);
+  const [printBusy, setPrintBusy] = useState(false);
+  const [printMsg, setPrintMsg] = useState<string | null>(null);
   const previewWrapRef = useRef<HTMLDivElement | null>(null);
   const persistTimerRef = useRef<number | null>(null);
 
@@ -292,6 +297,22 @@ export function LabelTemplatesEditorModal({
     setSelectedId(fresh.elements[0]?.id ?? null);
   };
 
+  const handlePrintTest = useCallback(async () => {
+    if (!previewUrl || printBusy) return;
+    setPrintBusy(true);
+    setPrintMsg(null);
+    try {
+      flushPersist();
+      const url = await buildPreview(activeId, layout);
+      await niimbotService.printLabelImageUrl(url, { copies: 1 });
+      setPrintMsg('Etiqueta de teste enviada à impressora.');
+    } catch (err) {
+      setPrintMsg(err instanceof Error ? err.message : 'Falha ao imprimir etiqueta de teste.');
+    } finally {
+      setPrintBusy(false);
+    }
+  }, [previewUrl, printBusy, flushPersist, activeId, layout]);
+
   useEffect(() => {
     if (!open) {
       setPreviewUrl(null);
@@ -361,6 +382,7 @@ export function LabelTemplatesEditorModal({
   if (!open) return null;
 
   const overlayElements = layout.elements.filter((e) => e.visible);
+  const chaveDualCopy = layout.keyOptions?.dualCopy !== false;
   const chaveHalfH = Math.floor(
     (NIIMBOT_LABEL_W_PX - (layout.keyOptions?.halfGap ?? 2)) / 2
   );
@@ -455,7 +477,12 @@ export function LabelTemplatesEditorModal({
                 {LABEL_TEMPLATE_META.find((m) => m.id === activeId)?.description}
                 {' · Arraste os textos na prévia · gire e edite cada um no painel.'}
                 {activeId === 'chave'
-                  ? ' A placa é desenhada no estilo Mercosul.'
+                  ? layout.keyOptions?.mercosulPlate !== false
+                    ? ' Placa no estilo Mercosul (desligue nas opções para texto tradicional).'
+                    : ' Placa em texto tradicional.'
+                  : ''}
+                {activeId === 'chave' && layout.keyOptions?.dualCopy === false
+                  ? ' Espelhamento desligado — arraste pela etiqueta toda.'
                   : ''}
               </p>
               <div
@@ -496,8 +523,12 @@ export function LabelTemplatesEditorModal({
                               height: elDef.h,
                               rot: Number(elDef.rotation) || 0,
                             };
-                      // Chave: só destaca a 1ª face (metade esquerda da prévia após rotação).
-                      if (activeId === 'chave' && mapped.left > chaveHalfH + 8) {
+                      // Com espelhamento: só a 1ª face é editável. Sem espelhamento: etiqueta toda.
+                      if (
+                        activeId === 'chave' &&
+                        chaveDualCopy &&
+                        mapped.left > chaveHalfH + 8
+                      ) {
                         return null;
                       }
                       const left = `${(mapped.left / NIIMBOT_LABEL_W_PX) * 100}%`;
@@ -536,6 +567,35 @@ export function LabelTemplatesEditorModal({
               <p className="text-center text-[11px] text-emerald-700 dark:text-emerald-300">
                 Alterações salvas automaticamente neste dispositivo
               </p>
+
+              {activeId === 'chave' ? (
+                <div className="space-y-2">
+                  <button
+                    type="button"
+                    disabled={printBusy || !previewUrl || building}
+                    onClick={() => void handlePrintTest()}
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-[14px] font-semibold text-white hover:bg-emerald-500 disabled:opacity-50"
+                  >
+                    {printBusy ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Printer className="h-4 w-4" />
+                    )}
+                    {printBusy ? 'Imprimindo teste…' : 'Imprimir etiqueta teste'}
+                  </button>
+                  {printMsg ? (
+                    <p
+                      className={`rounded-xl px-3 py-2 text-[12px] ${
+                        printMsg.includes('enviada')
+                          ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200'
+                          : 'bg-amber-50 text-amber-900 dark:bg-amber-950/40 dark:text-amber-100'
+                      }`}
+                    >
+                      {printMsg}
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
 
               {/* Lista de elementos */}
               <div className="space-y-1.5">
@@ -614,7 +674,9 @@ export function LabelTemplatesEditorModal({
                       Texto e fonte
                     </div>
 
-                    {selected.kind !== 'qr' && selected.kind !== 'barcode' ? (
+                    {selected.kind !== 'qr' &&
+                    selected.kind !== 'barcode' &&
+                    !(activeId === 'chave' && selected.id === 'plate') ? (
                       <label className="block space-y-1.5">
                         <span className="text-[11px] font-bold uppercase tracking-wide text-zinc-500">
                           Rótulo / prefixo
@@ -634,45 +696,60 @@ export function LabelTemplatesEditorModal({
                       </label>
                     ) : null}
 
-                    <label className="block space-y-1.5">
-                      <span className="text-[11px] font-bold uppercase tracking-wide text-zinc-500">
-                        Fonte
-                      </span>
-                      <select
-                        value={selected.fontFamily}
-                        onChange={(e) =>
-                          patchElement(selected.id, {
-                            fontFamily: e.target.value as LabelFontFamily,
-                          })
-                        }
-                        className="w-full rounded-xl border-0 bg-white px-3 py-2.5 text-[14px] font-medium text-zinc-900 outline-none dark:bg-zinc-900 dark:text-zinc-100"
-                      >
-                        {LABEL_FONTS.map((f) => (
-                          <option key={f.value} value={f.value} style={{ fontFamily: f.value }}>
-                            {f.label}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
+                    {activeId === 'chave' && selected.id === 'plate' ? (
+                      <p className="rounded-xl bg-white px-3 py-2 text-[11px] text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400">
+                        A placa não usa o título &quot;Placa:&quot; — só o número (Mercosul ou
+                        texto tradicional).
+                      </p>
+                    ) : null}
 
-                    <Stepper
-                      label="Tamanho do rótulo"
-                      value={selected.fontSize}
-                      display={`${selected.fontSize} px`}
-                      onDec={() =>
-                        patchElement(selected.id, { fontSize: selected.fontSize - 1 })
-                      }
-                      onInc={() =>
-                        patchElement(selected.id, { fontSize: selected.fontSize + 1 })
-                      }
-                    />
+                    {!(activeId === 'chave' && selected.id === 'plate' && layout.keyOptions?.mercosulPlate !== false) ? (
+                      <label className="block space-y-1.5">
+                        <span className="text-[11px] font-bold uppercase tracking-wide text-zinc-500">
+                          Fonte
+                        </span>
+                        <select
+                          value={selected.fontFamily}
+                          onChange={(e) =>
+                            patchElement(selected.id, {
+                              fontFamily: e.target.value as LabelFontFamily,
+                            })
+                          }
+                          className="w-full rounded-xl border-0 bg-white px-3 py-2.5 text-[14px] font-medium text-zinc-900 outline-none dark:bg-zinc-900 dark:text-zinc-100"
+                        >
+                          {LABEL_FONTS.map((f) => (
+                            <option key={f.value} value={f.value} style={{ fontFamily: f.value }}>
+                              {f.label}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                    ) : null}
+
+                    {!(activeId === 'chave' && selected.id === 'plate') ? (
+                      <Stepper
+                        label="Tamanho do rótulo"
+                        value={selected.fontSize}
+                        display={`${selected.fontSize} px`}
+                        onDec={() =>
+                          patchElement(selected.id, { fontSize: selected.fontSize - 1 })
+                        }
+                        onInc={() =>
+                          patchElement(selected.id, { fontSize: selected.fontSize + 1 })
+                        }
+                      />
+                    ) : null}
 
                     {(selected.kind === 'banner' ||
                       selected.kind === 'text_field' ||
                       selected.kind === 'text' ||
                       selected.kind === 'human_code') && (
                       <Stepper
-                        label="Tamanho do valor"
+                        label={
+                          activeId === 'chave' && selected.id === 'plate'
+                            ? 'Tamanho do texto da placa'
+                            : 'Tamanho do valor'
+                        }
                         value={selected.valueFontSize}
                         display={`${selected.valueFontSize} px`}
                         onDec={() =>
@@ -762,17 +839,25 @@ export function LabelTemplatesEditorModal({
                       onInc={() => patchElement(selected.id, { y: selected.y + 1 })}
                     />
                     <Stepper
-                      label="Largura"
+                      label={
+                        activeId === 'chave' && selected.id === 'plate'
+                          ? 'Largura da placa'
+                          : 'Largura'
+                      }
                       value={selected.w}
                       display={`${selected.w} px`}
-                      onDec={() => patchElement(selected.id, { w: selected.w - 2 })}
+                      onDec={() => patchElement(selected.id, { w: Math.max(24, selected.w - 2) })}
                       onInc={() => patchElement(selected.id, { w: selected.w + 2 })}
                     />
                     <Stepper
-                      label="Altura"
+                      label={
+                        activeId === 'chave' && selected.id === 'plate'
+                          ? 'Altura da placa'
+                          : 'Altura'
+                      }
                       value={selected.h}
                       display={`${selected.h} px`}
-                      onDec={() => patchElement(selected.id, { h: selected.h - 2 })}
+                      onDec={() => patchElement(selected.id, { h: Math.max(14, selected.h - 2) })}
                       onInc={() => patchElement(selected.id, { h: selected.h + 2 })}
                     />
                   </div>
@@ -1063,6 +1148,34 @@ export function LabelTemplatesEditorModal({
                       className="h-4 w-4 accent-emerald-600"
                     />
                   </label>
+                  {layout.keyOptions.dualCopy === false ? (
+                    <p className="text-[11px] leading-relaxed text-zinc-500 dark:text-zinc-400">
+                      Espelhamento desligado: arraste textos e placa por toda a etiqueta.
+                    </p>
+                  ) : null}
+                  <label className="flex items-center justify-between gap-3 rounded-xl bg-white px-3 py-2.5 dark:bg-zinc-900">
+                    <span className="text-[12px] font-medium text-zinc-700 dark:text-zinc-200">
+                      Placa Mercosul
+                    </span>
+                    <input
+                      type="checkbox"
+                      checked={layout.keyOptions.mercosulPlate !== false}
+                      onChange={(e) =>
+                        patchLayout({
+                          keyOptions: {
+                            ...layout.keyOptions!,
+                            mercosulPlate: e.target.checked,
+                          },
+                        })
+                      }
+                      className="h-4 w-4 accent-emerald-600"
+                    />
+                  </label>
+                  {layout.keyOptions.mercosulPlate === false ? (
+                    <p className="text-[11px] leading-relaxed text-zinc-500 dark:text-zinc-400">
+                      Mercosul desligado: a placa aparece só como texto tradicional.
+                    </p>
+                  ) : null}
                 </div>
               ) : null}
 

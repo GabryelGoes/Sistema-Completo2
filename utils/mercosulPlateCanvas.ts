@@ -17,6 +17,11 @@ export function formatPlateForMercosul(raw: string): string {
     .slice(0, 8) || '—';
 }
 
+export type DrawMercosulPlateOptions = {
+  /** Tamanho do texto da placa em px (se omitido, deriva da altura). */
+  textSize?: number;
+};
+
 /**
  * Desenha a placa Mercosul em (x,y,w,h).
  * Usa preto/branco — na térmica a faixa superior vira faixa escura com letras claras.
@@ -27,7 +32,8 @@ export function drawMercosulPlateOnCanvas(
   y: number,
   w: number,
   h: number,
-  plateRaw: string
+  plateRaw: string,
+  opts?: DrawMercosulPlateOptions
 ): void {
   const plate = formatPlateForMercosul(plateRaw);
   const width = Math.max(24, w);
@@ -92,7 +98,12 @@ export function drawMercosulPlateOnCanvas(
   ctx.fillStyle = '#ffffff';
   ctx.fillRect(innerX, innerY + bandH, innerW, bodyH);
 
-  const plateFont = Math.max(8, Math.min(42, Math.round(bodyH * 0.72)));
+  const autoFont = Math.max(8, Math.min(48, Math.round(bodyH * 0.72)));
+  const plateFont = clamp(
+    Math.round(Number(opts?.textSize) || autoFont),
+    8,
+    Math.max(8, Math.min(64, bodyH))
+  );
   ctx.fillStyle = '#000000';
   ctx.font = `900 ${plateFont}px Arial Narrow, Arial, Helvetica, sans-serif`;
   ctx.textAlign = 'center';

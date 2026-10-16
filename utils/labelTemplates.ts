@@ -71,6 +71,8 @@ export type LabelKeyOptions = {
   /** Offset global do bloco (compat com editor antigo da chave) */
   offsetX: number;
   offsetY: number;
+  /** Se true, a placa é desenhada no estilo Mercosul; se false, texto tradicional. */
+  mercosulPlate: boolean;
 };
 
 export type LabelTemplateLayout = {
@@ -350,6 +352,7 @@ export function createDefaultChaveTemplate(): LabelTemplateLayout {
       dualCopy: true,
       offsetX: 0,
       offsetY: 0,
+      mercosulPlate: true,
     },
     elements: [
       el({
@@ -394,7 +397,7 @@ export function createDefaultChaveTemplate(): LabelTemplateLayout {
       el({
         id: 'plate',
         kind: 'text_field',
-        name: 'Placa (Mercosul)',
+        name: 'Placa',
         visible: true,
         x: 10,
         y: 96,
@@ -626,7 +629,33 @@ function normalizeVAlign(v: unknown): LabelVAlign {
   return v === 'top' || v === 'bottom' ? v : 'middle';
 }
 
-function normalizeElement(raw: Partial<LabelElementDef>, fallback: LabelElementDef): LabelElementDef {
+type NormalizeElementBounds = {
+  maxX: number;
+  maxY: number;
+  maxW: number;
+  maxH: number;
+};
+
+const DEFAULT_ELEMENT_BOUNDS: NormalizeElementBounds = {
+  maxX: LABEL_W + 40,
+  maxY: LABEL_H + 40,
+  maxW: LABEL_W,
+  maxH: LABEL_H,
+};
+
+/** Chave: coords no bloco vertical (240×384), não na impressão paisagem. */
+const CHAVE_ELEMENT_BOUNDS: NormalizeElementBounds = {
+  maxX: LABEL_H + 40,
+  maxY: LABEL_W + 40,
+  maxW: LABEL_H,
+  maxH: LABEL_W,
+};
+
+function normalizeElement(
+  raw: Partial<LabelElementDef>,
+  fallback: LabelElementDef,
+  bounds: NormalizeElementBounds = DEFAULT_ELEMENT_BOUNDS
+): LabelElementDef {
   const opacityRaw = raw.opacity ?? fallback.opacity ?? 100;
   const rotationRaw = raw.rotation ?? fallback.rotation ?? 0;
   let rotation = Math.round(Number(rotationRaw));
@@ -638,10 +667,10 @@ function normalizeElement(raw: Partial<LabelElementDef>, fallback: LabelElementD
     kind: fallback.kind,
     name: typeof raw.name === 'string' && raw.name.trim() ? raw.name : fallback.name,
     visible: typeof raw.visible === 'boolean' ? raw.visible : fallback.visible,
-    x: clamp(Math.round(Number(raw.x ?? fallback.x)), -40, LABEL_W + 40),
-    y: clamp(Math.round(Number(raw.y ?? fallback.y)), -40, LABEL_H + 40),
-    w: clamp(Math.round(Number(raw.w ?? fallback.w)), 8, LABEL_W),
-    h: clamp(Math.round(Number(raw.h ?? fallback.h)), 8, LABEL_H),
+    x: clamp(Math.round(Number(raw.x ?? fallback.x)), -40, bounds.maxX),
+    y: clamp(Math.round(Number(raw.y ?? fallback.y)), -40, bounds.maxY),
+    w: clamp(Math.round(Number(raw.w ?? fallback.w)), 8, bounds.maxW),
+    h: clamp(Math.round(Number(raw.h ?? fallback.h)), 8, bounds.maxH),
     fontFamily: normalizeFontFamily(raw.fontFamily ?? fallback.fontFamily),
     fontSize: clamp(Math.round(Number(raw.fontSize ?? fallback.fontSize)), 6, 72),
     fontWeight: normalizeWeight(raw.fontWeight ?? fallback.fontWeight),
@@ -672,6 +701,7 @@ function normalizeKeyOptions(
     dualCopy: src.dualCopy !== false,
     offsetX: clamp(Math.round(Number(src.offsetX ?? fallback.offsetX)), -40, 40),
     offsetY: clamp(Math.round(Number(src.offsetY ?? fallback.offsetY)), -40, 40),
+    mercosulPlate: (src.mercosulPlate ?? fallback.mercosulPlate) !== false,
   };
 }
 
@@ -680,30 +710,42 @@ export function normalizeLabelTemplate(
   raw: Partial<LabelTemplateLayout> | null | undefined
 ): LabelTemplateLayout {
   const def = createDefaultTemplate(id);
+  const bounds = id === 'chave' ? CHAVE_ELEMENT_BOUNDS : DEFAULT_ELEMENT_BOUNDS;
   const byId = new Map((raw?.elements ?? []).map((e) => [e.id, e]));
   let elements = def.elements.map((fallback) =>
-    normalizeElement(byId.get(fallback.id) ?? {}, fallback)
+    normalizeElement(byId.get(fallback.id) ?? {}, fallback, bounds)
   );
   // Elementos extras salvos (futuras etiquetas) — preserva se tiverem id/kind
   for (const extra of raw?.elements ?? []) {
     if (!extra?.id || elements.some((e) => e.id === extra.id)) continue;
     if (!extra.kind) continue;
     elements.push(
-      normalizeElement(extra, {
-        ...el({
-          id: extra.id,
-          kind: extra.kind,
-          name: extra.name || extra.id,
-          visible: true,
-          x: 0,
-          y: 0,
-          w: 100,
-          h: 24,
-          fontSize: 14,
-          labelText: '',
-        }),
-        ...extra,
-      })
+      normalizeElement(
+        extra,
+        {
+          ...el({
+            id: extra.id,
+            kind: extra.kind,
+            name: extra.name || extra.id,
+            visible: true,
+            x: 0,
+            y: 0,
+            w: 100,
+            h: 24,
+            fontSize: 14,
+            labelText: '',
+          }),
+          ...extra,
+        },
+        bounds
+      )
+    );
+  }
+
+  // Chave: placa sem rótulo "Placa:" e nome amigável estável.
+  if (id === 'chave') {
+    elements = elements.map((e) =>
+      e.id === 'plate' ? { ...e, labelText: '', name: 'Placa' } : e
     );
   }
 
@@ -820,6 +862,7 @@ function migrateLegacyChave(): LabelTemplateLayout | null {
         dualCopy: true,
         offsetX: Number(parsed.offsetX) || 0,
         offsetY: Number(parsed.offsetY) || 0,
+        mercosulPlate: true,
       },
     });
   } catch {
