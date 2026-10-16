@@ -1576,9 +1576,9 @@ export function WorkshopAbsModulesModal({
   }, []);
 
   const handlePrintUnits = useCallback((units: WorkshopAbsModule[]) => {
-    const list = [...units]
-      .filter(Boolean)
-      .sort((a, b) => Number(a.sequence_number ?? 0) - Number(b.sequence_number ?? 0));
+    const list = [...activeAbsSiblingUnits(units)].sort(
+      (a, b) => Number(a.sequence_number ?? 0) - Number(b.sequence_number ?? 0)
+    );
     if (!list.length) return;
     setLabelPrintModules(list);
   }, []);
@@ -2080,14 +2080,14 @@ export function WorkshopAbsModulesModal({
                     {view.model.available_qty ?? 0} disponíveis
                   </p>
                 </div>
-                {(view.model.units || []).length > 0 ? (
+                {activeAbsSiblingUnits(view.model.units).length > 0 ? (
                   <button
                     type="button"
                     onClick={() => handlePrintUnits(view.model.units || [])}
                     className="inline-flex w-full items-center justify-center gap-2 rounded-2xl border-0 bg-zinc-100 px-4 py-3 text-[14px] font-semibold text-zinc-800 shadow-none dark:bg-white/5 dark:text-white"
                   >
                     <Printer className="h-4 w-4" />
-                    Imprimir etiquetas de todas ({(view.model.units || []).length})
+                    Imprimir etiquetas de todas ({activeAbsSiblingUnits(view.model.units).length})
                   </button>
                 ) : null}
                 <div className="overflow-x-auto rounded-3xl border-0 bg-white shadow-none dark:bg-white/5">
