@@ -202,6 +202,9 @@ export type WorkshopAbsModuleMovementListItem = WorkshopAbsModuleMovement & {
   manufacturer?: string | null;
   sequence_number?: number | null;
   status?: AbsModuleStatus | string | null;
+  original_code?: string | null;
+  unit_cost?: number | null;
+  unit_price?: number | null;
 };
 
 export type WorkshopAbsModuleDisassembly = {
@@ -732,6 +735,14 @@ export function isAbsDisassemblyMovement(m: WorkshopAbsModuleMovement | null | u
     String(m.to_status || '') === 'desmembrado' ||
     /desmembramento/i.test(String(m.notes || ''))
   );
+}
+
+/** Saída registrada como venda (baixa direta ou desmembramento → venda direta). */
+export function isAbsSaleMovement(m: WorkshopAbsModuleMovement | null | undefined): boolean {
+  if (!m) return false;
+  if (m.movement_type !== 'exit') return false;
+  const reason = String(m.reason_type || '').trim();
+  return reason === 'venda_avulsa';
 }
 
 export type WorkshopAbsDisassemblyDetail = {

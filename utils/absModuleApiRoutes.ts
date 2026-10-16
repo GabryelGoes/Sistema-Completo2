@@ -14,6 +14,7 @@ import {
   listDevAbsAllMovements,
   listDevAbsModuleModels,
   listDevAbsModules,
+  listDevAbsSaleMovements,
   searchDevAbsModules,
   updateDevAbsModule,
   updateDevAbsModuleModel,
@@ -971,7 +972,37 @@ export function registerAbsModuleRoutes(app: Express, deps: AbsRouteDeps) {
     }
   });
 
-  // -------- Histórico global (antes de :publicId) --------
+  // -------- Histórico global / vendas (antes de :publicId) --------
+  const mapMovementWithModule = (row: Record<string, unknown>) => {
+    const mod = (row.module || {}) as Record<string, unknown>;
+    const { module: _drop, ...rest } = row;
+    return {
+      ...rest,
+      public_id: String(mod.public_id || ''),
+      module_kind: mod.module_kind ?? null,
+      manufacturer: mod.manufacturer ?? null,
+      sequence_number: mod.sequence_number ?? null,
+      status: mod.status ?? null,
+      original_code: mod.original_code ?? null,
+      unit_cost: mod.unit_cost ?? null,
+      unit_price: mod.unit_price ?? null,
+    };
+  };
+
+  const absMovementModuleSelect = `
+          *,
+          module:workshop_abs_modules!inner (
+            public_id,
+            module_kind,
+            manufacturer,
+            sequence_number,
+            status,
+            original_code,
+            unit_cost,
+            unit_price
+          )
+        `;
+
   app.get('/api/abs-modules/movements', async (req, res) => {
     try {
       const limitRaw = Number(req.query.limit);
@@ -985,18 +1016,7 @@ export function registerAbsModuleRoutes(app: Express, deps: AbsRouteDeps) {
 
       const { data, error } = await supabaseAdmin!
         .from('workshop_abs_module_movements')
-        .select(
-          `
-          *,
-          module:workshop_abs_modules!inner (
-            public_id,
-            module_kind,
-            manufacturer,
-            sequence_number,
-            status
-          )
-        `
-        )
+        .select(absMovementModuleSelect)
         .eq('workshop_id', WORKSHOP_ID!)
         .order('created_at', { ascending: false })
         .limit(limit);
@@ -1005,21 +1025,44 @@ export function registerAbsModuleRoutes(app: Express, deps: AbsRouteDeps) {
         return res.status(500).json({ error: error.message });
       }
 
-      const movements = (data || []).map((row: Record<string, unknown>) => {
-        const mod = (row.module || {}) as Record<string, unknown>;
-        const { module: _drop, ...rest } = row;
-        return {
-          ...rest,
-          public_id: String(mod.public_id || ''),
-          module_kind: mod.module_kind ?? null,
-          manufacturer: mod.manufacturer ?? null,
-          sequence_number: mod.sequence_number ?? null,
-          status: mod.status ?? null,
-        };
+      return res.json({
+        movements: (data || []).map((row) => mapMovementWithModule(row as Record<string, unknown>)),
       });
-      return res.json({ movements });
     } catch (err: any) {
       console.error('[API] GET /api/abs-modules/movements:', err);
+      return res.status(500).json({ error: err?.message ?? 'Erro desconhecido' });
+    }
+  });
+
+  app.get('/api/abs-modules/sales', async (req, res) => {
+    try {
+      const limitRaw = Number(req.query.limit);
+      const limit = Number.isFinite(limitRaw)
+        ? Math.max(1, Math.min(1000, Math.floor(limitRaw)))
+        : 400;
+
+      if (isDevMemoryActive(deps)) {
+        return res.json({ sales: listDevAbsSaleMovements(limit) });
+      }
+
+      const { data, error } = await supabaseAdmin!
+        .from('workshop_abs_module_movements')
+        .select(absMovementModuleSelect)
+        .eq('workshop_id', WORKSHOP_ID!)
+        .eq('movement_type', 'exit')
+        .eq('reason_type', 'venda_avulsa')
+        .order('created_at', { ascending: false })
+        .limit(limit);
+      if (error) {
+        console.error('[API] GET /api/abs-modules/sales:', error);
+        return res.status(500).json({ error: error.message });
+      }
+
+      return res.json({
+        sales: (data || []).map((row) => mapMovementWithModule(row as Record<string, unknown>)),
+      });
+    } catch (err: any) {
+      console.error('[API] GET /api/abs-modules/sales:', err);
       return res.status(500).json({ error: err?.message ?? 'Erro desconhecido' });
     }
   });

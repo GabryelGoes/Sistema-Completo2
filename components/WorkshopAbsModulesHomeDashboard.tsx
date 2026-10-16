@@ -9,6 +9,7 @@ import {
   Plus,
   ScanLine,
   Search,
+  ShoppingBag,
   Trash2,
   X,
 } from 'lucide-react';
@@ -41,6 +42,7 @@ import {
   type AbsModuleStatus,
 } from '../utils/workshopAbsModules';
 import { AbsModulesGlobalMovementsModal } from './AbsModulesGlobalMovementsModal';
+import { AbsModulesSalesHistoryModal } from './AbsModulesSalesHistoryModal';
 import { PartPhotoImg } from './ui/PartPhotoImg';
 import { useBrowserBackLayer } from './ui/BackNavigationContext';
 import { WorkshopAbsModuleDetailView } from './WorkshopAbsModuleDetailView';
@@ -123,6 +125,7 @@ export function WorkshopAbsModulesHomeDashboard({
   const [expandedPublicId, setExpandedPublicId] = useState<string | null>(null);
   const [expandedTick, setExpandedTick] = useState(0);
   const [globalHistoryOpen, setGlobalHistoryOpen] = useState(false);
+  const [salesHistoryOpen, setSalesHistoryOpen] = useState(false);
 
   const resetFlow = useCallback(() => {
     setFlowOpen(false);
@@ -396,6 +399,14 @@ export function WorkshopAbsModulesHomeDashboard({
           </div>
 
           <div className="flex flex-wrap gap-2 justify-end shrink-0">
+            <button
+              type="button"
+              onClick={() => setSalesHistoryOpen(true)}
+              className={actionBtnSecondary}
+            >
+              <ShoppingBag className="h-4 w-4" aria-hidden />
+              Vendas
+            </button>
             <button
               type="button"
               onClick={() => setGlobalHistoryOpen(true)}
@@ -711,6 +722,22 @@ export function WorkshopAbsModulesHomeDashboard({
         onClose={() => setGlobalHistoryOpen(false)}
         onOpenUnit={(publicId) => {
           setGlobalHistoryOpen(false);
+          setFlowMissingId(null);
+          setFlowForm(false);
+          setFlowScan(false);
+          setFlowModelId(null);
+          setFlowEditPublicId(null);
+          setFlowDisassembleId(null);
+          setFlowPublicId(publicId);
+          setFlowOpen(true);
+        }}
+      />
+
+      <AbsModulesSalesHistoryModal
+        open={salesHistoryOpen}
+        onClose={() => setSalesHistoryOpen(false)}
+        onOpenUnit={(publicId) => {
+          setSalesHistoryOpen(false);
           setFlowMissingId(null);
           setFlowForm(false);
           setFlowScan(false);

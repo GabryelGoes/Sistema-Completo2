@@ -3691,6 +3691,22 @@ export async function getWorkshopAbsModulesAllMovements(opts?: {
   return Array.isArray(data.movements) ? data.movements : [];
 }
 
+/** Histórico de vendas ABS (saídas por venda / desmembramento → venda direta). */
+export async function getWorkshopAbsModulesSales(opts?: {
+  limit?: number;
+}): Promise<WorkshopAbsModuleMovementListItem[]> {
+  const qs = new URLSearchParams();
+  if (opts?.limit != null) qs.set('limit', String(opts.limit));
+  const suffix = qs.toString() ? `?${qs.toString()}` : '';
+  const response = await fetch(`${API_BASE}/abs-modules/sales${suffix}`);
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao carregar histórico de vendas (${response.status})`);
+  }
+  const data = (await response.json()) as { sales?: WorkshopAbsModuleMovementListItem[] };
+  return Array.isArray(data.sales) ? data.sales : [];
+}
+
 export async function getWorkshopAbsModuleDisassembly(
   publicId: string
 ): Promise<WorkshopAbsDisassemblyDetail> {

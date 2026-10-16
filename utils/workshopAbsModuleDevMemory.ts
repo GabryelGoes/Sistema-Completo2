@@ -467,25 +467,19 @@ export function getDevAbsModuleMovements(publicId: string): WorkshopAbsModuleMov
   return [...row.movements].sort((a, b) => b.created_at.localeCompare(a.created_at));
 }
 
-/** Histórico global de todas as unidades ABS (mais recentes primeiro). */
-export function listDevAbsAllMovements(limit = 300): Array<
-  WorkshopAbsModuleMovement & {
-    public_id: string;
-    module_kind: AbsModuleKind;
-    manufacturer: string | null;
-    sequence_number: number | null;
-    status: AbsModuleStatus;
-  }
-> {
-  const out: Array<
-    WorkshopAbsModuleMovement & {
-      public_id: string;
-      module_kind: AbsModuleKind;
-      manufacturer: string | null;
-      sequence_number: number | null;
-      status: AbsModuleStatus;
-    }
-  > = [];
+type DevMovementListItem = WorkshopAbsModuleMovement & {
+  public_id: string;
+  module_kind: AbsModuleKind;
+  manufacturer: string | null;
+  sequence_number: number | null;
+  status: AbsModuleStatus;
+  original_code: string | null;
+  unit_cost: number | null;
+  unit_price: number | null;
+};
+
+function collectDevMovements(): DevMovementListItem[] {
+  const out: DevMovementListItem[] = [];
   for (const row of modules.values()) {
     for (const m of row.movements) {
       out.push({
@@ -495,11 +489,27 @@ export function listDevAbsAllMovements(limit = 300): Array<
         manufacturer: row.manufacturer,
         sequence_number: row.sequence_number,
         status: row.status,
+        original_code: row.original_code,
+        unit_cost: row.unit_cost ?? null,
+        unit_price: row.unit_price ?? null,
       });
     }
   }
-  return out
-    .sort((a, b) => b.created_at.localeCompare(a.created_at))
+  return out.sort((a, b) => b.created_at.localeCompare(a.created_at));
+}
+
+/** Histórico global de todas as unidades ABS (mais recentes primeiro). */
+export function listDevAbsAllMovements(limit = 300): DevMovementListItem[] {
+  return collectDevMovements().slice(
+    0,
+    Math.max(1, Math.min(1000, Math.floor(limit) || 300))
+  );
+}
+
+/** Histórico de vendas (saídas com reason venda_avulsa). */
+export function listDevAbsSaleMovements(limit = 300): DevMovementListItem[] {
+  return collectDevMovements()
+    .filter((m) => m.movement_type === 'exit' && m.reason_type === 'venda_avulsa')
     .slice(0, Math.max(1, Math.min(1000, Math.floor(limit) || 300)));
 }
 
