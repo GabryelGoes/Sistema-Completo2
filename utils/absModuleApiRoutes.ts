@@ -243,6 +243,158 @@ function isDevMemoryActive(deps: AbsRouteDeps): boolean {
   return !(deps.supabaseAdmin && deps.WORKSHOP_ID);
 }
 
+type AbsDisassembleRpcRow = {
+  source: Record<string, unknown>;
+  remaining: Record<string, unknown>;
+  withdrawn: Record<string, unknown>;
+  disassembly: Record<string, unknown>;
+};
+
+/**
+ * Função SQL antiga cria public_id novo para a peça que sai (venda/OS/lab).
+ * Corrige: a saída volta a usar a etiqueta do completo; remove a unidade espúria.
+ */
+async function repairDisassembleKeepOriginalLabel(
+  supabaseAdmin: SupabaseClient,
+  workshopId: string,
+  originalPublicId: string,
+  row: AbsDisassembleRpcRow,
+  input: WorkshopAbsDisassembleInput
+): Promise<AbsDisassembleRpcRow> {
+  const sourceId = String(row.source.id || '');
+  const withdrawnId = String(row.withdrawn.id || '');
+  const withdrawnPublicId = String(row.withdrawn.public_id || '')
+    .trim()
+    .toUpperCase();
+  const original = originalPublicId.trim().toUpperCase();
+
+  if (!sourceId || !withdrawnId) {
+    throw new Error('Resposta de desmembramento incompleta para correção de etiqueta.');
+  }
+  if (sourceId === withdrawnId || withdrawnPublicId === original) {
+    return row;
+  }
+
+  const wdModelId = row.withdrawn.model_id;
+  const wdSeq = Number(row.withdrawn.sequence_number);
+  if (!wdModelId || !Number.isFinite(wdSeq)) {
+    throw new Error('Dados da peça retirada incompletos para correção de etiqueta.');
+  }
+
+  const disassemblyId = String(row.disassembly.id || '');
+  if (disassemblyId) {
+    const { error: dErr } = await supabaseAdmin
+      .from('workshop_abs_module_disassemblies')
+      .update({ withdrawn_module_id: sourceId })
+      .eq('id', disassemblyId)
+      .eq('workshop_id', workshopId);
+    if (dErr) throw new Error(dErr.message);
+  }
+
+  // Libera o par (model_id, sequence_number) da unidade espúria.
+  const { data: tempSeq, error: seqErr } = await supabaseAdmin.rpc(
+    'next_workshop_abs_module_sequence',
+    { p_model_id: wdModelId }
+  );
+  if (seqErr) throw new Error(seqErr.message);
+  const freedSeq = Number(tempSeq);
+  const { error: bumpErr } = await supabaseAdmin
+    .from('workshop_abs_modules')
+    .update({
+      sequence_number: Number.isFinite(freedSeq) ? freedSeq : wdSeq + 1_000_000,
+    })
+    .eq('id', withdrawnId)
+    .eq('workshop_id', workshopId);
+  if (bumpErr) throw new Error(bumpErr.message);
+
+  const exitReason =
+    input.destination === 'ordem_servico'
+      ? 'ordem_servico'
+      : input.destination === 'venda_direta'
+        ? 'venda_avulsa'
+        : input.destination === 'laboratorio'
+          ? 'laboratorio'
+          : 'desmembramento';
+
+  const { data: fixedSource, error: uErr } = await supabaseAdmin
+    .from('workshop_abs_modules')
+    .update({
+      module_kind: row.withdrawn.module_kind,
+      model_id: wdModelId,
+      sequence_number: wdSeq,
+      original_code: row.withdrawn.original_code,
+      unit_cost: row.withdrawn.unit_cost,
+      status: 'fora_estoque',
+      location: row.withdrawn.location ?? null,
+      notes:
+        input.notes ||
+        `Desmembramento: saída ${input.withdrawn_kind} (etiqueta original ${original})`,
+      parent_complete_id: null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', sourceId)
+    .eq('workshop_id', workshopId)
+    .select('*')
+    .single();
+  if (uErr) throw new Error(uErr.message);
+
+  const { error: movErr } = await supabaseAdmin.from('workshop_abs_module_movements').insert({
+    workshop_id: workshopId,
+    module_id: sourceId,
+    movement_type: 'exit',
+    from_status: 'desmembrado',
+    to_status: 'fora_estoque',
+    from_location: row.source.location ?? null,
+    to_location: row.withdrawn.location ?? null,
+    reason_type: exitReason,
+    reason_ref: input.destination_ref,
+    notes:
+      input.notes ||
+      `Desmembramento → ${input.destination} (mantém etiqueta ${original})`,
+    recorded_by_name: input.recorded_by_name,
+    service_order_id: input.service_order_id,
+  });
+  if (movErr) throw new Error(movErr.message);
+
+  await supabaseAdmin
+    .from('workshop_abs_module_movements')
+    .delete()
+    .eq('module_id', withdrawnId)
+    .eq('workshop_id', workshopId);
+  await supabaseAdmin
+    .from('workshop_abs_module_unit_photos')
+    .delete()
+    .eq('module_id', withdrawnId)
+    .eq('workshop_id', workshopId);
+
+  const { error: delErr } = await supabaseAdmin
+    .from('workshop_abs_modules')
+    .delete()
+    .eq('id', withdrawnId)
+    .eq('workshop_id', workshopId);
+  if (delErr) throw new Error(delErr.message);
+
+  let disassembly: Record<string, unknown> = {
+    ...row.disassembly,
+    withdrawn_module_id: sourceId,
+  };
+  if (disassemblyId) {
+    const { data: disFresh } = await supabaseAdmin
+      .from('workshop_abs_module_disassemblies')
+      .select('*')
+      .eq('id', disassemblyId)
+      .maybeSingle();
+    if (disFresh) disassembly = disFresh as Record<string, unknown>;
+  }
+
+  return {
+    source: fixedSource as Record<string, unknown>,
+    remaining: row.remaining,
+    withdrawn: fixedSource as Record<string, unknown>,
+    disassembly,
+  };
+}
+
 /** Exclui unidade física e vínculos (desmembramentos / parent). Não reutiliza public_id. */
 async function deleteAbsModuleUnit(
   supabaseAdmin: SupabaseClient,
@@ -1652,15 +1804,50 @@ export function registerAbsModuleRoutes(app: Express, deps: AbsRouteDeps) {
         p_withdrawn_primary_code: input.withdrawn_primary_code,
       });
       if (error) return res.status(400).json({ error: error.message });
-      const row = data as {
-        source?: unknown;
-        remaining?: unknown;
-        withdrawn?: unknown;
-        disassembly?: unknown;
+      const raw = data as {
+        source?: Record<string, unknown>;
+        remaining?: Record<string, unknown>;
+        withdrawn?: Record<string, unknown>;
+        disassembly?: Record<string, unknown>;
       } | null;
-      if (!row?.source || !row?.remaining || !row?.withdrawn || !row?.disassembly) {
+      if (!raw?.source || !raw?.remaining || !raw?.withdrawn || !raw?.disassembly) {
         return res.status(500).json({ error: 'Resposta inválida do desmembramento.' });
       }
+
+      let row: AbsDisassembleRpcRow = {
+        source: raw.source,
+        remaining: raw.remaining,
+        withdrawn: raw.withdrawn,
+        disassembly: raw.disassembly,
+      };
+
+      // Venda/OS/lab: a saída DEVE manter a etiqueta do completo.
+      // Se a RPC antiga gerou public_id novo, corrige antes de responder.
+      const withdrawnPid = String(row.withdrawn.public_id || '')
+        .trim()
+        .toUpperCase();
+      if (input.destination !== 'estoque' && withdrawnPid !== publicId) {
+        console.warn(
+          `[API] desassemble: RPC gerou etiqueta nova para saída (${withdrawnPid}); corrigindo para ${publicId}.`
+        );
+        try {
+          row = await repairDisassembleKeepOriginalLabel(
+            supabaseAdmin!,
+            WORKSHOP_ID!,
+            publicId,
+            row,
+            input
+          );
+        } catch (repairErr: any) {
+          console.error('[API] Falha ao corrigir etiqueta da saída:', repairErr);
+          return res.status(500).json({
+            error:
+              repairErr?.message ||
+              'Desmembramento criou etiqueta nova na saída. Aplique a migration sale_keeps_label e tente de novo.',
+          });
+        }
+      }
+
       return res.status(201).json(row);
     } catch (err: any) {
       console.error('[API] POST /api/abs-modules/:publicId/disassemble:', err);

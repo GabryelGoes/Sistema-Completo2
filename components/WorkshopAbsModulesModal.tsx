@@ -1663,12 +1663,19 @@ export function WorkshopAbsModulesModal({
         disWithdrawn === 'eletronico' ? 'hidráulico' : 'eletrônico';
       const exitKind = disWithdrawn === 'eletronico' ? 'eletrônico' : 'hidráulico';
       const sameLabel = result.withdrawn.public_id === mod.public_id;
+      const saleExit = disDestination !== 'estoque';
+      if (saleExit && !sameLabel) {
+        setActionError(
+          `A saída deveria manter a etiqueta ${mod.public_id}, mas o banco gerou ${result.withdrawn.public_id}. Aplique a migration sale_keeps_label e tente de novo.`
+        );
+        return;
+      }
       setSuccessMsg(
         sameLabel
           ? `Desmembrado. Estoque (${stayKind}): ${result.remaining.public_id} — nova etiqueta. Saída (${exitKind}): ${result.withdrawn.public_id} — mesma etiqueta · registrado em vendas.`
           : `Desmembrado. Estoque (${stayKind}): ${result.remaining.public_id}. Saída (${exitKind}): ${result.withdrawn.public_id}.`
       );
-      // Etiqueta da parte que ficou; depois o detalhe abre focado em localização.
+      // Só imprime a parte que ficou; saída por venda/OS/lab mantém a etiqueta original.
       openDetail(result.remaining, { focusLocation: true });
       if (result.remaining.status === 'disponivel') {
         setFocusLocationAfterLabelPrint(true);
@@ -2933,6 +2940,9 @@ export function WorkshopAbsModulesModal({
                               <p className="mt-0.5 font-mono text-[12px] font-semibold tabular-nums text-emerald-800 dark:text-emerald-200">
                                 Cód. {stayCode}
                               </p>
+                              <p className="mt-2 text-[12px] leading-snug text-emerald-900/90 dark:text-emerald-100/90">
+                                Recebe <strong>nova etiqueta</strong> (única a imprimir).
+                              </p>
                             </div>
 
                             <div className="rounded-2xl bg-rose-50 p-3.5 ring-1 ring-rose-500/25 dark:bg-rose-950/35 dark:ring-rose-400/20">
@@ -2947,10 +2957,14 @@ export function WorkshopAbsModulesModal({
                               </p>
                               {disDestination !== 'estoque' ? (
                                 <p className="mt-2 text-[12px] leading-snug text-rose-900/90 dark:text-rose-100/90">
-                                  Mantém a etiqueta {src.public_id}. Sai da lista e registra no
-                                  histórico de vendas (quando for venda).
+                                  Mantém a etiqueta <strong>{src.public_id}</strong> — não gera
+                                  nova. Sai da lista e registra no histórico de vendas.
                                 </p>
-                              ) : null}
+                              ) : (
+                                <p className="mt-2 text-[12px] leading-snug text-rose-900/90 dark:text-rose-100/90">
+                                  Destino estoque: também recebe nova etiqueta.
+                                </p>
+                              )}
                             </div>
                           </div>
 
