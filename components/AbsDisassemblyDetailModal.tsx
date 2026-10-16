@@ -342,7 +342,7 @@ export function AbsDisassemblyDetailModal({
                   </h3>
                   <div className="grid gap-3 sm:grid-cols-2">
                     <UnitCard
-                      title="Parte que ficou"
+                      title="Ficou no estoque (nova etiqueta)"
                       badge={absModuleKindLabel(remainingKind)}
                       badgeClass="bg-emerald-600/15 text-emerald-800 dark:text-emerald-200"
                       module={detail.remaining}
@@ -350,7 +350,7 @@ export function AbsDisassemblyDetailModal({
                       onExpand={onExpandFiche}
                     />
                     <UnitCard
-                      title="Parte que saiu"
+                      title="Deu saída"
                       badge={absModuleKindLabel(detail.disassembly.withdrawn_kind)}
                       badgeClass="bg-violet-600/15 text-violet-800 dark:text-violet-200"
                       module={detail.withdrawn}
@@ -359,7 +359,7 @@ export function AbsDisassemblyDetailModal({
                     />
                   </div>
                   <UnitCard
-                    title="Módulo completo de origem"
+                    title="Completo de origem (etiqueta antiga)"
                     badge="Desmembrado"
                     badgeClass="bg-zinc-500/15 text-zinc-700 dark:text-zinc-300"
                     module={detail.source}
