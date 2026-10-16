@@ -2,12 +2,12 @@
  * Histórico unificado de entradas/saídas do estoque (peças + módulos ABS).
  */
 
-import type { WorkshopPartStockMovement } from './workshopPartStockOutbound';
-import type { WorkshopAbsModuleMovementListItem } from './workshopAbsModules';
+import type { WorkshopPartStockMovement } from './workshopPartStockOutbound.js';
+import type { WorkshopAbsModuleMovementListItem } from './workshopAbsModules.js';
 import {
   absModuleMovementLabel,
   describeAbsModuleMovement,
-} from './workshopAbsModules';
+} from './workshopAbsModules.js';
 
 export type EstoqueLedgerSource = 'part' | 'abs';
 export type EstoqueLedgerDirection = 'in' | 'out' | 'transfer';
