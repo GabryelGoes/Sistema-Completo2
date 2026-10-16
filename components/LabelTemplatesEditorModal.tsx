@@ -4,12 +4,16 @@ import {
   AlignLeft,
   AlignRight,
   Bold,
+  Droplets,
   Eye,
   EyeOff,
+  Loader2,
   Minus,
   Move,
   Plus,
+  Printer,
   RotateCcw,
+  RotateCw,
   Tag,
   Type,
   X,
@@ -22,7 +26,6 @@ import {
   cssFontForElement,
   loadAllLabelTemplates,
   normalizeLabelTemplate,
-  saveAllLabelTemplates,
   type LabelElementDef,
   type LabelFontFamily,
   type LabelFontWeight,
@@ -30,9 +33,20 @@ import {
   type LabelTemplateLayout,
   type LabelTemplatesStore,
 } from '../utils/labelTemplates';
+import {
+  persistLabelTemplatesToServer,
+  syncLabelTemplatesFromServer,
+} from '../utils/labelTemplatesSync';
 import { renderLabOsLabelDataUrl } from '../utils/labOsLabelRender';
-import { NIIMBOT_LABEL_H_PX, NIIMBOT_LABEL_W_PX, renderNiimbotPartLabelDataUrl } from '../utils/niimbotLabelRender';
+import {
+  NIIMBOT_LABEL_H_PX,
+  NIIMBOT_LABEL_W_PX,
+  renderNiimbotAbsModuleLabelDataUrl,
+  renderNiimbotPartLabelDataUrl,
+} from '../utils/niimbotLabelRender';
 import { renderPatioKeyLabelDataUrl } from '../utils/patioKeyLabelRender';
+import { KEY_LABEL_ICON_PRESETS } from '../utils/keyLabelIcons';
+import { niimbotService } from '../services/niimbotService';
 import { ModalPortal } from './ui/ModalPortal';
 import { IosModalHeader } from './ui/IosModalHeader';
 import { iosModalClose, iosModalShell } from './ui/iosModalStyles';
@@ -138,6 +152,9 @@ async function buildPreview(
   if (id === 'estoque') {
     return renderNiimbotPartLabelDataUrl({ ...LABEL_SAMPLE_DATA.estoque }, layout);
   }
+  if (id === 'abs_modulo') {
+    return renderNiimbotAbsModuleLabelDataUrl({ ...LABEL_SAMPLE_DATA.abs_modulo }, layout);
+  }
   return renderPatioKeyLabelDataUrl({ ...LABEL_SAMPLE_DATA.chave }, layout);
 }
 
@@ -151,6 +168,8 @@ export function LabelTemplatesEditorModal({
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [building, setBuilding] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const [syncError, setSyncError] = useState<string | null>(null);
   const [drag, setDrag] = useState<{
     elId: string;
     startX: number;
@@ -158,17 +177,71 @@ export function LabelTemplatesEditorModal({
     origX: number;
     origY: number;
   } | null>(null);
+  const [printBusy, setPrintBusy] = useState(false);
+  const [printMsg, setPrintMsg] = useState<string | null>(null);
   const previewWrapRef = useRef<HTMLDivElement | null>(null);
+  const persistTimerRef = useRef<number | null>(null);
 
-  useBrowserBackLayer(open, onClose);
+  const flushPersist = useCallback(() => {
+    if (persistTimerRef.current == null) return;
+    window.clearTimeout(persistTimerRef.current);
+    persistTimerRef.current = null;
+    void persistLabelTemplatesToServer(store).catch(() => {
+      /* já está no localStorage */
+    });
+  }, [store]);
+
+  const handleClose = useCallback(() => {
+    flushPersist();
+    onClose();
+  }, [flushPersist, onClose]);
+
+  useBrowserBackLayer(open, handleClose);
 
   useEffect(() => {
     if (!open) return;
-    const loaded = loadAllLabelTemplates();
-    setStore(loaded);
+    let cancelled = false;
+    // Mostra cache local imediatamente; depois sincroniza com o servidor.
+    const local = loadAllLabelTemplates();
+    setStore(local);
     setActiveId(initialTemplateId);
-    setSelectedId(loaded[initialTemplateId]?.elements[0]?.id ?? null);
+    setSelectedId(local[initialTemplateId]?.elements[0]?.id ?? null);
+    setSyncError(null);
+    setSyncing(true);
+    void syncLabelTemplatesFromServer({ force: true })
+      .then((remote) => {
+        if (cancelled) return;
+        setStore(remote);
+        setSelectedId((prev) => {
+          const still = remote[initialTemplateId]?.elements.some((e) => e.id === prev);
+          return still ? prev : remote[initialTemplateId]?.elements[0]?.id ?? null;
+        });
+      })
+      .catch((e) => {
+        if (cancelled) return;
+        setSyncError(e instanceof Error ? e.message : 'Falha ao sincronizar etiquetas.');
+      })
+      .finally(() => {
+        if (!cancelled) setSyncing(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [open, initialTemplateId]);
+
+  useEffect(() => {
+    if (open) return;
+    flushPersist();
+  }, [open, flushPersist]);
+
+  useEffect(() => {
+    return () => {
+      if (persistTimerRef.current != null) {
+        window.clearTimeout(persistTimerRef.current);
+        persistTimerRef.current = null;
+      }
+    };
+  }, []);
 
   const layout = store[activeId];
   const selected = useMemo(
@@ -181,9 +254,22 @@ export function LabelTemplatesEditorModal({
       lab_os: normalizeLabelTemplate('lab_os', next.lab_os),
       estoque: normalizeLabelTemplate('estoque', next.estoque),
       chave: normalizeLabelTemplate('chave', next.chave),
+      abs_modulo: normalizeLabelTemplate('abs_modulo', next.abs_modulo),
     };
     setStore(normalized);
-    saveAllLabelTemplates(normalized);
+    setSyncError(null);
+    // Debounce: grava no servidor após pausa na edição (e já no cache local).
+    if (persistTimerRef.current != null) window.clearTimeout(persistTimerRef.current);
+    persistTimerRef.current = window.setTimeout(() => {
+      persistTimerRef.current = null;
+      void persistLabelTemplatesToServer(normalized).catch((e) => {
+        setSyncError(
+          e instanceof Error
+            ? e.message
+            : 'Não foi possível salvar no servidor. As alterações ficaram só neste dispositivo.'
+        );
+      });
+    }, 450);
   }, []);
 
   const patchLayout = useCallback(
@@ -211,6 +297,22 @@ export function LabelTemplatesEditorModal({
     persist({ ...store, [activeId]: fresh });
     setSelectedId(fresh.elements[0]?.id ?? null);
   };
+
+  const handlePrintTest = useCallback(async () => {
+    if (!previewUrl || printBusy) return;
+    setPrintBusy(true);
+    setPrintMsg(null);
+    try {
+      flushPersist();
+      const url = await buildPreview(activeId, layout);
+      await niimbotService.printLabelImageUrl(url, { copies: 1 });
+      setPrintMsg('Etiqueta de teste enviada à impressora.');
+    } catch (err) {
+      setPrintMsg(err instanceof Error ? err.message : 'Falha ao imprimir etiqueta de teste.');
+    } finally {
+      setPrintBusy(false);
+    }
+  }, [previewUrl, printBusy, flushPersist, activeId, layout]);
 
   useEffect(() => {
     if (!open) {
@@ -253,13 +355,26 @@ export function LabelTemplatesEditorModal({
   const onPointerMove = (e: React.PointerEvent) => {
     if (!drag || !previewWrapRef.current) return;
     const rect = previewWrapRef.current.getBoundingClientRect();
-    const scaleX = NIIMBOT_LABEL_W_PX / rect.width;
-    const scaleY = NIIMBOT_LABEL_H_PX / rect.height;
-    const dx = (e.clientX - drag.startX) * scaleX;
-    const dy = (e.clientY - drag.startY) * scaleY;
+    // padding p-3 → área útil da imagem
+    const pad = 12;
+    const imgW = Math.max(1, rect.width - pad * 2);
+    const imgH = Math.max(1, rect.height - pad * 2);
+    const scaleX = NIIMBOT_LABEL_W_PX / imgW;
+    const scaleY = NIIMBOT_LABEL_H_PX / imgH;
+    const dPrintX = (e.clientX - drag.startX) * scaleX;
+    const dPrintY = (e.clientY - drag.startY) * scaleY;
+    // Chave: elementos vivem no bloco vertical; a prévia é a impressão rotacionada −90°.
+    // printX ≈ blockY · printY ≈ printH − blockX − blockW  →  dBlockX = −dPrintY · dBlockY = dPrintX
+    if (activeId === 'chave') {
+      patchElement(drag.elId, {
+        x: Math.round(drag.origX - dPrintY),
+        y: Math.round(drag.origY + dPrintX),
+      });
+      return;
+    }
     patchElement(drag.elId, {
-      x: Math.round(drag.origX + dx),
-      y: Math.round(drag.origY + dy),
+      x: Math.round(drag.origX + dPrintX),
+      y: Math.round(drag.origY + dPrintY),
     });
   };
 
@@ -267,16 +382,33 @@ export function LabelTemplatesEditorModal({
 
   if (!open) return null;
 
-  const overlayElements =
-    activeId === 'chave'
-      ? [] // chave é composta/rotacionada — edição por painel
-      : layout.elements.filter((e) => e.visible);
+  const overlayElements = layout.elements.filter((e) => e.visible);
+  const chaveDualCopy = layout.keyOptions?.dualCopy !== false;
+  const chaveHalfH = Math.floor(
+    (NIIMBOT_LABEL_W_PX - (layout.keyOptions?.halfGap ?? 2)) / 2
+  );
+
+  /** Mapeia retângulo do bloco da chave → caixa na prévia de impressão (rot −90°). */
+  const chaveOverlayBox = (elDef: LabelElementDef) => {
+    const ex = elDef.x;
+    const ey = elDef.y;
+    const ew = Math.max(4, elDef.w);
+    const eh = Math.max(4, elDef.h);
+    return {
+      left: ey,
+      top: NIIMBOT_LABEL_H_PX - ex - ew,
+      width: eh,
+      height: ew,
+      // Rotação do elemento no bloco + rotação da face na impressão
+      rot: (Number(elDef.rotation) || 0) - 90,
+    };
+  };
 
   return (
     <ModalPortal>
       <div
         className="fixed inset-0 z-[250] flex items-center justify-center bg-black/55 p-2 sm:p-4"
-        onClick={onClose}
+        onClick={handleClose}
         role="presentation"
       >
         <div
@@ -286,7 +418,7 @@ export function LabelTemplatesEditorModal({
           aria-modal="true"
           aria-labelledby="label-templates-editor-title"
         >
-          <button type="button" onClick={onClose} className={iosModalClose} aria-label="Fechar">
+          <button type="button" onClick={handleClose} className={iosModalClose} aria-label="Fechar">
             <X className="h-5 w-5" />
           </button>
 
@@ -294,7 +426,13 @@ export function LabelTemplatesEditorModal({
             <IosModalHeader
               icon={<Tag className="h-5 w-5 text-zinc-800" />}
               title="Editor de etiquetas"
-              subtitle="Laboratório, estoque, chave · 50 × 30 mm · salvo neste dispositivo"
+              subtitle={
+                syncing
+                  ? 'Sincronizando com todos os dispositivos…'
+                  : syncError
+                    ? syncError
+                    : 'Laboratório, estoque, chave · 50 × 30 mm · sincronizado em todos os dispositivos'
+              }
             />
             <div className="mt-3 flex flex-wrap gap-1.5">
               {LABEL_TEMPLATE_META.map((meta) => {
@@ -338,9 +476,15 @@ export function LabelTemplatesEditorModal({
               </div>
               <p className="text-[12px] text-zinc-500 dark:text-zinc-400">
                 {LABEL_TEMPLATE_META.find((m) => m.id === activeId)?.description}
-                {activeId !== 'chave'
-                  ? ' · Arraste os blocos na prévia para reposicionar.'
-                  : ' · Ajuste campos e opções no painel à direita.'}
+                {' · Arraste os textos na prévia · gire e edite cada um no painel.'}
+                {activeId === 'chave'
+                  ? layout.keyOptions?.mercosulPlate !== false
+                    ? ' Placa no estilo Mercosul (desligue nas opções para texto tradicional).'
+                    : ' Placa em texto tradicional.'
+                  : ''}
+                {activeId === 'chave' && layout.keyOptions?.dualCopy === false
+                  ? ' Espelhamento desligado — arraste pela etiqueta toda.'
+                  : ''}
               </p>
               <div
                 ref={previewWrapRef}
@@ -370,11 +514,30 @@ export function LabelTemplatesEditorModal({
                 {previewUrl && overlayElements.length > 0 ? (
                   <div className="pointer-events-none absolute inset-3">
                     {overlayElements.map((elDef) => {
-                      const left = `${(elDef.x / NIIMBOT_LABEL_W_PX) * 100}%`;
-                      const top = `${(elDef.y / NIIMBOT_LABEL_H_PX) * 100}%`;
-                      const width = `${(elDef.w / NIIMBOT_LABEL_W_PX) * 100}%`;
-                      const height = `${(elDef.h / NIIMBOT_LABEL_H_PX) * 100}%`;
+                      const mapped =
+                        activeId === 'chave'
+                          ? chaveOverlayBox(elDef)
+                          : {
+                              left: elDef.x,
+                              top: elDef.y,
+                              width: elDef.w,
+                              height: elDef.h,
+                              rot: Number(elDef.rotation) || 0,
+                            };
+                      // Com espelhamento: só a 1ª face é editável. Sem espelhamento: etiqueta toda.
+                      if (
+                        activeId === 'chave' &&
+                        chaveDualCopy &&
+                        mapped.left > chaveHalfH + 8
+                      ) {
+                        return null;
+                      }
+                      const left = `${(mapped.left / NIIMBOT_LABEL_W_PX) * 100}%`;
+                      const top = `${(mapped.top / NIIMBOT_LABEL_H_PX) * 100}%`;
+                      const width = `${(mapped.width / NIIMBOT_LABEL_W_PX) * 100}%`;
+                      const height = `${(mapped.height / NIIMBOT_LABEL_H_PX) * 100}%`;
                       const active = selectedId === elDef.id;
+                      const rot = mapped.rot;
                       return (
                         <button
                           key={elDef.id}
@@ -384,7 +547,15 @@ export function LabelTemplatesEditorModal({
                               ? 'border-sky-500 bg-sky-400/15 shadow-[0_0_0_1px_rgba(14,165,233,0.5)]'
                               : 'border-transparent hover:border-sky-300/80 hover:bg-sky-300/10'
                           }`}
-                          style={{ left, top, width, height, cursor: 'move' }}
+                          style={{
+                            left,
+                            top,
+                            width,
+                            height,
+                            cursor: 'move',
+                            transform: rot ? `rotate(${rot}deg)` : undefined,
+                            transformOrigin: 'center center',
+                          }}
                           onPointerDown={(e) => onPointerDownOverlay(e, elDef.id)}
                           title={`Arrastar: ${elDef.name}`}
                           aria-label={`Selecionar ${elDef.name}`}
@@ -397,6 +568,35 @@ export function LabelTemplatesEditorModal({
               <p className="text-center text-[11px] text-emerald-700 dark:text-emerald-300">
                 Alterações salvas automaticamente neste dispositivo
               </p>
+
+              {activeId === 'chave' ? (
+                <div className="space-y-2">
+                  <button
+                    type="button"
+                    disabled={printBusy || !previewUrl || building}
+                    onClick={() => void handlePrintTest()}
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-[14px] font-semibold text-white hover:bg-emerald-500 disabled:opacity-50"
+                  >
+                    {printBusy ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Printer className="h-4 w-4" />
+                    )}
+                    {printBusy ? 'Imprimindo teste…' : 'Imprimir etiqueta teste'}
+                  </button>
+                  {printMsg ? (
+                    <p
+                      className={`rounded-xl px-3 py-2 text-[12px] ${
+                        printMsg.includes('enviada')
+                          ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200'
+                          : 'bg-amber-50 text-amber-900 dark:bg-amber-950/40 dark:text-amber-100'
+                      }`}
+                    >
+                      {printMsg}
+                    </p>
+                  ) : null}
+                </div>
+              ) : null}
 
               {/* Lista de elementos */}
               <div className="space-y-1.5">
@@ -475,65 +675,128 @@ export function LabelTemplatesEditorModal({
                       Texto e fonte
                     </div>
 
-                    {selected.kind !== 'qr' && selected.kind !== 'barcode' ? (
-                      <label className="block space-y-1.5">
+                    {selected.kind !== 'qr' &&
+                    selected.kind !== 'barcode' &&
+                    !(activeId === 'chave' && selected.id === 'plate') ? (
+                      <div className="space-y-1.5">
                         <span className="text-[11px] font-bold uppercase tracking-wide text-zinc-500">
                           Rótulo / prefixo
                         </span>
+                        {activeId === 'chave' &&
+                        (selected.id === 'customer' ||
+                          selected.id === 'vehicle' ||
+                          selected.id === 'color') ? (
+                          <div className="flex flex-wrap gap-1.5">
+                            {KEY_LABEL_ICON_PRESETS.map((preset) => {
+                              const active =
+                                (selected.labelText || '').trimStart().startsWith(preset.emoji);
+                              return (
+                                <button
+                                  key={preset.emoji}
+                                  type="button"
+                                  onClick={() =>
+                                    patchElement(selected.id, { labelText: preset.labelText })
+                                  }
+                                  className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-2 text-[13px] font-semibold transition ${
+                                    active
+                                      ? 'bg-emerald-600 text-white'
+                                      : 'bg-white text-zinc-800 hover:bg-zinc-100 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:bg-zinc-800'
+                                  }`}
+                                  title={`Usar ícone ${preset.name}`}
+                                >
+                                  <span className="text-[16px] leading-none">{preset.emoji}</span>
+                                  {preset.name}
+                                </button>
+                              );
+                            })}
+                            <button
+                              type="button"
+                              onClick={() => patchElement(selected.id, { labelText: '' })}
+                              className={`rounded-xl px-3 py-2 text-[12px] font-semibold ${
+                                !(selected.labelText || '').trim()
+                                  ? 'bg-zinc-800 text-white dark:bg-zinc-100 dark:text-zinc-900'
+                                  : 'bg-white text-zinc-600 dark:bg-zinc-900 dark:text-zinc-300'
+                              }`}
+                            >
+                              Sem ícone
+                            </button>
+                          </div>
+                        ) : null}
                         <input
                           type="text"
                           value={selected.labelText}
                           onChange={(e) =>
                             patchElement(selected.id, { labelText: e.target.value })
                           }
-                          placeholder="Ex.: Cliente: ou OFICINA"
+                          placeholder={
+                            activeId === 'chave'
+                              ? 'Ex.: 👤  ou Cliente:'
+                              : 'Ex.: Cliente: ou OFICINA'
+                          }
                           className="w-full rounded-xl border-0 bg-white px-3 py-2.5 text-[14px] font-medium text-zinc-900 outline-none dark:bg-zinc-900 dark:text-zinc-100"
                         />
                         <p className="text-[11px] text-zinc-500">
-                          Deixe vazio para imprimir só o valor (sem legenda).
+                          {activeId === 'chave'
+                            ? 'Ícones 👤 🚗 🎨 são desenhados em P&B para a Niimbot. Deixe vazio para só o valor.'
+                            : 'Deixe vazio para imprimir só o valor (sem legenda).'}
                         </p>
+                      </div>
+                    ) : null}
+
+                    {activeId === 'chave' && selected.id === 'plate' ? (
+                      <p className="rounded-xl bg-white px-3 py-2 text-[11px] text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400">
+                        A placa não usa o título &quot;Placa:&quot; — só o número (Mercosul ou
+                        texto tradicional).
+                      </p>
+                    ) : null}
+
+                    {!(activeId === 'chave' && selected.id === 'plate' && layout.keyOptions?.mercosulPlate !== false) ? (
+                      <label className="block space-y-1.5">
+                        <span className="text-[11px] font-bold uppercase tracking-wide text-zinc-500">
+                          Fonte
+                        </span>
+                        <select
+                          value={selected.fontFamily}
+                          onChange={(e) =>
+                            patchElement(selected.id, {
+                              fontFamily: e.target.value as LabelFontFamily,
+                            })
+                          }
+                          className="w-full rounded-xl border-0 bg-white px-3 py-2.5 text-[14px] font-medium text-zinc-900 outline-none dark:bg-zinc-900 dark:text-zinc-100"
+                        >
+                          {LABEL_FONTS.map((f) => (
+                            <option key={f.value} value={f.value} style={{ fontFamily: f.value }}>
+                              {f.label}
+                            </option>
+                          ))}
+                        </select>
                       </label>
                     ) : null}
 
-                    <label className="block space-y-1.5">
-                      <span className="text-[11px] font-bold uppercase tracking-wide text-zinc-500">
-                        Fonte
-                      </span>
-                      <select
-                        value={selected.fontFamily}
-                        onChange={(e) =>
-                          patchElement(selected.id, {
-                            fontFamily: e.target.value as LabelFontFamily,
-                          })
+                    {!(activeId === 'chave' && selected.id === 'plate') ? (
+                      <Stepper
+                        label="Tamanho do rótulo"
+                        value={selected.fontSize}
+                        display={`${selected.fontSize} px`}
+                        onDec={() =>
+                          patchElement(selected.id, { fontSize: selected.fontSize - 1 })
                         }
-                        className="w-full rounded-xl border-0 bg-white px-3 py-2.5 text-[14px] font-medium text-zinc-900 outline-none dark:bg-zinc-900 dark:text-zinc-100"
-                      >
-                        {LABEL_FONTS.map((f) => (
-                          <option key={f.value} value={f.value} style={{ fontFamily: f.value }}>
-                            {f.label}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-
-                    <Stepper
-                      label="Tamanho do rótulo"
-                      value={selected.fontSize}
-                      display={`${selected.fontSize} px`}
-                      onDec={() =>
-                        patchElement(selected.id, { fontSize: selected.fontSize - 1 })
-                      }
-                      onInc={() =>
-                        patchElement(selected.id, { fontSize: selected.fontSize + 1 })
-                      }
-                    />
+                        onInc={() =>
+                          patchElement(selected.id, { fontSize: selected.fontSize + 1 })
+                        }
+                      />
+                    ) : null}
 
                     {(selected.kind === 'banner' ||
                       selected.kind === 'text_field' ||
                       selected.kind === 'text' ||
                       selected.kind === 'human_code') && (
                       <Stepper
-                        label="Tamanho do valor"
+                        label={
+                          activeId === 'chave' && selected.id === 'plate'
+                            ? 'Tamanho do texto da placa'
+                            : 'Tamanho do valor'
+                        }
                         value={selected.valueFontSize}
                         display={`${selected.valueFontSize} px`}
                         onDec={() =>
@@ -623,19 +886,144 @@ export function LabelTemplatesEditorModal({
                       onInc={() => patchElement(selected.id, { y: selected.y + 1 })}
                     />
                     <Stepper
-                      label="Largura"
+                      label={
+                        activeId === 'chave' && selected.id === 'plate'
+                          ? 'Largura da placa'
+                          : 'Largura'
+                      }
                       value={selected.w}
                       display={`${selected.w} px`}
-                      onDec={() => patchElement(selected.id, { w: selected.w - 2 })}
+                      onDec={() => patchElement(selected.id, { w: Math.max(24, selected.w - 2) })}
                       onInc={() => patchElement(selected.id, { w: selected.w + 2 })}
                     />
                     <Stepper
-                      label="Altura"
+                      label={
+                        activeId === 'chave' && selected.id === 'plate'
+                          ? 'Altura da placa'
+                          : 'Altura'
+                      }
                       value={selected.h}
                       display={`${selected.h} px`}
-                      onDec={() => patchElement(selected.id, { h: selected.h - 2 })}
+                      onDec={() => patchElement(selected.id, { h: Math.max(14, selected.h - 2) })}
                       onInc={() => patchElement(selected.id, { h: selected.h + 2 })}
                     />
+                  </div>
+
+                  <div className="space-y-3 rounded-2xl border-0 bg-zinc-50 p-3.5 dark:bg-white/[0.03] sm:p-4">
+                    <div className="flex items-center gap-2 text-[11px] font-bold uppercase tracking-wide text-zinc-500">
+                      <Droplets className="h-3.5 w-3.5" />
+                      Marca d&apos;água e rotação
+                    </div>
+
+                    <label className="block space-y-1.5">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-[12px] font-medium text-zinc-600 dark:text-zinc-300">
+                          Opacidade
+                        </span>
+                        <span className="tabular-nums text-[12px] font-semibold text-zinc-800 dark:text-zinc-100">
+                          {selected.opacity ?? 100}%
+                        </span>
+                      </div>
+                      <input
+                        type="range"
+                        min={5}
+                        max={100}
+                        step={5}
+                        value={selected.opacity ?? 100}
+                        onChange={(e) =>
+                          patchElement(selected.id, {
+                            opacity: Math.max(5, Math.min(100, Number(e.target.value) || 100)),
+                          })
+                        }
+                        className="w-full accent-emerald-600"
+                        aria-label="Opacidade do elemento"
+                      />
+                      <p className="text-[11px] text-zinc-500">
+                        Valores mais baixos deixam o elemento mais claro (marca d&apos;água na
+                        impressão térmica).
+                      </p>
+                    </label>
+
+                    <div className="flex flex-wrap gap-1.5">
+                      {[100, 70, 45, 25].map((pct) => (
+                        <button
+                          key={pct}
+                          type="button"
+                          onClick={() => patchElement(selected.id, { opacity: pct })}
+                          className={`rounded-lg px-2.5 py-1.5 text-[12px] font-semibold ${
+                            (selected.opacity ?? 100) === pct
+                              ? 'bg-emerald-600 text-white'
+                              : 'bg-white text-zinc-700 dark:bg-zinc-900 dark:text-zinc-200'
+                          }`}
+                        >
+                          {pct}%
+                        </button>
+                      ))}
+                    </div>
+
+                    <Stepper
+                      label="Rotação"
+                      value={selected.rotation ?? 0}
+                      display={`${selected.rotation ?? 0}°`}
+                      onDec={() =>
+                        patchElement(selected.id, {
+                          rotation: (selected.rotation ?? 0) - 5,
+                        })
+                      }
+                      onInc={() =>
+                        patchElement(selected.id, {
+                          rotation: (selected.rotation ?? 0) + 5,
+                        })
+                      }
+                    />
+
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      {[
+                        { deg: -90, label: '-90°' },
+                        { deg: -45, label: '-45°' },
+                        { deg: 0, label: '0°' },
+                        { deg: 45, label: '45°' },
+                        { deg: 90, label: '90°' },
+                        { deg: 180, label: '180°' },
+                      ].map((opt) => (
+                        <button
+                          key={opt.deg}
+                          type="button"
+                          onClick={() => patchElement(selected.id, { rotation: opt.deg })}
+                          className={`rounded-lg px-2.5 py-1.5 text-[12px] font-semibold ${
+                            (selected.rotation ?? 0) === opt.deg
+                              ? 'bg-sky-600 text-white'
+                              : 'bg-white text-zinc-700 dark:bg-zinc-900 dark:text-zinc-200'
+                          }`}
+                        >
+                          {opt.label}
+                        </button>
+                      ))}
+                      <button
+                        type="button"
+                        onClick={() =>
+                          patchElement(selected.id, {
+                            rotation: (selected.rotation ?? 0) - 90,
+                          })
+                        }
+                        className="inline-flex items-center gap-1 rounded-lg bg-white px-2.5 py-1.5 text-[12px] font-semibold text-zinc-700 dark:bg-zinc-900 dark:text-zinc-200"
+                        title="Girar −90°"
+                      >
+                        <RotateCcw className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          patchElement(selected.id, {
+                            rotation: (selected.rotation ?? 0) + 90,
+                          })
+                        }
+                        className="inline-flex items-center gap-1 rounded-lg bg-white px-2.5 py-1.5 text-[12px] font-semibold text-zinc-700 dark:bg-zinc-900 dark:text-zinc-200"
+                        title="Girar +90°"
+                      >
+                        <RotateCw className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
                   </div>
                 </>
               )}
@@ -807,6 +1195,34 @@ export function LabelTemplatesEditorModal({
                       className="h-4 w-4 accent-emerald-600"
                     />
                   </label>
+                  {layout.keyOptions.dualCopy === false ? (
+                    <p className="text-[11px] leading-relaxed text-zinc-500 dark:text-zinc-400">
+                      Espelhamento desligado: arraste textos e placa por toda a etiqueta.
+                    </p>
+                  ) : null}
+                  <label className="flex items-center justify-between gap-3 rounded-xl bg-white px-3 py-2.5 dark:bg-zinc-900">
+                    <span className="text-[12px] font-medium text-zinc-700 dark:text-zinc-200">
+                      Placa Mercosul
+                    </span>
+                    <input
+                      type="checkbox"
+                      checked={layout.keyOptions.mercosulPlate !== false}
+                      onChange={(e) =>
+                        patchLayout({
+                          keyOptions: {
+                            ...layout.keyOptions!,
+                            mercosulPlate: e.target.checked,
+                          },
+                        })
+                      }
+                      className="h-4 w-4 accent-emerald-600"
+                    />
+                  </label>
+                  {layout.keyOptions.mercosulPlate === false ? (
+                    <p className="text-[11px] leading-relaxed text-zinc-500 dark:text-zinc-400">
+                      Mercosul desligado: a placa aparece só como texto tradicional.
+                    </p>
+                  ) : null}
                 </div>
               ) : null}
 
@@ -823,7 +1239,7 @@ export function LabelTemplatesEditorModal({
           <div className="shrink-0 border-t border-zinc-200/60 px-5 py-4 dark:border-white/[0.06] sm:px-6">
             <button
               type="button"
-              onClick={onClose}
+              onClick={handleClose}
               className="inline-flex w-full items-center justify-center rounded-xl bg-zinc-900 px-4 py-3 text-[15px] font-semibold text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900"
             >
               Concluir

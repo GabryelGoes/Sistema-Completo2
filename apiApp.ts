@@ -2283,6 +2283,19 @@ export function createApiApp() {
     }
   }
 
+  function parseLabelTemplatesValue(raw: string | null | undefined): unknown | null {
+    const s = (raw ?? "").trim();
+    if (!s) return null;
+    try {
+      const parsed = JSON.parse(s);
+      if (!parsed || typeof parsed !== "object") return null;
+      if (!(parsed.lab_os || parsed.estoque || parsed.chave || parsed.abs_modulo)) return null;
+      return parsed;
+    } catch {
+      return null;
+    }
+  }
+
   app.get("/api/workshop-settings", async (_req, res) => {
     try {
       if (!supabaseAdmin || !WORKSHOP_ID) {
@@ -2319,6 +2332,7 @@ export function createApiApp() {
         appAppearance,
         labProductKinds: parseLabProductKindsValue(map.lab_product_kinds),
         labQuickServices: parseLabQuickServicesValue(map.lab_quick_services),
+        labelTemplates: parseLabelTemplatesValue(map.label_templates),
       });
     } catch (err: any) {
       console.error("[API] Erro em GET /api/workshop-settings:", err);
@@ -2501,11 +2515,12 @@ export function createApiApp() {
         appAppearance,
         labProductKinds,
         labQuickServices,
+        labelTemplates,
       } = req.body || {};
 
       // Chaves sensíveis (senha de gerência, PIN do pátio, senha de exclusão, acessos e perfil
-      // do admin) só podem ser alteradas pela Gerência. labProductKinds/appAppearance ficam
-      // liberados para usuários autenticados (ex.: laboratório configurando tipos de produto).
+      // do admin) só podem ser alteradas pela Gerência. labProductKinds/appAppearance/labelTemplates
+      // ficam liberados para usuários autenticados (ex.: laboratório configurando tipos/etiquetas).
       const touchesSensitive =
         (typeof adminPassword === "string" && adminPassword.trim()) ||
         typeof patioPin === "string" ||
@@ -2578,6 +2593,13 @@ export function createApiApp() {
           updated_at: new Date().toISOString(),
         });
       }
+      if (labelTemplates !== undefined && labelTemplates !== null && typeof labelTemplates === "object") {
+        updates.push({
+          key: "label_templates",
+          value: JSON.stringify(labelTemplates),
+          updated_at: new Date().toISOString(),
+        });
+      }
       if (updates.length === 0) {
         return res.status(400).json({ error: "Nada para atualizar." });
       }
@@ -2608,6 +2630,7 @@ export function createApiApp() {
           "app_appearance",
           "lab_product_kinds",
           "lab_quick_services",
+          "label_templates",
         ]);
       const map = (data || []).reduce((acc: Record<string, string>, r: { key: string; value: string | null }) => {
         acc[r.key] = r.value ?? "";
@@ -2635,6 +2658,7 @@ export function createApiApp() {
         appAppearance: appAppearanceOut,
         labProductKinds: parseLabProductKindsValue(map.lab_product_kinds),
         labQuickServices: parseLabQuickServicesValue(map.lab_quick_services),
+        labelTemplates: parseLabelTemplatesValue(map.label_templates),
       });
     } catch (err: any) {
       console.error("[API] Erro em PUT /api/workshop-settings:", err);
@@ -11306,7 +11330,14 @@ export function createApiApp() {
   });
 
   // ----------------- MÓDULOS ABS (inventário individual + QR) -----------------
-  registerAbsModuleRoutes(app, { WORKSHOP_ID, supabaseAdmin });
+  registerAbsModuleRoutes(app, {
+    WORKSHOP_ID,
+    supabaseAdmin,
+    upload,
+    photosBucket: VEHICLE_PHOTOS_BUCKET,
+    // Excluir módulos ABS do estoque: senha da Gerência (ou proteção do estoque).
+    verifyDeletePassword: verifyStockGuardPassword,
+  });
 
   // ----------------- TÉCNICOS DA OFICINA (atribuição nos cards) -----------------
   const capitalizeTechnicianName = (s: string) =>

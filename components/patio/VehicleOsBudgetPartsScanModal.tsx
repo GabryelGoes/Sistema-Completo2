@@ -402,8 +402,7 @@ export const VehicleOsBudgetPartsScanModal: React.FC<VehicleOsBudgetPartsScanMod
 
   useEffect(() => {
     if (!isOpen) return;
-    setActiveBarcodeScanClaim((code) => registerRef.current(code));
-    return () => setActiveBarcodeScanClaim(null);
+    return setActiveBarcodeScanClaim((code) => registerRef.current(code));
   }, [isOpen, serviceOrderId]);
 
   if (!isOpen) return null;
