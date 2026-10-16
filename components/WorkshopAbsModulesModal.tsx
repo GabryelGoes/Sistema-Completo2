@@ -64,7 +64,6 @@ import {
   absModuleItemConditionLabel,
   absModuleItemStateLabel,
   absDisassembleDestinationLabel,
-  absModelFingerprint,
   absModuleKindLabel,
   absModuleStatusLabel,
   describeAbsModuleMovement,
