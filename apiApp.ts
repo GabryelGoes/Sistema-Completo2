@@ -10143,6 +10143,13 @@ export function createApiApp() {
         });
       }
 
+      // Filtra por OS sempre que pedirem — exceto se já soubermos que a coluna não existe.
+      // (Antes: só filtrava com flag === true; em cold start a flag era null e a API
+      // devolvia TODAS as baixas, poluindo "Peças do estoque" de cada veículo.)
+      const filterByOsColumn =
+        !!serviceOrderId && movementsHaveServiceOrderId !== false;
+      let appliedOsColumnFilter = false;
+
       let query = supabaseAdmin
         .from("workshop_part_stock_movements")
         .select(movementSelectColumns())
@@ -10150,13 +10157,14 @@ export function createApiApp() {
         .order("created_at", { ascending: false })
         .limit(limit);
       if (movementType) query = query.eq("movement_type", movementType);
-      // Só filtra pela coluna depois de confirmada — senão PostgREST quebra o cancelamento/listagem.
-      if (serviceOrderId && movementsHaveServiceOrderId === true) {
+      if (filterByOsColumn) {
         query = query.eq("service_order_id", serviceOrderId);
+        appliedOsColumnFilter = true;
       }
 
       let { data, error } = await query;
       if (error && markMovementsPurchaseMetaMissingFromError(error.message)) {
+        appliedOsColumnFilter = false;
         let retry = supabaseAdmin
           .from("workshop_part_stock_movements")
           .select(movementSelectColumns())
@@ -10164,12 +10172,14 @@ export function createApiApp() {
           .order("created_at", { ascending: false })
           .limit(limit);
         if (movementType) retry = retry.eq("movement_type", movementType);
-        if (serviceOrderId && movementsHaveServiceOrderId === true) {
+        if (filterByOsColumn && movementsHaveServiceOrderId !== false) {
           retry = retry.eq("service_order_id", serviceOrderId);
+          appliedOsColumnFilter = true;
         }
         ({ data, error } = await retry);
       }
       if (error && markMovementsServiceOrderMissingFromError(error.message)) {
+        appliedOsColumnFilter = false;
         let retry = supabaseAdmin
           .from("workshop_part_stock_movements")
           .select(movementSelectColumns())
@@ -10177,6 +10187,7 @@ export function createApiApp() {
           .order("created_at", { ascending: false })
           .limit(limit);
         if (movementType) retry = retry.eq("movement_type", movementType);
+        // Coluna ausente: sem eq(service_order_id); o filtro em memória usa OS_ID: nas notes.
         ({ data, error } = await retry);
       }
       if (error) {
@@ -10187,13 +10198,24 @@ export function createApiApp() {
         return res.status(500).json({ error: error.message });
       }
       if (movementsHavePurchaseMeta == null) movementsHavePurchaseMeta = true;
-      if (movementsHaveServiceOrderId == null) movementsHaveServiceOrderId = true;
+      if (appliedOsColumnFilter) {
+        movementsHaveServiceOrderId = true;
+      }
 
       let rows = (data ?? []) as unknown as Array<Record<string, unknown>>;
-      // Sem coluna (ou ainda não confirmada): filtra pelo marcador nas notes.
-      if (serviceOrderId && movementsHaveServiceOrderId !== true) {
+      // Rede de segurança: nunca devolver baixas de outras OS quando service_order_id foi pedido.
+      if (serviceOrderId) {
         const marker = `OS_ID:${serviceOrderId}`;
-        rows = rows.filter((r) => String(r.notes ?? "").includes(marker));
+        rows = rows.filter((r) => {
+          const rowOs =
+            r.service_order_id != null && String(r.service_order_id).trim()
+              ? String(r.service_order_id).trim()
+              : "";
+          if (rowOs) return rowOs === serviceOrderId;
+          // Select pode omitir a coluna (retry de purchase meta); se o DB já filtrou, confia.
+          if (appliedOsColumnFilter) return true;
+          return String(r.notes ?? "").includes(marker);
+        });
       }
       const partIds = [...new Set(rows.map((r) => String(r.part_id)).filter(Boolean))];
       let nameById = new Map<string, { name: string; unit_of_measure: string; photo_url: string | null }>();
