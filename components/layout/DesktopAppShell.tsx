@@ -229,15 +229,15 @@ export function DesktopAppShell({
             title={
               sidebarCollapsed
                 ? theme === 'dark'
-                  ? 'Tema escuro: ligado'
-                  : 'Tema escuro: desligado'
+                  ? 'Aparência escura: ligada'
+                  : 'Aparência escura: desligada'
                 : undefined
             }
           >
             {!sidebarCollapsed ? (
               <span className="desktop-shell-theme-toggle-leading">
                 <Moon className="desktop-shell-theme-toggle-icon h-4 w-4 shrink-0" strokeWidth={2.25} />
-                <span className="desktop-shell-theme-toggle-label">Tema escuro</span>
+                <span className="desktop-shell-theme-toggle-label">Aparência escura</span>
               </span>
             ) : null}
             <IosSwitch
@@ -246,7 +246,7 @@ export function DesktopAppShell({
               size="compact"
               checked={theme === 'dark'}
               onChange={() => onThemeChange(theme === 'dark' ? 'light' : 'dark')}
-              ariaLabel="Ativar tema escuro"
+              ariaLabel="Ativar aparência escura"
             />
           </div>
         ) : null}
