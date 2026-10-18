@@ -287,6 +287,7 @@ export const BudgetHubViewerModal: React.FC<BudgetHubViewerModalProps> = ({
           setBudgets((prev) => prev.map((b) => (b.id === updated.id ? updated : b)));
         }}
         actorOptions={actorOptions}
+        orderType={detail?.order_type === 'module' ? 'module' : 'vehicle'}
         headerIcon={<Calculator className="h-5 w-5" />}
       />
     </ModalPortal>

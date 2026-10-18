@@ -1,9 +1,8 @@
 /**
  * GenieNotificationDismiss — efeito Gênio (Dock macOS) para notificações.
  *
- * Não usa scale/fade/slide genéricos. Deforma a geometria em faixas horizontais
- * sincronizadas (um único relógio rAF), formando um funil elástico assimétrico
- * em direção a um destino configurável (`genieOrigin`).
+ * Versão estável: poucas faixas, só transform/opacity (sem blur), clones leves
+ * e trava global para evitar animações sobrepostas que travam a UI.
  */
 
 export type GeniePoint = { x: number; y: number };
@@ -18,9 +17,9 @@ export type GenieNotificationDismissOptions = {
   source: HTMLElement;
   /** Ponto/elemento para onde a notificação será sugada. */
   genieOrigin: GenieOrigin;
-  /** Duração em ms (padrão ~520). */
+  /** Duração em ms (padrão ~420). */
   durationMs?: number;
-  /** Faixas horizontais da malha (padrão 40). */
+  /** Faixas horizontais da malha (padrão 16; máx. 24). */
   stripCount?: number;
   /** Mantém o original invisível ao terminar (evita flash antes do unmount). */
   leaveSourceHidden?: boolean;
@@ -34,6 +33,16 @@ export type GenieNotificationDismissManyOptions = {
   stripCount?: number;
   leaveSourcesHidden?: boolean;
 };
+
+/** Evita várias genies ao mesmo tempo (principal causa de freeze). */
+let genieChain: Promise<void> = Promise.resolve();
+
+function enqueueGenie(task: () => Promise<void>): Promise<void> {
+  const next = genieChain.then(task, task);
+  // Não deixa rejeição quebrar a fila.
+  genieChain = next.catch(() => undefined);
+  return next;
+}
 
 function prefersReducedMotion(): boolean {
   try {
@@ -51,23 +60,16 @@ function lerp(a: number, b: number, t: number): number {
   return a + (b - a) * t;
 }
 
-/** Smoothstep cúbico. */
 function smoothstep(t: number): number {
   const x = clamp(t, 0, 1);
   return x * x * (3 - 2 * x);
 }
 
-/**
- * Ease estilo macOS (aceleração suave + desaceleração no pouso).
- * Evita linear / bounce exagerado.
- */
 function appleEase(t: number): number {
   const x = clamp(t, 0, 1);
-  // curva próxima de ease-in-out-cubic, um pouco mais “pesada” no início
   return x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
 }
 
-/** Bezier quadrática (curva característica do Genie). */
 function quadBezier(p0: number, p1: number, p2: number, t: number): number {
   const u = 1 - t;
   return u * u * p0 + 2 * u * t * p1 + t * t * p2;
@@ -96,36 +98,45 @@ type StripNode = {
   yNorm: number;
   originCenterX: number;
   originCenterY: number;
-  originWidth: number;
-  originHeight: number;
 };
 
-/**
- * Progresso local da faixa: a região mais perto do destino “entra” primeiro.
- * `leadFromTop` = true quando o alvo está acima do card.
- */
 function stripLocalProgress(globalT: number, yNorm: number, leadFromTop: boolean): number {
   const lead = leadFromTop ? yNorm : 1 - yNorm;
-  // atraso progressivo ao longo da altura (superfície elástica)
-  const lag = lead * 0.42;
-  return smoothstep((globalT - lag) / Math.max(0.001, 1 - lag * 0.85));
+  const lag = lead * 0.36;
+  return smoothstep((globalT - lag) / Math.max(0.001, 1 - lag * 0.8));
 }
 
-/**
- * Fator de largura do funil (não-uniforme): começa largo e afunila até ~0.
- * Faixas à frente (mais perto do destino) ficam mais estreitas primeiro.
- */
 function funnelWidthFactor(localT: number): number {
   const e = appleEase(localT);
-  // potência > 1: permanece “inteiro” no início, depois colapsa (não é scale uniforme)
-  return Math.max(0.012, Math.pow(1 - e, 1.72));
+  return Math.max(0.02, Math.pow(1 - e, 1.55));
 }
 
 function funnelStretchY(localT: number): number {
-  // alongamento elástico no meio do trajeto, compressão no final
-  if (localT < 0.35) return 1 + localT * 0.85;
-  if (localT < 0.7) return 1.3 - (localT - 0.35) * 0.55;
-  return Math.max(0.06, 1.1 - appleEase(localT) * 1.05);
+  if (localT < 0.35) return 1 + localT * 0.55;
+  if (localT < 0.7) return 1.2 - (localT - 0.35) * 0.45;
+  return Math.max(0.08, 1.05 - appleEase(localT) * 0.98);
+}
+
+/** Remove efeitos caros nos clones (blur/sombra) — evita travar o compositor. */
+function lightenClone(root: HTMLElement): void {
+  root.style.boxShadow = 'none';
+  root.style.filter = 'none';
+  root.style.backdropFilter = 'none';
+  (root.style as CSSStyleDeclaration & { webkitBackdropFilter?: string }).webkitBackdropFilter = 'none';
+  root.querySelectorAll<HTMLElement>('*').forEach((el) => {
+    el.style.boxShadow = 'none';
+    el.style.filter = 'none';
+    el.style.backdropFilter = 'none';
+    (el.style as CSSStyleDeclaration & { webkitBackdropFilter?: string }).webkitBackdropFilter = 'none';
+    el.style.transition = 'none';
+    el.style.animation = 'none';
+  });
+  root.querySelectorAll('button, [tabindex], a, video, canvas, iframe').forEach((node) => {
+    const el = node as HTMLElement;
+    el.removeAttribute('tabindex');
+    if (el instanceof HTMLButtonElement) el.disabled = true;
+    el.style.pointerEvents = 'none';
+  });
 }
 
 function buildStrips(
@@ -134,7 +145,7 @@ function buildStrips(
   rect: DOMRect,
   stripCount: number
 ): StripNode[] {
-  const strips = Math.max(16, Math.min(64, stripCount));
+  const strips = Math.max(10, Math.min(24, stripCount));
   const stripH = rect.height / strips;
   const nodes: StripNode[] = [];
 
@@ -146,16 +157,19 @@ function buildStrips(
       `left:${rect.left}px`,
       `top:${top}px`,
       `width:${rect.width}px`,
-      `height:${stripH + 0.6}px`,
+      `height:${stripH + 0.75}px`,
       'margin:0',
       'overflow:hidden',
       'pointer-events:none',
-      'will-change:transform,opacity,filter',
+      'will-change:transform,opacity',
       'backface-visibility:hidden',
+      'transform:translateZ(0)',
       'transform-origin:50% 50%',
+      'contain:layout paint',
     ].join(';');
 
     const inner = source.cloneNode(true) as HTMLElement;
+    lightenClone(inner);
     inner.style.cssText = [
       'position:absolute',
       'left:0',
@@ -163,18 +177,13 @@ function buildStrips(
       `width:${rect.width}px`,
       `height:${rect.height}px`,
       'margin:0',
-      'transform:none',
+      'transform:translateZ(0)',
       'opacity:1',
       'pointer-events:none',
       'box-shadow:none',
       'filter:none',
+      'backdrop-filter:none',
     ].join(';');
-    inner.querySelectorAll('button, [tabindex], a').forEach((node) => {
-      const el = node as HTMLElement;
-      el.removeAttribute('tabindex');
-      if (el instanceof HTMLButtonElement) el.disabled = true;
-      el.style.pointerEvents = 'none';
-    });
 
     wrap.appendChild(inner);
     layer.appendChild(wrap);
@@ -184,8 +193,6 @@ function buildStrips(
       yNorm: strips <= 1 ? 0.5 : i / (strips - 1),
       originCenterX: rect.left + rect.width / 2,
       originCenterY: top + stripH / 2,
-      originWidth: rect.width,
-      originHeight: stripH,
     });
   }
 
@@ -201,9 +208,8 @@ function applyStripFrame(
   const localT = stripLocalProgress(globalT, node.yNorm, leadFromTop);
   const moveT = appleEase(localT);
 
-  // Controle da curva Genie (puxa em arco antes de convergência)
   const ctrlX = lerp(node.originCenterX, target.x, 0.28);
-  const ctrlY = lerp(node.originCenterY, target.y, 0.12) + (leadFromTop ? -18 : 18);
+  const ctrlY = lerp(node.originCenterY, target.y, 0.12) + (leadFromTop ? -14 : 14);
   const cx = quadBezier(node.originCenterX, ctrlX, target.x, moveT);
   const cy = quadBezier(node.originCenterY, ctrlY, target.y, moveT);
 
@@ -211,19 +217,11 @@ function applyStripFrame(
   const stretchY = funnelStretchY(localT);
   const dx = cx - node.originCenterX;
   const dy = cy - node.originCenterY;
+  const skew = (1 - widthF) * (target.x >= node.originCenterX ? -5 : 5) * (1 - moveT);
+  const opacity = localT < 0.9 ? 1 : 1 - (localT - 0.9) / 0.1;
 
-  // leve cisalhamento elástico em direção ao funil
-  const skew = (1 - widthF) * (target.x >= node.originCenterX ? -7 : 7) * (1 - moveT);
-
-  // opacidade só no final do colapso (não é fade da animação)
-  const opacity = localT < 0.88 ? 1 : 1 - ((localT - 0.88) / 0.12);
-  const blur = localT > 0.75 ? (localT - 0.75) * 6 : 0;
-
-  node.wrap.style.transform = `translate(${dx}px, ${dy}px) scale(${widthF}, ${stretchY}) skewX(${skew}deg)`;
+  node.wrap.style.transform = `translate3d(${dx}px, ${dy}px, 0) scale(${widthF}, ${stretchY}) skewX(${skew}deg)`;
   node.wrap.style.opacity = String(clamp(opacity, 0, 1));
-  node.wrap.style.filter = blur > 0.05 ? `blur(${blur}px)` : 'none';
-  // origem no centro da faixa — scaleX comprime para o eixo do funil
-  node.wrap.style.transformOrigin = '50% 50%';
 }
 
 function pulseTarget(targetEl: HTMLElement | null, durationMs: number): void {
@@ -232,15 +230,81 @@ function pulseTarget(targetEl: HTMLElement | null, durationMs: number): void {
     targetEl.animate(
       [
         { transform: 'scale(1)', offset: 0 },
-        { transform: 'scale(1)', offset: 0.55 },
-        { transform: 'scale(1.16)', offset: 0.72 },
-        { transform: 'scale(0.94)', offset: 0.86 },
+        { transform: 'scale(1)', offset: 0.58 },
+        { transform: 'scale(1.12)', offset: 0.74 },
+        { transform: 'scale(0.96)', offset: 0.88 },
         { transform: 'scale(1)', offset: 1 },
       ],
-      { duration: durationMs, easing: 'cubic-bezier(0.33, 1.2, 0.4, 1)' }
+      { duration: durationMs + 60, easing: 'cubic-bezier(0.33, 1.1, 0.4, 1)' }
     );
   } catch {
     /* ignore */
+  }
+}
+
+async function runGenieOnce(opts: GenieNotificationDismissOptions): Promise<void> {
+  const source = opts.source;
+  if (!source?.isConnected) return;
+
+  const target = resolveGenieOrigin(opts.genieOrigin);
+  if (!target) return;
+
+  if (prefersReducedMotion()) {
+    if (opts.leaveSourceHidden) source.style.opacity = '0';
+    await new Promise<void>((r) => window.setTimeout(r, 60));
+    return;
+  }
+
+  const durationMs = clamp(opts.durationMs ?? 420, 280, 700);
+  const stripCount = clamp(opts.stripCount ?? 16, 10, 24);
+  const rect = source.getBoundingClientRect();
+  if (rect.width < 2 || rect.height < 2) return;
+
+  const leadFromTop = target.y < rect.top + rect.height * 0.5;
+
+  const layer = document.createElement('div');
+  layer.setAttribute('aria-hidden', 'true');
+  layer.setAttribute('data-genie-notification-dismiss', 'true');
+  layer.style.cssText =
+    'position:fixed;inset:0;z-index:100200;pointer-events:none;overflow:visible;contain:strict;';
+  document.body.appendChild(layer);
+
+  const prevOpacity = source.style.opacity;
+  source.style.opacity = '0';
+
+  let strips: StripNode[] = [];
+  try {
+    strips = buildStrips(layer, source, rect, stripCount);
+    for (const s of strips) applyStripFrame(s, 0, target, leadFromTop);
+
+    const targetEl =
+      opts.genieOrigin.type === 'element'
+        ? opts.genieOrigin.element
+        : opts.genieOrigin.type === 'selector'
+          ? document.querySelector<HTMLElement>(opts.genieOrigin.selector)
+          : null;
+    pulseTarget(targetEl, durationMs + 60);
+
+    await new Promise<void>((resolve) => {
+      const t0 = performance.now();
+      let raf = 0;
+      const tick = (now: number) => {
+        const globalT = clamp((now - t0) / durationMs, 0, 1);
+        for (const s of strips) applyStripFrame(s, globalT, target, leadFromTop);
+        if (globalT < 1) {
+          raf = requestAnimationFrame(tick);
+        } else {
+          cancelAnimationFrame(raf);
+          resolve();
+        }
+      };
+      raf = requestAnimationFrame(tick);
+    });
+  } finally {
+    if (!opts.leaveSourceHidden && source.isConnected) {
+      source.style.opacity = prevOpacity;
+    }
+    layer.remove();
   }
 }
 
@@ -251,71 +315,7 @@ function pulseTarget(targetEl: HTMLElement | null, durationMs: number): void {
 export async function GenieNotificationDismiss(
   opts: GenieNotificationDismissOptions
 ): Promise<void> {
-  const source = opts.source;
-  if (!source?.isConnected) return;
-
-  const target = resolveGenieOrigin(opts.genieOrigin);
-  if (!target) return;
-
-  if (prefersReducedMotion()) {
-    if (opts.leaveSourceHidden) source.style.opacity = '0';
-    await new Promise<void>((r) => window.setTimeout(r, 80));
-    return;
-  }
-
-  const durationMs = clamp(opts.durationMs ?? 520, 320, 900);
-  const stripCount = opts.stripCount ?? 40;
-  const rect = source.getBoundingClientRect();
-  if (rect.width < 2 || rect.height < 2) return;
-
-  const leadFromTop = target.y < rect.top + rect.height * 0.5;
-
-  const layer = document.createElement('div');
-  layer.setAttribute('aria-hidden', 'true');
-  layer.setAttribute('data-genie-notification-dismiss', 'true');
-  layer.style.cssText =
-    'position:fixed;inset:0;z-index:100200;pointer-events:none;overflow:visible;';
-  document.body.appendChild(layer);
-
-  const prevOpacity = source.style.opacity;
-  source.style.opacity = '0';
-
-  const strips = buildStrips(layer, source, rect, stripCount);
-
-  // frame 0: visualmente inteiro (ainda sem deformação)
-  for (const s of strips) applyStripFrame(s, 0, target, leadFromTop);
-
-  const targetEl =
-    opts.genieOrigin.type === 'element'
-      ? opts.genieOrigin.element
-      : opts.genieOrigin.type === 'selector'
-        ? document.querySelector<HTMLElement>(opts.genieOrigin.selector)
-        : null;
-  pulseTarget(targetEl, durationMs + 80);
-
-  await new Promise<void>((resolve) => {
-    const t0 = performance.now();
-    let raf = 0;
-
-    const tick = (now: number) => {
-      const raw = (now - t0) / durationMs;
-      const globalT = clamp(raw, 0, 1);
-      for (const s of strips) applyStripFrame(s, globalT, target, leadFromTop);
-      if (globalT < 1) {
-        raf = requestAnimationFrame(tick);
-      } else {
-        cancelAnimationFrame(raf);
-        resolve();
-      }
-    };
-
-    raf = requestAnimationFrame(tick);
-  });
-
-  if (!opts.leaveSourceHidden && source.isConnected) {
-    source.style.opacity = prevOpacity;
-  }
-  layer.remove();
+  return enqueueGenie(() => runGenieOnce(opts));
 }
 
 /** Várias notificações em sequência (minimize / limpar visual). */
@@ -324,36 +324,21 @@ export async function GenieNotificationDismissMany(
 ): Promise<void> {
   const sources = opts.sources.filter((el) => el?.isConnected);
   if (sources.length === 0) return;
-  const stagger = Math.max(0, opts.staggerMs ?? 48);
+  const stagger = Math.max(0, Math.min(40, opts.staggerMs ?? 36));
 
-  if (sources.length === 1) {
+  // Sequencial (não paralelo): evita dezenas de clones DOM ao mesmo tempo.
+  for (let i = 0; i < sources.length; i++) {
+    if (i > 0 && stagger > 0) {
+      await new Promise<void>((r) => window.setTimeout(r, stagger));
+    }
     await GenieNotificationDismiss({
-      source: sources[0],
+      source: sources[i],
       genieOrigin: opts.genieOrigin,
       durationMs: opts.durationMs,
       stripCount: opts.stripCount,
       leaveSourceHidden: opts.leaveSourcesHidden,
     });
-    return;
   }
-
-  // Paralelo com atraso: cada card começa um pouco depois do anterior.
-  await Promise.all(
-    sources.map(
-      (source, i) =>
-        new Promise<void>((resolve) => {
-          window.setTimeout(() => {
-            void GenieNotificationDismiss({
-              source,
-              genieOrigin: opts.genieOrigin,
-              durationMs: opts.durationMs,
-              stripCount: opts.stripCount,
-              leaveSourceHidden: opts.leaveSourcesHidden,
-            }).finally(resolve);
-          }, i * stagger);
-        })
-    )
-  );
 }
 
 /** Atalhos de origem comuns no shell PC. */
