@@ -63,15 +63,25 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
           alt=""
           className="absolute inset-0 h-full w-full object-cover object-[center_center]"
         />
+        {/* Degrade extra (desktop): transição bem suave painel ↔ foto */}
+        <div
+          className="absolute inset-0 hidden md:block"
+          style={{
+            background:
+              'linear-gradient(100deg, rgba(10,10,11,0.88) 0%, rgba(10,10,11,0.72) 22%, rgba(10,10,11,0.45) 38%, rgba(10,10,11,0.22) 50%, rgba(10,10,11,0.08) 62%, transparent 78%)',
+          }}
+        />
         {/* Mobile: escurece o herói para o card legível */}
         <div className="absolute inset-0 bg-gradient-to-b from-black/55 via-black/35 to-black/70 md:hidden" />
       </div>
 
-      {/*
-        A frase + desenhos amarelos do painel esquerdo vêm do login-bg (igual à referência).
-        No mobile o crop do fundo muda — repetimos a frase abaixo do card.
-      */}
-      <p className="sr-only">Qualidade, tecnologia e confiança em um só lugar.</p>
+      {/* Frase no painel esquerdo (HTML — “lugar” completo, sem corte do fundo) */}
+      <div className="pointer-events-none absolute left-[4%] top-[40%] z-10 hidden max-w-[min(310px,26vw)] -translate-y-1/2 lg:block xl:left-[5%] xl:max-w-[340px]">
+        <p className="font-display text-[22px] font-semibold leading-[1.3] tracking-tight text-white xl:text-[26px]">
+          Qualidade, tecnologia e confiança em um só lugar.
+        </p>
+        <div className="mt-5 h-[3px] w-14 rounded-full bg-[#F5C518]" />
+      </div>
 
       <div className="relative z-20 flex h-full min-h-0 flex-col items-center justify-center overflow-y-auto overscroll-none px-5 py-10 safe-area-pb sm:px-6">
         <div className="w-full max-w-[400px]">
