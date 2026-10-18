@@ -190,16 +190,16 @@ export default function App() {
     [authSession]
   );
 
-  /** Abre o hub de Configurações sem trocar de aba (volta à tela atual ao fechar). */
+  /**
+   * Abre o hub de Ajustes por cima da tela atual (Estoque, TV, abas, etc.).
+   * Não fecha overlays de baixo — ao Esc/X o usuário volta exatamente para onde estava.
+   */
   const openSettingsHubOverlay = useCallback(() => {
-    requestClosePartsModal(() => {
-      setIsTvPatioModalOpen(false);
-      setIsSettingsOpen(false);
-      setIsSupportChatOpen(false);
-      setIsUserChangePasswordsOpen(false);
-      setSettingsHubOpen(true);
-    });
-  }, [requestClosePartsModal]);
+    setIsSettingsOpen(false);
+    setIsSupportChatOpen(false);
+    setIsUserChangePasswordsOpen(false);
+    setSettingsHubOpen(true);
+  }, []);
 
   const handleDesktopSidebarAction = useCallback(
     (action: DesktopSidebarActionId) => {

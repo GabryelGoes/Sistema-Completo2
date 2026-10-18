@@ -22,7 +22,7 @@ function isDesktopShellActive(): boolean {
 export function DesktopEscapeCloseBridge({
   activeAppTab,
   onCloseOverlayPage,
-  /** Overlay global aberto (ex.: Configurações) — Esc não deve trocar de aba. */
+  /** Overlay global aberto (ex.: Ajustes) — Esc não deve trocar de aba. */
   blockOverlayPageClose = false,
 }: {
   activeAppTab: TabId;

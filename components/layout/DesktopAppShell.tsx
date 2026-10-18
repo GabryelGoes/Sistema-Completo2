@@ -45,7 +45,7 @@ export type DesktopAppShellProps = {
   orcamentosBadge?: number;
   notificationCenter?: Omit<NotificationCenterProps, 'placement'>;
   shellOverlayTopbar?: DesktopShellOverlayTopbar | null;
-  /** Atalho da sidebar aberto (Central, Estoque, Configurações). */
+  /** Atalho da sidebar aberto (Estoque, Painéis) ou hub de Ajustes. */
   activeSidebarAction?: DesktopSidebarActionId | null;
   /** Contagem ao lado do título (ex.: veículos no Pátio). */
   topbarCountLabel?: string;
@@ -296,8 +296,8 @@ export function DesktopAppShell({
                 type="button"
                 className="desktop-shell-topbar-btn"
                 onClick={onOpenSettings}
-                aria-label="Configurações"
-                title="Configurações"
+                aria-label="Ajustes"
+                title="Ajustes"
               >
                 <Settings className="h-4 w-4" strokeWidth={2} />
               </button>

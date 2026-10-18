@@ -113,8 +113,8 @@ export function AuthenticatedAppFrame({
             type="button"
             onClick={onOpenSettings}
             className="pointer-events-auto inline-flex h-9 w-9 items-center justify-center rounded-full border border-zinc-200/75 bg-white/85 text-zinc-700 shadow-[0_4px_18px_-8px_rgba(0,0,0,0.28)] backdrop-blur-xl transition-all hover:bg-white/95 active:scale-[0.97] dark:border-white/[0.12] dark:bg-zinc-900/80 dark:text-zinc-200 dark:hover:bg-zinc-900/90 sm:h-10 sm:w-10"
-            aria-label="Configurações"
-            title="Configurações"
+            aria-label="Ajustes"
+            title="Ajustes"
           >
             <Settings className="h-4 w-4 sm:h-5 sm:w-5" strokeWidth={2.25} />
           </button>

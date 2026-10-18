@@ -35,7 +35,7 @@ import { useBrowserBackLayer } from '../ui/BackNavigationContext';
 import { desktopShellViewportOverlayClass } from '../../utils/desktopShellOverlay';
 import { clearHomeHubOpenGuard, openHomeHubSafely } from '../../utils/homeHubOpenGuard';
 import { ModalPortal } from '../ui/ModalPortal';
-import { iosSquircleBackgroundFromHex } from '../ui/iosModalStyles';
+import { iosSquircleBackgroundFromHex, SETTINGS_HUB_Z } from '../ui/iosModalStyles';
 import { desktopHomeHubCard } from '../ui/desktopCardStyles';
 import { useModalExitPresence } from '../../hooks/useModalExitAnimation';
 import { useIosHomeAppReorder } from '../../hooks/useIosHomeAppReorder';
@@ -281,7 +281,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
     [onSettingsHubOpenChange, closeAllSettingsChildModals]
   );
 
-  /** Abre só o hub de Configurações (sem itens filhos). */
+  /** Abre só o hub de Ajustes (sem itens filhos). */
   const openSettingsHubOnly = useCallback(() => {
     closeAllSettingsChildModals();
     onSettingsHubOpenChange?.(true);
@@ -398,7 +398,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
     : isTechnician
       ? technicianId
         ? 'Meu perfil'
-        : 'Configurações'
+        : 'Ajustes'
       : 'Perfil do administrador';
 
   const headerProfileMenuProfileHint = isSystemUser
@@ -406,7 +406,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
     : isTechnician
       ? technicianId
         ? 'Nome e foto'
-        : 'Hub de configurações'
+        : 'Hub de Ajustes'
       : 'Nome e foto da gerência';
 
   /** Abre após o ciclo de eventos + guarda contra click-through nos hubs. */
@@ -805,8 +805,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
             <button
               type="button"
               onClick={() => openSettingsHubOnly()}
-              aria-label="Configurações"
-              title="Configurações"
+              aria-label="Ajustes"
+              title="Ajustes"
               className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-zinc-200/90 bg-white/90 text-zinc-700 shadow-md ring-1 ring-black/[0.04] transition-transform hover:bg-zinc-50 active:scale-[0.96] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#007AFF]/55 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:border-white/12 dark:bg-zinc-900/80 dark:text-zinc-200 dark:ring-white/10 dark:hover:bg-zinc-800 dark:focus-visible:ring-offset-zinc-950 sm:h-12 sm:w-12"
             >
               <Settings className="h-[1.15rem] w-[1.15rem]" strokeWidth={2.25} aria-hidden />
@@ -1043,12 +1043,12 @@ export const HomeView: React.FC<HomeViewProps> = ({
         <SettingsHubShell>
           <div
             data-home-hub-overlay=""
-            className={`${desktopShell ? desktopShellViewportOverlayClass(true) : 'fixed inset-0 z-[110]'} flex min-h-0 flex-col overflow-hidden bg-light-page dark:bg-black ${
+            className={`${desktopShell ? desktopShellViewportOverlayClass(true, SETTINGS_HUB_Z) : `fixed inset-0 ${SETTINGS_HUB_Z}`} flex min-h-0 flex-col overflow-hidden bg-light-page dark:bg-black ${
               settingsHubPresence.exiting ? 'animate-home-hub-out' : 'animate-home-hub-in'
             }`}
             role="dialog"
             aria-modal="true"
-            aria-label="Configurações"
+            aria-label="Ajustes"
           >
             <header className={`shrink-0 border-b border-zinc-200/80 bg-white shadow-[0_1px_0_0_rgba(255,255,255,0.55)_inset] dark:border-white/[0.08] dark:bg-zinc-950 dark:shadow-none ${desktopShell ? 'px-5 py-3' : 'px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))]'}`}>
               <div className="relative w-full">
@@ -1082,7 +1082,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
                     <img src="/icons/configuracoes-ios.png" alt="" className="h-full w-full object-cover" />
                   </div>
                   <h1 className="text-[17px] font-semibold tracking-tight text-zinc-900 dark:text-white">
-                    Configurações
+                    Ajustes
                   </h1>
                 </div>
               </div>
