@@ -12390,6 +12390,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
             });
           }}
           actorOptions={actorOptions}
+          orderType={orderType === 'module' ? 'module' : 'vehicle'}
           headerIcon={<img src="/icons/novo-orcamento-ios.png" alt="" className="h-full w-full object-cover" />}
         />
       ) : null}

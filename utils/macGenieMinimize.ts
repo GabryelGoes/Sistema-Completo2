@@ -30,9 +30,9 @@ export async function playMacGenieMinimize(opts: MacGenieMinimizeOptions): Promi
   await GenieNotificationDismissMany({
     sources: opts.sources,
     genieOrigin: origin,
-    durationMs: opts.durationMs ?? 520,
-    staggerMs: opts.staggerMs ?? 48,
-    stripCount: opts.stripCount ?? 40,
+    durationMs: opts.durationMs ?? 420,
+    staggerMs: opts.staggerMs ?? 36,
+    stripCount: opts.stripCount ?? 16,
     leaveSourcesHidden: opts.leaveSourcesHidden,
   });
 }
