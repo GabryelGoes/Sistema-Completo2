@@ -4,7 +4,9 @@ import {
   ArrowLeft,
   ChevronRight,
   LogOut,
+  MonitorSmartphone,
   Settings,
+  Tag,
   User,
   ExternalLink,
   Sparkles,
@@ -23,6 +25,9 @@ import { TechnicianProfileModal } from '../TechnicianProfileModal';
 import { AdminProfileModal } from '../AdminProfileModal';
 import { SystemUsersModal } from '../SystemUsersModal';
 import { SystemNotificationsModal } from '../SystemNotificationsModal';
+import { DeviceLayoutSettingsModal } from '../DeviceLayoutSettingsModal';
+import { BudgetPreferencesModal } from '../BudgetPreferencesModal';
+import { LabelTemplatesEditorModal } from '../LabelTemplatesEditorModal';
 import { TvPatioModal } from '../TvPatioModal';
 import { UserProfileModal } from '../UserProfileModal';
 import { SYSTEM_NOTIFICATIONS_ICON } from '../../constants/systemNotificationsIcon';
@@ -84,6 +89,16 @@ interface HomeViewProps {
   systemUserPermissions?: SystemUserPermissions;
   onOpenSettings?: () => void;
   onOpenChangePasswords?: () => void;
+  /** Embaçar orçamentos sem verificação (hub de Orçamentos). */
+  blurUnverifiedBudgets?: boolean;
+  onBlurUnverifiedBudgetsChange?: (enabled: boolean) => void;
+  /** Banners macOS — preferências em Notificações do sistema. */
+  budgetBannerNotifications?: boolean;
+  onBudgetBannerNotificationsChange?: (enabled: boolean) => void;
+  commentBannerNotifications?: boolean;
+  onCommentBannerNotificationsChange?: (enabled: boolean) => void;
+  /** Orientação atual (Dispositivo detectado). */
+  orientation?: 'portrait' | 'landscape';
   /** Modais no App (ex.: preferências, senhas) que devem ficar acima do hub de configurações */
   globalOverlayModalOpen?: boolean;
   /** Badge vermelho no ícone Orçamentos (hub do pátio). */
@@ -234,6 +249,13 @@ export const HomeView: React.FC<HomeViewProps> = ({
   systemUserPermissions,
   onOpenSettings,
   onOpenChangePasswords,
+  blurUnverifiedBudgets = true,
+  onBlurUnverifiedBudgetsChange,
+  budgetBannerNotifications = true,
+  onBudgetBannerNotificationsChange,
+  commentBannerNotifications = true,
+  onCommentBannerNotificationsChange,
+  orientation,
   globalOverlayModalOpen = false,
   patioBudgetsHubBadge = 0,
   desktopShell = false,
@@ -257,6 +279,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
   const [isPartsModalOpen, setIsPartsModalOpen] = useState(false);
   const [isTvPatioOpen, setIsTvPatioOpen] = useState(false);
   const [isSystemNotificationsOpen, setIsSystemNotificationsOpen] = useState(false);
+  const [isDeviceLayoutOpen, setIsDeviceLayoutOpen] = useState(false);
+  const [isBudgetPrefsOpen, setIsBudgetPrefsOpen] = useState(false);
+  const [isLabelEditorOpen, setIsLabelEditorOpen] = useState(false);
 
   const closeAllSettingsChildModals = useCallback(() => {
     setIsServicesModalOpen(false);
@@ -269,6 +294,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
     setIsUserProfileOpen(false);
     setIsPatioChecklistsOpen(false);
     setIsSystemNotificationsOpen(false);
+    setIsDeviceLayoutOpen(false);
+    setIsBudgetPrefsOpen(false);
+    setIsLabelEditorOpen(false);
   }, []);
 
   const setSettingsHubOpen = useCallback(
@@ -503,6 +531,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
       isPartsModalOpen ||
       isPatioChecklistsOpen ||
       isChangePasswordsOpen ||
+      isDeviceLayoutOpen ||
+      isBudgetPrefsOpen ||
+      isLabelEditorOpen ||
       (!onOpenTvPatio && isTvPatioOpen) ||
       (Boolean(technicianId) && isTechnicianProfileOpen) ||
       isAdminProfileOpen ||
@@ -517,6 +548,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
       isPartsModalOpen,
       isPatioChecklistsOpen,
       isChangePasswordsOpen,
+      isDeviceLayoutOpen,
+      isBudgetPrefsOpen,
+      isLabelEditorOpen,
       onOpenTvPatio,
       isTvPatioOpen,
       technicianId,
@@ -541,6 +575,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
   useBrowserBackLayer(!onOpenTvPatio && isTvPatioOpen, () => setIsTvPatioOpen(false));
   useBrowserBackLayer(isUserProfileOpen, () => setIsUserProfileOpen(false));
   useBrowserBackLayer(isSystemNotificationsOpen, () => setIsSystemNotificationsOpen(false));
+  useBrowserBackLayer(isDeviceLayoutOpen, () => setIsDeviceLayoutOpen(false));
+  useBrowserBackLayer(isBudgetPrefsOpen, () => setIsBudgetPrefsOpen(false));
+  useBrowserBackLayer(isLabelEditorOpen, () => setIsLabelEditorOpen(false));
   useBrowserBackLayer(isHeaderProfileMenuOpen, () => setIsHeaderProfileMenuOpen(false));
 
   const operationalForView = useMemo(() => {
@@ -1128,14 +1165,14 @@ export const HomeView: React.FC<HomeViewProps> = ({
                               }
                             />
                           )}
-                          {(showFullAdminHub || (!!perms.access_settings && isSystemUser)) && (
+                          {(showFullAdminHub || (!!perms.access_settings && isSystemUser) || !!onOpenSettings) && (
                             <SettingsRow
                               onClick={() => {
                                 if (onOpenSettings) onOpenSettings();
                                 else onOpenApp('settings');
                               }}
                               title="Tema do sistema"
-                              subtitle="Configurações da oficina"
+                              subtitle="Aparência escura e proteção de placas"
                               icon={
                                 <IosAccentIconSquircle variant="row" strokeWidth={2.2}>
                                   <img
@@ -1252,6 +1289,60 @@ export const HomeView: React.FC<HomeViewProps> = ({
                   )}
 
                   <section>
+                    <p className={iosSectionTitle}>Dispositivo e ferramentas</p>
+                    <p className={iosSectionHint}>Layout do aparelho e editor de etiquetas</p>
+                    <div className={`${iosCard} space-y-0.5 p-2`}>
+                      <SettingsRow
+                        onClick={() => setIsDeviceLayoutOpen(true)}
+                        title="Dispositivo detectado"
+                        subtitle="Tipo de tela e layout automático ou manual"
+                        icon={
+                          <IosAccentIconSquircle variant="row" strokeWidth={2.2}>
+                            <MonitorSmartphone />
+                          </IosAccentIconSquircle>
+                        }
+                      />
+                      {(showFullAdminHub || !!perms.access_settings || !!perms.full_access) && (
+                        <SettingsRow
+                          onClick={() => setIsLabelEditorOpen(true)}
+                          title="Editor de etiquetas"
+                          subtitle="Laboratório, estoque e chave"
+                          icon={
+                            <IosAccentIconSquircle variant="row" strokeWidth={2.2}>
+                              <Tag />
+                            </IosAccentIconSquircle>
+                          }
+                        />
+                      )}
+                    </div>
+                  </section>
+
+                  {(showFullAdminHub ||
+                    !!perms.full_access ||
+                    typeof onBlurUnverifiedBudgetsChange === 'function') && (
+                    <section>
+                      <p className={iosSectionTitle}>Orçamentos</p>
+                      <p className={iosSectionHint}>Preferências do hub de orçamentos</p>
+                      <div className={`${iosCard} space-y-0.5 p-2`}>
+                        <SettingsRow
+                          onClick={() => setIsBudgetPrefsOpen(true)}
+                          title="Ajustes de orçamentos"
+                          subtitle="Embaçar orçamentos sem verificação"
+                          icon={
+                            <IosAccentIconSquircle variant="row" strokeWidth={2.2}>
+                              <img
+                                src="/icons/orcamentos-ios.png"
+                                alt="Ajustes de orçamentos"
+                                className="h-full w-full object-cover"
+                              />
+                            </IosAccentIconSquircle>
+                          }
+                        />
+                      </div>
+                    </section>
+                  )}
+
+                  <section>
                     <p className={iosSectionTitle}>Conta</p>
                     <p className={iosSectionHint}>Perfil e sessão</p>
                     <div className={`${iosCard} space-y-0.5 p-2`}>
@@ -1321,13 +1412,13 @@ export const HomeView: React.FC<HomeViewProps> = ({
                         {perms.access_settings && onOpenSettings && (
                           <SettingsRow
                             onClick={() => onOpenSettings()}
-                            title="Preferências da oficina"
-                            subtitle="Tema e experiência do app"
+                            title="Tema do sistema"
+                            subtitle="Aparência escura e proteção de placas"
                             icon={
                               <IosAccentIconSquircle variant="row" strokeWidth={2.2}>
                                 <img
-                                  src="/icons/configuracoes-ios.png"
-                                  alt="Preferências"
+                                  src="/icons/tema-sistema-ios.png"
+                                  alt="Tema do sistema"
                                   className="h-full w-full object-cover"
                                 />
                               </IosAccentIconSquircle>
@@ -1362,7 +1453,31 @@ export const HomeView: React.FC<HomeViewProps> = ({
       {!isTechnician && (
         <>
           <SystemUsersModal isOpen={isSystemUsersOpen} onClose={() => setIsSystemUsersOpen(false)} refreshTrigger={systemUsersRefreshTrigger} />
-          <SystemNotificationsModal isOpen={isSystemNotificationsOpen} onClose={() => setIsSystemNotificationsOpen(false)} />
+          <SystemNotificationsModal
+            isOpen={isSystemNotificationsOpen}
+            onClose={() => setIsSystemNotificationsOpen(false)}
+            budgetBannerNotifications={budgetBannerNotifications}
+            onBudgetBannerNotificationsChange={onBudgetBannerNotificationsChange}
+            commentBannerNotifications={commentBannerNotifications}
+            onCommentBannerNotificationsChange={onCommentBannerNotificationsChange}
+          />
+          <DeviceLayoutSettingsModal
+            isOpen={isDeviceLayoutOpen}
+            onClose={() => setIsDeviceLayoutOpen(false)}
+            orientation={orientation}
+          />
+          {typeof onBlurUnverifiedBudgetsChange === 'function' ? (
+            <BudgetPreferencesModal
+              isOpen={isBudgetPrefsOpen}
+              onClose={() => setIsBudgetPrefsOpen(false)}
+              blurUnverifiedBudgets={blurUnverifiedBudgets}
+              onBlurUnverifiedBudgetsChange={onBlurUnverifiedBudgetsChange}
+            />
+          ) : null}
+          <LabelTemplatesEditorModal
+            open={isLabelEditorOpen}
+            onClose={() => setIsLabelEditorOpen(false)}
+          />
           <WorkshopServicesModal isOpen={isServicesModalOpen} onClose={() => setIsServicesModalOpen(false)} />
           <LabProductTypesModal isOpen={isLabProductTypesOpen} onClose={() => setIsLabProductTypesOpen(false)} />
           <LabQuickServicesModal isOpen={isLabQuickServicesOpen} onClose={() => setIsLabQuickServicesOpen(false)} />

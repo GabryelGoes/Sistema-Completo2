@@ -1692,6 +1692,13 @@ export default function App() {
               systemUserPermissions={authSession.permissions}
               onOpenSettings={() => setIsSettingsOpen(true)}
               onOpenChangePasswords={() => setIsUserChangePasswordsOpen(true)}
+              blurUnverifiedBudgets={blurUnverifiedBudgets}
+              onBlurUnverifiedBudgetsChange={setBlurUnverifiedBudgets}
+              budgetBannerNotifications={budgetBannerNotifications}
+              onBudgetBannerNotificationsChange={setBudgetBannerNotifications}
+              commentBannerNotifications={commentBannerNotifications}
+              onCommentBannerNotificationsChange={setCommentBannerNotifications}
+              orientation={orientation}
               globalOverlayModalOpen={isUserChangePasswordsOpen || isSettingsOpen || isTvPatioModalOpen}
               patioBudgetsHubBadge={patioBudgetsHub.badgeCount}
             />
@@ -1897,14 +1904,6 @@ export default function App() {
           onThemeChange={setTheme}
           cinematographicMode={cinematographicMode}
           onCinematographicModeChange={setCinematographicMode}
-          budgetBannerNotifications={budgetBannerNotifications}
-          onBudgetBannerNotificationsChange={setBudgetBannerNotifications}
-          commentBannerNotifications={commentBannerNotifications}
-          onCommentBannerNotificationsChange={setCommentBannerNotifications}
-          blurUnverifiedBudgets={blurUnverifiedBudgets}
-          onBlurUnverifiedBudgetsChange={setBlurUnverifiedBudgets}
-          orientation={orientation}
-          showPatioAccess={false}
         />
         <ChangePasswordsModal isOpen={isUserChangePasswordsOpen} onClose={() => setIsUserChangePasswordsOpen(false)} />
         {hubBudgetViewer ? (
@@ -2080,6 +2079,13 @@ export default function App() {
             onAdminProfileSaved={authSession?.role === 'admin' ? handleAdminProfileSaved : undefined}
             systemUsersRefreshTrigger={authSession?.role === 'admin' ? systemUsersRefreshTrigger : undefined}
             onOpenSettings={() => setIsSettingsOpen(true)}
+            blurUnverifiedBudgets={blurUnverifiedBudgets}
+            onBlurUnverifiedBudgetsChange={setBlurUnverifiedBudgets}
+            budgetBannerNotifications={budgetBannerNotifications}
+            onBudgetBannerNotificationsChange={setBudgetBannerNotifications}
+            commentBannerNotifications={commentBannerNotifications}
+            onCommentBannerNotificationsChange={setCommentBannerNotifications}
+            orientation={orientation}
             globalOverlayModalOpen={isUserChangePasswordsOpen || isSettingsOpen || isTvPatioModalOpen}
             patioBudgetsHubBadge={patioBudgetsHub.badgeCount}
           />
@@ -2281,14 +2287,6 @@ export default function App() {
         onThemeChange={setTheme}
         cinematographicMode={cinematographicMode}
         onCinematographicModeChange={setCinematographicMode}
-        budgetBannerNotifications={budgetBannerNotifications}
-        onBudgetBannerNotificationsChange={setBudgetBannerNotifications}
-        commentBannerNotifications={commentBannerNotifications}
-        onCommentBannerNotificationsChange={setCommentBannerNotifications}
-        blurUnverifiedBudgets={blurUnverifiedBudgets}
-        onBlurUnverifiedBudgetsChange={setBlurUnverifiedBudgets}
-        orientation={orientation}
-        showPatioAccess={authSession?.role === 'admin' || hasFullAccess}
       />
       {hubBudgetViewer ? (
         <BudgetHubViewerModal
