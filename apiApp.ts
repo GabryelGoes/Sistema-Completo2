@@ -1306,8 +1306,11 @@ export function createApiApp() {
     authorDisplayName?: string | null;
     authorPhotoUrl?: string | null;
     source?: string;
+    orderType?: string | null;
   }): Promise<Record<string, unknown>> {
     let budgetNumber: number | null = null;
+    let orderType: "vehicle" | "module" =
+      params.orderType === "module" ? "module" : "vehicle";
     if (supabaseAdmin && WORKSHOP_ID) {
       const { data: rows, error } = await supabaseAdmin
         .from("budgets")
@@ -1322,6 +1325,17 @@ export function createApiApp() {
           budgetNumber = idx >= 0 ? idx + 1 : rows.length;
         } else {
           budgetNumber = rows.length;
+        }
+      }
+      if (params.orderType !== "module" && params.orderType !== "vehicle") {
+        const { data: soRow } = await supabaseAdmin
+          .from("service_orders")
+          .select("order_type")
+          .eq("id", params.serviceOrderId)
+          .eq("workshop_id", WORKSHOP_ID)
+          .maybeSingle();
+        if (String((soRow as { order_type?: string } | null)?.order_type ?? "") === "module") {
+          orderType = "module";
         }
       }
     }
@@ -1340,6 +1354,7 @@ export function createApiApp() {
       author_photo_url: photo,
       technician_name: author,
       budget_number: budgetNumber,
+      order_type: orderType,
       ...(params.source ? { source: params.source } : {}),
     };
   }
@@ -6836,6 +6851,7 @@ export function createApiApp() {
         authorDisplayName: labActorMeta.name,
         authorPhotoUrl: labActorMeta.photoUrl,
         source: "lab_evaluation",
+        orderType: "module",
       });
       const technicianIds = await getTechnicianRecipientIdsForSystemType("budget_created");
       for (const techId of technicianIds) {
@@ -7209,7 +7225,7 @@ export function createApiApp() {
 
       const { data: so, error: soError } = await supabaseAdmin
         .from("service_orders")
-        .select("id, plate, vehicle_model, assigned_technician, customers(name)")
+        .select("id, plate, vehicle_model, assigned_technician, order_type, customers(name)")
         .eq("id", serviceOrderId)
         .eq("workshop_id", WORKSHOP_ID)
         .single();
@@ -7283,6 +7299,10 @@ export function createApiApp() {
         customerName: customerNameBudget || null,
         authorDisplayName: actorMeta.name,
         authorPhotoUrl: actorMeta.photoUrl,
+        orderType:
+          String((so as { order_type?: string | null }).order_type ?? "vehicle") === "module"
+            ? "module"
+            : "vehicle",
       });
       if (isTechnicianActor) {
         const shouldAdmin = await shouldNotifyAdminForSystemType("budget_created");
@@ -7330,7 +7350,7 @@ export function createApiApp() {
 
       const { data: so, error: soError } = await supabaseAdmin
         .from("service_orders")
-        .select("id, plate, vehicle_model, assigned_technician, customers(name)")
+        .select("id, plate, vehicle_model, assigned_technician, order_type, customers(name)")
         .eq("id", serviceOrderId)
         .eq("workshop_id", WORKSHOP_ID)
         .single();
@@ -7465,6 +7485,10 @@ export function createApiApp() {
         customerName: customerNameBudgetEdit || null,
         authorDisplayName: actorMeta.name,
         authorPhotoUrl: actorMeta.photoUrl,
+        orderType:
+          String((so as { order_type?: string | null }).order_type ?? "vehicle") === "module"
+            ? "module"
+            : "vehicle",
       });
 
       if (approvalOnlyUpdate) {
@@ -7784,7 +7808,7 @@ export function createApiApp() {
 
       const { data: so } = await supabaseAdmin
         .from("service_orders")
-        .select("id, plate, vehicle_model, assigned_technician, customers(name)")
+        .select("id, plate, vehicle_model, assigned_technician, order_type, customers(name)")
         .eq("id", serviceOrderId)
         .eq("workshop_id", WORKSHOP_ID)
         .single();
@@ -7894,6 +7918,10 @@ export function createApiApp() {
         ? String((so.customers as { name: string }).name ?? "")
         : "";
       const authorPhotoUrlForPayload = createdComment.author_photo_url ?? authorPhotoUrl;
+      const commentOrderType =
+        String((so as { order_type?: string | null }).order_type ?? "vehicle") === "module"
+          ? "module"
+          : "vehicle";
       const commentPayload = {
         service_order_id: serviceOrderId,
         comment_id: createdComment.id,
@@ -7903,6 +7931,7 @@ export function createApiApp() {
         vehicle_plate: so.plate ?? null,
         vehicle_model: so.vehicle_model ?? null,
         customer_name: customerName || null,
+        order_type: commentOrderType,
       };
 
       // Comentário de técnico / usuário → notificar admin + usuários com acesso total escolhidos para o modal

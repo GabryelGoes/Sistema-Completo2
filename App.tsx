@@ -6,6 +6,7 @@ import { type TabId } from './components/TabBar';
 import { NotificationCenter, type NotificationCenterProps } from './components/NotificationCenter';
 import {
   MacOsBudgetBannerStack,
+  resolveBannerBoardScope,
   type MacOsBudgetBannerItem,
 } from './components/MacOsBudgetBannerStack';
 import { CommentPopUp } from './components/CommentPopUp';
@@ -539,6 +540,8 @@ export default function App() {
             : null;
         const commentText =
           typeof n.payload.text === 'string' ? n.payload.text : null;
+        const orderTypeRaw =
+          typeof n.payload.order_type === 'string' ? n.payload.order_type.trim().toLowerCase() : '';
         pushBudgetBanner({
           id: n.id,
           kind: 'comment',
@@ -553,6 +556,10 @@ export default function App() {
           authorPhotoUrl,
           commentText,
           commentNotification: n,
+          boardScope: resolveBannerBoardScope({
+            kind: 'comment',
+            orderType: orderTypeRaw || null,
+          }),
         });
         // No PC com banners: o alerta fica no canto; clique abre o pop-up de resposta.
         return;
@@ -594,6 +601,10 @@ export default function App() {
           budgetNumber: ev.budgetNumber,
           approvedItemsCount:
             ev.kind === 'approved' ? ev.item.approvedItemsCount ?? null : null,
+          boardScope: resolveBannerBoardScope({
+            kind,
+            orderType: ev.item.orderType ?? null,
+          }),
         });
       }
     },
@@ -622,6 +633,10 @@ export default function App() {
       const soId = typeof d?.serviceOrderId === 'string' ? d.serviceOrderId.trim() : '';
       const budgetId = typeof d?.budgetId === 'string' ? d.budgetId.trim() : '';
       if (!soId || !budgetId) return;
+      const orderTypeRaw =
+        typeof (d as { orderType?: unknown })?.orderType === 'string'
+          ? String((d as { orderType?: string }).orderType).trim().toLowerCase()
+          : '';
       pushBudgetBanner({
         id: `local-approved-${budgetId}-${Date.now()}`,
         kind: 'budget_items_approved',
@@ -633,6 +648,10 @@ export default function App() {
           typeof d.approvedItemsCount === 'number' && d.approvedItemsCount >= 0
             ? Math.floor(d.approvedItemsCount)
             : null,
+        boardScope: resolveBannerBoardScope({
+          kind: 'budget_items_approved',
+          orderType: orderTypeRaw || null,
+        }),
       });
     };
     window.addEventListener('rda-budget-items-approved', onLocalApproved);
@@ -681,6 +700,7 @@ export default function App() {
           authorName: author,
           authorPhotoUrl,
           osNumber,
+          boardScope: 'lab',
         });
         return;
       }
@@ -719,6 +739,8 @@ export default function App() {
           : typeof approvedRaw === 'string' && Number(approvedRaw) >= 0
             ? Math.floor(Number(approvedRaw))
             : null;
+      const orderTypeRaw =
+        typeof n.payload.order_type === 'string' ? n.payload.order_type.trim().toLowerCase() : '';
       pushBudgetBanner({
         id: n.id,
         kind: n.type,
@@ -732,6 +754,10 @@ export default function App() {
         authorPhotoUrl,
         budgetNumber,
         approvedItemsCount: n.type === 'budget_items_approved' ? approvedItemsCount : null,
+        boardScope: resolveBannerBoardScope({
+          kind: n.type,
+          orderType: orderTypeRaw || null,
+        }),
       });
     },
     [isDesktopShell, budgetBannerNotifications, pushBudgetBanner]
