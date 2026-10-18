@@ -22,9 +22,12 @@ function isDesktopShellActive(): boolean {
 export function DesktopEscapeCloseBridge({
   activeAppTab,
   onCloseOverlayPage,
+  /** Overlay global aberto (ex.: Configurações) — Esc não deve trocar de aba. */
+  blockOverlayPageClose = false,
 }: {
   activeAppTab: TabId;
   onCloseOverlayPage: () => void;
+  blockOverlayPageClose?: boolean;
 }) {
   const ctx = useContext(BackNavigationContext);
 
@@ -51,6 +54,7 @@ export function DesktopEscapeCloseBridge({
       if (e.repeat) return;
       if (!desktopOk()) return;
       if (e.defaultPrevented) return;
+      if (blockOverlayPageClose) return;
       if (activeAppTab !== 'home') {
         e.preventDefault();
         onCloseOverlayPage();
@@ -63,7 +67,7 @@ export function DesktopEscapeCloseBridge({
       window.removeEventListener('keydown', onKeyCapture, true);
       window.removeEventListener('keydown', onKeyBubble, false);
     };
-  }, [ctx, activeAppTab, onCloseOverlayPage]);
+  }, [ctx, activeAppTab, onCloseOverlayPage, blockOverlayPageClose]);
 
   return null;
 }

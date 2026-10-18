@@ -4,6 +4,7 @@ import {
   ArrowLeft,
   ChevronRight,
   LogOut,
+  Settings,
   User,
   ExternalLink,
   Sparkles,
@@ -161,14 +162,13 @@ type QuickTileSize = 'normal' | 'wide';
 type QuickTileId =
   | HomeAppId
   | 'tv_patio'
-  | 'parts_stock'
-  | 'settings_hub';
+  | 'parts_stock';
 type QuickLayoutState = {
   order: QuickTileId[];
   sizes: Partial<Record<QuickTileId, QuickTileSize>>;
 };
 
-const DEFAULT_QUICK_ORDER: QuickTileId[] = [...OPERATIONAL_APPS.map((app) => app.id), 'settings_hub'];
+const DEFAULT_QUICK_ORDER: QuickTileId[] = [...OPERATIONAL_APPS.map((app) => app.id)];
 const ALL_QUICK_TILE_IDS: QuickTileId[] = [
   ...DEFAULT_QUICK_ORDER,
   'tv_patio',
@@ -177,6 +177,8 @@ const ALL_QUICK_TILE_IDS: QuickTileId[] = [
   'boletim_erros',
   'radar_qualidade',
 ];
+/** Ícone antigo da home — filtrado do layout salvo para não reaparecer. */
+const LEGACY_HOME_SETTINGS_TILE_ID = 'settings_hub';
 
 function SettingsRow({
   onClick,
@@ -323,7 +325,13 @@ export const HomeView: React.FC<HomeViewProps> = ({
       if (!raw) return { order: DEFAULT_QUICK_ORDER, sizes: {} };
       const parsed = JSON.parse(raw) as QuickLayoutState;
       if (!parsed || !Array.isArray(parsed.order)) return { order: DEFAULT_QUICK_ORDER, sizes: {} };
-      const order = [...parsed.order.filter((id) => ALL_QUICK_TILE_IDS.includes(id as QuickTileId))] as QuickTileId[];
+      const order = [
+        ...parsed.order.filter((id) => {
+          const key = String(id);
+          if (key === LEGACY_HOME_SETTINGS_TILE_ID) return false;
+          return ALL_QUICK_TILE_IDS.includes(key as QuickTileId);
+        }),
+      ] as QuickTileId[];
       DEFAULT_QUICK_ORDER.forEach((id) => {
         if (!order.includes(id)) order.push(id);
       });
@@ -555,14 +563,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
       icon: app.icon,
       onOpen: () => onOpenApp(app.id),
     }));
-    const settingsTile = {
-      id: 'settings_hub' as QuickTileId,
-      label: 'Configurações',
-      icon: (
-        <img src="/icons/configuracoes-ios.png" alt="Configurações" className={HOME_TILE_ICON_IMG} />
-      ),
-      onOpen: () => openSettingsHubOnly(),
-    };
     const extraTiles: {
       id: QuickTileId;
       label: string;
@@ -621,12 +621,11 @@ export const HomeView: React.FC<HomeViewProps> = ({
         onOpen: () => onOpenApp('radar_qualidade'),
       });
     }
-    return [...baseTiles, ...extraTiles, settingsTile];
+    return [...baseTiles, ...extraTiles];
   }, [
     onOpenApp,
     onOpenPartsStock,
     onOpenTvPatio,
-    openSettingsHubOnly,
     operationalForView,
     perms,
     showFullAdminHub,
@@ -803,6 +802,15 @@ export const HomeView: React.FC<HomeViewProps> = ({
                     : 'Administrador'}
               </span>
             </div>
+            <button
+              type="button"
+              onClick={() => openSettingsHubOnly()}
+              aria-label="Configurações"
+              title="Configurações"
+              className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-zinc-200/90 bg-white/90 text-zinc-700 shadow-md ring-1 ring-black/[0.04] transition-transform hover:bg-zinc-50 active:scale-[0.96] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#007AFF]/55 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:border-white/12 dark:bg-zinc-900/80 dark:text-zinc-200 dark:ring-white/10 dark:hover:bg-zinc-800 dark:focus-visible:ring-offset-zinc-950 sm:h-12 sm:w-12"
+            >
+              <Settings className="h-[1.15rem] w-[1.15rem]" strokeWidth={2.25} aria-hidden />
+            </button>
             <button
               ref={headerProfileTriggerRef}
               type="button"

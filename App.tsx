@@ -190,6 +190,17 @@ export default function App() {
     [authSession]
   );
 
+  /** Abre o hub de Configurações sem trocar de aba (volta à tela atual ao fechar). */
+  const openSettingsHubOverlay = useCallback(() => {
+    requestClosePartsModal(() => {
+      setIsTvPatioModalOpen(false);
+      setIsSettingsOpen(false);
+      setIsSupportChatOpen(false);
+      setIsUserChangePasswordsOpen(false);
+      setSettingsHubOpen(true);
+    });
+  }, [requestClosePartsModal]);
+
   const handleDesktopSidebarAction = useCallback(
     (action: DesktopSidebarActionId) => {
       if (action === 'estoque_pecas') {
@@ -210,14 +221,11 @@ export default function App() {
         return;
       }
       if (action === 'configuracoes') {
-        requestClosePartsModal(() => {
-          setIsSettingsOpen(false);
-          setSettingsHubOpen(true);
-        });
+        openSettingsHubOverlay();
         return;
       }
     },
-    [requestClosePartsModal]
+    [openSettingsHubOverlay, requestClosePartsModal]
   );
 
   const handleDesktopTabChange = useCallback(
@@ -1602,7 +1610,7 @@ export default function App() {
         onDesktopSidebarAction={handleDesktopSidebarAction}
         displayName={userDisplayName}
         photoUrl={authSession.photoUrl ?? null}
-        onOpenSettings={() => setSettingsHubOpen(true)}
+        onOpenSettings={openSettingsHubOverlay}
         onOpenProfileEditor={openShellProfileEditor}
         onLogout={handleLogout}
         onOpenSupport={() => setIsSupportChatOpen(true)}
@@ -1619,6 +1627,7 @@ export default function App() {
             tabId="home"
             activeTab={userTab}
             visitedTabs={visitedUserTabs}
+            suppressInert={settingsHubOpen}
             className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-0 touch-pan-y [-webkit-overflow-scrolling:touch]"
           >
             <HomeView
@@ -1962,7 +1971,13 @@ export default function App() {
             onProfileUpdated={handleShellUserProfileUpdated}
           />
         ) : null}
-        <DesktopEscapeCloseBridge activeAppTab={userTab} onCloseOverlayPage={handleOverlayCloseOrBack} />
+        <DesktopEscapeCloseBridge
+          activeAppTab={userTab}
+          onCloseOverlayPage={handleOverlayCloseOrBack}
+          blockOverlayPageClose={
+            settingsHubOpen || isPartsModalOpen || isTvPatioModalOpen || isSettingsOpen
+          }
+        />
       </AuthenticatedAppFrame>
       </BackNavigationProvider>
       </ModalLayerProvider>
@@ -2003,8 +2018,10 @@ export default function App() {
       onOpenSettings={
         authSession?.role === 'admin' ||
         hasFullAccess ||
-        authSession?.permissions?.access_settings
-          ? () => setSettingsHubOpen(true)
+        authSession?.permissions?.access_settings ||
+        authSession?.permissions?.access_change_passwords ||
+        authSession?.permissions?.access_technicians
+          ? openSettingsHubOverlay
           : undefined
       }
       onOpenProfileEditor={openShellProfileEditor}
@@ -2023,6 +2040,7 @@ export default function App() {
           tabId="home"
           activeTab={currentTab}
           visitedTabs={visitedTabs}
+          suppressInert={settingsHubOpen}
           className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-0 touch-pan-y [-webkit-overflow-scrolling:touch]"
         >
           <HomeView
@@ -2368,7 +2386,13 @@ export default function App() {
           onClose={() => setCommentPopUpNotification(null)}
         />
       )}
-      <DesktopEscapeCloseBridge activeAppTab={currentTab} onCloseOverlayPage={handleOverlayCloseOrBack} />
+      <DesktopEscapeCloseBridge
+        activeAppTab={currentTab}
+        onCloseOverlayPage={handleOverlayCloseOrBack}
+        blockOverlayPageClose={
+          settingsHubOpen || isPartsModalOpen || isTvPatioModalOpen || isSettingsOpen
+        }
+      />
     </AuthenticatedAppFrame>
     </BackNavigationProvider>
     </ModalLayerProvider>

@@ -26,7 +26,8 @@ export type DesktopSidebarEntry =
 
 /**
  * Ordem dos ícones da barra lateral no modo PC:
- * Início → Agenda → Pátio → Laboratório → Estoque → Orçamentos → Painéis → Boletins → Relatórios → Radar → Configurações
+ * Início → Agenda → Pátio → Laboratório → Estoque → Orçamentos → Painéis → Boletins → Relatórios → Radar
+ * (Configurações fica só na engrenagem da barra superior.)
  */
 export const DESKTOP_SIDEBAR_ORDER: DesktopSidebarEntry[] = [
   { kind: 'tab', id: 'home' },
@@ -39,7 +40,6 @@ export const DESKTOP_SIDEBAR_ORDER: DesktopSidebarEntry[] = [
   { kind: 'tab', id: 'boletim_erros' },
   { kind: 'tab', id: 'relatorios' },
   { kind: 'tab', id: 'radar_qualidade' },
-  { kind: 'action', id: 'configuracoes' },
 ];
 
 /** Navegação do modo PC (estilo OnMotor) — módulos com aba dedicada. */
