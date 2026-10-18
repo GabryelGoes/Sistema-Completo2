@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Lock, User, Loader2 } from 'lucide-react';
+import { ArrowRight, Eye, EyeOff, Lock, User, Loader2 } from 'lucide-react';
 import { login, type AuthSession } from '../../services/apiService';
 
 const AUTH_STORAGE_KEY = 'rei_do_abs_auth';
@@ -31,6 +31,7 @@ interface LoginViewProps {
 export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -54,37 +55,50 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
   };
 
   return (
-    <div className="h-full min-h-0 flex flex-col bg-black">
-      <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute inset-0 bg-black" />
-        <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/3 w-[800px] h-[500px] bg-brand-yellow/10 rounded-full blur-[120px]" />
-        <div className="absolute -bottom-1/4 left-1/2 -translate-x-1/2 w-[600px] h-[400px] bg-brand-yellow/5 rounded-full blur-[100px]" />
+    <div className="relative h-full min-h-0 overflow-hidden bg-[#0e0e0f]">
+      {/* Fundo split: painel escuro + carro (igual ao layout anexado) */}
+      <div className="pointer-events-none absolute inset-0" aria-hidden>
+        <img
+          src="/login-bg.jpg"
+          alt=""
+          className="absolute inset-0 h-full w-full object-cover object-center"
+        />
+        {/* Mobile: escurece o herói para o card legível */}
+        <div className="absolute inset-0 bg-gradient-to-b from-black/55 via-black/35 to-black/70 md:hidden" />
       </div>
 
-      <div className="relative flex-1 min-h-0 overflow-y-auto overscroll-none flex flex-col items-center justify-center px-6 py-12 safe-area-pb">
-        <div className="w-full max-w-[380px]">
+      {/* Frase à esquerda (desktop) */}
+      <div className="pointer-events-none absolute left-[4.5%] top-[42%] z-10 hidden max-w-[260px] -translate-y-1/2 lg:block xl:left-[6%] xl:max-w-[300px]">
+        <p className="font-display text-[22px] font-semibold leading-[1.25] tracking-tight text-white xl:text-[26px]">
+          Qualidade, tecnologia e confiança em um só lugar.
+        </p>
+        <div className="mt-5 h-[3px] w-14 rounded-full bg-[#F5C518]" />
+      </div>
+
+      <div className="relative z-20 flex h-full min-h-0 flex-col items-center justify-center overflow-y-auto overscroll-none px-5 py-10 safe-area-pb sm:px-6">
+        <div className="w-full max-w-[400px]">
           <div
-            className="relative rounded-3xl border border-white/20 bg-white/10 backdrop-blur-xl shadow-2xl overflow-hidden"
-            style={{ boxShadow: '0 25px 50px -12px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.1) inset' }}
+            className="overflow-hidden rounded-[22px] border border-white/[0.08] bg-[#161616]/[0.94] shadow-[0_28px_80px_-20px_rgba(0,0,0,0.75)] backdrop-blur-md"
           >
-            <div className="p-8 sm:p-10">
-              <div className="flex justify-center mb-8">
-                <div className="w-16 h-16 rounded-full bg-zinc-900 border-2 border-white/90 flex items-center justify-center overflow-hidden shadow-lg shrink-0">
-                  <img src="/logo.png" alt="Rei do ABS" className="w-full h-full object-cover" />
-                </div>
+            <div className="px-8 pb-8 pt-9 sm:px-10 sm:pb-9 sm:pt-10">
+              <div className="mb-5 flex flex-col items-center">
+                <img
+                  src="/logo.png"
+                  alt="Rei do ABS"
+                  className="h-[88px] w-[88px] object-contain sm:h-[96px] sm:w-[96px]"
+                />
+                <h1 className="mt-3 font-display text-[28px] font-bold leading-none tracking-tight text-white sm:text-[30px]">
+                  Rei do ABS
+                </h1>
+                <p className="mt-2 text-center text-[14px] font-medium text-zinc-400">
+                  Sistema de gestão da oficina
+                </p>
               </div>
 
-              <h1 className="text-center text-xl font-semibold text-white tracking-tight mb-1">
-                Rei do ABS
-              </h1>
-              <p className="text-center text-sm text-white/60 mb-6">
-                Entre com seu usuário e senha
-              </p>
-
-              <form onSubmit={handleSubmit} className="space-y-4">
+              <form onSubmit={handleSubmit} className="space-y-3.5">
                 <div className="relative">
-                  <div className="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none text-white/50">
-                    <User className="w-5 h-5" />
+                  <div className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-500">
+                    <User className="h-[18px] w-[18px]" strokeWidth={1.75} />
                   </div>
                   <input
                     type="text"
@@ -92,35 +106,71 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
                     placeholder="Usuário"
-                    className="w-full pl-12 pr-4 py-3.5 rounded-xl bg-white/[0.08] border border-white/20 text-white placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-brand-yellow/50 focus:border-brand-yellow/50 text-[16px]"
+                    className="h-12 w-full rounded-xl border border-white/[0.1] bg-[#0c0c0c] py-0 pl-11 pr-4 text-[15px] text-white placeholder:text-zinc-500 outline-none transition-[border-color,box-shadow] focus:border-[#F5C518]/55 focus:ring-2 focus:ring-[#F5C518]/20"
                   />
                 </div>
+
                 <div className="relative">
-                  <div className="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none text-white/50">
-                    <Lock className="w-5 h-5" />
+                  <div className="pointer-events-none absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-500">
+                    <Lock className="h-[18px] w-[18px]" strokeWidth={1.75} />
                   </div>
                   <input
-                    type="password"
+                    type={showPassword ? 'text' : 'password'}
                     autoComplete="current-password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="Senha"
-                    className="w-full pl-12 pr-4 py-3.5 rounded-xl bg-white/[0.08] border border-white/20 text-white placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-brand-yellow/50 focus:border-brand-yellow/50 text-[16px]"
+                    className="h-12 w-full rounded-xl border border-white/[0.1] bg-[#0c0c0c] py-0 pl-11 pr-12 text-[15px] text-white placeholder:text-zinc-500 outline-none transition-[border-color,box-shadow] focus:border-[#F5C518]/55 focus:ring-2 focus:ring-[#F5C518]/20"
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((v) => !v)}
+                    className="absolute right-2.5 top-1/2 flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-lg text-zinc-500 transition-colors hover:text-zinc-300"
+                    aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
+                  >
+                    {showPassword ? (
+                      <EyeOff className="h-[18px] w-[18px]" strokeWidth={1.75} />
+                    ) : (
+                      <Eye className="h-[18px] w-[18px]" strokeWidth={1.75} />
+                    )}
+                  </button>
                 </div>
-                {error && (
-                  <p className="text-[13px] text-red-400">{error}</p>
-                )}
+
+                {error && <p className="text-[13px] text-red-400">{error}</p>}
+
                 <button
                   type="submit"
-                  disabled={loading || !username.trim()}
-                  className="w-full py-3.5 rounded-xl bg-brand-yellow hover:bg-[#fcd61e] disabled:opacity-50 disabled:pointer-events-none text-black font-semibold text-[15px] uppercase tracking-wider flex items-center justify-center gap-2 transition-all shadow-lg shadow-brand-yellow/20 hover:shadow-xl"
+                  disabled={loading}
+                  className="relative mt-1 flex h-12 w-full items-center justify-center rounded-2xl bg-[#F5C518] text-[15px] font-bold uppercase tracking-[0.08em] text-black shadow-[0_12px_32px_-10px_rgba(245,197,24,0.75)] transition-[filter,transform] hover:brightness-[1.03] active:scale-[0.99] disabled:pointer-events-none disabled:opacity-70"
                 >
-                  {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Entrar'}
+                  {loading ? (
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                  ) : (
+                    <>
+                      <span>Entrar</span>
+                      <ArrowRight
+                        className="absolute right-4 h-[18px] w-[18px]"
+                        strokeWidth={2.25}
+                        aria-hidden
+                      />
+                    </>
+                  )}
                 </button>
               </form>
+
+              <div className="mt-6 flex items-center gap-3" aria-hidden>
+                <div className="h-px flex-1 bg-white/[0.1]" />
+                <span className="text-[12px] font-medium lowercase text-zinc-500">ou</span>
+                <div className="h-px flex-1 bg-white/[0.1]" />
+              </div>
             </div>
           </div>
+
+          {/* Frase mobile (abaixo do card) */}
+          <p className="mt-8 px-2 text-center text-[15px] font-medium leading-snug text-white/85 lg:hidden">
+            Qualidade, tecnologia e confiança em um só lugar.
+          </p>
+          <div className="mx-auto mt-3 h-[3px] w-12 rounded-full bg-[#F5C518] lg:hidden" />
         </div>
       </div>
     </div>
