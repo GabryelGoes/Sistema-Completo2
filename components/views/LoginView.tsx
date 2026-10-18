@@ -56,38 +56,35 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
 
   return (
     <div className="relative h-full min-h-0 overflow-hidden bg-[#0e0e0f]">
-      {/* Fundo split: painel escuro + carro (igual ao layout anexado) */}
+      {/* Fundo: painel geométrico + degrade + herói do carro (arte da referência) */}
       <div className="pointer-events-none absolute inset-0" aria-hidden>
         <img
           src="/login-bg.jpg"
           alt=""
-          className="absolute inset-0 h-full w-full object-cover object-center"
+          className="absolute inset-0 h-full w-full object-cover object-[center_center]"
         />
         {/* Mobile: escurece o herói para o card legível */}
         <div className="absolute inset-0 bg-gradient-to-b from-black/55 via-black/35 to-black/70 md:hidden" />
       </div>
 
-      {/* Frase à esquerda (desktop) */}
-      <div className="pointer-events-none absolute left-[4.5%] top-[42%] z-10 hidden max-w-[260px] -translate-y-1/2 lg:block xl:left-[6%] xl:max-w-[300px]">
-        <p className="font-display text-[22px] font-semibold leading-[1.25] tracking-tight text-white xl:text-[26px]">
-          Qualidade, tecnologia e confiança em um só lugar.
-        </p>
-        <div className="mt-5 h-[3px] w-14 rounded-full bg-[#F5C518]" />
-      </div>
+      {/*
+        A frase + desenhos amarelos do painel esquerdo vêm do login-bg (igual à referência).
+        No mobile o crop do fundo muda — repetimos a frase abaixo do card.
+      */}
+      <p className="sr-only">Qualidade, tecnologia e confiança em um só lugar.</p>
 
       <div className="relative z-20 flex h-full min-h-0 flex-col items-center justify-center overflow-y-auto overscroll-none px-5 py-10 safe-area-pb sm:px-6">
         <div className="w-full max-w-[400px]">
-          <div
-            className="overflow-hidden rounded-[22px] border border-white/[0.08] bg-[#161616]/[0.94] shadow-[0_28px_80px_-20px_rgba(0,0,0,0.75)] backdrop-blur-md"
-          >
+          <div className="overflow-hidden rounded-[22px] border border-white/[0.08] bg-[#161616]/[0.94] shadow-[0_28px_80px_-20px_rgba(0,0,0,0.75)] backdrop-blur-md">
             <div className="px-8 pb-8 pt-9 sm:px-10 sm:pb-9 sm:pt-10">
               <div className="mb-5 flex flex-col items-center">
                 <img
-                  src="/logo.png"
+                  src="/login-logo.png"
                   alt="Rei do ABS"
-                  className="h-[88px] w-[88px] object-contain sm:h-[96px] sm:w-[96px]"
+                  className="h-[92px] w-auto object-contain sm:h-[100px]"
+                  draggable={false}
                 />
-                <h1 className="mt-3 font-display text-[28px] font-bold leading-none tracking-tight text-white sm:text-[30px]">
+                <h1 className="mt-2 font-display text-[28px] font-bold leading-none tracking-tight text-white sm:text-[30px]">
                   Rei do ABS
                 </h1>
                 <p className="mt-2 text-center text-[14px] font-medium text-zinc-400">
@@ -141,7 +138,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
                 <button
                   type="submit"
                   disabled={loading}
-                  className="relative mt-1 flex h-12 w-full items-center justify-center rounded-2xl bg-[#F5C518] text-[15px] font-bold uppercase tracking-[0.08em] text-black shadow-[0_12px_32px_-10px_rgba(245,197,24,0.75)] transition-[filter,transform] hover:brightness-[1.03] active:scale-[0.99] disabled:pointer-events-none disabled:opacity-70"
+                  className="relative mt-1 flex h-12 w-full items-center justify-center rounded-2xl bg-[#F5C518] text-[15px] font-bold uppercase tracking-[0.08em] text-black transition-[filter,transform] hover:brightness-[1.02] active:scale-[0.99] disabled:pointer-events-none disabled:opacity-70"
                 >
                   {loading ? (
                     <Loader2 className="h-5 w-5 animate-spin" />
@@ -166,11 +163,11 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
             </div>
           </div>
 
-          {/* Frase mobile (abaixo do card) */}
-          <p className="mt-8 px-2 text-center text-[15px] font-medium leading-snug text-white/85 lg:hidden">
+          {/* Frase mobile (no desktop ela já está no fundo, com os desenhos da referência) */}
+          <p className="mt-8 px-2 text-center text-[15px] font-medium leading-snug text-white/85 md:hidden">
             Qualidade, tecnologia e confiança em um só lugar.
           </p>
-          <div className="mx-auto mt-3 h-[3px] w-12 rounded-full bg-[#F5C518] lg:hidden" />
+          <div className="mx-auto mt-3 h-[3px] w-12 rounded-full bg-[#F5C518] md:hidden" />
         </div>
       </div>
     </div>
