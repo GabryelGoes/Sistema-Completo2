@@ -9,7 +9,7 @@ import {
   Pencil,
   Trash2,
 } from 'lucide-react';
-import { iosModalShell, iosModalClose, iosModalInsetCard, SETTINGS_CHILD_MODAL_Z, NESTED_STOCK_OVERLAY_Z } from './ui/iosModalStyles';
+import { iosModalShell, iosModalClose, iosModalInsetCard, SHELL_MODULE_OVERLAY_Z, NESTED_STOCK_OVERLAY_Z } from './ui/iosModalStyles';
 
 import {
   WORKSHOP_PART_LEGACY_COVER_ID,
@@ -1318,7 +1318,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
 
     <ModalPortal manageBackLayer onRequestClose={requestClose}>
     <div
-      className={`${desktopShellViewportOverlayClass(isDesktopShell, SETTINGS_CHILD_MODAL_Z)} flex min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden bg-[#F4F5F7] dark:bg-zinc-950 p-0${isDesktopShell ? '' : ' h-[100dvh] max-h-[100dvh]'}`}
+      className={`${desktopShellViewportOverlayClass(isDesktopShell, SHELL_MODULE_OVERLAY_Z)} flex min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden bg-[#F4F5F7] dark:bg-zinc-950 p-0${isDesktopShell ? '' : ' h-[100dvh] max-h-[100dvh]'}`}
     >
       <div className="relative flex h-full min-h-0 w-full max-w-none flex-1 flex-col overflow-hidden bg-[#F4F5F7] dark:bg-zinc-950">
         {!isDesktopShell ? (

@@ -190,6 +190,17 @@ export default function App() {
     [authSession]
   );
 
+  /**
+   * Abre o hub de Ajustes por cima da tela atual (Estoque, TV, abas, etc.).
+   * Não fecha overlays de baixo — ao Esc/X o usuário volta exatamente para onde estava.
+   */
+  const openSettingsHubOverlay = useCallback(() => {
+    setIsSettingsOpen(false);
+    setIsSupportChatOpen(false);
+    setIsUserChangePasswordsOpen(false);
+    setSettingsHubOpen(true);
+  }, []);
+
   const handleDesktopSidebarAction = useCallback(
     (action: DesktopSidebarActionId) => {
       if (action === 'estoque_pecas') {
@@ -210,14 +221,11 @@ export default function App() {
         return;
       }
       if (action === 'configuracoes') {
-        requestClosePartsModal(() => {
-          setIsSettingsOpen(false);
-          setSettingsHubOpen(true);
-        });
+        openSettingsHubOverlay();
         return;
       }
     },
-    [requestClosePartsModal]
+    [openSettingsHubOverlay, requestClosePartsModal]
   );
 
   const handleDesktopTabChange = useCallback(
@@ -1602,7 +1610,7 @@ export default function App() {
         onDesktopSidebarAction={handleDesktopSidebarAction}
         displayName={userDisplayName}
         photoUrl={authSession.photoUrl ?? null}
-        onOpenSettings={() => setSettingsHubOpen(true)}
+        onOpenSettings={openSettingsHubOverlay}
         onOpenProfileEditor={openShellProfileEditor}
         onLogout={handleLogout}
         onOpenSupport={() => setIsSupportChatOpen(true)}
@@ -1619,6 +1627,7 @@ export default function App() {
             tabId="home"
             activeTab={userTab}
             visitedTabs={visitedUserTabs}
+            suppressInert={settingsHubOpen}
             className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-0 touch-pan-y [-webkit-overflow-scrolling:touch]"
           >
             <HomeView
@@ -1683,6 +1692,13 @@ export default function App() {
               systemUserPermissions={authSession.permissions}
               onOpenSettings={() => setIsSettingsOpen(true)}
               onOpenChangePasswords={() => setIsUserChangePasswordsOpen(true)}
+              blurUnverifiedBudgets={blurUnverifiedBudgets}
+              onBlurUnverifiedBudgetsChange={setBlurUnverifiedBudgets}
+              budgetBannerNotifications={budgetBannerNotifications}
+              onBudgetBannerNotificationsChange={setBudgetBannerNotifications}
+              commentBannerNotifications={commentBannerNotifications}
+              onCommentBannerNotificationsChange={setCommentBannerNotifications}
+              orientation={orientation}
               globalOverlayModalOpen={isUserChangePasswordsOpen || isSettingsOpen || isTvPatioModalOpen}
               patioBudgetsHubBadge={patioBudgetsHub.badgeCount}
             />
@@ -1888,14 +1904,6 @@ export default function App() {
           onThemeChange={setTheme}
           cinematographicMode={cinematographicMode}
           onCinematographicModeChange={setCinematographicMode}
-          budgetBannerNotifications={budgetBannerNotifications}
-          onBudgetBannerNotificationsChange={setBudgetBannerNotifications}
-          commentBannerNotifications={commentBannerNotifications}
-          onCommentBannerNotificationsChange={setCommentBannerNotifications}
-          blurUnverifiedBudgets={blurUnverifiedBudgets}
-          onBlurUnverifiedBudgetsChange={setBlurUnverifiedBudgets}
-          orientation={orientation}
-          showPatioAccess={false}
         />
         <ChangePasswordsModal isOpen={isUserChangePasswordsOpen} onClose={() => setIsUserChangePasswordsOpen(false)} />
         {hubBudgetViewer ? (
@@ -1962,7 +1970,13 @@ export default function App() {
             onProfileUpdated={handleShellUserProfileUpdated}
           />
         ) : null}
-        <DesktopEscapeCloseBridge activeAppTab={userTab} onCloseOverlayPage={handleOverlayCloseOrBack} />
+        <DesktopEscapeCloseBridge
+          activeAppTab={userTab}
+          onCloseOverlayPage={handleOverlayCloseOrBack}
+          blockOverlayPageClose={
+            settingsHubOpen || isPartsModalOpen || isTvPatioModalOpen || isSettingsOpen
+          }
+        />
       </AuthenticatedAppFrame>
       </BackNavigationProvider>
       </ModalLayerProvider>
@@ -2003,8 +2017,10 @@ export default function App() {
       onOpenSettings={
         authSession?.role === 'admin' ||
         hasFullAccess ||
-        authSession?.permissions?.access_settings
-          ? () => setSettingsHubOpen(true)
+        authSession?.permissions?.access_settings ||
+        authSession?.permissions?.access_change_passwords ||
+        authSession?.permissions?.access_technicians
+          ? openSettingsHubOverlay
           : undefined
       }
       onOpenProfileEditor={openShellProfileEditor}
@@ -2023,6 +2039,7 @@ export default function App() {
           tabId="home"
           activeTab={currentTab}
           visitedTabs={visitedTabs}
+          suppressInert={settingsHubOpen}
           className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-0 touch-pan-y [-webkit-overflow-scrolling:touch]"
         >
           <HomeView
@@ -2062,6 +2079,13 @@ export default function App() {
             onAdminProfileSaved={authSession?.role === 'admin' ? handleAdminProfileSaved : undefined}
             systemUsersRefreshTrigger={authSession?.role === 'admin' ? systemUsersRefreshTrigger : undefined}
             onOpenSettings={() => setIsSettingsOpen(true)}
+            blurUnverifiedBudgets={blurUnverifiedBudgets}
+            onBlurUnverifiedBudgetsChange={setBlurUnverifiedBudgets}
+            budgetBannerNotifications={budgetBannerNotifications}
+            onBudgetBannerNotificationsChange={setBudgetBannerNotifications}
+            commentBannerNotifications={commentBannerNotifications}
+            onCommentBannerNotificationsChange={setCommentBannerNotifications}
+            orientation={orientation}
             globalOverlayModalOpen={isUserChangePasswordsOpen || isSettingsOpen || isTvPatioModalOpen}
             patioBudgetsHubBadge={patioBudgetsHub.badgeCount}
           />
@@ -2263,14 +2287,6 @@ export default function App() {
         onThemeChange={setTheme}
         cinematographicMode={cinematographicMode}
         onCinematographicModeChange={setCinematographicMode}
-        budgetBannerNotifications={budgetBannerNotifications}
-        onBudgetBannerNotificationsChange={setBudgetBannerNotifications}
-        commentBannerNotifications={commentBannerNotifications}
-        onCommentBannerNotificationsChange={setCommentBannerNotifications}
-        blurUnverifiedBudgets={blurUnverifiedBudgets}
-        onBlurUnverifiedBudgetsChange={setBlurUnverifiedBudgets}
-        orientation={orientation}
-        showPatioAccess={authSession?.role === 'admin' || hasFullAccess}
       />
       {hubBudgetViewer ? (
         <BudgetHubViewerModal
@@ -2368,7 +2384,13 @@ export default function App() {
           onClose={() => setCommentPopUpNotification(null)}
         />
       )}
-      <DesktopEscapeCloseBridge activeAppTab={currentTab} onCloseOverlayPage={handleOverlayCloseOrBack} />
+      <DesktopEscapeCloseBridge
+        activeAppTab={currentTab}
+        onCloseOverlayPage={handleOverlayCloseOrBack}
+        blockOverlayPageClose={
+          settingsHubOpen || isPartsModalOpen || isTvPatioModalOpen || isSettingsOpen
+        }
+      />
     </AuthenticatedAppFrame>
     </BackNavigationProvider>
     </ModalLayerProvider>
