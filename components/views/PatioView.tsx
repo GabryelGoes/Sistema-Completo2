@@ -813,6 +813,8 @@ const Lightbox = ({
   const dragStartXRef = useRef<number>(0);
   const scaleRef = useRef(1);
   const translateRef = useRef({ x: 0, y: 0 });
+  /** Pan com mouse/caneta no PC — listeners síncronos (não via useEffect) para não perder o gesto. */
+  const mousePanRef = useRef<{ x: number; y: number } | null>(null);
   const [isMousePanning, setIsMousePanning] = useState(false);
   const pinchContainerRef = useRef<HTMLDivElement>(null);
   const imageRef = useRef<HTMLImageElement>(null);
@@ -1021,41 +1023,86 @@ const Lightbox = ({
     if (scaleRef.current < 1) setScale(1);
   };
 
-  const handleMouseDown = (e: React.MouseEvent) => {
-    if (scale <= 1 || e.button !== 0) return;
-    e.preventDefault();
-    setIsMousePanning(true);
-    lastTouchRef.current = { x: e.clientX, y: e.clientY };
-    setIsDragging(true);
-  };
-
   const stopMousePanning = React.useCallback(() => {
+    mousePanRef.current = null;
     setIsMousePanning(false);
     setIsDragging(false);
     lastTouchRef.current = null;
   }, []);
 
+  /** Zoom com scroll / pinça do trackpad (ctrl+wheel), focalizado no cursor. */
+  const applyWheelZoom = React.useCallback((clientX: number, clientY: number, deltaY: number) => {
+    const oldScale = scaleRef.current;
+    const oldTx = translateRef.current.x;
+    const oldTy = translateRef.current.y;
+    const factor = deltaY > 0 ? 0.9 : 1.1;
+    let newScale = Math.min(5, Math.max(1, oldScale * factor));
+    if (newScale <= 1) {
+      setScale(1);
+      setTranslate({ x: 0, y: 0 });
+      return;
+    }
+    const { x: fx, y: fy } = getPinchFocalOffset(clientX, clientY);
+    const zoomRatio = newScale / oldScale;
+    setScale(newScale);
+    setTranslate({
+      x: fx * (1 - zoomRatio) + oldTx * zoomRatio,
+      y: fy * (1 - zoomRatio) + oldTy * zoomRatio,
+    });
+  }, []);
+
   useEffect(() => {
-    if (!isMousePanning) return;
-    const onMove = (e: MouseEvent) => {
-      if (!lastTouchRef.current) return;
-      const dx = e.clientX - lastTouchRef.current.x;
-      const dy = e.clientY - lastTouchRef.current.y;
-      setTranslate((prev) => ({ x: prev.x + dx, y: prev.y + dy }));
-      lastTouchRef.current = { x: e.clientX, y: e.clientY };
+    const el = pinchContainerRef.current;
+    if (!el) return;
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      applyWheelZoom(e.clientX, e.clientY, e.deltaY);
     };
-    const onUp = () => stopMousePanning();
-    window.addEventListener('mousemove', onMove);
-    window.addEventListener('mouseup', onUp);
-    return () => {
-      window.removeEventListener('mousemove', onMove);
-      window.removeEventListener('mouseup', onUp);
-    };
-  }, [isMousePanning, stopMousePanning]);
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, [applyWheelZoom]);
+
+  const handlePointerDown = (e: React.PointerEvent) => {
+    // Toque continua no fluxo touch*; evita pan duplicado.
+    if (e.pointerType === 'touch') return;
+    if (e.button !== 0 || scaleRef.current <= 1) return;
+    e.preventDefault();
+    e.stopPropagation();
+    mousePanRef.current = { x: e.clientX, y: e.clientY };
+    lastTouchRef.current = { x: e.clientX, y: e.clientY };
+    setIsMousePanning(true);
+    setIsDragging(true);
+    try {
+      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    } catch {
+      /* ignore */
+    }
+  };
+
+  const handlePointerMove = (e: React.PointerEvent) => {
+    if (e.pointerType === 'touch' || !mousePanRef.current || scaleRef.current <= 1) return;
+    const dx = e.clientX - mousePanRef.current.x;
+    const dy = e.clientY - mousePanRef.current.y;
+    mousePanRef.current = { x: e.clientX, y: e.clientY };
+    lastTouchRef.current = { x: e.clientX, y: e.clientY };
+    setTranslate((prev) => ({ x: prev.x + dx, y: prev.y + dy }));
+  };
+
+  const handlePointerUp = (e: React.PointerEvent) => {
+    if (e.pointerType === 'touch') return;
+    if (!mousePanRef.current) return;
+    stopMousePanning();
+    try {
+      (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+    } catch {
+      /* ignore */
+    }
+  };
 
   const handleDoubleTap = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (scale > 1) {
+    e.preventDefault();
+    if (scaleRef.current > 1) {
       setScale(1);
       setTranslate({ x: 0, y: 0 });
     } else {
@@ -1130,13 +1177,20 @@ const Lightbox = ({
 
       <div
         ref={pinchContainerRef}
-        className={`relative w-full h-full flex items-center justify-center touch-none ${scale > 1 ? 'cursor-grab active:cursor-grabbing' : ''}`}
+        className={`relative w-full h-full flex items-center justify-center touch-none ${
+          scale > 1 ? (isMousePanning ? 'cursor-grabbing' : 'cursor-grab') : 'cursor-zoom-in'
+        }`}
         onClick={(e) => e.stopPropagation()}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
         onTouchCancel={handleTouchEnd}
-        onMouseDown={handleMouseDown}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerUp}
+        onLostPointerCapture={stopMousePanning}
+        onDoubleClick={handleDoubleTap}
       >
         {!imageLoaded && (
           <div className="pointer-events-none absolute inset-0 z-[1] flex items-center justify-center">
@@ -1156,13 +1210,13 @@ const Lightbox = ({
           onError={() => {
             if (!displayFailed && effectiveSrc !== src) setDisplayFailed(true);
           }}
-          onDoubleClick={handleDoubleTap}
+          onDragStart={(e) => e.preventDefault()}
           style={{
             transform: `translate(${translate.x}px, ${translate.y}px) scale(${scale})`,
-            transition: isDragging || isSwiping || scale > 1 ? "none" : "transform 0.2s ease-out",
+            transition: isDragging || isSwiping || isMousePanning || scale > 1 ? "none" : "transform 0.2s ease-out",
             opacity: imageLoaded ? 1 : 0,
           }}
-          className="max-w-full max-h-full object-contain select-none"
+          className="max-w-full max-h-full object-contain select-none pointer-events-none"
           draggable={false}
         />
       </div>
@@ -1178,13 +1232,13 @@ const Lightbox = ({
             ))}
           </div>
           <p className={`pointer-events-none absolute bottom-4 left-1/2 max-w-[min(90vw,20rem)] -translate-x-1/2 text-center text-[11px] font-medium leading-snug ${mediaOverlayHintText}`}>
-            Setas ← → no teclado ou deslize o dedo para o lado
+            Scroll para zoom · arraste com zoom · setas ← → para trocar
           </p>
         </>
       )}
       {!hasMultiple && (
         <div className={`absolute bottom-10 left-1/2 -translate-x-1/2 bg-black/50 px-4 py-2 rounded-full text-xs pointer-events-none backdrop-blur-md border border-white/20 ${mediaOverlayHintText}`}>
-          Toque duplo para zoom ou use pinça
+          Duplo clique ou scroll para zoom · arraste para mover
         </div>
       )}
     </div>
