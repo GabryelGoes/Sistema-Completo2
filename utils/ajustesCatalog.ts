@@ -37,6 +37,8 @@ export type AjustesCategoryMeta = {
   id: AjustesCategoryId;
   label: string;
   hint: string;
+  /** Ícone PNG em /icons. */
+  iconSrc: string;
 };
 
 export type AjustesItemMeta = {
@@ -58,46 +60,55 @@ export const AJUSTES_CATEGORIES: AjustesCategoryMeta[] = [
     id: 'conta',
     label: 'Conta e usuários',
     hint: 'Perfil, acessos e sessão',
+    iconSrc: '/icons/usuarios-ios.png',
   },
   {
     id: 'seguranca',
     label: 'Segurança',
     hint: 'Senhas operacionais da oficina',
+    iconSrc: '/icons/senhas-ios.png',
   },
   {
     id: 'oficina',
     label: 'Oficina',
     hint: 'Catálogo e valores de serviços',
+    iconSrc: '/icons/servicos-oficina-ios.png',
   },
   {
     id: 'patio',
     label: 'Pátio',
     hint: 'Checklists e painéis de TV',
+    iconSrc: '/icons/patio-ios.png',
   },
   {
     id: 'laboratorio',
     label: 'Laboratório',
     hint: 'Tipos de peça e serviços rápidos',
+    iconSrc: '/icons/laboratorio-ios.png',
   },
   {
     id: 'orcamentos',
     label: 'Orçamentos',
     hint: 'Preferências do hub de orçamentos',
+    iconSrc: '/icons/orcamentos-ios.png',
   },
   {
     id: 'notificacoes',
     label: 'Notificações',
     hint: 'Central, banners e avisos',
+    iconSrc: '/icons/notificacoes-sistema-ios.png',
   },
   {
     id: 'aparencia',
     label: 'Aparência e privacidade',
     hint: 'Tema e proteção de placas',
+    iconSrc: '/icons/tema-sistema-ios.png',
   },
   {
     id: 'dispositivos',
     label: 'Dispositivos e impressão',
     hint: 'Layout do aparelho e etiquetas',
+    iconSrc: '/icons/configuracoes-ios.png',
   },
 ];
 

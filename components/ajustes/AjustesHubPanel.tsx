@@ -238,16 +238,24 @@ export function AjustesHubPanel({
               setActiveCategoryId(cat.id);
               if (!useSplitLayout) setMobileShowDetail(true);
             }}
-            className={`rounded-xl px-3 py-2.5 text-left transition-colors ${
+            className={`flex items-center gap-2.5 rounded-xl px-2.5 py-2 text-left transition-colors ${
               selected && useSplitLayout
                 ? 'bg-zinc-200/90 text-zinc-900 dark:bg-white/[0.1] dark:text-white'
                 : 'text-zinc-700 hover:bg-zinc-200/60 dark:text-zinc-300 dark:hover:bg-white/[0.06]'
             }`}
           >
-            <span className="block text-[13px] font-semibold leading-snug">{cat.label}</span>
-            <span className="mt-0.5 block text-[11px] leading-snug text-zinc-500 dark:text-zinc-400">
-              {cat.hint}
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-[10px] border border-zinc-200/80 bg-white dark:border-white/[0.1] dark:bg-zinc-900">
+              <img src={cat.iconSrc} alt="" className="h-full w-full object-cover" />
             </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-[13px] font-semibold leading-snug">{cat.label}</span>
+              <span className="mt-0.5 block text-[11px] leading-snug text-zinc-500 dark:text-zinc-400">
+                {cat.hint}
+              </span>
+            </span>
+            {!useSplitLayout ? (
+              <ChevronRight className="h-4 w-4 shrink-0 text-zinc-400" />
+            ) : null}
           </button>
         );
       })}
@@ -266,6 +274,9 @@ export function AjustesHubPanel({
           >
             <ChevronLeft className="h-5 w-5" />
           </button>
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-[10px] border border-zinc-200/80 bg-white dark:border-white/[0.1] dark:bg-zinc-900">
+            <img src={activeCategory.iconSrc} alt="" className="h-full w-full object-cover" />
+          </span>
           <div className="min-w-0">
             <p className="truncate text-[15px] font-semibold text-zinc-900 dark:text-white">
               {activeCategory.label}
@@ -276,11 +287,16 @@ export function AjustesHubPanel({
           </div>
         </div>
       ) : (
-        <div className="border-b border-zinc-200/80 px-5 py-3 dark:border-white/[0.08]">
-          <p className="text-[15px] font-semibold text-zinc-900 dark:text-white">
-            {activeCategory.label}
-          </p>
-          <p className="mt-0.5 text-[12px] text-zinc-500 dark:text-zinc-400">{activeCategory.hint}</p>
+        <div className="flex items-center gap-3 border-b border-zinc-200/80 px-5 py-3 dark:border-white/[0.08]">
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-[11px] border border-zinc-200/80 bg-white dark:border-white/[0.1] dark:bg-zinc-900">
+            <img src={activeCategory.iconSrc} alt="" className="h-full w-full object-cover" />
+          </span>
+          <div className="min-w-0">
+            <p className="text-[15px] font-semibold text-zinc-900 dark:text-white">
+              {activeCategory.label}
+            </p>
+            <p className="mt-0.5 text-[12px] text-zinc-500 dark:text-zinc-400">{activeCategory.hint}</p>
+          </div>
         </div>
       )}
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-3 sm:p-4">
