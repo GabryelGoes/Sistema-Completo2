@@ -2,16 +2,10 @@ import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useSta
 import { createPortal } from 'react-dom';
 import {
   ArrowLeft,
-  ChevronRight,
   LogOut,
-  MonitorSmartphone,
   Settings,
-  Tag,
   User,
-  ExternalLink,
   Sparkles,
-  Package,
-  Wrench,
   X,
 } from 'lucide-react';
 import { IosAccentIconSquircle } from '../ui/IosAccentIconSquircle';
@@ -30,7 +24,8 @@ import { BudgetPreferencesModal } from '../BudgetPreferencesModal';
 import { LabelTemplatesEditorModal } from '../LabelTemplatesEditorModal';
 import { TvPatioModal } from '../TvPatioModal';
 import { UserProfileModal } from '../UserProfileModal';
-import { SYSTEM_NOTIFICATIONS_ICON } from '../../constants/systemNotificationsIcon';
+import { AjustesHubPanel, type AjustesVisibility } from '../ajustes/AjustesHubPanel';
+import type { AjustesItemId } from '../../utils/ajustesCatalog';
 import { QUALITY_RADAR_ICON } from '../../constants/qualityRadar';
 import { ERROR_BULLETIN_ICON, TECHNICAL_BULLETINS_MODULE_LABEL } from '../../constants/errorBulletinIcon';
 import { effectiveAccessOrcamentos, type SystemUserPermissions } from '../../services/apiService';
@@ -119,10 +114,6 @@ interface HomeViewProps {
   onOpenTvPatio?: () => void;
 }
 
-/** Cartões da home — chapados, sem aro. */
-const iosCard =
-  'rounded-[22px] border-0 bg-white/70 dark:bg-zinc-900/40 backdrop-blur-2xl shadow-none';
-
 /** Cartões da home mobile sem backdrop-blur (melhor FPS em GPU fraca). */
 const mobileHubTileCard =
   'rounded-[22px] border-0 bg-white dark:bg-zinc-900 shadow-none';
@@ -194,37 +185,6 @@ const ALL_QUICK_TILE_IDS: QuickTileId[] = [
 ];
 /** Ícone antigo da home — filtrado do layout salvo para não reaparecer. */
 const LEGACY_HOME_SETTINGS_TILE_ID = 'settings_hub';
-
-function SettingsRow({
-  onClick,
-  icon,
-  title,
-  subtitle,
-  danger,
-  className = '',
-}: {
-  onClick: () => void;
-  icon: React.ReactNode;
-  title: string;
-  subtitle?: string;
-  danger?: boolean;
-  className?: string;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`group w-full flex items-center gap-3 px-3 py-3 sm:px-4 sm:py-3.5 text-left rounded-2xl transition-all duration-200 hover:bg-zinc-100/90 dark:hover:bg-white/[0.06] active:scale-[0.99] ${danger ? 'hover:bg-red-500/10 dark:hover:bg-red-500/10' : ''} ${className}`}
-    >
-      {icon}
-      <span className="flex-1 min-w-0">
-        <span className="block text-[15px] font-medium text-zinc-900 dark:text-white leading-snug">{title}</span>
-        {subtitle ? <span className="block text-[12px] text-zinc-950 dark:text-zinc-400 mt-0.5">{subtitle}</span> : null}
-      </span>
-      <ChevronRight className="w-5 h-5 shrink-0 text-zinc-400 group-hover:text-brand-yellow transition-colors" />
-    </button>
-  );
-}
 
 export const HomeView: React.FC<HomeViewProps> = ({
   onOpenApp,
@@ -373,27 +333,139 @@ export const HomeView: React.FC<HomeViewProps> = ({
   const isLimitedSystem = isSystemUser && !perms.full_access;
   const isWorkshopAdmin = !isSystemUser && !isTechnician;
   const showFullAdminHub = isWorkshopAdmin || (isSystemUser && !!perms.full_access);
-  const showGranularAdminHub =
-    isLimitedSystem &&
-    !!(
-      perms.access_notificacoes_sistema ||
-      perms.access_servicos_oficina ||
-      perms.access_laboratorio ||
-      perms.access_checklists_patio ||
-      perms.access_tv_patio ||
-      perms.access_estoque_pecas ||
-      perms.access_relatorios
-    );
   const canManageLabProductTypes =
     showFullAdminHub || !!perms.access_servicos_oficina || !!perms.access_laboratorio;
-  const showAdminSection = showFullAdminHub || showGranularAdminHub;
   const hasRichQuickGrid =
     showFullAdminHub ||
     !!perms.access_tv_patio ||
     !!perms.access_estoque_pecas ||
     !!perms.access_relatorios;
-  const hasToolsAccess = isSystemUser && (perms.access_settings || perms.access_change_passwords || perms.access_technicians);
-  const showToolsSection = hasToolsAccess && !perms.full_access;
+
+  const canOpenTheme =
+    showFullAdminHub || (!!perms.access_settings && isSystemUser) || !!onOpenSettings;
+  const canOpenPasswords =
+    showFullAdminHub ||
+    (!!perms.access_change_passwords && isSystemUser) ||
+    (!!perms.access_change_passwords && !!onOpenChangePasswords);
+
+  const ajustesVisibility: AjustesVisibility = useMemo(
+    () => ({
+      perfil: isSystemUser || ((!isTechnician || Boolean(technicianId)) && !isSystemUser),
+      usuarios: isWorkshopAdmin || (isSystemUser && !!perms.full_access),
+      sair: Boolean(onLogout),
+      senhas: canOpenPasswords,
+      servicos_oficina: showFullAdminHub || !!perms.access_servicos_oficina,
+      checklists_patio: showFullAdminHub || !!perms.access_checklists_patio,
+      painel_tv: showFullAdminHub || !!perms.access_tv_patio,
+      lab_tipos: canManageLabProductTypes,
+      lab_rapidos: canManageLabProductTypes,
+      orcamentos_prefs:
+        showFullAdminHub || !!perms.full_access || typeof onBlurUnverifiedBudgetsChange === 'function',
+      notificacoes_sistema: showFullAdminHub || !!perms.access_notificacoes_sistema,
+      tema: canOpenTheme,
+      dispositivo: true,
+      etiquetas: showFullAdminHub || !!perms.access_settings || !!perms.full_access,
+    }),
+    [
+      isSystemUser,
+      isTechnician,
+      technicianId,
+      isWorkshopAdmin,
+      perms.full_access,
+      perms.access_servicos_oficina,
+      perms.access_checklists_patio,
+      perms.access_tv_patio,
+      perms.access_notificacoes_sistema,
+      perms.access_settings,
+      onLogout,
+      canOpenPasswords,
+      showFullAdminHub,
+      canManageLabProductTypes,
+      onBlurUnverifiedBudgetsChange,
+      canOpenTheme,
+    ]
+  );
+
+  const openAjustesItem = useCallback(
+    (id: AjustesItemId) => {
+      switch (id) {
+        case 'perfil':
+          if (isSystemUser) setIsUserProfileOpen(true);
+          else if (isTechnician) setIsTechnicianProfileOpen(true);
+          else setIsAdminProfileOpen(true);
+          break;
+        case 'usuarios':
+          setIsSystemUsersOpen(true);
+          break;
+        case 'sair':
+          setSettingsHubOpen(false);
+          onLogout?.();
+          break;
+        case 'senhas':
+          if (onOpenChangePasswords && isLimitedSystem) onOpenChangePasswords();
+          else setIsChangePasswordsOpen(true);
+          break;
+        case 'servicos_oficina':
+          setIsServicesModalOpen(true);
+          break;
+        case 'checklists_patio':
+          setIsPatioChecklistsOpen(true);
+          break;
+        case 'painel_tv':
+          break;
+        case 'lab_tipos':
+          setIsLabProductTypesOpen(true);
+          break;
+        case 'lab_rapidos':
+          setIsLabQuickServicesOpen(true);
+          break;
+        case 'orcamentos_prefs':
+          setIsBudgetPrefsOpen(true);
+          break;
+        case 'notificacoes_sistema':
+          setIsSystemNotificationsOpen(true);
+          break;
+        case 'tema':
+          if (onOpenSettings) onOpenSettings();
+          else onOpenApp('settings');
+          break;
+        case 'dispositivo':
+          setIsDeviceLayoutOpen(true);
+          break;
+        case 'etiquetas':
+          setIsLabelEditorOpen(true);
+          break;
+        default:
+          break;
+      }
+    },
+    [
+      isSystemUser,
+      isTechnician,
+      isLimitedSystem,
+      onLogout,
+      onOpenChangePasswords,
+      onOpenSettings,
+      onOpenApp,
+      setSettingsHubOpen,
+    ]
+  );
+
+  const ajustesPerfilTitle = isSystemUser
+    ? 'Configurações de perfil'
+    : isTechnician
+      ? 'Meu perfil'
+      : 'Perfil do administrador';
+  const ajustesPerfilSubtitle = isSystemUser
+    ? 'Nome, foto e cor'
+    : isTechnician
+      ? 'Nome e foto'
+      : 'Nome e foto da gerência';
+  const ajustesPerfilIconSrc = isSystemUser
+    ? '/icons/perfil-ios.png'
+    : isTechnician
+      ? null
+      : '/icons/admin-perfil-ios.png';
 
   const headerDisplayName = useMemo(() => {
     if (isSystemUser) {
@@ -1125,326 +1197,19 @@ export const HomeView: React.FC<HomeViewProps> = ({
               </div>
             </header>
 
-            <div className={`min-h-0 w-full flex-1 overflow-y-auto overscroll-contain pb-[max(1.25rem,env(safe-area-inset-bottom))] [scrollbar-gutter:stable] ${desktopShell ? 'pt-3' : 'pt-5'}`}>
-              <div className="mx-auto w-full max-w-xl space-y-6 px-4 sm:px-6 lg:max-w-5xl">
-                  {showAdminSection && (
-                    <section>
-                      <p className={iosSectionTitle}>Administração</p>
-                      <p className={iosSectionHint}>Usuários, avisos e cadastros da oficina</p>
-                      <div className={`${iosCard} space-y-0.5 p-2 lg:grid lg:grid-cols-2 lg:gap-0 lg:p-2`}>
-                        <div className="space-y-0.5 lg:grid lg:grid-cols-1">
-                          {(isWorkshopAdmin || (isSystemUser && !!perms.full_access)) && (
-                            <SettingsRow
-                              onClick={() => setIsSystemUsersOpen(true)}
-                              title="Usuários do sistema"
-                              subtitle="Acessos e permissões"
-                              icon={
-                                <IosAccentIconSquircle variant="row" strokeWidth={2.2}>
-                                  <img
-                                    src="/icons/usuarios-ios.png"
-                                    alt="Usuários do sistema"
-                                    className="h-full w-full object-cover"
-                                  />
-                                </IosAccentIconSquircle>
-                              }
-                            />
-                          )}
-                          {(showFullAdminHub || !!perms.access_notificacoes_sistema) && (
-                            <SettingsRow
-                              onClick={() => setIsSystemNotificationsOpen(true)}
-                              title="Notificações do sistema"
-                              subtitle="Orçamentos, comentários, OS e lembretes"
-                              icon={
-                                <IosAccentIconSquircle variant="row" strokeWidth={2.2}>
-                                  <img
-                                    src={SYSTEM_NOTIFICATIONS_ICON}
-                                    alt="Notificações do sistema"
-                                    className="h-full w-full object-cover"
-                                  />
-                                </IosAccentIconSquircle>
-                              }
-                            />
-                          )}
-                          {(showFullAdminHub || (!!perms.access_settings && isSystemUser) || !!onOpenSettings) && (
-                            <SettingsRow
-                              onClick={() => {
-                                if (onOpenSettings) onOpenSettings();
-                                else onOpenApp('settings');
-                              }}
-                              title="Tema do sistema"
-                              subtitle="Aparência escura e proteção de placas"
-                              icon={
-                                <IosAccentIconSquircle variant="row" strokeWidth={2.2}>
-                                  <img
-                                    src="/icons/tema-sistema-ios.png"
-                                    alt="Tema do sistema"
-                                    className="h-full w-full object-cover"
-                                  />
-                                </IosAccentIconSquircle>
-                              }
-                            />
-                          )}
-                          {(showFullAdminHub || !!perms.access_servicos_oficina) && (
-                            <SettingsRow
-                              onClick={() => setIsServicesModalOpen(true)}
-                              title="Serviços da oficina"
-                              subtitle="Catálogo e valores"
-                              icon={
-                                <IosAccentIconSquircle variant="row" strokeWidth={2.2}>
-                                  <img
-                                    src="/icons/servicos-oficina-ios.png"
-                                    alt="Serviços da oficina"
-                                    className="h-full w-full object-cover"
-                                  />
-                                </IosAccentIconSquircle>
-                              }
-                            />
-                          )}
-                          {canManageLabProductTypes && (
-                            <SettingsRow
-                              onClick={() => setIsLabProductTypesOpen(true)}
-                              title="Tipos de peça do laboratório"
-                              subtitle="Nomes e fotos dos tipos de peça"
-                              icon={
-                                <IosAccentIconSquircle variant="row" strokeWidth={2.2}>
-                                  <Package />
-                                </IosAccentIconSquircle>
-                              }
-                            />
-                          )}
-                          {canManageLabProductTypes && (
-                            <SettingsRow
-                              onClick={() => setIsLabQuickServicesOpen(true)}
-                              title="Serviços rápidos do laboratório"
-                              subtitle="Botões da avaliação técnica (módulos ABS)"
-                              icon={
-                                <IosAccentIconSquircle variant="row" strokeWidth={2.2}>
-                                  <Wrench />
-                                </IosAccentIconSquircle>
-                              }
-                            />
-                          )}
-                        </div>
-                        <div className="space-y-0.5 lg:border-l lg:border-zinc-200/60 lg:pl-2 dark:lg:border-white/[0.06]">
-                          {(showFullAdminHub || !!perms.access_checklists_patio) && (
-                            <SettingsRow
-                              onClick={() => setIsPatioChecklistsOpen(true)}
-                              title="Checklists do Pátio"
-                              subtitle="Modelos por etapa"
-                              icon={
-                                <IosAccentIconSquircle variant="row" strokeWidth={2.2}>
-                                  <img
-                                    src="/icons/checklist-patio-ios.png"
-                                    alt="Checklists do Pátio"
-                                    className="h-full w-full object-cover"
-                                  />
-                                </IosAccentIconSquircle>
-                              }
-                            />
-                          )}
-                          {(showFullAdminHub || !!perms.access_tv_patio) && (
-                            <a
-                              href="https://patio-view.vercel.app/"
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="group flex w-full items-center gap-3 rounded-2xl px-3 py-3 text-left transition-all duration-200 hover:bg-zinc-100/90 active:scale-[0.99] sm:px-4 sm:py-3.5 dark:hover:bg-white/[0.06]"
-                            >
-                              <IosAccentIconSquircle variant="row" strokeWidth={2.2}>
-                                <img
-                                  src="/icons/painel-patio-tv-ios.png"
-                                  alt="Painel do Pátio (TV)"
-                                  className="h-full w-full object-cover"
-                                />
-                              </IosAccentIconSquircle>
-                              <span className="min-w-0 flex-1">
-                                <span className="block text-[15px] font-medium leading-snug text-zinc-900 dark:text-white">
-                                  Painel do Pátio (TV)
-                                </span>
-                                <span className="mt-0.5 block text-[12px] text-zinc-950 dark:text-zinc-400">
-                                  Abrir em nova aba
-                                </span>
-                              </span>
-                              <ExternalLink className="h-5 w-5 shrink-0 text-zinc-400 transition-colors group-hover:text-brand-yellow" />
-                            </a>
-                          )}
-                          {(showFullAdminHub || (!!perms.access_change_passwords && isSystemUser)) && (
-                            <SettingsRow
-                              onClick={() => setIsChangePasswordsOpen(true)}
-                              title="Alterar senhas"
-                              subtitle="Gerência e equipe"
-                              icon={
-                                <IosAccentIconSquircle variant="row" strokeWidth={2.2}>
-                                  <img
-                                    src="/icons/senhas-ios.png"
-                                    alt="Alterar senhas"
-                                    className="h-full w-full object-cover"
-                                  />
-                                </IosAccentIconSquircle>
-                              }
-                            />
-                          )}
-                        </div>
-                      </div>
-                    </section>
-                  )}
-
-                  <section>
-                    <p className={iosSectionTitle}>Dispositivo e ferramentas</p>
-                    <p className={iosSectionHint}>Layout do aparelho e editor de etiquetas</p>
-                    <div className={`${iosCard} space-y-0.5 p-2`}>
-                      <SettingsRow
-                        onClick={() => setIsDeviceLayoutOpen(true)}
-                        title="Dispositivo detectado"
-                        subtitle="Tipo de tela e layout automático ou manual"
-                        icon={
-                          <IosAccentIconSquircle variant="row" strokeWidth={2.2}>
-                            <MonitorSmartphone />
-                          </IosAccentIconSquircle>
-                        }
-                      />
-                      {(showFullAdminHub || !!perms.access_settings || !!perms.full_access) && (
-                        <SettingsRow
-                          onClick={() => setIsLabelEditorOpen(true)}
-                          title="Editor de etiquetas"
-                          subtitle="Laboratório, estoque e chave"
-                          icon={
-                            <IosAccentIconSquircle variant="row" strokeWidth={2.2}>
-                              <Tag />
-                            </IosAccentIconSquircle>
-                          }
-                        />
-                      )}
-                    </div>
-                  </section>
-
-                  {(showFullAdminHub ||
-                    !!perms.full_access ||
-                    typeof onBlurUnverifiedBudgetsChange === 'function') && (
-                    <section>
-                      <p className={iosSectionTitle}>Orçamentos</p>
-                      <p className={iosSectionHint}>Preferências do hub de orçamentos</p>
-                      <div className={`${iosCard} space-y-0.5 p-2`}>
-                        <SettingsRow
-                          onClick={() => setIsBudgetPrefsOpen(true)}
-                          title="Ajustes de orçamentos"
-                          subtitle="Embaçar orçamentos sem verificação"
-                          icon={
-                            <IosAccentIconSquircle variant="row" strokeWidth={2.2}>
-                              <img
-                                src="/icons/orcamentos-ios.png"
-                                alt="Ajustes de orçamentos"
-                                className="h-full w-full object-cover"
-                              />
-                            </IosAccentIconSquircle>
-                          }
-                        />
-                      </div>
-                    </section>
-                  )}
-
-                  <section>
-                    <p className={iosSectionTitle}>Conta</p>
-                    <p className={iosSectionHint}>Perfil e sessão</p>
-                    <div className={`${iosCard} space-y-0.5 p-2`}>
-                      {isSystemUser && (
-                        <SettingsRow
-                          onClick={() => setIsUserProfileOpen(true)}
-                          title="Configurações de perfil"
-                          subtitle="Nome, foto e cor"
-                          icon={
-                            <IosAccentIconSquircle variant="row" strokeWidth={2.2}>
-                              <img
-                                src="/icons/perfil-ios.png"
-                                alt="Configurações de perfil"
-                                className="h-full w-full object-cover"
-                              />
-                            </IosAccentIconSquircle>
-                          }
-                        />
-                      )}
-                      {(!isTechnician || technicianId) && !isSystemUser && (
-                        <SettingsRow
-                          onClick={() => {
-                            if (isTechnician) setIsTechnicianProfileOpen(true);
-                            else setIsAdminProfileOpen(true);
-                          }}
-                          title={isTechnician ? 'Meu perfil' : 'Perfil do administrador'}
-                          subtitle={isTechnician ? 'Nome e foto' : 'Nome e foto da gerência'}
-                          icon={
-                            <IosAccentIconSquircle variant="row" strokeWidth={2.2}>
-                              {isTechnician ? (
-                                <User />
-                              ) : (
-                                <img
-                                  src="/icons/admin-perfil-ios.png"
-                                  alt="Perfil do administrador"
-                                  className="h-full w-full object-cover"
-                                />
-                              )}
-                            </IosAccentIconSquircle>
-                          }
-                        />
-                      )}
-                      {onLogout && (
-                        <SettingsRow
-                          onClick={() => {
-                            setSettingsHubOpen(false);
-                            onLogout();
-                          }}
-                          title="Sair"
-                          subtitle="Encerrar sessão neste dispositivo"
-                          danger
-                          icon={
-                            <IosAccentIconSquircle variant="row" strokeWidth={2.2}>
-                              <LogOut className="text-red-500 dark:text-red-400" />
-                            </IosAccentIconSquircle>
-                          }
-                        />
-                      )}
-                    </div>
-                  </section>
-
-                  {showToolsSection && (
-                    <section>
-                      <p className={iosSectionTitle}>Ferramentas</p>
-                      <p className={iosSectionHint}>Opções liberadas para você</p>
-                      <div className={`${iosCard} space-y-0.5 p-2`}>
-                        {perms.access_settings && onOpenSettings && (
-                          <SettingsRow
-                            onClick={() => onOpenSettings()}
-                            title="Tema do sistema"
-                            subtitle="Aparência escura e proteção de placas"
-                            icon={
-                              <IosAccentIconSquircle variant="row" strokeWidth={2.2}>
-                                <img
-                                  src="/icons/tema-sistema-ios.png"
-                                  alt="Tema do sistema"
-                                  className="h-full w-full object-cover"
-                                />
-                              </IosAccentIconSquircle>
-                            }
-                          />
-                        )}
-                        {perms.access_change_passwords && onOpenChangePasswords && (
-                          <SettingsRow
-                            onClick={() => onOpenChangePasswords()}
-                            title="Alterar senhas"
-                            subtitle="Segurança de acessos"
-                            icon={
-                              <IosAccentIconSquircle variant="row" strokeWidth={2.2}>
-                                <img
-                                  src="/icons/senhas-ios.png"
-                                  alt="Alterar senhas"
-                                  className="h-full w-full object-cover"
-                                />
-                              </IosAccentIconSquircle>
-                            }
-                          />
-                        )}
-                      </div>
-                    </section>
-                  )}
-              </div>
+            <div
+              className={`min-h-0 w-full flex-1 overflow-hidden pb-[max(0.75rem,env(safe-area-inset-bottom))] ${
+                desktopShell ? 'px-5 pt-3' : 'px-3 pt-3 sm:px-4'
+              }`}
+            >
+              <AjustesHubPanel
+                desktopShell={Boolean(desktopShell)}
+                perfilTitle={ajustesPerfilTitle}
+                perfilSubtitle={ajustesPerfilSubtitle}
+                perfilIconSrc={ajustesPerfilIconSrc}
+                visibility={ajustesVisibility}
+                onOpenItem={openAjustesItem}
+              />
             </div>
       </div>
         </SettingsHubShell>
