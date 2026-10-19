@@ -10,8 +10,10 @@ import {
   iosModalClose,
   iosModalShell,
   iosPrimaryButton,
+  NESTED_IOS_MODAL_PICKER_Z,
   resolveIosModalOverlayClass,
 } from '../ui/iosModalStyles';
+import { desktopShellPortaledChildOverlayClass } from '../../utils/desktopShellOverlay';
 import {
   getServiceOrderServiceTechnicians,
   saveServiceOrderServiceTechnicians,
@@ -53,8 +55,8 @@ const serviceCardClass =
 const technicianFieldClass =
   'flex w-full min-h-[40px] items-center gap-2.5 rounded-lg border border-zinc-200/90 bg-white py-2 pl-3 pr-3 text-left text-[14px] text-zinc-900 transition-colors hover:border-zinc-300 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/35 dark:border-white/10 dark:bg-white/5 dark:text-white dark:hover:border-white/20';
 
-const technicianSelectOverlayClass =
-  'fixed inset-0 z-[150] flex items-end justify-center bg-black/45 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-sm sm:items-center sm:p-6';
+const technicianSelectOverlayAppearance =
+  'flex items-end justify-center bg-black/45 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-sm sm:items-center sm:p-6';
 
 const technicianSelectShellClass =
   'flex max-h-[min(70vh,420px)] w-full max-w-sm flex-col overflow-hidden rounded-[22px] border-0 bg-white shadow-none dark:bg-zinc-900';
@@ -142,6 +144,7 @@ type TechnicianSelectMiniModalProps = {
   options: TechOption[];
   selectedId: string;
   serviceLabel: string;
+  isDesktopShell: boolean;
   onSelect: (technicianId: string) => void;
   onClose: () => void;
 };
@@ -150,11 +153,12 @@ const TechnicianSelectMiniModal: React.FC<TechnicianSelectMiniModalProps> = ({
   options,
   selectedId,
   serviceLabel,
+  isDesktopShell,
   onSelect,
   onClose,
 }) => (
   <div
-    className={technicianSelectOverlayClass}
+    className={`${desktopShellPortaledChildOverlayClass(isDesktopShell, NESTED_IOS_MODAL_PICKER_Z)} ${technicianSelectOverlayAppearance}`}
     role="presentation"
     onClick={onClose}
     onKeyDown={(e) => {
@@ -476,6 +480,7 @@ export const ServiceTechnicianClosingModal: React.FC<ServiceTechnicianClosingMod
           options={techOptions}
           selectedId={pickingLine.technicianId}
           serviceLabel={pickingLine.description}
+          isDesktopShell={isDesktopShell}
           onClose={() => setOpenPickerKey(null)}
           onSelect={(technicianId) => {
             setLines((prev) =>
