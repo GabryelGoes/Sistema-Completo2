@@ -196,13 +196,17 @@ export function mapServiceOrdersToTvBoard(
       const model = (row.vehicle_model || row.module_identification || 'Veículo')
         .replace(/Land Rover/gi, '')
         .trim();
+      const techId = (row.assigned_technician || '').trim();
+      const techName = (row.assigned_technician_name || '').trim().replace(/\u200B/g, '');
+      const awaitingEval = stage === 'Aguardando Avaliação';
       return {
         id: row.id,
         primary: model || 'Veículo',
         client: firstNameOnly(customerDisplayName(row)),
         stage,
         fourth: (row.plate ?? '---').toUpperCase(),
-        fifth: (row.assigned_technician_name || row.assigned_technician || 'Pátio').trim() || 'Pátio',
+        // Aguardando Avaliação sem mecânico: coluna vazia (sem "Pátio" / sem cronômetro).
+        fifth: techId ? techName || techId : awaitingEval ? '' : 'Pátio',
         garantiaTag: row.garantia_tag === true,
       };
     })

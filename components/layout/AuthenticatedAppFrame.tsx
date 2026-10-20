@@ -1,4 +1,5 @@
 import React from 'react';
+import { Settings } from 'lucide-react';
 import type { TabId } from '../TabBar';
 import { OverlayPageNavBar } from '../ui/OverlayPageNavBar';
 import { DesktopShellProvider } from '../ui/DesktopShellContext';
@@ -106,6 +107,19 @@ export function AuthenticatedAppFrame({
         onBack={onBackFromOverlay}
         label={overlayBackLabel}
       />
+      {onOpenSettings && currentTab !== 'home' ? (
+        <div className="pointer-events-none fixed inset-x-0 top-0 z-50 flex items-start justify-end px-3 pt-[max(0.65rem,env(safe-area-inset-top))] sm:px-4">
+          <button
+            type="button"
+            onClick={onOpenSettings}
+            className="pointer-events-auto inline-flex h-9 w-9 items-center justify-center rounded-full border border-zinc-200/75 bg-white/85 text-zinc-700 shadow-[0_4px_18px_-8px_rgba(0,0,0,0.28)] backdrop-blur-xl transition-all hover:bg-white/95 active:scale-[0.97] dark:border-white/[0.12] dark:bg-zinc-900/80 dark:text-zinc-200 dark:hover:bg-zinc-900/90 sm:h-10 sm:w-10"
+            aria-label="Ajustes"
+            title="Ajustes"
+          >
+            <Settings className="h-4 w-4 sm:h-5 sm:w-5" strokeWidth={2.25} />
+          </button>
+        </div>
+      ) : null}
       <main className="relative z-10 flex-1 min-h-0 flex flex-col overflow-hidden">{children}</main>
     </div>
   );

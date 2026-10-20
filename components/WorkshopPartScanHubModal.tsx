@@ -10,9 +10,14 @@ import {
 } from 'lucide-react';
 import {
   getWorkshopPartPurchases,
+  lookupWorkshopAbsModuleByCode,
   lookupWorkshopPartByCode,
   type WorkshopPart,
 } from '../services/apiService';
+import {
+  looksLikeAbsModuleCode,
+  normalizeAbsModuleCode,
+} from '../utils/workshopAbsModules';
 import { storageSiteLabel } from '../utils/workshopPartFields';
 import {
   formatWorkshopPartQty,
@@ -41,6 +46,8 @@ export type WorkshopPartScanHubModalProps = {
   onRegisterProduct: (barcode: string) => void;
   onSaleOutbound: (part: WorkshopPart) => void;
   onConsumableOutbound: (part: WorkshopPart) => void;
+  /** Quando o código é um módulo ABS (ABS-######), abre a área ABS. */
+  onOpenAbsModule?: (publicId: string) => void;
   /** Classe Tailwind de z-index do overlay (padrão: nested stock). */
   overlayZClass?: string;
 };
@@ -66,6 +73,7 @@ export function WorkshopPartScanHubModal({
   onRegisterProduct,
   onSaleOutbound,
   onConsumableOutbound,
+  onOpenAbsModule,
   overlayZClass = NESTED_STOCK_OVERLAY_Z,
 }: WorkshopPartScanHubModalProps) {
   const isDesktopShell = useDesktopShellLayout();
@@ -127,24 +135,41 @@ export function WorkshopPartScanHubModal({
     setResolved({ kind: 'part', code: resolved.code, part: fresh });
   }, [catalogParts, resolved]);
 
-  const handleSubmitCode = useCallback(async (raw: string) => {
-    const trimmed = raw.trim();
-    if (!trimmed) return;
-    const seq = ++lookupSeqRef.current;
-    setLookingUp(true);
-    setError(null);
-    try {
-      const found = await lookupWorkshopPartByCode(trimmed);
-      if (seq !== lookupSeqRef.current) return;
-      if (found) setResolved({ kind: 'part', code: trimmed, part: found });
-      else setResolved({ kind: 'missing_part', code: trimmed });
-    } catch (e) {
-      if (seq !== lookupSeqRef.current) return;
-      setError(e instanceof Error ? e.message : 'Falha ao consultar o código.');
-    } finally {
-      if (seq === lookupSeqRef.current) setLookingUp(false);
-    }
-  }, []);
+  const handleSubmitCode = useCallback(
+    async (raw: string) => {
+      const trimmed = raw.trim();
+      if (!trimmed) return;
+      const seq = ++lookupSeqRef.current;
+      setLookingUp(true);
+      setError(null);
+      try {
+        {
+          const absId = normalizeAbsModuleCode(trimmed);
+          if (absId && onOpenAbsModule) {
+            const abs = await lookupWorkshopAbsModuleByCode(absId);
+            if (seq !== lookupSeqRef.current) return;
+            onOpenAbsModule(abs.module?.public_id || abs.public_id || absId);
+            return;
+          }
+          if (looksLikeAbsModuleCode(trimmed) && !absId) {
+            if (seq !== lookupSeqRef.current) return;
+            setError('ID de módulo ABS inválido. Use o formato ABS-000001.');
+            return;
+          }
+        }
+        const found = await lookupWorkshopPartByCode(trimmed);
+        if (seq !== lookupSeqRef.current) return;
+        if (found) setResolved({ kind: 'part', code: trimmed, part: found });
+        else setResolved({ kind: 'missing_part', code: trimmed });
+      } catch (e) {
+        if (seq !== lookupSeqRef.current) return;
+        setError(e instanceof Error ? e.message : 'Falha ao consultar o código.');
+      } finally {
+        if (seq === lookupSeqRef.current) setLookingUp(false);
+      }
+    },
+    [onOpenAbsModule]
+  );
 
   useEffect(() => {
     if (!isOpen || !externalScanCode || externalScanToken == null) return;

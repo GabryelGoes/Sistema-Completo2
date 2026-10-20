@@ -12,13 +12,13 @@ import {
   Pencil,
   Plus,
   QrCode,
+  Scale,
   ScanLine,
   Search,
-  Tags,
   Trash2,
   X,
 } from 'lucide-react';
-import type { WorkshopPart, WorkshopPartCategory, WorkshopPartPendingReservation } from '../services/apiService';
+import type { WorkshopPart, WorkshopPartPendingReservation } from '../services/apiService';
 import {
   formatWorkshopPartQty,
   formatWorkshopPartsCurrency,
@@ -37,7 +37,6 @@ export type WorkshopPartsHomeDashboardProps = {
   filteredParts: WorkshopPart[];
   partsInCategoryScopeCount: number;
   partsAfterStockFilterEmpty: boolean;
-  categories: WorkshopPartCategory[];
   categoryCounts: {
     counts: Map<string, number>;
     uncategorized: number;
@@ -65,7 +64,11 @@ export type WorkshopPartsHomeDashboardProps = {
   categoryNamesForPart: (part: WorkshopPart) => string[];
   onOpenScan: () => void;
   onOpenAnalytics: () => void;
-  onOpenCategories: () => void;
+  /** Histórico unificado de compras / entradas e saídas. */
+  onOpenHistory: () => void;
+  /** Modo Balanço: senha uma vez; alterações sem novo prompt até sair do Estoque. */
+  balanceModeActive: boolean;
+  onToggleBalanceMode: () => void;
   /** Opcional: só aparece se o fluxo de módulos ABS estiver disponível nesta build. */
   onOpenAbsModules?: () => void;
   onAddPart: () => void;
@@ -81,6 +84,8 @@ export type WorkshopPartsHomeDashboardProps = {
   onEditingStockChange: (v: string) => void;
   onSaveEdit: () => void;
   onCancelEdit: () => void;
+  /** Ref do container rolável da lista — usado para preservar a posição ao editar/abrir ficha. */
+  listScrollRef?: React.RefObject<HTMLDivElement | null>;
 };
 
 const actionBtnSecondary =
@@ -112,7 +117,6 @@ export function WorkshopPartsHomeDashboard({
   filteredParts,
   partsInCategoryScopeCount,
   partsAfterStockFilterEmpty,
-  categories,
   categoryCounts,
   stockAlerts,
   pendingReservations,
@@ -136,7 +140,9 @@ export function WorkshopPartsHomeDashboard({
   categoryNamesForPart,
   onOpenScan,
   onOpenAnalytics,
-  onOpenCategories,
+  onOpenHistory,
+  balanceModeActive,
+  onToggleBalanceMode,
   onOpenAbsModules,
   onAddPart,
   onOpenPart,
@@ -151,6 +157,7 @@ export function WorkshopPartsHomeDashboard({
   onEditingStockChange,
   onSaveEdit,
   onCancelEdit,
+  listScrollRef,
 }: WorkshopPartsHomeDashboardProps) {
   const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -181,12 +188,11 @@ export function WorkshopPartsHomeDashboard({
   const gridCols =
     'lg:grid-cols-[minmax(14rem,2.2fr)_minmax(7rem,0.9fr)_minmax(7rem,0.9fr)_minmax(5.5rem,0.7fr)_minmax(5.5rem,0.7fr)_minmax(4.5rem,0.55fr)_minmax(7.5rem,0.9fr)_5.5rem]';
 
-  /** Container com overflow: padding-bottom reserva faixa da scrollbar abaixo das pills. */
-  const categoryScrollCls =
-    'overflow-x-auto overflow-y-hidden pt-0.5 pb-2 [scrollbar-width:thin] [scrollbar-color:rgba(113,113,122,0.22)_transparent] [&::-webkit-scrollbar]:h-1 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-zinc-400/20 hover:[&::-webkit-scrollbar-thumb]:bg-zinc-400/35 dark:[&::-webkit-scrollbar-thumb]:bg-white/15';
-
   return (
-    <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-auto touch-pan-y px-4 pb-[max(2rem,env(safe-area-inset-bottom))] custom-scrollbar [scrollbar-gutter:stable] sm:px-6 lg:px-8">
+    <div
+      ref={listScrollRef}
+      className="min-h-0 flex-1 overflow-y-auto overscroll-y-auto touch-pan-y px-4 pb-[max(2rem,env(safe-area-inset-bottom))] custom-scrollbar [scrollbar-gutter:stable] sm:px-6 lg:px-8"
+    >
       {/* Barra de ações — sobe e some ao rolar */}
       <div className="mb-5 flex flex-col gap-3 pt-1 sm:mb-6 sm:flex-row sm:items-start sm:justify-between">
         {!loading ? (
@@ -254,6 +260,19 @@ export function WorkshopPartsHomeDashboard({
         )}
 
         <div className="flex flex-wrap gap-2 justify-end shrink-0">
+          <button
+            type="button"
+            onClick={onToggleBalanceMode}
+            aria-pressed={balanceModeActive}
+            className={
+              balanceModeActive
+                ? 'inline-flex items-center justify-center gap-2 rounded-2xl border-0 bg-amber-500 px-4 py-3 text-[14px] font-semibold text-white shadow-none transition-colors hover:bg-amber-600'
+                : actionBtnSecondary
+            }
+          >
+            <Scale className="h-4 w-4" aria-hidden />
+            {balanceModeActive ? 'Balanço ativo' : 'Balanço'}
+          </button>
           <button type="button" onClick={onOpenScan} className={actionBtnGreen}>
             <ScanLine className="h-4 w-4" aria-hidden />
             Escanear código
@@ -262,9 +281,9 @@ export function WorkshopPartsHomeDashboard({
             <BarChart3 className="h-4 w-4" aria-hidden />
             Gráficos
           </button>
-          <button type="button" onClick={onOpenCategories} className={actionBtnSecondary}>
-            <Tags className="h-4 w-4" aria-hidden />
-            Categorias
+          <button type="button" onClick={onOpenHistory} className={actionBtnSecondary}>
+            <History className="h-4 w-4" aria-hidden />
+            Histórico de compras
           </button>
           {onOpenAbsModules ? (
             <button type="button" onClick={onOpenAbsModules} className={actionBtnSecondary}>
@@ -278,6 +297,14 @@ export function WorkshopPartsHomeDashboard({
           </button>
         </div>
       </div>
+
+      {balanceModeActive ? (
+        <div className="mb-4 rounded-xl border-0 bg-amber-50 px-4 py-3 text-sm text-amber-950 shadow-none dark:bg-amber-950/35 dark:text-amber-100">
+          <span className="font-semibold">Modo Balanço ativo.</span>{' '}
+          Alterações no estoque não pedem senha até você sair desta página. Ao sair, o modo será
+          desativado.
+        </div>
+      ) : null}
 
       {error ? (
         <div className="mb-4 rounded-xl border-0 bg-red-50 px-4 py-3 text-sm text-red-700 shadow-none dark:bg-red-950/30 dark:text-red-300">
@@ -351,9 +378,9 @@ export function WorkshopPartsHomeDashboard({
         </div>
       ) : null}
 
-      {/* Busca + categorias: sticky — trava aqui; abaixo só a lista rola */}
+      {/* Busca + filtro: sticky — trava aqui; abaixo só a lista rola */}
       {!loading && parts.length > 0 ? (
-        <div className="sticky top-0 z-30 -mx-4 mb-4 space-y-2.5 border-b border-zinc-200/60 bg-[#F4F5F7] px-4 pb-2.5 pt-1 dark:border-white/[0.06] dark:bg-zinc-950 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
+        <div className="sticky top-0 z-30 -mx-4 mb-4 border-b border-zinc-200/60 bg-[#F4F5F7] px-4 pb-2.5 pt-1 dark:border-white/[0.06] dark:bg-zinc-950 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-stretch">
             <div className="relative min-w-0 flex-1">
               <label htmlFor="workshop-parts-search" className="sr-only">
@@ -475,62 +502,6 @@ export function WorkshopPartsHomeDashboard({
                 <History className="h-4 w-4 shrink-0" aria-hidden />
                 Antigo
               </button>
-            </div>
-          </div>
-
-          <div className={categoryScrollCls}>
-            <div className="flex w-max min-w-full gap-2">
-              <button
-                type="button"
-                onClick={() => {
-                  onCategoryFilterChange('all');
-                  setCategoryFilterMenuOpen(false);
-                }}
-                className={`shrink-0 rounded-full px-3.5 py-1.5 text-[13px] font-semibold transition-colors ${
-                  categoryFilter === 'all'
-                    ? 'bg-[#0F7A4B] text-white'
-                    : 'bg-zinc-200/90 text-zinc-800 hover:bg-zinc-300/90 dark:bg-white/10 dark:text-zinc-200 dark:hover:bg-white/15'
-                }`}
-              >
-                Todos <span className="tabular-nums">({categoryCounts.total})</span>
-              </button>
-              {categoryCounts.uncategorized > 0 ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    onCategoryFilterChange('uncategorized');
-                    setCategoryFilterMenuOpen(false);
-                  }}
-                  className={`shrink-0 rounded-full px-3.5 py-1.5 text-[13px] font-semibold transition-colors ${
-                    categoryFilter === 'uncategorized'
-                      ? 'bg-[#0F7A4B] text-white'
-                      : 'bg-zinc-200/90 text-zinc-800 hover:bg-zinc-300/90 dark:bg-white/10 dark:text-zinc-200 dark:hover:bg-white/15'
-                  }`}
-                >
-                  Sem categoria <span className="tabular-nums">({categoryCounts.uncategorized})</span>
-                </button>
-              ) : null}
-              {categories.map((c) => {
-                const n = categoryCounts.counts.get(c.id) ?? 0;
-                if (n === 0) return null;
-                return (
-                  <button
-                    key={c.id}
-                    type="button"
-                    onClick={() => {
-                      onCategoryFilterChange(c.id);
-                      setCategoryFilterMenuOpen(false);
-                    }}
-                    className={`shrink-0 rounded-full px-3.5 py-1.5 text-[13px] font-semibold transition-colors ${
-                      categoryFilter === c.id
-                        ? 'bg-[#0F7A4B] text-white'
-                        : 'bg-zinc-200/90 text-zinc-800 hover:bg-zinc-300/90 dark:bg-white/10 dark:text-zinc-200 dark:hover:bg-white/15'
-                    }`}
-                  >
-                    {c.name} <span className="tabular-nums">({n})</span>
-                  </button>
-                );
-              })}
             </div>
           </div>
         </div>
@@ -694,9 +665,6 @@ export function WorkshopPartsHomeDashboard({
                           <span className="truncate text-[15px] font-bold leading-snug text-zinc-900 dark:text-white">
                             {p.name}
                           </span>
-                          <span className="truncate text-[12px] text-zinc-500 dark:text-zinc-400">
-                            {storageSiteLabel(p.storage_site)}
-                          </span>
                           <span className="lg:hidden">
                             <WorkshopPartStockBadge status={stockStatus} showOk className="mt-1" />
                           </span>
@@ -739,8 +707,13 @@ export function WorkshopPartsHomeDashboard({
                         )}
                       </div>
 
-                      <span className="mt-2 block text-[13px] font-medium tabular-nums text-zinc-700 dark:text-zinc-300 lg:mt-0">
-                        {location}
+                      <span className="mt-2 flex min-w-0 flex-col gap-0.5 lg:mt-0">
+                        <span className="truncate text-[12px] font-medium leading-snug text-zinc-500 dark:text-zinc-400">
+                          {storageSiteLabel(p.storage_site)}
+                        </span>
+                        <span className="truncate text-[13px] font-semibold tabular-nums leading-snug text-zinc-800 dark:text-zinc-200">
+                          {location}
+                        </span>
                       </span>
 
                       <span className="mt-2 block text-[13px] font-medium tabular-nums text-zinc-800 dark:text-zinc-200 lg:mt-0 lg:text-right">

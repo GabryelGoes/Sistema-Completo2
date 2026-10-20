@@ -2,13 +2,22 @@
 
 ## Cursor Cloud specific instructions
 
+### Base oficial do repositório
+
+- A branch **`main`** (`origin/main`) é a **única base oficial** para novos agentes e novas funcionalidades.
+- **Antes de qualquer tarefa:** `git fetch origin main` e confirme que a branch de trabalho contém a `main` atual (`git merge-base --is-ancestor origin/main HEAD`). Se for trabalho novo, crie `cursor/<nome>-485b` a partir de `origin/main`.
+- **Não** usar branches antigas `cursor/*`, stacks intermediárias nem PRs órfãos como base de agente novo.
+- **Não** fazer commit/push direto em `main` — sempre branch → PR → `main`.
+- Regras detalhadas: `.cursor/rules/main-official-base.mdc`, `layout-branch-base.mdc`, `never-discard-user-work.mdc`, `auto-commit-push.mdc`.
+- Proteções GitHub da `main` (ativação admin): `.cursor/GITHUB_MAIN_PROTECTION.md`.
+
 ### O que é este projeto
 App de gestão de oficina ("Rei do ABS"): frontend React + Vite e API Express, servidos **juntos** pelo mesmo processo (`tsx server.ts`). É um único serviço em desenvolvimento.
 
 ### Rodar (dev)
 - Instalar deps: `npm install` (já feito pelo update script no boot).
 - Subir tudo (frontend + API): `npm run dev` → escuta em `http://localhost:3000` (Vite em middleware do Express; sem porta separada para a API).
-- Lint: `npm run lint` (é `tsc --noEmit`). Atenção: hoje ele **reporta erros de tipos pré-existentes** no código do repo — não é um gate limpo e esses erros não são causados pela configuração do ambiente.
+- Lint: `npm run lint` (é `tsc --noEmit`).
 - Build de produção: `npm run build` (Vite). Não é usado em dev.
 
 ### Node

@@ -96,9 +96,22 @@ function TypeSwitches(props: {
 interface SystemNotificationsModalProps {
   isOpen: boolean;
   onClose: () => void;
+  /** Banners macOS de orçamento criado/editado/verificado (modo PC). */
+  budgetBannerNotifications?: boolean;
+  onBudgetBannerNotificationsChange?: (enabled: boolean) => void;
+  /** Banners macOS de novos comentários (modo PC). */
+  commentBannerNotifications?: boolean;
+  onCommentBannerNotificationsChange?: (enabled: boolean) => void;
 }
 
-export const SystemNotificationsModal: React.FC<SystemNotificationsModalProps> = ({ isOpen, onClose }) => {
+export const SystemNotificationsModal: React.FC<SystemNotificationsModalProps> = ({
+  isOpen,
+  onClose,
+  budgetBannerNotifications = true,
+  onBudgetBannerNotificationsChange,
+  commentBannerNotifications = true,
+  onCommentBannerNotificationsChange,
+}) => {
   const isDesktopShell = useDesktopShellLayout();
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -191,6 +204,60 @@ export const SystemNotificationsModal: React.FC<SystemNotificationsModalProps> =
             </div>
           ) : (
             <form onSubmit={handleSave} className="space-y-5 mt-4">
+              {(typeof onBudgetBannerNotificationsChange === 'function' ||
+                typeof onCommentBannerNotificationsChange === 'function') && (
+                <div className={`${iosModalInsetCard} p-4`}>
+                  <p className="text-[13px] font-semibold text-zinc-800 dark:text-zinc-200 mb-1">
+                    Banners na tela (modo PC)
+                  </p>
+                  <p className="text-[12px] text-zinc-500 dark:text-zinc-400 mb-3">
+                    Alertas no canto da tela no estilo macOS, sem abrir a central.
+                  </p>
+                  <div className="space-y-3">
+                    {typeof onBudgetBannerNotificationsChange === 'function' ? (
+                      <div className="flex items-center justify-between gap-4">
+                        <div className="min-w-0 flex-1">
+                          <p className="text-[14px] font-medium text-zinc-900 dark:text-white">
+                            Banners de orçamento
+                          </p>
+                          <p className="text-[12px] text-zinc-500 dark:text-zinc-400 mt-0.5">
+                            Quando um orçamento é criado, editado ou verificado
+                          </p>
+                        </div>
+                        <IosSwitch
+                          id="notif-budget-banners"
+                          checked={budgetBannerNotifications}
+                          onChange={() =>
+                            onBudgetBannerNotificationsChange(!budgetBannerNotifications)
+                          }
+                          ariaLabel="Ativar banners de orçamento"
+                        />
+                      </div>
+                    ) : null}
+                    {typeof onCommentBannerNotificationsChange === 'function' ? (
+                      <div className="flex items-center justify-between gap-4">
+                        <div className="min-w-0 flex-1">
+                          <p className="text-[14px] font-medium text-zinc-900 dark:text-white">
+                            Banners de comentários
+                          </p>
+                          <p className="text-[12px] text-zinc-500 dark:text-zinc-400 mt-0.5">
+                            Quando chega um novo comentário (com som próprio)
+                          </p>
+                        </div>
+                        <IosSwitch
+                          id="notif-comment-banners"
+                          checked={commentBannerNotifications}
+                          onChange={() =>
+                            onCommentBannerNotificationsChange(!commentBannerNotifications)
+                          }
+                          ariaLabel="Ativar banners de comentários"
+                        />
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+              )}
+
               <div className={`${iosModalInsetCard} p-4`}>
                 <p className="text-[13px] font-semibold text-zinc-800 dark:text-zinc-200 mb-1">Central (comentários, orçamentos e OS)</p>
                 <p className="text-[12px] text-zinc-500 dark:text-zinc-400 mb-3">Gerencie quem recebe notificações operacionais da oficina.</p>
