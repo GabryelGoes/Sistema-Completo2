@@ -598,6 +598,63 @@ function orderToCard(o: ServiceOrderListItem, technicianNameMap?: Record<string,
   };
 }
 
+/** Etapa cuja ordem no quadro é a de chegada (createdAt) — nunca por updated_at. */
+const WAITING_EVAL_STAGE = 'AGUARDANDO_AVALIACAO';
+
+function patioCardArrivalMs(card: TrelloCard): number {
+  const created = card.createdAt ? new Date(card.createdAt).getTime() : NaN;
+  if (Number.isFinite(created)) return created;
+  const act = card.dateLastActivity ? new Date(card.dateLastActivity).getTime() : 0;
+  return Number.isFinite(act) ? act : 0;
+}
+
+/** Mais antigo primeiro (= ordem de chegada). Empate estável por id. */
+function compareWaitingEvalArrival(a: TrelloCard, b: TrelloCard): number {
+  const diff = patioCardArrivalMs(a) - patioCardArrivalMs(b);
+  if (diff !== 0) return diff;
+  return String(a.id).localeCompare(String(b.id));
+}
+
+function formatWaitElapsedHm(sinceIso: string | null | undefined, nowMs: number): string | null {
+  if (!sinceIso) return null;
+  const start = new Date(sinceIso).getTime();
+  if (!Number.isFinite(start)) return null;
+  const totalMin = Math.max(0, Math.floor((nowMs - start) / 60_000));
+  const h = Math.floor(totalMin / 60);
+  const m = totalMin % 60;
+  return `${h}h ${String(m).padStart(2, '0')}m`;
+}
+
+/** Cronômetro simples (horas + minutos) desde a chegada da OS. */
+function PatioCardWaitTimer({
+  sinceIso,
+  compact,
+}: {
+  sinceIso: string | null | undefined;
+  compact?: boolean;
+}) {
+  const [nowMs, setNowMs] = useState(() => Date.now());
+  useEffect(() => {
+    if (!sinceIso) return;
+    const id = window.setInterval(() => setNowMs(Date.now()), 30_000);
+    return () => window.clearInterval(id);
+  }, [sinceIso]);
+  const label = formatWaitElapsedHm(sinceIso, nowMs);
+  if (!label) return null;
+  return (
+    <span
+      className={`inline-flex shrink-0 items-center gap-1 tabular-nums font-semibold text-zinc-500 dark:text-zinc-400 ${
+        compact ? 'text-[10px]' : 'text-[11px]'
+      }`}
+      title={`Na fila há ${label}`}
+      aria-label={`Tempo na fila: ${label}`}
+    >
+      <Clock className={compact ? 'h-3 w-3' : 'h-3.5 w-3.5'} strokeWidth={2.25} aria-hidden />
+      {label}
+    </span>
+  );
+}
+
 /** Lista de arquivados: mais recentemente atualizado (arquivado) primeiro. */
 function sortArchivedOrdersNewestFirst(orders: ServiceOrderListItem[]): ServiceOrderListItem[] {
   return [...orders].sort(
@@ -7319,9 +7376,16 @@ export const PatioView: React.FC<PatioViewProps> = ({
           const ia = stageOrder.indexOf(a.idList);
           const ib = stageOrder.indexOf(b.idList);
           if (ia !== ib) return ia - ib;
+          // Aguardando avaliação: ordem de chegada fixa (createdAt), ignora edição de ficha/queixa.
+          if (a.idList === WAITING_EVAL_STAGE && b.idList === WAITING_EVAL_STAGE) {
+            return compareWaitingEvalArrival(a, b);
+          }
           return new Date(b.dateLastActivity).getTime() - new Date(a.dateLastActivity).getTime();
         };
         const byRecentGlobal = (a: TrelloCard, b: TrelloCard) => {
+          if (a.idList === WAITING_EVAL_STAGE && b.idList === WAITING_EVAL_STAGE) {
+            return compareWaitingEvalArrival(a, b);
+          }
           const ta = new Date(a.dateLastActivity).getTime();
           const tb = new Date(b.dateLastActivity).getTime();
           if (tb !== ta) return tb - ta;
@@ -7361,8 +7425,13 @@ export const PatioView: React.FC<PatioViewProps> = ({
             });
           return base.filter((c) => c.members?.[0]?.id === colKey);
         };
-        const cardsForStageColumn = (listId: string) =>
-          [...cards].filter((c) => c.idList === listId).sort(byStage);
+        const cardsForStageColumn = (listId: string) => {
+          const filtered = cards.filter((c) => c.idList === listId);
+          if (listId === WAITING_EVAL_STAGE) {
+            return [...filtered].sort(compareWaitingEvalArrival);
+          }
+          return [...filtered].sort(byStage);
+        };
 
         const gridCols = Math.max(3, Math.min(6, patioGridColumnCount));
         const gridClassName = `relative z-0 grid items-start perspective-[1400px] transition-[gap] duration-500 ease-[cubic-bezier(0.34,1.35,0.25,1)] gap-3 sm:gap-3.5 ${
@@ -7634,8 +7703,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   ) : null}
                 </div>
 
-                {/* Cliente */}
-                {customerName ? (
+                {/* Cliente (+ cronômetro à direita em Aguardando avaliação) */}
+                {customerName || card.idList === WAITING_EVAL_STAGE ? (
                   <div
                     className={`mb-0 flex max-w-full items-center gap-2 rounded-2xl border-0 bg-zinc-100/90 dark:bg-white/[0.06] portrait:rounded-xl ${
                       boardPanoramic
@@ -7643,16 +7712,25 @@ export const PatioView: React.FC<PatioViewProps> = ({
                         : 'min-h-[2.6rem] px-3 py-2.5 portrait:min-h-[2.35rem] portrait:px-2.5 portrait:py-2'
                     }`}
                   >
-                    <User className={`shrink-0 text-[#007AFF] ${boardPanoramic ? 'h-3.5 w-3.5' : 'h-4 w-4'}`} strokeWidth={2} />
-                    <span
-                      className={`min-w-0 flex-1 truncate font-semibold tracking-tight text-zinc-700 dark:text-zinc-200 ${
-                        boardPanoramic
-                          ? 'text-[1.049rem] portrait:text-[0.8392rem]'
-                          : 'text-[1.199rem] portrait:text-[0.9592rem]'
-                      }`}
-                    >
-                      {firstTwoNames(customerName)}
-                    </span>
+                    {customerName ? (
+                      <>
+                        <User className={`shrink-0 text-[#007AFF] ${boardPanoramic ? 'h-3.5 w-3.5' : 'h-4 w-4'}`} strokeWidth={2} />
+                        <span
+                          className={`min-w-0 flex-1 truncate font-semibold tracking-tight text-zinc-700 dark:text-zinc-200 ${
+                            boardPanoramic
+                              ? 'text-[1.049rem] portrait:text-[0.8392rem]'
+                              : 'text-[1.199rem] portrait:text-[0.9592rem]'
+                          }`}
+                        >
+                          {firstTwoNames(customerName)}
+                        </span>
+                      </>
+                    ) : (
+                      <span className="min-w-0 flex-1" aria-hidden />
+                    )}
+                    {card.idList === WAITING_EVAL_STAGE ? (
+                      <PatioCardWaitTimer sinceIso={card.createdAt} compact={boardPanoramic} />
+                    ) : null}
                   </div>
                 ) : null}
 
