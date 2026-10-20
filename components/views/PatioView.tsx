@@ -1052,6 +1052,7 @@ const Lightbox = ({
   }, []);
 
   useEffect(() => {
+    if (!src) return;
     const el = pinchContainerRef.current;
     if (!el) return;
     const onWheel = (e: WheelEvent) => {
@@ -1060,7 +1061,7 @@ const Lightbox = ({
     };
     el.addEventListener('wheel', onWheel, { passive: false });
     return () => el.removeEventListener('wheel', onWheel);
-  }, [applyWheelZoom]);
+  }, [applyWheelZoom, src]);
 
   const handlePointerDown = (e: React.PointerEvent) => {
     // Toque continua no fluxo touch*; evita pan duplicado.

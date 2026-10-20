@@ -132,6 +132,7 @@ export function Lightbox({ src: singleSrc, images: imagesProp, initialIndex = 0,
   }, []);
 
   useEffect(() => {
+    if (!src) return;
     const el = containerRef.current;
     if (!el) return;
     const onWheel = (e: WheelEvent) => {
@@ -140,7 +141,7 @@ export function Lightbox({ src: singleSrc, images: imagesProp, initialIndex = 0,
     };
     el.addEventListener('wheel', onWheel, { passive: false });
     return () => el.removeEventListener('wheel', onWheel);
-  }, [applyWheelZoom]);
+  }, [applyWheelZoom, src]);
 
   const handleTouchStart = (e: React.TouchEvent) => {
     if (e.touches.length === 1) {
