@@ -157,10 +157,11 @@ import {
   iosPageGlass,
   iosAccentPrimaryButton,
   iosPrimaryButton,
-  mediaOverlayCloseBtn,
   mediaOverlayHintText,
+  mediaOverlayIconBtn,
   mediaOverlayNavBtn,
 } from '../ui/iosModalStyles';
+import { copyImageToClipboard } from '../../utils/copyImageToClipboard';
 import { IosAccentIconSquircle } from '../ui/IosAccentIconSquircle';
 import { markdownComponentsApp } from '../ui/markdownUi';
 import {
@@ -804,6 +805,7 @@ const Lightbox = ({
   const [imageLoaded, setImageLoaded] = useState(false);
   /** Mostra versão otimizada (menor) do Storage; só cai para a original se a otimizada falhar. */
   const [displayFailed, setDisplayFailed] = useState(false);
+  const [copyState, setCopyState] = useState<'idle' | 'busy' | 'ok' | 'err'>('idle');
   const effectiveSrc = displayFailed ? src : storageDisplayUrl(src);
   const preloadedImagesRef = useRef<Set<string>>(new Set());
 
@@ -851,7 +853,23 @@ const Lightbox = ({
     setTranslate({ x: 0, y: 0 });
     setImageLoaded(false);
     setDisplayFailed(false);
+    setCopyState('idle');
   }, [src]);
+
+  const handleCopyImage = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!effectiveSrc || copyState === 'busy') return;
+    setCopyState('busy');
+    try {
+      await copyImageToClipboard({ url: effectiveSrc, imgEl: imageRef.current });
+      setCopyState('ok');
+      window.setTimeout(() => setCopyState('idle'), 1600);
+    } catch (err) {
+      console.warn('copyImageToClipboard', err);
+      setCopyState('err');
+      window.setTimeout(() => setCopyState('idle'), 2200);
+    }
+  };
 
   // Pré-carrega imagens vizinhas (versão otimizada) para swipe ficar imediato
   useEffect(() => {
@@ -1123,14 +1141,36 @@ const Lightbox = ({
       aria-modal="true"
       aria-label={hasMultiple ? 'Galeria de fotos — use as setas ou deslize para trocar' : 'Visualização de foto'}
     >
-      <button
-        type="button"
-        onClick={onClose}
-        className={mediaOverlayCloseBtn}
-        aria-label="Fechar"
-      >
-        <X className="w-6 h-6" />
-      </button>
+      <div className="absolute top-[max(1.25rem,env(safe-area-inset-top))] right-[max(1.25rem,env(safe-area-inset-right))] z-50 flex items-center gap-2">
+        <button
+          type="button"
+          onClick={(e) => void handleCopyImage(e)}
+          disabled={copyState === 'busy'}
+          className={`${mediaOverlayIconBtn} h-12 w-12 disabled:opacity-50`}
+          aria-label="Copiar imagem"
+          title={
+            copyState === 'ok'
+              ? 'Copiado — pode colar em outro app'
+              : copyState === 'err'
+                ? 'Falha ao copiar — tente botão direito na imagem'
+                : 'Copiar imagem'
+          }
+        >
+          {copyState === 'ok' ? (
+            <Check className="h-5 w-5 text-emerald-300" aria-hidden />
+          ) : (
+            <Copy className="h-5 w-5" aria-hidden />
+          )}
+        </button>
+        <button
+          type="button"
+          onClick={onClose}
+          className={`${mediaOverlayIconBtn} h-12 w-12`}
+          aria-label="Fechar"
+        >
+          <X className="w-6 h-6" />
+        </button>
+      </div>
 
       {canRotate && onRotate && (
         <div className="absolute left-3 top-3 z-10 flex gap-2 sm:left-5 sm:top-5">
@@ -1211,14 +1251,16 @@ const Lightbox = ({
           onError={() => {
             if (!displayFailed && effectiveSrc !== src) setDisplayFailed(true);
           }}
-          onDragStart={(e) => e.preventDefault()}
+          onDragStart={(e) => {
+            if (scaleRef.current > 1) e.preventDefault();
+          }}
           style={{
             transform: `translate(${translate.x}px, ${translate.y}px) scale(${scale})`,
             transition: isDragging || isSwiping || isMousePanning || scale > 1 ? "none" : "transform 0.2s ease-out",
             opacity: imageLoaded ? 1 : 0,
           }}
-          className="max-w-full max-h-full object-contain select-none pointer-events-none"
-          draggable={false}
+          className="max-w-full max-h-full object-contain"
+          draggable={scale <= 1}
         />
       </div>
 
@@ -1233,13 +1275,13 @@ const Lightbox = ({
             ))}
           </div>
           <p className={`pointer-events-none absolute bottom-4 left-1/2 max-w-[min(90vw,20rem)] -translate-x-1/2 text-center text-[11px] font-medium leading-snug ${mediaOverlayHintText}`}>
-            Scroll para zoom · arraste com zoom · setas ← → para trocar
+            Scroll para zoom · botão direito ou Copiar · setas ← →
           </p>
         </>
       )}
       {!hasMultiple && (
         <div className={`absolute bottom-10 left-1/2 -translate-x-1/2 bg-black/50 px-4 py-2 rounded-full text-xs pointer-events-none backdrop-blur-md border border-white/20 ${mediaOverlayHintText}`}>
-          Duplo clique ou scroll para zoom · arraste para mover
+          Duplo clique/scroll para zoom · botão direito ou Copiar para colar em outros apps
         </div>
       )}
     </div>

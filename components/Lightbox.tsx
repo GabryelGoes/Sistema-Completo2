@@ -1,7 +1,12 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { Check, ChevronLeft, ChevronRight, Copy, X } from 'lucide-react';
 import { ModalPortal } from './ui/ModalPortal';
-import { mediaOverlayCloseBtn, mediaOverlayHintText, mediaOverlayNavBtn } from './ui/iosModalStyles';
+import {
+  mediaOverlayHintText,
+  mediaOverlayIconBtn,
+  mediaOverlayNavBtn,
+} from './ui/iosModalStyles';
+import { copyImageToClipboard } from '../utils/copyImageToClipboard';
 
 const SWIPE_THRESHOLD = 44;
 
@@ -25,6 +30,7 @@ export function Lightbox({ src: singleSrc, images: imagesProp, initialIndex = 0,
   const [isDragging, setIsDragging] = useState(false);
   const [isSwiping, setIsSwiping] = useState(false);
   const [isMousePanning, setIsMousePanning] = useState(false);
+  const [copyState, setCopyState] = useState<'idle' | 'busy' | 'ok' | 'err'>('idle');
   const preloadedImagesRef = useRef<Set<string>>(new Set());
 
   const lastTouchRef = useRef<{ x: number; y: number } | null>(null);
@@ -60,7 +66,23 @@ export function Lightbox({ src: singleSrc, images: imagesProp, initialIndex = 0,
   useEffect(() => {
     setScale(1);
     setTranslate({ x: 0, y: 0 });
+    setCopyState('idle');
   }, [src]);
+
+  const handleCopyImage = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!src || copyState === 'busy') return;
+    setCopyState('busy');
+    try {
+      await copyImageToClipboard({ url: src, imgEl: imageRef.current });
+      setCopyState('ok');
+      window.setTimeout(() => setCopyState('idle'), 1600);
+    } catch (err) {
+      console.warn('copyImageToClipboard', err);
+      setCopyState('err');
+      window.setTimeout(() => setCopyState('idle'), 2200);
+    }
+  };
 
   useEffect(() => {
     if (!hasMultiple) {
@@ -275,14 +297,31 @@ export function Lightbox({ src: singleSrc, images: imagesProp, initialIndex = 0,
           hasMultiple ? 'Galeria de fotos — use as setas ou deslize para trocar' : 'Visualização de foto'
         }
       >
-        <button
-          type="button"
-          onClick={onClose}
-          className={mediaOverlayCloseBtn}
-          aria-label="Fechar"
-        >
-          <X className="h-6 w-6" />
-        </button>
+        <div className="absolute top-[max(1.25rem,env(safe-area-inset-top))] right-[max(1.25rem,env(safe-area-inset-right))] z-50 flex items-center gap-2">
+          <button
+            type="button"
+            onClick={(e) => void handleCopyImage(e)}
+            disabled={copyState === 'busy'}
+            className={`${mediaOverlayIconBtn} h-12 w-12 disabled:opacity-50`}
+            aria-label="Copiar imagem"
+            title={
+              copyState === 'ok'
+                ? 'Copiado — pode colar em outro app'
+                : copyState === 'err'
+                  ? 'Falha ao copiar — tente botão direito na imagem'
+                  : 'Copiar imagem'
+            }
+          >
+            {copyState === 'ok' ? (
+              <Check className="h-5 w-5 text-emerald-300" aria-hidden />
+            ) : (
+              <Copy className="h-5 w-5" aria-hidden />
+            )}
+          </button>
+          <button type="button" onClick={onClose} className={`${mediaOverlayIconBtn} h-12 w-12`} aria-label="Fechar">
+            <X className="h-6 w-6" />
+          </button>
+        </div>
 
         {hasMultiple && canGoPrev ? (
           <button
@@ -332,15 +371,19 @@ export function Lightbox({ src: singleSrc, images: imagesProp, initialIndex = 0,
             ref={imageRef}
             src={src}
             alt="Preview"
+            crossOrigin="anonymous"
             decoding="async"
             loading="eager"
-            onDragStart={(e) => e.preventDefault()}
+            onDragStart={(e) => {
+              // Com zoom, impede drag nativo para não brigar com o pan.
+              if (scaleRef.current > 1) e.preventDefault();
+            }}
             style={{
               transform: `translate(${translate.x}px, ${translate.y}px) scale(${scale})`,
               transition: isDragging || isSwiping || isMousePanning || scale > 1 ? 'none' : 'transform 0.2s ease-out',
             }}
-            className="max-h-full max-w-full select-none object-contain pointer-events-none"
-            draggable={false}
+            className="max-h-full max-w-full object-contain"
+            draggable={scale <= 1}
           />
         </div>
 
@@ -357,12 +400,12 @@ export function Lightbox({ src: singleSrc, images: imagesProp, initialIndex = 0,
               ))}
             </div>
             <p className={`pointer-events-none absolute bottom-4 left-1/2 max-w-[min(90vw,20rem)] -translate-x-1/2 text-center text-[11px] font-medium leading-snug ${mediaOverlayHintText}`}>
-              Scroll para zoom · arraste com zoom · setas ← → para trocar
+              Scroll para zoom · botão direito ou Copiar · setas ← →
             </p>
           </>
         ) : (
           <div className={`pointer-events-none absolute bottom-10 left-1/2 -translate-x-1/2 rounded-full border border-white/20 bg-black/50 px-4 py-2 text-xs ${mediaOverlayHintText} backdrop-blur-md`}>
-            Duplo clique ou scroll para zoom · arraste para mover
+            Duplo clique/scroll para zoom · botão direito ou Copiar para colar em outros apps
           </div>
         )}
       </div>

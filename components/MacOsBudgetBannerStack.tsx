@@ -362,12 +362,12 @@ export function MacOsBudgetBannerStack({
 
   return createPortal(
     <div
-      className="dark pointer-events-none fixed right-3 top-[max(0.75rem,env(safe-area-inset-top))] z-[100050] flex max-h-[calc(100dvh-1.5rem)] w-[min(380px,calc(100vw-1.5rem))] origin-top-right scale-[0.85] flex-col gap-2 overflow-y-auto overscroll-contain sm:right-5 sm:top-4"
+      className="dark pointer-events-none fixed right-3 top-[max(0.75rem,env(safe-area-inset-top))] z-[100050] flex max-h-[calc(100dvh-1.5rem)] w-[min(380px,calc(100vw-1.5rem))] origin-top-right scale-[0.85] flex-col items-start gap-2 overflow-y-auto overscroll-contain sm:right-5 sm:top-4"
       aria-live="polite"
       data-budget-banner-theme={bannerTheme}
     >
-      {/* w-fit + self-start: à esquerda, sem cobrir o X dos banners. */}
-      <div className="pointer-events-none sticky top-0 z-10 flex w-fit max-w-full shrink-0 flex-wrap justify-start gap-1 self-start pb-0.5">
+      {/* Toolbar à esquerda da pilha (não à direita / não cobre o X). */}
+      <div className="pointer-events-none sticky top-0 z-10 mr-auto flex w-fit max-w-full shrink-0 flex-wrap items-center justify-start gap-1 self-start pb-0.5">
         <button
           type="button"
           disabled={minimizing || busyIds.size > 0}
