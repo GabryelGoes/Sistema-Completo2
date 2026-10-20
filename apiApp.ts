@@ -7657,18 +7657,7 @@ export function createApiApp() {
       }
 
       const { id: serviceOrderId } = req.params;
-
-      const { data: so } = await supabaseAdmin
-        .from("service_orders")
-        .select("id")
-        .eq("id", serviceOrderId)
-        .eq("workshop_id", WORKSHOP_ID)
-        .single();
-
-      if (!so) {
-        return res.status(404).json({ error: "Ordem de serviço não encontrada." });
-      }
-
+      // Sem pré-check da OS: 1 RTT a menos. Comentários já filtrados por service_order_id.
       const { data, error } = await supabaseAdmin
         .from("service_order_comments")
         .select("id, author_display_name, text, created_at, author_photo_url, updated_at, author_key")
@@ -7719,17 +7708,27 @@ export function createApiApp() {
       > = {};
 
       if (commentIds.length > 0) {
-        const { data: views, error: viewsErr } = await supabaseAdmin
-          .from("service_order_comment_views")
-          .select("comment_id, reader_key, reader_display_name, viewed_at")
-          .eq("workshop_id", WORKSHOP_ID)
-          .in("comment_id", commentIds);
+        // Views + reações em paralelo (antes era sequencial).
+        const [viewsRes, reactionsRes] = await Promise.all([
+          supabaseAdmin
+            .from("service_order_comment_views")
+            .select("comment_id, reader_key, reader_display_name, viewed_at")
+            .eq("workshop_id", WORKSHOP_ID)
+            .in("comment_id", commentIds),
+          supabaseAdmin
+            .from("service_order_comment_reactions")
+            .select("id, comment_id, reactor_key, reactor_display_name, emoji, created_at")
+            .eq("workshop_id", WORKSHOP_ID)
+            .in("comment_id", commentIds),
+        ]);
+
+        const viewsErr = viewsRes.error;
         if (viewsErr) {
           if (!/does not exist|schema cache|Could not find the table/i.test(String(viewsErr.message || ""))) {
             console.error("[API] Erro ao listar views de comentários:", viewsErr);
           }
         } else {
-          for (const row of views ?? []) {
+          for (const row of viewsRes.data ?? []) {
             const cid = String((row as { comment_id?: string }).comment_id || "");
             if (!cid) continue;
             if (!viewsByComment[cid]) viewsByComment[cid] = [];
@@ -7746,11 +7745,7 @@ export function createApiApp() {
           }
         }
 
-        const { data: reactions, error: reactionsErr } = await supabaseAdmin
-          .from("service_order_comment_reactions")
-          .select("id, comment_id, reactor_key, reactor_display_name, emoji, created_at")
-          .eq("workshop_id", WORKSHOP_ID)
-          .in("comment_id", commentIds);
+        const reactionsErr = reactionsRes.error;
         if (reactionsErr) {
           if (
             !/does not exist|schema cache|Could not find the table/i.test(
@@ -7760,7 +7755,7 @@ export function createApiApp() {
             console.error("[API] Erro ao listar reações de comentários:", reactionsErr);
           }
         } else {
-          for (const row of reactions ?? []) {
+          for (const row of reactionsRes.data ?? []) {
             const cid = String((row as { comment_id?: string }).comment_id || "");
             if (!cid) continue;
             if (!reactionsByComment[cid]) reactionsByComment[cid] = [];
