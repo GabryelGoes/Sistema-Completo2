@@ -3620,20 +3620,23 @@ export const PatioView: React.FC<PatioViewProps> = ({
     return () => { cancelled = true; };
   }, [isAppTabActive]);
 
-  // Ao abrir o modal de checklist, carregar estado da OS
+  // Estado do checklist: modal do checklist ou preview na sidebar PC da OS
   useEffect(() => {
-    if (!activeChecklistCardId || !activeChecklistTemplateId) {
+    const orderId =
+      activeChecklistCardId ||
+      (isPatioPcModal && selectedCard?.id ? selectedCard.id : null);
+    if (!orderId) {
       setChecklistState({});
       return;
     }
     let cancelled = false;
     setChecklistStateLoading(true);
-    getServiceOrderChecklistState(activeChecklistCardId)
+    getServiceOrderChecklistState(orderId)
       .then((state) => { if (!cancelled) setChecklistState(state); })
       .catch(() => { if (!cancelled) setChecklistState({}); })
       .finally(() => { if (!cancelled) setChecklistStateLoading(false); });
     return () => { cancelled = true; };
-  }, [activeChecklistCardId, activeChecklistTemplateId]);
+  }, [activeChecklistCardId, activeChecklistTemplateId, isPatioPcModal, selectedCard?.id]);
 
   // Deriva o cartão ativo e o template ativo
   const activeChecklistCard = cards.find(c => c.id === activeChecklistCardId);
@@ -9202,11 +9205,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                           }
                           return (
                         <div
-                          className={
-                            isPatioPcModal && !isModuleMode
-                              ? 'flex flex-wrap items-center gap-2 pr-24 xl:pr-28'
-                              : 'flex flex-wrap items-center gap-2'
-                          }
+                          className="flex flex-wrap items-center gap-2"
                         >
                           {isPatioTabletLikeModal ? (
                             showTabletAgenda ? (
@@ -9368,133 +9367,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                   size={patioVehicleVm.plateMockupSize}
                                   selectable
                                 />
-                            </div>
-                          ) : null}
-                          {isPatioPcModal ? (
-                            <div className="inline-flex shrink-0 items-center gap-2 pl-1">
-                              {isModuleMode ? (
-                                <div className="relative" ref={labOsToolsMenuRef}>
-                                  <button
-                                    type="button"
-                                    onClick={() => setIsLabOsToolsOpen((o) => !o)}
-                                    className={patioVehicleVm.closeBtn}
-                                    aria-expanded={isLabOsToolsOpen}
-                                    aria-haspopup="menu"
-                                    aria-label="Mais opções da OS"
-                                    title="Mais opções"
-                                  >
-                                    <MoreHorizontal className="h-5 w-5" strokeWidth={2.2} aria-hidden />
-                                  </button>
-                                  {isLabOsToolsOpen ? (
-                                    <div
-                                      role="menu"
-                                      className="absolute right-0 top-full z-30 mt-1.5 w-[min(17.5rem,calc(100vw-1.5rem))] overflow-hidden rounded-2xl border border-zinc-200/90 bg-white py-1.5 text-zinc-900 shadow-[0_12px_40px_-8px_rgba(0,0,0,0.25)] dark:border-white/[0.12] dark:bg-zinc-900 dark:text-zinc-100 dark:shadow-[0_16px_48px_-12px_rgba(0,0,0,0.55)]"
-                                    >
-                                      {serviceOrderDetail && !loadingDetails ? (
-                                        <>
-                                          <button
-                                            type="button"
-                                            role="menuitem"
-                                            className="flex w-full items-center gap-3 px-3 py-2.5 text-left text-[14px] font-semibold transition-colors hover:bg-zinc-100/90 dark:hover:bg-white/[0.08]"
-                                            onClick={() => {
-                                              setIsLabOsToolsOpen(false);
-                                              handleOpenLabOsLabel();
-                                            }}
-                                          >
-                                            <Tag className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" strokeWidth={2.25} aria-hidden />
-                                            Etiqueta OS
-                                          </button>
-                                          <button
-                                            type="button"
-                                            role="menuitem"
-                                            className="flex w-full items-center gap-3 px-3 py-2.5 text-left text-[14px] font-semibold transition-colors hover:bg-zinc-100/90 dark:hover:bg-white/[0.08]"
-                                            onClick={() => {
-                                              setIsLabOsToolsOpen(false);
-                                              handlePrintLabModuleFicha();
-                                            }}
-                                          >
-                                            <Printer className="h-4 w-4 shrink-0 text-violet-600 dark:text-violet-400" strokeWidth={2.25} aria-hidden />
-                                            Imprimir ficha
-                                          </button>
-                                        </>
-                                      ) : null}
-                                      {can('canEditFicha') ? (
-                                        selectedCard.garantiaTag ? (
-                                          <button
-                                            type="button"
-                                            role="menuitem"
-                                            disabled={removingGarantiaId === selectedCard.id}
-                                            className="flex w-full items-center gap-3 px-3 py-2.5 text-left text-[14px] font-semibold text-red-600 transition-colors hover:bg-red-50 disabled:opacity-50 dark:text-red-300 dark:hover:bg-red-500/10"
-                                            onClick={() => {
-                                              setIsLabOsToolsOpen(false);
-                                              void handleRemoveGarantia();
-                                            }}
-                                          >
-                                            {removingGarantiaId === selectedCard.id ? (
-                                              <RefreshCw className="h-4 w-4 shrink-0 animate-spin" aria-hidden />
-                                            ) : (
-                                              <Tag className="h-4 w-4 shrink-0" strokeWidth={2.25} aria-hidden />
-                                            )}
-                                            Remover garantia
-                                          </button>
-                                        ) : (
-                                          <button
-                                            type="button"
-                                            role="menuitem"
-                                            disabled={removingGarantiaId === selectedCard.id}
-                                            className="flex w-full items-center gap-3 px-3 py-2.5 text-left text-[14px] font-semibold transition-colors hover:bg-zinc-100/90 disabled:opacity-50 dark:hover:bg-white/[0.08]"
-                                            onClick={() => {
-                                              setIsLabOsToolsOpen(false);
-                                              void handleAddGarantia();
-                                            }}
-                                          >
-                                            {removingGarantiaId === selectedCard.id ? (
-                                              <RefreshCw className="h-4 w-4 shrink-0 animate-spin text-red-500" aria-hidden />
-                                            ) : (
-                                              <Tag className="h-4 w-4 shrink-0 text-red-600 dark:text-red-400" strokeWidth={2.25} aria-hidden />
-                                            )}
-                                            Marcar como garantia
-                                          </button>
-                                        )
-                                      ) : null}
-                                      {can('canDeleteCards') ? (
-                                        <button
-                                          type="button"
-                                          role="menuitem"
-                                          className="flex w-full items-center gap-3 border-t border-zinc-100 px-3 py-2.5 text-left text-[14px] font-semibold text-red-600 transition-colors hover:bg-red-50 dark:border-white/[0.07] dark:text-red-300 dark:hover:bg-red-500/10"
-                                          onClick={() => {
-                                            setIsLabOsToolsOpen(false);
-                                            setDeleteVehicleError(null);
-                                            setDeleteVehiclePassword('');
-                                            setDeleteVehiclePasswordReadonly(true);
-                                            setIsDeleteVehicleOpen(true);
-                                          }}
-                                        >
-                                          <Trash2 className="h-4 w-4 shrink-0" strokeWidth={2.25} aria-hidden />
-                                          Excluir peça
-                                        </button>
-                                      ) : null}
-                                    </div>
-                                  ) : null}
-                                </div>
-                              ) : can('canDeleteCards') ? (
-                                <button
-                                  type="button"
-                                  onClick={() => { setDeleteVehicleError(null); setDeleteVehiclePassword(''); setDeleteVehiclePasswordReadonly(true); setIsDeleteVehicleOpen(true);  }}
-                                  className={`${patioVehicleVm.closeBtn} hover:bg-red-500/15 hover:text-red-600 dark:hover:bg-red-500/20`}
-                                  title="Excluir veículo do sistema"
-                                >
-                                  <Trash2 className="h-5 w-5" />
-                                </button>
-                              ) : null}
-                              <button
-                                type="button"
-                                onClick={() => closePatioPrimaryOverlays()}
-                                className={patioVehicleVm.closeBtn}
-                                aria-label="Fechar"
-                              >
-                                <X className="h-5 w-5" />
-                              </button>
                             </div>
                           ) : null}
                           {!isModuleMode && isPatioTabletLikeModal ? (
@@ -10570,7 +10442,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                   <button
                                     type="button"
                                     onClick={handleOpenPatioKeyLabel}
-                                    className="inline-flex items-center gap-1 rounded-xl border border-emerald-500/35 bg-emerald-600 px-2.5 py-1 text-[11px] font-semibold text-white shadow-sm shadow-emerald-500/20 transition-colors hover:bg-emerald-500"
+                                    className="inline-flex items-center gap-1 rounded-xl border border-emerald-500/55 bg-transparent px-2.5 py-1 text-[11px] font-semibold text-emerald-600 transition-colors hover:bg-emerald-500/10 dark:border-emerald-400/45 dark:text-emerald-400 dark:hover:bg-emerald-400/10"
                                   >
                                     <Tag className="h-3 w-3" aria-hidden strokeWidth={2.5} />
                                     Imprimir etiqueta
@@ -11417,64 +11289,193 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
                       <div className={patioVehicleVm.asideCol}>
                         {isPatioPcModal ? (
-                         <div>
-                            <p className={`${iosLabel} mb-3`}>Alterar status</p>
-                            <button 
-                                type="button"
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  handleOpenMoveModal(selectedCard, e);
-                                }}
-                                className={`group flex w-full items-center justify-between gap-2 rounded-xl border-2 p-4 transition-all hover:brightness-110 hover:scale-[1.01] active:scale-[0.99] ${isExternalRepairStatus(modalStageStatus) ? '!text-white' : '!text-black dark:!text-black'} ${modalStatusConfig.style}`}
-                              >
-                                <span className={`min-w-0 flex-1 text-left text-[16px] font-bold uppercase leading-snug sm:text-[17px] ${isExternalRepairStatus(modalStageStatus) ? '!text-white' : '!text-black dark:!text-black'}`}>
-                                  {modalListName}
-                                </span>
-                                {modalShowDeliver ? (
-                                  <span
-                                    role="button"
-                                    tabIndex={0}
+                         <div className="space-y-3">
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="min-w-0 flex-1">
+                                <p className={`${iosLabel} mb-2`}>Alterar status</p>
+                                <button
+                                    type="button"
                                     onClick={(e) => {
                                       e.preventDefault();
                                       e.stopPropagation();
-                                      if (archivingId === selectedCard.id) return;
-                                      const notApproved = modalListNameLower.includes('não aprovado');
-                                      const msg = notApproved
-                                        ? 'Confirmar entrega desta peça não aprovada? Ele será arquivado e irá para o histórico.'
-                                        : 'Confirmar entrega desta peça? Ele será arquivado e irá para o histórico.';
-                                      if (window.confirm(msg)) {
-                                        void handleDeliverVehicle(selectedCard.id);
-                                      }
+                                      handleOpenMoveModal(selectedCard, e);
                                     }}
-                                    onKeyDown={(e) => {
-                                      if (e.key !== 'Enter' && e.key !== ' ') return;
-                                      e.preventDefault();
-                                      e.stopPropagation();
-                                      if (archivingId === selectedCard.id) return;
-                                      const notApproved = modalListNameLower.includes('não aprovado');
-                                      const msg = notApproved
-                                        ? 'Confirmar entrega desta peça não aprovada? Ele será arquivado e irá para o histórico.'
-                                        : 'Confirmar entrega desta peça? Ele será arquivado e irá para o histórico.';
-                                      if (window.confirm(msg)) {
-                                        void handleDeliverVehicle(selectedCard.id);
-                                      }
-                                    }}
-                                    className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-emerald-500/70 bg-white/90 px-3 py-1.5 text-[11px] font-semibold text-emerald-700 shadow-sm hover:bg-emerald-50"
-                                    aria-label="Entregue — arquivar OS"
+                                    className={`group flex w-full items-center justify-between gap-2 rounded-xl border-2 px-3.5 py-3.5 transition-all hover:brightness-110 hover:scale-[1.01] active:scale-[0.99] ${isExternalRepairStatus(modalStageStatus) ? '!text-white' : '!text-black dark:!text-black'} ${modalStatusConfig.style}`}
                                   >
-                                    {archivingId === selectedCard.id ? (
-                                      <RefreshCw className="h-3.5 w-3.5 animate-spin" aria-hidden />
-                                    ) : (
-                                      <CheckCircle2 className="h-3.5 w-3.5" aria-hidden />
-                                    )}
-                                    Entregue
-                                  </span>
+                                    <span className={`min-w-0 flex-1 text-left text-[15px] font-bold uppercase leading-snug xl:text-[16px] ${isExternalRepairStatus(modalStageStatus) ? '!text-white' : '!text-black dark:!text-black'}`}>
+                                      {modalListName}
+                                    </span>
+                                    {modalShowDeliver ? (
+                                      <span
+                                        role="button"
+                                        tabIndex={0}
+                                        onClick={(e) => {
+                                          e.preventDefault();
+                                          e.stopPropagation();
+                                          if (archivingId === selectedCard.id) return;
+                                          const notApproved = modalListNameLower.includes('não aprovado');
+                                          const msg = notApproved
+                                            ? 'Confirmar entrega desta peça não aprovada? Ele será arquivado e irá para o histórico.'
+                                            : 'Confirmar entrega desta peça? Ele será arquivado e irá para o histórico.';
+                                          if (window.confirm(msg)) {
+                                            void handleDeliverVehicle(selectedCard.id);
+                                          }
+                                        }}
+                                        onKeyDown={(e) => {
+                                          if (e.key !== 'Enter' && e.key !== ' ') return;
+                                          e.preventDefault();
+                                          e.stopPropagation();
+                                          if (archivingId === selectedCard.id) return;
+                                          const notApproved = modalListNameLower.includes('não aprovado');
+                                          const msg = notApproved
+                                            ? 'Confirmar entrega desta peça não aprovada? Ele será arquivado e irá para o histórico.'
+                                            : 'Confirmar entrega desta peça? Ele será arquivado e irá para o histórico.';
+                                          if (window.confirm(msg)) {
+                                            void handleDeliverVehicle(selectedCard.id);
+                                          }
+                                        }}
+                                        className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-emerald-500/70 bg-white/90 px-3 py-1.5 text-[11px] font-semibold text-emerald-700 shadow-sm hover:bg-emerald-50"
+                                        aria-label="Entregue — arquivar OS"
+                                      >
+                                        {archivingId === selectedCard.id ? (
+                                          <RefreshCw className="h-3.5 w-3.5 animate-spin" aria-hidden />
+                                        ) : (
+                                          <CheckCircle2 className="h-3.5 w-3.5" aria-hidden />
+                                        )}
+                                        Entregue
+                                      </span>
+                                    ) : null}
+                                    <ChevronDown
+                                      className={`h-5 w-5 shrink-0 opacity-90 ${isExternalRepairStatus(modalStageStatus) ? 'text-white' : 'text-black dark:text-black'}`}
+                                    />
+                                </button>
+                              </div>
+                              <div className="inline-flex shrink-0 items-center gap-2 pt-6">
+                                {isModuleMode ? (
+                                  <div className="relative" ref={labOsToolsMenuRef}>
+                                    <button
+                                      type="button"
+                                      onClick={() => setIsLabOsToolsOpen((o) => !o)}
+                                      className={patioVehicleVm.closeBtn}
+                                      aria-expanded={isLabOsToolsOpen}
+                                      aria-haspopup="menu"
+                                      aria-label="Mais opções da OS"
+                                      title="Mais opções"
+                                    >
+                                      <MoreHorizontal className="h-5 w-5" strokeWidth={2.2} aria-hidden />
+                                    </button>
+                                    {isLabOsToolsOpen ? (
+                                      <div
+                                        role="menu"
+                                        className="absolute right-0 top-full z-30 mt-1.5 w-[min(17.5rem,calc(100vw-1.5rem))] overflow-hidden rounded-2xl border border-zinc-200/90 bg-white py-1.5 text-zinc-900 shadow-[0_12px_40px_-8px_rgba(0,0,0,0.25)] dark:border-white/[0.12] dark:bg-zinc-900 dark:text-zinc-100 dark:shadow-[0_16px_48px_-12px_rgba(0,0,0,0.55)]"
+                                      >
+                                        {serviceOrderDetail && !loadingDetails ? (
+                                          <>
+                                            <button
+                                              type="button"
+                                              role="menuitem"
+                                              className="flex w-full items-center gap-3 px-3 py-2.5 text-left text-[14px] font-semibold transition-colors hover:bg-zinc-100/90 dark:hover:bg-white/[0.08]"
+                                              onClick={() => {
+                                                setIsLabOsToolsOpen(false);
+                                                handleOpenLabOsLabel();
+                                              }}
+                                            >
+                                              <Tag className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" strokeWidth={2.25} aria-hidden />
+                                              Etiqueta OS
+                                            </button>
+                                            <button
+                                              type="button"
+                                              role="menuitem"
+                                              className="flex w-full items-center gap-3 px-3 py-2.5 text-left text-[14px] font-semibold transition-colors hover:bg-zinc-100/90 dark:hover:bg-white/[0.08]"
+                                              onClick={() => {
+                                                setIsLabOsToolsOpen(false);
+                                                handlePrintLabModuleFicha();
+                                              }}
+                                            >
+                                              <Printer className="h-4 w-4 shrink-0 text-violet-600 dark:text-violet-400" strokeWidth={2.25} aria-hidden />
+                                              Imprimir ficha
+                                            </button>
+                                          </>
+                                        ) : null}
+                                        {can('canEditFicha') ? (
+                                          selectedCard.garantiaTag ? (
+                                            <button
+                                              type="button"
+                                              role="menuitem"
+                                              disabled={removingGarantiaId === selectedCard.id}
+                                              className="flex w-full items-center gap-3 px-3 py-2.5 text-left text-[14px] font-semibold text-red-600 transition-colors hover:bg-red-50 disabled:opacity-50 dark:text-red-300 dark:hover:bg-red-500/10"
+                                              onClick={() => {
+                                                setIsLabOsToolsOpen(false);
+                                                void handleRemoveGarantia();
+                                              }}
+                                            >
+                                              {removingGarantiaId === selectedCard.id ? (
+                                                <RefreshCw className="h-4 w-4 shrink-0 animate-spin" aria-hidden />
+                                              ) : (
+                                                <Tag className="h-4 w-4 shrink-0" strokeWidth={2.25} aria-hidden />
+                                              )}
+                                              Remover garantia
+                                            </button>
+                                          ) : (
+                                            <button
+                                              type="button"
+                                              role="menuitem"
+                                              disabled={removingGarantiaId === selectedCard.id}
+                                              className="flex w-full items-center gap-3 px-3 py-2.5 text-left text-[14px] font-semibold transition-colors hover:bg-zinc-100/90 disabled:opacity-50 dark:hover:bg-white/[0.08]"
+                                              onClick={() => {
+                                                setIsLabOsToolsOpen(false);
+                                                void handleAddGarantia();
+                                              }}
+                                            >
+                                              {removingGarantiaId === selectedCard.id ? (
+                                                <RefreshCw className="h-4 w-4 shrink-0 animate-spin text-red-500" aria-hidden />
+                                              ) : (
+                                                <Tag className="h-4 w-4 shrink-0 text-red-600 dark:text-red-400" strokeWidth={2.25} aria-hidden />
+                                              )}
+                                              Marcar como garantia
+                                            </button>
+                                          )
+                                        ) : null}
+                                        {can('canDeleteCards') ? (
+                                          <button
+                                            type="button"
+                                            role="menuitem"
+                                            className="flex w-full items-center gap-3 border-t border-zinc-100 px-3 py-2.5 text-left text-[14px] font-semibold text-red-600 transition-colors hover:bg-red-50 dark:border-white/[0.07] dark:text-red-300 dark:hover:bg-red-500/10"
+                                            onClick={() => {
+                                              setIsLabOsToolsOpen(false);
+                                              setDeleteVehicleError(null);
+                                              setDeleteVehiclePassword('');
+                                              setDeleteVehiclePasswordReadonly(true);
+                                              setIsDeleteVehicleOpen(true);
+                                            }}
+                                          >
+                                            <Trash2 className="h-4 w-4 shrink-0" strokeWidth={2.25} aria-hidden />
+                                            Excluir peça
+                                          </button>
+                                        ) : null}
+                                      </div>
+                                    ) : null}
+                                  </div>
+                                ) : can('canDeleteCards') ? (
+                                  <button
+                                    type="button"
+                                    onClick={() => { setDeleteVehicleError(null); setDeleteVehiclePassword(''); setDeleteVehiclePasswordReadonly(true); setIsDeleteVehicleOpen(true); }}
+                                    className={`${patioVehicleVm.closeBtn} hover:bg-red-500/15 hover:text-red-600 dark:hover:bg-red-500/20`}
+                                    title="Excluir veículo do sistema"
+                                  >
+                                    <Trash2 className="h-5 w-5" />
+                                  </button>
                                 ) : null}
-                                <ChevronDown
-                                  className={`h-5 w-5 shrink-0 opacity-90 ${isExternalRepairStatus(modalStageStatus) ? 'text-white' : 'text-black dark:text-black'}`}
-                                />
-                            </button>
+                                <button
+                                  type="button"
+                                  onClick={() => closePatioPrimaryOverlays()}
+                                  className={patioVehicleVm.closeBtn}
+                                  aria-label="Fechar"
+                                >
+                                  <X className="h-5 w-5" />
+                                </button>
+                              </div>
+                            </div>
                          </div>
                         ) : null}
 
@@ -11564,10 +11565,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
                              )}
                         </div>
 
-                        {isPatioPcModal ? (
-                          <div className="h-px bg-zinc-200 dark:bg-zinc-800" />
-                        ) : null}
-
                         <div className={isPatioPcModal ? 'mt-1' : 'mt-3'}>
                           <VehicleOsStockCheckoutSection
                             serviceOrderId={selectedCard.id}
@@ -11596,39 +11593,57 @@ export const PatioView: React.FC<PatioViewProps> = ({
                         </div>
 
                         {isPatioPcModal ? (
-                         <>
-                         <div className="h-px bg-zinc-200 dark:bg-zinc-800"></div>
-
-                         <div>
-                             <p className={`${iosLabel} mb-3`}>Checklists</p>
+                         <div className={`${vi} min-w-0 overflow-hidden shadow-none`}>
+                             <div className="relative flex items-center justify-between gap-2 border-b border-black/[0.06] bg-white/85 px-2.5 py-2 pl-3 backdrop-blur-[2px] dark:border-white/[0.08] dark:bg-zinc-950/35 sm:gap-3 sm:px-3 sm:py-2.5 sm:pl-4">
+                               <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-2.5">
+                                 <div className={uiOsModalSectionAppIcon}>
+                                   <img src="/icons/checklist-patio-ios.png" alt="" className="h-full w-full object-cover" />
+                                 </div>
+                                 <p className={uiOsModalCardSectionTitle}>Checklists</p>
+                               </div>
+                             </div>
                              {checklistTemplates.length === 0 ? (
-                               <p className={`${vi} p-4 text-sm text-zinc-600 dark:text-zinc-400`}>Nenhum checklist configurado. Crie na página inicial em Administração → Checklists do Pátio.</p>
+                               <p className="px-3 py-4 text-sm text-zinc-600 dark:text-zinc-400 sm:px-4">
+                                 Nenhum checklist configurado. Crie na página inicial em Administração → Checklists do Pátio.
+                               </p>
                              ) : (
-                               <div className="space-y-3">
-                                 {checklistTemplates.map((tpl) => (
+                               <div className="divide-y divide-zinc-200/70 dark:divide-white/[0.07]">
+                                 {checklistTemplates.map((tpl) => {
+                                   const total = tpl.items.length;
+                                   const done = tpl.items.filter(
+                                     (i) => (checklistState[i.id] ?? 'incomplete') === 'complete'
+                                   ).length;
+                                   return (
                                    <button
                                      key={tpl.id}
                                      type="button"
                                      onClick={() => { setActiveChecklistCardId(selectedCard.id); setActiveChecklistTemplateId(tpl.id); }}
-                                     className={`group flex w-full items-center gap-3 text-left transition-all active:scale-[0.99] ${vi} p-4 shadow-[0_4px_20px_-10px_rgba(0,0,0,0.12)] hover:border-[#007AFF]/35 dark:shadow-[0_8px_28px_-12px_rgba(0,0,0,0.45)] dark:hover:border-[#007AFF]/40`}
+                                     className="group flex w-full items-center gap-3 px-3 py-3 text-left transition-colors hover:bg-[#007AFF]/[0.06] dark:hover:bg-white/[0.04] sm:px-4"
                                    >
-                                     <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-xl border border-zinc-200/95 bg-gradient-to-b from-white to-zinc-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_2px_8px_-4px_rgba(0,0,0,0.08)] dark:border-white/[0.1] dark:from-white/[0.12] dark:to-white/[0.04]">
-                                       <img
-                                         src="/icons/checklist-patio-ios.png"
-                                         alt=""
-                                         className="h-full w-full object-cover"
-                                       />
-                                     </div>
+                                     <Circle
+                                       className="h-5 w-5 shrink-0 text-zinc-400 group-hover:text-[#007AFF] dark:text-zinc-500 dark:group-hover:text-[#7ab8ff]"
+                                       strokeWidth={1.75}
+                                       aria-hidden
+                                     />
                                      <div className="min-w-0 flex-1">
-                                       <p className="font-bold text-zinc-900 dark:text-white">Checklist {tpl.name}</p>
-                                       <p className="text-xs text-zinc-500 dark:text-zinc-400">{tpl.items.length} {tpl.items.length === 1 ? 'item' : 'itens'}</p>
+                                       <p className="truncate text-[14px] font-semibold text-zinc-900 dark:text-white">
+                                         {tpl.name}
+                                       </p>
+                                       <p className="text-[12px] tabular-nums text-zinc-500 dark:text-zinc-400">
+                                         {done}/{total}
+                                       </p>
                                      </div>
+                                     <ChevronRight
+                                       className="h-4 w-4 shrink-0 text-zinc-400 group-hover:text-[#007AFF] dark:text-zinc-500"
+                                       strokeWidth={2.25}
+                                       aria-hidden
+                                     />
                                    </button>
-                                 ))}
+                                   );
+                                 })}
                                </div>
                              )}
                          </div>
-                         </>
                         ) : null}
 
                       </div>
