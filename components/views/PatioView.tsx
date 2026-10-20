@@ -2,7 +2,7 @@ import React, { useEffect, useLayoutEffect, useState, useRef, useCallback, useMe
 import { createPortal } from 'react-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkBreaks from 'remark-breaks';
-import { RefreshCw, AlertCircle, ChevronDown, ChevronRight, ChevronLeft, User, X, Check, CheckCircle2, Circle, Plus, FileText, Calendar, Clock, Paperclip, ExternalLink, Trash2, DollarSign, Hash, Minus, Pencil, Save, Eye, History, Search, Copy, ArrowRight, Camera, Image as ImageIcon, FolderOpen, Upload, FilePlus, ArchiveRestore, Printer, Smartphone, Mail, MapPin, Share2, Sparkles, Loader2, Tag, Link2, Wrench, Gauge, MoreHorizontal, LayoutGrid, Columns3, Users, SortDesc, SortAsc, ListOrdered, List, Truck, RotateCw, RotateCcw, ClipboardList } from 'lucide-react';
+import { RefreshCw, AlertCircle, ChevronDown, ChevronRight, ChevronLeft, User, X, Check, CheckCircle2, Circle, Plus, FileText, Calendar, Paperclip, ExternalLink, Trash2, DollarSign, Hash, Minus, Pencil, Save, Eye, History, Search, Copy, ArrowRight, Camera, Image as ImageIcon, FolderOpen, Upload, FilePlus, ArchiveRestore, Printer, Smartphone, Mail, MapPin, Share2, Sparkles, Loader2, Tag, Link2, Wrench, Gauge, MoreHorizontal, LayoutGrid, Columns3, Users, SortDesc, SortAsc, ListOrdered, List, Truck, RotateCw, RotateCcw, ClipboardList } from 'lucide-react';
 import { PdfViewerModal } from '../PdfViewerModal';
 import { MechanicIcon } from '../ui/MechanicIcon';
 import { ReminderIcon } from '../ui/ReminderIcon';
@@ -614,75 +614,6 @@ function compareWaitingEvalArrival(a: TrelloCard, b: TrelloCard): number {
   const diff = patioCardArrivalMs(a) - patioCardArrivalMs(b);
   if (diff !== 0) return diff;
   return String(a.id).localeCompare(String(b.id));
-}
-
-/** Até 24h: horas/minutos. Depois: dias (+ horas restantes). */
-function formatWaitElapsedLabel(sinceIso: string | null | undefined, nowMs: number): string | null {
-  if (!sinceIso) return null;
-  const start = new Date(sinceIso).getTime();
-  if (!Number.isFinite(start)) return null;
-  const totalMin = Math.max(0, Math.floor((nowMs - start) / 60_000));
-  const totalH = Math.floor(totalMin / 60);
-  if (totalH < 24) {
-    const m = totalMin % 60;
-    return `${totalH}h ${String(m).padStart(2, '0')}m`;
-  }
-  const days = Math.floor(totalH / 24);
-  const remH = totalH % 24;
-  return remH > 0 ? `${days}d ${remH}h` : `${days}d`;
-}
-
-function formatWaitElapsedTitle(sinceIso: string | null | undefined, nowMs: number): string | null {
-  if (!sinceIso) return null;
-  const start = new Date(sinceIso).getTime();
-  if (!Number.isFinite(start)) return null;
-  const totalMin = Math.max(0, Math.floor((nowMs - start) / 60_000));
-  const totalH = Math.floor(totalMin / 60);
-  if (totalH < 24) {
-    const m = totalMin % 60;
-    return `Na OS há ${totalH}h ${String(m).padStart(2, '0')}m`;
-  }
-  const days = Math.floor(totalH / 24);
-  const remH = totalH % 24;
-  const dayWord = days === 1 ? 'dia' : 'dias';
-  return remH > 0
-    ? `Na OS há ${days} ${dayWord} e ${remH}h`
-    : `Na OS há ${days} ${dayWord}`;
-}
-
-/** Cronômetro desde a chegada da OS (todas as etapas). +30% vs tipografia base do card. */
-function PatioCardWaitTimer({
-  sinceIso,
-  compact,
-}: {
-  sinceIso: string | null | undefined;
-  compact?: boolean;
-}) {
-  const [nowMs, setNowMs] = useState(() => Date.now());
-  useEffect(() => {
-    if (!sinceIso) return;
-    const id = window.setInterval(() => setNowMs(Date.now()), 30_000);
-    return () => window.clearInterval(id);
-  }, [sinceIso]);
-  const label = formatWaitElapsedLabel(sinceIso, nowMs);
-  const title = formatWaitElapsedTitle(sinceIso, nowMs);
-  if (!label) return null;
-  return (
-    <span
-      className={`inline-flex shrink-0 items-center gap-1.5 tabular-nums font-semibold text-zinc-500 dark:text-zinc-400 ${
-        compact ? 'text-[15.5px]' : 'text-[17px]'
-      }`}
-      title={title ?? undefined}
-      aria-label={title ?? undefined}
-    >
-      <Clock
-        className={compact ? 'h-[18.5px] w-[18.5px]' : 'h-[21.5px] w-[21.5px]'}
-        strokeWidth={2.25}
-        aria-hidden
-      />
-      {label}
-    </span>
-  );
 }
 
 /** Lista de arquivados: mais recentemente atualizado (arquivado) primeiro. */
@@ -7773,8 +7704,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   ) : null}
                 </div>
 
-                {/* Cliente + cronômetro à direita (todas as etapas) */}
-                {customerName || card.createdAt ? (
+                {/* Cliente */}
+                {customerName ? (
                   <div
                     className={`mb-0 flex max-w-full items-center gap-2 rounded-2xl border-0 bg-zinc-100/90 dark:bg-white/[0.06] portrait:rounded-xl ${
                       boardPanoramic
@@ -7782,30 +7713,23 @@ export const PatioView: React.FC<PatioViewProps> = ({
                         : 'min-h-[2.6rem] px-3 py-2.5 portrait:min-h-[2.35rem] portrait:px-2.5 portrait:py-2'
                     }`}
                   >
-                    {customerName ? (
-                      <>
-                        <User className={`shrink-0 text-[#007AFF] ${boardPanoramic ? 'h-3.5 w-3.5' : 'h-4 w-4'}`} strokeWidth={2} />
-                        <span
-                          className={`min-w-0 flex-1 truncate font-semibold tracking-tight text-zinc-700 dark:text-zinc-200 ${
-                            boardPanoramic
-                              ? 'text-[1.049rem] portrait:text-[0.8392rem]'
-                              : 'text-[1.199rem] portrait:text-[0.9592rem]'
-                          }`}
-                        >
-                          {firstTwoNames(customerName)}
-                        </span>
-                      </>
-                    ) : (
-                      <span className="min-w-0 flex-1" aria-hidden />
-                    )}
-                    <PatioCardWaitTimer sinceIso={card.createdAt} compact={boardPanoramic} />
+                    <User className={`shrink-0 text-[#007AFF] ${boardPanoramic ? 'h-3.5 w-3.5' : 'h-4 w-4'}`} strokeWidth={2} />
+                    <span
+                      className={`min-w-0 flex-1 truncate font-semibold tracking-tight text-zinc-700 dark:text-zinc-200 ${
+                        boardPanoramic
+                          ? 'text-[1.049rem] portrait:text-[0.8392rem]'
+                          : 'text-[1.199rem] portrait:text-[0.9592rem]'
+                      }`}
+                    >
+                      {firstTwoNames(customerName)}
+                    </span>
                   </div>
                 ) : null}
 
                 {/* Técnico + garantia + ícone de origem (centro) + placa */}
                 <div
                   className={`grid min-w-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-1.5 ${
-                    customerName || card.createdAt
+                    customerName
                       ? boardPanoramic
                         ? 'mt-1.5'
                         : 'mt-2'
