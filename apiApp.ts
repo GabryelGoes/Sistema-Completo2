@@ -4420,23 +4420,6 @@ export function createApiApp() {
         }
       }
 
-      /** Cronômetro p/ TV Pátio: sem mecânico em Aguardando Avaliação → texto no lugar de "Pátio". */
-      const formatTvWaitElapsed = (sinceIso: unknown, nowMs: number): string | null => {
-        if (typeof sinceIso !== "string" || !sinceIso.trim()) return null;
-        const start = new Date(sinceIso).getTime();
-        if (!Number.isFinite(start)) return null;
-        const totalMin = Math.max(0, Math.floor((nowMs - start) / 60_000));
-        const totalH = Math.floor(totalMin / 60);
-        if (totalH < 24) {
-          const m = totalMin % 60;
-          return `${totalH}h ${String(m).padStart(2, "0")}m`;
-        }
-        const days = Math.floor(totalH / 24);
-        const remH = totalH % 24;
-        return remH > 0 ? `${days}d ${remH}h` : `${days}d`;
-      };
-      const nowMs = Date.now();
-
       const enriched = rows.map((r: Record<string, unknown> & { assigned_technician?: string | null; customer_id?: string }) => {
         const tech = r.assigned_technician;
         const techId = tech == null ? "" : String(tech).trim();
@@ -4446,14 +4429,14 @@ export function createApiApp() {
             : technicianNameMap[techId] ?? technicianNameMap[techId.toLowerCase()] ?? null;
         const status = String(r.status ?? "").toUpperCase();
         const orderType = String(r.order_type ?? "vehicle").toLowerCase();
-        // Fallback p/ Patio-View antigo: injeta o tempo em assigned_technician_name.
-        // Patio-View novo usa created_at + ícone de relógio vermelho (não depende deste texto).
+        // TV Pátio: em Aguardando Avaliação sem mecânico, coluna vazia (sem "Pátio" e sem cronômetro).
+        // ZWSP sobrevive ao .trim() do Patio-View e não desenha texto.
         if (
           !techId &&
           orderType !== "module" &&
           status === "AGUARDANDO_AVALIACAO"
         ) {
-          name = formatTvWaitElapsed(r.created_at, nowMs);
+          name = "\u200B";
         }
         const customerName = (r.customer_id && customerNameMap[r.customer_id]) ? customerNameMap[r.customer_id] : null;
         return { ...r, assigned_technician_name: name, customer_name: customerName };
