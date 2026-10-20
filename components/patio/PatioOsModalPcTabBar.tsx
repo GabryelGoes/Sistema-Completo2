@@ -33,7 +33,7 @@ export const PatioOsModalPcTabBar: React.FC<PatioOsModalPcTabBarProps> = ({
     role="tablist"
     aria-label="Seções da ordem de serviço"
   >
-    <div className="mx-auto flex w-full max-w-[1680px] gap-0 px-6 xl:px-8">
+    <div className="flex w-full gap-0 px-6 xl:px-8">
       {tabs.map((tab) => {
         const selected = active === tab.id;
         const badgeCount = tabBadges?.[tab.id] ?? 0;
