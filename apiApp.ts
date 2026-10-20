@@ -4403,12 +4403,40 @@ export function createApiApp() {
         }
       }
 
+      /** Cronômetro p/ TV Pátio: sem mecânico em Aguardando Avaliação → texto no lugar de "Pátio". */
+      const formatTvWaitElapsed = (sinceIso: unknown, nowMs: number): string | null => {
+        if (typeof sinceIso !== "string" || !sinceIso.trim()) return null;
+        const start = new Date(sinceIso).getTime();
+        if (!Number.isFinite(start)) return null;
+        const totalMin = Math.max(0, Math.floor((nowMs - start) / 60_000));
+        const totalH = Math.floor(totalMin / 60);
+        if (totalH < 24) {
+          const m = totalMin % 60;
+          return `${totalH}h ${String(m).padStart(2, "0")}m`;
+        }
+        const days = Math.floor(totalH / 24);
+        const remH = totalH % 24;
+        return remH > 0 ? `${days}d ${remH}h` : `${days}d`;
+      };
+      const nowMs = Date.now();
+
       const enriched = rows.map((r: Record<string, unknown> & { assigned_technician?: string | null; customer_id?: string }) => {
         const tech = r.assigned_technician;
-        const name =
-          tech == null
+        const techId = tech == null ? "" : String(tech).trim();
+        let name: string | null =
+          !techId
             ? null
-            : technicianNameMap[tech as string] ?? technicianNameMap[(tech as string).trim().toLowerCase()] ?? null;
+            : technicianNameMap[techId] ?? technicianNameMap[techId.toLowerCase()] ?? null;
+        const status = String(r.status ?? "").toUpperCase();
+        const orderType = String(r.order_type ?? "vehicle").toLowerCase();
+        // TV física (Patio-View) usa assigned_technician_name || "Pátio" — injeta o tempo aqui.
+        if (
+          !techId &&
+          orderType !== "module" &&
+          status === "AGUARDANDO_AVALIACAO"
+        ) {
+          name = formatTvWaitElapsed(r.created_at, nowMs);
+        }
         const customerName = (r.customer_id && customerNameMap[r.customer_id]) ? customerNameMap[r.customer_id] : null;
         return { ...r, assigned_technician_name: name, customer_name: customerName };
       });
