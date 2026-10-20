@@ -174,8 +174,8 @@ export const AJUSTES_ITEMS: AjustesItemMeta[] = [
     kind: 'external',
     iconSrc: '/icons/painel-patio-tv-ios.png',
     iconFallback: 'external',
-    /** Painel TV com cronômetro vermelho — servido pelo app principal (sem deploy no Patio-View). */
-    externalHref: '/tv-patio.html',
+    /** Painel TV com cronômetro vermelho — GET /api/tv/display (mesmo deploy do app). */
+    externalHref: '/api/tv/display',
   },
   {
     id: 'lab_tipos',

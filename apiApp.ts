@@ -33,6 +33,7 @@ import { parseModuleKind, parseModuleVehicleKind } from "./utils/moduleMetadata.
 import { SYSTEM_NOTIFICATION_IDS } from "./constants/systemNotificationTypes.js";
 import { buildWorkshopPartsAnalytics } from "./utils/workshopPartsAnalytics.js";
 import { resolveTvUploadMime } from "./utils/tvMediaFile.js";
+import { buildTvPatioDisplayHtml } from "./utils/tvPatioDisplayHtml.js";
 import {
   collectApprovedPartsFromBudgets,
   collectApprovedServicesFromBudgets,
@@ -1239,7 +1240,11 @@ export function createApiApp() {
   const TV_API_TOKEN = (process.env.TV_API_TOKEN || "").trim();
   function isTvReadRoute(method: string, urlPath: string): boolean {
     if (method !== "GET") return false;
-    return urlPath === "/api/tv/playlist" || urlPath === "/api/service-orders";
+    return (
+      urlPath === "/api/tv/playlist" ||
+      urlPath === "/api/tv/display" ||
+      urlPath === "/api/service-orders"
+    );
   }
 
   app.use((req, res, next) => {
@@ -3186,6 +3191,16 @@ export function createApiApp() {
     }
   });
 
+  /**
+   * Painel TV do pátio (HTML) com cronômetro vermelho vivo na coluna Mecânico.
+   * Mesmo deploy do app — abre em https://…/api/tv/display (sem repo Patio-View).
+   */
+  app.get("/api/tv/display", (_req, res) => {
+    res.setHeader("Content-Type", "text/html; charset=utf-8");
+    res.setHeader("Cache-Control", "no-store");
+    return res.status(200).send(buildTvPatioDisplayHtml());
+  });
+
   /** Lista completa (inclui inativos) para gestão no app (?scope=patio | laboratorio). */
   app.get("/api/tv/manage", async (req, res) => {
     try {
@@ -4430,12 +4445,14 @@ export function createApiApp() {
         const status = String(r.status ?? "").toUpperCase();
         const orderType = String(r.order_type ?? "vehicle").toLowerCase();
         // TV física (Patio-View) usa assigned_technician_name || "Pátio" — injeta o tempo aqui.
+        // Prefixo 🔴: única forma de “vermelho” no Patio-View antigo (texto herda cor da linha).
         if (
           !techId &&
           orderType !== "module" &&
           status === "AGUARDANDO_AVALIACAO"
         ) {
-          name = formatTvWaitElapsed(r.created_at, nowMs);
+          const elapsed = formatTvWaitElapsed(r.created_at, nowMs);
+          name = elapsed ? `🔴 ${elapsed}` : null;
         }
         const customerName = (r.customer_id && customerNameMap[r.customer_id]) ? customerNameMap[r.customer_id] : null;
         return { ...r, assigned_technician_name: name, customer_name: customerName };
