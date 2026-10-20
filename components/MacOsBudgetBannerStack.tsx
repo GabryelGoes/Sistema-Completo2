@@ -284,8 +284,11 @@ export function MacOsBudgetBannerStack({
   const visible = items.slice(0, MAX_VISIBLE);
   if (visible.length === 0) return null;
 
-  const toolbarShell = 'border-white/12 bg-zinc-900/80 text-white';
-  const toolbarBtn = 'hover:bg-white/10 text-white';
+  /** Ícones só — cores chapadas (sem transparência / blur). */
+  const toolbarBtnBase =
+    'pointer-events-auto inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-zinc-700 bg-zinc-900 text-white transition-[background-color,border-color,color,transform] duration-150 disabled:opacity-50 active:scale-[0.96]';
+  const toolbarMinimizeBtn = `${toolbarBtnBase} hover:border-amber-500 hover:bg-amber-500 hover:text-zinc-950`;
+  const toolbarClearBtn = `${toolbarBtnBase} hover:border-red-600 hover:bg-red-600 hover:text-white`;
 
   const handleClearAll = () => {
     if (minimizing || busyIds.size > 0) return;
@@ -369,21 +372,21 @@ export function MacOsBudgetBannerStack({
           type="button"
           disabled={minimizing || busyIds.size > 0}
           onClick={() => void handleMinimize()}
-          className={`pointer-events-auto inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold backdrop-blur-xl transition disabled:opacity-50 ${toolbarShell} ${toolbarBtn}`}
-          style={{ WebkitBackdropFilter: 'blur(20px)' }}
+          className={toolbarMinimizeBtn}
+          title="Minimizar"
+          aria-label="Minimizar"
         >
-          <Minus className="h-3 w-3" strokeWidth={2.5} aria-hidden />
-          Minimizar
+          <Minus className="h-3.5 w-3.5" strokeWidth={2.75} aria-hidden />
         </button>
         <button
           type="button"
           disabled={minimizing || busyIds.size > 0}
           onClick={handleClearAll}
-          className={`pointer-events-auto inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold backdrop-blur-xl transition disabled:opacity-50 ${toolbarShell} ${toolbarBtn}`}
-          style={{ WebkitBackdropFilter: 'blur(20px)' }}
+          className={toolbarClearBtn}
+          title="Limpar tudo"
+          aria-label="Limpar tudo"
         >
-          <Trash2 className="h-3 w-3" strokeWidth={2.25} aria-hidden />
-          Limpar Tudo
+          <Trash2 className="h-3.5 w-3.5" strokeWidth={2.35} aria-hidden />
         </button>
       </div>
 
