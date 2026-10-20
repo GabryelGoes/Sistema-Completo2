@@ -1230,6 +1230,8 @@ export function createApiApp() {
   function isPublicApiRoute(method: string, urlPath: string): boolean {
     if (urlPath === "/api/health") return true;
     if (urlPath === "/api/auth/login" && method === "POST") return true;
+    // Painel TV HTML (cronômetro vermelho) — sem login; dados vêm de /api/service-orders.
+    if (method === "GET" && urlPath === "/api/tv/display") return true;
     return false;
   }
 
