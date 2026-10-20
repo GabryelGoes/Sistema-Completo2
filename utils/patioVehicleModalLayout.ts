@@ -313,9 +313,9 @@ export function getPatioVehicleModalLayout(
     body: 'patio-vm-desktop-body',
     mainCol: 'patio-vm-main-col min-w-0 space-y-5 px-6 pb-6 pt-4 xl:px-8',
     asideCol:
-      'patio-vm-aside-col custom-scrollbar min-w-0 space-y-4 border-zinc-300/70 bg-[#F2F2F7]/90 px-5 py-4 dark:border-white/[0.08] dark:bg-[#121417] xl:px-6 xl:py-5',
+      'patio-vm-aside-col custom-scrollbar min-w-0 space-y-4 border-zinc-300/70 bg-[#F2F2F7] px-5 py-4 dark:border-white/[0.08] dark:bg-[#0a0a0a] xl:px-6 xl:py-5',
     insetCard:
-      'patio-vm-card rounded-[10px] border-0 bg-white shadow-none dark:bg-[#1a1d21]',
+      'patio-vm-card overflow-hidden rounded-[10px] border border-zinc-200/90 bg-white shadow-none dark:border-white/[0.1] dark:bg-[#1a1d21]',
     input:
       'w-full rounded-md border-0 bg-zinc-100/90 px-3.5 py-2.5 text-[15px] leading-relaxed text-zinc-950 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/30 transition-shadow dark:bg-zinc-950/60 dark:text-white dark:placeholder:text-zinc-500',
     closeBtn:

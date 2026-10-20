@@ -43,10 +43,24 @@ html[data-device='tablet'] .patio-vehicle-modal--desktop.animate-modal-backdrop-
 
 html[data-device='desktop'] .patio-vehicle-modal--desktop .patio-vm-card,
 html[data-device='tablet'] .patio-vehicle-modal--desktop .patio-vm-card {
-  border-radius: 6px;
+  border-radius: 10px;
   transition:
     border-color 0.15s ease,
     box-shadow 0.18s ease;
+}
+
+/* Sidebar: cards com a mesma definição visual da coluna esquerda */
+html[data-device='desktop'] .patio-vehicle-modal--desktop .patio-vm-aside-col .patio-vm-card,
+html[data-device='tablet'] .patio-vehicle-modal--desktop .patio-vm-aside-col .patio-vm-card {
+  border: 1px solid rgba(24, 24, 27, 0.12);
+  background-color: #ffffff;
+  box-shadow: none;
+}
+
+html.dark[data-device='desktop'] .patio-vehicle-modal--desktop .patio-vm-aside-col .patio-vm-card,
+html.dark[data-device='tablet'] .patio-vehicle-modal--desktop .patio-vm-aside-col .patio-vm-card {
+  border-color: rgba(255, 255, 255, 0.12);
+  background-color: #1a1d21;
 }
 
 html[data-device='desktop'] .patio-vehicle-modal--desktop button.patio-vm-card,
@@ -143,7 +157,8 @@ html[data-device='tablet'] .patio-vm-header-meta--pc .patio-vm-meta-input--date:
 html[data-device='desktop'] .patio-vehicle-modal--desktop .patio-vm-desktop-scroll,
 html[data-device='tablet'] .patio-vehicle-modal--desktop .patio-vm-desktop-scroll {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(340px, 420px);
+  /* 60% conteúdo / 40% sidebar */
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
   grid-template-rows: auto auto minmax(0, 1fr);
   align-items: start;
   overflow-x: hidden;
