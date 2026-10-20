@@ -7764,7 +7764,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 {/* Técnico + garantia + ícone de origem (centro) + placa */}
                 <div
                   className={`grid min-w-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-1.5 ${
-                    customerName
+                    customerName || card.createdAt
                       ? boardPanoramic
                         ? 'mt-1.5'
                         : 'mt-2'
