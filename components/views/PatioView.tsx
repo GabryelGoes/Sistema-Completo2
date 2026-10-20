@@ -813,6 +813,8 @@ const Lightbox = ({
   const dragStartXRef = useRef<number>(0);
   const scaleRef = useRef(1);
   const translateRef = useRef({ x: 0, y: 0 });
+  /** Pan com mouse/caneta no PC — listeners síncronos (não via useEffect) para não perder o gesto. */
+  const mousePanRef = useRef<{ x: number; y: number } | null>(null);
   const [isMousePanning, setIsMousePanning] = useState(false);
   const pinchContainerRef = useRef<HTMLDivElement>(null);
   const imageRef = useRef<HTMLImageElement>(null);
@@ -1021,41 +1023,87 @@ const Lightbox = ({
     if (scaleRef.current < 1) setScale(1);
   };
 
-  const handleMouseDown = (e: React.MouseEvent) => {
-    if (scale <= 1 || e.button !== 0) return;
-    e.preventDefault();
-    setIsMousePanning(true);
-    lastTouchRef.current = { x: e.clientX, y: e.clientY };
-    setIsDragging(true);
-  };
-
   const stopMousePanning = React.useCallback(() => {
+    mousePanRef.current = null;
     setIsMousePanning(false);
     setIsDragging(false);
     lastTouchRef.current = null;
   }, []);
 
+  /** Zoom com scroll / pinça do trackpad (ctrl+wheel), focalizado no cursor. */
+  const applyWheelZoom = React.useCallback((clientX: number, clientY: number, deltaY: number) => {
+    const oldScale = scaleRef.current;
+    const oldTx = translateRef.current.x;
+    const oldTy = translateRef.current.y;
+    const factor = deltaY > 0 ? 0.9 : 1.1;
+    let newScale = Math.min(5, Math.max(1, oldScale * factor));
+    if (newScale <= 1) {
+      setScale(1);
+      setTranslate({ x: 0, y: 0 });
+      return;
+    }
+    const { x: fx, y: fy } = getPinchFocalOffset(clientX, clientY);
+    const zoomRatio = newScale / oldScale;
+    setScale(newScale);
+    setTranslate({
+      x: fx * (1 - zoomRatio) + oldTx * zoomRatio,
+      y: fy * (1 - zoomRatio) + oldTy * zoomRatio,
+    });
+  }, []);
+
   useEffect(() => {
-    if (!isMousePanning) return;
-    const onMove = (e: MouseEvent) => {
-      if (!lastTouchRef.current) return;
-      const dx = e.clientX - lastTouchRef.current.x;
-      const dy = e.clientY - lastTouchRef.current.y;
-      setTranslate((prev) => ({ x: prev.x + dx, y: prev.y + dy }));
-      lastTouchRef.current = { x: e.clientX, y: e.clientY };
+    if (!src) return;
+    const el = pinchContainerRef.current;
+    if (!el) return;
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      applyWheelZoom(e.clientX, e.clientY, e.deltaY);
     };
-    const onUp = () => stopMousePanning();
-    window.addEventListener('mousemove', onMove);
-    window.addEventListener('mouseup', onUp);
-    return () => {
-      window.removeEventListener('mousemove', onMove);
-      window.removeEventListener('mouseup', onUp);
-    };
-  }, [isMousePanning, stopMousePanning]);
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, [applyWheelZoom, src]);
+
+  const handlePointerDown = (e: React.PointerEvent) => {
+    // Toque continua no fluxo touch*; evita pan duplicado.
+    if (e.pointerType === 'touch') return;
+    if (e.button !== 0 || scaleRef.current <= 1) return;
+    e.preventDefault();
+    e.stopPropagation();
+    mousePanRef.current = { x: e.clientX, y: e.clientY };
+    lastTouchRef.current = { x: e.clientX, y: e.clientY };
+    setIsMousePanning(true);
+    setIsDragging(true);
+    try {
+      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    } catch {
+      /* ignore */
+    }
+  };
+
+  const handlePointerMove = (e: React.PointerEvent) => {
+    if (e.pointerType === 'touch' || !mousePanRef.current || scaleRef.current <= 1) return;
+    const dx = e.clientX - mousePanRef.current.x;
+    const dy = e.clientY - mousePanRef.current.y;
+    mousePanRef.current = { x: e.clientX, y: e.clientY };
+    lastTouchRef.current = { x: e.clientX, y: e.clientY };
+    setTranslate((prev) => ({ x: prev.x + dx, y: prev.y + dy }));
+  };
+
+  const handlePointerUp = (e: React.PointerEvent) => {
+    if (e.pointerType === 'touch') return;
+    if (!mousePanRef.current) return;
+    stopMousePanning();
+    try {
+      (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+    } catch {
+      /* ignore */
+    }
+  };
 
   const handleDoubleTap = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (scale > 1) {
+    e.preventDefault();
+    if (scaleRef.current > 1) {
       setScale(1);
       setTranslate({ x: 0, y: 0 });
     } else {
@@ -1130,13 +1178,20 @@ const Lightbox = ({
 
       <div
         ref={pinchContainerRef}
-        className={`relative w-full h-full flex items-center justify-center touch-none ${scale > 1 ? 'cursor-grab active:cursor-grabbing' : ''}`}
+        className={`relative w-full h-full flex items-center justify-center touch-none ${
+          scale > 1 ? (isMousePanning ? 'cursor-grabbing' : 'cursor-grab') : 'cursor-zoom-in'
+        }`}
         onClick={(e) => e.stopPropagation()}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
         onTouchCancel={handleTouchEnd}
-        onMouseDown={handleMouseDown}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerUp}
+        onLostPointerCapture={stopMousePanning}
+        onDoubleClick={handleDoubleTap}
       >
         {!imageLoaded && (
           <div className="pointer-events-none absolute inset-0 z-[1] flex items-center justify-center">
@@ -1156,13 +1211,13 @@ const Lightbox = ({
           onError={() => {
             if (!displayFailed && effectiveSrc !== src) setDisplayFailed(true);
           }}
-          onDoubleClick={handleDoubleTap}
+          onDragStart={(e) => e.preventDefault()}
           style={{
             transform: `translate(${translate.x}px, ${translate.y}px) scale(${scale})`,
-            transition: isDragging || isSwiping || scale > 1 ? "none" : "transform 0.2s ease-out",
+            transition: isDragging || isSwiping || isMousePanning || scale > 1 ? "none" : "transform 0.2s ease-out",
             opacity: imageLoaded ? 1 : 0,
           }}
-          className="max-w-full max-h-full object-contain select-none"
+          className="max-w-full max-h-full object-contain select-none pointer-events-none"
           draggable={false}
         />
       </div>
@@ -1178,13 +1233,13 @@ const Lightbox = ({
             ))}
           </div>
           <p className={`pointer-events-none absolute bottom-4 left-1/2 max-w-[min(90vw,20rem)] -translate-x-1/2 text-center text-[11px] font-medium leading-snug ${mediaOverlayHintText}`}>
-            Setas ← → no teclado ou deslize o dedo para o lado
+            Scroll para zoom · arraste com zoom · setas ← → para trocar
           </p>
         </>
       )}
       {!hasMultiple && (
         <div className={`absolute bottom-10 left-1/2 -translate-x-1/2 bg-black/50 px-4 py-2 rounded-full text-xs pointer-events-none backdrop-blur-md border border-white/20 ${mediaOverlayHintText}`}>
-          Toque duplo para zoom ou use pinça
+          Duplo clique ou scroll para zoom · arraste para mover
         </div>
       )}
     </div>
@@ -1303,9 +1358,13 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const [selectedCard, setSelectedCard] = useState<TrelloCard | null>(null);
   const [serviceOrderDetail, setServiceOrderDetail] = useState<ServiceOrderDetail | null>(null);
   const [cardDetails, setCardDetails] = useState<{ actions: TrelloAction[], attachments: TrelloAttachment[] } | null>(null);
+  /** Garante que `cardDetails.actions` só aparece se for da OS aberta (evita flash de outro veículo). */
+  const [cardDetailsOrderId, setCardDetailsOrderId] = useState<string | null>(null);
   const [loadingDetails, setLoadingDetails] = useState(false);
   /** Chat: loading próprio — não espera fotos/orçamentos. */
   const [loadingComments, setLoadingComments] = useState(false);
+  /** Gerações de fetch de comentários — descarta respostas atrasadas. */
+  const commentsLoadGenRef = useRef(0);
   const [editFichaSaving, setEditFichaSaving] = useState(false);
   const [referenceLinksDraft, setReferenceLinksDraft] = useState<VehicleReferenceLink[]>([]);
   const [pendingReferenceLink, setPendingReferenceLink] = useState<{ label: string; url: string } | null>(null);
@@ -2437,15 +2496,22 @@ export const PatioView: React.FC<PatioViewProps> = ({
             !!editingActionIdRef.current ||
             sendingCommentRef.current;
           if (skipCommentsRefresh) return;
-          setCardDetails((prev) => ({
-            actions: (comments ?? []).map(commentToAction),
-            attachments: prev?.attachments ?? [],
-          }));
+          const actions = (comments ?? []).map(commentToAction);
+          setCardDetailsOrderId(id);
+          setCardDetails((prev) => {
+            const next = { actions, attachments: prev?.attachments ?? [] };
+            vehicleCardDetailsCacheRef.current.set(id, {
+              actions: cloneCachedActions(actions),
+              attachments: cloneCachedAttachments(next.attachments),
+            });
+            return next;
+          });
         })
         .catch(() => {});
 
       const [order, photos, budgets] = await restPromise;
       if (isBudgetOpenRef.current) return;
+      if (selectedCardRef.current?.id !== id) return;
       setServiceOrderDetail(order);
       const listItem = serviceOrderDetailToListItem(order);
       const nameMap = buildTechnicianNameMap(systemTechnicians);
@@ -2473,10 +2539,19 @@ export const PatioView: React.FC<PatioViewProps> = ({
             !!editingActionIdRef.current ||
             sendingCommentRef.current;
           if (!skipCommentsRefresh) {
-            setCardDetails((prev) => ({
-              actions: (comments ?? []).map(commentToAction),
-              attachments: prev?.attachments ?? nextAttachments,
-            }));
+            const actions = (comments ?? []).map(commentToAction);
+            setCardDetailsOrderId(id);
+            setCardDetails((prev) => {
+              const next = {
+                actions,
+                attachments: prev?.attachments ?? nextAttachments,
+              };
+              vehicleCardDetailsCacheRef.current.set(id, {
+                actions: cloneCachedActions(actions),
+                attachments: cloneCachedAttachments(next.attachments),
+              });
+              return next;
+            });
           }
         }
       } catch {
@@ -3296,26 +3371,94 @@ export const PatioView: React.FC<PatioViewProps> = ({
     if (!openServiceOrderIdProp) openServiceOrderHandledRef.current = false;
   }, [openServiceOrderIdProp]);
 
+  /** Comentários só desta OS — nunca reaproveita lista de outro veículo aberta antes. */
+  const openModalCommentActions = useMemo(() => {
+    if (!selectedCard?.id || cardDetailsOrderId !== selectedCard.id) return [];
+    return cardDetails?.actions ?? [];
+  }, [selectedCard?.id, cardDetailsOrderId, cardDetails?.actions]);
+  const openModalCommentsReady =
+    !!selectedCard?.id && cardDetailsOrderId === selectedCard.id && !loadingComments;
+
   // Manter a última mensagem visível: rolar ao fim ao carregar comentários ou ao enviar novo
   useEffect(() => {
-    if (!selectedCard || loadingDetails) return;
-    const actions = cardDetails?.actions;
-    if (!actions?.length) return;
+    if (!openModalCommentsReady || !openModalCommentActions.length) return;
     const el = commentsListRef.current;
     if (!el) return;
     const scrollToBottom = () => {
       el.scrollTop = el.scrollHeight;
     };
     requestAnimationFrame(() => requestAnimationFrame(scrollToBottom));
-  }, [selectedCard?.id, loadingDetails, cardDetails?.actions?.length]);
+  }, [selectedCard?.id, openModalCommentsReady, openModalCommentActions.length]);
+
+  /** Pré-aquece cache de comentários ao passar o mouse no card (abertura mais rápida). */
+  const prefetchVehicleComments = useCallback((orderId: string) => {
+    if (!orderId) return;
+    const cached = vehicleCardDetailsCacheRef.current.get(orderId);
+    if ((cached?.actions?.length ?? 0) > 0) return;
+    void getServiceOrderComments(orderId)
+      .then((comments) => {
+        const actions = (comments ?? []).map(commentToAction);
+        const prev = vehicleCardDetailsCacheRef.current.get(orderId);
+        vehicleCardDetailsCacheRef.current.set(orderId, {
+          actions: cloneCachedActions(actions),
+          attachments: prev ? cloneCachedAttachments(prev.attachments) : [],
+        });
+        if (selectedCardRef.current?.id === orderId) {
+          setCardDetailsOrderId(orderId);
+          setCardDetails((cur) => ({
+            actions,
+            attachments: cur?.attachments ?? prev?.attachments ?? [],
+          }));
+          setLoadingComments(false);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const openVehicleCard = useCallback(
+    (card: TrelloCard) => {
+      prefetchVehicleComments(card.id);
+      setSelectedCard(card);
+    },
+    [prefetchVehicleComments]
+  );
 
   useEffect(() => {
     if (!selectedCard?.id || loadingDetails || !cardDetails) return;
+    // Só cacheia se o estado ainda for desta OS (evita gravar comentários de outro veículo).
+    if (cardDetailsOrderId !== selectedCard.id) return;
     vehicleCardDetailsCacheRef.current.set(selectedCard.id, {
       actions: cloneCachedActions(cardDetails.actions),
       attachments: cloneCachedAttachments(cardDetails.attachments),
     });
-  }, [selectedCard?.id, loadingDetails, cardDetails]);
+  }, [selectedCard?.id, loadingDetails, cardDetails, cardDetailsOrderId]);
+
+  /**
+   * Antes do paint: troca comentários para o cache desta OS (ou vazio).
+   * Sem isso, um frame ainda mostra comentários do veículo anterior.
+   */
+  useLayoutEffect(() => {
+    const id = selectedCard?.id ?? null;
+    if (!id) {
+      setCardDetails(null);
+      setCardDetailsOrderId(null);
+      setLoadingComments(false);
+      return;
+    }
+    const cached = vehicleCardDetailsCacheRef.current.get(id);
+    const hasCachedComments = (cached?.actions?.length ?? 0) > 0;
+    setCardDetailsOrderId(id);
+    setCardDetails(
+      cached
+        ? {
+            actions: cloneCachedActions(cached.actions),
+            attachments: cloneCachedAttachments(cached.attachments),
+          }
+        : { actions: [], attachments: [] }
+    );
+    // Com cache: mostra na hora; ainda revalida em background no efeito abaixo.
+    setLoadingComments(!hasCachedComments);
+  }, [selectedCard?.id]);
 
   /** Só depende do id da OS: `setSelectedCard` no Realtime cria novo objeto a cada sync e não pode re-disparar este efeito (loading infinito / botões a piscar). */
   useEffect(() => {
@@ -3328,33 +3471,37 @@ export const PatioView: React.FC<PatioViewProps> = ({
       return;
     }
     const loadId = card.id;
+    const gen = ++commentsLoadGenRef.current;
     setIsEditingDesc(false);
     setLoadingDetails(true);
-    const cached = vehicleCardDetailsCacheRef.current.get(loadId);
-    const hasCachedComments = (cached?.actions?.length ?? 0) > 0;
-    setCardDetails(
-      cached
-        ? {
-            actions: cloneCachedActions(cached.actions),
-            attachments: cloneCachedAttachments(cached.attachments),
-          }
-        : { actions: [], attachments: [] }
-    );
-    setLoadingComments(!hasCachedComments);
     setServiceOrderDetail(serviceOrderDetailPlaceholderFromCard(card, orderType));
 
     // Comentários em paralelo e aplicados assim que chegam (não esperam fotos/orçamentos).
     const commentsPromise = getServiceOrderComments(loadId)
       .then((comments) => {
+        if (commentsLoadGenRef.current !== gen) return;
         if (selectedCardRef.current?.id !== loadId) return;
-        setCardDetails((prev) => ({
-          actions: (comments ?? []).map(commentToAction),
-          attachments: prev?.attachments ?? [],
-        }));
+        const actions = (comments ?? []).map(commentToAction);
+        setCardDetailsOrderId(loadId);
+        setCardDetails((prev) => {
+          const attachments =
+            prev?.attachments?.length
+              ? prev.attachments
+              : (vehicleCardDetailsCacheRef.current.get(loadId)?.attachments ?? []);
+          const next = { actions, attachments };
+          // Atualiza cache na hora para a próxima abertura ser instantânea.
+          vehicleCardDetailsCacheRef.current.set(loadId, {
+            actions: cloneCachedActions(actions),
+            attachments: cloneCachedAttachments(attachments),
+          });
+          return next;
+        });
       })
       .catch((err) => console.error('Erro ao carregar comentários', err))
       .finally(() => {
-        if (selectedCardRef.current?.id === loadId) setLoadingComments(false);
+        if (commentsLoadGenRef.current === gen && selectedCardRef.current?.id === loadId) {
+          setLoadingComments(false);
+        }
       });
 
     const detailsPromise = Promise.all([
@@ -3365,16 +3512,23 @@ export const PatioView: React.FC<PatioViewProps> = ({
       .then(([order, photos, budgets]) => {
         if (selectedCardRef.current?.id !== order.id) return;
         setServiceOrderDetail(order);
-        setCardDetails((prev) => ({
-          actions: prev?.actions ?? [],
-          attachments: photos.map((p, i) => ({
-            id: p.path || String(i),
-            name: p.name,
-            url: p.url,
-            mimeType: attachmentMimeType(p.name),
-            previews: [{ url: p.url, width: 200, height: 200 }],
-          })),
+        const nextAttachments = photos.map((p, i) => ({
+          id: p.path || String(i),
+          name: p.name,
+          url: p.url,
+          mimeType: attachmentMimeType(p.name),
+          previews: [{ url: p.url, width: 200, height: 200 }],
         }));
+        setCardDetails((prev) => {
+          const actions = prev?.actions ?? [];
+          const next = { actions, attachments: nextAttachments };
+          const cached = vehicleCardDetailsCacheRef.current.get(loadId);
+          vehicleCardDetailsCacheRef.current.set(loadId, {
+            actions: cloneCachedActions(cached?.actions?.length ? cached.actions : actions),
+            attachments: cloneCachedAttachments(nextAttachments),
+          });
+          return next;
+        });
         setSavedBudgets(budgets);
       })
       .catch((err) => console.error('Erro ao carregar detalhes', err))
@@ -4123,10 +4277,20 @@ export const PatioView: React.FC<PatioViewProps> = ({
         /* envio já ok; recibo pode falhar sem bloquear */
       }
       const comments = await getServiceOrderComments(orderId);
-      setCardDetails(prev => prev ? {
-        ...prev,
-        actions: comments.map(commentToAction),
-      } : null);
+      if (selectedCardRef.current?.id !== orderId) return;
+      const actions = comments.map(commentToAction);
+      setCardDetailsOrderId(orderId);
+      setCardDetails((prev) => {
+        const next = {
+          actions,
+          attachments: prev?.attachments ?? [],
+        };
+        vehicleCardDetailsCacheRef.current.set(orderId, {
+          actions: cloneCachedActions(actions),
+          attachments: cloneCachedAttachments(next.attachments),
+        });
+        return next;
+      });
       void refreshCommentUnreadCounts();
     } catch (err: any) {
       alert(err?.message ?? 'Erro ao enviar comentário.');
@@ -4194,9 +4358,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
   /** Badge/banner do modal: nunca conta mensagem do próprio usuário. */
   const selectedModalCommentsUnread = (() => {
     if (!selectedCard) return 0;
-    const actions = cardDetails?.actions;
-    if (actions && requiresExplicitCommentReadEffective) {
-      return actions.filter((action) => {
+    if (cardDetailsOrderId === selectedCard.id && requiresExplicitCommentReadEffective) {
+      return openModalCommentActions.filter((action) => {
         if (isAuthorOfComment(action.memberCreator.fullName, action.data.author_key)) return false;
         const views = action.data.views ?? [];
         if (!commentReaderKey) return true;
@@ -4209,7 +4372,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
   /** Alinha badge do quadro com o cálculo local (exclui próprias mensagens). */
   useEffect(() => {
     if (!selectedCard?.id || !requiresExplicitCommentReadEffective) return;
-    if (!cardDetails?.actions) return;
+    if (cardDetailsOrderId !== selectedCard.id) return;
     const orderId = selectedCard.id;
     const local = selectedModalCommentsUnread;
     setCommentUnreadByOrderId((prev) => {
@@ -4227,19 +4390,34 @@ export const PatioView: React.FC<PatioViewProps> = ({
     cardDetails?.actions,
   ]);
 
+  const applyCommentsToOpenCard = (orderId: string, comments: Awaited<ReturnType<typeof getServiceOrderComments>>) => {
+    if (selectedCardRef.current?.id !== orderId) return;
+    const actions = comments.map(commentToAction);
+    setCardDetailsOrderId(orderId);
+    setCardDetails((prev) => {
+      const next = {
+        actions,
+        attachments: prev?.attachments ?? [],
+      };
+      vehicleCardDetailsCacheRef.current.set(orderId, {
+        actions: cloneCachedActions(actions),
+        attachments: cloneCachedAttachments(next.attachments),
+      });
+      return next;
+    });
+  };
+
   const handleUpdateComment = async (actionId: string, nextText: string) => {
     if (!selectedCard || !actionId || !nextText.trim()) {
       setEditingActionId(null);
       return;
     }
+    const orderId = selectedCard.id;
     setActionLoadingId(actionId);
     try {
-      await updateServiceOrderComment(selectedCard.id, actionId, nextText.trim());
-      const comments = await getServiceOrderComments(selectedCard.id);
-      setCardDetails(prev => prev ? {
-        ...prev,
-        actions: comments.map(commentToAction),
-      } : null);
+      await updateServiceOrderComment(orderId, actionId, nextText.trim());
+      const comments = await getServiceOrderComments(orderId);
+      applyCommentsToOpenCard(orderId, comments);
       setEditingActionId(null);
     } catch (err: any) {
       alert(err?.message ?? 'Erro ao atualizar comentário.');
@@ -4251,14 +4429,12 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const handleDeleteComment = async (actionId: string) => {
     if (!selectedCard || !actionId) return;
     if (!confirm('Excluir este comentário? Esta ação não pode ser desfeita.')) return;
+    const orderId = selectedCard.id;
     setActionLoadingId(actionId);
     try {
-      await deleteServiceOrderComment(selectedCard.id, actionId);
-      const comments = await getServiceOrderComments(selectedCard.id);
-      setCardDetails(prev => prev ? {
-        ...prev,
-        actions: comments.map(commentToAction),
-      } : null);
+      await deleteServiceOrderComment(orderId, actionId);
+      const comments = await getServiceOrderComments(orderId);
+      applyCommentsToOpenCard(orderId, comments);
     } catch (err: any) {
       alert(err?.message ?? 'Erro ao excluir comentário.');
     } finally {
@@ -4268,14 +4444,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
   const reloadCommentsQuiet = async (orderId: string) => {
     const comments = await getServiceOrderComments(orderId);
-    setCardDetails((prev) =>
-      prev
-        ? {
-            ...prev,
-            actions: comments.map(commentToAction),
-          }
-        : null
-    );
+    applyCommentsToOpenCard(orderId, comments);
   };
 
   const handleMarkSingleCommentRead = async (commentId: string) => {
@@ -7074,7 +7243,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
         >
           <LabBenchPanel
             cards={cards}
-            onOpenCard={(card) => setSelectedCard(card)}
+            onOpenCard={openVehicleCard}
             onMoveCard={handleBenchMove}
           />
         </div>
@@ -7309,12 +7478,14 @@ export const PatioView: React.FC<PatioViewProps> = ({
               } ${trelloDrag && trelloDragCardId && trelloDragCardId !== card.id ? 'pointer-events-none' : ''}`}
             >
               <div
+                onMouseEnter={() => prefetchVehicleComments(card.id)}
+                onPointerDown={() => prefetchVehicleComments(card.id)}
                 onClick={() => {
                   if (patioTrelloSkipClickRef.current) {
                     patioTrelloSkipClickRef.current = false;
                     return;
                   }
-                  setSelectedCard(card);
+                  openVehicleCard(card);
                 }}
                 className={`
                   group relative flex h-auto min-h-0 w-full flex-col overflow-hidden
@@ -7759,7 +7930,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                     }))}
                     locationBusyId={locationChangingCardId}
                     stageBusyId={stageChangingCardId || (isMoving && cardInTransition ? cardInTransition.id : null)}
-                    onOpenCard={(card) => setSelectedCard(card)}
+                    onOpenCard={openVehicleCard}
                     onChangeStage={(card, stageId) => {
                       void performStageChangeForCard(card, stageId);
                     }}
@@ -11339,13 +11510,13 @@ export const PatioView: React.FC<PatioViewProps> = ({
                              <div
                                ref={commentsListRef}
                                className={`${patioVehicleVm.commentsList} !bg-[#E5DDD5]/55 dark:!bg-zinc-950/80 ${
-                                 (cardDetails?.actions?.length ?? 0) >= 4
+                                 openModalCommentActions.length >= 4
                                    ? 'max-h-[15.5rem] overflow-y-auto overscroll-contain custom-scrollbar sm:max-h-[16.5rem]'
                                    : ''
                                }`}
                              >
-                                {cardDetails?.actions && cardDetails.actions.length > 0 ? (
-                                   cardDetails.actions.map(action => {
+                                {openModalCommentActions.length > 0 ? (
+                                   openModalCommentActions.map(action => {
                                       const mine = isAuthorOfComment(
                                         action.memberCreator.fullName,
                                         action.data.author_key
@@ -11372,7 +11543,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                         onCancelEdit={handleCancelEdit}
                                       />
                                    ); })
-                                ) : loadingComments ? (
+                                ) : !openModalCommentsReady || loadingComments ? (
                                    <div className="flex justify-center py-8 lg:py-6">
                                       <RefreshCw className="h-6 w-6 animate-spin text-[#007AFF] lg:h-5 lg:w-5" />
                                    </div>
@@ -12390,6 +12561,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
             });
           }}
           actorOptions={actorOptions}
+          orderType={orderType === 'module' ? 'module' : 'vehicle'}
           headerIcon={<img src="/icons/novo-orcamento-ios.png" alt="" className="h-full w-full object-cover" />}
         />
       ) : null}
@@ -12876,7 +13048,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
           open={benchQueueModalOpen}
           onClose={() => setBenchQueueModalOpen(false)}
           cards={cards}
-          onOpenCard={(card) => setSelectedCard(card)}
+          onOpenCard={openVehicleCard}
           onOpenBenchPanel={handleOpenBenchPanelFromQueue}
         />
       )}
@@ -12886,7 +13058,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
           open={externalRepairModalOpen}
           onClose={() => setExternalRepairModalOpen(false)}
           cards={externalRepairCards}
-          onOpenCard={(card) => setSelectedCard(card)}
+          onOpenCard={openVehicleCard}
           onRegisterReturn={handleRegisterExternalReturn}
         />
       )}
@@ -12933,7 +13105,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
             <div className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-6">
               <LabBenchPanel
                 cards={cards}
-                onOpenCard={(card) => setSelectedCard(card)}
+                onOpenCard={openVehicleCard}
                 onMoveCard={handleBenchMove}
               />
             </div>
