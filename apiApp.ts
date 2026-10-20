@@ -4446,15 +4446,14 @@ export function createApiApp() {
             : technicianNameMap[techId] ?? technicianNameMap[techId.toLowerCase()] ?? null;
         const status = String(r.status ?? "").toUpperCase();
         const orderType = String(r.order_type ?? "vehicle").toLowerCase();
-        // TV física (Patio-View) usa assigned_technician_name || "Pátio" — injeta o tempo aqui.
-        // Prefixo 🔴: única forma de “vermelho” no Patio-View antigo (texto herda cor da linha).
+        // Fallback p/ Patio-View antigo: injeta o tempo em assigned_technician_name.
+        // Patio-View novo usa created_at + ícone de relógio vermelho (não depende deste texto).
         if (
           !techId &&
           orderType !== "module" &&
           status === "AGUARDANDO_AVALIACAO"
         ) {
-          const elapsed = formatTvWaitElapsed(r.created_at, nowMs);
-          name = elapsed ? `🔴 ${elapsed}` : null;
+          name = formatTvWaitElapsed(r.created_at, nowMs);
         }
         const customerName = (r.customer_id && customerNameMap[r.customer_id]) ? customerNameMap[r.customer_id] : null;
         return { ...r, assigned_technician_name: name, customer_name: customerName };
