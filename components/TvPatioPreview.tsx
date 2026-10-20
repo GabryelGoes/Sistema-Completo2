@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { Clock } from 'lucide-react';
 import type { TvMediaObjectFit, TvScope, TvSlide } from '../services/apiService';
 import { normalizeTvMediaObjectFit } from '../services/apiService';
 import type { TvChimeAlert, TvChimeKind, TvChimeScheduleConfig } from '../utils/tvChimeSchedule';
@@ -12,6 +13,52 @@ import {
 } from '../utils/tvBoardPreview';
 import { TvChimeBannerCard } from './TvChimeBannerCard';
 import { TvUploadedVideoPlayer } from './tv/TvUploadedVideoPlayer';
+
+function isAwaitingEvaluationStage(stage: string): boolean {
+  const s = String(stage || '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+  return s.includes('aguardando') && s.includes('avaliacao');
+}
+
+function isPatioMechanicPlaceholder(fifth: string): boolean {
+  const t = fifth.trim().toLowerCase();
+  return !t || t === 'patio' || t === 'pátio';
+}
+
+function formatWaitElapsedLabel(sinceIso: string | null | undefined, nowMs: number): string | null {
+  if (!sinceIso) return null;
+  const start = new Date(sinceIso).getTime();
+  if (!Number.isFinite(start)) return null;
+  const totalMin = Math.max(0, Math.floor((nowMs - start) / 60_000));
+  const totalH = Math.floor(totalMin / 60);
+  if (totalH < 24) {
+    const m = totalMin % 60;
+    return `${totalH}h ${String(m).padStart(2, '0')}m`;
+  }
+  const days = Math.floor(totalH / 24);
+  const remH = totalH % 24;
+  return remH > 0 ? `${days}d ${remH}h` : `${days}d`;
+}
+
+/** Cronômetro compacto da coluna mecânico no preview da TV (Aguardando Avaliação). */
+function TvBoardWaitTimer({ sinceIso }: { sinceIso: string | null | undefined }) {
+  const [nowMs, setNowMs] = useState(() => Date.now());
+  useEffect(() => {
+    if (!sinceIso) return;
+    const id = window.setInterval(() => setNowMs(Date.now()), 30_000);
+    return () => window.clearInterval(id);
+  }, [sinceIso]);
+  const label = formatWaitElapsedLabel(sinceIso, nowMs);
+  if (!label) return null;
+  return (
+    <span className="inline-flex max-w-full items-center gap-0.5 tabular-nums" title={`Na OS há ${label}`}>
+      <Clock className="h-[7px] w-[7px] shrink-0 opacity-90" strokeWidth={2.5} aria-hidden />
+      <span className="truncate">{label}</span>
+    </span>
+  );
+}
 
 function mediaObjectFitClass(fit: TvMediaObjectFit | undefined): string {
   switch (normalizeTvMediaObjectFit(fit)) {
@@ -220,7 +267,13 @@ export const TvPatioPreview: React.FC<TvPatioPreviewProps> = ({
                   {item.fourth}
                 </span>
                 <span className="w-[16%] truncate border-l border-current/15 pl-1 text-[5px] font-bold uppercase leading-tight opacity-90">
-                  {item.fifth}
+                  {tvScope === 'patio' &&
+                  isAwaitingEvaluationStage(item.stage) &&
+                  isPatioMechanicPlaceholder(item.fifth) ? (
+                    <TvBoardWaitTimer sinceIso={item.createdAt} />
+                  ) : (
+                    item.fifth
+                  )}
                 </span>
               </div>
             ) : (

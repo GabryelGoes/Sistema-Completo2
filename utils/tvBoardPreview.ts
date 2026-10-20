@@ -14,6 +14,8 @@ export interface TvBoardItem {
   fourth: string;
   /** Mecânico (pátio) ou produto (lab). */
   fifth: string;
+  /** Chegada da OS — cronômetro na coluna mecânico (TV pátio, Aguardando Avaliação). */
+  createdAt?: string | null;
   garantiaTag?: boolean;
 }
 
@@ -196,13 +198,15 @@ export function mapServiceOrdersToTvBoard(
       const model = (row.vehicle_model || row.module_identification || 'Veículo')
         .replace(/Land Rover/gi, '')
         .trim();
+      const mechanicRaw = (row.assigned_technician_name || row.assigned_technician || '').trim();
       return {
         id: row.id,
         primary: model || 'Veículo',
         client: firstNameOnly(customerDisplayName(row)),
         stage,
         fourth: (row.plate ?? '---').toUpperCase(),
-        fifth: (row.assigned_technician_name || row.assigned_technician || 'Pátio').trim() || 'Pátio',
+        fifth: mechanicRaw || 'Pátio',
+        createdAt: row.created_at ?? null,
         garantiaTag: row.garantia_tag === true,
       };
     })
