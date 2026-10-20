@@ -53,8 +53,11 @@ function TvBoardWaitTimer({ sinceIso }: { sinceIso: string | null | undefined })
   const label = formatWaitElapsedLabel(sinceIso, nowMs);
   if (!label) return null;
   return (
-    <span className="inline-flex max-w-full items-center gap-0.5 tabular-nums" title={`Na OS há ${label}`}>
-      <Clock className="h-[7px] w-[7px] shrink-0 opacity-90" strokeWidth={2.5} aria-hidden />
+    <span
+      className="inline-flex max-w-full items-center gap-0.5 font-black tabular-nums text-[#FF0000]"
+      title={`Na OS há ${label}`}
+    >
+      <Clock className="h-[7px] w-[7px] shrink-0" strokeWidth={2.75} aria-hidden />
       <span className="truncate">{label}</span>
     </span>
   );
