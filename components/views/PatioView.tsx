@@ -670,13 +670,13 @@ function PatioCardWaitTimer({
   return (
     <span
       className={`inline-flex shrink-0 items-center gap-1.5 tabular-nums font-semibold text-zinc-500 dark:text-zinc-400 ${
-        compact ? 'text-[13px]' : 'text-[14.3px]'
+        compact ? 'text-[15.5px]' : 'text-[17px]'
       }`}
       title={title ?? undefined}
       aria-label={title ?? undefined}
     >
       <Clock
-        className={compact ? 'h-[15.6px] w-[15.6px]' : 'h-[18.2px] w-[18.2px]'}
+        className={compact ? 'h-[18.5px] w-[18.5px]' : 'h-[21.5px] w-[21.5px]'}
         strokeWidth={2.25}
         aria-hidden
       />
