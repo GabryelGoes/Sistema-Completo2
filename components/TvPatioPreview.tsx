@@ -54,11 +54,19 @@ function TvBoardWaitTimer({ sinceIso }: { sinceIso: string | null | undefined })
   if (!label) return null;
   return (
     <span
-      className="inline-flex max-w-full items-center gap-0.5 font-black tabular-nums text-[#FF0000]"
+      className="inline-flex max-w-full items-center gap-0.5 font-black tabular-nums"
+      style={{ color: '#FF0000', WebkitTextFillColor: '#FF0000', fontWeight: 900 }}
       title={`Na OS há ${label}`}
     >
-      <Clock className="h-[7px] w-[7px] shrink-0" strokeWidth={2.75} aria-hidden />
-      <span className="truncate">{label}</span>
+      <Clock
+        className="h-[7px] w-[7px] shrink-0"
+        strokeWidth={2.75}
+        aria-hidden
+        style={{ color: '#FF0000' }}
+      />
+      <span className="truncate" style={{ color: '#FF0000', fontWeight: 900 }}>
+        {label}
+      </span>
     </span>
   );
 }

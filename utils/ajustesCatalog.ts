@@ -174,7 +174,8 @@ export const AJUSTES_ITEMS: AjustesItemMeta[] = [
     kind: 'external',
     iconSrc: '/icons/painel-patio-tv-ios.png',
     iconFallback: 'external',
-    externalHref: 'https://patio-view.vercel.app/',
+    /** Painel TV com cronômetro vermelho — servido pelo app principal (sem deploy no Patio-View). */
+    externalHref: '/tv-patio.html',
   },
   {
     id: 'lab_tipos',
