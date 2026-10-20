@@ -242,6 +242,7 @@ import { VehicleObservationsSection } from '../patio/VehicleObservationsSection'
 import { VehicleOsStockCheckoutSection } from '../patio/VehicleOsStockCheckoutSection';
 import { OsCommentBubble } from '../patio/OsCommentBubble';
 import { OsCommentComposer } from '../patio/OsCommentComposer';
+import { appendOsChatPhotosMarker } from '../../utils/osCommentChatPhotos';
 import { OsQueixaEditor } from '../patio/OsQueixaEditor';
 import {
   PatioOriginAttachmentsPicker,
@@ -4375,9 +4376,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
     }
   };
 
-  const handleSendComment = async (rawText: string) => {
-    if (!selectedCard || !rawText.trim()) return;
-    const text = rawText.trim();
+  const handleSendComment = async (payload: { text: string; files: File[] }) => {
+    if (!selectedCard) return;
+    const files = Array.isArray(payload.files) ? payload.files.filter(Boolean) : [];
+    const rawText = typeof payload.text === 'string' ? payload.text.trim() : '';
+    if (!rawText && files.length === 0) return;
     const orderId = selectedCard.id;
     setSendingComment(true);
     try {
@@ -4388,6 +4391,30 @@ export const PatioView: React.FC<PatioViewProps> = ({
           : actorOptions?.actor === 'admin'
             ? 'admin'
             : null);
+
+      const uploadedPhotos: { path: string; name: string; url: string }[] = [];
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const stamp = Date.now();
+        const safeBase =
+          (file.name || 'foto').replace(/[^\w.\-()+ ]+/g, '_').slice(0, 80) || 'foto.jpg';
+        const name = `CHAT_${stamp}_${i + 1}_${safeBase}`;
+        const uploaded = await uploadServiceOrderPhoto(orderId, file, name);
+        uploadedPhotos.push({
+          path: uploaded.path,
+          name: uploaded.name || name,
+          url: uploaded.url,
+        });
+      }
+
+      const text = appendOsChatPhotosMarker(
+        rawText,
+        uploadedPhotos.map((p) => ({ path: p.path, name: p.name }))
+      );
+      if (!text.trim()) {
+        throw new Error('Nada para enviar.');
+      }
+
       await addServiceOrderComment(
         orderId,
         text,
@@ -4407,14 +4434,28 @@ export const PatioView: React.FC<PatioViewProps> = ({
       } catch {
         /* envio já ok; recibo pode falhar sem bloquear */
       }
-      const comments = await getServiceOrderComments(orderId);
+      const [comments, photos] = await Promise.all([
+        getServiceOrderComments(orderId),
+        uploadedPhotos.length
+          ? getServiceOrderPhotos(orderId).catch(() => [] as Awaited<ReturnType<typeof getServiceOrderPhotos>>)
+          : Promise.resolve([] as Awaited<ReturnType<typeof getServiceOrderPhotos>>),
+      ]);
       if (selectedCardRef.current?.id !== orderId) return;
       const actions = comments.map(commentToAction);
       setCardDetailsOrderId(orderId);
       setCardDetails((prev) => {
+        const nextAttachments =
+          uploadedPhotos.length > 0
+            ? photos.length > 0
+              ? mapPhotosToAttachments(photos)
+              : [
+                  ...(prev?.attachments ?? []),
+                  ...mapPhotosToAttachments(uploadedPhotos),
+                ]
+            : prev?.attachments ?? [];
         const next = {
           actions,
-          attachments: prev?.attachments ?? [],
+          attachments: nextAttachments,
         };
         vehicleCardDetailsCacheRef.current.set(orderId, {
           actions: cloneCachedActions(actions),
@@ -11689,6 +11730,18 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                         isEditing={editingActionId === action.id}
                                         onSaveEdit={(text) => void handleUpdateComment(action.id, text)}
                                         onCancelEdit={handleCancelEdit}
+                                        onOpenChatPhoto={(url, allUrls) => {
+                                          const items = allUrls.map((u, i) => ({
+                                            path: `chat-${i}`,
+                                            url: u,
+                                            name: `foto-${i + 1}.jpg`,
+                                          }));
+                                          const currentIndex = Math.max(
+                                            0,
+                                            allUrls.findIndex((u) => u === url)
+                                          );
+                                          setPreviewImages({ items, currentIndex });
+                                        }}
                                       />
                                    ); })
                                 ) : !openModalCommentsReady || loadingComments ? (
