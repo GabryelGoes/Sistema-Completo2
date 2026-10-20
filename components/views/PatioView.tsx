@@ -615,17 +615,41 @@ function compareWaitingEvalArrival(a: TrelloCard, b: TrelloCard): number {
   return String(a.id).localeCompare(String(b.id));
 }
 
-function formatWaitElapsedHm(sinceIso: string | null | undefined, nowMs: number): string | null {
+/** Até 24h: horas/minutos. Depois: dias (+ horas restantes). */
+function formatWaitElapsedLabel(sinceIso: string | null | undefined, nowMs: number): string | null {
   if (!sinceIso) return null;
   const start = new Date(sinceIso).getTime();
   if (!Number.isFinite(start)) return null;
   const totalMin = Math.max(0, Math.floor((nowMs - start) / 60_000));
-  const h = Math.floor(totalMin / 60);
-  const m = totalMin % 60;
-  return `${h}h ${String(m).padStart(2, '0')}m`;
+  const totalH = Math.floor(totalMin / 60);
+  if (totalH < 24) {
+    const m = totalMin % 60;
+    return `${totalH}h ${String(m).padStart(2, '0')}m`;
+  }
+  const days = Math.floor(totalH / 24);
+  const remH = totalH % 24;
+  return remH > 0 ? `${days}d ${remH}h` : `${days}d`;
 }
 
-/** Cronômetro simples (horas + minutos) desde a chegada da OS. */
+function formatWaitElapsedTitle(sinceIso: string | null | undefined, nowMs: number): string | null {
+  if (!sinceIso) return null;
+  const start = new Date(sinceIso).getTime();
+  if (!Number.isFinite(start)) return null;
+  const totalMin = Math.max(0, Math.floor((nowMs - start) / 60_000));
+  const totalH = Math.floor(totalMin / 60);
+  if (totalH < 24) {
+    const m = totalMin % 60;
+    return `Na OS há ${totalH}h ${String(m).padStart(2, '0')}m`;
+  }
+  const days = Math.floor(totalH / 24);
+  const remH = totalH % 24;
+  const dayWord = days === 1 ? 'dia' : 'dias';
+  return remH > 0
+    ? `Na OS há ${days} ${dayWord} e ${remH}h`
+    : `Na OS há ${days} ${dayWord}`;
+}
+
+/** Cronômetro desde a chegada da OS (todas as etapas). +30% vs tipografia base do card. */
 function PatioCardWaitTimer({
   sinceIso,
   compact,
@@ -639,17 +663,22 @@ function PatioCardWaitTimer({
     const id = window.setInterval(() => setNowMs(Date.now()), 30_000);
     return () => window.clearInterval(id);
   }, [sinceIso]);
-  const label = formatWaitElapsedHm(sinceIso, nowMs);
+  const label = formatWaitElapsedLabel(sinceIso, nowMs);
+  const title = formatWaitElapsedTitle(sinceIso, nowMs);
   if (!label) return null;
   return (
     <span
-      className={`inline-flex shrink-0 items-center gap-1 tabular-nums font-semibold text-zinc-500 dark:text-zinc-400 ${
-        compact ? 'text-[10px]' : 'text-[11px]'
+      className={`inline-flex shrink-0 items-center gap-1.5 tabular-nums font-semibold text-zinc-500 dark:text-zinc-400 ${
+        compact ? 'text-[13px]' : 'text-[14.3px]'
       }`}
-      title={`Na fila há ${label}`}
-      aria-label={`Tempo na fila: ${label}`}
+      title={title ?? undefined}
+      aria-label={title ?? undefined}
     >
-      <Clock className={compact ? 'h-3 w-3' : 'h-3.5 w-3.5'} strokeWidth={2.25} aria-hidden />
+      <Clock
+        className={compact ? 'h-[15.6px] w-[15.6px]' : 'h-[18.2px] w-[18.2px]'}
+        strokeWidth={2.25}
+        aria-hidden
+      />
       {label}
     </span>
   );
@@ -7703,8 +7732,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   ) : null}
                 </div>
 
-                {/* Cliente (+ cronômetro à direita em Aguardando avaliação) */}
-                {customerName || card.idList === WAITING_EVAL_STAGE ? (
+                {/* Cliente + cronômetro à direita (todas as etapas) */}
+                {customerName || card.createdAt ? (
                   <div
                     className={`mb-0 flex max-w-full items-center gap-2 rounded-2xl border-0 bg-zinc-100/90 dark:bg-white/[0.06] portrait:rounded-xl ${
                       boardPanoramic
@@ -7728,9 +7757,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                     ) : (
                       <span className="min-w-0 flex-1" aria-hidden />
                     )}
-                    {card.idList === WAITING_EVAL_STAGE ? (
-                      <PatioCardWaitTimer sinceIso={card.createdAt} compact={boardPanoramic} />
-                    ) : null}
+                    <PatioCardWaitTimer sinceIso={card.createdAt} compact={boardPanoramic} />
                   </div>
                 ) : null}
 
