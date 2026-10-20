@@ -284,9 +284,9 @@ export function MacOsBudgetBannerStack({
   const visible = items.slice(0, MAX_VISIBLE);
   if (visible.length === 0) return null;
 
-  /** Ícones só — cores chapadas (sem transparência / blur). */
+  /** Ícones só — cores chapadas (sem transparência / blur). ~20% menores que h-8. */
   const toolbarBtnBase =
-    'pointer-events-auto inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-zinc-700 bg-zinc-900 text-white transition-[background-color,border-color,color,transform] duration-150 disabled:opacity-50 active:scale-[0.96]';
+    'pointer-events-auto inline-flex h-[1.6rem] w-[1.6rem] shrink-0 items-center justify-center rounded-full border border-zinc-700 bg-zinc-900 text-white transition-[background-color,border-color,color,transform] duration-150 disabled:opacity-50 active:scale-[0.96]';
   const toolbarMinimizeBtn = `${toolbarBtnBase} hover:border-amber-500 hover:bg-amber-500 hover:text-zinc-950`;
   const toolbarClearBtn = `${toolbarBtnBase} hover:border-red-600 hover:bg-red-600 hover:text-white`;
 
@@ -366,8 +366,8 @@ export function MacOsBudgetBannerStack({
       aria-live="polite"
       data-budget-banner-theme={bannerTheme}
     >
-      {/* w-fit + self-end: não cobre o X dos banners (bug anterior). */}
-      <div className="pointer-events-none sticky top-0 z-10 flex w-fit max-w-full shrink-0 flex-wrap justify-end gap-1.5 self-end pb-0.5">
+      {/* w-fit + self-start: à esquerda, sem cobrir o X dos banners. */}
+      <div className="pointer-events-none sticky top-0 z-10 flex w-fit max-w-full shrink-0 flex-wrap justify-start gap-1 self-start pb-0.5">
         <button
           type="button"
           disabled={minimizing || busyIds.size > 0}
@@ -376,7 +376,7 @@ export function MacOsBudgetBannerStack({
           title="Minimizar"
           aria-label="Minimizar"
         >
-          <Minus className="h-3.5 w-3.5" strokeWidth={2.75} aria-hidden />
+          <Minus className="h-[11px] w-[11px]" strokeWidth={2.75} aria-hidden />
         </button>
         <button
           type="button"
@@ -386,7 +386,7 @@ export function MacOsBudgetBannerStack({
           title="Limpar tudo"
           aria-label="Limpar tudo"
         >
-          <Trash2 className="h-3.5 w-3.5" strokeWidth={2.35} aria-hidden />
+          <Trash2 className="h-[11px] w-[11px]" strokeWidth={2.35} aria-hidden />
         </button>
       </div>
 
