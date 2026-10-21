@@ -4420,6 +4420,31 @@ export function createApiApp() {
         }
       }
 
+      /**
+       * Cronômetro p/ TV Pátio (Patio-View): sem mecânico em Aguardando Avaliação.
+       * Usa letras matemáticas sans-serif (𝗁/𝗆/𝖽) para sobreviver ao CSS `uppercase`
+       * do Patio-View e manter h/m/d visualmente em minúsculo.
+       */
+      const formatTvWaitElapsed = (sinceIso: unknown, nowMs: number): string | null => {
+        if (typeof sinceIso !== "string" || !sinceIso.trim()) return null;
+        const start = new Date(sinceIso).getTime();
+        if (!Number.isFinite(start)) return null;
+        const totalMin = Math.max(0, Math.floor((nowMs - start) / 60_000));
+        const totalH = Math.floor(totalMin / 60);
+        // U+1D5C1 𝗁, U+1D5C6 𝗆, U+1D5BD 𝖽
+        const h = "\uD835\uDDC1";
+        const m = "\uD835\uDDC6";
+        const d = "\uD835\uDDBD";
+        if (totalH < 24) {
+          const mins = totalMin % 60;
+          return `${totalH}${h} ${String(mins).padStart(2, "0")}${m}`;
+        }
+        const days = Math.floor(totalH / 24);
+        const remH = totalH % 24;
+        return remH > 0 ? `${days}${d} ${remH}${h}` : `${days}${d}`;
+      };
+      const nowMs = Date.now();
+
       const enriched = rows.map((r: Record<string, unknown> & { assigned_technician?: string | null; customer_id?: string }) => {
         const tech = r.assigned_technician;
         const techId = tech == null ? "" : String(tech).trim();
@@ -4429,14 +4454,13 @@ export function createApiApp() {
             : technicianNameMap[techId] ?? technicianNameMap[techId.toLowerCase()] ?? null;
         const status = String(r.status ?? "").toUpperCase();
         const orderType = String(r.order_type ?? "vehicle").toLowerCase();
-        // TV Pátio: em Aguardando Avaliação sem mecânico, coluna vazia (sem "Pátio" e sem cronômetro).
-        // ZWSP sobrevive ao .trim() do Patio-View e não desenha texto.
+        // Fallback p/ Patio-View: injeta o tempo em assigned_technician_name (coluna Mecânico).
         if (
           !techId &&
           orderType !== "module" &&
           status === "AGUARDANDO_AVALIACAO"
         ) {
-          name = "\u200B";
+          name = formatTvWaitElapsed(r.created_at, nowMs);
         }
         const customerName = (r.customer_id && customerNameMap[r.customer_id]) ? customerNameMap[r.customer_id] : null;
         return { ...r, assigned_technician_name: name, customer_name: customerName };

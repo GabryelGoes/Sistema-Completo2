@@ -14,6 +14,8 @@ export interface TvBoardItem {
   fourth: string;
   /** Mecânico (pátio) ou produto (lab). */
   fifth: string;
+  /** Chegada da OS — cronômetro na coluna mecânico (TV pátio, Aguardando Avaliação). */
+  createdAt?: string | null;
   garantiaTag?: boolean;
 }
 
@@ -196,17 +198,18 @@ export function mapServiceOrdersToTvBoard(
       const model = (row.vehicle_model || row.module_identification || 'Veículo')
         .replace(/Land Rover/gi, '')
         .trim();
+      /** Só conta mecânico real (id); o nome da API pode ser o cronômetro injetado p/ a TV. */
       const techId = (row.assigned_technician || '').trim();
       const techName = (row.assigned_technician_name || '').trim().replace(/\u200B/g, '');
-      const awaitingEval = stage === 'Aguardando Avaliação';
       return {
         id: row.id,
         primary: model || 'Veículo',
         client: firstNameOnly(customerDisplayName(row)),
         stage,
         fourth: (row.plate ?? '---').toUpperCase(),
-        // Aguardando Avaliação sem mecânico: coluna vazia (sem "Pátio" / sem cronômetro).
-        fifth: techId ? techName || techId : awaitingEval ? '' : 'Pátio',
+        // Sem mecânico → "Pátio"; o preview troca por cronômetro vivo em Aguardando Avaliação.
+        fifth: techId ? techName || techId : 'Pátio',
+        createdAt: row.created_at ?? null,
         garantiaTag: row.garantia_tag === true,
       };
     })
