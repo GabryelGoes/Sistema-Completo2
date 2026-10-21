@@ -98,7 +98,7 @@ export function buildTvPatioDisplayHtml(): string {
       return n.split(/\\s+/).filter(Boolean)[0] || 'Cliente';
     }
     function looksLikeTimer(s) {
-      return /^\\d+h \\d{2}m$|^\\d+d(?: \\d+h)?$/i.test(String(s || '').trim());
+      return /^\\d+(?:h|𝗁) \\d{2}(?:m|𝗆)$|^\\d+(?:d|𝖽)(?: \\d+(?:h|𝗁))?$/iu.test(String(s || '').trim());
     }
     function escapeHtml(s) {
       return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
@@ -112,9 +112,12 @@ export function buildTvPatioDisplayHtml(): string {
       const techId = (item.assigned_technician || '').trim();
       const techName = (item.assigned_technician_name || '').trim().replace(/\\u200B/g, '').replace(/^🔴\\s*/, '');
       const awaiting = isAwaiting(item.stage);
-      // Aguardando Avaliação sem mecânico: coluna vazia (sem cronômetro / sem "Pátio").
+      // Aguardando Avaliação sem mecânico: cronômetro na coluna Mecânico (h/m minúsculo).
       if (awaiting && !techId) {
-        return '<span class="truncate text-xl font-bold uppercase leading-tight opacity-90"></span>';
+        const label = formatElapsed(item.created_at, now) || (looksLikeTimer(techName) ? techName : null) || '0h 00m';
+        return '<span class="timer-red inline-flex max-w-full items-center gap-2 tabular-nums">' +
+          '<svg class="h-6 w-6 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.75"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2" stroke-linecap="round"/></svg>' +
+          '<span class="truncate text-xl font-black normal-case leading-tight">' + escapeHtml(label) + '</span></span>';
       }
       const label = techId ? (techName || techId) : 'Pátio';
       return '<span class="truncate text-xl font-bold uppercase leading-tight opacity-90">' + escapeHtml(label) + '</span>';
