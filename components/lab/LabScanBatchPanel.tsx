@@ -34,10 +34,16 @@ export type LabScanBatchItem = {
 
 /** Remove prefixo legado de categoria no início da queixa. */
 function stripLegacyComplaint(text: string | null | undefined): string {
-  return String(text ?? '')
-    .replace(/^\s*\[(?:categoria|category)[^\]]*\]\s*/i, '')
-    .replace(/^\s*Categoria do ve[ií]culo:\s*[^\n]*\n?/i, '')
-    .trim();
+  if (!text) return '';
+  let t = String(text).replace(/^\s*\[(?:categoria|category)[^\]]*\]\s*/i, '');
+  const lines = t.split('\n');
+  const first = lines[0]?.trim() ?? '';
+  if (/^Categoria do ve[ií]culo:/i.test(first)) {
+    const rest = lines.slice(1);
+    while (rest.length && rest[0].trim() === '') rest.shift();
+    t = rest.join('\n');
+  }
+  return t.trim();
 }
 
 export type LabScanBatchPanelProps = {
