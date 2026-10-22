@@ -919,6 +919,7 @@ export default function App() {
     module_kind?: string | null;
     module_product_other?: string | null;
     module_identification?: string | null;
+    issue_description?: string | null;
     bench_slot?: number | null;
     customer_name?: string | null;
     customers?: { name?: string | null } | null;
@@ -944,6 +945,7 @@ export default function App() {
         moduleKind: r.module_kind ?? null,
         moduleProductOther: r.module_product_other ?? null,
         moduleIdentification: (r.module_identification || '').trim() || null,
+        issueDescription: (r.issue_description || '').trim() || null,
         benchSlot: typeof r.bench_slot === 'number' ? r.bench_slot : null,
         feedback: opts.feedback,
         ok: opts.ok,
@@ -975,6 +977,7 @@ export default function App() {
           !enriched?.module_kind ||
           !enriched?.vehicle_model ||
           !enriched?.module_identification ||
+          !enriched?.issue_description?.trim() ||
           !hasCustomer;
         if (missingMeta) {
           try {

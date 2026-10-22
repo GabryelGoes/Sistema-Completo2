@@ -27,8 +27,18 @@ export type LabScanBatchItem = {
   moduleKind?: string | null;
   moduleProductOther?: string | null;
   moduleIdentification?: string | null;
+  /** Queixa / descrição do problema na OS. */
+  issueDescription?: string | null;
   benchSlot?: number | null;
 };
+
+/** Remove prefixo legado de categoria no início da queixa. */
+function stripLegacyComplaint(text: string | null | undefined): string {
+  return String(text ?? '')
+    .replace(/^\s*\[(?:categoria|category)[^\]]*\]\s*/i, '')
+    .replace(/^\s*Categoria do ve[ií]culo:\s*[^\n]*\n?/i, '')
+    .trim();
+}
 
 export type LabScanBatchPanelProps = {
   mode: Extract<LabScanMode, 'saida' | 'retorno'>;
@@ -131,8 +141,10 @@ export function LabScanBatchPanel({
 
   const vehicle = (focused.vehicleModel || focused.label || '—').trim() || '—';
   const customer = (focused.customerName || '').trim() || '—';
-  const partLabel = labProductDisplayLabel(focused.moduleKind, focused.moduleProductOther);
+  const partLabel =
+    labProductDisplayLabel(focused.moduleKind, focused.moduleProductOther).trim() || 'Peça';
   const moduleId = (focused.moduleIdentification || '').trim();
+  const complaint = stripLegacyComplaint(focused.issueDescription);
   const comp = formatComp(focused.benchSlot);
   const others = [...displayItems].reverse().filter((i) => i.id !== focused.id);
 
@@ -187,15 +199,26 @@ export function LabScanBatchPanel({
                     OS {focused.osNumber}
                   </p>
                 ) : null}
-                <p className="mt-1 text-[20px] font-semibold leading-snug tracking-tight text-zinc-900 dark:text-white sm:text-[22px]">
+                {/* Laboratório: tipo de peça em destaque; carro / cliente / queixa em seguida. */}
+                <p className="mt-1 text-[22px] font-semibold leading-snug tracking-tight text-zinc-900 dark:text-white sm:text-[24px]">
+                  {partLabel}
+                </p>
+                {moduleId ? (
+                  <p className="mt-0.5 truncate text-[12px] font-medium text-zinc-500 dark:text-zinc-400">
+                    {moduleId}
+                  </p>
+                ) : null}
+                <p className="mt-3 truncate text-[15px] font-medium text-zinc-800 dark:text-zinc-100">
                   {vehicle}
                 </p>
-                <p className="mt-1 truncate text-[14px] font-medium text-zinc-600 dark:text-zinc-300">
+                <p className="mt-0.5 truncate text-[14px] font-medium text-zinc-600 dark:text-zinc-300">
                   {customer}
                 </p>
-                <p className="mt-1 truncate text-[13px] text-zinc-500 dark:text-zinc-400">
-                  {partLabel}
-                  {moduleId ? ` · ${moduleId}` : ''}
+                <p
+                  className="mt-2 line-clamp-3 text-[13px] leading-snug text-zinc-500 dark:text-zinc-400"
+                  title={complaint || undefined}
+                >
+                  {complaint || 'Sem queixa registrada.'}
                 </p>
 
                 <div className="mt-4 flex flex-wrap items-center justify-center gap-2 sm:justify-start">
@@ -228,10 +251,10 @@ export function LabScanBatchPanel({
                 <ul className="max-h-[10.5rem] space-y-2 overflow-y-auto overscroll-contain custom-scrollbar">
                   {others.map((item) => {
                     const itemVehicle = (item.vehicleModel || item.label || '—').trim() || '—';
-                    const itemPart = labProductDisplayLabel(
-                      item.moduleKind,
-                      item.moduleProductOther
-                    );
+                    const itemPart =
+                      labProductDisplayLabel(item.moduleKind, item.moduleProductOther).trim() ||
+                      'Peça';
+                    const itemCustomer = (item.customerName || '').trim() || '—';
                     return (
                       <li key={item.id}>
                         <button
@@ -245,7 +268,7 @@ export function LabScanBatchPanel({
                           />
                           <div className="min-w-0 flex-1">
                             <p className="truncate text-[13px] font-semibold text-zinc-900 dark:text-white">
-                              {itemVehicle}
+                              {itemPart}
                               {item.osNumber != null ? (
                                 <span className="font-medium text-zinc-500 dark:text-zinc-400">
                                   {' '}
@@ -254,7 +277,7 @@ export function LabScanBatchPanel({
                               ) : null}
                             </p>
                             <p className="truncate text-[12px] text-zinc-500 dark:text-zinc-400">
-                              {(item.customerName || '').trim() || '—'} · {itemPart}
+                              {itemVehicle} · {itemCustomer}
                             </p>
                             <p
                               className={`truncate text-[12px] ${
