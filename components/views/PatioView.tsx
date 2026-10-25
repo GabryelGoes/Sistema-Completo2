@@ -1564,27 +1564,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
     }
   }, [selectedCard?.id]);
 
-  const loadVehicleMaintenanceHistory = useCallback(
-    async (serviceOrderId: string, opts?: { force?: boolean }) => {
-      if (!serviceOrderId || isModuleMode) return;
-      if (!opts?.force && vehicleMaintenanceLoadedForRef.current === serviceOrderId) return;
-      setVehicleMaintenanceLoading(true);
-      setVehicleMaintenanceError(null);
-      try {
-        const data = await getVehicleMaintenanceHistory(serviceOrderId);
-        setVehicleMaintenanceHistory(data);
-        vehicleMaintenanceLoadedForRef.current = serviceOrderId;
-      } catch (err: unknown) {
-        setVehicleMaintenanceError(
-          err instanceof Error ? err.message : 'Falha ao carregar histórico de manutenções.'
-        );
-      } finally {
-        setVehicleMaintenanceLoading(false);
-      }
-    },
-    [isModuleMode]
-  );
-
   const patioOriginAttachments = useMemo(
     () =>
       (cardDetails?.attachments ?? [])
@@ -1929,6 +1908,33 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const isModuleMode = orderType === 'module';
   const flowKind: ServiceOrderFlowKind = isModuleMode ? 'module' : 'vehicle';
 
+  const loadVehicleMaintenanceHistory = useCallback(
+    async (serviceOrderId: string, opts?: { force?: boolean }) => {
+      if (!serviceOrderId || isModuleMode) return;
+      if (!opts?.force && vehicleMaintenanceLoadedForRef.current === serviceOrderId) return;
+      setVehicleMaintenanceLoading(true);
+      setVehicleMaintenanceError(null);
+      try {
+        const data = await getVehicleMaintenanceHistory(serviceOrderId);
+        setVehicleMaintenanceHistory(data);
+        vehicleMaintenanceLoadedForRef.current = serviceOrderId;
+      } catch (err: unknown) {
+        setVehicleMaintenanceError(
+          err instanceof Error ? err.message : 'Falha ao carregar histórico de manutenções.'
+        );
+      } finally {
+        setVehicleMaintenanceLoading(false);
+      }
+    },
+    [isModuleMode]
+  );
+
+  /** Carrega histórico ao abrir o modal do veículo (todas as passagens da placa). */
+  useEffect(() => {
+    if (!selectedCard?.id || isModuleMode) return;
+    void loadVehicleMaintenanceHistory(selectedCard.id);
+  }, [selectedCard?.id, isModuleMode, loadVehicleMaintenanceHistory]);
+
   useEffect(() => {
     if (!isModuleMode || !selectedCard?.id) {
       setLabSourcePatio(null);
@@ -2112,12 +2118,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
   /** Modal de veículo em layout PC: duas colunas (shell OnMotor ou viewport ≥1024px). */
   /** Com a bancada em tela cheia, o modal da OS abre como card flutuante (layout não-PC) por cima dela. */
   const isPatioPcModal = (desktopShell || (isDesktop && viewportWidth >= 1024)) && !benchFullscreenOpen;
-
-  /** Carrega histórico ao abrir o modal do veículo (todas as passagens da placa). */
-  useEffect(() => {
-    if (!selectedCard?.id || isModuleMode) return;
-    void loadVehicleMaintenanceHistory(selectedCard.id);
-  }, [selectedCard?.id, isModuleMode, loadVehicleMaintenanceHistory]);
 
   /** Retrato: encolhe o quadro inteiro (como o zoom do modo “5 colunas”) sem depender do toggle panorâmico. */
   const [isPortraitOrientation, setIsPortraitOrientation] = useState(() =>
