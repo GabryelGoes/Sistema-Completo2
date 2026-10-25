@@ -123,6 +123,7 @@ import {
   type ModuleKind,
   type ModuleVehicleKind,
 } from '../../utils/moduleMetadata';
+import { LabOsModalPartHero } from '../lab/LabOsModalPartHero';
 import {
   buildExternalRepairDraft,
   draftToExternalRepairPayload,
@@ -8521,11 +8522,38 @@ export const PatioView: React.FC<PatioViewProps> = ({
                         <span className="inline-flex w-fit items-center gap-1.5 rounded-full border border-zinc-200/80 bg-zinc-100/90 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-600 dark:border-white/[0.08] dark:bg-white/[0.06] dark:text-zinc-300">
                           Arquivado
                         </span>
-                        <h1
-                          className={`${isPatioPcModal ? patioVehicleVm.title : 'text-[1.74375rem] font-semibold leading-tight tracking-tight text-zinc-900 dark:text-white md:text-[2.79rem] portrait:text-[2.19375rem] portrait:md:text-[3.51rem]'} ${vehicleModalTitleShadow}`}
-                        >
-                          {historyCardTitleParts?.vehicle}
-                        </h1>
+                        {isModuleMode ? (
+                          <LabOsModalPartHero
+                            moduleKind={
+                              historyServiceOrderDetail?.module_kind ??
+                              selectedHistoryCard.moduleKind
+                            }
+                            moduleProductOther={
+                              historyServiceOrderDetail?.module_product_other ??
+                              selectedHistoryCard.moduleProductOther
+                            }
+                            vehicleModel={
+                              historyServiceOrderDetail?.vehicle_model ??
+                              historyCardTitleParts?.vehicle
+                            }
+                            moduleIdentification={
+                              historyServiceOrderDetail?.module_identification ??
+                              selectedHistoryCard.moduleIdentification
+                            }
+                            titleClassName={
+                              isPatioPcModal
+                                ? patioVehicleVm.title
+                                : 'text-[1.74375rem] font-semibold leading-tight tracking-tight text-zinc-900 dark:text-white md:text-[2.79rem] portrait:text-[2.19375rem] portrait:md:text-[3.51rem]'
+                            }
+                            titleShadowClassName={vehicleModalTitleShadow}
+                          />
+                        ) : (
+                          <h1
+                            className={`${isPatioPcModal ? patioVehicleVm.title : 'text-[1.74375rem] font-semibold leading-tight tracking-tight text-zinc-900 dark:text-white md:text-[2.79rem] portrait:text-[2.19375rem] portrait:md:text-[3.51rem]'} ${vehicleModalTitleShadow}`}
+                          >
+                            {historyCardTitleParts?.vehicle}
+                          </h1>
+                        )}
                         {!isModuleMode && (selectedHistoryCard?.vehicleBrand ?? '').trim() ? (
                           <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-500/90 dark:text-zinc-400">
                             {(selectedHistoryCard?.vehicleBrand ?? '').trim()}
@@ -9580,6 +9608,47 @@ export const PatioView: React.FC<PatioViewProps> = ({
                               size={patioVehicleVm.brandLogoSize}
                             />
                           ) : null}
+                          {isModuleMode ? (
+                            <LabOsModalPartHero
+                              moduleKind={
+                                serviceOrderDetail?.module_kind ?? selectedCard.moduleKind
+                              }
+                              moduleProductOther={
+                                serviceOrderDetail?.module_product_other ??
+                                selectedCard.moduleProductOther
+                              }
+                              vehicleModel={
+                                serviceOrderDetail?.vehicle_model ??
+                                selectedCardTitleParts?.vehicle
+                              }
+                              moduleIdentification={
+                                serviceOrderDetail?.module_identification ??
+                                selectedCard.moduleIdentification
+                              }
+                              titleClassName={patioVehicleVm.title}
+                              titleShadowClassName={vehicleModalTitleShadow}
+                              titleTrailing={
+                                selectedCard.garantiaTag ? (
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      void handleRemoveGarantia();
+                                    }}
+                                    disabled={removingGarantiaId === selectedCard.id}
+                                    className="inline-flex shrink-0 items-center rounded-md border border-red-600 bg-red-600 px-2.5 py-[0.3rem] text-[11px] font-semibold uppercase tracking-wide text-white shadow-none transition hover:bg-red-700 disabled:opacity-50"
+                                    title="Remover etiqueta Garantia"
+                                  >
+                                    {removingGarantiaId === selectedCard.id ? (
+                                      <RefreshCw className="h-3 w-3 animate-spin" />
+                                    ) : (
+                                      'Garantia'
+                                    )}
+                                  </button>
+                                ) : null
+                              }
+                            />
+                          ) : (
                           <div className="flex min-w-0 flex-1 items-center gap-2">
                           <h1
                             className={`${patioVehicleVm.title} min-w-0 truncate ${vehicleModalTitleShadow}`}
@@ -9587,7 +9656,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                           >
                             {selectedCardTitleParts?.vehicle}
                           </h1>
-                          {!isModuleMode && selectedCard.garantiaTag ? (
+                          {selectedCard.garantiaTag ? (
                             <span
                               className="inline-flex shrink-0 items-center rounded-md border border-red-600 bg-red-600 px-2.5 py-[0.3rem] text-[11px] font-semibold uppercase tracking-wide text-white shadow-none"
                               title="Veículo em garantia"
@@ -9595,25 +9664,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
                               Garantia
                             </span>
                           ) : null}
-                          {isModuleMode && selectedCard.garantiaTag ? (
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                void handleRemoveGarantia();
-                              }}
-                              disabled={removingGarantiaId === selectedCard.id}
-                              className="inline-flex shrink-0 items-center rounded-md border border-red-600 bg-red-600 px-2.5 py-[0.3rem] text-[11px] font-semibold uppercase tracking-wide text-white shadow-none transition hover:bg-red-700 disabled:opacity-50"
-                              title="Remover etiqueta Garantia"
-                            >
-                              {removingGarantiaId === selectedCard.id ? (
-                                <RefreshCw className="h-3 w-3 animate-spin" />
-                              ) : (
-                                'Garantia'
-                              )}
-                            </button>
-                          ) : null}
                           </div>
+                          )}
                           {isModuleMode && modalOriginIcon ? (
                             <div className="inline-flex shrink-0 items-center justify-center pl-1">
                               {modalOriginIcon}
