@@ -80,8 +80,17 @@ export const PatioOsModalHistoricoTab: React.FC<PatioOsModalHistoricoTabProps> =
                 <p className="mt-0.5 truncate text-[11px] font-medium text-zinc-500 dark:text-zinc-400">
                   Placa {history.plate}
                   {history.vehicleModel ? ` · ${history.vehicleModel}` : ''}
+                  {' · '}
+                  todas as passagens desta placa
+                  {(history.summary.owners ?? 0) > 1
+                    ? ` · ${history.summary.owners} proprietários`
+                    : ''}
                 </p>
-              ) : null}
+              ) : (
+                <p className="mt-0.5 truncate text-[11px] font-medium text-zinc-500 dark:text-zinc-400">
+                  Busca sempre pela placa do veículo
+                </p>
+              )}
             </div>
           </div>
           {onRetry ? (
@@ -188,8 +197,8 @@ export const PatioOsModalHistoricoTab: React.FC<PatioOsModalHistoricoTabProps> =
                     Nenhuma manutenção registrada
                   </p>
                   <p className="mx-auto mt-1 max-w-sm text-[13px] leading-relaxed text-zinc-500 dark:text-zinc-400">
-                    Quando serviços e peças forem aprovados nos orçamentos deste veículo, eles
-                    aparecem aqui em todas as passagens pela oficina.
+                    O histórico é reunido pela placa. Quando serviços e peças forem aprovados em
+                    qualquer cadastro desta placa (mesmo com outro proprietário), eles aparecem aqui.
                   </p>
                 </div>
               ) : filteredVisits.length === 0 ? (
@@ -226,6 +235,7 @@ export const PatioOsModalHistoricoTab: React.FC<PatioOsModalHistoricoTabProps> =
                               ) : null}
                             </p>
                             <p className="mt-0.5 text-[12px] text-zinc-500 dark:text-zinc-400">
+                              {visit.customerName ? `${visit.customerName} · ` : ''}
                               {formatWhen(visit.createdAt)}
                               {visit.mileageKm ? ` · ${visit.mileageKm} km` : ''}
                             </p>
@@ -234,7 +244,9 @@ export const PatioOsModalHistoricoTab: React.FC<PatioOsModalHistoricoTabProps> =
                             className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-bold ${
                               visit.finalized
                                 ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-200'
-                                : 'bg-zinc-200/80 text-zinc-700 dark:bg-white/10 dark:text-zinc-200'
+                                : visit.archived
+                                  ? 'bg-zinc-300/80 text-zinc-700 dark:bg-zinc-700/60 dark:text-zinc-200'
+                                  : 'bg-zinc-200/80 text-zinc-700 dark:bg-white/10 dark:text-zinc-200'
                             }`}
                           >
                             {visit.finalized ? (

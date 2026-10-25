@@ -1909,15 +1909,27 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const flowKind: ServiceOrderFlowKind = isModuleMode ? 'module' : 'vehicle';
 
   const loadVehicleMaintenanceHistory = useCallback(
-    async (serviceOrderId: string, opts?: { force?: boolean }) => {
+    async (
+      serviceOrderId: string,
+      opts?: { force?: boolean; plate?: string | null }
+    ) => {
       if (!serviceOrderId || isModuleMode) return;
-      if (!opts?.force && vehicleMaintenanceLoadedForRef.current === serviceOrderId) return;
+      const plateKey = String(opts?.plate ?? '')
+        .replace(/[^a-zA-Z0-9]/g, '')
+        .toUpperCase();
+      const cacheKey = plateKey.length >= 5 ? `plate:${plateKey}` : `os:${serviceOrderId}`;
+      if (!opts?.force && vehicleMaintenanceLoadedForRef.current === cacheKey) return;
       setVehicleMaintenanceLoading(true);
       setVehicleMaintenanceError(null);
       try {
-        const data = await getVehicleMaintenanceHistory(serviceOrderId);
+        const data = await getVehicleMaintenanceHistory(serviceOrderId, {
+          plate: plateKey.length >= 5 ? plateKey : null,
+        });
         setVehicleMaintenanceHistory(data);
-        vehicleMaintenanceLoadedForRef.current = serviceOrderId;
+        vehicleMaintenanceLoadedForRef.current =
+          data.plateKey && String(data.plateKey).length >= 5
+            ? `plate:${String(data.plateKey).toUpperCase()}`
+            : cacheKey;
       } catch (err: unknown) {
         setVehicleMaintenanceError(
           err instanceof Error ? err.message : 'Falha ao carregar histórico de manutenções.'
@@ -1929,11 +1941,28 @@ export const PatioView: React.FC<PatioViewProps> = ({
     [isModuleMode]
   );
 
-  /** Carrega histórico ao abrir o modal do veículo (todas as passagens da placa). */
+  /**
+   * Histórico sempre pela placa do veículo (não pelo cliente/cadastro).
+   * Recarrega se a placa da ficha mudar.
+   */
   useEffect(() => {
     if (!selectedCard?.id || isModuleMode) return;
-    void loadVehicleMaintenanceHistory(selectedCard.id);
-  }, [selectedCard?.id, isModuleMode, loadVehicleMaintenanceHistory]);
+    const plateFromCard = selectedCard.name
+      ? parsePatioCardTitle(selectedCard.name).plateOrModule
+      : null;
+    const plate =
+      (serviceOrderDetail?.id === selectedCard.id ? serviceOrderDetail.plate : null) ||
+      plateFromCard ||
+      null;
+    void loadVehicleMaintenanceHistory(selectedCard.id, { plate });
+  }, [
+    selectedCard?.id,
+    selectedCard?.name,
+    isModuleMode,
+    serviceOrderDetail?.id,
+    serviceOrderDetail?.plate,
+    loadVehicleMaintenanceHistory,
+  ]);
 
   useEffect(() => {
     if (!isModuleMode || !selectedCard?.id) {
@@ -11525,10 +11554,21 @@ export const PatioView: React.FC<PatioViewProps> = ({
                               error={vehicleMaintenanceError}
                               onRetry={
                                 selectedCard?.id
-                                  ? () =>
+                                  ? () => {
+                                      const plateFromCard = selectedCard.name
+                                        ? parsePatioCardTitle(selectedCard.name).plateOrModule
+                                        : null;
+                                      const plate =
+                                        (serviceOrderDetail?.id === selectedCard.id
+                                          ? serviceOrderDetail.plate
+                                          : null) ||
+                                        plateFromCard ||
+                                        null;
                                       void loadVehicleMaintenanceHistory(selectedCard.id, {
                                         force: true,
-                                      })
+                                        plate,
+                                      });
+                                    }
                                   : undefined
                               }
                               insetCardClass={vi}

@@ -5448,8 +5448,9 @@ export function createApiApp() {
   });
 
   /**
-   * Histórico de manutenções do veículo (mesma placa): serviços e peças aprovados
-   * em todas as OS de veículo da oficina (exceto canceladas).
+   * Histórico de manutenções do veículo — sempre pela placa (não pelo cliente).
+   * Inclui todas as OS da mesma placa: outros proprietários, cadastros e arquivadas.
+   * Query opcional: ?plate=ABC1D23 (prioridade sobre a placa da OS).
    */
   app.get("/api/service-orders/:id/maintenance-history", async (req, res) => {
     try {
@@ -5462,7 +5463,7 @@ export function createApiApp() {
       const { data: current, error: curErr } = await supabaseAdmin
         .from("service_orders")
         .select(
-          "id, os_number, status, plate, vehicle_model, vehicle_brand, mileage_km, order_type, created_at, updated_at"
+          "id, os_number, status, plate, vehicle_model, vehicle_brand, mileage_km, order_type, created_at, updated_at, customer_id, customers(name)"
         )
         .eq("id", id)
         .eq("workshop_id", WORKSHOP_ID)
@@ -5474,29 +5475,39 @@ export function createApiApp() {
         return res.status(400).json({ error: "Histórico de manutenções é exclusivo de veículos." });
       }
 
-      const plateNorm = normalizePlacaInput((current as { plate?: string | null }).plate);
+      const plateFromQuery = normalizePlacaInput(req.query?.plate);
+      const plateFromOrder = normalizePlacaInput((current as { plate?: string | null }).plate);
+      const plateNorm = plateFromQuery.length >= 5 ? plateFromQuery : plateFromOrder;
+      const plateDisplay =
+        plateFromQuery.length >= 5
+          ? String(req.query.plate ?? "").trim().toUpperCase() || plateNorm
+          : ((current as { plate?: string | null }).plate ?? plateNorm);
+
       if (plateNorm.length < 5) {
         return res.json({
           plate: (current as { plate?: string | null }).plate ?? null,
+          plateKey: null,
+          lookupBy: "plate",
           vehicleModel: (current as { vehicle_model?: string | null }).vehicle_model ?? null,
           vehicleBrand: (current as { vehicle_brand?: string | null }).vehicle_brand ?? null,
           visits: [],
           services: [],
           parts: [],
-          summary: { visits: 0, services: 0, parts: 0 },
+          summary: { visits: 0, services: 0, parts: 0, owners: 0 },
         });
       }
 
+      // Busca ampla por oficina + tipo veículo; a chave de união é a placa normalizada
+      // (independente de customer_id). Inclui arquivadas (CANCELLED).
       const { data: orderRows, error: ordErr } = await supabaseAdmin
         .from("service_orders")
         .select(
-          "id, os_number, status, plate, vehicle_model, vehicle_brand, mileage_km, created_at, updated_at"
+          "id, os_number, status, plate, vehicle_model, vehicle_brand, mileage_km, created_at, updated_at, customer_id, customers(name)"
         )
         .eq("workshop_id", WORKSHOP_ID)
         .eq("order_type", "vehicle")
-        .neq("status", CANCELLED_STATUS)
         .order("created_at", { ascending: false })
-        .limit(800);
+        .limit(2500);
       if (ordErr) {
         console.error("[API] maintenance-history orders:", ordErr);
         return res.status(500).json({ error: ordErr.message });
@@ -5587,8 +5598,10 @@ export function createApiApp() {
         techByOrder.set(sid, list);
       }
 
-      const stageLabel = (status: string) =>
-        SERVICE_ORDER_STAGES.find((s) => s.id === status)?.name ?? status;
+      const stageLabel = (status: string) => {
+        if (status === CANCELLED_STATUS) return "Arquivado";
+        return SERVICE_ORDER_STAGES.find((s) => s.id === status)?.name ?? status;
+      };
 
       type VisitService = {
         description: string;
@@ -5604,10 +5617,18 @@ export function createApiApp() {
         budgetId: string | null;
       };
 
+      const customerNameOf = (row: Record<string, unknown>): string | null => {
+        const nested = row.customers as { name?: string | null } | null | undefined;
+        const fromJoin = typeof nested?.name === "string" ? nested.name.trim() : "";
+        if (fromJoin) return fromJoin;
+        return null;
+      };
+
       const visits = visitsBase.map((row) => {
         const sid = String((row as { id: string }).id);
         const status = String((row as { status?: string }).status ?? "");
         const finalized = status === "FINALIZADO";
+        const archived = status === CANCELLED_STATUS;
         const orderBudgets = budgetsByOrder.get(sid) ?? [];
         const orderTechs = techByOrder.get(sid) ?? [];
         const techByDesc = new Map<string, string>();
@@ -5679,9 +5700,12 @@ export function createApiApp() {
           status,
           statusLabel: stageLabel(status),
           finalized,
+          archived,
           isCurrent: sid === id,
           plate: (row as { plate?: string | null }).plate ?? null,
           vehicleModel: (row as { vehicle_model?: string | null }).vehicle_model ?? null,
+          customerName: customerNameOf(row as Record<string, unknown>),
+          customerId: (row as { customer_id?: string | null }).customer_id ?? null,
           mileageKm: (row as { mileage_km?: string | null }).mileage_km ?? null,
           createdAt: (row as { created_at?: string }).created_at ?? null,
           updatedAt: (row as { updated_at?: string }).updated_at ?? null,
@@ -5690,9 +5714,23 @@ export function createApiApp() {
         };
       });
 
-      /** Visitas com pelo menos um item aprovado, ou a OS atual. */
+      /**
+       * Mantém passagens com manutenção (serviços/peças aprovados), finalizadas/arquivadas
+       * com histórico, e a OS atual — sempre unidas pela placa.
+       */
       const meaningfulVisits = visits.filter(
-        (v) => v.isCurrent || v.services.length > 0 || v.parts.length > 0 || v.finalized
+        (v) =>
+          v.isCurrent ||
+          v.services.length > 0 ||
+          v.parts.length > 0 ||
+          v.finalized ||
+          v.archived
+      );
+
+      const ownerKeys = new Set(
+        meaningfulVisits
+          .map((v) => (v.customerId || v.customerName || "").trim().toLowerCase())
+          .filter(Boolean)
       );
 
       const flatServices = meaningfulVisits.flatMap((v) =>
@@ -5700,6 +5738,7 @@ export function createApiApp() {
           ...s,
           serviceOrderId: v.serviceOrderId,
           osNumber: v.osNumber,
+          customerName: v.customerName,
           at: v.updatedAt || v.createdAt,
           finalized: v.finalized,
           statusLabel: v.statusLabel,
@@ -5710,6 +5749,7 @@ export function createApiApp() {
           ...p,
           serviceOrderId: v.serviceOrderId,
           osNumber: v.osNumber,
+          customerName: v.customerName,
           at: v.updatedAt || v.createdAt,
           finalized: v.finalized,
           statusLabel: v.statusLabel,
@@ -5717,7 +5757,9 @@ export function createApiApp() {
       );
 
       return res.json({
-        plate: (current as { plate?: string | null }).plate ?? null,
+        plate: plateDisplay,
+        plateKey: plateNorm,
+        lookupBy: "plate",
         vehicleModel: (current as { vehicle_model?: string | null }).vehicle_model ?? null,
         vehicleBrand: (current as { vehicle_brand?: string | null }).vehicle_brand ?? null,
         visits: meaningfulVisits,
@@ -5727,6 +5769,7 @@ export function createApiApp() {
           visits: meaningfulVisits.length,
           services: flatServices.length,
           parts: flatParts.length,
+          owners: ownerKeys.size,
         },
       });
     } catch (err: any) {

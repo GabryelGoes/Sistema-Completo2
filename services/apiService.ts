@@ -1049,6 +1049,7 @@ export type VehicleMaintenanceServiceItem = {
   budgetId: string | null;
   serviceOrderId?: string;
   osNumber?: number | null;
+  customerName?: string | null;
   at?: string | null;
   finalized?: boolean;
   statusLabel?: string;
@@ -1063,6 +1064,7 @@ export type VehicleMaintenancePartItem = {
   budgetId: string | null;
   serviceOrderId?: string;
   osNumber?: number | null;
+  customerName?: string | null;
   at?: string | null;
   finalized?: boolean;
   statusLabel?: string;
@@ -1074,9 +1076,12 @@ export type VehicleMaintenanceVisit = {
   status: string;
   statusLabel: string;
   finalized: boolean;
+  archived?: boolean;
   isCurrent: boolean;
   plate: string | null;
   vehicleModel: string | null;
+  customerName?: string | null;
+  customerId?: string | null;
   mileageKm: string | null;
   createdAt: string | null;
   updatedAt: string | null;
@@ -1086,20 +1091,29 @@ export type VehicleMaintenanceVisit = {
 
 export type VehicleMaintenanceHistory = {
   plate: string | null;
+  /** Placa normalizada usada na busca (sem hífen/espaços). */
+  plateKey?: string | null;
+  /** Sempre "plate" — histórico não é filtrado por cliente. */
+  lookupBy?: "plate";
   vehicleModel: string | null;
   vehicleBrand: string | null;
   visits: VehicleMaintenanceVisit[];
   services: VehicleMaintenanceServiceItem[];
   parts: VehicleMaintenancePartItem[];
-  summary: { visits: number; services: number; parts: number };
+  summary: { visits: number; services: number; parts: number; owners?: number };
 };
 
-/** Histórico de manutenções do veículo (mesma placa), a partir de uma OS. */
+/** Histórico de manutenções do veículo — sempre pela placa (todos os cadastros/donos). */
 export async function getVehicleMaintenanceHistory(
-  serviceOrderId: string
+  serviceOrderId: string,
+  opts?: { plate?: string | null }
 ): Promise<VehicleMaintenanceHistory> {
+  const qs = new URLSearchParams();
+  const plate = (opts?.plate ?? "").replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
+  if (plate.length >= 5) qs.set("plate", plate);
+  const suffix = qs.toString() ? `?${qs.toString()}` : "";
   const response = await fetch(
-    `${API_BASE}/service-orders/${serviceOrderId}/maintenance-history`
+    `${API_BASE}/service-orders/${serviceOrderId}/maintenance-history${suffix}`
   );
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
