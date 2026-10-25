@@ -268,7 +268,7 @@ export function LabOsScanQuickModal({
                       vehicleModel={vehicleName !== '—' ? vehicleName : null}
                       moduleIdentification={moduleRef || null}
                       titleClassName="font-display text-[22px] font-semibold tracking-tight text-zinc-900 dark:text-white"
-                      photoSizeClass="h-14 w-14"
+                      photoSizeClass="h-[4.2rem] w-[4.2rem]"
                     />
                     <span id="lab-os-scan-quick-title" className="sr-only">
                       {labProductDisplayLabel(detail.module_kind, detail.module_product_other) ||

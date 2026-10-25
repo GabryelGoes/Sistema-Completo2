@@ -33,7 +33,8 @@ export function LabOsModalPartHero({
   titleClassName,
   titleShadowClassName = '',
   titleTrailing,
-  photoSizeClass = 'h-14 w-14 sm:h-16 sm:w-16',
+  // +20% sobre h-14/sm:h-16 (3.5rem→4.2rem, 4rem→4.8rem)
+  photoSizeClass = 'h-[4.2rem] w-[4.2rem] sm:h-[4.8rem] sm:w-[4.8rem]',
 }: LabOsModalPartHeroProps) {
   const [, bump] = useState(0);
   useEffect(() => {
