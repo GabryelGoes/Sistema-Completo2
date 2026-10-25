@@ -5447,6 +5447,294 @@ export function createApiApp() {
     }
   });
 
+  /**
+   * Histórico de manutenções do veículo (mesma placa): serviços e peças aprovados
+   * em todas as OS de veículo da oficina (exceto canceladas).
+   */
+  app.get("/api/service-orders/:id/maintenance-history", async (req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({ error: "Servidor não configurado." });
+      }
+      const id = reqOrderId(req);
+      if (!id) return res.status(400).json({ error: "ID da OS inválido." });
+
+      const { data: current, error: curErr } = await supabaseAdmin
+        .from("service_orders")
+        .select(
+          "id, os_number, status, plate, vehicle_model, vehicle_brand, mileage_km, order_type, created_at, updated_at"
+        )
+        .eq("id", id)
+        .eq("workshop_id", WORKSHOP_ID)
+        .single();
+      if (curErr || !current) {
+        return res.status(404).json({ error: "Ordem de serviço não encontrada." });
+      }
+      if (String((current as { order_type?: string }).order_type ?? "") === "module") {
+        return res.status(400).json({ error: "Histórico de manutenções é exclusivo de veículos." });
+      }
+
+      const plateNorm = normalizePlacaInput((current as { plate?: string | null }).plate);
+      if (plateNorm.length < 5) {
+        return res.json({
+          plate: (current as { plate?: string | null }).plate ?? null,
+          vehicleModel: (current as { vehicle_model?: string | null }).vehicle_model ?? null,
+          vehicleBrand: (current as { vehicle_brand?: string | null }).vehicle_brand ?? null,
+          visits: [],
+          services: [],
+          parts: [],
+          summary: { visits: 0, services: 0, parts: 0 },
+        });
+      }
+
+      const { data: orderRows, error: ordErr } = await supabaseAdmin
+        .from("service_orders")
+        .select(
+          "id, os_number, status, plate, vehicle_model, vehicle_brand, mileage_km, created_at, updated_at"
+        )
+        .eq("workshop_id", WORKSHOP_ID)
+        .eq("order_type", "vehicle")
+        .neq("status", CANCELLED_STATUS)
+        .order("created_at", { ascending: false })
+        .limit(800);
+      if (ordErr) {
+        console.error("[API] maintenance-history orders:", ordErr);
+        return res.status(500).json({ error: ordErr.message });
+      }
+
+      const visitsBase = (orderRows ?? []).filter(
+        (row) => normalizePlacaInput((row as { plate?: string | null }).plate) === plateNorm
+      );
+      const orderIds = visitsBase.map((r) => String((r as { id: string }).id));
+
+      type BudgetRow = {
+        id: string;
+        service_order_id: string;
+        services?: {
+          description?: string;
+          approved?: boolean;
+          labor_hours?: number | null;
+        }[] | null;
+        parts?: {
+          description?: string;
+          quantity?: string;
+          approved?: boolean;
+          fromStock?: boolean;
+          workshopPartId?: string;
+        }[] | null;
+        created_at?: string;
+      };
+
+      let budgets: BudgetRow[] = [];
+      if (orderIds.length > 0) {
+        const { data: budgetRows, error: budErr } = await supabaseAdmin
+          .from("budgets")
+          .select("id, service_order_id, services, parts, created_at")
+          .eq("workshop_id", WORKSHOP_ID)
+          .in("service_order_id", orderIds);
+        if (budErr) {
+          console.error("[API] maintenance-history budgets:", budErr);
+          return res.status(500).json({ error: budErr.message });
+        }
+        budgets = (budgetRows ?? []) as BudgetRow[];
+      }
+
+      type TechRow = {
+        service_order_id: string;
+        description: string;
+        technician_id: string | null;
+      };
+      let techRows: TechRow[] = [];
+      if (orderIds.length > 0) {
+        try {
+          const { data: tRows, error: tErr } = await supabaseAdmin
+            .from("service_order_service_technicians")
+            .select("service_order_id, description, technician_id")
+            .eq("workshop_id", WORKSHOP_ID)
+            .in("service_order_id", orderIds);
+          if (tErr) throw tErr;
+          techRows = (tRows ?? []) as TechRow[];
+        } catch (techErr: unknown) {
+          const msg = techErr instanceof Error ? techErr.message : String(techErr);
+          if (!/does not exist|relation|schema cache/i.test(msg)) {
+            console.error("[API] maintenance-history technicians:", techErr);
+          }
+        }
+      }
+
+      const techIds = [
+        ...new Set(
+          techRows
+            .map((t) => (t.technician_id || "").trim())
+            .filter(Boolean)
+        ),
+      ];
+      const techNames = techIds.length > 0 ? await mapTechnicianUsersByIds(techIds) : {};
+
+      const budgetsByOrder = new Map<string, BudgetRow[]>();
+      for (const b of budgets) {
+        const sid = String(b.service_order_id);
+        const list = budgetsByOrder.get(sid) ?? [];
+        list.push(b);
+        budgetsByOrder.set(sid, list);
+      }
+
+      const techByOrder = new Map<string, TechRow[]>();
+      for (const t of techRows) {
+        const sid = String(t.service_order_id);
+        const list = techByOrder.get(sid) ?? [];
+        list.push(t);
+        techByOrder.set(sid, list);
+      }
+
+      const stageLabel = (status: string) =>
+        SERVICE_ORDER_STAGES.find((s) => s.id === status)?.name ?? status;
+
+      type VisitService = {
+        description: string;
+        laborHours: number | null;
+        technicianName: string | null;
+        budgetId: string | null;
+      };
+      type VisitPart = {
+        description: string;
+        quantity: string;
+        fromStock: boolean;
+        workshopPartId: string | null;
+        budgetId: string | null;
+      };
+
+      const visits = visitsBase.map((row) => {
+        const sid = String((row as { id: string }).id);
+        const status = String((row as { status?: string }).status ?? "");
+        const finalized = status === "FINALIZADO";
+        const orderBudgets = budgetsByOrder.get(sid) ?? [];
+        const orderTechs = techByOrder.get(sid) ?? [];
+        const techByDesc = new Map<string, string>();
+        for (const t of orderTechs) {
+          const key = normalizeServiceDescription(String(t.description ?? ""));
+          const tid = (t.technician_id || "").trim();
+          if (key && tid && !techByDesc.has(key)) {
+            techByDesc.set(key, techNames[tid] || "Técnico");
+          }
+        }
+
+        const services: VisitService[] = [];
+        const seenSvc = new Set<string>();
+        for (const budget of orderBudgets) {
+          for (const svc of Array.isArray(budget.services) ? budget.services : []) {
+            if (svc?.approved !== true) continue;
+            const description = String(svc.description ?? "").trim();
+            if (!description) continue;
+            const key = normalizeServiceDescription(description);
+            if (seenSvc.has(key)) continue;
+            seenSvc.add(key);
+            const hours =
+              typeof svc.labor_hours === "number" && Number.isFinite(svc.labor_hours)
+                ? svc.labor_hours
+                : null;
+            services.push({
+              description,
+              laborHours: hours,
+              technicianName: techByDesc.get(key) ?? null,
+              budgetId: budget.id ?? null,
+            });
+          }
+        }
+
+        const parts: VisitPart[] = [];
+        const seenPart = new Set<string>();
+        for (const budget of orderBudgets) {
+          for (const part of Array.isArray(budget.parts) ? budget.parts : []) {
+            if (part?.approved !== true) continue;
+            const description = String(part.description ?? "").trim();
+            if (!description) continue;
+            const workshopPartId =
+              typeof part.workshopPartId === "string" && part.workshopPartId.trim()
+                ? part.workshopPartId.trim()
+                : null;
+            const fromStock = part.fromStock === true || Boolean(workshopPartId);
+            const key = workshopPartId
+              ? `id:${workshopPartId}`
+              : `name:${normalizeBudgetPartName(description)}`;
+            if (seenPart.has(key)) continue;
+            seenPart.add(key);
+            const qtyRaw = String(part.quantity ?? "1").trim() || "1";
+            parts.push({
+              description,
+              quantity: qtyRaw,
+              fromStock,
+              workshopPartId,
+              budgetId: budget.id ?? null,
+            });
+          }
+        }
+
+        return {
+          serviceOrderId: sid,
+          osNumber:
+            typeof (row as { os_number?: number | null }).os_number === "number"
+              ? (row as { os_number: number }).os_number
+              : null,
+          status,
+          statusLabel: stageLabel(status),
+          finalized,
+          isCurrent: sid === id,
+          plate: (row as { plate?: string | null }).plate ?? null,
+          vehicleModel: (row as { vehicle_model?: string | null }).vehicle_model ?? null,
+          mileageKm: (row as { mileage_km?: string | null }).mileage_km ?? null,
+          createdAt: (row as { created_at?: string }).created_at ?? null,
+          updatedAt: (row as { updated_at?: string }).updated_at ?? null,
+          services,
+          parts,
+        };
+      });
+
+      /** Visitas com pelo menos um item aprovado, ou a OS atual. */
+      const meaningfulVisits = visits.filter(
+        (v) => v.isCurrent || v.services.length > 0 || v.parts.length > 0 || v.finalized
+      );
+
+      const flatServices = meaningfulVisits.flatMap((v) =>
+        v.services.map((s) => ({
+          ...s,
+          serviceOrderId: v.serviceOrderId,
+          osNumber: v.osNumber,
+          at: v.updatedAt || v.createdAt,
+          finalized: v.finalized,
+          statusLabel: v.statusLabel,
+        }))
+      );
+      const flatParts = meaningfulVisits.flatMap((v) =>
+        v.parts.map((p) => ({
+          ...p,
+          serviceOrderId: v.serviceOrderId,
+          osNumber: v.osNumber,
+          at: v.updatedAt || v.createdAt,
+          finalized: v.finalized,
+          statusLabel: v.statusLabel,
+        }))
+      );
+
+      return res.json({
+        plate: (current as { plate?: string | null }).plate ?? null,
+        vehicleModel: (current as { vehicle_model?: string | null }).vehicle_model ?? null,
+        vehicleBrand: (current as { vehicle_brand?: string | null }).vehicle_brand ?? null,
+        visits: meaningfulVisits,
+        services: flatServices,
+        parts: flatParts,
+        summary: {
+          visits: meaningfulVisits.length,
+          services: flatServices.length,
+          parts: flatParts.length,
+        },
+      });
+    } catch (err: any) {
+      console.error("[API] Erro em GET /api/service-orders/:id/maintenance-history:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+    }
+  });
+
   // Listar fotos de uma OS (Storage)
   app.get("/api/service-orders/:id/photos", async (req, res) => {
     try {

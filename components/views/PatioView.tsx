@@ -83,6 +83,7 @@ import {
   saveServiceOrderLabEvaluation,
   deleteServiceOrderLabEvaluation,
   getServiceOrderServiceTechnicians,
+  getVehicleMaintenanceHistory,
   ServiceOrderListItem,
   type WorkshopService,
   type WorkshopPart,
@@ -90,6 +91,7 @@ import {
   type ServiceOrderUpdateActor,
   type ServiceOrderType,
   type ChecklistTemplate,
+  type VehicleMaintenanceHistory,
 } from '../../services/apiService';
 import {
   getServiceOrdersWarm,
@@ -238,6 +240,7 @@ import { LabBenchQueueModal } from '../lab/LabBenchQueueModal';
 import { LabExternalRepairModal } from '../lab/LabExternalRepairModal';
 import { PatioOsModalPcTabBar, type PatioOsModalPcTab } from '../patio/PatioOsModalPcTabBar';
 import { PatioOsModalLabServicesSection } from '../patio/PatioOsModalLabServicesSection';
+import { PatioOsModalHistoricoTab } from '../patio/PatioOsModalHistoricoTab';
 import { VehicleObservationsSection } from '../patio/VehicleObservationsSection';
 import { VehicleOsStockCheckoutSection } from '../patio/VehicleOsStockCheckoutSection';
 import { OsCommentBubble } from '../patio/OsCommentBubble';
@@ -1509,6 +1512,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const [isExternalRepairEditing, setIsExternalRepairEditing] = useState(false);
   /** Aba ativa no modal da OS (somente layout PC). */
   const [pcOsModalTab, setPcOsModalTab] = useState<PatioOsModalPcTab>('dados');
+  const [vehicleMaintenanceHistory, setVehicleMaintenanceHistory] =
+    useState<VehicleMaintenanceHistory | null>(null);
+  const [vehicleMaintenanceLoading, setVehicleMaintenanceLoading] = useState(false);
+  const [vehicleMaintenanceError, setVehicleMaintenanceError] = useState<string | null>(null);
+  const vehicleMaintenanceLoadedForRef = useRef<string | null>(null);
   const [benchSlotSaving, setBenchSlotSaving] = useState(false);
   const [locationMoves, setLocationMoves] = useState<ServiceOrderLocationMove[]>([]);
   const [labServiceLinksDraft, setLabServiceLinksDraft] = useState<LabServiceLink[]>([]);
@@ -1549,8 +1557,33 @@ export const PatioView: React.FC<PatioViewProps> = ({
       setLabSourcePatioPickerOpen(false);
       setLabSourcePatioSelectedPaths([]);
       setLabSourcePatio(null);
+      setVehicleMaintenanceHistory(null);
+      setVehicleMaintenanceError(null);
+      setVehicleMaintenanceLoading(false);
+      vehicleMaintenanceLoadedForRef.current = null;
     }
   }, [selectedCard?.id]);
+
+  const loadVehicleMaintenanceHistory = useCallback(
+    async (serviceOrderId: string, opts?: { force?: boolean }) => {
+      if (!serviceOrderId || isModuleMode) return;
+      if (!opts?.force && vehicleMaintenanceLoadedForRef.current === serviceOrderId) return;
+      setVehicleMaintenanceLoading(true);
+      setVehicleMaintenanceError(null);
+      try {
+        const data = await getVehicleMaintenanceHistory(serviceOrderId);
+        setVehicleMaintenanceHistory(data);
+        vehicleMaintenanceLoadedForRef.current = serviceOrderId;
+      } catch (err: unknown) {
+        setVehicleMaintenanceError(
+          err instanceof Error ? err.message : 'Falha ao carregar histórico de manutenções.'
+        );
+      } finally {
+        setVehicleMaintenanceLoading(false);
+      }
+    },
+    [isModuleMode]
+  );
 
   const patioOriginAttachments = useMemo(
     () =>
@@ -2079,6 +2112,13 @@ export const PatioView: React.FC<PatioViewProps> = ({
   /** Modal de veículo em layout PC: duas colunas (shell OnMotor ou viewport ≥1024px). */
   /** Com a bancada em tela cheia, o modal da OS abre como card flutuante (layout não-PC) por cima dela. */
   const isPatioPcModal = (desktopShell || (isDesktop && viewportWidth >= 1024)) && !benchFullscreenOpen;
+
+  /** Carrega histórico ao abrir o modal do veículo (todas as passagens da placa). */
+  useEffect(() => {
+    if (!selectedCard?.id || isModuleMode) return;
+    void loadVehicleMaintenanceHistory(selectedCard.id);
+  }, [selectedCard?.id, isModuleMode, loadVehicleMaintenanceHistory]);
+
   /** Retrato: encolhe o quadro inteiro (como o zoom do modo “5 colunas”) sem depender do toggle panorâmico. */
   const [isPortraitOrientation, setIsPortraitOrientation] = useState(() =>
     typeof window !== 'undefined' ? window.matchMedia('(orientation: portrait)').matches : false
@@ -10592,10 +10632,17 @@ export const PatioView: React.FC<PatioViewProps> = ({
                     <PatioOsModalPcTabBar
                       active={pcOsModalTab}
                       onChange={setPcOsModalTab}
-                      hiddenTabs={isModuleMode ? ['laboratorio', 'conserto_externo'] : ['conserto_externo']}
+                      hiddenTabs={
+                        isModuleMode
+                          ? ['laboratorio', 'conserto_externo', 'historico']
+                          : ['conserto_externo']
+                      }
                       tabBadges={{
                         laboratorio: labServiceLinksDraft.length,
                         orcamentos: savedBudgets.filter((b) => b.serviceOrderId === selectedCard.id).length,
+                        historico:
+                          (vehicleMaintenanceHistory?.summary.services ?? 0) +
+                          (vehicleMaintenanceHistory?.summary.parts ?? 0),
                       }}
                     />
                   ) : null}
@@ -11465,6 +11512,28 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             </div>
                          </div>
                         </>
+                        ) : null}
+
+                        {showPcOsTab('historico') && !isModuleMode ? (
+                          <>
+                            {!isPatioPcModal ? (
+                              <div className="h-px bg-zinc-200/80 dark:bg-white/[0.06]" />
+                            ) : null}
+                            <PatioOsModalHistoricoTab
+                              history={vehicleMaintenanceHistory}
+                              loading={vehicleMaintenanceLoading}
+                              error={vehicleMaintenanceError}
+                              onRetry={
+                                selectedCard?.id
+                                  ? () =>
+                                      void loadVehicleMaintenanceHistory(selectedCard.id, {
+                                        force: true,
+                                      })
+                                  : undefined
+                              }
+                              insetCardClass={vi}
+                            />
+                          </>
                         ) : null}
 
                         {!isPatioPcModal && renderLabServicesSection('mt-3')}

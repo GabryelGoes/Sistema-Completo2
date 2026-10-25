@@ -1041,6 +1041,73 @@ export async function getServiceOrderById(id: string): Promise<ServiceOrderDetai
   return response.json();
 }
 
+/** Serviço aprovado no histórico de manutenções do veículo. */
+export type VehicleMaintenanceServiceItem = {
+  description: string;
+  laborHours: number | null;
+  technicianName: string | null;
+  budgetId: string | null;
+  serviceOrderId?: string;
+  osNumber?: number | null;
+  at?: string | null;
+  finalized?: boolean;
+  statusLabel?: string;
+};
+
+/** Peça aprovada/trocada no histórico de manutenções do veículo. */
+export type VehicleMaintenancePartItem = {
+  description: string;
+  quantity: string;
+  fromStock: boolean;
+  workshopPartId: string | null;
+  budgetId: string | null;
+  serviceOrderId?: string;
+  osNumber?: number | null;
+  at?: string | null;
+  finalized?: boolean;
+  statusLabel?: string;
+};
+
+export type VehicleMaintenanceVisit = {
+  serviceOrderId: string;
+  osNumber: number | null;
+  status: string;
+  statusLabel: string;
+  finalized: boolean;
+  isCurrent: boolean;
+  plate: string | null;
+  vehicleModel: string | null;
+  mileageKm: string | null;
+  createdAt: string | null;
+  updatedAt: string | null;
+  services: VehicleMaintenanceServiceItem[];
+  parts: VehicleMaintenancePartItem[];
+};
+
+export type VehicleMaintenanceHistory = {
+  plate: string | null;
+  vehicleModel: string | null;
+  vehicleBrand: string | null;
+  visits: VehicleMaintenanceVisit[];
+  services: VehicleMaintenanceServiceItem[];
+  parts: VehicleMaintenancePartItem[];
+  summary: { visits: number; services: number; parts: number };
+};
+
+/** Histórico de manutenções do veículo (mesma placa), a partir de uma OS. */
+export async function getVehicleMaintenanceHistory(
+  serviceOrderId: string
+): Promise<VehicleMaintenanceHistory> {
+  const response = await fetch(
+    `${API_BASE}/service-orders/${serviceOrderId}/maintenance-history`
+  );
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao carregar histórico (${response.status})`);
+  }
+  return response.json();
+}
+
 // ---------- Checklists do Pátio (templates criados pelo admin) ----------
 
 export interface ChecklistTemplateItem {
