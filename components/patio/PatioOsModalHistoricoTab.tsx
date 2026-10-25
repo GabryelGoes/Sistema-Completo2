@@ -3,13 +3,13 @@ import {
   CheckCircle2,
   Clock3,
   Cog,
+  History,
   Loader2,
   Package,
-  RefreshCw,
   Wrench,
 } from 'lucide-react';
 import type { VehicleMaintenanceHistory } from '../../services/apiService';
-import { uiOsModalCardSectionTitle, uiOsModalSectionAppIcon } from '../ui/appTypography';
+import { uiOsModalCardSectionTitle, uiOsModalSectionIconWrap } from '../ui/appTypography';
 
 export type PatioOsModalHistoricoTabProps = {
   history: VehicleMaintenanceHistory | null;
@@ -61,18 +61,14 @@ export const PatioOsModalHistoricoTab: React.FC<PatioOsModalHistoricoTabProps> =
     <div className={`${insetCardClass} min-w-0 overflow-hidden shadow-none`}>
       <div className="relative min-w-0">
         <div
-          className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.08),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(52,199,89,0.08),transparent_50%)] dark:bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.12),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(52,199,89,0.1),transparent_52%)]"
-          aria-hidden
-        />
-        <div
-          className="pointer-events-none absolute -right-10 top-8 h-24 w-24 rounded-full bg-gradient-to-br from-emerald-500/14 to-transparent opacity-80 blur-2xl dark:from-emerald-400/20"
+          className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.08),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.08),transparent_50%)] dark:bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.12),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.1),transparent_52%)]"
           aria-hidden
         />
 
-        <div className="relative flex items-center justify-between gap-2 border-b border-black/[0.06] bg-white/85 px-2.5 py-2 pl-3 backdrop-blur-[2px] dark:border-white/[0.08] dark:bg-zinc-950/35 sm:gap-3 sm:px-3 sm:py-2.5 sm:pl-4">
+        <div className="relative flex items-center gap-2 border-b border-black/[0.06] bg-white/85 px-2.5 py-2 pl-3 backdrop-blur-[2px] dark:border-white/[0.08] dark:bg-zinc-950/35 sm:gap-3 sm:px-3 sm:py-2.5 sm:pl-4">
           <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-2.5">
-            <div className={uiOsModalSectionAppIcon}>
-              <img src="/icons/servicos-oficina-ios.png" alt="" className="h-full w-full object-cover" />
+            <div className={uiOsModalSectionIconWrap}>
+              <History className="h-4 w-4 text-[#007AFF] dark:text-[#7ab8ff]" strokeWidth={2.25} aria-hidden />
             </div>
             <div className="min-w-0">
               <p className={uiOsModalCardSectionTitle}>Histórico de Manutenções</p>
@@ -93,21 +89,9 @@ export const PatioOsModalHistoricoTab: React.FC<PatioOsModalHistoricoTabProps> =
               )}
             </div>
           </div>
-          {onRetry ? (
-            <button
-              type="button"
-              onClick={onRetry}
-              disabled={loading}
-              className="inline-flex shrink-0 items-center gap-1 rounded-xl border border-zinc-200/90 bg-white px-2.5 py-1 text-[11px] font-semibold text-zinc-600 transition hover:bg-zinc-50 disabled:opacity-40 dark:border-white/[0.12] dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800"
-              aria-label="Atualizar histórico"
-            >
-              <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} strokeWidth={2.4} />
-              Atualizar
-            </button>
-          ) : null}
         </div>
 
-        <div className="relative space-y-4 border-t border-zinc-200/60 bg-zinc-50/90 px-3 py-3 dark:border-white/[0.06] dark:bg-white/[0.02] sm:px-4 sm:py-4">
+        <div className="relative space-y-3 border-t border-zinc-200/60 bg-zinc-50/90 px-3 py-3 dark:border-white/[0.06] dark:bg-white/[0.02] sm:px-4 sm:py-4">
           {loading && !history ? (
             <div className="flex items-center justify-center gap-2 py-12 text-[14px] font-medium text-zinc-500 dark:text-zinc-400">
               <Loader2 className="h-5 w-5 animate-spin text-[#007AFF]" />
@@ -128,43 +112,50 @@ export const PatioOsModalHistoricoTab: React.FC<PatioOsModalHistoricoTabProps> =
             </div>
           ) : (
             <>
-              <div className="grid grid-cols-3 gap-2 sm:gap-2.5">
+              <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
                 {[
                   {
                     label: 'Passagens',
                     value: summary.visits,
                     icon: Clock3,
-                    tone: 'from-[#007AFF]/12 to-[#007AFF]/[0.03] text-[#007AFF] dark:from-[#007AFF]/20 dark:to-transparent dark:text-[#7ab8ff]',
+                    card: 'border-[#007AFF]/25 bg-[#007AFF]/[0.14] dark:border-[#007AFF]/35 dark:bg-[#007AFF]/20',
+                    iconTone: 'text-[#007AFF] dark:text-[#7ab8ff]',
                   },
                   {
                     label: 'Serviços',
                     value: summary.services,
                     icon: Wrench,
-                    tone: 'from-violet-500/12 to-violet-500/[0.03] text-violet-700 dark:from-violet-400/20 dark:to-transparent dark:text-violet-300',
+                    card: 'border-[#F5D00B]/45 bg-[#F5D00B]/35 dark:border-[#F5D00B]/40 dark:bg-[#F5D00B]/18',
+                    iconTone: 'text-amber-800 dark:text-[#F5D00B]',
                   },
                   {
                     label: 'Peças',
                     value: summary.parts,
                     icon: Package,
-                    tone: 'from-emerald-500/12 to-emerald-500/[0.03] text-emerald-700 dark:from-emerald-400/20 dark:to-transparent dark:text-emerald-300',
+                    card: 'border-emerald-500/30 bg-emerald-500/15 dark:border-emerald-400/35 dark:bg-emerald-500/20',
+                    iconTone: 'text-emerald-700 dark:text-emerald-300',
                   },
                 ].map((stat) => (
                   <div
                     key={stat.label}
-                    className={`rounded-2xl border border-white/70 bg-gradient-to-br p-3 shadow-sm dark:border-white/[0.08] ${stat.tone}`}
+                    className={`flex min-h-0 items-center gap-1.5 rounded-xl border px-2 py-1.5 sm:gap-2 sm:px-2.5 sm:py-2 ${stat.card}`}
                   >
-                    <stat.icon className="mb-1.5 h-4 w-4 opacity-80" strokeWidth={2.3} aria-hidden />
-                    <p className="text-[22px] font-semibold tabular-nums leading-none tracking-tight text-zinc-900 dark:text-white">
+                    <stat.icon
+                      className={`h-3.5 w-3.5 shrink-0 sm:h-4 sm:w-4 ${stat.iconTone}`}
+                      strokeWidth={2.4}
+                      aria-hidden
+                    />
+                    <span className="text-[15px] font-semibold tabular-nums leading-none tracking-tight text-zinc-900 dark:text-white sm:text-[16px]">
                       {stat.value}
-                    </p>
-                    <p className="mt-1 text-[11px] font-bold uppercase tracking-[0.1em] text-zinc-500 dark:text-zinc-400">
+                    </span>
+                    <span className="truncate text-[10px] font-bold uppercase tracking-[0.08em] text-zinc-600 dark:text-zinc-300 sm:text-[11px]">
                       {stat.label}
-                    </p>
+                    </span>
                   </div>
                 ))}
               </div>
 
-              <div className="flex flex-wrap gap-1.5 rounded-2xl bg-white/90 p-1 dark:bg-zinc-950/50">
+              <div className="flex flex-wrap gap-1.5 rounded-2xl bg-white p-1 dark:bg-zinc-950/70">
                 {(
                   [
                     { id: 'todos', label: 'Tudo' },
@@ -191,7 +182,7 @@ export const PatioOsModalHistoricoTab: React.FC<PatioOsModalHistoricoTabProps> =
               </div>
 
               {!hasAnything ? (
-                <div className="rounded-2xl border border-dashed border-zinc-300/90 bg-white/70 px-4 py-10 text-center dark:border-white/[0.12] dark:bg-zinc-950/40">
+                <div className="rounded-2xl border border-dashed border-zinc-300/90 bg-white px-4 py-10 text-center dark:border-white/[0.12] dark:bg-zinc-950/40">
                   <Cog className="mx-auto mb-3 h-8 w-8 text-zinc-300 dark:text-zinc-600" strokeWidth={1.6} />
                   <p className="text-[15px] font-semibold text-zinc-800 dark:text-zinc-100">
                     Nenhuma manutenção registrada
@@ -261,7 +252,7 @@ export const PatioOsModalHistoricoTab: React.FC<PatioOsModalHistoricoTabProps> =
                         <div className="space-y-3 px-3.5 py-3">
                           {showServices ? (
                             <div>
-                              <p className="mb-1.5 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.12em] text-violet-600 dark:text-violet-300">
+                              <p className="mb-1.5 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.12em] text-amber-800 dark:text-[#F5D00B]">
                                 <Wrench className="h-3.5 w-3.5" strokeWidth={2.4} aria-hidden />
                                 Serviços aprovados
                                 {visit.finalized ? ' · realizados' : ''}
@@ -272,9 +263,9 @@ export const PatioOsModalHistoricoTab: React.FC<PatioOsModalHistoricoTabProps> =
                                   return (
                                     <li
                                       key={`${visit.serviceOrderId}-svc-${svc.description}`}
-                                      className="flex items-start gap-2 rounded-xl bg-violet-50/70 px-2.5 py-2 dark:bg-violet-500/10"
+                                      className="flex items-start gap-2 rounded-xl border border-[#F5D00B]/35 bg-[#F5D00B]/20 px-2.5 py-2 dark:border-[#F5D00B]/30 dark:bg-[#F5D00B]/12"
                                     >
-                                      <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-violet-500" />
+                                      <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[#F5D00B]" />
                                       <div className="min-w-0 flex-1">
                                         <p className="text-[13px] font-medium leading-snug text-zinc-900 dark:text-zinc-100">
                                           {svc.description}
@@ -302,7 +293,7 @@ export const PatioOsModalHistoricoTab: React.FC<PatioOsModalHistoricoTabProps> =
                                 {visit.parts.map((part) => (
                                   <li
                                     key={`${visit.serviceOrderId}-part-${part.description}`}
-                                    className="flex items-start gap-2 rounded-xl bg-emerald-50/70 px-2.5 py-2 dark:bg-emerald-500/10"
+                                    className="flex items-start gap-2 rounded-xl bg-emerald-50 px-2.5 py-2 dark:bg-emerald-500/15"
                                   >
                                     <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" />
                                     <div className="min-w-0 flex-1">

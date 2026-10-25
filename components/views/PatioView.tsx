@@ -1941,29 +1941,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
     [isModuleMode]
   );
 
-  /**
-   * Histórico sempre pela placa do veículo (não pelo cliente/cadastro).
-   * Recarrega se a placa da ficha mudar.
-   */
-  useEffect(() => {
-    if (!selectedCard?.id || isModuleMode) return;
-    const plateFromCard = selectedCard.name
-      ? parsePatioCardTitle(selectedCard.name).plateOrModule
-      : null;
-    const plate =
-      (serviceOrderDetail?.id === selectedCard.id ? serviceOrderDetail.plate : null) ||
-      plateFromCard ||
-      null;
-    void loadVehicleMaintenanceHistory(selectedCard.id, { plate });
-  }, [
-    selectedCard?.id,
-    selectedCard?.name,
-    isModuleMode,
-    serviceOrderDetail?.id,
-    serviceOrderDetail?.plate,
-    loadVehicleMaintenanceHistory,
-  ]);
-
   useEffect(() => {
     if (!isModuleMode || !selectedCard?.id) {
       setLabSourcePatio(null);
@@ -2147,6 +2124,33 @@ export const PatioView: React.FC<PatioViewProps> = ({
   /** Modal de veículo em layout PC: duas colunas (shell OnMotor ou viewport ≥1024px). */
   /** Com a bancada em tela cheia, o modal da OS abre como card flutuante (layout não-PC) por cima dela. */
   const isPatioPcModal = (desktopShell || (isDesktop && viewportWidth >= 1024)) && !benchFullscreenOpen;
+
+  /**
+   * Histórico pela placa: atualiza toda vez que entra na aba Manutenções (PC)
+   * ou quando o modal tablet/mobile mostra a seção.
+   */
+  useEffect(() => {
+    if (!selectedCard?.id || isModuleMode) return;
+    const tabVisible = !isPatioPcModal || pcOsModalTab === 'historico';
+    if (!tabVisible) return;
+    const plateFromCard = selectedCard.name
+      ? parsePatioCardTitle(selectedCard.name).plateOrModule
+      : null;
+    const plate =
+      (serviceOrderDetail?.id === selectedCard.id ? serviceOrderDetail.plate : null) ||
+      plateFromCard ||
+      null;
+    void loadVehicleMaintenanceHistory(selectedCard.id, { force: true, plate });
+  }, [
+    selectedCard?.id,
+    selectedCard?.name,
+    isModuleMode,
+    isPatioPcModal,
+    pcOsModalTab,
+    serviceOrderDetail?.id,
+    serviceOrderDetail?.plate,
+    loadVehicleMaintenanceHistory,
+  ]);
 
   /** Retrato: encolhe o quadro inteiro (como o zoom do modo “5 colunas”) sem depender do toggle panorâmico. */
   const [isPortraitOrientation, setIsPortraitOrientation] = useState(() =>
