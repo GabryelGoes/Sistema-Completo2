@@ -6,6 +6,7 @@ import { API_BASE } from "./apiConfig";
 import "./httpClient";
 import { getSupabaseBrowser } from "./supabaseBrowser";
 import { isTvVideoFile } from "../utils/tvMediaFile";
+import { getOrCreateDeviceId } from "../utils/deviceSessionId";
 
 async function readResponseJson<T>(response: Response, emptyMessage: string, invalidMessage: string): Promise<T> {
   const text = await response.text();
@@ -4799,10 +4800,11 @@ export interface AuthSession {
 }
 
 export async function login(username: string, password: string): Promise<AuthSession> {
+  const deviceId = getOrCreateDeviceId();
   const response = await fetch(`${API_BASE}/auth/login`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ username: username.trim(), password }),
+    headers: { "Content-Type": "application/json", "X-Device-Id": deviceId },
+    body: JSON.stringify({ username: username.trim(), password, deviceId }),
   });
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
@@ -4822,6 +4824,95 @@ export async function login(username: string, password: string): Promise<AuthSes
     accentColor: data.accentColor ?? null,
     permissions: data.permissions || {},
   };
+}
+
+export type ConnectedDeviceSession = {
+  id: string;
+  deviceId: string;
+  role: string;
+  userId: string | null;
+  username: string | null;
+  displayName: string;
+  userAgent: string | null;
+  platform: string | null;
+  ipAddress: string | null;
+  createdAt: string;
+  lastSeenAt: string;
+  online: boolean;
+  isCurrent: boolean;
+};
+
+export type BlockedDevice = {
+  id: string;
+  deviceId: string;
+  label: string | null;
+  userAgent: string | null;
+  platform: string | null;
+  blockedAt: string;
+  reason: string | null;
+};
+
+export type ConnectedDevicesResponse = {
+  sessions: ConnectedDeviceSession[];
+  blocked: BlockedDevice[];
+  canManage: boolean;
+  currentSessionId: string | null;
+  currentDeviceId: string | null;
+  onlineThresholdMs: number;
+};
+
+export async function getConnectedDevices(): Promise<ConnectedDevicesResponse> {
+  const response = await fetch(`${API_BASE}/auth/devices`);
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao listar dispositivos (${response.status})`);
+  }
+  return response.json();
+}
+
+export async function sendDeviceHeartbeat(): Promise<void> {
+  await fetch(`${API_BASE}/auth/device-heartbeat`, { method: "POST" }).catch(() => undefined);
+}
+
+export async function revokeDeviceSession(sessionId: string): Promise<void> {
+  const response = await fetch(`${API_BASE}/auth/devices/${encodeURIComponent(sessionId)}/revoke`, {
+    method: "POST",
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || "Falha ao deslogar o dispositivo.");
+  }
+}
+
+export async function blockDevice(params: {
+  deviceId?: string;
+  sessionId?: string;
+  reason?: string;
+  label?: string;
+}): Promise<void> {
+  const response = await fetch(`${API_BASE}/auth/devices/block`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(params),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || "Falha ao bloquear o dispositivo.");
+  }
+}
+
+export async function unblockDevice(deviceId: string): Promise<void> {
+  const response = await fetch(`${API_BASE}/auth/devices/block/${encodeURIComponent(deviceId)}`, {
+    method: "DELETE",
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || "Falha ao desbloquear o dispositivo.");
+  }
+}
+
+export async function logoutCurrentSession(): Promise<void> {
+  await fetch(`${API_BASE}/auth/logout`, { method: "POST" }).catch(() => undefined);
 }
 
 export interface SystemUser {
