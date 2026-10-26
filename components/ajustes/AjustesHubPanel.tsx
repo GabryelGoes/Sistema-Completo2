@@ -7,6 +7,7 @@ import {
   LogOut,
   MonitorSmartphone,
   Package,
+  Smartphone,
   Tag,
   User,
   Users,
@@ -35,6 +36,7 @@ export type AjustesVisibility = {
   orcamentos_prefs: boolean;
   notificacoes_sistema: boolean;
   tema: boolean;
+  dispositivos_conectados: boolean;
   dispositivo: boolean;
   etiquetas: boolean;
 };
@@ -99,6 +101,8 @@ function itemIcon(item: AjustesItemMeta, perfilIconSrc?: string | null) {
       <Package />
     ) : fallback === 'monitor' ? (
       <MonitorSmartphone />
+    ) : fallback === 'devices' ? (
+      <Smartphone />
     ) : fallback === 'tag' ? (
       <Tag />
     ) : fallback === 'external' ? (

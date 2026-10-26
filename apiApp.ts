@@ -47,6 +47,11 @@ import { normalizeBudgetPartName } from "./utils/budgetPartStock.js";
 import { collectPendingStockReservations } from "./utils/workshopPartReservations.js";
 import { normalizeBarcodeInput } from "./utils/workshopPartBarcode.js";
 import {
+  deviceKindFromUserAgent,
+  parseDeviceIdentityFromUserAgent,
+  type DeviceClientInfoPayload,
+} from "./utils/deviceIdentity.js";
+import {
   applyDevMemoryOutbound,
   isWorkshopPartDevMemoryActive,
   listDevMemoryMovements,
@@ -113,8 +118,67 @@ type SessionPayload = {
   r: "admin" | "user";
   u?: string; // userId
   n?: string; // username
+  /** ID da linha em workshop_device_sessions (logout remoto / bloqueio). */
+  sid?: string;
+  /** ID estável do aparelho (localStorage no cliente). */
+  did?: string;
   exp: number;
 };
+
+const DEVICE_ONLINE_MS = 2 * 60 * 1000;
+const DEVICE_SESSION_CACHE_MS = 20 * 1000;
+const deviceSessionOkCache = new Map<
+  string,
+  { until: number; revoked: boolean; deviceId: string; blocked: boolean }
+>();
+const blockedDeviceCache = new Map<string, { until: number; blocked: boolean }>();
+
+function deviceIdFromReq(req: { headers: Record<string, unknown>; body?: unknown }): string {
+  const header = req.headers["x-device-id"];
+  if (typeof header === "string" && header.trim()) return header.trim().slice(0, 128);
+  if (Array.isArray(header) && typeof header[0] === "string" && header[0].trim()) {
+    return header[0].trim().slice(0, 128);
+  }
+  const body = req.body as { deviceId?: unknown } | undefined;
+  if (typeof body?.deviceId === "string" && body.deviceId.trim()) {
+    return body.deviceId.trim().slice(0, 128);
+  }
+  return "";
+}
+
+function platformFromUserAgent(ua: string): string {
+  return deviceKindFromUserAgent(ua);
+}
+
+function normalizeDeviceClientInfo(
+  raw: unknown,
+  fallbackUa = ""
+): { platform: string; osName: string; deviceModel: string; userAgent: string } {
+  const body = (raw && typeof raw === "object" ? raw : {}) as DeviceClientInfoPayload;
+  const ua =
+    (typeof body.userAgent === "string" && body.userAgent.trim()
+      ? body.userAgent.trim()
+      : fallbackUa
+    ).slice(0, 512);
+  const parsed = parseDeviceIdentityFromUserAgent(ua);
+  const platformRaw = typeof body.platform === "string" ? body.platform.trim().toLowerCase() : "";
+  const platform =
+    platformRaw === "smartphone" ||
+    platformRaw === "tablet" ||
+    platformRaw === "desktop" ||
+    platformRaw === "outro"
+      ? platformRaw
+      : parsed.platform;
+  const osName =
+    typeof body.osName === "string" && body.osName.trim()
+      ? body.osName.trim().slice(0, 80)
+      : parsed.osName;
+  const deviceModel =
+    typeof body.deviceModel === "string" && body.deviceModel.trim()
+      ? body.deviceModel.trim().slice(0, 120)
+      : parsed.deviceModel;
+  return { platform, osName, deviceModel, userAgent: ua };
+}
 
 function b64url(input: Buffer | string): string {
   return Buffer.from(input)
@@ -1215,7 +1279,7 @@ export function createApiApp() {
     res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
     res.setHeader(
       "Access-Control-Allow-Headers",
-      "Content-Type, Authorization, X-Requested-With, Accept, Accept-Language, X-Admin-Password"
+      "Content-Type, Authorization, X-Requested-With, Accept, Accept-Language, X-Admin-Password, X-Device-Id"
     );
     res.setHeader("Access-Control-Max-Age", "86400");
     if (req.method === "OPTIONS") return res.sendStatus(204);
@@ -1249,7 +1313,214 @@ export function createApiApp() {
     );
   }
 
-  app.use((req, res, next) => {
+  async function isDeviceBlocked(deviceId: string): Promise<boolean> {
+    if (!deviceId || !supabaseAdmin || !WORKSHOP_ID) return false;
+    const cached = blockedDeviceCache.get(deviceId);
+    if (cached && cached.until > Date.now()) return cached.blocked;
+    try {
+      const { data, error } = await supabaseAdmin
+        .from("workshop_blocked_devices")
+        .select("id")
+        .eq("workshop_id", WORKSHOP_ID)
+        .eq("device_id", deviceId)
+        .maybeSingle();
+      if (error) {
+        // Tabela ainda não migrada — não bloqueia.
+        blockedDeviceCache.set(deviceId, { until: Date.now() + DEVICE_SESSION_CACHE_MS, blocked: false });
+        return false;
+      }
+      const blocked = !!data?.id;
+      blockedDeviceCache.set(deviceId, { until: Date.now() + DEVICE_SESSION_CACHE_MS, blocked });
+      return blocked;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Valida sid (não revogada) e device_id (não bloqueado).
+   * Tokens legados sem sid seguem válidos até novo login.
+   */
+  async function enforceDeviceSession(
+    req: express.Request,
+    auth: SessionPayload
+  ): Promise<"ok" | "revoked" | "blocked"> {
+    const headerDeviceId = deviceIdFromReq(req);
+    const deviceId = (auth.did || headerDeviceId || "").trim();
+    if (deviceId && (await isDeviceBlocked(deviceId))) return "blocked";
+
+    const sid = typeof auth.sid === "string" ? auth.sid.trim() : "";
+    if (!sid || !supabaseAdmin || !WORKSHOP_ID) return "ok";
+
+    const cached = deviceSessionOkCache.get(sid);
+    if (cached && cached.until > Date.now()) {
+      if (cached.revoked) return "revoked";
+      if (cached.blocked) return "blocked";
+      return "ok";
+    }
+
+    try {
+      const { data, error } = await supabaseAdmin
+        .from("workshop_device_sessions")
+        .select("id, device_id, revoked_at")
+        .eq("id", sid)
+        .eq("workshop_id", WORKSHOP_ID)
+        .maybeSingle();
+      if (error) {
+        // Sem tabela: não quebra o app.
+        return "ok";
+      }
+      if (!data) {
+        // Sessão sumiu do banco — exige novo login.
+        deviceSessionOkCache.set(sid, {
+          until: Date.now() + DEVICE_SESSION_CACHE_MS,
+          revoked: true,
+          deviceId: deviceId || "",
+          blocked: false,
+        });
+        return "revoked";
+      }
+      if (data.revoked_at) {
+        deviceSessionOkCache.set(sid, {
+          until: Date.now() + DEVICE_SESSION_CACHE_MS,
+          revoked: true,
+          deviceId: String(data.device_id || ""),
+          blocked: false,
+        });
+        return "revoked";
+      }
+      const sessionDevice = String(data.device_id || "").trim();
+      if (sessionDevice && (await isDeviceBlocked(sessionDevice))) {
+        deviceSessionOkCache.set(sid, {
+          until: Date.now() + DEVICE_SESSION_CACHE_MS,
+          revoked: false,
+          deviceId: sessionDevice,
+          blocked: true,
+        });
+        return "blocked";
+      }
+      deviceSessionOkCache.set(sid, {
+        until: Date.now() + DEVICE_SESSION_CACHE_MS,
+        revoked: false,
+        deviceId: sessionDevice,
+        blocked: false,
+      });
+      return "ok";
+    } catch {
+      return "ok";
+    }
+  }
+
+  async function touchDeviceSession(
+    sid: string,
+    deviceInfo?: { platform?: string; osName?: string; deviceModel?: string; userAgent?: string } | null
+  ): Promise<void> {
+    if (!sid || !supabaseAdmin || !WORKSHOP_ID) return;
+    const patch: Record<string, unknown> = { last_seen_at: new Date().toISOString() };
+    if (deviceInfo) {
+      if (deviceInfo.platform) patch.platform = deviceInfo.platform;
+      if (deviceInfo.osName) patch.os_name = deviceInfo.osName;
+      if (deviceInfo.deviceModel) patch.device_model = deviceInfo.deviceModel;
+      if (deviceInfo.userAgent) patch.user_agent = deviceInfo.userAgent.slice(0, 512);
+    }
+    try {
+      const { error } = await supabaseAdmin
+        .from("workshop_device_sessions")
+        .update(patch)
+        .eq("id", sid)
+        .eq("workshop_id", WORKSHOP_ID)
+        .is("revoked_at", null);
+      if (error && (deviceInfo?.osName || deviceInfo?.deviceModel)) {
+        // Colunas novas ainda ausentes: atualiza só last_seen (+ platform/ua).
+        await supabaseAdmin
+          .from("workshop_device_sessions")
+          .update({
+            last_seen_at: patch.last_seen_at,
+            ...(deviceInfo.platform ? { platform: deviceInfo.platform } : {}),
+            ...(deviceInfo.userAgent ? { user_agent: deviceInfo.userAgent.slice(0, 512) } : {}),
+          })
+          .eq("id", sid)
+          .eq("workshop_id", WORKSHOP_ID)
+          .is("revoked_at", null);
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+
+  async function requestHasFullAccess(req: express.Request): Promise<boolean> {
+    const auth = (req as unknown as { auth?: SessionPayload }).auth;
+    if (!auth) return false;
+    if (auth.r === "admin") return true;
+    if (auth.r !== "user" || !auth.u || !supabaseAdmin || !WORKSHOP_ID) return false;
+    const { data: me } = await supabaseAdmin
+      .from("workshop_system_users")
+      .select("permissions")
+      .eq("id", auth.u)
+      .eq("workshop_id", WORKSHOP_ID)
+      .maybeSingle();
+    return !!(me?.permissions as Record<string, boolean> | null)?.full_access;
+  }
+
+  async function createDeviceSessionRow(params: {
+    sessionId: string;
+    deviceId: string;
+    role: "admin" | "user";
+    userId?: string | null;
+    username?: string | null;
+    displayName?: string | null;
+    userAgent?: string | null;
+    ipAddress?: string | null;
+    platform?: string | null;
+    osName?: string | null;
+    deviceModel?: string | null;
+  }): Promise<void> {
+    if (!supabaseAdmin || !WORKSHOP_ID || !params.deviceId) return;
+    const ua = (params.userAgent || "").slice(0, 512);
+    const parsed = parseDeviceIdentityFromUserAgent(ua);
+    try {
+      await supabaseAdmin.from("workshop_device_sessions").insert({
+        id: params.sessionId,
+        workshop_id: WORKSHOP_ID,
+        device_id: params.deviceId,
+        role: params.role,
+        user_id: params.userId || null,
+        username: params.username || null,
+        display_name: params.displayName || null,
+        user_agent: ua || null,
+        platform: params.platform || parsed.platform,
+        os_name: params.osName || parsed.osName,
+        device_model: params.deviceModel || parsed.deviceModel,
+        ip_address: params.ipAddress || null,
+        created_at: new Date().toISOString(),
+        last_seen_at: new Date().toISOString(),
+        revoked_at: null,
+      });
+    } catch (err) {
+      // Fallback se a migration de os_name/device_model ainda não rodou.
+      try {
+        await supabaseAdmin.from("workshop_device_sessions").insert({
+          id: params.sessionId,
+          workshop_id: WORKSHOP_ID,
+          device_id: params.deviceId,
+          role: params.role,
+          user_id: params.userId || null,
+          username: params.username || null,
+          display_name: params.displayName || null,
+          user_agent: ua || null,
+          platform: params.platform || parsed.platform,
+          ip_address: params.ipAddress || null,
+          created_at: new Date().toISOString(),
+          last_seen_at: new Date().toISOString(),
+          revoked_at: null,
+        });
+      } catch (err2) {
+        console.warn("[API] Não foi possível registrar sessão de dispositivo:", err2 || err);
+      }
+    }
+  }
+
+  app.use(async (req, res, next) => {
     const urlPath = (req.path || req.url || "").split("?")[0];
     // Só protegemos a API; assets/SPA passam direto.
     if (!urlPath.startsWith("/api/")) return next();
@@ -1260,6 +1531,15 @@ export function createApiApp() {
     // 1) Sessão de staff (token HMAC do login) — acesso pleno.
     const auth = verifySessionToken(bearer);
     if (auth) {
+      const gate = await enforceDeviceSession(req, auth);
+      if (gate === "revoked") {
+        return res.status(401).json({ error: "Sessão encerrada remotamente. Faça login novamente." });
+      }
+      if (gate === "blocked") {
+        return res.status(403).json({
+          error: "Este dispositivo foi bloqueado e não pode acessar o sistema.",
+        });
+      }
       (req as unknown as { auth: SessionPayload }).auth = auth;
       return next();
     }
@@ -1785,9 +2065,44 @@ export function createApiApp() {
       if (!u) {
         return res.status(400).json({ error: "Informe o usuário." });
       }
+
+      const deviceId = deviceIdFromReq(req);
+      if (deviceId && (await isDeviceBlocked(deviceId))) {
+        return res.status(403).json({
+          error: "Este dispositivo foi bloqueado e não pode acessar o sistema.",
+        });
+      }
+      const headerUa =
+        typeof req.headers["user-agent"] === "string" ? req.headers["user-agent"] : "";
+      const deviceInfo = normalizeDeviceClientInfo(
+        (req.body as { deviceInfo?: unknown } | undefined)?.deviceInfo ?? req.body,
+        headerUa
+      );
+      const sessionId = crypto.randomUUID();
+
       if (await verifyAdmin(u, p)) {
         resetLoginAttempts(ip);
-        return res.json({ role: "admin", token: signSessionToken({ r: "admin", n: ADMIN_USERNAME }) });
+        const token = signSessionToken({
+          r: "admin",
+          n: ADMIN_USERNAME,
+          sid: sessionId,
+          did: deviceId || undefined,
+        });
+        if (deviceId) {
+          await createDeviceSessionRow({
+            sessionId,
+            deviceId,
+            role: "admin",
+            username: ADMIN_USERNAME,
+            displayName: "Gerência",
+            userAgent: deviceInfo.userAgent || headerUa,
+            ipAddress: ip === "unknown" ? null : ip,
+            platform: deviceInfo.platform,
+            osName: deviceInfo.osName,
+            deviceModel: deviceInfo.deviceModel,
+          });
+        }
+        return res.json({ role: "admin", token, sessionId, deviceId: deviceId || null });
       }
       if (!supabaseAdmin || !WORKSHOP_ID) {
         return res.status(401).json({ error: "Usuário ou senha incorretos." });
@@ -1816,6 +2131,28 @@ export function createApiApp() {
         .eq("id", user.id)
         .eq("workshop_id", WORKSHOP_ID);
       const permissions = (user.permissions as Record<string, boolean>) || {};
+      const token = signSessionToken({
+        r: "user",
+        u: user.id,
+        n: user.username,
+        sid: sessionId,
+        did: deviceId || undefined,
+      });
+      if (deviceId) {
+        await createDeviceSessionRow({
+          sessionId,
+          deviceId,
+          role: "user",
+          userId: user.id,
+          username: user.username,
+          displayName: user.display_name || user.username,
+          userAgent: deviceInfo.userAgent || headerUa,
+          ipAddress: ip === "unknown" ? null : ip,
+          platform: deviceInfo.platform,
+          osName: deviceInfo.osName,
+          deviceModel: deviceInfo.deviceModel,
+        });
+      }
       return res.json({
         role: "user",
         userId: user.id,
@@ -1823,7 +2160,9 @@ export function createApiApp() {
         displayName: user.display_name || user.username,
         photoUrl: user.photo_url || null,
         profileToken,
-        token: signSessionToken({ r: "user", u: user.id, n: user.username }),
+        token,
+        sessionId,
+        deviceId: deviceId || null,
         isTechnician: !!(user as { is_technician?: boolean }).is_technician,
         accentColor: (user as { accent_color?: string | null }).accent_color || null,
         permissions,
@@ -1831,6 +2170,388 @@ export function createApiApp() {
     } catch (err: any) {
       console.error("[API] Erro em POST /api/auth/login:", err);
       return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+    }
+  });
+
+  // Heartbeat: marca aparelho como online (last_seen_at) e atualiza modelo/SO.
+  app.post("/api/auth/device-heartbeat", async (req, res) => {
+    try {
+      const auth = (req as unknown as { auth?: SessionPayload }).auth;
+      if (!auth?.sid) {
+        return res.json({ ok: true, tracked: false });
+      }
+      const headerUa =
+        typeof req.headers["user-agent"] === "string" ? req.headers["user-agent"] : "";
+      const deviceInfo = normalizeDeviceClientInfo(req.body, headerUa);
+      await touchDeviceSession(auth.sid, deviceInfo);
+      return res.json({ ok: true, tracked: true });
+    } catch (err: any) {
+      console.error("[API] Erro em POST /api/auth/device-heartbeat:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+    }
+  });
+
+  // Lista sessões ativas + aparelhos bloqueados.
+  app.get("/api/auth/devices", async (req, res) => {
+    try {
+      if (!WORKSHOP_ID || !supabaseAdmin) {
+        return res.status(500).json({ error: "Servidor não configurado." });
+      }
+      const auth = (req as unknown as { auth?: SessionPayload }).auth;
+      if (!auth) {
+        return res.status(401).json({ error: "Não autenticado." });
+      }
+      const canManage = await requestHasFullAccess(req);
+      const currentSid = typeof auth.sid === "string" ? auth.sid : null;
+      const currentDeviceId = deviceIdFromReq(req) || auth.did || null;
+
+      let sessionsQuery: {
+        data: Array<Record<string, unknown>> | null;
+        error: { message?: string; code?: string } | null;
+      } = await supabaseAdmin
+        .from("workshop_device_sessions")
+        .select(
+          "id, device_id, role, user_id, username, display_name, user_agent, platform, os_name, device_model, ip_address, created_at, last_seen_at, revoked_at"
+        )
+        .eq("workshop_id", WORKSHOP_ID)
+        .is("revoked_at", null)
+        .order("last_seen_at", { ascending: false })
+        .limit(200);
+      if (
+        sessionsQuery.error &&
+        /os_name|device_model/i.test(sessionsQuery.error.message || "")
+      ) {
+        sessionsQuery = await supabaseAdmin
+          .from("workshop_device_sessions")
+          .select(
+            "id, device_id, role, user_id, username, display_name, user_agent, platform, ip_address, created_at, last_seen_at, revoked_at"
+          )
+          .eq("workshop_id", WORKSHOP_ID)
+          .is("revoked_at", null)
+          .order("last_seen_at", { ascending: false })
+          .limit(200);
+      }
+      const { data: sessions, error: sessErr } = sessionsQuery;
+      if (sessErr) {
+        return res.status(500).json({
+          error:
+            sessErr.message?.includes("workshop_device_sessions") || sessErr.code === "42P01"
+              ? "Tabela de sessões ainda não foi criada. Rode a migration workshop_device_sessions."
+              : sessErr.message || "Falha ao listar dispositivos.",
+        });
+      }
+
+      const now = Date.now();
+      const mappedSessions = (sessions || []).map((row) => {
+          const userAgent = typeof row.user_agent === "string" ? row.user_agent : null;
+          const lastSeenAt = String(row.last_seen_at || "");
+          const lastSeenMs = new Date(lastSeenAt).getTime();
+          const online = Number.isFinite(lastSeenMs) && now - lastSeenMs <= DEVICE_ONLINE_MS;
+          const parsed = parseDeviceIdentityFromUserAgent(userAgent || "");
+          const role = String(row.role || "user");
+          const username = typeof row.username === "string" ? row.username : null;
+          const displayNameRaw = typeof row.display_name === "string" ? row.display_name : null;
+          const osStored = typeof row.os_name === "string" ? row.os_name.trim() : "";
+          const modelStored = typeof row.device_model === "string" ? row.device_model.trim() : "";
+          return {
+            id: String(row.id),
+            deviceId: String(row.device_id),
+            role,
+            userId: typeof row.user_id === "string" ? row.user_id : null,
+            username,
+            displayName:
+              displayNameRaw || username || (role === "admin" ? "Gerência" : "Usuário"),
+            userAgent,
+            platform: (typeof row.platform === "string" && row.platform) || parsed.platform,
+            osName: osStored || parsed.osName,
+            deviceModel: modelStored || parsed.deviceModel,
+            ipAddress: typeof row.ip_address === "string" ? row.ip_address : null,
+            createdAt: String(row.created_at || ""),
+            lastSeenAt,
+            online,
+            isCurrent: !!currentSid && currentSid === String(row.id),
+          };
+        });
+
+      let blocked: Array<{
+        id: string;
+        deviceId: string;
+        label: string | null;
+        userAgent: string | null;
+        platform: string | null;
+        osName: string | null;
+        deviceModel: string | null;
+        blockedAt: string;
+        reason: string | null;
+      }> = [];
+      if (canManage) {
+        let blockedQuery: {
+          data: Array<Record<string, unknown>> | null;
+          error: { message?: string } | null;
+        } = await supabaseAdmin
+          .from("workshop_blocked_devices")
+          .select("id, device_id, label, user_agent, platform, os_name, device_model, blocked_at, reason")
+          .eq("workshop_id", WORKSHOP_ID)
+          .order("blocked_at", { ascending: false })
+          .limit(100);
+        if (
+          blockedQuery.error &&
+          /os_name|device_model/i.test(blockedQuery.error.message || "")
+        ) {
+          blockedQuery = await supabaseAdmin
+            .from("workshop_blocked_devices")
+            .select("id, device_id, label, user_agent, platform, blocked_at, reason")
+            .eq("workshop_id", WORKSHOP_ID)
+            .order("blocked_at", { ascending: false })
+            .limit(100);
+        }
+        blocked = (blockedQuery.data || []).map((row) => {
+          const userAgent = typeof row.user_agent === "string" ? row.user_agent : null;
+          const parsed = parseDeviceIdentityFromUserAgent(userAgent || "");
+          const osStored = typeof row.os_name === "string" ? row.os_name.trim() : "";
+          const modelStored = typeof row.device_model === "string" ? row.device_model.trim() : "";
+          return {
+            id: String(row.id),
+            deviceId: String(row.device_id),
+            label: typeof row.label === "string" ? row.label : null,
+            userAgent,
+            platform: (typeof row.platform === "string" && row.platform) || parsed.platform,
+            osName: osStored || parsed.osName,
+            deviceModel: modelStored || parsed.deviceModel,
+            blockedAt: String(row.blocked_at),
+            reason: typeof row.reason === "string" ? row.reason : null,
+          };
+        });
+      }
+
+      return res.json({
+        sessions: mappedSessions,
+        blocked,
+        canManage,
+        currentSessionId: currentSid,
+        currentDeviceId,
+        onlineThresholdMs: DEVICE_ONLINE_MS,
+      });
+    } catch (err: any) {
+      console.error("[API] Erro em GET /api/auth/devices:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+    }
+  });
+
+  // Força logout de uma sessão (acesso total / gerência).
+  app.post("/api/auth/devices/:sessionId/revoke", async (req, res) => {
+    try {
+      if (!WORKSHOP_ID || !supabaseAdmin) {
+        return res.status(500).json({ error: "Servidor não configurado." });
+      }
+      if (!(await requestHasFullAccess(req))) {
+        return res.status(403).json({ error: "Apenas usuários com acesso total podem deslogar dispositivos." });
+      }
+      const sessionId = typeof req.params.sessionId === "string" ? req.params.sessionId.trim() : "";
+      if (!sessionId) {
+        return res.status(400).json({ error: "Sessão inválida." });
+      }
+      const nowIso = new Date().toISOString();
+      const { data, error } = await supabaseAdmin
+        .from("workshop_device_sessions")
+        .update({ revoked_at: nowIso })
+        .eq("id", sessionId)
+        .eq("workshop_id", WORKSHOP_ID)
+        .is("revoked_at", null)
+        .select("id, device_id")
+        .maybeSingle();
+      if (error) {
+        return res.status(500).json({ error: error.message || "Falha ao deslogar." });
+      }
+      if (!data) {
+        return res.status(404).json({ error: "Sessão não encontrada ou já encerrada." });
+      }
+      deviceSessionOkCache.set(sessionId, {
+        until: Date.now() + DEVICE_SESSION_CACHE_MS * 10,
+        revoked: true,
+        deviceId: String(data.device_id || ""),
+        blocked: false,
+      });
+      return res.json({ ok: true, sessionId });
+    } catch (err: any) {
+      console.error("[API] Erro em POST /api/auth/devices/:sessionId/revoke:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+    }
+  });
+
+  // Bloqueia um aparelho (impede login + revoga sessões ativas).
+  app.post("/api/auth/devices/block", async (req, res) => {
+    try {
+      if (!WORKSHOP_ID || !supabaseAdmin) {
+        return res.status(500).json({ error: "Servidor não configurado." });
+      }
+      if (!(await requestHasFullAccess(req))) {
+        return res.status(403).json({ error: "Apenas usuários com acesso total podem bloquear dispositivos." });
+      }
+      const auth = (req as unknown as { auth?: SessionPayload }).auth;
+      const body = (req.body || {}) as {
+        deviceId?: unknown;
+        sessionId?: unknown;
+        reason?: unknown;
+        label?: unknown;
+      };
+      let deviceId = typeof body.deviceId === "string" ? body.deviceId.trim() : "";
+      let userAgent: string | null = null;
+      let platform: string | null = null;
+      let osName: string | null = null;
+      let deviceModel: string | null = null;
+      const sessionId = typeof body.sessionId === "string" ? body.sessionId.trim() : "";
+      if ((!deviceId || !userAgent) && sessionId) {
+        let sessQuery: {
+          data: Record<string, unknown> | null;
+          error: { message?: string } | null;
+        } = await supabaseAdmin
+          .from("workshop_device_sessions")
+          .select("device_id, user_agent, platform, os_name, device_model")
+          .eq("id", sessionId)
+          .eq("workshop_id", WORKSHOP_ID)
+          .maybeSingle();
+        if (sessQuery.error && /os_name|device_model/i.test(sessQuery.error.message || "")) {
+          sessQuery = await supabaseAdmin
+            .from("workshop_device_sessions")
+            .select("device_id, user_agent, platform")
+            .eq("id", sessionId)
+            .eq("workshop_id", WORKSHOP_ID)
+            .maybeSingle();
+        }
+        const sess = sessQuery.data;
+        if (sess) {
+          if (!deviceId) deviceId = String(sess.device_id || "").trim();
+          userAgent = typeof sess.user_agent === "string" ? sess.user_agent : null;
+          platform = typeof sess.platform === "string" ? sess.platform : null;
+          osName = typeof sess.os_name === "string" ? sess.os_name : null;
+          deviceModel = typeof sess.device_model === "string" ? sess.device_model : null;
+        }
+      }
+      if (!deviceId) {
+        return res.status(400).json({ error: "Informe o dispositivo a bloquear." });
+      }
+      if (auth?.did && auth.did === deviceId) {
+        return res.status(400).json({
+          error: "Não é possível bloquear o dispositivo em que você está usando agora.",
+        });
+      }
+      const parsedIdentity = parseDeviceIdentityFromUserAgent(userAgent || "");
+      const reason = typeof body.reason === "string" ? body.reason.trim().slice(0, 280) : null;
+      const label = typeof body.label === "string" ? body.label.trim().slice(0, 120) : null;
+      const blockRow = {
+        workshop_id: WORKSHOP_ID,
+        device_id: deviceId,
+        label,
+        user_agent: userAgent,
+        platform: platform || parsedIdentity.platform,
+        os_name: osName || parsedIdentity.osName,
+        device_model: deviceModel || parsedIdentity.deviceModel,
+        blocked_at: new Date().toISOString(),
+        blocked_by_role: auth?.r || null,
+        blocked_by_user_id: auth?.r === "user" ? auth.u || null : null,
+        reason,
+      };
+      let { data: blocked, error: blockErr } = await supabaseAdmin
+        .from("workshop_blocked_devices")
+        .upsert(blockRow, { onConflict: "workshop_id,device_id" })
+        .select("id, device_id, blocked_at")
+        .maybeSingle();
+      if (blockErr && /os_name|device_model/i.test(blockErr.message || "")) {
+        const legacy = { ...blockRow } as Record<string, unknown>;
+        delete legacy.os_name;
+        delete legacy.device_model;
+        const retry = await supabaseAdmin
+          .from("workshop_blocked_devices")
+          .upsert(legacy, { onConflict: "workshop_id,device_id" })
+          .select("id, device_id, blocked_at")
+          .maybeSingle();
+        blocked = retry.data;
+        blockErr = retry.error;
+      }
+      if (blockErr) {
+        return res.status(500).json({ error: blockErr.message || "Falha ao bloquear." });
+      }
+      const nowIso = new Date().toISOString();
+      const { data: revokedRows } = await supabaseAdmin
+        .from("workshop_device_sessions")
+        .update({ revoked_at: nowIso })
+        .eq("workshop_id", WORKSHOP_ID)
+        .eq("device_id", deviceId)
+        .is("revoked_at", null)
+        .select("id");
+      for (const row of revokedRows || []) {
+        deviceSessionOkCache.set(String(row.id), {
+          until: Date.now() + DEVICE_SESSION_CACHE_MS * 10,
+          revoked: true,
+          deviceId,
+          blocked: true,
+        });
+      }
+      blockedDeviceCache.set(deviceId, { until: Date.now() + DEVICE_SESSION_CACHE_MS * 10, blocked: true });
+      return res.json({
+        ok: true,
+        blocked: blocked || { deviceId },
+        revokedCount: (revokedRows || []).length,
+      });
+    } catch (err: any) {
+      console.error("[API] Erro em POST /api/auth/devices/block:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+    }
+  });
+
+  // Remove bloqueio de um aparelho.
+  app.delete("/api/auth/devices/block/:deviceId", async (req, res) => {
+    try {
+      if (!WORKSHOP_ID || !supabaseAdmin) {
+        return res.status(500).json({ error: "Servidor não configurado." });
+      }
+      if (!(await requestHasFullAccess(req))) {
+        return res.status(403).json({ error: "Apenas usuários com acesso total podem desbloquear dispositivos." });
+      }
+      const deviceId = typeof req.params.deviceId === "string" ? decodeURIComponent(req.params.deviceId).trim() : "";
+      if (!deviceId) {
+        return res.status(400).json({ error: "Dispositivo inválido." });
+      }
+      const { error } = await supabaseAdmin
+        .from("workshop_blocked_devices")
+        .delete()
+        .eq("workshop_id", WORKSHOP_ID)
+        .eq("device_id", deviceId);
+      if (error) {
+        return res.status(500).json({ error: error.message || "Falha ao desbloquear." });
+      }
+      blockedDeviceCache.set(deviceId, { until: Date.now() + DEVICE_SESSION_CACHE_MS * 10, blocked: false });
+      return res.json({ ok: true, deviceId });
+    } catch (err: any) {
+      console.error("[API] Erro em DELETE /api/auth/devices/block/:deviceId:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+    }
+  });
+
+  // Encerrar a própria sessão no logout local (best-effort).
+  app.post("/api/auth/logout", async (req, res) => {
+    try {
+      const auth = (req as unknown as { auth?: SessionPayload }).auth;
+      if (auth?.sid && supabaseAdmin && WORKSHOP_ID) {
+        const nowIso = new Date().toISOString();
+        await supabaseAdmin
+          .from("workshop_device_sessions")
+          .update({ revoked_at: nowIso })
+          .eq("id", auth.sid)
+          .eq("workshop_id", WORKSHOP_ID)
+          .is("revoked_at", null);
+        deviceSessionOkCache.set(auth.sid, {
+          until: Date.now() + DEVICE_SESSION_CACHE_MS * 10,
+          revoked: true,
+          deviceId: auth.did || "",
+          blocked: false,
+        });
+      }
+      return res.json({ ok: true });
+    } catch (err: any) {
+      console.error("[API] Erro em POST /api/auth/logout:", err);
+      return res.json({ ok: true });
     }
   });
 

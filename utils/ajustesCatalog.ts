@@ -29,6 +29,7 @@ export type AjustesItemId =
   | 'notificacoes_sistema'
   | 'tema'
   | 'dispositivo'
+  | 'dispositivos_conectados'
   | 'etiquetas';
 
 export type AjustesItemKind = 'action' | 'external';
@@ -50,7 +51,17 @@ export type AjustesItemMeta = {
   /** Ícone PNG em /icons, se houver. */
   iconSrc?: string;
   /** Lucide fallback quando não há iconSrc (resolvido no UI). */
-  iconFallback?: 'user' | 'users' | 'logout' | 'key' | 'wrench' | 'package' | 'monitor' | 'tag' | 'external';
+  iconFallback?:
+    | 'user'
+    | 'users'
+    | 'logout'
+    | 'key'
+    | 'wrench'
+    | 'package'
+    | 'monitor'
+    | 'devices'
+    | 'tag'
+    | 'external';
   externalHref?: string;
   danger?: boolean;
 };
@@ -107,7 +118,7 @@ export const AJUSTES_CATEGORIES: AjustesCategoryMeta[] = [
   {
     id: 'dispositivos',
     label: 'Dispositivos e impressão',
-    hint: 'Layout do aparelho e etiquetas',
+    hint: 'Sessões conectadas, layout e etiquetas',
     iconSrc: '/icons/configuracoes-ios.png',
   },
 ];
@@ -215,6 +226,14 @@ export const AJUSTES_ITEMS: AjustesItemMeta[] = [
     subtitle: 'Aparência escura e proteção de placas',
     kind: 'action',
     iconSrc: '/icons/tema-sistema-ios.png',
+  },
+  {
+    id: 'dispositivos_conectados',
+    categoryId: 'dispositivos',
+    title: 'Dispositivos conectados',
+    subtitle: 'Online, último acesso, deslogar ou bloquear',
+    kind: 'action',
+    iconFallback: 'devices',
   },
   {
     id: 'dispositivo',

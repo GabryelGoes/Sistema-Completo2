@@ -20,6 +20,7 @@ import { AdminProfileModal } from '../AdminProfileModal';
 import { SystemUsersModal } from '../SystemUsersModal';
 import { SystemNotificationsModal } from '../SystemNotificationsModal';
 import { DeviceLayoutSettingsModal } from '../DeviceLayoutSettingsModal';
+import { ConnectedDevicesModal } from '../ConnectedDevicesModal';
 import { BudgetPreferencesModal } from '../BudgetPreferencesModal';
 import { LabelTemplatesEditorModal } from '../LabelTemplatesEditorModal';
 import { TvPatioModal } from '../TvPatioModal';
@@ -240,6 +241,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
   const [isTvPatioOpen, setIsTvPatioOpen] = useState(false);
   const [isSystemNotificationsOpen, setIsSystemNotificationsOpen] = useState(false);
   const [isDeviceLayoutOpen, setIsDeviceLayoutOpen] = useState(false);
+  const [isConnectedDevicesOpen, setIsConnectedDevicesOpen] = useState(false);
   const [isBudgetPrefsOpen, setIsBudgetPrefsOpen] = useState(false);
   const [isLabelEditorOpen, setIsLabelEditorOpen] = useState(false);
 
@@ -255,6 +257,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
     setIsPatioChecklistsOpen(false);
     setIsSystemNotificationsOpen(false);
     setIsDeviceLayoutOpen(false);
+    setIsConnectedDevicesOpen(false);
     setIsBudgetPrefsOpen(false);
     setIsLabelEditorOpen(false);
   }, []);
@@ -363,6 +366,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
         showFullAdminHub || !!perms.full_access || typeof onBlurUnverifiedBudgetsChange === 'function',
       notificacoes_sistema: showFullAdminHub || !!perms.access_notificacoes_sistema,
       tema: canOpenTheme,
+      dispositivos_conectados: isWorkshopAdmin || (isSystemUser && !!perms.full_access),
       dispositivo: true,
       etiquetas: showFullAdminHub || !!perms.access_settings || !!perms.full_access,
     }),
@@ -428,6 +432,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
         case 'tema':
           if (onOpenSettings) onOpenSettings();
           else onOpenApp('settings');
+          break;
+        case 'dispositivos_conectados':
+          setIsConnectedDevicesOpen(true);
           break;
         case 'dispositivo':
           setIsDeviceLayoutOpen(true);
@@ -604,6 +611,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
       isPatioChecklistsOpen ||
       isChangePasswordsOpen ||
       isDeviceLayoutOpen ||
+      isConnectedDevicesOpen ||
       isBudgetPrefsOpen ||
       isLabelEditorOpen ||
       (!onOpenTvPatio && isTvPatioOpen) ||
@@ -621,6 +629,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
       isPatioChecklistsOpen,
       isChangePasswordsOpen,
       isDeviceLayoutOpen,
+      isConnectedDevicesOpen,
       isBudgetPrefsOpen,
       isLabelEditorOpen,
       onOpenTvPatio,
@@ -648,6 +657,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
   useBrowserBackLayer(isUserProfileOpen, () => setIsUserProfileOpen(false));
   useBrowserBackLayer(isSystemNotificationsOpen, () => setIsSystemNotificationsOpen(false));
   useBrowserBackLayer(isDeviceLayoutOpen, () => setIsDeviceLayoutOpen(false));
+  useBrowserBackLayer(isConnectedDevicesOpen, () => setIsConnectedDevicesOpen(false));
   useBrowserBackLayer(isBudgetPrefsOpen, () => setIsBudgetPrefsOpen(false));
   useBrowserBackLayer(isLabelEditorOpen, () => setIsLabelEditorOpen(false));
   useBrowserBackLayer(isHeaderProfileMenuOpen, () => setIsHeaderProfileMenuOpen(false));
@@ -1253,6 +1263,10 @@ export const HomeView: React.FC<HomeViewProps> = ({
           <ChangePasswordsModal isOpen={isChangePasswordsOpen} onClose={() => setIsChangePasswordsOpen(false)} />
         </>
       )}
+      <ConnectedDevicesModal
+        isOpen={isConnectedDevicesOpen}
+        onClose={() => setIsConnectedDevicesOpen(false)}
+      />
       {!onOpenTvPatio ? (
         <TvPatioModal isOpen={isTvPatioOpen} onClose={() => setIsTvPatioOpen(false)} />
       ) : null}

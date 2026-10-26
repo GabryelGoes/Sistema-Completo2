@@ -5,12 +5,14 @@
  *   para a API (mesma origem `/api/...` ou `API_BASE` absoluto), usando o token
  *   de sessão salvo no login. Assim não é preciso alterar as ~150 funções de
  *   `apiService.ts` individualmente.
+ * - Anexa `X-Device-Id` (ID estável do aparelho) para sessões / bloqueio.
  * - Em respostas 401 (sessão inválida/expirada) limpa a sessão e volta ao login.
  *
  * Importado por `apiService.ts`, então é ativado assim que qualquer chamada de
  * API é usada. Requisições para o Supabase (Realtime) não são tocadas.
  */
 import { API_BASE } from "./apiConfig";
+import { getOrCreateDeviceId } from "../utils/deviceSessionId";
 
 const AUTH_STORAGE_KEY = "rei_do_abs_auth";
 
@@ -77,20 +79,37 @@ export function installHttpInterceptor(): void {
     }
 
     const token = getSessionToken();
-    let nextInit = init;
-    if (token) {
-      const headers = new Headers(
-        init?.headers ?? (input instanceof Request ? input.headers : undefined)
-      );
-      if (!headers.has("Authorization")) {
-        headers.set("Authorization", `Bearer ${token}`);
-      }
-      nextInit = { ...init, headers };
+    const headers = new Headers(
+      init?.headers ?? (input instanceof Request ? input.headers : undefined)
+    );
+    if (token && !headers.has("Authorization")) {
+      headers.set("Authorization", `Bearer ${token}`);
     }
+    if (!headers.has("X-Device-Id")) {
+      try {
+        headers.set("X-Device-Id", getOrCreateDeviceId());
+      } catch {
+        /* ignore */
+      }
+    }
+    const nextInit = { ...init, headers };
 
     const response = await originalFetch(input as RequestInfo, nextInit);
 
-    if (response.status === 401 && !isLoginUrl(url)) {
+    if ((response.status === 401 || response.status === 403) && !isLoginUrl(url)) {
+      // 403 de aparelho bloqueado também encerra a sessão local.
+      if (response.status === 403) {
+        try {
+          const clone = response.clone();
+          const body = (await clone.json().catch(() => null)) as { error?: string } | null;
+          const msg = typeof body?.error === "string" ? body.error : "";
+          if (!/bloqueado/i.test(msg)) {
+            return response;
+          }
+        } catch {
+          return response;
+        }
+      }
       handleUnauthorized();
     }
 

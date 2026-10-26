@@ -40,6 +40,8 @@ import {
   getServiceOrderById,
   registerOficinaRetorno,
   registerOficinaSaida,
+  sendDeviceHeartbeat,
+  logoutCurrentSession,
 } from './services/apiService';
 import type { ServiceOrderStatus } from './constants/serviceOrderStages';
 import { KeepAliveTabPanel } from './components/KeepAliveTabPanel';
@@ -1465,6 +1467,16 @@ export default function App() {
     [isLimitedSystemUser]
   );
 
+  // Marca o aparelho como online enquanto a sessão estiver ativa.
+  useEffect(() => {
+    if (!authSession?.token) return;
+    void sendDeviceHeartbeat();
+    const id = window.setInterval(() => {
+      void sendDeviceHeartbeat();
+    }, 45_000);
+    return () => window.clearInterval(id);
+  }, [authSession?.token]);
+
   const handleLogout = () => {
     if (
       !window.confirm(
@@ -1473,6 +1485,7 @@ export default function App() {
     ) {
       return;
     }
+    void logoutCurrentSession();
     try {
       clearStoredAuth();
     } catch (_) {}
