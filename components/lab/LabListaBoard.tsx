@@ -473,7 +473,7 @@ export const LabListaBoard: React.FC<LabListaBoardProps> = ({
                 listNameLower.includes('pronto pra entrega') ||
                 listNameLower.includes('pronto pra retirada') ||
                 listNameLower.includes('não aprovado'));
-            /** Listras: 2ª, 4ª… — claro um pouco mais escuro; escuro um pouco mais claro. */
+            /** Listras a partir da 2ª peça: claras bem claras, escuras um pouco mais marcadas. */
             const isStripeRow = rowIndex % 2 === 1;
 
             return (
@@ -499,14 +499,14 @@ export const LabListaBoard: React.FC<LabListaBoardProps> = ({
                   e.preventDefault();
                   onOpenCard(card);
                 }}
-                className={`group cursor-pointer border-b border-zinc-100/90 transition-colors last:border-b-0 hover:bg-zinc-200/55 dark:border-white/[0.05] dark:hover:bg-white/[0.08] ${
+                className={`group cursor-pointer border-b border-zinc-100/90 transition-colors last:border-b-0 hover:bg-zinc-200/60 dark:border-white/[0.05] dark:hover:bg-white/[0.1] ${
                   isStripeRow
                     ? isNewEntry
-                      ? 'bg-[#007AFF]/[0.07] dark:bg-[#0A84FF]/[0.11]'
-                      : 'bg-zinc-100/95 dark:bg-white/[0.055]'
+                      ? 'bg-[#007AFF]/[0.1] dark:bg-[#0A84FF]/[0.16]'
+                      : 'bg-zinc-200/85 dark:bg-black/40'
                     : isNewEntry
-                      ? 'bg-[#007AFF]/[0.035] dark:bg-[#0A84FF]/[0.06]'
-                      : 'bg-white dark:bg-transparent'
+                      ? 'bg-[#007AFF]/[0.03] dark:bg-[#0A84FF]/[0.05]'
+                      : 'bg-white dark:bg-white/[0.035]'
                 }`}
               >
                 <td className="px-3 py-3.5 sm:px-4">
