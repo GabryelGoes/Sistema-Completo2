@@ -28,6 +28,7 @@ import {
   type BlockedDevice,
   type ConnectedDeviceSession,
 } from '../services/apiService';
+import { formatDeviceIdentityLine } from '../utils/deviceIdentity';
 
 interface ConnectedDevicesModalProps {
   isOpen: boolean;
@@ -274,6 +275,13 @@ export const ConnectedDevicesModal: React.FC<ConnectedDevicesModalProps> = ({
                                 </span>
                               ) : null}
                             </div>
+                            <p className="mt-0.5 text-[12px] font-medium text-zinc-700 dark:text-zinc-200">
+                              {formatDeviceIdentityLine({
+                                deviceModel: session.deviceModel,
+                                osName: session.osName,
+                                platform: session.platform,
+                              })}
+                            </p>
                             <p className="mt-0.5 text-[12px] text-zinc-500 dark:text-zinc-400">
                               {platformLabel(session.platform)}
                               {session.username ? ` · @${session.username}` : ''}
@@ -344,7 +352,12 @@ export const ConnectedDevicesModal: React.FC<ConnectedDevicesModalProps> = ({
                           </span>
                           <div className="min-w-0 flex-1">
                             <p className="truncate text-[14px] font-semibold text-zinc-900 dark:text-white">
-                              {device.label || platformLabel(device.platform)}
+                              {device.label ||
+                                formatDeviceIdentityLine({
+                                  deviceModel: device.deviceModel,
+                                  osName: device.osName,
+                                  platform: device.platform,
+                                })}
                             </p>
                             <p className="text-[12px] text-zinc-500 dark:text-zinc-400">
                               Bloqueado em {formatDateTime(device.blockedAt)}

@@ -7,6 +7,7 @@ import "./httpClient";
 import { getSupabaseBrowser } from "./supabaseBrowser";
 import { isTvVideoFile } from "../utils/tvMediaFile";
 import { getOrCreateDeviceId } from "../utils/deviceSessionId";
+import { collectDeviceClientInfo } from "../utils/deviceIdentity";
 
 async function readResponseJson<T>(response: Response, emptyMessage: string, invalidMessage: string): Promise<T> {
   const text = await response.text();
@@ -4801,10 +4802,11 @@ export interface AuthSession {
 
 export async function login(username: string, password: string): Promise<AuthSession> {
   const deviceId = getOrCreateDeviceId();
+  const deviceInfo = await collectDeviceClientInfo();
   const response = await fetch(`${API_BASE}/auth/login`, {
     method: "POST",
     headers: { "Content-Type": "application/json", "X-Device-Id": deviceId },
-    body: JSON.stringify({ username: username.trim(), password, deviceId }),
+    body: JSON.stringify({ username: username.trim(), password, deviceId, deviceInfo }),
   });
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
@@ -4835,6 +4837,8 @@ export type ConnectedDeviceSession = {
   displayName: string;
   userAgent: string | null;
   platform: string | null;
+  osName: string | null;
+  deviceModel: string | null;
   ipAddress: string | null;
   createdAt: string;
   lastSeenAt: string;
@@ -4848,6 +4852,8 @@ export type BlockedDevice = {
   label: string | null;
   userAgent: string | null;
   platform: string | null;
+  osName: string | null;
+  deviceModel: string | null;
   blockedAt: string;
   reason: string | null;
 };
@@ -4871,7 +4877,16 @@ export async function getConnectedDevices(): Promise<ConnectedDevicesResponse> {
 }
 
 export async function sendDeviceHeartbeat(): Promise<void> {
-  await fetch(`${API_BASE}/auth/device-heartbeat`, { method: "POST" }).catch(() => undefined);
+  try {
+    const deviceInfo = await collectDeviceClientInfo();
+    await fetch(`${API_BASE}/auth/device-heartbeat`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(deviceInfo),
+    });
+  } catch {
+    /* ignore */
+  }
 }
 
 export async function revokeDeviceSession(sessionId: string): Promise<void> {

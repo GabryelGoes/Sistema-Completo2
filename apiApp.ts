@@ -47,6 +47,11 @@ import { normalizeBudgetPartName } from "./utils/budgetPartStock.js";
 import { collectPendingStockReservations } from "./utils/workshopPartReservations.js";
 import { normalizeBarcodeInput } from "./utils/workshopPartBarcode.js";
 import {
+  deviceKindFromUserAgent,
+  parseDeviceIdentityFromUserAgent,
+  type DeviceClientInfoPayload,
+} from "./utils/deviceIdentity.js";
+import {
   applyDevMemoryOutbound,
   isWorkshopPartDevMemoryActive,
   listDevMemoryMovements,
@@ -142,13 +147,37 @@ function deviceIdFromReq(req: { headers: Record<string, unknown>; body?: unknown
 }
 
 function platformFromUserAgent(ua: string): string {
-  const u = ua || "";
-  if (/iPhone|iPod|Windows Phone|webOS|BlackBerry|Opera Mini|IEMobile/i.test(u)) return "smartphone";
-  if (/Android/i.test(u) && /Mobile/i.test(u)) return "smartphone";
-  if (/iPad/i.test(u)) return "tablet";
-  if (/Android/i.test(u) && !/Mobile/i.test(u)) return "tablet";
-  if (/Macintosh|Windows NT|Linux/i.test(u)) return "desktop";
-  return "outro";
+  return deviceKindFromUserAgent(ua);
+}
+
+function normalizeDeviceClientInfo(
+  raw: unknown,
+  fallbackUa = ""
+): { platform: string; osName: string; deviceModel: string; userAgent: string } {
+  const body = (raw && typeof raw === "object" ? raw : {}) as DeviceClientInfoPayload;
+  const ua =
+    (typeof body.userAgent === "string" && body.userAgent.trim()
+      ? body.userAgent.trim()
+      : fallbackUa
+    ).slice(0, 512);
+  const parsed = parseDeviceIdentityFromUserAgent(ua);
+  const platformRaw = typeof body.platform === "string" ? body.platform.trim().toLowerCase() : "";
+  const platform =
+    platformRaw === "smartphone" ||
+    platformRaw === "tablet" ||
+    platformRaw === "desktop" ||
+    platformRaw === "outro"
+      ? platformRaw
+      : parsed.platform;
+  const osName =
+    typeof body.osName === "string" && body.osName.trim()
+      ? body.osName.trim().slice(0, 80)
+      : parsed.osName;
+  const deviceModel =
+    typeof body.deviceModel === "string" && body.deviceModel.trim()
+      ? body.deviceModel.trim().slice(0, 120)
+      : parsed.deviceModel;
+  return { platform, osName, deviceModel, userAgent: ua };
 }
 
 function b64url(input: Buffer | string): string {
@@ -1382,15 +1411,38 @@ export function createApiApp() {
     }
   }
 
-  async function touchDeviceSession(sid: string): Promise<void> {
+  async function touchDeviceSession(
+    sid: string,
+    deviceInfo?: { platform?: string; osName?: string; deviceModel?: string; userAgent?: string } | null
+  ): Promise<void> {
     if (!sid || !supabaseAdmin || !WORKSHOP_ID) return;
+    const patch: Record<string, unknown> = { last_seen_at: new Date().toISOString() };
+    if (deviceInfo) {
+      if (deviceInfo.platform) patch.platform = deviceInfo.platform;
+      if (deviceInfo.osName) patch.os_name = deviceInfo.osName;
+      if (deviceInfo.deviceModel) patch.device_model = deviceInfo.deviceModel;
+      if (deviceInfo.userAgent) patch.user_agent = deviceInfo.userAgent.slice(0, 512);
+    }
     try {
-      await supabaseAdmin
+      const { error } = await supabaseAdmin
         .from("workshop_device_sessions")
-        .update({ last_seen_at: new Date().toISOString() })
+        .update(patch)
         .eq("id", sid)
         .eq("workshop_id", WORKSHOP_ID)
         .is("revoked_at", null);
+      if (error && (deviceInfo?.osName || deviceInfo?.deviceModel)) {
+        // Colunas novas ainda ausentes: atualiza só last_seen (+ platform/ua).
+        await supabaseAdmin
+          .from("workshop_device_sessions")
+          .update({
+            last_seen_at: patch.last_seen_at,
+            ...(deviceInfo.platform ? { platform: deviceInfo.platform } : {}),
+            ...(deviceInfo.userAgent ? { user_agent: deviceInfo.userAgent.slice(0, 512) } : {}),
+          })
+          .eq("id", sid)
+          .eq("workshop_id", WORKSHOP_ID)
+          .is("revoked_at", null);
+      }
     } catch {
       /* ignore */
     }
@@ -1419,9 +1471,13 @@ export function createApiApp() {
     displayName?: string | null;
     userAgent?: string | null;
     ipAddress?: string | null;
+    platform?: string | null;
+    osName?: string | null;
+    deviceModel?: string | null;
   }): Promise<void> {
     if (!supabaseAdmin || !WORKSHOP_ID || !params.deviceId) return;
     const ua = (params.userAgent || "").slice(0, 512);
+    const parsed = parseDeviceIdentityFromUserAgent(ua);
     try {
       await supabaseAdmin.from("workshop_device_sessions").insert({
         id: params.sessionId,
@@ -1432,14 +1488,35 @@ export function createApiApp() {
         username: params.username || null,
         display_name: params.displayName || null,
         user_agent: ua || null,
-        platform: platformFromUserAgent(ua),
+        platform: params.platform || parsed.platform,
+        os_name: params.osName || parsed.osName,
+        device_model: params.deviceModel || parsed.deviceModel,
         ip_address: params.ipAddress || null,
         created_at: new Date().toISOString(),
         last_seen_at: new Date().toISOString(),
         revoked_at: null,
       });
     } catch (err) {
-      console.warn("[API] Não foi possível registrar sessão de dispositivo:", err);
+      // Fallback se a migration de os_name/device_model ainda não rodou.
+      try {
+        await supabaseAdmin.from("workshop_device_sessions").insert({
+          id: params.sessionId,
+          workshop_id: WORKSHOP_ID,
+          device_id: params.deviceId,
+          role: params.role,
+          user_id: params.userId || null,
+          username: params.username || null,
+          display_name: params.displayName || null,
+          user_agent: ua || null,
+          platform: params.platform || parsed.platform,
+          ip_address: params.ipAddress || null,
+          created_at: new Date().toISOString(),
+          last_seen_at: new Date().toISOString(),
+          revoked_at: null,
+        });
+      } catch (err2) {
+        console.warn("[API] Não foi possível registrar sessão de dispositivo:", err2 || err);
+      }
     }
   }
 
@@ -1995,8 +2072,12 @@ export function createApiApp() {
           error: "Este dispositivo foi bloqueado e não pode acessar o sistema.",
         });
       }
-      const userAgent =
+      const headerUa =
         typeof req.headers["user-agent"] === "string" ? req.headers["user-agent"] : "";
+      const deviceInfo = normalizeDeviceClientInfo(
+        (req.body as { deviceInfo?: unknown } | undefined)?.deviceInfo ?? req.body,
+        headerUa
+      );
       const sessionId = crypto.randomUUID();
 
       if (await verifyAdmin(u, p)) {
@@ -2014,8 +2095,11 @@ export function createApiApp() {
             role: "admin",
             username: ADMIN_USERNAME,
             displayName: "Gerência",
-            userAgent,
+            userAgent: deviceInfo.userAgent || headerUa,
             ipAddress: ip === "unknown" ? null : ip,
+            platform: deviceInfo.platform,
+            osName: deviceInfo.osName,
+            deviceModel: deviceInfo.deviceModel,
           });
         }
         return res.json({ role: "admin", token, sessionId, deviceId: deviceId || null });
@@ -2062,8 +2146,11 @@ export function createApiApp() {
           userId: user.id,
           username: user.username,
           displayName: user.display_name || user.username,
-          userAgent,
+          userAgent: deviceInfo.userAgent || headerUa,
           ipAddress: ip === "unknown" ? null : ip,
+          platform: deviceInfo.platform,
+          osName: deviceInfo.osName,
+          deviceModel: deviceInfo.deviceModel,
         });
       }
       return res.json({
@@ -2086,14 +2173,17 @@ export function createApiApp() {
     }
   });
 
-  // Heartbeat: marca aparelho como online (last_seen_at).
+  // Heartbeat: marca aparelho como online (last_seen_at) e atualiza modelo/SO.
   app.post("/api/auth/device-heartbeat", async (req, res) => {
     try {
       const auth = (req as unknown as { auth?: SessionPayload }).auth;
       if (!auth?.sid) {
         return res.json({ ok: true, tracked: false });
       }
-      await touchDeviceSession(auth.sid);
+      const headerUa =
+        typeof req.headers["user-agent"] === "string" ? req.headers["user-agent"] : "";
+      const deviceInfo = normalizeDeviceClientInfo(req.body, headerUa);
+      await touchDeviceSession(auth.sid, deviceInfo);
       return res.json({ ok: true, tracked: true });
     } catch (err: any) {
       console.error("[API] Erro em POST /api/auth/device-heartbeat:", err);
@@ -2115,15 +2205,33 @@ export function createApiApp() {
       const currentSid = typeof auth.sid === "string" ? auth.sid : null;
       const currentDeviceId = deviceIdFromReq(req) || auth.did || null;
 
-      const { data: sessions, error: sessErr } = await supabaseAdmin
+      let sessionsQuery: {
+        data: Array<Record<string, unknown>> | null;
+        error: { message?: string; code?: string } | null;
+      } = await supabaseAdmin
         .from("workshop_device_sessions")
         .select(
-          "id, device_id, role, user_id, username, display_name, user_agent, platform, ip_address, created_at, last_seen_at, revoked_at"
+          "id, device_id, role, user_id, username, display_name, user_agent, platform, os_name, device_model, ip_address, created_at, last_seen_at, revoked_at"
         )
         .eq("workshop_id", WORKSHOP_ID)
         .is("revoked_at", null)
         .order("last_seen_at", { ascending: false })
         .limit(200);
+      if (
+        sessionsQuery.error &&
+        /os_name|device_model/i.test(sessionsQuery.error.message || "")
+      ) {
+        sessionsQuery = await supabaseAdmin
+          .from("workshop_device_sessions")
+          .select(
+            "id, device_id, role, user_id, username, display_name, user_agent, platform, ip_address, created_at, last_seen_at, revoked_at"
+          )
+          .eq("workshop_id", WORKSHOP_ID)
+          .is("revoked_at", null)
+          .order("last_seen_at", { ascending: false })
+          .limit(200);
+      }
+      const { data: sessions, error: sessErr } = sessionsQuery;
       if (sessErr) {
         return res.status(500).json({
           error:
@@ -2134,39 +2242,36 @@ export function createApiApp() {
       }
 
       const now = Date.now();
-      const mappedSessions = (sessions || []).map(
-        (row: {
-          id: string;
-          device_id: string;
-          role: string;
-          user_id: string | null;
-          username: string | null;
-          display_name: string | null;
-          user_agent: string | null;
-          platform: string | null;
-          ip_address: string | null;
-          created_at: string;
-          last_seen_at: string;
-        }) => {
-          const lastSeenMs = new Date(row.last_seen_at).getTime();
+      const mappedSessions = (sessions || []).map((row) => {
+          const userAgent = typeof row.user_agent === "string" ? row.user_agent : null;
+          const lastSeenAt = String(row.last_seen_at || "");
+          const lastSeenMs = new Date(lastSeenAt).getTime();
           const online = Number.isFinite(lastSeenMs) && now - lastSeenMs <= DEVICE_ONLINE_MS;
+          const parsed = parseDeviceIdentityFromUserAgent(userAgent || "");
+          const role = String(row.role || "user");
+          const username = typeof row.username === "string" ? row.username : null;
+          const displayNameRaw = typeof row.display_name === "string" ? row.display_name : null;
+          const osStored = typeof row.os_name === "string" ? row.os_name.trim() : "";
+          const modelStored = typeof row.device_model === "string" ? row.device_model.trim() : "";
           return {
-            id: row.id,
-            deviceId: row.device_id,
-            role: row.role,
-            userId: row.user_id,
-            username: row.username,
-            displayName: row.display_name || row.username || (row.role === "admin" ? "Gerência" : "Usuário"),
-            userAgent: row.user_agent,
-            platform: row.platform || platformFromUserAgent(row.user_agent || ""),
-            ipAddress: row.ip_address,
-            createdAt: row.created_at,
-            lastSeenAt: row.last_seen_at,
+            id: String(row.id),
+            deviceId: String(row.device_id),
+            role,
+            userId: typeof row.user_id === "string" ? row.user_id : null,
+            username,
+            displayName:
+              displayNameRaw || username || (role === "admin" ? "Gerência" : "Usuário"),
+            userAgent,
+            platform: (typeof row.platform === "string" && row.platform) || parsed.platform,
+            osName: osStored || parsed.osName,
+            deviceModel: modelStored || parsed.deviceModel,
+            ipAddress: typeof row.ip_address === "string" ? row.ip_address : null,
+            createdAt: String(row.created_at || ""),
+            lastSeenAt,
             online,
-            isCurrent: !!currentSid && currentSid === row.id,
+            isCurrent: !!currentSid && currentSid === String(row.id),
           };
-        }
-      );
+        });
 
       let blocked: Array<{
         id: string;
@@ -2174,35 +2279,49 @@ export function createApiApp() {
         label: string | null;
         userAgent: string | null;
         platform: string | null;
+        osName: string | null;
+        deviceModel: string | null;
         blockedAt: string;
         reason: string | null;
       }> = [];
       if (canManage) {
-        const { data: blockedRows } = await supabaseAdmin
+        let blockedQuery: {
+          data: Array<Record<string, unknown>> | null;
+          error: { message?: string } | null;
+        } = await supabaseAdmin
           .from("workshop_blocked_devices")
-          .select("id, device_id, label, user_agent, platform, blocked_at, reason")
+          .select("id, device_id, label, user_agent, platform, os_name, device_model, blocked_at, reason")
           .eq("workshop_id", WORKSHOP_ID)
           .order("blocked_at", { ascending: false })
           .limit(100);
-        blocked = (blockedRows || []).map(
-          (row: {
-            id: string;
-            device_id: string;
-            label: string | null;
-            user_agent: string | null;
-            platform: string | null;
-            blocked_at: string;
-            reason: string | null;
-          }) => ({
-            id: row.id,
-            deviceId: row.device_id,
-            label: row.label,
-            userAgent: row.user_agent,
-            platform: row.platform,
-            blockedAt: row.blocked_at,
-            reason: row.reason,
-          })
-        );
+        if (
+          blockedQuery.error &&
+          /os_name|device_model/i.test(blockedQuery.error.message || "")
+        ) {
+          blockedQuery = await supabaseAdmin
+            .from("workshop_blocked_devices")
+            .select("id, device_id, label, user_agent, platform, blocked_at, reason")
+            .eq("workshop_id", WORKSHOP_ID)
+            .order("blocked_at", { ascending: false })
+            .limit(100);
+        }
+        blocked = (blockedQuery.data || []).map((row) => {
+          const userAgent = typeof row.user_agent === "string" ? row.user_agent : null;
+          const parsed = parseDeviceIdentityFromUserAgent(userAgent || "");
+          const osStored = typeof row.os_name === "string" ? row.os_name.trim() : "";
+          const modelStored = typeof row.device_model === "string" ? row.device_model.trim() : "";
+          return {
+            id: String(row.id),
+            deviceId: String(row.device_id),
+            label: typeof row.label === "string" ? row.label : null,
+            userAgent,
+            platform: (typeof row.platform === "string" && row.platform) || parsed.platform,
+            osName: osStored || parsed.osName,
+            deviceModel: modelStored || parsed.deviceModel,
+            blockedAt: String(row.blocked_at),
+            reason: typeof row.reason === "string" ? row.reason : null,
+          };
+        });
       }
 
       return res.json({
@@ -2279,18 +2398,34 @@ export function createApiApp() {
       let deviceId = typeof body.deviceId === "string" ? body.deviceId.trim() : "";
       let userAgent: string | null = null;
       let platform: string | null = null;
+      let osName: string | null = null;
+      let deviceModel: string | null = null;
       const sessionId = typeof body.sessionId === "string" ? body.sessionId.trim() : "";
       if ((!deviceId || !userAgent) && sessionId) {
-        const { data: sess } = await supabaseAdmin
+        let sessQuery: {
+          data: Record<string, unknown> | null;
+          error: { message?: string } | null;
+        } = await supabaseAdmin
           .from("workshop_device_sessions")
-          .select("device_id, user_agent, platform")
+          .select("device_id, user_agent, platform, os_name, device_model")
           .eq("id", sessionId)
           .eq("workshop_id", WORKSHOP_ID)
           .maybeSingle();
+        if (sessQuery.error && /os_name|device_model/i.test(sessQuery.error.message || "")) {
+          sessQuery = await supabaseAdmin
+            .from("workshop_device_sessions")
+            .select("device_id, user_agent, platform")
+            .eq("id", sessionId)
+            .eq("workshop_id", WORKSHOP_ID)
+            .maybeSingle();
+        }
+        const sess = sessQuery.data;
         if (sess) {
           if (!deviceId) deviceId = String(sess.device_id || "").trim();
-          userAgent = sess.user_agent || null;
-          platform = sess.platform || null;
+          userAgent = typeof sess.user_agent === "string" ? sess.user_agent : null;
+          platform = typeof sess.platform === "string" ? sess.platform : null;
+          osName = typeof sess.os_name === "string" ? sess.os_name : null;
+          deviceModel = typeof sess.device_model === "string" ? sess.device_model : null;
         }
       }
       if (!deviceId) {
@@ -2301,26 +2436,39 @@ export function createApiApp() {
           error: "Não é possível bloquear o dispositivo em que você está usando agora.",
         });
       }
+      const parsedIdentity = parseDeviceIdentityFromUserAgent(userAgent || "");
       const reason = typeof body.reason === "string" ? body.reason.trim().slice(0, 280) : null;
       const label = typeof body.label === "string" ? body.label.trim().slice(0, 120) : null;
-      const { data: blocked, error: blockErr } = await supabaseAdmin
+      const blockRow = {
+        workshop_id: WORKSHOP_ID,
+        device_id: deviceId,
+        label,
+        user_agent: userAgent,
+        platform: platform || parsedIdentity.platform,
+        os_name: osName || parsedIdentity.osName,
+        device_model: deviceModel || parsedIdentity.deviceModel,
+        blocked_at: new Date().toISOString(),
+        blocked_by_role: auth?.r || null,
+        blocked_by_user_id: auth?.r === "user" ? auth.u || null : null,
+        reason,
+      };
+      let { data: blocked, error: blockErr } = await supabaseAdmin
         .from("workshop_blocked_devices")
-        .upsert(
-          {
-            workshop_id: WORKSHOP_ID,
-            device_id: deviceId,
-            label,
-            user_agent: userAgent,
-            platform: platform || platformFromUserAgent(userAgent || ""),
-            blocked_at: new Date().toISOString(),
-            blocked_by_role: auth?.r || null,
-            blocked_by_user_id: auth?.r === "user" ? auth.u || null : null,
-            reason,
-          },
-          { onConflict: "workshop_id,device_id" }
-        )
+        .upsert(blockRow, { onConflict: "workshop_id,device_id" })
         .select("id, device_id, blocked_at")
         .maybeSingle();
+      if (blockErr && /os_name|device_model/i.test(blockErr.message || "")) {
+        const legacy = { ...blockRow } as Record<string, unknown>;
+        delete legacy.os_name;
+        delete legacy.device_model;
+        const retry = await supabaseAdmin
+          .from("workshop_blocked_devices")
+          .upsert(legacy, { onConflict: "workshop_id,device_id" })
+          .select("id, device_id, blocked_at")
+          .maybeSingle();
+        blocked = retry.data;
+        blockErr = retry.error;
+      }
       if (blockErr) {
         return res.status(500).json({ error: blockErr.message || "Falha ao bloquear." });
       }
