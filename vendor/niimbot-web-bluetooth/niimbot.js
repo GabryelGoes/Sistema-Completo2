@@ -495,7 +495,7 @@
     }
   }
 
-  async function connect(model) {
+  async function connect(model, options) {
     if (characteristic && device && device.gatt.connected) return;
     logMsg(`Niimbot ${VERSION} — connecting (task=${(model && model.task) || "?"})`);
     // `!navigator.bluetooth` has two different causes and they need different advice.
@@ -512,6 +512,9 @@
       }
       throw new Error("Web Bluetooth unavailable (use Chrome/Edge over HTTPS).");
     }
+    const opts = options && typeof options === "object" ? options : {};
+    const preferredDeviceId =
+      typeof opts.preferredDeviceId === "string" ? opts.preferredDeviceId.trim() : "";
     const prefixes = (model && model.name_prefixes) || [];
     // Filter the chooser by advertised-name prefix (known per model).
     //
@@ -526,10 +529,27 @@
     // visible after connecting. Measured 2026-08-13: with that filter the chooser was
     // empty for a D11 *and* for a B1 Pro, a printer this driver prints with every day.
     // A filter that cannot find hardware we own is not a filter, it is a dead end.
-    const req = prefixes.length
-      ? { filters: prefixes.map((p) => ({ namePrefix: p })), optionalServices: [SVC_UUID] }
-      : { acceptAllDevices: true, optionalServices: [SVC_UUID] };
-    device = await navigator.bluetooth.requestDevice(req);
+    //
+    // preferredDeviceId: reconecta um aparelho já autorizado (navigator.bluetooth.getDevices)
+    // sem abrir o seletor — só funciona se a impressora estiver ligada/perto.
+    let picked = null;
+    if (preferredDeviceId && typeof navigator.bluetooth.getDevices === "function") {
+      try {
+        const known = await navigator.bluetooth.getDevices();
+        picked = (known || []).find((d) => d && d.id === preferredDeviceId) || null;
+        if (picked) logMsg(`reconnecting remembered device id=${preferredDeviceId} name="${picked.name || "?"}"`);
+      } catch (e) {
+        picked = null;
+      }
+    }
+    if (!picked) {
+      const req = prefixes.length
+        ? { filters: prefixes.map((p) => ({ namePrefix: p })), optionalServices: [SVC_UUID] }
+        : { acceptAllDevices: true, optionalServices: [SVC_UUID] };
+      device = await navigator.bluetooth.requestDevice(req);
+    } else {
+      device = picked;
+    }
     logMsg(`device name: "${device.name || "?"}"`);
     const server = await device.gatt.connect();
     const svc = await server.getPrimaryService(SVC_UUID);
@@ -1494,7 +1514,10 @@
     },
     // Connect and identify the printer (model id + protocol) without printing — the
     // app can read the returned info to auto-select the right model/size.
-    identify: async (model) => { await connect(model); return printerInfo; },
+    // options.preferredDeviceId: tenta reconectar sem abrir o seletor Chrome.
+    identify: async (model, options) => { await connect(model, options); return printerInfo; },
+    // Aparelho BLE atual (id estável do Chrome para lembrar / reconectar).
+    getDevice: () => (device ? { id: device.id, name: device.name || null } : null),
     // Consumable status (lid/paper/RFID). ADVISORY: the driver itself never reads it.
     // Trust is PER FIELD — `decoded.evidence` says which fields were confirmed on real
     // hardware (B1 Pro only) and which are still niimbluelib's transcription. See the

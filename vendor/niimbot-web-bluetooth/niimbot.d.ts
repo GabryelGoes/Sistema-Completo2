@@ -31,14 +31,26 @@ export type NiimbotPrinterInfo = {
   dpi: number;
 } | null;
 
+export type NiimbotConnectOptions = {
+  /** Reconecta um aparelho já autorizado (sem abrir o seletor), se estiver perto. */
+  preferredDeviceId?: string;
+};
+
+export type NiimbotBleDevice = {
+  id: string;
+  name: string | null;
+};
+
 export type NiimbotApi = {
   VERSION?: string;
   isSupported: () => boolean;
   /** GATT realmente conectado (não só printerInfo residual). */
   isConnected?: () => boolean;
-  connect: (model: NiimbotModel) => Promise<void>;
+  connect: (model: NiimbotModel, options?: NiimbotConnectOptions) => Promise<void>;
   disconnect: () => Promise<void>;
-  identify: (model: NiimbotModel) => Promise<NiimbotPrinterInfo>;
+  identify: (model: NiimbotModel, options?: NiimbotConnectOptions) => Promise<NiimbotPrinterInfo>;
+  /** Aparelho BLE atual após connect/identify. */
+  getDevice?: () => NiimbotBleDevice | null;
   printImage: (url: string, opts: NiimbotPrintOpts) => Promise<void>;
   printBatch: (urls: string[], opts: NiimbotPrintOpts) => Promise<void>;
   printer: NiimbotPrinterInfo;

@@ -25,15 +25,33 @@ export type NiimbotServiceSnapshot = {
 
 type Listener = (snap: NiimbotServiceSnapshot) => void;
 
+/**
+ * Prefixo de nomes anunciados pelas impressoras Niimbot (B1 e família).
+ * O seletor Chrome só lista aparelhos próximos que anunciam um destes prefixos —
+ * evita a lista enorme de Bluetooth genérico.
+ */
+const NIIMBOT_PRINTER_NAME_PREFIXES = [
+  'B1',
+  'B21',
+  'B3',
+  'D11',
+  'D110',
+  'N31',
+  'N41',
+  'M2',
+  'Niimbot',
+  'NIIMBOT',
+];
+
 export const NIIMBOT_B1_MODEL: NiimbotModel = {
-  name_prefixes: ['B1'],
+  name_prefixes: [...NIIMBOT_PRINTER_NAME_PREFIXES],
   task: 'b1',
   density: 3,
   label_type: 1,
   speed: 1,
 };
 
-/** Sem filtro de nome — abre o seletor Chrome para qualquer dispositivo BLE. */
+/** Sem filtro de nome — abre o seletor Chrome para qualquer dispositivo BLE (fallback). */
 const NIIMBOT_DISCOVERY_MODEL: NiimbotModel = {
   name_prefixes: [],
   task: 'b1',
@@ -43,12 +61,61 @@ const NIIMBOT_DISCOVERY_MODEL: NiimbotModel = {
 };
 
 export const NIIMBOT_B1_PRO_MODEL: NiimbotModel = {
-  name_prefixes: ['B1'],
+  name_prefixes: [...NIIMBOT_PRINTER_NAME_PREFIXES],
   task: 'v4',
   density: 3,
   label_type: 1,
   speed: 1,
 };
+
+const REMEMBERED_DEVICE_STORAGE_KEY = 'rei_do_abs_niimbot_ble_device';
+
+type RememberedBleDevice = {
+  id: string;
+  name: string | null;
+  savedAt: string;
+};
+
+function loadRememberedDevice(): RememberedBleDevice | null {
+  if (typeof localStorage === 'undefined') return null;
+  try {
+    const raw = localStorage.getItem(REMEMBERED_DEVICE_STORAGE_KEY);
+    if (!raw) return null;
+    const data = JSON.parse(raw) as RememberedBleDevice;
+    if (!data || typeof data.id !== 'string' || !data.id.trim()) return null;
+    return {
+      id: data.id.trim(),
+      name: typeof data.name === 'string' ? data.name : null,
+      savedAt: typeof data.savedAt === 'string' ? data.savedAt : new Date().toISOString(),
+    };
+  } catch {
+    return null;
+  }
+}
+
+function saveRememberedDevice(id: string, name: string | null): void {
+  if (typeof localStorage === 'undefined' || !id.trim()) return;
+  try {
+    const payload: RememberedBleDevice = {
+      id: id.trim(),
+      name: name && name.trim() ? name.trim() : null,
+      savedAt: new Date().toISOString(),
+    };
+    localStorage.setItem(REMEMBERED_DEVICE_STORAGE_KEY, JSON.stringify(payload));
+  } catch {
+    /* ignore */
+  }
+}
+
+function rememberCurrentBleDevice(): void {
+  try {
+    const n = api();
+    const dev = typeof n.getDevice === 'function' ? n.getDevice() : null;
+    if (dev?.id) saveRememberedDevice(dev.id, dev.name ?? null);
+  } catch {
+    /* ignore */
+  }
+}
 
 export const NIIMBOT_T50x30_SIZE: NiimbotSize = {
   w_px: 384,
@@ -68,7 +135,7 @@ export const NIIMBOT_MODEL_LABEL = 'Niimbot B1';
 
 /** Dica curta exibida nos modais de etiqueta. */
 export const NIIMBOT_BLE_HELP =
-  'A B1 só fala com um aparelho por vez: desconecte no celular e feche o app NIIMBOT. Use Chrome/Edge (HTTPS). No Android, ligue também a Localização. Aperte o botão da impressora para ela aparecer. USB não imprime aqui.';
+  'A lista mostra só impressoras Niimbot ligadas por perto. Na primeira conexão a B1 é salva e nas próximas o app tenta reconectar sozinho. A B1 só fala com um aparelho por vez: desconecte no celular e feche o app NIIMBOT. Use Chrome/Edge (HTTPS). No Android, ligue a Localização e aperte o botão da impressora.';
 
 function api() {
   const n = typeof window !== 'undefined' ? window.Niimbot : undefined;
@@ -243,11 +310,11 @@ class NiimbotService {
   }
 
   /**
-   * @param options.anyDevice — padrão true: seletor Chrome sem filtro de nome.
-   *   A B1 muitas vezes não aparece no filtro "B1" (nome não anunciado / ocupada pelo celular).
-   *   Passe `{ anyDevice: false }` para filtrar só por prefixo B1.
+   * @param options.anyDevice — padrão false: seletor só com impressoras Niimbot próximas.
+   *   Passe `{ anyDevice: true }` para listar qualquer BLE (fallback raro).
+   * @param options.forceChooser — não tenta reconectar o aparelho salvo; abre o seletor.
    */
-  async connect(options?: { anyDevice?: boolean }): Promise<void> {
+  async connect(options?: { anyDevice?: boolean; forceChooser?: boolean }): Promise<void> {
     if (!this.isSupported()) {
       const msg = isIosLike()
         ? 'Web Bluetooth indisponível no iPhone/iPad. Use Bluefy ou Chrome no Android/PC.'
@@ -255,17 +322,41 @@ class NiimbotService {
       this.setState('unsupported', msg);
       throw new Error(msg);
     }
-    // Sem await aqui — preserva o gesto do usuário até o requestDevice.
+    // Sem await aqui — preserva o gesto do usuário até o requestDevice / reconnect.
     this.clearDriverSync();
-    const anyDevice = options?.anyDevice !== false;
+    const anyDevice = options?.anyDevice === true;
+    const forceChooser = options?.forceChooser === true;
+    const remembered = !forceChooser && !anyDevice ? loadRememberedDevice() : null;
+    const model = anyDevice ? NIIMBOT_DISCOVERY_MODEL : NIIMBOT_B1_MODEL;
+
+    if (remembered?.id) {
+      this.setState(
+        'connecting',
+        remembered.name
+          ? `Reconectando ${remembered.name}…`
+          : 'Reconectando impressora salva…'
+      );
+      try {
+        await api().identify(model, { preferredDeviceId: remembered.id });
+        rememberCurrentBleDevice();
+        const label = this.applyDetectedPrinter();
+        this.setState('connected', `Conectado: ${label}`);
+        return;
+      } catch {
+        // Impressora desligada/fora de alcance — cai no seletor filtrado.
+        this.clearDriverSync();
+      }
+    }
+
     this.setState(
       'connecting',
       anyDevice
-        ? 'Abrindo seletor Bluetooth… escolha a B1 na lista'
-        : 'Abrindo seletor Bluetooth (filtro B1)…'
+        ? 'Abrindo seletor Bluetooth… escolha a impressora na lista'
+        : 'Abrindo seletor… só impressoras Niimbot por perto'
     );
     try {
-      await api().identify(anyDevice ? NIIMBOT_DISCOVERY_MODEL : NIIMBOT_B1_MODEL);
+      await api().identify(model);
+      rememberCurrentBleDevice();
       const label = this.applyDetectedPrinter();
       this.setState('connected', `Conectado: ${label}`);
     } catch (err) {
@@ -275,11 +366,18 @@ class NiimbotService {
       if (/cancelad|cancelled|canceled|abort|notfound|não encontrada|nenhuma b1/i.test(msg)) {
         msg =
           `${msg} Se a B1 não aparece: desconecte no celular, feche o app NIIMBOT, ` +
-          'aperte o botão da impressora e tente de novo.';
+          'aperte o botão da impressora e tente de novo. Use “Ver todos” só se o nome dela não começar com B1.';
       }
       this.setState('disconnected', msg);
       throw new Error(msg);
     }
+  }
+
+  /** Nome do aparelho BLE lembrado (se houver), para a UI. */
+  getRememberedPrinterLabel(): string | null {
+    const rem = loadRememberedDevice();
+    if (!rem) return null;
+    return rem.name?.trim() || 'Impressora salva';
   }
 
   async disconnect(): Promise<void> {
