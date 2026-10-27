@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
-  Box,
   Car,
   ChevronLeft,
   ChevronRight,
@@ -842,7 +841,14 @@ export function PatioBudgetRequestTouchForm({
 
               {/* Peças */}
               <SectionCard
-                icon={<Box className="h-4 w-4" strokeWidth={2.2} />}
+                iconTone="app"
+                icon={
+                  <img
+                    src="/icons/pecas-solicitadas-ios.png"
+                    alt=""
+                    className="h-full w-full object-cover"
+                  />
+                }
                 title="Peças solicitadas"
               >
                 <div className="space-y-2">
