@@ -1482,12 +1482,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const [initialLoading, setInitialLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
-  // Bancada do laboratório (painel visual dos 24 compartimentos)
-  const [benchPanelOpen, setBenchPanelOpen] = useState<boolean>(() => {
-    if (typeof window === 'undefined') return false;
-    // Fechada por padrão; só abre ao clicar no botão (ou atalho da fila).
-    return window.localStorage.getItem('lab-bench-panel-open') === '1';
-  });
+  // Bancada do laboratório — sempre fechada ao abrir a página; só abre no clique.
+  const [benchPanelOpen, setBenchPanelOpen] = useState(false);
   const [benchQueueModalOpen, setBenchQueueModalOpen] = useState(false);
   /** Módulos enviados para conserto externo (fora do quadro/bancada). */
   const [externalRepairCards, setExternalRepairCards] = useState<TrelloCard[]>([]);
@@ -3393,20 +3389,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
   );
 
   const handleBenchPanelToggle = useCallback(() => {
-    setBenchPanelOpen((prev) => {
-      const next = !prev;
-      if (typeof window !== 'undefined') {
-        window.localStorage.setItem('lab-bench-panel-open', next ? '1' : '0');
-      }
-      return next;
-    });
+    setBenchPanelOpen((prev) => !prev);
   }, []);
 
   const handleOpenBenchPanelFromQueue = useCallback(() => {
     setBenchPanelOpen(true);
-    if (typeof window !== 'undefined') {
-      window.localStorage.setItem('lab-bench-panel-open', '1');
-    }
   }, []);
 
   /** Retrato/paisagem: matchMedia falha ou “pisca” em alguns móveis ao rotacionar; debounce + dimensões evita zoom errado e sumiço de camada (WebKit). Após orientação, um refresh em fila re-alinha os dados. */
@@ -7251,8 +7238,12 @@ export const PatioView: React.FC<PatioViewProps> = ({
         )
       : null;
 
-  /** Lista do lab: cabeçalho (QR / Criar OS / Lembretes / …) fixo; só a tabela rola. */
-  const labListaPinnedHeader = isModuleMode && boardLayoutMode === 'lista';
+  /**
+   * Lista do lab no PC: cabeçalho fixo; só a tabela rola.
+   * No tablet/mobile a página inteira rola (senão overflow-hidden + bancada
+   * esmagam a lista e o toque não consegue rolar).
+   */
+  const labListaPinnedHeader = isModuleMode && boardLayoutMode === 'lista' && isPcLayout;
 
   return (
     <div
@@ -7260,8 +7251,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
       className={
         labListaPinnedHeader
           ? 'relative flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden animate-in fade-in duration-500'
-          : isModuleMode && isPcLayout
-            ? 'relative flex h-full min-h-0 w-full flex-1 flex-col overflow-y-auto overscroll-contain animate-in pb-8 fade-in duration-500'
+          : isModuleMode
+            ? 'relative flex h-full min-h-0 w-full flex-1 flex-col overflow-y-auto overscroll-contain touch-pan-y [-webkit-overflow-scrolling:touch] animate-in pb-32 fade-in duration-500 md:pb-8'
             : 'relative min-h-full w-full animate-in pb-32 fade-in duration-500'
       }
     >
