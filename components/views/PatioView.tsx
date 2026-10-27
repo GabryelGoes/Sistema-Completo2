@@ -7443,20 +7443,12 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 </div>
               </div>
 
-              {/* Leitor QR (lab) + Lembretes, Histórico, Criar OS, ⋯ e Notificações — mesma linha */}
+              {/* Lembretes, Histórico, Criar OS, ⋯ e Notificações — tablet/mobile (sem modos do leitor QR) */}
               <div
                 className={`flex w-full flex-nowrap items-center gap-2 overflow-x-auto pb-0.5 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden sm:gap-2.5 ${
                   patioHeaderActionsCentered || viewportWidth >= 768 ? 'justify-center' : ''
                 }`}
               >
-                {isModuleMode && typeof onLabScanModeChange === 'function' ? (
-                  <LabScanModeBar
-                    mode={labScanMode}
-                    onChange={onLabScanModeChange}
-                    compact
-                    className="shrink-0"
-                  />
-                ) : null}
                 <button
                   type="button"
                   onClick={() => {
