@@ -15,18 +15,30 @@ export function iosSquircleBackgroundFromHex(hex: string): CSSProperties {
 export const iosModalOverlay =
   'fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-6 bg-black/45 backdrop-blur-[20px]';
 
-/** Hub de configurações usa z-[110] (mobile/tablet) ou z-[100] (PC); filhos precisam ficar acima. */
-export const SETTINGS_CHILD_MODAL_Z = 'z-[125]';
+/** Estoque / Painéis de TV abertos pela sidebar (abaixo do hub de Ajustes). */
+export const SHELL_MODULE_OVERLAY_Z = 'z-[110]';
 
-/** Cadastro/visualização do estoque (portal no body) — acima do modal principal z-[125]. */
+/** Hub de Ajustes — acima de Estoque/TV para empilhar sem fechar a tela de baixo. */
+export const SETTINGS_HUB_Z = 'z-[150]';
+
+/** Modais filhos do hub de Ajustes (acima do hub). */
+export const SETTINGS_CHILD_MODAL_Z = 'z-[160]';
+
+/**
+ * Pickers / mini-modais aninhados em um modal que usa `resolveIosModalOverlayClass`
+ * (padrão z-[160]). Precisa ficar acima do overlay pai — ex.: lista de técnicos no fechamento.
+ */
+export const NESTED_IOS_MODAL_PICKER_Z = 'z-[170]';
+
+/** Cadastro/visualização do estoque (portal no body) — acima do modal principal do estoque. */
 export const NESTED_STOCK_OVERLAY_Z = 'z-[135]';
 
 const iosModalOverlayAppearance =
   'flex items-center justify-center p-3 sm:p-6 bg-black/45 backdrop-blur-[20px]';
 
 /**
- * Overlay de modal iOS acima do hub de Configurações.
- * Sempre aplica `zClass` (padrão z-[125]); no PC ancora na viewport do shell.
+ * Overlay de modal iOS acima do hub de Ajustes.
+ * Sempre aplica `zClass` (padrão z-[160]); no PC ancora na viewport do shell.
  */
 export function resolveIosModalOverlayClass(
   isDesktopShell: boolean,

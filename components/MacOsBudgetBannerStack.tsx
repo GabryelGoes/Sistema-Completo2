@@ -18,6 +18,8 @@ import {
 /** Soft-cap visual; novos banners sempre entram (mais recente no topo). */
 const MAX_VISIBLE = 48;
 
+export type MacOsBudgetBannerBoardScope = 'patio' | 'lab';
+
 export type MacOsBudgetBannerItem = {
   id: string;
   kind:
@@ -44,7 +46,25 @@ export type MacOsBudgetBannerItem = {
   commentNotification?: Notification | null;
   /** Nº da OS (banner Sem conserto). */
   osNumber?: number | null;
+  /**
+   * Origem da OS: Pátio (vehicle) ou Laboratório (module).
+   * Se omitido, infere por `kind` / payload.
+   */
+  boardScope?: MacOsBudgetBannerBoardScope | null;
 };
+
+/** Resolve Pátio vs Laboratório a partir do item / order_type. */
+export function resolveBannerBoardScope(
+  item: Pick<MacOsBudgetBannerItem, 'kind' | 'boardScope'> & {
+    orderType?: string | null;
+  }
+): MacOsBudgetBannerBoardScope {
+  if (item.boardScope === 'lab' || item.boardScope === 'patio') return item.boardScope;
+  if (item.kind === 'lab_sem_conserto') return 'lab';
+  const ot = typeof item.orderType === 'string' ? item.orderType.trim().toLowerCase() : '';
+  if (ot === 'module') return 'lab';
+  return 'patio';
+}
 
 function plateLabel(plate: string | null | undefined): string | null {
   const p = typeof plate === 'string' ? plate.trim().toUpperCase() : '';
@@ -103,6 +123,7 @@ function commentPreview(text: string | null | undefined): string | null {
 }
 
 export function budgetBannerToCardModel(item: MacOsBudgetBannerItem): MacOsNotificationCardModel {
+  const boardScope = resolveBannerBoardScope(item);
   if (item.kind === 'comment') {
     return {
       id: item.id,
@@ -115,6 +136,7 @@ export function budgetBannerToCardModel(item: MacOsBudgetBannerItem): MacOsNotif
       accent: 'violet',
       icon: 'comment',
       unread: true,
+      boardScope,
     };
   }
   if (item.kind === 'lab_sem_conserto') {
@@ -124,20 +146,22 @@ export function budgetBannerToCardModel(item: MacOsBudgetBannerItem): MacOsNotif
       authorPhotoUrl: item.authorPhotoUrl,
       title: titleFor(item),
       body: vehicleLine(item),
-      hint: 'Laboratório',
+      hint: null,
       timeLabel: 'agora',
       accent: 'amber',
       icon: 'alert',
       unread: true,
+      boardScope: 'lab',
     };
   }
+  const scopeHint = boardScope === 'lab' ? 'desta OS' : 'deste veículo';
   const hint =
     (item.kind === 'budget_created' ||
       item.kind === 'budget_verified' ||
       item.kind === 'budget_items_approved') &&
     item.budgetNumber != null &&
     item.budgetNumber >= 2
-      ? `${item.budgetNumber}º orçamento deste veículo`
+      ? `${item.budgetNumber}º orçamento ${scopeHint}`
       : null;
   const accent: MacOsNotificationCardModel['accent'] =
     item.kind === 'budget_verified'
@@ -164,6 +188,7 @@ export function budgetBannerToCardModel(item: MacOsBudgetBannerItem): MacOsNotif
     accent,
     icon,
     unread: true,
+    boardScope,
   };
 }
 
@@ -259,8 +284,11 @@ export function MacOsBudgetBannerStack({
   const visible = items.slice(0, MAX_VISIBLE);
   if (visible.length === 0) return null;
 
-  const toolbarShell = 'border-white/12 bg-zinc-900/80 text-white';
-  const toolbarBtn = 'hover:bg-white/10 text-white';
+  /** Ícones só — cores chapadas (sem transparência / blur). ~20% menores que h-8. */
+  const toolbarBtnBase =
+    'pointer-events-auto inline-flex h-[1.6rem] w-[1.6rem] shrink-0 items-center justify-center rounded-full border border-zinc-700 bg-zinc-900 text-white transition-[background-color,border-color,color,transform] duration-150 disabled:opacity-50 active:scale-[0.96]';
+  const toolbarMinimizeBtn = `${toolbarBtnBase} hover:border-amber-500 hover:bg-amber-500 hover:text-zinc-950`;
+  const toolbarClearBtn = `${toolbarBtnBase} hover:border-red-600 hover:bg-red-600 hover:text-white`;
 
   const handleClearAll = () => {
     if (minimizing || busyIds.size > 0) return;
@@ -281,9 +309,9 @@ export function MacOsBudgetBannerStack({
     await GenieNotificationDismissMany({
       sources,
       genieOrigin: resolveBellOrigin(),
-      durationMs: 540,
-      staggerMs: 52,
-      stripCount: 42,
+      durationMs: 420,
+      staggerMs: 32,
+      stripCount: 16,
       leaveSourcesHidden: true,
     });
   };
@@ -297,8 +325,8 @@ export function MacOsBudgetBannerStack({
         await GenieNotificationDismiss({
           source,
           genieOrigin: resolveBellOrigin(),
-          durationMs: 520,
-          stripCount: 42,
+          durationMs: 400,
+          stripCount: 16,
           leaveSourceHidden: true,
         });
       }
@@ -334,31 +362,31 @@ export function MacOsBudgetBannerStack({
 
   return createPortal(
     <div
-      className="dark pointer-events-none fixed right-3 top-[max(0.75rem,env(safe-area-inset-top))] z-[100050] flex max-h-[calc(100dvh-1.5rem)] w-[min(380px,calc(100vw-1.5rem))] origin-top-right scale-[0.85] flex-col gap-2 overflow-y-auto overscroll-contain sm:right-5 sm:top-4"
+      className="dark pointer-events-none fixed right-3 top-[max(0.75rem,env(safe-area-inset-top))] z-[100050] flex max-h-[calc(100dvh-1.5rem)] w-[min(380px,calc(100vw-1.5rem))] origin-top-right scale-[0.85] flex-col items-start gap-2 overflow-y-auto overscroll-contain sm:right-5 sm:top-4"
       aria-live="polite"
       data-budget-banner-theme={bannerTheme}
     >
-      {/* w-fit + self-end: não cobre o X dos banners (bug anterior). */}
-      <div className="pointer-events-none sticky top-0 z-10 flex w-fit max-w-full shrink-0 flex-wrap justify-end gap-1.5 self-end pb-0.5">
+      {/* Toolbar à esquerda da pilha (não à direita / não cobre o X). */}
+      <div className="pointer-events-none sticky top-0 z-10 mr-auto flex w-fit max-w-full shrink-0 flex-wrap items-center justify-start gap-1 self-start pb-0.5">
         <button
           type="button"
           disabled={minimizing || busyIds.size > 0}
           onClick={() => void handleMinimize()}
-          className={`pointer-events-auto inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold backdrop-blur-xl transition disabled:opacity-50 ${toolbarShell} ${toolbarBtn}`}
-          style={{ WebkitBackdropFilter: 'blur(20px)' }}
+          className={toolbarMinimizeBtn}
+          title="Minimizar"
+          aria-label="Minimizar"
         >
-          <Minus className="h-3 w-3" strokeWidth={2.5} aria-hidden />
-          Minimizar
+          <Minus className="h-[11px] w-[11px]" strokeWidth={2.75} aria-hidden />
         </button>
         <button
           type="button"
           disabled={minimizing || busyIds.size > 0}
           onClick={handleClearAll}
-          className={`pointer-events-auto inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold backdrop-blur-xl transition disabled:opacity-50 ${toolbarShell} ${toolbarBtn}`}
-          style={{ WebkitBackdropFilter: 'blur(20px)' }}
+          className={toolbarClearBtn}
+          title="Limpar tudo"
+          aria-label="Limpar tudo"
         >
-          <Trash2 className="h-3 w-3" strokeWidth={2.25} aria-hidden />
-          Limpar Tudo
+          <Trash2 className="h-[11px] w-[11px]" strokeWidth={2.35} aria-hidden />
         </button>
       </div>
 

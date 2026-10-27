@@ -46,6 +46,11 @@ import { useServiceOrderLiveSync } from '../../hooks/useServiceOrderLiveSync';
 import { useTabletPhonePortraitFullscreen } from '../../hooks/useTabletPhonePortraitFullscreen';
 import { formatLaborLabel } from '../../utils/workshopLaborFormat';
 import {
+  brazilianPlateEquivalents,
+  brazilianPlateIdentityKey,
+  normalizeBrazilianPlate,
+} from '../../utils/brazilianPlate';
+import {
   cpfCnpjLabel,
   formatCpfCnpj,
   getCpfCnpjStatus,
@@ -181,10 +186,7 @@ function attachmentMimeType(name: string): string {
 }
 
 function normalizePlacaLocal(raw: string) {
-  return String(raw ?? '')
-    .replace(/[^a-zA-Z0-9]/g, '')
-    .toUpperCase()
-    .slice(0, 8);
+  return normalizeBrazilianPlate(raw);
 }
 
 /** Preenche dados do cliente a partir da API, preservando veículo/módulo já digitados no formulário. */
@@ -205,6 +207,7 @@ function receptionFormFromApiCustomer(c: ApiCustomer, prev: Customer): Customer 
     vehicleColor: prev.vehicleColor,
     vehicleYear: prev.vehicleYear,
     vehicleEngineInfo: prev.vehicleEngineInfo,
+    vehicleChassis: prev.vehicleChassis,
     mileageKm: prev.mileageKm,
     issueDescription: prev.issueDescription,
     trelloCardId: prev.trelloCardId,
@@ -256,6 +259,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
     vehicleColor: '',
     vehicleYear: '',
     vehicleEngineInfo: '',
+    vehicleChassis: '',
     mileageKm: '',
     issueDescription: ''
   });
@@ -513,6 +517,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
         vehicleColor: initialData.vehicleColor ?? prev.vehicleColor,
         vehicleYear: initialData.vehicleYear ?? prev.vehicleYear,
         vehicleEngineInfo: initialData.vehicleEngineInfo ?? prev.vehicleEngineInfo,
+        vehicleChassis: initialData.vehicleChassis ?? prev.vehicleChassis,
         mileageKm: initialData.mileageKm ?? prev.mileageKm,
         issueDescription: initialData.issueDescription ?? prev.issueDescription,
         trelloCardId: initialData.trelloCardId,
@@ -601,7 +606,8 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
       if (!plate || plate === '---') continue;
       const cid = o.customer_id;
       if (!cid) continue;
-      const key = `${cid}::${plate}`;
+      // Une Mercosul e formato antigo (mesmo veículo / mesmo cliente).
+      const key = `${cid}::${brazilianPlateIdentityKey(plate)}`;
       if (byKey.has(key)) continue;
       const c = custMap.get(cid);
       byKey.set(key, {
@@ -616,6 +622,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
         vehicleColor: (o.vehicle_color ?? '').trim(),
         vehicleYear: (o.vehicle_year ?? '').trim(),
         vehicleEngineInfo: (o.vehicle_engine_info ?? '').trim(),
+        vehicleChassis: (o.vehicle_chassis ?? '').trim(),
         mileageKm: (o.mileage_km ?? '').trim(),
         orderId: o.id,
       });
@@ -672,6 +679,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
         vehicleColor: '',
         vehicleYear: '',
         vehicleEngineInfo: '',
+        vehicleChassis: '',
         mileageKm: '',
         orderId: null,
         customerOnly: true,
@@ -682,9 +690,16 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
   const intakePlateVehicleSuggestions = useMemo((): ReceptionLinkedVehicleSuggestion[] => {
     const qRaw = (customer.plate ?? '').trim();
     if (qRaw.length < RECEPTION_SUGGEST_MIN_CHARS) return [];
-    const qNorm = qRaw.replace(/\s/g, '').toLowerCase();
+    const qNorm = normalizeBrazilianPlate(qRaw).toLowerCase();
+    const qForms = new Set(
+      brazilianPlateEquivalents(qRaw).map((p) => p.toLowerCase())
+    );
     return intakeLinkedVehiclesAll
-      .filter((s) => s.plate.replace(/\s/g, '').toLowerCase().includes(qNorm))
+      .filter((s) => {
+        const sNorm = normalizeBrazilianPlate(s.plate).toLowerCase();
+        if (sNorm.includes(qNorm) || qNorm.includes(sNorm)) return true;
+        return brazilianPlateEquivalents(s.plate).some((p) => qForms.has(p.toLowerCase()));
+      })
       .slice(0, 60);
   }, [customer.plate, intakeLinkedVehiclesAll]);
 
@@ -726,6 +741,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
     vehicleColor: '',
     vehicleYear: '',
     vehicleEngineInfo: '',
+    vehicleChassis: '',
     mileageKm: '',
   }), []);
 
@@ -777,6 +793,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
       vehicleColor: '',
       vehicleYear: '',
       vehicleEngineInfo: '',
+      vehicleChassis: '',
     }));
   }, [intakePlateVehicleSuggestions, intakeCustomerDirectory, closeAllIntakeSuggest]);
 
@@ -796,6 +813,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
       vehicleColor: '',
       vehicleYear: '',
       vehicleEngineInfo: '',
+      vehicleChassis: '',
     }));
   }, [intakeModelVehicleSuggestions, intakeCustomerDirectory, closeAllIntakeSuggest]);
 
@@ -807,15 +825,17 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
     setPlateLookupLoading(true);
     try {
       const result = await consultPlacaFipe(p);
-      lastFetchedPlacaRef.current = normalizePlacaLocal(result.plate || p);
+      // Manter a placa digitada (Mercosul); a API às vezes devolve só o formato antigo.
+      lastFetchedPlacaRef.current = p;
       setCustomer((prev) => ({
         ...prev,
-        plate: (prev.plate?.trim() || result.plate || p).toUpperCase(),
+        plate: (prev.plate?.trim() || p).toUpperCase(),
         vehicleBrand: prev.vehicleBrand?.trim() || result.vehicleBrand?.trim() || '',
         vehicleModel: prev.vehicleModel?.trim() || result.vehicleModel?.trim() || '',
         vehicleColor: prev.vehicleColor?.trim() || result.vehicleColor?.trim() || '',
         vehicleYear: prev.vehicleYear?.trim() || result.vehicleYear?.trim() || '',
         vehicleEngineInfo: prev.vehicleEngineInfo?.trim() || result.vehicleEngineInfo?.trim() || '',
+        vehicleChassis: prev.vehicleChassis?.trim() || result.vehicleChassis?.trim() || '',
       }));
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : 'Falha na consulta.';
@@ -844,6 +864,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
       const color = (row.vehicleColor || '').trim();
       const year = (row.vehicleYear || '').trim();
       const engine = (row.vehicleEngineInfo || '').trim();
+      const chassis = (row.vehicleChassis || '').trim();
       setIntakeExistingCustomerId(row.customerId);
       setCustomer((prev) => {
         const base = c ? receptionFormFromApiCustomer(c, prev) : {
@@ -860,12 +881,13 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
           vehicleColor: color,
           vehicleYear: year,
           vehicleEngineInfo: engine,
+          vehicleChassis: chassis,
           // Não copia km da OS antiga — quilometragem deve ser informada no atendimento atual.
           mileageKm: prev.mileageKm,
         };
       });
       setPlateLookupError(null);
-      const missingVehicleData = !brand || !model || !color || !year || !engine;
+      const missingVehicleData = !brand || !model || !color || !year || !engine || !chassis;
       if (missingVehicleData && plate) {
         lastFetchedPlacaRef.current = null;
         void completeMissingVehicleFromPlaca(plate);
@@ -1301,6 +1323,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
       vehicleColor: '',
       vehicleYear: '',
       vehicleEngineInfo: '',
+      vehicleChassis: '',
       mileageKm: '',
       issueDescription: '',
       trelloCardId: undefined
@@ -1355,6 +1378,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
       vehicleColor: '',
       vehicleYear: '',
       vehicleEngineInfo: '',
+      vehicleChassis: '',
       mileageKm: '',
     }));
     setModuleKind('');
@@ -1404,15 +1428,17 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
       setPlateLookupLoading(true);
       try {
         const result = await consultPlacaFipe(p);
-        lastFetchedPlacaRef.current = normalizePlacaLocal(result.plate || p);
+        // Não trocar Mercosul digitada pelo formato antigo que a API às vezes devolve.
+        lastFetchedPlacaRef.current = p;
         setCustomer((prev) => ({
           ...prev,
-          plate: (result.plate || p).toUpperCase(),
+          plate: (prev.plate?.trim() || p).toUpperCase(),
           vehicleBrand: result.vehicleBrand?.trim() || prev.vehicleBrand,
           vehicleModel: result.vehicleModel?.trim() || prev.vehicleModel,
           vehicleColor: result.vehicleColor?.trim() || prev.vehicleColor,
           vehicleYear: result.vehicleYear?.trim() || prev.vehicleYear,
           vehicleEngineInfo: result.vehicleEngineInfo?.trim() || prev.vehicleEngineInfo,
+          vehicleChassis: result.vehicleChassis?.trim() || prev.vehicleChassis,
         }));
       } catch (e: unknown) {
         const msg = e instanceof Error ? e.message : 'Falha na consulta.';
@@ -1598,6 +1624,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
       vehicleColor: detail.vehicle_color ?? '',
       vehicleYear: detail.vehicle_year ?? '',
       vehicleEngineInfo: detail.vehicle_engine_info ?? '',
+      vehicleChassis: detail.vehicle_chassis ?? '',
       /** Nova OS: não reaproveitar km da OS arquivada. */
       mileageKm: '',
       issueDescription: '',
@@ -2162,6 +2189,16 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                       value={customer.vehicleEngineInfo ?? ''}
                       onChange={handleInputChange}
                       icon={<Car className="w-4 h-4" />}
+                    />
+                  </div>
+                  <div className={receptionFormRow2}>
+                    <Input
+                      label="Chassi"
+                      name="vehicleChassis"
+                      placeholder="Chassi"
+                      value={customer.vehicleChassis ?? ''}
+                      onChange={handleInputChange}
+                      icon={<Hash className="w-4 h-4" />}
                     />
                   </div>
                 </>
@@ -2886,6 +2923,11 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                           {!isModuleDetail && (d.vehicle_color ?? '').trim() ? (
                             <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-500/90 dark:text-zinc-400">
                               Cor · {(d.vehicle_color ?? '').trim()}
+                            </p>
+                          ) : null}
+                          {!isModuleDetail && (d.vehicle_chassis ?? '').trim() ? (
+                            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-500/90 dark:text-zinc-400">
+                              Chassi · {(d.vehicle_chassis ?? '').trim()}
                             </p>
                           ) : null}
                         </div>

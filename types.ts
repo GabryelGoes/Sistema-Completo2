@@ -28,6 +28,8 @@ export interface Customer {
   vehicleYear?: string;
   /** Motor: cilindradas, combustível, etc. */
   vehicleEngineInfo?: string;
+  /** Chassi (pode vir mascarado da PlacaFipe) */
+  vehicleChassis?: string;
   /** Quilometragem do veículo (Km) */
   mileageKm?: string;
   issueDescription: string;
@@ -154,10 +156,11 @@ export interface BoardCard {
   vehicleCategory?: string | null;
   /** Marca/montadora (não entra no título do card). */
   vehicleBrand?: string | null;
-  /** Cor / ano / motor (texto) vindos da recepção ou consulta placa. */
+  /** Cor / ano / motor / chassi (texto) vindos da recepção ou consulta placa. */
   vehicleColor?: string | null;
   vehicleYear?: string | null;
   vehicleEngineInfo?: string | null;
+  vehicleChassis?: string | null;
   /** Links úteis salvos no modal do veículo/módulo. */
   referenceLinks?: VehicleReferenceLink[];
   /** Serviços do pátio enviados para OS do laboratório (vínculos). */

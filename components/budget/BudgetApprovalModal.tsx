@@ -41,6 +41,8 @@ export type BudgetApprovalModalProps = {
   requireAtLeastOneApproved?: boolean;
   /** Texto de apoio quando `requireAtLeastOneApproved` (substitui o hint padrão). */
   gateHint?: string;
+  /** Origem da OS (banners Pátio vs Laboratório). */
+  orderType?: 'vehicle' | 'module' | null;
 };
 
 /** Shell azul claro + variantes dark; largo no PC para textos não quebrarem.
@@ -94,6 +96,7 @@ export const BudgetApprovalModal: React.FC<BudgetApprovalModalProps> = ({
   headerIcon,
   requireAtLeastOneApproved = false,
   gateHint,
+  orderType = null,
 }) => {
   const [approvalServices, setApprovalServices] = useState<boolean[]>([]);
   const [approvalParts, setApprovalParts] = useState<boolean[]>([]);
@@ -166,6 +169,7 @@ export const BudgetApprovalModal: React.FC<BudgetApprovalModalProps> = ({
             cardName: budget.cardName,
             approvedItemsCount,
             authorName,
+            orderType: orderType === 'module' ? 'module' : orderType === 'vehicle' ? 'vehicle' : null,
           },
         })
       );

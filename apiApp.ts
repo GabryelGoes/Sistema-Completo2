@@ -33,6 +33,7 @@ import { parseModuleKind, parseModuleVehicleKind } from "./utils/moduleMetadata.
 import { SYSTEM_NOTIFICATION_IDS } from "./constants/systemNotificationTypes.js";
 import { buildWorkshopPartsAnalytics } from "./utils/workshopPartsAnalytics.js";
 import { resolveTvUploadMime } from "./utils/tvMediaFile.js";
+import { buildTvPatioDisplayHtml } from "./utils/tvPatioDisplayHtml.js";
 import {
   collectApprovedPartsFromBudgets,
   collectApprovedServicesFromBudgets,
@@ -46,6 +47,11 @@ import { normalizeBudgetPartName } from "./utils/budgetPartStock.js";
 import { collectPendingStockReservations } from "./utils/workshopPartReservations.js";
 import { normalizeBarcodeInput } from "./utils/workshopPartBarcode.js";
 import {
+  deviceKindFromUserAgent,
+  parseDeviceIdentityFromUserAgent,
+  type DeviceClientInfoPayload,
+} from "./utils/deviceIdentity.js";
+import {
   applyDevMemoryOutbound,
   isWorkshopPartDevMemoryActive,
   listDevMemoryMovements,
@@ -53,7 +59,14 @@ import {
   lookupDevMemoryPart,
 } from "./utils/workshopPartDevMemory.js";
 import type { WorkshopPartStockMovementType } from "./utils/workshopPartStockOutbound.js";
+import { mergeEstoqueLedger } from "./utils/estoqueLedger.js";
+import { normalizeSupplierDocument } from "./utils/workshopSuppliers.js";
 import { registerAbsModuleRoutes } from "./utils/absModuleApiRoutes.js";
+import type { WorkshopAbsModuleMovementListItem } from "./utils/workshopAbsModules.js";
+import {
+  brazilianPlateIdentityKey,
+  normalizeBrazilianPlate,
+} from "./utils/brazilianPlate.js";
 
 const PBKDF2_ITERATIONS = 100000;
 const SALT_LEN = 16;
@@ -109,8 +122,67 @@ type SessionPayload = {
   r: "admin" | "user";
   u?: string; // userId
   n?: string; // username
+  /** ID da linha em workshop_device_sessions (logout remoto / bloqueio). */
+  sid?: string;
+  /** ID estável do aparelho (localStorage no cliente). */
+  did?: string;
   exp: number;
 };
+
+const DEVICE_ONLINE_MS = 2 * 60 * 1000;
+const DEVICE_SESSION_CACHE_MS = 20 * 1000;
+const deviceSessionOkCache = new Map<
+  string,
+  { until: number; revoked: boolean; deviceId: string; blocked: boolean }
+>();
+const blockedDeviceCache = new Map<string, { until: number; blocked: boolean }>();
+
+function deviceIdFromReq(req: { headers: Record<string, unknown>; body?: unknown }): string {
+  const header = req.headers["x-device-id"];
+  if (typeof header === "string" && header.trim()) return header.trim().slice(0, 128);
+  if (Array.isArray(header) && typeof header[0] === "string" && header[0].trim()) {
+    return header[0].trim().slice(0, 128);
+  }
+  const body = req.body as { deviceId?: unknown } | undefined;
+  if (typeof body?.deviceId === "string" && body.deviceId.trim()) {
+    return body.deviceId.trim().slice(0, 128);
+  }
+  return "";
+}
+
+function platformFromUserAgent(ua: string): string {
+  return deviceKindFromUserAgent(ua);
+}
+
+function normalizeDeviceClientInfo(
+  raw: unknown,
+  fallbackUa = ""
+): { platform: string; osName: string; deviceModel: string; userAgent: string } {
+  const body = (raw && typeof raw === "object" ? raw : {}) as DeviceClientInfoPayload;
+  const ua =
+    (typeof body.userAgent === "string" && body.userAgent.trim()
+      ? body.userAgent.trim()
+      : fallbackUa
+    ).slice(0, 512);
+  const parsed = parseDeviceIdentityFromUserAgent(ua);
+  const platformRaw = typeof body.platform === "string" ? body.platform.trim().toLowerCase() : "";
+  const platform =
+    platformRaw === "smartphone" ||
+    platformRaw === "tablet" ||
+    platformRaw === "desktop" ||
+    platformRaw === "outro"
+      ? platformRaw
+      : parsed.platform;
+  const osName =
+    typeof body.osName === "string" && body.osName.trim()
+      ? body.osName.trim().slice(0, 80)
+      : parsed.osName;
+  const deviceModel =
+    typeof body.deviceModel === "string" && body.deviceModel.trim()
+      ? body.deviceModel.trim().slice(0, 120)
+      : parsed.deviceModel;
+  return { platform, osName, deviceModel, userAgent: ua };
+}
 
 function b64url(input: Buffer | string): string {
   return Buffer.from(input)
@@ -1211,7 +1283,7 @@ export function createApiApp() {
     res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS");
     res.setHeader(
       "Access-Control-Allow-Headers",
-      "Content-Type, Authorization, X-Requested-With, Accept, Accept-Language, X-Admin-Password"
+      "Content-Type, Authorization, X-Requested-With, Accept, Accept-Language, X-Admin-Password, X-Device-Id"
     );
     res.setHeader("Access-Control-Max-Age", "86400");
     if (req.method === "OPTIONS") return res.sendStatus(204);
@@ -1226,6 +1298,8 @@ export function createApiApp() {
   function isPublicApiRoute(method: string, urlPath: string): boolean {
     if (urlPath === "/api/health") return true;
     if (urlPath === "/api/auth/login" && method === "POST") return true;
+    // Painel TV HTML (cronômetro vermelho) — sem login; dados vêm de /api/service-orders.
+    if (method === "GET" && urlPath === "/api/tv/display") return true;
     return false;
   }
 
@@ -1236,10 +1310,221 @@ export function createApiApp() {
   const TV_API_TOKEN = (process.env.TV_API_TOKEN || "").trim();
   function isTvReadRoute(method: string, urlPath: string): boolean {
     if (method !== "GET") return false;
-    return urlPath === "/api/tv/playlist" || urlPath === "/api/service-orders";
+    return (
+      urlPath === "/api/tv/playlist" ||
+      urlPath === "/api/tv/display" ||
+      urlPath === "/api/service-orders"
+    );
   }
 
-  app.use((req, res, next) => {
+  async function isDeviceBlocked(deviceId: string): Promise<boolean> {
+    if (!deviceId || !supabaseAdmin || !WORKSHOP_ID) return false;
+    const cached = blockedDeviceCache.get(deviceId);
+    if (cached && cached.until > Date.now()) return cached.blocked;
+    try {
+      const { data, error } = await supabaseAdmin
+        .from("workshop_blocked_devices")
+        .select("id")
+        .eq("workshop_id", WORKSHOP_ID)
+        .eq("device_id", deviceId)
+        .maybeSingle();
+      if (error) {
+        // Tabela ainda não migrada — não bloqueia.
+        blockedDeviceCache.set(deviceId, { until: Date.now() + DEVICE_SESSION_CACHE_MS, blocked: false });
+        return false;
+      }
+      const blocked = !!data?.id;
+      blockedDeviceCache.set(deviceId, { until: Date.now() + DEVICE_SESSION_CACHE_MS, blocked });
+      return blocked;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Valida sid (não revogada) e device_id (não bloqueado).
+   * Tokens legados sem sid seguem válidos até novo login.
+   */
+  async function enforceDeviceSession(
+    req: express.Request,
+    auth: SessionPayload
+  ): Promise<"ok" | "revoked" | "blocked"> {
+    const headerDeviceId = deviceIdFromReq(req);
+    const deviceId = (auth.did || headerDeviceId || "").trim();
+    if (deviceId && (await isDeviceBlocked(deviceId))) return "blocked";
+
+    const sid = typeof auth.sid === "string" ? auth.sid.trim() : "";
+    if (!sid || !supabaseAdmin || !WORKSHOP_ID) return "ok";
+
+    const cached = deviceSessionOkCache.get(sid);
+    if (cached && cached.until > Date.now()) {
+      if (cached.revoked) return "revoked";
+      if (cached.blocked) return "blocked";
+      return "ok";
+    }
+
+    try {
+      const { data, error } = await supabaseAdmin
+        .from("workshop_device_sessions")
+        .select("id, device_id, revoked_at")
+        .eq("id", sid)
+        .eq("workshop_id", WORKSHOP_ID)
+        .maybeSingle();
+      if (error) {
+        // Sem tabela: não quebra o app.
+        return "ok";
+      }
+      if (!data) {
+        // Sessão sumiu do banco — exige novo login.
+        deviceSessionOkCache.set(sid, {
+          until: Date.now() + DEVICE_SESSION_CACHE_MS,
+          revoked: true,
+          deviceId: deviceId || "",
+          blocked: false,
+        });
+        return "revoked";
+      }
+      if (data.revoked_at) {
+        deviceSessionOkCache.set(sid, {
+          until: Date.now() + DEVICE_SESSION_CACHE_MS,
+          revoked: true,
+          deviceId: String(data.device_id || ""),
+          blocked: false,
+        });
+        return "revoked";
+      }
+      const sessionDevice = String(data.device_id || "").trim();
+      if (sessionDevice && (await isDeviceBlocked(sessionDevice))) {
+        deviceSessionOkCache.set(sid, {
+          until: Date.now() + DEVICE_SESSION_CACHE_MS,
+          revoked: false,
+          deviceId: sessionDevice,
+          blocked: true,
+        });
+        return "blocked";
+      }
+      deviceSessionOkCache.set(sid, {
+        until: Date.now() + DEVICE_SESSION_CACHE_MS,
+        revoked: false,
+        deviceId: sessionDevice,
+        blocked: false,
+      });
+      return "ok";
+    } catch {
+      return "ok";
+    }
+  }
+
+  async function touchDeviceSession(
+    sid: string,
+    deviceInfo?: { platform?: string; osName?: string; deviceModel?: string; userAgent?: string } | null
+  ): Promise<void> {
+    if (!sid || !supabaseAdmin || !WORKSHOP_ID) return;
+    const patch: Record<string, unknown> = { last_seen_at: new Date().toISOString() };
+    if (deviceInfo) {
+      if (deviceInfo.platform) patch.platform = deviceInfo.platform;
+      if (deviceInfo.osName) patch.os_name = deviceInfo.osName;
+      if (deviceInfo.deviceModel) patch.device_model = deviceInfo.deviceModel;
+      if (deviceInfo.userAgent) patch.user_agent = deviceInfo.userAgent.slice(0, 512);
+    }
+    try {
+      const { error } = await supabaseAdmin
+        .from("workshop_device_sessions")
+        .update(patch)
+        .eq("id", sid)
+        .eq("workshop_id", WORKSHOP_ID)
+        .is("revoked_at", null);
+      if (error && (deviceInfo?.osName || deviceInfo?.deviceModel)) {
+        // Colunas novas ainda ausentes: atualiza só last_seen (+ platform/ua).
+        await supabaseAdmin
+          .from("workshop_device_sessions")
+          .update({
+            last_seen_at: patch.last_seen_at,
+            ...(deviceInfo.platform ? { platform: deviceInfo.platform } : {}),
+            ...(deviceInfo.userAgent ? { user_agent: deviceInfo.userAgent.slice(0, 512) } : {}),
+          })
+          .eq("id", sid)
+          .eq("workshop_id", WORKSHOP_ID)
+          .is("revoked_at", null);
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+
+  async function requestHasFullAccess(req: express.Request): Promise<boolean> {
+    const auth = (req as unknown as { auth?: SessionPayload }).auth;
+    if (!auth) return false;
+    if (auth.r === "admin") return true;
+    if (auth.r !== "user" || !auth.u || !supabaseAdmin || !WORKSHOP_ID) return false;
+    const { data: me } = await supabaseAdmin
+      .from("workshop_system_users")
+      .select("permissions")
+      .eq("id", auth.u)
+      .eq("workshop_id", WORKSHOP_ID)
+      .maybeSingle();
+    return !!(me?.permissions as Record<string, boolean> | null)?.full_access;
+  }
+
+  async function createDeviceSessionRow(params: {
+    sessionId: string;
+    deviceId: string;
+    role: "admin" | "user";
+    userId?: string | null;
+    username?: string | null;
+    displayName?: string | null;
+    userAgent?: string | null;
+    ipAddress?: string | null;
+    platform?: string | null;
+    osName?: string | null;
+    deviceModel?: string | null;
+  }): Promise<void> {
+    if (!supabaseAdmin || !WORKSHOP_ID || !params.deviceId) return;
+    const ua = (params.userAgent || "").slice(0, 512);
+    const parsed = parseDeviceIdentityFromUserAgent(ua);
+    try {
+      await supabaseAdmin.from("workshop_device_sessions").insert({
+        id: params.sessionId,
+        workshop_id: WORKSHOP_ID,
+        device_id: params.deviceId,
+        role: params.role,
+        user_id: params.userId || null,
+        username: params.username || null,
+        display_name: params.displayName || null,
+        user_agent: ua || null,
+        platform: params.platform || parsed.platform,
+        os_name: params.osName || parsed.osName,
+        device_model: params.deviceModel || parsed.deviceModel,
+        ip_address: params.ipAddress || null,
+        created_at: new Date().toISOString(),
+        last_seen_at: new Date().toISOString(),
+        revoked_at: null,
+      });
+    } catch (err) {
+      // Fallback se a migration de os_name/device_model ainda não rodou.
+      try {
+        await supabaseAdmin.from("workshop_device_sessions").insert({
+          id: params.sessionId,
+          workshop_id: WORKSHOP_ID,
+          device_id: params.deviceId,
+          role: params.role,
+          user_id: params.userId || null,
+          username: params.username || null,
+          display_name: params.displayName || null,
+          user_agent: ua || null,
+          platform: params.platform || parsed.platform,
+          ip_address: params.ipAddress || null,
+          created_at: new Date().toISOString(),
+          last_seen_at: new Date().toISOString(),
+          revoked_at: null,
+        });
+      } catch (err2) {
+        console.warn("[API] Não foi possível registrar sessão de dispositivo:", err2 || err);
+      }
+    }
+  }
+
+  app.use(async (req, res, next) => {
     const urlPath = (req.path || req.url || "").split("?")[0];
     // Só protegemos a API; assets/SPA passam direto.
     if (!urlPath.startsWith("/api/")) return next();
@@ -1250,6 +1535,15 @@ export function createApiApp() {
     // 1) Sessão de staff (token HMAC do login) — acesso pleno.
     const auth = verifySessionToken(bearer);
     if (auth) {
+      const gate = await enforceDeviceSession(req, auth);
+      if (gate === "revoked") {
+        return res.status(401).json({ error: "Sessão encerrada remotamente. Faça login novamente." });
+      }
+      if (gate === "blocked") {
+        return res.status(403).json({
+          error: "Este dispositivo foi bloqueado e não pode acessar o sistema.",
+        });
+      }
       (req as unknown as { auth: SessionPayload }).auth = auth;
       return next();
     }
@@ -1303,8 +1597,11 @@ export function createApiApp() {
     authorDisplayName?: string | null;
     authorPhotoUrl?: string | null;
     source?: string;
+    orderType?: string | null;
   }): Promise<Record<string, unknown>> {
     let budgetNumber: number | null = null;
+    let orderType: "vehicle" | "module" =
+      params.orderType === "module" ? "module" : "vehicle";
     if (supabaseAdmin && WORKSHOP_ID) {
       const { data: rows, error } = await supabaseAdmin
         .from("budgets")
@@ -1319,6 +1616,17 @@ export function createApiApp() {
           budgetNumber = idx >= 0 ? idx + 1 : rows.length;
         } else {
           budgetNumber = rows.length;
+        }
+      }
+      if (params.orderType !== "module" && params.orderType !== "vehicle") {
+        const { data: soRow } = await supabaseAdmin
+          .from("service_orders")
+          .select("order_type")
+          .eq("id", params.serviceOrderId)
+          .eq("workshop_id", WORKSHOP_ID)
+          .maybeSingle();
+        if (String((soRow as { order_type?: string } | null)?.order_type ?? "") === "module") {
+          orderType = "module";
         }
       }
     }
@@ -1337,6 +1645,7 @@ export function createApiApp() {
       author_photo_url: photo,
       technician_name: author,
       budget_number: budgetNumber,
+      order_type: orderType,
       ...(params.source ? { source: params.source } : {}),
     };
   }
@@ -1760,9 +2069,44 @@ export function createApiApp() {
       if (!u) {
         return res.status(400).json({ error: "Informe o usuário." });
       }
+
+      const deviceId = deviceIdFromReq(req);
+      if (deviceId && (await isDeviceBlocked(deviceId))) {
+        return res.status(403).json({
+          error: "Este dispositivo foi bloqueado e não pode acessar o sistema.",
+        });
+      }
+      const headerUa =
+        typeof req.headers["user-agent"] === "string" ? req.headers["user-agent"] : "";
+      const deviceInfo = normalizeDeviceClientInfo(
+        (req.body as { deviceInfo?: unknown } | undefined)?.deviceInfo ?? req.body,
+        headerUa
+      );
+      const sessionId = crypto.randomUUID();
+
       if (await verifyAdmin(u, p)) {
         resetLoginAttempts(ip);
-        return res.json({ role: "admin", token: signSessionToken({ r: "admin", n: ADMIN_USERNAME }) });
+        const token = signSessionToken({
+          r: "admin",
+          n: ADMIN_USERNAME,
+          sid: sessionId,
+          did: deviceId || undefined,
+        });
+        if (deviceId) {
+          await createDeviceSessionRow({
+            sessionId,
+            deviceId,
+            role: "admin",
+            username: ADMIN_USERNAME,
+            displayName: "Gerência",
+            userAgent: deviceInfo.userAgent || headerUa,
+            ipAddress: ip === "unknown" ? null : ip,
+            platform: deviceInfo.platform,
+            osName: deviceInfo.osName,
+            deviceModel: deviceInfo.deviceModel,
+          });
+        }
+        return res.json({ role: "admin", token, sessionId, deviceId: deviceId || null });
       }
       if (!supabaseAdmin || !WORKSHOP_ID) {
         return res.status(401).json({ error: "Usuário ou senha incorretos." });
@@ -1791,6 +2135,28 @@ export function createApiApp() {
         .eq("id", user.id)
         .eq("workshop_id", WORKSHOP_ID);
       const permissions = (user.permissions as Record<string, boolean>) || {};
+      const token = signSessionToken({
+        r: "user",
+        u: user.id,
+        n: user.username,
+        sid: sessionId,
+        did: deviceId || undefined,
+      });
+      if (deviceId) {
+        await createDeviceSessionRow({
+          sessionId,
+          deviceId,
+          role: "user",
+          userId: user.id,
+          username: user.username,
+          displayName: user.display_name || user.username,
+          userAgent: deviceInfo.userAgent || headerUa,
+          ipAddress: ip === "unknown" ? null : ip,
+          platform: deviceInfo.platform,
+          osName: deviceInfo.osName,
+          deviceModel: deviceInfo.deviceModel,
+        });
+      }
       return res.json({
         role: "user",
         userId: user.id,
@@ -1798,7 +2164,9 @@ export function createApiApp() {
         displayName: user.display_name || user.username,
         photoUrl: user.photo_url || null,
         profileToken,
-        token: signSessionToken({ r: "user", u: user.id, n: user.username }),
+        token,
+        sessionId,
+        deviceId: deviceId || null,
         isTechnician: !!(user as { is_technician?: boolean }).is_technician,
         accentColor: (user as { accent_color?: string | null }).accent_color || null,
         permissions,
@@ -1806,6 +2174,388 @@ export function createApiApp() {
     } catch (err: any) {
       console.error("[API] Erro em POST /api/auth/login:", err);
       return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+    }
+  });
+
+  // Heartbeat: marca aparelho como online (last_seen_at) e atualiza modelo/SO.
+  app.post("/api/auth/device-heartbeat", async (req, res) => {
+    try {
+      const auth = (req as unknown as { auth?: SessionPayload }).auth;
+      if (!auth?.sid) {
+        return res.json({ ok: true, tracked: false });
+      }
+      const headerUa =
+        typeof req.headers["user-agent"] === "string" ? req.headers["user-agent"] : "";
+      const deviceInfo = normalizeDeviceClientInfo(req.body, headerUa);
+      await touchDeviceSession(auth.sid, deviceInfo);
+      return res.json({ ok: true, tracked: true });
+    } catch (err: any) {
+      console.error("[API] Erro em POST /api/auth/device-heartbeat:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+    }
+  });
+
+  // Lista sessões ativas + aparelhos bloqueados.
+  app.get("/api/auth/devices", async (req, res) => {
+    try {
+      if (!WORKSHOP_ID || !supabaseAdmin) {
+        return res.status(500).json({ error: "Servidor não configurado." });
+      }
+      const auth = (req as unknown as { auth?: SessionPayload }).auth;
+      if (!auth) {
+        return res.status(401).json({ error: "Não autenticado." });
+      }
+      const canManage = await requestHasFullAccess(req);
+      const currentSid = typeof auth.sid === "string" ? auth.sid : null;
+      const currentDeviceId = deviceIdFromReq(req) || auth.did || null;
+
+      let sessionsQuery: {
+        data: Array<Record<string, unknown>> | null;
+        error: { message?: string; code?: string } | null;
+      } = await supabaseAdmin
+        .from("workshop_device_sessions")
+        .select(
+          "id, device_id, role, user_id, username, display_name, user_agent, platform, os_name, device_model, ip_address, created_at, last_seen_at, revoked_at"
+        )
+        .eq("workshop_id", WORKSHOP_ID)
+        .is("revoked_at", null)
+        .order("last_seen_at", { ascending: false })
+        .limit(200);
+      if (
+        sessionsQuery.error &&
+        /os_name|device_model/i.test(sessionsQuery.error.message || "")
+      ) {
+        sessionsQuery = await supabaseAdmin
+          .from("workshop_device_sessions")
+          .select(
+            "id, device_id, role, user_id, username, display_name, user_agent, platform, ip_address, created_at, last_seen_at, revoked_at"
+          )
+          .eq("workshop_id", WORKSHOP_ID)
+          .is("revoked_at", null)
+          .order("last_seen_at", { ascending: false })
+          .limit(200);
+      }
+      const { data: sessions, error: sessErr } = sessionsQuery;
+      if (sessErr) {
+        return res.status(500).json({
+          error:
+            sessErr.message?.includes("workshop_device_sessions") || sessErr.code === "42P01"
+              ? "Tabela de sessões ainda não foi criada. Rode a migration workshop_device_sessions."
+              : sessErr.message || "Falha ao listar dispositivos.",
+        });
+      }
+
+      const now = Date.now();
+      const mappedSessions = (sessions || []).map((row) => {
+          const userAgent = typeof row.user_agent === "string" ? row.user_agent : null;
+          const lastSeenAt = String(row.last_seen_at || "");
+          const lastSeenMs = new Date(lastSeenAt).getTime();
+          const online = Number.isFinite(lastSeenMs) && now - lastSeenMs <= DEVICE_ONLINE_MS;
+          const parsed = parseDeviceIdentityFromUserAgent(userAgent || "");
+          const role = String(row.role || "user");
+          const username = typeof row.username === "string" ? row.username : null;
+          const displayNameRaw = typeof row.display_name === "string" ? row.display_name : null;
+          const osStored = typeof row.os_name === "string" ? row.os_name.trim() : "";
+          const modelStored = typeof row.device_model === "string" ? row.device_model.trim() : "";
+          return {
+            id: String(row.id),
+            deviceId: String(row.device_id),
+            role,
+            userId: typeof row.user_id === "string" ? row.user_id : null,
+            username,
+            displayName:
+              displayNameRaw || username || (role === "admin" ? "Gerência" : "Usuário"),
+            userAgent,
+            platform: (typeof row.platform === "string" && row.platform) || parsed.platform,
+            osName: osStored || parsed.osName,
+            deviceModel: modelStored || parsed.deviceModel,
+            ipAddress: typeof row.ip_address === "string" ? row.ip_address : null,
+            createdAt: String(row.created_at || ""),
+            lastSeenAt,
+            online,
+            isCurrent: !!currentSid && currentSid === String(row.id),
+          };
+        });
+
+      let blocked: Array<{
+        id: string;
+        deviceId: string;
+        label: string | null;
+        userAgent: string | null;
+        platform: string | null;
+        osName: string | null;
+        deviceModel: string | null;
+        blockedAt: string;
+        reason: string | null;
+      }> = [];
+      if (canManage) {
+        let blockedQuery: {
+          data: Array<Record<string, unknown>> | null;
+          error: { message?: string } | null;
+        } = await supabaseAdmin
+          .from("workshop_blocked_devices")
+          .select("id, device_id, label, user_agent, platform, os_name, device_model, blocked_at, reason")
+          .eq("workshop_id", WORKSHOP_ID)
+          .order("blocked_at", { ascending: false })
+          .limit(100);
+        if (
+          blockedQuery.error &&
+          /os_name|device_model/i.test(blockedQuery.error.message || "")
+        ) {
+          blockedQuery = await supabaseAdmin
+            .from("workshop_blocked_devices")
+            .select("id, device_id, label, user_agent, platform, blocked_at, reason")
+            .eq("workshop_id", WORKSHOP_ID)
+            .order("blocked_at", { ascending: false })
+            .limit(100);
+        }
+        blocked = (blockedQuery.data || []).map((row) => {
+          const userAgent = typeof row.user_agent === "string" ? row.user_agent : null;
+          const parsed = parseDeviceIdentityFromUserAgent(userAgent || "");
+          const osStored = typeof row.os_name === "string" ? row.os_name.trim() : "";
+          const modelStored = typeof row.device_model === "string" ? row.device_model.trim() : "";
+          return {
+            id: String(row.id),
+            deviceId: String(row.device_id),
+            label: typeof row.label === "string" ? row.label : null,
+            userAgent,
+            platform: (typeof row.platform === "string" && row.platform) || parsed.platform,
+            osName: osStored || parsed.osName,
+            deviceModel: modelStored || parsed.deviceModel,
+            blockedAt: String(row.blocked_at),
+            reason: typeof row.reason === "string" ? row.reason : null,
+          };
+        });
+      }
+
+      return res.json({
+        sessions: mappedSessions,
+        blocked,
+        canManage,
+        currentSessionId: currentSid,
+        currentDeviceId,
+        onlineThresholdMs: DEVICE_ONLINE_MS,
+      });
+    } catch (err: any) {
+      console.error("[API] Erro em GET /api/auth/devices:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+    }
+  });
+
+  // Força logout de uma sessão (acesso total / gerência).
+  app.post("/api/auth/devices/:sessionId/revoke", async (req, res) => {
+    try {
+      if (!WORKSHOP_ID || !supabaseAdmin) {
+        return res.status(500).json({ error: "Servidor não configurado." });
+      }
+      if (!(await requestHasFullAccess(req))) {
+        return res.status(403).json({ error: "Apenas usuários com acesso total podem deslogar dispositivos." });
+      }
+      const sessionId = typeof req.params.sessionId === "string" ? req.params.sessionId.trim() : "";
+      if (!sessionId) {
+        return res.status(400).json({ error: "Sessão inválida." });
+      }
+      const nowIso = new Date().toISOString();
+      const { data, error } = await supabaseAdmin
+        .from("workshop_device_sessions")
+        .update({ revoked_at: nowIso })
+        .eq("id", sessionId)
+        .eq("workshop_id", WORKSHOP_ID)
+        .is("revoked_at", null)
+        .select("id, device_id")
+        .maybeSingle();
+      if (error) {
+        return res.status(500).json({ error: error.message || "Falha ao deslogar." });
+      }
+      if (!data) {
+        return res.status(404).json({ error: "Sessão não encontrada ou já encerrada." });
+      }
+      deviceSessionOkCache.set(sessionId, {
+        until: Date.now() + DEVICE_SESSION_CACHE_MS * 10,
+        revoked: true,
+        deviceId: String(data.device_id || ""),
+        blocked: false,
+      });
+      return res.json({ ok: true, sessionId });
+    } catch (err: any) {
+      console.error("[API] Erro em POST /api/auth/devices/:sessionId/revoke:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+    }
+  });
+
+  // Bloqueia um aparelho (impede login + revoga sessões ativas).
+  app.post("/api/auth/devices/block", async (req, res) => {
+    try {
+      if (!WORKSHOP_ID || !supabaseAdmin) {
+        return res.status(500).json({ error: "Servidor não configurado." });
+      }
+      if (!(await requestHasFullAccess(req))) {
+        return res.status(403).json({ error: "Apenas usuários com acesso total podem bloquear dispositivos." });
+      }
+      const auth = (req as unknown as { auth?: SessionPayload }).auth;
+      const body = (req.body || {}) as {
+        deviceId?: unknown;
+        sessionId?: unknown;
+        reason?: unknown;
+        label?: unknown;
+      };
+      let deviceId = typeof body.deviceId === "string" ? body.deviceId.trim() : "";
+      let userAgent: string | null = null;
+      let platform: string | null = null;
+      let osName: string | null = null;
+      let deviceModel: string | null = null;
+      const sessionId = typeof body.sessionId === "string" ? body.sessionId.trim() : "";
+      if ((!deviceId || !userAgent) && sessionId) {
+        let sessQuery: {
+          data: Record<string, unknown> | null;
+          error: { message?: string } | null;
+        } = await supabaseAdmin
+          .from("workshop_device_sessions")
+          .select("device_id, user_agent, platform, os_name, device_model")
+          .eq("id", sessionId)
+          .eq("workshop_id", WORKSHOP_ID)
+          .maybeSingle();
+        if (sessQuery.error && /os_name|device_model/i.test(sessQuery.error.message || "")) {
+          sessQuery = await supabaseAdmin
+            .from("workshop_device_sessions")
+            .select("device_id, user_agent, platform")
+            .eq("id", sessionId)
+            .eq("workshop_id", WORKSHOP_ID)
+            .maybeSingle();
+        }
+        const sess = sessQuery.data;
+        if (sess) {
+          if (!deviceId) deviceId = String(sess.device_id || "").trim();
+          userAgent = typeof sess.user_agent === "string" ? sess.user_agent : null;
+          platform = typeof sess.platform === "string" ? sess.platform : null;
+          osName = typeof sess.os_name === "string" ? sess.os_name : null;
+          deviceModel = typeof sess.device_model === "string" ? sess.device_model : null;
+        }
+      }
+      if (!deviceId) {
+        return res.status(400).json({ error: "Informe o dispositivo a bloquear." });
+      }
+      if (auth?.did && auth.did === deviceId) {
+        return res.status(400).json({
+          error: "Não é possível bloquear o dispositivo em que você está usando agora.",
+        });
+      }
+      const parsedIdentity = parseDeviceIdentityFromUserAgent(userAgent || "");
+      const reason = typeof body.reason === "string" ? body.reason.trim().slice(0, 280) : null;
+      const label = typeof body.label === "string" ? body.label.trim().slice(0, 120) : null;
+      const blockRow = {
+        workshop_id: WORKSHOP_ID,
+        device_id: deviceId,
+        label,
+        user_agent: userAgent,
+        platform: platform || parsedIdentity.platform,
+        os_name: osName || parsedIdentity.osName,
+        device_model: deviceModel || parsedIdentity.deviceModel,
+        blocked_at: new Date().toISOString(),
+        blocked_by_role: auth?.r || null,
+        blocked_by_user_id: auth?.r === "user" ? auth.u || null : null,
+        reason,
+      };
+      let { data: blocked, error: blockErr } = await supabaseAdmin
+        .from("workshop_blocked_devices")
+        .upsert(blockRow, { onConflict: "workshop_id,device_id" })
+        .select("id, device_id, blocked_at")
+        .maybeSingle();
+      if (blockErr && /os_name|device_model/i.test(blockErr.message || "")) {
+        const legacy = { ...blockRow } as Record<string, unknown>;
+        delete legacy.os_name;
+        delete legacy.device_model;
+        const retry = await supabaseAdmin
+          .from("workshop_blocked_devices")
+          .upsert(legacy, { onConflict: "workshop_id,device_id" })
+          .select("id, device_id, blocked_at")
+          .maybeSingle();
+        blocked = retry.data;
+        blockErr = retry.error;
+      }
+      if (blockErr) {
+        return res.status(500).json({ error: blockErr.message || "Falha ao bloquear." });
+      }
+      const nowIso = new Date().toISOString();
+      const { data: revokedRows } = await supabaseAdmin
+        .from("workshop_device_sessions")
+        .update({ revoked_at: nowIso })
+        .eq("workshop_id", WORKSHOP_ID)
+        .eq("device_id", deviceId)
+        .is("revoked_at", null)
+        .select("id");
+      for (const row of revokedRows || []) {
+        deviceSessionOkCache.set(String(row.id), {
+          until: Date.now() + DEVICE_SESSION_CACHE_MS * 10,
+          revoked: true,
+          deviceId,
+          blocked: true,
+        });
+      }
+      blockedDeviceCache.set(deviceId, { until: Date.now() + DEVICE_SESSION_CACHE_MS * 10, blocked: true });
+      return res.json({
+        ok: true,
+        blocked: blocked || { deviceId },
+        revokedCount: (revokedRows || []).length,
+      });
+    } catch (err: any) {
+      console.error("[API] Erro em POST /api/auth/devices/block:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+    }
+  });
+
+  // Remove bloqueio de um aparelho.
+  app.delete("/api/auth/devices/block/:deviceId", async (req, res) => {
+    try {
+      if (!WORKSHOP_ID || !supabaseAdmin) {
+        return res.status(500).json({ error: "Servidor não configurado." });
+      }
+      if (!(await requestHasFullAccess(req))) {
+        return res.status(403).json({ error: "Apenas usuários com acesso total podem desbloquear dispositivos." });
+      }
+      const deviceId = typeof req.params.deviceId === "string" ? decodeURIComponent(req.params.deviceId).trim() : "";
+      if (!deviceId) {
+        return res.status(400).json({ error: "Dispositivo inválido." });
+      }
+      const { error } = await supabaseAdmin
+        .from("workshop_blocked_devices")
+        .delete()
+        .eq("workshop_id", WORKSHOP_ID)
+        .eq("device_id", deviceId);
+      if (error) {
+        return res.status(500).json({ error: error.message || "Falha ao desbloquear." });
+      }
+      blockedDeviceCache.set(deviceId, { until: Date.now() + DEVICE_SESSION_CACHE_MS * 10, blocked: false });
+      return res.json({ ok: true, deviceId });
+    } catch (err: any) {
+      console.error("[API] Erro em DELETE /api/auth/devices/block/:deviceId:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+    }
+  });
+
+  // Encerrar a própria sessão no logout local (best-effort).
+  app.post("/api/auth/logout", async (req, res) => {
+    try {
+      const auth = (req as unknown as { auth?: SessionPayload }).auth;
+      if (auth?.sid && supabaseAdmin && WORKSHOP_ID) {
+        const nowIso = new Date().toISOString();
+        await supabaseAdmin
+          .from("workshop_device_sessions")
+          .update({ revoked_at: nowIso })
+          .eq("id", auth.sid)
+          .eq("workshop_id", WORKSHOP_ID)
+          .is("revoked_at", null);
+        deviceSessionOkCache.set(auth.sid, {
+          until: Date.now() + DEVICE_SESSION_CACHE_MS * 10,
+          revoked: true,
+          deviceId: auth.did || "",
+          blocked: false,
+        });
+      }
+      return res.json({ ok: true });
+    } catch (err: any) {
+      console.error("[API] Erro em POST /api/auth/logout:", err);
+      return res.json({ ok: true });
     }
   });
 
@@ -2283,6 +3033,19 @@ export function createApiApp() {
     }
   }
 
+  function parseLabelTemplatesValue(raw: string | null | undefined): unknown | null {
+    const s = (raw ?? "").trim();
+    if (!s) return null;
+    try {
+      const parsed = JSON.parse(s);
+      if (!parsed || typeof parsed !== "object") return null;
+      if (!(parsed.lab_os || parsed.estoque || parsed.chave || parsed.abs_modulo)) return null;
+      return parsed;
+    } catch {
+      return null;
+    }
+  }
+
   app.get("/api/workshop-settings", async (_req, res) => {
     try {
       if (!supabaseAdmin || !WORKSHOP_ID) {
@@ -2319,6 +3082,7 @@ export function createApiApp() {
         appAppearance,
         labProductKinds: parseLabProductKindsValue(map.lab_product_kinds),
         labQuickServices: parseLabQuickServicesValue(map.lab_quick_services),
+        labelTemplates: parseLabelTemplatesValue(map.label_templates),
       });
     } catch (err: any) {
       console.error("[API] Erro em GET /api/workshop-settings:", err);
@@ -2501,11 +3265,12 @@ export function createApiApp() {
         appAppearance,
         labProductKinds,
         labQuickServices,
+        labelTemplates,
       } = req.body || {};
 
       // Chaves sensíveis (senha de gerência, PIN do pátio, senha de exclusão, acessos e perfil
-      // do admin) só podem ser alteradas pela Gerência. labProductKinds/appAppearance ficam
-      // liberados para usuários autenticados (ex.: laboratório configurando tipos de produto).
+      // do admin) só podem ser alteradas pela Gerência. labProductKinds/appAppearance/labelTemplates
+      // ficam liberados para usuários autenticados (ex.: laboratório configurando tipos/etiquetas).
       const touchesSensitive =
         (typeof adminPassword === "string" && adminPassword.trim()) ||
         typeof patioPin === "string" ||
@@ -2578,6 +3343,13 @@ export function createApiApp() {
           updated_at: new Date().toISOString(),
         });
       }
+      if (labelTemplates !== undefined && labelTemplates !== null && typeof labelTemplates === "object") {
+        updates.push({
+          key: "label_templates",
+          value: JSON.stringify(labelTemplates),
+          updated_at: new Date().toISOString(),
+        });
+      }
       if (updates.length === 0) {
         return res.status(400).json({ error: "Nada para atualizar." });
       }
@@ -2608,6 +3380,7 @@ export function createApiApp() {
           "app_appearance",
           "lab_product_kinds",
           "lab_quick_services",
+          "label_templates",
         ]);
       const map = (data || []).reduce((acc: Record<string, string>, r: { key: string; value: string | null }) => {
         acc[r.key] = r.value ?? "";
@@ -2635,6 +3408,7 @@ export function createApiApp() {
         appAppearance: appAppearanceOut,
         labProductKinds: parseLabProductKindsValue(map.lab_product_kinds),
         labQuickServices: parseLabQuickServicesValue(map.lab_quick_services),
+        labelTemplates: parseLabelTemplatesValue(map.label_templates),
       });
     } catch (err: any) {
       console.error("[API] Erro em PUT /api/workshop-settings:", err);
@@ -3142,6 +3916,16 @@ export function createApiApp() {
       console.error("[API] GET /api/tv/playlist:", err);
       return res.status(500).json({ error: err?.message ?? "Erro ao carregar playlist da TV." });
     }
+  });
+
+  /**
+   * Painel TV do pátio (HTML) com cronômetro vermelho vivo na coluna Mecânico.
+   * Mesmo deploy do app — abre em https://…/api/tv/display (sem repo Patio-View).
+   */
+  app.get("/api/tv/display", (_req, res) => {
+    res.setHeader("Content-Type", "text/html; charset=utf-8");
+    res.setHeader("Cache-Control", "no-store");
+    return res.status(200).send(buildTvPatioDisplayHtml());
   });
 
   /** Lista completa (inclui inativos) para gestão no app (?scope=patio | laboratorio). */
@@ -3892,10 +4676,7 @@ export function createApiApp() {
   );
 
   function normalizePlacaInput(raw: unknown): string {
-    return String(raw ?? "")
-      .replace(/[^a-zA-Z0-9]/g, "")
-      .toUpperCase()
-      .slice(0, 8);
+    return normalizeBrazilianPlate(raw);
   }
 
   /** Consulta dados do veículo pela placa (token só no servidor: PLACAFIPE_TOKEN). */
@@ -3964,13 +4745,23 @@ export function createApiApp() {
       if (cil) engineParts.push(`${cil} cc`);
       if (comb) engineParts.push(comb);
       const vehicleEngineInfo = engineParts.length > 0 ? engineParts.join(" · ") : null;
+      const vehicleChassis = str(info.chassi) || str(info.chassis) || null;
 
       const municipio = str(info.municipio);
       const uf = str(info.uf);
       const citySuggestion =
         municipio && uf ? `${municipio} — ${uf}` : municipio || uf || null;
 
-      const plateApi = (str(info.placa) || str(data.placa) || placa).toUpperCase();
+      // Preferir a placa consultada pelo usuário. A PlacaFipe costuma devolver em
+      // informacoes_veiculo.placa o formato antigo (ex.: ABC1D23 → ABC1234), o que
+      // sobrescrevia placas Mercosul digitadas no cadastro.
+      const plateFromTop = normalizePlacaInput(data.placa);
+      const plateFromInfo = normalizePlacaInput(info.placa);
+      const plateApi =
+        placa ||
+        plateFromTop ||
+        plateFromInfo ||
+        "";
 
       return res.json({
         plate: plateApi,
@@ -3979,6 +4770,7 @@ export function createApiApp() {
         vehicleColor: cor || null,
         vehicleYear,
         vehicleEngineInfo,
+        vehicleChassis,
         citySuggestion,
       });
     } catch (err: unknown) {
@@ -3990,10 +4782,10 @@ export function createApiApp() {
 
   // ----------------- ORDENS DE SERVIÇO -----------------
   const SERVICE_ORDERS_LIST_SELECT =
-    "id, os_number, customer_id, vehicle_model, vehicle_brand, module_identification, module_kind, module_vehicle_kind, module_product_other, plate, mileage_km, delivery_date, vehicle_observations, issue_description, ai_analysis, status, assigned_technician, garantia_tag, agenda_tag, order_type, vehicle_category, vehicle_color, vehicle_year, vehicle_engine_info, reference_links, lab_service_links, lab_evaluated_service, lab_evaluated_at, lab_evaluated_by_name, bench_slot, bench_slot_at, bench_queued_at, oficina_shelf, external_repair, diagnostic_authorization_signed_at, diagnostic_authorization_signature_path, created_at, updated_at";
+    "id, os_number, customer_id, vehicle_model, vehicle_brand, module_identification, module_kind, module_vehicle_kind, module_product_other, plate, mileage_km, delivery_date, vehicle_observations, issue_description, ai_analysis, status, assigned_technician, garantia_tag, agenda_tag, order_type, vehicle_category, vehicle_color, vehicle_year, vehicle_engine_info, vehicle_chassis, reference_links, lab_service_links, lab_evaluated_service, lab_evaluated_at, lab_evaluated_by_name, bench_slot, bench_slot_at, bench_queued_at, oficina_shelf, external_repair, diagnostic_authorization_signed_at, diagnostic_authorization_signature_path, created_at, updated_at";
   /** Fallback quando migrações recentes ainda não foram aplicadas no projeto Supabase. */
   const SERVICE_ORDERS_LIST_SELECT_MINIMAL =
-    "id, os_number, customer_id, vehicle_model, vehicle_brand, module_identification, plate, mileage_km, delivery_date, issue_description, ai_analysis, status, assigned_technician, garantia_tag, agenda_tag, order_type, vehicle_category, vehicle_color, vehicle_year, vehicle_engine_info, reference_links, diagnostic_authorization_signed_at, diagnostic_authorization_signature_path, created_at, updated_at";
+    "id, os_number, customer_id, vehicle_model, vehicle_brand, module_identification, plate, mileage_km, delivery_date, issue_description, ai_analysis, status, assigned_technician, garantia_tag, agenda_tag, order_type, vehicle_category, vehicle_color, vehicle_year, vehicle_engine_info, vehicle_chassis, reference_links, diagnostic_authorization_signed_at, diagnostic_authorization_signature_path, created_at, updated_at";
   /** Último fallback — só colunas essenciais quando migrações parciais quebram o select reduzido. */
   const SERVICE_ORDERS_LIST_SELECT_CORE =
     "id, os_number, customer_id, vehicle_model, vehicle_brand, plate, mileage_km, delivery_date, issue_description, status, assigned_technician, order_type, vehicle_category, created_at, updated_at";
@@ -4361,12 +5153,48 @@ export function createApiApp() {
         }
       }
 
+      /**
+       * Cronômetro p/ TV Pátio (Patio-View): sem mecânico em Aguardando Avaliação.
+       * Usa letras matemáticas sans-serif (𝗁/𝗆/𝖽) para sobreviver ao CSS `uppercase`
+       * do Patio-View e manter h/m/d visualmente em minúsculo.
+       */
+      const formatTvWaitElapsed = (sinceIso: unknown, nowMs: number): string | null => {
+        if (typeof sinceIso !== "string" || !sinceIso.trim()) return null;
+        const start = new Date(sinceIso).getTime();
+        if (!Number.isFinite(start)) return null;
+        const totalMin = Math.max(0, Math.floor((nowMs - start) / 60_000));
+        const totalH = Math.floor(totalMin / 60);
+        // U+1D5C1 𝗁, U+1D5C6 𝗆, U+1D5BD 𝖽
+        const h = "\uD835\uDDC1";
+        const m = "\uD835\uDDC6";
+        const d = "\uD835\uDDBD";
+        if (totalH < 24) {
+          const mins = totalMin % 60;
+          return `${totalH}${h} ${String(mins).padStart(2, "0")}${m}`;
+        }
+        const days = Math.floor(totalH / 24);
+        const remH = totalH % 24;
+        return remH > 0 ? `${days}${d} ${remH}${h}` : `${days}${d}`;
+      };
+      const nowMs = Date.now();
+
       const enriched = rows.map((r: Record<string, unknown> & { assigned_technician?: string | null; customer_id?: string }) => {
         const tech = r.assigned_technician;
-        const name =
-          tech == null
+        const techId = tech == null ? "" : String(tech).trim();
+        let name: string | null =
+          !techId
             ? null
-            : technicianNameMap[tech as string] ?? technicianNameMap[(tech as string).trim().toLowerCase()] ?? null;
+            : technicianNameMap[techId] ?? technicianNameMap[techId.toLowerCase()] ?? null;
+        const status = String(r.status ?? "").toUpperCase();
+        const orderType = String(r.order_type ?? "vehicle").toLowerCase();
+        // Fallback p/ Patio-View: injeta o tempo em assigned_technician_name (coluna Mecânico).
+        if (
+          !techId &&
+          orderType !== "module" &&
+          status === "AGUARDANDO_AVALIACAO"
+        ) {
+          name = formatTvWaitElapsed(r.created_at, nowMs);
+        }
         const customerName = (r.customer_id && customerNameMap[r.customer_id]) ? customerNameMap[r.customer_id] : null;
         return { ...r, assigned_technician_name: name, customer_name: customerName };
       });
@@ -4695,6 +5523,7 @@ export function createApiApp() {
         vehicleColor: bodyVehicleColor,
         vehicleYear: bodyVehicleYear,
         vehicleEngineInfo: bodyVehicleEngineInfo,
+        vehicleChassis: bodyVehicleChassis,
         vehicleBrand: bodyVehicleBrand,
         moduleKind: bodyModuleKind,
         moduleVehicleKind: bodyModuleVehicleKind,
@@ -4771,6 +5600,8 @@ export function createApiApp() {
         orderType === "vehicle" ? trimOrNull(bodyVehicleYear) : null;
       const vehicleEngineInfoIns =
         orderType === "vehicle" ? trimOrNull(bodyVehicleEngineInfo) : null;
+      const vehicleChassisIns =
+        orderType === "vehicle" ? trimOrNull(bodyVehicleChassis) : null;
       const vehicleBrandIns =
         orderType === "vehicle" ? trimOrNull(bodyVehicleBrand) : null;
 
@@ -4825,6 +5656,7 @@ export function createApiApp() {
         vehicle_color: vehicleColorIns,
         vehicle_year: vehicleYearIns,
         vehicle_engine_info: vehicleEngineInfoIns,
+        vehicle_chassis: vehicleChassisIns,
         bench_slot: benchFields.bench_slot,
         bench_slot_at: benchFields.bench_slot_at,
         bench_queued_at: benchFields.bench_queued_at,
@@ -5348,6 +6180,341 @@ export function createApiApp() {
       return res.json(data);
     } catch (err: any) {
       console.error("[API] Erro em GET /api/service-orders/:id:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+    }
+  });
+
+  /**
+   * Histórico de manutenções do veículo — sempre pela placa (não pelo cliente).
+   * Inclui todas as OS da mesma placa: outros proprietários, cadastros e arquivadas.
+   * Query opcional: ?plate=ABC1D23 (prioridade sobre a placa da OS).
+   */
+  app.get("/api/service-orders/:id/maintenance-history", async (req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({ error: "Servidor não configurado." });
+      }
+      const id = reqOrderId(req);
+      if (!id) return res.status(400).json({ error: "ID da OS inválido." });
+
+      const { data: current, error: curErr } = await supabaseAdmin
+        .from("service_orders")
+        .select(
+          "id, os_number, status, plate, vehicle_model, vehicle_brand, mileage_km, order_type, created_at, updated_at, customer_id, customers(name)"
+        )
+        .eq("id", id)
+        .eq("workshop_id", WORKSHOP_ID)
+        .single();
+      if (curErr || !current) {
+        return res.status(404).json({ error: "Ordem de serviço não encontrada." });
+      }
+      if (String((current as { order_type?: string }).order_type ?? "") === "module") {
+        return res.status(400).json({ error: "Histórico de manutenções é exclusivo de veículos." });
+      }
+
+      const plateFromQuery = normalizePlacaInput(req.query?.plate);
+      const plateFromOrder = normalizePlacaInput((current as { plate?: string | null }).plate);
+      const plateNorm = plateFromQuery.length >= 5 ? plateFromQuery : plateFromOrder;
+      const plateDisplay =
+        plateFromQuery.length >= 5
+          ? String(req.query.plate ?? "").trim().toUpperCase() || plateNorm
+          : ((current as { plate?: string | null }).plate ?? plateNorm);
+
+      if (plateNorm.length < 5) {
+        return res.json({
+          plate: (current as { plate?: string | null }).plate ?? null,
+          plateKey: null,
+          lookupBy: "plate",
+          vehicleModel: (current as { vehicle_model?: string | null }).vehicle_model ?? null,
+          vehicleBrand: (current as { vehicle_brand?: string | null }).vehicle_brand ?? null,
+          visits: [],
+          services: [],
+          parts: [],
+          summary: { visits: 0, services: 0, parts: 0, owners: 0 },
+        });
+      }
+
+      // Busca ampla por oficina + tipo veículo; une Mercosul e formato antigo
+      // (ABC1C34 ≡ ABC1234). Inclui arquivadas (CANCELLED). Independente de customer_id.
+      const plateIdentity = brazilianPlateIdentityKey(plateNorm);
+      const { data: orderRows, error: ordErr } = await supabaseAdmin
+        .from("service_orders")
+        .select(
+          "id, os_number, status, plate, vehicle_model, vehicle_brand, mileage_km, created_at, updated_at, customer_id, customers(name)"
+        )
+        .eq("workshop_id", WORKSHOP_ID)
+        .eq("order_type", "vehicle")
+        .order("created_at", { ascending: false })
+        .limit(2500);
+      if (ordErr) {
+        console.error("[API] maintenance-history orders:", ordErr);
+        return res.status(500).json({ error: ordErr.message });
+      }
+
+      const visitsBase = (orderRows ?? []).filter(
+        (row) =>
+          brazilianPlateIdentityKey((row as { plate?: string | null }).plate) ===
+          plateIdentity
+      );
+      const orderIds = visitsBase.map((r) => String((r as { id: string }).id));
+
+      type BudgetRow = {
+        id: string;
+        service_order_id: string;
+        services?: {
+          description?: string;
+          approved?: boolean;
+          labor_hours?: number | null;
+        }[] | null;
+        parts?: {
+          description?: string;
+          quantity?: string;
+          approved?: boolean;
+          fromStock?: boolean;
+          workshopPartId?: string;
+        }[] | null;
+        created_at?: string;
+      };
+
+      let budgets: BudgetRow[] = [];
+      if (orderIds.length > 0) {
+        const { data: budgetRows, error: budErr } = await supabaseAdmin
+          .from("budgets")
+          .select("id, service_order_id, services, parts, created_at")
+          .eq("workshop_id", WORKSHOP_ID)
+          .in("service_order_id", orderIds);
+        if (budErr) {
+          console.error("[API] maintenance-history budgets:", budErr);
+          return res.status(500).json({ error: budErr.message });
+        }
+        budgets = (budgetRows ?? []) as BudgetRow[];
+      }
+
+      type TechRow = {
+        service_order_id: string;
+        description: string;
+        technician_id: string | null;
+      };
+      let techRows: TechRow[] = [];
+      if (orderIds.length > 0) {
+        try {
+          const { data: tRows, error: tErr } = await supabaseAdmin
+            .from("service_order_service_technicians")
+            .select("service_order_id, description, technician_id")
+            .eq("workshop_id", WORKSHOP_ID)
+            .in("service_order_id", orderIds);
+          if (tErr) throw tErr;
+          techRows = (tRows ?? []) as TechRow[];
+        } catch (techErr: unknown) {
+          const msg = techErr instanceof Error ? techErr.message : String(techErr);
+          if (!/does not exist|relation|schema cache/i.test(msg)) {
+            console.error("[API] maintenance-history technicians:", techErr);
+          }
+        }
+      }
+
+      const techIds = [
+        ...new Set(
+          techRows
+            .map((t) => (t.technician_id || "").trim())
+            .filter(Boolean)
+        ),
+      ];
+      const techNames = techIds.length > 0 ? await mapTechnicianUsersByIds(techIds) : {};
+
+      const budgetsByOrder = new Map<string, BudgetRow[]>();
+      for (const b of budgets) {
+        const sid = String(b.service_order_id);
+        const list = budgetsByOrder.get(sid) ?? [];
+        list.push(b);
+        budgetsByOrder.set(sid, list);
+      }
+
+      const techByOrder = new Map<string, TechRow[]>();
+      for (const t of techRows) {
+        const sid = String(t.service_order_id);
+        const list = techByOrder.get(sid) ?? [];
+        list.push(t);
+        techByOrder.set(sid, list);
+      }
+
+      const stageLabel = (status: string) => {
+        if (status === CANCELLED_STATUS) return "Arquivado";
+        return SERVICE_ORDER_STAGES.find((s) => s.id === status)?.name ?? status;
+      };
+
+      type VisitService = {
+        description: string;
+        laborHours: number | null;
+        technicianName: string | null;
+        budgetId: string | null;
+      };
+      type VisitPart = {
+        description: string;
+        quantity: string;
+        fromStock: boolean;
+        workshopPartId: string | null;
+        budgetId: string | null;
+      };
+
+      const customerNameOf = (row: Record<string, unknown>): string | null => {
+        const nested = row.customers as { name?: string | null } | null | undefined;
+        const fromJoin = typeof nested?.name === "string" ? nested.name.trim() : "";
+        if (fromJoin) return fromJoin;
+        return null;
+      };
+
+      const visits = visitsBase.map((row) => {
+        const sid = String((row as { id: string }).id);
+        const status = String((row as { status?: string }).status ?? "");
+        const finalized = status === "FINALIZADO";
+        const archived = status === CANCELLED_STATUS;
+        const orderBudgets = budgetsByOrder.get(sid) ?? [];
+        const orderTechs = techByOrder.get(sid) ?? [];
+        const techByDesc = new Map<string, string>();
+        for (const t of orderTechs) {
+          const key = normalizeServiceDescription(String(t.description ?? ""));
+          const tid = (t.technician_id || "").trim();
+          if (key && tid && !techByDesc.has(key)) {
+            techByDesc.set(key, techNames[tid] || "Técnico");
+          }
+        }
+
+        const services: VisitService[] = [];
+        const seenSvc = new Set<string>();
+        for (const budget of orderBudgets) {
+          for (const svc of Array.isArray(budget.services) ? budget.services : []) {
+            if (svc?.approved !== true) continue;
+            const description = String(svc.description ?? "").trim();
+            if (!description) continue;
+            const key = normalizeServiceDescription(description);
+            if (seenSvc.has(key)) continue;
+            seenSvc.add(key);
+            const hours =
+              typeof svc.labor_hours === "number" && Number.isFinite(svc.labor_hours)
+                ? svc.labor_hours
+                : null;
+            services.push({
+              description,
+              laborHours: hours,
+              technicianName: techByDesc.get(key) ?? null,
+              budgetId: budget.id ?? null,
+            });
+          }
+        }
+
+        const parts: VisitPart[] = [];
+        const seenPart = new Set<string>();
+        for (const budget of orderBudgets) {
+          for (const part of Array.isArray(budget.parts) ? budget.parts : []) {
+            if (part?.approved !== true) continue;
+            const description = String(part.description ?? "").trim();
+            if (!description) continue;
+            const workshopPartId =
+              typeof part.workshopPartId === "string" && part.workshopPartId.trim()
+                ? part.workshopPartId.trim()
+                : null;
+            const fromStock = part.fromStock === true || Boolean(workshopPartId);
+            const key = workshopPartId
+              ? `id:${workshopPartId}`
+              : `name:${normalizeBudgetPartName(description)}`;
+            if (seenPart.has(key)) continue;
+            seenPart.add(key);
+            const qtyRaw = String(part.quantity ?? "1").trim() || "1";
+            parts.push({
+              description,
+              quantity: qtyRaw,
+              fromStock,
+              workshopPartId,
+              budgetId: budget.id ?? null,
+            });
+          }
+        }
+
+        return {
+          serviceOrderId: sid,
+          osNumber:
+            typeof (row as { os_number?: number | null }).os_number === "number"
+              ? (row as { os_number: number }).os_number
+              : null,
+          status,
+          statusLabel: stageLabel(status),
+          finalized,
+          archived,
+          isCurrent: sid === id,
+          plate: (row as { plate?: string | null }).plate ?? null,
+          vehicleModel: (row as { vehicle_model?: string | null }).vehicle_model ?? null,
+          customerName: customerNameOf(row as Record<string, unknown>),
+          customerId: (row as { customer_id?: string | null }).customer_id ?? null,
+          mileageKm: (row as { mileage_km?: string | null }).mileage_km ?? null,
+          createdAt: (row as { created_at?: string }).created_at ?? null,
+          updatedAt: (row as { updated_at?: string }).updated_at ?? null,
+          services,
+          parts,
+        };
+      });
+
+      /**
+       * Mantém passagens com manutenção (serviços/peças aprovados), finalizadas/arquivadas
+       * com histórico, e a OS atual — sempre unidas pela placa.
+       */
+      const meaningfulVisits = visits.filter(
+        (v) =>
+          v.isCurrent ||
+          v.services.length > 0 ||
+          v.parts.length > 0 ||
+          v.finalized ||
+          v.archived
+      );
+
+      const ownerKeys = new Set(
+        meaningfulVisits
+          .map((v) => (v.customerId || v.customerName || "").trim().toLowerCase())
+          .filter(Boolean)
+      );
+
+      const flatServices = meaningfulVisits.flatMap((v) =>
+        v.services.map((s) => ({
+          ...s,
+          serviceOrderId: v.serviceOrderId,
+          osNumber: v.osNumber,
+          customerName: v.customerName,
+          at: v.updatedAt || v.createdAt,
+          finalized: v.finalized,
+          statusLabel: v.statusLabel,
+        }))
+      );
+      const flatParts = meaningfulVisits.flatMap((v) =>
+        v.parts.map((p) => ({
+          ...p,
+          serviceOrderId: v.serviceOrderId,
+          osNumber: v.osNumber,
+          customerName: v.customerName,
+          at: v.updatedAt || v.createdAt,
+          finalized: v.finalized,
+          statusLabel: v.statusLabel,
+        }))
+      );
+
+      return res.json({
+        plate: plateDisplay,
+        /** Chave de identidade (Mercosul e antigo colapsam no formato antigo). */
+        plateKey: plateIdentity,
+        lookupBy: "plate",
+        vehicleModel: (current as { vehicle_model?: string | null }).vehicle_model ?? null,
+        vehicleBrand: (current as { vehicle_brand?: string | null }).vehicle_brand ?? null,
+        visits: meaningfulVisits,
+        services: flatServices,
+        parts: flatParts,
+        summary: {
+          visits: meaningfulVisits.length,
+          services: flatServices.length,
+          parts: flatParts.length,
+          owners: ownerKeys.size,
+        },
+      });
+    } catch (err: any) {
+      console.error("[API] Erro em GET /api/service-orders/:id/maintenance-history:", err);
       return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
     }
   });
@@ -6809,6 +7976,7 @@ export function createApiApp() {
         authorDisplayName: labActorMeta.name,
         authorPhotoUrl: labActorMeta.photoUrl,
         source: "lab_evaluation",
+        orderType: "module",
       });
       const technicianIds = await getTechnicianRecipientIdsForSystemType("budget_created");
       for (const techId of technicianIds) {
@@ -7182,7 +8350,7 @@ export function createApiApp() {
 
       const { data: so, error: soError } = await supabaseAdmin
         .from("service_orders")
-        .select("id, plate, vehicle_model, assigned_technician, customers(name)")
+        .select("id, plate, vehicle_model, assigned_technician, order_type, customers(name)")
         .eq("id", serviceOrderId)
         .eq("workshop_id", WORKSHOP_ID)
         .single();
@@ -7256,6 +8424,10 @@ export function createApiApp() {
         customerName: customerNameBudget || null,
         authorDisplayName: actorMeta.name,
         authorPhotoUrl: actorMeta.photoUrl,
+        orderType:
+          String((so as { order_type?: string | null }).order_type ?? "vehicle") === "module"
+            ? "module"
+            : "vehicle",
       });
       if (isTechnicianActor) {
         const shouldAdmin = await shouldNotifyAdminForSystemType("budget_created");
@@ -7303,7 +8475,7 @@ export function createApiApp() {
 
       const { data: so, error: soError } = await supabaseAdmin
         .from("service_orders")
-        .select("id, plate, vehicle_model, assigned_technician, customers(name)")
+        .select("id, plate, vehicle_model, assigned_technician, order_type, customers(name)")
         .eq("id", serviceOrderId)
         .eq("workshop_id", WORKSHOP_ID)
         .single();
@@ -7438,6 +8610,10 @@ export function createApiApp() {
         customerName: customerNameBudgetEdit || null,
         authorDisplayName: actorMeta.name,
         authorPhotoUrl: actorMeta.photoUrl,
+        orderType:
+          String((so as { order_type?: string | null }).order_type ?? "vehicle") === "module"
+            ? "module"
+            : "vehicle",
       });
 
       if (approvalOnlyUpdate) {
@@ -7606,18 +8782,7 @@ export function createApiApp() {
       }
 
       const { id: serviceOrderId } = req.params;
-
-      const { data: so } = await supabaseAdmin
-        .from("service_orders")
-        .select("id")
-        .eq("id", serviceOrderId)
-        .eq("workshop_id", WORKSHOP_ID)
-        .single();
-
-      if (!so) {
-        return res.status(404).json({ error: "Ordem de serviço não encontrada." });
-      }
-
+      // Sem pré-check da OS: 1 RTT a menos. Comentários já filtrados por service_order_id.
       const { data, error } = await supabaseAdmin
         .from("service_order_comments")
         .select("id, author_display_name, text, created_at, author_photo_url, updated_at, author_key")
@@ -7668,17 +8833,27 @@ export function createApiApp() {
       > = {};
 
       if (commentIds.length > 0) {
-        const { data: views, error: viewsErr } = await supabaseAdmin
-          .from("service_order_comment_views")
-          .select("comment_id, reader_key, reader_display_name, viewed_at")
-          .eq("workshop_id", WORKSHOP_ID)
-          .in("comment_id", commentIds);
+        // Views + reações em paralelo (antes era sequencial).
+        const [viewsRes, reactionsRes] = await Promise.all([
+          supabaseAdmin
+            .from("service_order_comment_views")
+            .select("comment_id, reader_key, reader_display_name, viewed_at")
+            .eq("workshop_id", WORKSHOP_ID)
+            .in("comment_id", commentIds),
+          supabaseAdmin
+            .from("service_order_comment_reactions")
+            .select("id, comment_id, reactor_key, reactor_display_name, emoji, created_at")
+            .eq("workshop_id", WORKSHOP_ID)
+            .in("comment_id", commentIds),
+        ]);
+
+        const viewsErr = viewsRes.error;
         if (viewsErr) {
           if (!/does not exist|schema cache|Could not find the table/i.test(String(viewsErr.message || ""))) {
             console.error("[API] Erro ao listar views de comentários:", viewsErr);
           }
         } else {
-          for (const row of views ?? []) {
+          for (const row of viewsRes.data ?? []) {
             const cid = String((row as { comment_id?: string }).comment_id || "");
             if (!cid) continue;
             if (!viewsByComment[cid]) viewsByComment[cid] = [];
@@ -7695,11 +8870,7 @@ export function createApiApp() {
           }
         }
 
-        const { data: reactions, error: reactionsErr } = await supabaseAdmin
-          .from("service_order_comment_reactions")
-          .select("id, comment_id, reactor_key, reactor_display_name, emoji, created_at")
-          .eq("workshop_id", WORKSHOP_ID)
-          .in("comment_id", commentIds);
+        const reactionsErr = reactionsRes.error;
         if (reactionsErr) {
           if (
             !/does not exist|schema cache|Could not find the table/i.test(
@@ -7709,7 +8880,7 @@ export function createApiApp() {
             console.error("[API] Erro ao listar reações de comentários:", reactionsErr);
           }
         } else {
-          for (const row of reactions ?? []) {
+          for (const row of reactionsRes.data ?? []) {
             const cid = String((row as { comment_id?: string }).comment_id || "");
             if (!cid) continue;
             if (!reactionsByComment[cid]) reactionsByComment[cid] = [];
@@ -7757,7 +8928,7 @@ export function createApiApp() {
 
       const { data: so } = await supabaseAdmin
         .from("service_orders")
-        .select("id, plate, vehicle_model, assigned_technician, customers(name)")
+        .select("id, plate, vehicle_model, assigned_technician, order_type, customers(name)")
         .eq("id", serviceOrderId)
         .eq("workshop_id", WORKSHOP_ID)
         .single();
@@ -7867,6 +9038,10 @@ export function createApiApp() {
         ? String((so.customers as { name: string }).name ?? "")
         : "";
       const authorPhotoUrlForPayload = createdComment.author_photo_url ?? authorPhotoUrl;
+      const commentOrderType =
+        String((so as { order_type?: string | null }).order_type ?? "vehicle") === "module"
+          ? "module"
+          : "vehicle";
       const commentPayload = {
         service_order_id: serviceOrderId,
         comment_id: createdComment.id,
@@ -7876,6 +9051,7 @@ export function createApiApp() {
         vehicle_plate: so.plate ?? null,
         vehicle_model: so.vehicle_model ?? null,
         customer_name: customerName || null,
+        order_type: commentOrderType,
       };
 
       // Comentário de técnico / usuário → notificar admin + usuários com acesso total escolhidos para o modal
@@ -9761,11 +10937,13 @@ export function createApiApp() {
 
   const MOVEMENT_SELECT =
     "id, workshop_id, part_id, movement_type, quantity, unit_price, total_amount, notes, " +
-    "barcode_scanned, recorded_by_name, stock_before, stock_after, created_at, service_order_id";
+    "barcode_scanned, recorded_by_name, stock_before, stock_after, created_at, service_order_id, " +
+    "supplier_id, supplier_name, nfe_number, unit_cost, product_total, invoice_total, purchase_id";
   const MOVEMENT_SELECT_LEGACY =
     "id, workshop_id, part_id, movement_type, quantity, unit_price, total_amount, notes, " +
     "barcode_scanned, recorded_by_name, stock_before, stock_after, created_at";
   let movementsHaveServiceOrderId: boolean | null = null;
+  let movementsHavePurchaseMeta: boolean | null = null;
 
   function markMovementsServiceOrderMissingFromError(message: string | undefined): boolean {
     if (!message) return false;
@@ -9777,9 +10955,31 @@ export function createApiApp() {
   }
 
   function movementSelectColumns(): string {
-    // Só inclui service_order_id depois de confirmar que a coluna existe
+    // Só inclui colunas novas depois de confirmar que existem
     // (evita quebrar cancelamento/listagem antes da migration).
-    return movementsHaveServiceOrderId === true ? MOVEMENT_SELECT : MOVEMENT_SELECT_LEGACY;
+    if (movementsHavePurchaseMeta === false) {
+      return movementsHaveServiceOrderId === true
+        ? "id, workshop_id, part_id, movement_type, quantity, unit_price, total_amount, notes, " +
+            "barcode_scanned, recorded_by_name, stock_before, stock_after, created_at, service_order_id"
+        : MOVEMENT_SELECT_LEGACY;
+    }
+    return movementsHaveServiceOrderId === false
+      ? MOVEMENT_SELECT_LEGACY +
+          ", supplier_id, supplier_name, nfe_number, unit_cost, product_total, invoice_total, purchase_id"
+      : MOVEMENT_SELECT;
+  }
+
+  function markMovementsPurchaseMetaMissingFromError(message: string | undefined): boolean {
+    if (!message) return false;
+    if (
+      /nfe_number|supplier_name|unit_cost|product_total|invoice_total|purchase_id|supplier_id/i.test(
+        message
+      )
+    ) {
+      movementsHavePurchaseMeta = false;
+      return true;
+    }
+    return false;
   }
 
   async function lookupWorkshopPartRowByCode(codeRaw: string): Promise<Record<string, unknown> | null> {
@@ -10069,7 +11269,7 @@ export function createApiApp() {
     try {
       const typeRaw = String(req.query.type ?? "").trim().toLowerCase();
       const movementType =
-        typeRaw === "sale" || typeRaw === "consumable"
+        typeRaw === "sale" || typeRaw === "consumable" || typeRaw === "purchase"
           ? (typeRaw as WorkshopPartStockMovementType)
           : null;
       const limit = Math.min(200, Math.max(1, Number(req.query.limit ?? 40) || 40));
@@ -10092,6 +11292,13 @@ export function createApiApp() {
         });
       }
 
+      // Filtra por OS sempre que pedirem — exceto se já soubermos que a coluna não existe.
+      // (Antes: só filtrava com flag === true; em cold start a flag era null e a API
+      // devolvia TODAS as baixas, poluindo "Peças do estoque" de cada veículo.)
+      const filterByOsColumn =
+        !!serviceOrderId && movementsHaveServiceOrderId !== false;
+      let appliedOsColumnFilter = false;
+
       let query = supabaseAdmin
         .from("workshop_part_stock_movements")
         .select(movementSelectColumns())
@@ -10099,13 +11306,14 @@ export function createApiApp() {
         .order("created_at", { ascending: false })
         .limit(limit);
       if (movementType) query = query.eq("movement_type", movementType);
-      // Só filtra pela coluna depois de confirmada — senão PostgREST quebra o cancelamento/listagem.
-      if (serviceOrderId && movementsHaveServiceOrderId === true) {
+      if (filterByOsColumn) {
         query = query.eq("service_order_id", serviceOrderId);
+        appliedOsColumnFilter = true;
       }
 
       let { data, error } = await query;
-      if (error && markMovementsServiceOrderMissingFromError(error.message)) {
+      if (error && markMovementsPurchaseMetaMissingFromError(error.message)) {
+        appliedOsColumnFilter = false;
         let retry = supabaseAdmin
           .from("workshop_part_stock_movements")
           .select(movementSelectColumns())
@@ -10113,6 +11321,22 @@ export function createApiApp() {
           .order("created_at", { ascending: false })
           .limit(limit);
         if (movementType) retry = retry.eq("movement_type", movementType);
+        if (filterByOsColumn && movementsHaveServiceOrderId !== false) {
+          retry = retry.eq("service_order_id", serviceOrderId);
+          appliedOsColumnFilter = true;
+        }
+        ({ data, error } = await retry);
+      }
+      if (error && markMovementsServiceOrderMissingFromError(error.message)) {
+        appliedOsColumnFilter = false;
+        let retry = supabaseAdmin
+          .from("workshop_part_stock_movements")
+          .select(movementSelectColumns())
+          .eq("workshop_id", WORKSHOP_ID)
+          .order("created_at", { ascending: false })
+          .limit(limit);
+        if (movementType) retry = retry.eq("movement_type", movementType);
+        // Coluna ausente: sem eq(service_order_id); o filtro em memória usa OS_ID: nas notes.
         ({ data, error } = await retry);
       }
       if (error) {
@@ -10122,12 +11346,25 @@ export function createApiApp() {
         console.error("[API] Erro ao listar movimentações:", error);
         return res.status(500).json({ error: error.message });
       }
+      if (movementsHavePurchaseMeta == null) movementsHavePurchaseMeta = true;
+      if (appliedOsColumnFilter) {
+        movementsHaveServiceOrderId = true;
+      }
 
       let rows = (data ?? []) as unknown as Array<Record<string, unknown>>;
-      // Sem coluna (ou ainda não confirmada): filtra pelo marcador nas notes.
-      if (serviceOrderId && movementsHaveServiceOrderId !== true) {
+      // Rede de segurança: nunca devolver baixas de outras OS quando service_order_id foi pedido.
+      if (serviceOrderId) {
         const marker = `OS_ID:${serviceOrderId}`;
-        rows = rows.filter((r) => String(r.notes ?? "").includes(marker));
+        rows = rows.filter((r) => {
+          const rowOs =
+            r.service_order_id != null && String(r.service_order_id).trim()
+              ? String(r.service_order_id).trim()
+              : "";
+          if (rowOs) return rowOs === serviceOrderId;
+          // Select pode omitir a coluna (retry de purchase meta); se o DB já filtrou, confia.
+          if (appliedOsColumnFilter) return true;
+          return String(r.notes ?? "").includes(marker);
+        });
       }
       const partIds = [...new Set(rows.map((r) => String(r.part_id)).filter(Boolean))];
       let nameById = new Map<string, { name: string; unit_of_measure: string; photo_url: string | null }>();
@@ -10154,18 +11391,49 @@ export function createApiApp() {
         );
       }
 
+      const osIds = [
+        ...new Set(
+          rows
+            .map((r) => (r.service_order_id != null ? String(r.service_order_id) : ""))
+            .filter(Boolean)
+        ),
+      ];
+      const osLabelById = new Map<string, string>();
+      if (osIds.length > 0) {
+        const { data: osRows } = await supabaseAdmin
+          .from("service_orders")
+          .select("id, plate, os_number, vehicle_model, customers(name)")
+          .eq("workshop_id", WORKSHOP_ID)
+          .in("id", osIds);
+        for (const os of (osRows ?? []) as Array<Record<string, unknown>>) {
+          const cust = os.customers as { name?: string } | null;
+          const bits = [
+            os.os_number != null ? `OS ${os.os_number}` : null,
+            os.plate ? String(os.plate) : null,
+            cust?.name ? String(cust.name) : null,
+            os.vehicle_model ? String(os.vehicle_model) : null,
+          ].filter(Boolean);
+          osLabelById.set(String(os.id), bits.join(" · ") || String(os.id));
+        }
+      }
+
       const items = rows.map((r) => {
         const meta = nameById.get(String(r.part_id));
+        const osId = r.service_order_id != null ? String(r.service_order_id) : null;
         return {
           ...r,
           quantity: Number(r.quantity ?? 0),
           unit_price: r.unit_price != null ? Number(r.unit_price) : null,
           total_amount: r.total_amount != null ? Number(r.total_amount) : null,
+          unit_cost: r.unit_cost != null ? Number(r.unit_cost) : null,
+          product_total: r.product_total != null ? Number(r.product_total) : null,
+          invoice_total: r.invoice_total != null ? Number(r.invoice_total) : null,
           stock_before: Number(r.stock_before ?? 0),
           stock_after: Number(r.stock_after ?? 0),
           part_name: meta?.name ?? null,
           part_unit_of_measure: meta?.unit_of_measure ?? "UN",
           part_photo_url: meta?.photo_url ?? null,
+          service_order_label: osId ? osLabelById.get(osId) ?? null : null,
         };
       });
 
@@ -10582,6 +11850,23 @@ export function createApiApp() {
         });
       }
       const { id } = req.params;
+
+      // Movimentações referenciam a peça com ON DELETE RESTRICT (legado).
+      // Remover antes de excluir o produto evita violação de FK.
+      const { error: movError } = await supabaseAdmin
+        .from("workshop_part_stock_movements")
+        .delete()
+        .eq("part_id", id)
+        .eq("workshop_id", WORKSHOP_ID);
+      if (movError) {
+        console.error("[API] Erro ao excluir movimentações da peça:", movError);
+        return res.status(500).json({
+          error:
+            movError.message ||
+            "Não foi possível excluir as movimentações vinculadas a este produto.",
+        });
+      }
+
       const { error } = await supabaseAdmin
         .from("workshop_parts")
         .delete()
@@ -10589,6 +11874,13 @@ export function createApiApp() {
         .eq("workshop_id", WORKSHOP_ID);
       if (error) {
         console.error("[API] Erro ao excluir peça:", error);
+        const msg = String(error.message || "");
+        if (/workshop_part_stock_movements_part_id_fkey|foreign key/i.test(msg)) {
+          return res.status(500).json({
+            error:
+              "Este produto ainda tem movimentações de estoque vinculadas. Aplique a migration que remove a restrição (CASCADE) ou tente novamente.",
+          });
+        }
         return res.status(500).json({ error: error.message });
       }
       return res.status(204).send();
@@ -10944,6 +12236,515 @@ export function createApiApp() {
 
       return res.status(204).send();
     } catch (err: any) {
+      return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+    }
+  });
+
+  // ----------------- RECEBIMENTO (entrada + NF-e) -----------------
+  app.post("/api/workshop-parts/:partId/receive", async (req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({ error: "Supabase não configurado." });
+      }
+      const { partId } = req.params;
+      const body = (req.body || {}) as Record<string, unknown>;
+      const quantity = Number(body.quantity);
+      if (!Number.isFinite(quantity) || quantity <= 0) {
+        return res.status(400).json({ error: "Informe a quantidade recebida." });
+      }
+      const unitCostRaw =
+        body.unit_cost !== undefined && body.unit_cost !== null && body.unit_cost !== ""
+          ? Number(body.unit_cost)
+          : 0;
+      if (!Number.isFinite(unitCostRaw) || unitCostRaw < 0) {
+        return res.status(400).json({ error: "Custo unitário inválido." });
+      }
+      const productTotalRaw =
+        body.product_total !== undefined && body.product_total !== null && body.product_total !== ""
+          ? Number(body.product_total)
+          : unitCostRaw * quantity;
+      if (!Number.isFinite(productTotalRaw) || productTotalRaw < 0) {
+        return res.status(400).json({ error: "Valor do produto inválido." });
+      }
+      const invoiceTotalRaw =
+        body.invoice_total !== undefined && body.invoice_total !== null && body.invoice_total !== ""
+          ? Number(body.invoice_total)
+          : null;
+      if (invoiceTotalRaw != null && (!Number.isFinite(invoiceTotalRaw) || invoiceTotalRaw < 0)) {
+        return res.status(400).json({ error: "Valor total da nota inválido." });
+      }
+
+      const nfeNumber = parseOptionalText(body.nfe_number);
+      const supplierId =
+        typeof body.supplier_id === "string" && body.supplier_id.trim()
+          ? body.supplier_id.trim()
+          : null;
+      const supplierName = parseOptionalText(body.supplier_name);
+      const notes = parseOptionalText(body.notes);
+      const recordedByName = parseOptionalText(body.recorded_by_name);
+      const updatePartCost = body.update_part_cost === true;
+
+      const { data: rpcData, error: rpcError } = await supabaseAdmin.rpc(
+        "apply_workshop_part_stock_inbound",
+        {
+          p_workshop_id: WORKSHOP_ID,
+          p_part_id: partId,
+          p_quantity: quantity,
+          p_unit_cost: unitCostRaw,
+          p_product_total: productTotalRaw,
+          p_invoice_total: invoiceTotalRaw,
+          p_nfe_number: nfeNumber,
+          p_supplier_id: supplierId,
+          p_supplier_name: supplierName,
+          p_notes: notes,
+          p_recorded_by_name: recordedByName,
+          p_update_part_cost: updatePartCost,
+        }
+      );
+
+      if (!rpcError && rpcData) {
+        const payload = rpcData as Record<string, unknown>;
+        return res.status(201).json(payload);
+      }
+
+      // Fallback sem RPC (migration ainda não aplicada): só ajusta estoque + compra básica.
+      if (rpcError) {
+        console.warn("[API] receive RPC:", rpcError.message);
+      }
+
+      const { data: partRow, error: partErr } = await supabaseAdmin
+        .from("workshop_parts")
+        .select("id, name, stock_qty, unit_price, unit_of_measure, photo_url, barcode")
+        .eq("id", partId)
+        .eq("workshop_id", WORKSHOP_ID)
+        .maybeSingle();
+      if (partErr) return res.status(500).json({ error: partErr.message });
+      if (!partRow) return res.status(404).json({ error: "Produto não encontrado." });
+
+      const before = Number(partRow.stock_qty ?? 0);
+      const after = Math.round((before + quantity) * 1000) / 1000;
+      const partPatch: Record<string, unknown> = { stock_qty: after };
+      if (updatePartCost && unitCostRaw > 0) partPatch.unit_price = unitCostRaw;
+      const { error: updErr } = await supabaseAdmin
+        .from("workshop_parts")
+        .update(partPatch)
+        .eq("id", partId)
+        .eq("workshop_id", WORKSHOP_ID);
+      if (updErr) return res.status(500).json({ error: updErr.message });
+
+      const purchaseInsert: Record<string, unknown> = {
+        workshop_id: WORKSHOP_ID,
+        part_id: partId,
+        supplier_name: supplierName,
+        quantity,
+        unit_cost: unitCostRaw,
+        notes,
+        status: "received",
+      };
+      if (supplierId) purchaseInsert.supplier_id = supplierId;
+      if (nfeNumber) purchaseInsert.nfe_number = nfeNumber;
+      purchaseInsert.product_total = productTotalRaw;
+      if (invoiceTotalRaw != null) purchaseInsert.invoice_total = invoiceTotalRaw;
+      if (recordedByName) purchaseInsert.recorded_by_name = recordedByName;
+
+      const { data: purchase, error: purchaseErr } = await supabaseAdmin
+        .from("workshop_part_purchases")
+        .insert(purchaseInsert)
+        .select("*")
+        .single();
+      if (purchaseErr) {
+        // Reverte estoque se a compra falhar por colunas novas ausentes.
+        await supabaseAdmin
+          .from("workshop_parts")
+          .update({ stock_qty: before })
+          .eq("id", partId)
+          .eq("workshop_id", WORKSHOP_ID);
+        return res.status(500).json({
+          error:
+            purchaseErr.message.includes("nfe_number") ||
+            purchaseErr.message.includes("product_total")
+              ? "Aplique a migration de recebimento/fornecedores no Supabase."
+              : purchaseErr.message,
+        });
+      }
+
+      const movementInsert: Record<string, unknown> = {
+        workshop_id: WORKSHOP_ID,
+        part_id: partId,
+        movement_type: "purchase",
+        quantity,
+        unit_price: null,
+        total_amount: productTotalRaw,
+        notes,
+        recorded_by_name: recordedByName,
+        stock_before: before,
+        stock_after: after,
+      };
+      if (supplierId) movementInsert.supplier_id = supplierId;
+      if (supplierName) movementInsert.supplier_name = supplierName;
+      if (nfeNumber) movementInsert.nfe_number = nfeNumber;
+      movementInsert.unit_cost = unitCostRaw;
+      movementInsert.product_total = productTotalRaw;
+      if (invoiceTotalRaw != null) movementInsert.invoice_total = invoiceTotalRaw;
+      if (purchase?.id) movementInsert.purchase_id = purchase.id;
+
+      let movement: Record<string, unknown> | null = null;
+      const { data: movData, error: movErr } = await supabaseAdmin
+        .from("workshop_part_stock_movements")
+        .insert(movementInsert)
+        .select("*")
+        .single();
+      if (movErr) {
+        // Estoque/compra já ok — histórico pode falhar se CHECK ainda não aceita purchase.
+        console.warn("[API] receive movement insert:", movErr.message);
+      } else {
+        movement = movData as Record<string, unknown>;
+        movementsHavePurchaseMeta = true;
+      }
+
+      return res.status(201).json({
+        movement,
+        purchase,
+        part: {
+          id: partRow.id,
+          name: partRow.name,
+          stock_qty: after,
+          unit_price: updatePartCost && unitCostRaw > 0 ? unitCostRaw : partRow.unit_price,
+          unit_of_measure: partRow.unit_of_measure || "UN",
+          photo_url: partRow.photo_url,
+          barcode: partRow.barcode,
+        },
+      });
+    } catch (err: any) {
+      console.error("[API] Erro em POST /api/workshop-parts/:partId/receive:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+    }
+  });
+
+  // ----------------- FORNECEDORES -----------------
+  const SUPPLIER_SELECT =
+    "id, workshop_id, name, trade_name, document, email, phone, whatsapp, contact_name, " +
+    "address_street, address_number, address_complement, address_neighborhood, address_city, " +
+    "address_state, address_zip, notes, active, created_at, updated_at";
+
+  function supplierPayloadFromBody(body: Record<string, unknown>, partial = false) {
+    const name = parseOptionalText(body.name);
+    if (!partial && !name) {
+      throw new Error("Informe o nome do fornecedor.");
+    }
+    const patch: Record<string, unknown> = {};
+    if (body.name !== undefined || !partial) patch.name = name;
+    if (body.trade_name !== undefined || !partial)
+      patch.trade_name = parseOptionalText(body.trade_name);
+    if (body.document !== undefined || !partial)
+      patch.document = normalizeSupplierDocument(parseOptionalText(body.document));
+    if (body.email !== undefined || !partial) patch.email = parseOptionalText(body.email);
+    if (body.phone !== undefined || !partial) patch.phone = parseOptionalText(body.phone);
+    if (body.whatsapp !== undefined || !partial)
+      patch.whatsapp = parseOptionalText(body.whatsapp);
+    if (body.contact_name !== undefined || !partial)
+      patch.contact_name = parseOptionalText(body.contact_name);
+    if (body.address_street !== undefined || !partial)
+      patch.address_street = parseOptionalText(body.address_street);
+    if (body.address_number !== undefined || !partial)
+      patch.address_number = parseOptionalText(body.address_number);
+    if (body.address_complement !== undefined || !partial)
+      patch.address_complement = parseOptionalText(body.address_complement);
+    if (body.address_neighborhood !== undefined || !partial)
+      patch.address_neighborhood = parseOptionalText(body.address_neighborhood);
+    if (body.address_city !== undefined || !partial)
+      patch.address_city = parseOptionalText(body.address_city);
+    if (body.address_state !== undefined || !partial) {
+      const st = parseOptionalText(body.address_state);
+      patch.address_state = st ? st.toUpperCase().slice(0, 2) : null;
+    }
+    if (body.address_zip !== undefined || !partial)
+      patch.address_zip = parseOptionalText(body.address_zip);
+    if (body.notes !== undefined || !partial) patch.notes = parseOptionalText(body.notes);
+    if (body.active !== undefined) patch.active = body.active !== false;
+    else if (!partial) patch.active = true;
+    patch.updated_at = new Date().toISOString();
+    return patch;
+  }
+
+  app.get("/api/workshop-suppliers", async (req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({ error: "Supabase não configurado." });
+      }
+      const q = String(req.query.q ?? "").trim();
+      const activeMode = String(req.query.active ?? "1").toLowerCase();
+      let query = supabaseAdmin
+        .from("workshop_suppliers")
+        .select(SUPPLIER_SELECT)
+        .eq("workshop_id", WORKSHOP_ID)
+        .order("name", { ascending: true })
+        .limit(200);
+      if (activeMode !== "all") query = query.eq("active", true);
+      const { data, error } = await query;
+      if (error) {
+        if (/workshop_suppliers/i.test(error.message || "")) {
+          return res.json({ items: [] });
+        }
+        return res.status(500).json({ error: error.message });
+      }
+      let items = (data ?? []) as unknown as Array<Record<string, unknown>>;
+      if (q) {
+        const needle = q.toLocaleLowerCase("pt-BR");
+        items = items.filter((row) =>
+          [row.name, row.trade_name, row.document, row.email, row.phone, row.contact_name, row.address_city]
+            .filter(Boolean)
+            .join(" ")
+            .toLocaleLowerCase("pt-BR")
+            .includes(needle)
+        );
+      }
+      return res.json({ items });
+    } catch (err: any) {
+      return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+    }
+  });
+
+  app.post("/api/workshop-suppliers", async (req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({ error: "Supabase não configurado." });
+      }
+      let patch: Record<string, unknown>;
+      try {
+        patch = supplierPayloadFromBody((req.body || {}) as Record<string, unknown>, false);
+      } catch (e: any) {
+        return res.status(400).json({ error: e?.message ?? "Dados inválidos." });
+      }
+      const { data, error } = await supabaseAdmin
+        .from("workshop_suppliers")
+        .insert({ ...patch, workshop_id: WORKSHOP_ID })
+        .select(SUPPLIER_SELECT)
+        .single();
+      if (error) {
+        if (/workshop_suppliers/i.test(error.message || "")) {
+          return res.status(500).json({
+            error: "Aplique a migration de fornecedores no Supabase (workshop_suppliers).",
+          });
+        }
+        return res.status(500).json({ error: error.message });
+      }
+      return res.status(201).json(data);
+    } catch (err: any) {
+      return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+    }
+  });
+
+  app.put("/api/workshop-suppliers/:id", async (req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({ error: "Supabase não configurado." });
+      }
+      const { id } = req.params;
+      let patch: Record<string, unknown>;
+      try {
+        patch = supplierPayloadFromBody((req.body || {}) as Record<string, unknown>, true);
+      } catch (e: any) {
+        return res.status(400).json({ error: e?.message ?? "Dados inválidos." });
+      }
+      if (patch.name === null) {
+        return res.status(400).json({ error: "Informe o nome do fornecedor." });
+      }
+      const { data, error } = await supabaseAdmin
+        .from("workshop_suppliers")
+        .update(patch)
+        .eq("id", id)
+        .eq("workshop_id", WORKSHOP_ID)
+        .select(SUPPLIER_SELECT)
+        .maybeSingle();
+      if (error) return res.status(500).json({ error: error.message });
+      if (!data) return res.status(404).json({ error: "Fornecedor não encontrado." });
+      return res.json(data);
+    } catch (err: any) {
+      return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+    }
+  });
+
+  app.delete("/api/workshop-suppliers/:id", async (req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({ error: "Supabase não configurado." });
+      }
+      const { id } = req.params;
+      // Soft-delete: preserva histórico de compras.
+      const { data, error } = await supabaseAdmin
+        .from("workshop_suppliers")
+        .update({ active: false, updated_at: new Date().toISOString() })
+        .eq("id", id)
+        .eq("workshop_id", WORKSHOP_ID)
+        .select("id")
+        .maybeSingle();
+      if (error) return res.status(500).json({ error: error.message });
+      if (!data) return res.status(404).json({ error: "Fornecedor não encontrado." });
+      return res.json({ ok: true });
+    } catch (err: any) {
+      return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+    }
+  });
+
+  // ----------------- HISTÓRICO UNIFICADO (peças + ABS) -----------------
+  app.get("/api/estoque/ledger", async (req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({ error: "Supabase não configurado." });
+      }
+      const limit = Math.min(200, Math.max(1, Number(req.query.limit ?? 100) || 100));
+      const perSource = Math.min(150, Math.max(limit, 40));
+
+      let partItems: Array<Record<string, unknown>> = [];
+      {
+        let query = supabaseAdmin
+          .from("workshop_part_stock_movements")
+          .select(movementSelectColumns())
+          .eq("workshop_id", WORKSHOP_ID)
+          .order("created_at", { ascending: false })
+          .limit(perSource);
+        let { data, error } = await query;
+        if (error && markMovementsPurchaseMetaMissingFromError(error.message)) {
+          ({ data, error } = await supabaseAdmin
+            .from("workshop_part_stock_movements")
+            .select(movementSelectColumns())
+            .eq("workshop_id", WORKSHOP_ID)
+            .order("created_at", { ascending: false })
+            .limit(perSource));
+        }
+        if (error && markMovementsServiceOrderMissingFromError(error.message)) {
+          ({ data, error } = await supabaseAdmin
+            .from("workshop_part_stock_movements")
+            .select(movementSelectColumns())
+            .eq("workshop_id", WORKSHOP_ID)
+            .order("created_at", { ascending: false })
+            .limit(perSource));
+        }
+        if (!error) {
+          partItems = (data ?? []) as unknown as Array<Record<string, unknown>>;
+        }
+      }
+
+      const partIds = [...new Set(partItems.map((r) => String(r.part_id)).filter(Boolean))];
+      const nameById = new Map<string, { name: string; unit_of_measure: string }>();
+      if (partIds.length > 0) {
+        const { data: partsRows } = await supabaseAdmin
+          .from("workshop_parts")
+          .select("id, name, unit_of_measure")
+          .eq("workshop_id", WORKSHOP_ID)
+          .in("id", partIds);
+        for (const p of (partsRows ?? []) as Array<Record<string, unknown>>) {
+          nameById.set(String(p.id), {
+            name: String(p.name ?? "Produto"),
+            unit_of_measure: String(p.unit_of_measure || "UN"),
+          });
+        }
+      }
+
+      const osIds = [
+        ...new Set(
+          partItems
+            .map((r) => (r.service_order_id != null ? String(r.service_order_id) : ""))
+            .filter(Boolean)
+        ),
+      ];
+      const osLabelById = new Map<string, string>();
+      if (osIds.length > 0) {
+        const { data: osRows } = await supabaseAdmin
+          .from("service_orders")
+          .select("id, plate, os_number, vehicle_model, customers(name)")
+          .eq("workshop_id", WORKSHOP_ID)
+          .in("id", osIds);
+        for (const os of (osRows ?? []) as Array<Record<string, unknown>>) {
+          const cust = os.customers as { name?: string } | null;
+          const bits = [
+            os.os_number != null ? `OS ${os.os_number}` : null,
+            os.plate ? String(os.plate) : null,
+            cust?.name ? String(cust.name) : null,
+            os.vehicle_model ? String(os.vehicle_model) : null,
+          ].filter(Boolean);
+          osLabelById.set(String(os.id), bits.join(" · ") || String(os.id));
+        }
+      }
+
+      const partMovements = partItems.map((r) => {
+        const meta = nameById.get(String(r.part_id));
+        const osId = r.service_order_id != null ? String(r.service_order_id) : null;
+        return {
+          id: String(r.id),
+          workshop_id: String(r.workshop_id ?? WORKSHOP_ID),
+          part_id: String(r.part_id),
+          movement_type: String(r.movement_type) as WorkshopPartStockMovementType,
+          quantity: Number(r.quantity ?? 0),
+          unit_price: r.unit_price != null ? Number(r.unit_price) : null,
+          total_amount: r.total_amount != null ? Number(r.total_amount) : null,
+          notes: (r.notes as string) ?? null,
+          barcode_scanned: (r.barcode_scanned as string) ?? null,
+          recorded_by_name: (r.recorded_by_name as string) ?? null,
+          stock_before: Number(r.stock_before ?? 0),
+          stock_after: Number(r.stock_after ?? 0),
+          created_at: String(r.created_at),
+          service_order_id: osId,
+          service_order_label: osId ? osLabelById.get(osId) ?? null : null,
+          supplier_id: r.supplier_id != null ? String(r.supplier_id) : null,
+          supplier_name: (r.supplier_name as string) ?? null,
+          nfe_number: (r.nfe_number as string) ?? null,
+          unit_cost: r.unit_cost != null ? Number(r.unit_cost) : null,
+          product_total: r.product_total != null ? Number(r.product_total) : null,
+          invoice_total: r.invoice_total != null ? Number(r.invoice_total) : null,
+          purchase_id: r.purchase_id != null ? String(r.purchase_id) : null,
+          part_name: meta?.name ?? null,
+          part_unit_of_measure: meta?.unit_of_measure ?? "UN",
+          part_photo_url: null,
+        };
+      });
+
+      let absMovements: WorkshopAbsModuleMovementListItem[] = [];
+      const { data: absRows, error: absErr } = await supabaseAdmin
+        .from("workshop_abs_module_movements")
+        .select(
+          "id, workshop_id, module_id, movement_type, from_status, to_status, from_location, to_location, " +
+            "reason_type, reason_ref, notes, recorded_by_name, service_order_id, created_at, " +
+            "module:workshop_abs_modules(public_id, module_kind, manufacturer, sequence_number, status, original_code, unit_cost, unit_price)"
+        )
+        .eq("workshop_id", WORKSHOP_ID)
+        .order("created_at", { ascending: false })
+        .limit(perSource);
+      if (!absErr && absRows) {
+        absMovements = (absRows as unknown as Array<Record<string, unknown>>).map((row) => {
+          const mod = (row.module as Record<string, unknown> | null) || {};
+          return {
+            id: String(row.id),
+            workshop_id: String(row.workshop_id ?? ""),
+            module_id: String(row.module_id),
+            movement_type: row.movement_type as WorkshopAbsModuleMovementListItem["movement_type"],
+            from_status: (row.from_status as string) ?? null,
+            to_status: (row.to_status as string) ?? null,
+            from_location: (row.from_location as string) ?? null,
+            to_location: (row.to_location as string) ?? null,
+            reason_type: (row.reason_type as string) ?? null,
+            reason_ref: (row.reason_ref as string) ?? null,
+            notes: (row.notes as string) ?? null,
+            recorded_by_name: (row.recorded_by_name as string) ?? null,
+            service_order_id: row.service_order_id != null ? String(row.service_order_id) : null,
+            created_at: String(row.created_at),
+            public_id: String(mod.public_id ?? ""),
+            module_kind: (mod.module_kind as string) ?? null,
+            manufacturer: (mod.manufacturer as string) ?? null,
+            sequence_number: mod.sequence_number != null ? Number(mod.sequence_number) : null,
+            status: (mod.status as string) ?? null,
+            original_code: (mod.original_code as string) ?? null,
+            unit_cost: mod.unit_cost != null ? Number(mod.unit_cost) : null,
+            unit_price: mod.unit_price != null ? Number(mod.unit_price) : null,
+          };
+        });
+      }
+
+      const items = mergeEstoqueLedger(partMovements as any, absMovements, limit);
+      return res.json({ items });
+    } catch (err: any) {
+      console.error("[API] Erro em GET /api/estoque/ledger:", err);
       return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
     }
   });
@@ -11306,7 +13107,14 @@ export function createApiApp() {
   });
 
   // ----------------- MÓDULOS ABS (inventário individual + QR) -----------------
-  registerAbsModuleRoutes(app, { WORKSHOP_ID, supabaseAdmin });
+  registerAbsModuleRoutes(app, {
+    WORKSHOP_ID,
+    supabaseAdmin,
+    upload,
+    photosBucket: VEHICLE_PHOTOS_BUCKET,
+    // Excluir módulos ABS do estoque: senha da Gerência (ou proteção do estoque).
+    verifyDeletePassword: verifyStockGuardPassword,
+  });
 
   // ----------------- TÉCNICOS DA OFICINA (atribuição nos cards) -----------------
   const capitalizeTechnicianName = (s: string) =>
@@ -11699,6 +13507,7 @@ export function createApiApp() {
         vehicleColor: bodyVehicleColorPut,
         vehicleYear: bodyVehicleYearPut,
         vehicleEngineInfo: bodyVehicleEngineInfoPut,
+        vehicleChassis: bodyVehicleChassisPut,
         vehicleBrand: bodyVehicleBrandPut,
         moduleKind: bodyModuleKindPut,
         moduleVehicleKind: bodyModuleVehicleKindPut,
@@ -11817,6 +13626,7 @@ export function createApiApp() {
           updatePayload.vehicle_color = null;
           updatePayload.vehicle_year = null;
           updatePayload.vehicle_engine_info = null;
+          updatePayload.vehicle_chassis = null;
           updatePayload.vehicle_brand = null;
         } else if (bodyOrderType === "vehicle") {
           updatePayload.module_kind = null;
@@ -11847,6 +13657,12 @@ export function createApiApp() {
           bodyVehicleEngineInfoPut == null || String(bodyVehicleEngineInfoPut).trim() === ""
             ? null
             : String(bodyVehicleEngineInfoPut).trim();
+      }
+      if (bodyVehicleChassisPut !== undefined) {
+        updatePayload.vehicle_chassis =
+          bodyVehicleChassisPut == null || String(bodyVehicleChassisPut).trim() === ""
+            ? null
+            : String(bodyVehicleChassisPut).trim();
       }
       if (bodyReferenceLinks !== undefined) {
         if (!Array.isArray(bodyReferenceLinks)) {

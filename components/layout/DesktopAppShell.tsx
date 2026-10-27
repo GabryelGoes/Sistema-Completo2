@@ -45,7 +45,7 @@ export type DesktopAppShellProps = {
   orcamentosBadge?: number;
   notificationCenter?: Omit<NotificationCenterProps, 'placement'>;
   shellOverlayTopbar?: DesktopShellOverlayTopbar | null;
-  /** Atalho da sidebar aberto (Central, Estoque, Configurações). */
+  /** Atalho da sidebar aberto (Estoque, Painéis) ou hub de Ajustes. */
   activeSidebarAction?: DesktopSidebarActionId | null;
   /** Contagem ao lado do título (ex.: veículos no Pátio). */
   topbarCountLabel?: string;
@@ -229,15 +229,15 @@ export function DesktopAppShell({
             title={
               sidebarCollapsed
                 ? theme === 'dark'
-                  ? 'Tema escuro: ligado'
-                  : 'Tema escuro: desligado'
+                  ? 'Aparência escura: ligada'
+                  : 'Aparência escura: desligada'
                 : undefined
             }
           >
             {!sidebarCollapsed ? (
               <span className="desktop-shell-theme-toggle-leading">
                 <Moon className="desktop-shell-theme-toggle-icon h-4 w-4 shrink-0" strokeWidth={2.25} />
-                <span className="desktop-shell-theme-toggle-label">Tema escuro</span>
+                <span className="desktop-shell-theme-toggle-label">Aparência escura</span>
               </span>
             ) : null}
             <IosSwitch
@@ -246,7 +246,7 @@ export function DesktopAppShell({
               size="compact"
               checked={theme === 'dark'}
               onChange={() => onThemeChange(theme === 'dark' ? 'light' : 'dark')}
-              ariaLabel="Ativar tema escuro"
+              ariaLabel="Ativar aparência escura"
             />
           </div>
         ) : null}
@@ -296,8 +296,8 @@ export function DesktopAppShell({
                 type="button"
                 className="desktop-shell-topbar-btn"
                 onClick={onOpenSettings}
-                aria-label="Configurações"
-                title="Configurações"
+                aria-label="Ajustes"
+                title="Ajustes"
               >
                 <Settings className="h-4 w-4" strokeWidth={2} />
               </button>

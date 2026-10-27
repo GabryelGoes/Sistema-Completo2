@@ -1,0 +1,192 @@
+/**
+ * HTML do painel TV do pátio (cronômetro vermelho na coluna Mecânico).
+ * Servido em GET /api/tv/display — mesmo deploy do app, sem repo Patio-View.
+ */
+export function buildTvPatioDisplayHtml(): string {
+  return `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Rei do ABS — Painel de Pátio (TV)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    html, body { margin: 0; height: 100%; background: #000; color: #fff; overflow: hidden; }
+    body { font-family: Inter, system-ui, sans-serif; }
+    .timer-red {
+      color: #FF0000 !important;
+      font-weight: 900 !important;
+      -webkit-text-fill-color: #FF0000 !important;
+    }
+    .timer-red svg { color: #FF0000; stroke: #FF0000; }
+  </style>
+</head>
+<body>
+  <div id="root" class="flex h-full min-h-screen flex-col bg-black">
+    <header class="flex shrink-0 items-end justify-between border-b border-white/10 px-6 pb-3 pt-4">
+      <div>
+        <div class="text-3xl font-black italic leading-none text-yellow-400">REI DO ABS</div>
+        <div class="mt-1 text-xs font-bold uppercase tracking-[0.2em] text-white/40">Pátio</div>
+      </div>
+      <div id="clock" class="font-mono text-lg tabular-nums text-white/50">--:--</div>
+    </header>
+    <div class="flex shrink-0 items-center justify-between px-6 py-2">
+      <p id="count" class="text-xs font-black uppercase tracking-[0.14em] text-yellow-500/60">Carregando…</p>
+      <p id="page" class="text-xs font-bold uppercase tracking-wider text-white/30"></p>
+    </div>
+    <main id="board" class="flex min-h-0 flex-1 flex-col gap-2 px-4 pb-4"></main>
+  </div>
+  <script>
+    const PER_PAGE = 6;
+    const PAGE_MS = 7000;
+    const REFRESH_MS = 15000;
+    const STATUS_MAP = {
+      AGUARDANDO_AVALIACAO: 'Aguardando Avaliação',
+      AVALIACAO_TECNICA: 'Avaliação Técnica',
+      AGUARDANDO_APROVACAO: 'Aguardando Aprovação',
+      ORCAMENTO_APROVADO: 'Orçamento Aprovado',
+      AGUARDANDO_PECAS: 'Aguardando Peças',
+      PECAS_DISPONIVEIS: 'Peças Disponíveis',
+      EM_SERVICO: 'Em Serviço',
+      FASE_DE_TESTE: 'Fase de Teste',
+      FINALIZADO: 'Finalizado',
+      GARANTIA: 'Garantia',
+      ORCAMENTO_NAO_APROVADO: 'Orçamento Não Aprovado',
+    };
+    const PRIORITY = {
+      'Garantia': 1, 'Aguardando Avaliação': 2, 'Avaliação Técnica': 4,
+      'Aguardando Aprovação': 5, 'Orçamento Aprovado': 7, 'Aguardando Peças': 8,
+      'Peças Disponíveis': 9, 'Em Serviço': 10, 'Fase de Teste': 11,
+      'Finalizado': 12, 'Orçamento Não Aprovado': 13,
+    };
+    function stageClass(stage) {
+      const s = stage.toLowerCase();
+      if (s.includes('não aprovado') || s.includes('nao aprovado')) return 'bg-rose-700 text-white';
+      if (s.includes('garantia')) return 'bg-red-600 text-white';
+      if (s.includes('avaliação') && s.includes('aguardando')) return 'bg-zinc-500 text-white';
+      if (s.includes('aguardando aprovação') || s.includes('aguardando aprovacao')) return 'bg-amber-500 text-amber-950';
+      if (s.includes('avaliação técnica') || s.includes('avaliacao tecnica')) return 'bg-[#F5D00B] text-black';
+      if (s.includes('orçamento aprovado') || s.includes('orcamento aprovado')) return 'bg-orange-600 text-white';
+      if (s.includes('disponíve') || s.includes('disponive')) return 'bg-pink-500 text-white';
+      if (s.includes('aguardando') && (s.includes('peças') || s.includes('pecas'))) return 'bg-teal-500 text-white';
+      if (s.includes('serviço') || s.includes('servico')) return 'bg-blue-600 text-white';
+      if (s.includes('fase de teste')) return 'bg-sky-500 text-white';
+      if (s.includes('finalizado')) return 'bg-green-900 text-white';
+      return 'bg-zinc-800 text-white';
+    }
+    function isAwaiting(stage) {
+      const s = stage.toLowerCase().normalize('NFD').replace(/[\\u0300-\\u036f]/g, '');
+      return s.includes('aguardando') && s.includes('avaliacao');
+    }
+    function formatElapsed(iso, now) {
+      if (!iso) return null;
+      const start = new Date(iso).getTime();
+      if (!Number.isFinite(start)) return null;
+      const totalMin = Math.max(0, Math.floor((now - start) / 60000));
+      const totalH = Math.floor(totalMin / 60);
+      if (totalH < 24) {
+        const m = totalMin % 60;
+        return totalH + 'h ' + String(m).padStart(2, '0') + 'm';
+      }
+      const days = Math.floor(totalH / 24);
+      const remH = totalH % 24;
+      return remH > 0 ? days + 'd ' + remH + 'h' : days + 'd';
+    }
+    function firstName(name) {
+      const n = (name || '').trim();
+      if (!n) return 'Cliente';
+      return n.split(/\\s+/).filter(Boolean)[0] || 'Cliente';
+    }
+    function looksLikeTimer(s) {
+      return /^\\d+(?:h|𝗁) \\d{2}(?:m|𝗆)$|^\\d+(?:d|𝖽)(?: \\d+(?:h|𝗁))?$/iu.test(String(s || '').trim());
+    }
+    function escapeHtml(s) {
+      return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+    let items = [];
+    let page = 0;
+    function tickClock() {
+      document.getElementById('clock').textContent = new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    }
+    function renderMechanic(item, now) {
+      const techId = (item.assigned_technician || '').trim();
+      const techName = (item.assigned_technician_name || '').trim().replace(/\\u200B/g, '').replace(/^🔴\\s*/, '');
+      const awaiting = isAwaiting(item.stage);
+      // Aguardando Avaliação sem mecânico: cronômetro na coluna Mecânico (h/m minúsculo).
+      if (awaiting && !techId) {
+        const label = formatElapsed(item.created_at, now) || (looksLikeTimer(techName) ? techName : null) || '0h 00m';
+        return '<span class="timer-red inline-flex max-w-full items-center gap-2 tabular-nums">' +
+          '<svg class="h-6 w-6 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.75"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2" stroke-linecap="round"/></svg>' +
+          '<span class="truncate text-xl font-black normal-case leading-tight">' + escapeHtml(label) + '</span></span>';
+      }
+      const label = techId ? (techName || techId) : 'Pátio';
+      return '<span class="truncate text-xl font-bold uppercase leading-tight opacity-90">' + escapeHtml(label) + '</span>';
+    }
+    function render() {
+      const now = Date.now();
+      const totalPages = Math.max(1, Math.ceil(items.length / PER_PAGE) || 1);
+      if (page >= totalPages) page = 0;
+      const slice = items.slice(page * PER_PAGE, page * PER_PAGE + PER_PAGE);
+      document.getElementById('count').textContent = items.length + ' VEÍCULOS NO PÁTIO';
+      document.getElementById('page').textContent = totalPages > 1 ? 'PÁGINA ' + (page + 1) + ' · ' + totalPages : '';
+      const rows = [];
+      for (let i = 0; i < PER_PAGE; i++) {
+        const item = slice[i];
+        if (!item) {
+          rows.push('<div class="flex min-h-0 flex-1 items-center justify-center rounded-2xl border border-dashed border-white/10 bg-white/[0.02] text-sm font-bold uppercase tracking-[0.16em] text-white/20">Box livre</div>');
+          continue;
+        }
+        const model = escapeHtml((item.model || 'Veículo').replace(/Land Rover/gi, '').trim() || 'Veículo');
+        rows.push(
+          '<div class="flex min-h-0 flex-1 items-center gap-3 overflow-hidden rounded-2xl border border-transparent px-5 ' + stageClass(item.stage) + '">' +
+          '<span class="w-[22%] truncate text-2xl font-black uppercase italic leading-tight">' + model + '</span>' +
+          '<span class="w-[16%] truncate border-l border-current/15 pl-4 text-lg font-black uppercase leading-tight">' + escapeHtml(item.client) + '</span>' +
+          '<span class="min-w-0 flex-1 truncate border-l border-current/15 pl-4 text-xl font-black uppercase italic leading-tight">' + escapeHtml(item.stage) + '</span>' +
+          '<span class="w-[14%] truncate border-l border-current/15 px-2 text-center font-mono text-base font-black tabular-nums">' + escapeHtml(item.plate) + '</span>' +
+          '<span class="flex w-[16%] items-center border-l border-current/15 pl-4">' + renderMechanic(item, now) + '</span></div>'
+        );
+      }
+      document.getElementById('board').innerHTML = rows.join('');
+    }
+    async function load() {
+      try {
+        const res = await fetch('/api/service-orders?orderType=vehicle', { cache: 'no-store' });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const rows = await res.json();
+        items = (Array.isArray(rows) ? rows : [])
+          .filter((r) => String(r.status || '').toUpperCase() !== 'CANCELLED')
+          .map((r) => {
+            const stage = STATUS_MAP[String(r.status || '').toUpperCase()] || 'Aguardando Avaliação';
+            const customer = (r.customer_name || (r.customers && r.customers.name) || '').trim();
+            return {
+              id: r.id,
+              model: r.vehicle_model || r.module_identification || 'Veículo',
+              client: firstName(customer),
+              stage,
+              plate: (r.plate || '---').toUpperCase(),
+              assigned_technician: r.assigned_technician,
+              assigned_technician_name: r.assigned_technician_name,
+              created_at: r.created_at,
+            };
+          })
+          .filter((i) => PRIORITY[i.stage] !== undefined)
+          .sort((a, b) => (PRIORITY[a.stage] || 99) - (PRIORITY[b.stage] || 99));
+        render();
+      } catch (err) {
+        console.error(err);
+        document.getElementById('count').textContent = 'Erro ao carregar o pátio';
+      }
+    }
+    tickClock();
+    setInterval(tickClock, 15000);
+    load();
+    setInterval(load, REFRESH_MS);
+    setInterval(() => {
+      const totalPages = Math.max(1, Math.ceil(items.length / PER_PAGE) || 1);
+      page = (page + 1) % totalPages;
+      render();
+    }, PAGE_MS);
+  </script>
+</body>
+</html>`;
+}

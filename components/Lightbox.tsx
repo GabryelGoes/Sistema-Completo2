@@ -1,7 +1,12 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { Check, ChevronLeft, ChevronRight, Copy, X } from 'lucide-react';
 import { ModalPortal } from './ui/ModalPortal';
-import { mediaOverlayCloseBtn, mediaOverlayHintText, mediaOverlayNavBtn } from './ui/iosModalStyles';
+import {
+  mediaOverlayHintText,
+  mediaOverlayIconBtn,
+  mediaOverlayNavBtn,
+} from './ui/iosModalStyles';
+import { copyImageToClipboard } from '../utils/copyImageToClipboard';
 
 const SWIPE_THRESHOLD = 44;
 
@@ -24,12 +29,21 @@ export function Lightbox({ src: singleSrc, images: imagesProp, initialIndex = 0,
   const [translate, setTranslate] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [isSwiping, setIsSwiping] = useState(false);
+  const [isMousePanning, setIsMousePanning] = useState(false);
+  const [copyState, setCopyState] = useState<'idle' | 'busy' | 'ok' | 'err'>('idle');
   const preloadedImagesRef = useRef<Set<string>>(new Set());
 
   const lastTouchRef = useRef<{ x: number; y: number } | null>(null);
   const lastDistRef = useRef<number | null>(null);
   const dragStartXRef = useRef<number>(0);
+  const scaleRef = useRef(1);
+  const translateRef = useRef({ x: 0, y: 0 });
+  const mousePanRef = useRef<{ x: number; y: number } | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const imageRef = useRef<HTMLImageElement>(null);
+
+  scaleRef.current = scale;
+  translateRef.current = translate;
 
   const hasMultiple = images.length > 1;
   const canGoPrev = hasMultiple && currentIndex > 0;
@@ -52,7 +66,23 @@ export function Lightbox({ src: singleSrc, images: imagesProp, initialIndex = 0,
   useEffect(() => {
     setScale(1);
     setTranslate({ x: 0, y: 0 });
+    setCopyState('idle');
   }, [src]);
+
+  const handleCopyImage = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!src || copyState === 'busy') return;
+    setCopyState('busy');
+    try {
+      await copyImageToClipboard({ url: src, imgEl: imageRef.current });
+      setCopyState('ok');
+      window.setTimeout(() => setCopyState('idle'), 1600);
+    } catch (err) {
+      console.warn('copyImageToClipboard', err);
+      setCopyState('err');
+      window.setTimeout(() => setCopyState('idle'), 2200);
+    }
+  };
 
   useEffect(() => {
     if (!hasMultiple) {
@@ -94,11 +124,52 @@ export function Lightbox({ src: singleSrc, images: imagesProp, initialIndex = 0,
     if (canGoNext) setCurrentIndex((i) => i + 1);
   };
 
+  const getFocalOffset = (clientX: number, clientY: number) => {
+    const rect = containerRef.current?.getBoundingClientRect();
+    if (!rect) return { x: 0, y: 0 };
+    return {
+      x: clientX - (rect.left + rect.width / 2),
+      y: clientY - (rect.top + rect.height / 2),
+    };
+  };
+
+  const applyWheelZoom = useCallback((clientX: number, clientY: number, deltaY: number) => {
+    const oldScale = scaleRef.current;
+    const oldTx = translateRef.current.x;
+    const oldTy = translateRef.current.y;
+    const factor = deltaY > 0 ? 0.9 : 1.1;
+    const newScale = Math.min(5, Math.max(1, oldScale * factor));
+    if (newScale <= 1) {
+      setScale(1);
+      setTranslate({ x: 0, y: 0 });
+      return;
+    }
+    const { x: fx, y: fy } = getFocalOffset(clientX, clientY);
+    const zoomRatio = newScale / oldScale;
+    setScale(newScale);
+    setTranslate({
+      x: fx * (1 - zoomRatio) + oldTx * zoomRatio,
+      y: fy * (1 - zoomRatio) + oldTy * zoomRatio,
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!src) return;
+    const el = containerRef.current;
+    if (!el) return;
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      applyWheelZoom(e.clientX, e.clientY, e.deltaY);
+    };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, [applyWheelZoom, src]);
+
   const handleTouchStart = (e: React.TouchEvent) => {
     if (e.touches.length === 1) {
       lastTouchRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
       dragStartXRef.current = e.touches[0].clientX;
-      if (scale > 1) {
+      if (scaleRef.current > 1) {
         setIsDragging(true);
       } else if (hasMultiple) {
         setIsSwiping(true);
@@ -117,7 +188,7 @@ export function Lightbox({ src: singleSrc, images: imagesProp, initialIndex = 0,
     if (e.touches.length === 1 && lastTouchRef.current) {
       const dx = e.touches[0].clientX - lastTouchRef.current.x;
       const dy = e.touches[0].clientY - lastTouchRef.current.y;
-      if (scale > 1) {
+      if (scaleRef.current > 1) {
         setIsDragging(true);
         setTranslate((prev) => ({ x: prev.x + dx, y: prev.y + dy }));
       } else if (hasMultiple && Math.abs(dx) > Math.abs(dy)) {
@@ -132,7 +203,11 @@ export function Lightbox({ src: singleSrc, images: imagesProp, initialIndex = 0,
         e.touches[0].clientY - e.touches[1].clientY
       );
       const ratio = dist / lastDistRef.current;
-      setScale((s) => Math.min(Math.max(1, s * ratio), 5));
+      setScale((s) => {
+        const next = Math.min(Math.max(1, s * ratio), 5);
+        if (next <= 1) setTranslate({ x: 0, y: 0 });
+        return next;
+      });
       lastDistRef.current = dist;
     }
   };
@@ -140,23 +215,67 @@ export function Lightbox({ src: singleSrc, images: imagesProp, initialIndex = 0,
   const handleTouchEnd = (e: React.TouchEvent) => {
     const endTouch = e.changedTouches[0];
     const endX = endTouch?.clientX ?? lastTouchRef.current?.x ?? dragStartXRef.current;
-    if (scale > 1) {
+    if (scaleRef.current > 1) {
       setIsDragging(false);
-    } else if (hasMultiple) {
-      const deltaX = endX - dragStartXRef.current;
-      if (deltaX > SWIPE_THRESHOLD && canGoPrev) goPrev();
-      else if (deltaX < -SWIPE_THRESHOLD && canGoNext) goNext();
+    } else {
+      if (hasMultiple) {
+        const deltaX = endX - dragStartXRef.current;
+        if (deltaX > SWIPE_THRESHOLD && canGoPrev) goPrev();
+        else if (deltaX < -SWIPE_THRESHOLD && canGoNext) goNext();
+      }
+      setTranslate({ x: 0, y: 0 });
     }
-    setTranslate({ x: 0, y: 0 });
     lastTouchRef.current = null;
     lastDistRef.current = null;
     setIsSwiping(false);
-    if (scale < 1) setScale(1);
+    if (scaleRef.current < 1) setScale(1);
+  };
+
+  const stopMousePanning = useCallback(() => {
+    mousePanRef.current = null;
+    setIsMousePanning(false);
+    setIsDragging(false);
+    lastTouchRef.current = null;
+  }, []);
+
+  const handlePointerDown = (e: React.PointerEvent) => {
+    if (e.pointerType === 'touch') return;
+    if (e.button !== 0 || scaleRef.current <= 1) return;
+    e.preventDefault();
+    e.stopPropagation();
+    mousePanRef.current = { x: e.clientX, y: e.clientY };
+    setIsMousePanning(true);
+    setIsDragging(true);
+    try {
+      (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+    } catch {
+      /* ignore */
+    }
+  };
+
+  const handlePointerMove = (e: React.PointerEvent) => {
+    if (e.pointerType === 'touch' || !mousePanRef.current || scaleRef.current <= 1) return;
+    const dx = e.clientX - mousePanRef.current.x;
+    const dy = e.clientY - mousePanRef.current.y;
+    mousePanRef.current = { x: e.clientX, y: e.clientY };
+    setTranslate((prev) => ({ x: prev.x + dx, y: prev.y + dy }));
+  };
+
+  const handlePointerUp = (e: React.PointerEvent) => {
+    if (e.pointerType === 'touch') return;
+    if (!mousePanRef.current) return;
+    stopMousePanning();
+    try {
+      (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+    } catch {
+      /* ignore */
+    }
   };
 
   const handleDoubleTap = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (scale > 1) {
+    e.preventDefault();
+    if (scaleRef.current > 1) {
       setScale(1);
       setTranslate({ x: 0, y: 0 });
     } else {
@@ -178,14 +297,31 @@ export function Lightbox({ src: singleSrc, images: imagesProp, initialIndex = 0,
           hasMultiple ? 'Galeria de fotos — use as setas ou deslize para trocar' : 'Visualização de foto'
         }
       >
-        <button
-          type="button"
-          onClick={onClose}
-          className={mediaOverlayCloseBtn}
-          aria-label="Fechar"
-        >
-          <X className="h-6 w-6" />
-        </button>
+        <div className="absolute top-[max(1.25rem,env(safe-area-inset-top))] right-[max(1.25rem,env(safe-area-inset-right))] z-50 flex items-center gap-2">
+          <button
+            type="button"
+            onClick={(e) => void handleCopyImage(e)}
+            disabled={copyState === 'busy'}
+            className={`${mediaOverlayIconBtn} h-12 w-12 disabled:opacity-50`}
+            aria-label="Copiar imagem"
+            title={
+              copyState === 'ok'
+                ? 'Copiado — pode colar em outro app'
+                : copyState === 'err'
+                  ? 'Falha ao copiar — tente botão direito na imagem'
+                  : 'Copiar imagem'
+            }
+          >
+            {copyState === 'ok' ? (
+              <Check className="h-5 w-5 text-emerald-300" aria-hidden />
+            ) : (
+              <Copy className="h-5 w-5" aria-hidden />
+            )}
+          </button>
+          <button type="button" onClick={onClose} className={`${mediaOverlayIconBtn} h-12 w-12`} aria-label="Fechar">
+            <X className="h-6 w-6" />
+          </button>
+        </div>
 
         {hasMultiple && canGoPrev ? (
           <button
@@ -215,26 +351,39 @@ export function Lightbox({ src: singleSrc, images: imagesProp, initialIndex = 0,
         ) : null}
 
         <div
-          className="flex h-full w-full touch-none items-center justify-center"
+          ref={containerRef}
+          className={`flex h-full w-full touch-none items-center justify-center ${
+            scale > 1 ? (isMousePanning ? 'cursor-grabbing' : 'cursor-grab') : 'cursor-zoom-in'
+          }`}
           onClick={(e) => e.stopPropagation()}
           onTouchStart={handleTouchStart}
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
           onTouchCancel={handleTouchEnd}
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+          onPointerCancel={handlePointerUp}
+          onLostPointerCapture={stopMousePanning}
+          onDoubleClick={handleDoubleTap}
         >
           <img
             ref={imageRef}
             src={src}
             alt="Preview"
+            crossOrigin="anonymous"
             decoding="async"
             loading="eager"
-            onDoubleClick={handleDoubleTap}
+            onDragStart={(e) => {
+              // Com zoom, impede drag nativo para não brigar com o pan.
+              if (scaleRef.current > 1) e.preventDefault();
+            }}
             style={{
               transform: `translate(${translate.x}px, ${translate.y}px) scale(${scale})`,
-              transition: isDragging || isSwiping ? 'none' : 'transform 0.2s ease-out',
+              transition: isDragging || isSwiping || isMousePanning || scale > 1 ? 'none' : 'transform 0.2s ease-out',
             }}
-            className="max-h-full max-w-full select-none object-contain"
-            draggable={false}
+            className="max-h-full max-w-full object-contain"
+            draggable={scale <= 1}
           />
         </div>
 
@@ -251,12 +400,12 @@ export function Lightbox({ src: singleSrc, images: imagesProp, initialIndex = 0,
               ))}
             </div>
             <p className={`pointer-events-none absolute bottom-4 left-1/2 max-w-[min(90vw,20rem)] -translate-x-1/2 text-center text-[11px] font-medium leading-snug ${mediaOverlayHintText}`}>
-              Setas ← → no teclado ou deslize o dedo para o lado
+              Scroll para zoom · botão direito ou Copiar · setas ← →
             </p>
           </>
         ) : (
           <div className={`pointer-events-none absolute bottom-10 left-1/2 -translate-x-1/2 rounded-full border border-white/20 bg-black/50 px-4 py-2 text-xs ${mediaOverlayHintText} backdrop-blur-md`}>
-            Toque duplo para zoom ou use pinça
+            Duplo clique/scroll para zoom · botão direito ou Copiar para colar em outros apps
           </div>
         )}
       </div>

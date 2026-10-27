@@ -16,6 +16,8 @@ import {
   type ServiceOrderDetail,
   type ServiceOrderUpdateActor,
 } from '../services/apiService';
+import { LabOsModalPartHero } from './lab/LabOsModalPartHero';
+import { labProductDisplayLabel } from '../utils/moduleMetadata';
 import {
   EXTERNAL_REPAIR_STAGE,
   getServiceOrderStages,
@@ -242,34 +244,38 @@ export function LabOsScanQuickModal({
 
             <div className="relative shrink-0 border-b border-black/[0.06] px-5 pb-4 pt-7 pr-16 dark:border-white/[0.08] sm:px-6">
               <div className="flex items-start gap-3">
-                <div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-[0.95rem] bg-[#007AFF]/10 ring-1 ring-[#007AFF]/15 dark:bg-[#007AFF]/18 dark:ring-[#007AFF]/25">
-                  <img
-                    src="/icons/laboratorio-ios.png"
-                    alt=""
-                    className="h-full w-full object-cover"
-                  />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[#007AFF] dark:text-[#7ab8ff]">
-                    Peça do laboratório
-                  </p>
-                  <h2
-                    id="lab-os-scan-quick-title"
-                    className="mt-0.5 truncate font-display text-[22px] font-semibold tracking-tight text-zinc-900 dark:text-white"
-                  >
-                    {loading ? 'Carregando…' : vehicleName}
-                  </h2>
-                  {detail?.os_number != null ? (
-                    <p className="mt-0.5 text-[12px] font-medium text-zinc-500 dark:text-zinc-400">
-                      OS #{detail.os_number}
-                      {moduleRef ? ` · ${moduleRef}` : ''}
+                {loading || !detail ? (
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-[#007AFF] dark:text-[#7ab8ff]">
+                      Peça do laboratório
                     </p>
-                  ) : moduleRef ? (
-                    <p className="mt-0.5 text-[12px] font-medium text-zinc-500 dark:text-zinc-400">
-                      {moduleRef}
+                    <h2
+                      id="lab-os-scan-quick-title"
+                      className="mt-0.5 truncate font-display text-[22px] font-semibold tracking-tight text-zinc-900 dark:text-white"
+                    >
+                      {loading ? 'Carregando…' : 'Peça'}
+                    </h2>
+                  </div>
+                ) : (
+                  <div className="min-w-0 flex-1">
+                    <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.14em] text-[#007AFF] dark:text-[#7ab8ff]">
+                      Peça do laboratório
+                      {detail.os_number != null ? ` · OS #${detail.os_number}` : ''}
                     </p>
-                  ) : null}
-                </div>
+                    <LabOsModalPartHero
+                      moduleKind={detail.module_kind}
+                      moduleProductOther={detail.module_product_other}
+                      vehicleModel={vehicleName !== '—' ? vehicleName : null}
+                      moduleIdentification={moduleRef || null}
+                      titleClassName="font-display text-[22px] font-semibold tracking-tight text-zinc-900 dark:text-white"
+                      photoSizeClass="h-[4.2rem] w-[4.2rem]"
+                    />
+                    <span id="lab-os-scan-quick-title" className="sr-only">
+                      {labProductDisplayLabel(detail.module_kind, detail.module_product_other) ||
+                        vehicleName}
+                    </span>
+                  </div>
+                )}
                 {!loading && detail ? (
                   <button
                     type="button"

@@ -43,10 +43,24 @@ html[data-device='tablet'] .patio-vehicle-modal--desktop.animate-modal-backdrop-
 
 html[data-device='desktop'] .patio-vehicle-modal--desktop .patio-vm-card,
 html[data-device='tablet'] .patio-vehicle-modal--desktop .patio-vm-card {
-  border-radius: 6px;
+  border-radius: 10px;
   transition:
     border-color 0.15s ease,
     box-shadow 0.18s ease;
+}
+
+/* Sidebar: cards com a mesma definição visual da coluna esquerda */
+html[data-device='desktop'] .patio-vehicle-modal--desktop .patio-vm-aside-col .patio-vm-card,
+html[data-device='tablet'] .patio-vehicle-modal--desktop .patio-vm-aside-col .patio-vm-card {
+  border: 1px solid rgba(24, 24, 27, 0.12);
+  background-color: #ffffff;
+  box-shadow: none;
+}
+
+html.dark[data-device='desktop'] .patio-vehicle-modal--desktop .patio-vm-aside-col .patio-vm-card,
+html.dark[data-device='tablet'] .patio-vehicle-modal--desktop .patio-vm-aside-col .patio-vm-card {
+  border-color: rgba(255, 255, 255, 0.12);
+  background-color: #1a1d21;
 }
 
 html[data-device='desktop'] .patio-vehicle-modal--desktop button.patio-vm-card,
@@ -136,20 +150,72 @@ html[data-device='tablet'] .patio-vm-header-meta--pc .patio-vm-meta-input--date:
   min-width: 0;
 }
 
+/*
+ * Layout PC do mockup: coluna esquerda (header → abas → conteúdo) + sidebar
+ * direita do topo ao fim (ações, status, comentários, estoque, checklists).
+ */
+html[data-device='desktop'] .patio-vehicle-modal--desktop .patio-vm-desktop-scroll,
+html[data-device='tablet'] .patio-vehicle-modal--desktop .patio-vm-desktop-scroll {
+  display: grid;
+  /* 60% conteúdo / 40% sidebar */
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  grid-template-rows: auto auto minmax(0, 1fr);
+  align-items: start;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+html[data-device='desktop'] .patio-vehicle-modal--desktop .patio-vm-desktop-header,
+html[data-device='tablet'] .patio-vehicle-modal--desktop .patio-vm-desktop-header {
+  grid-column: 1;
+  grid-row: 1;
+  max-width: none;
+}
+
 html[data-device='desktop'] .patio-vehicle-modal--desktop .patio-vm-tabs,
 html[data-device='tablet'] .patio-vehicle-modal--desktop .patio-vm-tabs {
+  grid-column: 1;
+  grid-row: 2;
   position: sticky;
   top: 0;
   z-index: 15;
 }
 
+html[data-device='desktop'] .patio-vehicle-modal--desktop .patio-vm-desktop-body,
+html[data-device='tablet'] .patio-vehicle-modal--desktop .patio-vm-desktop-body {
+  display: contents;
+}
+
+html[data-device='desktop'] .patio-vehicle-modal--desktop .patio-vm-main-col,
+html[data-device='tablet'] .patio-vehicle-modal--desktop .patio-vm-main-col {
+  grid-column: 1;
+  grid-row: 3;
+  min-width: 0;
+}
+
 html[data-device='desktop'] .patio-vehicle-modal--desktop .patio-vm-aside-col,
 html[data-device='tablet'] .patio-vehicle-modal--desktop .patio-vm-aside-col {
+  grid-column: 2;
+  grid-row: 1 / -1;
   position: sticky;
-  top: 3.25rem;
+  top: 0;
   align-self: start;
-  max-height: calc(100dvh - 4rem);
+  width: 100%;
+  height: auto;
+  max-height: 100dvh;
+  overflow-x: hidden;
   overflow-y: auto;
+  border-left: 1px solid rgba(24, 24, 27, 0.12);
+  border-top: 0;
+}
+
+html.dark[data-device='desktop'] .patio-vehicle-modal--desktop .patio-vm-aside-col,
+html.dark[data-device='tablet'] .patio-vehicle-modal--desktop .patio-vm-aside-col {
+  border-left-color: rgba(255, 255, 255, 0.08);
+}
+
+html[data-desktop-shell='true'] .desktop-shell-viewport-overlay.patio-vehicle-modal--desktop .patio-vm-aside-col {
+  max-height: 100%;
 }
 
 /* Modal veículo — tablet vertical (~653×1045): faixa meta 2 cols × 3 rows */

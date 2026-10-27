@@ -109,6 +109,7 @@ export const PatioViewSupabase: React.FC<PatioViewSupabaseProps> = ({
         vehicleColor: detail.vehicle_color ?? "",
         vehicleYear: detail.vehicle_year ?? "",
         vehicleEngineInfo: detail.vehicle_engine_info ?? "",
+        vehicleChassis: detail.vehicle_chassis ?? "",
         issueDescription: detail.issue_description ?? "",
       };
       onUseCustomerData(customer);

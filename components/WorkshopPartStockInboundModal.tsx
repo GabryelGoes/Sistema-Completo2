@@ -1,31 +1,25 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ArrowLeft,
-  ClipboardList,
+  Building2,
+  Check,
   Loader2,
   Minus,
   PackagePlus,
   Plus,
-  Trash2,
+  Search,
   X,
 } from 'lucide-react';
 import {
-  createWorkshopPartPurchase,
-  deleteWorkshopPartPurchase,
-  getWorkshopPartPurchases,
-  getWorkshopParts,
-  updateWorkshopPart,
-  updateWorkshopPartPurchase,
+  getWorkshopSuppliers,
+  receiveWorkshopPartStock,
   type WorkshopPart,
-  type WorkshopPartPurchase,
-  type WorkshopPartPurchaseStatus,
+  type WorkshopSupplier,
 } from '../services/apiService';
 import { formatWorkshopPartQty, parseWorkshopPartQtyInt } from '../utils/workshopPartStock';
-import {
-  isPurchaseInProgress,
-  PURCHASE_STATUS_LABEL,
-} from '../utils/workshopPartStockMovementNotes';
+import { filterSuppliers, supplierDisplayName } from '../utils/workshopSuppliers';
 import { storageSiteLabel } from '../utils/workshopPartFields';
+import { getStoredAuth } from './views/LoginView';
 import { PartPhotoImg } from './ui/PartPhotoImg';
 import { RegistrationPortal } from './ui/RegistrationPortal';
 import { resolveIosModalOverlayClass, NESTED_STOCK_OVERLAY_Z } from './ui/iosModalStyles';
@@ -37,16 +31,22 @@ export type WorkshopPartStockInboundModalProps = {
   part: WorkshopPart;
   onClose: () => void;
   onStockChanged: (part: WorkshopPart) => void;
-  /** Abre a ficha completa (opcional). */
   onOpenFullEdit?: (part: WorkshopPart) => void;
+  /** Abre o cadastro de fornecedores (opcional). */
+  onOpenSuppliers?: () => void;
 };
 
-const STATUS_OPTIONS: WorkshopPartPurchaseStatus[] = [
-  'pending',
-  'ordered',
-  'received',
-  'cancelled',
-];
+function parseMoneyInput(raw: string): number | null {
+  const t = String(raw ?? '').trim().replace(/\s/g, '').replace(',', '.');
+  if (!t) return null;
+  const n = Number(t);
+  return Number.isFinite(n) ? n : null;
+}
+
+function formatMoneyDisplay(n: number | null | undefined): string {
+  if (n == null || !Number.isFinite(n)) return '—';
+  return n.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+}
 
 function IntStepper({
   label,
@@ -114,20 +114,27 @@ export function WorkshopPartStockInboundModal({
   onClose,
   onStockChanged,
   onOpenFullEdit,
+  onOpenSuppliers,
 }: WorkshopPartStockInboundModalProps) {
   const isDesktopShell = useDesktopShellLayout();
   const [part, setPart] = useState<WorkshopPart>(initialPart);
   const [receiveQty, setReceiveQty] = useState(1);
-  const [purchases, setPurchases] = useState<WorkshopPartPurchase[]>([]);
-  const [loadingPurchases, setLoadingPurchases] = useState(false);
-  const [savingStock, setSavingStock] = useState(false);
-  const [savingPurchase, setSavingPurchase] = useState(false);
+  const [nfeNumber, setNfeNumber] = useState('');
+  const [unitCost, setUnitCost] = useState('');
+  const [productTotal, setProductTotal] = useState('');
+  const [invoiceTotal, setInvoiceTotal] = useState('');
+  const [productTotalTouched, setProductTotalTouched] = useState(false);
+  const [updatePartCost, setUpdatePartCost] = useState(false);
+  const [notes, setNotes] = useState('');
+  const [supplierQuery, setSupplierQuery] = useState('');
+  const [selectedSupplier, setSelectedSupplier] = useState<WorkshopSupplier | null>(null);
+  const [suppliers, setSuppliers] = useState<WorkshopSupplier[]>([]);
+  const [supplierMenuOpen, setSupplierMenuOpen] = useState(false);
+  const [loadingSuppliers, setLoadingSuppliers] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const [newSupplier, setNewSupplier] = useState('');
-  const [newQty, setNewQty] = useState(1);
-  const [newCost, setNewCost] = useState('');
-  const [newStatus, setNewStatus] = useState<WorkshopPartPurchaseStatus>('pending');
+  const supplierBoxRef = useRef<HTMLDivElement | null>(null);
 
   useBrowserBackLayer(isOpen, onClose);
 
@@ -137,15 +144,27 @@ export function WorkshopPartStockInboundModal({
     [part.stock_qty, receiveQty]
   );
 
-  const reloadPurchases = useCallback(async (partId: string) => {
-    setLoadingPurchases(true);
+  const unitCostNumber = parseMoneyInput(unitCost) ?? 0;
+  const autoProductTotal = Math.round(unitCostNumber * Math.max(0, receiveQty) * 100) / 100;
+  const productTotalNumber = productTotalTouched
+    ? parseMoneyInput(productTotal) ?? autoProductTotal
+    : autoProductTotal;
+  const invoiceTotalNumber = parseMoneyInput(invoiceTotal);
+
+  const suggestedSuppliers = useMemo(
+    () => filterSuppliers(suppliers, supplierQuery, { activeOnly: true }).slice(0, 8),
+    [suppliers, supplierQuery]
+  );
+
+  const reloadSuppliers = useCallback(async () => {
+    setLoadingSuppliers(true);
     try {
-      const rows = await getWorkshopPartPurchases(partId);
-      setPurchases(rows);
+      const rows = await getWorkshopSuppliers({ activeOnly: true });
+      setSuppliers(rows);
     } catch {
-      setPurchases([]);
+      setSuppliers([]);
     } finally {
-      setLoadingPurchases(false);
+      setLoadingSuppliers(false);
     }
   }, []);
 
@@ -153,14 +172,37 @@ export function WorkshopPartStockInboundModal({
     if (!isOpen) return;
     setPart(initialPart);
     setReceiveQty(1);
+    setNfeNumber('');
+    setUnitCost('');
+    setProductTotal('');
+    setInvoiceTotal('');
+    setProductTotalTouched(false);
+    setUpdatePartCost(false);
+    setNotes('');
+    setSupplierQuery('');
+    setSelectedSupplier(null);
+    setSupplierMenuOpen(false);
     setError(null);
     setSuccess(null);
-    setNewSupplier('');
-    setNewQty(1);
-    setNewCost('');
-    setNewStatus('pending');
-    void reloadPurchases(initialPart.id);
-  }, [isOpen, initialPart, reloadPurchases]);
+    void reloadSuppliers();
+  }, [isOpen, initialPart, reloadSuppliers]);
+
+  useEffect(() => {
+    if (!productTotalTouched) {
+      setProductTotal(autoProductTotal > 0 ? autoProductTotal.toFixed(2) : '');
+    }
+  }, [autoProductTotal, productTotalTouched]);
+
+  useEffect(() => {
+    if (!supplierMenuOpen) return;
+    const onDoc = (e: MouseEvent) => {
+      if (!supplierBoxRef.current?.contains(e.target as Node)) {
+        setSupplierMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', onDoc);
+    return () => document.removeEventListener('mousedown', onDoc);
+  }, [supplierMenuOpen]);
 
   const applyPartUpdate = useCallback(
     (updated: WorkshopPart) => {
@@ -170,139 +212,138 @@ export function WorkshopPartStockInboundModal({
     [onStockChanged]
   );
 
+  const pickSupplier = (s: WorkshopSupplier) => {
+    setSelectedSupplier(s);
+    setSupplierQuery(supplierDisplayName(s));
+    setSupplierMenuOpen(false);
+  };
+
+  const clearSupplier = () => {
+    setSelectedSupplier(null);
+    setSupplierQuery('');
+  };
+
   const handleReceive = useCallback(async () => {
     const add = Math.max(0, Math.round(receiveQty));
     if (!(add > 0)) {
       setError('Informe a quantidade recebida.');
       return;
     }
-    setSavingStock(true);
+    if (unitCost && parseMoneyInput(unitCost) == null) {
+      setError('Custo por unidade inválido.');
+      return;
+    }
+    if (productTotalTouched && productTotal && parseMoneyInput(productTotal) == null) {
+      setError('Valor total do produto inválido.');
+      return;
+    }
+    if (invoiceTotal && parseMoneyInput(invoiceTotal) == null) {
+      setError('Valor total da nota inválido.');
+      return;
+    }
+
+    setSaving(true);
     setError(null);
     setSuccess(null);
     try {
-      const nextQty = parseWorkshopPartQtyInt(part.stock_qty) + add;
-      const updated = await updateWorkshopPart(part.id, { stock_qty: nextQty });
+      const auth = getStoredAuth();
+      const recordedBy =
+        auth?.displayName?.trim() ||
+        auth?.username?.trim() ||
+        (auth?.role === 'admin' ? 'Gerência' : null);
+
+      const freeSupplierName =
+        !selectedSupplier && supplierQuery.trim() ? supplierQuery.trim() : null;
+
+      const result = await receiveWorkshopPartStock(part.id, {
+        quantity: add,
+        unit_cost: unitCostNumber,
+        product_total: productTotalNumber,
+        invoice_total: invoiceTotalNumber,
+        nfe_number: nfeNumber.trim() || null,
+        supplier_id: selectedSupplier?.id ?? null,
+        supplier_name: selectedSupplier
+          ? supplierDisplayName(selectedSupplier)
+          : freeSupplierName,
+        notes: notes.trim() || null,
+        recorded_by_name: recordedBy,
+        update_part_cost: updatePartCost,
+      });
+
+      const updated: WorkshopPart = {
+        ...part,
+        stock_qty: Number(result.part.stock_qty),
+        unit_price: Number(result.part.unit_price ?? part.unit_price),
+      };
       applyPartUpdate(updated);
       setReceiveQty(1);
-      setSuccess(`Recebimento registrado · estoque agora ${formatWorkshopPartQty(updated.stock_qty)} ${unit}`);
+      setNfeNumber('');
+      setUnitCost('');
+      setProductTotal('');
+      setInvoiceTotal('');
+      setProductTotalTouched(false);
+      setNotes('');
+      clearSupplier();
+      setSuccess(
+        `Recebimento registrado · estoque agora ${formatWorkshopPartQty(updated.stock_qty)} ${unit}`
+      );
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Falha ao registrar recebimento.');
     } finally {
-      setSavingStock(false);
-    }
-  }, [applyPartUpdate, part.id, part.stock_qty, receiveQty, unit]);
-
-  const refreshPartFromServer = useCallback(async () => {
-    const all = await getWorkshopParts();
-    const found = all.find((p) => p.id === part.id);
-    if (found) applyPartUpdate(found);
-  }, [applyPartUpdate, part.id]);
-
-  const handleAddPurchase = useCallback(async () => {
-    setSavingPurchase(true);
-    setError(null);
-    setSuccess(null);
-    try {
-      const cost = Number(String(newCost).replace(',', '.'));
-      await createWorkshopPartPurchase(part.id, {
-        supplier_name: newSupplier.trim() || null,
-        quantity: Math.max(0, Math.round(newQty)),
-        unit_cost: Number.isFinite(cost) && cost >= 0 ? cost : 0,
-        status: newStatus,
-      });
-      setNewSupplier('');
-      setNewQty(1);
-      setNewCost('');
-      setNewStatus('pending');
-      await reloadPurchases(part.id);
-      await refreshPartFromServer();
-      setSuccess('Lista de compras atualizada.');
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Falha ao adicionar compra.');
-    } finally {
-      setSavingPurchase(false);
+      setSaving(false);
     }
   }, [
-    newCost,
-    newQty,
-    newStatus,
-    newSupplier,
-    part.id,
-    refreshPartFromServer,
-    reloadPurchases,
+    applyPartUpdate,
+    invoiceTotal,
+    invoiceTotalNumber,
+    nfeNumber,
+    notes,
+    part,
+    productTotal,
+    productTotalNumber,
+    productTotalTouched,
+    receiveQty,
+    selectedSupplier,
+    supplierQuery,
+    unit,
+    unitCost,
+    unitCostNumber,
+    updatePartCost,
   ]);
-
-  const handlePurchaseStatus = useCallback(
-    async (row: WorkshopPartPurchase, status: WorkshopPartPurchaseStatus) => {
-      setSavingPurchase(true);
-      setError(null);
-      setSuccess(null);
-      try {
-        await updateWorkshopPartPurchase(part.id, row.id, { status });
-        await reloadPurchases(part.id);
-        await refreshPartFromServer();
-        setSuccess(`Status atualizado: ${PURCHASE_STATUS_LABEL[status] ?? status}`);
-      } catch (e) {
-        setError(e instanceof Error ? e.message : 'Falha ao atualizar compra.');
-      } finally {
-        setSavingPurchase(false);
-      }
-    },
-    [part.id, refreshPartFromServer, reloadPurchases]
-  );
-
-  const handleDeletePurchase = useCallback(
-    async (row: WorkshopPartPurchase) => {
-      setSavingPurchase(true);
-      setError(null);
-      try {
-        await deleteWorkshopPartPurchase(part.id, row.id);
-        await reloadPurchases(part.id);
-        await refreshPartFromServer();
-      } catch (e) {
-        setError(e instanceof Error ? e.message : 'Falha ao remover compra.');
-      } finally {
-        setSavingPurchase(false);
-      }
-    },
-    [part.id, refreshPartFromServer, reloadPurchases]
-  );
 
   if (!isOpen) return null;
 
   const overlayClass = resolveIosModalOverlayClass(isDesktopShell, NESTED_STOCK_OVERLAY_Z);
-  const busy = savingStock || savingPurchase;
-  const inProgress = purchases.filter((p) => isPurchaseInProgress(p.status));
 
   return (
     <RegistrationPortal>
       <div className={overlayClass} role="dialog" aria-modal="true" aria-label="Registrar recebimento">
         <div
-          className={`flex max-h-[min(940px,96vh)] w-full flex-col overflow-hidden rounded-[1.75rem] border-0 bg-zinc-50 shadow-none dark:bg-zinc-950 ${
-            isDesktopShell ? 'max-w-4xl' : 'max-w-lg'
+          className={`flex w-full flex-col overflow-hidden rounded-[1.75rem] border-0 bg-zinc-50 shadow-none dark:bg-zinc-950 ${
+            isDesktopShell
+              ? 'h-[min(78vh,640px)] max-w-6xl'
+              : 'max-h-[min(92vh,720px)] max-w-5xl'
           }`}
         >
-          <div className="flex shrink-0 items-start justify-between gap-3 border-b border-zinc-200/80 px-5 py-4 dark:border-white/10">
-            <div className="flex min-w-0 items-start gap-3">
+          <div className="flex shrink-0 items-center justify-between gap-3 border-b border-zinc-200/80 px-5 py-3.5 dark:border-white/10 sm:px-6">
+            <div className="flex min-w-0 items-center gap-3">
               <button
                 type="button"
                 onClick={onClose}
-                className="mt-0.5 rounded-xl p-2 text-zinc-600 hover:bg-zinc-200/70 dark:text-zinc-300 dark:hover:bg-white/10"
+                className="rounded-xl p-2 text-zinc-600 hover:bg-zinc-200/70 dark:text-zinc-300 dark:hover:bg-white/10"
                 aria-label="Voltar"
               >
                 <ArrowLeft className="h-5 w-5" />
               </button>
+              <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-emerald-600 text-white">
+                <PackagePlus className="h-5 w-5" />
+              </span>
               <div className="min-w-0">
-                <div className="flex items-center gap-2">
-                  <span className="inline-flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-600 text-white">
-                    <PackagePlus className="h-5 w-5" />
-                  </span>
-                  <h2 className="text-[18px] font-bold text-zinc-900 dark:text-white">
-                    Registrar recebimento
-                  </h2>
-                </div>
-                <p className="mt-1 text-[13px] text-zinc-500 dark:text-zinc-400">
-                  Entrada rápida de mercadoria e lista de compras
+                <h2 className="text-[17px] font-bold text-zinc-900 dark:text-white">
+                  Registrar recebimento
+                </h2>
+                <p className="truncate text-[12px] text-zinc-500 dark:text-zinc-400">
+                  Entrada de mercadoria com NF-e e fornecedor
                 </p>
               </div>
             </div>
@@ -316,228 +357,267 @@ export function WorkshopPartStockInboundModal({
             </button>
           </div>
 
-          <div
-            className={`min-h-0 flex-1 overflow-y-auto px-5 py-4 custom-scrollbar ${
-              isDesktopShell ? 'grid grid-cols-2 gap-4' : 'space-y-4'
-            }`}
-          >
-            <div className="space-y-4">
-            <section className="rounded-2xl border-0 bg-white p-4 dark:bg-white/5">
-              <div className="flex gap-3">
-                <div className="h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-zinc-100 dark:bg-zinc-800">
-                  {part.photo_url ? (
-                    <PartPhotoImg src={part.photo_url} alt="" className="h-full w-full object-cover" />
-                  ) : (
-                    <div className="flex h-full w-full items-center justify-center text-[11px] font-bold text-zinc-400">
-                      Sem foto
-                    </div>
-                  )}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-[16px] font-bold text-zinc-900 dark:text-white">{part.name}</p>
-                  <p className="text-[13px] text-zinc-500">
-                    {[part.brand, part.barcode || part.original_code || part.numeric_code]
-                      .filter(Boolean)
-                      .join(' · ') || 'Sem código'}
-                  </p>
-                  <p className="mt-1 text-[12px] text-zinc-500">
-                    {[storageSiteLabel(part.storage_site), part.location].filter(Boolean).join(' · ') ||
-                      'Local não informado'}
-                  </p>
-                </div>
-                {onOpenFullEdit ? (
-                  <button
-                    type="button"
-                    onClick={() => onOpenFullEdit(part)}
-                    className="shrink-0 self-start rounded-lg px-2 py-1 text-[12px] font-semibold text-zinc-500 hover:bg-zinc-100 hover:text-zinc-800 dark:hover:bg-white/10"
-                  >
-                    Ficha
-                  </button>
-                ) : null}
-              </div>
-
-              <div className="mt-4 rounded-2xl bg-emerald-600 px-4 py-3.5 text-white">
-                <p className="text-[11px] font-bold uppercase tracking-[0.14em] opacity-90">
-                  Quantidade em estoque
-                </p>
-                <p className="mt-1 text-[2.1rem] font-bold tabular-nums leading-none">
-                  {formatWorkshopPartQty(part.stock_qty)}
-                  <span className="ml-2 text-[1rem] font-semibold opacity-90">{unit}</span>
-                </p>
-                <p className="mt-2 text-[12px] font-semibold opacity-90">
-                  Mín. {formatWorkshopPartQty(part.min_stock_qty)} · Máx.{' '}
-                  {part.max_stock_qty != null ? formatWorkshopPartQty(part.max_stock_qty) : '—'}
-                </p>
-              </div>
-            </section>
-
-            <section className="space-y-3 rounded-2xl border-0 bg-white p-4 dark:bg-white/5">
-              <h3 className="text-[13px] font-bold uppercase tracking-wide text-zinc-500">
-                Entrada de mercadoria
-              </h3>
-              <IntStepper
-                label="Quantidade recebida"
-                value={receiveQty}
-                onChange={setReceiveQty}
-                min={0}
-                disabled={busy}
-                emphasize
-              />
-              <p className="text-[13px] text-zinc-600 dark:text-zinc-300">
-                Após confirmar: estoque passa a{' '}
-                <span className="font-semibold tabular-nums text-emerald-700 dark:text-emerald-300">
-                  {formatWorkshopPartQty(projectedAfterReceive)} {unit}
-                </span>
-              </p>
-              <div className="flex justify-end">
-                <button
-                  type="button"
-                  disabled={busy || receiveQty <= 0}
-                  onClick={() => void handleReceive()}
-                  className="inline-flex w-auto items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-[13px] font-semibold text-white hover:bg-emerald-500 disabled:opacity-50"
-                >
-                  {savingStock ? <Loader2 className="h-4 w-4 animate-spin" /> : <PackagePlus className="h-4 w-4" />}
-                  Confirmar entrada
-                </button>
-              </div>
-            </section>
-            </div>
-
-            <section className="space-y-3 rounded-2xl border-0 bg-white p-4 dark:bg-white/5">
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
-                  <ClipboardList className="h-4 w-4 text-amber-600" />
-                  <h3 className="text-[13px] font-bold uppercase tracking-wide text-zinc-500">
-                    Lista de compras
-                  </h3>
-                </div>
-                {loadingPurchases ? <Loader2 className="h-4 w-4 animate-spin text-zinc-400" /> : null}
-              </div>
-              <p className="text-[12px] text-zinc-500">
-                Solicite reposição e acompanhe o status (Pendente → Pedido emitido → Recebido).
-              </p>
-
-              {inProgress.length > 0 ? (
-                <div className="rounded-xl bg-amber-50 px-3 py-2.5 text-[13px] font-medium text-amber-950 dark:bg-amber-950/40 dark:text-amber-100">
-                  {inProgress.length} item(ns) em reposição junto ao fornecedor.
-                </div>
-              ) : null}
-
-              <div className="grid gap-2 sm:grid-cols-2">
-                <label className="block space-y-1 sm:col-span-2">
-                  <span className="text-[11px] font-bold uppercase tracking-wide text-zinc-500">
-                    Fornecedor
-                  </span>
-                  <input
-                    type="text"
-                    value={newSupplier}
-                    disabled={busy}
-                    onChange={(e) => setNewSupplier(e.target.value)}
-                    placeholder="Nome do fornecedor"
-                    className="w-full rounded-xl border-0 bg-zinc-100 px-3 py-2.5 text-[14px] outline-none focus:ring-2 focus:ring-emerald-500/30 dark:bg-black/20 dark:text-white"
-                  />
-                </label>
-                <IntStepper label="Qtd solicitada" value={newQty} onChange={setNewQty} min={0} disabled={busy} />
-                <label className="block space-y-1.5">
-                  <span className="text-[11px] font-bold uppercase tracking-wide text-zinc-500">
-                    Custo un. (R$)
-                  </span>
-                  <input
-                    type="number"
-                    min={0}
-                    step="0.01"
-                    value={newCost}
-                    disabled={busy}
-                    onChange={(e) => setNewCost(e.target.value)}
-                    className="w-full rounded-xl border-0 bg-zinc-100 px-3 py-2.5 text-[14px] tabular-nums outline-none focus:ring-2 focus:ring-emerald-500/30 dark:bg-black/20 dark:text-white"
-                  />
-                </label>
-                <label className="block space-y-1.5 sm:col-span-2">
-                  <span className="text-[11px] font-bold uppercase tracking-wide text-zinc-500">
-                    Status inicial
-                  </span>
-                  <select
-                    value={newStatus}
-                    disabled={busy}
-                    onChange={(e) => setNewStatus(e.target.value as WorkshopPartPurchaseStatus)}
-                    className="w-full rounded-xl border-0 bg-zinc-100 px-3 py-2.5 text-[14px] outline-none focus:ring-2 focus:ring-emerald-500/30 dark:bg-black/20 dark:text-white"
-                  >
-                    {STATUS_OPTIONS.map((s) => (
-                      <option key={s} value={s}>
-                        {PURCHASE_STATUS_LABEL[s]}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              </div>
-              <div className="flex justify-end">
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => void handleAddPurchase()}
-                  className="inline-flex w-auto items-center justify-center gap-2 rounded-xl bg-amber-600 px-4 py-2.5 text-[13px] font-semibold text-white hover:bg-amber-500 disabled:opacity-50"
-                >
-                  {savingPurchase ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-                  Adicionar à lista
-                </button>
-              </div>
-
-              {purchases.length === 0 ? (
-                <p className="py-2 text-center text-[13px] text-zinc-500">Nenhuma compra na lista.</p>
-              ) : (
-                <ul className="space-y-2">
-                  {purchases.map((row) => (
-                    <li
-                      key={row.id}
-                      className="rounded-xl border-0 bg-zinc-50 px-3 py-3 dark:bg-white/[0.04]"
-                    >
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="min-w-0">
-                          <p className="text-[14px] font-semibold text-zinc-900 dark:text-white">
-                            {row.supplier_name?.trim() || 'Fornecedor não informado'}
-                          </p>
-                          <p className="text-[12px] text-zinc-500">
-                            {formatWorkshopPartQty(row.quantity)} {unit}
-                            {row.unit_cost > 0
-                              ? ` · R$ ${Number(row.unit_cost).toFixed(2)}`
-                              : ''}
-                          </p>
+          <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4 custom-scrollbar sm:px-6">
+            <div className="grid gap-4 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.25fr)] lg:items-start">
+              {/* Coluna esquerda: produto + quantidade */}
+              <div className="space-y-4">
+                <section className="rounded-2xl border-0 bg-white p-4 dark:bg-white/5">
+                  <div className="flex gap-3">
+                    <div className="h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-zinc-100 dark:bg-zinc-800">
+                      {part.photo_url ? (
+                        <PartPhotoImg
+                          src={part.photo_url}
+                          alt=""
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center text-[11px] font-bold text-zinc-400">
+                          Sem foto
                         </div>
+                      )}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[16px] font-bold text-zinc-900 dark:text-white">
+                        {part.name}
+                      </p>
+                      <p className="text-[13px] text-zinc-500">
+                        {[part.brand, part.barcode || part.original_code || part.numeric_code]
+                          .filter(Boolean)
+                          .join(' · ') || 'Sem código'}
+                      </p>
+                      <p className="mt-1 text-[12px] text-zinc-500">
+                        {[storageSiteLabel(part.storage_site), part.location]
+                          .filter(Boolean)
+                          .join(' · ') || 'Local não informado'}
+                      </p>
+                    </div>
+                    {onOpenFullEdit ? (
+                      <button
+                        type="button"
+                        onClick={() => onOpenFullEdit(part)}
+                        className="shrink-0 self-start rounded-lg px-2 py-1 text-[12px] font-semibold text-zinc-500 hover:bg-zinc-100 hover:text-zinc-800 dark:hover:bg-white/10"
+                      >
+                        Ficha
+                      </button>
+                    ) : null}
+                  </div>
+
+                  <div className="mt-3 rounded-2xl bg-emerald-600 px-4 py-3 text-white">
+                    <p className="text-[11px] font-bold uppercase tracking-[0.14em] opacity-90">
+                      Quantidade em estoque
+                    </p>
+                    <p className="mt-1 text-[1.85rem] font-bold tabular-nums leading-none">
+                      {formatWorkshopPartQty(part.stock_qty)}
+                      <span className="ml-2 text-[0.95rem] font-semibold opacity-90">{unit}</span>
+                    </p>
+                  </div>
+                </section>
+
+                <section className="space-y-3 rounded-2xl border-0 bg-white p-4 dark:bg-white/5">
+                  <h3 className="text-[13px] font-bold uppercase tracking-wide text-zinc-500">
+                    Quantidade recebida
+                  </h3>
+                  <IntStepper
+                    label="Quantidade"
+                    value={receiveQty}
+                    onChange={setReceiveQty}
+                    min={0}
+                    disabled={saving}
+                    emphasize
+                  />
+                  <p className="text-[13px] text-zinc-600 dark:text-zinc-300">
+                    Após confirmar: estoque passa a{' '}
+                    <span className="font-semibold tabular-nums text-emerald-700 dark:text-emerald-300">
+                      {formatWorkshopPartQty(projectedAfterReceive)} {unit}
+                    </span>
+                  </p>
+                </section>
+              </div>
+
+              {/* Coluna direita: NF-e / fornecedor / valores */}
+              <section className="space-y-3 rounded-2xl border-0 bg-white p-4 dark:bg-white/5">
+                <div className="flex items-center justify-between gap-2">
+                  <h3 className="text-[13px] font-bold uppercase tracking-wide text-zinc-500">
+                    Dados da compra / NF-e
+                  </h3>
+                  {onOpenSuppliers ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        onOpenSuppliers();
+                        void reloadSuppliers();
+                      }}
+                      className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[12px] font-semibold text-emerald-700 hover:bg-emerald-50 dark:text-emerald-300 dark:hover:bg-emerald-950/40"
+                    >
+                      <Building2 className="h-3.5 w-3.5" />
+                      Fornecedores
+                    </button>
+                  ) : null}
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <label className="block space-y-1.5">
+                    <span className="text-[11px] font-bold uppercase tracking-wide text-zinc-500">
+                      Número da NF-e
+                    </span>
+                    <input
+                      type="text"
+                      value={nfeNumber}
+                      disabled={saving}
+                      onChange={(e) => setNfeNumber(e.target.value)}
+                      placeholder="Ex.: 123456"
+                      className="w-full rounded-xl border-0 bg-zinc-100 px-3 py-2.5 text-[14px] outline-none focus:ring-2 focus:ring-emerald-500/30 dark:bg-black/20 dark:text-white"
+                    />
+                  </label>
+
+                  <div ref={supplierBoxRef} className="relative space-y-1.5 sm:col-span-1">
+                    <span className="text-[11px] font-bold uppercase tracking-wide text-zinc-500">
+                      Fornecedor
+                    </span>
+                    <div className="relative">
+                      <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+                      <input
+                        type="text"
+                        value={supplierQuery}
+                        disabled={saving}
+                        onFocus={() => setSupplierMenuOpen(true)}
+                        onChange={(e) => {
+                          setSupplierQuery(e.target.value);
+                          setSelectedSupplier(null);
+                          setSupplierMenuOpen(true);
+                        }}
+                        placeholder="Buscar ou digitar…"
+                        className="w-full rounded-xl border-0 bg-zinc-100 py-2.5 pl-9 pr-10 text-[14px] outline-none focus:ring-2 focus:ring-emerald-500/30 dark:bg-black/20 dark:text-white"
+                        autoComplete="off"
+                      />
+                      {supplierQuery || selectedSupplier ? (
                         <button
                           type="button"
-                          disabled={busy}
-                          onClick={() => void handleDeletePurchase(row)}
-                          className="rounded-lg p-1.5 text-red-600 hover:bg-red-500/10 disabled:opacity-40"
-                          aria-label="Remover"
+                          onClick={clearSupplier}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 rounded-lg p-1 text-zinc-400 hover:bg-zinc-200/80 hover:text-zinc-700 dark:hover:bg-white/10"
+                          aria-label="Limpar fornecedor"
                         >
-                          <Trash2 className="h-4 w-4" />
+                          <X className="h-4 w-4" />
                         </button>
-                      </div>
-                      <select
-                        value={row.status}
-                        disabled={busy}
-                        onChange={(e) =>
-                          void handlePurchaseStatus(
-                            row,
-                            e.target.value as WorkshopPartPurchaseStatus
-                          )
-                        }
-                        className="mt-2 w-full rounded-lg border-0 bg-white px-2.5 py-2 text-[13px] font-semibold outline-none dark:bg-zinc-900 dark:text-white"
-                      >
-                        {STATUS_OPTIONS.map((s) => (
-                          <option key={s} value={s}>
-                            {PURCHASE_STATUS_LABEL[s]}
-                          </option>
+                      ) : null}
+                    </div>
+                    {selectedSupplier ? (
+                      <p className="inline-flex items-center gap-1.5 text-[11px] font-medium text-emerald-700 dark:text-emerald-300">
+                        <Check className="h-3.5 w-3.5" />
+                        Do cadastro
+                        {selectedSupplier.document ? ` · ${selectedSupplier.document}` : ''}
+                      </p>
+                    ) : (
+                      <p className="text-[11px] text-zinc-500">
+                        Sugestões do cadastro ou nome livre.
+                        {loadingSuppliers ? ' Carregando…' : ''}
+                      </p>
+                    )}
+                    {supplierMenuOpen && suggestedSuppliers.length > 0 ? (
+                      <ul className="absolute z-20 mt-1 max-h-40 w-full overflow-y-auto rounded-xl border-0 bg-white py-1 shadow-lg dark:bg-zinc-900">
+                        {suggestedSuppliers.map((s) => (
+                          <li key={s.id}>
+                            <button
+                              type="button"
+                              onClick={() => pickSupplier(s)}
+                              className="flex w-full flex-col items-start px-3 py-2.5 text-left hover:bg-emerald-50 dark:hover:bg-emerald-950/40"
+                            >
+                              <span className="text-[14px] font-semibold text-zinc-900 dark:text-white">
+                                {supplierDisplayName(s)}
+                              </span>
+                              <span className="text-[11px] text-zinc-500">
+                                {[s.document, s.address_city, s.phone].filter(Boolean).join(' · ') ||
+                                  'Sem detalhes'}
+                              </span>
+                            </button>
+                          </li>
                         ))}
-                      </select>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </section>
+                      </ul>
+                    ) : null}
+                  </div>
+
+                  <label className="block space-y-1.5">
+                    <span className="text-[11px] font-bold uppercase tracking-wide text-zinc-500">
+                      Custo por unidade (R$)
+                    </span>
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      value={unitCost}
+                      disabled={saving}
+                      onChange={(e) => setUnitCost(e.target.value)}
+                      placeholder="0,00"
+                      className="w-full rounded-xl border-0 bg-zinc-100 px-3 py-2.5 text-[14px] tabular-nums outline-none focus:ring-2 focus:ring-emerald-500/30 dark:bg-black/20 dark:text-white"
+                    />
+                  </label>
+                  <label className="block space-y-1.5">
+                    <span className="text-[11px] font-bold uppercase tracking-wide text-zinc-500">
+                      Valor deste produto (R$)
+                    </span>
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      value={productTotal}
+                      disabled={saving}
+                      onChange={(e) => {
+                        setProductTotalTouched(true);
+                        setProductTotal(e.target.value);
+                      }}
+                      placeholder="qtd × custo"
+                      className="w-full rounded-xl border-0 bg-zinc-100 px-3 py-2.5 text-[14px] tabular-nums outline-none focus:ring-2 focus:ring-emerald-500/30 dark:bg-black/20 dark:text-white"
+                    />
+                    <p className="text-[11px] text-zinc-500">
+                      Calculado: {formatMoneyDisplay(autoProductTotal)}
+                      {productTotalTouched ? ' · editado' : ''}
+                    </p>
+                  </label>
+                  <label className="block space-y-1.5 sm:col-span-2">
+                    <span className="text-[11px] font-bold uppercase tracking-wide text-zinc-500">
+                      Valor total da NF-e (R$)
+                    </span>
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      value={invoiceTotal}
+                      disabled={saving}
+                      onChange={(e) => setInvoiceTotal(e.target.value)}
+                      placeholder="Opcional — quando a nota tem outros itens"
+                      className="w-full rounded-xl border-0 bg-zinc-100 px-3 py-2.5 text-[14px] tabular-nums outline-none focus:ring-2 focus:ring-emerald-500/30 dark:bg-black/20 dark:text-white"
+                    />
+                  </label>
+                </div>
+
+                <label className="flex items-center gap-2.5 rounded-xl bg-zinc-50 px-3 py-2.5 dark:bg-white/[0.04]">
+                  <input
+                    type="checkbox"
+                    checked={updatePartCost}
+                    disabled={saving || unitCostNumber <= 0}
+                    onChange={(e) => setUpdatePartCost(e.target.checked)}
+                    className="h-4 w-4 accent-emerald-600"
+                  />
+                  <span className="text-[13px] font-medium text-zinc-700 dark:text-zinc-200">
+                    Atualizar preço de custo do produto com este valor unitário
+                  </span>
+                </label>
+
+                <label className="block space-y-1.5">
+                  <span className="text-[11px] font-bold uppercase tracking-wide text-zinc-500">
+                    Observações
+                  </span>
+                  <textarea
+                    value={notes}
+                    disabled={saving}
+                    onChange={(e) => setNotes(e.target.value)}
+                    rows={2}
+                    placeholder="Opcional"
+                    className="w-full resize-none rounded-xl border-0 bg-zinc-100 px-3 py-2.5 text-[14px] outline-none focus:ring-2 focus:ring-emerald-500/30 dark:bg-black/20 dark:text-white"
+                  />
+                </label>
+              </section>
+            </div>
 
             {(error || success) && (
-              <div className={isDesktopShell ? 'col-span-2' : undefined}>
+              <div className="mt-4">
                 {error ? (
                   <p className="rounded-xl bg-red-50 px-3 py-2 text-[13px] text-red-800 dark:bg-red-950/40 dark:text-red-200">
                     {error}
@@ -550,6 +630,25 @@ export function WorkshopPartStockInboundModal({
                 ) : null}
               </div>
             )}
+          </div>
+
+          <div className="flex shrink-0 items-center justify-end gap-3 border-t border-zinc-200/70 px-5 py-3.5 dark:border-white/10 sm:px-6">
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-xl px-4 py-2.5 text-[14px] font-semibold text-zinc-600 hover:bg-zinc-200/70 dark:text-zinc-300 dark:hover:bg-white/10"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              disabled={saving || receiveQty <= 0}
+              onClick={() => void handleReceive()}
+              className="inline-flex min-w-[12rem] items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-[14px] font-semibold text-white hover:bg-emerald-500 disabled:opacity-50"
+            >
+              {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <PackagePlus className="h-4 w-4" />}
+              {saving ? 'Registrando…' : 'Confirmar recebimento'}
+            </button>
           </div>
         </div>
       </div>

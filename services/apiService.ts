@@ -6,6 +6,8 @@ import { API_BASE } from "./apiConfig";
 import "./httpClient";
 import { getSupabaseBrowser } from "./supabaseBrowser";
 import { isTvVideoFile } from "../utils/tvMediaFile";
+import { getOrCreateDeviceId } from "../utils/deviceSessionId";
+import { collectDeviceClientInfo } from "../utils/deviceIdentity";
 
 async function readResponseJson<T>(response: Response, emptyMessage: string, invalidMessage: string): Promise<T> {
   const text = await response.text();
@@ -30,8 +32,20 @@ import {
   type TvVideoLayoutMode,
   type TvVideoSettings,
 } from "@/utils/tvVideoSettings";
+import type {
+  WorkshopPartStockMovement,
+  WorkshopPartStockMovementType,
+} from "../utils/workshopPartStockOutbound";
+import type { WorkshopSupplier, WorkshopSupplierWriteInput } from "../utils/workshopSuppliers";
+import type { EstoqueLedgerEntry } from "../utils/estoqueLedger";
 
 export type { TvChimeAlert, TvChimeKind, TvChimeSoundPreset } from "@/utils/tvChimeSchedule";
+export type {
+  WorkshopPartStockMovementType,
+  WorkshopPartStockMovement,
+} from "../utils/workshopPartStockOutbound";
+export type { WorkshopSupplier, WorkshopSupplierWriteInput } from "../utils/workshopSuppliers";
+export type { EstoqueLedgerEntry } from "../utils/estoqueLedger";
 
 export interface ApiCustomer {
   id: string;
@@ -74,6 +88,7 @@ interface ApiServiceOrder {
   vehicle_color?: string | null;
   vehicle_year?: string | null;
   vehicle_engine_info?: string | null;
+  vehicle_chassis?: string | null;
   bench_slot?: number | null;
   bench_slot_at?: string | null;
   bench_queued_at?: string | null;
@@ -119,6 +134,7 @@ export interface ServiceOrderListItem {
   vehicle_color?: string | null;
   vehicle_year?: string | null;
   vehicle_engine_info?: string | null;
+  vehicle_chassis?: string | null;
   /** Links anexados ao modal (JSON no banco). */
   reference_links?: VehicleReferenceLink[] | null;
   /** Vínculos de serviços do pátio enviados ao laboratório. */
@@ -169,6 +185,7 @@ export interface ServiceOrderDetail {
   vehicle_color?: string | null;
   vehicle_year?: string | null;
   vehicle_engine_info?: string | null;
+  vehicle_chassis?: string | null;
   reference_links?: VehicleReferenceLink[] | null;
   /** Vínculos de serviços do pátio enviados ao laboratório. */
   lab_service_links?: LabServiceLink[] | null;
@@ -193,12 +210,15 @@ export interface ServiceOrderDetail {
 
 /** Resposta de POST /api/consulta-placa (PlacaFipe via servidor). */
 export interface PlacaFipeLookupResult {
+  /** Placa consultada (preserva Mercosul digitada; a API às vezes só tem o formato antigo). */
   plate: string;
   vehicleBrand: string | null;
   vehicleModel: string | null;
   vehicleColor: string | null;
   vehicleYear: string | null;
   vehicleEngineInfo: string | null;
+  /** Chassi (pode vir mascarado da PlacaFipe, ex.: ******6889) */
+  vehicleChassis: string | null;
   /** Sugestão para o campo cidade (município — UF) */
   citySuggestion: string | null;
 }
@@ -857,6 +877,7 @@ export async function createServiceOrder(params: {
   vehicleColor?: string | null;
   vehicleYear?: string | null;
   vehicleEngineInfo?: string | null;
+  vehicleChassis?: string | null;
   /** Marca OS criada a partir da Agenda (Chegou ao pátio). */
   agendaTag?: boolean;
   /** Etiqueta de garantia (laboratório / pátio). */
@@ -878,6 +899,8 @@ export async function createServiceOrder(params: {
     if (params.vehicleYear !== undefined) body.vehicleYear = params.vehicleYear?.trim() || null;
     if (params.vehicleEngineInfo !== undefined)
       body.vehicleEngineInfo = params.vehicleEngineInfo?.trim() || null;
+    if (params.vehicleChassis !== undefined)
+      body.vehicleChassis = params.vehicleChassis?.trim() || null;
     if (params.agendaTag === true) body.agendaTag = true;
   } else {
     body.plate = null;
@@ -936,6 +959,8 @@ export async function saveReceptionIntake(
     vehicleYear: orderType === "vehicle" ? customer.vehicleYear?.trim() || null : undefined,
     vehicleEngineInfo:
       orderType === "vehicle" ? customer.vehicleEngineInfo?.trim() || null : undefined,
+    vehicleChassis:
+      orderType === "vehicle" ? customer.vehicleChassis?.trim() || null : undefined,
     status: orderType === "module" ? moduleInitialStatus : undefined,
     agendaTag: orderType === "vehicle" && options?.agendaTag === true ? true : undefined,
     garantiaTag: options?.garantiaTag === true ? true : undefined,
@@ -974,6 +999,7 @@ export async function saveReceptionIntakeForExistingCustomer(
     vehicleColor: orderType === "vehicle" ? customer.vehicleColor?.trim() || null : undefined,
     vehicleYear: orderType === "vehicle" ? customer.vehicleYear?.trim() || null : undefined,
     vehicleEngineInfo: orderType === "vehicle" ? customer.vehicleEngineInfo?.trim() || null : undefined,
+    vehicleChassis: orderType === "vehicle" ? customer.vehicleChassis?.trim() || null : undefined,
     status: orderType === "module" ? moduleInitialStatus : undefined,
     agendaTag: orderType === "vehicle" && options?.agendaTag === true ? true : undefined,
     garantiaTag: options?.garantiaTag === true ? true : undefined,
@@ -1025,6 +1051,87 @@ export async function getServiceOrderById(id: string): Promise<ServiceOrderDetai
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
     throw new Error(err.error || `Falha ao carregar OS (${response.status})`);
+  }
+  return response.json();
+}
+
+/** Serviço aprovado no histórico de manutenções do veículo. */
+export type VehicleMaintenanceServiceItem = {
+  description: string;
+  laborHours: number | null;
+  technicianName: string | null;
+  budgetId: string | null;
+  serviceOrderId?: string;
+  osNumber?: number | null;
+  customerName?: string | null;
+  at?: string | null;
+  finalized?: boolean;
+  statusLabel?: string;
+};
+
+/** Peça aprovada/trocada no histórico de manutenções do veículo. */
+export type VehicleMaintenancePartItem = {
+  description: string;
+  quantity: string;
+  fromStock: boolean;
+  workshopPartId: string | null;
+  budgetId: string | null;
+  serviceOrderId?: string;
+  osNumber?: number | null;
+  customerName?: string | null;
+  at?: string | null;
+  finalized?: boolean;
+  statusLabel?: string;
+};
+
+export type VehicleMaintenanceVisit = {
+  serviceOrderId: string;
+  osNumber: number | null;
+  status: string;
+  statusLabel: string;
+  finalized: boolean;
+  archived?: boolean;
+  isCurrent: boolean;
+  plate: string | null;
+  vehicleModel: string | null;
+  customerName?: string | null;
+  customerId?: string | null;
+  mileageKm: string | null;
+  createdAt: string | null;
+  updatedAt: string | null;
+  services: VehicleMaintenanceServiceItem[];
+  parts: VehicleMaintenancePartItem[];
+};
+
+export type VehicleMaintenanceHistory = {
+  plate: string | null;
+  /** Chave de identidade (Mercosul e formato antigo colapsam, ex.: ABC1C34 ≡ ABC1234). */
+  plateKey?: string | null;
+  /** Sempre "plate" — histórico não é filtrado por cliente. */
+  lookupBy?: "plate";
+  vehicleModel: string | null;
+  vehicleBrand: string | null;
+  visits: VehicleMaintenanceVisit[];
+  services: VehicleMaintenanceServiceItem[];
+  parts: VehicleMaintenancePartItem[];
+  summary: { visits: number; services: number; parts: number; owners?: number };
+};
+
+/** Histórico de manutenções do veículo — sempre pela placa (todos os cadastros/donos). */
+export async function getVehicleMaintenanceHistory(
+  serviceOrderId: string,
+  opts?: { plate?: string | null }
+): Promise<VehicleMaintenanceHistory> {
+  const qs = new URLSearchParams();
+  const plate = (opts?.plate ?? "").replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
+  if (plate.length >= 5) qs.set("plate", plate);
+  const suffix = qs.toString() ? `?${qs.toString()}` : "";
+  const response = await fetch(
+    `${API_BASE}/service-orders/${serviceOrderId}/maintenance-history${suffix}`
+  );
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao carregar histórico (${response.status})`);
   }
   return response.json();
 }
@@ -1445,6 +1552,7 @@ export async function updateServiceOrderVehicle(
     vehicleColor?: string | null;
     vehicleYear?: string | null;
     vehicleEngineInfo?: string | null;
+    vehicleChassis?: string | null;
     moduleKind?: string | null;
     moduleVehicleKind?: string | null;
     moduleProductOther?: string | null;
@@ -1478,6 +1586,12 @@ export async function updateServiceOrderVehicle(
       data.vehicleEngineInfo == null || String(data.vehicleEngineInfo).trim() === ""
         ? null
         : String(data.vehicleEngineInfo).trim();
+  }
+  if (data.vehicleChassis !== undefined) {
+    body.vehicleChassis =
+      data.vehicleChassis == null || String(data.vehicleChassis).trim() === ""
+        ? null
+        : String(data.vehicleChassis).trim();
   }
   if (data.moduleKind !== undefined) {
     body.moduleKind =
@@ -3121,11 +3235,16 @@ export interface WorkshopPartPurchase {
   id: string;
   part_id: string;
   supplier_name: string | null;
+  supplier_id?: string | null;
   quantity: number;
   unit_cost: number;
+  product_total?: number | null;
+  invoice_total?: number | null;
+  nfe_number?: string | null;
   expected_date: string | null;
   notes: string | null;
   status: WorkshopPartPurchaseStatus;
+  recorded_by_name?: string | null;
   created_at: string;
 }
 
@@ -3223,22 +3342,51 @@ export interface WorkshopPartCategory {
 
 export type { WorkshopPartsAnalyticsResponse } from '../utils/workshopPartsAnalytics';
 export type {
+  AbsCodeRole,
+  AbsComponentScope,
+  AbsDisassembleDestination,
   AbsModuleCondition,
   AbsModuleExitReason,
+  AbsModuleItemCondition,
+  AbsModuleItemState,
   AbsModuleKind,
   AbsModuleMovementType,
   AbsModuleStatus,
+  WorkshopAbsDisassembleInput,
+  WorkshopAbsDisassembleResult,
+  WorkshopAbsDisassemblyDetail,
   WorkshopAbsModule,
+  WorkshopAbsModuleApplication,
+  WorkshopAbsModuleApplicationInput,
+  WorkshopAbsModuleCode,
+  WorkshopAbsModuleCodeInput,
+  WorkshopAbsModuleDisassembly,
+  WorkshopAbsModuleModel,
+  WorkshopAbsModuleModelWriteInput,
   WorkshopAbsModuleMovement,
+  WorkshopAbsModuleMovementListItem,
+  WorkshopAbsModulePhoto,
+  WorkshopAbsModuleSearchResult,
   WorkshopAbsModuleWriteInput,
 } from '../utils/workshopAbsModules';
 import type {
+  AbsModuleItemCondition,
+  AbsModuleItemState,
+  AbsModuleKind,
   AbsModuleMovementType,
   AbsModuleStatus,
+  WorkshopAbsDisassembleInput,
+  WorkshopAbsDisassembleResult,
+  WorkshopAbsDisassemblyDetail,
   WorkshopAbsModule,
+  WorkshopAbsModuleModel,
+  WorkshopAbsModuleModelWriteInput,
   WorkshopAbsModuleMovement,
+  WorkshopAbsModuleMovementListItem,
+  WorkshopAbsModuleSearchResult,
   WorkshopAbsModuleWriteInput,
 } from '../utils/workshopAbsModules';
+import { legacyConditionToItemFields } from '../utils/workshopAbsModules';
 
 export async function getWorkshopPartsAnalytics(
   preset: '7d' | '30d' | '90d' | 'month' | 'year' = '30d'
@@ -3287,34 +3435,16 @@ export async function getWorkshopPartPendingReservations(): Promise<WorkshopPart
   };
 }
 
-export type WorkshopPartStockMovementType = 'sale' | 'consumable';
-
-export type WorkshopPartStockMovement = {
-  id: string;
-  workshop_id: string;
-  part_id: string;
-  movement_type: WorkshopPartStockMovementType;
-  quantity: number;
-  unit_price: number | null;
-  total_amount: number | null;
-  notes: string | null;
-  barcode_scanned: string | null;
-  recorded_by_name: string | null;
-  stock_before: number;
-  stock_after: number;
-  created_at: string;
-  service_order_id?: string | null;
-  part_name?: string | null;
-  part_unit_of_measure?: string | null;
-  part_photo_url?: string | null;
-};
-
 export type WorkshopPartStockOutboundResult = {
   movement: WorkshopPartStockMovement;
   part: Pick<
     WorkshopPart,
     'id' | 'name' | 'stock_qty' | 'unit_price' | 'unit_of_measure' | 'photo_url' | 'barcode'
   >;
+};
+
+export type WorkshopPartStockInboundResult = WorkshopPartStockOutboundResult & {
+  purchase?: WorkshopPartPurchase;
 };
 
 /** Busca produto por código de barras, original ou numérico. */
@@ -3387,6 +3517,144 @@ export async function createWorkshopPartStockMovement(input: {
   };
 }
 
+/** Recebimento de mercadoria (entrada + NF-e + histórico). */
+export async function receiveWorkshopPartStock(
+  partId: string,
+  input: {
+    quantity: number;
+    unit_cost?: number | null;
+    product_total?: number | null;
+    invoice_total?: number | null;
+    nfe_number?: string | null;
+    supplier_id?: string | null;
+    supplier_name?: string | null;
+    notes?: string | null;
+    recorded_by_name?: string | null;
+    update_part_cost?: boolean;
+  }
+): Promise<WorkshopPartStockInboundResult> {
+  const response = await fetch(`${API_BASE}/workshop-parts/${partId}/receive`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao registrar recebimento (${response.status})`);
+  }
+  const data = (await response.json()) as WorkshopPartStockInboundResult;
+  return {
+    movement: data.movement,
+    purchase: data.purchase,
+    part: {
+      ...data.part,
+      stock_qty: Number(data.part?.stock_qty ?? 0),
+      unit_price: Number(data.part?.unit_price ?? 0),
+    },
+  };
+}
+
+/** Histórico unificado (peças + ABS). */
+export async function getEstoqueLedger(opts?: {
+  limit?: number;
+}): Promise<EstoqueLedgerEntry[]> {
+  const params = new URLSearchParams();
+  if (opts?.limit) params.set('limit', String(opts.limit));
+  const qs = params.toString();
+  const response = await fetch(`${API_BASE}/estoque/ledger${qs ? `?${qs}` : ''}`);
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao carregar histórico (${response.status})`);
+  }
+  const data = (await response.json()) as { items?: EstoqueLedgerEntry[] };
+  return Array.isArray(data.items) ? data.items : [];
+}
+
+function normalizeSupplierRow(row: Record<string, unknown>): WorkshopSupplier {
+  return {
+    id: String(row.id),
+    workshop_id: row.workshop_id != null ? String(row.workshop_id) : undefined,
+    name: String(row.name ?? ''),
+    trade_name: (row.trade_name as string) ?? null,
+    document: (row.document as string) ?? null,
+    email: (row.email as string) ?? null,
+    phone: (row.phone as string) ?? null,
+    whatsapp: (row.whatsapp as string) ?? null,
+    contact_name: (row.contact_name as string) ?? null,
+    address_street: (row.address_street as string) ?? null,
+    address_number: (row.address_number as string) ?? null,
+    address_complement: (row.address_complement as string) ?? null,
+    address_neighborhood: (row.address_neighborhood as string) ?? null,
+    address_city: (row.address_city as string) ?? null,
+    address_state: (row.address_state as string) ?? null,
+    address_zip: (row.address_zip as string) ?? null,
+    notes: (row.notes as string) ?? null,
+    active: row.active !== false,
+    created_at: String(row.created_at ?? ''),
+    updated_at: row.updated_at != null ? String(row.updated_at) : null,
+  };
+}
+
+export async function getWorkshopSuppliers(opts?: {
+  q?: string;
+  activeOnly?: boolean;
+}): Promise<WorkshopSupplier[]> {
+  const params = new URLSearchParams();
+  if (opts?.q) params.set('q', opts.q);
+  if (opts?.activeOnly === false) params.set('active', 'all');
+  const qs = params.toString();
+  const response = await fetch(`${API_BASE}/workshop-suppliers${qs ? `?${qs}` : ''}`);
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao listar fornecedores (${response.status})`);
+  }
+  const data = (await response.json()) as { items?: Record<string, unknown>[] };
+  return Array.isArray(data.items) ? data.items.map(normalizeSupplierRow) : [];
+}
+
+export async function createWorkshopSupplier(
+  input: WorkshopSupplierWriteInput
+): Promise<WorkshopSupplier> {
+  const response = await fetch(`${API_BASE}/workshop-suppliers`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao criar fornecedor (${response.status})`);
+  }
+  const data = (await response.json()) as Record<string, unknown>;
+  return normalizeSupplierRow(data);
+}
+
+export async function updateWorkshopSupplier(
+  id: string,
+  input: Partial<WorkshopSupplierWriteInput>
+): Promise<WorkshopSupplier> {
+  const response = await fetch(`${API_BASE}/workshop-suppliers/${encodeURIComponent(id)}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao atualizar fornecedor (${response.status})`);
+  }
+  const data = (await response.json()) as Record<string, unknown>;
+  return normalizeSupplierRow(data);
+}
+
+export async function deleteWorkshopSupplier(id: string): Promise<void> {
+  const response = await fetch(`${API_BASE}/workshop-suppliers/${encodeURIComponent(id)}`, {
+    method: 'DELETE',
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao excluir fornecedor (${response.status})`);
+  }
+}
+
 /** Valida senha da Gerência ou senha dedicada de proteção do estoque. */
 export async function verifyStockGuardPassword(password: string): Promise<void> {
   const response = await fetch(`${API_BASE}/workshop-parts/verify-stock-guard`, {
@@ -3430,6 +3698,13 @@ export async function cancelWorkshopPartStockMovement(
 // ----------------- MÓDULOS ABS (inventário individual + QR) -----------------
 
 function normalizeAbsModuleRow(row: Record<string, unknown>): WorkshopAbsModule {
+  const condition = (row.condition as WorkshopAbsModule['condition']) || 'usado';
+  const legacy = legacyConditionToItemFields(condition);
+  const itemState =
+    (row.item_state as AbsModuleItemState | undefined) || legacy.item_state;
+  const itemCondition =
+    (row.item_condition as AbsModuleItemCondition | undefined) || legacy.item_condition;
+  const catalogRaw = row.catalog_model;
   return {
     ...(row as WorkshopAbsModule),
     unit_cost: Number(row.unit_cost ?? 0),
@@ -3442,15 +3717,118 @@ function normalizeAbsModuleRow(row: Record<string, unknown>): WorkshopAbsModule 
     supplier: (row.supplier as string) ?? null,
     location: (row.location as string) ?? null,
     notes: (row.notes as string) ?? null,
+    damage_description: (row.damage_description as string) ?? null,
     module_kind: (row.module_kind as WorkshopAbsModule['module_kind']) || 'completo',
-    condition: (row.condition as WorkshopAbsModule['condition']) || 'usado',
+    condition,
+    item_state: itemState,
+    item_condition: itemCondition,
     status: (row.status as WorkshopAbsModule['status']) || 'disponivel',
+    model_id: row.model_id != null ? String(row.model_id) : null,
+    sequence_number:
+      row.sequence_number != null && row.sequence_number !== ''
+        ? Number(row.sequence_number)
+        : null,
+    parent_complete_id: row.parent_complete_id != null ? String(row.parent_complete_id) : null,
     public_id: String(row.public_id || '').toUpperCase(),
     id: String(row.id || ''),
     received_at: String(row.received_at || row.created_at || ''),
     created_at: String(row.created_at || ''),
     updated_at: String(row.updated_at || row.created_at || ''),
+    catalog_model:
+      catalogRaw && typeof catalogRaw === 'object'
+        ? normalizeAbsModuleModelRow(catalogRaw as Record<string, unknown>)
+        : null,
+    photos: Array.isArray(row.photos) ? (row.photos as WorkshopAbsModule['photos']) : [],
   };
+}
+
+function normalizeAbsModuleModelRow(row: Record<string, unknown>): WorkshopAbsModuleModel {
+  const unitsRaw = Array.isArray(row.units) ? row.units : [];
+  const units = unitsRaw.map((u) => normalizeAbsModuleRow(u as Record<string, unknown>));
+  const available_qty =
+    row.available_qty != null
+      ? Number(row.available_qty)
+      : units.filter((u) => u.status === 'disponivel').length;
+  const total_qty = row.total_qty != null ? Number(row.total_qty) : units.length || Number(row.total_qty ?? 0);
+  return {
+    ...(row as WorkshopAbsModuleModel),
+    id: String(row.id || ''),
+    manufacturer: (row.manufacturer as string) ?? null,
+    family: (row.family as string) ?? null,
+    module_kind: (row.module_kind as AbsModuleKind) || 'completo',
+    notes: (row.notes as string) ?? null,
+    fingerprint: row.fingerprint != null ? String(row.fingerprint) : undefined,
+    created_at: String(row.created_at || ''),
+    updated_at: String(row.updated_at || row.created_at || ''),
+    codes: Array.isArray(row.codes) ? (row.codes as WorkshopAbsModuleModel['codes']) : [],
+    applications: Array.isArray(row.applications)
+      ? (row.applications as WorkshopAbsModuleModel['applications'])
+      : [],
+    photos: Array.isArray(row.photos) ? (row.photos as WorkshopAbsModuleModel['photos']) : [],
+    available_qty,
+    total_qty,
+    units,
+  };
+}
+
+function groupUnitsIntoAbsModels(units: WorkshopAbsModule[]): WorkshopAbsModuleModel[] {
+  const byKey = new Map<string, WorkshopAbsModule[]>();
+  for (const u of units) {
+    const key = u.model_id || `legacy:${u.manufacturer || ''}|${u.original_code || ''}|${u.module_kind}`;
+    const list = byKey.get(key) || [];
+    list.push(u);
+    byKey.set(key, list);
+  }
+  const models: WorkshopAbsModuleModel[] = [];
+  for (const [key, list] of byKey) {
+    const head = list[0];
+    const id = head.model_id || key;
+    models.push({
+      id,
+      manufacturer: head.manufacturer,
+      family: head.model,
+      module_kind: head.module_kind,
+      notes: null,
+      created_at: head.created_at,
+      updated_at: head.updated_at,
+      codes: head.original_code
+        ? [
+            {
+              id: `${id}-code`,
+              model_id: id,
+              component_scope: head.module_kind === 'hidraulico' ? 'hidraulico' : head.module_kind === 'eletronico' ? 'eletronico' : 'completo',
+              code_role: 'fabricante',
+              code_value: head.original_code,
+              sort_order: 0,
+            },
+          ]
+        : [],
+      applications: head.application
+        ? [
+            {
+              id: `${id}-app`,
+              model_id: id,
+              component_scope: 'completo',
+              vehicle_brand: null,
+              vehicle_model: head.application,
+              generation: null,
+              year_from: null,
+              year_to: null,
+              engine: null,
+              version: null,
+              notes: null,
+              sort_order: 0,
+            },
+          ]
+        : [],
+      available_qty: list.filter((u) => u.status === 'disponivel').length,
+      total_qty: list.length,
+      units: list.sort((a, b) => (a.sequence_number ?? 0) - (b.sequence_number ?? 0)),
+    });
+  }
+  return models.sort((a, b) =>
+    String(a.manufacturer || '').localeCompare(String(b.manufacturer || ''), 'pt-BR')
+  );
 }
 
 export async function getWorkshopAbsModules(opts?: {
@@ -3509,6 +3887,19 @@ export async function getWorkshopAbsModule(publicId: string): Promise<WorkshopAb
   return normalizeAbsModuleRow(data.module);
 }
 
+export async function getWorkshopAbsModulesAnalytics(
+  preset: '7d' | '30d' | '90d' | 'month' | 'year' = '30d'
+): Promise<import('../utils/workshopAbsModulesAnalytics').AbsModulesAnalyticsResponse> {
+  const response = await fetch(
+    `${API_BASE}/abs-modules/analytics?preset=${encodeURIComponent(preset)}`
+  );
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao carregar gráficos dos módulos ABS (${response.status})`);
+  }
+  return response.json();
+}
+
 export async function getWorkshopAbsModuleMovements(
   publicId: string
 ): Promise<WorkshopAbsModuleMovement[]> {
@@ -3521,6 +3912,72 @@ export async function getWorkshopAbsModuleMovements(
   }
   const data = (await response.json()) as { movements?: WorkshopAbsModuleMovement[] };
   return Array.isArray(data.movements) ? data.movements : [];
+}
+
+/** Histórico global de movimentações de todos os módulos ABS. */
+export async function getWorkshopAbsModulesAllMovements(opts?: {
+  limit?: number;
+}): Promise<WorkshopAbsModuleMovementListItem[]> {
+  const qs = new URLSearchParams();
+  if (opts?.limit != null) qs.set('limit', String(opts.limit));
+  const suffix = qs.toString() ? `?${qs.toString()}` : '';
+  const response = await fetch(`${API_BASE}/abs-modules/movements${suffix}`);
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao carregar histórico global (${response.status})`);
+  }
+  const data = (await response.json()) as { movements?: WorkshopAbsModuleMovementListItem[] };
+  return Array.isArray(data.movements) ? data.movements : [];
+}
+
+/** Histórico de vendas ABS (saídas por venda / desmembramento → venda direta). */
+export async function getWorkshopAbsModulesSales(opts?: {
+  limit?: number;
+}): Promise<WorkshopAbsModuleMovementListItem[]> {
+  const qs = new URLSearchParams();
+  if (opts?.limit != null) qs.set('limit', String(opts.limit));
+  const suffix = qs.toString() ? `?${qs.toString()}` : '';
+  const response = await fetch(`${API_BASE}/abs-modules/sales${suffix}`);
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao carregar histórico de vendas (${response.status})`);
+  }
+  const data = (await response.json()) as { sales?: WorkshopAbsModuleMovementListItem[] };
+  return Array.isArray(data.sales) ? data.sales : [];
+}
+
+export async function getWorkshopAbsModuleDisassembly(
+  publicId: string
+): Promise<WorkshopAbsDisassemblyDetail> {
+  const pid = String(publicId || '').trim().toUpperCase();
+  const response = await fetch(
+    `${API_BASE}/abs-modules/${encodeURIComponent(pid)}/disassembly`
+  );
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao carregar desmembramento (${response.status})`);
+  }
+  const data = (await response.json()) as {
+    disassembly?: WorkshopAbsDisassembleResult['disassembly'];
+    source?: Record<string, unknown>;
+    remaining?: Record<string, unknown>;
+    withdrawn?: Record<string, unknown>;
+    movements?: WorkshopAbsDisassemblyDetail['movements'];
+  };
+  if (!data.disassembly || !data.source || !data.remaining || !data.withdrawn) {
+    throw new Error('Resposta inválida do desmembramento.');
+  }
+  return {
+    disassembly: data.disassembly,
+    source: normalizeAbsModuleRow(data.source),
+    remaining: normalizeAbsModuleRow(data.remaining),
+    withdrawn: normalizeAbsModuleRow(data.withdrawn),
+    movements: {
+      source: Array.isArray(data.movements?.source) ? data.movements!.source : [],
+      remaining: Array.isArray(data.movements?.remaining) ? data.movements!.remaining : [],
+      withdrawn: Array.isArray(data.movements?.withdrawn) ? data.movements!.withdrawn : [],
+    },
+  };
 }
 
 export async function createWorkshopAbsModule(
@@ -3566,6 +4023,7 @@ export async function createWorkshopAbsModuleMovement(input: {
   reason_ref?: string | null;
   notes?: string | null;
   recorded_by_name?: string | null;
+  service_order_id?: string | null;
 }): Promise<{ module: WorkshopAbsModule; movement: WorkshopAbsModuleMovement }> {
   const response = await fetch(
     `${API_BASE}/abs-modules/${encodeURIComponent(input.public_id)}/movements`,
@@ -3585,6 +4043,281 @@ export async function createWorkshopAbsModuleMovement(input: {
   };
   if (!data.module || !data.movement) throw new Error('Resposta inválida da movimentação.');
   return { module: normalizeAbsModuleRow(data.module), movement: data.movement };
+}
+
+export type WorkshopAbsModuleModelsQuery = {
+  q?: string;
+  kind?: AbsModuleKind | '';
+  module_kind?: AbsModuleKind | '';
+  manufacturer?: string;
+  item_state?: AbsModuleItemState | '';
+  item_condition?: AbsModuleItemCondition | '';
+  status?: AbsModuleStatus | '';
+};
+
+/** Lista modelos técnicos ABS (com fallback agrupando unidades se a rota ainda não existir). */
+export async function getWorkshopAbsModuleModels(
+  opts?: WorkshopAbsModuleModelsQuery
+): Promise<WorkshopAbsModuleModel[]> {
+  const kind = opts?.kind || opts?.module_kind || '';
+  const params = new URLSearchParams();
+  if (opts?.q) params.set('q', opts.q);
+  if (kind) params.set('kind', kind);
+  if (opts?.manufacturer) params.set('manufacturer', opts.manufacturer);
+  if (opts?.item_state) params.set('item_state', opts.item_state);
+  if (opts?.item_condition) params.set('item_condition', opts.item_condition);
+  if (opts?.status) params.set('status', opts.status);
+  const qs = params.toString();
+  const response = await fetch(`${API_BASE}/abs-module-models${qs ? `?${qs}` : ''}`);
+  if (response.status === 404) {
+    const units = await getWorkshopAbsModules({ q: opts?.q, status: opts?.status || '' });
+    let models = groupUnitsIntoAbsModels(units);
+    if (kind) {
+      models = models.filter((m) => m.module_kind === kind);
+    }
+    if (opts?.manufacturer) {
+      const needle = opts.manufacturer.trim().toLowerCase();
+      models = models.filter((m) => String(m.manufacturer || '').toLowerCase().includes(needle));
+    }
+    if (opts?.item_state || opts?.item_condition || opts?.status) {
+      models = models
+        .map((m) => ({
+          ...m,
+          units: (m.units || []).filter((u) => {
+            if (opts.item_state && u.item_state !== opts.item_state) return false;
+            if (opts.item_condition && u.item_condition !== opts.item_condition) return false;
+            if (opts.status && u.status !== opts.status) return false;
+            return true;
+          }),
+        }))
+        .filter((m) => (m.units || []).length > 0)
+        .map((m) => ({
+          ...m,
+          available_qty: (m.units || []).filter((u) => u.status === 'disponivel').length,
+          total_qty: (m.units || []).length,
+        }));
+    }
+    return models;
+  }
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao listar modelos ABS (${response.status})`);
+  }
+  const data = (await response.json()) as { models?: Record<string, unknown>[] };
+  return Array.isArray(data.models) ? data.models.map(normalizeAbsModuleModelRow) : [];
+}
+
+export async function getWorkshopAbsModuleModel(modelId: string): Promise<WorkshopAbsModuleModel> {
+  const id = String(modelId || '').trim();
+  if (!id) throw new Error('ID do modelo ausente.');
+  const response = await fetch(`${API_BASE}/abs-module-models/${encodeURIComponent(id)}`);
+  if (response.status === 404) {
+    const units = await getWorkshopAbsModules();
+    const models = groupUnitsIntoAbsModels(units);
+    const found = models.find((m) => m.id === id);
+    if (!found) throw new Error('Modelo ABS não encontrado.');
+    return found;
+  }
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao carregar modelo ABS (${response.status})`);
+  }
+  const data = (await response.json()) as { model?: Record<string, unknown> };
+  if (!data.model) throw new Error('Modelo ABS não encontrado.');
+  return normalizeAbsModuleModelRow(data.model);
+}
+
+export async function createWorkshopAbsModuleModel(
+  input: WorkshopAbsModuleModelWriteInput
+): Promise<WorkshopAbsModuleModel> {
+  const response = await fetch(`${API_BASE}/abs-module-models`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao criar modelo ABS (${response.status})`);
+  }
+  const data = (await response.json()) as { model?: Record<string, unknown> };
+  if (!data.model) throw new Error('Resposta inválida ao criar modelo ABS.');
+  return normalizeAbsModuleModelRow(data.model);
+}
+
+export async function updateWorkshopAbsModuleModel(
+  id: string,
+  input: WorkshopAbsModuleModelWriteInput
+): Promise<WorkshopAbsModuleModel> {
+  const response = await fetch(`${API_BASE}/abs-module-models/${encodeURIComponent(id)}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao atualizar modelo ABS (${response.status})`);
+  }
+  const data = (await response.json()) as { model?: Record<string, unknown> };
+  if (!data.model) throw new Error('Resposta inválida ao atualizar modelo ABS.');
+  return normalizeAbsModuleModelRow(data.model);
+}
+/** Busca unidades disponíveis (e via desmembramento) por código/aplicação. */
+export async function searchWorkshopAbsModules(q: string): Promise<WorkshopAbsModuleSearchResult> {
+  const query = String(q || '').trim();
+  const response = await fetch(
+    `${API_BASE}/abs-modules/search?q=${encodeURIComponent(query)}`
+  );
+  if (response.status === 404) {
+    const availableUnits = query
+      ? await getWorkshopAbsModules({ q: query, status: 'disponivel' })
+      : [];
+    return { query, availableUnits, availableViaDisassembly: [] };
+  }
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha na busca ABS (${response.status})`);
+  }
+  const data = (await response.json()) as {
+    query?: string;
+    availableUnits?: Record<string, unknown>[];
+    availableViaDisassembly?: Record<string, unknown>[];
+  };
+  return {
+    query: data.query || query,
+    availableUnits: Array.isArray(data.availableUnits)
+      ? data.availableUnits.map(normalizeAbsModuleRow)
+      : [],
+    availableViaDisassembly: Array.isArray(data.availableViaDisassembly)
+      ? data.availableViaDisassembly.map(normalizeAbsModuleRow)
+      : [],
+  };
+}
+
+export const ABS_MODULE_PHOTOS_MAX = 8;
+
+/** Envia foto da unidade ABS (multipart). */
+export async function uploadWorkshopAbsModulePhoto(
+  publicId: string,
+  file: Blob,
+  fileName?: string
+): Promise<WorkshopAbsModule> {
+  const pid = String(publicId || '').trim().toUpperCase();
+  const formData = new FormData();
+  formData.append('file', file, fileName ?? 'abs-module.jpg');
+  const response = await fetch(`${API_BASE}/abs-modules/${encodeURIComponent(pid)}/photo`, {
+    method: 'POST',
+    body: formData,
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao enviar foto do módulo ABS (${response.status})`);
+  }
+  const data = (await response.json()) as { module?: Record<string, unknown> };
+  if (!data.module) throw new Error('Resposta inválida ao enviar foto.');
+  return normalizeAbsModuleRow(data.module);
+}
+
+/** Remove foto da unidade ABS. */
+export async function deleteWorkshopAbsModulePhoto(
+  publicId: string,
+  photoId: string
+): Promise<WorkshopAbsModule> {
+  const pid = String(publicId || '').trim().toUpperCase();
+  const response = await fetch(
+    `${API_BASE}/abs-modules/${encodeURIComponent(pid)}/photos/${encodeURIComponent(photoId)}`,
+    { method: 'DELETE' }
+  );
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao excluir foto do módulo ABS (${response.status})`);
+  }
+  const data = (await response.json()) as { module?: Record<string, unknown> };
+  if (!data.module) throw new Error('Resposta inválida ao excluir foto.');
+  return normalizeAbsModuleRow(data.module);
+}
+
+/** Exclui uma unidade física ABS (public_id). Exige senha do admin / proteção do estoque. */
+export async function deleteWorkshopAbsModule(
+  publicId: string,
+  password: string
+): Promise<void> {
+  const pid = String(publicId || '').trim().toUpperCase();
+  const pwd = String(password || '').trim();
+  if (!pwd) throw new Error('Informe a senha do administrador para excluir.');
+  const response = await fetch(`${API_BASE}/abs-modules/${encodeURIComponent(pid)}`, {
+    method: 'DELETE',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Admin-Password': pwd,
+    },
+    body: JSON.stringify({ password: pwd, adminPassword: pwd }),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao excluir módulo ABS (${response.status})`);
+  }
+}
+
+/** Exclui modelo técnico. Com force=true remove também as unidades. Exige senha do admin. */
+export async function deleteWorkshopAbsModuleModel(
+  modelId: string,
+  opts?: { force?: boolean; password?: string }
+): Promise<{ deletedUnits: number }> {
+  const id = String(modelId || '').trim();
+  const pwd = String(opts?.password || '').trim();
+  if (!pwd) throw new Error('Informe a senha do administrador para excluir.');
+  const qs = new URLSearchParams();
+  if (opts?.force) qs.set('force', '1');
+  qs.set('password', pwd);
+  const q = qs.toString();
+  const response = await fetch(
+    `${API_BASE}/abs-module-models/${encodeURIComponent(id)}${q ? `?${q}` : ''}`,
+    {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Admin-Password': pwd,
+      },
+      body: JSON.stringify({ password: pwd, adminPassword: pwd, force: opts?.force ? true : undefined }),
+    }
+  );
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao excluir modelo ABS (${response.status})`);
+  }
+  const data = (await response.json()) as { deletedUnits?: number };
+  return { deletedUnits: Number(data.deletedUnits ?? 0) };
+}
+
+export async function disassembleWorkshopAbsModule(
+  publicId: string,
+  input: WorkshopAbsDisassembleInput & { recorded_by_name?: string | null }
+): Promise<WorkshopAbsDisassembleResult> {
+  const pid = String(publicId || '').trim().toUpperCase();
+  const response = await fetch(`${API_BASE}/abs-modules/${encodeURIComponent(pid)}/disassemble`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao desmembrar módulo ABS (${response.status})`);
+  }
+  const data = (await response.json()) as {
+    source?: Record<string, unknown>;
+    remaining?: Record<string, unknown>;
+    withdrawn?: Record<string, unknown>;
+    disassembly?: WorkshopAbsDisassembleResult['disassembly'];
+  };
+  if (!data.source || !data.remaining || !data.withdrawn || !data.disassembly) {
+    throw new Error('Resposta inválida do desmembramento.');
+  }
+  return {
+    source: normalizeAbsModuleRow(data.source),
+    remaining: normalizeAbsModuleRow(data.remaining),
+    withdrawn: normalizeAbsModuleRow(data.withdrawn),
+    disassembly: data.disassembly,
+  };
 }
 
 export async function getWorkshopParts(): Promise<WorkshopPart[]> {
@@ -4087,10 +4820,12 @@ export interface AuthSession {
 }
 
 export async function login(username: string, password: string): Promise<AuthSession> {
+  const deviceId = getOrCreateDeviceId();
+  const deviceInfo = await collectDeviceClientInfo();
   const response = await fetch(`${API_BASE}/auth/login`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ username: username.trim(), password }),
+    headers: { "Content-Type": "application/json", "X-Device-Id": deviceId },
+    body: JSON.stringify({ username: username.trim(), password, deviceId, deviceInfo }),
   });
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
@@ -4110,6 +4845,108 @@ export async function login(username: string, password: string): Promise<AuthSes
     accentColor: data.accentColor ?? null,
     permissions: data.permissions || {},
   };
+}
+
+export type ConnectedDeviceSession = {
+  id: string;
+  deviceId: string;
+  role: string;
+  userId: string | null;
+  username: string | null;
+  displayName: string;
+  userAgent: string | null;
+  platform: string | null;
+  osName: string | null;
+  deviceModel: string | null;
+  ipAddress: string | null;
+  createdAt: string;
+  lastSeenAt: string;
+  online: boolean;
+  isCurrent: boolean;
+};
+
+export type BlockedDevice = {
+  id: string;
+  deviceId: string;
+  label: string | null;
+  userAgent: string | null;
+  platform: string | null;
+  osName: string | null;
+  deviceModel: string | null;
+  blockedAt: string;
+  reason: string | null;
+};
+
+export type ConnectedDevicesResponse = {
+  sessions: ConnectedDeviceSession[];
+  blocked: BlockedDevice[];
+  canManage: boolean;
+  currentSessionId: string | null;
+  currentDeviceId: string | null;
+  onlineThresholdMs: number;
+};
+
+export async function getConnectedDevices(): Promise<ConnectedDevicesResponse> {
+  const response = await fetch(`${API_BASE}/auth/devices`);
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao listar dispositivos (${response.status})`);
+  }
+  return response.json();
+}
+
+export async function sendDeviceHeartbeat(): Promise<void> {
+  try {
+    const deviceInfo = await collectDeviceClientInfo();
+    await fetch(`${API_BASE}/auth/device-heartbeat`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(deviceInfo),
+    });
+  } catch {
+    /* ignore */
+  }
+}
+
+export async function revokeDeviceSession(sessionId: string): Promise<void> {
+  const response = await fetch(`${API_BASE}/auth/devices/${encodeURIComponent(sessionId)}/revoke`, {
+    method: "POST",
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || "Falha ao deslogar o dispositivo.");
+  }
+}
+
+export async function blockDevice(params: {
+  deviceId?: string;
+  sessionId?: string;
+  reason?: string;
+  label?: string;
+}): Promise<void> {
+  const response = await fetch(`${API_BASE}/auth/devices/block`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(params),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || "Falha ao bloquear o dispositivo.");
+  }
+}
+
+export async function unblockDevice(deviceId: string): Promise<void> {
+  const response = await fetch(`${API_BASE}/auth/devices/block/${encodeURIComponent(deviceId)}`, {
+    method: "DELETE",
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || "Falha ao desbloquear o dispositivo.");
+  }
+}
+
+export async function logoutCurrentSession(): Promise<void> {
+  await fetch(`${API_BASE}/auth/logout`, { method: "POST" }).catch(() => undefined);
 }
 
 export interface SystemUser {
@@ -4370,6 +5207,11 @@ export interface WorkshopSettings {
     absOnly: boolean;
     allowPreApproval?: boolean;
   }[];
+  /**
+   * Layouts do editor de etiquetas (lab_os / estoque / chave / abs_modulo).
+   * null = ainda não sincronizado no servidor.
+   */
+  labelTemplates?: Record<string, unknown> | null;
 }
 
 export async function getWorkshopSettings(): Promise<WorkshopSettings> {
@@ -4398,6 +5240,7 @@ export async function updateWorkshopSettings(
       absOnly: boolean;
       allowPreApproval?: boolean;
     }[];
+    labelTemplates?: Record<string, unknown> | null;
   }
 ): Promise<WorkshopSettings> {
   const response = await fetch(`${API_BASE}/workshop-settings`, {
