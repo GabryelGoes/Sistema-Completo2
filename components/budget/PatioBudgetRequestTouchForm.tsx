@@ -4,7 +4,6 @@ import {
   Car,
   ChevronLeft,
   ChevronRight,
-  FileText,
   GripVertical,
   Loader2,
   Pencil,
@@ -906,7 +905,14 @@ export function PatioBudgetRequestTouchForm({
 
               {/* Observações */}
               <SectionCard
-                icon={<FileText className="h-4 w-4" strokeWidth={2.2} />}
+                iconTone="app"
+                icon={
+                  <img
+                    src="/icons/observacoes-orcamento-ios.png"
+                    alt=""
+                    className="h-full w-full object-cover"
+                  />
+                }
                 title="Observações adicionais"
                 titleExtra={<span className="font-normal text-slate-400"> (opcional)</span>}
               >
