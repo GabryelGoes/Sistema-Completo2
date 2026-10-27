@@ -205,6 +205,7 @@ import {
   mapPatioBudgetPartToPayload,
   type PatioBudgetEditDraft,
 } from '../budget/PatioBudgetEditForm';
+import { PatioBudgetRequestTouchForm } from '../budget/PatioBudgetRequestTouchForm';
 import { buildBudgetServiceTechnicians } from '../../utils/budgetServiceTechnicians';
 import { parseReferenceLinksFromApi, formatReferenceLinkDisplay } from '../../utils/vehicleReferenceLinks';
 import { capitalizeFirst, firstTwoNames } from '../../utils/personNameFormat';
@@ -5498,7 +5499,16 @@ export const PatioView: React.FC<PatioViewProps> = ({
       setEditingBudget(null);
       setBudgetServices([{ id: '1', description: '', laborHours: null }]);
       setBudgetParts([{ id: '1', description: '', quantity: '1' }]);
-      setBudgetDiagnosis('');
+      // No touch (tablet/mobile), a queixa já vem da OS; no PC o campo continua vazio
+      // para o diagnóstico do orçamento (layout separado).
+      const osComplaint = stripLegacyVehicleCategoryFromComplaint(
+        (serviceOrderDetail?.id === selectedCard?.id
+          ? serviceOrderDetail?.issue_description
+          : null) ??
+          selectedCard?.desc ??
+          ''
+      );
+      setBudgetDiagnosis(!isPatioPcModal ? osComplaint : '');
       setBudgetObservations('');
     }
     setBudgetEditSessionId((n) => n + 1);
@@ -12898,28 +12908,102 @@ export const PatioView: React.FC<PatioViewProps> = ({
         onConfirm={(blob) => handleConfirmDiagAuthSignature(blob)}
       />
 
-      {/* MODAL CRIAR/EDITAR ORÇAMENTO — estado de digitação isolado do PatioView (evita trava no PC) */}
+      {/* MODAL CRIAR/EDITAR ORÇAMENTO — layouts separados: PC vs tablet/mobile */}
       {isBudgetOpen && selectedCard && patioPortalsVisible && (
-        <PatioBudgetEditForm
-          key={budgetEditSessionId}
-          exiting={budgetModalExiting}
-          isPatioPcModal={isPatioPcModal}
-          blurPlates={blurPlates}
-          cardName={selectedCard.name}
-          vehicleBrand={selectedCard.vehicleBrand}
-          vehicleColor={selectedCard.vehicleColor}
-          isEditing={!!editingBudget}
-          initialDiagnosis={budgetDiagnosis}
-          initialServices={budgetServices}
-          initialParts={budgetParts}
-          initialObservations={budgetObservations}
-          workshopServices={workshopServices}
-          workshopParts={workshopParts}
-          sending={sendingBudget}
-          onClose={requestCloseBudgetModal}
-          onSave={handleCreateBudget}
-          backdropAnimClass={modalBackdropAnimClass(budgetModalExiting)}
-        />
+        isPatioPcModal ? (
+          <PatioBudgetEditForm
+            key={budgetEditSessionId}
+            exiting={budgetModalExiting}
+            isPatioPcModal
+            blurPlates={blurPlates}
+            cardName={selectedCard.name}
+            vehicleBrand={selectedCard.vehicleBrand}
+            vehicleColor={selectedCard.vehicleColor}
+            isEditing={!!editingBudget}
+            initialDiagnosis={budgetDiagnosis}
+            initialServices={budgetServices}
+            initialParts={budgetParts}
+            initialObservations={budgetObservations}
+            workshopServices={workshopServices}
+            workshopParts={workshopParts}
+            sending={sendingBudget}
+            onClose={requestCloseBudgetModal}
+            onSave={handleCreateBudget}
+            backdropAnimClass={modalBackdropAnimClass(budgetModalExiting)}
+          />
+        ) : (
+          <PatioBudgetRequestTouchForm
+            key={budgetEditSessionId}
+            exiting={budgetModalExiting}
+            blurPlates={blurPlates}
+            isEditing={!!editingBudget}
+            vehicleModel={
+              selectedCardTitleParts?.vehicle ||
+              (serviceOrderDetail?.id === selectedCard.id
+                ? serviceOrderDetail.vehicle_model
+                : null) ||
+              ''
+            }
+            vehicleBrand={
+              selectedCard.vehicleBrand ||
+              (serviceOrderDetail?.id === selectedCard.id
+                ? serviceOrderDetail.vehicle_brand
+                : null) ||
+              null
+            }
+            vehicleEngineInfo={
+              (serviceOrderDetail?.id === selectedCard.id
+                ? serviceOrderDetail.vehicle_engine_info
+                : null) ||
+              selectedCard.vehicleEngineInfo ||
+              null
+            }
+            vehicleYear={
+              (serviceOrderDetail?.id === selectedCard.id
+                ? serviceOrderDetail.vehicle_year
+                : null) ||
+              selectedCard.vehicleYear ||
+              null
+            }
+            plate={
+              selectedCardTitleParts?.plateOrModule ||
+              (serviceOrderDetail?.id === selectedCard.id
+                ? serviceOrderDetail.plate
+                : null) ||
+              '—'
+            }
+            vehicleChassis={
+              (serviceOrderDetail?.id === selectedCard.id
+                ? serviceOrderDetail.vehicle_chassis
+                : null) ||
+              selectedCard.vehicleChassis ||
+              null
+            }
+            customerName={
+              (serviceOrderDetail?.id === selectedCard.id
+                ? serviceOrderDetail.customers?.name
+                : null) ||
+              selectedCardTitleParts?.customer ||
+              'Cliente'
+            }
+            customerPhone={
+              serviceOrderDetail?.id === selectedCard.id
+                ? serviceOrderDetail.customers?.phone ?? null
+                : null
+            }
+            initialDiagnosis={budgetDiagnosis}
+            initialServices={budgetServices}
+            initialParts={budgetParts}
+            initialObservations={budgetObservations}
+            workshopServices={workshopServices}
+            workshopParts={workshopParts}
+            sending={sendingBudget}
+            onClose={requestCloseBudgetModal}
+            onViewOs={requestCloseBudgetModal}
+            onSave={handleCreateBudget}
+            backdropAnimClass={modalBackdropAnimClass(budgetModalExiting)}
+          />
+        )
       )}
 
       {/* Fechamento: técnicos por serviço antes de FINALIZADO */}

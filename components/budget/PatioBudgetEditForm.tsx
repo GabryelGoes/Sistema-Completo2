@@ -148,7 +148,8 @@ function BudgetServiceDescriptionTextarea({
 }
 
 /**
- * Formulário de criar/editar orçamento com estado próprio.
+ * Formulário de criar/editar orçamento — layout PC.
+ * Tablet/smartphone usam `PatioBudgetRequestTouchForm` (design separado).
  * Isola a digitação do PatioView (quadro + modal do veículo) para não travar no PC.
  */
 export function PatioBudgetEditForm({
