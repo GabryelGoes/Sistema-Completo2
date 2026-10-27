@@ -148,7 +148,8 @@ function BudgetServiceDescriptionTextarea({
 }
 
 /**
- * Formulário de criar/editar orçamento com estado próprio.
+ * Formulário de criar/editar orçamento — layout PC.
+ * Tablet/smartphone usam `PatioBudgetRequestTouchForm` (design separado).
  * Isola a digitação do PatioView (quadro + modal do veículo) para não travar no PC.
  */
 export function PatioBudgetEditForm({
@@ -569,7 +570,7 @@ export function PatioBudgetEditForm({
   const color = (vehicleColor ?? '').trim();
 
   return (
-    <ModalPortal>
+    <ModalPortal forceBody>
       <div
         className={`budget-modal-light-chrome fixed inset-0 z-[200] flex h-[100dvh] max-h-[100dvh] w-full min-w-0 flex-col ${!isPatioPcModal ? 'budget-modal--compact overflow-y-hidden' : 'overflow-hidden'} ${budgetModalPaperShell} ${backdropAnimClass}`}
         style={{ colorScheme: 'light' }}

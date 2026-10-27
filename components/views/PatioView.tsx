@@ -149,6 +149,7 @@ import {
   isAttachmentDocumentFile,
 } from '../../utils/imageUpload';
 import { ModalPortal } from '../ui/ModalPortal';
+import { useModalPortalHost } from '../ui/ModalPortalHostContext';
 import { useBrowserBackLayer, markProgrammaticHistoryBack } from '../ui/BackNavigationContext';
 import {
   iosModalClose,
@@ -205,6 +206,7 @@ import {
   mapPatioBudgetPartToPayload,
   type PatioBudgetEditDraft,
 } from '../budget/PatioBudgetEditForm';
+import { PatioBudgetRequestTouchForm } from '../budget/PatioBudgetRequestTouchForm';
 import { buildBudgetServiceTechnicians } from '../../utils/budgetServiceTechnicians';
 import { parseReferenceLinksFromApi, formatReferenceLinkDisplay } from '../../utils/vehicleReferenceLinks';
 import { capitalizeFirst, firstTwoNames } from '../../utils/personNameFormat';
@@ -1791,6 +1793,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
   // Orçamento (Budget)
   const [isBudgetOpen, setIsBudgetOpen] = useState(false);
+  /** Com solicitação de orçamento aberta: mostra o modal real da OS em ~80% por cima. */
+  const [budgetOsPeekOpen, setBudgetOsPeekOpen] = useState(false);
   const [budgetServices, setBudgetServices] = useState<BudgetServiceItem[]>([]);
   const [budgetParts, setBudgetParts] = useState<BudgetPartItem[]>([]);
   const [budgetDiagnosis, setBudgetDiagnosis] = useState('');
@@ -1809,6 +1813,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const [budgetPartQuickView, setBudgetPartQuickView] = useState<WorkshopPart | null>(null);
   const closeBudgetModal = useCallback(() => {
     setIsBudgetOpen(false);
+    setBudgetOsPeekOpen(false);
     setEditingBudget(null);
     setBudgetPartQuickView(null);
     setSuggestionsForPartId(null);
@@ -2220,6 +2225,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const patioVmInputClass = patioVehicleVm.input;
   const patioHistoryVm = useMemo(() => getPatioHistoryModalLayout(isPatioPcModal), [isPatioPcModal]);
   const patioVehicleModalOverlayClass = useMemo(() => {
+    if (isBudgetOpen && budgetOsPeekOpen) {
+      return 'fixed inset-0 z-[250] flex items-center justify-center bg-black/40 p-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-[2px] sm:p-5 animate-in fade-in duration-200';
+    }
     if (benchFullscreenOpen) {
       return patioVehicleVm.overlay.replace('z-[100]', 'z-[320]');
     }
@@ -2227,7 +2235,36 @@ export const PatioView: React.FC<PatioViewProps> = ({
       return `${desktopShellViewportOverlayClass(true)} patio-vehicle-modal patio-vehicle-modal--desktop flex min-h-0 flex-col overflow-hidden bg-[#F2F2F7] dark:bg-[#0a0a0a] animate-in fade-in duration-200`;
     }
     return patioVehicleVm.overlay;
-  }, [benchFullscreenOpen, desktopShell, patioVehicleVm.overlay]);
+  }, [
+    isBudgetOpen,
+    budgetOsPeekOpen,
+    benchFullscreenOpen,
+    desktopShell,
+    patioVehicleVm.overlay,
+  ]);
+  const patioVehicleModalShellClass = useMemo(() => {
+    if (isBudgetOpen && budgetOsPeekOpen) {
+      // Mini-tela: zoom out leve + containing block para overlays fixed filhos.
+      return 'budget-os-peek-shell relative flex h-[84dvh] max-h-[84dvh] w-full max-w-3xl min-h-0 flex-col overflow-hidden rounded-2xl border border-zinc-200/80 bg-[#F2F2F7] shadow-[0_24px_64px_-20px_rgba(0,0,0,0.45)] dark:border-white/[0.1] dark:bg-zinc-950';
+    }
+    return patioVehicleVm.shell;
+  }, [isBudgetOpen, budgetOsPeekOpen, patioVehicleVm.shell]);
+  const { setHost: setModalPortalHost } = useModalPortalHost();
+  const setBudgetOsPeekShellNode = useCallback(
+    (el: HTMLDivElement | null) => {
+      if (isBudgetOpen && budgetOsPeekOpen) {
+        setModalPortalHost(el);
+      } else if (!el) {
+        setModalPortalHost(null);
+      }
+    },
+    [isBudgetOpen, budgetOsPeekOpen, setModalPortalHost]
+  );
+  useEffect(() => {
+    if (!isBudgetOpen || !budgetOsPeekOpen) {
+      setModalPortalHost(null);
+    }
+  }, [isBudgetOpen, budgetOsPeekOpen, setModalPortalHost]);
   const patioHistoryModalOverlayClass = useMemo(() => {
     if (desktopShell) {
       return `${desktopShellViewportOverlayClass(true)} patio-vehicle-modal patio-vehicle-modal--desktop flex min-h-0 flex-col overflow-hidden overscroll-none bg-[#E8E8ED] dark:bg-[#0a0a0a] animate-in fade-in duration-200`;
@@ -2401,6 +2438,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
     setHistorySavedBudgets([]);
     setViewingBudget(null);
     setIsBudgetOpen(false);
+    setBudgetOsPeekOpen(false);
     setIsVehicleEditOpen(false);
     setIsDeleteVehicleOpen(false);
     setIsDadosFichaExpanded(false);
@@ -2485,7 +2523,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
     setIsHistoryOpen(false);
   });
   /** Pilha acima do modal do veículo: gesto voltar fecha só o orçamento e mantém a ficha aberta. */
-  useBrowserBackLayer(isBudgetOpen && patioPortalsVisible, requestCloseBudgetModal);
+  useBrowserBackLayer(isBudgetOpen && budgetOsPeekOpen && patioPortalsVisible, () => {
+    setBudgetOsPeekOpen(false);
+  });
+  useBrowserBackLayer(isBudgetOpen && !budgetOsPeekOpen && patioPortalsVisible, requestCloseBudgetModal);
   useBrowserBackLayer(isPatioHeaderToolsOpen && patioPortalsVisible, () => setIsPatioHeaderToolsOpen(false));
   useBrowserBackLayer(isLabOsToolsOpen && patioPortalsVisible, () => setIsLabOsToolsOpen(false));
   useBrowserBackLayer(isRemindersOpen && patioPortalsVisible, () => setIsRemindersOpen(false));
@@ -5498,10 +5539,20 @@ export const PatioView: React.FC<PatioViewProps> = ({
       setEditingBudget(null);
       setBudgetServices([{ id: '1', description: '', laborHours: null }]);
       setBudgetParts([{ id: '1', description: '', quantity: '1' }]);
-      setBudgetDiagnosis('');
+      // No touch (tablet/mobile), a queixa já vem da OS; no PC o campo continua vazio
+      // para o diagnóstico do orçamento (layout separado).
+      const osComplaint = stripLegacyVehicleCategoryFromComplaint(
+        (serviceOrderDetail?.id === selectedCard?.id
+          ? serviceOrderDetail?.issue_description
+          : null) ??
+          selectedCard?.desc ??
+          ''
+      );
+      setBudgetDiagnosis(!isPatioPcModal ? osComplaint : '');
       setBudgetObservations('');
     }
     setBudgetEditSessionId((n) => n + 1);
+    setBudgetOsPeekOpen(false);
     setIsBudgetOpen(true);
     getWorkshopServices().then(setWorkshopServices).catch(() => setWorkshopServices([]));
     void getWorkshopParts()
@@ -9291,10 +9342,30 @@ export const PatioView: React.FC<PatioViewProps> = ({
           );
         };
 
+        const closeVehicleOrBudgetPeek = () => {
+          if (isBudgetOpen && budgetOsPeekOpen) {
+            setBudgetOsPeekOpen(false);
+            return;
+          }
+          closePatioPrimaryOverlays();
+        };
+
         return (
-        <ModalPortal>
-        <div className={withModalExitOverlayClass(patioVehicleModalOverlayClass, primaryModalExiting)}>
-           <div className={`${patioVehicleVm.shell} ${modalWpAppAnimClass(primaryModalExiting)} ${modalRingClass}`}>
+        <ModalPortal forceBody>
+        <div
+          className={withModalExitOverlayClass(patioVehicleModalOverlayClass, primaryModalExiting)}
+          onClick={
+            isBudgetOpen && budgetOsPeekOpen
+              ? (e) => {
+                  if (e.target === e.currentTarget) setBudgetOsPeekOpen(false);
+                }
+              : undefined
+          }
+        >
+           <div
+             ref={isBudgetOpen && budgetOsPeekOpen ? setBudgetOsPeekShellNode : undefined}
+             className={`${patioVehicleModalShellClass} ${modalWpAppAnimClass(primaryModalExiting)} ${modalRingClass}`}
+           >
               
 {!isPatioPcModal ? (
               <div className={`absolute z-20 flex items-center gap-2 ${
@@ -9419,7 +9490,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 ) : null}
                 <button
                   type="button"
-                  onClick={() => closePatioPrimaryOverlays()}
+                  onClick={closeVehicleOrBudgetPeek}
                   className={patioVehicleVm.closeBtn}
                   aria-label="Fechar"
                 >
@@ -11846,7 +11917,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                 ) : null}
                                 <button
                                   type="button"
-                                  onClick={() => closePatioPrimaryOverlays()}
+                                  onClick={closeVehicleOrBudgetPeek}
                                   className={patioVehicleVm.closeBtn}
                                   aria-label="Fechar"
                                 >
@@ -12898,28 +12969,122 @@ export const PatioView: React.FC<PatioViewProps> = ({
         onConfirm={(blob) => handleConfirmDiagAuthSignature(blob)}
       />
 
-      {/* MODAL CRIAR/EDITAR ORÇAMENTO — estado de digitação isolado do PatioView (evita trava no PC) */}
+      {/* MODAL CRIAR/EDITAR ORÇAMENTO — layouts separados: PC vs tablet/mobile */}
       {isBudgetOpen && selectedCard && patioPortalsVisible && (
-        <PatioBudgetEditForm
-          key={budgetEditSessionId}
-          exiting={budgetModalExiting}
-          isPatioPcModal={isPatioPcModal}
-          blurPlates={blurPlates}
-          cardName={selectedCard.name}
-          vehicleBrand={selectedCard.vehicleBrand}
-          vehicleColor={selectedCard.vehicleColor}
-          isEditing={!!editingBudget}
-          initialDiagnosis={budgetDiagnosis}
-          initialServices={budgetServices}
-          initialParts={budgetParts}
-          initialObservations={budgetObservations}
-          workshopServices={workshopServices}
-          workshopParts={workshopParts}
-          sending={sendingBudget}
-          onClose={requestCloseBudgetModal}
-          onSave={handleCreateBudget}
-          backdropAnimClass={modalBackdropAnimClass(budgetModalExiting)}
-        />
+        isPatioPcModal ? (
+          <PatioBudgetEditForm
+            key={budgetEditSessionId}
+            exiting={budgetModalExiting}
+            isPatioPcModal
+            blurPlates={blurPlates}
+            cardName={selectedCard.name}
+            vehicleBrand={selectedCard.vehicleBrand}
+            vehicleColor={selectedCard.vehicleColor}
+            isEditing={!!editingBudget}
+            initialDiagnosis={budgetDiagnosis}
+            initialServices={budgetServices}
+            initialParts={budgetParts}
+            initialObservations={budgetObservations}
+            workshopServices={workshopServices}
+            workshopParts={workshopParts}
+            sending={sendingBudget}
+            onClose={requestCloseBudgetModal}
+            onSave={handleCreateBudget}
+            backdropAnimClass={modalBackdropAnimClass(budgetModalExiting)}
+          />
+        ) : (
+          <PatioBudgetRequestTouchForm
+            key={budgetEditSessionId}
+            exiting={budgetModalExiting}
+            blurPlates={blurPlates}
+            isEditing={!!editingBudget}
+            vehicleModel={
+              selectedCardTitleParts?.vehicle ||
+              (serviceOrderDetail?.id === selectedCard.id
+                ? serviceOrderDetail.vehicle_model
+                : null) ||
+              ''
+            }
+            vehicleBrand={
+              selectedCard.vehicleBrand ||
+              (serviceOrderDetail?.id === selectedCard.id
+                ? serviceOrderDetail.vehicle_brand
+                : null) ||
+              null
+            }
+            vehicleEngineInfo={
+              (serviceOrderDetail?.id === selectedCard.id
+                ? serviceOrderDetail.vehicle_engine_info
+                : null) ||
+              selectedCard.vehicleEngineInfo ||
+              null
+            }
+            vehicleYear={
+              (serviceOrderDetail?.id === selectedCard.id
+                ? serviceOrderDetail.vehicle_year
+                : null) ||
+              selectedCard.vehicleYear ||
+              null
+            }
+            plate={
+              selectedCardTitleParts?.plateOrModule ||
+              (serviceOrderDetail?.id === selectedCard.id
+                ? serviceOrderDetail.plate
+                : null) ||
+              '—'
+            }
+            vehicleChassis={
+              (serviceOrderDetail?.id === selectedCard.id
+                ? serviceOrderDetail.vehicle_chassis
+                : null) ||
+              selectedCard.vehicleChassis ||
+              null
+            }
+            customerName={
+              (serviceOrderDetail?.id === selectedCard.id
+                ? serviceOrderDetail.customers?.name
+                : null) ||
+              selectedCardTitleParts?.customer ||
+              'Cliente'
+            }
+            osNumber={
+              serviceOrderDetail?.id === selectedCard.id
+                ? serviceOrderDetail.os_number ?? selectedCard.osNumber ?? null
+                : selectedCard.osNumber ?? null
+            }
+            vehicleColor={
+              (serviceOrderDetail?.id === selectedCard.id
+                ? serviceOrderDetail.vehicle_color
+                : null) ||
+              selectedCard.vehicleColor ||
+              null
+            }
+            mileageKm={
+              (serviceOrderDetail?.id === selectedCard.id
+                ? serviceOrderDetail.mileage_km
+                : null) ||
+              selectedCard.mileageKm ||
+              null
+            }
+            initialDiagnosis={budgetDiagnosis}
+            initialServices={budgetServices}
+            initialParts={budgetParts}
+            initialObservations={budgetObservations}
+            workshopServices={workshopServices}
+            workshopParts={workshopParts}
+            technicianName={
+              actorOptions?.actorTechnicianName ||
+              actorOptions?.actorDisplayName ||
+              commentAuthorName ||
+              null
+            }
+            sending={sendingBudget}
+            onClose={requestCloseBudgetModal}
+            onViewOs={() => setBudgetOsPeekOpen(true)}
+            onSave={handleCreateBudget}
+            backdropAnimClass={modalBackdropAnimClass(budgetModalExiting)}
+          />
+        )
       )}
 
       {/* Fechamento: técnicos por serviço antes de FINALIZADO */}

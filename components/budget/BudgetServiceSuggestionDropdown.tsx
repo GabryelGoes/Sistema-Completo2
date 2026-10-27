@@ -14,6 +14,8 @@ type BudgetServiceSuggestionDropdownProps = {
   onClose: () => void;
   onSelect: (service: WorkshopService) => void;
   onKeepOpen?: () => void;
+  /** Layout touch: sem título/contagem, sem blur, sempre abaixo do campo. */
+  compactTouch?: boolean;
 };
 
 export const BudgetServiceSuggestionDropdown: React.FC<BudgetServiceSuggestionDropdownProps> = ({
@@ -23,6 +25,7 @@ export const BudgetServiceSuggestionDropdown: React.FC<BudgetServiceSuggestionDr
   onClose,
   onSelect,
   onKeepOpen,
+  compactTouch = false,
 }) => {
   if (!open || !position || suggestions.length === 0) return null;
 
@@ -35,6 +38,9 @@ export const BudgetServiceSuggestionDropdown: React.FC<BudgetServiceSuggestionDr
       ariaLabel="Sugestões de serviços"
       title="Serviços"
       subtitle={`${suggestions.length} sugest${suggestions.length === 1 ? 'ão' : 'ões'}`}
+      hideHeader={compactTouch}
+      clearBackdrop={compactTouch}
+      forceBelow={compactTouch}
     >
       <div className="flex flex-col gap-0.5">
         {suggestions.map((service) => {
