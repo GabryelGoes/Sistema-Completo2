@@ -5,12 +5,10 @@ import {
   ChevronRight,
   GripVertical,
   Loader2,
-  Pencil,
   Plus,
   Send,
   Trash2,
   User,
-  X,
 } from 'lucide-react';
 import type { WorkshopPart, WorkshopService } from '../../services/apiService';
 import {
@@ -59,7 +57,10 @@ export type PatioBudgetRequestTouchFormProps = {
   backdropAnimClass: string;
 };
 
-const BUDGET_SERVICE_TEXTAREA_MIN_PX = 44;
+/** ~30% menor que o tamanho anterior (tablet). */
+const BUDGET_SERVICE_TEXTAREA_MIN_PX = 31;
+const ADD_ROW_BTN =
+  'inline-flex w-full items-center justify-center gap-1.5 rounded-xl border border-[#007AFF]/18 bg-[#E8F2FF] px-3 py-2 text-[12px] font-semibold text-[#007AFF] transition-colors hover:bg-[#DCEBFF] active:bg-[#D0E4FF]';
 
 function normalizeText(text: string): string {
   return text.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
@@ -106,7 +107,7 @@ function TouchServiceTextarea({
       spellCheck={false}
       data-budget-service-id={dataBudgetServiceId}
       placeholder="Descreva o serviço"
-      className="block min-h-[44px] w-full min-w-0 resize-none overflow-hidden border-0 bg-transparent py-2.5 text-[15px] leading-snug text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-0 [overflow-wrap:anywhere] [scrollbar-width:none] [&::-webkit-scrollbar]:w-0"
+      className="block min-h-[31px] w-full min-w-0 resize-none overflow-hidden border-0 bg-transparent py-1.5 text-[12px] leading-snug text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-0 [overflow-wrap:anywhere] [scrollbar-width:none] [&::-webkit-scrollbar]:w-0"
       value={value}
       onChange={(e) => {
         onChange(e.target.value);
@@ -193,11 +194,14 @@ function GripMoveControl({
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex h-10 w-8 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 active:bg-slate-100"
+        className="flex h-8 min-w-[2.1rem] flex-col items-center justify-center gap-0 rounded-lg px-0.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 active:bg-slate-100"
         aria-label={`${ariaLabelPrefix} ${position}: alterar ordem`}
         aria-expanded={open}
       >
-        <GripVertical className="h-5 w-5" strokeWidth={2} />
+        <GripVertical className="h-3.5 w-3.5" strokeWidth={2.25} />
+        <span className="text-[10px] font-bold tabular-nums leading-none text-slate-500">
+          {position}
+        </span>
       </button>
       {open && total > 1 ? (
         <div className="absolute left-0 top-[calc(100%+0.25rem)] z-40 min-w-[9rem] rounded-xl border border-slate-200 bg-white p-2 shadow-lg">
@@ -261,11 +265,10 @@ export function PatioBudgetRequestTouchForm({
   onSave,
   backdropAnimClass,
 }: PatioBudgetRequestTouchFormProps) {
-  const [budgetDiagnosis, setBudgetDiagnosis] = useState(initialDiagnosis);
+  const [budgetDiagnosis] = useState(initialDiagnosis);
   const [budgetServices, setBudgetServices] = useState(initialServices);
   const [budgetParts, setBudgetParts] = useState(initialParts);
   const [budgetObservations, setBudgetObservations] = useState(initialObservations);
-  const [complaintEditing, setComplaintEditing] = useState(false);
 
   const [suggestionsForServiceId, setSuggestionsForServiceId] = useState<string | null>(null);
   const [suggestionsForPartId, setSuggestionsForPartId] = useState<string | null>(null);
@@ -290,7 +293,6 @@ export function PatioBudgetRequestTouchForm({
   const pendingFocusServiceIdRef = useRef<string | null>(null);
   const pendingFocusPartIdRef = useRef<string | null>(null);
   const stockFlagsResolvedRef = useRef(false);
-  const complaintRef = useRef<HTMLTextAreaElement | null>(null);
 
   const workshopPartsNameIndex = useMemo(
     () => buildWorkshopPartNameIndex(workshopParts),
@@ -322,12 +324,6 @@ export function PatioBudgetRequestTouchForm({
       })
     );
   }, [workshopParts, workshopPartsNameIndex]);
-
-  useEffect(() => {
-    if (!complaintEditing) return;
-    const id = window.requestAnimationFrame(() => complaintRef.current?.focus());
-    return () => window.cancelAnimationFrame(id);
-  }, [complaintEditing]);
 
   useLayoutEffect(() => {
     const id = pendingFocusServiceIdRef.current;
@@ -596,23 +592,23 @@ export function PatioBudgetRequestTouchForm({
         <div
           className={`relative z-[1] flex min-h-0 flex-1 flex-col ${exiting ? 'animate-modal-sheet-out pointer-events-none' : ''}`}
         >
-          {/* Header */}
-          <header className="shrink-0 border-b border-slate-200/80 bg-white/95 px-3 pb-3 pt-[max(0.65rem,env(safe-area-inset-top))] backdrop-blur-md sm:px-4">
-            <div className="flex items-start gap-2 sm:items-center sm:gap-3">
+          {/* Header — alinhado à referência tablet */}
+          <header className="shrink-0 border-b border-slate-200/70 bg-white px-3 pb-2.5 pt-[max(0.55rem,env(safe-area-inset-top))] sm:px-5">
+            <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 sm:gap-3">
               <button
                 type="button"
                 onClick={onClose}
-                className="inline-flex shrink-0 items-center gap-0.5 rounded-xl px-1.5 py-2 text-[15px] font-medium text-[#007AFF] transition-colors hover:bg-[#007AFF]/8 active:bg-[#007AFF]/12"
+                className="inline-flex h-9 shrink-0 items-center gap-0.5 rounded-full border border-[#007AFF]/25 bg-[#007AFF]/8 px-2.5 text-[14px] font-medium text-[#007AFF] transition-colors hover:bg-[#007AFF]/12 active:bg-[#007AFF]/16"
               >
-                <ChevronLeft className="h-5 w-5" strokeWidth={2.25} />
+                <ChevronLeft className="h-[18px] w-[18px]" strokeWidth={2.4} />
                 Voltar
               </button>
 
-              <div className="min-w-0 flex-1 text-center sm:px-2">
-                <h1 className="text-[17px] font-semibold tracking-tight text-slate-900 sm:text-[18px]">
+              <div className="min-w-0 px-1 text-center">
+                <h1 className="truncate text-[17px] font-semibold leading-tight tracking-tight text-slate-900 sm:text-[18px]">
                   {isEditing ? 'Editar solicitação' : 'Solicitar Orçamento'}
                 </h1>
-                <p className="mt-0.5 hidden text-[12px] leading-snug text-slate-500 sm:block">
+                <p className="mt-0.5 truncate text-[11px] leading-snug text-slate-500 sm:text-[12px]">
                   Envie para o setor de orçamentos os serviços e peças necessários.
                 </p>
               </div>
@@ -621,22 +617,16 @@ export function PatioBudgetRequestTouchForm({
                 type="button"
                 onClick={handleSave}
                 disabled={sending}
-                className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-[#007AFF] px-3 py-2.5 text-[13px] font-semibold text-white shadow-sm shadow-blue-500/25 transition-[filter,transform] hover:brightness-105 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-55 sm:gap-2 sm:px-3.5 sm:text-[14px]"
+                className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full bg-[#007AFF] px-3.5 text-[14px] font-semibold text-white shadow-sm shadow-blue-500/20 transition-[filter,transform] hover:brightness-105 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-55"
               >
                 {sending ? (
                   <Loader2 className="h-4 w-4 animate-spin" strokeWidth={2.2} />
                 ) : (
                   <Send className="h-4 w-4" strokeWidth={2.2} />
                 )}
-                <span className="hidden min-[380px]:inline">
-                  {sending ? 'Enviando…' : isEditing ? 'Salvar' : 'Enviar para Orçamentos'}
-                </span>
-                <span className="min-[380px]:hidden">{sending ? '…' : isEditing ? 'Salvar' : 'Enviar'}</span>
+                {sending ? '…' : isEditing ? 'Salvar' : 'Enviar'}
               </button>
             </div>
-            <p className="mt-1.5 text-center text-[12px] leading-snug text-slate-500 sm:hidden">
-              Envie para o setor de orçamentos os serviços e peças necessários.
-            </p>
           </header>
 
           <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-3 pb-[max(1rem,env(safe-area-inset-bottom))] sm:px-4 sm:py-4">
@@ -656,15 +646,16 @@ export function PatioBudgetRequestTouchForm({
                   <button
                     type="button"
                     onClick={onViewOs}
-                    className="inline-flex items-center rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-[12px] font-semibold text-slate-700 transition-colors hover:bg-slate-100"
+                    className="inline-flex items-center rounded-lg border border-[#007AFF]/20 bg-[#E8F2FF] px-2.5 py-1.5 text-[12px] font-semibold text-[#007AFF] transition-colors hover:bg-[#DCEBFF]"
                   >
                     Ver OS
                   </button>
                 }
               >
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-stretch sm:gap-0">
-                  <div className="flex min-w-0 flex-1 gap-3">
-                    <div className="flex h-11 w-14 shrink-0 items-center justify-center self-start overflow-hidden rounded-xl bg-slate-100">
+                <div className="flex flex-col gap-3">
+                  {/* Veículo — linha horizontal completa */}
+                  <div className="flex min-w-0 items-center gap-3">
+                    <div className="flex h-10 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-slate-100">
                       {getVehicleBrandLogoUrl(brand || model) ? (
                         <VehicleBrandLogo brand={brand || model} size="modal" />
                       ) : (
@@ -672,47 +663,50 @@ export function PatioBudgetRequestTouchForm({
                       )}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="text-[16px] font-semibold leading-tight tracking-tight text-slate-900">
+                      <p className="truncate text-[15px] font-semibold leading-tight tracking-tight text-slate-900">
                         {vehicleTitle}
-                      </p>
-                      {vehicleMeta ? (
-                        <p className="mt-0.5 text-[13px] text-slate-500">{vehicleMeta}</p>
-                      ) : null}
-                      <div className="mt-2.5 space-y-1 text-[13px]">
-                        <p className="text-slate-600">
-                          <span className="font-medium text-slate-500">Placa </span>
-                          <span className={`font-semibold tracking-wide text-slate-900 ${blurPlates ? 'blur-plate' : ''}`}>
-                            {plateDisplay}
+                        {vehicleMeta ? (
+                          <span className="font-normal text-slate-500">
+                            {' '}
+                            · {vehicleMeta}
                           </span>
-                        </p>
+                        ) : null}
+                      </p>
+                      <p className="mt-0.5 truncate text-[12px] text-slate-600">
+                        <span className="text-slate-500">Placa </span>
+                        <span
+                          className={`font-semibold tracking-wide text-slate-900 ${blurPlates ? 'blur-plate' : ''}`}
+                        >
+                          {plateDisplay}
+                        </span>
                         {chassisDisplay ? (
-                          <p className="break-all text-slate-600">
-                            <span className="font-medium text-slate-500">Chassi </span>
+                          <>
+                            <span className="mx-1.5 text-slate-300">·</span>
+                            <span className="text-slate-500">Chassi </span>
                             <span className="font-semibold tabular-nums text-slate-900">
                               {chassisDisplay}
                             </span>
-                          </p>
+                          </>
                         ) : null}
-                      </div>
+                      </p>
                     </div>
                   </div>
 
-                  <div className="hidden w-px self-stretch bg-slate-200 sm:mx-4 sm:block" aria-hidden />
-
+                  {/* Cliente — abaixo do veículo */}
                   <button
                     type="button"
                     onClick={onViewOs}
-                    className="flex min-w-0 flex-1 items-center gap-3 rounded-xl border border-slate-100 bg-slate-50/80 px-3 py-2.5 text-left transition-colors hover:bg-slate-100 sm:border-0 sm:bg-transparent sm:px-0 sm:py-0 sm:hover:bg-transparent"
+                    className="flex min-w-0 items-center gap-3 rounded-xl border border-slate-100 bg-slate-50/90 px-3 py-2.5 text-left transition-colors hover:bg-slate-100"
                   >
-                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-200/80 text-slate-600">
-                      <User className="h-5 w-5" strokeWidth={2} />
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-200/80 text-slate-600">
+                      <User className="h-4.5 w-4.5 h-[18px] w-[18px]" strokeWidth={2} />
                     </span>
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-[15px] font-semibold text-slate-900">
+                      <span className="block truncate text-[14px] font-semibold text-slate-900">
                         {nameDisplay}
                       </span>
                       {phoneDisplay ? (
-                        <span className="mt-0.5 block truncate text-[13px] text-slate-500">
+                        <span className="mt-0.5 block truncate text-[12px] text-slate-500">
                           {phoneDisplay}
                         </span>
                       ) : null}
@@ -733,44 +727,14 @@ export function PatioBudgetRequestTouchForm({
                   />
                 }
                 title="Queixa do cliente"
-                action={
-                  <button
-                    type="button"
-                    onClick={() => setComplaintEditing((v) => !v)}
-                    className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-800"
-                    aria-label={complaintEditing ? 'Concluir edição da queixa' : 'Editar queixa'}
-                  >
-                    {complaintEditing ? (
-                      <X className="h-4 w-4" strokeWidth={2.2} />
-                    ) : (
-                      <Pencil className="h-4 w-4" strokeWidth={2.2} />
-                    )}
-                  </button>
-                }
               >
-                {complaintEditing ? (
-                  <textarea
-                    ref={complaintRef}
-                    rows={4}
-                    className="w-full resize-y rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-3 text-[15px] leading-relaxed text-slate-800 placeholder:text-slate-400 focus:border-[#007AFF]/50 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/20"
-                    placeholder="Descreva a queixa do cliente…"
-                    value={budgetDiagnosis}
-                    onChange={(e) => setBudgetDiagnosis(e.target.value)}
-                    onBlur={() => setComplaintEditing(false)}
-                  />
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => setComplaintEditing(true)}
-                    className="w-full rounded-xl bg-slate-50 px-3.5 py-3 text-left text-[15px] leading-relaxed text-slate-700 transition-colors hover:bg-slate-100/80"
-                  >
-                    {budgetDiagnosis.trim() ? (
-                      budgetDiagnosis
-                    ) : (
-                      <span className="text-slate-400">Toque para informar a queixa do cliente…</span>
-                    )}
-                  </button>
-                )}
+                <div className="rounded-xl bg-slate-50 px-3 py-2.5 text-[12px] leading-relaxed text-slate-700">
+                  {budgetDiagnosis.trim() ? (
+                    budgetDiagnosis
+                  ) : (
+                    <span className="text-slate-400">Nenhuma queixa registrada nesta OS.</span>
+                  )}
+                </div>
               </SectionCard>
 
               {/* Serviços */}
@@ -785,13 +749,13 @@ export function PatioBudgetRequestTouchForm({
                 }
                 title="Serviços solicitados"
               >
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                   {budgetServices.map((item, serviceIndex) => {
                     const isFocused = suggestionsForServiceId === item.id;
                     return (
                       <div
                         key={item.id}
-                        className="relative flex items-start gap-1 rounded-xl border border-slate-200/90 bg-slate-50/60 px-1.5 py-0.5"
+                        className="relative flex items-start gap-0.5 rounded-lg border border-slate-200/90 bg-white px-1 py-0"
                       >
                         <GripMoveControl
                           position={serviceIndex + 1}
@@ -819,7 +783,7 @@ export function PatioBudgetRequestTouchForm({
                             dataBudgetServiceId={item.id}
                           />
                           {item.laborHours != null && Number.isFinite(Number(item.laborHours)) ? (
-                            <p className="pb-2 text-[12px] font-medium tabular-nums text-[#007AFF]/80">
+                            <p className="pb-1 text-[10px] font-medium tabular-nums text-[#007AFF]/80">
                               {formatLaborLabel(Number(item.laborHours))}
                             </p>
                           ) : null}
@@ -827,20 +791,16 @@ export function PatioBudgetRequestTouchForm({
                         <button
                           type="button"
                           onClick={() => removeServiceRow(item.id)}
-                          className="mt-1 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-red-500 transition-colors hover:bg-red-50 active:bg-red-100/70"
+                          className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-red-500 transition-colors hover:bg-red-50 active:bg-red-100/70"
                           aria-label="Remover serviço"
                         >
-                          <Trash2 className="h-4.5 w-4.5 h-[18px] w-[18px]" strokeWidth={2} />
+                          <Trash2 className="h-3.5 w-3.5" strokeWidth={2} />
                         </button>
                       </div>
                     );
                   })}
-                  <button
-                    type="button"
-                    onClick={addServiceRow}
-                    className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl border border-[#007AFF]/20 bg-[#007AFF]/8 px-3 py-3 text-[14px] font-semibold text-[#007AFF] transition-colors hover:bg-[#007AFF]/12 active:bg-[#007AFF]/16"
-                  >
-                    <Plus className="h-4 w-4" strokeWidth={2.4} />
+                  <button type="button" onClick={addServiceRow} className={ADD_ROW_BTN}>
+                    <Plus className="h-3.5 w-3.5" strokeWidth={2.4} />
                     Adicionar serviço
                   </button>
                 </div>
@@ -858,14 +818,14 @@ export function PatioBudgetRequestTouchForm({
                 }
                 title="Peças solicitadas"
               >
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                   {budgetParts.map((item, partIndex) => {
                     const isFocusedPart = suggestionsForPartId === item.id;
                     return (
                       <div
                         key={item.id}
                         ref={isFocusedPart ? focusedPartInputRef : undefined}
-                        className="flex items-center gap-1 rounded-xl border border-slate-200/90 bg-slate-50/60 px-1.5 py-0.5"
+                        className="flex items-center gap-0.5 rounded-lg border border-slate-200/90 bg-white px-1 py-0"
                       >
                         <GripMoveControl
                           position={partIndex + 1}
@@ -873,14 +833,14 @@ export function PatioBudgetRequestTouchForm({
                           onMoveTo={(toIndex) => movePartRowToIndex(item.id, toIndex)}
                           ariaLabelPrefix="Peça"
                         />
-                        <div className="min-w-0 flex-1 py-1">
+                        <div className="min-w-0 flex-1 py-0.5">
                           {item.fromStock ? (
-                            <BudgetPartStockBadge className="mb-1 self-start" />
+                            <BudgetPartStockBadge className="mb-0.5 scale-90 self-start" />
                           ) : null}
                           <input
                             type="text"
                             placeholder="Descreva a peça"
-                            className="w-full border-0 bg-transparent py-2 text-[15px] text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-0"
+                            className="w-full border-0 bg-transparent py-1.5 text-[12px] text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-0"
                             value={item.description}
                             data-budget-part-id={item.id}
                             autoFocus={focusPartId === item.id}
@@ -897,20 +857,16 @@ export function PatioBudgetRequestTouchForm({
                         <button
                           type="button"
                           onClick={() => removePartRow(item.id)}
-                          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-red-500 transition-colors hover:bg-red-50 active:bg-red-100/70"
+                          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-red-500 transition-colors hover:bg-red-50 active:bg-red-100/70"
                           aria-label="Remover peça"
                         >
-                          <Trash2 className="h-[18px] w-[18px]" strokeWidth={2} />
+                          <Trash2 className="h-3.5 w-3.5" strokeWidth={2} />
                         </button>
                       </div>
                     );
                   })}
-                  <button
-                    type="button"
-                    onClick={addPartRow}
-                    className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl border border-[#007AFF]/20 bg-[#007AFF]/8 px-3 py-3 text-[14px] font-semibold text-[#007AFF] transition-colors hover:bg-[#007AFF]/12 active:bg-[#007AFF]/16"
-                  >
-                    <Plus className="h-4 w-4" strokeWidth={2.4} />
+                  <button type="button" onClick={addPartRow} className={ADD_ROW_BTN}>
+                    <Plus className="h-3.5 w-3.5" strokeWidth={2.4} />
                     Adicionar peça
                   </button>
                 </div>
@@ -930,8 +886,8 @@ export function PatioBudgetRequestTouchForm({
                 titleExtra={<span className="font-normal text-slate-400"> (opcional)</span>}
               >
                 <textarea
-                  rows={4}
-                  className="w-full resize-y rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-3 text-[15px] leading-relaxed text-slate-800 placeholder:text-slate-400 focus:border-[#007AFF]/50 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/20"
+                  rows={3}
+                  className="w-full resize-y rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-[12px] leading-relaxed text-slate-800 placeholder:text-slate-400 focus:border-[#007AFF]/50 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/20"
                   placeholder="Informações complementares para o setor de orçamentos…"
                   value={budgetObservations}
                   onChange={(e) => setBudgetObservations(e.target.value)}
