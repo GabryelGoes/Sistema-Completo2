@@ -643,7 +643,14 @@ export function PatioBudgetRequestTouchForm({
             <div className="mx-auto flex w-full max-w-3xl flex-col gap-3 sm:gap-3.5">
               {/* Veículo e Cliente */}
               <SectionCard
-                icon={<Car className="h-4 w-4" strokeWidth={2.2} />}
+                iconTone="app"
+                icon={
+                  <img
+                    src="/icons/veiculo-cliente-orcamento-ios.png"
+                    alt=""
+                    className="h-full w-full object-cover"
+                  />
+                }
                 title="Veículo e Cliente"
                 action={
                   <button
