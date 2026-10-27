@@ -205,6 +205,7 @@ function receptionFormFromApiCustomer(c: ApiCustomer, prev: Customer): Customer 
     vehicleColor: prev.vehicleColor,
     vehicleYear: prev.vehicleYear,
     vehicleEngineInfo: prev.vehicleEngineInfo,
+    vehicleChassis: prev.vehicleChassis,
     mileageKm: prev.mileageKm,
     issueDescription: prev.issueDescription,
     trelloCardId: prev.trelloCardId,
@@ -256,6 +257,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
     vehicleColor: '',
     vehicleYear: '',
     vehicleEngineInfo: '',
+    vehicleChassis: '',
     mileageKm: '',
     issueDescription: ''
   });
@@ -513,6 +515,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
         vehicleColor: initialData.vehicleColor ?? prev.vehicleColor,
         vehicleYear: initialData.vehicleYear ?? prev.vehicleYear,
         vehicleEngineInfo: initialData.vehicleEngineInfo ?? prev.vehicleEngineInfo,
+        vehicleChassis: initialData.vehicleChassis ?? prev.vehicleChassis,
         mileageKm: initialData.mileageKm ?? prev.mileageKm,
         issueDescription: initialData.issueDescription ?? prev.issueDescription,
         trelloCardId: initialData.trelloCardId,
@@ -616,6 +619,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
         vehicleColor: (o.vehicle_color ?? '').trim(),
         vehicleYear: (o.vehicle_year ?? '').trim(),
         vehicleEngineInfo: (o.vehicle_engine_info ?? '').trim(),
+        vehicleChassis: (o.vehicle_chassis ?? '').trim(),
         mileageKm: (o.mileage_km ?? '').trim(),
         orderId: o.id,
       });
@@ -672,6 +676,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
         vehicleColor: '',
         vehicleYear: '',
         vehicleEngineInfo: '',
+        vehicleChassis: '',
         mileageKm: '',
         orderId: null,
         customerOnly: true,
@@ -726,6 +731,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
     vehicleColor: '',
     vehicleYear: '',
     vehicleEngineInfo: '',
+    vehicleChassis: '',
     mileageKm: '',
   }), []);
 
@@ -777,6 +783,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
       vehicleColor: '',
       vehicleYear: '',
       vehicleEngineInfo: '',
+      vehicleChassis: '',
     }));
   }, [intakePlateVehicleSuggestions, intakeCustomerDirectory, closeAllIntakeSuggest]);
 
@@ -796,6 +803,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
       vehicleColor: '',
       vehicleYear: '',
       vehicleEngineInfo: '',
+      vehicleChassis: '',
     }));
   }, [intakeModelVehicleSuggestions, intakeCustomerDirectory, closeAllIntakeSuggest]);
 
@@ -816,6 +824,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
         vehicleColor: prev.vehicleColor?.trim() || result.vehicleColor?.trim() || '',
         vehicleYear: prev.vehicleYear?.trim() || result.vehicleYear?.trim() || '',
         vehicleEngineInfo: prev.vehicleEngineInfo?.trim() || result.vehicleEngineInfo?.trim() || '',
+        vehicleChassis: prev.vehicleChassis?.trim() || result.vehicleChassis?.trim() || '',
       }));
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : 'Falha na consulta.';
@@ -844,6 +853,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
       const color = (row.vehicleColor || '').trim();
       const year = (row.vehicleYear || '').trim();
       const engine = (row.vehicleEngineInfo || '').trim();
+      const chassis = (row.vehicleChassis || '').trim();
       setIntakeExistingCustomerId(row.customerId);
       setCustomer((prev) => {
         const base = c ? receptionFormFromApiCustomer(c, prev) : {
@@ -860,12 +870,13 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
           vehicleColor: color,
           vehicleYear: year,
           vehicleEngineInfo: engine,
+          vehicleChassis: chassis,
           // Não copia km da OS antiga — quilometragem deve ser informada no atendimento atual.
           mileageKm: prev.mileageKm,
         };
       });
       setPlateLookupError(null);
-      const missingVehicleData = !brand || !model || !color || !year || !engine;
+      const missingVehicleData = !brand || !model || !color || !year || !engine || !chassis;
       if (missingVehicleData && plate) {
         lastFetchedPlacaRef.current = null;
         void completeMissingVehicleFromPlaca(plate);
@@ -1301,6 +1312,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
       vehicleColor: '',
       vehicleYear: '',
       vehicleEngineInfo: '',
+      vehicleChassis: '',
       mileageKm: '',
       issueDescription: '',
       trelloCardId: undefined
@@ -1355,6 +1367,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
       vehicleColor: '',
       vehicleYear: '',
       vehicleEngineInfo: '',
+      vehicleChassis: '',
       mileageKm: '',
     }));
     setModuleKind('');
@@ -1413,6 +1426,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
           vehicleColor: result.vehicleColor?.trim() || prev.vehicleColor,
           vehicleYear: result.vehicleYear?.trim() || prev.vehicleYear,
           vehicleEngineInfo: result.vehicleEngineInfo?.trim() || prev.vehicleEngineInfo,
+          vehicleChassis: result.vehicleChassis?.trim() || prev.vehicleChassis,
         }));
       } catch (e: unknown) {
         const msg = e instanceof Error ? e.message : 'Falha na consulta.';
@@ -1598,6 +1612,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
       vehicleColor: detail.vehicle_color ?? '',
       vehicleYear: detail.vehicle_year ?? '',
       vehicleEngineInfo: detail.vehicle_engine_info ?? '',
+      vehicleChassis: detail.vehicle_chassis ?? '',
       /** Nova OS: não reaproveitar km da OS arquivada. */
       mileageKm: '',
       issueDescription: '',
@@ -2162,6 +2177,16 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                       value={customer.vehicleEngineInfo ?? ''}
                       onChange={handleInputChange}
                       icon={<Car className="w-4 h-4" />}
+                    />
+                  </div>
+                  <div className={receptionFormRow2}>
+                    <Input
+                      label="Chassi"
+                      name="vehicleChassis"
+                      placeholder="Chassi"
+                      value={customer.vehicleChassis ?? ''}
+                      onChange={handleInputChange}
+                      icon={<Hash className="w-4 h-4" />}
                     />
                   </div>
                 </>
@@ -2886,6 +2911,11 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                           {!isModuleDetail && (d.vehicle_color ?? '').trim() ? (
                             <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-500/90 dark:text-zinc-400">
                               Cor · {(d.vehicle_color ?? '').trim()}
+                            </p>
+                          ) : null}
+                          {!isModuleDetail && (d.vehicle_chassis ?? '').trim() ? (
+                            <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-500/90 dark:text-zinc-400">
+                              Chassi · {(d.vehicle_chassis ?? '').trim()}
                             </p>
                           ) : null}
                         </div>

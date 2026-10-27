@@ -88,6 +88,7 @@ interface ApiServiceOrder {
   vehicle_color?: string | null;
   vehicle_year?: string | null;
   vehicle_engine_info?: string | null;
+  vehicle_chassis?: string | null;
   bench_slot?: number | null;
   bench_slot_at?: string | null;
   bench_queued_at?: string | null;
@@ -133,6 +134,7 @@ export interface ServiceOrderListItem {
   vehicle_color?: string | null;
   vehicle_year?: string | null;
   vehicle_engine_info?: string | null;
+  vehicle_chassis?: string | null;
   /** Links anexados ao modal (JSON no banco). */
   reference_links?: VehicleReferenceLink[] | null;
   /** Vínculos de serviços do pátio enviados ao laboratório. */
@@ -183,6 +185,7 @@ export interface ServiceOrderDetail {
   vehicle_color?: string | null;
   vehicle_year?: string | null;
   vehicle_engine_info?: string | null;
+  vehicle_chassis?: string | null;
   reference_links?: VehicleReferenceLink[] | null;
   /** Vínculos de serviços do pátio enviados ao laboratório. */
   lab_service_links?: LabServiceLink[] | null;
@@ -213,6 +216,8 @@ export interface PlacaFipeLookupResult {
   vehicleColor: string | null;
   vehicleYear: string | null;
   vehicleEngineInfo: string | null;
+  /** Chassi (pode vir mascarado da PlacaFipe, ex.: ******6889) */
+  vehicleChassis: string | null;
   /** Sugestão para o campo cidade (município — UF) */
   citySuggestion: string | null;
 }
@@ -871,6 +876,7 @@ export async function createServiceOrder(params: {
   vehicleColor?: string | null;
   vehicleYear?: string | null;
   vehicleEngineInfo?: string | null;
+  vehicleChassis?: string | null;
   /** Marca OS criada a partir da Agenda (Chegou ao pátio). */
   agendaTag?: boolean;
   /** Etiqueta de garantia (laboratório / pátio). */
@@ -892,6 +898,8 @@ export async function createServiceOrder(params: {
     if (params.vehicleYear !== undefined) body.vehicleYear = params.vehicleYear?.trim() || null;
     if (params.vehicleEngineInfo !== undefined)
       body.vehicleEngineInfo = params.vehicleEngineInfo?.trim() || null;
+    if (params.vehicleChassis !== undefined)
+      body.vehicleChassis = params.vehicleChassis?.trim() || null;
     if (params.agendaTag === true) body.agendaTag = true;
   } else {
     body.plate = null;
@@ -950,6 +958,8 @@ export async function saveReceptionIntake(
     vehicleYear: orderType === "vehicle" ? customer.vehicleYear?.trim() || null : undefined,
     vehicleEngineInfo:
       orderType === "vehicle" ? customer.vehicleEngineInfo?.trim() || null : undefined,
+    vehicleChassis:
+      orderType === "vehicle" ? customer.vehicleChassis?.trim() || null : undefined,
     status: orderType === "module" ? moduleInitialStatus : undefined,
     agendaTag: orderType === "vehicle" && options?.agendaTag === true ? true : undefined,
     garantiaTag: options?.garantiaTag === true ? true : undefined,
@@ -988,6 +998,7 @@ export async function saveReceptionIntakeForExistingCustomer(
     vehicleColor: orderType === "vehicle" ? customer.vehicleColor?.trim() || null : undefined,
     vehicleYear: orderType === "vehicle" ? customer.vehicleYear?.trim() || null : undefined,
     vehicleEngineInfo: orderType === "vehicle" ? customer.vehicleEngineInfo?.trim() || null : undefined,
+    vehicleChassis: orderType === "vehicle" ? customer.vehicleChassis?.trim() || null : undefined,
     status: orderType === "module" ? moduleInitialStatus : undefined,
     agendaTag: orderType === "vehicle" && options?.agendaTag === true ? true : undefined,
     garantiaTag: options?.garantiaTag === true ? true : undefined,
@@ -1540,6 +1551,7 @@ export async function updateServiceOrderVehicle(
     vehicleColor?: string | null;
     vehicleYear?: string | null;
     vehicleEngineInfo?: string | null;
+    vehicleChassis?: string | null;
     moduleKind?: string | null;
     moduleVehicleKind?: string | null;
     moduleProductOther?: string | null;
@@ -1573,6 +1585,12 @@ export async function updateServiceOrderVehicle(
       data.vehicleEngineInfo == null || String(data.vehicleEngineInfo).trim() === ""
         ? null
         : String(data.vehicleEngineInfo).trim();
+  }
+  if (data.vehicleChassis !== undefined) {
+    body.vehicleChassis =
+      data.vehicleChassis == null || String(data.vehicleChassis).trim() === ""
+        ? null
+        : String(data.vehicleChassis).trim();
   }
   if (data.moduleKind !== undefined) {
     body.moduleKind =

@@ -4744,6 +4744,7 @@ export function createApiApp() {
       if (cil) engineParts.push(`${cil} cc`);
       if (comb) engineParts.push(comb);
       const vehicleEngineInfo = engineParts.length > 0 ? engineParts.join(" · ") : null;
+      const vehicleChassis = str(info.chassi) || str(info.chassis) || null;
 
       const municipio = str(info.municipio);
       const uf = str(info.uf);
@@ -4759,6 +4760,7 @@ export function createApiApp() {
         vehicleColor: cor || null,
         vehicleYear,
         vehicleEngineInfo,
+        vehicleChassis,
         citySuggestion,
       });
     } catch (err: unknown) {
@@ -4770,10 +4772,10 @@ export function createApiApp() {
 
   // ----------------- ORDENS DE SERVIÇO -----------------
   const SERVICE_ORDERS_LIST_SELECT =
-    "id, os_number, customer_id, vehicle_model, vehicle_brand, module_identification, module_kind, module_vehicle_kind, module_product_other, plate, mileage_km, delivery_date, vehicle_observations, issue_description, ai_analysis, status, assigned_technician, garantia_tag, agenda_tag, order_type, vehicle_category, vehicle_color, vehicle_year, vehicle_engine_info, reference_links, lab_service_links, lab_evaluated_service, lab_evaluated_at, lab_evaluated_by_name, bench_slot, bench_slot_at, bench_queued_at, oficina_shelf, external_repair, diagnostic_authorization_signed_at, diagnostic_authorization_signature_path, created_at, updated_at";
+    "id, os_number, customer_id, vehicle_model, vehicle_brand, module_identification, module_kind, module_vehicle_kind, module_product_other, plate, mileage_km, delivery_date, vehicle_observations, issue_description, ai_analysis, status, assigned_technician, garantia_tag, agenda_tag, order_type, vehicle_category, vehicle_color, vehicle_year, vehicle_engine_info, vehicle_chassis, reference_links, lab_service_links, lab_evaluated_service, lab_evaluated_at, lab_evaluated_by_name, bench_slot, bench_slot_at, bench_queued_at, oficina_shelf, external_repair, diagnostic_authorization_signed_at, diagnostic_authorization_signature_path, created_at, updated_at";
   /** Fallback quando migrações recentes ainda não foram aplicadas no projeto Supabase. */
   const SERVICE_ORDERS_LIST_SELECT_MINIMAL =
-    "id, os_number, customer_id, vehicle_model, vehicle_brand, module_identification, plate, mileage_km, delivery_date, issue_description, ai_analysis, status, assigned_technician, garantia_tag, agenda_tag, order_type, vehicle_category, vehicle_color, vehicle_year, vehicle_engine_info, reference_links, diagnostic_authorization_signed_at, diagnostic_authorization_signature_path, created_at, updated_at";
+    "id, os_number, customer_id, vehicle_model, vehicle_brand, module_identification, plate, mileage_km, delivery_date, issue_description, ai_analysis, status, assigned_technician, garantia_tag, agenda_tag, order_type, vehicle_category, vehicle_color, vehicle_year, vehicle_engine_info, vehicle_chassis, reference_links, diagnostic_authorization_signed_at, diagnostic_authorization_signature_path, created_at, updated_at";
   /** Último fallback — só colunas essenciais quando migrações parciais quebram o select reduzido. */
   const SERVICE_ORDERS_LIST_SELECT_CORE =
     "id, os_number, customer_id, vehicle_model, vehicle_brand, plate, mileage_km, delivery_date, issue_description, status, assigned_technician, order_type, vehicle_category, created_at, updated_at";
@@ -5511,6 +5513,7 @@ export function createApiApp() {
         vehicleColor: bodyVehicleColor,
         vehicleYear: bodyVehicleYear,
         vehicleEngineInfo: bodyVehicleEngineInfo,
+        vehicleChassis: bodyVehicleChassis,
         vehicleBrand: bodyVehicleBrand,
         moduleKind: bodyModuleKind,
         moduleVehicleKind: bodyModuleVehicleKind,
@@ -5587,6 +5590,8 @@ export function createApiApp() {
         orderType === "vehicle" ? trimOrNull(bodyVehicleYear) : null;
       const vehicleEngineInfoIns =
         orderType === "vehicle" ? trimOrNull(bodyVehicleEngineInfo) : null;
+      const vehicleChassisIns =
+        orderType === "vehicle" ? trimOrNull(bodyVehicleChassis) : null;
       const vehicleBrandIns =
         orderType === "vehicle" ? trimOrNull(bodyVehicleBrand) : null;
 
@@ -5641,6 +5646,7 @@ export function createApiApp() {
         vehicle_color: vehicleColorIns,
         vehicle_year: vehicleYearIns,
         vehicle_engine_info: vehicleEngineInfoIns,
+        vehicle_chassis: vehicleChassisIns,
         bench_slot: benchFields.bench_slot,
         bench_slot_at: benchFields.bench_slot_at,
         bench_queued_at: benchFields.bench_queued_at,
@@ -13487,6 +13493,7 @@ export function createApiApp() {
         vehicleColor: bodyVehicleColorPut,
         vehicleYear: bodyVehicleYearPut,
         vehicleEngineInfo: bodyVehicleEngineInfoPut,
+        vehicleChassis: bodyVehicleChassisPut,
         vehicleBrand: bodyVehicleBrandPut,
         moduleKind: bodyModuleKindPut,
         moduleVehicleKind: bodyModuleVehicleKindPut,
@@ -13605,6 +13612,7 @@ export function createApiApp() {
           updatePayload.vehicle_color = null;
           updatePayload.vehicle_year = null;
           updatePayload.vehicle_engine_info = null;
+          updatePayload.vehicle_chassis = null;
           updatePayload.vehicle_brand = null;
         } else if (bodyOrderType === "vehicle") {
           updatePayload.module_kind = null;
@@ -13635,6 +13643,12 @@ export function createApiApp() {
           bodyVehicleEngineInfoPut == null || String(bodyVehicleEngineInfoPut).trim() === ""
             ? null
             : String(bodyVehicleEngineInfoPut).trim();
+      }
+      if (bodyVehicleChassisPut !== undefined) {
+        updatePayload.vehicle_chassis =
+          bodyVehicleChassisPut == null || String(bodyVehicleChassisPut).trim() === ""
+            ? null
+            : String(bodyVehicleChassisPut).trim();
       }
       if (bodyReferenceLinks !== undefined) {
         if (!Array.isArray(bodyReferenceLinks)) {
