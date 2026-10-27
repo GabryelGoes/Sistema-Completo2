@@ -12,7 +12,6 @@ import {
   Send,
   Trash2,
   User,
-  Wrench,
   X,
 } from 'lucide-react';
 import type { WorkshopPart, WorkshopService } from '../../services/apiService';
@@ -771,7 +770,14 @@ export function PatioBudgetRequestTouchForm({
 
               {/* Serviços */}
               <SectionCard
-                icon={<Wrench className="h-4 w-4" strokeWidth={2.2} />}
+                iconTone="app"
+                icon={
+                  <img
+                    src="/icons/servicos-solicitados-ios.png"
+                    alt=""
+                    className="h-full w-full object-cover"
+                  />
+                }
                 title="Serviços solicitados"
               >
                 <div className="space-y-2">
