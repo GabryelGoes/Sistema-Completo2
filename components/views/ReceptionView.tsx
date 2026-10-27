@@ -46,6 +46,11 @@ import { useServiceOrderLiveSync } from '../../hooks/useServiceOrderLiveSync';
 import { useTabletPhonePortraitFullscreen } from '../../hooks/useTabletPhonePortraitFullscreen';
 import { formatLaborLabel } from '../../utils/workshopLaborFormat';
 import {
+  brazilianPlateEquivalents,
+  brazilianPlateIdentityKey,
+  normalizeBrazilianPlate,
+} from '../../utils/brazilianPlate';
+import {
   cpfCnpjLabel,
   formatCpfCnpj,
   getCpfCnpjStatus,
@@ -181,10 +186,7 @@ function attachmentMimeType(name: string): string {
 }
 
 function normalizePlacaLocal(raw: string) {
-  return String(raw ?? '')
-    .replace(/[^a-zA-Z0-9]/g, '')
-    .toUpperCase()
-    .slice(0, 8);
+  return normalizeBrazilianPlate(raw);
 }
 
 /** Preenche dados do cliente a partir da API, preservando veículo/módulo já digitados no formulário. */
@@ -604,7 +606,8 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
       if (!plate || plate === '---') continue;
       const cid = o.customer_id;
       if (!cid) continue;
-      const key = `${cid}::${plate}`;
+      // Une Mercosul e formato antigo (mesmo veículo / mesmo cliente).
+      const key = `${cid}::${brazilianPlateIdentityKey(plate)}`;
       if (byKey.has(key)) continue;
       const c = custMap.get(cid);
       byKey.set(key, {
@@ -687,9 +690,16 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
   const intakePlateVehicleSuggestions = useMemo((): ReceptionLinkedVehicleSuggestion[] => {
     const qRaw = (customer.plate ?? '').trim();
     if (qRaw.length < RECEPTION_SUGGEST_MIN_CHARS) return [];
-    const qNorm = qRaw.replace(/\s/g, '').toLowerCase();
+    const qNorm = normalizeBrazilianPlate(qRaw).toLowerCase();
+    const qForms = new Set(
+      brazilianPlateEquivalents(qRaw).map((p) => p.toLowerCase())
+    );
     return intakeLinkedVehiclesAll
-      .filter((s) => s.plate.replace(/\s/g, '').toLowerCase().includes(qNorm))
+      .filter((s) => {
+        const sNorm = normalizeBrazilianPlate(s.plate).toLowerCase();
+        if (sNorm.includes(qNorm) || qNorm.includes(sNorm)) return true;
+        return brazilianPlateEquivalents(s.plate).some((p) => qForms.has(p.toLowerCase()));
+      })
       .slice(0, 60);
   }, [customer.plate, intakeLinkedVehiclesAll]);
 

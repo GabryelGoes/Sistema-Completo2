@@ -63,6 +63,10 @@ import { mergeEstoqueLedger } from "./utils/estoqueLedger.js";
 import { normalizeSupplierDocument } from "./utils/workshopSuppliers.js";
 import { registerAbsModuleRoutes } from "./utils/absModuleApiRoutes.js";
 import type { WorkshopAbsModuleMovementListItem } from "./utils/workshopAbsModules.js";
+import {
+  brazilianPlateIdentityKey,
+  normalizeBrazilianPlate,
+} from "./utils/brazilianPlate.js";
 
 const PBKDF2_ITERATIONS = 100000;
 const SALT_LEN = 16;
@@ -4672,10 +4676,7 @@ export function createApiApp() {
   );
 
   function normalizePlacaInput(raw: unknown): string {
-    return String(raw ?? "")
-      .replace(/[^a-zA-Z0-9]/g, "")
-      .toUpperCase()
-      .slice(0, 8);
+    return normalizeBrazilianPlate(raw);
   }
 
   /** Consulta dados do veículo pela placa (token só no servidor: PLACAFIPE_TOKEN). */
@@ -6233,8 +6234,9 @@ export function createApiApp() {
         });
       }
 
-      // Busca ampla por oficina + tipo veículo; a chave de união é a placa normalizada
-      // (independente de customer_id). Inclui arquivadas (CANCELLED).
+      // Busca ampla por oficina + tipo veículo; une Mercosul e formato antigo
+      // (ABC1C34 ≡ ABC1234). Inclui arquivadas (CANCELLED). Independente de customer_id.
+      const plateIdentity = brazilianPlateIdentityKey(plateNorm);
       const { data: orderRows, error: ordErr } = await supabaseAdmin
         .from("service_orders")
         .select(
@@ -6250,7 +6252,9 @@ export function createApiApp() {
       }
 
       const visitsBase = (orderRows ?? []).filter(
-        (row) => normalizePlacaInput((row as { plate?: string | null }).plate) === plateNorm
+        (row) =>
+          brazilianPlateIdentityKey((row as { plate?: string | null }).plate) ===
+          plateIdentity
       );
       const orderIds = visitsBase.map((r) => String((r as { id: string }).id));
 
@@ -6494,7 +6498,8 @@ export function createApiApp() {
 
       return res.json({
         plate: plateDisplay,
-        plateKey: plateNorm,
+        /** Chave de identidade (Mercosul e antigo colapsam no formato antigo). */
+        plateKey: plateIdentity,
         lookupBy: "plate",
         vehicleModel: (current as { vehicle_model?: string | null }).vehicle_model ?? null,
         vehicleBrand: (current as { vehicle_brand?: string | null }).vehicle_brand ?? null,
