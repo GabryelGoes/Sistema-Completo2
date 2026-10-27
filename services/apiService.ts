@@ -1105,7 +1105,7 @@ export type VehicleMaintenanceVisit = {
 
 export type VehicleMaintenanceHistory = {
   plate: string | null;
-  /** Placa normalizada usada na busca (sem hífen/espaços). */
+  /** Chave de identidade (Mercosul e formato antigo colapsam, ex.: ABC1C34 ≡ ABC1234). */
   plateKey?: string | null;
   /** Sempre "plate" — histórico não é filtrado por cliente. */
   lookupBy?: "plate";

@@ -137,6 +137,10 @@ import { useDeviceTypeContext } from '../ui/DeviceTypeContext';
 import { useDesktopShellLayout } from '../ui/DesktopShellContext';
 import { useDragScroll } from '../../hooks/useDragScroll';
 import { desktopShellViewportOverlayClass } from '../../utils/desktopShellOverlay';
+import {
+  brazilianPlatesMatch,
+  normalizeBrazilianPlate,
+} from '../../utils/brazilianPlate';
 import { StorageThumbImg } from '../ui/StorageThumbImg';
 import { storageThumbnailUrl, storageDisplayUrl, bustStoragePublicUrl } from '../../utils/storageThumbnailUrl';
 import {
@@ -498,10 +502,7 @@ function stripLegacyVehicleCategoryFromComplaint(text: string | null | undefined
 
 /** Mesmo critério da Recepção — comparação de placa Mercosul / antiga. */
 function normalizePatioPlate(raw: string): string {
-  return String(raw ?? '')
-    .replace(/[^a-zA-Z0-9]/g, '')
-    .toUpperCase()
-    .slice(0, 8);
+  return normalizeBrazilianPlate(raw);
 }
 
 function buildTechnicianNameMap(technicians: SystemUserTechnician[]): Record<string, string> {
@@ -2944,7 +2945,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
     try {
       const matches = cards.filter((c) => {
         const parts = parsePatioCardTitle(c.name);
-        return normalizePatioPlate(parts.plateOrModule || '') === norm;
+        return brazilianPlatesMatch(parts.plateOrModule || '', norm);
       });
       if (matches.length > 0) {
         setPatioPlateSearchInPatioCards(matches);
