@@ -5525,16 +5525,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
       setEditingBudget(null);
       setBudgetServices([{ id: '1', description: '', laborHours: null }]);
       setBudgetParts([{ id: '1', description: '', quantity: '1' }]);
-      // No touch (tablet/mobile), a queixa já vem da OS; no PC o campo continua vazio
-      // para o diagnóstico do orçamento (layout separado).
-      const osComplaint = stripLegacyVehicleCategoryFromComplaint(
-        (serviceOrderDetail?.id === selectedCard?.id
-          ? serviceOrderDetail?.issue_description
-          : null) ??
-          selectedCard?.desc ??
-          ''
-      );
-      setBudgetDiagnosis(!isPatioPcModal ? osComplaint : '');
+      // Diagnóstico do orçamento começa vazio; a queixa da OS vai em `clientComplaint`.
+      setBudgetDiagnosis('');
       setBudgetObservations('');
     }
     setBudgetEditSessionId((n) => n + 1);
@@ -13027,6 +13019,13 @@ export const PatioView: React.FC<PatioViewProps> = ({
             selectedCard.mileageKm ||
             null
           }
+          clientComplaint={stripLegacyVehicleCategoryFromComplaint(
+            (serviceOrderDetail?.id === selectedCard.id
+              ? serviceOrderDetail.issue_description
+              : null) ??
+              selectedCard.desc ??
+              ''
+          )}
           initialDiagnosis={budgetDiagnosis}
           initialServices={budgetServices}
           initialParts={budgetParts}

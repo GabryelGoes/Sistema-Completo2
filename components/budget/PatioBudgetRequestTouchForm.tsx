@@ -51,6 +51,9 @@ export type PatioBudgetRequestTouchFormProps = {
   mileageKm?: string | null;
   /** Técnico responsável pela solicitação (identificação discreta). */
   technicianName?: string | null;
+  /** Queixa da OS — somente leitura, área Veículo e Cliente. */
+  clientComplaint?: string | null;
+  /** Diagnóstico do orçamento (editável). */
   initialDiagnosis: string;
   initialServices: PatioBudgetServiceDraft[];
   initialParts: PatioBudgetPartDraft[];
@@ -262,6 +265,7 @@ export function PatioBudgetRequestTouchForm({
   vehicleColor,
   mileageKm,
   technicianName,
+  clientComplaint,
   initialDiagnosis,
   initialServices,
   initialParts,
@@ -275,7 +279,7 @@ export function PatioBudgetRequestTouchForm({
   backdropAnimClass,
 }: PatioBudgetRequestTouchFormProps) {
   const isPc = variant === 'pc';
-  const [budgetDiagnosis] = useState(initialDiagnosis);
+  const [budgetDiagnosis, setBudgetDiagnosis] = useState(initialDiagnosis);
   const [budgetServices, setBudgetServices] = useState(initialServices);
   const [budgetParts, setBudgetParts] = useState(initialParts);
   const [budgetObservations, setBudgetObservations] = useState(initialObservations);
@@ -592,6 +596,7 @@ export function PatioBudgetRequestTouchForm({
   const chassisDisplay = (vehicleChassis ?? '').trim();
   const nameDisplay = (customerName ?? '').trim() || 'Cliente';
   const techDisplay = (technicianName ?? '').trim();
+  const complaintDisplay = (clientComplaint ?? '').trim();
 
   return (
     <ModalPortal forceBody>
@@ -750,20 +755,41 @@ export function PatioBudgetRequestTouchForm({
                     </span>
                   </div>
 
-                  {/* Queixa — lembrete somente leitura */}
+                  {/* Queixa da OS — somente leitura */}
                   <div>
                     <p className="mb-1.5 text-[14px] font-semibold tracking-tight text-slate-800">
                       Queixa do cliente
                     </p>
                     <div className="rounded-xl bg-slate-50 px-3 py-2.5 text-[13px] leading-relaxed text-slate-700">
-                      {budgetDiagnosis.trim() ? (
-                        budgetDiagnosis
+                      {complaintDisplay ? (
+                        complaintDisplay
                       ) : (
                         <span className="text-slate-400">Nenhuma queixa registrada nesta OS.</span>
                       )}
                     </div>
                   </div>
                 </div>
+              </SectionCard>
+
+              {/* Diagnóstico do orçamento — editável (PC e tablet) */}
+              <SectionCard
+                iconTone="app"
+                icon={
+                  <img
+                    src="/icons/autorizacao-diagnostico-ios.png"
+                    alt=""
+                    className="h-full w-full object-cover"
+                  />
+                }
+                title="Diagnóstico"
+              >
+                <textarea
+                  rows={isPc ? 5 : 4}
+                  className="w-full resize-y rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-[13.5px] leading-relaxed text-slate-800 placeholder:text-slate-400 focus:border-[#007AFF]/50 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/20"
+                  placeholder="Descreva o diagnóstico do orçamento…"
+                  value={budgetDiagnosis}
+                  onChange={(e) => setBudgetDiagnosis(e.target.value)}
+                />
               </SectionCard>
 
               {/* Serviços */}
