@@ -14,6 +14,7 @@ export type ReceptionLinkedVehicleSuggestion = {
   vehicleColor: string;
   vehicleYear: string;
   vehicleEngineInfo: string;
+  vehicleChassis: string;
   mileageKm: string;
   orderId: string | null;
   /** Cliente sem OS/veículo ainda — só cadastro de pessoa. */

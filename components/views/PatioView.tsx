@@ -335,6 +335,7 @@ function serviceOrderDetailPlaceholderFromCard(card: TrelloCard, orderType: Serv
     vehicle_color: card.vehicleColor ?? null,
     vehicle_year: card.vehicleYear ?? null,
     vehicle_engine_info: card.vehicleEngineInfo ?? null,
+    vehicle_chassis: card.vehicleChassis ?? null,
     reference_links: card.referenceLinks?.length ? card.referenceLinks : null,
     external_repair: card.externalRepair ?? null,
     created_at: card.createdAt || card.dateLastActivity || now,
@@ -539,6 +540,7 @@ function serviceOrderDetailToListItem(detail: ServiceOrderDetail): ServiceOrderL
     vehicle_color: detail.vehicle_color ?? null,
     vehicle_year: detail.vehicle_year ?? null,
     vehicle_engine_info: detail.vehicle_engine_info ?? null,
+    vehicle_chassis: detail.vehicle_chassis ?? null,
     reference_links: parseReferenceLinksFromApi(detail.reference_links),
     lab_service_links: Array.isArray(detail.lab_service_links) ? (detail.lab_service_links as LabServiceLink[]) : [],
     bench_slot: (detail as ServiceOrderDetail & { bench_slot?: number | null }).bench_slot ?? null,
@@ -590,6 +592,7 @@ function orderToCard(o: ServiceOrderListItem, technicianNameMap?: Record<string,
     vehicleColor: o.vehicle_color ?? null,
     vehicleYear: o.vehicle_year ?? null,
     vehicleEngineInfo: o.vehicle_engine_info ?? null,
+    vehicleChassis: o.vehicle_chassis ?? null,
     referenceLinks: parseReferenceLinksFromApi(o.reference_links),
     labServiceLinks: Array.isArray(o.lab_service_links) ? (o.lab_service_links as LabServiceLink[]) : [],
     benchSlot: o.bench_slot ?? null,
@@ -1654,6 +1657,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
       vehicleColor: serviceOrderDetail.vehicle_color ?? '',
       vehicleYear: serviceOrderDetail.vehicle_year ?? '',
       vehicleEngineInfo: serviceOrderDetail.vehicle_engine_info ?? '',
+      vehicleChassis: serviceOrderDetail.vehicle_chassis ?? '',
       moduleKind: parseModuleKind(serviceOrderDetail.module_kind) ?? '',
       moduleVehicleKind: parseModuleVehicleKind(serviceOrderDetail.module_vehicle_kind) ?? '',
       moduleProductOther: serviceOrderDetail.module_product_other ?? '',
@@ -1663,7 +1667,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const [editFichaForm, setEditFichaForm] = useState<{
     name: string; cpf: string; phone: string; email: string; cep: string; address: string; addressNumber: string;
     vehicleModel: string; vehicleBrand: string; moduleIdentification: string; plate: string; mileageKm: string;
-    vehicleColor: string; vehicleYear: string; vehicleEngineInfo: string;
+    vehicleColor: string; vehicleYear: string; vehicleEngineInfo: string; vehicleChassis: string;
     moduleKind: ModuleKind | '';
     moduleVehicleKind: ModuleVehicleKind | '';
     moduleProductOther: string;
@@ -1683,6 +1687,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
     vehicleColor: '',
     vehicleYear: '',
     vehicleEngineInfo: '',
+    vehicleChassis: '',
     moduleKind: '',
     moduleVehicleKind: '',
     moduleProductOther: '',
@@ -4027,6 +4032,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
         vehicleColor: detail.vehicle_color ?? '',
         vehicleYear: detail.vehicle_year ?? '',
         vehicleEngineInfo: detail.vehicle_engine_info ?? '',
+        vehicleChassis: detail.vehicle_chassis ?? '',
         /** Nova OS: km sempre em branco para informar o valor atual na recepção. */
         mileageKm: '',
         issueDescription: '',
@@ -4770,6 +4776,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
         vehicleColor: isModuleMode ? undefined : editFichaForm.vehicleColor.trim() || null,
         vehicleYear: isModuleMode ? undefined : editFichaForm.vehicleYear.trim() || null,
         vehicleEngineInfo: isModuleMode ? undefined : editFichaForm.vehicleEngineInfo.trim() || null,
+        vehicleChassis: isModuleMode ? undefined : editFichaForm.vehicleChassis.trim() || null,
         moduleKind: isModuleMode ? editFichaForm.moduleKind || null : undefined,
         moduleVehicleKind: isModuleMode ? editFichaForm.moduleVehicleKind || null : undefined,
         moduleProductOther:
@@ -4797,6 +4804,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
         vehicleColor: updated.vehicle_color ?? null,
         vehicleYear: updated.vehicle_year ?? null,
         vehicleEngineInfo: updated.vehicle_engine_info ?? null,
+        vehicleChassis: updated.vehicle_chassis ?? null,
         vehicleBrand: updated.vehicle_brand ?? null,
         referenceLinks: parseReferenceLinksFromApi(updated.reference_links),
       };
@@ -4832,6 +4840,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
         vehicleColor: result.vehicleColor?.trim() || prev.vehicleColor,
         vehicleYear: result.vehicleYear?.trim() || prev.vehicleYear,
         vehicleEngineInfo: result.vehicleEngineInfo?.trim() || prev.vehicleEngineInfo,
+        vehicleChassis: result.vehicleChassis?.trim() || prev.vehicleChassis,
       }));
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : 'Falha ao consultar placa.';
@@ -10487,6 +10496,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                           <input value={editFichaForm.vehicleEngineInfo} onChange={(e) => setEditFichaForm(f => ({ ...f, vehicleEngineInfo: e.target.value }))} className={vin} placeholder="Motor" />
                                         </div>
                                       </div>
+                                      <div>
+                                        <label className={iosLabel}>Chassi</label>
+                                        <input value={editFichaForm.vehicleChassis} onChange={(e) => setEditFichaForm(f => ({ ...f, vehicleChassis: e.target.value }))} className={vin} placeholder="Chassi" />
+                                      </div>
                                     </>
                                   )}
                                 </div>
@@ -10577,7 +10590,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                       </div>
                                       {(serviceOrderDetail.vehicle_color ||
                                         serviceOrderDetail.vehicle_year ||
-                                        serviceOrderDetail.vehicle_engine_info) && (
+                                        serviceOrderDetail.vehicle_engine_info ||
+                                        serviceOrderDetail.vehicle_chassis) && (
                                         <>
                                           {serviceOrderDetail.vehicle_color ? (
                                             <div className="flex items-center gap-3 px-4 py-3.5 sm:px-5">
@@ -10603,6 +10617,15 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                               <div className="min-w-0 flex-1">
                                                 <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Motor</p>
                                                 <p className="mt-0.5 text-[15px] font-medium text-zinc-900 dark:text-white">{serviceOrderDetail.vehicle_engine_info}</p>
+                                              </div>
+                                            </div>
+                                          ) : null}
+                                          {serviceOrderDetail.vehicle_chassis ? (
+                                            <div className="flex items-center gap-3 px-4 py-3.5 sm:px-5">
+                                              <Hash className="h-[18px] w-[18px] shrink-0 text-[#007AFF]/85" />
+                                              <div className="min-w-0 flex-1">
+                                                <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">Chassi</p>
+                                                <p className="mt-0.5 font-mono text-[15px] font-medium tracking-wide text-zinc-900 dark:text-white">{serviceOrderDetail.vehicle_chassis}</p>
                                               </div>
                                             </div>
                                           ) : null}
@@ -10680,6 +10703,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                     vehicleColor: serviceOrderDetail.vehicle_color ?? '',
                                     vehicleYear: serviceOrderDetail.vehicle_year ?? '',
                                     vehicleEngineInfo: serviceOrderDetail.vehicle_engine_info ?? '',
+                                    vehicleChassis: serviceOrderDetail.vehicle_chassis ?? '',
                                     moduleKind: parseModuleKind(serviceOrderDetail.module_kind) ?? '',
                                     moduleVehicleKind: parseModuleVehicleKind(serviceOrderDetail.module_vehicle_kind) ?? '',
                                     moduleProductOther: serviceOrderDetail.module_product_other ?? '',
@@ -12559,6 +12583,12 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             .join(' · ') || '—'}
                           {patioPlateSearchApiInfo.vehicleColor ? ` · ${patioPlateSearchApiInfo.vehicleColor}` : ''}
                           {patioPlateSearchApiInfo.vehicleYear ? ` · ${patioPlateSearchApiInfo.vehicleYear}` : ''}
+                          {patioPlateSearchApiInfo.vehicleEngineInfo
+                            ? ` · ${patioPlateSearchApiInfo.vehicleEngineInfo}`
+                            : ''}
+                          {patioPlateSearchApiInfo.vehicleChassis
+                            ? ` · Chassi ${patioPlateSearchApiInfo.vehicleChassis}`
+                            : ''}
                         </p>
                       </div>
                     )}
