@@ -31,6 +31,10 @@ import type {
 
 export type PatioBudgetRequestTouchFormProps = {
   exiting?: boolean;
+  /**
+   * `touch` = tablet/smartphone; `pc` = mesma composição visual, coluna mais larga.
+   */
+  variant?: 'touch' | 'pc';
   blurPlates: boolean;
   isEditing: boolean;
   /** Modelo do veículo (ex.: Gol). */
@@ -239,11 +243,12 @@ function GripMoveControl({
 }
 
 /**
- * Layout exclusivo tablet/smartphone para solicitar (criar/editar) orçamento.
- * Separado do formulário PC (`PatioBudgetEditForm`).
+ * Solicitar / editar orçamento — composição do tablet; no PC (`variant="pc"`)
+ * usa a mesma UI com coluna mais larga.
  */
 export function PatioBudgetRequestTouchForm({
   exiting = false,
+  variant = 'touch',
   blurPlates,
   isEditing,
   vehicleModel,
@@ -269,6 +274,7 @@ export function PatioBudgetRequestTouchForm({
   onSave,
   backdropAnimClass,
 }: PatioBudgetRequestTouchFormProps) {
+  const isPc = variant === 'pc';
   const [budgetDiagnosis] = useState(initialDiagnosis);
   const [budgetServices, setBudgetServices] = useState(initialServices);
   const [budgetParts, setBudgetParts] = useState(initialParts);
@@ -596,20 +602,36 @@ export function PatioBudgetRequestTouchForm({
         <div
           className={`relative z-[1] flex min-h-0 flex-1 flex-col ${exiting ? 'animate-modal-sheet-out pointer-events-none' : ''}`}
         >
-          {/* Header — alinhado à referência tablet */}
-          <header className="shrink-0 border-b border-slate-200/70 bg-white px-3 pb-2.5 pt-[max(0.55rem,env(safe-area-inset-top))] sm:px-5">
-            <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-2 sm:gap-3">
+          {/* Header — mesma composição do tablet; no PC um pouco mais folgado */}
+          <header
+            className={`shrink-0 border-b border-slate-200/70 bg-white ${
+              isPc
+                ? 'px-6 pb-3.5 pt-4 sm:px-8 lg:px-10'
+                : 'px-3 pb-2.5 pt-[max(0.55rem,env(safe-area-inset-top))] sm:px-5'
+            }`}
+          >
+            <div
+              className={`mx-auto grid grid-cols-[auto_minmax(0,1fr)_auto] items-center ${
+                isPc ? 'max-w-5xl gap-3' : 'gap-2 sm:gap-3'
+              }`}
+            >
               <button
                 type="button"
                 onClick={onClose}
-                className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-600 transition-colors hover:bg-slate-200 active:bg-slate-300"
+                className={`inline-flex shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-600 transition-colors hover:bg-slate-200 active:bg-slate-300 ${
+                  isPc ? 'h-9 w-9' : 'h-7 w-7'
+                }`}
                 aria-label="Fechar"
               >
-                <X className="h-3.5 w-3.5" strokeWidth={2.4} />
+                <X className={isPc ? 'h-4 w-4' : 'h-3.5 w-3.5'} strokeWidth={2.4} />
               </button>
 
               <div className="min-w-0 px-1 text-center">
-                <h1 className="truncate text-[17px] font-semibold leading-tight tracking-tight text-slate-900 sm:text-[18px]">
+                <h1
+                  className={`truncate font-semibold leading-tight tracking-tight text-slate-900 ${
+                    isPc ? 'text-[20px] sm:text-[22px]' : 'text-[17px] sm:text-[18px]'
+                  }`}
+                >
                   {isEditing ? 'Editar solicitação' : 'Solicitar Orçamento'}
                 </h1>
               </div>
@@ -618,7 +640,9 @@ export function PatioBudgetRequestTouchForm({
                 type="button"
                 onClick={handleSave}
                 disabled={sending}
-                className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full bg-[#007AFF] px-3.5 text-[14px] font-semibold text-white shadow-sm shadow-blue-500/20 transition-[filter,transform] hover:brightness-105 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-55"
+                className={`inline-flex shrink-0 items-center gap-1.5 rounded-full bg-[#007AFF] font-semibold text-white shadow-sm shadow-blue-500/20 transition-[filter,transform] hover:brightness-105 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-55 ${
+                  isPc ? 'h-10 px-4 text-[15px]' : 'h-9 px-3.5 text-[14px]'
+                }`}
               >
                 {sending ? (
                   <Loader2 className="h-4 w-4 animate-spin" strokeWidth={2.2} />
@@ -630,8 +654,16 @@ export function PatioBudgetRequestTouchForm({
             </div>
           </header>
 
-          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-3 pb-[max(1rem,env(safe-area-inset-bottom))] sm:px-4 sm:py-4">
-            <div className="mx-auto flex w-full max-w-3xl flex-col gap-3 sm:gap-3.5">
+          <div
+            className={`min-h-0 flex-1 overflow-y-auto overscroll-contain pb-[max(1rem,env(safe-area-inset-bottom))] ${
+              isPc ? 'px-6 py-5 sm:px-8 lg:px-10 lg:py-6' : 'px-3 py-3 sm:px-4 sm:py-4'
+            }`}
+          >
+            <div
+              className={`mx-auto flex w-full flex-col ${
+                isPc ? 'max-w-5xl gap-4' : 'max-w-3xl gap-3 sm:gap-3.5'
+              }`}
+            >
               {/* Veículo e Cliente */}
               <SectionCard
                 iconTone="app"
@@ -647,16 +679,22 @@ export function PatioBudgetRequestTouchForm({
                   <button
                     type="button"
                     onClick={onViewOs}
-                    className="inline-flex items-center rounded-lg border border-[#007AFF]/20 bg-[#E8F2FF] px-2.5 py-1.5 text-[12px] font-semibold text-[#007AFF] transition-colors hover:bg-[#DCEBFF]"
+                    className={`inline-flex items-center rounded-lg border border-[#007AFF]/20 bg-[#E8F2FF] font-semibold text-[#007AFF] transition-colors hover:bg-[#DCEBFF] ${
+                      isPc ? 'px-3 py-1.5 text-[13px]' : 'px-2.5 py-1.5 text-[12px]'
+                    }`}
                   >
                     Ver OS
                   </button>
                 }
               >
-                <div className="flex flex-col gap-3">
+                <div className={`flex flex-col ${isPc ? 'gap-3.5' : 'gap-3'}`}>
                   {/* Logo | nome+meta | placa Mercosul à direita */}
-                  <div className="flex min-w-0 items-start gap-2.5">
-                    <div className="flex h-14 w-[4.25rem] shrink-0 items-center justify-center overflow-hidden rounded-xl bg-slate-100">
+                  <div className={`flex min-w-0 items-start ${isPc ? 'gap-3.5' : 'gap-2.5'}`}>
+                    <div
+                      className={`flex shrink-0 items-center justify-center overflow-hidden rounded-xl bg-slate-100 ${
+                        isPc ? 'h-16 w-[5rem]' : 'h-14 w-[4.25rem]'
+                      }`}
+                    >
                       {getVehicleBrandLogoUrl(brand || model) ? (
                         <VehicleBrandLogo brand={brand || model} size="modalPc" />
                       ) : (
@@ -664,14 +702,28 @@ export function PatioBudgetRequestTouchForm({
                       )}
                     </div>
                     <div className="min-w-0 flex-1 pt-0.5">
-                      <p className="truncate text-[15px] font-semibold leading-tight tracking-tight text-slate-900">
+                      <p
+                        className={`truncate font-semibold leading-tight tracking-tight text-slate-900 ${
+                          isPc ? 'text-[17px]' : 'text-[15px]'
+                        }`}
+                      >
                         {vehicleTitle}
                       </p>
                       {vehicleMeta ? (
-                        <p className="mt-1 text-[12.5px] leading-snug text-slate-500">{vehicleMeta}</p>
+                        <p
+                          className={`mt-1 leading-snug text-slate-500 ${
+                            isPc ? 'text-[13.5px]' : 'text-[12.5px]'
+                          }`}
+                        >
+                          {vehicleMeta}
+                        </p>
                       ) : null}
                       {chassisDisplay ? (
-                        <p className="mt-1 break-all text-[11.5px] text-slate-600">
+                        <p
+                          className={`mt-1 break-all text-slate-600 ${
+                            isPc ? 'text-[12.5px]' : 'text-[11.5px]'
+                          }`}
+                        >
                           <span className="text-slate-500">Chassi </span>
                           <span className="font-semibold tabular-nums text-slate-800">
                             {chassisDisplay}
@@ -683,7 +735,7 @@ export function PatioBudgetRequestTouchForm({
                       <MercosulPlateMockup
                         plate={plateDisplay}
                         blurPlates={blurPlates}
-                        size="cardCompact"
+                        size={isPc ? 'card' : 'cardCompact'}
                       />
                     </div>
                   </div>

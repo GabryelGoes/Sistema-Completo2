@@ -202,7 +202,6 @@ import { moveItemInList } from '../../utils/moveItemInList';
 import { BudgetPartStockBadge } from '../ui/BudgetPartStockBadge';
 import { resolveBudgetPartStockFlags, type BudgetPartFields } from '../../utils/budgetPartStock';
 import {
-  PatioBudgetEditForm,
   mapPatioBudgetPartToPayload,
   type PatioBudgetEditDraft,
 } from '../budget/PatioBudgetEditForm';
@@ -12952,122 +12951,100 @@ export const PatioView: React.FC<PatioViewProps> = ({
         onConfirm={(blob) => handleConfirmDiagAuthSignature(blob)}
       />
 
-      {/* MODAL CRIAR/EDITAR ORÇAMENTO — layouts separados: PC vs tablet/mobile */}
+      {/* MODAL CRIAR/EDITAR ORÇAMENTO — mesma composição do tablet; PC só alarga a coluna */}
       {isBudgetOpen && selectedCard && patioPortalsVisible && (
-        isPatioPcModal ? (
-          <PatioBudgetEditForm
-            key={budgetEditSessionId}
-            exiting={budgetModalExiting}
-            isPatioPcModal
-            blurPlates={blurPlates}
-            cardName={selectedCard.name}
-            vehicleBrand={selectedCard.vehicleBrand}
-            vehicleColor={selectedCard.vehicleColor}
-            isEditing={!!editingBudget}
-            initialDiagnosis={budgetDiagnosis}
-            initialServices={budgetServices}
-            initialParts={budgetParts}
-            initialObservations={budgetObservations}
-            workshopServices={workshopServices}
-            workshopParts={workshopParts}
-            sending={sendingBudget}
-            onClose={requestCloseBudgetModal}
-            onSave={handleCreateBudget}
-            backdropAnimClass={modalBackdropAnimClass(budgetModalExiting)}
-          />
-        ) : (
-          <PatioBudgetRequestTouchForm
-            key={budgetEditSessionId}
-            exiting={budgetModalExiting}
-            blurPlates={blurPlates}
-            isEditing={!!editingBudget}
-            vehicleModel={
-              selectedCardTitleParts?.vehicle ||
-              (serviceOrderDetail?.id === selectedCard.id
-                ? serviceOrderDetail.vehicle_model
-                : null) ||
-              ''
-            }
-            vehicleBrand={
-              selectedCard.vehicleBrand ||
-              (serviceOrderDetail?.id === selectedCard.id
-                ? serviceOrderDetail.vehicle_brand
-                : null) ||
-              null
-            }
-            vehicleEngineInfo={
-              (serviceOrderDetail?.id === selectedCard.id
-                ? serviceOrderDetail.vehicle_engine_info
-                : null) ||
-              selectedCard.vehicleEngineInfo ||
-              null
-            }
-            vehicleYear={
-              (serviceOrderDetail?.id === selectedCard.id
-                ? serviceOrderDetail.vehicle_year
-                : null) ||
-              selectedCard.vehicleYear ||
-              null
-            }
-            plate={
-              selectedCardTitleParts?.plateOrModule ||
-              (serviceOrderDetail?.id === selectedCard.id
-                ? serviceOrderDetail.plate
-                : null) ||
-              '—'
-            }
-            vehicleChassis={
-              (serviceOrderDetail?.id === selectedCard.id
-                ? serviceOrderDetail.vehicle_chassis
-                : null) ||
-              selectedCard.vehicleChassis ||
-              null
-            }
-            customerName={
-              (serviceOrderDetail?.id === selectedCard.id
-                ? serviceOrderDetail.customers?.name
-                : null) ||
-              selectedCardTitleParts?.customer ||
-              'Cliente'
-            }
-            osNumber={
-              serviceOrderDetail?.id === selectedCard.id
-                ? serviceOrderDetail.os_number ?? selectedCard.osNumber ?? null
-                : selectedCard.osNumber ?? null
-            }
-            vehicleColor={
-              (serviceOrderDetail?.id === selectedCard.id
-                ? serviceOrderDetail.vehicle_color
-                : null) ||
-              selectedCard.vehicleColor ||
-              null
-            }
-            mileageKm={
-              (serviceOrderDetail?.id === selectedCard.id
-                ? serviceOrderDetail.mileage_km
-                : null) ||
-              selectedCard.mileageKm ||
-              null
-            }
-            initialDiagnosis={budgetDiagnosis}
-            initialServices={budgetServices}
-            initialParts={budgetParts}
-            initialObservations={budgetObservations}
-            workshopServices={workshopServices}
-            workshopParts={workshopParts}
-            technicianName={
-              actorOptions?.actorTechnicianName ||
-              actorOptions?.actorDisplayName ||
-              commentAuthorName ||
-              null
-            }
-            sending={sendingBudget}
-            onClose={requestCloseBudgetModal}
-            onViewOs={() => setBudgetOsPeekOpen(true)}
-            onSave={handleCreateBudget}
-            backdropAnimClass={modalBackdropAnimClass(budgetModalExiting)}
-          />
-        )
+        <PatioBudgetRequestTouchForm
+          key={budgetEditSessionId}
+          exiting={budgetModalExiting}
+          variant={isPatioPcModal ? 'pc' : 'touch'}
+          blurPlates={blurPlates}
+          isEditing={!!editingBudget}
+          vehicleModel={
+            selectedCardTitleParts?.vehicle ||
+            (serviceOrderDetail?.id === selectedCard.id
+              ? serviceOrderDetail.vehicle_model
+              : null) ||
+            ''
+          }
+          vehicleBrand={
+            selectedCard.vehicleBrand ||
+            (serviceOrderDetail?.id === selectedCard.id
+              ? serviceOrderDetail.vehicle_brand
+              : null) ||
+            null
+          }
+          vehicleEngineInfo={
+            (serviceOrderDetail?.id === selectedCard.id
+              ? serviceOrderDetail.vehicle_engine_info
+              : null) ||
+            selectedCard.vehicleEngineInfo ||
+            null
+          }
+          vehicleYear={
+            (serviceOrderDetail?.id === selectedCard.id
+              ? serviceOrderDetail.vehicle_year
+              : null) ||
+            selectedCard.vehicleYear ||
+            null
+          }
+          plate={
+            selectedCardTitleParts?.plateOrModule ||
+            (serviceOrderDetail?.id === selectedCard.id
+              ? serviceOrderDetail.plate
+              : null) ||
+            '—'
+          }
+          vehicleChassis={
+            (serviceOrderDetail?.id === selectedCard.id
+              ? serviceOrderDetail.vehicle_chassis
+              : null) ||
+            selectedCard.vehicleChassis ||
+            null
+          }
+          customerName={
+            (serviceOrderDetail?.id === selectedCard.id
+              ? serviceOrderDetail.customers?.name
+              : null) ||
+            selectedCardTitleParts?.customer ||
+            'Cliente'
+          }
+          osNumber={
+            serviceOrderDetail?.id === selectedCard.id
+              ? serviceOrderDetail.os_number ?? selectedCard.osNumber ?? null
+              : selectedCard.osNumber ?? null
+          }
+          vehicleColor={
+            (serviceOrderDetail?.id === selectedCard.id
+              ? serviceOrderDetail.vehicle_color
+              : null) ||
+            selectedCard.vehicleColor ||
+            null
+          }
+          mileageKm={
+            (serviceOrderDetail?.id === selectedCard.id
+              ? serviceOrderDetail.mileage_km
+              : null) ||
+            selectedCard.mileageKm ||
+            null
+          }
+          initialDiagnosis={budgetDiagnosis}
+          initialServices={budgetServices}
+          initialParts={budgetParts}
+          initialObservations={budgetObservations}
+          workshopServices={workshopServices}
+          workshopParts={workshopParts}
+          technicianName={
+            actorOptions?.actorTechnicianName ||
+            actorOptions?.actorDisplayName ||
+            commentAuthorName ||
+            null
+          }
+          sending={sendingBudget}
+          onClose={requestCloseBudgetModal}
+          onViewOs={() => setBudgetOsPeekOpen(true)}
+          onSave={handleCreateBudget}
+          backdropAnimClass={modalBackdropAnimClass(budgetModalExiting)}
+        />
       )}
 
       {/* Fechamento: técnicos por serviço antes de FINALIZADO */}
