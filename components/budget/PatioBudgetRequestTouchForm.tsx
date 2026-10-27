@@ -7,7 +7,6 @@ import {
   FileText,
   GripVertical,
   Loader2,
-  MessageSquareText,
   Pencil,
   Plus,
   Send,
@@ -134,18 +133,27 @@ function SectionCard({
   titleExtra,
   action,
   children,
+  /** `app` = ícone iOS completo (sem fundo azul claro atrás). */
+  iconTone = 'tint',
 }: {
   icon: React.ReactNode;
   title: string;
   titleExtra?: React.ReactNode;
   action?: React.ReactNode;
   children: React.ReactNode;
+  iconTone?: 'tint' | 'app';
 }) {
   return (
     <section className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
       <div className="flex items-center justify-between gap-2 border-b border-slate-100 px-4 py-3">
         <div className="flex min-w-0 items-center gap-2.5">
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[#007AFF]/10 text-[#007AFF]">
+          <span
+            className={
+              iconTone === 'app'
+                ? 'flex h-8 w-8 shrink-0 overflow-hidden rounded-[0.55rem] shadow-sm shadow-black/10'
+                : 'flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[#007AFF]/10 text-[#007AFF]'
+            }
+          >
             {icon}
           </span>
           <h3 className="truncate text-[15px] font-semibold tracking-tight text-slate-900">
@@ -712,7 +720,14 @@ export function PatioBudgetRequestTouchForm({
 
               {/* Queixa */}
               <SectionCard
-                icon={<MessageSquareText className="h-4 w-4" strokeWidth={2.2} />}
+                iconTone="app"
+                icon={
+                  <img
+                    src="/icons/queixa-ios.png"
+                    alt=""
+                    className="h-full w-full object-cover"
+                  />
+                }
                 title="Queixa do cliente"
                 action={
                   <button
