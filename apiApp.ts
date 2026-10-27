@@ -4751,7 +4751,16 @@ export function createApiApp() {
       const citySuggestion =
         municipio && uf ? `${municipio} — ${uf}` : municipio || uf || null;
 
-      const plateApi = (str(info.placa) || str(data.placa) || placa).toUpperCase();
+      // Preferir a placa consultada pelo usuário. A PlacaFipe costuma devolver em
+      // informacoes_veiculo.placa o formato antigo (ex.: ABC1D23 → ABC1234), o que
+      // sobrescrevia placas Mercosul digitadas no cadastro.
+      const plateFromTop = normalizePlacaInput(data.placa);
+      const plateFromInfo = normalizePlacaInput(info.placa);
+      const plateApi =
+        placa ||
+        plateFromTop ||
+        plateFromInfo ||
+        "";
 
       return res.json({
         plate: plateApi,

@@ -210,6 +210,7 @@ export interface ServiceOrderDetail {
 
 /** Resposta de POST /api/consulta-placa (PlacaFipe via servidor). */
 export interface PlacaFipeLookupResult {
+  /** Placa consultada (preserva Mercosul digitada; a API às vezes só tem o formato antigo). */
   plate: string;
   vehicleBrand: string | null;
   vehicleModel: string | null;

@@ -4830,11 +4830,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
     setEditFichaPlateLookupLoading(true);
     try {
       const result = await consultPlacaFipe(normalized);
-      const fetchedPlate = (result.plate || normalized).replace(/[^A-Za-z0-9]/g, '').toUpperCase();
-      lastEditFichaPlateFetchedRef.current = fetchedPlate;
+      // Preservar a placa digitada (Mercosul); PlacaFipe pode devolver formato antigo.
+      lastEditFichaPlateFetchedRef.current = normalized;
       setEditFichaForm((prev) => ({
         ...prev,
-        plate: fetchedPlate,
+        plate: (prev.plate?.replace(/[^A-Za-z0-9]/g, '') || normalized).toUpperCase(),
         vehicleBrand: result.vehicleBrand?.trim() || prev.vehicleBrand,
         vehicleModel: result.vehicleModel?.trim() || prev.vehicleModel,
         vehicleColor: result.vehicleColor?.trim() || prev.vehicleColor,

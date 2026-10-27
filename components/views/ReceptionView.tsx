@@ -815,10 +815,11 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
     setPlateLookupLoading(true);
     try {
       const result = await consultPlacaFipe(p);
-      lastFetchedPlacaRef.current = normalizePlacaLocal(result.plate || p);
+      // Manter a placa digitada (Mercosul); a API às vezes devolve só o formato antigo.
+      lastFetchedPlacaRef.current = p;
       setCustomer((prev) => ({
         ...prev,
-        plate: (prev.plate?.trim() || result.plate || p).toUpperCase(),
+        plate: (prev.plate?.trim() || p).toUpperCase(),
         vehicleBrand: prev.vehicleBrand?.trim() || result.vehicleBrand?.trim() || '',
         vehicleModel: prev.vehicleModel?.trim() || result.vehicleModel?.trim() || '',
         vehicleColor: prev.vehicleColor?.trim() || result.vehicleColor?.trim() || '',
@@ -1417,10 +1418,11 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
       setPlateLookupLoading(true);
       try {
         const result = await consultPlacaFipe(p);
-        lastFetchedPlacaRef.current = normalizePlacaLocal(result.plate || p);
+        // Não trocar Mercosul digitada pelo formato antigo que a API às vezes devolve.
+        lastFetchedPlacaRef.current = p;
         setCustomer((prev) => ({
           ...prev,
-          plate: (result.plate || p).toUpperCase(),
+          plate: (prev.plate?.trim() || p).toUpperCase(),
           vehicleBrand: result.vehicleBrand?.trim() || prev.vehicleBrand,
           vehicleModel: result.vehicleModel?.trim() || prev.vehicleModel,
           vehicleColor: result.vehicleColor?.trim() || prev.vehicleColor,
