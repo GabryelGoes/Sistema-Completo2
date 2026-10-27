@@ -149,6 +149,7 @@ import {
   isAttachmentDocumentFile,
 } from '../../utils/imageUpload';
 import { ModalPortal } from '../ui/ModalPortal';
+import { useModalPortalHost } from '../ui/ModalPortalHostContext';
 import { useBrowserBackLayer, markProgrammaticHistoryBack } from '../ui/BackNavigationContext';
 import {
   iosModalClose,
@@ -2243,10 +2244,27 @@ export const PatioView: React.FC<PatioViewProps> = ({
   ]);
   const patioVehicleModalShellClass = useMemo(() => {
     if (isBudgetOpen && budgetOsPeekOpen) {
-      return 'relative flex h-[80dvh] max-h-[80dvh] w-full max-w-3xl min-h-0 flex-col overflow-hidden rounded-2xl border border-zinc-200/80 bg-[#F2F2F7] shadow-[0_24px_64px_-20px_rgba(0,0,0,0.45)] dark:border-white/[0.1] dark:bg-zinc-950';
+      // Mini-tela: zoom out leve + containing block para overlays fixed filhos.
+      return 'budget-os-peek-shell relative flex h-[84dvh] max-h-[84dvh] w-full max-w-3xl min-h-0 flex-col overflow-hidden rounded-2xl border border-zinc-200/80 bg-[#F2F2F7] shadow-[0_24px_64px_-20px_rgba(0,0,0,0.45)] dark:border-white/[0.1] dark:bg-zinc-950';
     }
     return patioVehicleVm.shell;
   }, [isBudgetOpen, budgetOsPeekOpen, patioVehicleVm.shell]);
+  const { setHost: setModalPortalHost } = useModalPortalHost();
+  const setBudgetOsPeekShellNode = useCallback(
+    (el: HTMLDivElement | null) => {
+      if (isBudgetOpen && budgetOsPeekOpen) {
+        setModalPortalHost(el);
+      } else if (!el) {
+        setModalPortalHost(null);
+      }
+    },
+    [isBudgetOpen, budgetOsPeekOpen, setModalPortalHost]
+  );
+  useEffect(() => {
+    if (!isBudgetOpen || !budgetOsPeekOpen) {
+      setModalPortalHost(null);
+    }
+  }, [isBudgetOpen, budgetOsPeekOpen, setModalPortalHost]);
   const patioHistoryModalOverlayClass = useMemo(() => {
     if (desktopShell) {
       return `${desktopShellViewportOverlayClass(true)} patio-vehicle-modal patio-vehicle-modal--desktop flex min-h-0 flex-col overflow-hidden overscroll-none bg-[#E8E8ED] dark:bg-[#0a0a0a] animate-in fade-in duration-200`;
@@ -9333,7 +9351,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
         };
 
         return (
-        <ModalPortal>
+        <ModalPortal forceBody>
         <div
           className={withModalExitOverlayClass(patioVehicleModalOverlayClass, primaryModalExiting)}
           onClick={
@@ -9344,7 +9362,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
               : undefined
           }
         >
-           <div className={`${patioVehicleModalShellClass} ${modalWpAppAnimClass(primaryModalExiting)} ${modalRingClass}`}>
+           <div
+             ref={isBudgetOpen && budgetOsPeekOpen ? setBudgetOsPeekShellNode : undefined}
+             className={`${patioVehicleModalShellClass} ${modalWpAppAnimClass(primaryModalExiting)} ${modalRingClass}`}
+           >
               
 {!isPatioPcModal ? (
               <div className={`absolute z-20 flex items-center gap-2 ${
@@ -13051,6 +13072,12 @@ export const PatioView: React.FC<PatioViewProps> = ({
             initialObservations={budgetObservations}
             workshopServices={workshopServices}
             workshopParts={workshopParts}
+            technicianName={
+              actorOptions?.actorTechnicianName ||
+              actorOptions?.actorDisplayName ||
+              commentAuthorName ||
+              null
+            }
             sending={sendingBudget}
             onClose={requestCloseBudgetModal}
             onViewOs={() => setBudgetOsPeekOpen(true)}

@@ -49,6 +49,7 @@ import { applyAccentToRoot, DEFAULT_ACCENT, moduleAccentColor } from './utils/ap
 import { setLabProductKinds } from './utils/moduleMetadata';
 import { setLabQuickServices } from './utils/labQuickServices';
 import { ModalLayerProvider } from './components/ui/ModalLayerContext';
+import { ModalPortalHostProvider } from './components/ui/ModalPortalHostContext';
 import { BackNavigationProvider, useBrowserBackLayer } from './components/ui/BackNavigationContext';
 import { DesktopEscapeCloseBridge } from './components/ui/DesktopEscapeCloseBridge';
 import { AuthenticatedAppFrame } from './components/layout/AuthenticatedAppFrame';
@@ -1640,6 +1641,7 @@ export default function App() {
     const userDisplayName = authSession.displayName ?? authSession.username ?? 'Usuário';
     return (
       <ModalLayerProvider>
+      <ModalPortalHostProvider>
       <BackNavigationProvider>
       <AuthenticatedAppFrame
         isDesktopShell={isDesktopShell}
@@ -2021,6 +2023,7 @@ export default function App() {
         />
       </AuthenticatedAppFrame>
       </BackNavigationProvider>
+      </ModalPortalHostProvider>
       </ModalLayerProvider>
     );
   }
@@ -2044,6 +2047,7 @@ export default function App() {
 
   return (
     <ModalLayerProvider>
+    <ModalPortalHostProvider>
     <BackNavigationProvider>
     <AuthenticatedAppFrame
       isDesktopShell={isDesktopShell}
@@ -2435,6 +2439,7 @@ export default function App() {
       />
     </AuthenticatedAppFrame>
     </BackNavigationProvider>
+    </ModalPortalHostProvider>
     </ModalLayerProvider>
   );
 }

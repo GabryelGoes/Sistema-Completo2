@@ -732,3 +732,18 @@ html[data-home-hub-open-guard='1'] [data-home-hub-overlay] *,
 html[data-home-hub-open-guard='1'] [data-modal-portal] * {
   pointer-events: none !important;
 }
+
+/**
+ * Mini-tela do Ver OS (solicitação de orçamento touch):
+ * zoom out leve e overlays `fixed` ficam contidos no shell.
+ */
+.budget-os-peek-shell {
+  transform: translateZ(0);
+  zoom: 0.92;
+}
+.budget-os-peek-shell .fixed {
+  position: absolute !important;
+}
+.budget-os-peek-shell [data-modal-portal-nested='true'] > .fixed {
+  position: absolute !important;
+}
