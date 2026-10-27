@@ -1792,6 +1792,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
   // Orçamento (Budget)
   const [isBudgetOpen, setIsBudgetOpen] = useState(false);
+  /** Com solicitação de orçamento aberta: mostra o modal real da OS em ~80% por cima. */
+  const [budgetOsPeekOpen, setBudgetOsPeekOpen] = useState(false);
   const [budgetServices, setBudgetServices] = useState<BudgetServiceItem[]>([]);
   const [budgetParts, setBudgetParts] = useState<BudgetPartItem[]>([]);
   const [budgetDiagnosis, setBudgetDiagnosis] = useState('');
@@ -1810,6 +1812,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const [budgetPartQuickView, setBudgetPartQuickView] = useState<WorkshopPart | null>(null);
   const closeBudgetModal = useCallback(() => {
     setIsBudgetOpen(false);
+    setBudgetOsPeekOpen(false);
     setEditingBudget(null);
     setBudgetPartQuickView(null);
     setSuggestionsForPartId(null);
@@ -2221,6 +2224,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const patioVmInputClass = patioVehicleVm.input;
   const patioHistoryVm = useMemo(() => getPatioHistoryModalLayout(isPatioPcModal), [isPatioPcModal]);
   const patioVehicleModalOverlayClass = useMemo(() => {
+    if (isBudgetOpen && budgetOsPeekOpen) {
+      return 'fixed inset-0 z-[250] flex items-center justify-center bg-black/40 p-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-[2px] sm:p-5 animate-in fade-in duration-200';
+    }
     if (benchFullscreenOpen) {
       return patioVehicleVm.overlay.replace('z-[100]', 'z-[320]');
     }
@@ -2228,7 +2234,19 @@ export const PatioView: React.FC<PatioViewProps> = ({
       return `${desktopShellViewportOverlayClass(true)} patio-vehicle-modal patio-vehicle-modal--desktop flex min-h-0 flex-col overflow-hidden bg-[#F2F2F7] dark:bg-[#0a0a0a] animate-in fade-in duration-200`;
     }
     return patioVehicleVm.overlay;
-  }, [benchFullscreenOpen, desktopShell, patioVehicleVm.overlay]);
+  }, [
+    isBudgetOpen,
+    budgetOsPeekOpen,
+    benchFullscreenOpen,
+    desktopShell,
+    patioVehicleVm.overlay,
+  ]);
+  const patioVehicleModalShellClass = useMemo(() => {
+    if (isBudgetOpen && budgetOsPeekOpen) {
+      return 'relative flex h-[80dvh] max-h-[80dvh] w-full max-w-3xl min-h-0 flex-col overflow-hidden rounded-2xl border border-zinc-200/80 bg-[#F2F2F7] shadow-[0_24px_64px_-20px_rgba(0,0,0,0.45)] dark:border-white/[0.1] dark:bg-zinc-950';
+    }
+    return patioVehicleVm.shell;
+  }, [isBudgetOpen, budgetOsPeekOpen, patioVehicleVm.shell]);
   const patioHistoryModalOverlayClass = useMemo(() => {
     if (desktopShell) {
       return `${desktopShellViewportOverlayClass(true)} patio-vehicle-modal patio-vehicle-modal--desktop flex min-h-0 flex-col overflow-hidden overscroll-none bg-[#E8E8ED] dark:bg-[#0a0a0a] animate-in fade-in duration-200`;
@@ -2402,6 +2420,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
     setHistorySavedBudgets([]);
     setViewingBudget(null);
     setIsBudgetOpen(false);
+    setBudgetOsPeekOpen(false);
     setIsVehicleEditOpen(false);
     setIsDeleteVehicleOpen(false);
     setIsDadosFichaExpanded(false);
@@ -2486,7 +2505,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
     setIsHistoryOpen(false);
   });
   /** Pilha acima do modal do veículo: gesto voltar fecha só o orçamento e mantém a ficha aberta. */
-  useBrowserBackLayer(isBudgetOpen && patioPortalsVisible, requestCloseBudgetModal);
+  useBrowserBackLayer(isBudgetOpen && budgetOsPeekOpen && patioPortalsVisible, () => {
+    setBudgetOsPeekOpen(false);
+  });
+  useBrowserBackLayer(isBudgetOpen && !budgetOsPeekOpen && patioPortalsVisible, requestCloseBudgetModal);
   useBrowserBackLayer(isPatioHeaderToolsOpen && patioPortalsVisible, () => setIsPatioHeaderToolsOpen(false));
   useBrowserBackLayer(isLabOsToolsOpen && patioPortalsVisible, () => setIsLabOsToolsOpen(false));
   useBrowserBackLayer(isRemindersOpen && patioPortalsVisible, () => setIsRemindersOpen(false));
@@ -5512,6 +5534,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
       setBudgetObservations('');
     }
     setBudgetEditSessionId((n) => n + 1);
+    setBudgetOsPeekOpen(false);
     setIsBudgetOpen(true);
     getWorkshopServices().then(setWorkshopServices).catch(() => setWorkshopServices([]));
     void getWorkshopParts()
@@ -9301,10 +9324,27 @@ export const PatioView: React.FC<PatioViewProps> = ({
           );
         };
 
+        const closeVehicleOrBudgetPeek = () => {
+          if (isBudgetOpen && budgetOsPeekOpen) {
+            setBudgetOsPeekOpen(false);
+            return;
+          }
+          closePatioPrimaryOverlays();
+        };
+
         return (
         <ModalPortal>
-        <div className={withModalExitOverlayClass(patioVehicleModalOverlayClass, primaryModalExiting)}>
-           <div className={`${patioVehicleVm.shell} ${modalWpAppAnimClass(primaryModalExiting)} ${modalRingClass}`}>
+        <div
+          className={withModalExitOverlayClass(patioVehicleModalOverlayClass, primaryModalExiting)}
+          onClick={
+            isBudgetOpen && budgetOsPeekOpen
+              ? (e) => {
+                  if (e.target === e.currentTarget) setBudgetOsPeekOpen(false);
+                }
+              : undefined
+          }
+        >
+           <div className={`${patioVehicleModalShellClass} ${modalWpAppAnimClass(primaryModalExiting)} ${modalRingClass}`}>
               
 {!isPatioPcModal ? (
               <div className={`absolute z-20 flex items-center gap-2 ${
@@ -9429,7 +9469,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 ) : null}
                 <button
                   type="button"
-                  onClick={() => closePatioPrimaryOverlays()}
+                  onClick={closeVehicleOrBudgetPeek}
                   className={patioVehicleVm.closeBtn}
                   aria-label="Fechar"
                 >
@@ -11856,7 +11896,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                 ) : null}
                                 <button
                                   type="button"
-                                  onClick={() => closePatioPrimaryOverlays()}
+                                  onClick={closeVehicleOrBudgetPeek}
                                   className={patioVehicleVm.closeBtn}
                                   aria-label="Fechar"
                                 >
@@ -13013,6 +13053,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
             workshopParts={workshopParts}
             sending={sendingBudget}
             onClose={requestCloseBudgetModal}
+            onViewOs={() => setBudgetOsPeekOpen(true)}
             onSave={handleCreateBudget}
             backdropAnimClass={modalBackdropAnimClass(budgetModalExiting)}
           />

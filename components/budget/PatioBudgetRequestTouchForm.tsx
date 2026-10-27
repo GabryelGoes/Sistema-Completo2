@@ -7,7 +7,6 @@ import {
   Send,
   Trash2,
   User,
-  X,
 } from 'lucide-react';
 import type { WorkshopPart, WorkshopService } from '../../services/apiService';
 import {
@@ -19,6 +18,7 @@ import { moveItemInList } from '../../utils/moveItemInList';
 import { ModalPortal } from '../ui/ModalPortal';
 import { VehicleBrandLogo } from '../ui/VehicleBrandLogo';
 import { getVehicleBrandLogoUrl } from '../../utils/vehicleBrandLogo';
+import { MercosulPlateMockup } from '../ui/MercosulPlateMockup';
 import { BudgetPartStockBadge } from '../ui/BudgetPartStockBadge';
 import { BudgetPartSuggestionDropdown } from './BudgetPartSuggestionDropdown';
 import { BudgetServiceSuggestionDropdown } from './BudgetServiceSuggestionDropdown';
@@ -53,6 +53,8 @@ export type PatioBudgetRequestTouchFormProps = {
   workshopParts: WorkshopPart[];
   sending: boolean;
   onClose: () => void;
+  /** Abre o modal real da OS em ~80% (sem sair da solicitação). */
+  onViewOs: () => void;
   onSave: (draft: PatioBudgetEditDraft) => void | Promise<void>;
   backdropAnimClass: string;
 };
@@ -260,6 +262,7 @@ export function PatioBudgetRequestTouchForm({
   workshopParts,
   sending,
   onClose,
+  onViewOs,
   onSave,
   backdropAnimClass,
 }: PatioBudgetRequestTouchFormProps) {
@@ -267,7 +270,6 @@ export function PatioBudgetRequestTouchForm({
   const [budgetServices, setBudgetServices] = useState(initialServices);
   const [budgetParts, setBudgetParts] = useState(initialParts);
   const [budgetObservations, setBudgetObservations] = useState(initialObservations);
-  const [osPreviewOpen, setOsPreviewOpen] = useState(false);
 
   const [suggestionsForServiceId, setSuggestionsForServiceId] = useState<string | null>(null);
   const [suggestionsForPartId, setSuggestionsForPartId] = useState<string | null>(null);
@@ -580,10 +582,6 @@ export function PatioBudgetRequestTouchForm({
   const plateDisplay = (plate || '—').trim() || '—';
   const chassisDisplay = (vehicleChassis ?? '').trim();
   const nameDisplay = (customerName ?? '').trim() || 'Cliente';
-  const colorDisplay = (vehicleColor ?? '').trim();
-  const mileageDisplay = (mileageKm ?? '').trim();
-  const osLabel =
-    osNumber != null && Number.isFinite(Number(osNumber)) ? `OS #${osNumber}` : 'Ordem de serviço';
 
   return (
     <ModalPortal>
@@ -644,7 +642,7 @@ export function PatioBudgetRequestTouchForm({
                 action={
                   <button
                     type="button"
-                    onClick={() => setOsPreviewOpen(true)}
+                    onClick={onViewOs}
                     className="inline-flex items-center rounded-lg border border-[#007AFF]/20 bg-[#E8F2FF] px-2.5 py-1.5 text-[12px] font-semibold text-[#007AFF] transition-colors hover:bg-[#DCEBFF]"
                   >
                     Ver OS
@@ -652,65 +650,53 @@ export function PatioBudgetRequestTouchForm({
                 }
               >
                 <div className="flex flex-col gap-3">
-                  {/* Veículo — linha horizontal completa */}
-                  <div className="flex min-w-0 items-center gap-3">
-                    <div className="flex h-10 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-slate-100">
+                  {/* Veículo: logo + nome; meta (motor/combustível/ano) abaixo */}
+                  <div className="flex min-w-0 items-start gap-3">
+                    <div className="flex h-14 w-[4.25rem] shrink-0 items-center justify-center overflow-hidden rounded-xl bg-slate-100">
                       {getVehicleBrandLogoUrl(brand || model) ? (
-                        <VehicleBrandLogo brand={brand || model} size="modal" />
+                        <VehicleBrandLogo brand={brand || model} size="modalPc" />
                       ) : (
-                        <Car className="h-5 w-5 text-slate-400" strokeWidth={2} />
+                        <Car className="h-6 w-6 text-slate-400" strokeWidth={2} />
                       )}
                     </div>
-                    <div className="min-w-0 flex-1">
+                    <div className="min-w-0 flex-1 pt-0.5">
                       <p className="truncate text-[15px] font-semibold leading-tight tracking-tight text-slate-900">
                         {vehicleTitle}
-                        {vehicleMeta ? (
-                          <span className="font-normal text-slate-500">
-                            {' '}
-                            · {vehicleMeta}
+                      </p>
+                      {vehicleMeta ? (
+                        <p className="mt-1 text-[12.5px] leading-snug text-slate-500">{vehicleMeta}</p>
+                      ) : null}
+                      {chassisDisplay ? (
+                        <p className="mt-1 break-all text-[11.5px] text-slate-600">
+                          <span className="text-slate-500">Chassi </span>
+                          <span className="font-semibold tabular-nums text-slate-800">
+                            {chassisDisplay}
                           </span>
-                        ) : null}
-                      </p>
-                      <p className="mt-0.5 truncate text-[12px] text-slate-600">
-                        <span className="text-slate-500">Placa </span>
-                        <span
-                          className={`font-semibold tracking-wide text-slate-900 ${blurPlates ? 'blur-plate' : ''}`}
-                        >
-                          {plateDisplay}
-                        </span>
-                        {chassisDisplay ? (
-                          <>
-                            <span className="mx-1.5 text-slate-300">·</span>
-                            <span className="text-slate-500">Chassi </span>
-                            <span className="font-semibold tabular-nums text-slate-900">
-                              {chassisDisplay}
-                            </span>
-                          </>
-                        ) : null}
-                      </p>
+                        </p>
+                      ) : null}
                     </div>
                   </div>
 
-                  {/* Cliente — só nome, sem clique */}
-                  <div className="flex min-w-0 items-center gap-3 rounded-xl border border-slate-100 bg-slate-50/90 px-3 py-2.5">
-                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-200/80 text-slate-600">
-                      <User className="h-[18px] w-[18px]" strokeWidth={2} />
+                  {/* Placa Mercosul à frente do nome do cliente */}
+                  <div className="flex min-w-0 items-center gap-2.5 rounded-xl border border-slate-100 bg-slate-50/90 px-2.5 py-2">
+                    <MercosulPlateMockup
+                      plate={plateDisplay}
+                      blurPlates={blurPlates}
+                      size="cardCompact"
+                    />
+                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-200/80 text-slate-600">
+                      <User className="h-4 w-4" strokeWidth={2} />
                     </span>
-                    <span className="min-w-0 flex-1 truncate text-[14px] font-semibold text-slate-900">
+                    <span className="min-w-0 flex-1 truncate text-[12.5px] font-medium text-slate-800">
                       {nameDisplay}
                     </span>
                   </div>
 
                   {/* Queixa — lembrete somente leitura */}
                   <div>
-                    <div className="mb-1.5 flex items-center gap-2">
-                      <img
-                        src="/icons/queixa-ios.png"
-                        alt=""
-                        className="h-5 w-5 rounded-[0.35rem] object-cover shadow-sm shadow-black/10"
-                      />
-                      <p className="text-[12px] font-semibold text-slate-700">Queixa do cliente</p>
-                    </div>
+                    <p className="mb-1.5 text-[14px] font-semibold tracking-tight text-slate-800">
+                      Queixa do cliente
+                    </p>
                     <div className="rounded-xl bg-slate-50 px-3 py-2.5 text-[13px] leading-relaxed text-slate-700">
                       {budgetDiagnosis.trim() ? (
                         budgetDiagnosis
@@ -932,111 +918,6 @@ export function PatioBudgetRequestTouchForm({
               setBudgetPartQuickView(null);
             }}
           />
-        ) : null}
-
-        {/* Preview da OS (~80% da tela) — sem sair da solicitação */}
-        {osPreviewOpen ? (
-          <div className="absolute inset-0 z-[40] flex items-end justify-center bg-black/35 p-3 sm:items-center sm:p-6">
-            <div
-              className="flex max-h-[80dvh] w-full max-w-lg flex-col overflow-hidden rounded-2xl bg-white shadow-xl"
-              role="dialog"
-              aria-modal="true"
-              aria-label="Pré-visualização da OS"
-            >
-              <div className="flex shrink-0 items-center justify-between gap-2 border-b border-slate-200 px-4 py-3">
-                <div className="min-w-0">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">
-                    Conferência
-                  </p>
-                  <h2 className="truncate text-[16px] font-semibold text-slate-900">{osLabel}</h2>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => setOsPreviewOpen(false)}
-                  className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-slate-600 transition-colors hover:bg-slate-200"
-                  aria-label="Fechar"
-                >
-                  <X className="h-4 w-4" strokeWidth={2.2} />
-                </button>
-              </div>
-              <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4">
-                <div className="flex items-start gap-3">
-                  <div className="flex h-11 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-slate-100">
-                    {getVehicleBrandLogoUrl(brand || model) ? (
-                      <VehicleBrandLogo brand={brand || model} size="modal" />
-                    ) : (
-                      <Car className="h-5 w-5 text-slate-400" strokeWidth={2} />
-                    )}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="text-[16px] font-semibold text-slate-900">{vehicleTitle}</p>
-                    {vehicleMeta ? (
-                      <p className="mt-0.5 text-[13px] text-slate-500">{vehicleMeta}</p>
-                    ) : null}
-                    {colorDisplay ? (
-                      <p className="mt-0.5 text-[13px] text-slate-500">Cor · {colorDisplay}</p>
-                    ) : null}
-                  </div>
-                </div>
-
-                <dl className="mt-4 space-y-2.5 text-[13px]">
-                  <div className="flex justify-between gap-3 border-b border-slate-100 pb-2">
-                    <dt className="text-slate-500">Placa</dt>
-                    <dd
-                      className={`font-semibold tracking-wide text-slate-900 ${blurPlates ? 'blur-plate' : ''}`}
-                    >
-                      {plateDisplay}
-                    </dd>
-                  </div>
-                  {chassisDisplay ? (
-                    <div className="flex justify-between gap-3 border-b border-slate-100 pb-2">
-                      <dt className="shrink-0 text-slate-500">Chassi</dt>
-                      <dd className="break-all text-right font-semibold tabular-nums text-slate-900">
-                        {chassisDisplay}
-                      </dd>
-                    </div>
-                  ) : null}
-                  {mileageDisplay ? (
-                    <div className="flex justify-between gap-3 border-b border-slate-100 pb-2">
-                      <dt className="text-slate-500">Km</dt>
-                      <dd className="font-semibold tabular-nums text-slate-900">{mileageDisplay}</dd>
-                    </div>
-                  ) : null}
-                  <div className="flex justify-between gap-3 border-b border-slate-100 pb-2">
-                    <dt className="text-slate-500">Cliente</dt>
-                    <dd className="truncate text-right font-semibold text-slate-900">{nameDisplay}</dd>
-                  </div>
-                </dl>
-
-                <div className="mt-4">
-                  <div className="mb-1.5 flex items-center gap-2">
-                    <img
-                      src="/icons/queixa-ios.png"
-                      alt=""
-                      className="h-5 w-5 rounded-[0.35rem] object-cover"
-                    />
-                    <p className="text-[12px] font-semibold text-slate-700">Queixa do cliente</p>
-                  </div>
-                  <div className="rounded-xl bg-slate-50 px-3 py-2.5 text-[13px] leading-relaxed text-slate-700">
-                    {budgetDiagnosis.trim() ? (
-                      budgetDiagnosis
-                    ) : (
-                      <span className="text-slate-400">Nenhuma queixa registrada.</span>
-                    )}
-                  </div>
-                </div>
-              </div>
-              <div className="shrink-0 border-t border-slate-200 px-4 py-3">
-                <button
-                  type="button"
-                  onClick={() => setOsPreviewOpen(false)}
-                  className="inline-flex w-full items-center justify-center rounded-xl bg-[#007AFF] px-4 py-2.5 text-[14px] font-semibold text-white transition-[filter] hover:brightness-105"
-                >
-                  Fechar
-                </button>
-              </div>
-            </div>
-          </div>
         ) : null}
       </div>
     </ModalPortal>
