@@ -420,8 +420,8 @@ export const LabListaBoard: React.FC<LabListaBoardProps> = ({
       data-lab-lista-scroll={fillHeight ? 'true' : undefined}
       className={`rounded-[1.35rem] border border-zinc-200/70 bg-white/70 shadow-[0_10px_30px_-16px_rgba(0,0,0,0.18)] dark:border-white/[0.08] dark:bg-zinc-950/45 dark:shadow-none custom-scrollbar ${
         fillHeight
-          ? 'min-h-0 flex-1 overflow-auto overscroll-contain pb-8'
-          : 'max-h-full min-h-0 overflow-auto'
+          ? 'min-h-0 flex-1 overflow-auto overscroll-contain touch-pan-y [-webkit-overflow-scrolling:touch] pb-8'
+          : 'min-w-0 overflow-x-auto overscroll-x-contain pb-8 [-webkit-overflow-scrolling:touch]'
       }`}
     >
       <table className="w-full min-w-[64rem] border-collapse text-left">
