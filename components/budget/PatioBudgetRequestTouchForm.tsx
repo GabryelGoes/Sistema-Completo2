@@ -2,13 +2,12 @@ import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useSta
 import {
   Car,
   ChevronLeft,
-  ChevronRight,
-  GripVertical,
   Loader2,
   Plus,
   Send,
   Trash2,
   User,
+  X,
 } from 'lucide-react';
 import type { WorkshopPart, WorkshopService } from '../../services/apiService';
 import {
@@ -42,7 +41,10 @@ export type PatioBudgetRequestTouchFormProps = {
   plate: string;
   vehicleChassis?: string | null;
   customerName: string;
-  customerPhone?: string | null;
+  /** Número da OS (preview Ver OS). */
+  osNumber?: number | null;
+  vehicleColor?: string | null;
+  mileageKm?: string | null;
   initialDiagnosis: string;
   initialServices: PatioBudgetServiceDraft[];
   initialParts: PatioBudgetPartDraft[];
@@ -51,16 +53,14 @@ export type PatioBudgetRequestTouchFormProps = {
   workshopParts: WorkshopPart[];
   sending: boolean;
   onClose: () => void;
-  /** Volta para a ficha da OS (mesmo que fechar neste fluxo). */
-  onViewOs: () => void;
   onSave: (draft: PatioBudgetEditDraft) => void | Promise<void>;
   backdropAnimClass: string;
 };
 
-/** ~30% menor que o tamanho anterior (tablet). */
-const BUDGET_SERVICE_TEXTAREA_MIN_PX = 31;
+/** ~10% menor que o tamanho base (tablet). */
+const BUDGET_SERVICE_TEXTAREA_MIN_PX = 40;
 const ADD_ROW_BTN =
-  'inline-flex w-full items-center justify-center gap-1.5 rounded-xl border border-[#007AFF]/18 bg-[#E8F2FF] px-3 py-2 text-[12px] font-semibold text-[#007AFF] transition-colors hover:bg-[#DCEBFF] active:bg-[#D0E4FF]';
+  'inline-flex w-full items-center justify-center gap-1.5 rounded-xl border border-[#007AFF]/18 bg-[#E8F2FF] px-3 py-2.5 text-[13px] font-semibold text-[#007AFF] transition-colors hover:bg-[#DCEBFF] active:bg-[#D0E4FF]';
 
 function normalizeText(text: string): string {
   return text.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
@@ -107,7 +107,7 @@ function TouchServiceTextarea({
       spellCheck={false}
       data-budget-service-id={dataBudgetServiceId}
       placeholder="Descreva o serviço"
-      className="block min-h-[31px] w-full min-w-0 resize-none overflow-hidden border-0 bg-transparent py-1.5 text-[12px] leading-snug text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-0 [overflow-wrap:anywhere] [scrollbar-width:none] [&::-webkit-scrollbar]:w-0"
+      className="block min-h-[40px] w-full min-w-0 resize-none overflow-hidden border-0 bg-transparent py-2 text-[13.5px] leading-snug text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-0 [overflow-wrap:anywhere] [scrollbar-width:none] [&::-webkit-scrollbar]:w-0"
       value={value}
       onChange={(e) => {
         onChange(e.target.value);
@@ -194,14 +194,11 @@ function GripMoveControl({
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex h-8 min-w-[2.1rem] flex-col items-center justify-center gap-0 rounded-lg px-0.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 active:bg-slate-100"
+        className="flex h-9 w-8 items-center justify-center rounded-lg text-[12px] font-bold tabular-nums text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-700 active:bg-slate-100"
         aria-label={`${ariaLabelPrefix} ${position}: alterar ordem`}
         aria-expanded={open}
       >
-        <GripVertical className="h-3.5 w-3.5" strokeWidth={2.25} />
-        <span className="text-[10px] font-bold tabular-nums leading-none text-slate-500">
-          {position}
-        </span>
+        {position}
       </button>
       {open && total > 1 ? (
         <div className="absolute left-0 top-[calc(100%+0.25rem)] z-40 min-w-[9rem] rounded-xl border border-slate-200 bg-white p-2 shadow-lg">
@@ -252,7 +249,9 @@ export function PatioBudgetRequestTouchForm({
   plate,
   vehicleChassis,
   customerName,
-  customerPhone,
+  osNumber,
+  vehicleColor,
+  mileageKm,
   initialDiagnosis,
   initialServices,
   initialParts,
@@ -261,7 +260,6 @@ export function PatioBudgetRequestTouchForm({
   workshopParts,
   sending,
   onClose,
-  onViewOs,
   onSave,
   backdropAnimClass,
 }: PatioBudgetRequestTouchFormProps) {
@@ -269,6 +267,7 @@ export function PatioBudgetRequestTouchForm({
   const [budgetServices, setBudgetServices] = useState(initialServices);
   const [budgetParts, setBudgetParts] = useState(initialParts);
   const [budgetObservations, setBudgetObservations] = useState(initialObservations);
+  const [osPreviewOpen, setOsPreviewOpen] = useState(false);
 
   const [suggestionsForServiceId, setSuggestionsForServiceId] = useState<string | null>(null);
   const [suggestionsForPartId, setSuggestionsForPartId] = useState<string | null>(null);
@@ -580,8 +579,11 @@ export function PatioBudgetRequestTouchForm({
   const vehicleMeta = [engine, year].filter(Boolean).join(' · ');
   const plateDisplay = (plate || '—').trim() || '—';
   const chassisDisplay = (vehicleChassis ?? '').trim();
-  const phoneDisplay = (customerPhone ?? '').trim();
   const nameDisplay = (customerName ?? '').trim() || 'Cliente';
+  const colorDisplay = (vehicleColor ?? '').trim();
+  const mileageDisplay = (mileageKm ?? '').trim();
+  const osLabel =
+    osNumber != null && Number.isFinite(Number(osNumber)) ? `OS #${osNumber}` : 'Ordem de serviço';
 
   return (
     <ModalPortal>
@@ -608,9 +610,6 @@ export function PatioBudgetRequestTouchForm({
                 <h1 className="truncate text-[17px] font-semibold leading-tight tracking-tight text-slate-900 sm:text-[18px]">
                   {isEditing ? 'Editar solicitação' : 'Solicitar Orçamento'}
                 </h1>
-                <p className="mt-0.5 truncate text-[11px] leading-snug text-slate-500 sm:text-[12px]">
-                  Envie para o setor de orçamentos os serviços e peças necessários.
-                </p>
               </div>
 
               <button
@@ -645,7 +644,7 @@ export function PatioBudgetRequestTouchForm({
                 action={
                   <button
                     type="button"
-                    onClick={onViewOs}
+                    onClick={() => setOsPreviewOpen(true)}
                     className="inline-flex items-center rounded-lg border border-[#007AFF]/20 bg-[#E8F2FF] px-2.5 py-1.5 text-[12px] font-semibold text-[#007AFF] transition-colors hover:bg-[#DCEBFF]"
                   >
                     Ver OS
@@ -692,48 +691,34 @@ export function PatioBudgetRequestTouchForm({
                     </div>
                   </div>
 
-                  {/* Cliente — abaixo do veículo */}
-                  <button
-                    type="button"
-                    onClick={onViewOs}
-                    className="flex min-w-0 items-center gap-3 rounded-xl border border-slate-100 bg-slate-50/90 px-3 py-2.5 text-left transition-colors hover:bg-slate-100"
-                  >
+                  {/* Cliente — só nome, sem clique */}
+                  <div className="flex min-w-0 items-center gap-3 rounded-xl border border-slate-100 bg-slate-50/90 px-3 py-2.5">
                     <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-200/80 text-slate-600">
-                      <User className="h-4.5 w-4.5 h-[18px] w-[18px]" strokeWidth={2} />
+                      <User className="h-[18px] w-[18px]" strokeWidth={2} />
                     </span>
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-[14px] font-semibold text-slate-900">
-                        {nameDisplay}
-                      </span>
-                      {phoneDisplay ? (
-                        <span className="mt-0.5 block truncate text-[12px] text-slate-500">
-                          {phoneDisplay}
-                        </span>
-                      ) : null}
+                    <span className="min-w-0 flex-1 truncate text-[14px] font-semibold text-slate-900">
+                      {nameDisplay}
                     </span>
-                    <ChevronRight className="h-5 w-5 shrink-0 text-slate-400" strokeWidth={2} />
-                  </button>
-                </div>
-              </SectionCard>
+                  </div>
 
-              {/* Queixa */}
-              <SectionCard
-                iconTone="app"
-                icon={
-                  <img
-                    src="/icons/queixa-ios.png"
-                    alt=""
-                    className="h-full w-full object-cover"
-                  />
-                }
-                title="Queixa do cliente"
-              >
-                <div className="rounded-xl bg-slate-50 px-3 py-2.5 text-[12px] leading-relaxed text-slate-700">
-                  {budgetDiagnosis.trim() ? (
-                    budgetDiagnosis
-                  ) : (
-                    <span className="text-slate-400">Nenhuma queixa registrada nesta OS.</span>
-                  )}
+                  {/* Queixa — lembrete somente leitura */}
+                  <div>
+                    <div className="mb-1.5 flex items-center gap-2">
+                      <img
+                        src="/icons/queixa-ios.png"
+                        alt=""
+                        className="h-5 w-5 rounded-[0.35rem] object-cover shadow-sm shadow-black/10"
+                      />
+                      <p className="text-[12px] font-semibold text-slate-700">Queixa do cliente</p>
+                    </div>
+                    <div className="rounded-xl bg-slate-50 px-3 py-2.5 text-[13px] leading-relaxed text-slate-700">
+                      {budgetDiagnosis.trim() ? (
+                        budgetDiagnosis
+                      ) : (
+                        <span className="text-slate-400">Nenhuma queixa registrada nesta OS.</span>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </SectionCard>
 
@@ -783,7 +768,7 @@ export function PatioBudgetRequestTouchForm({
                             dataBudgetServiceId={item.id}
                           />
                           {item.laborHours != null && Number.isFinite(Number(item.laborHours)) ? (
-                            <p className="pb-1 text-[10px] font-medium tabular-nums text-[#007AFF]/80">
+                            <p className="pb-1.5 text-[11px] font-medium tabular-nums text-[#007AFF]/80">
                               {formatLaborLabel(Number(item.laborHours))}
                             </p>
                           ) : null}
@@ -791,16 +776,16 @@ export function PatioBudgetRequestTouchForm({
                         <button
                           type="button"
                           onClick={() => removeServiceRow(item.id)}
-                          className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-red-500 transition-colors hover:bg-red-50 active:bg-red-100/70"
+                          className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-red-500 transition-colors hover:bg-red-50 active:bg-red-100/70"
                           aria-label="Remover serviço"
                         >
-                          <Trash2 className="h-3.5 w-3.5" strokeWidth={2} />
+                          <Trash2 className="h-4 w-4" strokeWidth={2} />
                         </button>
                       </div>
                     );
                   })}
                   <button type="button" onClick={addServiceRow} className={ADD_ROW_BTN}>
-                    <Plus className="h-3.5 w-3.5" strokeWidth={2.4} />
+                    <Plus className="h-4 w-4" strokeWidth={2.4} />
                     Adicionar serviço
                   </button>
                 </div>
@@ -840,7 +825,7 @@ export function PatioBudgetRequestTouchForm({
                           <input
                             type="text"
                             placeholder="Descreva a peça"
-                            className="w-full border-0 bg-transparent py-1.5 text-[12px] text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-0"
+                            className="w-full border-0 bg-transparent py-2 text-[13.5px] text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-0"
                             value={item.description}
                             data-budget-part-id={item.id}
                             autoFocus={focusPartId === item.id}
@@ -857,16 +842,16 @@ export function PatioBudgetRequestTouchForm({
                         <button
                           type="button"
                           onClick={() => removePartRow(item.id)}
-                          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-red-500 transition-colors hover:bg-red-50 active:bg-red-100/70"
+                          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-red-500 transition-colors hover:bg-red-50 active:bg-red-100/70"
                           aria-label="Remover peça"
                         >
-                          <Trash2 className="h-3.5 w-3.5" strokeWidth={2} />
+                          <Trash2 className="h-4 w-4" strokeWidth={2} />
                         </button>
                       </div>
                     );
                   })}
                   <button type="button" onClick={addPartRow} className={ADD_ROW_BTN}>
-                    <Plus className="h-3.5 w-3.5" strokeWidth={2.4} />
+                    <Plus className="h-4 w-4" strokeWidth={2.4} />
                     Adicionar peça
                   </button>
                 </div>
@@ -887,7 +872,7 @@ export function PatioBudgetRequestTouchForm({
               >
                 <textarea
                   rows={3}
-                  className="w-full resize-y rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-[12px] leading-relaxed text-slate-800 placeholder:text-slate-400 focus:border-[#007AFF]/50 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/20"
+                  className="w-full resize-y rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-[13.5px] leading-relaxed text-slate-800 placeholder:text-slate-400 focus:border-[#007AFF]/50 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/20"
                   placeholder="Informações complementares para o setor de orçamentos…"
                   value={budgetObservations}
                   onChange={(e) => setBudgetObservations(e.target.value)}
@@ -909,6 +894,7 @@ export function PatioBudgetRequestTouchForm({
           }
           onClose={() => setSuggestionsForServiceId(null)}
           onKeepOpen={keepServiceSuggestionsOpen}
+          compactTouch
           onSelect={(svc) => {
             if (suggestionsForServiceId) applySuggestion(suggestionsForServiceId, svc);
           }}
@@ -926,6 +912,7 @@ export function PatioBudgetRequestTouchForm({
           }
           onClose={() => setSuggestionsForPartId(null)}
           onKeepOpen={keepPartSuggestionsOpen}
+          compactTouch
           onOpenPartDetails={(part) => {
             keepPartSuggestionsOpen();
             setBudgetPartQuickView(part);
@@ -945,6 +932,111 @@ export function PatioBudgetRequestTouchForm({
               setBudgetPartQuickView(null);
             }}
           />
+        ) : null}
+
+        {/* Preview da OS (~80% da tela) — sem sair da solicitação */}
+        {osPreviewOpen ? (
+          <div className="absolute inset-0 z-[40] flex items-end justify-center bg-black/35 p-3 sm:items-center sm:p-6">
+            <div
+              className="flex max-h-[80dvh] w-full max-w-lg flex-col overflow-hidden rounded-2xl bg-white shadow-xl"
+              role="dialog"
+              aria-modal="true"
+              aria-label="Pré-visualização da OS"
+            >
+              <div className="flex shrink-0 items-center justify-between gap-2 border-b border-slate-200 px-4 py-3">
+                <div className="min-w-0">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-slate-500">
+                    Conferência
+                  </p>
+                  <h2 className="truncate text-[16px] font-semibold text-slate-900">{osLabel}</h2>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setOsPreviewOpen(false)}
+                  className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-100 text-slate-600 transition-colors hover:bg-slate-200"
+                  aria-label="Fechar"
+                >
+                  <X className="h-4 w-4" strokeWidth={2.2} />
+                </button>
+              </div>
+              <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4">
+                <div className="flex items-start gap-3">
+                  <div className="flex h-11 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-slate-100">
+                    {getVehicleBrandLogoUrl(brand || model) ? (
+                      <VehicleBrandLogo brand={brand || model} size="modal" />
+                    ) : (
+                      <Car className="h-5 w-5 text-slate-400" strokeWidth={2} />
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[16px] font-semibold text-slate-900">{vehicleTitle}</p>
+                    {vehicleMeta ? (
+                      <p className="mt-0.5 text-[13px] text-slate-500">{vehicleMeta}</p>
+                    ) : null}
+                    {colorDisplay ? (
+                      <p className="mt-0.5 text-[13px] text-slate-500">Cor · {colorDisplay}</p>
+                    ) : null}
+                  </div>
+                </div>
+
+                <dl className="mt-4 space-y-2.5 text-[13px]">
+                  <div className="flex justify-between gap-3 border-b border-slate-100 pb-2">
+                    <dt className="text-slate-500">Placa</dt>
+                    <dd
+                      className={`font-semibold tracking-wide text-slate-900 ${blurPlates ? 'blur-plate' : ''}`}
+                    >
+                      {plateDisplay}
+                    </dd>
+                  </div>
+                  {chassisDisplay ? (
+                    <div className="flex justify-between gap-3 border-b border-slate-100 pb-2">
+                      <dt className="shrink-0 text-slate-500">Chassi</dt>
+                      <dd className="break-all text-right font-semibold tabular-nums text-slate-900">
+                        {chassisDisplay}
+                      </dd>
+                    </div>
+                  ) : null}
+                  {mileageDisplay ? (
+                    <div className="flex justify-between gap-3 border-b border-slate-100 pb-2">
+                      <dt className="text-slate-500">Km</dt>
+                      <dd className="font-semibold tabular-nums text-slate-900">{mileageDisplay}</dd>
+                    </div>
+                  ) : null}
+                  <div className="flex justify-between gap-3 border-b border-slate-100 pb-2">
+                    <dt className="text-slate-500">Cliente</dt>
+                    <dd className="truncate text-right font-semibold text-slate-900">{nameDisplay}</dd>
+                  </div>
+                </dl>
+
+                <div className="mt-4">
+                  <div className="mb-1.5 flex items-center gap-2">
+                    <img
+                      src="/icons/queixa-ios.png"
+                      alt=""
+                      className="h-5 w-5 rounded-[0.35rem] object-cover"
+                    />
+                    <p className="text-[12px] font-semibold text-slate-700">Queixa do cliente</p>
+                  </div>
+                  <div className="rounded-xl bg-slate-50 px-3 py-2.5 text-[13px] leading-relaxed text-slate-700">
+                    {budgetDiagnosis.trim() ? (
+                      budgetDiagnosis
+                    ) : (
+                      <span className="text-slate-400">Nenhuma queixa registrada.</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+              <div className="shrink-0 border-t border-slate-200 px-4 py-3">
+                <button
+                  type="button"
+                  onClick={() => setOsPreviewOpen(false)}
+                  className="inline-flex w-full items-center justify-center rounded-xl bg-[#007AFF] px-4 py-2.5 text-[14px] font-semibold text-white transition-[filter] hover:brightness-105"
+                >
+                  Fechar
+                </button>
+              </div>
+            </div>
+          </div>
         ) : null}
       </div>
     </ModalPortal>

@@ -12986,10 +12986,24 @@ export const PatioView: React.FC<PatioViewProps> = ({
               selectedCardTitleParts?.customer ||
               'Cliente'
             }
-            customerPhone={
+            osNumber={
               serviceOrderDetail?.id === selectedCard.id
-                ? serviceOrderDetail.customers?.phone ?? null
-                : null
+                ? serviceOrderDetail.os_number ?? selectedCard.osNumber ?? null
+                : selectedCard.osNumber ?? null
+            }
+            vehicleColor={
+              (serviceOrderDetail?.id === selectedCard.id
+                ? serviceOrderDetail.vehicle_color
+                : null) ||
+              selectedCard.vehicleColor ||
+              null
+            }
+            mileageKm={
+              (serviceOrderDetail?.id === selectedCard.id
+                ? serviceOrderDetail.mileage_km
+                : null) ||
+              selectedCard.mileageKm ||
+              null
             }
             initialDiagnosis={budgetDiagnosis}
             initialServices={budgetServices}
@@ -12999,7 +13013,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
             workshopParts={workshopParts}
             sending={sendingBudget}
             onClose={requestCloseBudgetModal}
-            onViewOs={requestCloseBudgetModal}
             onSave={handleCreateBudget}
             backdropAnimClass={modalBackdropAnimClass(budgetModalExiting)}
           />

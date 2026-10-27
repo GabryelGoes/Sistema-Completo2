@@ -20,6 +20,8 @@ type BudgetPartSuggestionDropdownProps = {
   onKeepOpen?: () => void;
   /** Abre ficha completa do produto (estoque). */
   onOpenPartDetails?: (part: WorkshopPart) => void;
+  /** Layout touch: sem título/contagem, sem blur, sempre abaixo do campo. */
+  compactTouch?: boolean;
 };
 
 export const BudgetPartSuggestionDropdown: React.FC<BudgetPartSuggestionDropdownProps> = ({
@@ -30,6 +32,7 @@ export const BudgetPartSuggestionDropdown: React.FC<BudgetPartSuggestionDropdown
   onSelect,
   onKeepOpen,
   onOpenPartDetails,
+  compactTouch = false,
 }) => {
   if (!open || !position || suggestions.length === 0) return null;
 
@@ -47,6 +50,9 @@ export const BudgetPartSuggestionDropdown: React.FC<BudgetPartSuggestionDropdown
       ariaLabel="Sugestões de peças do estoque"
       title="Peças em estoque"
       subtitle={`${suggestions.length} sugest${suggestions.length === 1 ? 'ão' : 'ões'}`}
+      hideHeader={compactTouch}
+      clearBackdrop={compactTouch}
+      forceBelow={compactTouch}
     >
       <div className="flex flex-col gap-0.5">
         {suggestions.map((part) => {
