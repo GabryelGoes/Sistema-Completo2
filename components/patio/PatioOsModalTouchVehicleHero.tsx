@@ -83,7 +83,7 @@ export function PatioOsModalTouchVehicleStickyHeader({
   const plateText = (plate || '—').trim() || '—';
 
   return (
-    <div className="patio-os-touch-hero-sticky z-30 shrink-0 border-b border-slate-200/70 bg-white/95 backdrop-blur-md dark:border-white/[0.08] dark:bg-zinc-950/95">
+    <div className="patio-os-touch-hero-sticky relative z-30 shrink-0 border-b border-slate-200/70 bg-white/95 backdrop-blur-md dark:border-white/[0.08] dark:bg-zinc-950/95">
       <div
         className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_90%_70%_at_12%_-10%,rgba(0,122,255,0.10),transparent_55%),radial-gradient(ellipse_70%_55%_at_95%_10%,rgba(245,208,11,0.08),transparent_50%)] dark:bg-[radial-gradient(ellipse_90%_70%_at_12%_-10%,rgba(0,122,255,0.18),transparent_55%)]"
         aria-hidden

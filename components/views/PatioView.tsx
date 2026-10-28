@@ -169,7 +169,6 @@ import {
   mediaOverlayIconBtn,
   mediaOverlayNavBtn,
 } from '../ui/iosModalStyles';
-import { copyImageToClipboard } from '../../utils/copyImageToClipboard';
 import { IosAccentIconSquircle } from '../ui/IosAccentIconSquircle';
 import { markdownComponentsApp } from '../ui/markdownUi';
 import {
@@ -905,7 +904,8 @@ const Lightbox = ({
   const [imageLoaded, setImageLoaded] = useState(false);
   /** Mostra versão otimizada (menor) do Storage; só cai para a original se a otimizada falhar. */
   const [displayFailed, setDisplayFailed] = useState(false);
-  const [copyState, setCopyState] = useState<'idle' | 'busy' | 'ok' | 'err'>('idle');
+  /** Controles (X, girar, setas) — só após toque/clique na foto; pinça não revela. */
+  const [showChrome, setShowChrome] = useState(false);
   const effectiveSrc = displayFailed ? src : storageDisplayUrl(src);
   const preloadedImagesRef = useRef<Set<string>>(new Set());
 
@@ -913,6 +913,11 @@ const Lightbox = ({
   const lastDistRef = useRef<number | null>(null);
   const lastPinchCenterRef = useRef<{ x: number; y: number } | null>(null);
   const dragStartXRef = useRef<number>(0);
+  const tapOriginRef = useRef<{ x: number; y: number } | null>(null);
+  const didPinchRef = useRef(false);
+  const didPanOrSwipeRef = useRef(false);
+  const lastTouchToggleAtRef = useRef(0);
+  const singleClickTimerRef = useRef<number | null>(null);
   const scaleRef = useRef(1);
   const translateRef = useRef({ x: 0, y: 0 });
   /** Pan com mouse/caneta no PC — listeners síncronos (não via useEffect) para não perder o gesto. */
@@ -953,23 +958,16 @@ const Lightbox = ({
     setTranslate({ x: 0, y: 0 });
     setImageLoaded(false);
     setDisplayFailed(false);
-    setCopyState('idle');
+    setShowChrome(false);
   }, [src]);
 
-  const handleCopyImage = async (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (!effectiveSrc || copyState === 'busy') return;
-    setCopyState('busy');
-    try {
-      await copyImageToClipboard({ url: effectiveSrc, imgEl: imageRef.current });
-      setCopyState('ok');
-      window.setTimeout(() => setCopyState('idle'), 1600);
-    } catch (err) {
-      console.warn('copyImageToClipboard', err);
-      setCopyState('err');
-      window.setTimeout(() => setCopyState('idle'), 2200);
-    }
-  };
+  useEffect(() => {
+    return () => {
+      if (singleClickTimerRef.current != null) {
+        window.clearTimeout(singleClickTimerRef.current);
+      }
+    };
+  }, []);
 
   // Pré-carrega imagens vizinhas (versão otimizada) para swipe ficar imediato
   useEffect(() => {
@@ -1059,6 +1057,9 @@ const Lightbox = ({
     if (e.touches.length === 1) {
       lastTouchRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
       dragStartXRef.current = e.touches[0].clientX;
+      tapOriginRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+      didPinchRef.current = false;
+      didPanOrSwipeRef.current = false;
       if (scaleRef.current > 1) {
         setIsDragging(true);
       } else if (hasMultiple) {
@@ -1066,6 +1067,8 @@ const Lightbox = ({
         setTranslate({ x: 0, y: 0 });
       }
     } else if (e.touches.length === 2) {
+      didPinchRef.current = true;
+      didPanOrSwipeRef.current = true;
       const pinchCenterX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
       const pinchCenterY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
       lastDistRef.current = Math.hypot(
@@ -1080,6 +1083,8 @@ const Lightbox = ({
 
   const handleTouchMove = (e: React.TouchEvent) => {
     if (e.touches.length === 2) {
+      didPinchRef.current = true;
+      didPanOrSwipeRef.current = true;
       const pinchCenterX = (e.touches[0].clientX + e.touches[1].clientX) / 2;
       const pinchCenterY = (e.touches[0].clientY + e.touches[1].clientY) / 2;
       const dist = Math.hypot(
@@ -1098,6 +1103,9 @@ const Lightbox = ({
     if (e.touches.length === 1 && lastTouchRef.current) {
       const dx = e.touches[0].clientX - lastTouchRef.current.x;
       const dy = e.touches[0].clientY - lastTouchRef.current.y;
+      if (Math.abs(dx) > 6 || Math.abs(dy) > 6) {
+        didPanOrSwipeRef.current = true;
+      }
       if (scaleRef.current > 1) {
         setIsDragging(true);
         setTranslate((prev) => ({ x: prev.x + dx, y: prev.y + dy }));
@@ -1124,6 +1132,13 @@ const Lightbox = ({
 
     const endTouch = e.changedTouches[0];
     const endX = endTouch?.clientX ?? lastTouchRef.current?.x ?? dragStartXRef.current;
+    const endY = endTouch?.clientY ?? lastTouchRef.current?.y ?? 0;
+    const origin = tapOriginRef.current;
+    const tapTravel =
+      origin != null
+        ? Math.hypot(endX - origin.x, endY - origin.y)
+        : Math.abs(endX - dragStartXRef.current);
+
     if (scaleRef.current > 1) {
       setIsDragging(false);
     } else {
@@ -1134,9 +1149,16 @@ const Lightbox = ({
       }
       setTranslate({ x: 0, y: 0 });
     }
+
+    if (!didPinchRef.current && !didPanOrSwipeRef.current && tapTravel < 12) {
+      lastTouchToggleAtRef.current = Date.now();
+      setShowChrome((v) => !v);
+    }
+
     lastTouchRef.current = null;
     lastDistRef.current = null;
     lastPinchCenterRef.current = null;
+    tapOriginRef.current = null;
     setIsSwiping(false);
     if (scaleRef.current < 1) setScale(1);
   };
@@ -1221,6 +1243,10 @@ const Lightbox = ({
   const handleDoubleTap = (e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
+    if (singleClickTimerRef.current != null) {
+      window.clearTimeout(singleClickTimerRef.current);
+      singleClickTimerRef.current = null;
+    }
     if (scaleRef.current > 1) {
       setScale(1);
       setTranslate({ x: 0, y: 0 });
@@ -1229,7 +1255,24 @@ const Lightbox = ({
     }
   };
 
+  const handlePhotoSurfaceClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (e.detail > 1) return;
+    // Evita toggle duplicado do click sintético após toque.
+    if (Date.now() - lastTouchToggleAtRef.current < 450) return;
+    if (singleClickTimerRef.current != null) {
+      window.clearTimeout(singleClickTimerRef.current);
+    }
+    singleClickTimerRef.current = window.setTimeout(() => {
+      singleClickTimerRef.current = null;
+      setShowChrome((v) => !v);
+    }, 220);
+  };
+
   if (!src) return null;
+
+  const chromeBtn = `${mediaOverlayIconBtn} !h-8 !w-8`;
+  const chromeNavBtn = `${mediaOverlayNavBtn} !h-9 !w-9`;
 
   return (
     <ModalPortal>
@@ -1239,89 +1282,71 @@ const Lightbox = ({
       onClick={onClose}
       role="dialog"
       aria-modal="true"
-      aria-label={hasMultiple ? 'Galeria de fotos — use as setas ou deslize para trocar' : 'Visualização de foto'}
+      aria-label={hasMultiple ? 'Galeria de fotos — toque para controles' : 'Visualização de foto'}
     >
-      <div className="absolute top-[max(1.25rem,env(safe-area-inset-top))] right-[max(1.25rem,env(safe-area-inset-right))] z-50 flex items-center gap-2">
-        <button
-          type="button"
-          onClick={(e) => void handleCopyImage(e)}
-          disabled={copyState === 'busy'}
-          className={`${mediaOverlayIconBtn} h-12 w-12 disabled:opacity-50`}
-          aria-label="Copiar imagem"
-          title={
-            copyState === 'ok'
-              ? 'Copiado — pode colar em outro app'
-              : copyState === 'err'
-                ? 'Falha ao copiar — tente botão direito na imagem'
-                : 'Copiar imagem'
-          }
-        >
-          {copyState === 'ok' ? (
-            <Check className="h-5 w-5 text-emerald-300" aria-hidden />
-          ) : (
-            <Copy className="h-5 w-5" aria-hidden />
-          )}
-        </button>
-        <button
-          type="button"
-          onClick={onClose}
-          className={`${mediaOverlayIconBtn} h-12 w-12`}
-          aria-label="Fechar"
-        >
-          <X className="w-6 h-6" />
-        </button>
-      </div>
+      {showChrome ? (
+        <div className="absolute top-[max(1rem,env(safe-area-inset-top))] right-[max(1rem,env(safe-area-inset-right))] z-50 flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={onClose}
+            className={chromeBtn}
+            aria-label="Fechar"
+          >
+            <X className="h-4 w-4" strokeWidth={2.5} />
+          </button>
+        </div>
+      ) : null}
 
-      {canRotate && onRotate && (
-        <div className="absolute left-3 top-3 z-10 flex gap-2 sm:left-5 sm:top-5">
+      {showChrome && canRotate && onRotate ? (
+        <div className="absolute left-3 top-[max(1rem,env(safe-area-inset-top))] z-10 flex gap-1.5 sm:left-5">
           <button
             type="button"
             disabled={isRotating}
             onClick={(e) => { e.stopPropagation(); onRotate('ccw', currentIndex, imageRef.current); }}
-            className={`${mediaOverlayNavBtn} disabled:opacity-40`}
+            className={`${chromeNavBtn} disabled:opacity-40`}
             aria-label="Girar anti-horário"
           >
-            <RotateCcw className="w-5 h-5" />
+            <RotateCcw className="h-4 w-4" />
           </button>
           <button
             type="button"
             disabled={isRotating}
             onClick={(e) => { e.stopPropagation(); onRotate('cw', currentIndex, imageRef.current); }}
-            className={`${mediaOverlayNavBtn} disabled:opacity-40`}
+            className={`${chromeNavBtn} disabled:opacity-40`}
             aria-label="Girar horário"
           >
-            <RotateCw className="w-5 h-5" />
+            <RotateCw className="h-4 w-4" />
           </button>
         </div>
-      )}
+      ) : null}
 
-      {hasMultiple && canGoPrev && (
+      {showChrome && hasMultiple && canGoPrev ? (
         <button
           type="button"
           onClick={(e) => { e.stopPropagation(); goPrev(); }}
-          className={`absolute left-2 md:left-6 top-1/2 -translate-y-1/2 ${mediaOverlayNavBtn}`}
+          className={`absolute left-2 md:left-6 top-1/2 -translate-y-1/2 ${chromeNavBtn}`}
           aria-label="Foto anterior"
         >
-          <ChevronLeft className="w-6 h-6" />
+          <ChevronLeft className="h-5 w-5" />
         </button>
-      )}
-      {hasMultiple && canGoNext && (
+      ) : null}
+      {showChrome && hasMultiple && canGoNext ? (
         <button
           type="button"
           onClick={(e) => { e.stopPropagation(); goNext(); }}
-          className={`absolute right-2 md:right-14 top-1/2 -translate-y-1/2 ${mediaOverlayNavBtn}`}
+          className={`absolute right-2 md:right-10 top-1/2 -translate-y-1/2 ${chromeNavBtn}`}
           aria-label="Próxima foto"
         >
-          <ChevronRight className="w-6 h-6" />
+          <ChevronRight className="h-5 w-5" />
         </button>
-      )}
+      ) : null}
 
       <div
         ref={pinchContainerRef}
         className={`relative w-full h-full flex items-center justify-center touch-none ${
           scale > 1 ? (isMousePanning ? 'cursor-grabbing' : 'cursor-grab') : 'cursor-zoom-in'
         }`}
-        onClick={(e) => e.stopPropagation()}
+        onClick={handlePhotoSurfaceClick}
         onTouchStart={handleTouchStart}
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
@@ -1364,26 +1389,16 @@ const Lightbox = ({
         />
       </div>
 
-      {hasMultiple && (
-        <>
-          <div className="absolute bottom-10 left-1/2 -translate-x-1/2 flex gap-1.5 pointer-events-none">
-            {images.map((_, i) => (
-              <div
-                key={i}
-                className={`w-2 h-2 rounded-full transition-colors ${i === currentIndex ? "bg-brand-yellow" : "bg-zinc-500/60"}`}
-              />
-            ))}
-          </div>
-          <p className={`pointer-events-none absolute bottom-4 left-1/2 max-w-[min(90vw,20rem)] -translate-x-1/2 text-center text-[11px] font-medium leading-snug ${mediaOverlayHintText}`}>
-            Scroll para zoom · botão direito ou Copiar · setas ← →
-          </p>
-        </>
-      )}
-      {!hasMultiple && (
-        <div className={`absolute bottom-10 left-1/2 -translate-x-1/2 bg-black/50 px-4 py-2 rounded-full text-xs pointer-events-none backdrop-blur-md border border-white/20 ${mediaOverlayHintText}`}>
-          Duplo clique/scroll para zoom · botão direito ou Copiar para colar em outros apps
+      {showChrome && hasMultiple ? (
+        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex gap-1.5 pointer-events-none">
+          {images.map((_, i) => (
+            <div
+              key={i}
+              className={`w-1.5 h-1.5 rounded-full transition-colors ${i === currentIndex ? "bg-brand-yellow" : "bg-zinc-500/60"}`}
+            />
+          ))}
         </div>
-      )}
+      ) : null}
     </div>
     </ModalPortal>
   );
@@ -1478,6 +1493,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const customerNameInputRef = useRef<HTMLInputElement>(null);
   const descriptionSectionRef = useRef<HTMLDivElement>(null);
   const budgetsSectionRef = useRef<HTMLDivElement>(null);
+  const patioOsTouchScrollRef = useRef<HTMLDivElement>(null);
+  const patioOsTouchDetailsRef = useRef<HTMLDivElement>(null);
+  const [patioOsStageCompact, setPatioOsStageCompact] = useState(false);
   const openServiceOrderHandledRef = useRef(false);
   const lastOpenServiceOrderScanTokenRef = useRef(0);
   /** OS id: após mover para "Orçamento aprovado", abre o modal de aprovação quando os orçamentos terminarem de carregar. */
@@ -2560,6 +2578,25 @@ export const PatioView: React.FC<PatioViewProps> = ({
   useEffect(() => {
     if (!selectedCard) setIsLabOsToolsOpen(false);
   }, [selectedCard?.id]);
+
+  /** Etapa sticky: compacta (~−35% altura) quando Cliente/Chassi/… saem da vista. */
+  useEffect(() => {
+    if (!(isPatioTabletLikeModal && !isModuleMode && selectedCard)) {
+      setPatioOsStageCompact(false);
+      return;
+    }
+    const root = patioOsTouchScrollRef.current;
+    const target = patioOsTouchDetailsRef.current;
+    if (!root || !target) return;
+    const io = new IntersectionObserver(
+      ([entry]) => {
+        setPatioOsStageCompact(!entry.isIntersecting);
+      },
+      { root, threshold: 0, rootMargin: '0px 0px 0px 0px' }
+    );
+    io.observe(target);
+    return () => io.disconnect();
+  }, [isPatioTabletLikeModal, isModuleMode, selectedCard?.id]);
 
   useEffect(() => {
     if (!isLabOsToolsOpen) return;
@@ -9694,9 +9731,13 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 </div>
               )}
 
-              <div className={patioVehicleVm.scroll}>
+              <div
+                ref={isPatioTabletLikeModal && !isModuleMode ? patioOsTouchScrollRef : undefined}
+                className={patioVehicleVm.scroll}
+              >
                   {isPatioTabletLikeModal && !isModuleMode ? (
                     <>
+                      <div ref={patioOsTouchDetailsRef}>
                       <PatioOsModalTouchVehicleScrollDetails
                         customerName={selectedCardTitleParts?.customer}
                         chassis={
@@ -9728,7 +9769,12 @@ export const PatioView: React.FC<PatioViewProps> = ({
                         }}
                         onOpenTechnician={() => setCardForMemberAssignment(selectedCard)}
                       />
-                      <div className="sticky top-0 z-20 border-b border-slate-200/60 bg-[#F2F2F7]/95 px-3.5 py-2.5 backdrop-blur-md dark:border-white/[0.08] dark:bg-zinc-950/95 sm:px-5">
+                      </div>
+                      <div
+                        className={`sticky top-0 z-20 border-b border-slate-200/60 bg-[#F2F2F7]/95 backdrop-blur-md transition-[padding] duration-200 dark:border-white/[0.08] dark:bg-zinc-950/95 sm:px-5 ${
+                          patioOsStageCompact ? 'px-3.5 py-1.5' : 'px-3.5 py-2.5'
+                        }`}
+                      >
                         <button
                           type="button"
                           onClick={(e) => {
@@ -9738,23 +9784,35 @@ export const PatioView: React.FC<PatioViewProps> = ({
                           }}
                           title="Alterar etapa"
                           aria-label={`Alterar etapa: ${modalListName}`}
-                          className={`flex w-full items-center justify-between gap-2 rounded-2xl border-2 px-3.5 py-3 text-left shadow-sm transition-[filter,transform] hover:brightness-110 active:scale-[0.99] ${
+                          className={`flex w-full items-center justify-between gap-2 border-2 text-left shadow-sm transition-[padding,border-radius,filter,transform] duration-200 hover:brightness-110 active:scale-[0.99] ${
+                            patioOsStageCompact
+                              ? 'rounded-xl px-2.5 py-[0.4rem]'
+                              : 'rounded-2xl px-3.5 py-3'
+                          } ${
                             isExternalRepairStatus(modalStageStatus)
                               ? '!text-white'
                               : '!text-black dark:!text-black'
                           } ${modalStatusConfig.style}`}
                         >
                           <span className="min-w-0 flex-1">
+                            {!patioOsStageCompact ? (
+                              <span
+                                className={`block text-[10px] font-semibold uppercase tracking-[0.12em] opacity-80 ${
+                                  isExternalRepairStatus(modalStageStatus)
+                                    ? 'text-white'
+                                    : 'text-black'
+                                }`}
+                              >
+                                Etapa atual
+                              </span>
+                            ) : null}
                             <span
-                              className={`block text-[10px] font-semibold uppercase tracking-[0.12em] opacity-80 ${
-                                isExternalRepairStatus(modalStageStatus)
-                                  ? 'text-white'
-                                  : 'text-black'
+                              className={`block truncate font-bold leading-tight tracking-tight ${
+                                patioOsStageCompact
+                                  ? 'text-[13px] sm:text-[14px]'
+                                  : 'mt-0.5 text-[15px] sm:text-[16px]'
                               }`}
                             >
-                              Etapa atual
-                            </span>
-                            <span className="mt-0.5 block truncate text-[15px] font-bold leading-tight tracking-tight sm:text-[16px]">
                               {modalListName}
                             </span>
                           </span>
@@ -9787,7 +9845,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                   void handleDeliverVehicle(selectedCard.id);
                                 }
                               }}
-                              className="inline-flex shrink-0 items-center gap-1 rounded-full border border-emerald-600/50 bg-white/90 px-2.5 py-1 text-[10px] font-semibold text-emerald-700 shadow-sm"
+                              className={`inline-flex shrink-0 items-center gap-1 rounded-full border border-emerald-600/50 bg-white/90 font-semibold text-emerald-700 shadow-sm ${
+                                patioOsStageCompact ? 'px-2 py-0.5 text-[9px]' : 'px-2.5 py-1 text-[10px]'
+                              }`}
                               aria-label="Entregue — arquivar OS"
                             >
                               {archivingId === selectedCard.id ? (
@@ -9799,14 +9859,20 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             </span>
                           ) : null}
                           <span
-                            className={`inline-flex shrink-0 items-center gap-0.5 rounded-full px-2.5 py-1.5 text-[11px] font-bold ${
+                            className={`inline-flex shrink-0 items-center gap-0.5 rounded-full font-bold ${
+                              patioOsStageCompact ? 'px-2 py-1 text-[10px]' : 'px-2.5 py-1.5 text-[11px]'
+                            } ${
                               isExternalRepairStatus(modalStageStatus)
                                 ? 'bg-white/15 text-white'
                                 : 'bg-black/10 text-black'
                             }`}
                           >
                             Alterar etapa
-                            <ChevronRight className="h-3.5 w-3.5" strokeWidth={2.5} aria-hidden />
+                            <ChevronRight
+                              className={patioOsStageCompact ? 'h-3 w-3' : 'h-3.5 w-3.5'}
+                              strokeWidth={2.5}
+                              aria-hidden
+                            />
                           </span>
                         </button>
                       </div>
@@ -10473,7 +10539,13 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             : 'patio-vm-scroll--minimal min-h-0 flex-1 overflow-y-auto overscroll-none'
                         }
                       >
-                        <div className="flex flex-col gap-6 bg-zinc-50/90 p-5 dark:bg-white/[0.02] sm:p-6">
+                        <div
+                          className={`flex flex-col bg-zinc-50/90 dark:bg-white/[0.02] ${
+                            isPatioTabletLikeModal
+                              ? 'patio-os-touch-ficha-fields gap-4 p-3.5 sm:p-4'
+                              : 'gap-6 p-5 sm:p-6'
+                          }`}
+                        >
                           {can('canEditFicha') ? (
                             <>
                               <div className="order-1">
@@ -11234,6 +11306,13 @@ export const PatioView: React.FC<PatioViewProps> = ({
                              Oculto no Ver OS (peek) para não redundar com Solicitar Orçamento. */}
                          {can('canEditBudgets') && (
                          <div ref={budgetsSectionRef}>
+                          {(() => {
+                            const cardBudgetCount = savedBudgets.filter(
+                              (b) => b.serviceOrderId === selectedCard.id
+                            ).length;
+                            const touchEmptyBudgets =
+                              isPatioTabletLikeModal && !isModuleMode && cardBudgetCount === 0;
+                            return (
                           <div
                             className={`${vi} min-w-0 overflow-hidden shadow-none${
                               isPatioTabletLikeModal && !isModuleMode
@@ -11246,12 +11325,20 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                 className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.07),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.08),transparent_50%)] dark:bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.11),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.1),transparent_52%)]"
                                 aria-hidden
                               />
+                              {!touchEmptyBudgets ? (
                               <div
                                 className="pointer-events-none absolute -right-10 top-8 h-24 w-24 rounded-full bg-gradient-to-br from-[#007AFF]/14 to-transparent opacity-80 blur-2xl dark:from-[#007AFF]/22"
                                 aria-hidden
                               />
+                              ) : null}
 
-                              <div className="relative flex items-center justify-between gap-2 border-b border-black/[0.06] bg-white/85 px-2.5 py-2 pl-3 backdrop-blur-[2px] dark:border-white/[0.08] dark:bg-zinc-950/35 sm:gap-3 sm:px-3 sm:py-2.5 sm:pl-4">
+                              <div
+                                className={`relative flex items-center justify-between gap-2 border-b border-black/[0.06] bg-white/85 backdrop-blur-[2px] dark:border-white/[0.08] dark:bg-zinc-950/35 ${
+                                  touchEmptyBudgets
+                                    ? 'px-2.5 py-1.5 pl-3 sm:gap-2 sm:px-3 sm:py-1.5 sm:pl-3.5'
+                                    : 'px-2.5 py-2 pl-3 sm:gap-3 sm:px-3 sm:py-2.5 sm:pl-4'
+                                }`}
+                              >
                                 <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-2.5">
                                   <div className={uiOsModalSectionAppIcon}>
                                     <img src="/icons/novo-orcamento-ios.png" alt="" className="h-full w-full object-cover" />
@@ -11269,14 +11356,22 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                   </button>
                               </div>
 
-                              <div className="relative space-y-3 border-t border-zinc-200/60 bg-zinc-50/90 px-3 py-3 dark:border-white/[0.06] dark:bg-white/[0.02] sm:px-4 sm:py-4">
+                              <div
+                                className={`relative border-t border-zinc-200/60 bg-zinc-50/90 dark:border-white/[0.06] dark:bg-white/[0.02] ${
+                                  touchEmptyBudgets
+                                    ? 'space-y-0 px-2.5 py-1.5 sm:px-3 sm:py-2'
+                                    : 'space-y-3 px-3 py-3 sm:px-4 sm:py-4'
+                                }`}
+                              >
 
 
                                 <div
-                                  className={`max-h-[380px] overflow-x-hidden overflow-y-auto rounded-xl border border-zinc-200/75 bg-white/95 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)] dark:border-white/[0.08] dark:bg-zinc-950/50 ${
-                                    isPatioPcModal || isPatioTabletLikeModal
-                                      ? 'grid grid-cols-2 gap-2.5 p-3'
-                                      : 'space-y-2.5 p-2.5'
+                                  className={`overflow-x-hidden overflow-y-auto rounded-xl border border-zinc-200/75 bg-white/95 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)] dark:border-white/[0.08] dark:bg-zinc-950/50 ${
+                                    touchEmptyBudgets
+                                      ? 'max-h-none p-0'
+                                      : isPatioPcModal || isPatioTabletLikeModal
+                                        ? 'grid max-h-[380px] grid-cols-2 gap-2.5 p-3'
+                                        : 'max-h-[380px] space-y-2.5 p-2.5'
                                   }`}
                                 >
                               {savedBudgets
@@ -11340,12 +11435,20 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                     </div>
                                   );
                                 })}
-                              {savedBudgets.filter((b) => b.serviceOrderId === selectedCard.id).length === 0 && (
+                              {cardBudgetCount === 0 && (
+                                touchEmptyBudgets ? (
+                                  <div className="flex min-h-[2.75rem] items-center justify-center rounded-lg border border-dashed border-zinc-300/90 bg-zinc-50/80 px-3 py-2 text-center dark:border-white/[0.12] dark:bg-white/[0.04]">
+                                    <p className="text-[11px] font-medium leading-snug text-zinc-600 dark:text-zinc-400">
+                                      Solicite um orçamento pelo botão acima
+                                    </p>
+                                  </div>
+                                ) : (
                                 <div className={`rounded-xl border border-dashed border-zinc-300/95 bg-zinc-50/90 p-5 text-center dark:border-white/[0.12] dark:bg-white/[0.04]${isPatioPcModal || isPatioTabletLikeModal ? ' col-span-2' : ''}`}>
                                   <img src="/icons/novo-orcamento-ios.png" alt="" className="mx-auto mb-2 h-9 w-9 rounded-[0.65rem] object-cover" />
                                   <p className="mt-0.5 text-sm font-semibold text-zinc-900 dark:text-zinc-100">Nenhum orçamento</p>
                                   <p className="mt-0.5 text-xs text-zinc-600 dark:text-zinc-400">Crie um orçamento pelo botão acima</p>
                                 </div>
+                                )
                               )}
                               </div>
 
@@ -11429,6 +11532,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
                               </div>
                             </div>
                           </div>
+                          );
+                          })()}
                          </div>
                          )}
 
