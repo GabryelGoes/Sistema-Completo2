@@ -769,3 +769,22 @@ html[data-home-hub-open-guard='1'] [data-modal-portal] * {
 .budget-request-scroll::-webkit-scrollbar-thumb:hover {
   background: rgb(0 0 0 / 0.2);
 }
+
+/** Rolagem das sugestões de peças/serviços no orçamento — fina e clara. */
+.budget-suggestion-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(0 0 0 / 0.12) transparent;
+}
+.budget-suggestion-scroll::-webkit-scrollbar {
+  width: 4px;
+}
+.budget-suggestion-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.budget-suggestion-scroll::-webkit-scrollbar-thumb {
+  background: rgb(0 0 0 / 0.1);
+  border-radius: 9999px;
+}
+.budget-suggestion-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgb(0 0 0 / 0.18);
+}

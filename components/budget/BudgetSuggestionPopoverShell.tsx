@@ -121,7 +121,7 @@ export const BudgetSuggestionPopoverShell: React.FC<BudgetSuggestionPopoverShell
           </div>
         ) : null}
         <div
-          className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-1.5 py-1.5 [-webkit-overflow-scrolling:touch] [touch-action:pan-y]"
+          className="budget-suggestion-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain px-1.5 py-1.5 [-webkit-overflow-scrolling:touch] [touch-action:pan-y]"
           style={{ maxHeight: layout.listMax }}
           onWheel={(e) => e.stopPropagation()}
           onTouchMove={(e) => e.stopPropagation()}
