@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
   Car,
+  Check,
+  Clock3,
   Loader2,
   Plus,
   Send,
@@ -13,7 +15,11 @@ import {
   buildWorkshopPartNameIndex,
   resolveBudgetPartStockFlags,
 } from '../../utils/budgetPartStock';
-import { formatLaborLabel } from '../../utils/workshopLaborFormat';
+import {
+  formatLaborLabel,
+  laborHoursToParts,
+  parseLaborDurationParts,
+} from '../../utils/workshopLaborFormat';
 import { moveItemInList } from '../../utils/moveItemInList';
 import { ModalPortal } from '../ui/ModalPortal';
 import { useBrowserBackLayer } from '../ui/BackNavigationContext';
@@ -323,6 +329,10 @@ export function PatioBudgetRequestTouchForm({
   const [suggestionsForPartId, setSuggestionsForPartId] = useState<string | null>(null);
   const [serviceSuggestionHighlight, setServiceSuggestionHighlight] = useState(-1);
   const [partSuggestionHighlight, setPartSuggestionHighlight] = useState(-1);
+  /** Editor de horas no lugar do excluir, enquanto o serviço está em foco. */
+  const [laborEditorServiceId, setLaborEditorServiceId] = useState<string | null>(null);
+  const [laborDraftHours, setLaborDraftHours] = useState('');
+  const [laborDraftMinutes, setLaborDraftMinutes] = useState('');
   const [suggestionBoxPosition, setSuggestionBoxPosition] = useState<{
     top: number;
     left: number;
@@ -618,13 +628,55 @@ export function PatioBudgetRequestTouchForm({
       suggestionCloseTimerRef.current = null;
     }
     setSuggestionsForServiceId(id);
+    if (laborEditorServiceId && laborEditorServiceId !== id) {
+      setLaborEditorServiceId(null);
+    }
     requestAnimationFrame(updateSuggestionBoxPosition);
   };
 
   const handleServiceInputBlur = () => {
     suggestionCloseTimerRef.current = setTimeout(() => {
       setSuggestionsForServiceId(null);
+      setLaborEditorServiceId(null);
     }, 180);
+  };
+
+  const openLaborEditor = (item: PatioBudgetServiceDraft) => {
+    keepServiceSuggestionsOpen();
+    if (laborEditorServiceId === item.id) {
+      setLaborEditorServiceId(null);
+      return;
+    }
+    const parts =
+      item.laborHours != null && Number.isFinite(Number(item.laborHours))
+        ? laborHoursToParts(Number(item.laborHours))
+        : { h: 0, m: 0 };
+    setLaborDraftHours(parts.h > 0 ? String(parts.h) : '');
+    setLaborDraftMinutes(parts.m > 0 ? String(parts.m) : '');
+    setLaborEditorServiceId(item.id);
+  };
+
+  const applyLaborEditor = (serviceId: string) => {
+    keepServiceSuggestionsOpen();
+    const decimal = parseLaborDurationParts(laborDraftHours, laborDraftMinutes);
+    setBudgetServices((prev) =>
+      prev.map((item) =>
+        item.id === serviceId
+          ? { ...item, laborHours: decimal > 0 ? decimal : null }
+          : item
+      )
+    );
+    setLaborEditorServiceId(null);
+  };
+
+  const clearLaborHours = (serviceId: string) => {
+    keepServiceSuggestionsOpen();
+    setBudgetServices((prev) =>
+      prev.map((item) => (item.id === serviceId ? { ...item, laborHours: null } : item))
+    );
+    setLaborDraftHours('');
+    setLaborDraftMinutes('');
+    setLaborEditorServiceId(null);
   };
 
   const keepServiceSuggestionsOpen = () => {
@@ -666,7 +718,14 @@ export function PatioBudgetRequestTouchForm({
       )
     );
     setSuggestionsForServiceId(null);
+    setLaborEditorServiceId(null);
   };
+
+  useEffect(() => {
+    if (!suggestionsForServiceId && laborEditorServiceId) {
+      setLaborEditorServiceId(null);
+    }
+  }, [suggestionsForServiceId, laborEditorServiceId]);
 
   const applyPartSuggestion = (itemId: string, part: WorkshopPart) => {
     setBudgetParts((prev) =>
@@ -936,6 +995,9 @@ export function PatioBudgetRequestTouchForm({
                 <div className="space-y-1.5">
                   {budgetServices.map((item, serviceIndex) => {
                     const isFocused = suggestionsForServiceId === item.id;
+                    const isLaborEditing = laborEditorServiceId === item.id;
+                    const hasLabor =
+                      item.laborHours != null && Number.isFinite(Number(item.laborHours));
                     return (
                       <div
                         key={item.id}
@@ -981,20 +1043,100 @@ export function PatioBudgetRequestTouchForm({
                             autoFocus={focusServiceId === item.id}
                             dataBudgetServiceId={item.id}
                           />
-                          {item.laborHours != null && Number.isFinite(Number(item.laborHours)) ? (
+                          {isLaborEditing ? (
+                            <div
+                              className="mb-1.5 flex flex-wrap items-center gap-1.5 rounded-lg border border-[#007AFF]/25 bg-[#E8F2FF]/70 px-2 py-1.5"
+                              onMouseDown={(e) => {
+                                e.preventDefault();
+                                keepServiceSuggestionsOpen();
+                              }}
+                            >
+                              <input
+                                type="number"
+                                inputMode="numeric"
+                                min={0}
+                                max={99}
+                                placeholder="0"
+                                aria-label="Horas"
+                                value={laborDraftHours}
+                                onChange={(e) => setLaborDraftHours(e.target.value.replace(/[^\d]/g, ''))}
+                                onFocus={keepServiceSuggestionsOpen}
+                                className="h-7 w-10 rounded-md border border-slate-200 bg-white px-1.5 text-center text-[12px] font-semibold tabular-nums text-slate-800 focus:border-[#007AFF]/50 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/20"
+                              />
+                              <span className="text-[11px] font-semibold text-[#007AFF]/85">h</span>
+                              <input
+                                type="number"
+                                inputMode="numeric"
+                                min={0}
+                                max={59}
+                                placeholder="00"
+                                aria-label="Minutos"
+                                value={laborDraftMinutes}
+                                onChange={(e) =>
+                                  setLaborDraftMinutes(e.target.value.replace(/[^\d]/g, '').slice(0, 2))
+                                }
+                                onFocus={keepServiceSuggestionsOpen}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') {
+                                    e.preventDefault();
+                                    applyLaborEditor(item.id);
+                                  }
+                                }}
+                                className="h-7 w-10 rounded-md border border-slate-200 bg-white px-1.5 text-center text-[12px] font-semibold tabular-nums text-slate-800 focus:border-[#007AFF]/50 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/20"
+                              />
+                              <span className="text-[11px] font-semibold text-[#007AFF]/85">min</span>
+                              <button
+                                type="button"
+                                onClick={() => applyLaborEditor(item.id)}
+                                className="inline-flex h-7 items-center justify-center gap-1 rounded-md bg-[#007AFF] px-2 text-[11px] font-semibold text-white"
+                                aria-label="Confirmar horas"
+                              >
+                                <Check className="h-3.5 w-3.5" strokeWidth={2.5} />
+                              </button>
+                              {hasLabor ? (
+                                <button
+                                  type="button"
+                                  onClick={() => clearLaborHours(item.id)}
+                                  className="inline-flex h-7 items-center rounded-md px-1.5 text-[10px] font-semibold text-slate-500 hover:bg-white/80 hover:text-slate-700"
+                                >
+                                  Limpar
+                                </button>
+                              ) : null}
+                            </div>
+                          ) : hasLabor ? (
                             <p className="pb-1.5 text-[11px] font-medium tabular-nums text-[#007AFF]/80">
                               {formatLaborLabel(Number(item.laborHours))}
                             </p>
                           ) : null}
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => removeServiceRow(item.id)}
-                          className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-red-500 transition-colors hover:bg-red-50 active:bg-red-100/70"
-                          aria-label="Remover serviço"
-                        >
-                          <Trash2 className="h-4 w-4" strokeWidth={2} />
-                        </button>
+                        {isFocused ? (
+                          <button
+                            type="button"
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                              keepServiceSuggestionsOpen();
+                            }}
+                            onClick={() => openLaborEditor(item)}
+                            className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition-colors ${
+                              isLaborEditing || hasLabor
+                                ? 'bg-[#E8F2FF] text-[#007AFF] hover:bg-[#DCEBFF]'
+                                : 'text-[#007AFF]/80 hover:bg-[#E8F2FF] hover:text-[#007AFF]'
+                            }`}
+                            aria-label={hasLabor ? 'Editar horas do serviço' : 'Adicionar horas do serviço'}
+                            title={hasLabor ? 'Editar horas' : 'Adicionar horas'}
+                          >
+                            <Clock3 className="h-4 w-4" strokeWidth={2.2} />
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => removeServiceRow(item.id)}
+                            className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-red-500 transition-colors hover:bg-red-50 active:bg-red-100/70"
+                            aria-label="Remover serviço"
+                          >
+                            <Trash2 className="h-4 w-4" strokeWidth={2} />
+                          </button>
+                        )}
                       </div>
                     );
                   })}
