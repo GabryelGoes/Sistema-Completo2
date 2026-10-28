@@ -11696,37 +11696,33 @@ export const PatioView: React.FC<PatioViewProps> = ({
                         </>
                         ) : null}
 
-                        {showPcOsTab('historico') && !isModuleMode ? (
-                          <>
-                            {!isPatioPcModal ? (
-                              <div className="h-px bg-zinc-200/80 dark:bg-white/[0.06]" />
-                            ) : null}
-                            <PatioOsModalHistoricoTab
-                              history={vehicleMaintenanceHistory}
-                              loading={vehicleMaintenanceLoading}
-                              error={vehicleMaintenanceError}
-                              onRetry={
-                                selectedCard?.id
-                                  ? () => {
-                                      const plateFromCard = selectedCard.name
-                                        ? parsePatioCardTitle(selectedCard.name).plateOrModule
-                                        : null;
-                                      const plate =
-                                        (serviceOrderDetail?.id === selectedCard.id
-                                          ? serviceOrderDetail.plate
-                                          : null) ||
-                                        plateFromCard ||
-                                        null;
-                                      void loadVehicleMaintenanceHistory(selectedCard.id, {
-                                        force: true,
-                                        plate,
-                                      });
-                                    }
-                                  : undefined
-                              }
-                              insetCardClass={vi}
-                            />
-                          </>
+                        {/* PC: Histórico na aba. Tablet/mobile: seção colapsável no final (após Peças do estoque). */}
+                        {isPatioPcModal && showPcOsTab('historico') && !isModuleMode ? (
+                          <PatioOsModalHistoricoTab
+                            history={vehicleMaintenanceHistory}
+                            loading={vehicleMaintenanceLoading}
+                            error={vehicleMaintenanceError}
+                            onRetry={
+                              selectedCard?.id
+                                ? () => {
+                                    const plateFromCard = selectedCard.name
+                                      ? parsePatioCardTitle(selectedCard.name).plateOrModule
+                                      : null;
+                                    const plate =
+                                      (serviceOrderDetail?.id === selectedCard.id
+                                        ? serviceOrderDetail.plate
+                                        : null) ||
+                                      plateFromCard ||
+                                      null;
+                                    void loadVehicleMaintenanceHistory(selectedCard.id, {
+                                      force: true,
+                                      plate,
+                                    });
+                                  }
+                                : undefined
+                            }
+                            insetCardClass={vi}
+                          />
                         ) : null}
 
                         {!isPatioPcModal && renderLabServicesSection('mt-3')}
@@ -12053,6 +12049,38 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             showCameraButton={!isPatioPcModal}
                           />
                         </div>
+
+                        {/* Tablet/mobile: Histórico por último, abaixo de Peças do estoque, minimizado. */}
+                        {!isPatioPcModal && !isModuleMode ? (
+                          <PatioOsModalHistoricoTab
+                            history={vehicleMaintenanceHistory}
+                            loading={vehicleMaintenanceLoading}
+                            error={vehicleMaintenanceError}
+                            onRetry={
+                              selectedCard?.id
+                                ? () => {
+                                    const plateFromCard = selectedCard.name
+                                      ? parsePatioCardTitle(selectedCard.name).plateOrModule
+                                      : null;
+                                    const plate =
+                                      (serviceOrderDetail?.id === selectedCard.id
+                                        ? serviceOrderDetail.plate
+                                        : null) ||
+                                      plateFromCard ||
+                                      null;
+                                    void loadVehicleMaintenanceHistory(selectedCard.id, {
+                                      force: true,
+                                      plate,
+                                    });
+                                  }
+                                : undefined
+                            }
+                            insetCardClass={vi}
+                            collapsible
+                            defaultExpanded={false}
+                            wrapClassName="mt-3"
+                          />
+                        ) : null}
 
                         {isPatioPcModal ? (
                          <div className={`${vi} min-w-0 overflow-hidden shadow-none`}>
