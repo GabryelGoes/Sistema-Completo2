@@ -212,14 +212,15 @@ export function getPatioVehicleModalLayout(
         'relative flex h-[100dvh] max-h-[100dvh] w-full min-h-0 flex-col overflow-hidden rounded-none border-0 bg-[#F2F2F7] pb-[env(safe-area-inset-bottom)] shadow-none dark:bg-zinc-950',
       scroll:
         'patio-vm-scroll patio-vm-scroll--minimal min-h-0 flex-1 overflow-y-auto overscroll-none',
-      header: 'border-b border-zinc-200/50 px-4 pb-4 pt-4 dark:border-white/[0.06]',
-      headerInner: 'mb-4 flex flex-col gap-2.5',
+      // Conteúdo abaixo da barra chrome (barra branca fica fora do scroll).
+      header: 'px-4 pb-3 pt-3',
+      headerInner: 'mb-0 flex flex-col gap-2.5',
       headerTitlePad: '',
       headerMeta:
         'patio-vm-header-meta patio-vm-header-meta--tablet mt-2 grid w-full min-w-0 grid-cols-2 gap-2',
       title:
-        'font-vehicle min-w-0 flex-1 truncate text-[2.53rem] font-bold uppercase leading-none tracking-tight text-zinc-900 dark:text-white',
-      titlePlateRow: 'mt-1 flex min-w-0 items-center gap-2.5',
+        'font-display min-w-0 truncate text-center text-[24px] font-semibold leading-none tracking-[-0.025em] text-slate-900 sm:text-[26px] dark:text-white',
+      titlePlateRow: 'mt-0.5 flex min-w-0 items-center gap-2.5',
       stagePill: `${STAGE_PILL_BASE} rounded-[16px] px-3.5 py-2.5 text-[13px] tracking-[0.12em]`,
       brandLogoSize: 'modalTablet',
       plateMockupSize: 'modalTablet',
@@ -229,7 +230,7 @@ export function getPatioVehicleModalLayout(
       insetCard: iosVehicleModalInsetCard,
       input: iosVehicleModalInput,
       closeBtn:
-        'flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-black/5 text-zinc-600 transition-colors hover:bg-black/10 dark:bg-white/10 dark:hover:bg-white/15',
+        'inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-600 transition-colors hover:bg-slate-200 active:bg-slate-300 dark:bg-white/[0.08] dark:text-zinc-200 dark:hover:bg-white/[0.12]',
       assignHintLabel: 'Toque para atribuir',
       openHintLabel: 'Toque para abrir',
       sectionTitle: '',
@@ -246,7 +247,7 @@ export function getPatioVehicleModalLayout(
   }
 
   if (!isPc) {
-    // Celular: mesmo layout do tablet (meta 2×N, tipografia, cards), com placa menor.
+    // Celular: cabeçalho alinhado ao Solicitar Orçamento; placa um pouco menor.
     return {
       mode: 'mobile',
       overlay:
@@ -255,15 +256,14 @@ export function getPatioVehicleModalLayout(
         'relative flex h-[100dvh] max-h-[100dvh] w-full min-h-0 flex-col overflow-hidden rounded-none border-0 bg-[#F2F2F7] pb-[env(safe-area-inset-bottom)] shadow-none dark:bg-zinc-950',
       scroll:
         'patio-vm-scroll patio-vm-scroll--minimal min-h-0 flex-1 overflow-y-auto overscroll-none',
-      header:
-        'border-b border-zinc-200/50 px-4 pb-4 pt-[max(1rem,env(safe-area-inset-top))] dark:border-white/[0.06]',
-      headerInner: 'mb-4 flex flex-col gap-2.5',
+      header: 'px-4 pb-3 pt-3',
+      headerInner: 'mb-0 flex flex-col gap-2.5',
       headerTitlePad: '',
       headerMeta:
         'patio-vm-header-meta patio-vm-header-meta--tablet mt-2 grid w-full min-w-0 grid-cols-2 gap-2',
       title:
-        'font-vehicle min-w-0 flex-1 truncate text-[2.53rem] font-bold uppercase leading-none tracking-tight text-zinc-900 dark:text-white',
-      titlePlateRow: 'mt-1 flex min-w-0 items-center gap-2.5',
+        'font-display min-w-0 truncate text-center text-[23px] font-semibold leading-none tracking-[-0.025em] text-slate-900 sm:text-[24px] dark:text-white',
+      titlePlateRow: 'mt-0.5 flex min-w-0 items-center gap-2.5',
       stagePill: `${STAGE_PILL_BASE} rounded-[16px] px-3.5 py-2.5 text-[13px] tracking-[0.12em]`,
       brandLogoSize: 'modalTablet',
       plateMockupSize: 'modalMobile',
@@ -273,7 +273,7 @@ export function getPatioVehicleModalLayout(
       insetCard: iosVehicleModalInsetCard,
       input: iosVehicleModalInput,
       closeBtn:
-        'flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-black/5 text-zinc-600 transition-colors hover:bg-black/10 dark:bg-white/10 dark:hover:bg-white/15',
+        'inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-600 transition-colors hover:bg-slate-200 active:bg-slate-300 dark:bg-white/[0.08] dark:text-zinc-200 dark:hover:bg-white/[0.12]',
       assignHintLabel: 'Toque para atribuir',
       openHintLabel: 'Toque para abrir',
       sectionTitle: '',
