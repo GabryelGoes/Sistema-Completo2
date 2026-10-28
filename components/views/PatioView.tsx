@@ -253,7 +253,10 @@ import { OsCommentBubble } from '../patio/OsCommentBubble';
 import { OsCommentComposer } from '../patio/OsCommentComposer';
 import { appendOsChatPhotosMarker } from '../../utils/osCommentChatPhotos';
 import { OsQueixaEditor } from '../patio/OsQueixaEditor';
-import { PatioOsModalTouchVehicleHero } from '../patio/PatioOsModalTouchVehicleHero';
+import {
+  PatioOsModalTouchVehicleScrollDetails,
+  PatioOsModalTouchVehicleStickyHeader,
+} from '../patio/PatioOsModalTouchVehicleHero';
 import {
   PatioOriginAttachmentsPicker,
   PatioOriginAttachmentsSection,
@@ -1660,8 +1663,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
       moduleKind: parseModuleKind(serviceOrderDetail.module_kind) ?? '',
       moduleVehicleKind: parseModuleVehicleKind(serviceOrderDetail.module_vehicle_kind) ?? '',
       moduleProductOther: serviceOrderDetail.module_product_other ?? '',
+      issueDescription: stripLegacyVehicleCategoryFromComplaint(
+        serviceOrderDetail.issue_description ?? selectedCard?.desc ?? ''
+      ),
     });
-  }, [isDadosFichaExpanded, serviceOrderDetail]);
+  }, [isDadosFichaExpanded, serviceOrderDetail, selectedCard?.desc]);
 
   const [editFichaForm, setEditFichaForm] = useState<{
     name: string; cpf: string; phone: string; email: string; cep: string; address: string; addressNumber: string;
@@ -1670,6 +1676,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
     moduleKind: ModuleKind | '';
     moduleVehicleKind: ModuleVehicleKind | '';
     moduleProductOther: string;
+    issueDescription: string;
   }>({
     name: '',
     cpf: '',
@@ -1690,6 +1697,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
     moduleKind: '',
     moduleVehicleKind: '',
     moduleProductOther: '',
+    issueDescription: '',
   });
   const [editFichaPlateLookupLoading, setEditFichaPlateLookupLoading] = useState(false);
   const [editFichaPlateLookupError, setEditFichaPlateLookupError] = useState<string | null>(null);
@@ -4840,6 +4848,15 @@ export const PatioView: React.FC<PatioViewProps> = ({
       if (!isModuleMode) {
         await updateServiceOrderMileage(selectedCard.id, editFichaForm.mileageKm.trim() || null, actorOptions);
       }
+      if (!isModuleMode && can('canEditQueixa')) {
+        const nextDesc = editFichaForm.issueDescription.trim();
+        const prevDesc = stripLegacyVehicleCategoryFromComplaint(
+          serviceOrderDetail.issue_description ?? selectedCard.desc ?? ''
+        ).trim();
+        if (nextDesc !== prevDesc) {
+          await updateServiceOrderDescription(selectedCard.id, nextDesc, actorOptions);
+        }
+      }
       const updated = await getServiceOrderById(selectedCard.id);
       setServiceOrderDetail(updated);
       const newName = isModuleMode
@@ -4848,6 +4865,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
       const updatedCard = {
         ...selectedCard,
         name: newName,
+        desc: stripLegacyVehicleCategoryFromComplaint(updated.issue_description || ''),
         osNumber: updated.os_number ?? selectedCard.osNumber,
         mileageKm: updated.mileage_km ?? null,
         deliveryDate: updated.delivery_date ?? selectedCard.deliveryDate,
@@ -9365,42 +9383,17 @@ export const PatioView: React.FC<PatioViewProps> = ({
            >
               
 {isPatioTabletLikeModal && !isModuleMode ? (
-              <PatioOsModalTouchVehicleHero
+              <PatioOsModalTouchVehicleStickyHeader
                 vehicleTitle={selectedCardTitleParts?.vehicle || 'Veículo'}
                 brand={serviceOrderDetail?.vehicle_brand || selectedCard.vehicleBrand}
                 year={serviceOrderDetail?.vehicle_year ?? selectedCard.vehicleYear}
                 color={serviceOrderDetail?.vehicle_color || selectedCard.vehicleColor}
                 plate={selectedCardTitleParts?.plateOrModule || '---'}
-                customerName={selectedCardTitleParts?.customer}
-                chassis={
-                  serviceOrderDetail?.vehicle_chassis ?? selectedCard.vehicleChassis ?? null
-                }
-                mileageKm={
-                  selectedCard.mileageKm || serviceOrderDetail?.mileage_km || null
-                }
                 blurPlates={blurPlates}
                 garantiaTag={!!selectedCard.garantiaTag}
                 agendaTag={!!selectedCard.agendaTag}
-                diagnosticSigned={!!diagnosticAuthSheetContext}
-                diagnosticAvailable={
-                  !!(diagnosticAuthSheetContext || canCollectDiagAuth)
-                }
-                technicianName={
-                  selectedCard.members?.[0]?.fullName
-                    ? capitalizeFirst(selectedCard.members[0].fullName)
-                    : null
-                }
-                canAssignTechnician={can('canAssignTechnician')}
                 onClose={closeVehicleOrBudgetPeek}
                 onOpenFicha={handleJumpToCustomerNameEdit}
-                onOpenDiagnostic={() => {
-                  if (diagnosticAuthSheetContext) {
-                    setDiagnosticAuthSheetOpen(true);
-                  } else {
-                    setDiagnosticAuthSignOpen(true);
-                  }
-                }}
-                onOpenTechnician={() => setCardForMemberAssignment(selectedCard)}
                 toolsMenuOpen={isLabOsToolsOpen}
                 onToggleToolsMenu={() => setIsLabOsToolsOpen((o) => !o)}
                 toolsMenuRef={labOsToolsMenuRef}
@@ -9410,6 +9403,20 @@ export const PatioView: React.FC<PatioViewProps> = ({
                       role="menu"
                       className="absolute right-0 top-full z-30 mt-1.5 w-[min(17.5rem,calc(100vw-1.5rem))] overflow-hidden rounded-2xl border border-zinc-200/90 bg-white py-1.5 text-zinc-900 shadow-[0_12px_40px_-8px_rgba(0,0,0,0.25)] dark:border-white/[0.12] dark:bg-zinc-900 dark:text-zinc-100 dark:shadow-[0_16px_48px_-12px_rgba(0,0,0,0.55)]"
                     >
+                      {!loadingDetails ? (
+                        <button
+                          type="button"
+                          role="menuitem"
+                          className="flex w-full items-center gap-3 px-3 py-2.5 text-left text-[14px] font-semibold transition-colors hover:bg-zinc-100/90 dark:hover:bg-white/[0.08]"
+                          onClick={() => {
+                            setIsLabOsToolsOpen(false);
+                            handleOpenPatioKeyLabel();
+                          }}
+                        >
+                          <Tag className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" strokeWidth={2.25} aria-hidden />
+                          Imprimir etiqueta
+                        </button>
+                      ) : null}
                       {can('canEditFicha') ? (
                         selectedCard.garantiaTag ? (
                           <button
@@ -9688,8 +9695,137 @@ export const PatioView: React.FC<PatioViewProps> = ({
               )}
 
               <div className={patioVehicleVm.scroll}>
-                  <div className={patioVehicleVm.header}>
-                     <div className={patioVehicleVm.headerInner}>
+                  {isPatioTabletLikeModal && !isModuleMode ? (
+                    <>
+                      <PatioOsModalTouchVehicleScrollDetails
+                        customerName={selectedCardTitleParts?.customer}
+                        chassis={
+                          serviceOrderDetail?.vehicle_chassis ??
+                          selectedCard.vehicleChassis ??
+                          null
+                        }
+                        mileageKm={
+                          selectedCard.mileageKm || serviceOrderDetail?.mileage_km || null
+                        }
+                        diagnosticSigned={!!diagnosticAuthSheetContext}
+                        diagnosticAvailable={
+                          !!(diagnosticAuthSheetContext || canCollectDiagAuth)
+                        }
+                        technicianName={
+                          selectedCard.members?.[0]?.fullName
+                            ? capitalizeFirst(selectedCard.members[0].fullName)
+                            : null
+                        }
+                        canAssignTechnician={can('canAssignTechnician')}
+                        complaintText={selectedCard.desc}
+                        onOpenFicha={handleJumpToCustomerNameEdit}
+                        onOpenDiagnostic={() => {
+                          if (diagnosticAuthSheetContext) {
+                            setDiagnosticAuthSheetOpen(true);
+                          } else {
+                            setDiagnosticAuthSignOpen(true);
+                          }
+                        }}
+                        onOpenTechnician={() => setCardForMemberAssignment(selectedCard)}
+                      />
+                      <div className="sticky top-0 z-20 border-b border-slate-200/60 bg-[#F2F2F7]/95 px-3.5 py-2.5 backdrop-blur-md dark:border-white/[0.08] dark:bg-zinc-950/95 sm:px-5">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleOpenMoveModal(selectedCard, e);
+                          }}
+                          title="Alterar etapa"
+                          aria-label={`Alterar etapa: ${modalListName}`}
+                          className={`flex w-full items-center justify-between gap-2 rounded-2xl border-2 px-3.5 py-3 text-left shadow-sm transition-[filter,transform] hover:brightness-110 active:scale-[0.99] ${
+                            isExternalRepairStatus(modalStageStatus)
+                              ? '!text-white'
+                              : '!text-black dark:!text-black'
+                          } ${modalStatusConfig.style}`}
+                        >
+                          <span className="min-w-0 flex-1">
+                            <span
+                              className={`block text-[10px] font-semibold uppercase tracking-[0.12em] opacity-80 ${
+                                isExternalRepairStatus(modalStageStatus)
+                                  ? 'text-white'
+                                  : 'text-black'
+                              }`}
+                            >
+                              Etapa atual
+                            </span>
+                            <span className="mt-0.5 block truncate text-[15px] font-bold leading-tight tracking-tight sm:text-[16px]">
+                              {modalListName}
+                            </span>
+                          </span>
+                          {modalShowDeliver ? (
+                            <span
+                              role="button"
+                              tabIndex={0}
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                if (archivingId === selectedCard.id) return;
+                                const notApproved = modalListNameLower.includes('não aprovado');
+                                const msg = notApproved
+                                  ? 'Confirmar entrega deste veículo não aprovado? Ele será arquivado e irá para o histórico.'
+                                  : 'Confirmar entrega deste veículo? Ele será arquivado e irá para o histórico.';
+                                if (window.confirm(msg)) {
+                                  void handleDeliverVehicle(selectedCard.id);
+                                }
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key !== 'Enter' && e.key !== ' ') return;
+                                e.preventDefault();
+                                e.stopPropagation();
+                                if (archivingId === selectedCard.id) return;
+                                const notApproved = modalListNameLower.includes('não aprovado');
+                                const msg = notApproved
+                                  ? 'Confirmar entrega deste veículo não aprovado? Ele será arquivado e irá para o histórico.'
+                                  : 'Confirmar entrega deste veículo? Ele será arquivado e irá para o histórico.';
+                                if (window.confirm(msg)) {
+                                  void handleDeliverVehicle(selectedCard.id);
+                                }
+                              }}
+                              className="inline-flex shrink-0 items-center gap-1 rounded-full border border-emerald-600/50 bg-white/90 px-2.5 py-1 text-[10px] font-semibold text-emerald-700 shadow-sm"
+                              aria-label="Entregue — arquivar OS"
+                            >
+                              {archivingId === selectedCard.id ? (
+                                <RefreshCw className="h-3 w-3 animate-spin" aria-hidden />
+                              ) : (
+                                <CheckCircle2 className="h-3 w-3" aria-hidden />
+                              )}
+                              Entregue
+                            </span>
+                          ) : null}
+                          <span
+                            className={`inline-flex shrink-0 items-center gap-0.5 rounded-full px-2.5 py-1.5 text-[11px] font-bold ${
+                              isExternalRepairStatus(modalStageStatus)
+                                ? 'bg-white/15 text-white'
+                                : 'bg-black/10 text-black'
+                            }`}
+                          >
+                            Alterar etapa
+                            <ChevronRight className="h-3.5 w-3.5" strokeWidth={2.5} aria-hidden />
+                          </span>
+                        </button>
+                      </div>
+                    </>
+                  ) : null}
+                  <div
+                    className={
+                      isPatioTabletLikeModal && !isModuleMode
+                        ? ''
+                        : patioVehicleVm.header
+                    }
+                  >
+                     <div
+                       className={
+                         isPatioTabletLikeModal && !isModuleMode
+                           ? ''
+                           : patioVehicleVm.headerInner
+                       }
+                     >
                         <div className={isPatioPcModal ? patioVehicleVm.headerTitlePad : undefined}>
                         {(() => {
                           const showPcAgenda =
@@ -10619,6 +10755,23 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                         <label className={iosLabel}>Chassi</label>
                                         <input value={editFichaForm.vehicleChassis} onChange={(e) => setEditFichaForm(f => ({ ...f, vehicleChassis: e.target.value }))} className={vin} placeholder="Chassi" />
                                       </div>
+                                      {can('canEditQueixa') ? (
+                                        <div>
+                                          <label className={iosLabel}>Queixa do cliente</label>
+                                          <textarea
+                                            rows={4}
+                                            value={editFichaForm.issueDescription}
+                                            onChange={(e) =>
+                                              setEditFichaForm((f) => ({
+                                                ...f,
+                                                issueDescription: e.target.value,
+                                              }))
+                                            }
+                                            className={`${vin} min-h-[6rem] resize-y`}
+                                            placeholder="Descreva a queixa do cliente…"
+                                          />
+                                        </div>
+                                      ) : null}
                                     </>
                                   )}
                                 </div>
@@ -10826,6 +10979,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                     moduleKind: parseModuleKind(serviceOrderDetail.module_kind) ?? '',
                                     moduleVehicleKind: parseModuleVehicleKind(serviceOrderDetail.module_vehicle_kind) ?? '',
                                     moduleProductOther: serviceOrderDetail.module_product_other ?? '',
+                                    issueDescription: stripLegacyVehicleCategoryFromComplaint(
+                                      serviceOrderDetail.issue_description ?? selectedCard.desc ?? ''
+                                    ),
                                   });
                                   setIsDadosFichaExpanded(false);
                                 }}
@@ -10883,96 +11039,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
                       <div className={patioVehicleVm.mainCol}>
                         {showPcOsTab('dados') ? (
                         <>
-                        {isPatioTabletLikeModal && !isModuleMode ? (
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              handleOpenMoveModal(selectedCard, e);
-                            }}
-                            title="Alterar etapa"
-                            aria-label={`Alterar etapa: ${modalListName}`}
-                            className={`flex w-full items-center justify-between gap-2 rounded-2xl border-2 px-3.5 py-3 text-left shadow-sm transition-[filter,transform] hover:brightness-110 active:scale-[0.99] ${
-                              isExternalRepairStatus(modalStageStatus)
-                                ? '!text-white'
-                                : '!text-black dark:!text-black'
-                            } ${modalStatusConfig.style}`}
-                          >
-                            <span className="min-w-0 flex-1">
-                              <span
-                                className={`block text-[10px] font-semibold uppercase tracking-[0.12em] opacity-80 ${
-                                  isExternalRepairStatus(modalStageStatus)
-                                    ? 'text-white'
-                                    : 'text-black'
-                                }`}
-                              >
-                                Etapa atual
-                              </span>
-                              <span className="mt-0.5 block truncate text-[15px] font-bold leading-tight tracking-tight sm:text-[16px]">
-                                {modalListName}
-                              </span>
-                            </span>
-                            {modalShowDeliver ? (
-                              <span
-                                role="button"
-                                tabIndex={0}
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  if (archivingId === selectedCard.id) return;
-                                  const notApproved = modalListNameLower.includes('não aprovado');
-                                  const msg = notApproved
-                                    ? 'Confirmar entrega deste veículo não aprovado? Ele será arquivado e irá para o histórico.'
-                                    : 'Confirmar entrega deste veículo? Ele será arquivado e irá para o histórico.';
-                                  if (window.confirm(msg)) {
-                                    void handleDeliverVehicle(selectedCard.id);
-                                  }
-                                }}
-                                onKeyDown={(e) => {
-                                  if (e.key !== 'Enter' && e.key !== ' ') return;
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  if (archivingId === selectedCard.id) return;
-                                  const notApproved = modalListNameLower.includes('não aprovado');
-                                  const msg = notApproved
-                                    ? 'Confirmar entrega deste veículo não aprovado? Ele será arquivado e irá para o histórico.'
-                                    : 'Confirmar entrega deste veículo? Ele será arquivado e irá para o histórico.';
-                                  if (window.confirm(msg)) {
-                                    void handleDeliverVehicle(selectedCard.id);
-                                  }
-                                }}
-                                className="inline-flex shrink-0 items-center gap-1 rounded-full border border-emerald-600/50 bg-white/90 px-2.5 py-1 text-[10px] font-semibold text-emerald-700 shadow-sm"
-                                aria-label="Entregue — arquivar OS"
-                              >
-                                {archivingId === selectedCard.id ? (
-                                  <RefreshCw className="h-3 w-3 animate-spin" aria-hidden />
-                                ) : (
-                                  <CheckCircle2 className="h-3 w-3" aria-hidden />
-                                )}
-                                Entregue
-                              </span>
-                            ) : null}
-                            <span
-                              className={`inline-flex shrink-0 items-center gap-0.5 rounded-full px-2.5 py-1.5 text-[11px] font-bold ${
-                                isExternalRepairStatus(modalStageStatus)
-                                  ? 'bg-white/15 text-white'
-                                  : 'bg-black/10 text-black'
-                              }`}
-                            >
-                              Alterar etapa
-                              <ChevronRight className="h-3.5 w-3.5" strokeWidth={2.5} aria-hidden />
-                            </span>
-                          </button>
-                        ) : null}
+                        {/* Queixa: no tablet veículo fica no cabeçalho rolável; edição só na ficha. */}
+                        {!(isPatioTabletLikeModal && !isModuleMode) ? (
                         <div ref={descriptionSectionRef}>
-                          <div
-                            className={`${vi} min-w-0 overflow-hidden shadow-none${
-                              isPatioTabletLikeModal && !isModuleMode
-                                ? ' patio-os-touch-section'
-                                : ''
-                            }`}
-                          >
+                          <div className={`${vi} min-w-0 overflow-hidden shadow-none`}>
                             <div className="relative min-w-0">
                             <div
                               className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.07),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.08),transparent_50%)] dark:bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.11),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.1),transparent_52%)]"
@@ -11026,13 +11096,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                               />
                             ) : (
                               <div className="border-t border-zinc-200/60 bg-zinc-50/90 px-3 py-3 pl-3 dark:border-white/[0.06] dark:bg-white/[0.02] sm:px-4 sm:py-4 sm:pl-4">
-                                <div
-                                  className={`${uiReadBody}${
-                                    isPatioTabletLikeModal && !isModuleMode
-                                      ? ' uppercase tracking-wide'
-                                      : ''
-                                  }`}
-                                >
+                                <div className={uiReadBody}>
                                   <ReactMarkdown remarkPlugins={[remarkBreaks]} components={markdownComponentsApp}>
                                     {selectedCard.desc || 'Nenhuma descrição disponível para este veículo.'}
                                   </ReactMarkdown>
@@ -11042,6 +11106,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
                           </div>
                         </div>
                         </div>
+                        ) : (
+                          <div ref={descriptionSectionRef} className="sr-only" aria-hidden />
+                        )}
 
                         {isModuleMode && serviceOrderDetail ? (
                           <LabEvaluationSection
