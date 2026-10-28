@@ -23,6 +23,7 @@ import { MercosulPlateMockup } from '../ui/MercosulPlateMockup';
 import { BudgetPartStockBadge } from '../ui/BudgetPartStockBadge';
 import { BudgetPartSuggestionDropdown } from './BudgetPartSuggestionDropdown';
 import { BudgetServiceSuggestionDropdown } from './BudgetServiceSuggestionDropdown';
+import { handleBudgetSuggestionKeyDown } from './budgetSuggestionKeyboard';
 import { WorkshopPartQuickViewModal } from './WorkshopPartQuickViewModal';
 import type {
   PatioBudgetEditDraft,
@@ -106,6 +107,7 @@ function TouchServiceTextarea({
   onFocus,
   onBlur,
   onEnterAdd,
+  onKeyDown,
   autoFocus,
   dataBudgetServiceId,
 }: {
@@ -114,6 +116,8 @@ function TouchServiceTextarea({
   onFocus: () => void;
   onBlur: () => void;
   onEnterAdd?: () => void;
+  /** Se retornar true, o Enter para adicionar linha não roda. */
+  onKeyDown?: (e: React.KeyboardEvent<HTMLTextAreaElement>) => boolean;
   autoFocus?: boolean;
   dataBudgetServiceId?: string;
 }) {
@@ -150,6 +154,7 @@ function TouchServiceTextarea({
       onFocus={onFocus}
       onBlur={onBlur}
       onKeyDown={(e) => {
+        if (onKeyDown?.(e)) return;
         if (e.key !== 'Enter' || e.shiftKey || e.nativeEvent.isComposing) return;
         if (!onEnterAdd) return;
         e.preventDefault();
@@ -316,6 +321,8 @@ export function PatioBudgetRequestTouchForm({
 
   const [suggestionsForServiceId, setSuggestionsForServiceId] = useState<string | null>(null);
   const [suggestionsForPartId, setSuggestionsForPartId] = useState<string | null>(null);
+  const [serviceSuggestionHighlight, setServiceSuggestionHighlight] = useState(-1);
+  const [partSuggestionHighlight, setPartSuggestionHighlight] = useState(-1);
   const [suggestionBoxPosition, setSuggestionBoxPosition] = useState<{
     top: number;
     left: number;
@@ -548,6 +555,40 @@ export function PatioBudgetRequestTouchForm({
     if (!q) return [];
     return workshopParts.filter((p) => normalizeText(p.name).includes(q)).slice(0, 8);
   };
+
+  const activeServiceSuggestions = useMemo(
+    () =>
+      suggestionsForServiceId
+        ? getServiceSuggestions(
+            budgetServices.find((i) => i.id === suggestionsForServiceId)?.description ?? ''
+          )
+        : [],
+    // getServiceSuggestions depende de workshopServices + descrição ativa
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [suggestionsForServiceId, budgetServices, workshopServices]
+  );
+
+  const activePartSuggestions = useMemo(
+    () =>
+      suggestionsForPartId
+        ? getPartSuggestions(
+            budgetParts.find((i) => i.id === suggestionsForPartId)?.description ?? ''
+          )
+        : [],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [suggestionsForPartId, budgetParts, workshopParts]
+  );
+
+  const activeServiceSuggestionIds = activeServiceSuggestions.map((s) => s.id).join('|');
+  const activePartSuggestionIds = activePartSuggestions.map((p) => p.id).join('|');
+
+  useEffect(() => {
+    setServiceSuggestionHighlight(-1);
+  }, [suggestionsForServiceId, activeServiceSuggestionIds]);
+
+  useEffect(() => {
+    setPartSuggestionHighlight(-1);
+  }, [suggestionsForPartId, activePartSuggestionIds]);
 
   const updateSuggestionBoxPosition = useCallback(() => {
     const el = focusedServiceInputRef.current;
@@ -922,6 +963,21 @@ export function PatioBudgetRequestTouchForm({
                             onFocus={() => handleServiceInputFocus(item.id)}
                             onBlur={handleServiceInputBlur}
                             onEnterAdd={addServiceRow}
+                            onKeyDown={(e) =>
+                              handleBudgetSuggestionKeyDown({
+                                e,
+                                open:
+                                  suggestionsForServiceId === item.id &&
+                                  activeServiceSuggestions.length > 0,
+                                itemCount: activeServiceSuggestions.length,
+                                highlightedIndex: serviceSuggestionHighlight,
+                                setHighlightedIndex: setServiceSuggestionHighlight,
+                                onSelectHighlighted: (index) => {
+                                  const svc = activeServiceSuggestions[index];
+                                  if (svc) applySuggestion(item.id, svc);
+                                },
+                              })
+                            }
                             autoFocus={focusServiceId === item.id}
                             dataBudgetServiceId={item.id}
                           />
@@ -988,6 +1044,23 @@ export function PatioBudgetRequestTouchForm({
                             onFocus={() => handlePartInputFocus(item.id)}
                             onBlur={() => handlePartInputBlur(item.id)}
                             onKeyDown={(e) => {
+                              if (
+                                handleBudgetSuggestionKeyDown({
+                                  e,
+                                  open:
+                                    suggestionsForPartId === item.id &&
+                                    activePartSuggestions.length > 0,
+                                  itemCount: activePartSuggestions.length,
+                                  highlightedIndex: partSuggestionHighlight,
+                                  setHighlightedIndex: setPartSuggestionHighlight,
+                                  onSelectHighlighted: (index) => {
+                                    const part = activePartSuggestions[index];
+                                    if (part) applyPartSuggestion(item.id, part);
+                                  },
+                                })
+                              ) {
+                                return;
+                              }
                               if (e.key !== 'Enter' || e.shiftKey || e.nativeEvent.isComposing) return;
                               e.preventDefault();
                               addPartRow();
@@ -1049,16 +1122,12 @@ export function PatioBudgetRequestTouchForm({
         <BudgetServiceSuggestionDropdown
           open={!!suggestionsForServiceId}
           position={suggestionBoxPosition}
-          suggestions={
-            suggestionsForServiceId
-              ? getServiceSuggestions(
-                  budgetServices.find((i) => i.id === suggestionsForServiceId)?.description ?? ''
-                )
-              : []
-          }
+          suggestions={activeServiceSuggestions}
           onClose={() => setSuggestionsForServiceId(null)}
           onKeepOpen={keepServiceSuggestionsOpen}
           compactTouch
+          highlightedIndex={serviceSuggestionHighlight}
+          onHighlightedIndexChange={setServiceSuggestionHighlight}
           onSelect={(svc) => {
             if (suggestionsForServiceId) applySuggestion(suggestionsForServiceId, svc);
           }}
@@ -1067,16 +1136,12 @@ export function PatioBudgetRequestTouchForm({
         <BudgetPartSuggestionDropdown
           open={!!suggestionsForPartId}
           position={partSuggestionBoxPosition}
-          suggestions={
-            suggestionsForPartId
-              ? getPartSuggestions(
-                  budgetParts.find((i) => i.id === suggestionsForPartId)?.description ?? ''
-                )
-              : []
-          }
+          suggestions={activePartSuggestions}
           onClose={() => setSuggestionsForPartId(null)}
           onKeepOpen={keepPartSuggestionsOpen}
           compactTouch
+          highlightedIndex={partSuggestionHighlight}
+          onHighlightedIndexChange={setPartSuggestionHighlight}
           onOpenPartDetails={(part) => {
             keepPartSuggestionsOpen();
             setBudgetPartQuickView(part);
