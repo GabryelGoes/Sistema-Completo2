@@ -3,13 +3,12 @@ import {
   CheckCircle2,
   Clock3,
   Cog,
-  History,
   Loader2,
   Package,
   Wrench,
 } from 'lucide-react';
 import type { VehicleMaintenanceHistory } from '../../services/apiService';
-import { uiOsModalCardSectionTitle, uiOsModalSectionIconWrap } from '../ui/appTypography';
+import { uiOsModalCardSectionTitle, uiOsModalSectionAppIcon } from '../ui/appTypography';
 
 export type PatioOsModalHistoricoTabProps = {
   history: VehicleMaintenanceHistory | null;
@@ -67,8 +66,12 @@ export const PatioOsModalHistoricoTab: React.FC<PatioOsModalHistoricoTabProps> =
 
         <div className="relative flex items-center gap-2 border-b border-black/[0.06] bg-white/85 px-2.5 py-2 pl-3 backdrop-blur-[2px] dark:border-white/[0.08] dark:bg-zinc-950/35 sm:gap-3 sm:px-3 sm:py-2.5 sm:pl-4">
           <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-2.5">
-            <div className={uiOsModalSectionIconWrap}>
-              <History className="h-4 w-4 text-[#007AFF] dark:text-[#7ab8ff]" strokeWidth={2.25} aria-hidden />
+            <div className={uiOsModalSectionAppIcon}>
+              <img
+                src="/icons/historico-manutencoes-ios.png"
+                alt=""
+                className="h-full w-full object-cover"
+              />
             </div>
             <div className="min-w-0">
               <p className={uiOsModalCardSectionTitle}>Histórico de Manutenções</p>
