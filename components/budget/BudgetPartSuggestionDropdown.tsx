@@ -79,8 +79,8 @@ export const BudgetPartSuggestionDropdown: React.FC<BudgetPartSuggestionDropdown
                   <span className="block truncate text-[14px] font-medium leading-snug text-slate-800">
                     {part.name}
                   </span>
-                  <span className="mt-0.5 inline-flex items-center gap-1 text-[11px] font-semibold text-amber-800/85">
-                    <Package className="h-3 w-3 opacity-80" strokeWidth={2.2} aria-hidden />
+                  <span className="mt-0.5 inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 dark:text-emerald-300">
+                    <Package className="h-3 w-3 text-emerald-600 dark:text-emerald-300" strokeWidth={2.2} aria-hidden />
                     Estoque{part.stock_qty != null ? ` · ${formatWorkshopPartQty(part.stock_qty)}` : ''}
                   </span>
                 </span>

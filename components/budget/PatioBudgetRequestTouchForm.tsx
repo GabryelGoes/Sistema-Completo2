@@ -1109,7 +1109,7 @@ export function PatioBudgetRequestTouchForm({
               aria-modal="true"
               aria-labelledby="budget-leave-title"
               aria-describedby="budget-leave-desc"
-              className="w-full max-w-[22rem] overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-[0_24px_64px_-16px_rgba(15,23,42,0.45)] animate-modal-sheet-in"
+              className="w-full max-w-[22rem] overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-[0_24px_64px_-16px_rgba(15,23,42,0.45)] animate-modal-sheet"
               onClick={(e) => e.stopPropagation()}
             >
               <div className="px-5 pb-2 pt-5">
