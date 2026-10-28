@@ -12,8 +12,8 @@ export function moveSuggestionHighlight(
 }
 
 /**
- * Trata setas e Enter no campo enquanto a lista de sugestões está aberta.
- * Retorna `true` se o evento foi consumido (não deve adicionar linha / etc.).
+ * Trata setas, Enter e Escape no campo enquanto a lista de sugestões está aberta.
+ * Retorna `true` se o evento foi consumido (não deve adicionar linha / fechar o modal / etc.).
  */
 export function handleBudgetSuggestionKeyDown(opts: {
   e: KeyboardEvent;
@@ -22,9 +22,29 @@ export function handleBudgetSuggestionKeyDown(opts: {
   highlightedIndex: number;
   setHighlightedIndex: (updater: number | ((prev: number) => number)) => void;
   onSelectHighlighted: (index: number) => void;
+  /** Fecha só a lista (Esc). */
+  onCloseSuggestions?: () => void;
 }): boolean {
-  const { e, open, itemCount, highlightedIndex, setHighlightedIndex, onSelectHighlighted } = opts;
-  if (!open || itemCount <= 0 || e.nativeEvent.isComposing) return false;
+  const {
+    e,
+    open,
+    itemCount,
+    highlightedIndex,
+    setHighlightedIndex,
+    onSelectHighlighted,
+    onCloseSuggestions,
+  } = opts;
+  if (!open || e.nativeEvent.isComposing) return false;
+
+  if (e.key === 'Escape') {
+    e.preventDefault();
+    e.stopPropagation();
+    onCloseSuggestions?.();
+    setHighlightedIndex(-1);
+    return true;
+  }
+
+  if (itemCount <= 0) return false;
 
   if (e.key === 'ArrowDown') {
     e.preventDefault();

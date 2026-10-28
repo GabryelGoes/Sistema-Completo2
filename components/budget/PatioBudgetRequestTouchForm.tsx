@@ -438,17 +438,41 @@ export function PatioBudgetRequestTouchForm({
     onClose();
   }, [onClose]);
 
+  const saveAndLeaveLockRef = useRef(false);
   const confirmSaveAndLeave = useCallback(() => {
+    if (sending || saveAndLeaveLockRef.current) return;
+    saveAndLeaveLockRef.current = true;
     setLeaveConfirmOpen(false);
-    void onSave({
-      diagnosis: budgetDiagnosis,
-      services: budgetServices,
-      parts: budgetParts,
-      observations: budgetObservations,
+    void Promise.resolve(
+      onSave({
+        diagnosis: budgetDiagnosis,
+        services: budgetServices,
+        parts: budgetParts,
+        observations: budgetObservations,
+      })
+    ).finally(() => {
+      saveAndLeaveLockRef.current = false;
     });
-  }, [onSave, budgetDiagnosis, budgetServices, budgetParts, budgetObservations]);
+  }, [sending, onSave, budgetDiagnosis, budgetServices, budgetParts, budgetObservations]);
 
   useBrowserBackLayer(leaveConfirmOpen, dismissLeaveConfirm);
+
+  /**
+   * Enter no diálogo de saída = Salvar e fechar.
+   * Captura em window para valer mesmo se o foco ainda estiver no campo do orçamento.
+   */
+  useEffect(() => {
+    if (!leaveConfirmOpen || sending) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Enter' || e.repeat) return;
+      if (e.isComposing) return;
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      confirmSaveAndLeave();
+    };
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
+  }, [leaveConfirmOpen, sending, confirmSaveAndLeave]);
 
   useLayoutEffect(() => {
     const id = pendingFocusServiceIdRef.current;
@@ -591,6 +615,9 @@ export function PatioBudgetRequestTouchForm({
 
   const activeServiceSuggestionIds = activeServiceSuggestions.map((s) => s.id).join('|');
   const activePartSuggestionIds = activePartSuggestions.map((p) => p.id).join('|');
+  const serviceSuggestionsOpen =
+    !!suggestionsForServiceId && activeServiceSuggestions.length > 0;
+  const partSuggestionsOpen = !!suggestionsForPartId && activePartSuggestions.length > 0;
 
   useEffect(() => {
     setServiceSuggestionHighlight(-1);
@@ -599,6 +626,16 @@ export function PatioBudgetRequestTouchForm({
   useEffect(() => {
     setPartSuggestionHighlight(-1);
   }, [suggestionsForPartId, activePartSuggestionIds]);
+
+  /** Esc com sugestões abertas: fecha só a lista (camada acima do modal do orçamento). */
+  useBrowserBackLayer(serviceSuggestionsOpen && !leaveConfirmOpen, () => {
+    setSuggestionsForServiceId(null);
+    setServiceSuggestionHighlight(-1);
+  });
+  useBrowserBackLayer(partSuggestionsOpen && !leaveConfirmOpen, () => {
+    setSuggestionsForPartId(null);
+    setPartSuggestionHighlight(-1);
+  });
 
   const updateSuggestionBoxPosition = useCallback(() => {
     const el = focusedServiceInputRef.current;
@@ -1028,15 +1065,17 @@ export function PatioBudgetRequestTouchForm({
                             onKeyDown={(e) =>
                               handleBudgetSuggestionKeyDown({
                                 e,
-                                open:
-                                  suggestionsForServiceId === item.id &&
-                                  activeServiceSuggestions.length > 0,
+                                open: suggestionsForServiceId === item.id,
                                 itemCount: activeServiceSuggestions.length,
                                 highlightedIndex: serviceSuggestionHighlight,
                                 setHighlightedIndex: setServiceSuggestionHighlight,
                                 onSelectHighlighted: (index) => {
                                   const svc = activeServiceSuggestions[index];
                                   if (svc) applySuggestion(item.id, svc);
+                                },
+                                onCloseSuggestions: () => {
+                                  setSuggestionsForServiceId(null);
+                                  setServiceSuggestionHighlight(-1);
                                 },
                               })
                             }
@@ -1189,15 +1228,17 @@ export function PatioBudgetRequestTouchForm({
                               if (
                                 handleBudgetSuggestionKeyDown({
                                   e,
-                                  open:
-                                    suggestionsForPartId === item.id &&
-                                    activePartSuggestions.length > 0,
+                                  open: suggestionsForPartId === item.id,
                                   itemCount: activePartSuggestions.length,
                                   highlightedIndex: partSuggestionHighlight,
                                   setHighlightedIndex: setPartSuggestionHighlight,
                                   onSelectHighlighted: (index) => {
                                     const part = activePartSuggestions[index];
                                     if (part) applyPartSuggestion(item.id, part);
+                                  },
+                                  onCloseSuggestions: () => {
+                                    setSuggestionsForPartId(null);
+                                    setPartSuggestionHighlight(-1);
                                   },
                                 })
                               ) {
