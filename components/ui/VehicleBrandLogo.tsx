@@ -5,7 +5,13 @@ import {
   getVehicleBrandLogoUrl,
 } from '../../utils/vehicleBrandLogo';
 
-export type VehicleBrandLogoSize = 'card' | 'cardPc' | 'modal' | 'modalTablet' | 'modalPc';
+export type VehicleBrandLogoSize =
+  | 'card'
+  | 'cardPc'
+  | 'modal'
+  | 'modalTablet'
+  | 'modalPc'
+  | 'modalHero';
 
 /** Caixa base 5:4 em pixels (antes da escala por marca). */
 const BASE_PX: Record<VehicleBrandLogoSize, { h: number; w: number }> = {
@@ -15,6 +21,8 @@ const BASE_PX: Record<VehicleBrandLogoSize, { h: number; w: number }> = {
   modalTablet: { h: 27, w: 33 },
   /** PC — menor que o tamanho anterior (zoom out no cabeçalho do modal). */
   modalPc: { h: 42, w: 52 },
+  /** Hero touch da OS — logo grande no círculo branco. */
+  modalHero: { h: 44, w: 55 },
 };
 
 interface VehicleBrandLogoProps {
