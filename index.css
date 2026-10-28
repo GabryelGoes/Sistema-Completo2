@@ -734,16 +734,38 @@ html[data-home-hub-open-guard='1'] [data-modal-portal] * {
 }
 
 /**
- * Mini-tela do Ver OS (solicitação de orçamento touch):
+ * Mini-tela do Ver OS (solicitação de orçamento):
  * zoom out leve e overlays `fixed` ficam contidos no shell.
  */
 .budget-os-peek-shell {
   transform: translateZ(0);
   zoom: 0.92;
+  color-scheme: light;
+  background-color: #f2f2f7 !important;
+  border-color: rgb(228 228 231 / 0.9) !important;
 }
 .budget-os-peek-shell .fixed {
   position: absolute !important;
 }
 .budget-os-peek-shell [data-modal-portal-nested='true'] > .fixed {
   position: absolute !important;
+}
+
+/** Rolagem da página Solicitar Orçamento — fina e clara. */
+.budget-request-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(0 0 0 / 0.14) transparent;
+}
+.budget-request-scroll::-webkit-scrollbar {
+  width: 5px;
+}
+.budget-request-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.budget-request-scroll::-webkit-scrollbar-thumb {
+  background: rgb(0 0 0 / 0.12);
+  border-radius: 9999px;
+}
+.budget-request-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgb(0 0 0 / 0.2);
 }

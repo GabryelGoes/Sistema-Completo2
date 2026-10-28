@@ -144,34 +144,41 @@ function SectionCard({
   children,
   /** `app` = ícone iOS completo (sem fundo azul claro atrás). */
   iconTone = 'tint',
+  /** Sem cabeçalho de ícone/título — só o corpo (ex.: Veículo e Cliente). */
+  hideHeader = false,
 }: {
-  icon: React.ReactNode;
-  title: string;
+  icon?: React.ReactNode;
+  title?: string;
   titleExtra?: React.ReactNode;
   action?: React.ReactNode;
   children: React.ReactNode;
   iconTone?: 'tint' | 'app';
+  hideHeader?: boolean;
 }) {
   return (
     <section className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
-      <div className="flex items-center justify-between gap-2 border-b border-slate-100 px-4 py-3">
-        <div className="flex min-w-0 items-center gap-2.5">
-          <span
-            className={
-              iconTone === 'app'
-                ? 'flex h-8 w-8 shrink-0 overflow-hidden rounded-[0.55rem] shadow-sm shadow-black/10'
-                : 'flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[#007AFF]/10 text-[#007AFF]'
-            }
-          >
-            {icon}
-          </span>
-          <h3 className="truncate text-[15px] font-semibold tracking-tight text-slate-900">
-            {title}
-            {titleExtra}
-          </h3>
+      {!hideHeader && title ? (
+        <div className="flex items-center justify-between gap-2 border-b border-slate-100 px-4 py-3">
+          <div className="flex min-w-0 items-center gap-2.5">
+            {icon ? (
+              <span
+                className={
+                  iconTone === 'app'
+                    ? 'flex h-8 w-8 shrink-0 overflow-hidden rounded-[0.55rem] shadow-sm shadow-black/10'
+                    : 'flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-[#007AFF]/10 text-[#007AFF]'
+                }
+              >
+                {icon}
+              </span>
+            ) : null}
+            <h3 className="truncate text-[15px] font-semibold tracking-tight text-slate-900">
+              {title}
+              {titleExtra}
+            </h3>
+          </div>
+          {action}
         </div>
-        {action}
-      </div>
+      ) : null}
       <div className="px-4 py-3.5">{children}</div>
     </section>
   );
@@ -633,8 +640,10 @@ export function PatioBudgetRequestTouchForm({
 
               <div className="min-w-0 px-1 text-center">
                 <h1
-                  className={`truncate font-semibold leading-tight tracking-tight text-slate-900 ${
-                    isPc ? 'text-[20px] sm:text-[22px]' : 'text-[17px] sm:text-[18px]'
+                  className={`truncate font-display font-semibold leading-none tracking-[-0.02em] text-slate-900 ${
+                    isPc
+                      ? 'text-[24px] sm:text-[26px]'
+                      : 'text-[20px] sm:text-[21px]'
                   }`}
                 >
                   {isEditing ? 'Editar solicitação' : 'Solicitar Orçamento'}
@@ -660,7 +669,7 @@ export function PatioBudgetRequestTouchForm({
           </header>
 
           <div
-            className={`min-h-0 flex-1 overflow-y-auto overscroll-contain pb-[max(1rem,env(safe-area-inset-bottom))] ${
+            className={`budget-request-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain pb-[max(1rem,env(safe-area-inset-bottom))] ${
               isPc ? 'px-6 py-5 sm:px-8 lg:px-10 lg:py-6' : 'px-3 py-3 sm:px-4 sm:py-4'
             }`}
           >
@@ -669,29 +678,8 @@ export function PatioBudgetRequestTouchForm({
                 isPc ? 'max-w-5xl gap-4' : 'max-w-3xl gap-3 sm:gap-3.5'
               }`}
             >
-              {/* Veículo e Cliente */}
-              <SectionCard
-                iconTone="app"
-                icon={
-                  <img
-                    src="/icons/veiculo-cliente-orcamento-ios.png"
-                    alt=""
-                    className="h-full w-full object-cover"
-                  />
-                }
-                title="Veículo e Cliente"
-                action={
-                  <button
-                    type="button"
-                    onClick={onViewOs}
-                    className={`inline-flex items-center rounded-lg border border-[#007AFF]/20 bg-[#E8F2FF] font-semibold text-[#007AFF] transition-colors hover:bg-[#DCEBFF] ${
-                      isPc ? 'px-3 py-1.5 text-[13px]' : 'px-2.5 py-1.5 text-[12px]'
-                    }`}
-                  >
-                    Ver OS
-                  </button>
-                }
-              >
+              {/* Veículo e Cliente — sem ícone/título de seção */}
+              <SectionCard hideHeader>
                 <div className={`flex flex-col ${isPc ? 'gap-3.5' : 'gap-3'}`}>
                   {/* Logo | nome+meta | placa Mercosul à direita */}
                   <div className={`flex min-w-0 items-start ${isPc ? 'gap-3.5' : 'gap-2.5'}`}>
@@ -745,7 +733,7 @@ export function PatioBudgetRequestTouchForm({
                     </div>
                   </div>
 
-                  {/* Cliente — só nome, sem clique */}
+                  {/* Cliente + Ver OS na mesma linha */}
                   <div className="flex min-w-0 items-center gap-2.5 rounded-xl border border-slate-100 bg-slate-50/90 px-2.5 py-2">
                     <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-200/80 text-slate-600">
                       <User className="h-3.5 w-3.5" strokeWidth={2} />
@@ -753,6 +741,15 @@ export function PatioBudgetRequestTouchForm({
                     <span className="min-w-0 flex-1 truncate text-[11.5px] font-medium text-slate-700">
                       {nameDisplay}
                     </span>
+                    <button
+                      type="button"
+                      onClick={onViewOs}
+                      className={`inline-flex shrink-0 items-center rounded-lg border border-[#007AFF]/20 bg-[#E8F2FF] font-semibold text-[#007AFF] transition-colors hover:bg-[#DCEBFF] ${
+                        isPc ? 'px-3 py-1.5 text-[13px]' : 'px-2.5 py-1.5 text-[12px]'
+                      }`}
+                    >
+                      Ver OS
+                    </button>
                   </div>
 
                   {/* Queixa da OS — somente leitura */}
@@ -802,7 +799,7 @@ export function PatioBudgetRequestTouchForm({
                     className="h-full w-full object-cover"
                   />
                 }
-                title="Serviços solicitados"
+                title="Serviços"
               >
                 <div className="space-y-1.5">
                   {budgetServices.map((item, serviceIndex) => {
@@ -871,7 +868,7 @@ export function PatioBudgetRequestTouchForm({
                     className="h-full w-full object-cover"
                   />
                 }
-                title="Peças solicitadas"
+                title="Peças"
               >
                 <div className="space-y-1.5">
                   {budgetParts.map((item, partIndex) => {
@@ -937,7 +934,7 @@ export function PatioBudgetRequestTouchForm({
                     className="h-full w-full object-cover"
                   />
                 }
-                title="Observações adicionais"
+                title="Observações"
                 titleExtra={<span className="font-normal text-slate-400"> (opcional)</span>}
               >
                 <textarea
