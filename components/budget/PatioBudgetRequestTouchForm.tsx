@@ -5,6 +5,7 @@ import {
   Check,
   Clock3,
   Loader2,
+  Minus,
   Plus,
   Send,
   Trash2,
@@ -591,6 +592,16 @@ export function PatioBudgetRequestTouchForm({
 
   const removePartRow = (id: string) => {
     setBudgetParts((prev) => prev.filter((i) => i.id !== id));
+  };
+
+  const updatePartQuantity = (id: string, delta: number) => {
+    setBudgetParts((prev) =>
+      prev.map((item) => {
+        if (item.id !== id) return item;
+        const currentQty = parseInt(String(item.quantity), 10) || 0;
+        return { ...item, quantity: String(Math.max(1, currentQty + delta)) };
+      })
+    );
   };
 
   const moveServiceRowToIndex = (id: string, toIndex: number) => {
@@ -1378,14 +1389,39 @@ export function PatioBudgetRequestTouchForm({
                             <BudgetPartStockBadge className="scale-90 shrink-0" />
                           ) : null}
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => removePartRow(item.id)}
-                          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-red-500 transition-colors hover:bg-red-50 active:bg-red-100/70"
-                          aria-label="Remover peça"
-                        >
-                          <Trash2 className="h-4 w-4" strokeWidth={2} />
-                        </button>
+                        <div className="flex shrink-0 items-center gap-0.5">
+                          <div className="flex items-center overflow-hidden rounded-lg border border-[#007AFF]/22 bg-[#F5F9FF]">
+                            <button
+                              type="button"
+                              onMouseDown={(e) => e.preventDefault()}
+                              onClick={() => updatePartQuantity(item.id, -1)}
+                              className="flex h-8 w-7 items-center justify-center text-[#007AFF] transition-colors hover:bg-[#E8F2FF] active:bg-[#DCEBFF]"
+                              aria-label="Diminuir quantidade"
+                            >
+                              <Minus className="h-3.5 w-3.5" strokeWidth={2.4} />
+                            </button>
+                            <span className="min-w-[1.35rem] px-0.5 text-center text-[12px] font-semibold tabular-nums text-slate-900">
+                              {item.quantity}
+                            </span>
+                            <button
+                              type="button"
+                              onMouseDown={(e) => e.preventDefault()}
+                              onClick={() => updatePartQuantity(item.id, 1)}
+                              className="flex h-8 w-7 items-center justify-center text-[#007AFF] transition-colors hover:bg-[#E8F2FF] active:bg-[#DCEBFF]"
+                              aria-label="Aumentar quantidade"
+                            >
+                              <Plus className="h-3.5 w-3.5" strokeWidth={2.4} />
+                            </button>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => removePartRow(item.id)}
+                            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-red-500 transition-colors hover:bg-red-50 active:bg-red-100/70"
+                            aria-label="Remover peça"
+                          >
+                            <Trash2 className="h-4 w-4" strokeWidth={2} />
+                          </button>
+                        </div>
                       </div>
                     );
                   })}
