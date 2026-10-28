@@ -2239,8 +2239,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
   ]);
   const patioVehicleModalShellClass = useMemo(() => {
     if (isBudgetOpen && budgetOsPeekOpen) {
-      // Mini-tela: zoom out leve + containing block para overlays fixed filhos.
-      return 'budget-os-peek-shell relative flex h-[84dvh] max-h-[84dvh] w-full max-w-3xl min-h-0 flex-col overflow-hidden rounded-2xl border border-zinc-200/80 bg-[#F2F2F7] shadow-[0_24px_64px_-20px_rgba(0,0,0,0.45)] dark:border-white/[0.1] dark:bg-zinc-950';
+      // Mini-tela: sempre tema claro (sem dark:).
+      return 'budget-os-peek-shell relative flex h-[84dvh] max-h-[84dvh] w-full max-w-3xl min-h-0 flex-col overflow-hidden rounded-2xl border border-zinc-200/80 bg-[#F2F2F7] text-zinc-900 shadow-[0_24px_64px_-20px_rgba(0,0,0,0.45)]';
     }
     return patioVehicleVm.shell;
   }, [isBudgetOpen, budgetOsPeekOpen, patioVehicleVm.shell]);
@@ -2260,6 +2260,28 @@ export const PatioView: React.FC<PatioViewProps> = ({
       setModalPortalHost(null);
     }
   }, [isBudgetOpen, budgetOsPeekOpen, setModalPortalHost]);
+
+  /** Ver OS (peek): força tema claro do sistema enquanto o mini-modal estiver aberto. */
+  useEffect(() => {
+    if (!budgetOsPeekOpen) return;
+    const root = document.documentElement;
+    const wasDark = root.classList.contains('dark');
+    if (wasDark) {
+      root.classList.remove('dark');
+      root.classList.add('light');
+    }
+    return () => {
+      if (!wasDark) return;
+      root.classList.remove('light');
+      root.classList.add('dark');
+    };
+  }, [budgetOsPeekOpen]);
+
+  /** Peek Ver OS: sai da aba Orçamentos (ocultada) para Dados. */
+  useEffect(() => {
+    if (!budgetOsPeekOpen) return;
+    setPcOsModalTab((prev) => (prev === 'orcamentos' ? 'dados' : prev));
+  }, [budgetOsPeekOpen]);
   const patioHistoryModalOverlayClass = useMemo(() => {
     if (desktopShell) {
       return `${desktopShellViewportOverlayClass(true)} patio-vehicle-modal patio-vehicle-modal--desktop flex min-h-0 flex-col overflow-hidden overscroll-none bg-[#E8E8ED] dark:bg-[#0a0a0a] animate-in fade-in duration-200`;
@@ -10788,9 +10810,13 @@ export const PatioView: React.FC<PatioViewProps> = ({
                       active={pcOsModalTab}
                       onChange={setPcOsModalTab}
                       hiddenTabs={
-                        isModuleMode
-                          ? ['laboratorio', 'conserto_externo', 'historico']
-                          : ['conserto_externo']
+                        [
+                          ...(isModuleMode
+                            ? (['laboratorio', 'conserto_externo', 'historico'] as const)
+                            : (['conserto_externo'] as const)),
+                          // Peek Ver OS: sem aba de orçamentos (já está criando um).
+                          ...(budgetOsPeekOpen ? (['orcamentos'] as const) : []),
+                        ]
                       }
                       tabBadges={{
                         laboratorio: labServiceLinksDraft.length,
@@ -10982,13 +11008,14 @@ export const PatioView: React.FC<PatioViewProps> = ({
                         </>
                         ) : null}
 
-                        {(!isPatioPcModal || pcOsModalTab === 'orcamentos') ? (
+                        {(!budgetOsPeekOpen && (!isPatioPcModal || pcOsModalTab === 'orcamentos')) ? (
                         <>
                         {!isPatioPcModal ? (
                         <div className="h-px bg-zinc-200/80 dark:bg-white/[0.06]" />
                         ) : null}
 
-                         {/* Orçamentos: cabeçalho iOS; lista com aro em gradiente nos itens */}
+                         {/* Orçamentos: cabeçalho iOS; lista com aro em gradiente nos itens.
+                             Oculto no Ver OS (peek) para não redundar com Solicitar Orçamento. */}
                          {can('canEditBudgets') && (
                          <div ref={budgetsSectionRef}>
                           <div className={`${vi} min-w-0 overflow-hidden shadow-none`}>
