@@ -1,12 +1,10 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Check, ChevronLeft, ChevronRight, Copy, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { ModalPortal } from './ui/ModalPortal';
 import {
-  mediaOverlayHintText,
   mediaOverlayIconBtn,
   mediaOverlayNavBtn,
 } from './ui/iosModalStyles';
-import { copyImageToClipboard } from '../utils/copyImageToClipboard';
 
 const SWIPE_THRESHOLD = 44;
 
@@ -30,12 +28,18 @@ export function Lightbox({ src: singleSrc, images: imagesProp, initialIndex = 0,
   const [isDragging, setIsDragging] = useState(false);
   const [isSwiping, setIsSwiping] = useState(false);
   const [isMousePanning, setIsMousePanning] = useState(false);
-  const [copyState, setCopyState] = useState<'idle' | 'busy' | 'ok' | 'err'>('idle');
+  /** Controles só após clique/toque na foto; pinça não revela. */
+  const [showChrome, setShowChrome] = useState(false);
   const preloadedImagesRef = useRef<Set<string>>(new Set());
 
   const lastTouchRef = useRef<{ x: number; y: number } | null>(null);
   const lastDistRef = useRef<number | null>(null);
   const dragStartXRef = useRef<number>(0);
+  const tapOriginRef = useRef<{ x: number; y: number } | null>(null);
+  const didPinchRef = useRef(false);
+  const didPanOrSwipeRef = useRef(false);
+  const lastTouchToggleAtRef = useRef(0);
+  const singleClickTimerRef = useRef<number | null>(null);
   const scaleRef = useRef(1);
   const translateRef = useRef({ x: 0, y: 0 });
   const mousePanRef = useRef<{ x: number; y: number } | null>(null);
@@ -66,23 +70,16 @@ export function Lightbox({ src: singleSrc, images: imagesProp, initialIndex = 0,
   useEffect(() => {
     setScale(1);
     setTranslate({ x: 0, y: 0 });
-    setCopyState('idle');
+    setShowChrome(false);
   }, [src]);
 
-  const handleCopyImage = async (e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (!src || copyState === 'busy') return;
-    setCopyState('busy');
-    try {
-      await copyImageToClipboard({ url: src, imgEl: imageRef.current });
-      setCopyState('ok');
-      window.setTimeout(() => setCopyState('idle'), 1600);
-    } catch (err) {
-      console.warn('copyImageToClipboard', err);
-      setCopyState('err');
-      window.setTimeout(() => setCopyState('idle'), 2200);
-    }
-  };
+  useEffect(() => {
+    return () => {
+      if (singleClickTimerRef.current != null) {
+        window.clearTimeout(singleClickTimerRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (!hasMultiple) {
@@ -169,6 +166,9 @@ export function Lightbox({ src: singleSrc, images: imagesProp, initialIndex = 0,
     if (e.touches.length === 1) {
       lastTouchRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
       dragStartXRef.current = e.touches[0].clientX;
+      tapOriginRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+      didPinchRef.current = false;
+      didPanOrSwipeRef.current = false;
       if (scaleRef.current > 1) {
         setIsDragging(true);
       } else if (hasMultiple) {
@@ -176,6 +176,8 @@ export function Lightbox({ src: singleSrc, images: imagesProp, initialIndex = 0,
         setTranslate({ x: 0, y: 0 });
       }
     } else if (e.touches.length === 2) {
+      didPinchRef.current = true;
+      didPanOrSwipeRef.current = true;
       const dist = Math.hypot(
         e.touches[0].clientX - e.touches[1].clientX,
         e.touches[0].clientY - e.touches[1].clientY
@@ -185,19 +187,9 @@ export function Lightbox({ src: singleSrc, images: imagesProp, initialIndex = 0,
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
-    if (e.touches.length === 1 && lastTouchRef.current) {
-      const dx = e.touches[0].clientX - lastTouchRef.current.x;
-      const dy = e.touches[0].clientY - lastTouchRef.current.y;
-      if (scaleRef.current > 1) {
-        setIsDragging(true);
-        setTranslate((prev) => ({ x: prev.x + dx, y: prev.y + dy }));
-      } else if (hasMultiple && Math.abs(dx) > Math.abs(dy)) {
-        const deltaX = e.touches[0].clientX - dragStartXRef.current;
-        setIsSwiping(true);
-        setTranslate({ x: deltaX, y: 0 });
-      }
-      lastTouchRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-    } else if (e.touches.length === 2 && lastDistRef.current) {
+    if (e.touches.length === 2 && lastDistRef.current) {
+      didPinchRef.current = true;
+      didPanOrSwipeRef.current = true;
       const dist = Math.hypot(
         e.touches[0].clientX - e.touches[1].clientX,
         e.touches[0].clientY - e.touches[1].clientY
@@ -209,12 +201,47 @@ export function Lightbox({ src: singleSrc, images: imagesProp, initialIndex = 0,
         return next;
       });
       lastDistRef.current = dist;
+      return;
+    }
+
+    if (e.touches.length === 1 && lastTouchRef.current) {
+      const dx = e.touches[0].clientX - lastTouchRef.current.x;
+      const dy = e.touches[0].clientY - lastTouchRef.current.y;
+      if (Math.abs(dx) > 6 || Math.abs(dy) > 6) {
+        didPanOrSwipeRef.current = true;
+      }
+      if (scaleRef.current > 1) {
+        setIsDragging(true);
+        setTranslate((prev) => ({ x: prev.x + dx, y: prev.y + dy }));
+      } else if (hasMultiple && Math.abs(dx) > Math.abs(dy)) {
+        const deltaX = e.touches[0].clientX - dragStartXRef.current;
+        setIsSwiping(true);
+        setTranslate({ x: deltaX, y: 0 });
+      }
+      lastTouchRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
     }
   };
 
   const handleTouchEnd = (e: React.TouchEvent) => {
+    if (e.touches.length === 1) {
+      lastTouchRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+      lastDistRef.current = null;
+      setIsDragging(scaleRef.current > 1);
+      setIsSwiping(false);
+      return;
+    }
+
+    if (e.touches.length > 1) return;
+
     const endTouch = e.changedTouches[0];
     const endX = endTouch?.clientX ?? lastTouchRef.current?.x ?? dragStartXRef.current;
+    const endY = endTouch?.clientY ?? lastTouchRef.current?.y ?? 0;
+    const origin = tapOriginRef.current;
+    const tapTravel =
+      origin != null
+        ? Math.hypot(endX - origin.x, endY - origin.y)
+        : Math.abs(endX - dragStartXRef.current);
+
     if (scaleRef.current > 1) {
       setIsDragging(false);
     } else {
@@ -225,8 +252,15 @@ export function Lightbox({ src: singleSrc, images: imagesProp, initialIndex = 0,
       }
       setTranslate({ x: 0, y: 0 });
     }
+
+    if (!didPinchRef.current && !didPanOrSwipeRef.current && tapTravel < 12) {
+      lastTouchToggleAtRef.current = Date.now();
+      setShowChrome((v) => !v);
+    }
+
     lastTouchRef.current = null;
     lastDistRef.current = null;
+    tapOriginRef.current = null;
     setIsSwiping(false);
     if (scaleRef.current < 1) setScale(1);
   };
@@ -275,6 +309,10 @@ export function Lightbox({ src: singleSrc, images: imagesProp, initialIndex = 0,
   const handleDoubleTap = (e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
+    if (singleClickTimerRef.current != null) {
+      window.clearTimeout(singleClickTimerRef.current);
+      singleClickTimerRef.current = null;
+    }
     if (scaleRef.current > 1) {
       setScale(1);
       setTranslate({ x: 0, y: 0 });
@@ -283,7 +321,23 @@ export function Lightbox({ src: singleSrc, images: imagesProp, initialIndex = 0,
     }
   };
 
+  const handlePhotoSurfaceClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (e.detail > 1) return;
+    if (Date.now() - lastTouchToggleAtRef.current < 450) return;
+    if (singleClickTimerRef.current != null) {
+      window.clearTimeout(singleClickTimerRef.current);
+    }
+    singleClickTimerRef.current = window.setTimeout(() => {
+      singleClickTimerRef.current = null;
+      setShowChrome((v) => !v);
+    }, 220);
+  };
+
   if (!src) return null;
+
+  const chromeBtn = `${mediaOverlayIconBtn} !h-8 !w-8`;
+  const chromeNavBtn = `${mediaOverlayNavBtn} !h-9 !w-9`;
 
   return (
     <ModalPortal>
@@ -293,60 +347,40 @@ export function Lightbox({ src: singleSrc, images: imagesProp, initialIndex = 0,
         onClick={onClose}
         role="dialog"
         aria-modal="true"
-        aria-label={
-          hasMultiple ? 'Galeria de fotos — use as setas ou deslize para trocar' : 'Visualização de foto'
-        }
+        aria-label={hasMultiple ? 'Galeria de fotos — toque para controles' : 'Visualização de foto'}
       >
-        <div className="absolute top-[max(1.25rem,env(safe-area-inset-top))] right-[max(1.25rem,env(safe-area-inset-right))] z-50 flex items-center gap-2">
-          <button
-            type="button"
-            onClick={(e) => void handleCopyImage(e)}
-            disabled={copyState === 'busy'}
-            className={`${mediaOverlayIconBtn} h-12 w-12 disabled:opacity-50`}
-            aria-label="Copiar imagem"
-            title={
-              copyState === 'ok'
-                ? 'Copiado — pode colar em outro app'
-                : copyState === 'err'
-                  ? 'Falha ao copiar — tente botão direito na imagem'
-                  : 'Copiar imagem'
-            }
-          >
-            {copyState === 'ok' ? (
-              <Check className="h-5 w-5 text-emerald-300" aria-hidden />
-            ) : (
-              <Copy className="h-5 w-5" aria-hidden />
-            )}
-          </button>
-          <button type="button" onClick={onClose} className={`${mediaOverlayIconBtn} h-12 w-12`} aria-label="Fechar">
-            <X className="h-6 w-6" />
-          </button>
-        </div>
+        {showChrome ? (
+          <div className="absolute top-[max(1rem,env(safe-area-inset-top))] right-[max(1rem,env(safe-area-inset-right))] z-50 flex items-center gap-1.5">
+            <button type="button" onClick={onClose} className={chromeBtn} aria-label="Fechar">
+              <X className="h-4 w-4" strokeWidth={2.5} />
+            </button>
+          </div>
+        ) : null}
 
-        {hasMultiple && canGoPrev ? (
+        {showChrome && hasMultiple && canGoPrev ? (
           <button
             type="button"
             onClick={(e) => {
               e.stopPropagation();
               goPrev();
             }}
-            className={`absolute left-2 top-1/2 -translate-y-1/2 md:left-6 ${mediaOverlayNavBtn}`}
+            className={`absolute left-2 top-1/2 -translate-y-1/2 md:left-6 ${chromeNavBtn}`}
             aria-label="Foto anterior"
           >
-            <ChevronLeft className="h-6 w-6" />
+            <ChevronLeft className="h-5 w-5" />
           </button>
         ) : null}
-        {hasMultiple && canGoNext ? (
+        {showChrome && hasMultiple && canGoNext ? (
           <button
             type="button"
             onClick={(e) => {
               e.stopPropagation();
               goNext();
             }}
-            className={`absolute right-2 top-1/2 -translate-y-1/2 md:right-14 ${mediaOverlayNavBtn}`}
+            className={`absolute right-2 top-1/2 -translate-y-1/2 md:right-10 ${chromeNavBtn}`}
             aria-label="Próxima foto"
           >
-            <ChevronRight className="h-6 w-6" />
+            <ChevronRight className="h-5 w-5" />
           </button>
         ) : null}
 
@@ -355,7 +389,7 @@ export function Lightbox({ src: singleSrc, images: imagesProp, initialIndex = 0,
           className={`flex h-full w-full touch-none items-center justify-center ${
             scale > 1 ? (isMousePanning ? 'cursor-grabbing' : 'cursor-grab') : 'cursor-zoom-in'
           }`}
-          onClick={(e) => e.stopPropagation()}
+          onClick={handlePhotoSurfaceClick}
           onTouchStart={handleTouchStart}
           onTouchMove={handleTouchMove}
           onTouchEnd={handleTouchEnd}
@@ -375,7 +409,6 @@ export function Lightbox({ src: singleSrc, images: imagesProp, initialIndex = 0,
             decoding="async"
             loading="eager"
             onDragStart={(e) => {
-              // Com zoom, impede drag nativo para não brigar com o pan.
               if (scaleRef.current > 1) e.preventDefault();
             }}
             style={{
@@ -387,27 +420,18 @@ export function Lightbox({ src: singleSrc, images: imagesProp, initialIndex = 0,
           />
         </div>
 
-        {hasMultiple ? (
-          <>
-            <div className="pointer-events-none absolute bottom-10 left-1/2 flex -translate-x-1/2 gap-1.5">
-              {images.map((_, i) => (
-                <div
-                  key={i}
-                  className={`h-2 w-2 rounded-full transition-colors ${
-                    i === currentIndex ? 'bg-brand-yellow' : 'bg-zinc-500/60'
-                  }`}
-                />
-              ))}
-            </div>
-            <p className={`pointer-events-none absolute bottom-4 left-1/2 max-w-[min(90vw,20rem)] -translate-x-1/2 text-center text-[11px] font-medium leading-snug ${mediaOverlayHintText}`}>
-              Scroll para zoom · botão direito ou Copiar · setas ← →
-            </p>
-          </>
-        ) : (
-          <div className={`pointer-events-none absolute bottom-10 left-1/2 -translate-x-1/2 rounded-full border border-white/20 bg-black/50 px-4 py-2 text-xs ${mediaOverlayHintText} backdrop-blur-md`}>
-            Duplo clique/scroll para zoom · botão direito ou Copiar para colar em outros apps
+        {showChrome && hasMultiple ? (
+          <div className="pointer-events-none absolute bottom-8 left-1/2 flex -translate-x-1/2 gap-1.5">
+            {images.map((_, i) => (
+              <div
+                key={i}
+                className={`h-1.5 w-1.5 rounded-full transition-colors ${
+                  i === currentIndex ? 'bg-brand-yellow' : 'bg-zinc-500/60'
+                }`}
+              />
+            ))}
           </div>
-        )}
+        ) : null}
       </div>
     </ModalPortal>
   );

@@ -157,9 +157,11 @@ const COMPACT_TABLET_PORTRAIT: PatioVehicleModalCompact = {
     'flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-zinc-200/95 bg-gradient-to-b from-white to-zinc-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_2px_8px_-4px_rgba(0,0,0,0.1)] dark:border-white/[0.1] dark:from-white/[0.12] dark:to-white/[0.04]',
   iconGlyph: 'h-3.5 w-3.5 text-[#007AFF] dark:text-[#7ab8ff]',
   titleText:
-    'truncate text-[10px] font-bold uppercase tracking-[0.12em] text-zinc-500 dark:text-zinc-400',
-  bodyText: 'mt-0.5 truncate text-[12px] font-semibold leading-tight text-zinc-900 dark:text-white',
-  assignHint: 'mt-0.5 truncate text-[12px] font-semibold leading-tight text-[#007AFF] dark:text-[#7ab8ff]',
+    'truncate text-[10px] font-semibold uppercase tracking-[0.1em] text-zinc-500 dark:text-zinc-400',
+  bodyText:
+    'mt-0.5 truncate text-[13px] font-semibold leading-tight text-zinc-900 dark:text-white',
+  assignHint:
+    'mt-0.5 truncate text-[12.5px] font-semibold leading-tight text-[#007AFF] dark:text-[#7ab8ff]',
   chevron: 'relative z-[1] h-3.5 w-3.5 shrink-0',
   numericInput:
     'patio-vm-meta-input patio-vm-meta-input--km h-8 w-[4.5rem] min-w-0 shrink-0 rounded-md border border-zinc-300/90 bg-zinc-50 px-2 py-1 text-[13px] tabular-nums text-zinc-950 shadow-[inset_0_1px_2px_rgba(0,0,0,0.04)] placeholder:text-zinc-400 focus:border-[#007AFF]/50 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/25 dark:border-white/[0.12] dark:bg-zinc-950/50 dark:text-white dark:placeholder:text-zinc-500',
@@ -207,39 +209,39 @@ export function getPatioVehicleModalLayout(
     return {
       mode: 'tabletPortrait',
       overlay:
-        'fixed inset-0 z-[100] flex flex-col overscroll-none touch-pan-y bg-[#F2F2F7] dark:bg-zinc-950 animate-in fade-in duration-200 p-0',
+        'fixed inset-0 z-[100] flex flex-col overscroll-none touch-pan-y bg-[#F2F2F7] dark:bg-[#0b0d12] animate-in fade-in duration-200 p-0',
       shell:
-        'relative flex h-[100dvh] max-h-[100dvh] w-full min-h-0 flex-col overflow-hidden rounded-none border-0 bg-[#F2F2F7] pb-[env(safe-area-inset-bottom)] shadow-none dark:bg-zinc-950',
+        'relative flex h-[100dvh] max-h-[100dvh] w-full min-h-0 flex-col overflow-hidden rounded-none border-0 bg-[#F2F2F7] pb-[env(safe-area-inset-bottom)] shadow-none dark:bg-[#0b0d12]',
       scroll:
         'patio-vm-scroll patio-vm-scroll--minimal min-h-0 flex-1 overflow-y-auto overscroll-none',
-      // Conteúdo abaixo da barra chrome (barra branca fica fora do scroll).
-      header: 'px-4 pb-3 pt-3',
+      // Hero sticky fica fora do scroll; aqui só meta + corpo.
+      header: 'px-3.5 pb-2 pt-3 sm:px-5',
       headerInner: 'mb-0 flex flex-col gap-2.5',
       headerTitlePad: '',
       headerMeta:
-        'patio-vm-header-meta patio-vm-header-meta--tablet mt-2 grid w-full min-w-0 grid-cols-2 gap-2',
+        'patio-vm-header-meta patio-vm-header-meta--tablet mt-0 grid w-full min-w-0 grid-cols-2 gap-2',
       title:
-        'font-display min-w-0 truncate text-center text-[24px] font-semibold leading-none tracking-[-0.025em] text-slate-900 sm:text-[26px] dark:text-white',
+        'font-display min-w-0 truncate text-[1.55rem] font-semibold leading-none tracking-[-0.03em] text-slate-900 sm:text-[1.75rem] dark:text-white',
       titlePlateRow: 'mt-0.5 flex min-w-0 items-center gap-2.5',
       stagePill: `${STAGE_PILL_BASE} rounded-[16px] px-3.5 py-2.5 text-[13px] tracking-[0.12em]`,
       brandLogoSize: 'modalTablet',
       plateMockupSize: 'modalTablet',
-      body: 'grid grid-cols-1 gap-4 px-4 pb-5 pt-3',
-      mainCol: 'min-w-0 space-y-4',
-      asideCol: 'min-w-0 space-y-5',
+      body: 'grid grid-cols-1 gap-3.5 px-3.5 pb-5 pt-3 sm:gap-4 sm:px-5',
+      mainCol: 'min-w-0 space-y-3.5 sm:space-y-4',
+      asideCol: 'min-w-0 space-y-4',
       insetCard: iosVehicleModalInsetCard,
       input: iosVehicleModalInput,
       closeBtn:
-        'inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-600 transition-colors hover:bg-slate-200 active:bg-slate-300 dark:bg-white/[0.08] dark:text-zinc-200 dark:hover:bg-white/[0.12]',
+        'inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-600 transition-colors hover:bg-slate-200 dark:bg-white/[0.08] dark:text-white/90 dark:hover:bg-white/[0.14]',
       assignHintLabel: 'Toque para atribuir',
       openHintLabel: 'Toque para abrir',
       sectionTitle: '',
       commentsList:
         'patio-vm-scroll--minimal space-y-2.5 bg-[#F2F2F7]/80 p-3 dark:bg-black/25',
-      customerMetaLabel: 'Dados da ficha',
-      technicianMetaLabel: 'Técnico',
-      deliveryDateMetaLabel: 'ENTREGA',
-      hideOsBadge: false,
+      customerMetaLabel: 'Cliente',
+      technicianMetaLabel: 'Técnico responsável',
+      deliveryDateMetaLabel: 'Entrega',
+      hideOsBadge: true,
       showStageRing: false,
       isMetaPcLike: true,
       compact: COMPACT_TABLET_PORTRAIT,
@@ -247,42 +249,42 @@ export function getPatioVehicleModalLayout(
   }
 
   if (!isPc) {
-    // Celular: cabeçalho alinhado ao Solicitar Orçamento; placa um pouco menor.
+    // Celular: mesmo hero da referência; placa um pouco menor.
     return {
       mode: 'mobile',
       overlay:
-        'fixed inset-0 z-[100] flex flex-col overscroll-none touch-pan-y bg-[#F2F2F7] dark:bg-zinc-950 animate-in fade-in duration-200 p-0',
+        'fixed inset-0 z-[100] flex flex-col overscroll-none touch-pan-y bg-[#F2F2F7] dark:bg-[#0b0d12] animate-in fade-in duration-200 p-0',
       shell:
-        'relative flex h-[100dvh] max-h-[100dvh] w-full min-h-0 flex-col overflow-hidden rounded-none border-0 bg-[#F2F2F7] pb-[env(safe-area-inset-bottom)] shadow-none dark:bg-zinc-950',
+        'relative flex h-[100dvh] max-h-[100dvh] w-full min-h-0 flex-col overflow-hidden rounded-none border-0 bg-[#F2F2F7] pb-[env(safe-area-inset-bottom)] shadow-none dark:bg-[#0b0d12]',
       scroll:
         'patio-vm-scroll patio-vm-scroll--minimal min-h-0 flex-1 overflow-y-auto overscroll-none',
-      header: 'px-4 pb-3 pt-3',
+      header: 'px-3.5 pb-2 pt-3 sm:px-4',
       headerInner: 'mb-0 flex flex-col gap-2.5',
       headerTitlePad: '',
       headerMeta:
-        'patio-vm-header-meta patio-vm-header-meta--tablet mt-2 grid w-full min-w-0 grid-cols-2 gap-2',
+        'patio-vm-header-meta patio-vm-header-meta--tablet mt-0 grid w-full min-w-0 grid-cols-2 gap-2',
       title:
-        'font-display min-w-0 truncate text-center text-[23px] font-semibold leading-none tracking-[-0.025em] text-slate-900 sm:text-[24px] dark:text-white',
+        'font-display min-w-0 truncate text-[1.45rem] font-semibold leading-none tracking-[-0.03em] text-slate-900 sm:text-[1.6rem] dark:text-white',
       titlePlateRow: 'mt-0.5 flex min-w-0 items-center gap-2.5',
       stagePill: `${STAGE_PILL_BASE} rounded-[16px] px-3.5 py-2.5 text-[13px] tracking-[0.12em]`,
       brandLogoSize: 'modalTablet',
       plateMockupSize: 'modalMobile',
-      body: 'grid grid-cols-1 gap-4 px-4 pb-5 pt-3',
-      mainCol: 'min-w-0 space-y-4',
-      asideCol: 'min-w-0 space-y-5',
+      body: 'grid grid-cols-1 gap-3.5 px-3.5 pb-5 pt-3 sm:px-4',
+      mainCol: 'min-w-0 space-y-3.5',
+      asideCol: 'min-w-0 space-y-4',
       insetCard: iosVehicleModalInsetCard,
       input: iosVehicleModalInput,
       closeBtn:
-        'inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-600 transition-colors hover:bg-slate-200 active:bg-slate-300 dark:bg-white/[0.08] dark:text-zinc-200 dark:hover:bg-white/[0.12]',
+        'inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-600 transition-colors hover:bg-slate-200 dark:bg-white/[0.08] dark:text-white/90 dark:hover:bg-white/[0.14]',
       assignHintLabel: 'Toque para atribuir',
       openHintLabel: 'Toque para abrir',
       sectionTitle: '',
       commentsList:
         'patio-vm-scroll--minimal space-y-2.5 bg-[#F2F2F7]/80 p-3 dark:bg-black/25',
-      customerMetaLabel: 'Dados da ficha',
-      technicianMetaLabel: 'Técnico',
-      deliveryDateMetaLabel: 'ENTREGA',
-      hideOsBadge: false,
+      customerMetaLabel: 'Cliente',
+      technicianMetaLabel: 'Técnico responsável',
+      deliveryDateMetaLabel: 'Entrega',
+      hideOsBadge: true,
       showStageRing: false,
       isMetaPcLike: true,
       compact: COMPACT_MOBILE_TABLET_LIKE,
