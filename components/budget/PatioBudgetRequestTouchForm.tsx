@@ -420,6 +420,7 @@ export function PatioBudgetRequestTouchForm({
 
   const focusedServiceInputRef = useRef<HTMLDivElement | null>(null);
   const focusedPartInputRef = useRef<HTMLDivElement | null>(null);
+  const budgetScrollRef = useRef<HTMLDivElement | null>(null);
   const suggestionCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const partSuggestionCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingFocusServiceIdRef = useRef<string | null>(null);
@@ -707,27 +708,59 @@ export function PatioBudgetRequestTouchForm({
     setPartSuggestionHighlight(-1);
   });
 
-  const updateSuggestionBoxPosition = useCallback(() => {
-    const el = focusedServiceInputRef.current;
-    if (!el) return;
-    const rect = el.getBoundingClientRect();
-    setSuggestionBoxPosition({
-      top: rect.bottom + 4,
-      left: rect.left,
-      width: Math.max(rect.width, 220),
-    });
+  /** Espaço mínimo abaixo do campo para a janela de sugestões ficar legível. */
+  const SUGGESTION_MIN_SPACE_BELOW = 260;
+
+  const ensureSuggestionSpaceBelow = useCallback((anchor: HTMLElement) => {
+    if (typeof window === 'undefined') return;
+    const margin = 12;
+    const rect = anchor.getBoundingClientRect();
+    const spaceBelow = window.innerHeight - rect.bottom - margin;
+    if (spaceBelow >= SUGGESTION_MIN_SPACE_BELOW) return;
+    const delta = SUGGESTION_MIN_SPACE_BELOW - spaceBelow;
+    const scroller =
+      budgetScrollRef.current ??
+      (anchor.closest('.budget-request-scroll') as HTMLElement | null);
+    if (scroller) {
+      scroller.scrollTop += delta;
+    } else {
+      window.scrollBy(0, delta);
+    }
   }, []);
 
-  const updatePartSuggestionBoxPosition = useCallback(() => {
-    const el = focusedPartInputRef.current;
-    if (!el) return;
-    const rect = el.getBoundingClientRect();
-    setPartSuggestionBoxPosition({
-      top: rect.bottom + 4,
-      left: rect.left,
-      width: Math.max(rect.width, 220),
-    });
-  }, []);
+  const updateSuggestionBoxPosition = useCallback(
+    (opts?: { ensureSpace?: boolean }) => {
+      const el = focusedServiceInputRef.current;
+      if (!el) return;
+      if (opts?.ensureSpace) {
+        ensureSuggestionSpaceBelow(el);
+      }
+      const rect = el.getBoundingClientRect();
+      setSuggestionBoxPosition({
+        top: rect.bottom + 4,
+        left: rect.left,
+        width: Math.max(rect.width, 220),
+      });
+    },
+    [ensureSuggestionSpaceBelow]
+  );
+
+  const updatePartSuggestionBoxPosition = useCallback(
+    (opts?: { ensureSpace?: boolean }) => {
+      const el = focusedPartInputRef.current;
+      if (!el) return;
+      if (opts?.ensureSpace) {
+        ensureSuggestionSpaceBelow(el);
+      }
+      const rect = el.getBoundingClientRect();
+      setPartSuggestionBoxPosition({
+        top: rect.bottom + 4,
+        left: rect.left,
+        width: Math.max(rect.width, 220),
+      });
+    },
+    [ensureSuggestionSpaceBelow]
+  );
 
   const handleServiceInputFocus = (id: string) => {
     if (suggestionCloseTimerRef.current) {
@@ -738,7 +771,7 @@ export function PatioBudgetRequestTouchForm({
     if (laborEditorServiceId && laborEditorServiceId !== id) {
       setLaborEditorServiceId(null);
     }
-    requestAnimationFrame(updateSuggestionBoxPosition);
+    requestAnimationFrame(() => updateSuggestionBoxPosition({ ensureSpace: true }));
   };
 
   const handleServiceInputBlur = () => {
@@ -799,7 +832,7 @@ export function PatioBudgetRequestTouchForm({
       partSuggestionCloseTimerRef.current = null;
     }
     setSuggestionsForPartId(id);
-    requestAnimationFrame(updatePartSuggestionBoxPosition);
+    requestAnimationFrame(() => updatePartSuggestionBoxPosition({ ensureSpace: true }));
   };
 
   const handlePartInputBlur = (id: string) => {
@@ -850,7 +883,6 @@ export function PatioBudgetRequestTouchForm({
 
   useEffect(() => {
     if (!suggestionsForServiceId) return;
-    updateSuggestionBoxPosition();
     const onScroll = () => updateSuggestionBoxPosition();
     window.addEventListener('scroll', onScroll, true);
     window.addEventListener('resize', onScroll);
@@ -862,7 +894,6 @@ export function PatioBudgetRequestTouchForm({
 
   useEffect(() => {
     if (!suggestionsForPartId) return;
-    updatePartSuggestionBoxPosition();
     const onScroll = () => updatePartSuggestionBoxPosition();
     window.addEventListener('scroll', onScroll, true);
     window.addEventListener('resize', onScroll);
@@ -871,6 +902,27 @@ export function PatioBudgetRequestTouchForm({
       window.removeEventListener('resize', onScroll);
     };
   }, [suggestionsForPartId, updatePartSuggestionBoxPosition]);
+
+  /** Com sugestões abertas: padding extra + scroll para a janela caber abaixo do campo. */
+  useLayoutEffect(() => {
+    if (!serviceSuggestionsOpen) return;
+    updateSuggestionBoxPosition({ ensureSpace: true });
+  }, [
+    serviceSuggestionsOpen,
+    suggestionsForServiceId,
+    activeServiceSuggestionIds,
+    updateSuggestionBoxPosition,
+  ]);
+
+  useLayoutEffect(() => {
+    if (!partSuggestionsOpen) return;
+    updatePartSuggestionBoxPosition({ ensureSpace: true });
+  }, [
+    partSuggestionsOpen,
+    suggestionsForPartId,
+    activePartSuggestionIds,
+    updatePartSuggestionBoxPosition,
+  ]);
 
   const budgetPartQuickViewCatalogNumber = useMemo(() => {
     if (!budgetPartQuickView) return undefined;
@@ -967,9 +1019,12 @@ export function PatioBudgetRequestTouchForm({
           </header>
 
           <div
-            className={`budget-request-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain pb-[max(1rem,env(safe-area-inset-bottom))] ${
-              isPc ? 'px-6 py-5 sm:px-8 lg:px-10 lg:py-6' : 'px-3 py-3 sm:px-4 sm:py-4'
-            }`}
+            ref={budgetScrollRef}
+            className={`budget-request-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain ${
+              serviceSuggestionsOpen || partSuggestionsOpen
+                ? 'pb-72'
+                : 'pb-[max(1rem,env(safe-area-inset-bottom))]'
+            } ${isPc ? 'px-6 py-5 sm:px-8 lg:px-10 lg:py-6' : 'px-3 py-3 sm:px-4 sm:py-4'}`}
           >
             <div
               className={`mx-auto flex w-full flex-col ${
