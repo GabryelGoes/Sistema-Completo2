@@ -812,12 +812,11 @@ export function PatioBudgetEditForm({
                             onMoveTo={(toIndex) => movePartRowToIndex(item.id, toIndex)}
                             ariaLabelPrefix="Peça"
                           />
-                          <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-                            {item.fromStock ? <BudgetPartStockBadge className="self-start" /> : null}
+                          <div className="flex min-w-0 flex-1 items-center gap-2">
                             <input
                               type="text"
                               placeholder="Peça"
-                              className={`${budgetModalInput} min-w-0 w-full shadow-none`}
+                              className={`${budgetModalInput} min-w-0 flex-1 shadow-none`}
                               value={item.description}
                               data-budget-part-id={item.id}
                               autoFocus={focusPartId === item.id}
@@ -831,6 +830,9 @@ export function PatioBudgetEditForm({
                                 addPartRow();
                               }}
                             />
+                            {item.fromStock ? (
+                              <BudgetPartStockBadge className="shrink-0" />
+                            ) : null}
                           </div>
                         </div>
                         <div className="flex shrink-0 items-center justify-end gap-2 pl-12 sm:justify-start sm:pl-0">

@@ -16,6 +16,7 @@ import {
 import { formatLaborLabel } from '../../utils/workshopLaborFormat';
 import { moveItemInList } from '../../utils/moveItemInList';
 import { ModalPortal } from '../ui/ModalPortal';
+import { useBrowserBackLayer } from '../ui/BackNavigationContext';
 import { VehicleBrandLogo } from '../ui/VehicleBrandLogo';
 import { getVehicleBrandLogoUrl } from '../../utils/vehicleBrandLogo';
 import { MercosulPlateMockup } from '../ui/MercosulPlateMockup';
@@ -28,6 +29,28 @@ import type {
   PatioBudgetPartDraft,
   PatioBudgetServiceDraft,
 } from './PatioBudgetEditForm';
+
+function serializeBudgetDraft(
+  diagnosis: string,
+  services: PatioBudgetServiceDraft[],
+  parts: PatioBudgetPartDraft[],
+  observations: string
+): string {
+  return JSON.stringify({
+    diagnosis: diagnosis.trim(),
+    observations: observations.trim(),
+    services: services.map((s) => ({
+      description: s.description.trim(),
+      laborHours: s.laborHours ?? null,
+    })),
+    parts: parts.map((p) => ({
+      description: p.description.trim(),
+      quantity: String(p.quantity ?? '1').trim(),
+      fromStock: Boolean(p.fromStock),
+      workshopPartId: p.workshopPartId ?? null,
+    })),
+  });
+}
 
 export type PatioBudgetRequestTouchFormProps = {
   exiting?: boolean;
@@ -306,6 +329,7 @@ export function PatioBudgetRequestTouchForm({
   const [budgetPartQuickView, setBudgetPartQuickView] = useState<WorkshopPart | null>(null);
   const [focusServiceId, setFocusServiceId] = useState<string | null>(null);
   const [focusPartId, setFocusPartId] = useState<string | null>(null);
+  const [leaveConfirmOpen, setLeaveConfirmOpen] = useState(false);
 
   const focusedServiceInputRef = useRef<HTMLDivElement | null>(null);
   const focusedPartInputRef = useRef<HTMLDivElement | null>(null);
@@ -314,6 +338,10 @@ export function PatioBudgetRequestTouchForm({
   const pendingFocusServiceIdRef = useRef<string | null>(null);
   const pendingFocusPartIdRef = useRef<string | null>(null);
   const stockFlagsResolvedRef = useRef(false);
+  const baselineSnapshotRef = useRef(
+    serializeBudgetDraft(initialDiagnosis, initialServices, initialParts, initialObservations)
+  );
+  const baselineReadyRef = useRef(false);
 
   const workshopPartsNameIndex = useMemo(
     () => buildWorkshopPartNameIndex(workshopParts),
@@ -345,6 +373,65 @@ export function PatioBudgetRequestTouchForm({
       })
     );
   }, [workshopParts, workshopPartsNameIndex]);
+
+  /** Baseline após resolver flags de estoque (não conta como edição do usuário). */
+  useEffect(() => {
+    if (baselineReadyRef.current) return;
+    if (workshopParts.length > 0 && !stockFlagsResolvedRef.current) return;
+    baselineSnapshotRef.current = serializeBudgetDraft(
+      budgetDiagnosis,
+      budgetServices,
+      budgetParts,
+      budgetObservations
+    );
+    baselineReadyRef.current = true;
+  }, [budgetDiagnosis, budgetServices, budgetParts, budgetObservations, workshopParts.length]);
+
+  const isDirty = useMemo(() => {
+    if (!baselineReadyRef.current) return false;
+    return (
+      serializeBudgetDraft(
+        budgetDiagnosis,
+        budgetServices,
+        budgetParts,
+        budgetObservations
+      ) !== baselineSnapshotRef.current
+    );
+  }, [budgetDiagnosis, budgetServices, budgetParts, budgetObservations]);
+
+  const dismissLeaveConfirm = useCallback(() => {
+    setLeaveConfirmOpen(false);
+  }, []);
+
+  const requestClose = useCallback(() => {
+    if (sending) return;
+    if (leaveConfirmOpen) {
+      dismissLeaveConfirm();
+      return;
+    }
+    if (!isDirty) {
+      onClose();
+      return;
+    }
+    setLeaveConfirmOpen(true);
+  }, [sending, leaveConfirmOpen, dismissLeaveConfirm, isDirty, onClose]);
+
+  const confirmLeaveWithoutSaving = useCallback(() => {
+    setLeaveConfirmOpen(false);
+    onClose();
+  }, [onClose]);
+
+  const confirmSaveAndLeave = useCallback(() => {
+    setLeaveConfirmOpen(false);
+    void onSave({
+      diagnosis: budgetDiagnosis,
+      services: budgetServices,
+      parts: budgetParts,
+      observations: budgetObservations,
+    });
+  }, [onSave, budgetDiagnosis, budgetServices, budgetParts, budgetObservations]);
+
+  useBrowserBackLayer(leaveConfirmOpen, dismissLeaveConfirm);
 
   useLayoutEffect(() => {
     const id = pendingFocusServiceIdRef.current;
@@ -606,7 +693,11 @@ export function PatioBudgetRequestTouchForm({
   const complaintDisplay = (clientComplaint ?? '').trim();
 
   return (
-    <ModalPortal forceBody>
+    <ModalPortal
+      forceBody
+      manageBackLayer={!leaveConfirmOpen}
+      onRequestClose={requestClose}
+    >
       <div
         className={`fixed inset-0 z-[200] flex h-[100dvh] max-h-[100dvh] w-full min-w-0 flex-col overflow-hidden bg-[#F2F4F7] text-slate-900 ${backdropAnimClass}`}
         style={{ colorScheme: 'light' }}
@@ -629,7 +720,7 @@ export function PatioBudgetRequestTouchForm({
             >
               <button
                 type="button"
-                onClick={onClose}
+                onClick={requestClose}
                 className={`inline-flex shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-600 transition-colors hover:bg-slate-200 active:bg-slate-300 ${
                   isPc ? 'h-9 w-9' : 'h-7 w-7'
                 }`}
@@ -886,9 +977,6 @@ export function PatioBudgetRequestTouchForm({
                           ariaLabelPrefix="Peça"
                         />
                         <div className="flex min-w-0 flex-1 items-center gap-1.5 py-0.5">
-                          {item.fromStock ? (
-                            <BudgetPartStockBadge className="scale-90" />
-                          ) : null}
                           <input
                             type="text"
                             placeholder="Descreva a peça"
@@ -905,6 +993,9 @@ export function PatioBudgetRequestTouchForm({
                               addPartRow();
                             }}
                           />
+                          {item.fromStock ? (
+                            <BudgetPartStockBadge className="scale-90 shrink-0" />
+                          ) : null}
                         </div>
                         <button
                           type="button"
@@ -1005,6 +1096,68 @@ export function PatioBudgetRequestTouchForm({
               setBudgetPartQuickView(null);
             }}
           />
+        ) : null}
+
+        {leaveConfirmOpen ? (
+          <div
+            className="absolute inset-0 z-[80] flex items-center justify-center bg-slate-900/45 p-4 backdrop-blur-[2px] animate-modal-backdrop"
+            role="presentation"
+            onClick={dismissLeaveConfirm}
+          >
+            <div
+              role="alertdialog"
+              aria-modal="true"
+              aria-labelledby="budget-leave-title"
+              aria-describedby="budget-leave-desc"
+              className="w-full max-w-[22rem] overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-[0_24px_64px_-16px_rgba(15,23,42,0.45)] animate-modal-sheet-in"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="px-5 pb-2 pt-5">
+                <p
+                  id="budget-leave-title"
+                  className="text-[17px] font-semibold tracking-[-0.02em] text-slate-900"
+                >
+                  Alterações não salvas
+                </p>
+                <p
+                  id="budget-leave-desc"
+                  className="mt-2 text-[13.5px] leading-relaxed text-slate-600"
+                >
+                  Este orçamento tem edições que ainda não foram salvas. Salve para
+                  manter o progresso ou feche para descartá-las.
+                </p>
+              </div>
+              <div className="flex flex-col gap-2 px-5 pb-5 pt-3">
+                <button
+                  type="button"
+                  onClick={confirmSaveAndLeave}
+                  disabled={sending}
+                  className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#007AFF] text-[15px] font-semibold text-white shadow-sm shadow-blue-500/25 transition-[filter,transform] hover:brightness-105 active:scale-[0.99] disabled:opacity-55"
+                >
+                  {sending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" strokeWidth={2.2} />
+                  ) : null}
+                  Salvar e fechar
+                </button>
+                <button
+                  type="button"
+                  onClick={confirmLeaveWithoutSaving}
+                  disabled={sending}
+                  className="inline-flex h-11 w-full items-center justify-center rounded-xl border border-slate-200 bg-white text-[15px] font-semibold text-slate-700 transition-colors hover:bg-slate-50 active:bg-slate-100 disabled:opacity-55"
+                >
+                  Fechar sem salvar
+                </button>
+                <button
+                  type="button"
+                  onClick={dismissLeaveConfirm}
+                  disabled={sending}
+                  className="inline-flex h-10 w-full items-center justify-center rounded-xl text-[13.5px] font-medium text-slate-500 transition-colors hover:bg-slate-50 hover:text-slate-700 disabled:opacity-55"
+                >
+                  Continuar editando
+                </button>
+              </div>
+            </div>
+          </div>
         ) : null}
       </div>
     </ModalPortal>
