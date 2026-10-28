@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Car,
   Check,
@@ -230,16 +231,70 @@ function GripMoveControl({
   ariaLabelPrefix: string;
 }) {
   const [open, setOpen] = useState(false);
+  const [menuPos, setMenuPos] = useState<{
+    top?: number;
+    bottom?: number;
+    left: number;
+  } | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  const updateMenuPosition = useCallback(() => {
+    const el = rootRef.current;
+    if (!el || typeof window === 'undefined') return;
+    const rect = el.getBoundingClientRect();
+    const margin = 8;
+    const estimatedHeight = Math.min(200, 56 + Math.ceil(total / 4) * 36);
+    const spaceBelow = window.innerHeight - rect.bottom - margin;
+    const spaceAbove = rect.top - margin;
+    const openAbove = spaceBelow < estimatedHeight && spaceAbove > spaceBelow;
+    const left = Math.max(
+      margin,
+      Math.min(rect.left, window.innerWidth - 160 - margin)
+    );
+    if (openAbove) {
+      setMenuPos({
+        bottom: window.innerHeight - rect.top + 6,
+        left,
+      });
+    } else {
+      setMenuPos({
+        top: rect.bottom + 6,
+        left,
+      });
+    }
+  }, [total]);
+
+  useLayoutEffect(() => {
+    if (!open) {
+      setMenuPos(null);
+      return;
+    }
+    updateMenuPosition();
+  }, [open, updateMenuPosition]);
 
   useEffect(() => {
     if (!open) return;
     const onPointerDown = (event: PointerEvent) => {
-      if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
+      const t = event.target as Node;
+      if (rootRef.current?.contains(t) || menuRef.current?.contains(t)) return;
+      setOpen(false);
     };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setOpen(false);
+    };
+    const onReposition = () => updateMenuPosition();
     document.addEventListener('pointerdown', onPointerDown);
-    return () => document.removeEventListener('pointerdown', onPointerDown);
-  }, [open]);
+    document.addEventListener('keydown', onKeyDown);
+    window.addEventListener('resize', onReposition);
+    window.addEventListener('scroll', onReposition, true);
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown);
+      document.removeEventListener('keydown', onKeyDown);
+      window.removeEventListener('resize', onReposition);
+      window.removeEventListener('scroll', onReposition, true);
+    };
+  }, [open, updateMenuPosition]);
 
   return (
     <div className="relative shrink-0 self-center" ref={rootRef}>
@@ -252,36 +307,51 @@ function GripMoveControl({
       >
         {position}
       </button>
-      {open && total > 1 ? (
-        <div className="absolute left-0 top-[calc(100%+0.25rem)] z-40 min-w-[9rem] rounded-xl border border-slate-200 bg-white p-2 shadow-lg">
-          <p className="mb-1.5 px-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">
-            Mover para
-          </p>
-          <div className="flex max-h-40 flex-wrap gap-1 overflow-y-auto">
-            {Array.from({ length: total }, (_, index) => {
-              const isCurrent = index === position - 1;
-              return (
-                <button
-                  key={index}
-                  type="button"
-                  disabled={isCurrent}
-                  onClick={() => {
-                    onMoveTo(index);
-                    setOpen(false);
-                  }}
-                  className={`flex h-8 w-8 items-center justify-center rounded-lg text-[13px] font-semibold tabular-nums ${
-                    isCurrent
-                      ? 'bg-[#007AFF] text-white'
-                      : 'bg-slate-50 text-slate-700 hover:bg-slate-100'
-                  } disabled:opacity-100`}
-                >
-                  {index + 1}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      ) : null}
+      {open && total > 1 && menuPos && typeof document !== 'undefined'
+        ? createPortal(
+            <div
+              ref={menuRef}
+              className="fixed z-[360] min-w-[9rem] rounded-xl border border-slate-200 bg-white p-2 shadow-[0_12px_40px_-12px_rgba(15,23,42,0.35)]"
+              style={{
+                top: menuPos.top,
+                bottom: menuPos.bottom,
+                left: menuPos.left,
+              }}
+              role="listbox"
+              aria-label={`Mover ${ariaLabelPrefix.toLowerCase()} para posição`}
+            >
+              <p className="mb-1.5 px-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">
+                Mover para
+              </p>
+              <div className="flex max-h-40 flex-wrap gap-1 overflow-y-auto">
+                {Array.from({ length: total }, (_, index) => {
+                  const isCurrent = index === position - 1;
+                  return (
+                    <button
+                      key={index}
+                      type="button"
+                      role="option"
+                      aria-selected={isCurrent}
+                      disabled={isCurrent}
+                      onClick={() => {
+                        onMoveTo(index);
+                        setOpen(false);
+                      }}
+                      className={`flex h-8 w-8 items-center justify-center rounded-lg text-[13px] font-semibold tabular-nums ${
+                        isCurrent
+                          ? 'bg-[#007AFF] text-white'
+                          : 'bg-slate-50 text-slate-700 hover:bg-slate-100'
+                      } disabled:opacity-100`}
+                    >
+                      {index + 1}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>,
+            document.body
+          )
+        : null}
     </div>
   );
 }
