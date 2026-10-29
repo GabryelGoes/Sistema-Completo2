@@ -115,6 +115,33 @@ export function addLocalDays(d: Date, days: number): Date {
   return next;
 }
 
+/**
+ * Próximo dia útil a partir de `from` (não inclui o próprio dia).
+ * Pula sábado e domingo — na sexta (e no fim de semana) aponta para segunda.
+ */
+export function nextWorkdayDate(from: Date = new Date()): Date {
+  let next = addLocalDays(from, 1);
+  for (let i = 0; i < 4; i += 1) {
+    const day = next.getDay(); // 0=dom … 6=sáb
+    if (day !== 0 && day !== 6) return next;
+    next = addLocalDays(next, 1);
+  }
+  return next;
+}
+
+export function nextWorkdayDateKey(from: Date = new Date()): string {
+  return localDateKey(nextWorkdayDate(from));
+}
+
+/** Rótulo curto do bloco “próximos” na home (amanhã vs segunda). */
+export function upcomingWorkdayHomeTitle(from: Date = new Date()): string {
+  const next = nextWorkdayDate(from);
+  const tomorrow = addLocalDays(from, 1);
+  if (localDateKey(next) === localDateKey(tomorrow)) return 'Próximos amanhã';
+  if (next.getDay() === 1) return 'Próximos na segunda';
+  return 'Próximos na agenda';
+}
+
 export function appointmentLocalDateKey(app: { date: Date | string }): string {
   const d = app.date instanceof Date ? app.date : new Date(app.date);
   if (Number.isNaN(d.getTime())) return '';

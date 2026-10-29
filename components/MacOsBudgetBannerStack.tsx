@@ -95,7 +95,12 @@ function vehicleLine(item: MacOsBudgetBannerItem): string {
 }
 
 function titleFor(item: MacOsBudgetBannerItem): string {
-  if (item.kind === 'agenda_day_before') return 'Agenda de amanhã';
+  if (item.kind === 'agenda_day_before') {
+    if ((item.vehicleModel || '').toLowerCase().includes('segunda')) {
+      return 'Agenda de segunda';
+    }
+    return 'Agenda de amanhã';
+  }
   if (item.kind === 'agenda_soon') {
     const m = item.soonMinutes;
     if (typeof m === 'number' && m > 0) return `Agendamento em ${m} min`;
