@@ -248,6 +248,8 @@ interface ApiAppointmentRow {
   customer_name: string;
   phone: string | null;
   email: string | null;
+  customer_cpf?: string | null;
+  vehicle_brand?: string | null;
   vehicle_model: string;
   plate: string;
   notes: string | null;
@@ -267,6 +269,8 @@ function mapAppointmentRowToAppointment(row: ApiAppointmentRow): Appointment {
     customerName: row.customer_name,
     phone: row.phone ?? undefined,
     email: row.email ?? undefined,
+    customerCpf: row.customer_cpf ?? undefined,
+    vehicleBrand: row.vehicle_brand ?? undefined,
     vehicleModel: row.vehicle_model,
     plate: row.plate,
     date,
@@ -292,6 +296,8 @@ export async function createAppointment(appointment: {
   customerName: string;
   phone?: string;
   email?: string;
+  customerCpf?: string;
+  vehicleBrand?: string;
   vehicleModel: string;
   plate: string;
   notes?: string;
@@ -309,6 +315,8 @@ export async function createAppointment(appointment: {
       customerName: appointment.customerName,
       phone: appointment.phone ?? null,
       email: appointment.email ?? null,
+      customerCpf: appointment.customerCpf ?? null,
+      vehicleBrand: appointment.vehicleBrand ?? null,
       vehicleModel: appointment.vehicleModel,
       plate: appointment.plate,
       notes: appointment.notes ?? null,
@@ -333,6 +341,8 @@ export async function updateAppointment(
     customerName?: string;
     phone?: string;
     email?: string;
+    customerCpf?: string;
+    vehicleBrand?: string;
     vehicleModel?: string;
     plate?: string;
     notes?: string;
@@ -347,6 +357,8 @@ export async function updateAppointment(
   if (appointment.customerName !== undefined) body.customerName = appointment.customerName;
   if (appointment.phone !== undefined) body.phone = appointment.phone;
   if (appointment.email !== undefined) body.email = appointment.email;
+  if (appointment.customerCpf !== undefined) body.customerCpf = appointment.customerCpf;
+  if (appointment.vehicleBrand !== undefined) body.vehicleBrand = appointment.vehicleBrand;
   if (appointment.vehicleModel !== undefined) body.vehicleModel = appointment.vehicleModel;
   if (appointment.plate !== undefined) body.plate = appointment.plate;
   if (appointment.notes !== undefined) body.notes = appointment.notes;

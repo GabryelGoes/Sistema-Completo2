@@ -3569,6 +3569,8 @@ export function createApiApp() {
         customerName,
         phone,
         email,
+        customerCpf,
+        vehicleBrand,
         vehicleModel,
         plate,
         notes,
@@ -3591,6 +3593,8 @@ export function createApiApp() {
           customer_name: customerName ?? "",
           phone: phone ?? null,
           email: email ?? null,
+          customer_cpf: customerCpf ?? null,
+          vehicle_brand: vehicleBrand ?? null,
           vehicle_model: vehicleModel ?? "",
           plate: (plate ?? "").toString().toUpperCase(),
           notes: notes ?? null,
@@ -3627,6 +3631,8 @@ export function createApiApp() {
         customerName,
         phone,
         email,
+        customerCpf,
+        vehicleBrand,
         vehicleModel,
         plate,
         notes,
@@ -3641,6 +3647,8 @@ export function createApiApp() {
       if (customerName !== undefined) updates.customer_name = customerName;
       if (phone !== undefined) updates.phone = phone;
       if (email !== undefined) updates.email = email;
+      if (customerCpf !== undefined) updates.customer_cpf = customerCpf;
+      if (vehicleBrand !== undefined) updates.vehicle_brand = vehicleBrand;
       if (vehicleModel !== undefined) updates.vehicle_model = vehicleModel;
       if (plate !== undefined) updates.plate = String(plate).toUpperCase();
       if (notes !== undefined) updates.notes = notes;

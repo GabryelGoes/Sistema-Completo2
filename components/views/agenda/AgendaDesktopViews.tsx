@@ -40,6 +40,12 @@ const VIEW_ICONS: Record<AgendaViewMode, React.ReactNode> = {
   schedule: <List className="h-3.5 w-3.5" strokeWidth={2.2} />,
 };
 
+function vehicleLabel(app: Pick<Appointment, 'vehicleBrand' | 'vehicleModel'>): string {
+  const brand = (app.vehicleBrand ?? '').trim();
+  const model = (app.vehicleModel ?? '').trim();
+  return [brand, model].filter(Boolean).join(' ') || model || '';
+}
+
 export function AgendaViewSwitcher({
   mode,
   onModeChange,
@@ -97,10 +103,10 @@ function AppointmentChip({
             ? 'border-emerald-500 bg-emerald-500/10 text-emerald-900 dark:text-emerald-200'
             : 'border-red-500 bg-red-500/12 text-red-950 hover:bg-red-500/20 dark:text-red-100 dark:hover:bg-red-500/20'
       } ${compact ? 'text-[10px]' : 'text-[11px]'}`}
-      title={`${app.time} — ${app.vehicleModel || app.title}`}
+      title={`${app.time} — ${vehicleLabel(app) || app.title}`}
     >
       <span className="font-bold tabular-nums">{app.time}</span>
-      <span className={`ml-1 ${compact ? 'truncate block' : ''}`}>{app.title || app.vehicleModel}</span>
+      <span className={`ml-1 ${compact ? 'truncate block' : ''}`}>{app.title || vehicleLabel(app)}</span>
     </button>
   );
 }
@@ -133,7 +139,7 @@ function TimeGridBlock({
       title={`${app.time} — ${app.customerName}`}
     >
       <span className="block font-bold tabular-nums">{app.time}</span>
-      <span className="block truncate font-semibold">{app.title || app.vehicleModel}</span>
+      <span className="block truncate font-semibold">{app.title || vehicleLabel(app)}</span>
       <span className="block truncate opacity-90">{app.customerName}</span>
     </button>
   );
@@ -450,10 +456,10 @@ export function AgendaScheduleList({
                   </span>
                   <span className="min-w-0 flex-1">
                     <span className="block truncate text-[14px] font-semibold text-zinc-900 dark:text-white">
-                      {app.title || 'Sem título'}
+                      {app.title || 'Sem queixa'}
                     </span>
                     <span className="block truncate text-[12px] text-zinc-600 dark:text-zinc-400">
-                      {app.vehicleModel} · {app.customerName}
+                      {vehicleLabel(app) || '—'} · {app.customerName}
                     </span>
                   </span>
                 </button>
