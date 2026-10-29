@@ -51,7 +51,7 @@ import { setLabProductKinds } from './utils/moduleMetadata';
 import { setLabQuickServices } from './utils/labQuickServices';
 import { ModalLayerProvider } from './components/ui/ModalLayerContext';
 import { ModalPortalHostProvider } from './components/ui/ModalPortalHostContext';
-import { BackNavigationProvider, useBrowserBackLayer } from './components/ui/BackNavigationContext';
+import { BackNavigationProvider } from './components/ui/BackNavigationContext';
 import { DesktopEscapeCloseBridge } from './components/ui/DesktopEscapeCloseBridge';
 import { AuthenticatedAppFrame } from './components/layout/AuthenticatedAppFrame';
 import { useDesktopShell } from './hooks/useDesktopShell';
@@ -1681,11 +1681,8 @@ export default function App() {
     setVisitedUserTabs(new Set(['home']));
   }, [authSession]);
 
-  useBrowserBackLayer(!!commentPopUpNotification, () => setCommentPopUpNotification(null));
-  useBrowserBackLayer(isSettingsOpen, () => setIsSettingsOpen(false));
-  useBrowserBackLayer(isUserChangePasswordsOpen, () => setIsUserChangePasswordsOpen(false));
-  useBrowserBackLayer(!!hubBudgetViewer, () => setHubBudgetViewer(null));
-  // Inventário / TVs: ESC via ModalPortal.onRequestClose (evita pilha duplicada).
+  // CommentPopUp / Settings / senhas / hub de orçamento: ESC via ModalPortal
+  // (useBrowserBackLayer no App fica fora do BackNavigationProvider e não registra).
 
   const closePartsModalToHome = useCallback(() => {
     requestClosePartsModal(() => navigateToHomeApp());
@@ -2137,7 +2134,11 @@ export default function App() {
           activeAppTab={userTab}
           onCloseOverlayPage={handleOverlayCloseOrBack}
           blockOverlayPageClose={
-            settingsHubOpen || isPartsModalOpen || isTvPatioModalOpen || isSettingsOpen
+            settingsHubOpen ||
+            isPartsModalOpen ||
+            isTvPatioModalOpen ||
+            isSettingsOpen ||
+            !!commentPopUpNotification
           }
         />
       </AuthenticatedAppFrame>
@@ -2559,7 +2560,11 @@ export default function App() {
         activeAppTab={currentTab}
         onCloseOverlayPage={handleOverlayCloseOrBack}
         blockOverlayPageClose={
-          settingsHubOpen || isPartsModalOpen || isTvPatioModalOpen || isSettingsOpen
+          settingsHubOpen ||
+          isPartsModalOpen ||
+          isTvPatioModalOpen ||
+          isSettingsOpen ||
+          !!commentPopUpNotification
         }
       />
     </AuthenticatedAppFrame>

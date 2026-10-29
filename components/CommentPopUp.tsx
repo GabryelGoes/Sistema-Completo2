@@ -170,7 +170,7 @@ export const CommentPopUp: React.FC<CommentPopUpProps> = ({
   };
 
   return (
-    <ModalPortal manageBackLayer={false} onRequestClose={onClose}>
+    <ModalPortal onRequestClose={onClose}>
     <div
       className={`${resolveIosModalOverlayClass(isDesktopShell, 'z-[140]')} animate-in fade-in duration-200`}
       onClick={(e) => e.target === e.currentTarget && onClose()}
