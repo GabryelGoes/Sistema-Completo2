@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Loader2 } from 'lucide-react';
 import { formatCpfCnpj, onlyDigits } from '../../utils/cpfCnpj';
 
@@ -52,6 +52,9 @@ type ReceptionLinkedVehicleSuggestProps = {
   onSelectVehicle: (row: ReceptionLinkedVehicleSuggestion) => void;
   onSelectNovaPlaca: () => void;
   className?: string;
+  /** Índice destacado por teclado/mouse (−1 = nenhum). */
+  highlightedIndex?: number;
+  onHighlightedIndexChange?: (index: number) => void;
 };
 
 /**
@@ -67,7 +70,16 @@ export const ReceptionLinkedVehicleSuggest: React.FC<ReceptionLinkedVehicleSugge
   onSelectVehicle,
   onSelectNovaPlaca,
   className = '',
+  highlightedIndex = -1,
+  onHighlightedIndexChange,
 }) => {
+  const optionRefs = useRef<Array<HTMLButtonElement | null>>([]);
+
+  useEffect(() => {
+    if (highlightedIndex < 0) return;
+    optionRefs.current[highlightedIndex]?.scrollIntoView({ block: 'nearest' });
+  }, [highlightedIndex]);
+
   if (!open) return null;
   const q = query.trim();
 
@@ -111,14 +123,25 @@ export const ReceptionLinkedVehicleSuggest: React.FC<ReceptionLinkedVehicleSugge
             <ul>
               {suggestions.map((row, idx) => {
                 const zebra = idx % 2 === 1;
+                const isActive = idx === highlightedIndex;
                 return (
                   <li key={row.key}>
                     <button
                       type="button"
+                      ref={(node) => {
+                        optionRefs.current[idx] = node;
+                      }}
+                      role="option"
+                      aria-selected={isActive}
                       onMouseDown={(e) => e.preventDefault()}
+                      onMouseEnter={() => onHighlightedIndexChange?.(idx)}
                       onClick={() => onSelectVehicle(row)}
-                      className={`flex w-full items-stretch gap-2 px-2.5 py-2 text-left transition-colors hover:bg-sky-50 dark:hover:bg-zinc-800 ${
-                        zebra ? 'bg-zinc-50 dark:bg-zinc-950/50' : 'bg-white dark:bg-zinc-900'
+                      className={`flex w-full items-stretch gap-2 px-2.5 py-2 text-left transition-colors ${
+                        isActive
+                          ? 'bg-sky-100 dark:bg-sky-900/40'
+                          : zebra
+                            ? 'bg-zinc-50 hover:bg-sky-50 dark:bg-zinc-950/50 dark:hover:bg-zinc-800'
+                            : 'bg-white hover:bg-sky-50 dark:bg-zinc-900 dark:hover:bg-zinc-800'
                       }`}
                     >
                       <div className="min-w-0 flex-1">

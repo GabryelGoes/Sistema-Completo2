@@ -2570,7 +2570,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
   useBrowserBackLayer(isBudgetOpen && budgetOsPeekOpen && patioPortalsVisible, () => {
     setBudgetOsPeekOpen(false);
   });
-  useBrowserBackLayer(isBudgetOpen && !budgetOsPeekOpen && patioPortalsVisible, requestCloseBudgetModal);
+  /** Esc/voltar do orçamento: o formulário (ModalPortal) trata dirty + confirmação. */
   useBrowserBackLayer(isPatioHeaderToolsOpen && patioPortalsVisible, () => setIsPatioHeaderToolsOpen(false));
   useBrowserBackLayer(isLabOsToolsOpen && patioPortalsVisible, () => setIsLabOsToolsOpen(false));
   useBrowserBackLayer(isRemindersOpen && patioPortalsVisible, () => setIsRemindersOpen(false));

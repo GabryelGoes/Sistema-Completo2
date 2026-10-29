@@ -1,7 +1,11 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Car,
+  Check,
+  Clock3,
   Loader2,
+  Minus,
   Plus,
   Send,
   Trash2,
@@ -13,21 +17,49 @@ import {
   buildWorkshopPartNameIndex,
   resolveBudgetPartStockFlags,
 } from '../../utils/budgetPartStock';
-import { formatLaborLabel } from '../../utils/workshopLaborFormat';
+import {
+  formatLaborLabel,
+  laborHoursToParts,
+  parseLaborDurationParts,
+} from '../../utils/workshopLaborFormat';
 import { moveItemInList } from '../../utils/moveItemInList';
 import { ModalPortal } from '../ui/ModalPortal';
+import { useBrowserBackLayer } from '../ui/BackNavigationContext';
 import { VehicleBrandLogo } from '../ui/VehicleBrandLogo';
 import { getVehicleBrandLogoUrl } from '../../utils/vehicleBrandLogo';
 import { MercosulPlateMockup } from '../ui/MercosulPlateMockup';
 import { BudgetPartStockBadge } from '../ui/BudgetPartStockBadge';
 import { BudgetPartSuggestionDropdown } from './BudgetPartSuggestionDropdown';
 import { BudgetServiceSuggestionDropdown } from './BudgetServiceSuggestionDropdown';
+import { handleBudgetSuggestionKeyDown } from './budgetSuggestionKeyboard';
 import { WorkshopPartQuickViewModal } from './WorkshopPartQuickViewModal';
 import type {
   PatioBudgetEditDraft,
   PatioBudgetPartDraft,
   PatioBudgetServiceDraft,
 } from './PatioBudgetEditForm';
+
+function serializeBudgetDraft(
+  diagnosis: string,
+  services: PatioBudgetServiceDraft[],
+  parts: PatioBudgetPartDraft[],
+  observations: string
+): string {
+  return JSON.stringify({
+    diagnosis: diagnosis.trim(),
+    observations: observations.trim(),
+    services: services.map((s) => ({
+      description: s.description.trim(),
+      laborHours: s.laborHours ?? null,
+    })),
+    parts: parts.map((p) => ({
+      description: p.description.trim(),
+      quantity: String(p.quantity ?? '1').trim(),
+      fromStock: Boolean(p.fromStock),
+      workshopPartId: p.workshopPartId ?? null,
+    })),
+  });
+}
 
 export type PatioBudgetRequestTouchFormProps = {
   exiting?: boolean;
@@ -83,6 +115,7 @@ function TouchServiceTextarea({
   onFocus,
   onBlur,
   onEnterAdd,
+  onKeyDown,
   autoFocus,
   dataBudgetServiceId,
 }: {
@@ -91,6 +124,8 @@ function TouchServiceTextarea({
   onFocus: () => void;
   onBlur: () => void;
   onEnterAdd?: () => void;
+  /** Se retornar true, o Enter para adicionar linha não roda. */
+  onKeyDown?: (e: React.KeyboardEvent<HTMLTextAreaElement>) => boolean;
   autoFocus?: boolean;
   dataBudgetServiceId?: string;
 }) {
@@ -127,6 +162,7 @@ function TouchServiceTextarea({
       onFocus={onFocus}
       onBlur={onBlur}
       onKeyDown={(e) => {
+        if (onKeyDown?.(e)) return;
         if (e.key !== 'Enter' || e.shiftKey || e.nativeEvent.isComposing) return;
         if (!onEnterAdd) return;
         e.preventDefault();
@@ -196,16 +232,70 @@ function GripMoveControl({
   ariaLabelPrefix: string;
 }) {
   const [open, setOpen] = useState(false);
+  const [menuPos, setMenuPos] = useState<{
+    top?: number;
+    bottom?: number;
+    left: number;
+  } | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  const updateMenuPosition = useCallback(() => {
+    const el = rootRef.current;
+    if (!el || typeof window === 'undefined') return;
+    const rect = el.getBoundingClientRect();
+    const margin = 8;
+    const estimatedHeight = Math.min(200, 56 + Math.ceil(total / 4) * 36);
+    const spaceBelow = window.innerHeight - rect.bottom - margin;
+    const spaceAbove = rect.top - margin;
+    const openAbove = spaceBelow < estimatedHeight && spaceAbove > spaceBelow;
+    const left = Math.max(
+      margin,
+      Math.min(rect.left, window.innerWidth - 160 - margin)
+    );
+    if (openAbove) {
+      setMenuPos({
+        bottom: window.innerHeight - rect.top + 6,
+        left,
+      });
+    } else {
+      setMenuPos({
+        top: rect.bottom + 6,
+        left,
+      });
+    }
+  }, [total]);
+
+  useLayoutEffect(() => {
+    if (!open) {
+      setMenuPos(null);
+      return;
+    }
+    updateMenuPosition();
+  }, [open, updateMenuPosition]);
 
   useEffect(() => {
     if (!open) return;
     const onPointerDown = (event: PointerEvent) => {
-      if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
+      const t = event.target as Node;
+      if (rootRef.current?.contains(t) || menuRef.current?.contains(t)) return;
+      setOpen(false);
     };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setOpen(false);
+    };
+    const onReposition = () => updateMenuPosition();
     document.addEventListener('pointerdown', onPointerDown);
-    return () => document.removeEventListener('pointerdown', onPointerDown);
-  }, [open]);
+    document.addEventListener('keydown', onKeyDown);
+    window.addEventListener('resize', onReposition);
+    window.addEventListener('scroll', onReposition, true);
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown);
+      document.removeEventListener('keydown', onKeyDown);
+      window.removeEventListener('resize', onReposition);
+      window.removeEventListener('scroll', onReposition, true);
+    };
+  }, [open, updateMenuPosition]);
 
   return (
     <div className="relative shrink-0 self-center" ref={rootRef}>
@@ -218,36 +308,51 @@ function GripMoveControl({
       >
         {position}
       </button>
-      {open && total > 1 ? (
-        <div className="absolute left-0 top-[calc(100%+0.25rem)] z-40 min-w-[9rem] rounded-xl border border-slate-200 bg-white p-2 shadow-lg">
-          <p className="mb-1.5 px-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">
-            Mover para
-          </p>
-          <div className="flex max-h-40 flex-wrap gap-1 overflow-y-auto">
-            {Array.from({ length: total }, (_, index) => {
-              const isCurrent = index === position - 1;
-              return (
-                <button
-                  key={index}
-                  type="button"
-                  disabled={isCurrent}
-                  onClick={() => {
-                    onMoveTo(index);
-                    setOpen(false);
-                  }}
-                  className={`flex h-8 w-8 items-center justify-center rounded-lg text-[13px] font-semibold tabular-nums ${
-                    isCurrent
-                      ? 'bg-[#007AFF] text-white'
-                      : 'bg-slate-50 text-slate-700 hover:bg-slate-100'
-                  } disabled:opacity-100`}
-                >
-                  {index + 1}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      ) : null}
+      {open && total > 1 && menuPos && typeof document !== 'undefined'
+        ? createPortal(
+            <div
+              ref={menuRef}
+              className="fixed z-[360] min-w-[9rem] rounded-xl border border-slate-200 bg-white p-2 shadow-[0_12px_40px_-12px_rgba(15,23,42,0.35)]"
+              style={{
+                top: menuPos.top,
+                bottom: menuPos.bottom,
+                left: menuPos.left,
+              }}
+              role="listbox"
+              aria-label={`Mover ${ariaLabelPrefix.toLowerCase()} para posição`}
+            >
+              <p className="mb-1.5 px-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">
+                Mover para
+              </p>
+              <div className="flex max-h-40 flex-wrap gap-1 overflow-y-auto">
+                {Array.from({ length: total }, (_, index) => {
+                  const isCurrent = index === position - 1;
+                  return (
+                    <button
+                      key={index}
+                      type="button"
+                      role="option"
+                      aria-selected={isCurrent}
+                      disabled={isCurrent}
+                      onClick={() => {
+                        onMoveTo(index);
+                        setOpen(false);
+                      }}
+                      className={`flex h-8 w-8 items-center justify-center rounded-lg text-[13px] font-semibold tabular-nums ${
+                        isCurrent
+                          ? 'bg-[#007AFF] text-white'
+                          : 'bg-slate-50 text-slate-700 hover:bg-slate-100'
+                      } disabled:opacity-100`}
+                    >
+                      {index + 1}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>,
+            document.body
+          )
+        : null}
     </div>
   );
 }
@@ -293,6 +398,12 @@ export function PatioBudgetRequestTouchForm({
 
   const [suggestionsForServiceId, setSuggestionsForServiceId] = useState<string | null>(null);
   const [suggestionsForPartId, setSuggestionsForPartId] = useState<string | null>(null);
+  const [serviceSuggestionHighlight, setServiceSuggestionHighlight] = useState(-1);
+  const [partSuggestionHighlight, setPartSuggestionHighlight] = useState(-1);
+  /** Editor de horas no lugar do excluir, enquanto o serviço está em foco. */
+  const [laborEditorServiceId, setLaborEditorServiceId] = useState<string | null>(null);
+  const [laborDraftHours, setLaborDraftHours] = useState('');
+  const [laborDraftMinutes, setLaborDraftMinutes] = useState('');
   const [suggestionBoxPosition, setSuggestionBoxPosition] = useState<{
     top: number;
     left: number;
@@ -306,14 +417,20 @@ export function PatioBudgetRequestTouchForm({
   const [budgetPartQuickView, setBudgetPartQuickView] = useState<WorkshopPart | null>(null);
   const [focusServiceId, setFocusServiceId] = useState<string | null>(null);
   const [focusPartId, setFocusPartId] = useState<string | null>(null);
+  const [leaveConfirmOpen, setLeaveConfirmOpen] = useState(false);
 
   const focusedServiceInputRef = useRef<HTMLDivElement | null>(null);
   const focusedPartInputRef = useRef<HTMLDivElement | null>(null);
+  const budgetScrollRef = useRef<HTMLDivElement | null>(null);
   const suggestionCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const partSuggestionCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingFocusServiceIdRef = useRef<string | null>(null);
   const pendingFocusPartIdRef = useRef<string | null>(null);
   const stockFlagsResolvedRef = useRef(false);
+  const baselineSnapshotRef = useRef(
+    serializeBudgetDraft(initialDiagnosis, initialServices, initialParts, initialObservations)
+  );
+  const baselineReadyRef = useRef(false);
 
   const workshopPartsNameIndex = useMemo(
     () => buildWorkshopPartNameIndex(workshopParts),
@@ -345,6 +462,89 @@ export function PatioBudgetRequestTouchForm({
       })
     );
   }, [workshopParts, workshopPartsNameIndex]);
+
+  /** Baseline após resolver flags de estoque (não conta como edição do usuário). */
+  useEffect(() => {
+    if (baselineReadyRef.current) return;
+    if (workshopParts.length > 0 && !stockFlagsResolvedRef.current) return;
+    baselineSnapshotRef.current = serializeBudgetDraft(
+      budgetDiagnosis,
+      budgetServices,
+      budgetParts,
+      budgetObservations
+    );
+    baselineReadyRef.current = true;
+  }, [budgetDiagnosis, budgetServices, budgetParts, budgetObservations, workshopParts.length]);
+
+  const isDirty = useMemo(() => {
+    if (!baselineReadyRef.current) return false;
+    return (
+      serializeBudgetDraft(
+        budgetDiagnosis,
+        budgetServices,
+        budgetParts,
+        budgetObservations
+      ) !== baselineSnapshotRef.current
+    );
+  }, [budgetDiagnosis, budgetServices, budgetParts, budgetObservations]);
+
+  const dismissLeaveConfirm = useCallback(() => {
+    setLeaveConfirmOpen(false);
+  }, []);
+
+  const requestClose = useCallback(() => {
+    if (sending) return;
+    if (leaveConfirmOpen) {
+      dismissLeaveConfirm();
+      return;
+    }
+    if (!isDirty) {
+      onClose();
+      return;
+    }
+    setLeaveConfirmOpen(true);
+  }, [sending, leaveConfirmOpen, dismissLeaveConfirm, isDirty, onClose]);
+
+  const confirmLeaveWithoutSaving = useCallback(() => {
+    setLeaveConfirmOpen(false);
+    onClose();
+  }, [onClose]);
+
+  const saveAndLeaveLockRef = useRef(false);
+  const confirmSaveAndLeave = useCallback(() => {
+    if (sending || saveAndLeaveLockRef.current) return;
+    saveAndLeaveLockRef.current = true;
+    setLeaveConfirmOpen(false);
+    void Promise.resolve(
+      onSave({
+        diagnosis: budgetDiagnosis,
+        services: budgetServices,
+        parts: budgetParts,
+        observations: budgetObservations,
+      })
+    ).finally(() => {
+      saveAndLeaveLockRef.current = false;
+    });
+  }, [sending, onSave, budgetDiagnosis, budgetServices, budgetParts, budgetObservations]);
+
+  useBrowserBackLayer(leaveConfirmOpen, dismissLeaveConfirm);
+
+  /**
+   * Enter no diálogo de saída = Salvar e fechar.
+   * Captura em window para valer mesmo se o foco ainda estiver no campo do orçamento.
+   */
+  useEffect(() => {
+    if (!leaveConfirmOpen || sending) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Enter' || e.repeat) return;
+      if (e.isComposing) return;
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      confirmSaveAndLeave();
+    };
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
+  }, [leaveConfirmOpen, sending, confirmSaveAndLeave]);
 
   useLayoutEffect(() => {
     const id = pendingFocusServiceIdRef.current;
@@ -392,6 +592,16 @@ export function PatioBudgetRequestTouchForm({
 
   const removePartRow = (id: string) => {
     setBudgetParts((prev) => prev.filter((i) => i.id !== id));
+  };
+
+  const updatePartQuantity = (id: string, delta: number) => {
+    setBudgetParts((prev) =>
+      prev.map((item) => {
+        if (item.id !== id) return item;
+        const currentQty = parseInt(String(item.quantity), 10) || 0;
+        return { ...item, quantity: String(Math.max(1, currentQty + delta)) };
+      })
+    );
   };
 
   const moveServiceRowToIndex = (id: string, toIndex: number) => {
@@ -462,27 +672,106 @@ export function PatioBudgetRequestTouchForm({
     return workshopParts.filter((p) => normalizeText(p.name).includes(q)).slice(0, 8);
   };
 
-  const updateSuggestionBoxPosition = useCallback(() => {
-    const el = focusedServiceInputRef.current;
-    if (!el) return;
-    const rect = el.getBoundingClientRect();
-    setSuggestionBoxPosition({
-      top: rect.bottom + 4,
-      left: rect.left,
-      width: Math.max(rect.width, 220),
-    });
+  const activeServiceSuggestions = useMemo(
+    () =>
+      suggestionsForServiceId
+        ? getServiceSuggestions(
+            budgetServices.find((i) => i.id === suggestionsForServiceId)?.description ?? ''
+          )
+        : [],
+    // getServiceSuggestions depende de workshopServices + descrição ativa
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [suggestionsForServiceId, budgetServices, workshopServices]
+  );
+
+  const activePartSuggestions = useMemo(
+    () =>
+      suggestionsForPartId
+        ? getPartSuggestions(
+            budgetParts.find((i) => i.id === suggestionsForPartId)?.description ?? ''
+          )
+        : [],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [suggestionsForPartId, budgetParts, workshopParts]
+  );
+
+  const activeServiceSuggestionIds = activeServiceSuggestions.map((s) => s.id).join('|');
+  const activePartSuggestionIds = activePartSuggestions.map((p) => p.id).join('|');
+  const serviceSuggestionsOpen =
+    !!suggestionsForServiceId && activeServiceSuggestions.length > 0;
+  const partSuggestionsOpen = !!suggestionsForPartId && activePartSuggestions.length > 0;
+
+  useEffect(() => {
+    setServiceSuggestionHighlight(-1);
+  }, [suggestionsForServiceId, activeServiceSuggestionIds]);
+
+  useEffect(() => {
+    setPartSuggestionHighlight(-1);
+  }, [suggestionsForPartId, activePartSuggestionIds]);
+
+  /** Esc com sugestões abertas: fecha só a lista (camada acima do modal do orçamento). */
+  useBrowserBackLayer(serviceSuggestionsOpen && !leaveConfirmOpen, () => {
+    setSuggestionsForServiceId(null);
+    setServiceSuggestionHighlight(-1);
+  });
+  useBrowserBackLayer(partSuggestionsOpen && !leaveConfirmOpen, () => {
+    setSuggestionsForPartId(null);
+    setPartSuggestionHighlight(-1);
+  });
+
+  /** Espaço mínimo abaixo do campo para a janela de sugestões ficar legível. */
+  const SUGGESTION_MIN_SPACE_BELOW = 260;
+
+  const ensureSuggestionSpaceBelow = useCallback((anchor: HTMLElement) => {
+    if (typeof window === 'undefined') return;
+    const margin = 12;
+    const rect = anchor.getBoundingClientRect();
+    const spaceBelow = window.innerHeight - rect.bottom - margin;
+    if (spaceBelow >= SUGGESTION_MIN_SPACE_BELOW) return;
+    const delta = SUGGESTION_MIN_SPACE_BELOW - spaceBelow;
+    const scroller =
+      budgetScrollRef.current ??
+      (anchor.closest('.budget-request-scroll') as HTMLElement | null);
+    if (scroller) {
+      scroller.scrollTop += delta;
+    } else {
+      window.scrollBy(0, delta);
+    }
   }, []);
 
-  const updatePartSuggestionBoxPosition = useCallback(() => {
-    const el = focusedPartInputRef.current;
-    if (!el) return;
-    const rect = el.getBoundingClientRect();
-    setPartSuggestionBoxPosition({
-      top: rect.bottom + 4,
-      left: rect.left,
-      width: Math.max(rect.width, 220),
-    });
-  }, []);
+  const updateSuggestionBoxPosition = useCallback(
+    (opts?: { ensureSpace?: boolean }) => {
+      const el = focusedServiceInputRef.current;
+      if (!el) return;
+      if (opts?.ensureSpace) {
+        ensureSuggestionSpaceBelow(el);
+      }
+      const rect = el.getBoundingClientRect();
+      setSuggestionBoxPosition({
+        top: rect.bottom + 4,
+        left: rect.left,
+        width: Math.max(rect.width, 220),
+      });
+    },
+    [ensureSuggestionSpaceBelow]
+  );
+
+  const updatePartSuggestionBoxPosition = useCallback(
+    (opts?: { ensureSpace?: boolean }) => {
+      const el = focusedPartInputRef.current;
+      if (!el) return;
+      if (opts?.ensureSpace) {
+        ensureSuggestionSpaceBelow(el);
+      }
+      const rect = el.getBoundingClientRect();
+      setPartSuggestionBoxPosition({
+        top: rect.bottom + 4,
+        left: rect.left,
+        width: Math.max(rect.width, 220),
+      });
+    },
+    [ensureSuggestionSpaceBelow]
+  );
 
   const handleServiceInputFocus = (id: string) => {
     if (suggestionCloseTimerRef.current) {
@@ -490,13 +779,55 @@ export function PatioBudgetRequestTouchForm({
       suggestionCloseTimerRef.current = null;
     }
     setSuggestionsForServiceId(id);
-    requestAnimationFrame(updateSuggestionBoxPosition);
+    if (laborEditorServiceId && laborEditorServiceId !== id) {
+      setLaborEditorServiceId(null);
+    }
+    requestAnimationFrame(() => updateSuggestionBoxPosition({ ensureSpace: true }));
   };
 
   const handleServiceInputBlur = () => {
     suggestionCloseTimerRef.current = setTimeout(() => {
       setSuggestionsForServiceId(null);
+      setLaborEditorServiceId(null);
     }, 180);
+  };
+
+  const openLaborEditor = (item: PatioBudgetServiceDraft) => {
+    keepServiceSuggestionsOpen();
+    if (laborEditorServiceId === item.id) {
+      setLaborEditorServiceId(null);
+      return;
+    }
+    const parts =
+      item.laborHours != null && Number.isFinite(Number(item.laborHours))
+        ? laborHoursToParts(Number(item.laborHours))
+        : { h: 0, m: 0 };
+    setLaborDraftHours(parts.h > 0 ? String(parts.h) : '');
+    setLaborDraftMinutes(parts.m > 0 ? String(parts.m) : '');
+    setLaborEditorServiceId(item.id);
+  };
+
+  const applyLaborEditor = (serviceId: string) => {
+    keepServiceSuggestionsOpen();
+    const decimal = parseLaborDurationParts(laborDraftHours, laborDraftMinutes);
+    setBudgetServices((prev) =>
+      prev.map((item) =>
+        item.id === serviceId
+          ? { ...item, laborHours: decimal > 0 ? decimal : null }
+          : item
+      )
+    );
+    setLaborEditorServiceId(null);
+  };
+
+  const clearLaborHours = (serviceId: string) => {
+    keepServiceSuggestionsOpen();
+    setBudgetServices((prev) =>
+      prev.map((item) => (item.id === serviceId ? { ...item, laborHours: null } : item))
+    );
+    setLaborDraftHours('');
+    setLaborDraftMinutes('');
+    setLaborEditorServiceId(null);
   };
 
   const keepServiceSuggestionsOpen = () => {
@@ -512,7 +843,7 @@ export function PatioBudgetRequestTouchForm({
       partSuggestionCloseTimerRef.current = null;
     }
     setSuggestionsForPartId(id);
-    requestAnimationFrame(updatePartSuggestionBoxPosition);
+    requestAnimationFrame(() => updatePartSuggestionBoxPosition({ ensureSpace: true }));
   };
 
   const handlePartInputBlur = (id: string) => {
@@ -538,7 +869,14 @@ export function PatioBudgetRequestTouchForm({
       )
     );
     setSuggestionsForServiceId(null);
+    setLaborEditorServiceId(null);
   };
+
+  useEffect(() => {
+    if (!suggestionsForServiceId && laborEditorServiceId) {
+      setLaborEditorServiceId(null);
+    }
+  }, [suggestionsForServiceId, laborEditorServiceId]);
 
   const applyPartSuggestion = (itemId: string, part: WorkshopPart) => {
     setBudgetParts((prev) =>
@@ -556,7 +894,6 @@ export function PatioBudgetRequestTouchForm({
 
   useEffect(() => {
     if (!suggestionsForServiceId) return;
-    updateSuggestionBoxPosition();
     const onScroll = () => updateSuggestionBoxPosition();
     window.addEventListener('scroll', onScroll, true);
     window.addEventListener('resize', onScroll);
@@ -568,7 +905,6 @@ export function PatioBudgetRequestTouchForm({
 
   useEffect(() => {
     if (!suggestionsForPartId) return;
-    updatePartSuggestionBoxPosition();
     const onScroll = () => updatePartSuggestionBoxPosition();
     window.addEventListener('scroll', onScroll, true);
     window.addEventListener('resize', onScroll);
@@ -577,6 +913,27 @@ export function PatioBudgetRequestTouchForm({
       window.removeEventListener('resize', onScroll);
     };
   }, [suggestionsForPartId, updatePartSuggestionBoxPosition]);
+
+  /** Com sugestões abertas: padding extra + scroll para a janela caber abaixo do campo. */
+  useLayoutEffect(() => {
+    if (!serviceSuggestionsOpen) return;
+    updateSuggestionBoxPosition({ ensureSpace: true });
+  }, [
+    serviceSuggestionsOpen,
+    suggestionsForServiceId,
+    activeServiceSuggestionIds,
+    updateSuggestionBoxPosition,
+  ]);
+
+  useLayoutEffect(() => {
+    if (!partSuggestionsOpen) return;
+    updatePartSuggestionBoxPosition({ ensureSpace: true });
+  }, [
+    partSuggestionsOpen,
+    suggestionsForPartId,
+    activePartSuggestionIds,
+    updatePartSuggestionBoxPosition,
+  ]);
 
   const budgetPartQuickViewCatalogNumber = useMemo(() => {
     if (!budgetPartQuickView) return undefined;
@@ -606,7 +963,11 @@ export function PatioBudgetRequestTouchForm({
   const complaintDisplay = (clientComplaint ?? '').trim();
 
   return (
-    <ModalPortal forceBody>
+    <ModalPortal
+      forceBody
+      manageBackLayer={!leaveConfirmOpen}
+      onRequestClose={requestClose}
+    >
       <div
         className={`fixed inset-0 z-[200] flex h-[100dvh] max-h-[100dvh] w-full min-w-0 flex-col overflow-hidden bg-[#F2F4F7] text-slate-900 ${backdropAnimClass}`}
         style={{ colorScheme: 'light' }}
@@ -629,7 +990,7 @@ export function PatioBudgetRequestTouchForm({
             >
               <button
                 type="button"
-                onClick={onClose}
+                onClick={requestClose}
                 className={`inline-flex shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-600 transition-colors hover:bg-slate-200 active:bg-slate-300 ${
                   isPc ? 'h-9 w-9' : 'h-7 w-7'
                 }`}
@@ -669,9 +1030,12 @@ export function PatioBudgetRequestTouchForm({
           </header>
 
           <div
-            className={`budget-request-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain pb-[max(1rem,env(safe-area-inset-bottom))] ${
-              isPc ? 'px-6 py-5 sm:px-8 lg:px-10 lg:py-6' : 'px-3 py-3 sm:px-4 sm:py-4'
-            }`}
+            ref={budgetScrollRef}
+            className={`budget-request-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain ${
+              serviceSuggestionsOpen || partSuggestionsOpen
+                ? 'pb-72'
+                : 'pb-[max(1rem,env(safe-area-inset-bottom))]'
+            } ${isPc ? 'px-6 py-5 sm:px-8 lg:px-10 lg:py-6' : 'px-3 py-3 sm:px-4 sm:py-4'}`}
           >
             <div
               className={`mx-auto flex w-full flex-col ${
@@ -804,6 +1168,9 @@ export function PatioBudgetRequestTouchForm({
                 <div className="space-y-1.5">
                   {budgetServices.map((item, serviceIndex) => {
                     const isFocused = suggestionsForServiceId === item.id;
+                    const isLaborEditing = laborEditorServiceId === item.id;
+                    const hasLabor =
+                      item.laborHours != null && Number.isFinite(Number(item.laborHours));
                     return (
                       <div
                         key={item.id}
@@ -831,23 +1198,120 @@ export function PatioBudgetRequestTouchForm({
                             onFocus={() => handleServiceInputFocus(item.id)}
                             onBlur={handleServiceInputBlur}
                             onEnterAdd={addServiceRow}
+                            onKeyDown={(e) =>
+                              handleBudgetSuggestionKeyDown({
+                                e,
+                                open: suggestionsForServiceId === item.id,
+                                itemCount: activeServiceSuggestions.length,
+                                highlightedIndex: serviceSuggestionHighlight,
+                                setHighlightedIndex: setServiceSuggestionHighlight,
+                                onSelectHighlighted: (index) => {
+                                  const svc = activeServiceSuggestions[index];
+                                  if (svc) applySuggestion(item.id, svc);
+                                },
+                                onCloseSuggestions: () => {
+                                  setSuggestionsForServiceId(null);
+                                  setServiceSuggestionHighlight(-1);
+                                },
+                              })
+                            }
                             autoFocus={focusServiceId === item.id}
                             dataBudgetServiceId={item.id}
                           />
-                          {item.laborHours != null && Number.isFinite(Number(item.laborHours)) ? (
+                          {isLaborEditing ? (
+                            <div
+                              className="mb-1.5 flex flex-wrap items-center gap-1.5 rounded-lg border border-[#007AFF]/25 bg-[#E8F2FF]/70 px-2 py-1.5"
+                              onMouseDown={(e) => {
+                                e.preventDefault();
+                                keepServiceSuggestionsOpen();
+                              }}
+                            >
+                              <input
+                                type="number"
+                                inputMode="numeric"
+                                min={0}
+                                max={99}
+                                placeholder="0"
+                                aria-label="Horas"
+                                value={laborDraftHours}
+                                onChange={(e) => setLaborDraftHours(e.target.value.replace(/[^\d]/g, ''))}
+                                onFocus={keepServiceSuggestionsOpen}
+                                className="h-7 w-10 rounded-md border border-slate-200 bg-white px-1.5 text-center text-[12px] font-semibold tabular-nums text-slate-800 focus:border-[#007AFF]/50 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/20"
+                              />
+                              <span className="text-[11px] font-semibold text-[#007AFF]/85">h</span>
+                              <input
+                                type="number"
+                                inputMode="numeric"
+                                min={0}
+                                max={59}
+                                placeholder="00"
+                                aria-label="Minutos"
+                                value={laborDraftMinutes}
+                                onChange={(e) =>
+                                  setLaborDraftMinutes(e.target.value.replace(/[^\d]/g, '').slice(0, 2))
+                                }
+                                onFocus={keepServiceSuggestionsOpen}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') {
+                                    e.preventDefault();
+                                    applyLaborEditor(item.id);
+                                  }
+                                }}
+                                className="h-7 w-10 rounded-md border border-slate-200 bg-white px-1.5 text-center text-[12px] font-semibold tabular-nums text-slate-800 focus:border-[#007AFF]/50 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/20"
+                              />
+                              <span className="text-[11px] font-semibold text-[#007AFF]/85">min</span>
+                              <button
+                                type="button"
+                                onClick={() => applyLaborEditor(item.id)}
+                                className="inline-flex h-7 items-center justify-center gap-1 rounded-md bg-[#007AFF] px-2 text-[11px] font-semibold text-white"
+                                aria-label="Confirmar horas"
+                              >
+                                <Check className="h-3.5 w-3.5" strokeWidth={2.5} />
+                              </button>
+                              {hasLabor ? (
+                                <button
+                                  type="button"
+                                  onClick={() => clearLaborHours(item.id)}
+                                  className="inline-flex h-7 items-center rounded-md px-1.5 text-[10px] font-semibold text-slate-500 hover:bg-white/80 hover:text-slate-700"
+                                >
+                                  Limpar
+                                </button>
+                              ) : null}
+                            </div>
+                          ) : hasLabor ? (
                             <p className="pb-1.5 text-[11px] font-medium tabular-nums text-[#007AFF]/80">
                               {formatLaborLabel(Number(item.laborHours))}
                             </p>
                           ) : null}
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => removeServiceRow(item.id)}
-                          className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-red-500 transition-colors hover:bg-red-50 active:bg-red-100/70"
-                          aria-label="Remover serviço"
-                        >
-                          <Trash2 className="h-4 w-4" strokeWidth={2} />
-                        </button>
+                        {isFocused ? (
+                          <button
+                            type="button"
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                              keepServiceSuggestionsOpen();
+                            }}
+                            onClick={() => openLaborEditor(item)}
+                            className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition-colors ${
+                              isLaborEditing || hasLabor
+                                ? 'bg-[#E8F2FF] text-[#007AFF] hover:bg-[#DCEBFF]'
+                                : 'text-[#007AFF]/80 hover:bg-[#E8F2FF] hover:text-[#007AFF]'
+                            }`}
+                            aria-label={hasLabor ? 'Editar horas do serviço' : 'Adicionar horas do serviço'}
+                            title={hasLabor ? 'Editar horas' : 'Adicionar horas'}
+                          >
+                            <Clock3 className="h-4 w-4" strokeWidth={2.2} />
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => removeServiceRow(item.id)}
+                            className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-red-500 transition-colors hover:bg-red-50 active:bg-red-100/70"
+                            aria-label="Remover serviço"
+                          >
+                            <Trash2 className="h-4 w-4" strokeWidth={2} />
+                          </button>
+                        )}
                       </div>
                     );
                   })}
@@ -886,9 +1350,6 @@ export function PatioBudgetRequestTouchForm({
                           ariaLabelPrefix="Peça"
                         />
                         <div className="flex min-w-0 flex-1 items-center gap-1.5 py-0.5">
-                          {item.fromStock ? (
-                            <BudgetPartStockBadge className="scale-90" />
-                          ) : null}
                           <input
                             type="text"
                             placeholder="Descreva a peça"
@@ -900,20 +1361,67 @@ export function PatioBudgetRequestTouchForm({
                             onFocus={() => handlePartInputFocus(item.id)}
                             onBlur={() => handlePartInputBlur(item.id)}
                             onKeyDown={(e) => {
+                              if (
+                                handleBudgetSuggestionKeyDown({
+                                  e,
+                                  open: suggestionsForPartId === item.id,
+                                  itemCount: activePartSuggestions.length,
+                                  highlightedIndex: partSuggestionHighlight,
+                                  setHighlightedIndex: setPartSuggestionHighlight,
+                                  onSelectHighlighted: (index) => {
+                                    const part = activePartSuggestions[index];
+                                    if (part) applyPartSuggestion(item.id, part);
+                                  },
+                                  onCloseSuggestions: () => {
+                                    setSuggestionsForPartId(null);
+                                    setPartSuggestionHighlight(-1);
+                                  },
+                                })
+                              ) {
+                                return;
+                              }
                               if (e.key !== 'Enter' || e.shiftKey || e.nativeEvent.isComposing) return;
                               e.preventDefault();
                               addPartRow();
                             }}
                           />
+                          {item.fromStock ? (
+                            <BudgetPartStockBadge className="scale-90 shrink-0" />
+                          ) : null}
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => removePartRow(item.id)}
-                          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-red-500 transition-colors hover:bg-red-50 active:bg-red-100/70"
-                          aria-label="Remover peça"
-                        >
-                          <Trash2 className="h-4 w-4" strokeWidth={2} />
-                        </button>
+                        <div className="flex shrink-0 items-center gap-0.5">
+                          <div className="flex items-center overflow-hidden rounded-lg border border-[#007AFF]/22 bg-[#F5F9FF]">
+                            <button
+                              type="button"
+                              onMouseDown={(e) => e.preventDefault()}
+                              onClick={() => updatePartQuantity(item.id, -1)}
+                              className="flex h-8 w-7 items-center justify-center text-[#007AFF] transition-colors hover:bg-[#E8F2FF] active:bg-[#DCEBFF]"
+                              aria-label="Diminuir quantidade"
+                            >
+                              <Minus className="h-3.5 w-3.5" strokeWidth={2.4} />
+                            </button>
+                            <span className="min-w-[1.35rem] px-0.5 text-center text-[12px] font-semibold tabular-nums text-slate-900">
+                              {item.quantity}
+                            </span>
+                            <button
+                              type="button"
+                              onMouseDown={(e) => e.preventDefault()}
+                              onClick={() => updatePartQuantity(item.id, 1)}
+                              className="flex h-8 w-7 items-center justify-center text-[#007AFF] transition-colors hover:bg-[#E8F2FF] active:bg-[#DCEBFF]"
+                              aria-label="Aumentar quantidade"
+                            >
+                              <Plus className="h-3.5 w-3.5" strokeWidth={2.4} />
+                            </button>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => removePartRow(item.id)}
+                            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-red-500 transition-colors hover:bg-red-50 active:bg-red-100/70"
+                            aria-label="Remover peça"
+                          >
+                            <Trash2 className="h-4 w-4" strokeWidth={2} />
+                          </button>
+                        </div>
                       </div>
                     );
                   })}
@@ -958,16 +1466,12 @@ export function PatioBudgetRequestTouchForm({
         <BudgetServiceSuggestionDropdown
           open={!!suggestionsForServiceId}
           position={suggestionBoxPosition}
-          suggestions={
-            suggestionsForServiceId
-              ? getServiceSuggestions(
-                  budgetServices.find((i) => i.id === suggestionsForServiceId)?.description ?? ''
-                )
-              : []
-          }
+          suggestions={activeServiceSuggestions}
           onClose={() => setSuggestionsForServiceId(null)}
           onKeepOpen={keepServiceSuggestionsOpen}
           compactTouch
+          highlightedIndex={serviceSuggestionHighlight}
+          onHighlightedIndexChange={setServiceSuggestionHighlight}
           onSelect={(svc) => {
             if (suggestionsForServiceId) applySuggestion(suggestionsForServiceId, svc);
           }}
@@ -976,16 +1480,12 @@ export function PatioBudgetRequestTouchForm({
         <BudgetPartSuggestionDropdown
           open={!!suggestionsForPartId}
           position={partSuggestionBoxPosition}
-          suggestions={
-            suggestionsForPartId
-              ? getPartSuggestions(
-                  budgetParts.find((i) => i.id === suggestionsForPartId)?.description ?? ''
-                )
-              : []
-          }
+          suggestions={activePartSuggestions}
           onClose={() => setSuggestionsForPartId(null)}
           onKeepOpen={keepPartSuggestionsOpen}
           compactTouch
+          highlightedIndex={partSuggestionHighlight}
+          onHighlightedIndexChange={setPartSuggestionHighlight}
           onOpenPartDetails={(part) => {
             keepPartSuggestionsOpen();
             setBudgetPartQuickView(part);
@@ -1005,6 +1505,68 @@ export function PatioBudgetRequestTouchForm({
               setBudgetPartQuickView(null);
             }}
           />
+        ) : null}
+
+        {leaveConfirmOpen ? (
+          <div
+            className="absolute inset-0 z-[80] flex items-center justify-center bg-slate-900/45 p-4 backdrop-blur-[2px] animate-modal-backdrop"
+            role="presentation"
+            onClick={dismissLeaveConfirm}
+          >
+            <div
+              role="alertdialog"
+              aria-modal="true"
+              aria-labelledby="budget-leave-title"
+              aria-describedby="budget-leave-desc"
+              className="w-full max-w-[22rem] overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-[0_24px_64px_-16px_rgba(15,23,42,0.45)] animate-modal-sheet"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="px-5 pb-2 pt-5">
+                <p
+                  id="budget-leave-title"
+                  className="text-[17px] font-semibold tracking-[-0.02em] text-slate-900"
+                >
+                  Alterações não salvas
+                </p>
+                <p
+                  id="budget-leave-desc"
+                  className="mt-2 text-[13.5px] leading-relaxed text-slate-600"
+                >
+                  Este orçamento tem edições que ainda não foram salvas. Salve para
+                  manter o progresso ou feche para descartá-las.
+                </p>
+              </div>
+              <div className="flex flex-col gap-2 px-5 pb-5 pt-3">
+                <button
+                  type="button"
+                  onClick={confirmSaveAndLeave}
+                  disabled={sending}
+                  className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-[#007AFF] text-[15px] font-semibold text-white shadow-sm shadow-blue-500/25 transition-[filter,transform] hover:brightness-105 active:scale-[0.99] disabled:opacity-55"
+                >
+                  {sending ? (
+                    <Loader2 className="h-4 w-4 animate-spin" strokeWidth={2.2} />
+                  ) : null}
+                  Salvar e fechar
+                </button>
+                <button
+                  type="button"
+                  onClick={confirmLeaveWithoutSaving}
+                  disabled={sending}
+                  className="inline-flex h-11 w-full items-center justify-center rounded-xl border border-slate-200 bg-white text-[15px] font-semibold text-slate-700 transition-colors hover:bg-slate-50 active:bg-slate-100 disabled:opacity-55"
+                >
+                  Fechar sem salvar
+                </button>
+                <button
+                  type="button"
+                  onClick={dismissLeaveConfirm}
+                  disabled={sending}
+                  className="inline-flex h-10 w-full items-center justify-center rounded-xl text-[13.5px] font-medium text-slate-500 transition-colors hover:bg-slate-50 hover:text-slate-700 disabled:opacity-55"
+                >
+                  Continuar editando
+                </button>
+              </div>
+            </div>
+          </div>
         ) : null}
       </div>
     </ModalPortal>

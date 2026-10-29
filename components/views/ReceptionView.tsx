@@ -51,6 +51,13 @@ import {
   normalizeBrazilianPlate,
 } from '../../utils/brazilianPlate';
 import {
+  compareByNameSearchRank,
+  nameSearchRank,
+  normalizeSearchText,
+  plateSearchRank,
+} from '../../utils/textNormalize';
+import { handleBudgetSuggestionKeyDown } from '../budget/budgetSuggestionKeyboard';
+import {
   cpfCnpjLabel,
   formatCpfCnpj,
   getCpfCnpjStatus,
@@ -286,6 +293,9 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
   const [intakeVehicleOrdersError, setIntakeVehicleOrdersError] = useState<string | null>(null);
   const [intakePlateSearchOpen, setIntakePlateSearchOpen] = useState(false);
   const [intakeModelSearchOpen, setIntakeModelSearchOpen] = useState(false);
+  const [intakeNameSuggestHighlight, setIntakeNameSuggestHighlight] = useState(-1);
+  const [intakePlateSuggestHighlight, setIntakePlateSuggestHighlight] = useState(-1);
+  const [intakeModelSuggestHighlight, setIntakeModelSuggestHighlight] = useState(-1);
   const intakeCustomerBlurTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const customerSearchBoxRef = useRef<HTMLDivElement | null>(null);
   const plateSearchBoxRef = useRef<HTMLDivElement | null>(null);
@@ -634,19 +644,20 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
     const rows = intakeCustomerDirectory;
     if (!rows?.length) return [];
     const qRaw = intakeCustomerSearch.trim();
-    const qLower = qRaw.toLowerCase();
+    const qNorm = normalizeSearchText(qRaw);
     const qDigits = qRaw.replace(/\D/g, '');
     let list = rows;
-    if (qLower.length > 0) {
+    if (qNorm.length > 0) {
       list = rows.filter((c) => {
-        const name = (c.name || '').toLowerCase();
+        const name = normalizeSearchText(c.name || '');
         const phoneDigits = (c.phone || '').replace(/\D/g, '');
-        if (name.includes(qLower)) return true;
+        if (name.includes(qNorm)) return true;
         if (qDigits.length >= 3 && phoneDigits.includes(qDigits)) return true;
         const cpfDigits = (c.cpf || '').replace(/\D/g, '');
         if (qDigits.length >= 4 && cpfDigits.includes(qDigits)) return true;
         return false;
       });
+      list = [...list].sort((a, b) => compareByNameSearchRank(a.name || '', b.name || '', qRaw));
     }
     return list.slice(0, 50);
   }, [intakeCustomerDirectory, intakeCustomerSearch]);
@@ -654,10 +665,10 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
   const intakeNameVehicleSuggestions = useMemo((): ReceptionLinkedVehicleSuggestion[] => {
     const qRaw = intakeCustomerSearch.trim();
     if (qRaw.length < RECEPTION_SUGGEST_MIN_CHARS) return [];
-    const qLower = qRaw.toLowerCase();
+    const qNorm = normalizeSearchText(qRaw);
     const qDigits = qRaw.replace(/\D/g, '');
     const fromOrders = intakeLinkedVehiclesAll.filter((s) => {
-      if (s.customerName.toLowerCase().includes(qLower)) return true;
+      if (normalizeSearchText(s.customerName).includes(qNorm)) return true;
       const phoneDigits = s.phone.replace(/\D/g, '');
       if (qDigits.length >= 3 && phoneDigits.includes(qDigits)) return true;
       const cpfDigits = (s.cpf || '').replace(/\D/g, '');
@@ -684,7 +695,19 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
         orderId: null,
         customerOnly: true,
       }));
-    return [...fromOrders, ...customerOnly].slice(0, 60);
+    const merged = [...fromOrders, ...customerOnly];
+    merged.sort((a, b) => {
+      const ra = nameSearchRank(a.customerName, qRaw);
+      const rb = nameSearchRank(b.customerName, qRaw);
+      // Telefone/CPF sem match no nome ficam depois dos matches de nome.
+      const ea = ra < 99 ? ra : 10;
+      const eb = rb < 99 ? rb : 10;
+      if (ea !== eb) return ea - eb;
+      const byName = a.customerName.localeCompare(b.customerName, 'pt', { sensitivity: 'base' });
+      if (byName !== 0) return byName;
+      return a.plate.localeCompare(b.plate, 'pt');
+    });
+    return merged.slice(0, 60);
   }, [intakeCustomerSearch, intakeLinkedVehiclesAll, intakeExistingCustomerFiltered]);
 
   const intakePlateVehicleSuggestions = useMemo((): ReceptionLinkedVehicleSuggestion[] => {
@@ -700,6 +723,12 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
         if (sNorm.includes(qNorm) || qNorm.includes(sNorm)) return true;
         return brazilianPlateEquivalents(s.plate).some((p) => qForms.has(p.toLowerCase()));
       })
+      .sort((a, b) => {
+        const ra = plateSearchRank(a.plate, qRaw);
+        const rb = plateSearchRank(b.plate, qRaw);
+        if (ra !== rb) return ra - rb;
+        return a.plate.localeCompare(b.plate, 'pt');
+      })
       .slice(0, 60);
   }, [customer.plate, intakeLinkedVehiclesAll]);
 
@@ -713,6 +742,11 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
         const brand = s.vehicleBrand.toLowerCase();
         return model.includes(qLower) || brand.includes(qLower) || `${brand} ${model}`.includes(qLower);
       })
+      .sort((a, b) => {
+        const aLabel = `${a.vehicleBrand} ${a.vehicleModel}`.trim();
+        const bLabel = `${b.vehicleBrand} ${b.vehicleModel}`.trim();
+        return compareByNameSearchRank(aLabel, bLabel, qRaw);
+      })
       .slice(0, 60);
   }, [customer.vehicleModel, intakeLinkedVehiclesAll]);
 
@@ -720,6 +754,9 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
     setIntakeCustomerSearchOpen(false);
     setIntakePlateSearchOpen(false);
     setIntakeModelSearchOpen(false);
+    setIntakeNameSuggestHighlight(-1);
+    setIntakePlateSuggestHighlight(-1);
+    setIntakeModelSuggestHighlight(-1);
   }, []);
 
   const selectIntakeExistingCustomer = useCallback((c: ApiCustomer) => {
@@ -751,9 +788,9 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
     let customerId = ids.length === 1 ? ids[0] : null;
     if (!customerId && rows.length > 0) customerId = rows[0].customerId;
     if (!customerId) {
-      const q = intakeCustomerSearch.trim().toLowerCase();
+      const q = normalizeSearchText(intakeCustomerSearch.trim());
       const match = (intakeCustomerDirectory ?? []).find(
-        (c) => (c.name || '').trim().toLowerCase() === q
+        (c) => normalizeSearchText((c.name || '').trim()) === q
       );
       customerId = match?.id ?? null;
     }
@@ -936,6 +973,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
       setIntakeCustomerSearch(value);
       const q = value.trim();
       setIntakeCustomerSearchOpen(q.length >= RECEPTION_SUGGEST_MIN_CHARS);
+      setIntakeNameSuggestHighlight(-1);
       setIntakePlateSearchOpen(false);
       setIntakeModelSearchOpen(false);
       return;
@@ -944,6 +982,7 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
       setCustomer((prev) => ({ ...prev, vehicleModel: value }));
       const q = value.trim();
       setIntakeModelSearchOpen(q.length >= RECEPTION_SUGGEST_MIN_CHARS);
+      setIntakeModelSuggestHighlight(-1);
       setIntakeCustomerSearchOpen(false);
       setIntakePlateSearchOpen(false);
       return;
@@ -1461,14 +1500,14 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
     setHistoryLoading(true);
     try {
       const rows = await getServiceOrders('CANCELLED', receptionMode);
-      const t = term.trim().toLowerCase();
+      const t = normalizeSearchText(term.trim());
       const filtered = t
         ? rows.filter((o) =>
-            (o.plate || '').toLowerCase().includes(t) ||
-            (o.module_identification || '').toLowerCase().includes(t) ||
-            (o.vehicle_model || '').toLowerCase().includes(t) ||
-            (o.vehicle_brand || '').toLowerCase().includes(t) ||
-            (o.customer_name || o.customers?.name || '').toLowerCase().includes(t)
+            normalizeSearchText(o.plate || '').includes(t) ||
+            normalizeSearchText(o.module_identification || '').includes(t) ||
+            normalizeSearchText(o.vehicle_model || '').includes(t) ||
+            normalizeSearchText(o.vehicle_brand || '').includes(t) ||
+            normalizeSearchText(o.customer_name || o.customers?.name || '').includes(t)
           )
         : rows;
       setArchivedOrders(sortArchivedOrdersNewestFirst(filtered));
@@ -1837,6 +1876,23 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                       placeholder="Nome"
                       value={customer.name}
                       onChange={handleInputChange}
+                      onKeyDown={(e) =>
+                        handleBudgetSuggestionKeyDown({
+                          e,
+                          open: intakeCustomerSearchOpen,
+                          itemCount: intakeNameVehicleSuggestions.length,
+                          highlightedIndex: intakeNameSuggestHighlight,
+                          setHighlightedIndex: setIntakeNameSuggestHighlight,
+                          onSelectHighlighted: (index) => {
+                            const row = intakeNameVehicleSuggestions[index];
+                            if (row) selectIntakeLinkedVehicle(row);
+                          },
+                          onCloseSuggestions: () => {
+                            setIntakeCustomerSearchOpen(false);
+                            setIntakeNameSuggestHighlight(-1);
+                          },
+                        })
+                      }
                       autoComplete="off"
                       icon={<User className="w-4 h-4" />}
                       required
@@ -1898,6 +1954,8 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                   suggestions={intakeNameVehicleSuggestions}
                   onSelectVehicle={selectIntakeLinkedVehicle}
                   onSelectNovaPlaca={selectIntakeNovaPlacaFromName}
+                  highlightedIndex={intakeNameSuggestHighlight}
+                  onHighlightedIndexChange={setIntakeNameSuggestHighlight}
                 />
               </div>
               <div className={receptionFormRow2}>
@@ -2037,10 +2095,10 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                               const value = e.target.value.toUpperCase();
                               setCustomer((prev) => ({ ...prev, plate: value }));
                               const q = value.trim();
-                              setIntakePlateSearchOpen(q.length >= RECEPTION_SUGGEST_MIN_CHARS);
+                              const open = q.length >= RECEPTION_SUGGEST_MIN_CHARS;
+                              setIntakePlateSearchOpen(open);
+                              setIntakePlateSuggestHighlight(-1);
                               setIntakeCustomerSearchOpen(false);
-                              setIntakePlateSearchOpen(false);
-                              setIntakeModelSearchOpen(false);
                               setIntakeModelSearchOpen(false);
                             }}
                             onFocus={() => {
@@ -2048,11 +2106,26 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                               if (q.length >= RECEPTION_SUGGEST_MIN_CHARS) {
                                 setIntakePlateSearchOpen(true);
                                 setIntakeCustomerSearchOpen(false);
-                                setIntakePlateSearchOpen(false);
-                                setIntakeModelSearchOpen(false);
                                 setIntakeModelSearchOpen(false);
                               }
                             }}
+                            onKeyDown={(e) =>
+                              handleBudgetSuggestionKeyDown({
+                                e,
+                                open: intakePlateSearchOpen,
+                                itemCount: intakePlateVehicleSuggestions.length,
+                                highlightedIndex: intakePlateSuggestHighlight,
+                                setHighlightedIndex: setIntakePlateSuggestHighlight,
+                                onSelectHighlighted: (index) => {
+                                  const row = intakePlateVehicleSuggestions[index];
+                                  if (row) selectIntakeLinkedVehicle(row);
+                                },
+                                onCloseSuggestions: () => {
+                                  setIntakePlateSearchOpen(false);
+                                  setIntakePlateSuggestHighlight(-1);
+                                },
+                              })
+                            }
                             onBlur={() => void runPlacaLookup(false)}
                             className="uppercase"
                             maxLength={8}
@@ -2097,6 +2170,8 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                         suggestions={intakePlateVehicleSuggestions}
                         onSelectVehicle={selectIntakeLinkedVehicle}
                         onSelectNovaPlaca={selectIntakeNovaPlacaFromPlate}
+                        highlightedIndex={intakePlateSuggestHighlight}
+                        onHighlightedIndexChange={setIntakePlateSuggestHighlight}
                       />
                     </div>
                     <div className="min-w-0">
@@ -2145,6 +2220,23 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                             setIntakePlateSearchOpen(false);
                           }
                         }}
+                        onKeyDown={(e) =>
+                          handleBudgetSuggestionKeyDown({
+                            e,
+                            open: intakeModelSearchOpen,
+                            itemCount: intakeModelVehicleSuggestions.length,
+                            highlightedIndex: intakeModelSuggestHighlight,
+                            setHighlightedIndex: setIntakeModelSuggestHighlight,
+                            onSelectHighlighted: (index) => {
+                              const row = intakeModelVehicleSuggestions[index];
+                              if (row) selectIntakeLinkedVehicle(row);
+                            },
+                            onCloseSuggestions: () => {
+                              setIntakeModelSearchOpen(false);
+                              setIntakeModelSuggestHighlight(-1);
+                            },
+                          })
+                        }
                         autoComplete="off"
                         icon={<Car className="w-4 h-4" />}
                       />
@@ -2162,6 +2254,8 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
                         suggestions={intakeModelVehicleSuggestions}
                         onSelectVehicle={selectIntakeLinkedVehicle}
                         onSelectNovaPlaca={selectIntakeNovaPlacaFromModel}
+                        highlightedIndex={intakeModelSuggestHighlight}
+                        onHighlightedIndexChange={setIntakeModelSuggestHighlight}
                       />
                     </div>
                   </div>
