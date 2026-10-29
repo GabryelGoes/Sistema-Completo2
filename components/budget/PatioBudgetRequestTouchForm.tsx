@@ -100,8 +100,8 @@ export type PatioBudgetRequestTouchFormProps = {
   backdropAnimClass: string;
 };
 
-/** ~10% menor que o tamanho base (tablet). */
-const BUDGET_SERVICE_TEXTAREA_MIN_PX = 40;
+/** Altura mínima justa para 1 linha — evita “vão” grande acima do tempo de serviço. */
+const BUDGET_SERVICE_TEXTAREA_MIN_PX = 28;
 const ADD_ROW_BTN =
   'inline-flex w-full items-center justify-center gap-1.5 rounded-xl border border-[#007AFF]/18 bg-[#E8F2FF] px-3 py-2.5 text-[13px] font-semibold text-[#007AFF] transition-colors hover:bg-[#DCEBFF] active:bg-[#D0E4FF]';
 
@@ -118,6 +118,7 @@ function TouchServiceTextarea({
   onKeyDown,
   autoFocus,
   dataBudgetServiceId,
+  compactBottom,
 }: {
   value: string;
   onChange: (v: string) => void;
@@ -128,18 +129,20 @@ function TouchServiceTextarea({
   onKeyDown?: (e: React.KeyboardEvent<HTMLTextAreaElement>) => boolean;
   autoFocus?: boolean;
   dataBudgetServiceId?: string;
+  /** Menos padding inferior quando o tempo de serviço vem logo abaixo. */
+  compactBottom?: boolean;
 }) {
   const taRef = useRef<HTMLTextAreaElement | null>(null);
   const syncHeight = useCallback(() => {
     const el = taRef.current;
     if (!el) return;
     el.style.height = 'auto';
-    el.style.height = `${Math.max(BUDGET_SERVICE_TEXTAREA_MIN_PX, el.scrollHeight + 2)}px`;
+    el.style.height = `${Math.max(BUDGET_SERVICE_TEXTAREA_MIN_PX, el.scrollHeight)}px`;
   }, []);
 
   useLayoutEffect(() => {
     syncHeight();
-  }, [value, syncHeight]);
+  }, [value, compactBottom, syncHeight]);
 
   useLayoutEffect(() => {
     if (!autoFocus) return;
@@ -153,7 +156,9 @@ function TouchServiceTextarea({
       spellCheck={false}
       data-budget-service-id={dataBudgetServiceId}
       placeholder="Descreva o serviço"
-      className="block min-h-[40px] w-full min-w-0 resize-none overflow-hidden border-0 bg-transparent py-2 text-[13.5px] leading-snug text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-0 [overflow-wrap:anywhere] [scrollbar-width:none] [&::-webkit-scrollbar]:w-0"
+      className={`block min-h-[28px] w-full min-w-0 resize-none overflow-hidden border-0 bg-transparent pt-2 text-[13.5px] leading-snug text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-0 [overflow-wrap:anywhere] [scrollbar-width:none] [&::-webkit-scrollbar]:w-0 ${
+        compactBottom ? 'pb-0' : 'pb-2'
+      }`}
       value={value}
       onChange={(e) => {
         onChange(e.target.value);
@@ -400,8 +405,10 @@ export function PatioBudgetRequestTouchForm({
   const [suggestionsForPartId, setSuggestionsForPartId] = useState<string | null>(null);
   const [serviceSuggestionHighlight, setServiceSuggestionHighlight] = useState(-1);
   const [partSuggestionHighlight, setPartSuggestionHighlight] = useState(-1);
-  /** Editor de horas no lugar do excluir, enquanto o serviço está em foco. */
+  /** Editor de horas (relógio) — independente do dropdown de sugestões. */
   const [laborEditorServiceId, setLaborEditorServiceId] = useState<string | null>(null);
+  const laborEditorServiceIdRef = useRef<string | null>(null);
+  laborEditorServiceIdRef.current = laborEditorServiceId;
   const [laborDraftHours, setLaborDraftHours] = useState('');
   const [laborDraftMinutes, setLaborDraftMinutes] = useState('');
   const [suggestionBoxPosition, setSuggestionBoxPosition] = useState<{
@@ -787,14 +794,20 @@ export function PatioBudgetRequestTouchForm({
 
   const handleServiceInputBlur = () => {
     suggestionCloseTimerRef.current = setTimeout(() => {
+      // No tablet o blur chega antes do toque no relógio; se o editor de horas
+      // estiver aberto (ou for abrir), mantém a linha ativa.
+      if (laborEditorServiceIdRef.current) {
+        setSuggestionsForServiceId(laborEditorServiceIdRef.current);
+        return;
+      }
       setSuggestionsForServiceId(null);
-      setLaborEditorServiceId(null);
-    }, 180);
+    }, 220);
   };
 
   const openLaborEditor = (item: PatioBudgetServiceDraft) => {
     keepServiceSuggestionsOpen();
-    if (laborEditorServiceId === item.id) {
+    setSuggestionsForServiceId(item.id);
+    if (laborEditorServiceIdRef.current === item.id) {
       setLaborEditorServiceId(null);
       return;
     }
@@ -809,6 +822,7 @@ export function PatioBudgetRequestTouchForm({
 
   const applyLaborEditor = (serviceId: string) => {
     keepServiceSuggestionsOpen();
+    setSuggestionsForServiceId(serviceId);
     const decimal = parseLaborDurationParts(laborDraftHours, laborDraftMinutes);
     setBudgetServices((prev) =>
       prev.map((item) =>
@@ -822,6 +836,7 @@ export function PatioBudgetRequestTouchForm({
 
   const clearLaborHours = (serviceId: string) => {
     keepServiceSuggestionsOpen();
+    setSuggestionsForServiceId(serviceId);
     setBudgetServices((prev) =>
       prev.map((item) => (item.id === serviceId ? { ...item, laborHours: null } : item))
     );
@@ -871,12 +886,6 @@ export function PatioBudgetRequestTouchForm({
     setSuggestionsForServiceId(null);
     setLaborEditorServiceId(null);
   };
-
-  useEffect(() => {
-    if (!suggestionsForServiceId && laborEditorServiceId) {
-      setLaborEditorServiceId(null);
-    }
-  }, [suggestionsForServiceId, laborEditorServiceId]);
 
   const applyPartSuggestion = (itemId: string, part: WorkshopPart) => {
     setBudgetParts((prev) =>
@@ -1167,10 +1176,12 @@ export function PatioBudgetRequestTouchForm({
               >
                 <div className="space-y-1.5">
                   {budgetServices.map((item, serviceIndex) => {
-                    const isFocused = suggestionsForServiceId === item.id;
+                    const isFocused =
+                      suggestionsForServiceId === item.id || laborEditorServiceId === item.id;
                     const isLaborEditing = laborEditorServiceId === item.id;
                     const hasLabor =
                       item.laborHours != null && Number.isFinite(Number(item.laborHours));
+                    const showLaborUnderText = isLaborEditing || hasLabor;
                     return (
                       <div
                         key={item.id}
@@ -1217,13 +1228,18 @@ export function PatioBudgetRequestTouchForm({
                             }
                             autoFocus={focusServiceId === item.id}
                             dataBudgetServiceId={item.id}
+                            compactBottom={showLaborUnderText}
                           />
                           {isLaborEditing ? (
                             <div
-                              className="mb-1.5 flex flex-wrap items-center gap-1.5 rounded-lg border border-[#007AFF]/25 bg-[#E8F2FF]/70 px-2 py-1.5"
+                              data-labor-editor=""
+                              className="mb-1.5 mt-0.5 flex flex-wrap items-center gap-1.5 rounded-lg border border-[#007AFF]/25 bg-[#E8F2FF]/70 px-2 py-1"
                               onMouseDown={(e) => {
-                                e.preventDefault();
                                 keepServiceSuggestionsOpen();
+                                // Não preventDefault em input/botão — senão horas/minutos não recebem foco.
+                                const el = e.target as HTMLElement | null;
+                                if (el?.closest('input, textarea, select, button')) return;
+                                e.preventDefault();
                               }}
                             >
                               <input
@@ -1235,7 +1251,10 @@ export function PatioBudgetRequestTouchForm({
                                 aria-label="Horas"
                                 value={laborDraftHours}
                                 onChange={(e) => setLaborDraftHours(e.target.value.replace(/[^\d]/g, ''))}
-                                onFocus={keepServiceSuggestionsOpen}
+                                onFocus={() => {
+                                  keepServiceSuggestionsOpen();
+                                  setSuggestionsForServiceId(item.id);
+                                }}
                                 className="h-7 w-10 rounded-md border border-slate-200 bg-white px-1.5 text-center text-[12px] font-semibold tabular-nums text-slate-800 focus:border-[#007AFF]/50 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/20"
                               />
                               <span className="text-[11px] font-semibold text-[#007AFF]/85">h</span>
@@ -1250,7 +1269,10 @@ export function PatioBudgetRequestTouchForm({
                                 onChange={(e) =>
                                   setLaborDraftMinutes(e.target.value.replace(/[^\d]/g, '').slice(0, 2))
                                 }
-                                onFocus={keepServiceSuggestionsOpen}
+                                onFocus={() => {
+                                  keepServiceSuggestionsOpen();
+                                  setSuggestionsForServiceId(item.id);
+                                }}
                                 onKeyDown={(e) => {
                                   if (e.key === 'Enter') {
                                     e.preventDefault();
@@ -1262,6 +1284,10 @@ export function PatioBudgetRequestTouchForm({
                               <span className="text-[11px] font-semibold text-[#007AFF]/85">min</span>
                               <button
                                 type="button"
+                                onMouseDown={(e) => {
+                                  e.preventDefault();
+                                  keepServiceSuggestionsOpen();
+                                }}
                                 onClick={() => applyLaborEditor(item.id)}
                                 className="inline-flex h-7 items-center justify-center gap-1 rounded-md bg-[#007AFF] px-2 text-[11px] font-semibold text-white"
                                 aria-label="Confirmar horas"
@@ -1271,6 +1297,10 @@ export function PatioBudgetRequestTouchForm({
                               {hasLabor ? (
                                 <button
                                   type="button"
+                                  onMouseDown={(e) => {
+                                    e.preventDefault();
+                                    keepServiceSuggestionsOpen();
+                                  }}
                                   onClick={() => clearLaborHours(item.id)}
                                   className="inline-flex h-7 items-center rounded-md px-1.5 text-[10px] font-semibold text-slate-500 hover:bg-white/80 hover:text-slate-700"
                                 >
@@ -1279,39 +1309,44 @@ export function PatioBudgetRequestTouchForm({
                               ) : null}
                             </div>
                           ) : hasLabor ? (
-                            <p className="pb-1.5 text-[11px] font-medium tabular-nums text-[#007AFF]/80">
+                            <p className="mt-0 pb-1.5 text-[11px] font-medium leading-tight tabular-nums text-[#007AFF]/80">
                               {formatLaborLabel(Number(item.laborHours))}
                             </p>
                           ) : null}
                         </div>
-                        {isFocused ? (
+                        <div className="mt-0.5 flex shrink-0 flex-col gap-0.5">
                           <button
                             type="button"
-                            onMouseDown={(e) => {
+                            onPointerDown={(e) => {
+                              // Abre no pointerdown: no tablet o blur do textarea chega antes do click.
+                              if (e.button != null && e.button !== 0) return;
                               e.preventDefault();
                               keepServiceSuggestionsOpen();
+                              openLaborEditor(item);
                             }}
-                            onClick={() => openLaborEditor(item)}
-                            className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition-colors ${
+                            className={`flex h-9 w-9 items-center justify-center rounded-lg transition-colors ${
                               isLaborEditing || hasLabor
                                 ? 'bg-[#E8F2FF] text-[#007AFF] hover:bg-[#DCEBFF]'
-                                : 'text-[#007AFF]/80 hover:bg-[#E8F2FF] hover:text-[#007AFF]'
+                                : isFocused
+                                  ? 'text-[#007AFF]/80 hover:bg-[#E8F2FF] hover:text-[#007AFF]'
+                                  : 'text-slate-400 hover:bg-[#E8F2FF] hover:text-[#007AFF]'
                             }`}
                             aria-label={hasLabor ? 'Editar horas do serviço' : 'Adicionar horas do serviço'}
                             title={hasLabor ? 'Editar horas' : 'Adicionar horas'}
                           >
                             <Clock3 className="h-4 w-4" strokeWidth={2.2} />
                           </button>
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => removeServiceRow(item.id)}
-                            className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-red-500 transition-colors hover:bg-red-50 active:bg-red-100/70"
-                            aria-label="Remover serviço"
-                          >
-                            <Trash2 className="h-4 w-4" strokeWidth={2} />
-                          </button>
-                        )}
+                          {!isFocused ? (
+                            <button
+                              type="button"
+                              onClick={() => removeServiceRow(item.id)}
+                              className="flex h-9 w-9 items-center justify-center rounded-lg text-red-500 transition-colors hover:bg-red-50 active:bg-red-100/70"
+                              aria-label="Remover serviço"
+                            >
+                              <Trash2 className="h-4 w-4" strokeWidth={2} />
+                            </button>
+                          ) : null}
+                        </div>
                       </div>
                     );
                   })}
