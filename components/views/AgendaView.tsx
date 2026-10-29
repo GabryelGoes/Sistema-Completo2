@@ -1467,11 +1467,11 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
                             <div>
                               <label className={iosLabel}>Data{agendaReqMark}</label>
                               <div className="relative">
-                                <Calendar className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+                                <Calendar className="pointer-events-none absolute left-3.5 top-1/2 z-[1] h-4 w-4 -translate-y-1/2 text-zinc-600 dark:text-zinc-300" />
                                 <input
                                   type="date"
                                   required
-                                  className={`${agendaModalInput} pl-10`}
+                                  className={`${agendaModalInput} agenda-modal-datetime pl-10`}
                                   value={(() => {
                                     const d = newAppointment.date;
                                     if (!d) return format(selectedDate, 'yyyy-MM-dd');
@@ -1489,11 +1489,11 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
                             <div>
                               <label className={iosLabel}>Horário{agendaReqMark}</label>
                               <div className="relative">
-                                <Clock className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+                                <Clock className="pointer-events-none absolute left-3.5 top-1/2 z-[1] h-4 w-4 -translate-y-1/2 text-zinc-600 dark:text-zinc-300" />
                                 <input
                                   type="time"
                                   required
-                                  className={`${agendaModalInput} pl-10`}
+                                  className={`${agendaModalInput} agenda-modal-datetime pl-10`}
                                   value={newAppointment.time}
                                   onChange={(e) =>
                                     setNewAppointment({ ...newAppointment, time: e.target.value })

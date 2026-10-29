@@ -693,6 +693,38 @@ html[data-desktop-shell='true'] .agenda-form-modal-shell .agenda-modal-body-scro
   min-height: 0 !important;
 }
 
+/** Ícones nativos de date/time visíveis no fundo cinza claro do modal. */
+.agenda-modal-datetime {
+  color-scheme: light;
+  padding-right: 2.5rem;
+}
+.agenda-modal-datetime::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  opacity: 1;
+  width: 1.15rem;
+  height: 1.15rem;
+  margin: 0;
+  padding: 0.15rem;
+  border-radius: 0.35rem;
+  background-color: rgb(24 24 27 / 0.08);
+  /* Escurece o ícone padrão (quase invisível no zinc-100). */
+  filter: invert(0.35) brightness(0.55) contrast(1.15);
+}
+.agenda-modal-datetime::-webkit-calendar-picker-indicator:hover {
+  background-color: rgb(24 24 27 / 0.14);
+  filter: invert(0.25) brightness(0.4) contrast(1.2);
+}
+.dark .agenda-modal-datetime {
+  color-scheme: dark;
+}
+.dark .agenda-modal-datetime::-webkit-calendar-picker-indicator {
+  background-color: rgb(255 255 255 / 0.1);
+  filter: invert(1) brightness(1.05) contrast(1.05);
+}
+.dark .agenda-modal-datetime::-webkit-calendar-picker-indicator:hover {
+  background-color: rgb(255 255 255 / 0.18);
+}
+
 /**
  * Modal «Aprovar orçamento»: altura limitada + corpo rolável.
  * Não usar max-h-[calc(... com espaços ...)] em className — o Tailwind
