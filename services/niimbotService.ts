@@ -43,11 +43,18 @@ const NIIMBOT_PRINTER_NAME_PREFIXES = [
   'NIIMBOT',
 ];
 
+/**
+ * Tipos de papel (SetLabelType 0x23) — wiki NIIMBOT / niimbluelib LabelType.
+ * 1 = com gaps (etiquetas adesivas), 3 = contínuo.
+ */
+export const NIIMBOT_LABEL_TYPE_GAPS = 1;
+export const NIIMBOT_LABEL_TYPE_CONTINUOUS = 3;
+
 export const NIIMBOT_B1_MODEL: NiimbotModel = {
   name_prefixes: [...NIIMBOT_PRINTER_NAME_PREFIXES],
   task: 'b1',
   density: 3,
-  label_type: 1,
+  label_type: NIIMBOT_LABEL_TYPE_GAPS,
   speed: 1,
 };
 
@@ -56,7 +63,7 @@ const NIIMBOT_DISCOVERY_MODEL: NiimbotModel = {
   name_prefixes: [],
   task: 'b1',
   density: 3,
-  label_type: 1,
+  label_type: NIIMBOT_LABEL_TYPE_GAPS,
   speed: 1,
 };
 
@@ -64,7 +71,7 @@ export const NIIMBOT_B1_PRO_MODEL: NiimbotModel = {
   name_prefixes: [...NIIMBOT_PRINTER_NAME_PREFIXES],
   task: 'v4',
   density: 3,
-  label_type: 1,
+  label_type: NIIMBOT_LABEL_TYPE_GAPS,
   speed: 1,
 };
 
@@ -131,11 +138,28 @@ export const NIIMBOT_T50x30_PRO_SIZE: NiimbotSize = {
 };
 
 export const NIIMBOT_SIZE_LABEL = '50 × 30 mm (B1)';
+export const NIIMBOT_CONTINUOUS_SIZE_LABEL = 'Papel contínuo 50 mm (B1)';
 export const NIIMBOT_MODEL_LABEL = 'Niimbot B1';
 
 /** Dica curta exibida nos modais de etiqueta. */
 export const NIIMBOT_BLE_HELP =
   'A lista mostra só impressoras Niimbot ligadas por perto. Na primeira conexão a B1 é salva e nas próximas o app tenta reconectar sozinho. A B1 só fala com um aparelho por vez: desconecte no celular e feche o app NIIMBOT. Use Chrome/Edge (HTTPS). No Android, ligue a Localização e aperte o botão da impressora.';
+
+export const NIIMBOT_CONTINUOUS_HELP =
+  'Use papel contínuo de 50 mm na B1. O app envia label_type=contínuo (sem gaps). Etiquetas adesivas com gaps continuam no fluxo normal de etiqueta.';
+
+function loadImageNaturalSize(url: string): Promise<{ w: number; h: number }> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () =>
+      resolve({
+        w: Math.max(1, img.naturalWidth || img.width),
+        h: Math.max(1, img.naturalHeight || img.height),
+      });
+    img.onerror = () => reject(new Error('Não foi possível ler a imagem para impressão.'));
+    img.src = url;
+  });
+}
 
 function api() {
   const n = typeof window !== 'undefined' ? window.Niimbot : undefined;
@@ -390,9 +414,16 @@ class NiimbotService {
     }
   }
 
+  /** Largura do cabeçote em px (203 dpi B1 = 384; 300 dpi Pro = 576). */
+  getPrintHeadWidthPx(): number {
+    this.applyDetectedPrinter();
+    return this.activeSize.w_px;
+  }
+
   /**
    * Imprime uma imagem (data URL ou blob URL). Mantém a conexão após o job.
    * Se ainda não estiver conectado, o driver conecta no gesto do usuário.
+   * Usa papel com gaps (etiquetas 50×30).
    */
   async printLabelImageUrl(
     imageUrl: string,
@@ -410,7 +441,7 @@ class NiimbotService {
     try {
       this.applyDetectedPrinter();
       await api().printImage(imageUrl, {
-        model: this.activeModel,
+        model: { ...this.activeModel, label_type: NIIMBOT_LABEL_TYPE_GAPS },
         size: this.activeSize,
         copies,
         onProgress: (s) => {
@@ -421,6 +452,56 @@ class NiimbotService {
       this.setState('connected', copies > 1 ? `${copies} etiquetas enviadas` : 'Etiqueta enviada');
     } catch (err) {
       const raw = err instanceof Error ? err.message : 'Falha na impressão';
+      const msg = translateConnectError(raw);
+      const stillUp = isBleLinkUp();
+      if (!stillUp) {
+        await this.safeDisconnectDriver();
+      }
+      this.setState(stillUp ? 'connected' : 'disconnected', msg);
+      throw new Error(msg);
+    }
+  }
+
+  /**
+   * Imprime em papel contínuo (label_type=3). A altura vem da imagem;
+   * a largura deve bater com o cabeçote (384 / 576).
+   */
+  async printContinuousImageUrl(
+    imageUrl: string,
+    opts?: { copies?: number; onProgress?: (s: string) => void }
+  ): Promise<void> {
+    if (!this.isSupported()) {
+      this.setState('unsupported', 'Web Bluetooth indisponível');
+      throw new Error('Web Bluetooth indisponível');
+    }
+    if (!isBleLinkUp()) {
+      await this.connect();
+    }
+    const copies = Math.max(1, Math.min(99, Math.floor(opts?.copies ?? 1)));
+    this.setState('printing', copies > 1 ? `Imprimindo ${copies} vias…` : 'Imprimindo (contínuo)…');
+    try {
+      this.applyDetectedPrinter();
+      const natural = await loadImageNaturalSize(imageUrl);
+      const headW = this.activeSize.w_px;
+      // Alinha à largura do cabeçote; altura proporcional se a imagem vier em outra escala.
+      const w = headW;
+      const h = Math.max(
+        8,
+        Math.min(4096, Math.round((natural.h * headW) / Math.max(1, natural.w)))
+      );
+      const size: NiimbotSize = { w_px: w, h_px: h, offset_y_px: 0 };
+      await api().printImage(imageUrl, {
+        model: { ...this.activeModel, label_type: NIIMBOT_LABEL_TYPE_CONTINUOUS },
+        size,
+        copies,
+        onProgress: (s) => {
+          opts?.onProgress?.(s);
+          this.setState('printing', s);
+        },
+      });
+      this.setState('connected', copies > 1 ? `${copies} vias enviadas` : 'Via contínua enviada');
+    } catch (err) {
+      const raw = err instanceof Error ? err.message : 'Falha na impressão contínua';
       const msg = translateConnectError(raw);
       const stillUp = isBleLinkUp();
       if (!stillUp) {
