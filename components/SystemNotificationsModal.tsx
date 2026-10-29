@@ -380,7 +380,7 @@ export const SystemNotificationsModal: React.FC<SystemNotificationsModalProps> =
                           Bloco da agenda na home
                         </p>
                         <p className="text-[12px] text-zinc-500 dark:text-zinc-400 mt-0.5">
-                          «Próximos amanhã» / «Hoje na oficina»; na sexta mostra a segunda
+                          «Próximos amanhã» / «Hoje»; na sexta vira «Próximos Segunda-Feira»
                         </p>
                       </div>
                       <IosSwitch

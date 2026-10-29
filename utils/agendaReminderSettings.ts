@@ -133,13 +133,17 @@ export function nextWorkdayDateKey(from: Date = new Date()): string {
   return localDateKey(nextWorkdayDate(from));
 }
 
-/** Rótulo curto do bloco “próximos” na home (amanhã vs segunda). */
+/** Rótulo curto do bloco “próximos” na home (amanhã vs segunda-feira). */
 export function upcomingWorkdayHomeTitle(from: Date = new Date()): string {
   const next = nextWorkdayDate(from);
   const tomorrow = addLocalDays(from, 1);
   if (localDateKey(next) === localDateKey(tomorrow)) return 'Próximos amanhã';
-  if (next.getDay() === 1) return 'Próximos na segunda';
+  if (next.getDay() === 1) return 'Próximos Segunda-Feira';
   return 'Próximos na agenda';
+}
+
+export function isUpcomingWorkdayMondayTitle(title: string): boolean {
+  return title === 'Próximos Segunda-Feira';
 }
 
 export function appointmentLocalDateKey(app: { date: Date | string }): string {
