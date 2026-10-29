@@ -50,6 +50,7 @@ import {
   brazilianPlateIdentityKey,
   normalizeBrazilianPlate,
 } from '../../utils/brazilianPlate';
+import { normalizeSearchText } from '../../utils/textNormalize';
 import {
   cpfCnpjLabel,
   formatCpfCnpj,
@@ -634,14 +635,14 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
     const rows = intakeCustomerDirectory;
     if (!rows?.length) return [];
     const qRaw = intakeCustomerSearch.trim();
-    const qLower = qRaw.toLowerCase();
+    const qNorm = normalizeSearchText(qRaw);
     const qDigits = qRaw.replace(/\D/g, '');
     let list = rows;
-    if (qLower.length > 0) {
+    if (qNorm.length > 0) {
       list = rows.filter((c) => {
-        const name = (c.name || '').toLowerCase();
+        const name = normalizeSearchText(c.name || '');
         const phoneDigits = (c.phone || '').replace(/\D/g, '');
-        if (name.includes(qLower)) return true;
+        if (name.includes(qNorm)) return true;
         if (qDigits.length >= 3 && phoneDigits.includes(qDigits)) return true;
         const cpfDigits = (c.cpf || '').replace(/\D/g, '');
         if (qDigits.length >= 4 && cpfDigits.includes(qDigits)) return true;
@@ -654,10 +655,10 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
   const intakeNameVehicleSuggestions = useMemo((): ReceptionLinkedVehicleSuggestion[] => {
     const qRaw = intakeCustomerSearch.trim();
     if (qRaw.length < RECEPTION_SUGGEST_MIN_CHARS) return [];
-    const qLower = qRaw.toLowerCase();
+    const qNorm = normalizeSearchText(qRaw);
     const qDigits = qRaw.replace(/\D/g, '');
     const fromOrders = intakeLinkedVehiclesAll.filter((s) => {
-      if (s.customerName.toLowerCase().includes(qLower)) return true;
+      if (normalizeSearchText(s.customerName).includes(qNorm)) return true;
       const phoneDigits = s.phone.replace(/\D/g, '');
       if (qDigits.length >= 3 && phoneDigits.includes(qDigits)) return true;
       const cpfDigits = (s.cpf || '').replace(/\D/g, '');
@@ -751,9 +752,9 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
     let customerId = ids.length === 1 ? ids[0] : null;
     if (!customerId && rows.length > 0) customerId = rows[0].customerId;
     if (!customerId) {
-      const q = intakeCustomerSearch.trim().toLowerCase();
+      const q = normalizeSearchText(intakeCustomerSearch.trim());
       const match = (intakeCustomerDirectory ?? []).find(
-        (c) => (c.name || '').trim().toLowerCase() === q
+        (c) => normalizeSearchText((c.name || '').trim()) === q
       );
       customerId = match?.id ?? null;
     }
@@ -1461,14 +1462,14 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
     setHistoryLoading(true);
     try {
       const rows = await getServiceOrders('CANCELLED', receptionMode);
-      const t = term.trim().toLowerCase();
+      const t = normalizeSearchText(term.trim());
       const filtered = t
         ? rows.filter((o) =>
-            (o.plate || '').toLowerCase().includes(t) ||
-            (o.module_identification || '').toLowerCase().includes(t) ||
-            (o.vehicle_model || '').toLowerCase().includes(t) ||
-            (o.vehicle_brand || '').toLowerCase().includes(t) ||
-            (o.customer_name || o.customers?.name || '').toLowerCase().includes(t)
+            normalizeSearchText(o.plate || '').includes(t) ||
+            normalizeSearchText(o.module_identification || '').includes(t) ||
+            normalizeSearchText(o.vehicle_model || '').includes(t) ||
+            normalizeSearchText(o.vehicle_brand || '').includes(t) ||
+            normalizeSearchText(o.customer_name || o.customers?.name || '').includes(t)
           )
         : rows;
       setArchivedOrders(sortArchivedOrdersNewestFirst(filtered));

@@ -57,6 +57,7 @@ import {
   storeAgendaView,
   type AgendaViewMode,
 } from '../../utils/agendaViews';
+import { normalizeSearchText } from '../../utils/textNormalize';
 import {
   AgendaDesktopMonthGrid,
   AgendaMiniMonth,
@@ -170,13 +171,14 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
   const vehiclesByCustomer = useMemo(() => vehiclesByCustomerFromOrders(pickerOrders), [pickerOrders]);
 
   const filteredPickerCustomers = useMemo(() => {
-    const q = customerSearch.trim().toLowerCase();
+    const qRaw = customerSearch.trim();
+    const q = normalizeSearchText(qRaw);
     if (!q) return [];
     const list = [...pickerCustomers].sort((a, b) => a.name.localeCompare(b.name, 'pt'));
-    const digits = q.replace(/\D/g, '');
+    const digits = qRaw.replace(/\D/g, '');
     return list.filter((c) => {
-      if (c.name.toLowerCase().includes(q)) return true;
-      if ((c.email ?? '').toLowerCase().includes(q)) return true;
+      if (normalizeSearchText(c.name).includes(q)) return true;
+      if (normalizeSearchText(c.email ?? '').includes(q)) return true;
       if (digits.length >= 3 && (c.phone ?? '').replace(/\D/g, '').includes(digits)) return true;
       return false;
     });
