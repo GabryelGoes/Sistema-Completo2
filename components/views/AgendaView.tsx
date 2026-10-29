@@ -57,7 +57,13 @@ import {
   storeAgendaView,
   type AgendaViewMode,
 } from '../../utils/agendaViews';
-import { normalizeSearchText } from '../../utils/textNormalize';
+import { nameSearchRank, normalizeSearchText } from '../../utils/textNormalize';
+import { brazilianPlateIdentityKey } from '../../utils/brazilianPlate';
+import { handleBudgetSuggestionKeyDown } from '../budget/budgetSuggestionKeyboard';
+import {
+  ReceptionLinkedVehicleSuggest,
+  type ReceptionLinkedVehicleSuggestion,
+} from '../reception/ReceptionLinkedVehicleSuggest';
 import {
   AgendaDesktopMonthGrid,
   AgendaMiniMonth,
@@ -66,6 +72,8 @@ import {
   AgendaTimeGrid,
   AgendaViewSwitcher,
 } from './agenda/AgendaDesktopViews';
+
+const AGENDA_SUGGEST_MIN_CHARS = 2;
 
 interface AgendaViewProps {
   appointments: Appointment[];
@@ -158,6 +166,9 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
   const [registeredCustomerId, setRegisteredCustomerId] = useState('');
   const [registeredVehicleKey, setRegisteredVehicleKey] = useState('');
   const [customerSearch, setCustomerSearch] = useState('');
+  const [customerSuggestOpen, setCustomerSuggestOpen] = useState(false);
+  const [customerSuggestHighlight, setCustomerSuggestHighlight] = useState(-1);
+  const customerSearchBoxRef = React.useRef<HTMLDivElement | null>(null);
 
   useRegisterModalOpen(!!detailAppointment || isModalOpen);
 
@@ -170,22 +181,105 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
 
   const vehiclesByCustomer = useMemo(() => vehiclesByCustomerFromOrders(pickerOrders), [pickerOrders]);
 
-  const filteredPickerCustomers = useMemo(() => {
+  const agendaLinkedVehiclesAll = useMemo((): ReceptionLinkedVehicleSuggestion[] => {
+    const custMap = new Map(pickerCustomers.map((c) => [c.id, c] as const));
+    const byKey = new Map<string, ReceptionLinkedVehicleSuggestion>();
+    const sorted = [...pickerOrders].sort(
+      (a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()
+    );
+    for (const o of sorted) {
+      if ((o.order_type ?? 'vehicle') === 'module') continue;
+      const plate = (o.plate ?? '').trim().toUpperCase();
+      if (!plate || plate === '---') continue;
+      const cid = o.customer_id;
+      if (!cid) continue;
+      const key = `${cid}::${brazilianPlateIdentityKey(plate)}`;
+      if (byKey.has(key)) continue;
+      const c = custMap.get(cid);
+      byKey.set(key, {
+        key,
+        customerId: cid,
+        customerName: (c?.name || o.customer_name || o.customers?.name || '').trim(),
+        phone: (c?.phone || o.customers?.phone || '').trim(),
+        cpf: c?.cpf ?? null,
+        plate,
+        vehicleBrand: (o.vehicle_brand ?? '').trim(),
+        vehicleModel: (o.vehicle_model ?? '').trim(),
+        vehicleColor: (o.vehicle_color ?? '').trim(),
+        vehicleYear: (o.vehicle_year ?? '').trim(),
+        vehicleEngineInfo: (o.vehicle_engine_info ?? '').trim(),
+        vehicleChassis: (o.vehicle_chassis ?? '').trim(),
+        mileageKm: (o.mileage_km ?? '').trim(),
+        orderId: o.id,
+      });
+    }
+    return [...byKey.values()];
+  }, [pickerOrders, pickerCustomers]);
+
+  const agendaNameVehicleSuggestions = useMemo((): ReceptionLinkedVehicleSuggestion[] => {
     const qRaw = customerSearch.trim();
-    const q = normalizeSearchText(qRaw);
-    if (!q) return [];
-    const list = [...pickerCustomers].sort((a, b) => a.name.localeCompare(b.name, 'pt'));
-    const digits = qRaw.replace(/\D/g, '');
-    return list.filter((c) => {
-      if (normalizeSearchText(c.name).includes(q)) return true;
-      if (normalizeSearchText(c.email ?? '').includes(q)) return true;
-      if (digits.length >= 3 && (c.phone ?? '').replace(/\D/g, '').includes(digits)) return true;
+    if (qRaw.length < AGENDA_SUGGEST_MIN_CHARS) return [];
+    const qNorm = normalizeSearchText(qRaw);
+    const qDigits = qRaw.replace(/\D/g, '');
+    const fromOrders = agendaLinkedVehiclesAll.filter((s) => {
+      if (normalizeSearchText(s.customerName).includes(qNorm)) return true;
+      const phoneDigits = s.phone.replace(/\D/g, '');
+      if (qDigits.length >= 3 && phoneDigits.includes(qDigits)) return true;
+      const cpfDigits = (s.cpf || '').replace(/\D/g, '');
+      if (qDigits.length >= 4 && cpfDigits.includes(qDigits)) return true;
       return false;
     });
-  }, [pickerCustomers, customerSearch]);
+    const withVehicleIds = new Set(fromOrders.map((s) => s.customerId));
+    const matchingCustomers = pickerCustomers.filter((c) => {
+      if (normalizeSearchText(c.name || '').includes(qNorm)) return true;
+      if (normalizeSearchText(c.email ?? '').includes(qNorm)) return true;
+      if (qDigits.length >= 3 && (c.phone ?? '').replace(/\D/g, '').includes(qDigits)) return true;
+      return false;
+    });
+    const customerOnly: ReceptionLinkedVehicleSuggestion[] = matchingCustomers
+      .filter((c) => !withVehicleIds.has(c.id))
+      .map((c) => ({
+        key: `customer-only::${c.id}`,
+        customerId: c.id,
+        customerName: c.name || '',
+        phone: c.phone || '',
+        cpf: c.cpf,
+        plate: '',
+        vehicleBrand: '',
+        vehicleModel: '',
+        vehicleColor: '',
+        vehicleYear: '',
+        vehicleEngineInfo: '',
+        vehicleChassis: '',
+        mileageKm: '',
+        orderId: null,
+        customerOnly: true,
+      }));
+    const merged = [...fromOrders, ...customerOnly];
+    merged.sort((a, b) => {
+      const ra = nameSearchRank(a.customerName, qRaw);
+      const rb = nameSearchRank(b.customerName, qRaw);
+      const ea = ra < 99 ? ra : 10;
+      const eb = rb < 99 ? rb : 10;
+      if (ea !== eb) return ea - eb;
+      const byName = a.customerName.localeCompare(b.customerName, 'pt', { sensitivity: 'base' });
+      if (byName !== 0) return byName;
+      return a.plate.localeCompare(b.plate, 'pt');
+    });
+    return merged.slice(0, 60);
+  }, [customerSearch, agendaLinkedVehiclesAll, pickerCustomers]);
 
-  const showCustomerSearchResults =
-    !registeredCustomerId && customerSearch.trim().length > 0;
+  useEffect(() => {
+    if (!customerSuggestOpen) return;
+    const onPointerDown = (e: MouseEvent) => {
+      if (customerSearchBoxRef.current && !customerSearchBoxRef.current.contains(e.target as Node)) {
+        setCustomerSuggestOpen(false);
+        setCustomerSuggestHighlight(-1);
+      }
+    };
+    document.addEventListener('mousedown', onPointerDown);
+    return () => document.removeEventListener('mousedown', onPointerDown);
+  }, [customerSuggestOpen]);
 
   useEffect(() => {
     if (!isModalOpen) return;
@@ -217,12 +311,16 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
     setRegisteredCustomerId('');
     setRegisteredVehicleKey('');
     setCustomerSearch('');
+    setCustomerSuggestOpen(false);
+    setCustomerSuggestHighlight(-1);
   }, []);
 
   const applyRegisteredCustomer = useCallback(
     (customer: ApiCustomer) => {
       setRegisteredCustomerId(customer.id);
       setCustomerSearch('');
+      setCustomerSuggestOpen(false);
+      setCustomerSuggestHighlight(-1);
       const vehs = vehiclesByCustomer.get(customer.id) ?? [];
       if (vehs.length > 0) {
         const v = vehs[0];
@@ -249,6 +347,66 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
     },
     [vehiclesByCustomer]
   );
+
+  const applyAgendaLinkedVehicle = useCallback(
+    (row: ReceptionLinkedVehicleSuggestion) => {
+      const customer = pickerCustomers.find((c) => c.id === row.customerId);
+      setCustomerSuggestOpen(false);
+      setCustomerSuggestHighlight(-1);
+      setCustomerSearch('');
+      if (row.customerOnly) {
+        if (customer) applyRegisteredCustomer(customer);
+        return;
+      }
+      setRegisteredCustomerId(row.customerId);
+      const vehs = vehiclesByCustomer.get(row.customerId) ?? [];
+      const match =
+        vehs.find((v) => brazilianPlateIdentityKey(v.plate) === brazilianPlateIdentityKey(row.plate)) ??
+        vehs.find((v) => v.plate === row.plate) ??
+        null;
+      const displayModel =
+        [row.vehicleBrand, row.vehicleModel].filter(Boolean).join(' ').trim() ||
+        match?.displayModel ||
+        'Veículo';
+      const vehicleKey = match?.key ?? `${row.customerId}::${row.plate}::${displayModel}`;
+      setRegisteredVehicleKey(vehicleKey);
+      setNewAppointment((prev) => ({
+        ...prev,
+        customerName: customer?.name || row.customerName,
+        phone: customer?.phone || row.phone || '',
+        email: customer?.email ?? '',
+        vehicleModel: displayModel,
+        plate: row.plate,
+      }));
+    },
+    [pickerCustomers, vehiclesByCustomer, applyRegisteredCustomer]
+  );
+
+  const applyAgendaNovaPlaca = useCallback(() => {
+    const rows = agendaNameVehicleSuggestions;
+    const ids = [...new Set(rows.map((r) => r.customerId))];
+    let customerId = ids.length === 1 ? ids[0] : rows[0]?.customerId ?? null;
+    if (!customerId) {
+      const q = normalizeSearchText(customerSearch.trim());
+      const match = pickerCustomers.find((c) => normalizeSearchText((c.name || '').trim()) === q);
+      customerId = match?.id ?? null;
+    }
+    const customer = customerId ? pickerCustomers.find((c) => c.id === customerId) : undefined;
+    setCustomerSuggestOpen(false);
+    setCustomerSuggestHighlight(-1);
+    if (!customer) return;
+    setRegisteredCustomerId(customer.id);
+    setCustomerSearch('');
+    setRegisteredVehicleKey(OTHER_VEHICLE_KEY);
+    setNewAppointment((prev) => ({
+      ...prev,
+      customerName: customer.name,
+      phone: customer.phone ?? '',
+      email: customer.email ?? '',
+      vehicleModel: '',
+      plate: '',
+    }));
+  }, [agendaNameVehicleSuggestions, customerSearch, pickerCustomers]);
 
   const applyRegisteredVehicle = useCallback((customer: ApiCustomer, v: AgendaRegisteredVehicle | 'other') => {
     if (v === 'other') {
@@ -1340,57 +1498,75 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
                             ) : (
                               <>
                                 {!registeredCustomerId ? (
-                                  <>
-                                    <div>
-                                      <label className={iosLabel}>Buscar cliente</label>
-                                      <div className="relative">
-                                        <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
-                                        <input
-                                          type="search"
-                                          className={`${agendaModalInput} pl-10`}
-                                          placeholder="Nome, telefone ou e-mail"
-                                          value={customerSearch}
-                                          onChange={(e) => setCustomerSearch(e.target.value)}
-                                          autoComplete="off"
-                                        />
-                                      </div>
-                                      {!showCustomerSearchResults ? (
-                                        <p className="text-[12px] leading-relaxed text-zinc-500 dark:text-zinc-400">
-                                          Digite nome, telefone ou e-mail para exibir os clientes cadastrados.
-                                        </p>
-                                      ) : null}
+                                  <div ref={customerSearchBoxRef} className="relative">
+                                    <label className={iosLabel}>Buscar cliente</label>
+                                    <div className="relative">
+                                      <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+                                      <input
+                                        type="search"
+                                        className={`${agendaModalInput} pl-10`}
+                                        placeholder="Nome, telefone ou e-mail"
+                                        value={customerSearch}
+                                        onChange={(e) => {
+                                          const v = e.target.value;
+                                          setCustomerSearch(v);
+                                          setCustomerSuggestHighlight(-1);
+                                          setCustomerSuggestOpen(
+                                            v.trim().length >= AGENDA_SUGGEST_MIN_CHARS
+                                          );
+                                        }}
+                                        onFocus={() => {
+                                          if (customerSearch.trim().length >= AGENDA_SUGGEST_MIN_CHARS) {
+                                            setCustomerSuggestOpen(true);
+                                          }
+                                        }}
+                                        onKeyDown={(e) =>
+                                          handleBudgetSuggestionKeyDown({
+                                            e,
+                                            open: customerSuggestOpen,
+                                            itemCount: agendaNameVehicleSuggestions.length,
+                                            highlightedIndex: customerSuggestHighlight,
+                                            setHighlightedIndex: setCustomerSuggestHighlight,
+                                            onSelectHighlighted: (index) => {
+                                              const row = agendaNameVehicleSuggestions[index];
+                                              if (row) applyAgendaLinkedVehicle(row);
+                                            },
+                                            onCloseSuggestions: () => {
+                                              setCustomerSuggestOpen(false);
+                                              setCustomerSuggestHighlight(-1);
+                                            },
+                                          })
+                                        }
+                                        autoComplete="off"
+                                      />
                                     </div>
-                                    {showCustomerSearchResults ? (
-                                      <div>
-                                        <label className={iosLabel}>Cliente</label>
-                                        <div
-                                          className={`${agendaModalInsetCard} max-h-44 overflow-y-auto overscroll-contain p-1.5 touch-pan-y`}
-                                        >
-                                          {filteredPickerCustomers.length === 0 ? (
-                                            <p className="py-6 text-center text-sm text-zinc-500 dark:text-zinc-400">
-                                              Nenhum resultado.
-                                            </p>
-                                          ) : (
-                                            filteredPickerCustomers.map((c) => (
-                                              <button
-                                                key={c.id}
-                                                type="button"
-                                                onClick={() => applyRegisteredCustomer(c)}
-                                                className="flex w-full flex-col items-start rounded-xl px-3 py-2.5 text-left text-[14px] text-zinc-900 transition-colors hover:bg-zinc-200/80 dark:text-white dark:hover:bg-white/[0.06]"
-                                              >
-                                                <span>{c.name}</span>
-                                                {c.phone ? (
-                                                  <span className="text-xs font-normal text-zinc-500 dark:text-zinc-400">
-                                                    {c.phone}
-                                                  </span>
-                                                ) : null}
-                                              </button>
-                                            ))
-                                          )}
-                                        </div>
+                                    {customerSuggestOpen &&
+                                    customerSearch.trim().length < AGENDA_SUGGEST_MIN_CHARS ? (
+                                      <div className="absolute left-0 right-0 z-30 mt-1.5 overflow-hidden rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-xs text-zinc-500 shadow-md dark:border-brand-border dark:bg-zinc-900 dark:text-zinc-400">
+                                        Digite ao menos {AGENDA_SUGGEST_MIN_CHARS} caracteres para ver
+                                        veículos vinculados.
                                       </div>
                                     ) : null}
-                                  </>
+                                    {!customerSuggestOpen ? (
+                                      <p className="text-[12px] leading-relaxed text-zinc-500 dark:text-zinc-400">
+                                        Digite ao menos {AGENDA_SUGGEST_MIN_CHARS} caracteres para ver
+                                        veículos vinculados.
+                                      </p>
+                                    ) : null}
+                                    <ReceptionLinkedVehicleSuggest
+                                      open={
+                                        customerSuggestOpen &&
+                                        customerSearch.trim().length >= AGENDA_SUGGEST_MIN_CHARS
+                                      }
+                                      query={customerSearch}
+                                      loading={pickerLoading}
+                                      suggestions={agendaNameVehicleSuggestions}
+                                      onSelectVehicle={applyAgendaLinkedVehicle}
+                                      onSelectNovaPlaca={applyAgendaNovaPlaca}
+                                      highlightedIndex={customerSuggestHighlight}
+                                      onHighlightedIndexChange={setCustomerSuggestHighlight}
+                                    />
+                                  </div>
                                 ) : null}
                                 {registeredCustomerId && selectedPickerCustomer ? (
                                   <div className="space-y-4">
@@ -1408,6 +1584,8 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
                                           setRegisteredCustomerId('');
                                           setRegisteredVehicleKey('');
                                           setCustomerSearch('');
+                                          setCustomerSuggestOpen(false);
+                                          setCustomerSuggestHighlight(-1);
                                           setNewAppointment((prev) => ({
                                             ...prev,
                                             customerName: '',
