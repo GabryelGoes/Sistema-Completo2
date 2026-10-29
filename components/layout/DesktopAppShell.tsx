@@ -43,6 +43,8 @@ export type DesktopAppShellProps = {
   /** Quantidade de mensagens novas no chat de suporte. */
   supportUnreadBadge?: number;
   orcamentosBadge?: number;
+  /** Agendamentos do dia atual (ícone Agenda). */
+  agendaBadge?: number;
   notificationCenter?: Omit<NotificationCenterProps, 'placement'>;
   shellOverlayTopbar?: DesktopShellOverlayTopbar | null;
   /** Atalho da sidebar aberto (Estoque, Painéis) ou hub de Ajustes. */
@@ -103,6 +105,7 @@ export function DesktopAppShell({
   onOpenSupport,
   supportUnreadBadge = 0,
   orcamentosBadge = 0,
+  agendaBadge = 0,
   notificationCenter,
   shellOverlayTopbar = null,
   activeSidebarAction = null,
@@ -199,6 +202,17 @@ export function DesktopAppShell({
                       aria-hidden={orcamentosBadge <= 0}
                     >
                       {orcamentosBadge > 99 ? '99+' : orcamentosBadge > 0 ? orcamentosBadge : '0'}
+                    </span>
+                  ) : null}
+                  {item.id === 'agenda' ? (
+                    <span
+                      data-desktop-nav-badge="agenda"
+                      className={`desktop-shell-nav-badge ml-auto rounded-full bg-red-500 px-1.5 py-0.5 text-[9px] font-bold text-white tabular-nums ${
+                        agendaBadge > 0 ? '' : 'invisible min-w-[1.1rem] px-0 opacity-0'
+                      }`}
+                      aria-hidden={agendaBadge <= 0}
+                    >
+                      {agendaBadge > 99 ? '99+' : agendaBadge > 0 ? agendaBadge : '0'}
                     </span>
                   ) : null}
                 </button>
