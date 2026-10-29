@@ -22,7 +22,8 @@ function sortByTime(list: Appointment[]): Appointment[] {
 type AppointmentColumnProps = {
   title: string;
   subtitle: string;
-  emptyText: string;
+  /** Caixa vazia opcional; omitir para usar só o subtítulo (evita mensagem duplicada). */
+  emptyText?: string;
   apps: Appointment[];
   accent: 'red' | 'blue';
   icon: 'clock' | 'sun';
@@ -70,9 +71,11 @@ const AppointmentColumn: React.FC<AppointmentColumnProps> = ({
       </div>
 
       {apps.length === 0 ? (
-        <p className="rounded-xl bg-zinc-50/90 px-3 py-3 text-[12px] text-zinc-500 dark:bg-white/[0.04] dark:text-zinc-400">
-          {emptyText}
-        </p>
+        emptyText ? (
+          <p className="rounded-xl bg-zinc-50/90 px-3 py-3 text-[12px] text-zinc-500 dark:bg-white/[0.04] dark:text-zinc-400">
+            {emptyText}
+          </p>
+        ) : null
       ) : (
         <>
           <ul className="divide-y divide-zinc-100 dark:divide-white/[0.06]">
@@ -172,10 +175,6 @@ export const HomeTomorrowAppointmentsCard: React.FC<HomeTomorrowAppointmentsCard
       ? 'Nenhum veículo para hoje'
       : `${todayApps.length} agendamento${todayApps.length === 1 ? '' : 's'}`;
 
-  const upcomingEmpty = upcomingIsMonday
-    ? 'Nenhum veículo agendado para segunda'
-    : 'Nenhum veículo agendado para amanhã';
-
   return (
     <section
       className={`rounded-[22px] border-0 bg-white p-4 shadow-none dark:bg-zinc-900 sm:p-5 ${className}`}
@@ -200,7 +199,6 @@ export const HomeTomorrowAppointmentsCard: React.FC<HomeTomorrowAppointmentsCard
             <AppointmentColumn
               title={upcomingTitle}
               subtitle={upcomingSubtitle}
-              emptyText={upcomingEmpty}
               apps={upcomingApps}
               accent="red"
               icon="clock"
@@ -212,7 +210,6 @@ export const HomeTomorrowAppointmentsCard: React.FC<HomeTomorrowAppointmentsCard
             <AppointmentColumn
               title="Hoje"
               subtitle={todaySubtitle}
-              emptyText="Nenhum veículo agendado para hoje"
               apps={todayApps}
               accent="blue"
               icon="sun"
@@ -225,7 +222,6 @@ export const HomeTomorrowAppointmentsCard: React.FC<HomeTomorrowAppointmentsCard
         <AppointmentColumn
           title={upcomingTitle}
           subtitle={upcomingSubtitle}
-          emptyText={upcomingEmpty}
           apps={upcomingApps}
           accent="red"
           icon="clock"
