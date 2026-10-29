@@ -191,10 +191,15 @@ export type TrelloAttachment = BoardAttachment;
 
 export interface Appointment {
   id: string;
+  /** Queixa / motivo do agendamento. */
   title: string;
   customerName: string;
   phone?: string;
   email?: string;
+  /** CPF/CNPJ informado no agendamento (opcional). */
+  customerCpf?: string;
+  /** Marca/montadora (opcional). */
+  vehicleBrand?: string;
   vehicleModel: string;
   plate: string;
   date: Date;

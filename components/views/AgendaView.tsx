@@ -19,10 +19,12 @@ import {
   Phone,
   Mail,
   Sparkles,
-  BookUser,
-  PenLine,
   Search,
   Loader2,
+  MessageSquare,
+  Calendar,
+  ShieldCheck,
+  Building2,
 } from 'lucide-react';
 import {
   agendaModalInsetCard,
@@ -59,6 +61,7 @@ import {
 } from '../../utils/agendaViews';
 import { nameSearchRank, normalizeSearchText } from '../../utils/textNormalize';
 import { brazilianPlateIdentityKey } from '../../utils/brazilianPlate';
+import { formatCpfCnpj } from '../../utils/cpfCnpj';
 import { handleBudgetSuggestionKeyDown } from '../budget/budgetSuggestionKeyboard';
 import {
   ReceptionLinkedVehicleSuggest,
@@ -74,6 +77,36 @@ import {
 } from './agenda/AgendaDesktopViews';
 
 const AGENDA_SUGGEST_MIN_CHARS = 2;
+
+function appointmentVehicleLabel(app: Pick<Appointment, 'vehicleBrand' | 'vehicleModel'>): string {
+  const brand = (app.vehicleBrand ?? '').trim();
+  const model = (app.vehicleModel ?? '').trim();
+  return [brand, model].filter(Boolean).join(' ') || model || '—';
+}
+
+function emptyAppointmentDraft(date: Date): Partial<Appointment> {
+  return {
+    date,
+    time: '09:00',
+    status: 'scheduled',
+    title: '',
+    customerName: '',
+    phone: '',
+    email: '',
+    customerCpf: '',
+    vehicleBrand: '',
+    vehicleModel: '',
+    plate: '',
+    notes: '',
+  };
+}
+
+const agendaSectionCard =
+  'rounded-[20px] border border-zinc-200/70 bg-white p-4 shadow-[0_1px_2px_rgba(0,0,0,0.04)] dark:border-white/[0.08] dark:bg-zinc-900/50 dark:shadow-none sm:p-5';
+const agendaSectionTitle =
+  'mb-3 text-[11px] font-bold uppercase tracking-[0.1em] text-zinc-500 dark:text-zinc-400';
+const agendaFieldHint = 'mt-1.5 text-[11px] leading-relaxed text-zinc-500 dark:text-zinc-400';
+const agendaReqMark = <span className="ml-0.5 text-red-500" aria-hidden>*</span>;
 
 interface AgendaViewProps {
   appointments: Appointment[];
@@ -94,6 +127,8 @@ type AgendaRegisteredVehicle = {
   key: string;
   customerId: string;
   displayModel: string;
+  brand: string;
+  model: string;
   plate: string;
 };
 
@@ -113,11 +148,13 @@ function vehiclesByCustomerFromOrders(orders: ServiceOrderListItem[]): Map<strin
     const cid = o.customer_id;
     if (!cid) continue;
     const plate = (o.plate ?? '').toString().trim().toUpperCase();
+    const brand = (o.vehicle_brand ?? '').toString().trim();
+    const model = (o.vehicle_model ?? '').toString().trim();
     const displayModel = formatVehicleLabelFromOrder(o);
-    const dk = `${cid}::${plate}::${displayModel}`;
+    const dk = `${cid}::${brazilianPlateIdentityKey(plate || 'nop')}::${displayModel}`;
     if (seen.has(dk)) continue;
     seen.add(dk);
-    const row: AgendaRegisteredVehicle = { key: dk, customerId: cid, displayModel, plate };
+    const row: AgendaRegisteredVehicle = { key: dk, customerId: cid, displayModel, brand, model, plate };
     const arr = map.get(cid) ?? [];
     arr.push(row);
     map.set(cid, arr);
@@ -143,29 +180,19 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
   const desktopShell = useDesktopShellLayout();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
-  const [newAppointment, setNewAppointment] = useState<Partial<Appointment>>({
-    date: new Date(),
-    time: '09:00',
-    status: 'scheduled',
-    title: '',
-    customerName: '',
-    phone: '',
-    email: '',
-    vehicleModel: '',
-    plate: '',
-    notes: ''
-  });
+  const [newAppointment, setNewAppointment] = useState<Partial<Appointment>>(() =>
+    emptyAppointmentDraft(new Date())
+  );
   const [isLoading, setIsLoading] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
   /** Modal somente leitura ao tocar no veículo no calendário (ou na lista do dia). */
   const [detailAppointment, setDetailAppointment] = useState<Appointment | null>(null);
 
-  const [agendaPickerMode, setAgendaPickerMode] = useState<'registered' | 'manual'>('registered');
   const [pickerCustomers, setPickerCustomers] = useState<ApiCustomer[]>([]);
   const [pickerOrders, setPickerOrders] = useState<ServiceOrderListItem[]>([]);
   const [pickerLoading, setPickerLoading] = useState(false);
   const [registeredCustomerId, setRegisteredCustomerId] = useState('');
   const [registeredVehicleKey, setRegisteredVehicleKey] = useState('');
-  const [customerSearch, setCustomerSearch] = useState('');
   const [customerSuggestOpen, setCustomerSuggestOpen] = useState(false);
   const [customerSuggestHighlight, setCustomerSuggestHighlight] = useState(-1);
   const customerSearchBoxRef = React.useRef<HTMLDivElement | null>(null);
@@ -217,7 +244,7 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
   }, [pickerOrders, pickerCustomers]);
 
   const agendaNameVehicleSuggestions = useMemo((): ReceptionLinkedVehicleSuggestion[] => {
-    const qRaw = customerSearch.trim();
+    const qRaw = (newAppointment.customerName ?? '').trim();
     if (qRaw.length < AGENDA_SUGGEST_MIN_CHARS) return [];
     const qNorm = normalizeSearchText(qRaw);
     const qDigits = qRaw.replace(/\D/g, '');
@@ -234,6 +261,8 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
       if (normalizeSearchText(c.name || '').includes(qNorm)) return true;
       if (normalizeSearchText(c.email ?? '').includes(qNorm)) return true;
       if (qDigits.length >= 3 && (c.phone ?? '').replace(/\D/g, '').includes(qDigits)) return true;
+      const cpfDigits = (c.cpf || '').replace(/\D/g, '');
+      if (qDigits.length >= 4 && cpfDigits.includes(qDigits)) return true;
       return false;
     });
     const customerOnly: ReceptionLinkedVehicleSuggestion[] = matchingCustomers
@@ -267,7 +296,17 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
       return a.plate.localeCompare(b.plate, 'pt');
     });
     return merged.slice(0, 60);
-  }, [customerSearch, agendaLinkedVehiclesAll, pickerCustomers]);
+  }, [newAppointment.customerName, agendaLinkedVehiclesAll, pickerCustomers]);
+
+  const registeredCustomerVehicles = useMemo(
+    () => (registeredCustomerId ? vehiclesByCustomer.get(registeredCustomerId) ?? [] : []),
+    [vehiclesByCustomer, registeredCustomerId]
+  );
+
+  const showNewVehicleFields =
+    !registeredCustomerId ||
+    registeredVehicleKey === OTHER_VEHICLE_KEY ||
+    registeredCustomerVehicles.length === 0;
 
   useEffect(() => {
     if (!customerSuggestOpen) return;
@@ -295,7 +334,6 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
         if (!cancelled) {
           setPickerCustomers([]);
           setPickerOrders([]);
-          setAgendaPickerMode('manual');
         }
       } finally {
         if (!cancelled) setPickerLoading(false);
@@ -307,20 +345,19 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
   }, [isModalOpen]);
 
   const resetAgendaPicker = useCallback(() => {
-    setAgendaPickerMode('registered');
     setRegisteredCustomerId('');
     setRegisteredVehicleKey('');
-    setCustomerSearch('');
     setCustomerSuggestOpen(false);
     setCustomerSuggestHighlight(-1);
+    setFormError(null);
   }, []);
 
   const applyRegisteredCustomer = useCallback(
     (customer: ApiCustomer) => {
       setRegisteredCustomerId(customer.id);
-      setCustomerSearch('');
       setCustomerSuggestOpen(false);
       setCustomerSuggestHighlight(-1);
+      setFormError(null);
       const vehs = vehiclesByCustomer.get(customer.id) ?? [];
       if (vehs.length > 0) {
         const v = vehs[0];
@@ -330,7 +367,9 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
           customerName: customer.name,
           phone: customer.phone ?? '',
           email: customer.email ?? '',
-          vehicleModel: v.displayModel,
+          customerCpf: customer.cpf ? formatCpfCnpj(customer.cpf) : '',
+          vehicleBrand: v.brand,
+          vehicleModel: v.model || v.displayModel,
           plate: v.plate,
         }));
       } else {
@@ -340,6 +379,8 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
           customerName: customer.name,
           phone: customer.phone ?? '',
           email: customer.email ?? '',
+          customerCpf: customer.cpf ? formatCpfCnpj(customer.cpf) : '',
+          vehicleBrand: '',
           vehicleModel: '',
           plate: '',
         }));
@@ -353,7 +394,7 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
       const customer = pickerCustomers.find((c) => c.id === row.customerId);
       setCustomerSuggestOpen(false);
       setCustomerSuggestHighlight(-1);
-      setCustomerSearch('');
+      setFormError(null);
       if (row.customerOnly) {
         if (customer) applyRegisteredCustomer(customer);
         return;
@@ -364,10 +405,10 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
         vehs.find((v) => brazilianPlateIdentityKey(v.plate) === brazilianPlateIdentityKey(row.plate)) ??
         vehs.find((v) => v.plate === row.plate) ??
         null;
+      const brand = (row.vehicleBrand || match?.brand || '').trim();
+      const model = (row.vehicleModel || match?.model || '').trim();
       const displayModel =
-        [row.vehicleBrand, row.vehicleModel].filter(Boolean).join(' ').trim() ||
-        match?.displayModel ||
-        'Veículo';
+        [brand, model].filter(Boolean).join(' ').trim() || match?.displayModel || 'Veículo';
       const vehicleKey = match?.key ?? `${row.customerId}::${row.plate}::${displayModel}`;
       setRegisteredVehicleKey(vehicleKey);
       setNewAppointment((prev) => ({
@@ -375,7 +416,13 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
         customerName: customer?.name || row.customerName,
         phone: customer?.phone || row.phone || '',
         email: customer?.email ?? '',
-        vehicleModel: displayModel,
+        customerCpf: customer?.cpf
+          ? formatCpfCnpj(customer.cpf)
+          : row.cpf
+            ? formatCpfCnpj(row.cpf)
+            : '',
+        vehicleBrand: brand,
+        vehicleModel: model || displayModel,
         plate: row.plate,
       }));
     },
@@ -387,7 +434,7 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
     const ids = [...new Set(rows.map((r) => r.customerId))];
     let customerId = ids.length === 1 ? ids[0] : rows[0]?.customerId ?? null;
     if (!customerId) {
-      const q = normalizeSearchText(customerSearch.trim());
+      const q = normalizeSearchText((newAppointment.customerName ?? '').trim());
       const match = pickerCustomers.find((c) => normalizeSearchText((c.name || '').trim()) === q);
       customerId = match?.id ?? null;
     }
@@ -396,17 +443,19 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
     setCustomerSuggestHighlight(-1);
     if (!customer) return;
     setRegisteredCustomerId(customer.id);
-    setCustomerSearch('');
     setRegisteredVehicleKey(OTHER_VEHICLE_KEY);
+    setFormError(null);
     setNewAppointment((prev) => ({
       ...prev,
       customerName: customer.name,
       phone: customer.phone ?? '',
       email: customer.email ?? '',
+      customerCpf: customer.cpf ? formatCpfCnpj(customer.cpf) : '',
+      vehicleBrand: '',
       vehicleModel: '',
       plate: '',
     }));
-  }, [agendaNameVehicleSuggestions, customerSearch, pickerCustomers]);
+  }, [agendaNameVehicleSuggestions, newAppointment.customerName, pickerCustomers]);
 
   const applyRegisteredVehicle = useCallback((customer: ApiCustomer, v: AgendaRegisteredVehicle | 'other') => {
     if (v === 'other') {
@@ -414,8 +463,10 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
       setNewAppointment((prev) => ({
         ...prev,
         customerName: customer.name,
-        phone: customer.phone ?? '',
-        email: customer.email ?? '',
+        phone: customer.phone ?? prev.phone,
+        email: customer.email ?? prev.email,
+        customerCpf: customer.cpf ? formatCpfCnpj(customer.cpf) : prev.customerCpf,
+        vehicleBrand: '',
         vehicleModel: '',
         plate: '',
       }));
@@ -425,11 +476,18 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
     setNewAppointment((prev) => ({
       ...prev,
       customerName: customer.name,
-      phone: customer.phone ?? '',
-      email: customer.email ?? '',
-      vehicleModel: v.displayModel,
+      phone: customer.phone ?? prev.phone,
+      email: customer.email ?? prev.email,
+      customerCpf: customer.cpf ? formatCpfCnpj(customer.cpf) : prev.customerCpf,
+      vehicleBrand: v.brand,
+      vehicleModel: v.model || v.displayModel,
       plate: v.plate,
     }));
+  }, []);
+
+  const clearRegisteredCustomerLink = useCallback(() => {
+    setRegisteredCustomerId('');
+    setRegisteredVehicleKey('');
   }, []);
 
   const selectedPickerCustomer = useMemo(
@@ -447,7 +505,7 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
 
     const formatGDate = (date: Date) => date.toISOString().replace(/-|:|\.\d+/g, '');
     
-    const title = encodeURIComponent(`${app.vehicleModel} - ${app.title}`);
+    const title = encodeURIComponent(`${appointmentVehicleLabel(app)} - ${app.title}`);
     const details = encodeURIComponent(`Cliente: ${app.customerName}\nPlaca: ${app.plate}\nNotas: ${app.notes || ''}`);
     const dates = `${formatGDate(startDate)}/${formatGDate(endDate)}`;
     
@@ -458,12 +516,18 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
   const handleEditClick = (app: Appointment) => {
     setDetailAppointment(null);
     const date = app.date instanceof Date ? app.date : (app.date ? new Date(app.date) : new Date());
-    setNewAppointment({ ...app, date });
+    setNewAppointment({
+      ...app,
+      date,
+      customerCpf: app.customerCpf ? formatCpfCnpj(app.customerCpf) : '',
+      vehicleBrand: app.vehicleBrand ?? '',
+    });
     setIsEditing(true);
-    setAgendaPickerMode('manual');
     setRegisteredCustomerId('');
-    setRegisteredVehicleKey('');
-    setCustomerSearch('');
+    setRegisteredVehicleKey(OTHER_VEHICLE_KEY);
+    setCustomerSuggestOpen(false);
+    setCustomerSuggestHighlight(-1);
+    setFormError(null);
     setIsModalOpen(true);
   };
 
@@ -565,79 +629,64 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
     e.preventDefault();
     const date = newAppointment.date || selectedDate;
     const time = newAppointment.time || '09:00';
+    const customerName = (newAppointment.customerName || '').trim();
+    const phone = (newAppointment.phone || '').trim();
+    const queixa = (newAppointment.title || '').trim();
+    const vehicleModel = (newAppointment.vehicleModel || '').trim();
 
-    if (!isEditing && agendaPickerMode === 'registered') {
-      if (!registeredCustomerId) {
-        alert('Selecione um cliente na lista.');
-        return;
-      }
-      const vm = (newAppointment.vehicleModel || '').trim();
-      if (!vm) {
-        alert('Escolha um veículo já atendido na oficina ou toque em «Outro veículo» e informe o modelo.');
-        return;
-      }
+    if (!customerName) {
+      setFormError('Informe o nome do cliente.');
+      return;
     }
+    if (!phone) {
+      setFormError('Informe o telefone do cliente.');
+      return;
+    }
+    if (!queixa) {
+      setFormError('Informe a queixa do cliente.');
+      return;
+    }
+    if (!vehicleModel) {
+      setFormError('Informe o modelo do veículo.');
+      return;
+    }
+    setFormError(null);
 
     setIsLoading(true);
     try {
-      const resolvedCustomerName =
-        !isEditing && agendaPickerMode === 'registered' && selectedPickerCustomer
-          ? selectedPickerCustomer.name
-          : newAppointment.customerName || 'Cliente não informado';
+      const payload = {
+        title: queixa,
+        customerName,
+        phone,
+        email: (newAppointment.email || '').trim() || undefined,
+        customerCpf: (newAppointment.customerCpf || '').trim() || undefined,
+        vehicleBrand: (newAppointment.vehicleBrand || '').trim() || undefined,
+        vehicleModel,
+        plate: (newAppointment.plate || '').trim().toUpperCase(),
+        notes: (newAppointment.notes || '').trim() || undefined,
+        date,
+        time,
+        status: 'scheduled' as const,
+        trelloCardId: newAppointment.trelloCardId,
+      };
 
       if (isEditing && newAppointment.id) {
-        await updateAppointment(newAppointment.id, {
-          title: newAppointment.title || 'Sem título',
-          customerName: resolvedCustomerName,
-          phone: newAppointment.phone || undefined,
-          email: newAppointment.email || undefined,
-          vehicleModel: newAppointment.vehicleModel || '',
-          plate: newAppointment.plate || '',
-          notes: newAppointment.notes || undefined,
-          date,
-          time,
-          status: 'scheduled',
-          trelloCardId: newAppointment.trelloCardId,
-        });
+        await updateAppointment(newAppointment.id, payload);
       } else {
-        await createAppointment({
-          title: newAppointment.title || 'Sem título',
-          customerName: resolvedCustomerName,
-          phone: newAppointment.phone || undefined,
-          email: newAppointment.email || undefined,
-          vehicleModel: newAppointment.vehicleModel || '',
-          plate: newAppointment.plate || '',
-          notes: newAppointment.notes || undefined,
-          date,
-          time,
-          status: 'scheduled',
-          trelloCardId: newAppointment.trelloCardId,
-        });
+        await createAppointment(payload);
       }
 
       await fetchAppointments();
+      setIsModalOpen(false);
+      setIsEditing(false);
+      resetAgendaPicker();
+      setNewAppointment(emptyAppointmentDraft(selectedDate));
     } catch (err) {
-      console.error("Erro ao salvar agendamento", err);
-      alert(err instanceof Error ? err.message : "Erro ao salvar agendamento.");
+      console.error('Erro ao salvar agendamento', err);
+      setFormError(err instanceof Error ? err.message : 'Erro ao salvar agendamento.');
     } finally {
       setIsLoading(false);
     }
-
-    setIsModalOpen(false);
-    setIsEditing(false);
-    resetAgendaPicker();
-    setNewAppointment({
-      date: selectedDate,
-      time: '09:00',
-      status: 'scheduled',
-      title: '',
-      customerName: '',
-      phone: '',
-      email: '',
-      vehicleModel: '',
-      plate: '',
-      notes: '',
-    });
   };
 
   const handleDeleteAppointment = async (id: string) => {
@@ -658,12 +707,12 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
       name: app.customerName ?? '',
       phone: app.phone ?? '',
       email: app.email ?? '',
-      cpf: '',
+      cpf: app.customerCpf ?? '',
       cep: '',
       address: '',
       addressNumber: '',
       vehicleModel: app.vehicleModel ?? '',
-      vehicleBrand: '',
+      vehicleBrand: app.vehicleBrand ?? '',
       plate: app.plate ?? '',
       vehicleColor: '',
       vehicleYear: '',
@@ -680,18 +729,7 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
     resetAgendaPicker();
     const targetDate = date || selectedDate || new Date();
     setIsEditing(false);
-    setNewAppointment({
-      date: targetDate,
-      time: '09:00',
-      status: 'scheduled',
-      title: '',
-      customerName: '',
-      phone: '',
-      email: '',
-      vehicleModel: '',
-      plate: '',
-      notes: '',
-    });
+    setNewAppointment(emptyAppointmentDraft(targetDate));
     setIsModalOpen(true);
   };
 
@@ -853,7 +891,7 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
                     setDetailAppointment(app);
                   }}
                   className="w-full text-left text-[10px] bg-zinc-200/90 dark:bg-white/[0.06] p-1.5 rounded-lg border-l-2 border-red-500/80 truncate hover:bg-zinc-300/85 dark:hover:bg-white/10 transition-colors shadow-sm cursor-pointer"
-                  title={`${app.time} — ${app.vehicleModel || app.title}`}
+                  title={`${app.time} — ${appointmentVehicleLabel(app) || app.title}`}
                 >
                   <span className="font-bold text-zinc-950 dark:text-zinc-200 mr-1">{app.time}</span>
                   <span className="text-zinc-800 dark:text-zinc-300">{app.title}</span>
@@ -976,7 +1014,9 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
                                           Veículo
                                         </p>
                                         <h4 className="font-vehicle text-[17px] sm:text-[19px] font-semibold text-zinc-900 dark:text-white tracking-tight leading-snug">
-                                          {app.vehicleModel || 'Veículo não informado'}
+                                          {appointmentVehicleLabel(app) !== '—'
+                                            ? appointmentVehicleLabel(app)
+                                            : 'Veículo não informado'}
                                         </h4>
                                         <p className="text-[15px] font-medium text-red-500 mt-0.5 truncate">
                                           {app.title}
@@ -1278,15 +1318,15 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
 
                     <div className={`${agendaModalInsetCard} p-4 sm:p-5 space-y-4`}>
                       <div>
-                        <p className={iosLabel}>Serviço</p>
-                        <p id="agenda-detail-title" className="text-[17px] font-semibold text-zinc-900 dark:text-white">
-                          {app.title || 'Sem título'}
+                        <p className={iosLabel}>Queixa</p>
+                        <p id="agenda-detail-title" className="text-[17px] font-semibold text-zinc-900 dark:text-white whitespace-pre-wrap">
+                          {app.title || 'Sem queixa'}
                         </p>
                       </div>
                       <div>
                         <p className={iosLabel}>Veículo</p>
                         <p className="font-vehicle text-[16px] font-medium text-zinc-800 dark:text-zinc-100">
-                          {app.vehicleModel || '—'}
+                          {appointmentVehicleLabel(app)}
                         </p>
                         {app.plate ? (
                           <p className={`text-[15px] font-mono font-semibold text-zinc-700 dark:text-zinc-200 mt-1 ${blurPlates ? 'blur-plate' : ''}`}>
@@ -1297,6 +1337,11 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
                       <div>
                         <p className={iosLabel}>Cliente</p>
                         <p className="text-[15px] text-zinc-800 dark:text-zinc-100">{app.customerName}</p>
+                        {app.customerCpf ? (
+                          <p className="mt-0.5 text-[13px] text-zinc-500 dark:text-zinc-400">
+                            CPF/CNPJ: {formatCpfCnpj(app.customerCpf)}
+                          </p>
+                        ) : null}
                         {app.phone ? (
                           <a href={`tel:${app.phone}`} className="text-[14px] text-red-500 hover:underline mt-1 block">
                             {app.phone}
@@ -1382,18 +1427,7 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
                     setIsModalOpen(false);
                     setIsEditing(false);
                     resetAgendaPicker();
-                    setNewAppointment({
-                      date: selectedDate,
-                      time: '09:00',
-                      status: 'scheduled',
-                      title: '',
-                      customerName: '',
-                      phone: '',
-                      email: '',
-                      vehicleModel: '',
-                      plate: '',
-                      notes: '',
-                    });
+                    setNewAppointment(emptyAppointmentDraft(selectedDate));
                   }}
                   className={iosModalClose}
                   aria-label="Fechar"
@@ -1406,7 +1440,7 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
                   <IosModalHeader
                     icon={<img src="/icons/agenda-ios.png" alt="" className="h-full w-full min-h-0 object-cover" />}
                     title={isEditing ? 'Editar agendamento' : 'Novo agendamento'}
-                    subtitle="Cliente cadastrado ou manual, veículo e horário"
+                    subtitle="Digite o nome para sugerir clientes ou cadastre um novo"
                     gradientClass="from-red-500 to-zinc-900"
                   />
                 </div>
@@ -1416,330 +1450,159 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
                   className="flex min-h-0 flex-1 flex-col overflow-hidden"
                 >
                 <div className="agenda-modal-body-scroll custom-scrollbar min-h-0 flex-1 overflow-y-auto overscroll-contain [scrollbar-gutter:stable]">
-                    <div className="space-y-4 p-6 pb-6 sm:px-8">
-                        <div>
-                            <label className={iosLabel}>Título do serviço</label>
-                            <input 
-                                type="text" 
-                                placeholder="Revisão geral"
-                                autoComplete="off"
-                                className={agendaModalInput}
-                                value={newAppointment.title}
-                                onChange={e => setNewAppointment({...newAppointment, title: e.target.value})}
-                            />
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-4">
-                            <div>
-                                <label className={iosLabel}>Data</label>
-                                <input 
-                                    type="date" 
-                                    className={agendaModalInput}
-                                    value={(() => {
-                                      const d = newAppointment.date;
-                                      if (!d) return format(selectedDate, 'yyyy-MM-dd');
-                                      const date = d instanceof Date ? d : new Date(d);
-                                      return isNaN(date.getTime()) ? format(selectedDate, 'yyyy-MM-dd') : format(date, 'yyyy-MM-dd');
-                                    })()}
-                                    onChange={e => setNewAppointment({...newAppointment, date: parseISO(e.target.value)})}
-                                />
-                            </div>
-                            <div>
-                                <label className={iosLabel}>Horário</label>
-                                <input 
-                                    type="time" 
-                                    className={agendaModalInput}
-                                    value={newAppointment.time}
-                                    onChange={e => setNewAppointment({...newAppointment, time: e.target.value})}
-                                />
-                            </div>
-                        </div>
-
-                        {!isEditing ? (
-                          <div className="flex rounded-2xl border border-zinc-200/80 bg-zinc-100 p-1 shadow-[0_1px_3px_rgba(0,0,0,0.06)] dark:border-white/[0.08] dark:bg-zinc-900/40 dark:shadow-none">
-                            <button
-                              type="button"
-                              onClick={() => setAgendaPickerMode('registered')}
-                              className={`flex flex-1 items-center justify-center gap-2 rounded-xl py-2.5 text-[13px] font-semibold transition-colors ${
-                                agendaPickerMode === 'registered'
-                                  ? 'bg-white text-zinc-900 shadow-sm dark:bg-zinc-800 dark:text-white'
-                                  : 'text-zinc-500 dark:text-zinc-400'
-                              }`}
-                            >
-                              <BookUser className="h-4 w-4 shrink-0" />
-                              Cliente cadastrado
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setAgendaPickerMode('manual')}
-                              className={`flex flex-1 items-center justify-center gap-2 rounded-xl py-2.5 text-[13px] font-semibold transition-colors ${
-                                agendaPickerMode === 'manual'
-                                  ? 'bg-white text-zinc-900 shadow-sm dark:bg-zinc-800 dark:text-white'
-                                  : 'text-zinc-500 dark:text-zinc-400'
-                              }`}
-                            >
-                              <PenLine className="h-4 w-4 shrink-0" />
-                              Digitar manual
-                            </button>
+                    <div className="space-y-5 p-6 pb-8 sm:px-8">
+                        {formError ? (
+                          <div
+                            role="alert"
+                            className="flex items-start gap-2 rounded-2xl border border-red-200 bg-red-50 px-3.5 py-3 text-[13px] font-medium text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300"
+                          >
+                            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                            <span>{formError}</span>
                           </div>
                         ) : null}
 
-                        {!isEditing && agendaPickerMode === 'registered' ? (
-                          <div className="space-y-4">
-                            {pickerLoading ? (
-                              <div className="flex items-center justify-center gap-2 py-8 text-sm text-zinc-500 dark:text-zinc-400">
-                                <Loader2 className="h-5 w-5 animate-spin" />
-                                Carregando clientes…
-                              </div>
-                            ) : pickerCustomers.length === 0 ? (
-                              <p className="rounded-2xl border border-dashed border-zinc-300/80 px-4 py-6 text-center text-sm text-zinc-500 dark:border-white/[0.12] dark:text-zinc-400">
-                                Nenhum cliente cadastrado. Use «Digitar manual» ou cadastre o cliente na Recepção.
-                              </p>
-                            ) : (
-                              <>
-                                {!registeredCustomerId ? (
-                                  <div ref={customerSearchBoxRef} className="relative">
-                                    <label className={iosLabel}>Buscar cliente</label>
-                                    <div className="relative">
-                                      <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
-                                      <input
-                                        type="search"
-                                        className={`${agendaModalInput} pl-10`}
-                                        placeholder="Nome, telefone ou e-mail"
-                                        value={customerSearch}
-                                        onChange={(e) => {
-                                          const v = e.target.value;
-                                          setCustomerSearch(v);
-                                          setCustomerSuggestHighlight(-1);
-                                          setCustomerSuggestOpen(
-                                            v.trim().length >= AGENDA_SUGGEST_MIN_CHARS
-                                          );
-                                        }}
-                                        onFocus={() => {
-                                          if (customerSearch.trim().length >= AGENDA_SUGGEST_MIN_CHARS) {
-                                            setCustomerSuggestOpen(true);
-                                          }
-                                        }}
-                                        onKeyDown={(e) =>
-                                          handleBudgetSuggestionKeyDown({
-                                            e,
-                                            open: customerSuggestOpen,
-                                            itemCount: agendaNameVehicleSuggestions.length,
-                                            highlightedIndex: customerSuggestHighlight,
-                                            setHighlightedIndex: setCustomerSuggestHighlight,
-                                            onSelectHighlighted: (index) => {
-                                              const row = agendaNameVehicleSuggestions[index];
-                                              if (row) applyAgendaLinkedVehicle(row);
-                                            },
-                                            onCloseSuggestions: () => {
-                                              setCustomerSuggestOpen(false);
-                                              setCustomerSuggestHighlight(-1);
-                                            },
-                                          })
-                                        }
-                                        autoComplete="off"
-                                      />
-                                    </div>
-                                    {customerSuggestOpen &&
-                                    customerSearch.trim().length < AGENDA_SUGGEST_MIN_CHARS ? (
-                                      <div className="absolute left-0 right-0 z-30 mt-1.5 overflow-hidden rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-xs text-zinc-500 shadow-md dark:border-brand-border dark:bg-zinc-900 dark:text-zinc-400">
-                                        Digite ao menos {AGENDA_SUGGEST_MIN_CHARS} caracteres para ver
-                                        veículos vinculados.
-                                      </div>
-                                    ) : null}
-                                    {!customerSuggestOpen ? (
-                                      <p className="text-[12px] leading-relaxed text-zinc-500 dark:text-zinc-400">
-                                        Digite ao menos {AGENDA_SUGGEST_MIN_CHARS} caracteres para ver
-                                        veículos vinculados.
-                                      </p>
-                                    ) : null}
-                                    <ReceptionLinkedVehicleSuggest
-                                      open={
-                                        customerSuggestOpen &&
-                                        customerSearch.trim().length >= AGENDA_SUGGEST_MIN_CHARS
-                                      }
-                                      query={customerSearch}
-                                      loading={pickerLoading}
-                                      suggestions={agendaNameVehicleSuggestions}
-                                      onSelectVehicle={applyAgendaLinkedVehicle}
-                                      onSelectNovaPlaca={applyAgendaNovaPlaca}
-                                      highlightedIndex={customerSuggestHighlight}
-                                      onHighlightedIndexChange={setCustomerSuggestHighlight}
-                                    />
-                                  </div>
-                                ) : null}
-                                {registeredCustomerId && selectedPickerCustomer ? (
-                                  <div className="space-y-4">
-                                    <div className="flex flex-wrap items-end justify-between gap-2">
-                                      <div>
-                                        <p className={iosLabel}>Cliente selecionado</p>
-                                        <p className="text-[15px] font-semibold text-zinc-900 dark:text-white">
-                                          {selectedPickerCustomer.name}
-                                        </p>
-                                      </div>
-                                      <button
-                                        type="button"
-                                        className="shrink-0 text-xs font-semibold text-red-600 hover:underline dark:text-red-400"
-                                        onClick={() => {
-                                          setRegisteredCustomerId('');
-                                          setRegisteredVehicleKey('');
-                                          setCustomerSearch('');
-                                          setCustomerSuggestOpen(false);
-                                          setCustomerSuggestHighlight(-1);
-                                          setNewAppointment((prev) => ({
-                                            ...prev,
-                                            customerName: '',
-                                            phone: '',
-                                            email: '',
-                                            vehicleModel: '',
-                                            plate: '',
-                                          }));
-                                        }}
-                                      >
-                                        Trocar cliente
-                                      </button>
-                                    </div>
-                                    <div>
-                                      <label className={iosLabel}>Veículo</label>
-                                      <p className="mb-2 text-[12px] text-zinc-500 dark:text-zinc-400">
-                                        Escolha um carro já atendido na oficina ou outro veículo deste mesmo cliente.
-                                      </p>
-                                      <div className="flex flex-wrap gap-2">
-                                        {(vehiclesByCustomer.get(registeredCustomerId) ?? []).map((v) => (
-                                          <button
-                                            key={v.key}
-                                            type="button"
-                                            onClick={() => applyRegisteredVehicle(selectedPickerCustomer, v)}
-                                            className={`max-w-[200px] rounded-2xl border px-3 py-2 text-left text-[12px] font-medium transition-colors ${
-                                              registeredVehicleKey === v.key
-                                                ? 'border-red-500/50 bg-red-500/10 text-zinc-900 dark:text-white'
-                                                : 'border-zinc-200/80 bg-white/70 hover:border-red-300/60 dark:border-white/[0.08] dark:bg-zinc-900/50'
-                                            }`}
-                                          >
-                                            <span className="font-mono text-[11px] font-semibold uppercase text-red-600 dark:text-red-400">
-                                              {v.plate || '—'}
-                                            </span>
-                                            <span className="mt-0.5 block font-vehicle text-[13px] leading-snug text-zinc-800 dark:text-zinc-100">
-                                              {v.displayModel}
-                                            </span>
-                                          </button>
-                                        ))}
-                                        <button
-                                          type="button"
-                                          onClick={() => applyRegisteredVehicle(selectedPickerCustomer, 'other')}
-                                          className={`rounded-2xl border px-3 py-2 text-[12px] font-semibold transition-colors ${
-                                            registeredVehicleKey === OTHER_VEHICLE_KEY
-                                              ? 'border-red-500/50 bg-red-500/10 text-zinc-900 dark:text-white'
-                                              : 'border-dashed border-zinc-300/90 text-zinc-600 hover:border-red-400/50 dark:border-white/[0.15] dark:text-zinc-300'
-                                          }`}
-                                        >
-                                          + Outro veículo
-                                        </button>
-                                      </div>
-                                    </div>
-                                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                                      <div>
-                                        <label className={iosLabel}>Telefone</label>
-                                        <div className="relative">
-                                          <Phone className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
-                                          <input
-                                            type="tel"
-                                            placeholder="(00) 00000-0000"
-                                            autoComplete="off"
-                                            className={`${agendaModalInput} pl-10`}
-                                            value={newAppointment.phone || ''}
-                                            onChange={(e) =>
-                                              setNewAppointment({ ...newAppointment, phone: e.target.value })
-                                            }
-                                          />
-                                        </div>
-                                      </div>
-                                      <div>
-                                        <label className={iosLabel}>E-mail</label>
-                                        <div className="relative">
-                                          <Mail className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
-                                          <input
-                                            type="email"
-                                            placeholder="E-mail"
-                                            autoComplete="off"
-                                            className={`${agendaModalInput} pl-10`}
-                                            value={newAppointment.email || ''}
-                                            onChange={(e) =>
-                                              setNewAppointment({ ...newAppointment, email: e.target.value })
-                                            }
-                                          />
-                                        </div>
-                                      </div>
-                                    </div>
-                                    {registeredVehicleKey === OTHER_VEHICLE_KEY ? (
-                                      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                                        <div>
-                                          <label className={iosLabel}>Modelo do veículo</label>
-                                          <div className="relative">
-                                            <Car className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
-                                            <input
-                                              type="text"
-                                              placeholder="Civic LXR"
-                                              autoComplete="off"
-                                              className={`${agendaModalInput} pl-10`}
-                                              value={newAppointment.vehicleModel}
-                                              onChange={(e) =>
-                                                setNewAppointment({
-                                                  ...newAppointment,
-                                                  vehicleModel: e.target.value,
-                                                })
-                                              }
-                                            />
-                                          </div>
-                                        </div>
-                                        <div>
-                                          <label className={iosLabel}>Placa</label>
-                                          <div className="relative">
-                                            <FileText className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
-                                            <input
-                                              type="text"
-                                              placeholder="ABC1D23"
-                                              autoComplete="off"
-                                              className={`${agendaModalInput} pl-10 uppercase`}
-                                              value={(newAppointment.plate || '').toUpperCase()}
-                                              onChange={(e) =>
-                                                setNewAppointment({
-                                                  ...newAppointment,
-                                                  plate: e.target.value.toUpperCase(),
-                                                })
-                                              }
-                                            />
-                                          </div>
-                                        </div>
-                                      </div>
-                                    ) : null}
-                                  </div>
-                                ) : null}
-                              </>
-                            )}
-                          </div>
-                        ) : (
-                          <>
+                        <section className={agendaSectionCard}>
+                          <h3 className={agendaSectionTitle}>Data e horário</h3>
+                          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                             <div>
-                              <label className={iosLabel}>Cliente</label>
+                              <label className={iosLabel}>Data{agendaReqMark}</label>
                               <div className="relative">
-                                <User className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+                                <Calendar className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
                                 <input
-                                  type="text"
-                                  placeholder="Nome"
-                                  autoComplete="off"
+                                  type="date"
+                                  required
                                   className={`${agendaModalInput} pl-10`}
-                                  value={newAppointment.customerName}
+                                  value={(() => {
+                                    const d = newAppointment.date;
+                                    if (!d) return format(selectedDate, 'yyyy-MM-dd');
+                                    const date = d instanceof Date ? d : new Date(d);
+                                    return isNaN(date.getTime())
+                                      ? format(selectedDate, 'yyyy-MM-dd')
+                                      : format(date, 'yyyy-MM-dd');
+                                  })()}
                                   onChange={(e) =>
-                                    setNewAppointment({ ...newAppointment, customerName: e.target.value })
+                                    setNewAppointment({ ...newAppointment, date: parseISO(e.target.value) })
                                   }
                                 />
                               </div>
                             </div>
+                            <div>
+                              <label className={iosLabel}>Horário{agendaReqMark}</label>
+                              <div className="relative">
+                                <Clock className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+                                <input
+                                  type="time"
+                                  required
+                                  className={`${agendaModalInput} pl-10`}
+                                  value={newAppointment.time}
+                                  onChange={(e) =>
+                                    setNewAppointment({ ...newAppointment, time: e.target.value })
+                                  }
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        </section>
 
-                            <div className="grid grid-cols-2 gap-4">
+                        <section className={agendaSectionCard}>
+                          <div className="mb-3 flex flex-wrap items-end justify-between gap-2">
+                            <h3 className={`${agendaSectionTitle} mb-0`}>Cliente</h3>
+                            {registeredCustomerId && selectedPickerCustomer ? (
+                              <button
+                                type="button"
+                                className="text-[12px] font-semibold text-red-600 hover:underline dark:text-red-400"
+                                onClick={() => {
+                                  clearRegisteredCustomerLink();
+                                  setNewAppointment((prev) => ({
+                                    ...prev,
+                                    customerName: '',
+                                    phone: '',
+                                    email: '',
+                                    customerCpf: '',
+                                    vehicleBrand: '',
+                                    vehicleModel: '',
+                                    plate: '',
+                                  }));
+                                  setCustomerSuggestOpen(false);
+                                  setCustomerSuggestHighlight(-1);
+                                }}
+                              >
+                                Limpar seleção
+                              </button>
+                            ) : null}
+                          </div>
+
+                          <div className="space-y-4">
+                            <div ref={customerSearchBoxRef} className="relative">
+                              <label className={iosLabel}>Nome do cliente{agendaReqMark}</label>
+                              <div className="relative">
+                                <User className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+                                <input
+                                  type="text"
+                                  className={`${agendaModalInput} pl-10`}
+                                  placeholder="Digite o nome…"
+                                  value={newAppointment.customerName || ''}
+                                  onChange={(e) => {
+                                    const v = e.target.value;
+                                    if (registeredCustomerId) clearRegisteredCustomerLink();
+                                    setNewAppointment((prev) => ({ ...prev, customerName: v }));
+                                    setCustomerSuggestHighlight(-1);
+                                    setCustomerSuggestOpen(v.trim().length >= AGENDA_SUGGEST_MIN_CHARS);
+                                    setFormError(null);
+                                  }}
+                                  onFocus={() => {
+                                    if ((newAppointment.customerName || '').trim().length >= AGENDA_SUGGEST_MIN_CHARS) {
+                                      setCustomerSuggestOpen(true);
+                                    }
+                                  }}
+                                  onKeyDown={(e) =>
+                                    handleBudgetSuggestionKeyDown({
+                                      e,
+                                      open: customerSuggestOpen,
+                                      itemCount: agendaNameVehicleSuggestions.length,
+                                      highlightedIndex: customerSuggestHighlight,
+                                      setHighlightedIndex: setCustomerSuggestHighlight,
+                                      onSelectHighlighted: (index) => {
+                                        const row = agendaNameVehicleSuggestions[index];
+                                        if (row) applyAgendaLinkedVehicle(row);
+                                      },
+                                      onCloseSuggestions: () => {
+                                        setCustomerSuggestOpen(false);
+                                        setCustomerSuggestHighlight(-1);
+                                      },
+                                    })
+                                  }
+                                  autoComplete="off"
+                                  required
+                                />
+                                {pickerLoading ? (
+                                  <Loader2 className="pointer-events-none absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-zinc-400" />
+                                ) : (
+                                  <Search className="pointer-events-none absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+                                )}
+                              </div>
+                              <p className={agendaFieldHint}>
+                                Sugestões a partir de {AGENDA_SUGGEST_MIN_CHARS} letras — ou continue digitando para
+                                cadastrar um novo.
+                              </p>
+                              <ReceptionLinkedVehicleSuggest
+                                open={
+                                  customerSuggestOpen &&
+                                  (newAppointment.customerName || '').trim().length >= AGENDA_SUGGEST_MIN_CHARS
+                                }
+                                query={newAppointment.customerName || ''}
+                                loading={pickerLoading}
+                                suggestions={agendaNameVehicleSuggestions}
+                                onSelectVehicle={applyAgendaLinkedVehicle}
+                                onSelectNovaPlaca={applyAgendaNovaPlaca}
+                                highlightedIndex={customerSuggestHighlight}
+                                onHighlightedIndexChange={setCustomerSuggestHighlight}
+                              />
+                            </div>
+
+                            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                               <div>
-                                <label className={iosLabel}>Telefone</label>
+                                <label className={iosLabel}>Telefone{agendaReqMark}</label>
                                 <div className="relative">
                                   <Phone className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
                                   <input
@@ -1748,24 +1611,30 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
                                     autoComplete="off"
                                     className={`${agendaModalInput} pl-10`}
                                     value={newAppointment.phone || ''}
-                                    onChange={(e) =>
-                                      setNewAppointment({ ...newAppointment, phone: e.target.value })
-                                    }
+                                    onChange={(e) => {
+                                      setFormError(null);
+                                      setNewAppointment({ ...newAppointment, phone: e.target.value });
+                                    }}
+                                    required
                                   />
                                 </div>
                               </div>
                               <div>
-                                <label className={iosLabel}>E-mail</label>
+                                <label className={iosLabel}>CPF / CNPJ</label>
                                 <div className="relative">
-                                  <Mail className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+                                  <ShieldCheck className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
                                   <input
-                                    type="email"
-                                    placeholder="E-mail"
+                                    type="text"
+                                    inputMode="numeric"
+                                    placeholder="CPF ou CNPJ"
                                     autoComplete="off"
                                     className={`${agendaModalInput} pl-10`}
-                                    value={newAppointment.email || ''}
+                                    value={newAppointment.customerCpf || ''}
                                     onChange={(e) =>
-                                      setNewAppointment({ ...newAppointment, email: e.target.value })
+                                      setNewAppointment({
+                                        ...newAppointment,
+                                        customerCpf: formatCpfCnpj(e.target.value),
+                                      })
                                     }
                                   />
                                 </div>
@@ -1773,29 +1642,159 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
                             </div>
 
                             <div>
-                              <label className={iosLabel}>Veículo</label>
-                              <div className="grid grid-cols-2 gap-4">
-                                <div className="relative">
-                                  <Car className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
-                                  <input
-                                    type="text"
-                                    placeholder="Modelo"
-                                    autoComplete="off"
-                                    className={`${agendaModalInput} pl-10`}
-                                    value={newAppointment.vehicleModel}
-                                    onChange={(e) =>
-                                      setNewAppointment({ ...newAppointment, vehicleModel: e.target.value })
+                              <label className={iosLabel}>E-mail</label>
+                              <div className="relative">
+                                <Mail className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+                                <input
+                                  type="email"
+                                  placeholder="E-mail"
+                                  autoComplete="off"
+                                  className={`${agendaModalInput} pl-10`}
+                                  value={newAppointment.email || ''}
+                                  onChange={(e) =>
+                                    setNewAppointment({ ...newAppointment, email: e.target.value })
+                                  }
+                                />
+                              </div>
+                            </div>
+
+                            <div>
+                              <label className={iosLabel}>Queixa do cliente{agendaReqMark}</label>
+                              <div className="relative">
+                                <MessageSquare className="pointer-events-none absolute left-3.5 top-3.5 h-4 w-4 text-zinc-400" />
+                                <textarea
+                                  placeholder="Descreva a queixa…"
+                                  className={`${agendaModalInput} min-h-[96px] resize-y py-3 pl-10`}
+                                  value={newAppointment.title || ''}
+                                  onChange={(e) => {
+                                    setFormError(null);
+                                    setNewAppointment({ ...newAppointment, title: e.target.value });
+                                  }}
+                                  required
+                                />
+                              </div>
+                            </div>
+
+                            <div>
+                              <label className={iosLabel}>Observações</label>
+                              <textarea
+                                placeholder="Detalhes adicionais (opcional)…"
+                                className={`${agendaModalInput} min-h-[80px] resize-y py-3`}
+                                value={newAppointment.notes || ''}
+                                onChange={(e) =>
+                                  setNewAppointment({ ...newAppointment, notes: e.target.value })
+                                }
+                              />
+                            </div>
+                          </div>
+                        </section>
+
+                        <section className={agendaSectionCard}>
+                          <h3 className={agendaSectionTitle}>Veículo</h3>
+
+                          {registeredCustomerId && registeredCustomerVehicles.length > 0 ? (
+                            <div className="mb-4">
+                              <p className="mb-2 text-[12px] leading-relaxed text-zinc-500 dark:text-zinc-400">
+                                Selecione um veículo já atendido ou cadastre um novo para este cliente.
+                              </p>
+                              <div className="flex flex-wrap gap-2">
+                                {registeredCustomerVehicles.map((v) => (
+                                  <button
+                                    key={v.key}
+                                    type="button"
+                                    onClick={() =>
+                                      selectedPickerCustomer
+                                        ? applyRegisteredVehicle(selectedPickerCustomer, v)
+                                        : undefined
                                     }
-                                  />
+                                    className={`max-w-[220px] rounded-2xl border px-3 py-2.5 text-left text-[12px] font-medium transition-colors ${
+                                      registeredVehicleKey === v.key
+                                        ? 'border-red-500/50 bg-red-500/10 text-zinc-900 dark:text-white'
+                                        : 'border-zinc-200/80 bg-zinc-50 hover:border-red-300/60 dark:border-white/[0.08] dark:bg-zinc-950/40'
+                                    }`}
+                                  >
+                                    <span className="font-mono text-[11px] font-semibold uppercase text-red-600 dark:text-red-400">
+                                      {v.plate || '—'}
+                                    </span>
+                                    <span className="mt-0.5 block font-vehicle text-[13px] leading-snug text-zinc-800 dark:text-zinc-100">
+                                      {v.displayModel}
+                                    </span>
+                                  </button>
+                                ))}
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    selectedPickerCustomer
+                                      ? applyRegisteredVehicle(selectedPickerCustomer, 'other')
+                                      : undefined
+                                  }
+                                  className={`rounded-2xl border px-3 py-2.5 text-[12px] font-semibold transition-colors ${
+                                    registeredVehicleKey === OTHER_VEHICLE_KEY
+                                      ? 'border-red-500/50 bg-red-500/10 text-zinc-900 dark:text-white'
+                                      : 'border-dashed border-zinc-300/90 text-zinc-600 hover:border-red-400/50 dark:border-white/[0.15] dark:text-zinc-300'
+                                  }`}
+                                >
+                                  + Novo veículo
+                                </button>
+                              </div>
+                            </div>
+                          ) : null}
+
+                          {showNewVehicleFields ? (
+                            <div className="space-y-4">
+                              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                                <div>
+                                  <label className={iosLabel}>Marca</label>
+                                  <div className="relative">
+                                    <Building2 className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+                                    <input
+                                      type="text"
+                                      placeholder="Marca / montadora"
+                                      autoComplete="off"
+                                      className={`${agendaModalInput} pl-10`}
+                                      value={newAppointment.vehicleBrand || ''}
+                                      onChange={(e) =>
+                                        setNewAppointment({
+                                          ...newAppointment,
+                                          vehicleBrand: e.target.value,
+                                        })
+                                      }
+                                    />
+                                  </div>
                                 </div>
+                                <div>
+                                  <label className={iosLabel}>Modelo{agendaReqMark}</label>
+                                  <div className="relative">
+                                    <Car className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+                                    <input
+                                      type="text"
+                                      placeholder="Modelo"
+                                      autoComplete="off"
+                                      className={`${agendaModalInput} pl-10`}
+                                      value={newAppointment.vehicleModel || ''}
+                                      onChange={(e) => {
+                                        setFormError(null);
+                                        setNewAppointment({
+                                          ...newAppointment,
+                                          vehicleModel: e.target.value,
+                                        });
+                                      }}
+                                      required
+                                    />
+                                  </div>
+                                </div>
+                              </div>
+                              <div>
+                                <label className={iosLabel}>Placa</label>
                                 <div className="relative">
                                   <FileText className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
                                   <input
                                     type="text"
-                                    placeholder="Placa"
+                                    placeholder="ABC1D23"
                                     autoComplete="off"
+                                    maxLength={8}
                                     className={`${agendaModalInput} pl-10 uppercase`}
-                                    value={newAppointment.plate ? newAppointment.plate.toUpperCase() : ''}
+                                    value={(newAppointment.plate || '').toUpperCase()}
                                     onChange={(e) =>
                                       setNewAppointment({
                                         ...newAppointment,
@@ -1806,18 +1805,8 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
                                 </div>
                               </div>
                             </div>
-                          </>
-                        )}
-
-                        <div>
-                            <label className={iosLabel}>Observações</label>
-                            <textarea 
-                                placeholder="Detalhes adicionais..."
-                                className={`${agendaModalInput} min-h-[88px] resize-y py-3`}
-                                value={newAppointment.notes}
-                                onChange={e => setNewAppointment({...newAppointment, notes: e.target.value})}
-                            />
-                        </div>
+                          ) : null}
+                        </section>
                     </div>
                 </div>
 
@@ -1828,27 +1817,18 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
                                     setIsModalOpen(false);
                                     setIsEditing(false);
                                     resetAgendaPicker();
-                                    setNewAppointment({
-                                        date: selectedDate,
-                                        time: '09:00',
-                                        status: 'scheduled',
-                                        title: '',
-                                        customerName: '',
-                                        phone: '',
-                                        email: '',
-                                        vehicleModel: '',
-                                        plate: '',
-                                        notes: ''
-                                    });
+                                    setNewAppointment(emptyAppointmentDraft(selectedDate));
                                 }}
                                 className="px-5 py-3 rounded-2xl text-[15px] font-medium text-zinc-600 dark:text-zinc-300 hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
                             >
                                 Cancelar
                             </button>
-                            <button 
+                            <button
                                 type="submit"
-                                className="rounded-2xl bg-red-500 px-8 py-3.5 text-[15px] font-semibold text-white shadow-lg shadow-red-500/30 hover:bg-red-600 active:scale-[0.98] transition-all"
+                                disabled={isLoading}
+                                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-red-500 px-8 py-3.5 text-[15px] font-semibold text-white shadow-lg shadow-red-500/30 transition-all hover:bg-red-600 active:scale-[0.98] disabled:opacity-60"
                             >
+                                {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
                                 {isEditing ? 'Salvar alterações' : 'Agendar'}
                             </button>
                 </div>
