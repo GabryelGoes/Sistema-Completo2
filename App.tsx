@@ -35,6 +35,7 @@ import {
   effectiveAccessOrcamentos,
   getWorkshopSettings,
   deleteAppointment,
+  getAppointments,
   getSupportUnreadCount,
   markNotificationRead,
   getServiceOrderById,
@@ -77,6 +78,14 @@ import {
   type LabScanMode,
 } from './utils/labScanMode';
 import { syncLabelTemplatesFromServer } from './utils/labelTemplatesSync';
+import { useAgendaReminders } from './hooks/useAgendaReminders';
+import {
+  appointmentLocalDateKey,
+  localDateKey,
+  readAgendaReminderSettings,
+  writeAgendaReminderSettings,
+  type AgendaReminderSettings,
+} from './utils/agendaReminderSettings';
 
 import { lazyWithRetry } from './utils/lazyWithRetry';
 
@@ -257,6 +266,10 @@ export default function App() {
   const [budgetBannerNotifications, setBudgetBannerNotifications] = useState(true);
   /** Banners macOS de comentários (ligado por padrão). */
   const [commentBannerNotifications, setCommentBannerNotifications] = useState(true);
+  /** Lembretes da Agenda (banners + bloco home). */
+  const [agendaReminderSettings, setAgendaReminderSettings] = useState<AgendaReminderSettings>(() =>
+    readAgendaReminderSettings()
+  );
   /** Embaça orçamentos sem verificação (ligado por padrão). */
   const [blurUnverifiedBudgets, setBlurUnverifiedBudgets] = useState(true);
   const [budgetBannerItems, setBudgetBannerItems] = useState<MacOsBudgetBannerItem[]>([]);
@@ -284,6 +297,29 @@ export default function App() {
 
   // Appointments State
   const [appointments, setAppointments] = useState<Appointment[]>([]);
+
+  const agendaTodayBadge = useMemo(() => {
+    const today = localDateKey(new Date());
+    return appointments.filter(
+      (a) => a.status === 'scheduled' && appointmentLocalDateKey(a) === today
+    ).length;
+  }, [appointments]);
+
+  const refreshAppointmentsList = useCallback(async () => {
+    try {
+      const list = await getAppointments();
+      setAppointments(list);
+    } catch (err) {
+      console.error('Erro ao carregar agendamentos', err);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!authSession) return;
+    void refreshAppointmentsList();
+    const id = window.setInterval(() => void refreshAppointmentsList(), 120_000);
+    return () => window.clearInterval(id);
+  }, [authSession, refreshAppointmentsList]);
 
   // Estado para transferir dados do Histórico (Pátio) para a Recepção
   const [prefillData, setPrefillData] = useState<Customer | null>(null);
@@ -429,8 +465,40 @@ export default function App() {
     }
   }, [isLimitedSystemUser]);
 
+  const goToAgendaTab = useCallback(
+    (appointmentId?: string | null) => {
+      dismissShellOverlaysForNavigation();
+      if (appointmentId) setAgendaPendingDetailAppointmentId(appointmentId);
+      if (isLimitedSystemUser) {
+        setVisitedUserTabs((prev) => {
+          if (prev.has('agenda')) return prev;
+          const next = new Set(prev);
+          next.add('agenda');
+          return next;
+        });
+        if (userAllowedTabs.includes('agenda')) setUserTab('agenda');
+        else setUserTab('home');
+      } else {
+        setVisitedTabs((prev) => {
+          if (prev.has('agenda')) return prev;
+          const next = new Set(prev);
+          next.add('agenda');
+          return next;
+        });
+        setCurrentTab('agenda');
+      }
+    },
+    [dismissShellOverlaysForNavigation, isLimitedSystemUser, userAllowedTabs]
+  );
+
   const openBudgetFromBanner = useCallback(
     (item: MacOsBudgetBannerItem) => {
+      if (item.kind === 'agenda_day_before' || item.kind === 'agenda_soon') {
+        setBudgetBannerItems((prev) => prev.filter((x) => x.id !== item.id));
+        setMinimizedBudgetBanners((prev) => prev.filter((x) => x.id !== item.id));
+        goToAgendaTab(item.appointmentId || item.serviceOrderId || null);
+        return;
+      }
       if (item.kind === 'comment') {
         // Tira o banner da frente (z altíssimo) para o CommentPopUp ficar visível.
         setBudgetBannerItems((prev) => prev.filter((x) => x.id !== item.id));
@@ -473,7 +541,7 @@ export default function App() {
       goToOrcamentosTab();
       setHubBudgetViewer({ serviceOrderId: soId, budgetId });
     },
-    [dismissShellOverlaysForNavigation, goToOrcamentosTab, isLimitedSystemUser, userAllowedTabs]
+    [dismissShellOverlaysForNavigation, goToAgendaTab, goToOrcamentosTab, isLimitedSystemUser, userAllowedTabs]
   );
 
   const handleMinimizeBudgetBanners = useCallback((items: MacOsBudgetBannerItem[]) => {
@@ -496,13 +564,21 @@ export default function App() {
 
   const pushBudgetBanner = useCallback(
     (item: MacOsBudgetBannerItem) => {
-      if (!isDesktopShell) return;
+      const isAgenda =
+        item.kind === 'agenda_day_before' || item.kind === 'agenda_soon';
+      if (!isDesktopShell && !isAgenda) return;
       const isComment = item.kind === 'comment';
       const isLabSemConserto = item.kind === 'lab_sem_conserto';
-      if (isComment && !commentBannerNotifications) return;
-      if (!isComment && !isLabSemConserto && !budgetBannerNotifications) return;
+      if (isAgenda) {
+        if (item.kind === 'agenda_day_before' && !agendaReminderSettings.dayBeforeEnabled) return;
+        if (item.kind === 'agenda_soon' && !agendaReminderSettings.soonEnabled) return;
+      } else if (isComment && !commentBannerNotifications) return;
+      else if (!isComment && !isLabSemConserto && !budgetBannerNotifications) return;
       setMinimizedBudgetBanners((prev) =>
         prev.filter((x) => {
+          if (isAgenda) {
+            return x.id !== item.id;
+          }
           if (isComment) {
             return !(x.kind === 'comment' && x.id === item.id);
           }
@@ -517,12 +593,14 @@ export default function App() {
       setBudgetBannerItems((prev) => {
         if (
           prev.some((x) =>
-            isComment
-              ? x.id === item.id || (x.kind === 'comment' && x.commentNotification?.id === item.id)
-              : isLabSemConserto
-                ? x.id === item.id ||
-                  (x.kind === 'lab_sem_conserto' && x.serviceOrderId === item.serviceOrderId)
-                : x.id === item.id || (x.budgetId === item.budgetId && x.kind === item.kind)
+            isAgenda
+              ? x.id === item.id
+              : isComment
+                ? x.id === item.id || (x.kind === 'comment' && x.commentNotification?.id === item.id)
+                : isLabSemConserto
+                  ? x.id === item.id ||
+                    (x.kind === 'lab_sem_conserto' && x.serviceOrderId === item.serviceOrderId)
+                  : x.id === item.id || (x.budgetId === item.budgetId && x.kind === item.kind)
           )
         ) {
           return prev;
@@ -531,8 +609,22 @@ export default function App() {
         return [item, ...prev].slice(0, 80);
       });
     },
-    [isDesktopShell, budgetBannerNotifications, commentBannerNotifications]
+    [
+      isDesktopShell,
+      budgetBannerNotifications,
+      commentBannerNotifications,
+      agendaReminderSettings.dayBeforeEnabled,
+      agendaReminderSettings.soonEnabled,
+    ]
   );
+
+  useAgendaReminders({
+    appointments,
+    settings: agendaReminderSettings,
+    enabled: Boolean(authSession),
+    pushBanner: pushBudgetBanner,
+    pollMs: 30_000,
+  });
 
   const handleNewCommentNotification = useCallback(
     (n: Notification) => {
@@ -1328,8 +1420,24 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('app_budget_banner_notifications', String(budgetBannerNotifications));
     if (!budgetBannerNotifications) {
-      setBudgetBannerItems((prev) => prev.filter((x) => x.kind === 'comment'));
-      setMinimizedBudgetBanners((prev) => prev.filter((x) => x.kind === 'comment'));
+      setBudgetBannerItems((prev) =>
+        prev.filter(
+          (x) =>
+            x.kind === 'comment' ||
+            x.kind === 'agenda_day_before' ||
+            x.kind === 'agenda_soon' ||
+            x.kind === 'lab_sem_conserto'
+        )
+      );
+      setMinimizedBudgetBanners((prev) =>
+        prev.filter(
+          (x) =>
+            x.kind === 'comment' ||
+            x.kind === 'agenda_day_before' ||
+            x.kind === 'agenda_soon' ||
+            x.kind === 'lab_sem_conserto'
+        )
+      );
     }
   }, [budgetBannerNotifications]);
 
@@ -1344,6 +1452,11 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('app_blur_unverified_budgets', String(blurUnverifiedBudgets));
   }, [blurUnverifiedBudgets]);
+
+  const handleAgendaReminderSettingsChange = useCallback((next: AgendaReminderSettings) => {
+    setAgendaReminderSettings(next);
+    writeAgendaReminderSettings(next);
+  }, []);
 
   useEffect(() => {
     if (!isDesktopShell) {
@@ -1660,6 +1773,7 @@ export default function App() {
         onOpenSupport={() => setIsSupportChatOpen(true)}
         supportUnreadBadge={supportUnreadBadge}
         orcamentosBadge={patioBudgetsHub.badgeCount}
+        agendaBadge={agendaTodayBadge}
         notificationCenter={isDesktopShell ? notificationCenterProps : undefined}
         shellOverlayTopbar={shellOverlayTopbar}
         activeSidebarAction={activeDesktopSidebarAction}
@@ -1742,6 +1856,11 @@ export default function App() {
               onBudgetBannerNotificationsChange={setBudgetBannerNotifications}
               commentBannerNotifications={commentBannerNotifications}
               onCommentBannerNotificationsChange={setCommentBannerNotifications}
+              agendaReminderSettings={agendaReminderSettings}
+              onAgendaReminderSettingsChange={handleAgendaReminderSettingsChange}
+              appointments={appointments}
+              agendaTodayBadge={agendaTodayBadge}
+              onOpenAgendaAppointment={(app) => goToAgendaTab(app.id)}
               orientation={orientation}
               globalOverlayModalOpen={isUserChangePasswordsOpen || isSettingsOpen || isTvPatioModalOpen}
               patioBudgetsHubBadge={patioBudgetsHub.badgeCount}
@@ -2074,6 +2193,7 @@ export default function App() {
       onOpenSupport={() => setIsSupportChatOpen(true)}
       supportUnreadBadge={supportUnreadBadge}
       orcamentosBadge={patioBudgetsHub.badgeCount}
+      agendaBadge={agendaTodayBadge}
       notificationCenter={isDesktopShell ? notificationCenterProps : undefined}
       shellOverlayTopbar={shellOverlayTopbar}
       activeSidebarAction={activeDesktopSidebarAction}
@@ -2131,6 +2251,11 @@ export default function App() {
             onBudgetBannerNotificationsChange={setBudgetBannerNotifications}
             commentBannerNotifications={commentBannerNotifications}
             onCommentBannerNotificationsChange={setCommentBannerNotifications}
+            agendaReminderSettings={agendaReminderSettings}
+            onAgendaReminderSettingsChange={handleAgendaReminderSettingsChange}
+            appointments={appointments}
+            agendaTodayBadge={agendaTodayBadge}
+            onOpenAgendaAppointment={(app) => goToAgendaTab(app.id)}
             orientation={orientation}
             globalOverlayModalOpen={isUserChangePasswordsOpen || isSettingsOpen || isTvPatioModalOpen}
             patioBudgetsHubBadge={patioBudgetsHub.badgeCount}

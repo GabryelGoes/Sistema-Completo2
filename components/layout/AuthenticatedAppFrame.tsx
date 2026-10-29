@@ -27,6 +27,7 @@ export type AuthenticatedAppFrameProps = {
   onOpenSupport?: () => void;
   supportUnreadBadge?: number;
   orcamentosBadge?: number;
+  agendaBadge?: number;
   notificationCenter?: Omit<NotificationCenterProps, 'placement'>;
   /** Título/cor da barra superior quando um módulo da sidebar está aberto (PC). */
   shellOverlayTopbar?: DesktopShellOverlayTopbar | null;
@@ -55,6 +56,7 @@ export function AuthenticatedAppFrame({
   onOpenSupport,
   supportUnreadBadge,
   orcamentosBadge,
+  agendaBadge,
   notificationCenter,
   shellOverlayTopbar = null,
   activeSidebarAction = null,
@@ -83,6 +85,7 @@ export function AuthenticatedAppFrame({
             onOpenSupport={onOpenSupport}
             supportUnreadBadge={supportUnreadBadge}
             orcamentosBadge={orcamentosBadge}
+            agendaBadge={agendaBadge}
             notificationCenter={notificationCenter}
             shellOverlayTopbar={shellOverlayTopbar}
             activeSidebarAction={activeSidebarAction}

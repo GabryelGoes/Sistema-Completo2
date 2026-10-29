@@ -28,10 +28,14 @@ export type MacOsBudgetBannerItem = {
     | 'budget_verified'
     | 'budget_items_approved'
     | 'comment'
-    | 'lab_sem_conserto';
+    | 'lab_sem_conserto'
+    | 'agenda_day_before'
+    | 'agenda_soon';
   serviceOrderId: string;
   /** Obrigatório para orçamentos; ausente em comentários / Sem conserto. */
   budgetId?: string;
+  /** Id do agendamento (banners da Agenda). */
+  appointmentId?: string;
   vehicleModel?: string | null;
   vehiclePlate?: string | null;
   customerName?: string | null;
@@ -46,6 +50,10 @@ export type MacOsBudgetBannerItem = {
   commentNotification?: Notification | null;
   /** Nº da OS (banner Sem conserto). */
   osNumber?: number | null;
+  /** Minutos de antecedência (banner agenda_soon). */
+  soonMinutes?: number | null;
+  /** Horário do agendamento (HH:mm). */
+  appointmentTime?: string | null;
   /**
    * Origem da OS: Pátio (vehicle) ou Laboratório (module).
    * Se omitido, infere por `kind` / payload.
@@ -87,6 +95,12 @@ function vehicleLine(item: MacOsBudgetBannerItem): string {
 }
 
 function titleFor(item: MacOsBudgetBannerItem): string {
+  if (item.kind === 'agenda_day_before') return 'Agenda de amanhã';
+  if (item.kind === 'agenda_soon') {
+    const m = item.soonMinutes;
+    if (typeof m === 'number' && m > 0) return `Agendamento em ${m} min`;
+    return 'Agendamento em breve';
+  }
   if (item.kind === 'comment') return 'Novo comentário';
   if (item.kind === 'lab_sem_conserto') return 'Sem conserto';
   if (item.kind === 'budget_items_approved') {
@@ -124,6 +138,29 @@ function commentPreview(text: string | null | undefined): string | null {
 
 export function budgetBannerToCardModel(item: MacOsBudgetBannerItem): MacOsNotificationCardModel {
   const boardScope = resolveBannerBoardScope(item);
+  if (item.kind === 'agenda_day_before' || item.kind === 'agenda_soon') {
+    const body =
+      item.kind === 'agenda_day_before'
+        ? [item.vehicleModel, item.customerName].filter(Boolean).join(' · ')
+        : vehicleLine(item);
+    const hint =
+      item.kind === 'agenda_soon' && item.appointmentTime
+        ? `Horário ${item.appointmentTime}`
+        : 'Toque para abrir a Agenda';
+    return {
+      id: item.id,
+      authorName: authorLabel(item),
+      authorPhotoUrl: item.authorPhotoUrl,
+      title: titleFor(item),
+      body,
+      hint,
+      timeLabel: 'agora',
+      accent: item.kind === 'agenda_soon' ? 'amber' : 'rose',
+      icon: 'calendar',
+      unread: true,
+      boardScope: null,
+    };
+  }
   if (item.kind === 'comment') {
     return {
       id: item.id,

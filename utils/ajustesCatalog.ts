@@ -215,7 +215,7 @@ export const AJUSTES_ITEMS: AjustesItemMeta[] = [
     id: 'notificacoes_sistema',
     categoryId: 'notificacoes',
     title: 'Notificações do sistema',
-    subtitle: 'Central, banners de orçamento e comentários',
+    subtitle: 'Central, banners, agenda e comentários',
     kind: 'action',
     iconSrc: '/icons/notificacoes-sistema-ios.png',
   },

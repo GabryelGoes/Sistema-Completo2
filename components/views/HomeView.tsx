@@ -40,6 +40,9 @@ import { iosSquircleBackgroundFromHex, SETTINGS_HUB_Z } from '../ui/iosModalStyl
 import { desktopHomeHubCard } from '../ui/desktopCardStyles';
 import { useModalExitPresence } from '../../hooks/useModalExitAnimation';
 import { useIosHomeAppReorder } from '../../hooks/useIosHomeAppReorder';
+import { HomeTomorrowAppointmentsCard } from '../home/HomeTomorrowAppointmentsCard';
+import type { Appointment } from '../../types';
+import type { AgendaReminderSettings } from '../../utils/agendaReminderSettings';
 
 /** Portal no body: evita TabBar (z-40) cobrir o hub dentro do `main` (z-10). */
 function SettingsHubShell({ children }: { children: React.ReactNode }) {
@@ -93,6 +96,13 @@ interface HomeViewProps {
   onBudgetBannerNotificationsChange?: (enabled: boolean) => void;
   commentBannerNotifications?: boolean;
   onCommentBannerNotificationsChange?: (enabled: boolean) => void;
+  agendaReminderSettings?: AgendaReminderSettings;
+  onAgendaReminderSettingsChange?: (next: AgendaReminderSettings) => void;
+  /** Agendamentos (bloco Próximos amanhã + badge do dia). */
+  appointments?: Appointment[];
+  /** Badge vermelho no ícone Agenda (agendamentos de hoje). */
+  agendaTodayBadge?: number;
+  onOpenAgendaAppointment?: (app: Appointment) => void;
   /** Orientação atual (Dispositivo detectado). */
   orientation?: 'portrait' | 'landscape';
   /** Modais no App (ex.: preferências, senhas) que devem ficar acima do hub de configurações */
@@ -216,6 +226,11 @@ export const HomeView: React.FC<HomeViewProps> = ({
   onBudgetBannerNotificationsChange,
   commentBannerNotifications = true,
   onCommentBannerNotificationsChange,
+  agendaReminderSettings,
+  onAgendaReminderSettingsChange,
+  appointments = [],
+  agendaTodayBadge = 0,
+  onOpenAgendaAppointment,
   orientation,
   globalOverlayModalOpen = false,
   patioBudgetsHubBadge = 0,
@@ -1120,6 +1135,11 @@ export const HomeView: React.FC<HomeViewProps> = ({
                               {patioBudgetsHubBadge > 99 ? "99+" : patioBudgetsHubBadge}
                             </span>
                           ) : null}
+                          {app.id === 'agenda' && agendaTodayBadge > 0 ? (
+                            <span className="pointer-events-none absolute -right-1 -top-1 z-10 flex min-h-[1.125rem] min-w-[1.125rem] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold leading-none text-white shadow-md ring-2 ring-white dark:ring-zinc-950">
+                              {agendaTodayBadge > 99 ? '99+' : agendaTodayBadge}
+                            </span>
+                          ) : null}
                         </span>
                         <span className="text-[15px] font-semibold leading-tight text-zinc-900 dark:text-white">
                           {app.label}
@@ -1156,6 +1176,15 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 </div>
               ) : null}
             </section>
+
+            {agendaReminderSettings?.homeTomorrowBlockEnabled ? (
+              <HomeTomorrowAppointmentsCard
+                className={desktopShell ? 'mt-2' : 'mt-1'}
+                appointments={appointments}
+                onOpenAgenda={() => onOpenApp('agenda')}
+                onSelectAppointment={onOpenAgendaAppointment}
+              />
+            ) : null}
       </main>
 
       {settingsHubPresence.mounted ? (
@@ -1235,6 +1264,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
             onBudgetBannerNotificationsChange={onBudgetBannerNotificationsChange}
             commentBannerNotifications={commentBannerNotifications}
             onCommentBannerNotificationsChange={onCommentBannerNotificationsChange}
+            agendaReminderSettings={agendaReminderSettings}
+            onAgendaReminderSettingsChange={onAgendaReminderSettingsChange}
           />
           <DeviceLayoutSettingsModal
             isOpen={isDeviceLayoutOpen}
