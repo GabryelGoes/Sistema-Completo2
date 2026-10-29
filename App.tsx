@@ -491,18 +491,44 @@ export default function App() {
     [dismissShellOverlaysForNavigation, isLimitedSystemUser, userAllowedTabs]
   );
 
+  /** Limpa banners do canto e os minimizados no sino (após agir numa notificação). */
+  const clearAllSystemBanners = useCallback(() => {
+    setBudgetBannerItems([]);
+    setMinimizedBudgetBanners([]);
+  }, []);
+
+  /**
+   * Destino aberto a partir de banner/notificação: ao fechar modal/página, limpa banners de novo.
+   * (Já limpamos no clique; o flag cobre fechar depois e evita limpar OS abertas por outros fluxos.)
+   */
+  const clearBannersOnDestinationCloseRef = useRef(false);
+
+  const beginNotificationDestination = useCallback(() => {
+    clearBannersOnDestinationCloseRef.current = true;
+    clearAllSystemBanners();
+  }, [clearAllSystemBanners]);
+
+  const clearBannersAfterNotificationDestination = useCallback(() => {
+    if (!clearBannersOnDestinationCloseRef.current) return;
+    clearBannersOnDestinationCloseRef.current = false;
+    clearAllSystemBanners();
+  }, [clearAllSystemBanners]);
+
+  /**
+   * Clique no banner: abre o destino e remove todos os banners.
+   * Ao fechar o modal/página aberto a partir do banner, também limpa (idempotente).
+   */
   const openBudgetFromBanner = useCallback(
     (item: MacOsBudgetBannerItem) => {
+      beginNotificationDestination();
+
       if (item.kind === 'agenda_day_before' || item.kind === 'agenda_soon') {
-        setBudgetBannerItems((prev) => prev.filter((x) => x.id !== item.id));
-        setMinimizedBudgetBanners((prev) => prev.filter((x) => x.id !== item.id));
         goToAgendaTab(item.appointmentId || item.serviceOrderId || null);
+        // Página da Agenda: banners já limpos no clique; sem modal App-level ao fechar.
+        clearBannersOnDestinationCloseRef.current = false;
         return;
       }
       if (item.kind === 'comment') {
-        // Tira o banner da frente (z altíssimo) para o CommentPopUp ficar visível.
-        setBudgetBannerItems((prev) => prev.filter((x) => x.id !== item.id));
-        setMinimizedBudgetBanners((prev) => prev.filter((x) => x.id !== item.id));
         if (item.commentNotification) {
           setCommentPopUpNotification(item.commentNotification);
         }
@@ -541,8 +567,26 @@ export default function App() {
       goToOrcamentosTab();
       setHubBudgetViewer({ serviceOrderId: soId, budgetId });
     },
-    [dismissShellOverlaysForNavigation, goToAgendaTab, goToOrcamentosTab, isLimitedSystemUser, userAllowedTabs]
+    [
+      beginNotificationDestination,
+      dismissShellOverlaysForNavigation,
+      goToAgendaTab,
+      goToOrcamentosTab,
+      isLimitedSystemUser,
+      userAllowedTabs,
+    ]
   );
+
+  const closeCommentPopUp = useCallback(() => {
+    setCommentPopUpNotification(null);
+    clearBannersOnDestinationCloseRef.current = false;
+    clearAllSystemBanners();
+  }, [clearAllSystemBanners]);
+
+  const closeHubBudgetViewer = useCallback(() => {
+    setHubBudgetViewer(null);
+    clearBannersAfterNotificationDestination();
+  }, [clearBannersAfterNotificationDestination]);
 
   const handleMinimizeBudgetBanners = useCallback((items: MacOsBudgetBannerItem[]) => {
     setMinimizedBudgetBanners((prev) => {
@@ -869,6 +913,7 @@ export default function App() {
   const handleNotificationClick = useCallback(
     (n: Notification) => {
       if (n.type === 'comment') {
+        beginNotificationDestination();
         setCommentPopUpNotification(n);
         void markNotificationRead(
           n.id,
@@ -882,6 +927,7 @@ export default function App() {
         const soId =
           typeof n.payload.service_order_id === 'string' ? n.payload.service_order_id.trim() : '';
         if (soId) {
+          beginNotificationDestination();
           setLabOsScanQuick(null);
           setLaboratorioPendingOrderId(soId);
           setLaboratorioPendingScanToken(Date.now());
@@ -919,6 +965,7 @@ export default function App() {
         const budgetId =
           typeof n.payload.budget_id === 'string' ? n.payload.budget_id.trim() : '';
         if (!soId || !budgetId) return;
+        beginNotificationDestination();
         goToOrcamentosTab();
         setHubBudgetViewer({ serviceOrderId: soId, budgetId });
         void markNotificationRead(
@@ -931,6 +978,7 @@ export default function App() {
     },
     [
       authSession,
+      beginNotificationDestination,
       dismissShellOverlaysForNavigation,
       goToOrcamentosTab,
       isLimitedSystemUser,
@@ -994,11 +1042,13 @@ export default function App() {
 
   const handleLaboratoryOrderHandled = useCallback(() => {
     setLaboratorioPendingOrderId(null);
-  }, []);
+    clearBannersAfterNotificationDestination();
+  }, [clearBannersAfterNotificationDestination]);
 
   const handlePatioOrderHandled = useCallback(() => {
     setPatioPendingOrderId(null);
-  }, []);
+    clearBannersAfterNotificationDestination();
+  }, [clearBannersAfterNotificationDestination]);
 
   const handleLabScanModeChange = useCallback((mode: LabScanMode) => {
     setLabScanMode(mode);
@@ -2054,7 +2104,7 @@ export default function App() {
             replyActor="technician"
             replyAuthorUserId={authSession.userId}
             blurPlates={cinematographicMode}
-            onClose={() => setCommentPopUpNotification(null)}
+            onClose={closeCommentPopUp}
           />
         )}
         <SettingsModal
@@ -2071,7 +2121,7 @@ export default function App() {
             key={`${hubBudgetViewer.serviceOrderId}-${hubBudgetViewer.budgetId}`}
             serviceOrderId={hubBudgetViewer.serviceOrderId}
             budgetId={hubBudgetViewer.budgetId}
-            onClose={() => setHubBudgetViewer(null)}
+            onClose={closeHubBudgetViewer}
             canApproveBudgetItems={canApproveBudgetItemsApp}
             actorOptions={budgetHubActorOptions}
             blurUnverifiedBudgets={blurUnverifiedBudgets && !canVerifyBudgetsApp}
@@ -2082,7 +2132,7 @@ export default function App() {
             items={budgetBannerItems}
             theme={theme}
             onDismiss={(id) => setBudgetBannerItems((prev) => prev.filter((x) => x.id !== id))}
-            onDismissAll={() => setBudgetBannerItems([])}
+            onDismissAll={clearAllSystemBanners}
             onMinimize={handleMinimizeBudgetBanners}
             onActivate={(item) => openBudgetFromBanner(item)}
           />
@@ -2465,7 +2515,7 @@ export default function App() {
           key={`${hubBudgetViewer.serviceOrderId}-${hubBudgetViewer.budgetId}`}
           serviceOrderId={hubBudgetViewer.serviceOrderId}
           budgetId={hubBudgetViewer.budgetId}
-          onClose={() => setHubBudgetViewer(null)}
+          onClose={closeHubBudgetViewer}
           canApproveBudgetItems={canApproveBudgetItemsApp}
           actorOptions={budgetHubActorOptions}
             blurUnverifiedBudgets={blurUnverifiedBudgets && !canVerifyBudgetsApp}
@@ -2476,7 +2526,7 @@ export default function App() {
           items={budgetBannerItems}
           theme={theme}
           onDismiss={(id) => setBudgetBannerItems((prev) => prev.filter((x) => x.id !== id))}
-          onDismissAll={() => setBudgetBannerItems([])}
+          onDismissAll={clearAllSystemBanners}
           onMinimize={handleMinimizeBudgetBanners}
           onActivate={(item) => openBudgetFromBanner(item)}
         />
@@ -2553,7 +2603,7 @@ export default function App() {
           replyActor={authSession?.role === 'admin' ? 'admin' : 'technician'}
           replyAuthorUserId={authSession?.role === 'user' ? authSession.userId : null}
           blurPlates={cinematographicMode}
-          onClose={() => setCommentPopUpNotification(null)}
+          onClose={closeCommentPopUp}
         />
       )}
       <DesktopEscapeCloseBridge
