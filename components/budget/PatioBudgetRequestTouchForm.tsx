@@ -1314,7 +1314,7 @@ export function PatioBudgetRequestTouchForm({
                             </p>
                           ) : null}
                         </div>
-                        <div className="mt-0.5 flex shrink-0 flex-col gap-0.5">
+                        {isFocused ? (
                           <button
                             type="button"
                             onPointerDown={(e) => {
@@ -1324,29 +1324,26 @@ export function PatioBudgetRequestTouchForm({
                               keepServiceSuggestionsOpen();
                               openLaborEditor(item);
                             }}
-                            className={`flex h-9 w-9 items-center justify-center rounded-lg transition-colors ${
+                            className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg transition-colors ${
                               isLaborEditing || hasLabor
                                 ? 'bg-[#E8F2FF] text-[#007AFF] hover:bg-[#DCEBFF]'
-                                : isFocused
-                                  ? 'text-[#007AFF]/80 hover:bg-[#E8F2FF] hover:text-[#007AFF]'
-                                  : 'text-slate-400 hover:bg-[#E8F2FF] hover:text-[#007AFF]'
+                                : 'text-[#007AFF]/80 hover:bg-[#E8F2FF] hover:text-[#007AFF]'
                             }`}
                             aria-label={hasLabor ? 'Editar horas do serviço' : 'Adicionar horas do serviço'}
                             title={hasLabor ? 'Editar horas' : 'Adicionar horas'}
                           >
                             <Clock3 className="h-4 w-4" strokeWidth={2.2} />
                           </button>
-                          {!isFocused ? (
-                            <button
-                              type="button"
-                              onClick={() => removeServiceRow(item.id)}
-                              className="flex h-9 w-9 items-center justify-center rounded-lg text-red-500 transition-colors hover:bg-red-50 active:bg-red-100/70"
-                              aria-label="Remover serviço"
-                            >
-                              <Trash2 className="h-4 w-4" strokeWidth={2} />
-                            </button>
-                          ) : null}
-                        </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => removeServiceRow(item.id)}
+                            className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-red-500 transition-colors hover:bg-red-50 active:bg-red-100/70"
+                            aria-label="Remover serviço"
+                          >
+                            <Trash2 className="h-4 w-4" strokeWidth={2} />
+                          </button>
+                        )}
                       </div>
                     );
                   })}
