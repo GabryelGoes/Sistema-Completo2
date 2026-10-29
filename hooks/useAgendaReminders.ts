@@ -2,12 +2,13 @@ import { useEffect, useRef } from 'react';
 import type { Appointment } from '../types';
 import type { MacOsBudgetBannerItem } from '../components/MacOsBudgetBannerStack';
 import {
-  addLocalDays,
   appointmentDateTime,
   appointmentLocalDateKey,
   hasAgendaReminderFired,
   localDateKey,
   markAgendaReminderFired,
+  nextWorkdayDate,
+  nextWorkdayDateKey,
   type AgendaReminderSettings,
 } from '../utils/agendaReminderSettings';
 
@@ -59,21 +60,23 @@ export function useAgendaReminders({
       const cfg = settingsRef.current;
       const now = new Date();
       const todayKey = localDateKey(now);
-      const tomorrowKey = localDateKey(addLocalDays(now, 1));
+      // Sexta (e fim de semana) → segunda; demais dias → amanhã.
+      const upcomingKey = nextWorkdayDateKey(now);
+      const upcomingIsMonday = nextWorkdayDate(now).getDay() === 1;
       const list = scheduledOnly(appointmentsRef.current);
 
       if (cfg.dayBeforeEnabled) {
         const targetMin = parseDayBeforeMinutes(cfg.dayBeforeTime);
         const nowMin = now.getHours() * 60 + now.getMinutes();
         if (nowMin >= targetMin) {
-          const tomorrowApps = list
-            .filter((a) => appointmentLocalDateKey(a) === tomorrowKey)
+          const upcomingApps = list
+            .filter((a) => appointmentLocalDateKey(a) === upcomingKey)
             .sort((a, b) => String(a.time).localeCompare(String(b.time)));
-          if (tomorrowApps.length > 0) {
-            const fireKey = `day_before:${todayKey}`;
+          if (upcomingApps.length > 0) {
+            const fireKey = `day_before:${todayKey}:${upcomingKey}`;
             if (!hasAgendaReminderFired(fireKey)) {
               markAgendaReminderFired(fireKey);
-              const preview = tomorrowApps
+              const preview = upcomingApps
                 .slice(0, 3)
                 .map((a) => {
                   const plate = (a.plate || '').trim().toUpperCase();
@@ -81,13 +84,14 @@ export function useAgendaReminders({
                 })
                 .join(' · ');
               const extra =
-                tomorrowApps.length > 3 ? ` · +${tomorrowApps.length - 3}` : '';
+                upcomingApps.length > 3 ? ` · +${upcomingApps.length - 3}` : '';
+              const whenLabel = upcomingIsMonday ? 'na segunda' : 'amanhã';
               pushRef.current({
-                id: `agenda-day-before-${todayKey}`,
+                id: `agenda-day-before-${todayKey}-${upcomingKey}`,
                 kind: 'agenda_day_before',
-                serviceOrderId: tomorrowApps[0]?.id || 'agenda',
-                appointmentId: tomorrowApps[0]?.id,
-                vehicleModel: `${tomorrowApps.length} veículo${tomorrowApps.length === 1 ? '' : 's'} amanhã`,
+                serviceOrderId: upcomingApps[0]?.id || 'agenda',
+                appointmentId: upcomingApps[0]?.id,
+                vehicleModel: `${upcomingApps.length} veículo${upcomingApps.length === 1 ? '' : 's'} ${whenLabel}`,
                 vehiclePlate: null,
                 customerName: preview + extra,
                 authorName: 'Agenda',

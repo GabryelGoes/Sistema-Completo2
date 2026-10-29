@@ -274,7 +274,8 @@ export const SystemNotificationsModal: React.FC<SystemNotificationsModalProps> =
                     Lembretes da Agenda
                   </p>
                   <p className="text-[12px] text-zinc-500 dark:text-zinc-400 mb-3">
-                    Banners dos veículos agendados e o bloco «Próximos amanhã» na home.
+                    Banners dos veículos agendados e o bloco da agenda na home. Na sexta, o
+                    «próximo dia» considera a segunda (oficina não abre no fim de semana).
                   </p>
                   <div className="space-y-4">
                     <div className="flex items-center justify-between gap-4">
@@ -283,7 +284,7 @@ export const SystemNotificationsModal: React.FC<SystemNotificationsModalProps> =
                           Aviso no dia anterior
                         </p>
                         <p className="text-[12px] text-zinc-500 dark:text-zinc-400 mt-0.5">
-                          Banner com os carros agendados para amanhã
+                          Banner com os carros do próximo dia útil (segunda na sexta)
                         </p>
                       </div>
                       <IosSwitch
@@ -376,10 +377,10 @@ export const SystemNotificationsModal: React.FC<SystemNotificationsModalProps> =
                     <div className="flex items-center justify-between gap-4">
                       <div className="min-w-0 flex-1">
                         <p className="text-[14px] font-medium text-zinc-900 dark:text-white">
-                          Bloco «Próximos amanhã» na home
+                          Bloco da agenda na home
                         </p>
                         <p className="text-[12px] text-zinc-500 dark:text-zinc-400 mt-0.5">
-                          Lista os veículos agendados para o dia seguinte
+                          «Próximos amanhã» / «Hoje na oficina»; na sexta mostra a segunda
                         </p>
                       </div>
                       <IosSwitch
