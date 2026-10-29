@@ -45,10 +45,32 @@ const NIIMBOT_PRINTER_NAME_PREFIXES = [
 
 /**
  * Tipos de papel (SetLabelType 0x23) — wiki NIIMBOT / niimbluelib LabelType.
- * 1 = com gaps (etiquetas adesivas), 3 = contínuo.
+ * B1 oficial: 1, 2, 5. Contínuo (3) existe no protocolo mas a B1 não lista —
+ * bobina de máquina de cartão (sem gaps) costuma funcionar com 5 (transparente)
+ * ou 3; tentamos nessa ordem.
  */
 export const NIIMBOT_LABEL_TYPE_GAPS = 1;
+export const NIIMBOT_LABEL_TYPE_BLACK = 2;
 export const NIIMBOT_LABEL_TYPE_CONTINUOUS = 3;
+export const NIIMBOT_LABEL_TYPE_TRANSPARENT = 5;
+
+export type NiimbotPaperKind = 'roll' | 'continuous' | 'transparent' | 'black';
+
+/** Tipos a tentar por modo de papel (primeiro = preferido). */
+export function niimbotLabelTypesForPaper(kind: NiimbotPaperKind): number[] {
+  switch (kind) {
+    case 'continuous':
+      return [NIIMBOT_LABEL_TYPE_CONTINUOUS, NIIMBOT_LABEL_TYPE_TRANSPARENT];
+    case 'transparent':
+      return [NIIMBOT_LABEL_TYPE_TRANSPARENT];
+    case 'black':
+      return [NIIMBOT_LABEL_TYPE_BLACK];
+    case 'roll':
+    default:
+      // Bobina térmica sem gaps (cartão): transparente (suportado na B1) → contínuo.
+      return [NIIMBOT_LABEL_TYPE_TRANSPARENT, NIIMBOT_LABEL_TYPE_CONTINUOUS, NIIMBOT_LABEL_TYPE_BLACK];
+  }
+}
 
 export const NIIMBOT_B1_MODEL: NiimbotModel = {
   name_prefixes: [...NIIMBOT_PRINTER_NAME_PREFIXES],
@@ -138,7 +160,7 @@ export const NIIMBOT_T50x30_PRO_SIZE: NiimbotSize = {
 };
 
 export const NIIMBOT_SIZE_LABEL = '50 × 30 mm (B1)';
-export const NIIMBOT_CONTINUOUS_SIZE_LABEL = 'Papel contínuo 50 mm (B1)';
+export const NIIMBOT_CONTINUOUS_SIZE_LABEL = 'Bobina 50 mm · altura livre (B1)';
 export const NIIMBOT_MODEL_LABEL = 'Niimbot B1';
 
 /** Dica curta exibida nos modais de etiqueta. */
@@ -146,7 +168,17 @@ export const NIIMBOT_BLE_HELP =
   'A lista mostra só impressoras Niimbot ligadas por perto. Na primeira conexão a B1 é salva e nas próximas o app tenta reconectar sozinho. A B1 só fala com um aparelho por vez: desconecte no celular e feche o app NIIMBOT. Use Chrome/Edge (HTTPS). No Android, ligue a Localização e aperte o botão da impressora.';
 
 export const NIIMBOT_CONTINUOUS_HELP =
-  'Use papel contínuo de 50 mm na B1. O app envia label_type=contínuo (sem gaps). Etiquetas adesivas com gaps continuam no fluxo normal de etiqueta.';
+  'Bobina térmica 50 mm (máquina de cartão): largura útil ~48 mm (384 px @ 203 dpi), altura conforme o conteúdo. Se a B1 recusar papel sem RFID Niimbot, cole a tag RFID de um rolo original na caixa da impressora (abre a tampa, cola a tag e fecha).';
+
+/** Largura do cabeçote B1 (203 dpi) — múltiplo de 8. */
+export const NIIMBOT_B1_HEAD_W_PX = 384;
+/** Largura do cabeçote B1 Pro (300 dpi). */
+export const NIIMBOT_B1_PRO_HEAD_W_PX = 576;
+
+function roundUpToMultiple(n: number, multiple: number): number {
+  const m = Math.max(1, multiple | 0);
+  return Math.ceil(Math.max(1, n) / m) * m;
+}
 
 function loadImageNaturalSize(url: string): Promise<{ w: number; h: number }> {
   return new Promise((resolve, reject) => {
@@ -463,12 +495,18 @@ class NiimbotService {
   }
 
   /**
-   * Imprime em papel contínuo (label_type=3). A altura vem da imagem;
-   * a largura deve bater com o cabeçote (384 / 576).
+   * Imprime bobina contínua / sem gaps (50 mm).
+   * Altura = altura da imagem (ilimitada no sentido da bobina); largura = cabeçote.
+   * A B1 lista tipos 1/2/5; para bobina de cartão tentamos transparente→contínuo→marca preta.
    */
   async printContinuousImageUrl(
     imageUrl: string,
-    opts?: { copies?: number; onProgress?: (s: string) => void }
+    opts?: {
+      copies?: number;
+      density?: number;
+      paperKind?: NiimbotPaperKind;
+      onProgress?: (s: string) => void;
+    }
   ): Promise<void> {
     if (!this.isSupported()) {
       this.setState('unsupported', 'Web Bluetooth indisponível');
@@ -478,38 +516,72 @@ class NiimbotService {
       await this.connect();
     }
     const copies = Math.max(1, Math.min(99, Math.floor(opts?.copies ?? 1)));
-    this.setState('printing', copies > 1 ? `Imprimindo ${copies} vias…` : 'Imprimindo (contínuo)…');
-    try {
-      this.applyDetectedPrinter();
-      const natural = await loadImageNaturalSize(imageUrl);
-      const headW = this.activeSize.w_px;
-      // Alinha à largura do cabeçote; altura proporcional se a imagem vier em outra escala.
-      const w = headW;
-      const h = Math.max(
-        8,
-        Math.min(4096, Math.round((natural.h * headW) / Math.max(1, natural.w)))
-      );
-      const size: NiimbotSize = { w_px: w, h_px: h, offset_y_px: 0 };
-      await api().printImage(imageUrl, {
-        model: { ...this.activeModel, label_type: NIIMBOT_LABEL_TYPE_CONTINUOUS },
-        size,
-        copies,
-        onProgress: (s) => {
-          opts?.onProgress?.(s);
-          this.setState('printing', s);
-        },
-      });
-      this.setState('connected', copies > 1 ? `${copies} vias enviadas` : 'Via contínua enviada');
-    } catch (err) {
-      const raw = err instanceof Error ? err.message : 'Falha na impressão contínua';
-      const msg = translateConnectError(raw);
-      const stillUp = isBleLinkUp();
-      if (!stillUp) {
-        await this.safeDisconnectDriver();
+    const densityRaw = opts?.density ?? 4;
+    const density = Math.min(5, Math.max(1, Math.floor(densityRaw)));
+    const paperKind: NiimbotPaperKind = opts?.paperKind ?? 'roll';
+    const labelTypes = niimbotLabelTypesForPaper(paperKind);
+
+    this.setState('printing', copies > 1 ? `Imprimindo ${copies} vias…` : 'Imprimindo bobina…');
+    this.applyDetectedPrinter();
+    const natural = await loadImageNaturalSize(imageUrl);
+    const headW = roundUpToMultiple(this.activeSize.w_px || NIIMBOT_B1_HEAD_W_PX, 8);
+    // Imagem já deve vir na largura do cabeçote; se não, escala a altura proporcionalmente.
+    const w = headW;
+    const scaledH = Math.round((natural.h * headW) / Math.max(1, natural.w));
+    const h = roundUpToMultiple(Math.min(6000, Math.max(64, scaledH)), 8);
+    const size: NiimbotSize = { w_px: w, h_px: h, offset_y_px: 0 };
+
+    let lastErr: Error | null = null;
+    for (let i = 0; i < labelTypes.length; i += 1) {
+      const labelType = labelTypes[i]!;
+      try {
+        opts?.onProgress?.(
+          labelTypes.length > 1
+            ? `Papel tipo ${labelType} (${i + 1}/${labelTypes.length})…`
+            : 'Enviando…'
+        );
+        this.setState(
+          'printing',
+          `Imprimindo (tipo ${labelType}${i > 0 ? ', nova tentativa' : ''})…`
+        );
+        await api().printImage(imageUrl, {
+          model: {
+            ...this.activeModel,
+            label_type: labelType,
+            density,
+          },
+          size,
+          copies,
+          density,
+          onProgress: (s) => {
+            opts?.onProgress?.(s);
+            this.setState('printing', s);
+          },
+        });
+        this.setState(
+          'connected',
+          copies > 1 ? `${copies} vias enviadas (tipo ${labelType})` : `Via enviada (tipo ${labelType})`
+        );
+        return;
+      } catch (err) {
+        lastErr = err instanceof Error ? err : new Error(String(err));
+        if (!isBleLinkUp()) break;
       }
-      this.setState(stillUp ? 'connected' : 'disconnected', msg);
-      throw new Error(msg);
     }
+
+    const raw = lastErr?.message || 'Falha na impressão da bobina';
+    let msg = translateConnectError(raw);
+    if (/paper|papel|rfid|lid|tampa|consumable|não confirmad|not confirmed/i.test(msg)) {
+      msg =
+        `${msg} Dica: cole a tag RFID de um rolo Niimbot na caixa da B1 e use bobina 50 mm; ` +
+        'no modal escolha «Bobina 50 mm» ou «Transparente».';
+    }
+    const stillUp = isBleLinkUp();
+    if (!stillUp) {
+      await this.safeDisconnectDriver();
+    }
+    this.setState(stillUp ? 'connected' : 'disconnected', msg);
+    throw new Error(msg);
   }
 }
 

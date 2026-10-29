@@ -2,10 +2,12 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Bluetooth, BluetoothConnected, Loader2, Printer, ScrollText, X } from 'lucide-react';
 import {
   NIIMBOT_BLE_HELP,
+  NIIMBOT_B1_HEAD_W_PX,
   NIIMBOT_CONTINUOUS_HELP,
   NIIMBOT_CONTINUOUS_SIZE_LABEL,
   NIIMBOT_MODEL_LABEL,
   niimbotService,
+  type NiimbotPaperKind,
   type NiimbotServiceSnapshot,
 } from '../services/niimbotService';
 import type { ServiceOrderDetail } from '../services/apiService';
@@ -26,6 +28,29 @@ export type BudgetNiimbotPrintModalProps = {
   onClose: () => void;
 };
 
+const PAPER_OPTIONS: { id: NiimbotPaperKind; label: string; hint: string }[] = [
+  {
+    id: 'roll',
+    label: 'Bobina 50 mm',
+    hint: 'Máquina de cartão / sem gaps (recomendado)',
+  },
+  {
+    id: 'transparent',
+    label: 'Transparente',
+    hint: 'Tipo 5 — suportado nativamente na B1',
+  },
+  {
+    id: 'continuous',
+    label: 'Contínuo (tipo 3)',
+    hint: 'Protocolo contínuo; a B1 pode rejeitar',
+  },
+  {
+    id: 'black',
+    label: 'Marca preta',
+    hint: 'Só se a bobina tiver marca preta no verso',
+  },
+];
+
 export function BudgetNiimbotPrintModal({
   open,
   budget,
@@ -36,10 +61,13 @@ export function BudgetNiimbotPrintModal({
 }: BudgetNiimbotPrintModalProps) {
   const [snap, setSnap] = useState<NiimbotServiceSnapshot>(() => niimbotService.snapshot());
   const [copies, setCopies] = useState(1);
+  const [density, setDensity] = useState(4);
+  const [paperKind, setPaperKind] = useState<NiimbotPaperKind>('roll');
   const [busy, setBusy] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [localError, setLocalError] = useState<string | null>(null);
   const [building, setBuilding] = useState(false);
+  const [previewMeta, setPreviewMeta] = useState<string | null>(null);
 
   useBrowserBackLayer(open, onClose);
 
@@ -58,6 +86,7 @@ export function BudgetNiimbotPrintModal({
   useEffect(() => {
     if (!open || !budget) {
       setPreviewUrl(null);
+      setPreviewMeta(null);
       return;
     }
     let cancelled = false;
@@ -66,7 +95,7 @@ export function BudgetNiimbotPrintModal({
     try {
       const widthPx = niimbotService.isConnected()
         ? niimbotService.getPrintHeadWidthPx()
-        : 384;
+        : NIIMBOT_B1_HEAD_W_PX;
       const url = renderBudgetContinuousDataUrl({
         budget,
         detail,
@@ -74,10 +103,20 @@ export function BudgetNiimbotPrintModal({
         mileageKm,
         widthPx,
       });
-      if (!cancelled) setPreviewUrl(url);
+      if (!cancelled) {
+        setPreviewUrl(url);
+        const img = new Image();
+        img.onload = () => {
+          if (!cancelled) {
+            setPreviewMeta(`${img.naturalWidth}×${img.naturalHeight} px · bobina 50 mm`);
+          }
+        };
+        img.src = url;
+      }
     } catch (err) {
       if (!cancelled) {
         setPreviewUrl(null);
+        setPreviewMeta(null);
         setLocalError(err instanceof Error ? err.message : 'Falha ao montar a via');
       }
     } finally {
@@ -114,7 +153,7 @@ export function BudgetNiimbotPrintModal({
         role="presentation"
       >
         <div
-          className={`${iosModalShell} relative flex max-h-[min(92dvh,720px)] w-full max-w-md flex-col overflow-hidden`}
+          className={`${iosModalShell} relative flex max-h-[min(92dvh,760px)] w-full max-w-md flex-col overflow-hidden`}
           onClick={(e) => e.stopPropagation()}
           role="dialog"
           aria-modal="true"
@@ -135,21 +174,22 @@ export function BudgetNiimbotPrintModal({
           <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-4 custom-scrollbar">
             <div>
               <p className="text-[13px] font-semibold text-zinc-900 dark:text-zinc-100">
-                Orçamento aprovado · papel contínuo
+                Orçamento aprovado · bobina contínua
               </p>
               <p className="mt-0.5 text-[12px] text-zinc-500 dark:text-zinc-400">
                 {approvedCount === 0
                   ? 'Nenhum item aprovado — a via sairá só com o cabeçalho.'
                   : `${approvedCount} item${approvedCount === 1 ? '' : 's'} aprovado${approvedCount === 1 ? '' : 's'}`}
+                {previewMeta ? ` · ${previewMeta}` : ''}
               </p>
             </div>
 
             {previewUrl ? (
-              <div className="overflow-auto rounded-xl bg-zinc-100 p-3 dark:bg-white/[0.04]">
+              <div className="max-h-[280px] overflow-auto rounded-xl bg-zinc-100 p-3 dark:bg-white/[0.04]">
                 <img
                   src={previewUrl}
                   alt="Prévia da via contínua do orçamento"
-                  className="mx-auto h-auto w-full max-w-[280px]"
+                  className="mx-auto h-auto w-full max-w-[260px] bg-white"
                   style={{ imageRendering: 'pixelated' }}
                 />
               </div>
@@ -187,12 +227,55 @@ export function BudgetNiimbotPrintModal({
               ) : null}
             </div>
 
-            <p className="text-[11px] leading-snug text-zinc-500 dark:text-zinc-400">
-              {NIIMBOT_CONTINUOUS_HELP}
-            </p>
-            <p className="text-[11px] leading-snug text-zinc-500 dark:text-zinc-400">
-              {NIIMBOT_BLE_HELP}
-            </p>
+            <div>
+              <p className="text-[11px] font-bold uppercase tracking-wide text-zinc-500">
+                Tipo de papel
+              </p>
+              <div className="mt-1.5 grid grid-cols-1 gap-1.5">
+                {PAPER_OPTIONS.map((opt) => {
+                  const active = paperKind === opt.id;
+                  return (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      disabled={printing}
+                      onClick={() => setPaperKind(opt.id)}
+                      className={`rounded-xl border px-3 py-2 text-left transition-colors disabled:opacity-50 ${
+                        active
+                          ? 'border-[#007AFF]/45 bg-[#007AFF]/10'
+                          : 'border-zinc-200/80 bg-white hover:bg-zinc-50 dark:border-white/[0.08] dark:bg-white/[0.03]'
+                      }`}
+                    >
+                      <span className="block text-[13px] font-semibold text-zinc-900 dark:text-zinc-100">
+                        {opt.label}
+                      </span>
+                      <span className="block text-[11px] text-zinc-500 dark:text-zinc-400">
+                        {opt.hint}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <label className="block">
+              <span className="text-[11px] font-bold uppercase tracking-wide text-zinc-500">
+                Densidade (1–5)
+              </span>
+              <input
+                type="range"
+                min={1}
+                max={5}
+                step={1}
+                value={density}
+                onChange={(e) => setDensity(Number(e.target.value) || 4)}
+                disabled={printing}
+                className="mt-2 w-full"
+              />
+              <span className="text-[12px] tabular-nums text-zinc-600 dark:text-zinc-300">
+                {density} {density >= 4 ? '(mais escuro — bom p/ bobina térmica)' : ''}
+              </span>
+            </label>
 
             <label className="block">
               <span className="text-[11px] font-bold uppercase tracking-wide text-zinc-500">
@@ -211,6 +294,13 @@ export function BudgetNiimbotPrintModal({
                 className="mt-1 w-full rounded-xl border-0 bg-zinc-100 px-3 py-2.5 text-[15px] tabular-nums text-zinc-900 outline-none disabled:opacity-50 dark:bg-white/[0.06] dark:text-zinc-100"
               />
             </label>
+
+            <p className="text-[11px] leading-snug text-zinc-500 dark:text-zinc-400">
+              {NIIMBOT_CONTINUOUS_HELP}
+            </p>
+            <p className="text-[11px] leading-snug text-zinc-500 dark:text-zinc-400">
+              {NIIMBOT_BLE_HELP}
+            </p>
 
             {(localError || unsupported) && (
               <p className="rounded-xl bg-red-50 px-3 py-2 text-[13px] text-red-800 dark:bg-red-950/40 dark:text-red-200">
@@ -238,7 +328,11 @@ export function BudgetNiimbotPrintModal({
                     widthPx,
                   });
                   setPreviewUrl(url);
-                  await niimbotService.printContinuousImageUrl(url, { copies });
+                  await niimbotService.printContinuousImageUrl(url, {
+                    copies,
+                    density,
+                    paperKind,
+                  });
                 })
               }
               className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 text-[15px] font-semibold text-white hover:bg-emerald-500 disabled:opacity-50"
@@ -248,7 +342,7 @@ export function BudgetNiimbotPrintModal({
               ) : (
                 <Printer className="h-5 w-5" />
               )}
-              {printing ? 'Imprimindo…' : copies > 1 ? `Imprimir ${copies} vias` : 'Imprimir na B1'}
+              {printing ? 'Imprimindo…' : copies > 1 ? `Imprimir ${copies} vias` : 'Imprimir bobina 50 mm'}
             </button>
           </div>
         </div>
