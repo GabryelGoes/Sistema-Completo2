@@ -80,7 +80,7 @@ const budgetModalPaperFooter = 'border-t border-sky-200 ' + budgetModalCanvasBg;
 const budgetModalCreateBudgetButton =
   'rounded-xl border border-sky-600/35 bg-sky-600 text-[15px] font-semibold text-white shadow-md transition-[transform,background-color,border-color,opacity] hover:bg-sky-700 hover:border-sky-700/50 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50';
 
-const BUDGET_SERVICE_TEXTAREA_MIN_PX = 52;
+const BUDGET_SERVICE_TEXTAREA_MIN_PX = 36;
 
 function normalizeText(text: string): string {
   return text.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
@@ -95,6 +95,7 @@ function BudgetServiceDescriptionTextarea({
   inputClassName,
   autoFocus,
   dataBudgetServiceId,
+  compactBottom,
 }: {
   value: string;
   onChange: (v: string) => void;
@@ -104,18 +105,19 @@ function BudgetServiceDescriptionTextarea({
   inputClassName: string;
   autoFocus?: boolean;
   dataBudgetServiceId?: string;
+  compactBottom?: boolean;
 }) {
   const taRef = useRef<HTMLTextAreaElement | null>(null);
   const syncHeight = useCallback(() => {
     const el = taRef.current;
     if (!el) return;
     el.style.height = 'auto';
-    el.style.height = `${Math.max(BUDGET_SERVICE_TEXTAREA_MIN_PX, el.scrollHeight + 2)}px`;
+    el.style.height = `${Math.max(BUDGET_SERVICE_TEXTAREA_MIN_PX, el.scrollHeight)}px`;
   }, []);
 
   useLayoutEffect(() => {
     syncHeight();
-  }, [value, syncHeight]);
+  }, [value, compactBottom, syncHeight]);
 
   useLayoutEffect(() => {
     if (!autoFocus) return;
@@ -129,7 +131,9 @@ function BudgetServiceDescriptionTextarea({
       spellCheck={false}
       data-budget-service-id={dataBudgetServiceId}
       placeholder="Serviço"
-      className={`${inputClassName} shadow-none block min-h-[52px] w-full min-w-0 resize-none overflow-hidden break-words leading-snug [overflow-wrap:anywhere] [scrollbar-width:none] [&::-webkit-scrollbar]:w-0 [&::-webkit-scrollbar]:bg-transparent`}
+      className={`${inputClassName} shadow-none block min-h-[36px] w-full min-w-0 resize-none overflow-hidden break-words pt-2.5 leading-snug [overflow-wrap:anywhere] [scrollbar-width:none] [&::-webkit-scrollbar]:w-0 [&::-webkit-scrollbar]:bg-transparent ${
+        compactBottom ? 'pb-0.5' : 'pb-2.5'
+      }`}
       value={value}
       onChange={(e) => {
         onChange(e.target.value);
@@ -681,7 +685,7 @@ export function PatioBudgetEditForm({
                               ariaLabelPrefix="Serviço"
                             />
                             <div
-                              className="min-w-0 flex-1 space-y-1"
+                              className="min-w-0 flex-1"
                               ref={
                                 isFocused
                                   ? (node: HTMLDivElement | null) => {
@@ -699,10 +703,13 @@ export function PatioBudgetEditForm({
                                 autoFocus={focusServiceId === item.id}
                                 dataBudgetServiceId={item.id}
                                 inputClassName={budgetModalInput}
+                                compactBottom={
+                                  item.laborHours != null && Number.isFinite(Number(item.laborHours))
+                                }
                               />
                               {item.laborHours != null && Number.isFinite(Number(item.laborHours)) ? (
-                                <p className="text-[12px] font-semibold tabular-nums text-sky-700/75">
-                                  Duração: {formatLaborLabel(Number(item.laborHours))}
+                                <p className="mt-0.5 pb-0.5 text-[12px] font-semibold leading-tight tabular-nums text-sky-700/75">
+                                  {formatLaborLabel(Number(item.laborHours))}
                                 </p>
                               ) : null}
                             </div>
