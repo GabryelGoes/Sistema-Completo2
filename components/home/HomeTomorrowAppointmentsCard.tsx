@@ -3,6 +3,7 @@ import { CalendarClock, ChevronRight, Sun } from 'lucide-react';
 import type { Appointment } from '../../types';
 import {
   appointmentLocalDateKey,
+  isUpcomingWorkdayMondayTitle,
   localDateKey,
   nextWorkdayDateKey,
   upcomingWorkdayHomeTitle,
@@ -157,9 +158,11 @@ export const HomeTomorrowAppointmentsCard: React.FC<HomeTomorrowAppointmentsCard
     };
   }, [appointments]);
 
+  const upcomingIsMonday = isUpcomingWorkdayMondayTitle(upcomingTitle);
+
   const upcomingSubtitle =
     upcomingApps.length === 0
-      ? upcomingTitle === 'Próximos na segunda'
+      ? upcomingIsMonday
         ? 'Nenhum veículo para segunda'
         : 'Nenhum veículo no próximo dia útil'
       : `${upcomingApps.length} agendamento${upcomingApps.length === 1 ? '' : 's'}`;
@@ -169,11 +172,18 @@ export const HomeTomorrowAppointmentsCard: React.FC<HomeTomorrowAppointmentsCard
       ? 'Nenhum veículo para hoje'
       : `${todayApps.length} agendamento${todayApps.length === 1 ? '' : 's'}`;
 
+  const upcomingEmpty = upcomingIsMonday
+    ? 'Nenhum veículo agendado para segunda'
+    : 'Nenhum veículo agendado para amanhã';
+
   return (
     <section
       className={`rounded-[22px] border-0 bg-white p-4 shadow-none dark:bg-zinc-900 sm:p-5 ${className}`}
     >
-      <div className="mb-3 flex items-center justify-end">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <h2 className="text-[11px] font-semibold uppercase tracking-[0.06em] text-zinc-500 dark:text-zinc-400">
+          Agendamentos
+        </h2>
         <button
           type="button"
           onClick={onOpenAgenda}
@@ -190,11 +200,7 @@ export const HomeTomorrowAppointmentsCard: React.FC<HomeTomorrowAppointmentsCard
             <AppointmentColumn
               title={upcomingTitle}
               subtitle={upcomingSubtitle}
-              emptyText={
-                upcomingTitle === 'Próximos na segunda'
-                  ? 'Nenhum veículo agendado para segunda'
-                  : 'Nenhum veículo agendado para amanhã'
-              }
+              emptyText={upcomingEmpty}
               apps={upcomingApps}
               accent="red"
               icon="clock"
@@ -204,7 +210,7 @@ export const HomeTomorrowAppointmentsCard: React.FC<HomeTomorrowAppointmentsCard
           </div>
           <div className="min-w-0 border-t border-zinc-100 pt-4 dark:border-white/[0.06] sm:border-l sm:border-t-0 sm:pl-4 sm:pt-0">
             <AppointmentColumn
-              title="Hoje na oficina"
+              title="Hoje"
               subtitle={todaySubtitle}
               emptyText="Nenhum veículo agendado para hoje"
               apps={todayApps}
@@ -219,11 +225,7 @@ export const HomeTomorrowAppointmentsCard: React.FC<HomeTomorrowAppointmentsCard
         <AppointmentColumn
           title={upcomingTitle}
           subtitle={upcomingSubtitle}
-          emptyText={
-            upcomingTitle === 'Próximos na segunda'
-              ? 'Nenhum veículo agendado para segunda'
-              : 'Nenhum veículo agendado para amanhã'
-          }
+          emptyText={upcomingEmpty}
           apps={upcomingApps}
           accent="red"
           icon="clock"
