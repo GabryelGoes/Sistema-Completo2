@@ -5806,9 +5806,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
       const prepared = prepareLabOsLabelComplaint(
         stripLegacyVehicleCategoryFromComplaint(linked?.issue_description ?? '')
       );
+      // Etiqueta: só o nome do serviço — sem «Detalhes do serviço».
       const complaint =
         prepared.complaint ||
-        [link?.serviceLabel, link?.serviceDetails?.trim()].filter(Boolean).join('\n\n') ||
+        link?.serviceLabel?.trim() ||
         'Serviço de laboratório';
       setLabOsLabel({
         serviceOrderId: laboratoryOrderId,

@@ -78,8 +78,8 @@ export function isLabModuleFromPatio(issueDescription: string | null | undefined
 
 /**
  * Prepara a queixa da etiqueta da OS do laboratório.
- * Remove o prefixo «Serviço enviado do pátio (OS #…):» — na etiqueta a origem
- * aparece só como ícone do Pátio.
+ * Remove o prefixo «Serviço enviado do pátio (OS #…):» e o bloco
+ * «Detalhes do serviço» — na etiqueta a origem aparece só como «PÁTIO».
  */
 export function prepareLabOsLabelComplaint(issueDescription: string | null | undefined): {
   complaint: string;
@@ -90,6 +90,7 @@ export function prepareLabOsLabelComplaint(issueDescription: string | null | und
   if (!fromPatio) return { complaint: raw, fromPatio: false };
   const stripped = raw
     .replace(/^Serviço enviado do pátio\s*\(OS\s*#[^)]*\)\s*:\s*/i, '')
+    .replace(/\n+\s*Detalhes do serviço\s*:?\s*[\s\S]*$/i, '')
     .trim();
   return { complaint: stripped, fromPatio: true };
 }
