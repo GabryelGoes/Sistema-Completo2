@@ -27,6 +27,7 @@ import {
   type ServiceOrderStatus,
 } from '../constants/serviceOrderStages';
 import { formatLabLocationShort, resolveLabLocation } from '../utils/labLocation';
+import { prepareLabOsLabelComplaint } from '../utils/externalRepair';
 import { LabOsLabelPrintModal } from './LabOsLabelPrintModal';
 import type { LabOsLabelInput } from '../utils/labOsLabelRender';
 import { ModalPortal } from './ui/ModalPortal';
@@ -192,11 +193,15 @@ export function LabOsScanQuickModal({
 
   const handlePrintLabel = useCallback(() => {
     if (!detail || !serviceOrderId) return;
+    const prepared = prepareLabOsLabelComplaint(
+      stripLegacyComplaint(detail.issue_description)
+    );
     setLabelPrint({
       serviceOrderId,
       customerName,
       vehicleName,
-      complaint: stripLegacyComplaint(detail.issue_description) || '—',
+      complaint: prepared.complaint || '—',
+      fromPatio: prepared.fromPatio,
       benchSlot: typeof detail.bench_slot === 'number' ? detail.bench_slot : null,
       oficinaShelf:
         typeof detail.oficina_shelf === 'string' ? detail.oficina_shelf : null,

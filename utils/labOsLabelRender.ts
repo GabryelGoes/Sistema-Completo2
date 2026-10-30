@@ -13,6 +13,10 @@ import {
 } from './labLocation';
 import { NIIMBOT_LABEL_H_PX, NIIMBOT_LABEL_W_PX } from './niimbotLabelRender';
 
+const PATIO_ORIGIN_ICON_SRC = '/icons/patio-ios.png';
+/** Ícone de origem acima do QR (layout padrão 50×30). */
+const PATIO_ORIGIN_ICON_SIZE_PX = 28;
+
 export type LabOsLabelInput = {
   serviceOrderId: string;
   customerName: string;
@@ -25,6 +29,11 @@ export type LabOsLabelInput = {
   oficinaShelf?: string | null;
   /** Na fila do depósito. */
   benchQueuedAt?: string | null;
+  /**
+   * Serviço encaminhado do pátio: na etiqueta aparece o ícone do Pátio
+   * (sem o texto «Serviço enviado do pátio»).
+   */
+  fromPatio?: boolean;
 };
 
 /** Quebra texto em linhas que cabem em maxWidth (até maxLines). */
@@ -176,6 +185,50 @@ function findEl(layout: LabelTemplateLayout, id: string): LabelElementDef | unde
   return layout.elements.find((e) => e.id === id);
 }
 
+/**
+ * Desenha o ícone do Pátio em preto sólido (impressão térmica).
+ * Substitui o texto «Serviço enviado do pátio» na etiqueta.
+ */
+async function drawPatioOriginIcon(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  size: number
+): Promise<void> {
+  const s = Math.max(8, Math.floor(size));
+  try {
+    const img = await loadImage(PATIO_ORIGIN_ICON_SRC);
+    const off = document.createElement('canvas');
+    off.width = s;
+    off.height = s;
+    const octx = off.getContext('2d');
+    if (!octx) return;
+    octx.clearRect(0, 0, s, s);
+    octx.drawImage(img, 0, 0, s, s);
+    const data = octx.getImageData(0, 0, s, s);
+    const px = data.data;
+    for (let i = 0; i < px.length; i += 4) {
+      const r = px[i]!;
+      const g = px[i + 1]!;
+      const b = px[i + 2]!;
+      const a = px[i + 3]!;
+      const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+      if (a < 40 || lum > 245) {
+        px[i + 3] = 0;
+      } else {
+        px[i] = 0;
+        px[i + 1] = 0;
+        px[i + 2] = 0;
+        px[i + 3] = 255;
+      }
+    }
+    octx.putImageData(data, 0, 0);
+    ctx.drawImage(off, x, y, s, s);
+  } catch {
+    // Sem ícone: etiqueta segue sem bloquear a impressão.
+  }
+}
+
 /** Renderiza etiqueta 50×30 mm (384×240) com layout editável. */
 export async function renderLabOsLabelDataUrl(
   input: LabOsLabelInput,
@@ -199,6 +252,18 @@ export async function renderLabOsLabelDataUrl(
   ctx.textBaseline = 'top';
 
   const qrEl = findEl(layout, 'qr');
+  if (input.fromPatio) {
+    const iconSize = Math.min(
+      PATIO_ORIGIN_ICON_SIZE_PX,
+      qrEl?.visible ? Math.max(8, qrEl.y - 4) : PATIO_ORIGIN_ICON_SIZE_PX
+    );
+    const iconX = qrEl?.visible
+      ? qrEl.x + Math.max(0, (Math.min(qrEl.w, qrEl.h) - iconSize) / 2)
+      : 6;
+    const iconY = 4;
+    await drawPatioOriginIcon(ctx, iconX, iconY, iconSize);
+  }
+
   if (qrEl?.visible) {
     const qrSize = Math.min(qrEl.w, qrEl.h);
     const qrDataUrl = await QRCode.toDataURL(payload, {
@@ -251,6 +316,7 @@ export async function renderLabOsLabelDataUrl(
 function loadImage(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new Image();
+    img.crossOrigin = 'anonymous';
     img.onload = () => resolve(img);
     img.onerror = () => reject(new Error('Falha ao montar QR Code'));
     img.src = src;
