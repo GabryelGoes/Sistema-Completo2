@@ -1243,26 +1243,30 @@ export function PatioBudgetRequestTouchForm({
                               }}
                             >
                               <input
-                                type="number"
+                                type="text"
                                 inputMode="numeric"
-                                min={0}
-                                max={99}
-                                placeholder="0"
+                                pattern="[0-9]*"
+                                maxLength={2}
+                                autoComplete="off"
+                                placeholder="00"
                                 aria-label="Horas"
                                 value={laborDraftHours}
-                                onChange={(e) => setLaborDraftHours(e.target.value.replace(/[^\d]/g, ''))}
+                                onChange={(e) =>
+                                  setLaborDraftHours(e.target.value.replace(/[^\d]/g, '').slice(0, 2))
+                                }
                                 onFocus={() => {
                                   keepServiceSuggestionsOpen();
                                   setSuggestionsForServiceId(item.id);
                                 }}
-                                className="h-7 w-10 rounded-md border border-slate-200 bg-white px-1.5 text-center text-[12px] font-semibold tabular-nums text-slate-800 focus:border-[#007AFF]/50 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/20"
+                                className="h-7 w-11 rounded-md border border-slate-200 bg-white px-1 text-center text-[12px] font-semibold tabular-nums text-slate-800 focus:border-[#007AFF]/50 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/20"
                               />
                               <span className="text-[11px] font-semibold text-[#007AFF]/85">h</span>
                               <input
-                                type="number"
+                                type="text"
                                 inputMode="numeric"
-                                min={0}
-                                max={59}
+                                pattern="[0-9]*"
+                                maxLength={2}
+                                autoComplete="off"
                                 placeholder="00"
                                 aria-label="Minutos"
                                 value={laborDraftMinutes}
@@ -1279,7 +1283,7 @@ export function PatioBudgetRequestTouchForm({
                                     applyLaborEditor(item.id);
                                   }
                                 }}
-                                className="h-7 w-10 rounded-md border border-slate-200 bg-white px-1.5 text-center text-[12px] font-semibold tabular-nums text-slate-800 focus:border-[#007AFF]/50 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/20"
+                                className="h-7 w-11 rounded-md border border-slate-200 bg-white px-1 text-center text-[12px] font-semibold tabular-nums text-slate-800 focus:border-[#007AFF]/50 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/20"
                               />
                               <span className="text-[11px] font-semibold text-[#007AFF]/85">min</span>
                               <button
