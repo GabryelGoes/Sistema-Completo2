@@ -191,7 +191,6 @@ import {
 } from '../../hooks/useModalExitAnimation';
 import { printBudgetMechanicWithDetail, printBudgetWithDetail } from '../../utils/budgetPrintWithDetail';
 import { printLabModuleFicha } from '../../utils/labModuleFichaPrint';
-import { BudgetNiimbotPrintModal } from '../BudgetNiimbotPrintModal';
 import { LabOsLabelPrintModal } from '../LabOsLabelPrintModal';
 import type { LabOsLabelInput } from '../../utils/labOsLabelRender';
 import { PatioKeyLabelPrintModal } from '../PatioKeyLabelPrintModal';
@@ -1738,7 +1737,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const [isSavingDesc, setIsSavingDesc] = useState(false);
   const [labOsLabel, setLabOsLabel] = useState<LabOsLabelInput | null>(null);
   const [patioKeyLabel, setPatioKeyLabel] = useState<PatioKeyLabelInput | null>(null);
-  const [budgetNiimbotPrintOpen, setBudgetNiimbotPrintOpen] = useState(false);
   const isEditingDescRef = useRef(false);
   const selectedCardRef = useRef<TrelloCard | null>(null);
   isEditingDescRef.current = isEditingDesc;
@@ -13236,15 +13234,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 </button>
                 <button
                   type="button"
-                  onClick={() => setBudgetNiimbotPrintOpen(true)}
-                  disabled={!!deletingBudgetId || !!verifyingBudgetId}
-                  className={budgetReadFooterBtnClass}
-                  title="Imprimir itens aprovados na Niimbot B1 (papel contínuo)"
-                >
-                  <Tag className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> B1 contínuo
-                </button>
-                <button
-                  type="button"
                   onClick={() => { setViewingBudget(null); openBudgetModal(viewingBudget); }}
                   disabled={!!deletingBudgetId || !!verifyingBudgetId || !can('canEditBudgets') || !selectedCard}
                   className={budgetReadFooterBtnClass}
@@ -13995,15 +13984,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
         open={!!labOsLabel}
         label={labOsLabel}
         onClose={() => setLabOsLabel(null)}
-      />
-
-      <BudgetNiimbotPrintModal
-        open={budgetNiimbotPrintOpen && !!viewingBudget}
-        budget={viewingBudget}
-        detail={serviceOrderDetail ?? historyServiceOrderDetail ?? null}
-        isModuleMode={isModuleMode}
-        mileageKm={selectedCard?.mileageKm ?? historyServiceOrderDetail?.mileage_km ?? null}
-        onClose={() => setBudgetNiimbotPrintOpen(false)}
       />
 
       <PatioKeyLabelPrintModal
