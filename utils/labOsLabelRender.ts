@@ -13,9 +13,13 @@ import {
 } from './labLocation';
 import { NIIMBOT_LABEL_H_PX, NIIMBOT_LABEL_W_PX } from './niimbotLabelRender';
 
-const PATIO_ORIGIN_ICON_SRC = '/icons/patio-ios.png';
-/** Ícone de origem acima do QR (layout padrão 50×30). */
-const PATIO_ORIGIN_ICON_SIZE_PX = 28;
+/**
+ * Selo de origem do Pátio — bloco preto + glifo vetorial grosso.
+ * O PNG iOS some na térmica em tamanho pequeno; o traço vetorial fica legível.
+ */
+const PATIO_ORIGIN_BADGE_SIZE_PX = 58;
+/** Espaço reservado acima do QR quando há selo do Pátio (+ legenda). */
+const PATIO_ORIGIN_TOP_RESERVE_PX = 80;
 
 export type LabOsLabelInput = {
   serviceOrderId: string;
@@ -185,48 +189,60 @@ function findEl(layout: LabelTemplateLayout, id: string): LabelElementDef | unde
   return layout.elements.find((e) => e.id === id);
 }
 
+function fillRoundRect(
+  c: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  r: number
+): void {
+  const radius = Math.max(0, Math.min(r, w / 2, h / 2));
+  c.beginPath();
+  c.moveTo(x + radius, y);
+  c.arcTo(x + w, y, x + w, y + h, radius);
+  c.arcTo(x + w, y + h, x, y + h, radius);
+  c.arcTo(x, y + h, x, y, radius);
+  c.arcTo(x, y, x + w, y, radius);
+  c.closePath();
+  c.fill();
+}
+
 /**
- * Desenha o ícone do Pátio em preto sólido (impressão térmica).
- * Substitui o texto «Serviço enviado do pátio» na etiqueta.
+ * Selo do Pátio bem legível na B1: quadrado preto + “P” de estacionamento.
+ * Traço vetorial grosso — PNG iOS some na térmica em tamanho de etiqueta.
  */
-async function drawPatioOriginIcon(
+function drawPatioOriginBadge(
   ctx: CanvasRenderingContext2D,
   x: number,
   y: number,
   size: number
-): Promise<void> {
-  const s = Math.max(8, Math.floor(size));
-  try {
-    const img = await loadImage(PATIO_ORIGIN_ICON_SRC);
-    const off = document.createElement('canvas');
-    off.width = s;
-    off.height = s;
-    const octx = off.getContext('2d');
-    if (!octx) return;
-    octx.clearRect(0, 0, s, s);
-    octx.drawImage(img, 0, 0, s, s);
-    const data = octx.getImageData(0, 0, s, s);
-    const px = data.data;
-    for (let i = 0; i < px.length; i += 4) {
-      const r = px[i]!;
-      const g = px[i + 1]!;
-      const b = px[i + 2]!;
-      const a = px[i + 3]!;
-      const lum = 0.299 * r + 0.587 * g + 0.114 * b;
-      if (a < 40 || lum > 245) {
-        px[i + 3] = 0;
-      } else {
-        px[i] = 0;
-        px[i + 1] = 0;
-        px[i + 2] = 0;
-        px[i + 3] = 255;
-      }
-    }
-    octx.putImageData(data, 0, 0);
-    ctx.drawImage(off, x, y, s, s);
-  } catch {
-    // Sem ícone: etiqueta segue sem bloquear a impressão.
-  }
+): void {
+  const s = Math.max(32, Math.floor(size));
+  const radius = Math.max(6, Math.round(s * 0.2));
+
+  // Bloco preto sólido — impossível de perder na térmica.
+  ctx.fillStyle = '#000000';
+  fillRoundRect(ctx, x, y, s, s, radius);
+
+  const cx = x + s / 2;
+  const cy = y + s / 2;
+  const discR = s * 0.36;
+
+  // Disco branco (placa de estacionamento) — máximo contraste na térmica.
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath();
+  ctx.arc(cx, cy, discR, 0, Math.PI * 2);
+  ctx.fill();
+
+  // “P” preto bem grosso no centro.
+  ctx.fillStyle = '#000000';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.font = `900 ${Math.round(s * 0.5)}px Arial, Helvetica, sans-serif`;
+  ctx.fillText('P', cx, cy + s * 0.02);
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'top';
 }
 
 /** Renderiza etiqueta 50×30 mm (384×240) com layout editável. */
@@ -252,20 +268,44 @@ export async function renderLabOsLabelDataUrl(
   ctx.textBaseline = 'top';
 
   const qrEl = findEl(layout, 'qr');
-  if (input.fromPatio) {
-    const iconSize = Math.min(
-      PATIO_ORIGIN_ICON_SIZE_PX,
-      qrEl?.visible ? Math.max(8, qrEl.y - 4) : PATIO_ORIGIN_ICON_SIZE_PX
+  const fromPatio = Boolean(input.fromPatio);
+  let qrX = qrEl?.x ?? 6;
+  let qrY = qrEl?.y ?? 36;
+  let qrSize = qrEl ? Math.min(qrEl.w, qrEl.h) : 0;
+
+  if (fromPatio) {
+    const badgeSize = Math.min(
+      PATIO_ORIGIN_BADGE_SIZE_PX,
+      Math.max(40, Math.floor((qrEl?.w || 168) * 0.34))
     );
-    const iconX = qrEl?.visible
-      ? qrEl.x + Math.max(0, (Math.min(qrEl.w, qrEl.h) - iconSize) / 2)
+    // Empurra o QR para baixo e encolhe um pouco para o selo caber legível.
+    if (qrEl?.visible) {
+      const topReserve = Math.max(PATIO_ORIGIN_TOP_RESERVE_PX, badgeSize + 8);
+      if (qrY < topReserve) {
+        const shift = topReserve - qrY;
+        qrY = topReserve;
+        qrSize = Math.max(96, qrSize - shift);
+      }
+    }
+    const badgeX = qrEl?.visible
+      ? qrX + Math.max(0, (qrSize - badgeSize) / 2)
       : 6;
-    const iconY = 4;
-    await drawPatioOriginIcon(ctx, iconX, iconY, iconSize);
+    const badgeY = 4;
+    drawPatioOriginBadge(ctx, badgeX, badgeY, badgeSize);
+    // Legenda preta sob o selo — reforço se o glifo falhar na térmica.
+    ctx.fillStyle = '#000000';
+    ctx.textBaseline = 'top';
+    ctx.textAlign = 'center';
+    ctx.font = '900 13px Arial, Helvetica, sans-serif';
+    const captionX = badgeX + badgeSize / 2;
+    const captionY = badgeY + badgeSize + 1;
+    if (!qrEl?.visible || captionY + 14 <= qrY - 1) {
+      ctx.fillText('PÁTIO', captionX, captionY);
+    }
+    ctx.textAlign = 'left';
   }
 
-  if (qrEl?.visible) {
-    const qrSize = Math.min(qrEl.w, qrEl.h);
+  if (qrEl?.visible && qrSize > 0) {
     const qrDataUrl = await QRCode.toDataURL(payload, {
       errorCorrectionLevel: 'M',
       margin: 0,
@@ -274,7 +314,7 @@ export async function renderLabOsLabelDataUrl(
     });
     const qrImg = await loadImage(qrDataUrl);
     withLabelElementStyle(ctx, qrEl, (c) => {
-      c.drawImage(qrImg, qrEl.x, qrEl.y, qrSize, qrSize);
+      c.drawImage(qrImg, qrX, qrY, qrSize, qrSize);
     });
   }
 
