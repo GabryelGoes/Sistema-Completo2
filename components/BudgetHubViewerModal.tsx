@@ -17,7 +17,6 @@ import {
 } from "../services/apiService";
 import { buildBudgetServiceTechnicians } from "../utils/budgetServiceTechnicians";
 import { printBudgetMechanicWithDetail, printBudgetWithDetail } from "../utils/budgetPrintWithDetail";
-import { BudgetNiimbotPrintModal } from "./BudgetNiimbotPrintModal";
 import { BudgetReadModalBody } from "./budget/BudgetReadModalBody";
 import { BudgetVerifiedSeal } from "./budget/BudgetVerifiedSeal";
 import { UnverifiedBudgetFrost } from "./budget/UnverifiedBudgetFrost";
@@ -58,7 +57,6 @@ export const BudgetHubViewerModal: React.FC<BudgetHubViewerModalProps> = ({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [approvalOpen, setApprovalOpen] = useState(false);
-  const [niimbotPrintOpen, setNiimbotPrintOpen] = useState(false);
   const [markingApproved, setMarkingApproved] = useState(false);
   const [serviceTechLines, setServiceTechLines] = useState<
     Awaited<ReturnType<typeof getServiceOrderServiceTechnicians>>["lines"]
@@ -252,14 +250,6 @@ export const BudgetHubViewerModal: React.FC<BudgetHubViewerModalProps> = ({
                   >
                     <Printer className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> Via mecânico
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => setNiimbotPrintOpen(true)}
-                    className={budgetReadFooterBtnClass}
-                    title="Imprimir itens aprovados na Niimbot B1 (papel contínuo)"
-                  >
-                    <Printer className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> B1 contínuo
-                  </button>
                   {canApproveBudgetItems &&
                   (budget.services.length > 0 || budget.parts.length > 0) ? (
                     <button
@@ -299,15 +289,6 @@ export const BudgetHubViewerModal: React.FC<BudgetHubViewerModalProps> = ({
         actorOptions={actorOptions}
         orderType={detail?.order_type === 'module' ? 'module' : 'vehicle'}
         headerIcon={<Calculator className="h-5 w-5" />}
-      />
-
-      <BudgetNiimbotPrintModal
-        open={niimbotPrintOpen && !!budget}
-        budget={budget}
-        detail={detail}
-        isModuleMode={isModuleMode}
-        mileageKm={mileageKm}
-        onClose={() => setNiimbotPrintOpen(false)}
       />
     </ModalPortal>
   );
