@@ -131,6 +131,7 @@ import {
   hasExternalRepairData,
   EMPTY_EXTERNAL_REPAIR_DRAFT,
   isLabModuleFromPatio,
+  prepareLabOsLabelComplaint,
   type ExternalRepairDraft,
 } from '../../utils/externalRepair';
 import { useDeviceTypeContext } from '../ui/DeviceTypeContext';
@@ -5745,14 +5746,17 @@ export const PatioView: React.FC<PatioViewProps> = ({
       (serviceOrderDetail?.customers?.name ?? title.customer ?? '').trim() || 'Cliente';
     const vehicleName =
       (serviceOrderDetail?.vehicle_model ?? title.vehicle ?? '').trim() || 'Veículo';
-    const complaint = stripLegacyVehicleCategoryFromComplaint(
-      serviceOrderDetail?.issue_description ?? selectedCard.desc ?? ''
+    const prepared = prepareLabOsLabelComplaint(
+      stripLegacyVehicleCategoryFromComplaint(
+        serviceOrderDetail?.issue_description ?? selectedCard.desc ?? ''
+      )
     );
     setLabOsLabel({
       serviceOrderId: selectedCard.id,
       customerName,
       vehicleName,
-      complaint,
+      complaint: prepared.complaint,
+      fromPatio: prepared.fromPatio,
       benchSlot:
         typeof serviceOrderDetail?.bench_slot === 'number'
           ? serviceOrderDetail.bench_slot
@@ -5799,15 +5803,21 @@ export const PatioView: React.FC<PatioViewProps> = ({
           vehicleFromPatio ||
           title?.vehicle?.trim() ||
           '').trim() || 'Veículo';
+      const prepared = prepareLabOsLabelComplaint(
+        stripLegacyVehicleCategoryFromComplaint(linked?.issue_description ?? '')
+      );
+      // Etiqueta: só o nome do serviço — sem «Detalhes do serviço».
       const complaint =
-        stripLegacyVehicleCategoryFromComplaint(linked?.issue_description ?? '') ||
-        [link?.serviceLabel, link?.serviceDetails?.trim()].filter(Boolean).join('\n\n') ||
+        prepared.complaint ||
+        link?.serviceLabel?.trim() ||
         'Serviço de laboratório';
       setLabOsLabel({
         serviceOrderId: laboratoryOrderId,
         customerName,
         vehicleName,
         complaint,
+        // Vínculo na aba Serviços Laboratório do veículo = origem pátio.
+        fromPatio: true,
         benchSlot: typeof linked?.bench_slot === 'number' ? linked.bench_slot : null,
         oficinaShelf:
           typeof linked?.oficina_shelf === 'string' ? linked.oficina_shelf : null,

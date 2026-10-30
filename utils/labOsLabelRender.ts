@@ -13,6 +13,11 @@ import {
 } from './labLocation';
 import { NIIMBOT_LABEL_H_PX, NIIMBOT_LABEL_W_PX } from './niimbotLabelRender';
 
+/** Faixa «PÁTIO» acima do QR (origem pátio → lab). */
+const PATIO_ORIGIN_BANNER_H_PX = 28;
+/** Espaço reservado acima do QR para a faixa. */
+const PATIO_ORIGIN_TOP_RESERVE_PX = 34;
+
 export type LabOsLabelInput = {
   serviceOrderId: string;
   customerName: string;
@@ -25,6 +30,11 @@ export type LabOsLabelInput = {
   oficinaShelf?: string | null;
   /** Na fila do depósito. */
   benchQueuedAt?: string | null;
+  /**
+   * Serviço encaminhado do pátio: na etiqueta aparece «PÁTIO»
+   * (sem o texto «Serviço enviado do pátio»).
+   */
+  fromPatio?: boolean;
 };
 
 /** Quebra texto em linhas que cabem em maxWidth (até maxLines). */
@@ -176,6 +186,29 @@ function findEl(layout: LabelTemplateLayout, id: string): LabelElementDef | unde
   return layout.elements.find((e) => e.id === id);
 }
 
+/**
+ * Faixa preta com «PÁTIO» em branco — só texto, bem legível na térmica.
+ */
+function drawPatioOriginLabel(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number
+): void {
+  const bw = Math.max(48, Math.floor(w));
+  const bh = Math.max(18, Math.floor(h));
+  ctx.fillStyle = '#000000';
+  ctx.fillRect(x, y, bw, bh);
+  ctx.fillStyle = '#ffffff';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.font = `900 ${Math.max(14, Math.round(bh * 0.72))}px Arial, Helvetica, sans-serif`;
+  ctx.fillText('PÁTIO', x + bw / 2, y + bh / 2 + 0.5);
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'top';
+}
+
 /** Renderiza etiqueta 50×30 mm (384×240) com layout editável. */
 export async function renderLabOsLabelDataUrl(
   input: LabOsLabelInput,
@@ -199,8 +232,31 @@ export async function renderLabOsLabelDataUrl(
   ctx.textBaseline = 'top';
 
   const qrEl = findEl(layout, 'qr');
-  if (qrEl?.visible) {
-    const qrSize = Math.min(qrEl.w, qrEl.h);
+  const fromPatio = Boolean(input.fromPatio);
+  let qrX = qrEl?.x ?? 6;
+  let qrY = qrEl?.y ?? 36;
+  let qrSize = qrEl ? Math.min(qrEl.w, qrEl.h) : 0;
+
+  if (fromPatio) {
+    const bannerH = PATIO_ORIGIN_BANNER_H_PX;
+    if (qrEl?.visible) {
+      const topReserve = Math.max(PATIO_ORIGIN_TOP_RESERVE_PX, bannerH + 6);
+      if (qrY < topReserve) {
+        const shift = topReserve - qrY;
+        qrY = topReserve;
+        qrSize = Math.max(96, qrSize - shift);
+      }
+    }
+    drawPatioOriginLabel(
+      ctx,
+      qrEl?.visible ? qrX : 6,
+      4,
+      qrEl?.visible ? Math.max(96, qrSize) : 168,
+      bannerH
+    );
+  }
+
+  if (qrEl?.visible && qrSize > 0) {
     const qrDataUrl = await QRCode.toDataURL(payload, {
       errorCorrectionLevel: 'M',
       margin: 0,
@@ -209,7 +265,7 @@ export async function renderLabOsLabelDataUrl(
     });
     const qrImg = await loadImage(qrDataUrl);
     withLabelElementStyle(ctx, qrEl, (c) => {
-      c.drawImage(qrImg, qrEl.x, qrEl.y, qrSize, qrSize);
+      c.drawImage(qrImg, qrX, qrY, qrSize, qrSize);
     });
   }
 
@@ -251,6 +307,7 @@ export async function renderLabOsLabelDataUrl(
 function loadImage(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new Image();
+    img.crossOrigin = 'anonymous';
     img.onload = () => resolve(img);
     img.onerror = () => reject(new Error('Falha ao montar QR Code'));
     img.src = src;
