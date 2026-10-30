@@ -13,13 +13,10 @@ import {
 } from './labLocation';
 import { NIIMBOT_LABEL_H_PX, NIIMBOT_LABEL_W_PX } from './niimbotLabelRender';
 
-/**
- * Selo de origem do Pátio — bloco preto + glifo vetorial grosso.
- * O PNG iOS some na térmica em tamanho pequeno; o traço vetorial fica legível.
- */
-const PATIO_ORIGIN_BADGE_SIZE_PX = 58;
-/** Espaço reservado acima do QR quando há selo do Pátio (+ legenda). */
-const PATIO_ORIGIN_TOP_RESERVE_PX = 80;
+/** Faixa «PÁTIO» acima do QR (origem pátio → lab). */
+const PATIO_ORIGIN_BANNER_H_PX = 28;
+/** Espaço reservado acima do QR para a faixa. */
+const PATIO_ORIGIN_TOP_RESERVE_PX = 34;
 
 export type LabOsLabelInput = {
   serviceOrderId: string;
@@ -34,7 +31,7 @@ export type LabOsLabelInput = {
   /** Na fila do depósito. */
   benchQueuedAt?: string | null;
   /**
-   * Serviço encaminhado do pátio: na etiqueta aparece o ícone do Pátio
+   * Serviço encaminhado do pátio: na etiqueta aparece «PÁTIO»
    * (sem o texto «Serviço enviado do pátio»).
    */
   fromPatio?: boolean;
@@ -189,58 +186,25 @@ function findEl(layout: LabelTemplateLayout, id: string): LabelElementDef | unde
   return layout.elements.find((e) => e.id === id);
 }
 
-function fillRoundRect(
-  c: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  w: number,
-  h: number,
-  r: number
-): void {
-  const radius = Math.max(0, Math.min(r, w / 2, h / 2));
-  c.beginPath();
-  c.moveTo(x + radius, y);
-  c.arcTo(x + w, y, x + w, y + h, radius);
-  c.arcTo(x + w, y + h, x, y + h, radius);
-  c.arcTo(x, y + h, x, y, radius);
-  c.arcTo(x, y, x + w, y, radius);
-  c.closePath();
-  c.fill();
-}
-
 /**
- * Selo do Pátio bem legível na B1: quadrado preto + “P” de estacionamento.
- * Traço vetorial grosso — PNG iOS some na térmica em tamanho de etiqueta.
+ * Faixa preta com «PÁTIO» em branco — só texto, bem legível na térmica.
  */
-function drawPatioOriginBadge(
+function drawPatioOriginLabel(
   ctx: CanvasRenderingContext2D,
   x: number,
   y: number,
-  size: number
+  w: number,
+  h: number
 ): void {
-  const s = Math.max(32, Math.floor(size));
-  const radius = Math.max(6, Math.round(s * 0.2));
-
-  // Bloco preto sólido — impossível de perder na térmica.
+  const bw = Math.max(48, Math.floor(w));
+  const bh = Math.max(18, Math.floor(h));
   ctx.fillStyle = '#000000';
-  fillRoundRect(ctx, x, y, s, s, radius);
-
-  const cx = x + s / 2;
-  const cy = y + s / 2;
-  const discR = s * 0.36;
-
-  // Disco branco (placa de estacionamento) — máximo contraste na térmica.
+  ctx.fillRect(x, y, bw, bh);
   ctx.fillStyle = '#ffffff';
-  ctx.beginPath();
-  ctx.arc(cx, cy, discR, 0, Math.PI * 2);
-  ctx.fill();
-
-  // “P” preto bem grosso no centro.
-  ctx.fillStyle = '#000000';
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.font = `900 ${Math.round(s * 0.5)}px Arial, Helvetica, sans-serif`;
-  ctx.fillText('P', cx, cy + s * 0.02);
+  ctx.font = `900 ${Math.max(14, Math.round(bh * 0.72))}px Arial, Helvetica, sans-serif`;
+  ctx.fillText('PÁTIO', x + bw / 2, y + bh / 2 + 0.5);
   ctx.textAlign = 'left';
   ctx.textBaseline = 'top';
 }
@@ -274,35 +238,22 @@ export async function renderLabOsLabelDataUrl(
   let qrSize = qrEl ? Math.min(qrEl.w, qrEl.h) : 0;
 
   if (fromPatio) {
-    const badgeSize = Math.min(
-      PATIO_ORIGIN_BADGE_SIZE_PX,
-      Math.max(40, Math.floor((qrEl?.w || 168) * 0.34))
-    );
-    // Empurra o QR para baixo e encolhe um pouco para o selo caber legível.
+    const bannerH = PATIO_ORIGIN_BANNER_H_PX;
     if (qrEl?.visible) {
-      const topReserve = Math.max(PATIO_ORIGIN_TOP_RESERVE_PX, badgeSize + 8);
+      const topReserve = Math.max(PATIO_ORIGIN_TOP_RESERVE_PX, bannerH + 6);
       if (qrY < topReserve) {
         const shift = topReserve - qrY;
         qrY = topReserve;
         qrSize = Math.max(96, qrSize - shift);
       }
     }
-    const badgeX = qrEl?.visible
-      ? qrX + Math.max(0, (qrSize - badgeSize) / 2)
-      : 6;
-    const badgeY = 4;
-    drawPatioOriginBadge(ctx, badgeX, badgeY, badgeSize);
-    // Legenda preta sob o selo — reforço se o glifo falhar na térmica.
-    ctx.fillStyle = '#000000';
-    ctx.textBaseline = 'top';
-    ctx.textAlign = 'center';
-    ctx.font = '900 13px Arial, Helvetica, sans-serif';
-    const captionX = badgeX + badgeSize / 2;
-    const captionY = badgeY + badgeSize + 1;
-    if (!qrEl?.visible || captionY + 14 <= qrY - 1) {
-      ctx.fillText('PÁTIO', captionX, captionY);
-    }
-    ctx.textAlign = 'left';
+    drawPatioOriginLabel(
+      ctx,
+      qrEl?.visible ? qrX : 6,
+      4,
+      qrEl?.visible ? Math.max(96, qrSize) : 168,
+      bannerH
+    );
   }
 
   if (qrEl?.visible && qrSize > 0) {
