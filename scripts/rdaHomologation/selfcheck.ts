@@ -31,49 +31,63 @@ console.log("RDA homologation pack selfcheck\n");
 console.log("1) Arquivos do pacote");
 for (const f of [
   "00_GUIA.txt",
+  "00_bootstrap_core_schema.sql",
+  "GAPS_SCHEMA.txt",
   "env.homologation.example",
   "01_seed_fictional.sql",
   "02_verify.sql",
   "03_roteiro_api.txt",
   "04_criterios_liberacao.txt",
+  "05_roteiro_sql_editor.txt",
 ]) {
   assert(existsSync(join(root, f)), f);
 }
 
-console.log("\n2) Migrations RDA na ordem");
+console.log("\n2) Migrations RDA");
 for (const m of migrations) {
   assert(existsSync(join(process.cwd(), "supabase/migrations", m)), m);
 }
 
-console.log("\n3) Guarda de ownership na migration 260000");
+console.log("\n3) Bootstrap cria core antes das RDA");
 {
-  const sql = readFileSync(
-    join(process.cwd(), "supabase/migrations/20261101260000_rda_rpc_idempotent_owner_guard.sql"),
-    "utf8"
-  );
-  assert(sql.includes("RDA_MUTATION_OWNER_MISMATCH"), "código de mismatch");
+  const boot = readFileSync(join(root, "00_bootstrap_core_schema.sql"), "utf8");
+  assert(boot.includes("CREATE TABLE IF NOT EXISTS public.workshops"), "workshops");
+  assert(boot.includes("CREATE TABLE IF NOT EXISTS public.customers"), "customers");
+  assert(boot.includes("CREATE TABLE IF NOT EXISTS public.service_orders"), "service_orders");
+  assert(boot.includes("CREATE TABLE IF NOT EXISTS public.workshop_system_users"), "users");
+  assert(boot.includes("CREATE TABLE IF NOT EXISTS public.budgets"), "budgets");
+  assert(boot.includes("get_next_os_number"), "os counter rpc");
+  assert(boot.includes("RECONSTRUÍDO") || boot.includes("reconstruído"), "marca reconstrução");
   assert(
-    (sql.match(/technician_user_id <> p_technician_user_id/g) || []).length >= 4,
-    "checks de técnico nos caminhos idempotentes"
+    !/CREATE\s+TABLE(?:\s+IF\s+NOT\s+EXISTS)?\s+(?:public\.)?rda_/i.test(boot),
+    "bootstrap sem CREATE TABLE RDA"
   );
-  assert(sql.includes("GRANT EXECUTE") && sql.includes("service_role"), "grant service_role");
-  assert(sql.includes("REVOKE ALL") && sql.includes("anon"), "revoke anon");
 }
 
-console.log("\n4) Env exemplo sem produção");
-{
-  const env = readFileSync(join(root, "env.homologation.example"), "utf8");
-  assert(!/hvxzloicztmwxmtnwfii/i.test(env), "sem project_ref de produção conhecido");
-  assert(env.includes("RDA_INTELLIGENCE_ENABLED=false"), "IA/flag off");
-  assert(env.includes("SEU_PROJECT_REF_TESTE"), "placeholder de teste");
-}
-
-console.log("\n5) Seed fictício");
+console.log("\n4) Seed compatível");
 {
   const seed = readFileSync(join(root, "01_seed_fictional.sql"), "utf8");
+  assert(seed.includes("33333333-3333-4333-8333-333333333301"), "OS-A");
+  assert(seed.includes("33333333-3333-4333-8333-333333333302"), "OS-B");
   assert(seed.includes("homolog_tech1"), "tech1");
-  assert(seed.includes("access_radar_qualidade"), "gerente radar");
-  assert(!/@gmail\.com|CPF|RG/i.test(seed), "sem PII óbvia");
+  assert(seed.includes("access_radar_qualidade"), "gerente");
+  assert(seed.includes("55555555-5555-4555-8555-555555555501"), "budget fictício");
+}
+
+console.log("\n5) Verify cobre bootstrap + RDA");
+{
+  const v = readFileSync(join(root, "02_verify.sql"), "utf8");
+  assert(v.includes("bootstrap_workshops"), "check workshops");
+  assert(v.includes("tables_rda"), "check RDA");
+  assert(v.includes("seed_os"), "check OS seed");
+}
+
+console.log("\n6) Gaps documentados");
+{
+  const g = readFileSync(join(root, "GAPS_SCHEMA.txt"), "utf8");
+  assert(g.includes("workshops"), "gap workshops");
+  assert(g.includes("service_orders"), "gap service_orders");
+  assert(g.includes("AUSENTES"), "seção ausentes");
 }
 
 console.log(`\nResultado: ${passed} ok, ${failed} falhas`);

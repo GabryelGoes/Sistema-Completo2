@@ -1,15 +1,11 @@
-Roteiro de validação RDA — ver pacote completo em:
-  scripts/rdaHomologation/00_GUIA.txt
+Roteiro de validação RDA — pacote completo:
+  scripts/rdaHomologation/05_roteiro_sql_editor.txt
 
-Migrations (ordem):
-  20261101220000 → 230000 → 240000 → 250000 → 260000
+Ordem resumida:
+  00_bootstrap_core_schema.sql
+  → migrations 220000 … 260000
+  → 01_seed_fictional.sql
+  → 02_verify.sql
+  → 03_roteiro_api.txt
 
-Arquivos:
-  env.homologation.example
-  01_seed_fictional.sql
-  02_verify.sql
-  03_roteiro_api.txt
-  04_criterios_liberacao.txt
-
-Nota: o fallback Express sem RPC atômica foi REMOVIDO (503 se RPC ausente).
-Guarda de ownership no idempotente: migration 260000 + assert no backend.
+Gaps do schema base: scripts/rdaHomologation/GAPS_SCHEMA.txt
