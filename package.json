@@ -10,7 +10,8 @@
     "dev": "tsx server.ts",
     "build": "vite build",
     "preview": "vite preview",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit",
+    "test:rda-foundation": "tsx scripts/rdaIntelligenceFoundation.selftest.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.48.0",

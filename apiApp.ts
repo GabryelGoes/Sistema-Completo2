@@ -67,6 +67,7 @@ import {
   brazilianPlateIdentityKey,
   normalizeBrazilianPlate,
 } from "./utils/brazilianPlate.js";
+import { registerRdaIntelligenceRoutes } from "./services/rdaIntelligence/index.js";
 
 const PBKDF2_ITERATIONS = 100000;
 const SALT_LEN = 16;
@@ -1298,6 +1299,8 @@ export function createApiApp() {
   function isPublicApiRoute(method: string, urlPath: string): boolean {
     if (urlPath === "/api/health") return true;
     if (urlPath === "/api/auth/login" && method === "POST") return true;
+    // RDA Fase 0: health introspectivo (sem IA / sem dados).
+    if (method === "GET" && urlPath === "/api/rda/health") return true;
     // Painel TV HTML (cronômetro vermelho) — sem login; dados vêm de /api/service-orders.
     if (method === "GET" && urlPath === "/api/tv/display") return true;
     return false;
@@ -15881,6 +15884,21 @@ export function createApiApp() {
       console.error("[API] DELETE quality-incident attachment:", err);
       return res.status(500).json({ error: err?.message ?? "Erro" });
     }
+  });
+
+  // ----------------- RDA Intelligence (Fase 0 — fundação, feature flag off) -----------------
+  registerRdaIntelligenceRoutes(app, {
+    getWorkshopSettingValue,
+    loadUserPermissions: async (userId: string) => {
+      if (!supabaseAdmin || !WORKSHOP_ID || !userId) return null;
+      const { data: me } = await supabaseAdmin
+        .from("workshop_system_users")
+        .select("permissions")
+        .eq("id", userId)
+        .eq("workshop_id", WORKSHOP_ID)
+        .maybeSingle();
+      return (me?.permissions as Record<string, boolean> | null) ?? null;
+    },
   });
 
   return app;
