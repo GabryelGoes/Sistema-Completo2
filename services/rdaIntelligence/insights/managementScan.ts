@@ -66,8 +66,16 @@ async function upsertAlert(
   return true;
 }
 
+type StalledItem = {
+  id?: string;
+  plate?: string;
+  module_identification?: string;
+  stalledHours?: number;
+};
+
 /**
  * Varredura de gestão: atrasos, filas, avaliações pendentes, sessões longas.
+ * Pátio e Laboratório são avaliados em separado (order_type).
  */
 export async function runManagementScan(input: {
   workshopId: string;
@@ -84,31 +92,76 @@ export async function runManagementScan(input: {
 
   const created: ManagementScanResult["alerts"] = [];
   const ctx = { workshopId: input.workshopId, supabase: input.supabase };
+  const day = new Date().toISOString().slice(0, 10);
 
-  const stalled = await executeRdaTool(
+  const stalledPatio = await executeRdaTool(
     "rda_list_stalled_vehicles",
     { minHours: 48, limit: 10 },
     ctx
   );
-  if (stalled.ok) {
-    const items = ((stalled.data as { items?: unknown[] }).items || []) as Array<{
-      id?: string;
-      plate?: string;
-      stalledHours?: number;
-    }>;
+  if (stalledPatio.ok) {
+    const items = ((stalledPatio.data as { items?: unknown[] }).items ||
+      []) as StalledItem[];
     if (items.length >= 3) {
-      const key = `stalled_batch_${new Date().toISOString().slice(0, 10)}`;
+      const key = `patio_stalled_batch_${day}`;
       const ok = await upsertAlert(input.supabase, input.workshopId, {
         alertKey: key,
         severity: "warning",
-        title: `${items.length} veículos parados há 48h+`,
+        title: `Pátio: ${items.length} veículos parados há 48h+`,
         body: items
           .slice(0, 5)
           .map((i) => `${i.plate || i.id} (~${Math.round(i.stalledHours || 0)}h)`)
           .join("; "),
-        payload: { serviceOrderIds: items.map((i) => i.id).filter(Boolean) },
+        payload: {
+          sector: "patio",
+          orderType: "vehicle",
+          serviceOrderIds: items.map((i) => i.id).filter(Boolean),
+        },
       });
-      if (ok) created.push({ alertKey: key, title: "Veículos parados", severity: "warning" });
+      if (ok) {
+        created.push({
+          alertKey: key,
+          title: "Pátio: veículos parados",
+          severity: "warning",
+        });
+      }
+    }
+  }
+
+  const stalledLab = await executeRdaTool(
+    "rda_list_stalled_modules",
+    { minHours: 48, limit: 10 },
+    ctx
+  );
+  if (stalledLab.ok) {
+    const items = ((stalledLab.data as { items?: unknown[] }).items ||
+      []) as StalledItem[];
+    if (items.length >= 3) {
+      const key = `lab_stalled_batch_${day}`;
+      const ok = await upsertAlert(input.supabase, input.workshopId, {
+        alertKey: key,
+        severity: "warning",
+        title: `Laboratório: ${items.length} módulos parados há 48h+`,
+        body: items
+          .slice(0, 5)
+          .map(
+            (i) =>
+              `${i.module_identification || i.plate || i.id} (~${Math.round(i.stalledHours || 0)}h)`
+          )
+          .join("; "),
+        payload: {
+          sector: "laboratorio",
+          orderType: "module",
+          serviceOrderIds: items.map((i) => i.id).filter(Boolean),
+        },
+      });
+      if (ok) {
+        created.push({
+          alertKey: key,
+          title: "Laboratório: módulos parados",
+          severity: "warning",
+        });
+      }
     }
   }
 
@@ -120,7 +173,7 @@ export async function runManagementScan(input: {
   if (pending.ok) {
     const n = ((pending.data as { items?: unknown[] }).items || []).length;
     if (n > 0) {
-      const key = `evals_pending_${new Date().toISOString().slice(0, 10)}`;
+      const key = `evals_pending_${day}`;
       const ok = await upsertAlert(input.supabase, input.workshopId, {
         alertKey: key,
         severity: n >= 5 ? "critical" : "info",
@@ -132,21 +185,79 @@ export async function runManagementScan(input: {
     }
   }
 
-  const snapshot = await executeRdaTool("rda_patio_stage_snapshot", {}, ctx);
-  if (snapshot.ok) {
+  const patioSnap = await executeRdaTool("rda_patio_stage_snapshot", {}, ctx);
+  if (patioSnap.ok) {
     const waiting = Number(
-      (snapshot.data as { waitingApprovalCount?: number }).waitingApprovalCount || 0
+      (patioSnap.data as { waitingApprovalCount?: number }).waitingApprovalCount || 0
     );
     if (waiting >= 5) {
-      const key = `waiting_approval_${new Date().toISOString().slice(0, 10)}`;
+      const key = `patio_waiting_approval_${day}`;
       const ok = await upsertAlert(input.supabase, input.workshopId, {
         alertKey: key,
         severity: "warning",
-        title: `${waiting} OS em fila de aprovação/orçamento`,
-        body: "Há concentração de veículos aguardando aprovação.",
-        payload: { waitingApprovalCount: waiting },
+        title: `Pátio: ${waiting} OS em fila de aprovação/orçamento`,
+        body: "Concentração de veículos do Pátio aguardando aprovação.",
+        payload: { sector: "patio", orderType: "vehicle", waitingApprovalCount: waiting },
       });
-      if (ok) created.push({ alertKey: key, title: "Fila de aprovação", severity: "warning" });
+      if (ok) {
+        created.push({
+          alertKey: key,
+          title: "Pátio: fila de aprovação",
+          severity: "warning",
+        });
+      }
+    }
+  }
+
+  const labSnap = await executeRdaTool("rda_lab_stage_snapshot", {}, ctx);
+  if (labSnap.ok) {
+    const waiting = Number(
+      (labSnap.data as { waitingApprovalCount?: number }).waitingApprovalCount || 0
+    );
+    const waitingParts = Number(
+      (labSnap.data as { waitingPartsCount?: number }).waitingPartsCount || 0
+    );
+    if (waiting >= 5) {
+      const key = `lab_waiting_approval_${day}`;
+      const ok = await upsertAlert(input.supabase, input.workshopId, {
+        alertKey: key,
+        severity: "warning",
+        title: `Laboratório: ${waiting} OS em fila de aprovação/orçamento`,
+        body: "Concentração de módulos do Laboratório aguardando aprovação.",
+        payload: {
+          sector: "laboratorio",
+          orderType: "module",
+          waitingApprovalCount: waiting,
+        },
+      });
+      if (ok) {
+        created.push({
+          alertKey: key,
+          title: "Laboratório: fila de aprovação",
+          severity: "warning",
+        });
+      }
+    }
+    if (waitingParts >= 8) {
+      const key = `lab_waiting_parts_${day}`;
+      const ok = await upsertAlert(input.supabase, input.workshopId, {
+        alertKey: key,
+        severity: "info",
+        title: `Laboratório: ${waitingParts} OS em aguardo/peças`,
+        body: "Fila do Laboratório (módulos) — não confundir com estoque de peças.",
+        payload: {
+          sector: "laboratorio",
+          orderType: "module",
+          waitingPartsCount: waitingParts,
+        },
+      });
+      if (ok) {
+        created.push({
+          alertKey: key,
+          title: "Laboratório: aguardo/peças",
+          severity: "info",
+        });
+      }
     }
   }
 
@@ -158,7 +269,7 @@ export async function runManagementScan(input: {
     .lt("started_at", new Date(Date.now() - 6 * 3600000).toISOString())
     .limit(20);
   if ((longSessions || []).length > 0) {
-    const key = `long_sessions_${new Date().toISOString().slice(0, 10)}`;
+    const key = `long_sessions_${day}`;
     const ok = await upsertAlert(input.supabase, input.workshopId, {
       alertKey: key,
       severity: "info",

@@ -28,6 +28,7 @@ function canSeeAssistant(session: AuthSession | null): boolean {
     p.full_access ||
     p.access_radar_qualidade ||
     p.access_patio ||
+    p.access_laboratorio ||
     p.access_home
   );
 }

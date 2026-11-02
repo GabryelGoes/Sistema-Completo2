@@ -81,3 +81,12 @@ export { generateTechnicalOsInsight } from "./insights/technicalOs.js";
 export { runManagementScan } from "./insights/managementScan.js";
 export { ensureProductionRdaToolsRegistered } from "./tools/registerProduction.js";
 export { RDA_PRODUCTION_TOOLS } from "./tools/definitions.js";
+export { executeRdaTool } from "./tools/executors.js";
+export {
+  RDA_ORDER_TYPE_PATIO,
+  RDA_ORDER_TYPE_LAB,
+  orderTypeToSector,
+  parseSectorParam,
+  sectorLabel,
+  sectorToOrderType,
+} from "./tools/orderTypes.js";
