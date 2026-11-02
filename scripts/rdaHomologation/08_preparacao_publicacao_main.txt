@@ -1,0 +1,84 @@
+Preparação — publicar RDA Intelligence em sistema-rda.com (main)
+================================================================
+Gerado a partir do tip cursor/rda-intelligence-485b → origin/main.
+Status: SEM merge, SEM deploy, SEM SQL no banco da oficina.
+
+1) Integração Git
+-----------------
+- origin/main está ancestral direto do tip RDA (fast-forward possível).
+- Commits: main 0 atrás / RDA tip 205 à frente.
+- Conflitos de merge: NENHUM (merge-tree sem CONFLICT/<<<<<<).
+- Forma segura de integrar: fast-forward de main para o tip
+  (ou merge PR #119 com base main). Preserva todo o histórico da stack.
+
+2) Testes automatizados (tip atual)
+-----------------------------------
+- npm run lint                         → ok
+- npm run test:rda-foundation          → 31 ok
+- npm run test:rda-llm                 → 7 ok
+- npm run test:rda-work-sessions       → 25 ok
+- npm run test:rda-evaluations         → 21 ok
+- npm run test:rda-homologation-prep   → 48 ok
+
+3) Seis migrations RDA (Supabase principal — ordem)
+---------------------------------------------------
+Aplicar NO SQL Editor do projeto de PRODUÇÃO somente após:
+  (a) backup recuperável confirmado por você, e
+  (b) autorização final explícita.
+
+  1. supabase/migrations/20261101220000_rda_work_sessions.sql
+  2. supabase/migrations/20261101230000_rda_work_sessions_integrity.sql
+  3. supabase/migrations/20261101240000_rda_work_rpc_privileges.sql
+  4. supabase/migrations/20261101250000_rda_managerial_evaluations.sql
+  5. supabase/migrations/20261101260000_rda_rpc_idempotent_owner_guard.sql
+  6. supabase/migrations/20261102010000_rda_intelligence_runtime.sql
+
+Todas usam IF NOT EXISTS / CREATE OR REPLACE — não apagam OS/clientes/estoque.
+NÃO aplicar bootstrap/seed fictícios (00_*, 01_seed) no banco da oficina.
+
+4) Outras migrations no tip (não são as 6 RDA)
+----------------------------------------------
+O tip também adiciona arquivos de estoque/ABS/dispositivos/chassis etc.
+Podem JÁ existir no banco da oficina se foram aplicados antes.
+Antes do deploy do tip completo: conferir no SQL Editor se as tabelas
+correspondentes já existem; aplicar só o que faltar (IF NOT EXISTS).
+
+5) Backup recuperável (obrigatório — confirmação HUMANA)
+--------------------------------------------------------
+Este agente NÃO tem acesso ao Dashboard Supabase de produção e NÃO pode
+afirmar que existe backup recuperável.
+
+Checklist (você confirma):
+  [ ] Supabase → Project Settings → Database → Backups: PITR ou backup diário ativo
+  [ ] Ou dump lógico recente (pg_dump) armazenado fora do projeto
+  [ ] Teste mental de restore: dá para voltar ao ponto pré-migration
+  [ ] Anotar horário UTC-3 do backup de referência
+
+Só depois disso autorizar SQL + merge/deploy.
+
+6) Vercel (já usa main + OpenAI)
+--------------------------------
+Antes do deploy (após merge autorizado):
+  Confirmar Production env (sem colar valores no chat):
+    OPENAI_API_KEY          (já configurada — ok)
+    RDA_ALLOW_LLM_CALLS=true
+    RDA_LLM_PROVIDER=openai   (ou omitir se a key existir)
+    RDA_OPENAI_MODEL=gpt-4o-mini
+    RDA_DAILY_TOKEN_LIMIT=500000
+    RDA_INTELLIGENCE_ENABLED=false  (ativar depois pela UI)
+    HOMOLOGATION_MODE ausente
+  Deploy Production a partir de main atualizado.
+  Pós-deploy: Gerência → Assistente RDA → Ativar RDA.
+
+7) Ordem recomendada de publicação (quando autorizar)
+-----------------------------------------------------
+  A. Confirmar backup recuperável
+  B. Aplicar as 6 migrations RDA no Supabase principal
+  C. Merge fast-forward / PR #119 → main
+  D. Deploy Vercel Production (main)
+  E. Smoke: /api/rda/status · criar OS · chat · Radar avaliações
+  F. Ativar flag na UI
+
+Reversão código: redeploy do commit anterior de main.
+Reversão DB: restore do backup; ou DROP controlado só de objetos rda_* novos
+(sem tocar service_orders/customers/workshop_parts).
