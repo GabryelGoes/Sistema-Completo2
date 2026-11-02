@@ -15,6 +15,8 @@ export type QualityRadarTechnicianOption = {
   name: string;
   workshopTechnicianId: string | null;
   systemUserId: string | null;
+  jobTitle?: string | null;
+  source: 'workshop_technician' | 'system_user';
 };
 
 function normalizeName(s: string): string {
@@ -49,6 +51,8 @@ export async function getQualityRadarTechnicianOptions(): Promise<QualityRadarTe
       name,
       workshopTechnicianId: t.id,
       systemUserId: null,
+      jobTitle: null,
+      source: 'workshop_technician',
     });
   }
 
@@ -56,12 +60,25 @@ export async function getQualityRadarTechnicianOptions(): Promise<QualityRadarTe
     const name = systemUserDisplayName(u);
     if (!name) continue;
     const key = normalizeName(name);
-    if (byKey.has(key)) continue;
+    const existing = byKey.get(key);
+    if (existing) {
+      // Enriquece cadastro WT com cargo do usuário do sistema de mesmo nome.
+      if (!existing.jobTitle && u.job_title) {
+        byKey.set(key, {
+          ...existing,
+          jobTitle: u.job_title,
+          systemUserId: existing.systemUserId ?? u.id,
+        });
+      }
+      continue;
+    }
     byKey.set(key, {
       id: `${QUALITY_RADAR_SU_PREFIX}${u.id}`,
       name,
       workshopTechnicianId: null,
       systemUserId: u.id,
+      jobTitle: u.job_title,
+      source: 'system_user',
     });
   }
 

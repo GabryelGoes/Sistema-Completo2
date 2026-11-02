@@ -1,14 +1,14 @@
 /**
  * Blueprint (somente tipos) — futura Central Gerencial de Funcionários.
  *
- * O Radar de Qualidade atual (`QualityRadarView` + `workshop_technician_incidents`)
- * permanece intocado nesta fase. Este arquivo documenta o contrato alvo para
- * evolução futura, sem migrations, UI ou wiring.
+ * O hub visual do Radar (`QualityRadarView` + painéis gerenciais) já expõe a
+ * navegação alvo. Este arquivo documenta o contrato de dados futuro — ainda
+ * sem migrations nem persistência de avaliações/tempo/planos.
  *
- * Reuso previsto do Radar:
+ * Reuso do Radar:
  * - Shell de hub / filtros / período / relatório por pessoa
  * - Resolução de técnicos (WT + system users)
- * - Incidentes como evidência negativa (feed), não como nota 1–5
+ * - Incidentes como histórico operacional (não nota 1–5)
  *
  * Domínios novos (a criar em fases posteriores):
  * - Avaliações por competência (1–5) + adiar/dispensar
