@@ -112,10 +112,12 @@ WITH checks AS (
       WHERE table_schema = 'public' AND table_name = 'workshop_system_users'
         AND column_name = 'is_technician'
     )
+),
+final_rows AS (
+  SELECT check_id, ok, 0 AS sort_tail FROM checks
+  UNION ALL
+  SELECT 'ALL_OK', (SELECT bool_and(ok) FROM checks), 1
 )
-SELECT check_id, ok FROM checks
-UNION ALL
-SELECT 'ALL_OK', (SELECT bool_and(ok) FROM checks)
-ORDER BY
-  CASE WHEN check_id = 'ALL_OK' THEN 1 ELSE 0 END,
-  check_id;
+SELECT check_id, ok
+FROM final_rows
+ORDER BY sort_tail, check_id;
