@@ -39,6 +39,7 @@ for (const f of [
   "03_roteiro_api.txt",
   "04_criterios_liberacao.txt",
   "05_roteiro_sql_editor.txt",
+  "runRoteiroApi.ts",
 ]) {
   assert(existsSync(join(root, f)), f);
 }

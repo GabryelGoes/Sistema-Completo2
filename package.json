@@ -15,7 +15,8 @@
     "test:quality-radar-hub": "tsx scripts/qualityRadarHub.selftest.ts",
     "test:rda-work-sessions": "tsx scripts/rdaWorkSessions.selftest.ts",
     "test:rda-evaluations": "tsx scripts/rdaEvaluations.selftest.ts",
-    "test:rda-homologation-prep": "tsx scripts/rdaHomologation/selfcheck.ts"
+    "test:rda-homologation-prep": "tsx scripts/rdaHomologation/selfcheck.ts",
+    "test:rda-homologation-api": "tsx scripts/rdaHomologation/runRoteiroApi.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.48.0",

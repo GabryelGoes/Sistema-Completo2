@@ -30,11 +30,18 @@ Gaps documentados em `GAPS_SCHEMA.txt`.
 Se o verify falhar: envie as linhas com ok=false (check_id).
 
 ────────────────────────────────────────────────────────────
-3) Backend
+3) Backend + frontend só em homologação
 ────────────────────────────────────────────────────────────
-WORKSHOP_ID=11111111-1111-4111-8111-111111111111
-Credenciais fictícias: homolog_tech1|tech2|gerente|patio / homolog123
-Seguir `03_roteiro_api.txt` e `04_criterios_liberacao.txt`.
+A. Copie `env.homologation.example` → `.env.homologation` (gitignored).
+B. Preencha URL + service_role + anon do projeto TESTE localmente.
+   Não envie chaves pelo chat.
+C. Defina HOMOLOGATION_OK=rei-do-abs-homologacao
+D. RDA_INTELLIGENCE_ENABLED=false; sem OPENAI_API_KEY
+E. WORKSHOP_ID=11111111-1111-4111-8111-111111111111
+F. Credenciais fictícias: homolog_tech1|tech2|gerente|patio / homolog123
+G. Para o front (opcional): VITE_SUPABASE_* e VITE_WORKSHOP_ID do TESTE
+H. Rode: npm run test:rda-homologation-api
+   (sobe API efêmera em localhost apontando só ao .env.homologation)
 
 ────────────────────────────────────────────────────────────
 4) Proibido

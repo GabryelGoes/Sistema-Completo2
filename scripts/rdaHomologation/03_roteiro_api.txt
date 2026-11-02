@@ -11,6 +11,14 @@ Pré: seed já cria OS-A/OS-B (IDs abaixo). Backend com .env.homologation (nunca
   OS-A = 33333333-3333-4333-8333-333333333301
   OS-B = 33333333-3333-4333-8333-333333333302
 
+Automação (recomendado):
+  1) Preencha .env.homologation a partir de env.homologation.example
+     (HOMOLOGATION_OK=rei-do-abs-homologacao; chaves só do TESTE; sem colar no chat)
+  2) Confirme 02_verify → ALL_OK=true
+  3) npm run test:rda-homologation-api
+     → sobe API em 127.0.0.1, executa itens 1–22, imprime OK/FAIL por item
+  O runner recusa refs de produção conhecidas e exige IA desligada.
+
 --- Tempo ---
 1. Login T1 → POST /api/rda/work-sessions/start { serviceOrderId: OS-A, clientMutationId: m1 }
    → 201 running
