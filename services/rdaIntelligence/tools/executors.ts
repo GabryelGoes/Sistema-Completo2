@@ -33,7 +33,7 @@ export async function executeRdaTool(
   const { workshopId, supabase } = ctx;
   try {
     switch (toolId) {
-      case "rda.list_stalled_vehicles": {
+      case "rda_list_stalled_vehicles": {
         const minHours = Number(params.minHours ?? 24);
         const limit = clampLimit(params.limit, 15);
         const { data, error } = await supabase
@@ -66,7 +66,7 @@ export async function executeRdaTool(
         };
       }
 
-      case "rda.technician_active_work": {
+      case "rda_technician_active_work": {
         const nameQ = String(params.technicianName || "").trim().toLowerCase();
         const userId = String(params.technicianUserId || "").trim();
         let techIds: string[] = userId ? [userId] : [];
@@ -100,7 +100,7 @@ export async function executeRdaTool(
         return { ok: true, data: { technicianUserIds: techIds, sessions: sessions || [] } };
       }
 
-      case "rda.vehicle_maintenance_history": {
+      case "rda_vehicle_maintenance_history": {
         const limit = clampLimit(params.limit, 20);
         let plate = String(params.plate || "").trim();
         const soId = String(params.serviceOrderId || "").trim();
@@ -130,7 +130,7 @@ export async function executeRdaTool(
         return { ok: true, data: { plate, items } };
       }
 
-      case "rda.search_similar_complaints": {
+      case "rda_search_similar_complaints": {
         const query = String(params.query || "").trim();
         if (!query) return { ok: false, error: "query obrigatória." };
         const limit = clampLimit(params.limit, 12);
@@ -172,7 +172,7 @@ export async function executeRdaTool(
         };
       }
 
-      case "rda.search_error_bulletins": {
+      case "rda_search_error_bulletins": {
         const query = String(params.query || "").trim();
         const dtc = String(params.dtcCode || "").trim();
         const limit = clampLimit(params.limit, 15);
@@ -212,7 +212,7 @@ export async function executeRdaTool(
         return { ok: true, data: { items } };
       }
 
-      case "rda.search_stock_parts": {
+      case "rda_search_stock_parts": {
         const query = String(params.query || "").trim();
         if (!query) return { ok: false, error: "query obrigatória." };
         const onlyInStock = params.onlyInStock !== false;
@@ -262,7 +262,7 @@ export async function executeRdaTool(
         };
       }
 
-      case "rda.work_performance_summary": {
+      case "rda_work_performance_summary": {
         const to = String(params.to || new Date().toISOString());
         const fromDefault = new Date(Date.now() - 7 * 86400000).toISOString();
         const from = String(params.from || fromDefault);
@@ -307,7 +307,7 @@ export async function executeRdaTool(
         };
       }
 
-      case "rda.pending_evaluations": {
+      case "rda_pending_evaluations": {
         const status = String(params.status || "pending").trim();
         const limit = clampLimit(params.limit, 30);
         let q = supabase
@@ -324,7 +324,7 @@ export async function executeRdaTool(
         return { ok: true, data: { items: data || [] } };
       }
 
-      case "rda.patio_stage_snapshot": {
+      case "rda_patio_stage_snapshot": {
         const { data, error } = await supabase
           .from("service_orders")
           .select("id, status, updated_at, plate, os_number")
@@ -355,7 +355,7 @@ export async function executeRdaTool(
         };
       }
 
-      case "rda.get_service_order": {
+      case "rda_get_service_order": {
         const soId = String(params.serviceOrderId || "").trim();
         const plate = String(params.plate || "").trim();
         if (!soId && !plate) return { ok: false, error: "Informe serviceOrderId ou plate." };
@@ -395,8 +395,8 @@ export async function executeRdaTool(
         return { ok: true, data: { items: items.slice(0, 5) } };
       }
 
-      case "rda.propose_open_service_order": {
-        const lookup = await executeRdaTool("rda.get_service_order", params, ctx);
+      case "rda_propose_open_service_order": {
+        const lookup = await executeRdaTool("rda_get_service_order", params, ctx);
         if (lookup.ok === false) return lookup;
         const items = ((lookup.data as { items?: unknown[] }).items || []) as Array<{
           id?: string;

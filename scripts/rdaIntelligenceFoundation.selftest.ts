@@ -225,11 +225,11 @@ assert(
   `production registry tem ${RDA_PRODUCTION_TOOLS.length} tools`
 );
 assert(
-  productionRdaToolRegistry.has("rda.list_stalled_vehicles"),
+  productionRdaToolRegistry.has("rda_list_stalled_vehicles"),
   "tool stalled vehicles registrada"
 );
 assert(
-  productionRdaToolRegistry.has("rda.propose_open_service_order"),
+  productionRdaToolRegistry.has("rda_propose_open_service_order"),
   "tool propose open OS registrada (write+confirm)"
 );
 
