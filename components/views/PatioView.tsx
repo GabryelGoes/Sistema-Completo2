@@ -290,6 +290,7 @@ import { archivedHistoryModalShell } from '../reception/archivedHistoryModalShel
 import { DiagnosticAuthorizationSheetModal } from '../diagnostic/DiagnosticAuthorizationSheetModal';
 import { DiagnosticAuthorizationSignModal } from '../diagnostic/DiagnosticAuthorizationSignModal';
 import { ServiceTechnicianClosingModal } from '../patio/ServiceTechnicianClosingModal';
+import { OsWorkTimePanel } from '../patio/OsWorkTimePanel';
 import { BudgetApprovalModal } from '../budget/BudgetApprovalModal';
 import { LabEvaluationSection } from '../lab/LabEvaluationSection';
 import {
@@ -471,6 +472,11 @@ interface PatioViewProps {
   /** Modo da pistola no Laboratório (Consultar / Saída / Retorno). */
   labScanMode?: import('../../utils/labScanMode').LabScanMode;
   onLabScanModeChange?: (mode: import('../../utils/labScanMode').LabScanMode) => void;
+  /**
+   * Mecânico autenticado (is_technician): exibe cronômetro na ficha.
+   * A identidade NUNCA vem de input do usuário — só do login.
+   */
+  workTimeTechnician?: { userId: string; displayName: string } | null;
 }
 
 function boardListsFromStages(stages: ReturnType<typeof getServiceOrderStages>): BoardList[] {
@@ -1473,6 +1479,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
   onClosePage,
   labScanMode = 'consultar',
   onLabScanModeChange,
+  workTimeTechnician = null,
 }) => {
   /** Admin: sem patioPermissions = tudo permitido. Usuário do sistema: só o que for explicitamente true. */
   const can = (key: keyof NonNullable<PatioViewProps['patioPermissions']>) =>
@@ -11121,6 +11128,13 @@ export const PatioView: React.FC<PatioViewProps> = ({
                       <div className={patioVehicleVm.mainCol}>
                         {showPcOsTab('dados') ? (
                         <>
+                        {workTimeTechnician && selectedCard?.id ? (
+                          <OsWorkTimePanel
+                            serviceOrderId={selectedCard.id}
+                            technicianUserId={workTimeTechnician.userId}
+                            technicianDisplayName={workTimeTechnician.displayName}
+                          />
+                        ) : null}
                         {/* Queixa: no tablet veículo fica no cabeçalho rolável; edição só na ficha. */}
                         {!(isPatioTabletLikeModal && !isModuleMode) ? (
                         <div ref={descriptionSectionRef}>

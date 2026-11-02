@@ -60,3 +60,11 @@ export {
   registerRdaIntelligenceRoutes,
   type RegisterRdaIntelligenceRoutesDeps,
 } from "./registerRdaRoutes.js";
+
+export { registerRdaWorkSessionRoutes } from "./workSessions/registerRdaWorkSessionRoutes.js";
+export { formatDurationHms, newClientMutationId, computeLiveTotals } from "./workSessions/timing.js";
+export type {
+  RdaWorkSessionDto,
+  RdaWorkPauseReason,
+  RdaWorkPerformanceTechnicianRow,
+} from "./workSessions/types.js";

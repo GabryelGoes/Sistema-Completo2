@@ -5725,3 +5725,194 @@ export async function deleteTvMedia(id: string): Promise<void> {
   }
 }
 
+
+// ----------------- RDA: sessões de tempo do mecânico -----------------
+
+export type RdaWorkSessionStatus = "running" | "paused" | "finished" | "cancelled";
+
+export type RdaWorkPauseReason = {
+  id: string;
+  label: string;
+  requiresNote: boolean;
+  sortOrder: number;
+};
+
+export type RdaWorkSession = {
+  id: string;
+  serviceOrderId: string;
+  technicianUserId: string;
+  budgetId: string | null;
+  budgetServiceDescription: string | null;
+  status: RdaWorkSessionStatus;
+  startedAt: string;
+  endedAt: string | null;
+  segmentStartedAt: string | null;
+  productiveMs: number;
+  pausedMs: number;
+  liveProductiveMs: number;
+  livePausedMs: number;
+  currentPauseReasonId: string | null;
+  currentPauseNote: string | null;
+  currentPauseStartedAt: string | null;
+  serverNow: string;
+};
+
+export type RdaWorkPerformanceTechnicianRow = {
+  technicianUserId: string;
+  displayName: string;
+  sessionCount: number;
+  finishedCount: number;
+  liveProductiveMs: number;
+  livePausedMs: number;
+  pauseByReason: { reasonId: string; label: string; pausedMs: number }[];
+  serviceDurations: { description: string; productiveMs: number; sessions: number }[];
+};
+
+async function readRdaWorkError(response: Response, fallback: string): Promise<string> {
+  const err = await response.json().catch(() => ({}));
+  return (err as { error?: string }).error || fallback;
+}
+
+export async function getRdaWorkPauseReasons(): Promise<RdaWorkPauseReason[]> {
+  const response = await fetch(`${API_BASE}/rda/work-sessions/pause-reasons`);
+  if (!response.ok) throw new Error(await readRdaWorkError(response, "Falha ao carregar motivos de pausa."));
+  return response.json();
+}
+
+export async function getMyActiveRdaWorkSession(): Promise<RdaWorkSession | null> {
+  const response = await fetch(`${API_BASE}/rda/work-sessions/mine/active`);
+  if (!response.ok) throw new Error(await readRdaWorkError(response, "Falha ao consultar sessão ativa."));
+  const data = await response.json();
+  return (data?.session as RdaWorkSession | null) ?? null;
+}
+
+export async function listRdaWorkSessions(params: {
+  serviceOrderId?: string;
+  technicianUserId?: string;
+  from?: string;
+  to?: string;
+  includeEvents?: boolean;
+}): Promise<{ sessions: RdaWorkSession[]; events: unknown[] }> {
+  const q = new URLSearchParams();
+  if (params.serviceOrderId) q.set("serviceOrderId", params.serviceOrderId);
+  if (params.technicianUserId) q.set("technicianUserId", params.technicianUserId);
+  if (params.from) q.set("from", params.from);
+  if (params.to) q.set("to", params.to);
+  if (params.includeEvents) q.set("includeEvents", "1");
+  const response = await fetch(`${API_BASE}/rda/work-sessions?${q.toString()}`);
+  if (!response.ok) throw new Error(await readRdaWorkError(response, "Falha ao listar sessões."));
+  return response.json();
+}
+
+export async function startRdaWorkSession(input: {
+  serviceOrderId: string;
+  budgetId?: string | null;
+  budgetServiceDescription?: string | null;
+  clientMutationId: string;
+}): Promise<{ session: RdaWorkSession; alreadyActive?: boolean; idempotent?: boolean }> {
+  const response = await fetch(`${API_BASE}/rda/work-sessions/start`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      serviceOrderId: input.serviceOrderId,
+      budgetId: input.budgetId ?? undefined,
+      budgetServiceDescription: input.budgetServiceDescription ?? undefined,
+      clientMutationId: input.clientMutationId,
+    }),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const err = new Error((data as { error?: string }).error || "Falha ao iniciar sessão.") as Error & {
+      code?: string;
+      activeSession?: RdaWorkSession;
+      status?: number;
+    };
+    err.code = (data as { code?: string }).code;
+    err.activeSession = (data as { activeSession?: RdaWorkSession }).activeSession;
+    err.status = response.status;
+    throw err;
+  }
+  return data as { session: RdaWorkSession; alreadyActive?: boolean; idempotent?: boolean };
+}
+
+export async function pauseRdaWorkSession(input: {
+  sessionId: string;
+  reasonId: string;
+  note?: string;
+  clientMutationId: string;
+}): Promise<{ session: RdaWorkSession }> {
+  const response = await fetch(`${API_BASE}/rda/work-sessions/${encodeURIComponent(input.sessionId)}/pause`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      reasonId: input.reasonId,
+      note: input.note,
+      clientMutationId: input.clientMutationId,
+    }),
+  });
+  if (!response.ok) throw new Error(await readRdaWorkError(response, "Falha ao pausar."));
+  return response.json();
+}
+
+export async function resumeRdaWorkSession(input: {
+  sessionId: string;
+  clientMutationId: string;
+}): Promise<{ session: RdaWorkSession }> {
+  const response = await fetch(`${API_BASE}/rda/work-sessions/${encodeURIComponent(input.sessionId)}/resume`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ clientMutationId: input.clientMutationId }),
+  });
+  if (!response.ok) throw new Error(await readRdaWorkError(response, "Falha ao retomar."));
+  return response.json();
+}
+
+export async function finishRdaWorkSession(input: {
+  sessionId: string;
+  clientMutationId: string;
+}): Promise<{ session: RdaWorkSession }> {
+  const response = await fetch(`${API_BASE}/rda/work-sessions/${encodeURIComponent(input.sessionId)}/finish`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ clientMutationId: input.clientMutationId }),
+  });
+  if (!response.ok) throw new Error(await readRdaWorkError(response, "Falha ao finalizar."));
+  return response.json();
+}
+
+export async function getRdaWorkPerformanceSummary(params: {
+  from?: string;
+  to?: string;
+}): Promise<{
+  from: string | null;
+  to: string | null;
+  serverNow: string;
+  technicians: RdaWorkPerformanceTechnicianRow[];
+  code?: string;
+  error?: string;
+}> {
+  const q = new URLSearchParams();
+  if (params.from) q.set("from", params.from);
+  if (params.to) q.set("to", params.to);
+  const response = await fetch(`${API_BASE}/rda/work-sessions/performance-summary?${q.toString()}`);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    if (response.status === 503) {
+      return {
+        from: params.from ?? null,
+        to: params.to ?? null,
+        serverNow: new Date().toISOString(),
+        technicians: [],
+        code: (data as { code?: string }).code,
+        error: (data as { error?: string }).error,
+      };
+    }
+    throw new Error((data as { error?: string }).error || "Falha ao carregar desempenho.");
+  }
+  return data as {
+    from: string | null;
+    to: string | null;
+    serverNow: string;
+    technicians: RdaWorkPerformanceTechnicianRow[];
+  };
+}

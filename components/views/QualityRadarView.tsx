@@ -249,7 +249,13 @@ export const QualityRadarView: React.FC<{ authSession?: AuthSession | null }> = 
     body = <EvaluationsPanel />;
   } else if (section === 'desempenho') {
     body = (
-      <PerformancePanel employees={technicians} incidents={incidents} loading={loading} />
+      <PerformancePanel
+        employees={technicians}
+        incidents={incidents}
+        loading={loading}
+        periodFrom={from}
+        periodTo={to}
+      />
     );
   } else if (section === 'planos') {
     body = <CareerPlansPanel />;

@@ -12,7 +12,8 @@
     "preview": "vite preview",
     "lint": "tsc --noEmit",
     "test:rda-foundation": "tsx scripts/rdaIntelligenceFoundation.selftest.ts",
-    "test:quality-radar-hub": "tsx scripts/qualityRadarHub.selftest.ts"
+    "test:quality-radar-hub": "tsx scripts/qualityRadarHub.selftest.ts",
+    "test:rda-work-sessions": "tsx scripts/rdaWorkSessions.selftest.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.48.0",

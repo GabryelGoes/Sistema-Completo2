@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   AlertTriangle,
   Calendar,
@@ -408,12 +408,52 @@ export function PerformancePanel({
   employees,
   incidents,
   loading,
+  periodFrom,
+  periodTo,
 }: {
   employees: QualityRadarTechnicianOption[];
   incidents: QualityIncident[];
   loading: boolean;
+  periodFrom: string;
+  periodTo: string;
 }) {
-  const rows = useMemo(() => {
+  const [timeRows, setTimeRows] = useState<
+    import('../../services/apiService').RdaWorkPerformanceTechnicianRow[]
+  >([]);
+  const [timeLoading, setTimeLoading] = useState(true);
+  const [timeError, setTimeError] = useState<string | null>(null);
+  const [migrationPending, setMigrationPending] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    setTimeLoading(true);
+    setTimeError(null);
+    void import('../../services/apiService')
+      .then(({ getRdaWorkPerformanceSummary }) =>
+        getRdaWorkPerformanceSummary({ from: periodFrom, to: periodTo })
+      )
+      .then((summary) => {
+        if (cancelled) return;
+        setTimeRows(summary.technicians ?? []);
+        setMigrationPending(summary.code === 'RDA_WORK_MIGRATION_REQUIRED');
+        if (summary.error && summary.code === 'RDA_WORK_MIGRATION_REQUIRED') {
+          setTimeError(summary.error);
+        }
+      })
+      .catch((e) => {
+        if (cancelled) return;
+        setTimeError(e instanceof Error ? e.message : 'Falha ao carregar tempos.');
+        setTimeRows([]);
+      })
+      .finally(() => {
+        if (!cancelled) setTimeLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [periodFrom, periodTo]);
+
+  const incidentRows = useMemo(() => {
     return employees
       .map((e) => {
         const list = incidentsForEmployee(incidents, e);
@@ -429,84 +469,187 @@ export function PerformancePanel({
       .sort((a, b) => b.total - a.total);
   }, [employees, incidents]);
 
+  const totalProductive = timeRows.reduce((acc, r) => acc + r.liveProductiveMs, 0);
+  const totalPaused = timeRows.reduce((acc, r) => acc + r.livePausedMs, 0);
+  const finishedServices = timeRows.reduce((acc, r) => acc + r.finishedCount, 0);
+
+  const formatMs = (ms: number) => {
+    const totalSec = Math.floor(Math.max(0, ms) / 1000);
+    const h = Math.floor(totalSec / 3600);
+    const m = Math.floor((totalSec % 3600) / 60);
+    return `${h}h ${String(m).padStart(2, '0')}m`;
+  };
+
   return (
     <div className="space-y-4">
       <HubSectionHeader
         title="Desempenho"
-        subtitle="Indicadores de qualidade a partir do histórico de ocorrências. Tempo produtivo e pausas ainda não existem na API."
+        subtitle="Tempo real das sessões RDA + histórico de ocorrências (sem nota 1–5)."
       />
 
       <HubPreparedNote>
-        Produtividade por tempo de login, pausas e motivos serão integrados depois. Ocorrências não
-        são convertidas em notas 1–5.
+        Avaliações por competência ainda não entram aqui. Ocorrências permanecem como histórico
+        operacional separado do cronômetro.
       </HubPreparedNote>
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <HubStatCard
           label="Tempo produtivo"
-          value="—"
-          prepared
-          hint="Cronômetro por login ainda não implementado"
+          value={timeLoading ? '—' : formatMs(totalProductive)}
+          hint={migrationPending ? 'Migration pendente' : 'Soma das sessões no período'}
         />
         <HubStatCard
-          label="Pausas"
-          value="—"
-          prepared
-          hint="Motivos de pausa ainda sem backend"
+          label="Tempo pausado"
+          value={timeLoading ? '—' : formatMs(totalPaused)}
+          hint="Inclui pausas abertas até agora"
         />
         <HubStatCard
-          label="Ocorrências no período"
-          value={loading ? '—' : incidents.length}
-          hint="Histórico operacional — não é contagem de OS"
+          label="Sessões finalizadas"
+          value={timeLoading ? '—' : finishedServices}
+          hint="Serviços com cronômetro encerrado"
         />
         <HubStatCard
-          label="Retrabalhos"
+          label="Retrabalhos (ocorrências)"
           value={loading ? '—' : reworkIncidentCount(incidents)}
           hint="Categoria retrabalho no histórico"
         />
       </div>
 
-      {loading ? (
-        <p className={hub.muted}>Carregando…</p>
-      ) : rows.length === 0 ? (
+      {timeError ? (
+        <p className="rounded-xl bg-amber-50 px-3 py-2 text-[13px] text-amber-950 dark:bg-amber-950/30 dark:text-amber-100">
+          {timeError}
+        </p>
+      ) : null}
+
+      {timeLoading ? (
+        <p className={hub.muted}>Carregando tempos…</p>
+      ) : timeRows.length === 0 ? (
         <HubEmptyState
           icon={TrendingUp}
-          title="Sem dados de qualidade no período"
-          description="Quando houver ocorrências, a qualidade por funcionário aparece aqui — sem score de desempenho automático."
+          title="Sem sessões de tempo no período"
+          description="Quando os mecânicos iniciarem o cronômetro nas OS, o consolidado aparece aqui."
         />
       ) : (
-        <div className={`${hub.surface} overflow-hidden`}>
+        <div className="space-y-3">
+          <div className={`${hub.surface} overflow-hidden`}>
+            <div className="overflow-x-auto">
+              <table className="min-w-full text-left text-[13px]">
+                <thead className="border-b border-zinc-200 bg-[#FAFAFA] text-[11px] font-semibold uppercase tracking-wider text-zinc-500 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-400">
+                  <tr>
+                    <th className="px-4 py-3">Técnico</th>
+                    <th className="px-4 py-3">Produtivo</th>
+                    <th className="px-4 py-3">Pausado</th>
+                    <th className="px-4 py-3">Sessões</th>
+                    <th className="px-4 py-3">Finalizadas</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {timeRows.map((r) => (
+                    <tr
+                      key={r.technicianUserId}
+                      className="border-b border-zinc-100 last:border-0 dark:border-zinc-800/80"
+                    >
+                      <td className="px-4 py-3 font-semibold text-zinc-900 dark:text-white">
+                        {r.displayName}
+                      </td>
+                      <td className="px-4 py-3 tabular-nums">{formatMs(r.liveProductiveMs)}</td>
+                      <td className="px-4 py-3 tabular-nums">{formatMs(r.livePausedMs)}</td>
+                      <td className="px-4 py-3 tabular-nums">{r.sessionCount}</td>
+                      <td className="px-4 py-3 tabular-nums">{r.finishedCount}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {timeRows.some((r) => r.pauseByReason.length > 0 || r.serviceDurations.length > 0) ? (
+            <div className="grid gap-3 lg:grid-cols-2">
+              {timeRows.slice(0, 6).map((r) => (
+                <div key={`detail-${r.technicianUserId}`} className={`${hub.surface} p-4`}>
+                  <p className="text-[14px] font-semibold text-zinc-900 dark:text-white">
+                    {r.displayName}
+                  </p>
+                  {r.pauseByReason.length > 0 ? (
+                    <div className="mt-3">
+                      <p className={`text-[11px] font-semibold uppercase tracking-wider ${hub.muted}`}>
+                        Pausas por motivo
+                      </p>
+                      <ul className="mt-1.5 space-y-1">
+                        {r.pauseByReason.map((p) => (
+                          <li
+                            key={p.reasonId}
+                            className="flex justify-between text-[12px] text-zinc-700 dark:text-zinc-300"
+                          >
+                            <span>{p.label}</span>
+                            <span className="font-mono tabular-nums">{formatMs(p.pausedMs)}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
+                  {r.serviceDurations.length > 0 ? (
+                    <div className="mt-3">
+                      <p className={`text-[11px] font-semibold uppercase tracking-wider ${hub.muted}`}>
+                        Duração por serviço
+                      </p>
+                      <ul className="mt-1.5 space-y-1">
+                        {r.serviceDurations.slice(0, 5).map((s) => (
+                          <li
+                            key={s.description}
+                            className="flex justify-between gap-3 text-[12px] text-zinc-700 dark:text-zinc-300"
+                          >
+                            <span className="truncate">{s.description}</span>
+                            <span className="shrink-0 font-mono tabular-nums">
+                              {formatMs(s.productiveMs)}
+                            </span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
+                </div>
+              ))}
+            </div>
+          ) : null}
+        </div>
+      )}
+
+      <div className={`${hub.surface} p-4`}>
+        <p className="mb-3 text-[14px] font-semibold text-zinc-900 dark:text-white">
+          Ocorrências no período (histórico)
+        </p>
+        {loading ? (
+          <p className={hub.muted}>Carregando…</p>
+        ) : incidentRows.length === 0 ? (
+          <p className={`text-[13px] ${hub.muted}`}>Nenhuma ocorrência no período.</p>
+        ) : (
           <div className="overflow-x-auto">
             <table className="min-w-full text-left text-[13px]">
-              <thead className="border-b border-zinc-200 bg-[#FAFAFA] text-[11px] font-semibold uppercase tracking-wider text-zinc-500 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-400">
+              <thead className="border-b border-zinc-200 text-[11px] font-semibold uppercase tracking-wider text-zinc-500 dark:border-zinc-800">
                 <tr>
-                  <th className="px-4 py-3">Funcionário</th>
-                  <th className="px-4 py-3">Ocorrências</th>
-                  <th className="px-4 py-3">Abertas</th>
-                  <th className="px-4 py-3">Críticas</th>
-                  <th className="px-4 py-3">Retrabalhos</th>
+                  <th className="py-2 pr-3">Funcionário</th>
+                  <th className="py-2 pr-3">Total</th>
+                  <th className="py-2 pr-3">Abertas</th>
+                  <th className="py-2 pr-3">Críticas</th>
+                  <th className="py-2">Retrabalhos</th>
                 </tr>
               </thead>
               <tbody>
-                {rows.map((r) => (
-                  <tr
-                    key={r.employee.id}
-                    className="border-b border-zinc-100 last:border-0 dark:border-zinc-800/80"
-                  >
-                    <td className="px-4 py-3 font-semibold text-zinc-900 dark:text-white">
-                      {r.employee.name}
-                    </td>
-                    <td className="px-4 py-3 tabular-nums">{r.total}</td>
-                    <td className="px-4 py-3 tabular-nums">{r.open}</td>
-                    <td className="px-4 py-3 tabular-nums">{r.critical}</td>
-                    <td className="px-4 py-3 tabular-nums">{r.rework}</td>
+                {incidentRows.map((r) => (
+                  <tr key={r.employee.id} className="border-b border-zinc-100 last:border-0 dark:border-zinc-800/80">
+                    <td className="py-2 pr-3 font-medium">{r.employee.name}</td>
+                    <td className="py-2 pr-3 tabular-nums">{r.total}</td>
+                    <td className="py-2 pr-3 tabular-nums">{r.open}</td>
+                    <td className="py-2 pr-3 tabular-nums">{r.critical}</td>
+                    <td className="py-2 tabular-nums">{r.rework}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }

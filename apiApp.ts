@@ -68,6 +68,7 @@ import {
   normalizeBrazilianPlate,
 } from "./utils/brazilianPlate.js";
 import { registerRdaIntelligenceRoutes } from "./services/rdaIntelligence/index.js";
+import { registerRdaWorkSessionRoutes } from "./services/rdaIntelligence/workSessions/registerRdaWorkSessionRoutes.js";
 
 const PBKDF2_ITERATIONS = 100000;
 const SALT_LEN = 16;
@@ -15939,6 +15940,12 @@ export function createApiApp() {
         .maybeSingle();
       return (me?.permissions as Record<string, boolean> | null) ?? null;
     },
+  });
+
+  // ----------------- RDA: controle de tempo dos mecânicos -----------------
+  registerRdaWorkSessionRoutes(app, {
+    WORKSHOP_ID,
+    supabaseAdmin,
   });
 
   return app;
