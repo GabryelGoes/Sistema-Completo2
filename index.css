@@ -756,6 +756,27 @@ html[data-desktop-shell='true'] .agenda-form-modal-shell .agenda-modal-body-scro
 }
 
 /**
+ * Lista de mensagens do RDA Intelligence (filho flex com altura limitada).
+ * absolute inset garante área rolável mesmo com header/composer variáveis.
+ */
+.rda-chat-messages-shell {
+  position: relative;
+  flex: 1 1 0%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.rda-chat-messages-scroll {
+  position: absolute;
+  inset: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+}
+
+/**
  * Enquanto a Home abre um hub/modal, bloqueia pointer-events no conteúdo montado
  * para o click/touch sintético do mesmo gesto não acionar botões internos.
  */
