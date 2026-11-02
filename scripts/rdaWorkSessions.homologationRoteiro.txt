@@ -44,7 +44,19 @@ E) Radar
 21. Com G, abrir Radar → Desempenho: só totais vindos da API (sem placeholders fictícios).
 22. Sem sessões no período → empty state, não inventar números.
 
-F) Critério de pronto para uso em homologação
-- Itens A–E passam.
+F) Avaliações gerenciais (após migrations 250000)
+23. Aplicar também:
+    - 20261101240000_rda_work_rpc_privileges.sql
+    - 20261101250000_rda_managerial_evaluations.sql
+24. T1 finaliza sessão → 1 solicitação pending (repetir finish → idempotente).
+25. Usuário só pátio → GET /api/rda/evaluations/requests → 403.
+26. Gerente radar avalia com notas 1–5 → status evaluated; OS inalterada.
+27. Outra solicitação: adiar → deferred; outra: dispensar → dismissed (sem nota).
+28. POST evaluate com score 0 ou 6 → 400.
+29. POST evaluate com evaluatorUserId no body → 400.
+30. Visão Geral mostra pendentes reais; perfil do técnico lista histórico.
+
+G) Critério de pronto para uso em homologação
+- Itens A–F passam.
 - Migrations NÃO aplicadas em produção até autorização explícita.
-- Avaliações gerenciais / IA permanecem desligadas.
+- IA permanece desligada.

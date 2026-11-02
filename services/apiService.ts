@@ -5916,3 +5916,205 @@ export async function getRdaWorkPerformanceSummary(params: {
     technicians: RdaWorkPerformanceTechnicianRow[];
   };
 }
+
+// ---------- RDA avaliações gerenciais ----------
+
+export type RdaEvalRequestStatus = "pending" | "deferred" | "evaluated" | "dismissed";
+
+export type RdaEvalScores = {
+  technicalQuality: number;
+  organization: number;
+  procedures: number;
+  autonomy: number;
+  communication: number;
+};
+
+export type RdaEvaluation = {
+  id: string;
+  requestId: string;
+  workSessionId: string;
+  technicianUserId: string;
+  evaluatorUserId: string | null;
+  evaluatorIsAdmin: boolean;
+  evaluatorDisplayName: string;
+  scores: RdaEvalScores;
+  positives: string;
+  improvements: string;
+  generalNotes: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type RdaEvalRequest = {
+  id: string;
+  workSessionId: string;
+  serviceOrderId: string;
+  technicianUserId: string;
+  technicianDisplayName?: string;
+  budgetId: string | null;
+  serviceDescription: string | null;
+  productiveMs: number;
+  pausedMs: number;
+  sessionStartedAt: string;
+  sessionEndedAt: string;
+  status: RdaEvalRequestStatus;
+  deferredUntil: string | null;
+  deferredNote: string | null;
+  deferredAt: string | null;
+  dismissedReason: string | null;
+  dismissedAt: string | null;
+  evaluatedAt: string | null;
+  createdAt: string;
+  evaluation: RdaEvaluation | null;
+};
+
+export type RdaEvalSummary = {
+  pending: number;
+  deferred: number;
+  evaluated: number;
+  dismissed: number;
+  averageScores: RdaEvalScores | null;
+  evaluatedCount: number;
+  code?: string;
+  error?: string;
+};
+
+async function readRdaEvalError(response: Response, fallback: string): Promise<string> {
+  const err = await response.json().catch(() => ({}));
+  return (err as { error?: string }).error || fallback;
+}
+
+export async function getRdaEvalSummary(params?: {
+  from?: string;
+  to?: string;
+}): Promise<RdaEvalSummary> {
+  const q = new URLSearchParams();
+  if (params?.from) q.set("from", params.from);
+  if (params?.to) q.set("to", params.to);
+  const response = await fetch(`${API_BASE}/rda/evaluations/summary?${q.toString()}`);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    if (response.status === 503) {
+      return {
+        pending: 0,
+        deferred: 0,
+        evaluated: 0,
+        dismissed: 0,
+        averageScores: null,
+        evaluatedCount: 0,
+        code: (data as { code?: string }).code,
+        error: (data as { error?: string }).error,
+      };
+    }
+    throw new Error((data as { error?: string }).error || "Falha ao carregar resumo de avaliações.");
+  }
+  return data as RdaEvalSummary;
+}
+
+export async function listRdaEvalRequests(params?: {
+  status?: RdaEvalRequestStatus | "";
+  technicianUserId?: string;
+  from?: string;
+  to?: string;
+}): Promise<{ requests: RdaEvalRequest[] }> {
+  const q = new URLSearchParams();
+  if (params?.status) q.set("status", params.status);
+  if (params?.technicianUserId) q.set("technicianUserId", params.technicianUserId);
+  if (params?.from) q.set("from", params.from);
+  if (params?.to) q.set("to", params.to);
+  const response = await fetch(`${API_BASE}/rda/evaluations/requests?${q.toString()}`);
+  if (!response.ok) throw new Error(await readRdaEvalError(response, "Falha ao listar avaliações."));
+  return response.json();
+}
+
+export async function getRdaEvalRequest(
+  id: string
+): Promise<{ request: RdaEvalRequest; audit: unknown[] }> {
+  const response = await fetch(
+    `${API_BASE}/rda/evaluations/requests/${encodeURIComponent(id)}`
+  );
+  if (!response.ok) throw new Error(await readRdaEvalError(response, "Falha ao carregar solicitação."));
+  return response.json();
+}
+
+export async function getRdaEvalTechnicianHistory(userId: string): Promise<{
+  technicianUserId: string;
+  technicianDisplayName: string | null;
+  requests: RdaEvalRequest[];
+  averageScores: RdaEvalScores | null;
+  evaluatedCount: number;
+}> {
+  const response = await fetch(
+    `${API_BASE}/rda/evaluations/technician/${encodeURIComponent(userId)}`
+  );
+  if (!response.ok) throw new Error(await readRdaEvalError(response, "Falha ao carregar histórico."));
+  return response.json();
+}
+
+export async function deferRdaEvalRequest(input: {
+  requestId: string;
+  note?: string;
+  until?: string | null;
+  clientMutationId: string;
+}): Promise<{ request: RdaEvalRequest }> {
+  const response = await fetch(
+    `${API_BASE}/rda/evaluations/requests/${encodeURIComponent(input.requestId)}/defer`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        note: input.note,
+        until: input.until ?? undefined,
+        clientMutationId: input.clientMutationId,
+      }),
+    }
+  );
+  if (!response.ok) throw new Error(await readRdaEvalError(response, "Falha ao adiar."));
+  return response.json();
+}
+
+export async function dismissRdaEvalRequest(input: {
+  requestId: string;
+  reason?: string;
+  clientMutationId: string;
+}): Promise<{ request: RdaEvalRequest }> {
+  const response = await fetch(
+    `${API_BASE}/rda/evaluations/requests/${encodeURIComponent(input.requestId)}/dismiss`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        reason: input.reason,
+        clientMutationId: input.clientMutationId,
+      }),
+    }
+  );
+  if (!response.ok) throw new Error(await readRdaEvalError(response, "Falha ao dispensar."));
+  return response.json();
+}
+
+export async function submitRdaEvaluation(input: {
+  requestId: string;
+  scores: RdaEvalScores;
+  positives?: string;
+  improvements?: string;
+  generalNotes?: string;
+  clientMutationId: string;
+}): Promise<{ request: RdaEvalRequest; evaluation: RdaEvaluation }> {
+  const response = await fetch(
+    `${API_BASE}/rda/evaluations/requests/${encodeURIComponent(input.requestId)}/evaluate`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        scores: input.scores,
+        positives: input.positives,
+        improvements: input.improvements,
+        generalNotes: input.generalNotes,
+        clientMutationId: input.clientMutationId,
+      }),
+    }
+  );
+  if (!response.ok) throw new Error(await readRdaEvalError(response, "Falha ao salvar avaliação."));
+  return response.json();
+}

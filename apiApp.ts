@@ -68,6 +68,7 @@ import {
   normalizeBrazilianPlate,
 } from "./utils/brazilianPlate.js";
 import { registerRdaIntelligenceRoutes } from "./services/rdaIntelligence/index.js";
+import { registerRdaEvaluationRoutes } from "./services/rdaIntelligence/evaluations/registerRdaEvaluationRoutes.js";
 import { registerRdaWorkSessionRoutes } from "./services/rdaIntelligence/workSessions/registerRdaWorkSessionRoutes.js";
 
 const PBKDF2_ITERATIONS = 100000;
@@ -15944,6 +15945,12 @@ export function createApiApp() {
 
   // ----------------- RDA: controle de tempo dos mecânicos -----------------
   registerRdaWorkSessionRoutes(app, {
+    WORKSHOP_ID,
+    supabaseAdmin,
+  });
+
+  // ----------------- RDA: avaliações gerenciais (Radar) -----------------
+  registerRdaEvaluationRoutes(app, {
     WORKSHOP_ID,
     supabaseAdmin,
   });

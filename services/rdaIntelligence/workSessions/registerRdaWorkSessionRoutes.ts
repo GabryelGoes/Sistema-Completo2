@@ -1,5 +1,6 @@
 import type { Express, Request, Response } from "express";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { ensureEvalRequestForFinishedSession } from "../evaluations/registerRdaEvaluationRoutes.js";
 import {
   canAccessWorkSessionApis,
   canViewSessionRow,
@@ -752,125 +753,38 @@ export function registerRdaWorkSessionRoutes(app: Express, deps: RouteDeps): voi
         p_client_mutation_id: clientMutationId,
       });
 
-      if (!rpc.missingFn && rpc.data) {
-        if (rpc.data.ok === false && rpc.data.code === "RDA_ACTIVE_SESSION_EXISTS") {
-          const activeRow = sessionFromRpcJson(rpc.data.activeSession);
-          return res.status(409).json({
-            error:
-              typeof rpc.data.error === "string"
-                ? rpc.data.error
-                : "Já existe uma sessão ativa em outra OS.",
-            code: "RDA_ACTIVE_SESSION_EXISTS",
-            activeSession: activeRow ? mapSession(activeRow) : undefined,
-          });
-        }
-        const session = sessionFromRpcJson(rpc.data.session);
-        if (!session) {
-          return res.status(500).json({ error: rpc.error || "Falha ao iniciar sessão." });
-        }
-        if (rpc.data.idempotent === true || rpc.data.alreadyActive === true) {
-          return res.json({
-            session: mapSession(session),
-            idempotent: rpc.data.idempotent === true,
-            alreadyActive: rpc.data.alreadyActive === true,
-          });
-        }
-        return res.status(201).json({ session: mapSession(session) });
+      if (rpc.missingFn) {
+        return res.status(503).json({
+          error:
+            "Funções atômicas de sessão RDA não instaladas. Aplique 20261101230000_rda_work_sessions_integrity.sql (e 20261101240000) na homologação.",
+          code: "RDA_WORK_MIGRATION_REQUIRED",
+        });
       }
-
-      // Fallback se a migration de RPC ainda não foi aplicada.
-      const { data: active } = await supabaseAdmin
-        .from("rda_work_sessions")
-        .select("*")
-        .eq("workshop_id", WORKSHOP_ID)
-        .eq("technician_user_id", tech.userId)
-        .in("status", ["running", "paused"])
-        .maybeSingle();
-
-      if (active) {
-        const activeRow = active as SessionRow;
-        if (activeRow.service_order_id === serviceOrderId) {
-          await ensureStartEvent(activeRow, tech.userId);
-          return res.json({ session: mapSession(activeRow), alreadyActive: true });
-        }
+      if (!rpc.data) {
+        return res.status(500).json({ error: rpc.error || "Falha ao iniciar sessão." });
+      }
+      if (rpc.data.ok === false && rpc.data.code === "RDA_ACTIVE_SESSION_EXISTS") {
+        const activeRow = sessionFromRpcJson(rpc.data.activeSession);
         return res.status(409).json({
           error:
-            "Já existe uma sessão ativa em outra OS. Finalize ou pause/finalize antes de iniciar outra.",
+            typeof rpc.data.error === "string"
+              ? rpc.data.error
+              : "Já existe uma sessão ativa em outra OS.",
           code: "RDA_ACTIVE_SESSION_EXISTS",
-          activeSession: mapSession(activeRow),
+          activeSession: activeRow ? mapSession(activeRow) : undefined,
         });
       }
-
-      const nowIso = new Date().toISOString();
-      const insertPayload = {
-        workshop_id: WORKSHOP_ID,
-        service_order_id: serviceOrderId,
-        technician_user_id: tech.userId,
-        budget_id: budgetId,
-        budget_service_description: budgetServiceDescription,
-        status: "running",
-        started_at: nowIso,
-        segment_started_at: nowIso,
-        productive_ms: 0,
-        paused_ms: 0,
-        client_mutation_id: clientMutationId,
-        updated_at: nowIso,
-      };
-
-      const { data: created, error } = await supabaseAdmin
-        .from("rda_work_sessions")
-        .insert(insertPayload)
-        .select("*")
-        .single();
-
-      if (error) {
-        if (/uq_rda_work_sessions_one_active_per_tech|duplicate key/i.test(error.message)) {
-          const { data: again } = await supabaseAdmin
-            .from("rda_work_sessions")
-            .select("*")
-            .eq("workshop_id", WORKSHOP_ID)
-            .eq("technician_user_id", tech.userId)
-            .in("status", ["running", "paused"])
-            .maybeSingle();
-          if (again) {
-            return res.status(409).json({
-              error: "Sessão ativa conflitante.",
-              code: "RDA_ACTIVE_SESSION_EXISTS",
-              activeSession: mapSession(again as SessionRow),
-            });
-          }
-          if (clientMutationId) {
-            const againMut = await findSessionByMutation(clientMutationId);
-            if (againMut) {
-              await ensureStartEvent(againMut, tech.userId);
-              return res.json({ session: mapSession(againMut), idempotent: true });
-            }
-          }
-        }
-        if (/does not exist|relation/i.test(error.message)) {
-          return res.status(503).json({
-            error: "Migration de sessões RDA pendente.",
-            code: "RDA_WORK_MIGRATION_REQUIRED",
-          });
-        }
-        return res.status(500).json({ error: error.message });
+      const session = sessionFromRpcJson(rpc.data.session);
+      if (!session) {
+        return res.status(500).json({ error: rpc.error || "Falha ao iniciar sessão." });
       }
-
-      const session = created as SessionRow;
-      try {
-        await insertEvent({
-          sessionId: session.id,
-          eventType: "start",
-          actorUserId: tech.userId,
-          clientMutationId: clientMutationId
-            ? `${clientMutationId}:event`
-            : null,
-          occurredAt: nowIso,
+      if (rpc.data.idempotent === true || rpc.data.alreadyActive === true) {
+        return res.json({
+          session: mapSession(session),
+          idempotent: rpc.data.idempotent === true,
+          alreadyActive: rpc.data.alreadyActive === true,
         });
-      } catch (evErr) {
-        console.warn("[API] evento start (fallback):", evErr);
       }
-
       return res.status(201).json({ session: mapSession(session) });
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Erro";
@@ -923,104 +837,33 @@ export function registerRdaWorkSessionRoutes(app: Express, deps: RouteDeps): voi
         p_client_mutation_id: clientMutationId,
       });
 
-      if (!rpc.missingFn && rpc.data) {
-        if (rpc.data.ok !== true) {
-          const status =
-            typeof rpc.data.httpStatus === "number" ? rpc.data.httpStatus : 400;
-          return res.status(status).json({
-            error:
-              typeof rpc.data.error === "string"
-                ? rpc.data.error
-                : "Falha ao pausar.",
-          });
-        }
-        const session = sessionFromRpcJson(rpc.data.session);
-        if (!session) {
-          return res.status(500).json({ error: "Resposta inválida ao pausar." });
-        }
-        return res.json({
-          session: mapSession(session),
-          idempotent: rpc.data.idempotent === true,
-          alreadyPaused: rpc.data.alreadyPaused === true,
+      if (rpc.missingFn) {
+        return res.status(503).json({
+          error:
+            "Funções atômicas de sessão RDA não instaladas. Aplique as migrations de integridade na homologação.",
+          code: "RDA_WORK_MIGRATION_REQUIRED",
         });
       }
-
-      const session = await loadSession(id);
-      if (!session) return res.status(404).json({ error: "Sessão não encontrada." });
-      if (session.technician_user_id !== tech.userId) {
-        return res.status(403).json({ error: "Sessão de outro técnico." });
+      if (!rpc.data) {
+        return res.status(500).json({ error: rpc.error || "Falha ao pausar." });
       }
-      if (session.status === "paused") {
-        return res.json({ session: mapSession(session), alreadyPaused: true });
-      }
-      if (session.status !== "running") {
-        return res.status(409).json({ error: "Só é possível pausar sessão em execução." });
-      }
-
-      const { data: reason } = await supabaseAdmin
-        .from("rda_work_pause_reasons")
-        .select("id, requires_note, active")
-        .eq("id", reasonId)
-        .maybeSingle();
-      if (!reason || reason.active === false) {
-        return res.status(400).json({ error: "Motivo de pausa inválido." });
-      }
-      if (reason.requires_note === true && !note) {
-        return res.status(400).json({ error: "Este motivo exige observação." });
-      }
-
-      const now = new Date();
-      const nowIso = now.toISOString();
-      const nowMs = now.getTime();
-      let productive = asNonNegInt(session.productive_ms);
-      if (session.segment_started_at) {
-        const seg = Date.parse(session.segment_started_at);
-        if (Number.isFinite(seg) && nowMs > seg) productive += nowMs - seg;
-      }
-
-      const { data: updated, error } = await supabaseAdmin
-        .from("rda_work_sessions")
-        .update({
-          status: "paused",
-          productive_ms: productive,
-          segment_started_at: null,
-          current_pause_reason_id: reasonId,
-          current_pause_note: note || null,
-          current_pause_started_at: nowIso,
-          updated_at: nowIso,
-        })
-        .eq("id", id)
-        .eq("workshop_id", WORKSHOP_ID)
-        .eq("status", "running")
-        .eq("technician_user_id", tech.userId)
-        .select("*")
-        .maybeSingle();
-
-      if (error) return res.status(500).json({ error: error.message });
-      if (!updated) {
-        const again = await loadSession(id);
-        if (again?.status === "paused") {
-          return res.json({ session: mapSession(again), alreadyPaused: true });
-        }
-        return res.status(409).json({ error: "Não foi possível pausar (estado alterado)." });
-      }
-
-      try {
-        await insertEvent({
-          sessionId: id,
-          eventType: "pause",
-          actorUserId: tech.userId,
-          pauseReasonId: reasonId,
-          pauseNote: note || null,
-          clientMutationId,
-          occurredAt: nowIso,
+      if (rpc.data.ok !== true) {
+        const status =
+          typeof rpc.data.httpStatus === "number" ? rpc.data.httpStatus : 400;
+        return res.status(status).json({
+          error:
+            typeof rpc.data.error === "string" ? rpc.data.error : "Falha ao pausar.",
         });
-      } catch (evErr: unknown) {
-        const msg = evErr instanceof Error ? evErr.message : "";
-        if (!/duplicate key/i.test(msg)) console.warn("[API] evento pause:", evErr);
       }
-
-      return res.json({ session: mapSession(updated as SessionRow) });
+      const session = sessionFromRpcJson(rpc.data.session);
+      if (!session) {
+        return res.status(500).json({ error: "Resposta inválida ao pausar." });
+      }
+      return res.json({
+        session: mapSession(session),
+        idempotent: rpc.data.idempotent === true,
+        alreadyPaused: rpc.data.alreadyPaused === true,
+      });
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Erro";
       console.error("[API] POST pause:", err);
@@ -1062,90 +905,33 @@ export function registerRdaWorkSessionRoutes(app: Express, deps: RouteDeps): voi
         p_client_mutation_id: clientMutationId,
       });
 
-      if (!rpc.missingFn && rpc.data) {
-        if (rpc.data.ok !== true) {
-          const status =
-            typeof rpc.data.httpStatus === "number" ? rpc.data.httpStatus : 400;
-          return res.status(status).json({
-            error:
-              typeof rpc.data.error === "string"
-                ? rpc.data.error
-                : "Falha ao retomar.",
-          });
-        }
-        const session = sessionFromRpcJson(rpc.data.session);
-        if (!session) {
-          return res.status(500).json({ error: "Resposta inválida ao retomar." });
-        }
-        return res.json({
-          session: mapSession(session),
-          idempotent: rpc.data.idempotent === true,
-          alreadyRunning: rpc.data.alreadyRunning === true,
+      if (rpc.missingFn) {
+        return res.status(503).json({
+          error:
+            "Funções atômicas de sessão RDA não instaladas. Aplique as migrations de integridade na homologação.",
+          code: "RDA_WORK_MIGRATION_REQUIRED",
         });
       }
-
-      const session = await loadSession(id);
-      if (!session) return res.status(404).json({ error: "Sessão não encontrada." });
-      if (session.technician_user_id !== tech.userId) {
-        return res.status(403).json({ error: "Sessão de outro técnico." });
+      if (!rpc.data) {
+        return res.status(500).json({ error: rpc.error || "Falha ao retomar." });
       }
-      if (session.status === "running") {
-        return res.json({ session: mapSession(session), alreadyRunning: true });
-      }
-      if (session.status !== "paused") {
-        return res.status(409).json({ error: "Só é possível retomar sessão pausada." });
-      }
-
-      const now = new Date();
-      const nowIso = now.toISOString();
-      const nowMs = now.getTime();
-      let paused = asNonNegInt(session.paused_ms);
-      if (session.current_pause_started_at) {
-        const p = Date.parse(session.current_pause_started_at);
-        if (Number.isFinite(p) && nowMs > p) paused += nowMs - p;
-      }
-
-      const { data: updated, error } = await supabaseAdmin
-        .from("rda_work_sessions")
-        .update({
-          status: "running",
-          paused_ms: paused,
-          segment_started_at: nowIso,
-          current_pause_reason_id: null,
-          current_pause_note: null,
-          current_pause_started_at: null,
-          updated_at: nowIso,
-        })
-        .eq("id", id)
-        .eq("workshop_id", WORKSHOP_ID)
-        .eq("status", "paused")
-        .eq("technician_user_id", tech.userId)
-        .select("*")
-        .maybeSingle();
-
-      if (error) return res.status(500).json({ error: error.message });
-      if (!updated) {
-        const again = await loadSession(id);
-        if (again?.status === "running") {
-          return res.json({ session: mapSession(again), alreadyRunning: true });
-        }
-        return res.status(409).json({ error: "Não foi possível retomar (estado alterado)." });
-      }
-
-      try {
-        await insertEvent({
-          sessionId: id,
-          eventType: "resume",
-          actorUserId: tech.userId,
-          clientMutationId,
-          occurredAt: nowIso,
+      if (rpc.data.ok !== true) {
+        const status =
+          typeof rpc.data.httpStatus === "number" ? rpc.data.httpStatus : 400;
+        return res.status(status).json({
+          error:
+            typeof rpc.data.error === "string" ? rpc.data.error : "Falha ao retomar.",
         });
-      } catch (evErr: unknown) {
-        const msg = evErr instanceof Error ? evErr.message : "";
-        if (!/duplicate key/i.test(msg)) console.warn("[API] evento resume:", evErr);
       }
-
-      return res.json({ session: mapSession(updated as SessionRow) });
+      const session = sessionFromRpcJson(rpc.data.session);
+      if (!session) {
+        return res.status(500).json({ error: "Resposta inválida ao retomar." });
+      }
+      return res.json({
+        session: mapSession(session),
+        idempotent: rpc.data.idempotent === true,
+        alreadyRunning: rpc.data.alreadyRunning === true,
+      });
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Erro";
       console.error("[API] POST resume:", err);
@@ -1187,97 +973,42 @@ export function registerRdaWorkSessionRoutes(app: Express, deps: RouteDeps): voi
         p_client_mutation_id: clientMutationId,
       });
 
-      if (!rpc.missingFn && rpc.data) {
-        if (rpc.data.ok !== true) {
-          const status =
-            typeof rpc.data.httpStatus === "number" ? rpc.data.httpStatus : 400;
-          return res.status(status).json({
-            error:
-              typeof rpc.data.error === "string"
-                ? rpc.data.error
-                : "Falha ao finalizar.",
-          });
-        }
-        const session = sessionFromRpcJson(rpc.data.session);
-        if (!session) {
-          return res.status(500).json({ error: "Resposta inválida ao finalizar." });
-        }
-        return res.json({
-          session: mapSession(session),
-          idempotent: rpc.data.idempotent === true,
-          alreadyFinished: rpc.data.alreadyFinished === true,
+      if (rpc.missingFn) {
+        return res.status(503).json({
+          error:
+            "Funções atômicas de sessão RDA não instaladas. Aplique as migrations de integridade na homologação.",
+          code: "RDA_WORK_MIGRATION_REQUIRED",
         });
       }
-
-      const session = await loadSession(id);
-      if (!session) return res.status(404).json({ error: "Sessão não encontrada." });
-      if (session.technician_user_id !== tech.userId) {
-        return res.status(403).json({ error: "Sessão de outro técnico." });
+      if (!rpc.data) {
+        return res.status(500).json({ error: rpc.error || "Falha ao finalizar." });
       }
-      if (session.status === "finished") {
-        return res.json({ session: mapSession(session), alreadyFinished: true });
-      }
-      if (session.status !== "running" && session.status !== "paused") {
-        return res.status(409).json({ error: "Sessão não pode ser finalizada." });
-      }
-
-      const now = new Date();
-      const nowIso = now.toISOString();
-      const nowMs = now.getTime();
-      let productive = asNonNegInt(session.productive_ms);
-      let paused = asNonNegInt(session.paused_ms);
-      if (session.status === "running" && session.segment_started_at) {
-        const seg = Date.parse(session.segment_started_at);
-        if (Number.isFinite(seg) && nowMs > seg) productive += nowMs - seg;
-      }
-      if (session.status === "paused" && session.current_pause_started_at) {
-        const p = Date.parse(session.current_pause_started_at);
-        if (Number.isFinite(p) && nowMs > p) paused += nowMs - p;
-      }
-
-      const { data: updated, error } = await supabaseAdmin
-        .from("rda_work_sessions")
-        .update({
-          status: "finished",
-          productive_ms: productive,
-          paused_ms: paused,
-          ended_at: nowIso,
-          segment_started_at: null,
-          current_pause_reason_id: null,
-          current_pause_note: null,
-          current_pause_started_at: null,
-          updated_at: nowIso,
-        })
-        .eq("id", id)
-        .eq("workshop_id", WORKSHOP_ID)
-        .eq("technician_user_id", tech.userId)
-        .in("status", ["running", "paused"])
-        .select("*")
-        .maybeSingle();
-
-      if (error) return res.status(500).json({ error: error.message });
-      if (!updated) {
-        const again = await loadSession(id);
-        if (again?.status === "finished") {
-          return res.json({ session: mapSession(again), alreadyFinished: true });
-        }
-        return res.status(409).json({ error: "Não foi possível finalizar (estado alterado)." });
-      }
-
-      try {
-        await insertEvent({
-          sessionId: id,
-          eventType: "finish",
-          actorUserId: tech.userId,
-          clientMutationId,
-          occurredAt: nowIso,
+      if (rpc.data.ok !== true) {
+        const status =
+          typeof rpc.data.httpStatus === "number" ? rpc.data.httpStatus : 400;
+        return res.status(status).json({
+          error:
+            typeof rpc.data.error === "string"
+              ? rpc.data.error
+              : "Falha ao finalizar.",
         });
-      } catch (evErr: unknown) {
-        const msg = evErr instanceof Error ? evErr.message : "";
-        if (!/duplicate key/i.test(msg)) console.warn("[API] evento finish:", evErr);
       }
-
-      return res.json({ session: mapSession(updated as SessionRow) });
+      const session = sessionFromRpcJson(rpc.data.session);
+      if (!session) {
+        return res.status(500).json({ error: "Resposta inválida ao finalizar." });
+      }
+      // Repair/garantia da solicitação de avaliação (idempotente; RPC finish já tenta criar).
+      await ensureEvalRequestForFinishedSession({
+        supabaseAdmin,
+        workshopId: WORKSHOP_ID,
+        sessionId: session.id,
+        clientMutationId,
+      });
+      return res.json({
+        session: mapSession(session),
+        idempotent: rpc.data.idempotent === true,
+        alreadyFinished: rpc.data.alreadyFinished === true,
+      });
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Erro";
       console.error("[API] POST finish:", err);

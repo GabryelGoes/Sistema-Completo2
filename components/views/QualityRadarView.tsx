@@ -66,6 +66,8 @@ export const QualityRadarView: React.FC<{ authSession?: AuthSession | null }> = 
   const [filterStatus, setFilterStatus] = useState<QualityIncidentStatus | ''>('');
   const [editorId, setEditorId] = useState<string | null | undefined>(undefined);
   const [editorOpen, setEditorOpen] = useState(false);
+  const [pendingEvaluations, setPendingEvaluations] = useState<number | null>(null);
+  const [evaluationsLoading, setEvaluationsLoading] = useState(false);
 
   const canAccessRadar =
     authSession?.role === 'admin' ||
@@ -83,6 +85,7 @@ export const QualityRadarView: React.FC<{ authSession?: AuthSession | null }> = 
 
   const load = useCallback(async () => {
     setLoading(true);
+    setEvaluationsLoading(true);
     setError(null);
     try {
       // Período completo no servidor; filtros da aba Ocorrências são client-side
@@ -98,6 +101,16 @@ export const QualityRadarView: React.FC<{ authSession?: AuthSession | null }> = 
       setItems([]);
     } finally {
       setLoading(false);
+    }
+
+    try {
+      const { getRdaEvalSummary } = await import('../../services/apiService');
+      const summary = await getRdaEvalSummary({ from, to });
+      setPendingEvaluations(summary.pending ?? 0);
+    } catch {
+      setPendingEvaluations(null);
+    } finally {
+      setEvaluationsLoading(false);
     }
   }, [from, to]);
 
@@ -231,6 +244,8 @@ export const QualityRadarView: React.FC<{ authSession?: AuthSession | null }> = 
         incidents={incidents}
         loading={loading}
         periodLabel={periodLabel}
+        pendingEvaluations={pendingEvaluations}
+        evaluationsLoading={evaluationsLoading}
         onOpenEmployees={() => setSection('funcionarios')}
         onOpenIncidents={() => setSection('ocorrencias')}
         onOpenEvaluations={() => setSection('avaliacoes')}
@@ -246,7 +261,13 @@ export const QualityRadarView: React.FC<{ authSession?: AuthSession | null }> = 
       />
     );
   } else if (section === 'avaliacoes') {
-    body = <EvaluationsPanel />;
+    body = (
+      <EvaluationsPanel
+        employees={technicians}
+        periodFrom={from}
+        periodTo={to}
+      />
+    );
   } else if (section === 'desempenho') {
     body = (
       <PerformancePanel

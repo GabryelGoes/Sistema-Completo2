@@ -9,7 +9,7 @@ import {
   TrendingUp,
   Users,
 } from 'lucide-react';
-import type { QualityIncident } from '../../services/apiService';
+import type { QualityIncident, RdaEvalRequest, RdaEvalScores } from '../../services/apiService';
 import {
   QUALITY_CATEGORY_LABEL,
   type QualityIncidentCategory,
@@ -26,20 +26,24 @@ import {
   openIncidentCount,
   reworkIncidentCount,
 } from '../../utils/qualityRadarPeople';
+import { RDA_EVAL_COMPETENCY_LABELS } from '../../services/rdaIntelligence/evaluations/types';
 import { hub } from './hubTheme';
 import {
   HubEmptyState,
   HubPreparedNote,
-  HubScorePreview,
   HubSectionHeader,
   HubStatCard,
 } from './HubPrimitives';
+
+export { EvaluationsPanel } from './EvaluationsPanel';
 
 export function OverviewPanel({
   employees,
   incidents,
   loading,
   periodLabel,
+  pendingEvaluations,
+  evaluationsLoading,
   onOpenEmployees,
   onOpenIncidents,
   onOpenEvaluations,
@@ -48,6 +52,8 @@ export function OverviewPanel({
   incidents: QualityIncident[];
   loading: boolean;
   periodLabel: string;
+  pendingEvaluations: number | null;
+  evaluationsLoading: boolean;
   onOpenEmployees: () => void;
   onOpenIncidents: () => void;
   onOpenEvaluations: () => void;
@@ -71,12 +77,19 @@ export function OverviewPanel({
       action: onOpenIncidents,
     });
   }
+  if (!evaluationsLoading && (pendingEvaluations ?? 0) > 0) {
+    alerts.push({
+      title: `${pendingEvaluations} avaliação${pendingEvaluations === 1 ? '' : 'ões'} pendente${pendingEvaluations === 1 ? '' : 's'}`,
+      detail: 'Fila gerencial após finalização de sessões de tempo.',
+      action: onOpenEvaluations,
+    });
+  }
 
   return (
     <div className="space-y-4">
       <HubSectionHeader
         title="Visão Geral"
-        subtitle={`Indicadores do período ${periodLabel}. Avaliações e planos ainda não possuem backend.`}
+        subtitle={`Indicadores do período ${periodLabel}. Avaliações usam dados reais da fila RDA.`}
       />
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -88,9 +101,9 @@ export function OverviewPanel({
         />
         <HubStatCard
           label="Avaliações pendentes"
-          value="—"
-          prepared
-          hint="Fila de avaliações ainda sem backend"
+          value={evaluationsLoading ? '—' : (pendingEvaluations ?? 0)}
+          hint="Solicitações aguardando gerente"
+          emphasize={!evaluationsLoading && (pendingEvaluations ?? 0) > 0}
         />
         <HubStatCard
           label="Reuniões agendadas"
@@ -171,6 +184,11 @@ export function OverviewPanel({
   );
 }
 
+function formatScoreRow(scores: RdaEvalScores | null): string {
+  if (!scores) return 'Sem notas ainda';
+  return `QT ${scores.technicalQuality} · Org ${scores.organization} · Proc ${scores.procedures} · Aut ${scores.autonomy} · Com ${scores.communication}`;
+}
+
 export function EmployeesPanel({
   employees,
   incidents,
@@ -184,6 +202,9 @@ export function EmployeesPanel({
 }) {
   const [q, setQ] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [evalHistory, setEvalHistory] = useState<RdaEvalRequest[]>([]);
+  const [evalAvg, setEvalAvg] = useState<RdaEvalScores | null>(null);
+  const [evalLoading, setEvalLoading] = useState(false);
 
   const filtered = useMemo(() => {
     const needle = q.trim().toLowerCase();
@@ -198,11 +219,41 @@ export function EmployeesPanel({
   const selected = employees.find((e) => e.id === selectedId) ?? null;
   const selectedIncidents = selected ? incidentsForEmployee(incidents, selected) : [];
 
+  useEffect(() => {
+    let cancelled = false;
+    if (!selected?.systemUserId) {
+      setEvalHistory([]);
+      setEvalAvg(null);
+      return;
+    }
+    setEvalLoading(true);
+    void import('../../services/apiService')
+      .then(({ getRdaEvalTechnicianHistory }) =>
+        getRdaEvalTechnicianHistory(selected.systemUserId!)
+      )
+      .then((data) => {
+        if (cancelled) return;
+        setEvalHistory(data.requests ?? []);
+        setEvalAvg(data.averageScores);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setEvalHistory([]);
+        setEvalAvg(null);
+      })
+      .finally(() => {
+        if (!cancelled) setEvalLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [selected?.systemUserId]);
+
   return (
     <div className="space-y-4">
       <HubSectionHeader
         title="Funcionários"
-        subtitle="Lista real de técnicos e usuários do sistema. Avaliações e carreira entram nas próximas fases."
+        subtitle="Lista real de técnicos e usuários. Perfil mostra ocorrências (histórico) e avaliações gerenciais reais."
       />
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
@@ -331,73 +382,67 @@ export function EmployeesPanel({
                 )}
               </div>
 
-              <HubPreparedNote>
-                Espaço reservado para futuras avaliações por competência e acompanhamento de
-                evolução profissional. Nada é salvo nesta fase.
-              </HubPreparedNote>
-              <div className="grid gap-2 sm:grid-cols-2">
-                <HubScorePreview label="Exemplo de competência (visual)" />
-                <HubScorePreview label="Exemplo de comunicação (visual)" />
+              <div>
+                <p className="mb-2 text-[13px] font-semibold text-zinc-900 dark:text-white">
+                  Avaliações gerenciais
+                </p>
+                {!selected.systemUserId ? (
+                  <p className={`rounded-xl border border-dashed px-3 py-4 text-[13px] ${hub.muted}`}>
+                    Vincule este cadastro a um usuário do sistema para ver avaliações de tempo RDA.
+                  </p>
+                ) : evalLoading ? (
+                  <p className={`text-[13px] ${hub.muted}`}>Carregando avaliações…</p>
+                ) : (
+                  <>
+                    <p className={`mb-2 text-[12px] ${hub.muted}`}>{formatScoreRow(evalAvg)}</p>
+                    {evalHistory.filter((r) => r.status === 'evaluated').length === 0 ? (
+                      <p className={`rounded-xl border border-dashed px-3 py-4 text-[13px] ${hub.muted}`}>
+                        Sem avaliações registradas ainda.
+                      </p>
+                    ) : (
+                      <ul className="space-y-2">
+                        {evalHistory
+                          .filter((r) => r.status === 'evaluated' && r.evaluation)
+                          .slice(0, 5)
+                          .map((r) => (
+                            <li
+                              key={r.id}
+                              className="rounded-xl border border-zinc-200 px-3 py-2.5 dark:border-zinc-800"
+                            >
+                              <p className="text-[13px] font-semibold text-zinc-900 dark:text-white">
+                                {r.serviceDescription?.trim() || 'Serviço'} ·{' '}
+                                {r.evaluation
+                                  ? (
+                                      (r.evaluation.scores.technicalQuality +
+                                        r.evaluation.scores.organization +
+                                        r.evaluation.scores.procedures +
+                                        r.evaluation.scores.autonomy +
+                                        r.evaluation.scores.communication) /
+                                      5
+                                    ).toFixed(1)
+                                  : '—'}
+                              </p>
+                              <p className={`mt-0.5 text-[12px] ${hub.muted}`}>
+                                {r.evaluatedAt
+                                  ? new Date(r.evaluatedAt).toLocaleDateString('pt-BR')
+                                  : ''}
+                                {r.evaluation?.positives
+                                  ? ` · ${r.evaluation.positives.slice(0, 80)}`
+                                  : ''}
+                              </p>
+                            </li>
+                          ))}
+                      </ul>
+                    )}
+                    <p className={`mt-2 text-[11px] ${hub.muted}`}>
+                      Competências: {Object.values(RDA_EVAL_COMPETENCY_LABELS).join(' · ')}.
+                      Ocorrências abaixo permanecem histórico operacional separado.
+                    </p>
+                  </>
+                )}
               </div>
             </div>
           )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-export function EvaluationsPanel() {
-  return (
-    <div className="space-y-4">
-      <HubSectionHeader
-        title="Avaliações"
-        subtitle="Estrutura visual pronta. Persistência e fila automática pós-OS virão em fases seguintes."
-      />
-
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        {['Pendentes', 'Concluídas', 'Adiadas', 'Dispensadas'].map((label) => (
-          <HubStatCard
-            key={label}
-            label={label}
-            value="—"
-            prepared
-            hint="Sem API de avaliações nesta fase"
-          />
-        ))}
-      </div>
-
-      <HubEmptyState
-        icon={ClipboardCheck}
-        title="Nenhuma avaliação gerencial"
-        description="Quando a API estiver disponível, esta central listará avaliações pendentes, concluídas, adiadas e dispensadas, com notas de 1 a 5 por competência e vínculo a serviço/OS."
-        prepared
-      />
-
-      <div className={`${hub.surface} space-y-3 p-4`}>
-        <p className="text-[14px] font-semibold text-zinc-900 dark:text-white">
-          Prévia do formulário (somente leitura)
-        </p>
-        <HubPreparedNote>
-          Campos abaixo são ilustrativos. Não há botão de salvar — evita gravar dados sem backend.
-        </HubPreparedNote>
-        <div className="grid gap-3 md:grid-cols-2">
-          <HubScorePreview label="Diagnóstico" />
-          <HubScorePreview label="Montagem" />
-          <HubScorePreview label="Comunicação" />
-          <HubScorePreview label="Organização" />
-        </div>
-        <div className="grid gap-3 md:grid-cols-2">
-          <div className={`${hub.surfaceInset} p-3`}>
-            <p className="text-[12px] font-semibold text-zinc-900 dark:text-white">Pontos positivos</p>
-            <p className={`mt-2 text-[13px] ${hub.muted}`}>Disponível na próxima fase.</p>
-          </div>
-          <div className={`${hub.surfaceInset} p-3`}>
-            <p className="text-[12px] font-semibold text-zinc-900 dark:text-white">
-              Oportunidades de melhoria
-            </p>
-            <p className={`mt-2 text-[13px] ${hub.muted}`}>Disponível na próxima fase.</p>
-          </div>
         </div>
       </div>
     </div>
@@ -488,8 +533,8 @@ export function PerformancePanel({
       />
 
       <HubPreparedNote>
-        Avaliações por competência ainda não entram aqui. Ocorrências permanecem como histórico
-        operacional separado do cronômetro.
+        Tempos vêm do cronômetro RDA. Avaliações 1–5 ficam na aba Avaliações — ocorrências
+        permanecem histórico operacional separado (não viram nota).
       </HubPreparedNote>
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
