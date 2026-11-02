@@ -1,21 +1,18 @@
 import type { QualityIncident } from '../services/apiService';
+import { normalizeQualityRadarPersonKey } from './qualityRadarNormalize';
 import type { QualityRadarTechnicianOption } from './qualityRadarTechnicians';
 
-function normalizeName(s: string): string {
-  return s.trim().toLowerCase();
-}
-
-/** Ocorrências associadas a um funcionário (por id WT ou nome). */
+/** Ocorrências associadas a um funcionário (por id WT ou nome normalizado). */
 export function incidentsForEmployee(
   incidents: QualityIncident[],
   employee: QualityRadarTechnicianOption
 ): QualityIncident[] {
-  const nameKey = normalizeName(employee.name);
+  const nameKey = normalizeQualityRadarPersonKey(employee.name);
   return incidents.filter((inc) => {
     if (employee.workshopTechnicianId && inc.technicianId === employee.workshopTechnicianId) {
       return true;
     }
-    return normalizeName(inc.technicianName || '') === nameKey;
+    return normalizeQualityRadarPersonKey(inc.technicianName || '') === nameKey;
   });
 }
 

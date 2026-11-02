@@ -1469,6 +1469,22 @@ export function createApiApp() {
     return !!(me?.permissions as Record<string, boolean> | null)?.full_access;
   }
 
+  /** Gerência, full_access ou access_radar_qualidade — dados confidenciais da equipe. */
+  async function requestCanAccessQualityRadar(req: express.Request): Promise<boolean> {
+    const auth = (req as unknown as { auth?: SessionPayload }).auth;
+    if (!auth) return false;
+    if (auth.r === "admin") return true;
+    if (auth.r !== "user" || !auth.u || !supabaseAdmin || !WORKSHOP_ID) return false;
+    const { data: me } = await supabaseAdmin
+      .from("workshop_system_users")
+      .select("permissions")
+      .eq("id", auth.u)
+      .eq("workshop_id", WORKSHOP_ID)
+      .maybeSingle();
+    const perms = (me?.permissions as Record<string, boolean> | null) || {};
+    return !!perms.full_access || !!perms.access_radar_qualidade;
+  }
+
   async function createDeviceSessionRow(params: {
     sessionId: string;
     deviceId: string;
@@ -15495,6 +15511,9 @@ export function createApiApp() {
 
   app.get("/api/quality-incidents", async (req, res) => {
     try {
+      if (!(await requestCanAccessQualityRadar(req))) {
+        return res.status(403).json({ error: "Acesso negado ao Radar de Qualidade." });
+      }
       if (!supabaseAdmin || !WORKSHOP_ID) {
         return res.status(500).json({ error: "Supabase ou WORKSHOP_ID não configurados." });
       }
@@ -15563,6 +15582,9 @@ export function createApiApp() {
 
   app.get("/api/quality-incidents/:id", async (req, res) => {
     try {
+      if (!(await requestCanAccessQualityRadar(req))) {
+        return res.status(403).json({ error: "Acesso negado ao Radar de Qualidade." });
+      }
       if (!supabaseAdmin || !WORKSHOP_ID) {
         return res.status(500).json({ error: "Supabase ou WORKSHOP_ID não configurados." });
       }
@@ -15599,6 +15621,9 @@ export function createApiApp() {
 
   app.post("/api/quality-incidents", async (req, res) => {
     try {
+      if (!(await requestCanAccessQualityRadar(req))) {
+        return res.status(403).json({ error: "Acesso negado ao Radar de Qualidade." });
+      }
       if (!supabaseAdmin || !WORKSHOP_ID) {
         return res.status(500).json({ error: "Supabase ou WORKSHOP_ID não configurados." });
       }
@@ -15659,6 +15684,9 @@ export function createApiApp() {
 
   app.patch("/api/quality-incidents/:id", async (req, res) => {
     try {
+      if (!(await requestCanAccessQualityRadar(req))) {
+        return res.status(403).json({ error: "Acesso negado ao Radar de Qualidade." });
+      }
       if (!supabaseAdmin || !WORKSHOP_ID) {
         return res.status(500).json({ error: "Supabase ou WORKSHOP_ID não configurados." });
       }
@@ -15727,6 +15755,9 @@ export function createApiApp() {
 
   app.delete("/api/quality-incidents/:id", async (req, res) => {
     try {
+      if (!(await requestCanAccessQualityRadar(req))) {
+        return res.status(403).json({ error: "Acesso negado ao Radar de Qualidade." });
+      }
       if (!supabaseAdmin || !WORKSHOP_ID) {
         return res.status(500).json({ error: "Supabase ou WORKSHOP_ID não configurados." });
       }
@@ -15753,6 +15784,9 @@ export function createApiApp() {
 
   app.post("/api/quality-incidents/:id/attachments", upload.single("file"), async (req, res) => {
     try {
+      if (!(await requestCanAccessQualityRadar(req))) {
+        return res.status(403).json({ error: "Acesso negado ao Radar de Qualidade." });
+      }
       if (!supabaseAdmin || !WORKSHOP_ID) {
         return res.status(500).json({ error: "Supabase ou WORKSHOP_ID não configurados." });
       }
@@ -15811,6 +15845,9 @@ export function createApiApp() {
 
   app.post("/api/quality-incidents/:id/links", async (req, res) => {
     try {
+      if (!(await requestCanAccessQualityRadar(req))) {
+        return res.status(403).json({ error: "Acesso negado ao Radar de Qualidade." });
+      }
       if (!supabaseAdmin || !WORKSHOP_ID) {
         return res.status(500).json({ error: "Supabase ou WORKSHOP_ID não configurados." });
       }
@@ -15851,6 +15888,9 @@ export function createApiApp() {
 
   app.delete("/api/quality-incidents/:id/attachments/:attachmentId", async (req, res) => {
     try {
+      if (!(await requestCanAccessQualityRadar(req))) {
+        return res.status(403).json({ error: "Acesso negado ao Radar de Qualidade." });
+      }
       if (!supabaseAdmin || !WORKSHOP_ID) {
         return res.status(500).json({ error: "Supabase ou WORKSHOP_ID não configurados." });
       }

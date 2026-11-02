@@ -7,19 +7,28 @@ export function HubStatCard({
   value,
   hint,
   emphasize,
+  prepared,
 }: {
   label: string;
   value: React.ReactNode;
   hint?: string;
   emphasize?: boolean;
+  /** Indicador sem backend — exibe "—" e selo, nunca zero operacional. */
+  prepared?: boolean;
 }) {
+  const display = prepared ? '—' : value;
   return (
     <div
       className={`${hub.surface} p-4 ${emphasize ? 'ring-2 ring-[#FFD60A]' : ''}`}
     >
-      <p className={`text-[11px] font-semibold uppercase tracking-[0.14em] ${hub.muted}`}>{label}</p>
+      <div className="flex items-start justify-between gap-2">
+        <p className={`text-[11px] font-semibold uppercase tracking-[0.14em] ${hub.muted}`}>{label}</p>
+        {prepared ? (
+          <span className={`${hub.badge} ${hub.accentSoft} shrink-0`}>Em preparação</span>
+        ) : null}
+      </div>
       <p className="mt-2 text-3xl font-semibold tabular-nums tracking-tight text-zinc-900 dark:text-white">
-        {value}
+        {display}
       </p>
       {hint ? <p className={`mt-1 text-[12px] ${hub.muted}`}>{hint}</p> : null}
     </div>

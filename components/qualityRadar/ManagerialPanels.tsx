@@ -88,18 +88,21 @@ export function OverviewPanel({
         />
         <HubStatCard
           label="Avaliações pendentes"
-          value={0}
-          hint="Em preparação — sem fila persistida"
+          value="—"
+          prepared
+          hint="Fila de avaliações ainda sem backend"
         />
         <HubStatCard
           label="Reuniões agendadas"
-          value={0}
-          hint="Em preparação"
+          value="—"
+          prepared
+          hint="Reuniões gerenciais ainda sem backend"
         />
         <HubStatCard
           label="Planos ativos"
-          value={0}
-          hint="Em preparação"
+          value="—"
+          prepared
+          hint="Planos de carreira ainda sem backend"
         />
       </div>
 
@@ -353,13 +356,14 @@ export function EvaluationsPanel() {
       />
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        {[
-          { label: 'Pendentes', value: 0 },
-          { label: 'Concluídas', value: 0 },
-          { label: 'Adiadas', value: 0 },
-          { label: 'Dispensadas', value: 0 },
-        ].map((k) => (
-          <HubStatCard key={k.label} label={k.label} value={k.value} hint="Sem registros ainda" />
+        {['Pendentes', 'Concluídas', 'Adiadas', 'Dispensadas'].map((label) => (
+          <HubStatCard
+            key={label}
+            label={label}
+            value="—"
+            prepared
+            hint="Sem API de avaliações nesta fase"
+          />
         ))}
       </div>
 
@@ -438,12 +442,22 @@ export function PerformancePanel({
       </HubPreparedNote>
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <HubStatCard label="Tempo produtivo" value="—" hint="Em preparação" />
-        <HubStatCard label="Pausas" value="—" hint="Em preparação" />
         <HubStatCard
-          label="Serviços (via ocorrências)"
+          label="Tempo produtivo"
+          value="—"
+          prepared
+          hint="Cronômetro por login ainda não implementado"
+        />
+        <HubStatCard
+          label="Pausas"
+          value="—"
+          prepared
+          hint="Motivos de pausa ainda sem backend"
+        />
+        <HubStatCard
+          label="Ocorrências no período"
           value={loading ? '—' : incidents.length}
-          hint="Proxy operacional — não é contagem de OS"
+          hint="Histórico operacional — não é contagem de OS"
         />
         <HubStatCard
           label="Retrabalhos"

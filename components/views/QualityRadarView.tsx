@@ -11,6 +11,7 @@ import {
 } from '../../services/apiService';
 import {
   getQualityRadarTechnicianOptions,
+  normalizeQualityRadarPersonKey,
   type QualityRadarTechnicianOption,
 } from '../../utils/qualityRadarTechnicians';
 import {
@@ -66,6 +67,11 @@ export const QualityRadarView: React.FC<{ authSession?: AuthSession | null }> = 
   const [editorId, setEditorId] = useState<string | null | undefined>(undefined);
   const [editorOpen, setEditorOpen] = useState(false);
 
+  const canAccessRadar =
+    authSession?.role === 'admin' ||
+    !!authSession?.permissions?.full_access ||
+    !!authSession?.permissions?.access_radar_qualidade;
+
   const authorName =
     authSession?.displayName ??
     authSession?.username ??
@@ -108,7 +114,8 @@ export const QualityRadarView: React.FC<{ authSession?: AuthSession | null }> = 
           const byId =
             tech.workshopTechnicianId && inc.technicianId === tech.workshopTechnicianId;
           const byName =
-            (inc.technicianName || '').trim().toLowerCase() === tech.name.trim().toLowerCase();
+            normalizeQualityRadarPersonKey(inc.technicianName || '') ===
+            normalizeQualityRadarPersonKey(tech.name);
           if (!byId && !byName) return false;
         }
       }
@@ -180,21 +187,41 @@ export const QualityRadarView: React.FC<{ authSession?: AuthSession | null }> = 
   ] as const;
 
   const nav = (
-    <nav className="flex gap-1 overflow-x-auto pb-1 lg:flex-col lg:overflow-visible lg:pb-0" aria-label="Áreas do Radar">
+    <nav
+      className="-mx-1 flex gap-1 overflow-x-auto px-1 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] lg:mx-0 lg:flex-col lg:overflow-visible lg:px-0 lg:pb-0 [&::-webkit-scrollbar]:hidden"
+      aria-label="Áreas do Radar"
+    >
       {HUB_SECTIONS.map((s) => (
         <button
           key={s.id}
           type="button"
           onClick={() => setSection(s.id)}
-          className={`${hub.navItem(section === s.id)} shrink-0 lg:w-full`}
+          className={`${hub.navItem(section === s.id)} shrink-0 whitespace-nowrap lg:w-full`}
           title={s.description}
+          aria-current={section === s.id ? 'page' : undefined}
         >
-          <span className="hidden lg:inline">{s.label}</span>
-          <span className="lg:hidden">{s.shortLabel}</span>
+          <span className="hidden md:inline lg:inline">{s.label}</span>
+          <span className="md:hidden">{s.shortLabel}</span>
         </button>
       ))}
     </nav>
   );
+
+  if (!canAccessRadar) {
+    return (
+      <div className={`${hub.page} items-center justify-center px-6 py-24`}>
+        <div className={`${hub.surface} max-w-md p-8 text-center`}>
+          <h1 className="text-[18px] font-semibold text-zinc-900 dark:text-white">
+            Acesso restrito
+          </h1>
+          <p className={`mt-2 text-[14px] ${hub.muted}`}>
+            O Radar de Qualidade é exclusivo da gerência e de usuários com permissão
+            correspondente. Solicite acesso à Gerência se precisar deste módulo.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   let body: React.ReactNode = null;
   if (section === 'visao_geral') {
