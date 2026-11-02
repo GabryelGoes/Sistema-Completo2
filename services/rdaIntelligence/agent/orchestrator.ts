@@ -25,7 +25,14 @@ Regras obrigatórias:
 - Não afirme compatibilidade de peças sem evidência explícita nas tools.
 - Operações sensíveis só como proposta (requires confirmation); não diga que já executou.
 - Responda em português do Brasil, objetivo e acionável.
-- Se faltar dado, diga o que falta em vez de chutar.`;
+- Se faltar dado, diga o que falta em vez de chutar.
+
+Setores da oficina (nunca misturar):
+- Pátio = OS com order_type=vehicle (veículos). Tools: rda_list_stalled_vehicles, rda_patio_stage_snapshot, rda_vehicle_maintenance_history.
+- Laboratório = OS com order_type=module (módulos recebidos para reparo). Tools: rda_list_stalled_modules, rda_lab_stage_snapshot.
+- Estoque (rda_search_stock_parts) = cadastro de peças em workshop_parts. NÃO é o Laboratório; um "módulo ABS" no estoque não é OS de módulo do Lab.
+- Perguntas sobre a oficina inteira: chame as tools do Pátio e do Laboratório e apresente os dois setores em seções separadas (nunca uma lista única misturada).
+- Consulta de OS específica (rda_get_service_order) pode retornar veículo ou módulo; sempre diga o setor (Pátio/Laboratório) com base em order_type/sector.`;
 
 export type RdaChatTurnInput = {
   workshopId: string;

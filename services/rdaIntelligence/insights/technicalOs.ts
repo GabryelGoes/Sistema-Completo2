@@ -96,17 +96,28 @@ export async function generateTechnicalOsInsight(input: {
   const plate = String(soItem.plate || "");
   const complaint = String(soItem.issue_description || "");
   const model = String(soItem.vehicle_model || "");
+  const orderType = String(soItem.order_type || "vehicle").toLowerCase();
+  const isLabModule = orderType === "module";
+  const sectorLabel = isLabModule ? "Laboratório" : "Pátio";
+  const similarSector = isLabModule ? "laboratorio" : "patio";
 
   const [history, similar, stock, bulletins] = await Promise.all([
-    executeRdaTool(
-      "rda_vehicle_maintenance_history",
-      { plate, limit: 10 },
-      { workshopId: input.workshopId, supabase: input.supabase }
-    ),
+    !isLabModule && plate
+      ? executeRdaTool(
+          "rda_vehicle_maintenance_history",
+          { plate, limit: 10 },
+          { workshopId: input.workshopId, supabase: input.supabase }
+        )
+      : Promise.resolve({ ok: true as const, data: { items: [] } }),
     complaint
       ? executeRdaTool(
           "rda_search_similar_complaints",
-          { query: complaint, vehicleModel: model, limit: 8 },
+          {
+            query: complaint,
+            vehicleModel: model,
+            sector: similarSector,
+            limit: 8,
+          },
           { workshopId: input.workshopId, supabase: input.supabase }
         )
       : Promise.resolve({ ok: true as const, data: { items: [] } }),
@@ -124,8 +135,14 @@ export async function generateTechnicalOsInsight(input: {
 
   const facts: TechnicalInsightResult["facts"] = [
     {
-      text: `OS ${soItem.os_number ?? ""} — ${soItem.vehicle_brand || ""} ${model} ${soItem.vehicle_year || ""} placa ${plate || "—"}. Status: ${soItem.status}.`,
+      text: isLabModule
+        ? `OS ${soItem.os_number ?? ""} (Laboratório / módulo) — ${soItem.module_identification || model || "módulo"} placa ${plate || "—"}. Status: ${soItem.status}.`
+        : `OS ${soItem.os_number ?? ""} (Pátio / veículo) — ${soItem.vehicle_brand || ""} ${model} ${soItem.vehicle_year || ""} placa ${plate || "—"}. Status: ${soItem.status}.`,
       source: "service_orders",
+    },
+    {
+      text: `Setor: ${sectorLabel} (order_type=${orderType || "vehicle"}).`,
+      source: "service_orders.order_type",
     },
   ];
   if (complaint) {
@@ -140,7 +157,7 @@ export async function generateTechnicalOsInsight(input: {
   if (history.ok) {
     const n = ((history.data as { items?: unknown[] }).items || []).length;
     facts.push({
-      text: `Histórico interno: ${n} OS(s) anteriores com a mesma placa.`,
+      text: `Histórico interno do Pátio: ${n} OS(s) anteriores com a mesma placa.`,
       source: "service_orders(history)",
     });
   }

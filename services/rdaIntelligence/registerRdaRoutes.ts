@@ -51,6 +51,7 @@ function canUseRdaAssistant(auth: RdaAuthContext): boolean {
   return (
     p.access_radar_qualidade === true ||
     p.access_patio === true ||
+    p.access_laboratorio === true ||
     p.access_home === true
   );
 }

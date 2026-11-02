@@ -231,6 +231,14 @@ assert(
   "tool stalled vehicles registrada"
 );
 assert(
+  productionRdaToolRegistry.has("rda_list_stalled_modules"),
+  "tool stalled modules (Laboratório) registrada"
+);
+assert(
+  productionRdaToolRegistry.has("rda_lab_stage_snapshot"),
+  "tool lab stage snapshot registrada"
+);
+assert(
   productionRdaToolRegistry.has("rda_propose_open_service_order"),
   "tool propose open OS registrada (write+confirm)"
 );

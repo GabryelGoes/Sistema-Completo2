@@ -1,4 +1,14 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import {
+  orderTypeToSector,
+  parseSectorParam,
+  RDA_ORDER_TYPE_LAB,
+  RDA_ORDER_TYPE_PATIO,
+  sectorLabel,
+  sectorToOrderType,
+  type RdaServiceOrderType,
+  type RdaWorkshopSector,
+} from "./orderTypes.js";
 
 export type RdaToolExecContext = {
   workshopId: string;
@@ -22,6 +32,102 @@ function normPlate(p: string): string {
   return p.replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
 }
 
+const STALLED_SELECT =
+  "id, os_number, plate, vehicle_model, vehicle_brand, status, updated_at, created_at, assigned_technician, issue_description, order_type, module_identification";
+
+const STAGE_SELECT = "id, status, updated_at, plate, os_number, order_type, module_identification";
+
+async function listStalledByOrderType(
+  ctx: RdaToolExecContext,
+  orderType: RdaServiceOrderType,
+  params: Record<string, unknown>
+): Promise<{ ok: true; data: unknown } | { ok: false; error: string }> {
+  const sector: RdaWorkshopSector =
+    orderType === RDA_ORDER_TYPE_LAB ? "laboratorio" : "patio";
+  const minHours = Number(params.minHours ?? 24);
+  const limit = clampLimit(params.limit, 15);
+  const { data, error } = await ctx.supabase
+    .from("service_orders")
+    .select(STALLED_SELECT)
+    .eq("workshop_id", ctx.workshopId)
+    .eq("order_type", orderType)
+    .neq("status", "CANCELLED")
+    .neq("status", "FINALIZADO")
+    .neq("status", "ENTREGUE")
+    .order("updated_at", { ascending: true })
+    .limit(80);
+  if (error) return { ok: false, error: error.message };
+  const rows = (data || [])
+    .map((r) => {
+      const hours = hoursSince(String((r as { updated_at?: string }).updated_at || ""));
+      return {
+        ...r,
+        stalledHours: hours,
+        sector,
+        order_type: orderType,
+      };
+    })
+    .filter((r) => (r.stalledHours ?? 0) >= (Number.isFinite(minHours) ? minHours : 24))
+    .slice(0, limit);
+  return {
+    ok: true,
+    data: {
+      sector,
+      orderType,
+      sectorLabel: sectorLabel(sector),
+      note:
+        orderType === RDA_ORDER_TYPE_PATIO
+          ? "Somente OS do Pátio (veículos). Idade baseada em updated_at; não implica culpa."
+          : "Somente OS do Laboratório (módulos recebidos). Não é estoque de peças. Idade por updated_at.",
+      items: rows,
+    },
+  };
+}
+
+async function stageSnapshotByOrderType(
+  ctx: RdaToolExecContext,
+  orderType: RdaServiceOrderType
+): Promise<{ ok: true; data: unknown } | { ok: false; error: string }> {
+  const sector: RdaWorkshopSector =
+    orderType === RDA_ORDER_TYPE_LAB ? "laboratorio" : "patio";
+  const { data, error } = await ctx.supabase
+    .from("service_orders")
+    .select(STAGE_SELECT)
+    .eq("workshop_id", ctx.workshopId)
+    .eq("order_type", orderType)
+    .neq("status", "CANCELLED")
+    .limit(2000);
+  if (error) return { ok: false, error: error.message };
+  const counts: Record<string, number> = {};
+  for (const r of data || []) {
+    const s = String((r as { status?: string }).status || "UNKNOWN");
+    counts[s] = (counts[s] || 0) + 1;
+  }
+  const waitingApproval = (data || []).filter((r) =>
+    /APROV|ORCAMENTO|ORÇAMENT/i.test(String((r as { status?: string }).status || ""))
+  );
+  const waitingParts = (data || []).filter((r) =>
+    /PE[CÇ]A|AGUARD/i.test(String((r as { status?: string }).status || ""))
+  );
+  return {
+    ok: true,
+    data: {
+      sector,
+      orderType,
+      sectorLabel: sectorLabel(sector),
+      countsByStatus: counts,
+      waitingApprovalCount: waitingApproval.length,
+      waitingPartsCount: waitingParts.length,
+      sampleWaitingApproval: waitingApproval.slice(0, 8),
+      sampleWaitingParts: waitingParts.slice(0, 8),
+      note:
+        orderType === RDA_ORDER_TYPE_PATIO
+          ? "Snapshot exclusivo do Pátio (order_type=vehicle)."
+          : "Snapshot exclusivo do Laboratório (order_type=module). Não inclui estoque.",
+    },
+  };
+}
+
 /**
  * Executa tool já autorizada. Sempre filtra por workshopId do contexto.
  */
@@ -33,38 +139,11 @@ export async function executeRdaTool(
   const { workshopId, supabase } = ctx;
   try {
     switch (toolId) {
-      case "rda_list_stalled_vehicles": {
-        const minHours = Number(params.minHours ?? 24);
-        const limit = clampLimit(params.limit, 15);
-        const { data, error } = await supabase
-          .from("service_orders")
-          .select(
-            "id, os_number, plate, vehicle_model, vehicle_brand, status, updated_at, created_at, assigned_technician, issue_description"
-          )
-          .eq("workshop_id", workshopId)
-          .neq("status", "CANCELLED")
-          .neq("status", "FINALIZADO")
-          .neq("status", "ENTREGUE")
-          .order("updated_at", { ascending: true })
-          .limit(80);
-        if (error) return { ok: false, error: error.message };
-        const rows = (data || [])
-          .map((r) => {
-            const hours = hoursSince(
-              String((r as { updated_at?: string }).updated_at || "")
-            );
-            return { ...r, stalledHours: hours };
-          })
-          .filter((r) => (r.stalledHours ?? 0) >= (Number.isFinite(minHours) ? minHours : 24))
-          .slice(0, limit);
-        return {
-          ok: true,
-          data: {
-            note: "Idade baseada em updated_at da OS; não implica culpa.",
-            items: rows,
-          },
-        };
-      }
+      case "rda_list_stalled_vehicles":
+        return listStalledByOrderType(ctx, RDA_ORDER_TYPE_PATIO, params);
+
+      case "rda_list_stalled_modules":
+        return listStalledByOrderType(ctx, RDA_ORDER_TYPE_LAB, params);
 
       case "rda_technician_active_work": {
         const nameQ = String(params.technicianName || "").trim().toLowerCase();
@@ -107,7 +186,7 @@ export async function executeRdaTool(
         if (!plate && soId) {
           const { data: so } = await supabase
             .from("service_orders")
-            .select("plate")
+            .select("plate, order_type")
             .eq("workshop_id", workshopId)
             .eq("id", soId)
             .maybeSingle();
@@ -118,16 +197,31 @@ export async function executeRdaTool(
         const { data, error } = await supabase
           .from("service_orders")
           .select(
-            "id, os_number, plate, vehicle_model, status, issue_description, created_at, updated_at, mileage_km"
+            "id, os_number, plate, vehicle_model, status, issue_description, created_at, updated_at, mileage_km, order_type"
           )
           .eq("workshop_id", workshopId)
+          .eq("order_type", RDA_ORDER_TYPE_PATIO)
           .order("created_at", { ascending: false })
           .limit(120);
         if (error) return { ok: false, error: error.message };
         const items = (data || [])
           .filter((r) => normPlate(String((r as { plate?: string }).plate || "")) === needle)
-          .slice(0, limit);
-        return { ok: true, data: { plate, items } };
+          .slice(0, limit)
+          .map((r) => ({
+            ...r,
+            sector: "patio" as const,
+            order_type: RDA_ORDER_TYPE_PATIO,
+          }));
+        return {
+          ok: true,
+          data: {
+            plate,
+            sector: "patio",
+            orderType: RDA_ORDER_TYPE_PATIO,
+            note: "Histórico apenas de OS do Pátio (veículos).",
+            items,
+          },
+        };
       }
 
       case "rda_search_similar_complaints": {
@@ -135,14 +229,19 @@ export async function executeRdaTool(
         if (!query) return { ok: false, error: "query obrigatória." };
         const limit = clampLimit(params.limit, 12);
         const modelHint = String(params.vehicleModel || "").trim().toLowerCase();
-        const { data, error } = await supabase
+        const sectorParam = parseSectorParam(params.sector) || "all";
+        let q = supabase
           .from("service_orders")
           .select(
-            "id, os_number, plate, vehicle_model, status, issue_description, ai_analysis, created_at"
+            "id, os_number, plate, vehicle_model, status, issue_description, ai_analysis, created_at, order_type, module_identification"
           )
           .eq("workshop_id", workshopId)
           .order("created_at", { ascending: false })
           .limit(200);
+        if (sectorParam !== "all") {
+          q = q.eq("order_type", sectorToOrderType(sectorParam));
+        }
+        const { data, error } = await q;
         if (error) return { ok: false, error: error.message };
         const tokens = query
           .toLowerCase()
@@ -151,13 +250,28 @@ export async function executeRdaTool(
           .filter((t) => t.length >= 3);
         const scored = (data || [])
           .map((r) => {
-            const hay = `${(r as { issue_description?: string }).issue_description || ""} ${(r as { ai_analysis?: string }).ai_analysis || ""} ${(r as { vehicle_model?: string }).vehicle_model || ""}`.toLowerCase();
+            const sector = orderTypeToSector((r as { order_type?: string }).order_type);
+            const hay = `${(r as { issue_description?: string }).issue_description || ""} ${(r as { ai_analysis?: string }).ai_analysis || ""} ${(r as { vehicle_model?: string }).vehicle_model || ""} ${(r as { module_identification?: string }).module_identification || ""}`.toLowerCase();
             let score = 0;
             for (const t of tokens) if (hay.includes(t)) score += 1;
-            if (modelHint && String((r as { vehicle_model?: string }).vehicle_model || "").toLowerCase().includes(modelHint)) {
+            if (
+              modelHint &&
+              String((r as { vehicle_model?: string }).vehicle_model || "")
+                .toLowerCase()
+                .includes(modelHint)
+            ) {
               score += 0.5;
             }
-            return { row: r, score };
+            return {
+              row: {
+                ...r,
+                sector,
+                order_type:
+                  (r as { order_type?: string }).order_type ||
+                  sectorToOrderType(sector),
+              },
+              score,
+            };
           })
           .filter((x) => x.score > 0)
           .sort((a, b) => b.score - a.score)
@@ -166,7 +280,8 @@ export async function executeRdaTool(
         return {
           ok: true,
           data: {
-            note: "Similaridade textual simples sobre queixas internas — não é diagnóstico confirmado.",
+            sectorFilter: sectorParam,
+            note: "Similaridade textual simples — não é diagnóstico confirmado. Itens trazem sector/order_type.",
             items: scored,
           },
         };
@@ -176,15 +291,13 @@ export async function executeRdaTool(
         const query = String(params.query || "").trim();
         const dtc = String(params.dtcCode || "").trim();
         const limit = clampLimit(params.limit, 15);
-        let q = supabase
+        const { data, error } = await supabase
           .from("error_bulletins")
           .select("id, title, summary, dtc_codes, vehicle_models, created_at")
           .eq("workshop_id", workshopId)
           .order("created_at", { ascending: false })
           .limit(80);
-        const { data, error } = await q;
         if (error) {
-          // fallback nomes alternativos
           const alt = await supabase
             .from("workshop_error_bulletins")
             .select("*")
@@ -217,6 +330,8 @@ export async function executeRdaTool(
         if (!query) return { ok: false, error: "query obrigatória." };
         const onlyInStock = params.onlyInStock !== false;
         const limit = clampLimit(params.limit, 20);
+        const stockDisclaimer =
+          "Resultado do ESTOQUE (workshop_parts). Não são OS do Laboratório nem módulos recebidos para reparo. NÃO afirma compatibilidade ABS/veículo sem evidência documentada.";
         const { data, error } = await supabase
           .from("workshop_parts")
           .select(
@@ -226,16 +341,15 @@ export async function executeRdaTool(
           .ilike("name", `%${query}%`)
           .limit(limit);
         if (error) {
-          // tenta busca ampla
           const all = await supabase
             .from("workshop_parts")
             .select("id, name, sku, barcode, brand, quantity, location")
             .eq("workshop_id", workshopId)
             .limit(100);
           if (all.error) return { ok: false, error: all.error.message };
-          const q = query.toLowerCase();
+          const qtext = query.toLowerCase();
           const items = (all.data || [])
-            .filter((r) => JSON.stringify(r).toLowerCase().includes(q))
+            .filter((r) => JSON.stringify(r).toLowerCase().includes(qtext))
             .filter((r) =>
               onlyInStock ? Number((r as { quantity?: number }).quantity || 0) > 0 : true
             )
@@ -243,8 +357,8 @@ export async function executeRdaTool(
           return {
             ok: true,
             data: {
-              disclaimer:
-                "Itens encontrados por texto. NÃO afirma compatibilidade ABS/veículo sem evidência documentada.",
+              source: "workshop_parts",
+              disclaimer: stockDisclaimer,
               items,
             },
           };
@@ -255,8 +369,8 @@ export async function executeRdaTool(
         return {
           ok: true,
           data: {
-            disclaimer:
-              "Itens encontrados por texto. NÃO afirma compatibilidade ABS/veículo sem evidência documentada.",
+            source: "workshop_parts",
+            disclaimer: stockDisclaimer,
             items,
           },
         };
@@ -324,36 +438,11 @@ export async function executeRdaTool(
         return { ok: true, data: { items: data || [] } };
       }
 
-      case "rda_patio_stage_snapshot": {
-        const { data, error } = await supabase
-          .from("service_orders")
-          .select("id, status, updated_at, plate, os_number")
-          .eq("workshop_id", workshopId)
-          .neq("status", "CANCELLED")
-          .limit(2000);
-        if (error) return { ok: false, error: error.message };
-        const counts: Record<string, number> = {};
-        for (const r of data || []) {
-          const s = String((r as { status?: string }).status || "UNKNOWN");
-          counts[s] = (counts[s] || 0) + 1;
-        }
-        const waitingApproval = (data || []).filter((r) =>
-          /APROV|ORCAMENTO|ORÇAMENT/i.test(String((r as { status?: string }).status || ""))
-        );
-        const waitingParts = (data || []).filter((r) =>
-          /PE[CÇ]A|AGUARD/i.test(String((r as { status?: string }).status || ""))
-        );
-        return {
-          ok: true,
-          data: {
-            countsByStatus: counts,
-            waitingApprovalCount: waitingApproval.length,
-            waitingPartsCount: waitingParts.length,
-            sampleWaitingApproval: waitingApproval.slice(0, 8),
-            sampleWaitingParts: waitingParts.slice(0, 8),
-          },
-        };
-      }
+      case "rda_patio_stage_snapshot":
+        return stageSnapshotByOrderType(ctx, RDA_ORDER_TYPE_PATIO);
+
+      case "rda_lab_stage_snapshot":
+        return stageSnapshotByOrderType(ctx, RDA_ORDER_TYPE_LAB);
 
       case "rda_get_service_order": {
         const soId = String(params.serviceOrderId || "").trim();
@@ -362,7 +451,7 @@ export async function executeRdaTool(
         let query = supabase
           .from("service_orders")
           .select(
-            "id, os_number, plate, vehicle_model, vehicle_brand, vehicle_year, vehicle_engine_info, vehicle_chassis, status, issue_description, assigned_technician, created_at, updated_at, mileage_km, order_type"
+            "id, os_number, plate, vehicle_model, vehicle_brand, vehicle_year, vehicle_engine_info, vehicle_chassis, status, issue_description, assigned_technician, created_at, updated_at, mileage_km, order_type, module_identification, module_kind"
           )
           .eq("workshop_id", workshopId);
         if (soId) query = query.eq("id", soId);
@@ -374,14 +463,12 @@ export async function executeRdaTool(
         >[];
         if (plate) {
           const n = normPlate(plate);
-          items = items.filter(
-            (r) => normPlate(String(r.plate || "")) === n
-          );
+          items = items.filter((r) => normPlate(String(r.plate || "")) === n);
           if (!items.length && !soId) {
             const all = await supabase
               .from("service_orders")
               .select(
-                "id, os_number, plate, vehicle_model, vehicle_brand, vehicle_year, status, issue_description, created_at, updated_at"
+                "id, os_number, plate, vehicle_model, vehicle_brand, vehicle_year, status, issue_description, created_at, updated_at, order_type, module_identification, module_kind"
               )
               .eq("workshop_id", workshopId)
               .order("created_at", { ascending: false })
@@ -392,7 +479,22 @@ export async function executeRdaTool(
             );
           }
         }
-        return { ok: true, data: { items: items.slice(0, 5) } };
+        const enriched = items.slice(0, 5).map((r) => {
+          const sector = orderTypeToSector(r.order_type);
+          return {
+            ...r,
+            sector,
+            sectorLabel: sectorLabel(sector),
+            order_type: r.order_type || sectorToOrderType(sector),
+          };
+        });
+        return {
+          ok: true,
+          data: {
+            note: "Consulta específica: pode retornar veículo (Pátio) e/ou módulo (Laboratório).",
+            items: enriched,
+          },
+        };
       }
 
       case "rda_propose_open_service_order": {
@@ -402,6 +504,8 @@ export async function executeRdaTool(
           id?: string;
           plate?: string;
           os_number?: number;
+          order_type?: string;
+          sector?: string;
         }>;
         if (!items.length) {
           return { ok: false, error: "OS não encontrada para propor abertura." };
@@ -415,6 +519,8 @@ export async function executeRdaTool(
             serviceOrderId: first.id,
             plate: first.plate,
             osNumber: first.os_number,
+            orderType: first.order_type,
+            sector: first.sector || orderTypeToSector(first.order_type),
             message:
               "Ação proposta: abrir esta OS na interface. Nenhuma alteração foi feita no banco.",
           },
