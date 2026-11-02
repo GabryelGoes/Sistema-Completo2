@@ -70,6 +70,8 @@ import {
 import { registerRdaIntelligenceRoutes } from "./services/rdaIntelligence/index.js";
 import { registerRdaEvaluationRoutes } from "./services/rdaIntelligence/evaluations/registerRdaEvaluationRoutes.js";
 import { registerRdaWorkSessionRoutes } from "./services/rdaIntelligence/workSessions/registerRdaWorkSessionRoutes.js";
+import { generateTechnicalOsInsight } from "./services/rdaIntelligence/insights/technicalOs.js";
+import { RDA_INTELLIGENCE_SETTING_KEY } from "./services/rdaIntelligence/types.js";
 import { assertHomologationSafeOrThrow } from "./utils/homologationGuard.js";
 
 const PBKDF2_ITERATIONS = 100000;
@@ -1685,6 +1687,24 @@ export function createApiApp() {
       .maybeSingle();
     const v = typeof data?.value === "string" ? data.value.trim() : "";
     return v || null;
+  }
+
+  /** Dispara insight técnico RDA em background (não atrasa a criação da OS). */
+  function triggerRdaOsInsight(serviceOrderId: string): void {
+    if (!supabaseAdmin || !WORKSHOP_ID || !serviceOrderId) return;
+    void (async () => {
+      try {
+        const settingValue = await getWorkshopSettingValue(RDA_INTELLIGENCE_SETTING_KEY);
+        await generateTechnicalOsInsight({
+          workshopId: WORKSHOP_ID,
+          supabase: supabaseAdmin,
+          serviceOrderId,
+          settingValue,
+        });
+      } catch (err) {
+        console.warn("[RDA] insight automático falhou:", err);
+      }
+    })();
   }
 
   async function getAdminDisplayMeta(): Promise<{ name: string; photoUrl: string | null }> {
@@ -5720,10 +5740,14 @@ export function createApiApp() {
             .eq("id", data.id)
             .eq("workshop_id", WORKSHOP_ID)
             .maybeSingle();
-          if (refreshed) return res.status(201).json(refreshed);
+          if (refreshed) {
+            void triggerRdaOsInsight(String(refreshed.id));
+            return res.status(201).json(refreshed);
+          }
         }
       }
 
+      if (data?.id) void triggerRdaOsInsight(String(data.id));
       return res.status(201).json(data);
     } catch (err: any) {
       console.error("[API] Erro inesperado em POST /api/service-orders:", err);
@@ -15949,9 +15973,26 @@ export function createApiApp() {
     }
   });
 
-  // ----------------- RDA Intelligence (Fase 0 — fundação, feature flag off) -----------------
+  // ----------------- RDA Intelligence (motor real + flag admin) -----------------
   registerRdaIntelligenceRoutes(app, {
+    WORKSHOP_ID,
+    supabaseAdmin,
     getWorkshopSettingValue,
+    setWorkshopSettingValue: async (key: string, value: string) => {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        throw new Error("Supabase/WORKSHOP_ID não configurados.");
+      }
+      const { error } = await supabaseAdmin.from("workshop_settings").upsert(
+        {
+          workshop_id: WORKSHOP_ID,
+          key,
+          value,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "workshop_id,key" }
+      );
+      if (error) throw new Error(error.message);
+    },
     loadUserPermissions: async (userId: string) => {
       if (!supabaseAdmin || !WORKSHOP_ID || !userId) return null;
       const { data: me } = await supabaseAdmin

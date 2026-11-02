@@ -6118,3 +6118,96 @@ export async function submitRdaEvaluation(input: {
   if (!response.ok) throw new Error(await readRdaEvalError(response, "Falha ao salvar avaliação."));
   return response.json();
 }
+
+// ---------- RDA Intelligence (chat / insights / gestão) ----------
+
+export type RdaStatusDto = {
+  phase: number;
+  operational: boolean;
+  feature: { enabled: boolean; source: string };
+  provider: { id: string; configured: boolean; callsAllowed: boolean };
+  usage?: {
+    totalTokens: number;
+    requestCount: number;
+    dailyTokenLimit: number;
+  } | null;
+};
+
+export async function getRdaStatus(): Promise<RdaStatusDto> {
+  const response = await fetch(`${API_BASE}/rda/status`);
+  if (!response.ok) throw new Error("Falha ao ler status do RDA.");
+  return response.json();
+}
+
+export async function setRdaIntelligenceEnabled(enabled: boolean): Promise<RdaStatusDto["feature"]> {
+  const response = await fetch(`${API_BASE}/rda/settings`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ enabled }),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error((err as { error?: string }).error || "Falha ao salvar flag RDA.");
+  }
+  const data = await response.json();
+  return data.feature;
+}
+
+export async function postRdaChat(input: {
+  message: string;
+  conversationId?: string | null;
+  contextServiceOrderId?: string | null;
+  humanConfirmedToolIds?: string[];
+}): Promise<{
+  conversationId: string;
+  assistantMessage: string;
+  proposedActions: unknown[];
+  usage?: { totalTokens: number };
+  toolTrace: Array<{ toolId: string; ok: boolean; summary: string }>;
+}> {
+  const response = await fetch(`${API_BASE}/rda/chat`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error((err as { error?: string }).error || "Falha no chat RDA.");
+  }
+  return response.json();
+}
+
+export async function getRdaOsInsight(serviceOrderId: string): Promise<{ insight: unknown }> {
+  const response = await fetch(
+    `${API_BASE}/rda/insights/os/${encodeURIComponent(serviceOrderId)}`
+  );
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error((err as { error?: string }).error || "Falha ao carregar insight.");
+  }
+  return response.json();
+}
+
+export async function refreshRdaOsInsight(serviceOrderId: string): Promise<{ insight: unknown }> {
+  const response = await fetch(
+    `${API_BASE}/rda/insights/os/${encodeURIComponent(serviceOrderId)}/refresh`,
+    { method: "POST" }
+  );
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error((err as { error?: string }).error || "Falha ao gerar insight.");
+  }
+  return response.json();
+}
+
+export async function runRdaManagementScan(): Promise<{
+  alertsCreated: number;
+  alerts: Array<{ alertKey: string; title: string; severity: string }>;
+}> {
+  const response = await fetch(`${API_BASE}/rda/management/scan`, { method: "POST" });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error((err as { error?: string }).error || "Falha na varredura RDA.");
+  }
+  return response.json();
+}

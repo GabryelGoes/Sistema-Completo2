@@ -1,6 +1,6 @@
 /**
- * Tipos centrais do RDA Intelligence (Fase 0 — fundação).
- * Sem dependência de UI, Supabase ou provedores externos.
+ * Tipos centrais do RDA Intelligence.
+ * Sem dependência de UI; providers usam env só no servidor.
  */
 
 /** Chave em `workshop_settings` (valor "true" | "false"; ausência = false). */
@@ -10,10 +10,16 @@ export const RDA_INTELLIGENCE_SETTING_KEY = "rda_intelligence_enabled" as const;
 export const RDA_INTELLIGENCE_ENV_KEY = "RDA_INTELLIGENCE_ENABLED" as const;
 
 /**
- * Bloqueio duro de chamadas LLM na Fase 0.
- * Mesmo com OPENAI_API_KEY, só libera se isto for "true" (futuro).
+ * Bloqueio duro de chamadas LLM.
+ * Mesmo com OPENAI_API_KEY, só libera se isto for "true".
  */
 export const RDA_ALLOW_LLM_CALLS_ENV_KEY = "RDA_ALLOW_LLM_CALLS" as const;
+
+/** Modelo OpenAI (default gpt-4o-mini). */
+export const RDA_OPENAI_MODEL_ENV_KEY = "RDA_OPENAI_MODEL" as const;
+
+/** Limite diário de tokens por oficina (default 500000). */
+export const RDA_DAILY_TOKEN_LIMIT_ENV_KEY = "RDA_DAILY_TOKEN_LIMIT" as const;
 
 export type RdaRole = "admin" | "user";
 
@@ -77,21 +83,54 @@ export type RdaAuthorizationResult =
 
 export type RdaProviderId = "noop" | "openai";
 
+export type RdaLlmToolCall = {
+  id: string;
+  name: string;
+  arguments: string;
+};
+
 export type RdaLlmMessage = {
   role: "system" | "user" | "assistant" | "tool";
   content: string;
   name?: string;
+  tool_call_id?: string;
+  tool_calls?: Array<{
+    id: string;
+    type: "function";
+    function: { name: string; arguments: string };
+  }>;
+};
+
+export type RdaOpenAiToolSpec = {
+  type: "function";
+  function: {
+    name: string;
+    description: string;
+    parameters: Record<string, unknown>;
+  };
 };
 
 export type RdaLlmCompleteRequest = {
   messages: RdaLlmMessage[];
-  /** IDs de tools do registry a expor ao modelo (futuro). */
+  /** Specs OpenAI (já filtradas/autorizáveis). */
+  tools?: RdaOpenAiToolSpec[];
+  toolChoice?: "auto" | "none";
   toolIds?: string[];
+  model?: string;
+  maxTokens?: number;
+  temperature?: number;
 };
 
 export type RdaLlmCompleteResult = {
   provider: RdaProviderId;
   content: string;
+  toolCalls?: RdaLlmToolCall[];
+  model?: string;
+  usage?: {
+    promptTokens: number;
+    completionTokens: number;
+    totalTokens: number;
+  };
   raw?: unknown;
 };
 
@@ -101,7 +140,8 @@ export type RdaEventKind =
   | "service_order.finalized"
   | "budget.approved"
   | "rda.insight_requested"
-  | "rda.command";
+  | "rda.command"
+  | "rda.management_scan";
 
 export type RdaSystemEvent = {
   id: string;

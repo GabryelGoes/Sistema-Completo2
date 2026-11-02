@@ -189,13 +189,13 @@ const fullAccess = authorizeToolInvocation({
 });
 assert(fullAccess.allowed === true, "full_access autoriza");
 
-console.log("\n4) Providers sem rede");
+console.log("\n4) Providers — fail-closed sem allow");
 const providerOff = resolveRdaLlmProvider({ featureEnabled: false });
 assert(providerOff.id === "noop", "feature off → noop");
 await expectThrow(() => providerOff.complete({ messages: [] }), "noop.complete lança");
 await expectThrow(
   () => openAiRdaProvider.complete({ messages: [{ role: "user", content: "hi" }] }),
-  "openai.complete lança sem chamar rede"
+  "openai.complete bloqueado sem RDA_ALLOW_LLM_CALLS"
 );
 
 console.log("\n5) Event bus no-op com flag off");
@@ -213,9 +213,25 @@ const pubOn = await bus.publish(createRdaSystemEvent("rda.command", { x: 1 }), {
 });
 assert(pubOn.accepted === true && pubOn.delivered === 1 && hits === 1, "publish on entrega");
 
-console.log("\n6) Production registry permanece vazio (sem tools de dados)");
-const { productionRdaToolRegistry } = await import("../services/rdaIntelligence/index.js");
-assert(productionRdaToolRegistry.list().length === 0, "production registry vazio");
+console.log("\n6) Production registry com tools reais");
+const {
+  productionRdaToolRegistry,
+  ensureProductionRdaToolsRegistered,
+  RDA_PRODUCTION_TOOLS,
+} = await import("../services/rdaIntelligence/index.js");
+ensureProductionRdaToolsRegistered();
+assert(
+  productionRdaToolRegistry.list().length === RDA_PRODUCTION_TOOLS.length,
+  `production registry tem ${RDA_PRODUCTION_TOOLS.length} tools`
+);
+assert(
+  productionRdaToolRegistry.has("rda.list_stalled_vehicles"),
+  "tool stalled vehicles registrada"
+);
+assert(
+  productionRdaToolRegistry.has("rda.propose_open_service_order"),
+  "tool propose open OS registrada (write+confirm)"
+);
 
 console.log(`\nResultado: ${passed} ok, ${failed} falhas`);
 if (failed > 0) process.exit(1);

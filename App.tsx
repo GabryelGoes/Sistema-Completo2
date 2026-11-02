@@ -58,6 +58,7 @@ import { useDesktopShell } from './hooks/useDesktopShell';
 import { AdminProfileModal } from './components/AdminProfileModal';
 import { UserProfileModal } from './components/UserProfileModal';
 import { SupportBugsChatModal } from './components/SupportBugsChatModal';
+import { RdaAssistantPanel } from './components/rda/RdaAssistantPanel';
 import {
   resolveDesktopSidebarAccess,
   type DesktopSidebarActionId,
@@ -2575,6 +2576,12 @@ export default function App() {
         onClose={() => setIsSupportChatOpen(false)}
         onUnreadChange={setSupportUnreadBadge}
       />
+      {authSession ? (
+        <RdaAssistantPanel
+          authSession={authSession}
+          contextServiceOrderId={null}
+        />
+      ) : null}
       {authSession?.role === 'admin' ? (
         <AdminProfileModal
           isOpen={shellProfileModal === 'admin'}

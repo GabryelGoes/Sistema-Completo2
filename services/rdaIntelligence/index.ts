@@ -1,7 +1,9 @@
 /**
- * RDA Intelligence — fundação (Fase 0).
- * Export público do módulo. Sem side effects ao importar.
+ * RDA Intelligence — motor + tools + tempo/avaliações.
+ * Registrar tools de produção ao carregar o módulo.
  */
+import { ensureProductionRdaToolsRegistered } from "./tools/registerProduction.js";
+ensureProductionRdaToolsRegistered();
 
 export {
   RDA_INTELLIGENCE_SETTING_KEY,
@@ -68,3 +70,9 @@ export type {
   RdaWorkPauseReason,
   RdaWorkPerformanceTechnicianRow,
 } from "./workSessions/types.js";
+
+export { runRdaChatTurn } from "./agent/orchestrator.js";
+export { generateTechnicalOsInsight } from "./insights/technicalOs.js";
+export { runManagementScan } from "./insights/managementScan.js";
+export { ensureProductionRdaToolsRegistered } from "./tools/registerProduction.js";
+export { RDA_PRODUCTION_TOOLS } from "./tools/definitions.js";
