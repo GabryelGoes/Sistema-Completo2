@@ -100,3 +100,5 @@ CREATE INDEX IF NOT EXISTS idx_rda_work_session_events_session
 
 COMMENT ON TABLE rda_work_session_events IS
   'Histórico imutável de start/pause/resume/finish das sessões RDA.';
+
+-- Hardening (RLS, triggers, RPCs atômicas): ver 20261101230000_rda_work_sessions_integrity.sql

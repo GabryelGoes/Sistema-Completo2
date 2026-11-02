@@ -1,5 +1,11 @@
 import type { Express, Request, Response } from "express";
 import type { SupabaseClient } from "@supabase/supabase-js";
+import {
+  canAccessWorkSessionApis,
+  canViewSessionRow,
+  canViewWorkPerformanceSummary,
+  resolveWorkSessionListScope,
+} from "./access.js";
 import { computeLiveTotals, asNonNegInt } from "./timing.js";
 import type {
   RdaWorkPauseReason,
@@ -164,13 +170,69 @@ export function registerRdaWorkSessionRoutes(app: Express, deps: RouteDeps): voi
     if (auth.r === "admin") return true;
     if (auth.r !== "user" || !auth.u) return false;
     const flags = await loadTechFlags(auth.u);
-    if (!flags) return false;
-    if (flags.isTechnician) return true;
-    if (flags.permissions.full_access) return true;
-    if (flags.permissions.access_radar_qualidade) return true;
-    if (flags.permissions.access_patio) return true;
-    if (flags.permissions.access_laboratorio) return true;
-    return false;
+    return canAccessWorkSessionApis({
+      role: auth.r,
+      userId: auth.u,
+      flags,
+    });
+  }
+
+  function sessionFromRpcJson(raw: unknown): SessionRow | null {
+    if (!raw || typeof raw !== "object") return null;
+    const row = raw as Record<string, unknown>;
+    if (typeof row.id !== "string") return null;
+    return row as unknown as SessionRow;
+  }
+
+  async function callSessionRpc(
+    fn:
+      | "rda_work_session_start"
+      | "rda_work_session_pause"
+      | "rda_work_session_resume"
+      | "rda_work_session_finish",
+    args: Record<string, unknown>
+  ): Promise<{ ok: boolean; data: Record<string, unknown> | null; missingFn: boolean; error?: string }> {
+    if (!supabaseAdmin) {
+      return { ok: false, data: null, missingFn: false, error: "Servidor não configurado." };
+    }
+    const { data, error } = await supabaseAdmin.rpc(fn, args);
+    if (error) {
+      const msg = error.message || "";
+      if (/Could not find the function|schema cache|does not exist/i.test(msg)) {
+        return { ok: false, data: null, missingFn: true, error: msg };
+      }
+      return { ok: false, data: null, missingFn: false, error: msg };
+    }
+    const payload =
+      data && typeof data === "object" ? (data as Record<string, unknown>) : null;
+    return { ok: payload?.ok === true, data: payload, missingFn: false };
+  }
+
+  async function ensureStartEvent(session: SessionRow, actorUserId: string): Promise<void> {
+    if (!supabaseAdmin || !WORKSHOP_ID) return;
+    const { data: existing } = await supabaseAdmin
+      .from("rda_work_session_events")
+      .select("id")
+      .eq("session_id", session.id)
+      .eq("event_type", "start")
+      .limit(1)
+      .maybeSingle();
+    if (existing) return;
+    try {
+      await insertEvent({
+        sessionId: session.id,
+        eventType: "start",
+        actorUserId,
+        clientMutationId: session.client_mutation_id
+          ? `${session.client_mutation_id}:event`
+          : null,
+        occurredAt: session.started_at,
+        meta: { repaired: true },
+      });
+    } catch (evErr: unknown) {
+      const msg = evErr instanceof Error ? evErr.message : "";
+      if (!/duplicate key/i.test(msg)) console.warn("[API] repair start event:", evErr);
+    }
   }
 
   async function findSessionByMutation(
@@ -233,6 +295,30 @@ export function registerRdaWorkSessionRoutes(app: Express, deps: RouteDeps): voi
       meta: params.meta ?? {},
     });
     if (error) throw error;
+  }
+
+  async function validateBudgetForOs(
+    serviceOrderId: string,
+    budgetId: string | null
+  ): Promise<{ ok: true } | { ok: false; error: string }> {
+    if (!budgetId) return { ok: true };
+    if (!supabaseAdmin || !WORKSHOP_ID) {
+      return { ok: false, error: "Servidor não configurado." };
+    }
+    const { data, error } = await supabaseAdmin
+      .from("budgets")
+      .select("id, workshop_id, service_order_id")
+      .eq("id", budgetId)
+      .eq("workshop_id", WORKSHOP_ID)
+      .eq("service_order_id", serviceOrderId)
+      .maybeSingle();
+    if (error || !data) {
+      return {
+        ok: false,
+        error: "Orçamento inválido para esta OS/oficina.",
+      };
+    }
+    return { ok: true };
   }
 
   app.get("/api/rda/work-sessions/pause-reasons", async (req, res) => {
@@ -329,18 +415,21 @@ export function registerRdaWorkSessionRoutes(app: Express, deps: RouteDeps): voi
       if (to) query = query.lte("started_at", to);
 
       const auth = authFromReq(req);
-      // Técnico sem radar/full_access: só vê as próprias sessões.
-      if (auth?.r === "user" && auth.u) {
-        const flags = await loadTechFlags(auth.u);
-        const elevated =
-          !!flags?.permissions.full_access ||
-          !!flags?.permissions.access_radar_qualidade;
-        if (!elevated && flags?.isTechnician) {
-          if (technicianUserId && technicianUserId !== auth.u) {
-            return res.status(403).json({ error: "Não é permitido consultar outro técnico." });
-          }
-          query = query.eq("technician_user_id", auth.u);
+      const flags =
+        auth?.r === "user" && auth.u ? await loadTechFlags(auth.u) : null;
+      const listScope = resolveWorkSessionListScope({
+        role: auth?.r,
+        userId: auth?.u,
+        flags,
+      });
+      if (!listScope.allowed) {
+        return res.status(403).json({ error: "Acesso negado." });
+      }
+      if (listScope.scope === "self") {
+        if (technicianUserId && technicianUserId !== listScope.selfUserId) {
+          return res.status(403).json({ error: "Não é permitido consultar outro técnico." });
         }
+        query = query.eq("technician_user_id", listScope.selfUserId);
       }
 
       const { data, error } = await query;
@@ -379,14 +468,15 @@ export function registerRdaWorkSessionRoutes(app: Express, deps: RouteDeps): voi
     try {
       const auth = authFromReq(req);
       if (!auth) return res.status(401).json({ error: "Não autenticado." });
-      let allowed = auth.r === "admin";
-      if (!allowed && auth.r === "user" && auth.u) {
-        const flags = await loadTechFlags(auth.u);
-        allowed =
-          !!flags?.permissions.full_access ||
-          !!flags?.permissions.access_radar_qualidade;
-      }
-      if (!allowed) {
+      const flags =
+        auth.r === "user" && auth.u ? await loadTechFlags(auth.u) : null;
+      if (
+        !canViewWorkPerformanceSummary({
+          role: auth.r,
+          userId: auth.u,
+          flags,
+        })
+      ) {
         return res.status(403).json({ error: "Acesso negado ao resumo de desempenho." });
       }
       if (!supabaseAdmin || !WORKSHOP_ID) {
@@ -568,14 +658,17 @@ export function registerRdaWorkSessionRoutes(app: Express, deps: RouteDeps): voi
       const session = await loadSession(id);
       if (!session) return res.status(404).json({ error: "Sessão não encontrada." });
       const auth = authFromReq(req);
-      if (auth?.r === "user" && auth.u) {
-        const flags = await loadTechFlags(auth.u);
-        const elevated =
-          !!flags?.permissions.full_access ||
-          !!flags?.permissions.access_radar_qualidade;
-        if (!elevated && session.technician_user_id !== auth.u) {
-          return res.status(403).json({ error: "Sessão de outro técnico." });
-        }
+      const flags =
+        auth?.r === "user" && auth.u ? await loadTechFlags(auth.u) : null;
+      if (
+        !canViewSessionRow({
+          role: auth?.r,
+          userId: auth?.u,
+          flags,
+          sessionTechnicianUserId: session.technician_user_id,
+        })
+      ) {
+        return res.status(403).json({ error: "Sessão de outro técnico." });
       }
       const { data: events } = await supabaseAdmin!
         .from("rda_work_session_events")
@@ -624,13 +717,6 @@ export function registerRdaWorkSessionRoutes(app: Express, deps: RouteDeps): voi
           : null;
       const clientMutationId = mutationIdFromBody(body);
 
-      if (clientMutationId) {
-        const existing = await findSessionByMutation(clientMutationId);
-        if (existing) {
-          return res.json({ session: mapSession(existing), idempotent: true });
-        }
-      }
-
       const { data: so, error: soErr } = await supabaseAdmin
         .from("service_orders")
         .select("id")
@@ -641,6 +727,58 @@ export function registerRdaWorkSessionRoutes(app: Express, deps: RouteDeps): voi
         return res.status(404).json({ error: "Ordem de serviço não encontrada." });
       }
 
+      const budgetCheck = await validateBudgetForOs(serviceOrderId, budgetId);
+      if (budgetCheck.ok === false) {
+        return res.status(400).json({ error: budgetCheck.error });
+      }
+
+      if (clientMutationId) {
+        const existing = await findSessionByMutation(clientMutationId);
+        if (existing) {
+          if (existing.technician_user_id !== tech.userId) {
+            return res.status(403).json({ error: "Mutação pertence a outro técnico." });
+          }
+          await ensureStartEvent(existing, tech.userId);
+          return res.json({ session: mapSession(existing), idempotent: true });
+        }
+      }
+
+      const rpc = await callSessionRpc("rda_work_session_start", {
+        p_workshop_id: WORKSHOP_ID,
+        p_service_order_id: serviceOrderId,
+        p_technician_user_id: tech.userId,
+        p_budget_id: budgetId,
+        p_budget_service_description: budgetServiceDescription,
+        p_client_mutation_id: clientMutationId,
+      });
+
+      if (!rpc.missingFn && rpc.data) {
+        if (rpc.data.ok === false && rpc.data.code === "RDA_ACTIVE_SESSION_EXISTS") {
+          const activeRow = sessionFromRpcJson(rpc.data.activeSession);
+          return res.status(409).json({
+            error:
+              typeof rpc.data.error === "string"
+                ? rpc.data.error
+                : "Já existe uma sessão ativa em outra OS.",
+            code: "RDA_ACTIVE_SESSION_EXISTS",
+            activeSession: activeRow ? mapSession(activeRow) : undefined,
+          });
+        }
+        const session = sessionFromRpcJson(rpc.data.session);
+        if (!session) {
+          return res.status(500).json({ error: rpc.error || "Falha ao iniciar sessão." });
+        }
+        if (rpc.data.idempotent === true || rpc.data.alreadyActive === true) {
+          return res.json({
+            session: mapSession(session),
+            idempotent: rpc.data.idempotent === true,
+            alreadyActive: rpc.data.alreadyActive === true,
+          });
+        }
+        return res.status(201).json({ session: mapSession(session) });
+      }
+
+      // Fallback se a migration de RPC ainda não foi aplicada.
       const { data: active } = await supabaseAdmin
         .from("rda_work_sessions")
         .select("*")
@@ -652,6 +790,7 @@ export function registerRdaWorkSessionRoutes(app: Express, deps: RouteDeps): voi
       if (active) {
         const activeRow = active as SessionRow;
         if (activeRow.service_order_id === serviceOrderId) {
+          await ensureStartEvent(activeRow, tech.userId);
           return res.json({ session: mapSession(activeRow), alreadyActive: true });
         }
         return res.status(409).json({
@@ -700,6 +839,13 @@ export function registerRdaWorkSessionRoutes(app: Express, deps: RouteDeps): voi
               activeSession: mapSession(again as SessionRow),
             });
           }
+          if (clientMutationId) {
+            const againMut = await findSessionByMutation(clientMutationId);
+            if (againMut) {
+              await ensureStartEvent(againMut, tech.userId);
+              return res.json({ session: mapSession(againMut), idempotent: true });
+            }
+          }
         }
         if (/does not exist|relation/i.test(error.message)) {
           return res.status(503).json({
@@ -722,7 +868,7 @@ export function registerRdaWorkSessionRoutes(app: Express, deps: RouteDeps): voi
           occurredAt: nowIso,
         });
       } catch (evErr) {
-        console.warn("[API] evento start:", evErr);
+        console.warn("[API] evento start (fallback):", evErr);
       }
 
       return res.status(201).json({ session: mapSession(session) });
@@ -737,6 +883,9 @@ export function registerRdaWorkSessionRoutes(app: Express, deps: RouteDeps): voi
     try {
       const tech = await requireTechnicianActor(req, res);
       if (!tech) return;
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({ error: "Servidor não configurado." });
+      }
       const id = String(req.params.id || "").trim();
       const body = (req.body || {}) as Record<string, unknown>;
       if (body.technicianUserId != null) {
@@ -748,12 +897,52 @@ export function registerRdaWorkSessionRoutes(app: Express, deps: RouteDeps): voi
         typeof body.note === "string" ? body.note.trim().slice(0, 500) : "";
       const clientMutationId = mutationIdFromBody(body);
 
+      if (!reasonId) {
+        return res.status(400).json({ error: "Informe o motivo da pausa (reasonId)." });
+      }
+
       if (clientMutationId) {
         const ev = await findEventByMutation(clientMutationId);
         if (ev) {
           const session = await loadSession(ev.session_id);
-          if (session) return res.json({ session: mapSession(session), idempotent: true });
+          if (session) {
+            if (session.technician_user_id !== tech.userId) {
+              return res.status(403).json({ error: "Sessão de outro técnico." });
+            }
+            return res.json({ session: mapSession(session), idempotent: true });
+          }
         }
+      }
+
+      const rpc = await callSessionRpc("rda_work_session_pause", {
+        p_workshop_id: WORKSHOP_ID,
+        p_session_id: id,
+        p_technician_user_id: tech.userId,
+        p_reason_id: reasonId,
+        p_note: note || null,
+        p_client_mutation_id: clientMutationId,
+      });
+
+      if (!rpc.missingFn && rpc.data) {
+        if (rpc.data.ok !== true) {
+          const status =
+            typeof rpc.data.httpStatus === "number" ? rpc.data.httpStatus : 400;
+          return res.status(status).json({
+            error:
+              typeof rpc.data.error === "string"
+                ? rpc.data.error
+                : "Falha ao pausar.",
+          });
+        }
+        const session = sessionFromRpcJson(rpc.data.session);
+        if (!session) {
+          return res.status(500).json({ error: "Resposta inválida ao pausar." });
+        }
+        return res.json({
+          session: mapSession(session),
+          idempotent: rpc.data.idempotent === true,
+          alreadyPaused: rpc.data.alreadyPaused === true,
+        });
       }
 
       const session = await loadSession(id);
@@ -767,11 +956,8 @@ export function registerRdaWorkSessionRoutes(app: Express, deps: RouteDeps): voi
       if (session.status !== "running") {
         return res.status(409).json({ error: "Só é possível pausar sessão em execução." });
       }
-      if (!reasonId) {
-        return res.status(400).json({ error: "Informe o motivo da pausa (reasonId)." });
-      }
 
-      const { data: reason } = await supabaseAdmin!
+      const { data: reason } = await supabaseAdmin
         .from("rda_work_pause_reasons")
         .select("id, requires_note, active")
         .eq("id", reasonId)
@@ -792,7 +978,7 @@ export function registerRdaWorkSessionRoutes(app: Express, deps: RouteDeps): voi
         if (Number.isFinite(seg) && nowMs > seg) productive += nowMs - seg;
       }
 
-      const { data: updated, error } = await supabaseAdmin!
+      const { data: updated, error } = await supabaseAdmin
         .from("rda_work_sessions")
         .update({
           status: "paused",
@@ -846,6 +1032,9 @@ export function registerRdaWorkSessionRoutes(app: Express, deps: RouteDeps): voi
     try {
       const tech = await requireTechnicianActor(req, res);
       if (!tech) return;
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({ error: "Servidor não configurado." });
+      }
       const id = String(req.params.id || "").trim();
       const body = (req.body || {}) as Record<string, unknown>;
       if (body.technicianUserId != null) {
@@ -857,8 +1046,42 @@ export function registerRdaWorkSessionRoutes(app: Express, deps: RouteDeps): voi
         const ev = await findEventByMutation(clientMutationId);
         if (ev) {
           const session = await loadSession(ev.session_id);
-          if (session) return res.json({ session: mapSession(session), idempotent: true });
+          if (session) {
+            if (session.technician_user_id !== tech.userId) {
+              return res.status(403).json({ error: "Sessão de outro técnico." });
+            }
+            return res.json({ session: mapSession(session), idempotent: true });
+          }
         }
+      }
+
+      const rpc = await callSessionRpc("rda_work_session_resume", {
+        p_workshop_id: WORKSHOP_ID,
+        p_session_id: id,
+        p_technician_user_id: tech.userId,
+        p_client_mutation_id: clientMutationId,
+      });
+
+      if (!rpc.missingFn && rpc.data) {
+        if (rpc.data.ok !== true) {
+          const status =
+            typeof rpc.data.httpStatus === "number" ? rpc.data.httpStatus : 400;
+          return res.status(status).json({
+            error:
+              typeof rpc.data.error === "string"
+                ? rpc.data.error
+                : "Falha ao retomar.",
+          });
+        }
+        const session = sessionFromRpcJson(rpc.data.session);
+        if (!session) {
+          return res.status(500).json({ error: "Resposta inválida ao retomar." });
+        }
+        return res.json({
+          session: mapSession(session),
+          idempotent: rpc.data.idempotent === true,
+          alreadyRunning: rpc.data.alreadyRunning === true,
+        });
       }
 
       const session = await loadSession(id);
@@ -882,7 +1105,7 @@ export function registerRdaWorkSessionRoutes(app: Express, deps: RouteDeps): voi
         if (Number.isFinite(p) && nowMs > p) paused += nowMs - p;
       }
 
-      const { data: updated, error } = await supabaseAdmin!
+      const { data: updated, error } = await supabaseAdmin
         .from("rda_work_sessions")
         .update({
           status: "running",
@@ -934,6 +1157,9 @@ export function registerRdaWorkSessionRoutes(app: Express, deps: RouteDeps): voi
     try {
       const tech = await requireTechnicianActor(req, res);
       if (!tech) return;
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({ error: "Servidor não configurado." });
+      }
       const id = String(req.params.id || "").trim();
       const body = (req.body || {}) as Record<string, unknown>;
       if (body.technicianUserId != null) {
@@ -945,8 +1171,42 @@ export function registerRdaWorkSessionRoutes(app: Express, deps: RouteDeps): voi
         const ev = await findEventByMutation(clientMutationId);
         if (ev) {
           const session = await loadSession(ev.session_id);
-          if (session) return res.json({ session: mapSession(session), idempotent: true });
+          if (session) {
+            if (session.technician_user_id !== tech.userId) {
+              return res.status(403).json({ error: "Sessão de outro técnico." });
+            }
+            return res.json({ session: mapSession(session), idempotent: true });
+          }
         }
+      }
+
+      const rpc = await callSessionRpc("rda_work_session_finish", {
+        p_workshop_id: WORKSHOP_ID,
+        p_session_id: id,
+        p_technician_user_id: tech.userId,
+        p_client_mutation_id: clientMutationId,
+      });
+
+      if (!rpc.missingFn && rpc.data) {
+        if (rpc.data.ok !== true) {
+          const status =
+            typeof rpc.data.httpStatus === "number" ? rpc.data.httpStatus : 400;
+          return res.status(status).json({
+            error:
+              typeof rpc.data.error === "string"
+                ? rpc.data.error
+                : "Falha ao finalizar.",
+          });
+        }
+        const session = sessionFromRpcJson(rpc.data.session);
+        if (!session) {
+          return res.status(500).json({ error: "Resposta inválida ao finalizar." });
+        }
+        return res.json({
+          session: mapSession(session),
+          idempotent: rpc.data.idempotent === true,
+          alreadyFinished: rpc.data.alreadyFinished === true,
+        });
       }
 
       const session = await loadSession(id);
@@ -975,7 +1235,7 @@ export function registerRdaWorkSessionRoutes(app: Express, deps: RouteDeps): voi
         if (Number.isFinite(p) && nowMs > p) paused += nowMs - p;
       }
 
-      const { data: updated, error } = await supabaseAdmin!
+      const { data: updated, error } = await supabaseAdmin
         .from("rda_work_sessions")
         .update({
           status: "finished",

@@ -1,0 +1,50 @@
+Roteiro de validação — controle de tempo RDA (homologação)
+==========================================================
+Pré-requisitos
+- Ambiente Supabase de HOMOLOGAÇÃO identificado (não usar produção).
+- Aplicar, nessa ordem, no SQL Editor / CLI de homologação:
+  1) supabase/migrations/20261101220000_rda_work_sessions.sql
+  2) supabase/migrations/20261101230000_rda_work_sessions_integrity.sql
+- Backend apontando WORKSHOP_ID / service_role da homologação.
+- Dois usuários técnicos (T1, T2) e um gerente com access_radar_qualidade (G).
+- Um usuário só com access_patio (P), sem is_technician.
+
+A) Segurança / ACL
+1. Login como P → GET /api/rda/work-sessions → 403.
+2. Login como T1 → GET /api/rda/work-sessions → só sessões de T1.
+3. Login como T1 → GET /api/rda/work-sessions?technicianUserId=<T2> → 403.
+4. Login como T1 → GET performance-summary → 403.
+5. Login como G → GET performance-summary → 200 com dados reais (ou vazio).
+6. Login como T1 → POST start com body.technicianUserId=T2 → 400.
+7. Login como admin anon key direta no PostgREST (sem service_role) → SELECT
+   em rda_work_sessions deve falhar por RLS (sem políticas).
+
+B) Integridade referencial
+8. Tentar iniciar sessão com serviceOrderId de outra oficina → 404.
+9. Tentar iniciar com budgetId de outra OS → 400.
+10. Confirmar que finish NÃO altera stage/status da service_orders.
+
+C) Fluxo iniciar / pausar / retomar / finalizar
+11. T1 inicia na OS-A → status running; evento start existe.
+12. Recarregar página (tablet e desktop) → cronômetro continua; produtivo sobe.
+13. Pausar 30s com motivo "break" → produtivo congela; pausado sobe.
+14. Retomar → produtivo sobe de novo; pausado congela.
+15. Finalizar → status finished; etapa da OS inalterada; totais persistem após F5.
+16. Repetir start com o mesmo clientMutationId → resposta idempotent; 1 sessão.
+17. T1 com sessão ativa em OS-A tenta iniciar OS-B → 409 RDA_ACTIVE_SESSION_EXISTS.
+
+D) Concorrência / dispositivos
+18. Dois dispositivos com T1: pause no A e pause no B com mutation ids diferentes
+    → apenas uma pausa efetiva; segundo request alreadyPaused ou 409.
+19. T2 inicia na mesma OS-A em paralelo → permitido (índice é por técnico).
+20. Simular falha: se RPC não estiver aplicada, fallback Express ainda cria sessão;
+    com RPC aplicada, sessão+evento nascem juntos (verificar COUNT eventos = 1 start).
+
+E) Radar
+21. Com G, abrir Radar → Desempenho: só totais vindos da API (sem placeholders fictícios).
+22. Sem sessões no período → empty state, não inventar números.
+
+F) Critério de pronto para uso em homologação
+- Itens A–E passam.
+- Migrations NÃO aplicadas em produção até autorização explícita.
+- Avaliações gerenciais / IA permanecem desligadas.

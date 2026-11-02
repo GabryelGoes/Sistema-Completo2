@@ -87,21 +87,24 @@ export const OsWorkTimePanel: React.FC<Props> = ({
         getRdaWorkPauseReasons(),
       ]);
       setReasons(pauseReasons);
-      setOsSessions(listed.sessions);
+      // Apenas as próprias sessões (ACL do servidor); mantém histórico local da OS.
+      const mineOnThisOs = listed.sessions
+        .filter((s) => s.technicianUserId === technicianUserId)
+        .sort((a, b) => Date.parse(b.startedAt) - Date.parse(a.startedAt));
+      setOsSessions(mineOnThisOs);
       setMigrationMissing(false);
       if (mine && mine.serviceOrderId === serviceOrderId) {
         setSession(mine);
         setOtherActiveOsId(null);
       } else if (mine) {
-        setSession(null);
+        // Sessão ativa em outra OS: ainda mostra o último apontamento desta OS, se houver.
+        setSession(mineOnThisOs[0] ?? null);
         setOtherActiveOsId(mine.serviceOrderId);
       } else {
-        const mineOnOs = listed.sessions.find(
-          (s) =>
-            s.technicianUserId === technicianUserId &&
-            (s.status === 'running' || s.status === 'paused')
+        const activeHere = mineOnThisOs.find(
+          (s) => s.status === 'running' || s.status === 'paused'
         );
-        setSession(mineOnOs ?? null);
+        setSession(activeHere ?? mineOnThisOs[0] ?? null);
         setOtherActiveOsId(null);
       }
     } catch (e) {
@@ -168,15 +171,21 @@ export const OsWorkTimePanel: React.FC<Props> = ({
   }
 
   const mineActiveHere =
-    session &&
+    !!session &&
     session.serviceOrderId === serviceOrderId &&
     (session.status === 'running' || session.status === 'paused');
 
-  const othersOnOs = osSessions.filter(
-    (s) =>
-      s.technicianUserId !== technicianUserId &&
-      (s.status === 'running' || s.status === 'paused' || s.status === 'finished')
-  );
+  const displaySession =
+    session && session.serviceOrderId === serviceOrderId ? session : null;
+
+  const productiveDisplayMs = mineActiveHere
+    ? live.productiveMs
+    : displaySession?.liveProductiveMs ?? 0;
+  const pausedDisplayMs = mineActiveHere
+    ? live.pausedMs
+    : displaySession?.livePausedMs ?? 0;
+
+  const finishedCountOnOs = osSessions.filter((s) => s.status === 'finished').length;
 
   return (
     <div className="mb-4 overflow-hidden rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
@@ -209,15 +218,16 @@ export const OsWorkTimePanel: React.FC<Props> = ({
               Produtivo
             </p>
             <p className="mt-1 font-mono text-2xl font-semibold tabular-nums text-zinc-900 dark:text-white">
-              {formatDurationHms(mineActiveHere ? live.productiveMs : session?.liveProductiveMs ?? 0)}
+              {formatDurationHms(productiveDisplayMs)}
             </p>
+            <p className="mt-1 text-[11px] text-zinc-500">Pausas não entram neste total</p>
           </div>
           <div className="rounded-xl bg-[#FAFAFA] px-3 py-3 dark:bg-zinc-950">
             <p className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
               Pausado
             </p>
             <p className="mt-1 font-mono text-2xl font-semibold tabular-nums text-zinc-900 dark:text-white">
-              {formatDurationHms(mineActiveHere ? live.pausedMs : session?.livePausedMs ?? 0)}
+              {formatDurationHms(pausedDisplayMs)}
             </p>
           </div>
         </div>
@@ -225,29 +235,38 @@ export const OsWorkTimePanel: React.FC<Props> = ({
         <div className="flex flex-wrap items-center gap-2">
           <span
             className={`rounded-lg px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide ${
-              session?.status === 'running'
+              displaySession?.status === 'running'
                 ? 'bg-emerald-500 text-white'
-                : session?.status === 'paused'
+                : displaySession?.status === 'paused'
                   ? 'bg-[#FFD60A] text-zinc-900'
-                  : session?.status === 'finished'
+                  : displaySession?.status === 'finished'
                     ? 'bg-zinc-800 text-white'
                     : 'bg-zinc-200 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200'
             }`}
           >
-            {session?.status === 'running'
+            {displaySession?.status === 'running'
               ? 'Em execução'
-              : session?.status === 'paused'
+              : displaySession?.status === 'paused'
                 ? 'Pausado'
-                : session?.status === 'finished'
-                  ? 'Finalizado'
+                : displaySession?.status === 'finished'
+                  ? 'Finalizado (tempo salvo)'
                   : 'Sem sessão ativa'}
           </span>
-          {session?.status === 'paused' && session.currentPauseReasonId ? (
+          {displaySession?.status === 'paused' && displaySession.currentPauseReasonId ? (
             <span className="text-[12px] text-zinc-500">
-              Motivo: {reasons.find((r) => r.id === session.currentPauseReasonId)?.label || session.currentPauseReasonId}
+              Motivo:{' '}
+              {reasons.find((r) => r.id === displaySession.currentPauseReasonId)?.label ||
+                displaySession.currentPauseReasonId}
             </span>
           ) : null}
         </div>
+
+        <p className="text-[12px] text-zinc-500">
+          Finalizar o cronômetro não muda a etapa da OS no pátio.
+          {finishedCountOnOs > 0 && !mineActiveHere
+            ? ` Último apontamento nesta OS permanece após atualizar a página.`
+            : null}
+        </p>
 
         <div className="flex flex-wrap gap-2">
           {!mineActiveHere ? (
@@ -270,7 +289,7 @@ export const OsWorkTimePanel: React.FC<Props> = ({
             </button>
           ) : null}
 
-          {session?.status === 'running' ? (
+          {displaySession?.status === 'running' ? (
             <button
               type="button"
               disabled={busy}
@@ -286,14 +305,14 @@ export const OsWorkTimePanel: React.FC<Props> = ({
             </button>
           ) : null}
 
-          {session?.status === 'paused' ? (
+          {displaySession?.status === 'paused' ? (
             <button
               type="button"
               disabled={busy}
               onClick={() =>
                 void run(async () => {
                   const res = await resumeRdaWorkSession({
-                    sessionId: session.id,
+                    sessionId: displaySession.id,
                     clientMutationId: newClientMutationId(),
                   });
                   setSession(res.session);
@@ -316,7 +335,7 @@ export const OsWorkTimePanel: React.FC<Props> = ({
                 }
                 void run(async () => {
                   const res = await finishRdaWorkSession({
-                    sessionId: session!.id,
+                    sessionId: displaySession!.id,
                     clientMutationId: newClientMutationId(),
                   });
                   setSession(res.session);
@@ -330,7 +349,7 @@ export const OsWorkTimePanel: React.FC<Props> = ({
           ) : null}
         </div>
 
-        {pauseOpen ? (
+        {pauseOpen && displaySession ? (
           <div className="rounded-xl border border-zinc-200 bg-[#FAFAFA] p-3 dark:border-zinc-700 dark:bg-zinc-950">
             <p className="text-[13px] font-semibold text-zinc-900 dark:text-white">Motivo da pausa</p>
             <select
@@ -368,9 +387,8 @@ export const OsWorkTimePanel: React.FC<Props> = ({
                 className="rounded-xl bg-zinc-900 px-4 py-2 text-[13px] font-semibold text-white disabled:opacity-50"
                 onClick={() =>
                   void run(async () => {
-                    if (!session) return;
                     const res = await pauseRdaWorkSession({
-                      sessionId: session.id,
+                      sessionId: displaySession.id,
                       reasonId: pauseReasonId,
                       note: pauseNote,
                       clientMutationId: newClientMutationId(),
@@ -383,33 +401,6 @@ export const OsWorkTimePanel: React.FC<Props> = ({
                 Confirmar pausa
               </button>
             </div>
-          </div>
-        ) : null}
-
-        {othersOnOs.length > 0 ? (
-          <div className="border-t border-zinc-100 pt-3 dark:border-zinc-800">
-            <p className="text-[12px] font-semibold uppercase tracking-wider text-zinc-500">
-              Outros técnicos nesta OS
-            </p>
-            <ul className="mt-2 space-y-1.5">
-              {othersOnOs.slice(0, 6).map((s) => (
-                <li
-                  key={s.id}
-                  className="flex items-center justify-between rounded-lg bg-zinc-50 px-2.5 py-2 text-[12px] dark:bg-zinc-950"
-                >
-                  <span className="font-medium text-zinc-800 dark:text-zinc-200">
-                    {s.status === 'running'
-                      ? 'Em execução'
-                      : s.status === 'paused'
-                        ? 'Pausado'
-                        : 'Finalizado'}
-                  </span>
-                  <span className="font-mono tabular-nums text-zinc-600 dark:text-zinc-400">
-                    {formatDurationHms(s.liveProductiveMs)}
-                  </span>
-                </li>
-              ))}
-            </ul>
           </div>
         ) : null}
       </div>

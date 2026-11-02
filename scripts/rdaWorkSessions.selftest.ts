@@ -2,6 +2,12 @@
  * Selftest das regras de tempo RDA (sem banco).
  * npm run test:rda-work-sessions
  */
+import {
+  canAccessWorkSessionApis,
+  canViewSessionRow,
+  canViewWorkPerformanceSummary,
+  resolveWorkSessionListScope,
+} from '../services/rdaIntelligence/workSessions/access.js';
 import { computeLiveTotals, formatDurationHms } from '../services/rdaIntelligence/workSessions/timing.js';
 
 let passed = 0;
@@ -60,6 +66,122 @@ console.log('\n3) Finished / format');
   });
   assert(live.liveProductiveMs === 120_000, 'finished não soma segmento');
   assert(formatDurationHms(3661000) === '01:01:01', 'format H:M:S');
+}
+
+console.log('\n4) ACL — listagem e desempenho');
+{
+  const tech = {
+    isTechnician: true,
+    permissions: { access_patio: true },
+  };
+  const patioOnly = {
+    isTechnician: false,
+    permissions: { access_patio: true },
+  };
+  const radar = {
+    isTechnician: false,
+    permissions: { access_radar_qualidade: true },
+  };
+  const labOnly = {
+    isTechnician: false,
+    permissions: { access_laboratorio: true },
+  };
+
+  assert(
+    canAccessWorkSessionApis({ role: 'admin', flags: null }) === true,
+    'admin acessa APIs de tempo'
+  );
+  assert(
+    canAccessWorkSessionApis({ role: 'user', userId: 't1', flags: tech }) === true,
+    'técnico acessa APIs de tempo'
+  );
+  assert(
+    canAccessWorkSessionApis({ role: 'user', userId: 'p1', flags: patioOnly }) === false,
+    'pátio isolado NÃO acessa APIs de tempo'
+  );
+  assert(
+    canAccessWorkSessionApis({ role: 'user', userId: 'l1', flags: labOnly }) === false,
+    'lab isolado NÃO acessa APIs de tempo'
+  );
+  assert(
+    canAccessWorkSessionApis({ role: 'user', userId: 'r1', flags: radar }) === true,
+    'radar acessa APIs de tempo'
+  );
+
+  const techScope = resolveWorkSessionListScope({
+    role: 'user',
+    userId: 't1',
+    flags: tech,
+  });
+  assert(techScope.allowed && techScope.scope === 'self', 'técnico lista só self');
+  assert(
+    techScope.allowed && techScope.scope === 'self' && techScope.selfUserId === 't1',
+    'selfUserId do técnico'
+  );
+
+  const radarScope = resolveWorkSessionListScope({
+    role: 'user',
+    userId: 'r1',
+    flags: radar,
+  });
+  assert(radarScope.allowed && radarScope.scope === 'all', 'radar lista all');
+
+  const patioScope = resolveWorkSessionListScope({
+    role: 'user',
+    userId: 'p1',
+    flags: patioOnly,
+  });
+  assert(!patioScope.allowed, 'pátio isolado sem listagem');
+
+  assert(
+    canViewWorkPerformanceSummary({ role: 'user', userId: 't1', flags: tech }) === false,
+    'técnico comum sem resumo gerencial'
+  );
+  assert(
+    canViewWorkPerformanceSummary({ role: 'user', userId: 'r1', flags: radar }) === true,
+    'radar vê resumo gerencial'
+  );
+  assert(
+    canViewSessionRow({
+      role: 'user',
+      userId: 't1',
+      flags: tech,
+      sessionTechnicianUserId: 't2',
+    }) === false,
+    'técnico não vê sessão alheia'
+  );
+  assert(
+    canViewSessionRow({
+      role: 'user',
+      userId: 'r1',
+      flags: radar,
+      sessionTechnicianUserId: 't2',
+    }) === true,
+    'radar vê sessão alheia'
+  );
+}
+
+console.log('\n5) Produtivo ≠ pausado (regressão conceitual)');
+{
+  const runningThen = computeLiveTotals({
+    status: 'running',
+    productiveMs: 0,
+    pausedMs: 0,
+    segmentStartedAt: new Date(base).toISOString(),
+    currentPauseStartedAt: null,
+    serverNowMs: base + 60_000,
+  });
+  const pausedThen = computeLiveTotals({
+    status: 'paused',
+    productiveMs: 60_000,
+    pausedMs: 0,
+    segmentStartedAt: null,
+    currentPauseStartedAt: new Date(base + 60_000).toISOString(),
+    serverNowMs: base + 90_000,
+  });
+  assert(runningThen.liveProductiveMs === 60_000, '1 min produtivo');
+  assert(pausedThen.liveProductiveMs === 60_000, 'pausa não aumenta produtivo');
+  assert(pausedThen.livePausedMs === 30_000, 'pausa conta só em pausedMs');
 }
 
 console.log(`\nResultado: ${passed} ok, ${failed} falhas`);
