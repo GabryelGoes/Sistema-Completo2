@@ -24,7 +24,10 @@ Ordem (colar/rodar um arquivo por vez; conferir “Success”):
    → Senha dos usuários: homolog123
 
 8. scripts/rdaHomologation/02_verify.sql
-   → Todas as linhas check_id devem retornar ok = true.
+   → Uma grade só: cada check_id com ok = true, inclusive ALL_OK.
+   → Se alguma linha vier ok = false, anote o check_id (ex.: rpcs, seed_os)
+     — isso indica etapa anterior incompleta (migration ou seed), não
+     precisa recriar o projeto; rode de novo o passo que faltou.
 
 Backend local:
 - Preencher .env.homologation (URL + service_role do projeto de TESTE)

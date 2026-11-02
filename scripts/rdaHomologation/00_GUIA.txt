@@ -24,9 +24,10 @@ Ver detalhe em `05_roteiro_sql_editor.txt`:
   00_bootstrap_core_schema.sql     ← ANTES das migrations RDA
   20261101220000 … 260000          ← cinco migrations RDA
   01_seed_fictional.sql
-  02_verify.sql
+  02_verify.sql   ← grade única; ALL_OK deve ser true
 
 Gaps documentados em `GAPS_SCHEMA.txt`.
+Se o verify falhar: envie as linhas com ok=false (check_id).
 
 ────────────────────────────────────────────────────────────
 3) Backend

@@ -80,6 +80,8 @@ console.log("\n5) Verify cobre bootstrap + RDA");
   assert(v.includes("bootstrap_workshops"), "check workshops");
   assert(v.includes("tables_rda"), "check RDA");
   assert(v.includes("seed_os"), "check OS seed");
+  assert(v.includes("ALL_OK"), "check ALL_OK");
+  assert(v.includes("to_regrole"), "verify seguro p/ privilege");
 }
 
 console.log("\n6) Gaps documentados");
