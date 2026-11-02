@@ -10,6 +10,10 @@ import type {
   RdaLlmMessage,
   RdaOpenAiToolSpec,
 } from "../types.js";
+import {
+  historyRowsToLlmMessages,
+  sanitizeMessagesForOpenAi,
+} from "./openaiMessages.js";
 import { assertUnderDailyLimit, recordTokenUsage } from "./usage.js";
 
 const MAX_ROUNDS = 6;
@@ -189,26 +193,28 @@ export async function runRdaChatTurn(
     .order("created_at", { ascending: true })
     .limit(40);
 
+  // Histórico precisa trazer tool_calls no assistant; senão a OpenAI rejeita
+  // role=tool sem mensagem anterior com tool_calls (HTTP 400).
   const messages: RdaLlmMessage[] = [
     { role: "system", content: SYSTEM_PROMPT },
+    ...(input.contextServiceOrderId
+      ? [
+          {
+            role: "system" as const,
+            content: `Contexto: serviceOrderId=${input.contextServiceOrderId}`,
+          },
+        ]
+      : []),
+    ...historyRowsToLlmMessages(
+      (history || []) as Array<{
+        role: string;
+        content?: string | null;
+        tool_call_id?: string | null;
+        tool_name?: string | null;
+        metadata?: unknown;
+      }>
+    ),
   ];
-  if (input.contextServiceOrderId) {
-    messages.push({
-      role: "system",
-      content: `Contexto: serviceOrderId=${input.contextServiceOrderId}`,
-    });
-  }
-  for (const row of history || []) {
-    const role = String((row as { role: string }).role);
-    if (role === "system" || role === "user" || role === "assistant" || role === "tool") {
-      messages.push({
-        role,
-        content: String((row as { content?: string }).content || ""),
-        tool_call_id: (row as { tool_call_id?: string | null }).tool_call_id || undefined,
-        name: (row as { tool_name?: string | null }).tool_name || undefined,
-      });
-    }
-  }
 
   const openAiTools = toolsForAuth(input.auth, input.settingValue);
   const confirmed = new Set(input.humanConfirmedToolIds || []);
@@ -220,7 +226,7 @@ export async function runRdaChatTurn(
 
   for (let round = 0; round < MAX_ROUNDS; round++) {
     const completion = await provider.complete({
-      messages,
+      messages: sanitizeMessagesForOpenAi(messages),
       tools: openAiTools.length ? openAiTools : undefined,
       toolChoice: openAiTools.length ? "auto" : "none",
     });
