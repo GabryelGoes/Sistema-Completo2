@@ -1,0 +1,40 @@
+Gaps do schema — homologação RDA
+=================================
+Confirmado no repositório Sistema-Completo2:
+
+AUSENTES (sem CREATE TABLE versionado):
+  - public.workshops
+  - public.customers
+  - public.service_orders
+
+PRESENTES (CREATE/ALTER no git — usados no bootstrap):
+  - workshop_system_users (+ photo_url, is_technician, job_title, profile_token*, accent_color)
+  - budgets (+ updated_at, verified_at, verified_by_name)
+  - workshop_os_counters + get_next_os_number
+  - Todas as migrations RDA 220000–260000
+
+RECONSTRUÇÃO no 00_bootstrap_core_schema.sql:
+  - workshops(id, name) — único comprovado via FKs e healthcheck API
+  - customers — colunas do POST/GET /api/customers + city
+  - service_orders — base inferida + TODAS as colunas ADD das migrations listadas
+    no header do bootstrap / LIST_SELECT da API
+
+NÃO inventado / não incluído:
+  - Colunas extras de workshops que possam existir só em produção
+  - Policies Realtime anon de produção
+  - Tabelas de estoque, TV, ABS, etc. (fora do escopo cronômetro/avaliações)
+  - Bucket Storage quality-incidents (anexos de ocorrência — opcional no teste RDA)
+
+UI (00b_bootstrap_ui_support.sql — versionado no repo):
+  - workshop_settings
+  - workshop_device_sessions / workshop_blocked_devices
+  - workshop_technicians (+ photo_url)
+  - workshop_technician_incidents (+ attachments)
+
+Permissões de abas (01b / seed atualizado):
+  - técnicos: access_home + access_patio (cronômetro na OS)
+  - gerente: access_home + access_radar_qualidade
+
+Se o SQL Editor falhar por coluna NOT NULL desconhecida ao espelhar produção,
+registre o erro e NÃO copie dados reais — ajuste o bootstrap com a evidência
+nova versionada.

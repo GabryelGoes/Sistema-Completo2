@@ -1,0 +1,56 @@
+RDA Intelligence — Ativação no sistema principal (Vercel + Supabase oficina)
+===========================================================================
+NÃO executar migrations/deploy sem autorização final explícita do responsável.
+
+A) Identidade do tip
+--------------------
+Branch: cursor/rda-intelligence-485b (PR #119)
+Contém: cronômetros, avaliações, motor OpenAI real, chat, insights OS, scan gestão.
+
+B) Supabase da oficina (produção)
+---------------------------------
+1. Backup completo (Dashboard → Database → Backups / dump lógico) ANTES de migrar.
+2. Aplicar SOMENTE migrations versionadas novas (nessa ordem), no SQL Editor:
+   - 20261101220000_rda_work_sessions.sql
+   - 20261101230000_rda_work_sessions_integrity.sql
+   - 20261101240000_rda_work_rpc_privileges.sql
+   - 20261101250000_rda_managerial_evaluations.sql
+   - 20261101260000_rda_rpc_idempotent_owner_guard.sql
+   - 20261102010000_rda_intelligence_runtime.sql
+3. NÃO rode 00_bootstrap / 01_seed / dados fictícios no banco da oficina.
+4. Plano de reversão: manter backup; DROP apenas das tabelas rda_* novas se necessário
+   (não apaga service_orders/clientes/estoque). RPCs podem ser substituídas por versões
+   anteriores do git se preciso.
+
+C) Variáveis Vercel (projeto PRINCIPAL — Production)
+----------------------------------------------------
+OPENAI_API_KEY=<sua chave>          # só servidor
+RDA_ALLOW_LLM_CALLS=true            # libera HTTP OpenAI
+RDA_INTELLIGENCE_ENABLED=false      # deixe false; ative pela UI (workshop_settings)
+RDA_LLM_PROVIDER=openai             # opcional se a key existir
+RDA_OPENAI_MODEL=gpt-4o-mini        # custo baixo; pode trocar
+RDA_DAILY_TOKEN_LIMIT=500000        # ~limite diário por oficina
+
+Não remova SUPABASE_* / WORKSHOP_ID existentes.
+Não ative HOMOLOGATION_MODE em produção.
+
+D) Deploy
+---------
+1. Merge/PR #119 aprovado → deploy Vercel Production (quando autorizado).
+2. No app: login Gerência/full_access → Assistente RDA (ícone) → Ativar RDA
+   (grava workshop_settings.rda_intelligence_enabled=true).
+3. Modo inicial: leitura + sugestões; writes exigem confirmação humana.
+
+E) Custos estimados (gpt-4o-mini, ordem de grandeza)
+----------------------------------------------------
+- Chat curto com 2–4 tools: ~2–8k tokens ≈ US$ 0.001–0.005
+- Insight automático por OS: ~1–4k tokens ≈ US$ 0.0005–0.002
+- Limite 500k tokens/dia ≈ dezenas de dólares/mês no pior caso intenso;
+  ajuste RDA_DAILY_TOKEN_LIMIT conforme uso.
+
+F) Verificação pós-ativação
+---------------------------
+- GET /api/rda/status → operational true, provider.configured true
+- Criar OS teste → card “RDA — análise técnica” popula
+- Chat: “Quais carros estão parados há mais tempo?”
+- Radar → Avaliações / Scan gestão gera notificação type=rda_management_alert

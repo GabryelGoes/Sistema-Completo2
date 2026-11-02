@@ -1,29 +1,104 @@
 /**
  * Módulos ABS em memória quando Supabase não está configurado (dev / Cloud Agent).
+ * Espelha catálogo (modelos/códigos/aplicações), sequências, busca e desmembramento.
  */
 import {
+  absModelFingerprint,
   formatAbsModulePublicId,
   isValidAbsModulePublicId,
+  legacyConditionToItemFields,
+  primaryCodeForScope,
+  type AbsCodeRole,
+  type AbsComponentScope,
+  type AbsDisassembleDestination,
   type AbsModuleCondition,
+  type AbsModuleItemCondition,
+  type AbsModuleItemState,
   type AbsModuleKind,
   type AbsModuleMovementType,
   type AbsModuleStatus,
+  type WorkshopAbsDisassembleInput,
+  type WorkshopAbsDisassembleResult,
   type WorkshopAbsModule,
+  type WorkshopAbsModuleApplication,
+  type WorkshopAbsModuleApplicationInput,
+  type WorkshopAbsModuleCode,
+  type WorkshopAbsModuleCodeInput,
+  type WorkshopAbsModuleDisassembly,
+  type WorkshopAbsModuleModel,
+  type WorkshopAbsModuleModelWriteInput,
   type WorkshopAbsModuleMovement,
+  type WorkshopAbsModulePhoto,
+  type WorkshopAbsModuleSearchResult,
   type WorkshopAbsModuleWriteInput,
 } from './workshopAbsModules.js';
 
 type AbsModuleRow = WorkshopAbsModule & {
   movements: WorkshopAbsModuleMovement[];
+  photos: WorkshopAbsModulePhoto[];
+};
+
+type AbsModelRow = WorkshopAbsModuleModel & {
+  codes: WorkshopAbsModuleCode[];
+  applications: WorkshopAbsModuleApplication[];
+  photos: WorkshopAbsModulePhoto[];
 };
 
 const WORKSHOP_DEV_ID = 'dev-workshop';
 const modules = new Map<string, AbsModuleRow>();
-let seq = 0;
+const models = new Map<string, AbsModelRow>();
+const disassemblies = new Map<string, WorkshopAbsModuleDisassembly>();
+/** public_id global (ABS-000001…) */
+let publicSeq = 0;
+/** sequence_number por model_id */
+const modelSeq = new Map<string, number>();
+
+function nowIso(): string {
+  return new Date().toISOString();
+}
+
+function trimOrNull(v: unknown): string | null {
+  if (v == null) return null;
+  const s = String(v).trim();
+  return s || null;
+}
 
 function cloneModule(row: AbsModuleRow): WorkshopAbsModule {
   const { movements: _m, ...mod } = row;
-  return { ...mod };
+  return {
+    ...mod,
+    photos: (mod.photos || []).map((p) => ({ ...p })),
+  };
+}
+
+function cloneModel(row: AbsModelRow, opts?: { includeUnits?: boolean }): WorkshopAbsModuleModel {
+  const units = opts?.includeUnits
+    ? Array.from(modules.values())
+        .filter((u) => u.model_id === row.id)
+        .map(cloneModule)
+        .sort((a, b) => (a.sequence_number ?? 0) - (b.sequence_number ?? 0))
+    : undefined;
+  const available_qty = Array.from(modules.values()).filter(
+    (u) => u.model_id === row.id && u.status === 'disponivel'
+  ).length;
+  const total_qty = Array.from(modules.values()).filter((u) => u.model_id === row.id).length;
+  return {
+    id: row.id,
+    workshop_id: row.workshop_id,
+    manufacturer: row.manufacturer,
+    family: row.family,
+    module_kind: row.module_kind,
+    notes: row.notes,
+    fingerprint: row.fingerprint,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+    codes: row.codes.map((c) => ({ ...c })),
+    applications: row.applications.map((a) => ({ ...a })),
+    photos: row.photos.map((p) => ({ ...p })),
+    available_qty,
+    total_qty,
+    ...(units ? { units } : {}),
+  };
 }
 
 function parseKind(v: unknown): AbsModuleKind {
@@ -39,8 +114,275 @@ function parseCondition(v: unknown): AbsModuleCondition {
 }
 
 function parseStatus(v: unknown): AbsModuleStatus {
-  return String(v || '').trim() === 'fora_estoque' ? 'fora_estoque' : 'disponivel';
+  const s = String(v || '').trim();
+  if (s === 'fora_estoque' || s === 'desmembrado' || s === 'reservado' || s === 'disponivel') {
+    return s;
+  }
+  return 'disponivel';
 }
+
+function parseItemState(v: unknown, fallback: AbsModuleItemState = 'usado'): AbsModuleItemState {
+  const s = String(v || '').trim();
+  if (s === 'novo' || s === 'usado' || s === 'recondicionado') return s;
+  return fallback;
+}
+
+function parseItemCondition(
+  v: unknown,
+  fallback: AbsModuleItemCondition = 'nao_testado'
+): AbsModuleItemCondition {
+  const s = String(v || '').trim();
+  if (s === 'perfeito' || s === 'com_avarias' || s === 'defeituoso' || s === 'nao_testado') return s;
+  return fallback;
+}
+
+function parseScope(v: unknown, fallback: AbsComponentScope = 'completo'): AbsComponentScope {
+  const s = String(v || '').trim();
+  if (s === 'completo' || s === 'eletronico' || s === 'hidraulico') return s;
+  return fallback;
+}
+
+function parseCodeRole(v: unknown): AbsCodeRole {
+  const s = String(v || '').trim();
+  if (s === 'fabricante' || s === 'montadora' || s === 'alternativo') return s;
+  return 'fabricante';
+}
+
+function scopeForKind(kind: AbsModuleKind): AbsComponentScope {
+  if (kind === 'hidraulico') return 'hidraulico';
+  if (kind === 'eletronico') return 'eletronico';
+  if (kind === 'completo') return 'completo';
+  return 'eletronico';
+}
+
+function nextPublicId(): string {
+  publicSeq += 1;
+  return formatAbsModulePublicId(publicSeq);
+}
+
+function nextSequenceForModel(modelId: string): number {
+  const cur = modelSeq.get(modelId) ?? 0;
+  const next = cur + 1;
+  modelSeq.set(modelId, next);
+  return next;
+}
+
+function buildCodes(
+  modelId: string,
+  inputs: WorkshopAbsModuleCodeInput[] | undefined
+): WorkshopAbsModuleCode[] {
+  if (!inputs?.length) return [];
+  const out: WorkshopAbsModuleCode[] = [];
+  inputs.forEach((c, i) => {
+    const code_value = String(c.code_value || '').trim();
+    if (!code_value) return;
+    out.push({
+      id: crypto.randomUUID(),
+      workshop_id: WORKSHOP_DEV_ID,
+      model_id: modelId,
+      component_scope: parseScope(c.component_scope),
+      code_role: parseCodeRole(c.code_role),
+      code_value,
+      sort_order: c.sort_order ?? i,
+      created_at: nowIso(),
+    });
+  });
+  return out;
+}
+
+function buildApplications(
+  modelId: string,
+  inputs: WorkshopAbsModuleApplicationInput[] | undefined
+): WorkshopAbsModuleApplication[] {
+  if (!inputs?.length) return [];
+  return inputs.map((a, i) => ({
+    id: crypto.randomUUID(),
+    workshop_id: WORKSHOP_DEV_ID,
+    model_id: modelId,
+    component_scope: parseScope(a.component_scope),
+    vehicle_brand: trimOrNull(a.vehicle_brand),
+    vehicle_model: trimOrNull(a.vehicle_model),
+    generation: trimOrNull(a.generation),
+    year_from: a.year_from != null && Number.isFinite(Number(a.year_from)) ? Number(a.year_from) : null,
+    year_to: a.year_to != null && Number.isFinite(Number(a.year_to)) ? Number(a.year_to) : null,
+    engine: trimOrNull(a.engine),
+    version: trimOrNull(a.version),
+    notes: trimOrNull(a.notes),
+    sort_order: a.sort_order ?? i,
+    created_at: nowIso(),
+  }));
+}
+
+function buildPhotos(urls: string[] | undefined): WorkshopAbsModulePhoto[] {
+  if (!urls?.length) return [];
+  const out: WorkshopAbsModulePhoto[] = [];
+  urls.forEach((u, i) => {
+    const photo_url = String(u || '').trim();
+    if (!photo_url) return;
+    out.push({ id: crypto.randomUUID(), photo_url, sort_order: i });
+  });
+  return out;
+}
+
+function primaryCodeFromInput(
+  codes: WorkshopAbsModuleCodeInput[] | undefined,
+  kind: AbsModuleKind,
+  fallback?: string | null
+): string | null {
+  const scope = scopeForKind(kind);
+  const fromCodes = (codes || [])
+    .filter((c) => parseScope(c.component_scope, scope) === scope && String(c.code_value || '').trim())
+    .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+  if (fromCodes[0]) return String(fromCodes[0].code_value).trim();
+  const any = (codes || []).find((c) => String(c.code_value || '').trim());
+  if (any) return String(any.code_value).trim();
+  return trimOrNull(fallback);
+}
+
+function findModelByFingerprint(fp: string): AbsModelRow | undefined {
+  for (const m of models.values()) {
+    if (m.fingerprint === fp) return m;
+  }
+  return undefined;
+}
+
+function resolveOrCreateModel(opts: {
+  manufacturer?: string | null;
+  family?: string | null;
+  module_kind?: AbsModuleKind;
+  primary_code?: string | null;
+  notes?: string | null;
+  codes?: WorkshopAbsModuleCodeInput[];
+  applications?: WorkshopAbsModuleApplicationInput[];
+  photo_urls?: string[];
+}): AbsModelRow {
+  const kind = parseKind(opts.module_kind);
+  const manufacturer = trimOrNull(opts.manufacturer);
+  const family = trimOrNull(opts.family);
+  const primary = primaryCodeFromInput(opts.codes, kind, opts.primary_code);
+  const fp = absModelFingerprint(manufacturer, primary, kind);
+  const existing = findModelByFingerprint(fp);
+  if (existing) {
+    if (opts.codes?.length && existing.codes.length === 0) {
+      existing.codes = buildCodes(existing.id, opts.codes);
+    } else if (primary && !existing.codes.some((c) => c.code_value === primary)) {
+      existing.codes.push({
+        id: crypto.randomUUID(),
+        workshop_id: WORKSHOP_DEV_ID,
+        model_id: existing.id,
+        component_scope: scopeForKind(kind),
+        code_role: 'fabricante',
+        code_value: primary,
+        sort_order: existing.codes.length,
+        created_at: nowIso(),
+      });
+    }
+    if (opts.applications?.length && existing.applications.length === 0) {
+      existing.applications = buildApplications(existing.id, opts.applications);
+    }
+    return existing;
+  }
+
+  const id = crypto.randomUUID();
+  const t = nowIso();
+  let codes = buildCodes(id, opts.codes);
+  if (!codes.length && primary) {
+    codes = [
+      {
+        id: crypto.randomUUID(),
+        workshop_id: WORKSHOP_DEV_ID,
+        model_id: id,
+        component_scope: scopeForKind(kind),
+        code_role: 'fabricante',
+        code_value: primary,
+        sort_order: 0,
+        created_at: t,
+      },
+    ];
+  }
+  const row: AbsModelRow = {
+    id,
+    workshop_id: WORKSHOP_DEV_ID,
+    manufacturer,
+    family,
+    module_kind: kind,
+    notes: trimOrNull(opts.notes),
+    fingerprint: fp,
+    created_at: t,
+    updated_at: t,
+    codes,
+    applications: buildApplications(id, opts.applications),
+    photos: buildPhotos(opts.photo_urls),
+  };
+  models.set(id, row);
+  modelSeq.set(id, 0);
+  return row;
+}
+
+function modelMatchesQuery(model: AbsModelRow, q: string): boolean {
+  if (!q) return true;
+  const hay = [
+    model.manufacturer,
+    model.family,
+    model.notes,
+    model.module_kind,
+    ...model.codes.map((c) => c.code_value),
+    ...model.applications.flatMap((a) => [
+      a.vehicle_brand,
+      a.vehicle_model,
+      a.generation,
+      a.engine,
+      a.version,
+      a.notes,
+      a.year_from != null ? String(a.year_from) : '',
+      a.year_to != null ? String(a.year_to) : '',
+    ]),
+  ]
+    .join(' ')
+    .toLowerCase();
+  return hay.includes(q);
+}
+
+function unitMatchesSearch(row: AbsModuleRow, q: string): boolean {
+  if (!q) return true;
+  const model = row.model_id ? models.get(row.model_id) : undefined;
+  const hay = [
+    row.public_id,
+    row.manufacturer,
+    row.original_code,
+    row.application,
+    row.model,
+    row.year_label,
+    row.location,
+    row.supplier,
+    row.notes,
+    row.sequence_number != null ? String(row.sequence_number) : '',
+    row.sequence_number != null ? `#${row.sequence_number}` : '',
+    ...(model?.codes.map((c) => c.code_value) || []),
+    ...(model?.applications.flatMap((a) => [
+      a.vehicle_brand,
+      a.vehicle_model,
+      a.generation,
+      a.engine,
+      a.version,
+      a.notes,
+    ]) || []),
+    model?.manufacturer,
+    model?.family,
+  ]
+    .join(' ')
+    .toLowerCase();
+  return hay.includes(q);
+}
+
+function modelCatalogMatches(model: AbsModelRow | undefined, q: string): boolean {
+  if (!model || !q) return false;
+  return modelMatchesQuery(model, q);
+}
+
+// ---------------------------------------------------------------------------
+// Units
+// ---------------------------------------------------------------------------
 
 export function listDevAbsModules(filters?: {
   q?: string;
@@ -52,20 +394,7 @@ export function listDevAbsModules(filters?: {
     .filter((row) => {
       if (status && row.status !== status) return false;
       if (!q) return true;
-      const hay = [
-        row.public_id,
-        row.manufacturer,
-        row.original_code,
-        row.application,
-        row.model,
-        row.year_label,
-        row.location,
-        row.supplier,
-        row.notes,
-      ]
-        .join(' ')
-        .toLowerCase();
-      return hay.includes(q);
+      return unitMatchesSearch(row, q);
     })
     .map(cloneModule)
     .sort((a, b) => b.created_at.localeCompare(a.created_at));
@@ -74,14 +403,62 @@ export function listDevAbsModules(filters?: {
 export function getDevAbsModuleByPublicId(publicId: string): WorkshopAbsModule | null {
   const key = String(publicId || '').trim().toUpperCase();
   const row = modules.get(key);
-  return row ? cloneModule(row) : null;
+  if (!row) return null;
+  const mod = cloneModule(row);
+  if (row.model_id && models.has(row.model_id)) {
+    // Inclui unidades irmãs — mesmo payload do detalhe em produção.
+    mod.catalog_model = cloneModel(models.get(row.model_id)!, { includeUnits: true });
+  }
+  return mod;
 }
 
 export function getDevAbsModuleById(id: string): WorkshopAbsModule | null {
   for (const row of modules.values()) {
-    if (row.id === id) return cloneModule(row);
+    if (row.id === id) return getDevAbsModuleByPublicId(row.public_id);
   }
   return null;
+}
+
+export function getDevAbsDisassemblyForModule(publicId: string): {
+  disassembly: WorkshopAbsModuleDisassembly;
+  source: WorkshopAbsModule;
+  remaining: WorkshopAbsModule;
+  withdrawn: WorkshopAbsModule;
+  movements: {
+    source: WorkshopAbsModuleMovement[];
+    remaining: WorkshopAbsModuleMovement[];
+    withdrawn: WorkshopAbsModuleMovement[];
+  };
+} | null {
+  const mod = getDevAbsModuleByPublicId(publicId);
+  if (!mod) return null;
+  let found: WorkshopAbsModuleDisassembly | null = null;
+  for (const d of disassemblies.values()) {
+    if (
+      d.source_module_id === mod.id ||
+      d.remaining_module_id === mod.id ||
+      d.withdrawn_module_id === mod.id
+    ) {
+      found = d;
+      break;
+    }
+  }
+  if (!found) return null;
+  const source = getDevAbsModuleById(found.source_module_id);
+  const remaining = getDevAbsModuleById(found.remaining_module_id);
+  const withdrawn = getDevAbsModuleById(found.withdrawn_module_id);
+  if (!source || !remaining || !withdrawn) return null;
+  return {
+    disassembly: { ...found },
+    source,
+    remaining,
+    withdrawn,
+    movements: {
+      source: getDevAbsModuleMovements(source.public_id),
+      remaining: getDevAbsModuleMovements(remaining.public_id),
+      withdrawn: getDevAbsModuleMovements(withdrawn.public_id),
+    },
+  };
 }
 
 export function getDevAbsModuleMovements(publicId: string): WorkshopAbsModuleMovement[] {
@@ -91,37 +468,128 @@ export function getDevAbsModuleMovements(publicId: string): WorkshopAbsModuleMov
   return [...row.movements].sort((a, b) => b.created_at.localeCompare(a.created_at));
 }
 
+type DevMovementListItem = WorkshopAbsModuleMovement & {
+  public_id: string;
+  module_kind: AbsModuleKind;
+  manufacturer: string | null;
+  sequence_number: number | null;
+  status: AbsModuleStatus;
+  original_code: string | null;
+  unit_cost: number | null;
+  unit_price: number | null;
+};
+
+function collectDevMovements(): DevMovementListItem[] {
+  const out: DevMovementListItem[] = [];
+  for (const row of modules.values()) {
+    for (const m of row.movements) {
+      out.push({
+        ...m,
+        public_id: row.public_id,
+        module_kind: row.module_kind,
+        manufacturer: row.manufacturer,
+        sequence_number: row.sequence_number,
+        status: row.status,
+        original_code: row.original_code,
+        unit_cost: row.unit_cost ?? null,
+        unit_price: row.unit_price ?? null,
+      });
+    }
+  }
+  return out.sort((a, b) => b.created_at.localeCompare(a.created_at));
+}
+
+/** Histórico global de todas as unidades ABS (mais recentes primeiro). */
+export function listDevAbsAllMovements(limit = 300): DevMovementListItem[] {
+  return collectDevMovements().slice(
+    0,
+    Math.max(1, Math.min(1000, Math.floor(limit) || 300))
+  );
+}
+
+/** Histórico de saídas/vendas (exit → fora_estoque). */
+export function listDevAbsSaleMovements(limit = 300): DevMovementListItem[] {
+  return collectDevMovements()
+    .filter((m) => m.movement_type === 'exit' && String(m.to_status || '') === 'fora_estoque')
+    .slice(0, Math.max(1, Math.min(1000, Math.floor(limit) || 300)));
+}
+
 export function createDevAbsModule(
   input: WorkshopAbsModuleWriteInput,
   recordedByName?: string | null
 ): WorkshopAbsModule {
-  seq += 1;
-  const publicId = formatAbsModulePublicId(seq);
-  const now = new Date().toISOString();
+  const kind = parseKind(input.module_kind ?? input.catalog?.module_kind);
+  const condition = parseCondition(input.condition);
+  const legacy = legacyConditionToItemFields(condition);
+  const item_state = parseItemState(input.item_state, legacy.item_state);
+  const item_condition = parseItemCondition(input.item_condition, legacy.item_condition);
+
+  let modelRow: AbsModelRow | undefined;
+
+  if (input.model_id && models.has(input.model_id)) {
+    modelRow = models.get(input.model_id)!;
+  } else if (input.catalog) {
+    const cat = input.catalog;
+    modelRow = resolveOrCreateModel({
+      manufacturer: cat.manufacturer ?? input.manufacturer,
+      family: cat.family ?? input.model,
+      module_kind: cat.module_kind ?? kind,
+      primary_code: primaryCodeFromInput(cat.codes, parseKind(cat.module_kind ?? kind), input.original_code),
+      notes: cat.notes,
+      codes: cat.codes,
+      applications: cat.applications,
+      photo_urls: cat.photo_urls,
+    });
+  } else {
+    modelRow = resolveOrCreateModel({
+      manufacturer: input.manufacturer,
+      family: input.model,
+      module_kind: kind,
+      primary_code: input.original_code,
+      notes: null,
+    });
+  }
+
+  const publicId = nextPublicId();
+  const sequence_number = nextSequenceForModel(modelRow.id);
+  const t = nowIso();
   const status = parseStatus(input.status);
-  const location = input.location != null ? String(input.location).trim() || null : null;
+  const location = trimOrNull(input.location);
+  const original_code =
+    trimOrNull(input.original_code) ||
+    primaryCodeForScope(modelRow.codes, scopeForKind(modelRow.module_kind)) ||
+    null;
+
   const row: AbsModuleRow = {
     id: crypto.randomUUID(),
     workshop_id: WORKSHOP_DEV_ID,
     public_id: publicId,
-    manufacturer: input.manufacturer != null ? String(input.manufacturer).trim() || null : null,
-    original_code: input.original_code != null ? String(input.original_code).trim() || null : null,
-    application: input.application != null ? String(input.application).trim() || null : null,
-    model: input.model != null ? String(input.model).trim() || null : null,
-    year_label: input.year_label != null ? String(input.year_label).trim() || null : null,
-    module_kind: parseKind(input.module_kind),
-    condition: parseCondition(input.condition),
+    manufacturer: trimOrNull(input.manufacturer) ?? modelRow.manufacturer,
+    original_code,
+    application: trimOrNull(input.application),
+    model: trimOrNull(input.model) ?? modelRow.family,
+    year_label: trimOrNull(input.year_label),
+    module_kind: kind,
+    condition,
+    item_state,
+    item_condition,
+    damage_description: trimOrNull(input.damage_description),
     unit_cost: Number(input.unit_cost ?? 0) || 0,
     unit_price: Number(input.unit_price ?? 0) || 0,
-    supplier: input.supplier != null ? String(input.supplier).trim() || null : null,
+    supplier: trimOrNull(input.supplier),
     location,
-    notes: input.notes != null ? String(input.notes).trim() || null : null,
+    notes: trimOrNull(input.notes),
     status,
-    received_at: input.received_at || now,
-    created_at: now,
-    updated_at: now,
+    model_id: modelRow.id,
+    sequence_number,
+    parent_complete_id: null,
+    received_at: input.received_at || t,
+    created_at: t,
+    updated_at: t,
+    photos: buildPhotos(input.photo_urls),
     movements: [],
   };
+
   row.movements.push({
     id: crypto.randomUUID(),
     workshop_id: WORKSHOP_DEV_ID,
@@ -135,10 +603,14 @@ export function createDevAbsModule(
     reason_ref: null,
     notes: 'Cadastro inicial',
     recorded_by_name: recordedByName || null,
-    created_at: now,
+    service_order_id: null,
+    created_at: t,
   });
+
   modules.set(publicId, row);
-  return cloneModule(row);
+  const out = cloneModule(row);
+  out.catalog_model = cloneModel(modelRow);
+  return out;
 }
 
 export function updateDevAbsModule(
@@ -148,39 +620,40 @@ export function updateDevAbsModule(
   const key = String(publicId || '').trim().toUpperCase();
   const row = modules.get(key);
   if (!row) return null;
-  if (input.manufacturer !== undefined) {
-    row.manufacturer = input.manufacturer != null ? String(input.manufacturer).trim() || null : null;
-  }
-  if (input.original_code !== undefined) {
-    row.original_code =
-      input.original_code != null ? String(input.original_code).trim() || null : null;
-  }
-  if (input.application !== undefined) {
-    row.application = input.application != null ? String(input.application).trim() || null : null;
-  }
-  if (input.model !== undefined) {
-    row.model = input.model != null ? String(input.model).trim() || null : null;
-  }
-  if (input.year_label !== undefined) {
-    row.year_label = input.year_label != null ? String(input.year_label).trim() || null : null;
-  }
+  if (input.manufacturer !== undefined) row.manufacturer = trimOrNull(input.manufacturer);
+  if (input.original_code !== undefined) row.original_code = trimOrNull(input.original_code);
+  if (input.application !== undefined) row.application = trimOrNull(input.application);
+  if (input.model !== undefined) row.model = trimOrNull(input.model);
+  if (input.year_label !== undefined) row.year_label = trimOrNull(input.year_label);
   if (input.module_kind !== undefined) row.module_kind = parseKind(input.module_kind);
-  if (input.condition !== undefined) row.condition = parseCondition(input.condition);
+  if (input.condition !== undefined) {
+    row.condition = parseCondition(input.condition);
+    if (input.item_state === undefined || input.item_condition === undefined) {
+      const legacy = legacyConditionToItemFields(row.condition);
+      if (input.item_state === undefined) row.item_state = legacy.item_state;
+      if (input.item_condition === undefined) row.item_condition = legacy.item_condition;
+    }
+  }
+  if (input.item_state !== undefined) row.item_state = parseItemState(input.item_state);
+  if (input.item_condition !== undefined) {
+    row.item_condition = parseItemCondition(input.item_condition);
+  }
+  if (input.damage_description !== undefined) {
+    row.damage_description = trimOrNull(input.damage_description);
+  }
   if (input.unit_cost !== undefined) row.unit_cost = Number(input.unit_cost ?? 0) || 0;
   if (input.unit_price !== undefined) row.unit_price = Number(input.unit_price ?? 0) || 0;
-  if (input.supplier !== undefined) {
-    row.supplier = input.supplier != null ? String(input.supplier).trim() || null : null;
-  }
-  if (input.location !== undefined) {
-    row.location = input.location != null ? String(input.location).trim() || null : null;
-  }
-  if (input.notes !== undefined) {
-    row.notes = input.notes != null ? String(input.notes).trim() || null : null;
-  }
+  if (input.supplier !== undefined) row.supplier = trimOrNull(input.supplier);
+  if (input.location !== undefined) row.location = trimOrNull(input.location);
+  if (input.notes !== undefined) row.notes = trimOrNull(input.notes);
   if (input.status !== undefined) row.status = parseStatus(input.status);
   if (input.received_at !== undefined && input.received_at) row.received_at = input.received_at;
-  row.updated_at = new Date().toISOString();
-  return cloneModule(row);
+  if (input.model_id !== undefined && input.model_id && models.has(input.model_id)) {
+    row.model_id = input.model_id;
+  }
+  if (input.photo_urls !== undefined) row.photos = buildPhotos(input.photo_urls);
+  row.updated_at = nowIso();
+  return getDevAbsModuleByPublicId(row.public_id);
 }
 
 export function applyDevAbsModuleMovement(input: {
@@ -192,6 +665,7 @@ export function applyDevAbsModuleMovement(input: {
   reason_ref?: string | null;
   notes?: string | null;
   recorded_by_name?: string | null;
+  service_order_id?: string | null;
 }): { module: WorkshopAbsModule; movement: WorkshopAbsModuleMovement } {
   let row: AbsModuleRow | undefined;
   if (input.module_id) {
@@ -213,13 +687,17 @@ export function applyDevAbsModuleMovement(input: {
     throw new Error('Tipo de movimentação inválido.');
   }
 
+  if (row.status === 'desmembrado') {
+    throw new Error(`Módulo ${row.public_id} foi desmembrado e não pode ser movimentado.`);
+  }
+
   const fromStatus = row.status;
   const fromLocation = row.location;
   let toStatus = fromStatus;
   let toLocation = fromLocation;
 
   if (movementType === 'exit') {
-    if (row.status !== 'disponivel') {
+    if (row.status !== 'disponivel' && row.status !== 'reservado') {
       throw new Error(`Módulo ${row.public_id} não está disponível para saída.`);
     }
     toStatus = 'fora_estoque';
@@ -232,12 +710,15 @@ export function applyDevAbsModuleMovement(input: {
       toLocation = String(input.to_location).trim();
     }
   } else if (movementType === 'transfer') {
+    if (row.status !== 'disponivel' && row.status !== 'reservado') {
+      throw new Error(`Módulo ${row.public_id} não pode ser transferido no status atual.`);
+    }
     const nextLoc = String(input.to_location || '').trim();
     if (!nextLoc) throw new Error('Informe o novo local.');
     toLocation = nextLoc;
   }
 
-  const now = new Date().toISOString();
+  const t = nowIso();
   const movement: WorkshopAbsModuleMovement = {
     id: crypto.randomUUID(),
     workshop_id: WORKSHOP_DEV_ID,
@@ -247,23 +728,624 @@ export function applyDevAbsModuleMovement(input: {
     to_status: toStatus,
     from_location: fromLocation,
     to_location: toLocation,
-    reason_type: input.reason_type ? String(input.reason_type).trim() || null : null,
-    reason_ref: input.reason_ref ? String(input.reason_ref).trim() || null : null,
-    notes: input.notes ? String(input.notes).trim() || null : null,
+    reason_type: trimOrNull(input.reason_type),
+    reason_ref: trimOrNull(input.reason_ref),
+    notes: trimOrNull(input.notes),
     recorded_by_name: input.recorded_by_name || null,
-    created_at: now,
+    service_order_id: trimOrNull(input.service_order_id),
+    created_at: t,
   };
 
   row.status = toStatus;
   if (movementType === 'transfer' || (movementType === 'entry' && toLocation !== fromLocation)) {
     row.location = toLocation;
   }
-  row.updated_at = now;
+  row.updated_at = t;
   row.movements.push(movement);
   return { module: cloneModule(row), movement };
 }
 
+// ---------------------------------------------------------------------------
+// Models / catalog
+// ---------------------------------------------------------------------------
+
+export function listDevAbsModuleModels(filters?: {
+  q?: string;
+  kind?: AbsModuleKind | '';
+  status?: AbsModuleStatus | '';
+}): WorkshopAbsModuleModel[] {
+  const q = String(filters?.q || '').trim().toLowerCase();
+  const kind = filters?.kind || '';
+  const status = filters?.status || '';
+  return Array.from(models.values())
+    .filter((m) => {
+      if (kind && m.module_kind !== kind) return false;
+      return modelMatchesQuery(m, q);
+    })
+    .map((m) => cloneModel(m))
+    .filter((m) => {
+      // Lista de estoque: nunca exibe modelo sem unidade disponível
+      // (vendidos / saídas ficam só no histórico de vendas).
+      if (Number(m.available_qty || 0) <= 0) return false;
+      if (!status || status === 'disponivel') return true;
+      const units = Array.from(modules.values()).filter((u) => u.model_id === m.id);
+      return units.some((u) => u.status === status);
+    })
+    .sort((a, b) => b.updated_at.localeCompare(a.updated_at));
+}
+
+export function getDevAbsModuleModel(id: string): WorkshopAbsModuleModel | null {
+  const row = models.get(String(id || ''));
+  if (!row) return null;
+  return cloneModel(row, { includeUnits: true });
+}
+
+export function createDevAbsModuleModel(
+  input: WorkshopAbsModuleModelWriteInput
+): WorkshopAbsModuleModel {
+  const kind = parseKind(input.module_kind);
+  const manufacturer = trimOrNull(input.manufacturer);
+  const primary = primaryCodeFromInput(input.codes, kind, null);
+  const fp = absModelFingerprint(manufacturer, primary, kind);
+  if (findModelByFingerprint(fp)) {
+    throw new Error('Já existe um modelo ABS com este fingerprint (fabricante/código/tipo).');
+  }
+  const id = crypto.randomUUID();
+  const t = nowIso();
+  let codes = buildCodes(id, input.codes);
+  if (!codes.length && primary) {
+    codes = [
+      {
+        id: crypto.randomUUID(),
+        workshop_id: WORKSHOP_DEV_ID,
+        model_id: id,
+        component_scope: scopeForKind(kind),
+        code_role: 'fabricante',
+        code_value: primary,
+        sort_order: 0,
+        created_at: t,
+      },
+    ];
+  }
+  const row: AbsModelRow = {
+    id,
+    workshop_id: WORKSHOP_DEV_ID,
+    manufacturer,
+    family: trimOrNull(input.family),
+    module_kind: kind,
+    notes: trimOrNull(input.notes),
+    fingerprint: fp,
+    created_at: t,
+    updated_at: t,
+    codes,
+    applications: buildApplications(id, input.applications),
+    photos: buildPhotos(input.photo_urls),
+  };
+  models.set(id, row);
+  modelSeq.set(id, 0);
+  return cloneModel(row, { includeUnits: true });
+}
+
+export function updateDevAbsModuleModel(
+  id: string,
+  input: WorkshopAbsModuleModelWriteInput
+): WorkshopAbsModuleModel | null {
+  const row = models.get(String(id || ''));
+  if (!row) return null;
+
+  if (input.manufacturer !== undefined) row.manufacturer = trimOrNull(input.manufacturer);
+  if (input.family !== undefined) row.family = trimOrNull(input.family);
+  if (input.module_kind !== undefined) row.module_kind = parseKind(input.module_kind);
+  if (input.notes !== undefined) row.notes = trimOrNull(input.notes);
+
+  if (input.codes !== undefined) {
+    row.codes = buildCodes(row.id, input.codes);
+  }
+  if (input.applications !== undefined) {
+    row.applications = buildApplications(row.id, input.applications);
+  }
+  if (input.photo_urls !== undefined) {
+    row.photos = buildPhotos(input.photo_urls);
+  }
+
+  const primary =
+    primaryCodeForScope(row.codes, scopeForKind(row.module_kind)) ||
+    row.codes[0]?.code_value ||
+    null;
+  row.fingerprint = absModelFingerprint(row.manufacturer, primary, row.module_kind);
+  row.updated_at = nowIso();
+  return cloneModel(row, { includeUnits: true });
+}
+
+// ---------------------------------------------------------------------------
+// Search
+// ---------------------------------------------------------------------------
+
+export function searchDevAbsModules(qRaw: string): WorkshopAbsModuleSearchResult {
+  const query = String(qRaw || '').trim();
+  const q = query.toLowerCase();
+  if (!q) {
+    return { query, availableUnits: [], availableViaDisassembly: [] };
+  }
+
+  const availableUnits = Array.from(modules.values())
+    .filter(
+      (u) =>
+        u.status === 'disponivel' &&
+        (u.module_kind === 'eletronico' || u.module_kind === 'hidraulico') &&
+        unitMatchesSearch(u, q)
+    )
+    .map(cloneModule)
+    .sort((a, b) => a.public_id.localeCompare(b.public_id));
+
+  const availableViaDisassembly = Array.from(modules.values())
+    .filter((u) => {
+      if (u.status !== 'disponivel' || u.module_kind !== 'completo') return false;
+      const model = u.model_id ? models.get(u.model_id) : undefined;
+      return (
+        unitMatchesSearch(u, q) ||
+        modelCatalogMatches(model, q) ||
+        String(u.public_id).toLowerCase().includes(q) ||
+        String(u.manufacturer || '')
+          .toLowerCase()
+          .includes(q)
+      );
+    })
+    .map(cloneModule)
+    .sort((a, b) => a.public_id.localeCompare(b.public_id));
+
+  return { query, availableUnits, availableViaDisassembly };
+}
+
+// ---------------------------------------------------------------------------
+// Disassemble
+// ---------------------------------------------------------------------------
+
+function sameAbsVehicleApp(
+  a: Pick<WorkshopAbsModuleApplication, 'vehicle_brand' | 'vehicle_model' | 'year_from' | 'year_to'>,
+  b: Pick<WorkshopAbsModuleApplication, 'vehicle_brand' | 'vehicle_model' | 'year_from' | 'year_to'>
+): boolean {
+  return (
+    String(a.vehicle_brand || '')
+      .trim()
+      .toLowerCase() ===
+      String(b.vehicle_brand || '')
+        .trim()
+        .toLowerCase() &&
+    String(a.vehicle_model || '')
+      .trim()
+      .toLowerCase() ===
+      String(b.vehicle_model || '')
+        .trim()
+        .toLowerCase() &&
+    (a.year_from ?? null) === (b.year_from ?? null) &&
+    (a.year_to ?? null) === (b.year_to ?? null)
+  );
+}
+
+/**
+ * No desmembramento: a aplicação ORIGINAL do completo fica no escopo `completo`
+ * do modelo do componente (lista/etiqueta); apps do escopo da peça ficam
+ * secundárias (compatibilidade).
+ */
+function copyAppsToModel(
+  sourceModel: AbsModelRow,
+  targetModel: AbsModelRow,
+  scope: AbsComponentScope
+) {
+  const sortedSource = [...sourceModel.applications].sort(
+    (a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)
+  );
+  const original =
+    sortedSource.find((a) => a.component_scope === 'completo') || sortedSource[0] || null;
+  if (!original) return;
+
+  // Cadastro original sempre em `completo` no modelo do componente.
+  for (const a of targetModel.applications) {
+    if (a.component_scope === 'completo') a.sort_order = (a.sort_order ?? 0) + 100;
+  }
+  const existingCompleto = targetModel.applications.find(
+    (a) => a.component_scope === 'completo' && sameAbsVehicleApp(a, original)
+  );
+  if (existingCompleto) {
+    existingCompleto.sort_order = 0;
+  } else {
+    targetModel.applications.push({
+      ...original,
+      id: crypto.randomUUID(),
+      model_id: targetModel.id,
+      component_scope: 'completo',
+      sort_order: 0,
+      created_at: nowIso(),
+    });
+  }
+
+  // Remove cópia antiga da original no escopo da peça (evita virar "principal" errada).
+  targetModel.applications = targetModel.applications.filter(
+    (a) => !(a.component_scope === scope && sameAbsVehicleApp(a, original))
+  );
+
+  let secondarySort = 1;
+  for (const a of sortedSource.filter((x) => x.component_scope === scope)) {
+    if (sameAbsVehicleApp(a, original)) continue;
+    const exists = targetModel.applications.some(
+      (t) => t.component_scope === scope && sameAbsVehicleApp(t, a)
+    );
+    if (exists) continue;
+    targetModel.applications.push({
+      ...a,
+      id: crypto.randomUUID(),
+      model_id: targetModel.id,
+      component_scope: scope,
+      sort_order: secondarySort++,
+      created_at: nowIso(),
+    });
+  }
+
+  const completoOrdered = targetModel.applications
+    .filter((a) => a.component_scope === 'completo')
+    .sort((a, b) => {
+      const aOrig = sameAbsVehicleApp(a, original) ? 0 : 1;
+      const bOrig = sameAbsVehicleApp(b, original) ? 0 : 1;
+      if (aOrig !== bOrig) return aOrig - bOrig;
+      return (a.sort_order ?? 0) - (b.sort_order ?? 0);
+    });
+  completoOrdered.forEach((a, i) => {
+    a.sort_order = i;
+  });
+
+  const partOrdered = targetModel.applications
+    .filter((a) => a.component_scope === scope)
+    .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+  partOrdered.forEach((a, i) => {
+    a.sort_order = i;
+  });
+}
+
+export function disassembleDevAbsModule(
+  publicId: string,
+  input: WorkshopAbsDisassembleInput
+): WorkshopAbsDisassembleResult {
+  const key = String(publicId || '').trim().toUpperCase();
+  if (!isValidAbsModulePublicId(key)) throw new Error('ID de módulo ABS inválido.');
+  const src = modules.get(key);
+  if (!src) throw new Error('Módulo ABS de origem não encontrado.');
+
+  const withdrawnKind = input.withdrawn_kind;
+  if (withdrawnKind !== 'eletronico' && withdrawnKind !== 'hidraulico') {
+    throw new Error('Informe se a peça retirada é eletrônica ou hidráulica.');
+  }
+  const destination = input.destination as AbsDisassembleDestination;
+  if (
+    destination !== 'ordem_servico' &&
+    destination !== 'venda_direta' &&
+    destination !== 'laboratorio' &&
+    destination !== 'estoque'
+  ) {
+    throw new Error('Destino de desmembramento inválido.');
+  }
+
+  if (src.module_kind !== 'completo') {
+    throw new Error('Somente módulos completos podem ser desmembrados.');
+  }
+  if (src.status !== 'disponivel') {
+    throw new Error(`Módulo ${src.public_id} não está disponível para desmembramento.`);
+  }
+  for (const d of disassemblies.values()) {
+    if (d.source_module_id === src.id) {
+      throw new Error('Este módulo já foi desmembrado.');
+    }
+  }
+
+  const srcModel = src.model_id ? models.get(src.model_id) : undefined;
+  if (!srcModel) throw new Error('Modelo do módulo de origem não encontrado.');
+
+  const remainingKind: AbsModuleKind =
+    withdrawnKind === 'eletronico' ? 'hidraulico' : 'eletronico';
+
+  let withdrawnCode =
+    trimOrNull(input.withdrawn_primary_code) ||
+    primaryCodeForScope(srcModel.codes, withdrawnKind) ||
+    src.original_code;
+  let remainingCode =
+    trimOrNull(input.remaining_primary_code) ||
+    primaryCodeForScope(srcModel.codes, remainingKind) ||
+    src.original_code;
+
+  const remainingModel = resolveOrCreateModel({
+    manufacturer: src.manufacturer,
+    family: srcModel.family ?? src.model,
+    module_kind: remainingKind,
+    primary_code: remainingCode,
+  });
+  const withdrawnModel = resolveOrCreateModel({
+    manufacturer: src.manufacturer,
+    family: srcModel.family ?? src.model,
+    module_kind: withdrawnKind,
+    primary_code: withdrawnCode,
+  });
+
+  copyAppsToModel(srcModel, remainingModel, remainingKind);
+  copyAppsToModel(srcModel, withdrawnModel, withdrawnKind);
+
+  withdrawnCode =
+    trimOrNull(input.withdrawn_primary_code) ||
+    primaryCodeForScope(withdrawnModel.codes, withdrawnKind) ||
+    withdrawnCode;
+  remainingCode =
+    trimOrNull(input.remaining_primary_code) ||
+    primaryCodeForScope(remainingModel.codes, remainingKind) ||
+    remainingCode;
+
+  const costOriginal = Number(src.unit_cost ?? 0) || 0;
+  const costRemaining =
+    input.cost_remaining != null && Number.isFinite(Number(input.cost_remaining))
+      ? Number(input.cost_remaining)
+      : Math.round((costOriginal / 2) * 100) / 100;
+  const costWithdrawn =
+    input.cost_withdrawn != null && Number.isFinite(Number(input.cost_withdrawn))
+      ? Number(input.cost_withdrawn)
+      : Math.round((costOriginal - costRemaining) * 100) / 100;
+
+  if (
+    Math.abs(costRemaining + costWithdrawn - costOriginal) > 0.01 &&
+    !input.cost_adjustment_authorized
+  ) {
+    throw new Error(
+      `A soma dos custos dos componentes (${(costRemaining + costWithdrawn).toFixed(2)}) deve igualar o custo do completo (${costOriginal.toFixed(2)}). Autorize o ajuste se necessário.`
+    );
+  }
+
+  const remainingSeq = nextSequenceForModel(remainingModel.id);
+  const remainingPublicId = nextPublicId();
+  const t = nowIso();
+  const keepOriginalLabel = destination !== 'estoque';
+  const exitReasonType =
+    destination === 'ordem_servico'
+      ? 'ordem_servico'
+      : destination === 'venda_direta'
+        ? 'venda_avulsa'
+        : destination === 'laboratorio'
+          ? 'laboratorio'
+          : 'desmembramento';
+  const originalPublicId = src.public_id;
+
+  const remaining: AbsModuleRow = {
+    id: crypto.randomUUID(),
+    workshop_id: WORKSHOP_DEV_ID,
+    public_id: remainingPublicId,
+    manufacturer: src.manufacturer,
+    original_code: remainingCode,
+    application: src.application,
+    model: src.model,
+    year_label: src.year_label,
+    module_kind: remainingKind,
+    condition: src.condition,
+    item_state: src.item_state,
+    item_condition: src.item_condition,
+    damage_description: src.damage_description,
+    unit_cost: costRemaining,
+    unit_price: src.unit_price,
+    supplier: src.supplier,
+    location: trimOrNull(input.remaining_location) || src.location,
+    notes: `Componente restante do desmembramento de ${originalPublicId}`,
+    status: 'disponivel',
+    model_id: remainingModel.id,
+    sequence_number: remainingSeq,
+    parent_complete_id: src.id,
+    received_at: t,
+    created_at: t,
+    updated_at: t,
+    photos: [],
+    movements: [],
+  };
+  remaining.movements.push({
+    id: crypto.randomUUID(),
+    workshop_id: WORKSHOP_DEV_ID,
+    module_id: remaining.id,
+    movement_type: 'entry',
+    from_status: null,
+    to_status: 'disponivel',
+    from_location: null,
+    to_location: remaining.location,
+    reason_type: 'desmembramento',
+    reason_ref: originalPublicId,
+    notes: 'Unidade criada no desmembramento (permanece em estoque · nova etiqueta)',
+    recorded_by_name: trimOrNull(input.recorded_by_name),
+    service_order_id: null,
+    created_at: t,
+  });
+  modules.set(remainingPublicId, remaining);
+
+  let withdrawn: AbsModuleRow;
+
+  if (keepOriginalLabel) {
+    // Saída (venda/OS/lab): mantém a etiqueta ABS do completo — não gera novo public_id.
+    const withdrawnSeq = nextSequenceForModel(withdrawnModel.id);
+    const prevLocation = src.location;
+    src.module_kind = withdrawnKind;
+    src.model_id = withdrawnModel.id;
+    src.sequence_number = withdrawnSeq;
+    src.original_code = withdrawnCode;
+    src.unit_cost = costWithdrawn;
+    src.status = 'fora_estoque';
+    src.location = trimOrNull(input.withdrawn_location);
+    src.notes =
+      trimOrNull(input.notes) ||
+      `Desmembramento: saída ${withdrawnKind} (etiqueta original ${originalPublicId})`;
+    src.parent_complete_id = null;
+    src.updated_at = t;
+    src.movements.push({
+      id: crypto.randomUUID(),
+      workshop_id: WORKSHOP_DEV_ID,
+      module_id: src.id,
+      movement_type: 'exit',
+      from_status: 'disponivel',
+      to_status: 'fora_estoque',
+      from_location: prevLocation,
+      to_location: src.location,
+      reason_type: exitReasonType,
+      reason_ref: trimOrNull(input.destination_ref),
+      notes:
+        trimOrNull(input.notes) ||
+        `Desmembramento → ${destination} (mantém etiqueta ${originalPublicId})`,
+      recorded_by_name: trimOrNull(input.recorded_by_name),
+      service_order_id: trimOrNull(input.service_order_id),
+      created_at: t,
+    });
+    withdrawn = src;
+  } else {
+    // Destino estoque: completa vira desmembrado; geram-se duas unidades novas.
+    const withdrawnSeq = nextSequenceForModel(withdrawnModel.id);
+    const withdrawnPublicId = nextPublicId();
+    src.status = 'desmembrado';
+    src.updated_at = t;
+    src.movements.push({
+      id: crypto.randomUUID(),
+      workshop_id: WORKSHOP_DEV_ID,
+      module_id: src.id,
+      movement_type: 'exit',
+      from_status: 'disponivel',
+      to_status: 'desmembrado',
+      from_location: src.location,
+      to_location: src.location,
+      reason_type: 'desmembramento',
+      reason_ref: trimOrNull(input.destination_ref),
+      notes: trimOrNull(input.notes) || 'Desmembramento de módulo completo',
+      recorded_by_name: trimOrNull(input.recorded_by_name),
+      service_order_id: trimOrNull(input.service_order_id),
+      created_at: t,
+    });
+
+    withdrawn = {
+      id: crypto.randomUUID(),
+      workshop_id: WORKSHOP_DEV_ID,
+      public_id: withdrawnPublicId,
+      manufacturer: src.manufacturer,
+      original_code: withdrawnCode,
+      application: src.application,
+      model: src.model,
+      year_label: src.year_label,
+      module_kind: withdrawnKind,
+      condition: src.condition,
+      item_state: src.item_state,
+      item_condition: src.item_condition,
+      damage_description: src.damage_description,
+      unit_cost: costWithdrawn,
+      unit_price: src.unit_price,
+      supplier: src.supplier,
+      location: trimOrNull(input.withdrawn_location) || src.location,
+      notes: `Componente retirado do desmembramento de ${originalPublicId}`,
+      status: 'disponivel',
+      model_id: withdrawnModel.id,
+      sequence_number: withdrawnSeq,
+      parent_complete_id: src.id,
+      received_at: t,
+      created_at: t,
+      updated_at: t,
+      photos: [],
+      movements: [],
+    };
+    withdrawn.movements.push({
+      id: crypto.randomUUID(),
+      workshop_id: WORKSHOP_DEV_ID,
+      module_id: withdrawn.id,
+      movement_type: 'entry',
+      from_status: null,
+      to_status: 'disponivel',
+      from_location: null,
+      to_location: withdrawn.location,
+      reason_type: 'desmembramento',
+      reason_ref: originalPublicId,
+      notes: 'Unidade criada no desmembramento (retirada → estoque)',
+      recorded_by_name: trimOrNull(input.recorded_by_name),
+      service_order_id: trimOrNull(input.service_order_id),
+      created_at: t,
+    });
+    modules.set(withdrawnPublicId, withdrawn);
+  }
+
+  const disassembly: WorkshopAbsModuleDisassembly = {
+    id: crypto.randomUUID(),
+    workshop_id: WORKSHOP_DEV_ID,
+    source_module_id: src.id,
+    withdrawn_kind: withdrawnKind,
+    remaining_module_id: remaining.id,
+    withdrawn_module_id: withdrawn.id,
+    destination,
+    destination_ref: trimOrNull(input.destination_ref),
+    service_order_id: trimOrNull(input.service_order_id),
+    cost_original: costOriginal,
+    cost_remaining: costRemaining,
+    cost_withdrawn: costWithdrawn,
+    cost_adjustment_authorized: Boolean(input.cost_adjustment_authorized),
+    cost_adjustment_note: trimOrNull(input.cost_adjustment_note),
+    notes: trimOrNull(input.notes),
+    recorded_by_name: trimOrNull(input.recorded_by_name),
+    created_at: t,
+  };
+  disassemblies.set(disassembly.id, disassembly);
+
+  return {
+    source: cloneModule(src),
+    remaining: cloneModule(remaining),
+    withdrawn: cloneModule(withdrawn),
+    disassembly: { ...disassembly },
+  };
+}
+
+/** Remove unidade física e vínculos de desmembramento. Não reutiliza public_id/sequência. */
+export function deleteDevAbsModule(publicId: string): boolean {
+  const key = String(publicId || '').trim().toUpperCase();
+  const row = modules.get(key);
+  if (!row) return false;
+
+  for (const [id, d] of [...disassemblies.entries()]) {
+    if (
+      d.source_module_id === row.id ||
+      d.remaining_module_id === row.id ||
+      d.withdrawn_module_id === row.id
+    ) {
+      disassemblies.delete(id);
+    }
+  }
+  for (const other of modules.values()) {
+    if (other.parent_complete_id === row.id) {
+      other.parent_complete_id = null;
+      other.updated_at = nowIso();
+    }
+  }
+  modules.delete(key);
+  return true;
+}
+
+/** Remove modelo técnico. Com force, remove também todas as unidades. */
+export function deleteDevAbsModuleModel(modelId: string, opts?: { force?: boolean }): {
+  ok: boolean;
+  error?: string;
+  deletedUnits?: number;
+} {
+  const id = String(modelId || '').trim();
+  if (!models.has(id)) return { ok: false, error: 'Modelo ABS não encontrado.' };
+  const units = Array.from(modules.values()).filter((u) => u.model_id === id);
+  if (units.length > 0 && !opts?.force) {
+    return {
+      ok: false,
+      error: `Este modelo possui ${units.length} unidade(s). Exclua as unidades ou confirme a exclusão completa.`,
+    };
+  }
+  for (const u of units) {
+    deleteDevAbsModule(u.public_id);
+  }
+  models.delete(id);
+  modelSeq.delete(id);
+  return { ok: true, deletedUnits: units.length };
+}
+
 export function resetDevAbsModulesForTests() {
   modules.clear();
-  seq = 0;
+  models.clear();
+  disassemblies.clear();
+  publicSeq = 0;
+  modelSeq.clear();
 }

@@ -4,6 +4,7 @@ import {
   normalizeBarcodeInput,
 } from '../utils/workshopPartBarcode';
 import { isLabOsQrPayload } from '../utils/labOsQrCode';
+import { looksLikeAbsModuleCode, normalizeAbsModuleCode } from '../utils/workshopAbsModules';
 
 export type UseBarcodeWedgeListenerOptions = {
   /** Quando false, não captura teclas. */
@@ -120,11 +121,14 @@ export function useBarcodeWedgeListener({
       reset();
       if (!code) return false;
 
-      // QR de OS do Laboratório: aceita mesmo se o leitor for um pouco mais lento
-      // (heurística de “pistola” padrão rejeitaria e o modal nunca abriria).
+      // QR de OS / código ABS: aceita mesmo se o leitor for um pouco mais lento
+      // (heurística de “pistola” padrão rejeitaria e o módulo nunca abriria).
       const labOs = isLabOsQrPayload(code);
+      const absModule =
+        normalizeAbsModuleCode(code) != null || looksLikeAbsModuleCode(code);
       if (
         !labOs &&
+        !absModule &&
         !isLikelyBarcodeWedgeKeystroke({ elapsedMs: elapsed || 1, length: code.length })
       ) {
         return false;

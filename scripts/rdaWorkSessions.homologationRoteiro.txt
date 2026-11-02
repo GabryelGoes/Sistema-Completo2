@@ -1,0 +1,11 @@
+Roteiro de validação RDA — pacote completo:
+  scripts/rdaHomologation/05_roteiro_sql_editor.txt
+
+Ordem resumida:
+  00_bootstrap_core_schema.sql
+  → migrations 220000 … 260000
+  → 01_seed_fictional.sql
+  → 02_verify.sql
+  → 03_roteiro_api.txt
+
+Gaps do schema base: scripts/rdaHomologation/GAPS_SCHEMA.txt

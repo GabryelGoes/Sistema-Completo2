@@ -1,12 +1,19 @@
 import React from 'react';
 import { IosNotificationBadge } from '../ui/IosNotificationBadge';
 
-export type PatioOsModalPcTab = 'dados' | 'orcamentos' | 'arquivos' | 'conserto_externo' | 'laboratorio';
+export type PatioOsModalPcTab =
+  | 'dados'
+  | 'orcamentos'
+  | 'arquivos'
+  | 'historico'
+  | 'conserto_externo'
+  | 'laboratorio';
 
 const ALL_TABS: { id: PatioOsModalPcTab; label: string }[] = [
   { id: 'dados', label: 'Dados' },
   { id: 'orcamentos', label: 'Orçamentos' },
   { id: 'arquivos', label: 'Arquivos' },
+  { id: 'historico', label: 'Manutenções' },
   { id: 'conserto_externo', label: 'Conserto externo' },
   { id: 'laboratorio', label: 'Serviços Laboratório' },
 ];
@@ -33,7 +40,7 @@ export const PatioOsModalPcTabBar: React.FC<PatioOsModalPcTabBarProps> = ({
     role="tablist"
     aria-label="Seções da ordem de serviço"
   >
-    <div className="mx-auto flex w-full max-w-[1680px] gap-0 px-6 xl:px-8">
+    <div className="flex w-full gap-0 px-6 xl:px-8">
       {tabs.map((tab) => {
         const selected = active === tab.id;
         const badgeCount = tabBadges?.[tab.id] ?? 0;

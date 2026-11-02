@@ -1,0 +1,51 @@
+RDA Intelligence — Guia de homologação segura (sem produção)
+============================================================
+Projeto Supabase de teste: rei-do-abs-homologacao (vazio, separado da produção).
+
+STATUS DESTE AGENTE
+- Não conecta ao banco automaticamente.
+- Não aplica SQL externamente sem autorização.
+- Arquivos prontos para colar no SQL Editor.
+
+────────────────────────────────────────────────────────────
+1) Pré-requisitos
+────────────────────────────────────────────────────────────
+A. Projeto Supabase de TESTE vazio (já criado).
+B. Tip da branch cursor/rda-intelligence-485b.
+C. `.env.homologation` a partir de `env.homologation.example`
+   (URL + service_role + anon do TESTE; WORKSHOP_ID do seed).
+D. Sem OPENAI_API_KEY; RDA_INTELLIGENCE_ENABLED=false.
+
+────────────────────────────────────────────────────────────
+2) Ordem no SQL Editor
+────────────────────────────────────────────────────────────
+Ver detalhe em `05_roteiro_sql_editor.txt`:
+
+  00_bootstrap_core_schema.sql
+  00b_bootstrap_ui_support.sql     ← Pátio/Radar no browser
+  20261101220000 … 260000
+  01_seed_fictional.sql
+  01b_ui_access_and_preview_passwords.sql
+  02_verify.sql   ← ALL_OK deve ser true
+
+Gaps: `GAPS_SCHEMA.txt`. Preview browser: `06_preview_browser.txt`.
+
+────────────────────────────────────────────────────────────
+3) Backend + frontend só em homologação
+────────────────────────────────────────────────────────────
+Local: `.env.homologation` (ver env.homologation.example) + npm run dev
+       ou npm run test:rda-homologation-api
+Preview Vercel isolado: env.preview.vercel.example + 06_preview_browser.txt
+  → projeto Vercel SEPARADO; Deployment Protection obrigatória;
+  → NÃO alterar env do deployment de produção; NÃO deploy sem autorização.
+IA: RDA_INTELLIGENCE_ENABLED=false; sem OPENAI_API_KEY.
+WORKSHOP_ID do seed. Troque senhas (01b) antes de qualquer URL compartilhada.
+
+────────────────────────────────────────────────────────────
+4) Proibido
+────────────────────────────────────────────────────────────
+- Banco da oficina / produção
+- Copiar dump ou service_role de produção
+- Merge/deploy produção / alterar env de produção
+- Preview sem proteção Vercel ou com senha padrão conhecida
+- IA nesta etapa

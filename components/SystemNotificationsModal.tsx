@@ -8,6 +8,11 @@ import {
 } from "../services/apiService";
 import { SYSTEM_NOTIFICATION_TYPE_OPTIONS } from "../constants/systemNotificationTypes";
 import {
+  AGENDA_SOON_MINUTE_OPTIONS,
+  type AgendaReminderSettings,
+  type AgendaSoonMinutes,
+} from "../utils/agendaReminderSettings";
+import {
   iosModalClose,
   iosModalInsetCard,
   iosModalShell,
@@ -96,9 +101,27 @@ function TypeSwitches(props: {
 interface SystemNotificationsModalProps {
   isOpen: boolean;
   onClose: () => void;
+  /** Banners macOS de orçamento criado/editado/verificado (modo PC). */
+  budgetBannerNotifications?: boolean;
+  onBudgetBannerNotificationsChange?: (enabled: boolean) => void;
+  /** Banners macOS de novos comentários (modo PC). */
+  commentBannerNotifications?: boolean;
+  onCommentBannerNotificationsChange?: (enabled: boolean) => void;
+  /** Lembretes da Agenda (banners + bloco da home). */
+  agendaReminderSettings?: AgendaReminderSettings;
+  onAgendaReminderSettingsChange?: (next: AgendaReminderSettings) => void;
 }
 
-export const SystemNotificationsModal: React.FC<SystemNotificationsModalProps> = ({ isOpen, onClose }) => {
+export const SystemNotificationsModal: React.FC<SystemNotificationsModalProps> = ({
+  isOpen,
+  onClose,
+  budgetBannerNotifications = true,
+  onBudgetBannerNotificationsChange,
+  commentBannerNotifications = true,
+  onCommentBannerNotificationsChange,
+  agendaReminderSettings,
+  onAgendaReminderSettingsChange,
+}) => {
   const isDesktopShell = useDesktopShellLayout();
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -191,6 +214,192 @@ export const SystemNotificationsModal: React.FC<SystemNotificationsModalProps> =
             </div>
           ) : (
             <form onSubmit={handleSave} className="space-y-5 mt-4">
+              {(typeof onBudgetBannerNotificationsChange === 'function' ||
+                typeof onCommentBannerNotificationsChange === 'function') && (
+                <div className={`${iosModalInsetCard} p-4`}>
+                  <p className="text-[13px] font-semibold text-zinc-800 dark:text-zinc-200 mb-1">
+                    Banners na tela (modo PC)
+                  </p>
+                  <p className="text-[12px] text-zinc-500 dark:text-zinc-400 mb-3">
+                    Alertas no canto da tela no estilo macOS, sem abrir a central.
+                  </p>
+                  <div className="space-y-3">
+                    {typeof onBudgetBannerNotificationsChange === 'function' ? (
+                      <div className="flex items-center justify-between gap-4">
+                        <div className="min-w-0 flex-1">
+                          <p className="text-[14px] font-medium text-zinc-900 dark:text-white">
+                            Banners de orçamento
+                          </p>
+                          <p className="text-[12px] text-zinc-500 dark:text-zinc-400 mt-0.5">
+                            Quando um orçamento é criado, editado ou verificado
+                          </p>
+                        </div>
+                        <IosSwitch
+                          id="notif-budget-banners"
+                          checked={budgetBannerNotifications}
+                          onChange={() =>
+                            onBudgetBannerNotificationsChange(!budgetBannerNotifications)
+                          }
+                          ariaLabel="Ativar banners de orçamento"
+                        />
+                      </div>
+                    ) : null}
+                    {typeof onCommentBannerNotificationsChange === 'function' ? (
+                      <div className="flex items-center justify-between gap-4">
+                        <div className="min-w-0 flex-1">
+                          <p className="text-[14px] font-medium text-zinc-900 dark:text-white">
+                            Banners de comentários
+                          </p>
+                          <p className="text-[12px] text-zinc-500 dark:text-zinc-400 mt-0.5">
+                            Quando chega um novo comentário (com som próprio)
+                          </p>
+                        </div>
+                        <IosSwitch
+                          id="notif-comment-banners"
+                          checked={commentBannerNotifications}
+                          onChange={() =>
+                            onCommentBannerNotificationsChange(!commentBannerNotifications)
+                          }
+                          ariaLabel="Ativar banners de comentários"
+                        />
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+              )}
+
+              {agendaReminderSettings && typeof onAgendaReminderSettingsChange === 'function' ? (
+                <div className={`${iosModalInsetCard} p-4`}>
+                  <p className="text-[13px] font-semibold text-zinc-800 dark:text-zinc-200 mb-1">
+                    Lembretes da Agenda
+                  </p>
+                  <p className="text-[12px] text-zinc-500 dark:text-zinc-400 mb-3">
+                    Banners dos veículos agendados e o bloco da agenda na home. Na sexta, o
+                    «próximo dia» considera a segunda (oficina não abre no fim de semana).
+                  </p>
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[14px] font-medium text-zinc-900 dark:text-white">
+                          Aviso no dia anterior
+                        </p>
+                        <p className="text-[12px] text-zinc-500 dark:text-zinc-400 mt-0.5">
+                          Banner com os carros do próximo dia útil (segunda na sexta)
+                        </p>
+                      </div>
+                      <IosSwitch
+                        id="notif-agenda-day-before"
+                        checked={agendaReminderSettings.dayBeforeEnabled}
+                        onChange={() =>
+                          onAgendaReminderSettingsChange({
+                            ...agendaReminderSettings,
+                            dayBeforeEnabled: !agendaReminderSettings.dayBeforeEnabled,
+                          })
+                        }
+                        ariaLabel="Ativar aviso no dia anterior"
+                      />
+                    </div>
+                    {agendaReminderSettings.dayBeforeEnabled ? (
+                      <div>
+                        <label htmlFor="agenda-day-before-time" className={iosLabel}>
+                          Horário do aviso
+                        </label>
+                        <input
+                          id="agenda-day-before-time"
+                          type="time"
+                          className={`${iosInput} agenda-modal-datetime max-w-[11rem]`}
+                          value={agendaReminderSettings.dayBeforeTime}
+                          onChange={(e) =>
+                            onAgendaReminderSettingsChange({
+                              ...agendaReminderSettings,
+                              dayBeforeTime: e.target.value || '18:00',
+                            })
+                          }
+                        />
+                      </div>
+                    ) : null}
+
+                    <div className="h-px bg-zinc-200/80 dark:bg-white/[0.08]" />
+
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[14px] font-medium text-zinc-900 dark:text-white">
+                          Aviso antes do horário
+                        </p>
+                        <p className="text-[12px] text-zinc-500 dark:text-zinc-400 mt-0.5">
+                          Banner minutos antes de cada agendamento
+                        </p>
+                      </div>
+                      <IosSwitch
+                        id="notif-agenda-soon"
+                        checked={agendaReminderSettings.soonEnabled}
+                        onChange={() =>
+                          onAgendaReminderSettingsChange({
+                            ...agendaReminderSettings,
+                            soonEnabled: !agendaReminderSettings.soonEnabled,
+                          })
+                        }
+                        ariaLabel="Ativar aviso antes do horário"
+                      />
+                    </div>
+                    {agendaReminderSettings.soonEnabled ? (
+                      <div>
+                        <p className={`${iosLabel} mb-2`}>Antecedência</p>
+                        <div className="flex flex-wrap gap-2">
+                          {AGENDA_SOON_MINUTE_OPTIONS.map((m) => {
+                            const active = agendaReminderSettings.soonMinutes === m;
+                            return (
+                              <button
+                                key={m}
+                                type="button"
+                                onClick={() =>
+                                  onAgendaReminderSettingsChange({
+                                    ...agendaReminderSettings,
+                                    soonMinutes: m as AgendaSoonMinutes,
+                                  })
+                                }
+                                className={`rounded-2xl border px-3.5 py-2 text-[13px] font-semibold transition-colors ${
+                                  active
+                                    ? 'border-[#007AFF]/50 bg-[#007AFF]/12 text-[#007AFF] dark:text-[#7ab8ff]'
+                                    : 'border-zinc-200/90 text-zinc-700 hover:bg-zinc-100/80 dark:border-white/[0.1] dark:text-zinc-300 dark:hover:bg-white/[0.06]'
+                                }`}
+                              >
+                                {m} min
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ) : null}
+
+                    <div className="h-px bg-zinc-200/80 dark:bg-white/[0.08]" />
+
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[14px] font-medium text-zinc-900 dark:text-white">
+                          Bloco da agenda na home
+                        </p>
+                        <p className="text-[12px] text-zinc-500 dark:text-zinc-400 mt-0.5">
+                          «Próximos amanhã» / «Hoje»; na sexta vira «Próximos Segunda-Feira»
+                        </p>
+                      </div>
+                      <IosSwitch
+                        id="notif-agenda-home-tomorrow"
+                        checked={agendaReminderSettings.homeTomorrowBlockEnabled}
+                        onChange={() =>
+                          onAgendaReminderSettingsChange({
+                            ...agendaReminderSettings,
+                            homeTomorrowBlockEnabled:
+                              !agendaReminderSettings.homeTomorrowBlockEnabled,
+                          })
+                        }
+                        ariaLabel="Mostrar bloco Próximos amanhã na home"
+                      />
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+
               <div className={`${iosModalInsetCard} p-4`}>
                 <p className="text-[13px] font-semibold text-zinc-800 dark:text-zinc-200 mb-1">Central (comentários, orçamentos e OS)</p>
                 <p className="text-[12px] text-zinc-500 dark:text-zinc-400 mb-3">Gerencie quem recebe notificações operacionais da oficina.</p>

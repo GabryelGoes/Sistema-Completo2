@@ -43,9 +43,11 @@ export type DesktopAppShellProps = {
   /** Quantidade de mensagens novas no chat de suporte. */
   supportUnreadBadge?: number;
   orcamentosBadge?: number;
+  /** Agendamentos do dia atual (ícone Agenda). */
+  agendaBadge?: number;
   notificationCenter?: Omit<NotificationCenterProps, 'placement'>;
   shellOverlayTopbar?: DesktopShellOverlayTopbar | null;
-  /** Atalho da sidebar aberto (Central, Estoque, Configurações). */
+  /** Atalho da sidebar aberto (Estoque, Painéis) ou hub de Ajustes. */
   activeSidebarAction?: DesktopSidebarActionId | null;
   /** Contagem ao lado do título (ex.: veículos no Pátio). */
   topbarCountLabel?: string;
@@ -103,6 +105,7 @@ export function DesktopAppShell({
   onOpenSupport,
   supportUnreadBadge = 0,
   orcamentosBadge = 0,
+  agendaBadge = 0,
   notificationCenter,
   shellOverlayTopbar = null,
   activeSidebarAction = null,
@@ -201,6 +204,17 @@ export function DesktopAppShell({
                       {orcamentosBadge > 99 ? '99+' : orcamentosBadge > 0 ? orcamentosBadge : '0'}
                     </span>
                   ) : null}
+                  {item.id === 'agenda' ? (
+                    <span
+                      data-desktop-nav-badge="agenda"
+                      className={`desktop-shell-nav-badge ml-auto rounded-full bg-red-500 px-1.5 py-0.5 text-[9px] font-bold text-white tabular-nums ${
+                        agendaBadge > 0 ? '' : 'invisible min-w-[1.1rem] px-0 opacity-0'
+                      }`}
+                      aria-hidden={agendaBadge <= 0}
+                    >
+                      {agendaBadge > 99 ? '99+' : agendaBadge > 0 ? agendaBadge : '0'}
+                    </span>
+                  ) : null}
                 </button>
               );
             }
@@ -229,15 +243,15 @@ export function DesktopAppShell({
             title={
               sidebarCollapsed
                 ? theme === 'dark'
-                  ? 'Tema escuro: ligado'
-                  : 'Tema escuro: desligado'
+                  ? 'Aparência escura: ligada'
+                  : 'Aparência escura: desligada'
                 : undefined
             }
           >
             {!sidebarCollapsed ? (
               <span className="desktop-shell-theme-toggle-leading">
                 <Moon className="desktop-shell-theme-toggle-icon h-4 w-4 shrink-0" strokeWidth={2.25} />
-                <span className="desktop-shell-theme-toggle-label">Tema escuro</span>
+                <span className="desktop-shell-theme-toggle-label">Aparência escura</span>
               </span>
             ) : null}
             <IosSwitch
@@ -246,7 +260,7 @@ export function DesktopAppShell({
               size="compact"
               checked={theme === 'dark'}
               onChange={() => onThemeChange(theme === 'dark' ? 'light' : 'dark')}
-              ariaLabel="Ativar tema escuro"
+              ariaLabel="Ativar aparência escura"
             />
           </div>
         ) : null}
@@ -296,8 +310,8 @@ export function DesktopAppShell({
                 type="button"
                 className="desktop-shell-topbar-btn"
                 onClick={onOpenSettings}
-                aria-label="Configurações"
-                title="Configurações"
+                aria-label="Ajustes"
+                title="Ajustes"
               >
                 <Settings className="h-4 w-4" strokeWidth={2} />
               </button>

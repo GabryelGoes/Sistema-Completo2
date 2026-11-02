@@ -4,6 +4,12 @@ import ReactMarkdown from 'react-markdown';
 import remarkBreaks from 'remark-breaks';
 import type { BoardAction } from '../../types';
 import { ModalPortal } from '../ui/ModalPortal';
+import {
+  appendOsChatPhotosMarker,
+  parseOsChatPhotosFromText,
+  stripOsChatPhotosMarker,
+} from '../../utils/osCommentChatPhotos';
+import { getVehiclePhotoPublicUrl } from '../../utils/vehicleStoragePublicUrl';
 
 export const COMMENT_REACTION_EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '🙏', '🔥', '✅'] as const;
 
@@ -27,6 +33,8 @@ export type OsCommentBubbleProps = {
   isEditing: boolean;
   onSaveEdit: (text: string) => void;
   onCancelEdit: () => void;
+  /** Abre a foto do chat no lightbox do modal. */
+  onOpenChatPhoto?: (url: string, allUrls: string[]) => void;
 };
 
 function formatViewTime(iso: string): string {
@@ -57,15 +65,30 @@ export const OsCommentBubble: React.FC<OsCommentBubbleProps> = ({
   isEditing,
   onSaveEdit,
   onCancelEdit,
+  onOpenChatPhoto,
 }) => {
   const [menuOpen, setMenuOpen] = useState(false);
   const [sheet, setSheet] = useState<'menu' | 'views' | 'react' | null>(null);
   const [marking, setMarking] = useState(false);
   const [reacting, setReacting] = useState(false);
-  const [editDraft, setEditDraft] = useState(action.data.text);
+  const displayText = useMemo(
+    () => stripOsChatPhotosMarker(action.data.text),
+    [action.data.text]
+  );
+  const chatPhotos = useMemo(() => {
+    const refs = parseOsChatPhotosFromText(action.data.text);
+    return refs
+      .map((p) => ({
+        ...p,
+        url: getVehiclePhotoPublicUrl(p.path),
+      }))
+      .filter((p): p is typeof p & { url: string } => Boolean(p.url));
+  }, [action.data.text]);
+  const chatPhotoUrls = useMemo(() => chatPhotos.map((p) => p.url), [chatPhotos]);
+  const [editDraft, setEditDraft] = useState(displayText);
 
   useEffect(() => {
-    if (isEditing) setEditDraft(action.data.text);
+    if (isEditing) setEditDraft(stripOsChatPhotosMarker(action.data.text));
   }, [isEditing, action.data.text]);
 
   const views = action.data.views ?? [];
@@ -182,6 +205,18 @@ export const OsCommentBubble: React.FC<OsCommentBubbleProps> = ({
 
         {isEditing ? (
           <div className="w-full animate-in fade-in duration-200">
+            {chatPhotos.length > 0 ? (
+              <div className="mb-2 grid grid-cols-2 gap-1 overflow-hidden rounded-xl">
+                {chatPhotos.slice(0, 4).map((p) => (
+                  <img
+                    key={p.path}
+                    src={p.url}
+                    alt=""
+                    className="aspect-square h-full w-full object-cover"
+                  />
+                ))}
+              </div>
+            ) : null}
             <textarea
               className="mb-2 min-h-[100px] w-full max-w-full resize-y break-words rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm [overflow-wrap:anywhere] dark:border-white/10 dark:bg-zinc-900"
               value={editDraft}
@@ -191,7 +226,10 @@ export const OsCommentBubble: React.FC<OsCommentBubbleProps> = ({
             <div className={`flex items-center gap-2 ${mine ? 'justify-end' : ''}`}>
               <button
                 type="button"
-                onClick={() => onSaveEdit(editDraft)}
+                onClick={() => {
+                  const photos = parseOsChatPhotosFromText(action.data.text);
+                  onSaveEdit(appendOsChatPhotosMarker(editDraft, photos));
+                }}
                 disabled={busy}
                 className="flex items-center gap-1 rounded-lg bg-brand-yellow px-3 py-1.5 text-xs font-bold text-black hover:bg-[#fcd61e]"
               >
@@ -213,17 +251,63 @@ export const OsCommentBubble: React.FC<OsCommentBubbleProps> = ({
             <button
               type="button"
               onClick={openMenu}
-              className={`max-w-full break-words px-3 py-2 text-left text-[14px] leading-relaxed [overflow-wrap:anywhere] transition active:scale-[0.99] ${
+              className={`max-w-full overflow-hidden text-left transition active:scale-[0.99] ${
                 mine
                   ? 'rounded-2xl rounded-br-md bg-[#D6EBFF] text-zinc-900 shadow-sm dark:bg-[#0A84FF] dark:text-white'
                   : 'rounded-2xl rounded-bl-md bg-slate-500 text-white shadow-sm dark:bg-slate-600 dark:text-zinc-50'
-              }`}
+              } ${chatPhotos.length && !displayText ? 'p-1' : 'px-3 py-2'}`}
             >
-              <ReactMarkdown remarkPlugins={[remarkBreaks]} components={markdownComponents}>
-                {action.data.text}
-              </ReactMarkdown>
+              {chatPhotos.length > 0 ? (
+                <div
+                  className={`grid gap-0.5 overflow-hidden ${
+                    displayText ? 'mb-2 rounded-xl' : 'rounded-[0.9rem]'
+                  } ${
+                    chatPhotos.length === 1
+                      ? 'grid-cols-1'
+                      : chatPhotos.length === 2
+                        ? 'grid-cols-2'
+                        : 'grid-cols-2'
+                  }`}
+                  onClick={(e) => e.stopPropagation()}
+                  onKeyDown={(e) => e.stopPropagation()}
+                  role="presentation"
+                >
+                  {chatPhotos.slice(0, 4).map((p, idx) => {
+                    const extra = chatPhotos.length - 4;
+                    const showMore = idx === 3 && extra > 0;
+                    return (
+                      <button
+                        key={p.path}
+                        type="button"
+                        className={`relative overflow-hidden bg-black/10 ${
+                          chatPhotos.length === 1 ? 'max-h-64 min-h-[9rem]' : 'aspect-square'
+                        } ${chatPhotos.length === 3 && idx === 0 ? 'col-span-2 aspect-[2/1]' : ''}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onOpenChatPhoto?.(p.url, chatPhotoUrls);
+                        }}
+                        aria-label={`Abrir foto ${idx + 1}`}
+                      >
+                        <img src={p.url} alt="" className="h-full w-full object-cover" />
+                        {showMore ? (
+                          <span className="absolute inset-0 flex items-center justify-center bg-black/55 text-[22px] font-semibold text-white">
+                            +{extra}
+                          </span>
+                        ) : null}
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : null}
+              {displayText ? (
+                <div className={`break-words text-[14px] leading-relaxed [overflow-wrap:anywhere] ${chatPhotos.length ? 'px-1 pb-0.5' : ''}`}>
+                  <ReactMarkdown remarkPlugins={[remarkBreaks]} components={markdownComponents}>
+                    {displayText}
+                  </ReactMarkdown>
+                </div>
+              ) : null}
               {mine ? (
-                <span className="mt-1 flex items-center justify-end gap-0.5">
+                <span className={`mt-1 flex items-center justify-end gap-0.5 ${chatPhotos.length && !displayText ? 'px-2 pb-1' : ''}`}>
                   <CheckCheck
                     className={`h-3.5 w-3.5 ${
                       isRead

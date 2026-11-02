@@ -9,7 +9,7 @@ import {
   Pencil,
   Trash2,
 } from 'lucide-react';
-import { iosModalShell, iosModalClose, iosModalInsetCard, SETTINGS_CHILD_MODAL_Z, NESTED_STOCK_OVERLAY_Z } from './ui/iosModalStyles';
+import { iosModalShell, iosModalClose, iosModalInsetCard, SHELL_MODULE_OVERLAY_Z, NESTED_STOCK_OVERLAY_Z } from './ui/iosModalStyles';
 
 import {
   WORKSHOP_PART_LEGACY_COVER_ID,
@@ -65,6 +65,8 @@ import { WorkshopPartsAnalyticsView } from './WorkshopPartsAnalyticsView';
 import { WorkshopPartStockOutboundModal } from './WorkshopPartStockOutboundModal';
 import { WorkshopPartStockInboundModal } from './WorkshopPartStockInboundModal';
 import { WorkshopPartScanHubModal } from './WorkshopPartScanHubModal';
+import { WorkshopEstoqueLedgerModal } from './WorkshopEstoqueLedgerModal';
+import { WorkshopSuppliersModal } from './WorkshopSuppliersModal';
 import { setActiveBarcodeScanClaim } from '../utils/activeBarcodeScanClaim';
 import { isLabOsQrPayload } from '../utils/labOsQrCode';
 import { normalizeBarcodeInput } from '../utils/workshopPartBarcode';
@@ -90,6 +92,7 @@ import {
 } from '../utils/workshopPartStock';
 import { storageSiteLabel } from '../utils/workshopPartFields';
 import { WorkshopPartsHomeDashboard } from './WorkshopPartsHomeDashboard';
+import { WorkshopAbsModulesHomeDashboard } from './WorkshopAbsModulesHomeDashboard';
 
 interface WorkshopPartsModalProps {
   isOpen: boolean;
@@ -97,6 +100,11 @@ interface WorkshopPartsModalProps {
   /** Ação pedida de fora (ex.: leitura USB global). */
   bootIntent?: WorkshopPartsBootIntent | null;
   onBootIntentConsumed?: () => void;
+  /**
+   * Registra guarda de saída: se o modo Balanço estiver ativo, pede confirmação
+   * antes de chamar `proceed` (fechar o Estoque / navegar para outra tela).
+   */
+  onRegisterExitGuard?: (guard: ((proceed: () => void) => void) | null) => void;
 }
 
 export type WorkshopPartsBootIntent =
@@ -184,6 +192,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
   onClose,
   bootIntent = null,
   onBootIntentConsumed,
+  onRegisterExitGuard,
 }) => {
   const [parts, setParts] = useState<WorkshopPart[]>([]);
   const [loading, setLoading] = useState(false);
@@ -225,9 +234,13 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
   const [inboundPart, setInboundPart] = useState<WorkshopPart | null>(null);
   const [scanHubOpen, setScanHubOpen] = useState(false);
   const [scanHubExternal, setScanHubExternal] = useState<{ code: string; token: number } | null>(null);
+  const [absModulesOpen, setAbsModulesOpen] = useState(false);
+  const [absModulesInitialPublicId, setAbsModulesInitialPublicId] = useState<string | null>(null);
   const [registrationPrefillBarcode, setRegistrationPrefillBarcode] = useState<string | null>(null);
   const [categories, setCategories] = useState<WorkshopPartCategory[]>([]);
   const [isCategoriesModalOpen, setIsCategoriesModalOpen] = useState(false);
+  const [isLedgerModalOpen, setIsLedgerModalOpen] = useState(false);
+  const [isSuppliersModalOpen, setIsSuppliersModalOpen] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
   const [categoryCreating, setCategoryCreating] = useState(false);
   const [categoryEditingId, setCategoryEditingId] = useState<string | null>(null);
@@ -237,15 +250,59 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
   const [stockGuardOpen, setStockGuardOpen] = useState(false);
   const [stockGuardError, setStockGuardError] = useState<string | null>(null);
   const [stockGuardBusy, setStockGuardBusy] = useState(false);
+  /** Modo Balanço: senha uma vez; alterações sem novo prompt até sair do Estoque. */
+  const [balanceModeActive, setBalanceModeActive] = useState(false);
+  const balanceModeActiveRef = useRef(false);
+  const balancePasswordRef = useRef<string | null>(null);
+  const stockGuardPurposeRef = useRef<'action' | 'balance'>('action');
+  const [stockGuardPurpose, setStockGuardPurpose] = useState<'action' | 'balance'>('action');
   const createPhotoInputRef = useRef<HTMLInputElement>(null);
   const createCameraInputRef = useRef<HTMLInputElement>(null);
   const categoryFilterDropdownRef = useRef<HTMLDivElement>(null);
+  /** Container rolável da lista na home do Estoque. */
+  const listScrollRef = useRef<HTMLDivElement>(null);
+  /** Posição de scroll preservada ao abrir edição/ficha do produto. */
+  const savedListScrollTopRef = useRef(0);
+  const pendingListScrollRestoreRef = useRef(false);
   /** Evita fechar cadastro no popstate ao abrir câmera/galeria nativa (mobile). */
   const suspendRegistrationBackRef = useRef(false);
   /** Evita clique fantasma no overlay ao voltar do seletor de arquivo. */
   const blockRegistrationBackdropUntilRef = useRef(0);
   /** Ação protegida a executar após validar a senha do estoque. */
   const pendingStockGuardActionRef = useRef<null | (() => Promise<void>)>(null);
+
+  const clearBalanceMode = useCallback(() => {
+    balancePasswordRef.current = null;
+    balanceModeActiveRef.current = false;
+    setBalanceModeActive(false);
+  }, []);
+
+  const confirmLeaveBalanceMode = useCallback((): boolean => {
+    if (!balanceModeActiveRef.current) return true;
+    return window.confirm(
+      'Você está no modo Balanço.\n\nAo sair do Estoque, o modo Balanço será desativado e a senha da Gerência voltará a ser pedida nas alterações.\n\nDeseja sair mesmo assim?'
+    );
+  }, []);
+
+  const requestClose = useCallback(() => {
+    if (!confirmLeaveBalanceMode()) return;
+    clearBalanceMode();
+    onClose();
+  }, [clearBalanceMode, confirmLeaveBalanceMode, onClose]);
+
+  useEffect(() => {
+    if (!onRegisterExitGuard) return;
+    onRegisterExitGuard((proceed) => {
+      if (!confirmLeaveBalanceMode()) return;
+      clearBalanceMode();
+      proceed();
+    });
+    return () => onRegisterExitGuard(null);
+  }, [onRegisterExitGuard, confirmLeaveBalanceMode, clearBalanceMode]);
+
+  useEffect(() => {
+    if (!isOpen) clearBalanceMode();
+  }, [isOpen, clearBalanceMode]);
 
   const [categoryFilterMenuOpen, setCategoryFilterMenuOpen] = useState(false);
 
@@ -255,14 +312,40 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
   };
 
   const requestStockGuard = useCallback((action: () => Promise<void>) => {
+    if (balanceModeActiveRef.current) {
+      void action();
+      return;
+    }
+    stockGuardPurposeRef.current = 'action';
+    setStockGuardPurpose('action');
     pendingStockGuardActionRef.current = action;
     setStockGuardError(null);
     setStockGuardOpen(true);
   }, []);
 
+  const requestActivateBalanceMode = useCallback(() => {
+    if (balanceModeActiveRef.current) {
+      if (
+        window.confirm(
+          'Desativar o modo Balanço?\n\nA senha da Gerência voltará a ser pedida em cada alteração do estoque.'
+        )
+      ) {
+        clearBalanceMode();
+      }
+      return;
+    }
+    stockGuardPurposeRef.current = 'balance';
+    setStockGuardPurpose('balance');
+    pendingStockGuardActionRef.current = null;
+    setStockGuardError(null);
+    setStockGuardOpen(true);
+  }, [clearBalanceMode]);
+
   const closeStockGuard = useCallback(() => {
     if (stockGuardBusy) return;
     pendingStockGuardActionRef.current = null;
+    stockGuardPurposeRef.current = 'action';
+    setStockGuardPurpose('action');
     setStockGuardOpen(false);
     setStockGuardError(null);
   }, [stockGuardBusy]);
@@ -272,6 +355,16 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
     setStockGuardError(null);
     try {
       await verifyStockGuardPassword(_password);
+      if (stockGuardPurposeRef.current === 'balance') {
+        balancePasswordRef.current = _password;
+        balanceModeActiveRef.current = true;
+        setBalanceModeActive(true);
+        pendingStockGuardActionRef.current = null;
+        stockGuardPurposeRef.current = 'action';
+        setStockGuardPurpose('action');
+        setStockGuardOpen(false);
+        return;
+      }
       const action = pendingStockGuardActionRef.current;
       pendingStockGuardActionRef.current = null;
       setStockGuardOpen(false);
@@ -331,9 +424,38 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
     setPhotoEditorFile(f);
   };
 
-  const fetchParts = useCallback(async () => {
+  const saveListScroll = useCallback(() => {
+    savedListScrollTopRef.current = listScrollRef.current?.scrollTop ?? 0;
+    pendingListScrollRestoreRef.current = true;
+  }, []);
+
+  const applySavedListScroll = useCallback(() => {
+    const el = listScrollRef.current;
+    if (!el) return;
+    el.scrollTop = savedListScrollTopRef.current;
+  }, []);
+
+  /** Restaura o scroll da lista após fechar ficha/edição (mantém pending até estabilizar). */
+  const restoreListScroll = useCallback(() => {
+    if (!pendingListScrollRestoreRef.current) return;
+    applySavedListScroll();
+    requestAnimationFrame(() => {
+      applySavedListScroll();
+      requestAnimationFrame(() => {
+        applySavedListScroll();
+        window.setTimeout(() => {
+          applySavedListScroll();
+          pendingListScrollRestoreRef.current = false;
+        }, 80);
+      });
+    });
+  }, [applySavedListScroll]);
+
+  const fetchParts = useCallback(async (opts?: { silent?: boolean }) => {
     if (!isOpen) return;
-    setLoading(true);
+    // Evita spinner que desmonta a lista e zera o scroll ao voltar da edição.
+    const silent = opts?.silent === true;
+    if (!silent) setLoading(true);
     setError(null);
     try {
       const [list, cats, reservations] = await Promise.all([
@@ -351,9 +473,12 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Erro ao carregar peças.');
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
+      // Após refresh silencioso, reaplica a posição (setParts pode alterar a altura da lista).
+      if (silent) applySavedListScroll();
+      if (pendingListScrollRestoreRef.current) restoreListScroll();
     }
-  }, [isOpen]);
+  }, [isOpen, applySavedListScroll, restoreListScroll]);
 
   useEffect(() => {
     if (isOpen) fetchParts();
@@ -365,6 +490,8 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
       setCategoryFilter('all');
       setCategoryFilterMenuOpen(false);
       setIsCategoriesModalOpen(false);
+      setIsLedgerModalOpen(false);
+      setIsSuppliersModalOpen(false);
       setNewCategoryName('');
       setCategoryEditingId(null);
       setCategoryEditingName('');
@@ -414,6 +541,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
   }, [isOpen, closeRegistration, closeProductView]);
 
   const openCreateRegistration = useCallback((prefillBarcode?: string | null) => {
+    saveListScroll();
     closeProductView();
     setRegistrationMode('create');
     setRegistrationPart(null);
@@ -421,7 +549,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
     setRegistrationPrefillBarcode(prefillBarcode?.trim() || null);
     resetNewProductDraft();
     setError(null);
-  }, [resetNewProductDraft, closeProductView]);
+  }, [resetNewProductDraft, closeProductView, saveListScroll]);
 
   const openRegisterFromMissingBarcode = useCallback(
     (barcode: string) => {
@@ -432,6 +560,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
   );
 
   const openProductView = useCallback(async (part: WorkshopPart) => {
+    saveListScroll();
     const latest = parts.find((p) => p.id === part.id) ?? part;
     setViewPart(latest);
     setLoadingViewPart(true);
@@ -452,10 +581,17 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
     } finally {
       setLoadingViewPart(false);
     }
-  }, [parts]);
+  }, [parts, saveListScroll]);
 
   const openEditRegistration = useCallback(async (part: WorkshopPart) => {
-    closeProductView();
+    saveListScroll();
+    // Fecha a ficha sem restaurar scroll — a lista continua coberta pelo cadastro.
+    pendingListScrollRestoreRef.current = true;
+    setViewPart(null);
+    setViewPhotos([]);
+    setViewPurchases([]);
+    setViewLabContext(null);
+    setLoadingViewPart(false);
     setRegistrationMode('edit');
     setRegistrationPart(part);
     setPendingPhotos((prev) => {
@@ -477,14 +613,32 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
     } finally {
       setLoadingRegistrationPurchases(false);
     }
-  }, [closeProductView]);
+  }, [saveListScroll]);
 
   const handleEditFromView = useCallback(() => {
     if (!viewPart) return;
-    const part = viewPart;
-    closeProductView();
-    void openEditRegistration(part);
-  }, [viewPart, closeProductView, openEditRegistration]);
+    void openEditRegistration(viewPart);
+  }, [viewPart, openEditRegistration]);
+
+  // Restaura a posição da lista só quando nenhum overlay de ficha/cadastro está aberto.
+  useEffect(() => {
+    if (registrationMode || viewPart) return;
+    if (!pendingListScrollRestoreRef.current) return;
+    restoreListScroll();
+  }, [registrationMode, viewPart, restoreListScroll]);
+
+  // Impede o browser de zerar o scroll da lista enquanto o overlay cobre a home.
+  useEffect(() => {
+    const el = listScrollRef.current;
+    if (!el || (!registrationMode && !viewPart)) return;
+    const top = savedListScrollTopRef.current;
+    el.scrollTop = top;
+    const onScroll = () => {
+      if (el.scrollTop !== top) el.scrollTop = top;
+    };
+    el.addEventListener('scroll', onScroll, { passive: true });
+    return () => el.removeEventListener('scroll', onScroll);
+  }, [registrationMode, viewPart]);
 
   useEffect(() => {
     if (!registrationMode) return;
@@ -589,7 +743,8 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
         }
 
         closeRegistration();
-        await fetchParts();
+        // silent: não mostra spinner (senão a lista desmonta e o scroll volta ao topo).
+        await fetchParts({ silent: true });
       } catch (e) {
         setError(e instanceof Error ? e.message : 'Erro ao salvar peça.');
       } finally {
@@ -651,7 +806,13 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
   };
 
   const handleDelete = async (id: string) => {
-    if (!window.confirm('Excluir esta peça do estoque?')) return;
+    if (
+      !window.confirm(
+        'Excluir este produto do estoque? O histórico de saídas/consumo vinculado a ele também será removido.'
+      )
+    ) {
+      return;
+    }
     setError(null);
     try {
       await deleteWorkshopPart(id);
@@ -1045,10 +1206,16 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
   const isDesktopShell = useDesktopShellLayout();
 
   useBrowserBackLayer(isAnalyticsOpen, () => setIsAnalyticsOpen(false));
+  useBrowserBackLayer(absModulesOpen, () => {
+    setAbsModulesOpen(false);
+    setAbsModulesInitialPublicId(null);
+  });
 
   useEffect(() => {
     if (!isOpen) {
       setIsAnalyticsOpen(false);
+      setAbsModulesOpen(false);
+      setAbsModulesInitialPublicId(null);
       setOutboundMode(null);
       setScanHubOpen(false);
       setScanHubExternal(null);
@@ -1068,19 +1235,20 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
     !!inboundPart ||
     !!viewPart ||
     stockGuardOpen ||
-    !!photoEditorFile;
+    !!photoEditorFile ||
+    absModulesOpen;
 
   useEffect(() => {
     if (!isOpen || stockUsbClaimBlocked) return;
-    setActiveBarcodeScanClaim((raw) => {
+    return setActiveBarcodeScanClaim((raw) => {
       const code = normalizeBarcodeInput(raw);
       if (!code) return false;
       if (isLabOsQrPayload(code)) return false;
+      // Com a página ABS aberta o claim fica com ela; aqui só hub de peças.
       setScanHubOpen(true);
       setScanHubExternal({ code, token: Date.now() });
       return true;
     });
-    return () => setActiveBarcodeScanClaim(null);
   }, [isOpen, stockUsbClaimBlocked]);
 
   /** Intenção vinda da leitura USB global (editar / cadastrar / saída). */
@@ -1148,15 +1316,15 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
       cropShape="square"
     />
 
-    <ModalPortal manageBackLayer onRequestClose={onClose}>
+    <ModalPortal manageBackLayer onRequestClose={requestClose}>
     <div
-      className={`${desktopShellViewportOverlayClass(isDesktopShell, SETTINGS_CHILD_MODAL_Z)} flex min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden bg-[#F4F5F7] dark:bg-zinc-950 p-0${isDesktopShell ? '' : ' h-[100dvh] max-h-[100dvh]'}`}
+      className={`${desktopShellViewportOverlayClass(isDesktopShell, SHELL_MODULE_OVERLAY_Z)} flex min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden bg-[#F4F5F7] dark:bg-zinc-950 p-0${isDesktopShell ? '' : ' h-[100dvh] max-h-[100dvh]'}`}
     >
       <div className="relative flex h-full min-h-0 w-full max-w-none flex-1 flex-col overflow-hidden bg-[#F4F5F7] dark:bg-zinc-950">
         {!isDesktopShell ? (
           <button
             type="button"
-            onClick={onClose}
+            onClick={requestClose}
             className={`${iosModalClose} top-[max(1rem,env(safe-area-inset-top))] right-[max(1rem,env(safe-area-inset-right))]`}
             aria-label="Fechar"
           >
@@ -1180,6 +1348,15 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
 
         {isAnalyticsOpen ? (
           <WorkshopPartsAnalyticsView onBack={() => setIsAnalyticsOpen(false)} />
+        ) : absModulesOpen ? (
+          <WorkshopAbsModulesHomeDashboard
+            onBack={() => {
+              setAbsModulesOpen(false);
+              setAbsModulesInitialPublicId(null);
+            }}
+            initialPublicId={absModulesInitialPublicId}
+            onInitialPublicIdConsumed={() => setAbsModulesInitialPublicId(null)}
+          />
         ) : (
           <WorkshopPartsHomeDashboard
             loading={loading}
@@ -1188,7 +1365,6 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
             filteredParts={filteredParts}
             partsInCategoryScopeCount={partsInCategoryScope.length}
             partsAfterStockFilterEmpty={partsAfterStockFilter.length === 0 && stockAlertFilter !== 'all'}
-            categories={categories}
             categoryCounts={categoryCounts}
             stockAlerts={stockAlertsGlobal}
             pendingReservations={pendingReservations}
@@ -1212,7 +1388,13 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
             categoryNamesForPart={categoryNamesForPart}
             onOpenScan={() => setScanHubOpen(true)}
             onOpenAnalytics={() => setIsAnalyticsOpen(true)}
-            onOpenCategories={() => setIsCategoriesModalOpen(true)}
+            onOpenHistory={() => setIsLedgerModalOpen(true)}
+            onOpenAbsModules={() => {
+              setAbsModulesInitialPublicId(null);
+              setAbsModulesOpen(true);
+            }}
+            balanceModeActive={balanceModeActive}
+            onToggleBalanceMode={requestActivateBalanceMode}
             onAddPart={() => openCreateRegistration()}
             onOpenPart={(p) => void openProductView(p)}
             onEditPart={(p) => void openEditRegistration(p)}
@@ -1226,8 +1408,8 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
             onEditingStockChange={setEditingStock}
             onSaveEdit={() => void handleSaveEdit()}
             onCancelEdit={cancelEdit}
+            listScrollRef={listScrollRef}
           />
-
         )}
         </div>
       </div>
@@ -1588,6 +1770,12 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
           setOutboundInitialPart(part);
           setOutboundMode('consumable');
         }}
+        onOpenAbsModule={(publicId) => {
+          setScanHubOpen(false);
+          setScanHubExternal(null);
+          setAbsModulesInitialPublicId(publicId);
+          setAbsModulesOpen(true);
+        }}
       />
     ) : null}
 
@@ -1604,8 +1792,20 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
           setInboundPart(null);
           void openEditRegistration(part);
         }}
+        onOpenSuppliers={() => setIsSuppliersModalOpen(true)}
       />
     ) : null}
+
+    <WorkshopEstoqueLedgerModal
+      isOpen={isLedgerModalOpen}
+      onClose={() => setIsLedgerModalOpen(false)}
+      onOpenSuppliers={() => setIsSuppliersModalOpen(true)}
+    />
+
+    <WorkshopSuppliersModal
+      isOpen={isSuppliersModalOpen}
+      onClose={() => setIsSuppliersModalOpen(false)}
+    />
 
     {outboundMode ? (
       <WorkshopPartStockOutboundModal
@@ -1619,18 +1819,31 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
         onStockChanged={handleOutboundStockChanged}
         catalogParts={parts}
         onRegisterMissingProduct={openRegisterFromMissingBarcode}
+        stockGuardBypassPassword={balanceModeActive ? balancePasswordRef.current : null}
       />
     ) : null}
 
     <StockGuardPasswordModal
       open={stockGuardOpen}
       title={
-        registrationMode === 'create'
-          ? 'Confirmar cadastro da peça'
-          : 'Confirmar alteração da peça'
+        stockGuardPurpose === 'balance'
+          ? 'Ativar modo Balanço'
+          : registrationMode === 'create'
+            ? 'Confirmar cadastro da peça'
+            : 'Confirmar alteração da peça'
       }
-      subtitle="Use a senha da Gerência ou a senha de proteção do estoque (Alterar senhas)."
-      confirmLabel={registrationMode === 'create' ? 'Autorizar cadastro' : 'Autorizar alteração'}
+      subtitle={
+        stockGuardPurpose === 'balance'
+          ? 'Informe a senha da Gerência ou a de proteção do estoque. Enquanto o modo Balanço estiver ativo, as alterações no Estoque não pedirão senha de novo.'
+          : 'Use a senha da Gerência ou a senha de proteção do estoque (Alterar senhas).'
+      }
+      confirmLabel={
+        stockGuardPurpose === 'balance'
+          ? 'Ativar Balanço'
+          : registrationMode === 'create'
+            ? 'Autorizar cadastro'
+            : 'Autorizar alteração'
+      }
       error={stockGuardError}
       busy={stockGuardBusy}
       onClose={closeStockGuard}

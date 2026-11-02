@@ -274,13 +274,12 @@ export const BudgetPartsEditor: React.FC<BudgetPartsEditorProps> = ({
                   disableDown={partIndex === parts.length - 1}
                   ariaLabelPrefix="Peça"
                 />
-                <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-                  {item.fromStock ? <BudgetPartStockBadge className="self-start" /> : null}
+                <div className="flex min-w-0 flex-1 items-center gap-2">
                   <input
                     ref={isFocusedPart ? focusedPartInputRef : undefined}
                     type="text"
                     placeholder="Peça"
-                    className={`${inputClass} min-w-0 w-full shadow-none`}
+                    className={`${inputClass} min-w-0 flex-1 shadow-none`}
                     value={item.description}
                     data-budget-parts-editor-id={item.id}
                     onChange={(e) => updatePartDescription(item.id, e.target.value)}
@@ -293,6 +292,7 @@ export const BudgetPartsEditor: React.FC<BudgetPartsEditorProps> = ({
                     }}
                     disabled={disabled}
                   />
+                  {item.fromStock ? <BudgetPartStockBadge className="shrink-0" /> : null}
                 </div>
                 <div className="flex shrink-0 items-center justify-end gap-2 sm:justify-start">
                   <div className="flex items-center overflow-hidden rounded-xl border border-sky-200/80 bg-white">

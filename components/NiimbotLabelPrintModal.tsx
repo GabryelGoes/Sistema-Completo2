@@ -19,6 +19,7 @@ import { ModalPortal } from './ui/ModalPortal';
 import { IosModalHeader } from './ui/IosModalHeader';
 import { iosModalClose, iosModalShell } from './ui/iosModalStyles';
 import { useBrowserBackLayer } from './ui/BackNavigationContext';
+import { NiimbotBleConnectControls } from './NiimbotBleConnectControls';
 
 export type NiimbotLabelPrintModalProps = {
   open: boolean;
@@ -193,9 +194,9 @@ export function NiimbotLabelPrintModal({
     }
   };
 
-  const handleConnect = () =>
+  const handleConnect = (opts?: { anyDevice?: boolean; forceChooser?: boolean }) =>
     run(async () => {
-      await niimbotService.connect();
+      await niimbotService.connect(opts);
     });
 
   const handleDisconnect = () =>
@@ -291,25 +292,13 @@ export function NiimbotLabelPrintModal({
                 </div>
               </div>
               {!unsupported ? (
-                connected && snap.status !== 'printing' ? (
-                  <button
-                    type="button"
-                    onClick={handleDisconnect}
-                    disabled={printing}
-                    className="shrink-0 rounded-lg px-2.5 py-1.5 text-[12px] font-semibold text-zinc-600 hover:bg-zinc-200/60 disabled:opacity-50 dark:text-zinc-300 dark:hover:bg-white/10"
-                  >
-                    Desconectar
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={handleConnect}
-                    disabled={printing || snap.status === 'connecting'}
-                    className="shrink-0 rounded-lg bg-zinc-900 px-2.5 py-1.5 text-[12px] font-semibold text-white hover:bg-zinc-800 disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900"
-                  >
-                    Conectar
-                  </button>
-                )
+                <NiimbotBleConnectControls
+                  connected={connected}
+                  busy={printing}
+                  connecting={snap.status === 'connecting'}
+                  onConnect={handleConnect}
+                  onDisconnect={handleDisconnect}
+                />
               ) : null}
             </div>
 

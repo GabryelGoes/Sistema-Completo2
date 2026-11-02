@@ -12,6 +12,13 @@ export function KeepAliveTabPanel({
   visitedTabs,
   children,
   className,
+  /**
+   * Quando true, não aplica `inert` mesmo com a aba oculta.
+   * Necessário para overlays portaled (ex.: hub de Configurações) abertos
+   * a partir desta aba enquanto outra tela está ativa — o React 19 propaga
+   * `inert` do fiber pai para portais.
+   */
+  suppressInert = false,
 }: {
   tabId: TabId;
   activeTab: TabId;
@@ -19,6 +26,7 @@ export function KeepAliveTabPanel({
   children: React.ReactNode;
   /** Aplicado só enquanto a aba está ativa (altura + scroll + padding). */
   className?: string;
+  suppressInert?: boolean;
 }) {
   const active = activeTab === tabId;
   const wasActiveRef = useRef(false);
@@ -42,12 +50,14 @@ export function KeepAliveTabPanel({
 
   if (!visitedTabs.has(tabId)) return null;
 
+  const interactive = active || suppressInert;
+
   /* inert: abas ocultas não interceptam toques (evita “app por baixo” em alguns navegadores). */
   return (
     <div
       role="tabpanel"
       hidden={!active}
-      inert={active ? undefined : true}
+      inert={interactive ? undefined : true}
       aria-hidden={!active}
       className={
         active

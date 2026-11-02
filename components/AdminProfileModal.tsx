@@ -24,7 +24,7 @@ export const AdminProfileModal: React.FC<AdminProfileModalProps> = ({ isOpen, on
   const [error, setError] = useState<string | null>(null);
   const [photoEditorFile, setPhotoEditorFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  // Senha do administrador (alterar senha)
+  // Senha do administrador (alterar senha) — formulário separado (nunca aninhado).
   const [adminNewPassword, setAdminNewPassword] = useState('');
   const [adminConfirm, setAdminConfirm] = useState('');
   const [savingAdmin, setSavingAdmin] = useState(false);
@@ -33,6 +33,10 @@ export const AdminProfileModal: React.FC<AdminProfileModalProps> = ({ isOpen, on
   useEffect(() => {
     if (!isOpen) return;
     setLoading(true);
+    setError(null);
+    setAdminPasswordMessage(null);
+    setAdminNewPassword('');
+    setAdminConfirm('');
     getWorkshopSettings()
       .then((s) => {
         setDisplayName(s.adminDisplayName ?? 'Rei do ABS');
@@ -42,7 +46,7 @@ export const AdminProfileModal: React.FC<AdminProfileModalProps> = ({ isOpen, on
       .finally(() => setLoading(false));
   }, [isOpen]);
 
-  const handleSave = async (e: React.FormEvent) => {
+  const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setSaving(true);
@@ -50,8 +54,8 @@ export const AdminProfileModal: React.FC<AdminProfileModalProps> = ({ isOpen, on
       await updateWorkshopSettings({ adminDisplayName: displayName.trim() || 'Rei do ABS' });
       onSaved?.();
       onClose();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Erro ao salvar.');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erro ao salvar.');
     } finally {
       setSaving(false);
     }
@@ -75,8 +79,8 @@ export const AdminProfileModal: React.FC<AdminProfileModalProps> = ({ isOpen, on
       const res = await uploadWorkshopAdminPhoto(file, file.name);
       setPhotoUrl(res.adminPhotoUrl);
       onSaved?.();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Erro ao enviar foto.');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erro ao enviar foto.');
     } finally {
       setSaving(false);
     }
@@ -84,8 +88,10 @@ export const AdminProfileModal: React.FC<AdminProfileModalProps> = ({ isOpen, on
 
   const handleSaveAdminPassword = async (e: React.FormEvent) => {
     e.preventDefault();
+    e.stopPropagation();
     setAdminPasswordMessage(null);
-    if (adminNewPassword.trim().length < 4) {
+    const next = adminNewPassword.trim();
+    if (next.length < 4) {
       setAdminPasswordMessage({ type: 'err', text: 'A senha deve ter pelo menos 4 caracteres.' });
       return;
     }
@@ -95,12 +101,18 @@ export const AdminProfileModal: React.FC<AdminProfileModalProps> = ({ isOpen, on
     }
     setSavingAdmin(true);
     try {
-      await updateWorkshopSettings({ adminPassword: adminNewPassword.trim() });
-      setAdminPasswordMessage({ type: 'ok', text: 'Senha do administrador alterada!' });
+      await updateWorkshopSettings({ adminPassword: next });
+      setAdminPasswordMessage({
+        type: 'ok',
+        text: 'Senha da Gerência alterada! Use-a no próximo login.',
+      });
       setAdminNewPassword('');
       setAdminConfirm('');
-    } catch (e) {
-      setAdminPasswordMessage({ type: 'err', text: e instanceof Error ? e.message : 'Erro ao salvar.' });
+    } catch (err) {
+      setAdminPasswordMessage({
+        type: 'err',
+        text: err instanceof Error ? err.message : 'Erro ao salvar.',
+      });
     } finally {
       setSavingAdmin(false);
     }
@@ -112,142 +124,177 @@ export const AdminProfileModal: React.FC<AdminProfileModalProps> = ({ isOpen, on
 
   return (
     <ModalPortal>
-    <div className={resolveIosModalOverlayClass(isDesktopShell)}>
-      <div className={`${iosModalShell} max-w-md max-h-[94vh]`}>
-        <button type="button" onClick={onClose} className={iosModalClose} aria-label="Fechar">
-          <X className="w-5 h-5" />
-        </button>
+      <div className={resolveIosModalOverlayClass(isDesktopShell)}>
+        <div className={`${iosModalShell} max-w-md max-h-[94vh]`}>
+          <button type="button" onClick={onClose} className={iosModalClose} aria-label="Fechar">
+            <X className="w-5 h-5" />
+          </button>
 
-        <div className="flex flex-col min-h-0 flex-1 overflow-hidden">
-          <div className="px-6 sm:px-8 pt-8 pb-4 pr-14 shrink-0">
-            <IosModalHeader
-              icon={<img src="/icons/admin-perfil-ios.png" alt="" className="h-full w-full min-h-0 object-cover" />}
-              title="Perfil do administrador"
-              subtitle="Nome, foto e senha de acesso total"
-              gradientClass="from-blue-500 to-indigo-700"
+          <div className="flex flex-col min-h-0 flex-1 overflow-hidden">
+            <div className="px-6 sm:px-8 pt-8 pb-4 pr-14 shrink-0">
+              <IosModalHeader
+                icon={
+                  <img src="/icons/admin-perfil-ios.png" alt="" className="h-full w-full min-h-0 object-cover" />
+                }
+                title="Perfil do administrador"
+                subtitle="Nome, foto e senha do login Gerência"
+                gradientClass="from-blue-500 to-indigo-700"
+              />
+            </div>
+
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handlePhotoChange}
             />
-          </div>
 
-        <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} />
+            <TechnicianPhotoEditorModal
+              isOpen={!!photoEditorFile}
+              imageFile={photoEditorFile}
+              technicianName={displayName}
+              onSave={handlePhotoEditorSave}
+              onCancel={() => setPhotoEditorFile(null)}
+            />
 
-        <TechnicianPhotoEditorModal
-          isOpen={!!photoEditorFile}
-          imageFile={photoEditorFile}
-          technicianName={displayName}
-          onSave={handlePhotoEditorSave}
-          onCancel={() => setPhotoEditorFile(null)}
-        />
-
-        <form onSubmit={handleSave} className="flex-1 min-h-0 overflow-y-auto px-6 sm:px-8 pb-8 space-y-6">
-          {error && (
-            <div className="px-4 py-3 rounded-xl bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/50 text-red-700 dark:text-red-300 text-sm">
-              {error}
-            </div>
-          )}
-
-          {loading ? (
-            <div className="flex justify-center py-8">
-              <Loader2 className="w-8 h-8 animate-spin text-zinc-400" />
-            </div>
-          ) : (
-            <>
-              <div className="flex flex-col items-center gap-4">
-                <button
-                  type="button"
-                  onClick={handlePhotoSelect}
-                  className="relative w-24 h-24 rounded-full overflow-hidden bg-zinc-200 dark:bg-zinc-800 border-2 border-zinc-300 dark:border-zinc-600 flex items-center justify-center hover:opacity-90 transition-opacity"
-                >
-                  {photoUrl ? (
-                    <img
-                      src={photoUrl}
-                      alt=""
-                      className="absolute inset-0 size-full min-h-0 min-w-0 object-cover object-center"
-                    />
-                  ) : (
-                    <img
-                      src="/logo.png"
-                      alt=""
-                      className="absolute inset-0 size-full min-h-0 min-w-0 object-contain object-center p-1"
-                    />
-                  )}
-                </button>
-                <span className="text-[12px] text-zinc-500 dark:text-zinc-400">Toque para alterar a foto (comentários, etc.)</span>
-              </div>
-
-              <div>
-                <label className="block text-[13px] font-medium text-zinc-600 dark:text-zinc-400 mb-2">Nome exibido</label>
-                <input
-                  type="text"
-                  value={displayName}
-                  onChange={(e) => setDisplayName(e.target.value)}
-                  className={iosInput}
-                  placeholder="Rei do ABS"
-                />
-              </div>
-
-              {/* Senha do administrador */}
-              <section className={`${iosModalInsetCard} p-4 sm:p-5`}>
-                <div className="flex items-center gap-2 mb-3">
-                  <Lock className="w-5 h-5 text-amber-500" />
-                  <h3 className="text-[13px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
-                    Senha do administrador
-                  </h3>
+            <div className="flex-1 min-h-0 overflow-y-auto px-6 sm:px-8 pb-8 space-y-6">
+              {error && (
+                <div className="px-4 py-3 rounded-xl bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/50 text-red-700 dark:text-red-300 text-sm">
+                  {error}
                 </div>
-                <p className="text-[13px] text-zinc-600 dark:text-zinc-400 mb-4">
-                  Define a senha usada no login &quot;Acesso total&quot;.
-                </p>
-                {adminPasswordMessage && (
-                  <div
-                    className={`mb-3 px-4 py-3 rounded-xl text-sm ${
-                      adminPasswordMessage.type === 'ok'
-                        ? 'bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-900/50 text-green-700 dark:text-green-300'
-                        : 'bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/50 text-red-700 dark:text-red-300'
-                    }`}
-                  >
-                    {adminPasswordMessage.text}
-                  </div>
-                )}
-                <form onSubmit={handleSaveAdminPassword} className="space-y-3">
-                  <input
-                    type="password"
-                    value={adminNewPassword}
-                    onChange={(e) => setAdminNewPassword(e.target.value)}
-                    placeholder="Nova senha"
-                    className={iosInput}
-                  />
-                  <input
-                    type="password"
-                    value={adminConfirm}
-                    onChange={(e) => setAdminConfirm(e.target.value)}
-                    placeholder="Confirmar nova senha"
-                    className={iosInput}
-                  />
-                  <button
-                    type="submit"
-                    disabled={savingAdmin || !adminNewPassword.trim() || adminNewPassword !== adminConfirm}
-                    className="w-full py-3 rounded-xl bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white font-semibold text-[15px] flex items-center justify-center gap-2"
-                  >
-                    {savingAdmin ? <Loader2 className="w-5 h-5 animate-spin" /> : <Check className="w-5 h-5" />}
-                    Salvar senha do admin
-                  </button>
-                </form>
-              </section>
+              )}
 
-              <div className="flex gap-3">
-                <button type="button" onClick={onClose} className="flex-1 py-3 rounded-xl bg-zinc-200 dark:bg-white/10 text-zinc-700 dark:text-zinc-300 font-medium">
-                  Cancelar
-                </button>
-                <button type="submit" disabled={saving} className="flex-1 py-3 rounded-xl bg-violet-500 hover:bg-violet-600 disabled:opacity-50 text-white font-semibold flex items-center justify-center gap-2">
-                  {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Check className="w-5 h-5" />}
-                  {saving ? 'Salvando...' : 'Salvar'}
-                </button>
-              </div>
-            </>
-          )}
-        </form>
+              {loading ? (
+                <div className="flex justify-center py-8">
+                  <Loader2 className="w-8 h-8 animate-spin text-zinc-400" />
+                </div>
+              ) : (
+                <>
+                  <form onSubmit={handleSaveProfile} className="space-y-6">
+                    <div className="flex flex-col items-center gap-4">
+                      <button
+                        type="button"
+                        onClick={handlePhotoSelect}
+                        className="relative w-24 h-24 rounded-full overflow-hidden bg-zinc-200 dark:bg-zinc-800 border-2 border-zinc-300 dark:border-zinc-600 flex items-center justify-center hover:opacity-90 transition-opacity"
+                      >
+                        {photoUrl ? (
+                          <img
+                            src={photoUrl}
+                            alt=""
+                            className="absolute inset-0 size-full min-h-0 min-w-0 object-cover object-center"
+                          />
+                        ) : (
+                          <img
+                            src="/logo.png"
+                            alt=""
+                            className="absolute inset-0 size-full min-h-0 min-w-0 object-contain object-center p-1"
+                          />
+                        )}
+                        <span className="sr-only">Alterar foto</span>
+                        <Camera className="pointer-events-none absolute bottom-1 right-1 h-4 w-4 text-white drop-shadow" />
+                      </button>
+                      <span className="text-[12px] text-zinc-500 dark:text-zinc-400">
+                        Toque para alterar a foto (comentários, etc.)
+                      </span>
+                    </div>
+
+                    <div>
+                      <label className="block text-[13px] font-medium text-zinc-600 dark:text-zinc-400 mb-2">
+                        Nome exibido
+                      </label>
+                      <input
+                        type="text"
+                        value={displayName}
+                        onChange={(e) => setDisplayName(e.target.value)}
+                        className={iosInput}
+                        placeholder="Rei do ABS"
+                      />
+                    </div>
+
+                    <div className="flex gap-3">
+                      <button
+                        type="button"
+                        onClick={onClose}
+                        className="flex-1 py-3 rounded-xl bg-zinc-200 dark:bg-white/10 text-zinc-700 dark:text-zinc-300 font-medium"
+                      >
+                        Cancelar
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={saving}
+                        className="flex-1 py-3 rounded-xl bg-violet-500 hover:bg-violet-600 disabled:opacity-50 text-white font-semibold flex items-center justify-center gap-2"
+                      >
+                        {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : <Check className="w-5 h-5" />}
+                        {saving ? 'Salvando...' : 'Salvar perfil'}
+                      </button>
+                    </div>
+                  </form>
+
+                  {/* Formulário irmão — nunca aninhado no de perfil (HTML inválido quebrava o save). */}
+                  <section className={`${iosModalInsetCard} p-4 sm:p-5`}>
+                    <div className="flex items-center gap-2 mb-3">
+                      <Lock className="w-5 h-5 text-amber-500" />
+                      <h3 className="text-[13px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+                        Senha do login Gerência
+                      </h3>
+                    </div>
+                    <p className="text-[13px] text-zinc-600 dark:text-zinc-400 mb-4">
+                      Usuário de login: <strong className="font-semibold text-zinc-800 dark:text-zinc-200">Gerência</strong>.
+                      Altere a senha aqui e confirme com o botão abaixo (não use &quot;Salvar perfil&quot;).
+                    </p>
+                    {adminPasswordMessage && (
+                      <div
+                        className={`mb-3 px-4 py-3 rounded-xl text-sm ${
+                          adminPasswordMessage.type === 'ok'
+                            ? 'bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-900/50 text-green-700 dark:text-green-300'
+                            : 'bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900/50 text-red-700 dark:text-red-300'
+                        }`}
+                      >
+                        {adminPasswordMessage.text}
+                      </div>
+                    )}
+                    <form onSubmit={handleSaveAdminPassword} className="space-y-3">
+                      <input
+                        type="password"
+                        autoComplete="new-password"
+                        value={adminNewPassword}
+                        onChange={(e) => setAdminNewPassword(e.target.value)}
+                        placeholder="Nova senha"
+                        className={iosInput}
+                      />
+                      <input
+                        type="password"
+                        autoComplete="new-password"
+                        value={adminConfirm}
+                        onChange={(e) => setAdminConfirm(e.target.value)}
+                        placeholder="Confirmar nova senha"
+                        className={iosInput}
+                      />
+                      <button
+                        type="submit"
+                        disabled={
+                          savingAdmin ||
+                          !adminNewPassword.trim() ||
+                          adminNewPassword !== adminConfirm
+                        }
+                        className="w-full py-3 rounded-xl bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white font-semibold text-[15px] flex items-center justify-center gap-2"
+                      >
+                        {savingAdmin ? (
+                          <Loader2 className="w-5 h-5 animate-spin" />
+                        ) : (
+                          <Check className="w-5 h-5" />
+                        )}
+                        Salvar senha da Gerência
+                      </button>
+                    </form>
+                  </section>
+                </>
+              )}
+            </div>
+          </div>
         </div>
       </div>
-    </div>
     </ModalPortal>
   );
 };

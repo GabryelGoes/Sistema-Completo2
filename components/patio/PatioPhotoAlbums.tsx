@@ -1013,7 +1013,7 @@ export function PatioPhotoAlbums({
                     <button
                       type="button"
                       onClick={() => onPreviewPhoto?.(photos, photoIndex)}
-                      className="absolute inset-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#007AFF]/60"
+                      className="absolute inset-0 z-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#007AFF]/60"
                     >
                       <StorageThumbImg
                         src={photo.url}
@@ -1025,14 +1025,18 @@ export function PatioPhotoAlbums({
                         thumbQuality={54}
                         loading={photoIndex < 8 ? 'eager' : 'lazy'}
                       />
-                      <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/35 via-transparent to-transparent opacity-0 transition-opacity duration-200 group-hover:opacity-100" />
+                      <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/45 via-transparent to-transparent" />
                     </button>
-                    <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between gap-1 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+                    {/* Sempre visíveis (toque não tem hover); acima do preview para receber clique */}
+                    <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 flex items-end justify-between gap-1 p-2">
                       {onSharePhoto ? (
                         <button
                           type="button"
-                          onClick={(e) => onSharePhoto(e, { url: photo.url, name: photo.name })}
-                          className="rounded-full bg-black/45 p-1.5 text-white backdrop-blur-sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onSharePhoto(e, { url: photo.url, name: photo.name });
+                          }}
+                          className="pointer-events-auto rounded-full bg-black/55 p-1.5 text-white shadow-sm backdrop-blur-sm"
                           title="Compartilhar"
                         >
                           <Share2 className="h-3.5 w-3.5" />
@@ -1041,12 +1045,15 @@ export function PatioPhotoAlbums({
                         <span />
                       )}
                       {canEdit ? (
-                        <div className="flex items-center gap-1">
+                        <div className="pointer-events-auto flex items-center gap-1">
                           <button
                             type="button"
                             disabled={isDeleting || renamingPhotoBusy}
-                            onClick={() => startRenamePhoto(photo)}
-                            className="rounded-full bg-black/45 p-1.5 text-white backdrop-blur-sm disabled:opacity-50"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              startRenamePhoto(photo);
+                            }}
+                            className="rounded-full bg-black/55 p-1.5 text-white shadow-sm backdrop-blur-sm disabled:opacity-50"
                             title="Renomear"
                             aria-label="Renomear foto"
                           >
@@ -1055,8 +1062,11 @@ export function PatioPhotoAlbums({
                           <button
                             type="button"
                             disabled={isDeleting || renamingPhotoBusy}
-                            onClick={() => void handleDeletePhoto(photo)}
-                            className="rounded-full bg-black/45 p-1.5 text-white backdrop-blur-sm disabled:opacity-50"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              void handleDeletePhoto(photo);
+                            }}
+                            className="rounded-full bg-black/55 p-1.5 text-white shadow-sm backdrop-blur-sm disabled:opacity-50"
                             title="Excluir"
                             aria-label="Excluir foto"
                           >

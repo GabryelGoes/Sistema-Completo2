@@ -49,7 +49,7 @@ import { mapServiceOrdersToTvBoard, type TvBoardItem } from '../utils/tvBoardPre
 import { ModalPortal } from './ui/ModalPortal';
 import { IosAccentIconSquircle } from './ui/IosAccentIconSquircle';
 import { useDesktopShellLayout } from './ui/DesktopShellContext';
-import { SETTINGS_CHILD_MODAL_Z } from './ui/iosModalStyles';
+import { SHELL_MODULE_OVERLAY_Z } from './ui/iosModalStyles';
 import { desktopShellViewportOverlayClass } from '../utils/desktopShellOverlay';
 import { isTvImageFile, isTvVideoFile, TV_VIDEO_ACCEPT } from '../utils/tvMediaFile';
 import {
@@ -1245,7 +1245,7 @@ export const TvPatioModal: React.FC<TvPatioModalProps> = ({ isOpen, onClose }) =
   return (
     <ModalPortal manageBackLayer onRequestClose={onClose}>
       <div
-        className={`${desktopShellViewportOverlayClass(isDesktopShell, SETTINGS_CHILD_MODAL_Z)} flex min-h-0 w-full min-w-0 flex-1 flex-col items-stretch justify-stretch overflow-hidden bg-black/45 backdrop-blur-[20px]${
+        className={`${desktopShellViewportOverlayClass(isDesktopShell, SHELL_MODULE_OVERLAY_Z)} flex min-h-0 w-full min-w-0 flex-1 flex-col items-stretch justify-stretch overflow-hidden bg-black/45 backdrop-blur-[20px]${
           isDesktopShell ? '' : ' inset-0 h-[100dvh]'
         }`}
       >

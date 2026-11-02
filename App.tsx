@@ -6,6 +6,7 @@ import { type TabId } from './components/TabBar';
 import { NotificationCenter, type NotificationCenterProps } from './components/NotificationCenter';
 import {
   MacOsBudgetBannerStack,
+  resolveBannerBoardScope,
   type MacOsBudgetBannerItem,
 } from './components/MacOsBudgetBannerStack';
 import { CommentPopUp } from './components/CommentPopUp';
@@ -34,11 +35,14 @@ import {
   effectiveAccessOrcamentos,
   getWorkshopSettings,
   deleteAppointment,
+  getAppointments,
   getSupportUnreadCount,
   markNotificationRead,
   getServiceOrderById,
   registerOficinaRetorno,
   registerOficinaSaida,
+  sendDeviceHeartbeat,
+  logoutCurrentSession,
 } from './services/apiService';
 import type { ServiceOrderStatus } from './constants/serviceOrderStages';
 import { KeepAliveTabPanel } from './components/KeepAliveTabPanel';
@@ -46,13 +50,15 @@ import { applyAccentToRoot, DEFAULT_ACCENT, moduleAccentColor } from './utils/ap
 import { setLabProductKinds } from './utils/moduleMetadata';
 import { setLabQuickServices } from './utils/labQuickServices';
 import { ModalLayerProvider } from './components/ui/ModalLayerContext';
-import { BackNavigationProvider, useBrowserBackLayer } from './components/ui/BackNavigationContext';
+import { ModalPortalHostProvider } from './components/ui/ModalPortalHostContext';
+import { BackNavigationProvider } from './components/ui/BackNavigationContext';
 import { DesktopEscapeCloseBridge } from './components/ui/DesktopEscapeCloseBridge';
 import { AuthenticatedAppFrame } from './components/layout/AuthenticatedAppFrame';
 import { useDesktopShell } from './hooks/useDesktopShell';
 import { AdminProfileModal } from './components/AdminProfileModal';
 import { UserProfileModal } from './components/UserProfileModal';
 import { SupportBugsChatModal } from './components/SupportBugsChatModal';
+import { RdaAssistantPanel } from './components/rda/RdaAssistantPanel';
 import {
   resolveDesktopSidebarAccess,
   type DesktopSidebarActionId,
@@ -72,6 +78,15 @@ import {
   saveLabScanMode,
   type LabScanMode,
 } from './utils/labScanMode';
+import { syncLabelTemplatesFromServer } from './utils/labelTemplatesSync';
+import { useAgendaReminders } from './hooks/useAgendaReminders';
+import {
+  appointmentLocalDateKey,
+  localDateKey,
+  readAgendaReminderSettings,
+  writeAgendaReminderSettings,
+  type AgendaReminderSettings,
+} from './utils/agendaReminderSettings';
 
 import { lazyWithRetry } from './utils/lazyWithRetry';
 
@@ -121,6 +136,8 @@ export default function App() {
   const [shellProfileModal, setShellProfileModal] = useState<ShellProfileModal>(null);
   const [isPartsModalOpen, setIsPartsModalOpen] = useState(false);
   const [partsBootIntent, setPartsBootIntent] = useState<WorkshopPartsBootIntent | null>(null);
+  const isPartsModalOpenRef = useRef(false);
+  const partsExitGuardRef = useRef<null | ((proceed: () => void) => void)>(null);
   const [isTvPatioModalOpen, setIsTvPatioModalOpen] = useState(false);
   const [settingsHubOpen, setSettingsHubOpen] = useState(false);
   const [isSupportChatOpen, setIsSupportChatOpen] = useState(false);
@@ -128,15 +145,55 @@ export default function App() {
   const homeSettingsHubOpenerRef = useRef<(() => void) | null>(null);
   const homeSettingsHubCloserRef = useRef<(() => void) | null>(null);
 
+  useEffect(() => {
+    isPartsModalOpenRef.current = isPartsModalOpen;
+  }, [isPartsModalOpen]);
+
+  const closePartsModalState = useCallback(() => {
+    setIsPartsModalOpen(false);
+    setPartsBootIntent(null);
+  }, []);
+
+  /** Fecha o Estoque; se o modo Balanço estiver ativo, confirma antes. */
+  const requestClosePartsModal = useCallback(
+    (afterClose?: () => void) => {
+      const finish = () => {
+        closePartsModalState();
+        afterClose?.();
+      };
+      if (isPartsModalOpenRef.current && partsExitGuardRef.current) {
+        partsExitGuardRef.current(finish);
+      } else {
+        finish();
+      }
+    },
+    [closePartsModalState]
+  );
+
+  /** Fecha Estoque (+ confirma Balanço) e demais overlays que cobrem a tela. */
+  const dismissShellOverlaysForNavigation = useCallback(
+    (after?: () => void) => {
+      requestClosePartsModal(() => {
+        setIsTvPatioModalOpen(false);
+        setSettingsHubOpen(false);
+        setIsSettingsOpen(false);
+        setIsSupportChatOpen(false);
+        after?.();
+      });
+    },
+    [requestClosePartsModal]
+  );
 
   /** Fecha modais/hubs abertos pelos atalhos da sidebar (modo PC). */
   const dismissDesktopShellOverlays = useCallback(() => {
-    setIsPartsModalOpen(false);
-    setIsTvPatioModalOpen(false);
-    setIsSettingsOpen(false);
-    setSettingsHubOpen(false);
-    setIsSupportChatOpen(false);
-  }, []);
+    const dismissRest = () => {
+      setIsTvPatioModalOpen(false);
+      setIsSettingsOpen(false);
+      setSettingsHubOpen(false);
+      setIsSupportChatOpen(false);
+    };
+    requestClosePartsModal(dismissRest);
+  }, [requestClosePartsModal]);
 
   const desktopSidebarAccess = useMemo(
     () =>
@@ -147,26 +204,42 @@ export default function App() {
     [authSession]
   );
 
+  /**
+   * Abre o hub de Ajustes por cima da tela atual (Estoque, TV, abas, etc.).
+   * Não fecha overlays de baixo — ao Esc/X o usuário volta exatamente para onde estava.
+   */
+  const openSettingsHubOverlay = useCallback(() => {
+    setIsSettingsOpen(false);
+    setIsSupportChatOpen(false);
+    setIsUserChangePasswordsOpen(false);
+    setSettingsHubOpen(true);
+  }, []);
+
   const handleDesktopSidebarAction = useCallback(
     (action: DesktopSidebarActionId) => {
       if (action === 'estoque_pecas') {
-        dismissDesktopShellOverlays();
+        setIsTvPatioModalOpen(false);
+        setIsSettingsOpen(false);
+        setSettingsHubOpen(false);
+        setIsSupportChatOpen(false);
         setIsPartsModalOpen(true);
         return;
       }
       if (action === 'tvs_oficina') {
-        dismissDesktopShellOverlays();
-        setIsTvPatioModalOpen(true);
+        requestClosePartsModal(() => {
+          setIsSettingsOpen(false);
+          setSettingsHubOpen(false);
+          setIsSupportChatOpen(false);
+          setIsTvPatioModalOpen(true);
+        });
         return;
       }
       if (action === 'configuracoes') {
-            setIsPartsModalOpen(false);
-        setIsSettingsOpen(false);
-        setSettingsHubOpen(true);
+        openSettingsHubOverlay();
         return;
       }
     },
-[dismissDesktopShellOverlays]
+    [openSettingsHubOverlay, requestClosePartsModal]
   );
 
   const handleDesktopTabChange = useCallback(
@@ -194,6 +267,10 @@ export default function App() {
   const [budgetBannerNotifications, setBudgetBannerNotifications] = useState(true);
   /** Banners macOS de comentários (ligado por padrão). */
   const [commentBannerNotifications, setCommentBannerNotifications] = useState(true);
+  /** Lembretes da Agenda (banners + bloco home). */
+  const [agendaReminderSettings, setAgendaReminderSettings] = useState<AgendaReminderSettings>(() =>
+    readAgendaReminderSettings()
+  );
   /** Embaça orçamentos sem verificação (ligado por padrão). */
   const [blurUnverifiedBudgets, setBlurUnverifiedBudgets] = useState(true);
   const [budgetBannerItems, setBudgetBannerItems] = useState<MacOsBudgetBannerItem[]>([]);
@@ -221,6 +298,29 @@ export default function App() {
 
   // Appointments State
   const [appointments, setAppointments] = useState<Appointment[]>([]);
+
+  const agendaTodayBadge = useMemo(() => {
+    const today = localDateKey(new Date());
+    return appointments.filter(
+      (a) => a.status === 'scheduled' && appointmentLocalDateKey(a) === today
+    ).length;
+  }, [appointments]);
+
+  const refreshAppointmentsList = useCallback(async () => {
+    try {
+      const list = await getAppointments();
+      setAppointments(list);
+    } catch (err) {
+      console.error('Erro ao carregar agendamentos', err);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!authSession) return;
+    void refreshAppointmentsList();
+    const id = window.setInterval(() => void refreshAppointmentsList(), 120_000);
+    return () => window.clearInterval(id);
+  }, [authSession, refreshAppointmentsList]);
 
   // Estado para transferir dados do Histórico (Pátio) para a Recepção
   const [prefillData, setPrefillData] = useState<Customer | null>(null);
@@ -265,6 +365,16 @@ export default function App() {
   const canApproveBudgetItemsApp =
     authSession?.role === 'admin' ||
     (authSession?.role === 'user' && effectivePatioApproveBudgetItems(authSession.permissions));
+  /** Cronômetro RDA: só usuário do sistema marcado como técnico; identidade vem do login. */
+  const workTimeTechnician =
+    authSession?.role === 'user' &&
+    authSession.isTechnician &&
+    authSession.userId
+      ? {
+          userId: authSession.userId,
+          displayName: authSession.displayName ?? authSession.username ?? 'Técnico',
+        }
+      : null;
   const budgetHubActorOptions =
     authSession?.role === 'admin'
       ? { actor: 'admin' as const, actorDisplayName: adminDisplayName }
@@ -366,12 +476,70 @@ export default function App() {
     }
   }, [isLimitedSystemUser]);
 
+  const goToAgendaTab = useCallback(
+    (appointmentId?: string | null) => {
+      dismissShellOverlaysForNavigation();
+      if (appointmentId) setAgendaPendingDetailAppointmentId(appointmentId);
+      if (isLimitedSystemUser) {
+        setVisitedUserTabs((prev) => {
+          if (prev.has('agenda')) return prev;
+          const next = new Set(prev);
+          next.add('agenda');
+          return next;
+        });
+        if (userAllowedTabs.includes('agenda')) setUserTab('agenda');
+        else setUserTab('home');
+      } else {
+        setVisitedTabs((prev) => {
+          if (prev.has('agenda')) return prev;
+          const next = new Set(prev);
+          next.add('agenda');
+          return next;
+        });
+        setCurrentTab('agenda');
+      }
+    },
+    [dismissShellOverlaysForNavigation, isLimitedSystemUser, userAllowedTabs]
+  );
+
+  /** Limpa banners do canto e os minimizados no sino (após agir numa notificação). */
+  const clearAllSystemBanners = useCallback(() => {
+    setBudgetBannerItems([]);
+    setMinimizedBudgetBanners([]);
+  }, []);
+
+  /**
+   * Destino aberto a partir de banner/notificação: ao fechar modal/página, limpa banners de novo.
+   * (Já limpamos no clique; o flag cobre fechar depois e evita limpar OS abertas por outros fluxos.)
+   */
+  const clearBannersOnDestinationCloseRef = useRef(false);
+
+  const beginNotificationDestination = useCallback(() => {
+    clearBannersOnDestinationCloseRef.current = true;
+    clearAllSystemBanners();
+  }, [clearAllSystemBanners]);
+
+  const clearBannersAfterNotificationDestination = useCallback(() => {
+    if (!clearBannersOnDestinationCloseRef.current) return;
+    clearBannersOnDestinationCloseRef.current = false;
+    clearAllSystemBanners();
+  }, [clearAllSystemBanners]);
+
+  /**
+   * Clique no banner: abre o destino e remove todos os banners.
+   * Ao fechar o modal/página aberto a partir do banner, também limpa (idempotente).
+   */
   const openBudgetFromBanner = useCallback(
     (item: MacOsBudgetBannerItem) => {
+      beginNotificationDestination();
+
+      if (item.kind === 'agenda_day_before' || item.kind === 'agenda_soon') {
+        goToAgendaTab(item.appointmentId || item.serviceOrderId || null);
+        // Página da Agenda: banners já limpos no clique; sem modal App-level ao fechar.
+        clearBannersOnDestinationCloseRef.current = false;
+        return;
+      }
       if (item.kind === 'comment') {
-        // Tira o banner da frente (z altíssimo) para o CommentPopUp ficar visível.
-        setBudgetBannerItems((prev) => prev.filter((x) => x.id !== item.id));
-        setMinimizedBudgetBanners((prev) => prev.filter((x) => x.id !== item.id));
         if (item.commentNotification) {
           setCommentPopUpNotification(item.commentNotification);
         }
@@ -383,12 +551,7 @@ export default function App() {
         setLabOsScanQuick(null);
         setLaboratorioPendingOrderId(soId);
         setLaboratorioPendingScanToken(Date.now());
-        setIsPartsModalOpen(false);
-        setPartsBootIntent(null);
-        setIsTvPatioModalOpen(false);
-        setSettingsHubOpen(false);
-        setIsSettingsOpen(false);
-        setIsSupportChatOpen(false);
+        dismissShellOverlaysForNavigation();
         if (isLimitedSystemUser) {
           setVisitedUserTabs((prev) => {
             if (prev.has('laboratorio')) return prev;
@@ -415,8 +578,26 @@ export default function App() {
       goToOrcamentosTab();
       setHubBudgetViewer({ serviceOrderId: soId, budgetId });
     },
-    [goToOrcamentosTab, isLimitedSystemUser, userAllowedTabs]
+    [
+      beginNotificationDestination,
+      dismissShellOverlaysForNavigation,
+      goToAgendaTab,
+      goToOrcamentosTab,
+      isLimitedSystemUser,
+      userAllowedTabs,
+    ]
   );
+
+  const closeCommentPopUp = useCallback(() => {
+    setCommentPopUpNotification(null);
+    clearBannersOnDestinationCloseRef.current = false;
+    clearAllSystemBanners();
+  }, [clearAllSystemBanners]);
+
+  const closeHubBudgetViewer = useCallback(() => {
+    setHubBudgetViewer(null);
+    clearBannersAfterNotificationDestination();
+  }, [clearBannersAfterNotificationDestination]);
 
   const handleMinimizeBudgetBanners = useCallback((items: MacOsBudgetBannerItem[]) => {
     setMinimizedBudgetBanners((prev) => {
@@ -438,13 +619,21 @@ export default function App() {
 
   const pushBudgetBanner = useCallback(
     (item: MacOsBudgetBannerItem) => {
-      if (!isDesktopShell) return;
+      const isAgenda =
+        item.kind === 'agenda_day_before' || item.kind === 'agenda_soon';
+      if (!isDesktopShell && !isAgenda) return;
       const isComment = item.kind === 'comment';
       const isLabSemConserto = item.kind === 'lab_sem_conserto';
-      if (isComment && !commentBannerNotifications) return;
-      if (!isComment && !isLabSemConserto && !budgetBannerNotifications) return;
+      if (isAgenda) {
+        if (item.kind === 'agenda_day_before' && !agendaReminderSettings.dayBeforeEnabled) return;
+        if (item.kind === 'agenda_soon' && !agendaReminderSettings.soonEnabled) return;
+      } else if (isComment && !commentBannerNotifications) return;
+      else if (!isComment && !isLabSemConserto && !budgetBannerNotifications) return;
       setMinimizedBudgetBanners((prev) =>
         prev.filter((x) => {
+          if (isAgenda) {
+            return x.id !== item.id;
+          }
           if (isComment) {
             return !(x.kind === 'comment' && x.id === item.id);
           }
@@ -459,12 +648,14 @@ export default function App() {
       setBudgetBannerItems((prev) => {
         if (
           prev.some((x) =>
-            isComment
-              ? x.id === item.id || (x.kind === 'comment' && x.commentNotification?.id === item.id)
-              : isLabSemConserto
-                ? x.id === item.id ||
-                  (x.kind === 'lab_sem_conserto' && x.serviceOrderId === item.serviceOrderId)
-                : x.id === item.id || (x.budgetId === item.budgetId && x.kind === item.kind)
+            isAgenda
+              ? x.id === item.id
+              : isComment
+                ? x.id === item.id || (x.kind === 'comment' && x.commentNotification?.id === item.id)
+                : isLabSemConserto
+                  ? x.id === item.id ||
+                    (x.kind === 'lab_sem_conserto' && x.serviceOrderId === item.serviceOrderId)
+                  : x.id === item.id || (x.budgetId === item.budgetId && x.kind === item.kind)
           )
         ) {
           return prev;
@@ -473,8 +664,22 @@ export default function App() {
         return [item, ...prev].slice(0, 80);
       });
     },
-    [isDesktopShell, budgetBannerNotifications, commentBannerNotifications]
+    [
+      isDesktopShell,
+      budgetBannerNotifications,
+      commentBannerNotifications,
+      agendaReminderSettings.dayBeforeEnabled,
+      agendaReminderSettings.soonEnabled,
+    ]
   );
+
+  useAgendaReminders({
+    appointments,
+    settings: agendaReminderSettings,
+    enabled: Boolean(authSession),
+    pushBanner: pushBudgetBanner,
+    pollMs: 30_000,
+  });
 
   const handleNewCommentNotification = useCallback(
     (n: Notification) => {
@@ -493,6 +698,8 @@ export default function App() {
             : null;
         const commentText =
           typeof n.payload.text === 'string' ? n.payload.text : null;
+        const orderTypeRaw =
+          typeof n.payload.order_type === 'string' ? n.payload.order_type.trim().toLowerCase() : '';
         pushBudgetBanner({
           id: n.id,
           kind: 'comment',
@@ -507,6 +714,10 @@ export default function App() {
           authorPhotoUrl,
           commentText,
           commentNotification: n,
+          boardScope: resolveBannerBoardScope({
+            kind: 'comment',
+            orderType: orderTypeRaw || null,
+          }),
         });
         // No PC com banners: o alerta fica no canto; clique abre o pop-up de resposta.
         return;
@@ -548,6 +759,10 @@ export default function App() {
           budgetNumber: ev.budgetNumber,
           approvedItemsCount:
             ev.kind === 'approved' ? ev.item.approvedItemsCount ?? null : null,
+          boardScope: resolveBannerBoardScope({
+            kind,
+            orderType: ev.item.orderType ?? null,
+          }),
         });
       }
     },
@@ -576,6 +791,10 @@ export default function App() {
       const soId = typeof d?.serviceOrderId === 'string' ? d.serviceOrderId.trim() : '';
       const budgetId = typeof d?.budgetId === 'string' ? d.budgetId.trim() : '';
       if (!soId || !budgetId) return;
+      const orderTypeRaw =
+        typeof (d as { orderType?: unknown })?.orderType === 'string'
+          ? String((d as { orderType?: string }).orderType).trim().toLowerCase()
+          : '';
       pushBudgetBanner({
         id: `local-approved-${budgetId}-${Date.now()}`,
         kind: 'budget_items_approved',
@@ -587,6 +806,10 @@ export default function App() {
           typeof d.approvedItemsCount === 'number' && d.approvedItemsCount >= 0
             ? Math.floor(d.approvedItemsCount)
             : null,
+        boardScope: resolveBannerBoardScope({
+          kind: 'budget_items_approved',
+          orderType: orderTypeRaw || null,
+        }),
       });
     };
     window.addEventListener('rda-budget-items-approved', onLocalApproved);
@@ -635,6 +858,7 @@ export default function App() {
           authorName: author,
           authorPhotoUrl,
           osNumber,
+          boardScope: 'lab',
         });
         return;
       }
@@ -673,6 +897,8 @@ export default function App() {
           : typeof approvedRaw === 'string' && Number(approvedRaw) >= 0
             ? Math.floor(Number(approvedRaw))
             : null;
+      const orderTypeRaw =
+        typeof n.payload.order_type === 'string' ? n.payload.order_type.trim().toLowerCase() : '';
       pushBudgetBanner({
         id: n.id,
         kind: n.type,
@@ -686,6 +912,10 @@ export default function App() {
         authorPhotoUrl,
         budgetNumber,
         approvedItemsCount: n.type === 'budget_items_approved' ? approvedItemsCount : null,
+        boardScope: resolveBannerBoardScope({
+          kind: n.type,
+          orderType: orderTypeRaw || null,
+        }),
       });
     },
     [isDesktopShell, budgetBannerNotifications, pushBudgetBanner]
@@ -694,6 +924,7 @@ export default function App() {
   const handleNotificationClick = useCallback(
     (n: Notification) => {
       if (n.type === 'comment') {
+        beginNotificationDestination();
         setCommentPopUpNotification(n);
         void markNotificationRead(
           n.id,
@@ -707,15 +938,11 @@ export default function App() {
         const soId =
           typeof n.payload.service_order_id === 'string' ? n.payload.service_order_id.trim() : '';
         if (soId) {
+          beginNotificationDestination();
           setLabOsScanQuick(null);
           setLaboratorioPendingOrderId(soId);
           setLaboratorioPendingScanToken(Date.now());
-          setIsPartsModalOpen(false);
-          setPartsBootIntent(null);
-          setIsTvPatioModalOpen(false);
-          setSettingsHubOpen(false);
-          setIsSettingsOpen(false);
-          setIsSupportChatOpen(false);
+          dismissShellOverlaysForNavigation();
           if (isLimitedSystemUser) {
             setVisitedUserTabs((prev) => {
               if (prev.has('laboratorio')) return prev;
@@ -749,6 +976,7 @@ export default function App() {
         const budgetId =
           typeof n.payload.budget_id === 'string' ? n.payload.budget_id.trim() : '';
         if (!soId || !budgetId) return;
+        beginNotificationDestination();
         goToOrcamentosTab();
         setHubBudgetViewer({ serviceOrderId: soId, budgetId });
         void markNotificationRead(
@@ -759,7 +987,14 @@ export default function App() {
         ).catch(() => {});
       }
     },
-    [authSession, goToOrcamentosTab, isLimitedSystemUser, userAllowedTabs]
+    [
+      authSession,
+      beginNotificationDestination,
+      dismissShellOverlaysForNavigation,
+      goToOrcamentosTab,
+      isLimitedSystemUser,
+      userAllowedTabs,
+    ]
   );
 
   const notificationCenterProps = useMemo((): Omit<NotificationCenterProps, 'placement'> | undefined => {
@@ -793,12 +1028,7 @@ export default function App() {
       setLaboratorioPendingOrderId(serviceOrderId);
       setLaboratorioPendingScanToken(Date.now());
       // Fecha overlays que cobririam o modal da OS.
-      setIsPartsModalOpen(false);
-      setPartsBootIntent(null);
-      setIsTvPatioModalOpen(false);
-      setSettingsHubOpen(false);
-      setIsSettingsOpen(false);
-      setIsSupportChatOpen(false);
+      dismissShellOverlaysForNavigation();
       if (isLimitedSystemUser) {
         setVisitedUserTabs((prev) => {
           if (prev.has('laboratorio')) return prev;
@@ -818,16 +1048,18 @@ export default function App() {
         setCurrentTab('laboratorio');
       }
     },
-    [isLimitedSystemUser, userAllowedTabs]
+    [dismissShellOverlaysForNavigation, isLimitedSystemUser, userAllowedTabs]
   );
 
   const handleLaboratoryOrderHandled = useCallback(() => {
     setLaboratorioPendingOrderId(null);
-  }, []);
+    clearBannersAfterNotificationDestination();
+  }, [clearBannersAfterNotificationDestination]);
 
   const handlePatioOrderHandled = useCallback(() => {
     setPatioPendingOrderId(null);
-  }, []);
+    clearBannersAfterNotificationDestination();
+  }, [clearBannersAfterNotificationDestination]);
 
   const handleLabScanModeChange = useCallback((mode: LabScanMode) => {
     setLabScanMode(mode);
@@ -843,6 +1075,7 @@ export default function App() {
     module_kind?: string | null;
     module_product_other?: string | null;
     module_identification?: string | null;
+    issue_description?: string | null;
     bench_slot?: number | null;
     customer_name?: string | null;
     customers?: { name?: string | null } | null;
@@ -868,6 +1101,7 @@ export default function App() {
         moduleKind: r.module_kind ?? null,
         moduleProductOther: r.module_product_other ?? null,
         moduleIdentification: (r.module_identification || '').trim() || null,
+        issueDescription: (r.issue_description || '').trim() || null,
         benchSlot: typeof r.bench_slot === 'number' ? r.bench_slot : null,
         feedback: opts.feedback,
         ok: opts.ok,
@@ -899,6 +1133,7 @@ export default function App() {
           !enriched?.module_kind ||
           !enriched?.vehicle_model ||
           !enriched?.module_identification ||
+          !enriched?.issue_description?.trim() ||
           !hasCustomer;
         if (missingMeta) {
           try {
@@ -927,12 +1162,7 @@ export default function App() {
     (serviceOrderId: string) => {
       const soId = serviceOrderId.trim();
       if (!soId) return;
-      setIsPartsModalOpen(false);
-      setPartsBootIntent(null);
-      setIsTvPatioModalOpen(false);
-      setSettingsHubOpen(false);
-      setIsSettingsOpen(false);
-      setIsSupportChatOpen(false);
+      dismissShellOverlaysForNavigation();
       // Limpa antes para permitir reabrir a mesma OS em sequência.
       setPatioPendingOrderId(null);
       window.setTimeout(() => setPatioPendingOrderId(soId), 0);
@@ -955,7 +1185,7 @@ export default function App() {
         setCurrentTab('patio');
       }
     },
-    [isLimitedSystemUser, userAllowedTabs]
+    [dismissShellOverlaysForNavigation, isLimitedSystemUser, userAllowedTabs]
   );
 
   /**
@@ -967,12 +1197,7 @@ export default function App() {
       if (await tryActiveBarcodeScanClaim(code)) return;
       const osId = parseLabOsQrPayload(code);
       if (!osId) return;
-      setIsPartsModalOpen(false);
-      setPartsBootIntent(null);
-      setIsTvPatioModalOpen(false);
-      setSettingsHubOpen(false);
-      setIsSettingsOpen(false);
-      setIsSupportChatOpen(false);
+      dismissShellOverlaysForNavigation();
 
       const mode = labScanMode;
       if (mode === 'consultar') {
@@ -1056,6 +1281,7 @@ export default function App() {
     authSession?.displayName,
     authSession?.userId,
     authSession?.username,
+    dismissShellOverlaysForNavigation,
     labScanMode,
   ]);
 
@@ -1255,8 +1481,24 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('app_budget_banner_notifications', String(budgetBannerNotifications));
     if (!budgetBannerNotifications) {
-      setBudgetBannerItems((prev) => prev.filter((x) => x.kind === 'comment'));
-      setMinimizedBudgetBanners((prev) => prev.filter((x) => x.kind === 'comment'));
+      setBudgetBannerItems((prev) =>
+        prev.filter(
+          (x) =>
+            x.kind === 'comment' ||
+            x.kind === 'agenda_day_before' ||
+            x.kind === 'agenda_soon' ||
+            x.kind === 'lab_sem_conserto'
+        )
+      );
+      setMinimizedBudgetBanners((prev) =>
+        prev.filter(
+          (x) =>
+            x.kind === 'comment' ||
+            x.kind === 'agenda_day_before' ||
+            x.kind === 'agenda_soon' ||
+            x.kind === 'lab_sem_conserto'
+        )
+      );
     }
   }, [budgetBannerNotifications]);
 
@@ -1271,6 +1513,11 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('app_blur_unverified_budgets', String(blurUnverifiedBudgets));
   }, [blurUnverifiedBudgets]);
+
+  const handleAgendaReminderSettingsChange = useCallback((next: AgendaReminderSettings) => {
+    setAgendaReminderSettings(next);
+    writeAgendaReminderSettings(next);
+  }, []);
 
   useEffect(() => {
     if (!isDesktopShell) {
@@ -1294,6 +1541,8 @@ export default function App() {
         }
       })
       .catch(() => {});
+    // Templates de etiquetas: baixa do servidor (ou sobe o local se o servidor estiver vazio).
+    void syncLabelTemplatesFromServer({ force: true }).catch(() => {});
     return () => {
       cancelled = true;
     };
@@ -1393,6 +1642,16 @@ export default function App() {
     [isLimitedSystemUser]
   );
 
+  // Marca o aparelho como online enquanto a sessão estiver ativa.
+  useEffect(() => {
+    if (!authSession?.token) return;
+    void sendDeviceHeartbeat();
+    const id = window.setInterval(() => {
+      void sendDeviceHeartbeat();
+    }, 45_000);
+    return () => window.clearInterval(id);
+  }, [authSession?.token]);
+
   const handleLogout = () => {
     if (
       !window.confirm(
@@ -1401,6 +1660,7 @@ export default function App() {
     ) {
       return;
     }
+    void logoutCurrentSession();
     try {
       clearStoredAuth();
     } catch (_) {}
@@ -1482,17 +1742,12 @@ export default function App() {
     setVisitedUserTabs(new Set(['home']));
   }, [authSession]);
 
-  useBrowserBackLayer(!!commentPopUpNotification, () => setCommentPopUpNotification(null));
-  useBrowserBackLayer(isSettingsOpen, () => setIsSettingsOpen(false));
-  useBrowserBackLayer(isUserChangePasswordsOpen, () => setIsUserChangePasswordsOpen(false));
-  useBrowserBackLayer(!!hubBudgetViewer, () => setHubBudgetViewer(null));
-  // Inventário / TVs: ESC via ModalPortal.onRequestClose (evita pilha duplicada).
+  // CommentPopUp / Settings / senhas / hub de orçamento: ESC via ModalPortal
+  // (useBrowserBackLayer no App fica fora do BackNavigationProvider e não registra).
 
   const closePartsModalToHome = useCallback(() => {
-    setIsPartsModalOpen(false);
-    setPartsBootIntent(null);
-    navigateToHomeApp();
-  }, [navigateToHomeApp]);
+    requestClosePartsModal(() => navigateToHomeApp());
+  }, [navigateToHomeApp, requestClosePartsModal]);
 
   const closeTvPatioModal = useCallback(() => {
     setIsTvPatioModalOpen(false);
@@ -1557,6 +1812,7 @@ export default function App() {
     const userDisplayName = authSession.displayName ?? authSession.username ?? 'Usuário';
     return (
       <ModalLayerProvider>
+      <ModalPortalHostProvider>
       <BackNavigationProvider>
       <AuthenticatedAppFrame
         isDesktopShell={isDesktopShell}
@@ -1569,12 +1825,13 @@ export default function App() {
         onDesktopSidebarAction={handleDesktopSidebarAction}
         displayName={userDisplayName}
         photoUrl={authSession.photoUrl ?? null}
-        onOpenSettings={() => setSettingsHubOpen(true)}
+        onOpenSettings={openSettingsHubOverlay}
         onOpenProfileEditor={openShellProfileEditor}
         onLogout={handleLogout}
         onOpenSupport={() => setIsSupportChatOpen(true)}
         supportUnreadBadge={supportUnreadBadge}
         orcamentosBadge={patioBudgetsHub.badgeCount}
+        agendaBadge={agendaTodayBadge}
         notificationCenter={isDesktopShell ? notificationCenterProps : undefined}
         shellOverlayTopbar={shellOverlayTopbar}
         activeSidebarAction={activeDesktopSidebarAction}
@@ -1586,6 +1843,7 @@ export default function App() {
             tabId="home"
             activeTab={userTab}
             visitedTabs={visitedUserTabs}
+            suppressInert={settingsHubOpen}
             className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-0 touch-pan-y [-webkit-overflow-scrolling:touch]"
           >
             <HomeView
@@ -1650,6 +1908,18 @@ export default function App() {
               systemUserPermissions={authSession.permissions}
               onOpenSettings={() => setIsSettingsOpen(true)}
               onOpenChangePasswords={() => setIsUserChangePasswordsOpen(true)}
+              blurUnverifiedBudgets={blurUnverifiedBudgets}
+              onBlurUnverifiedBudgetsChange={setBlurUnverifiedBudgets}
+              budgetBannerNotifications={budgetBannerNotifications}
+              onBudgetBannerNotificationsChange={setBudgetBannerNotifications}
+              commentBannerNotifications={commentBannerNotifications}
+              onCommentBannerNotificationsChange={setCommentBannerNotifications}
+              agendaReminderSettings={agendaReminderSettings}
+              onAgendaReminderSettingsChange={handleAgendaReminderSettingsChange}
+              appointments={appointments}
+              agendaTodayBadge={agendaTodayBadge}
+              onOpenAgendaAppointment={(app) => goToAgendaTab(app.id)}
+              orientation={orientation}
               globalOverlayModalOpen={isUserChangePasswordsOpen || isSettingsOpen || isTvPatioModalOpen}
               patioBudgetsHubBadge={patioBudgetsHub.badgeCount}
             />
@@ -1780,6 +2050,7 @@ export default function App() {
               actorOptions={{ actor: 'technician', actorTechnicianSlug: authSession.userId, actorTechnicianName: authSession.displayName ?? authSession.username }}
               patioPermissions={patioPerms}
               canApproveBudgetItems={canApproveBudgetItemsApp}
+              workTimeTechnician={workTimeTechnician}
               />
             </LazyTabBoundary>
           </KeepAliveTabPanel>
@@ -1812,6 +2083,7 @@ export default function App() {
               patioPermissions={patioPerms}
               labScanMode={labScanMode}
               onLabScanModeChange={handleLabScanModeChange}
+              workTimeTechnician={workTimeTechnician}
               />
             </LazyTabBoundary>
           </KeepAliveTabPanel>
@@ -1845,7 +2117,7 @@ export default function App() {
             replyActor="technician"
             replyAuthorUserId={authSession.userId}
             blurPlates={cinematographicMode}
-            onClose={() => setCommentPopUpNotification(null)}
+            onClose={closeCommentPopUp}
           />
         )}
         <SettingsModal
@@ -1855,14 +2127,6 @@ export default function App() {
           onThemeChange={setTheme}
           cinematographicMode={cinematographicMode}
           onCinematographicModeChange={setCinematographicMode}
-          budgetBannerNotifications={budgetBannerNotifications}
-          onBudgetBannerNotificationsChange={setBudgetBannerNotifications}
-          commentBannerNotifications={commentBannerNotifications}
-          onCommentBannerNotificationsChange={setCommentBannerNotifications}
-          blurUnverifiedBudgets={blurUnverifiedBudgets}
-          onBlurUnverifiedBudgetsChange={setBlurUnverifiedBudgets}
-          orientation={orientation}
-          showPatioAccess={false}
         />
         <ChangePasswordsModal isOpen={isUserChangePasswordsOpen} onClose={() => setIsUserChangePasswordsOpen(false)} />
         {hubBudgetViewer ? (
@@ -1870,7 +2134,7 @@ export default function App() {
             key={`${hubBudgetViewer.serviceOrderId}-${hubBudgetViewer.budgetId}`}
             serviceOrderId={hubBudgetViewer.serviceOrderId}
             budgetId={hubBudgetViewer.budgetId}
-            onClose={() => setHubBudgetViewer(null)}
+            onClose={closeHubBudgetViewer}
             canApproveBudgetItems={canApproveBudgetItemsApp}
             actorOptions={budgetHubActorOptions}
             blurUnverifiedBudgets={blurUnverifiedBudgets && !canVerifyBudgetsApp}
@@ -1881,7 +2145,7 @@ export default function App() {
             items={budgetBannerItems}
             theme={theme}
             onDismiss={(id) => setBudgetBannerItems((prev) => prev.filter((x) => x.id !== id))}
-            onDismissAll={() => setBudgetBannerItems([])}
+            onDismissAll={clearAllSystemBanners}
             onMinimize={handleMinimizeBudgetBanners}
             onActivate={(item) => openBudgetFromBanner(item)}
           />
@@ -1900,6 +2164,9 @@ export default function App() {
               onClose={closePartsModalToHome}
               bootIntent={partsBootIntent}
               onBootIntentConsumed={() => setPartsBootIntent(null)}
+              onRegisterExitGuard={(guard) => {
+                partsExitGuardRef.current = guard;
+              }}
             />
           </Suspense>
         ) : null}
@@ -1926,9 +2193,20 @@ export default function App() {
             onProfileUpdated={handleShellUserProfileUpdated}
           />
         ) : null}
-        <DesktopEscapeCloseBridge activeAppTab={userTab} onCloseOverlayPage={handleOverlayCloseOrBack} />
+        <DesktopEscapeCloseBridge
+          activeAppTab={userTab}
+          onCloseOverlayPage={handleOverlayCloseOrBack}
+          blockOverlayPageClose={
+            settingsHubOpen ||
+            isPartsModalOpen ||
+            isTvPatioModalOpen ||
+            isSettingsOpen ||
+            !!commentPopUpNotification
+          }
+        />
       </AuthenticatedAppFrame>
       </BackNavigationProvider>
+      </ModalPortalHostProvider>
       </ModalLayerProvider>
     );
   }
@@ -1952,6 +2230,7 @@ export default function App() {
 
   return (
     <ModalLayerProvider>
+    <ModalPortalHostProvider>
     <BackNavigationProvider>
     <AuthenticatedAppFrame
       isDesktopShell={isDesktopShell}
@@ -1967,8 +2246,10 @@ export default function App() {
       onOpenSettings={
         authSession?.role === 'admin' ||
         hasFullAccess ||
-        authSession?.permissions?.access_settings
-          ? () => setSettingsHubOpen(true)
+        authSession?.permissions?.access_settings ||
+        authSession?.permissions?.access_change_passwords ||
+        authSession?.permissions?.access_technicians
+          ? openSettingsHubOverlay
           : undefined
       }
       onOpenProfileEditor={openShellProfileEditor}
@@ -1976,6 +2257,7 @@ export default function App() {
       onOpenSupport={() => setIsSupportChatOpen(true)}
       supportUnreadBadge={supportUnreadBadge}
       orcamentosBadge={patioBudgetsHub.badgeCount}
+      agendaBadge={agendaTodayBadge}
       notificationCenter={isDesktopShell ? notificationCenterProps : undefined}
       shellOverlayTopbar={shellOverlayTopbar}
       activeSidebarAction={activeDesktopSidebarAction}
@@ -1987,6 +2269,7 @@ export default function App() {
           tabId="home"
           activeTab={currentTab}
           visitedTabs={visitedTabs}
+          suppressInert={settingsHubOpen}
           className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-0 touch-pan-y [-webkit-overflow-scrolling:touch]"
         >
           <HomeView
@@ -2026,6 +2309,18 @@ export default function App() {
             onAdminProfileSaved={authSession?.role === 'admin' ? handleAdminProfileSaved : undefined}
             systemUsersRefreshTrigger={authSession?.role === 'admin' ? systemUsersRefreshTrigger : undefined}
             onOpenSettings={() => setIsSettingsOpen(true)}
+            blurUnverifiedBudgets={blurUnverifiedBudgets}
+            onBlurUnverifiedBudgetsChange={setBlurUnverifiedBudgets}
+            budgetBannerNotifications={budgetBannerNotifications}
+            onBudgetBannerNotificationsChange={setBudgetBannerNotifications}
+            commentBannerNotifications={commentBannerNotifications}
+            onCommentBannerNotificationsChange={setCommentBannerNotifications}
+            agendaReminderSettings={agendaReminderSettings}
+            onAgendaReminderSettingsChange={handleAgendaReminderSettingsChange}
+            appointments={appointments}
+            agendaTodayBadge={agendaTodayBadge}
+            onOpenAgendaAppointment={(app) => goToAgendaTab(app.id)}
+            orientation={orientation}
             globalOverlayModalOpen={isUserChangePasswordsOpen || isSettingsOpen || isTvPatioModalOpen}
             patioBudgetsHubBadge={patioBudgetsHub.badgeCount}
           />
@@ -2169,6 +2464,7 @@ export default function App() {
             requiresExplicitCommentRead={canVerifyBudgetsApp}
             canApproveBudgetItems={canApproveBudgetItemsApp}
             actorOptions={authSession?.role === 'admin' ? { actor: 'admin', actorDisplayName: adminDisplayName } : { actor: 'technician', actorTechnicianSlug: authSession?.userId, actorTechnicianName: authSession?.displayName ?? authSession?.username, actorDisplayName: authSession?.displayName ?? authSession?.username }}
+            workTimeTechnician={workTimeTechnician}
             />
           </LazyTabBoundary>
         </KeepAliveTabPanel>
@@ -2204,6 +2500,7 @@ export default function App() {
             actorOptions={authSession?.role === 'admin' ? { actor: 'admin', actorDisplayName: adminDisplayName } : { actor: 'technician', actorTechnicianSlug: authSession?.userId, actorTechnicianName: authSession?.displayName ?? authSession?.username, actorDisplayName: authSession?.displayName ?? authSession?.username }}
             labScanMode={labScanMode}
             onLabScanModeChange={handleLabScanModeChange}
+            workTimeTechnician={workTimeTechnician}
             />
           </LazyTabBoundary>
         </KeepAliveTabPanel>
@@ -2227,21 +2524,13 @@ export default function App() {
         onThemeChange={setTheme}
         cinematographicMode={cinematographicMode}
         onCinematographicModeChange={setCinematographicMode}
-        budgetBannerNotifications={budgetBannerNotifications}
-        onBudgetBannerNotificationsChange={setBudgetBannerNotifications}
-        commentBannerNotifications={commentBannerNotifications}
-        onCommentBannerNotificationsChange={setCommentBannerNotifications}
-        blurUnverifiedBudgets={blurUnverifiedBudgets}
-        onBlurUnverifiedBudgetsChange={setBlurUnverifiedBudgets}
-        orientation={orientation}
-        showPatioAccess={authSession?.role === 'admin' || hasFullAccess}
       />
       {hubBudgetViewer ? (
         <BudgetHubViewerModal
           key={`${hubBudgetViewer.serviceOrderId}-${hubBudgetViewer.budgetId}`}
           serviceOrderId={hubBudgetViewer.serviceOrderId}
           budgetId={hubBudgetViewer.budgetId}
-          onClose={() => setHubBudgetViewer(null)}
+          onClose={closeHubBudgetViewer}
           canApproveBudgetItems={canApproveBudgetItemsApp}
           actorOptions={budgetHubActorOptions}
             blurUnverifiedBudgets={blurUnverifiedBudgets && !canVerifyBudgetsApp}
@@ -2252,7 +2541,7 @@ export default function App() {
           items={budgetBannerItems}
           theme={theme}
           onDismiss={(id) => setBudgetBannerItems((prev) => prev.filter((x) => x.id !== id))}
-          onDismissAll={() => setBudgetBannerItems([])}
+          onDismissAll={clearAllSystemBanners}
           onMinimize={handleMinimizeBudgetBanners}
           onActivate={(item) => openBudgetFromBanner(item)}
         />
@@ -2271,6 +2560,9 @@ export default function App() {
             onClose={closePartsModalToHome}
             bootIntent={partsBootIntent}
             onBootIntentConsumed={() => setPartsBootIntent(null)}
+            onRegisterExitGuard={(guard) => {
+              partsExitGuardRef.current = guard;
+            }}
           />
         </Suspense>
       ) : null}
@@ -2284,6 +2576,12 @@ export default function App() {
         onClose={() => setIsSupportChatOpen(false)}
         onUnreadChange={setSupportUnreadBadge}
       />
+      {authSession ? (
+        <RdaAssistantPanel
+          authSession={authSession}
+          contextServiceOrderId={null}
+        />
+      ) : null}
       {authSession?.role === 'admin' ? (
         <AdminProfileModal
           isOpen={shellProfileModal === 'admin'}
@@ -2326,12 +2624,23 @@ export default function App() {
           replyActor={authSession?.role === 'admin' ? 'admin' : 'technician'}
           replyAuthorUserId={authSession?.role === 'user' ? authSession.userId : null}
           blurPlates={cinematographicMode}
-          onClose={() => setCommentPopUpNotification(null)}
+          onClose={closeCommentPopUp}
         />
       )}
-      <DesktopEscapeCloseBridge activeAppTab={currentTab} onCloseOverlayPage={handleOverlayCloseOrBack} />
+      <DesktopEscapeCloseBridge
+        activeAppTab={currentTab}
+        onCloseOverlayPage={handleOverlayCloseOrBack}
+        blockOverlayPageClose={
+          settingsHubOpen ||
+          isPartsModalOpen ||
+          isTvPatioModalOpen ||
+          isSettingsOpen ||
+          !!commentPopUpNotification
+        }
+      />
     </AuthenticatedAppFrame>
     </BackNavigationProvider>
+    </ModalPortalHostProvider>
     </ModalLayerProvider>
   );
 }

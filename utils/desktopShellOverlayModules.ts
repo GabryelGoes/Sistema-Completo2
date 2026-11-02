@@ -24,7 +24,7 @@ export const DESKTOP_SHELL_MODULE_TOPBARS: Record<
     tone: 'light',
   },
   configuracoes: {
-    title: 'Configurações',
+    title: 'Ajustes',
     accent: '#6B7280',
     tone: 'light',
   },
@@ -36,9 +36,10 @@ export function resolveActiveDesktopSidebarAction(
   settingsModalOpen: boolean,
   settingsHubOpen: boolean
 ): DesktopShellSidebarModuleId | null {
+  // Ajustes empilha por cima de Estoque/TV — prioridade no título da barra.
+  if (settingsModalOpen || settingsHubOpen) return 'configuracoes';
   if (partsModalOpen) return 'estoque_pecas';
   if (tvPatioModalOpen) return 'tvs_oficina';
-  if (settingsModalOpen || settingsHubOpen) return 'configuracoes';
   return null;
 }
 

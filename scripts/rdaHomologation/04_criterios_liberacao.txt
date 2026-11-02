@@ -1,0 +1,24 @@
+Critérios objetivos para liberar controle de tempo + avaliações
+===============================================================
+Liberação em HOMOLOGAÇÃO (uso interno de teste):
+[ ] Migrations 220000→260000 aplicadas só no projeto de teste
+[ ] 02_verify.sql: tables/rls/rpcs/revoke_anon/seed_workshop/uq_eval_session = ok
+[ ] Roteiro 03: itens 1–22 passam
+[ ] Nenhuma alteração de status/stage da OS após finish/evaluate/dismiss
+[ ] Uma solicitação por sessão finalizada (constraint + count)
+[ ] Pátio isolado e técnico comum não leem avaliações (403)
+[ ] Cross-técnico com client_mutation_id alheio → 403
+[ ] RDA_INTELLIGENCE_ENABLED=false; sem OPENAI_API_KEY
+
+Liberação em PRODUÇÃO (requer autorização explícita além deste guia):
+[ ] Homologação verde documentada
+[ ] Backup / janela / plano de rollback acordados
+[ ] Migrations aplicadas em produção na mesma ordem
+[ ] Env de produção NÃO aponta para o projeto de teste
+[ ] Monitorar 503 RDA_WORK_MIGRATION_REQUIRED = 0 após deploy
+[ ] Sem merge automático — PR #119 revisado e aprovado
+
+NÃO liberar se:
+- Só testes locais sem banco
+- Fallback não-atômico ainda presente no tip (já removido)
+- RPC sem guarda de ownership no caminho idempotente (corrigido em 260000)

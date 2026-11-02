@@ -1,0 +1,55 @@
+Roteiro — SQL Editor do Supabase (projeto rei-do-abs-homologacao)
+================================================================
+Pré-condição: projeto VAZIO, separado da produção.
+NÃO execute estes arquivos no banco da oficina.
+
+Ordem (colar/rodar um arquivo por vez; conferir “Success”):
+
+1. scripts/rdaHomologation/00_bootstrap_core_schema.sql
+   → Cria workshops, customers, service_orders, workshop_system_users,
+     budgets, workshop_os_counters, get_next_os_number.
+
+2. scripts/rdaHomologation/00b_bootstrap_ui_support.sql
+   → settings, dispositivos, workshop_technicians, ocorrências do Radar
+     (necessário para Pátio/Radar no navegador).
+
+3. supabase/migrations/20261101220000_rda_work_sessions.sql
+
+4. supabase/migrations/20261101230000_rda_work_sessions_integrity.sql
+
+5. supabase/migrations/20261101240000_rda_work_rpc_privileges.sql
+
+6. supabase/migrations/20261101250000_rda_managerial_evaluations.sql
+
+7. supabase/migrations/20261101260000_rda_rpc_idempotent_owner_guard.sql
+
+8. scripts/rdaHomologation/01_seed_fictional.sql
+   → Oficina, T1/T2/G/P, cliente, OS-A/OS-B, budget fictício.
+   → Senha inicial local: homolog123 (NÃO usar em URL de preview).
+
+9. scripts/rdaHomologation/01b_ui_access_and_preview_passwords.sql
+   → Permissões de abas; troque as senhas antes do preview.
+
+10. scripts/rdaHomologation/02_verify.sql
+   → Uma grade só: cada check_id com ok = true, inclusive ALL_OK.
+   → Se alguma linha vier ok = false, anote o check_id (ex.: rpcs, seed_os)
+     — isso indica etapa anterior incompleta (migration ou seed), não
+     precisa recriar o projeto; rode de novo o passo que faltou.
+
+Preview no browser: ver 06_preview_browser.txt (Vercel isolada, sem deploy automático).
+
+Backend local:
+- Preencher .env.homologation (URL + service_role do projeto de TESTE)
+- WORKSHOP_ID=11111111-1111-4111-8111-111111111111
+- Seguir 03_roteiro_api.txt
+
+IDs úteis:
+  Workshop  11111111-1111-4111-8111-111111111111
+  Tech1     22222222-2222-4222-8222-222222222201
+  Tech2     22222222-2222-4222-8222-222222222202
+  Gerente   22222222-2222-4222-8222-222222222203
+  Pátio     22222222-2222-4222-8222-222222222204
+  OS-A      33333333-3333-4333-8333-333333333301
+  OS-B      33333333-3333-4333-8333-333333333302
+  Cliente   44444444-4444-4444-8444-444444444401
+  Budget    55555555-5555-4555-8555-555555555501

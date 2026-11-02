@@ -157,9 +157,11 @@ const COMPACT_TABLET_PORTRAIT: PatioVehicleModalCompact = {
     'flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-zinc-200/95 bg-gradient-to-b from-white to-zinc-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.9),0_2px_8px_-4px_rgba(0,0,0,0.1)] dark:border-white/[0.1] dark:from-white/[0.12] dark:to-white/[0.04]',
   iconGlyph: 'h-3.5 w-3.5 text-[#007AFF] dark:text-[#7ab8ff]',
   titleText:
-    'truncate text-[10px] font-bold uppercase tracking-[0.12em] text-zinc-500 dark:text-zinc-400',
-  bodyText: 'mt-0.5 truncate text-[12px] font-semibold leading-tight text-zinc-900 dark:text-white',
-  assignHint: 'mt-0.5 truncate text-[12px] font-semibold leading-tight text-[#007AFF] dark:text-[#7ab8ff]',
+    'truncate text-[10px] font-semibold uppercase tracking-[0.1em] text-zinc-500 dark:text-zinc-400',
+  bodyText:
+    'mt-0.5 truncate text-[13px] font-semibold leading-tight text-zinc-900 dark:text-white',
+  assignHint:
+    'mt-0.5 truncate text-[12.5px] font-semibold leading-tight text-[#007AFF] dark:text-[#7ab8ff]',
   chevron: 'relative z-[1] h-3.5 w-3.5 shrink-0',
   numericInput:
     'patio-vm-meta-input patio-vm-meta-input--km h-8 w-[4.5rem] min-w-0 shrink-0 rounded-md border border-zinc-300/90 bg-zinc-50 px-2 py-1 text-[13px] tabular-nums text-zinc-950 shadow-[inset_0_1px_2px_rgba(0,0,0,0.04)] placeholder:text-zinc-400 focus:border-[#007AFF]/50 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/25 dark:border-white/[0.12] dark:bg-zinc-950/50 dark:text-white dark:placeholder:text-zinc-500',
@@ -207,38 +209,39 @@ export function getPatioVehicleModalLayout(
     return {
       mode: 'tabletPortrait',
       overlay:
-        'fixed inset-0 z-[100] flex flex-col overscroll-none touch-pan-y bg-[#F2F2F7] dark:bg-zinc-950 animate-in fade-in duration-200 p-0',
+        'fixed inset-0 z-[100] flex flex-col overscroll-none touch-pan-y bg-[#F2F2F7] dark:bg-[#0b0d12] animate-in fade-in duration-200 p-0',
       shell:
-        'relative flex h-[100dvh] max-h-[100dvh] w-full min-h-0 flex-col overflow-hidden rounded-none border-0 bg-[#F2F2F7] pb-[env(safe-area-inset-bottom)] shadow-none dark:bg-zinc-950',
+        'relative flex h-[100dvh] max-h-[100dvh] w-full min-h-0 flex-col overflow-hidden rounded-none border-0 bg-[#F2F2F7] pb-[env(safe-area-inset-bottom)] shadow-none dark:bg-[#0b0d12]',
       scroll:
         'patio-vm-scroll patio-vm-scroll--minimal min-h-0 flex-1 overflow-y-auto overscroll-none',
-      header: 'border-b border-zinc-200/50 px-4 pb-4 pt-4 dark:border-white/[0.06]',
-      headerInner: 'mb-4 flex flex-col gap-2.5',
+      // Hero sticky fica fora do scroll; aqui só meta + corpo.
+      header: 'px-3.5 pb-2 pt-3 sm:px-5',
+      headerInner: 'mb-0 flex flex-col gap-2.5',
       headerTitlePad: '',
       headerMeta:
-        'patio-vm-header-meta patio-vm-header-meta--tablet mt-2 grid w-full min-w-0 grid-cols-2 gap-2',
+        'patio-vm-header-meta patio-vm-header-meta--tablet mt-0 grid w-full min-w-0 grid-cols-2 gap-2',
       title:
-        'font-vehicle min-w-0 flex-1 truncate text-[2.53rem] font-bold uppercase leading-none tracking-tight text-zinc-900 dark:text-white',
-      titlePlateRow: 'mt-1 flex min-w-0 items-center gap-2.5',
+        'font-display min-w-0 truncate text-[1.55rem] font-semibold leading-none tracking-[-0.03em] text-slate-900 sm:text-[1.75rem] dark:text-white',
+      titlePlateRow: 'mt-0.5 flex min-w-0 items-center gap-2.5',
       stagePill: `${STAGE_PILL_BASE} rounded-[16px] px-3.5 py-2.5 text-[13px] tracking-[0.12em]`,
       brandLogoSize: 'modalTablet',
       plateMockupSize: 'modalTablet',
-      body: 'grid grid-cols-1 gap-4 px-4 pb-5 pt-3',
-      mainCol: 'min-w-0 space-y-4',
-      asideCol: 'min-w-0 space-y-5',
+      body: 'grid grid-cols-1 gap-3.5 px-3.5 pb-5 pt-3 sm:gap-4 sm:px-5',
+      mainCol: 'min-w-0 space-y-3.5 sm:space-y-4',
+      asideCol: 'min-w-0 space-y-4',
       insetCard: iosVehicleModalInsetCard,
       input: iosVehicleModalInput,
       closeBtn:
-        'flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-black/5 text-zinc-600 transition-colors hover:bg-black/10 dark:bg-white/10 dark:hover:bg-white/15',
+        'inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-600 transition-colors hover:bg-slate-200 dark:bg-white/[0.08] dark:text-white/90 dark:hover:bg-white/[0.14]',
       assignHintLabel: 'Toque para atribuir',
       openHintLabel: 'Toque para abrir',
       sectionTitle: '',
       commentsList:
         'patio-vm-scroll--minimal space-y-2.5 bg-[#F2F2F7]/80 p-3 dark:bg-black/25',
-      customerMetaLabel: 'Dados da ficha',
-      technicianMetaLabel: 'Técnico',
-      deliveryDateMetaLabel: 'ENTREGA',
-      hideOsBadge: false,
+      customerMetaLabel: 'Cliente',
+      technicianMetaLabel: 'Técnico responsável',
+      deliveryDateMetaLabel: 'Entrega',
+      hideOsBadge: true,
       showStageRing: false,
       isMetaPcLike: true,
       compact: COMPACT_TABLET_PORTRAIT,
@@ -246,43 +249,42 @@ export function getPatioVehicleModalLayout(
   }
 
   if (!isPc) {
-    // Celular: mesmo layout do tablet (meta 2×N, tipografia, cards), com placa menor.
+    // Celular: mesmo hero da referência; placa um pouco menor.
     return {
       mode: 'mobile',
       overlay:
-        'fixed inset-0 z-[100] flex flex-col overscroll-none touch-pan-y bg-[#F2F2F7] dark:bg-zinc-950 animate-in fade-in duration-200 p-0',
+        'fixed inset-0 z-[100] flex flex-col overscroll-none touch-pan-y bg-[#F2F2F7] dark:bg-[#0b0d12] animate-in fade-in duration-200 p-0',
       shell:
-        'relative flex h-[100dvh] max-h-[100dvh] w-full min-h-0 flex-col overflow-hidden rounded-none border-0 bg-[#F2F2F7] pb-[env(safe-area-inset-bottom)] shadow-none dark:bg-zinc-950',
+        'relative flex h-[100dvh] max-h-[100dvh] w-full min-h-0 flex-col overflow-hidden rounded-none border-0 bg-[#F2F2F7] pb-[env(safe-area-inset-bottom)] shadow-none dark:bg-[#0b0d12]',
       scroll:
         'patio-vm-scroll patio-vm-scroll--minimal min-h-0 flex-1 overflow-y-auto overscroll-none',
-      header:
-        'border-b border-zinc-200/50 px-4 pb-4 pt-[max(1rem,env(safe-area-inset-top))] dark:border-white/[0.06]',
-      headerInner: 'mb-4 flex flex-col gap-2.5',
+      header: 'px-3.5 pb-2 pt-3 sm:px-4',
+      headerInner: 'mb-0 flex flex-col gap-2.5',
       headerTitlePad: '',
       headerMeta:
-        'patio-vm-header-meta patio-vm-header-meta--tablet mt-2 grid w-full min-w-0 grid-cols-2 gap-2',
+        'patio-vm-header-meta patio-vm-header-meta--tablet mt-0 grid w-full min-w-0 grid-cols-2 gap-2',
       title:
-        'font-vehicle min-w-0 flex-1 truncate text-[2.53rem] font-bold uppercase leading-none tracking-tight text-zinc-900 dark:text-white',
-      titlePlateRow: 'mt-1 flex min-w-0 items-center gap-2.5',
+        'font-display min-w-0 truncate text-[1.45rem] font-semibold leading-none tracking-[-0.03em] text-slate-900 sm:text-[1.6rem] dark:text-white',
+      titlePlateRow: 'mt-0.5 flex min-w-0 items-center gap-2.5',
       stagePill: `${STAGE_PILL_BASE} rounded-[16px] px-3.5 py-2.5 text-[13px] tracking-[0.12em]`,
       brandLogoSize: 'modalTablet',
       plateMockupSize: 'modalMobile',
-      body: 'grid grid-cols-1 gap-4 px-4 pb-5 pt-3',
-      mainCol: 'min-w-0 space-y-4',
-      asideCol: 'min-w-0 space-y-5',
+      body: 'grid grid-cols-1 gap-3.5 px-3.5 pb-5 pt-3 sm:px-4',
+      mainCol: 'min-w-0 space-y-3.5',
+      asideCol: 'min-w-0 space-y-4',
       insetCard: iosVehicleModalInsetCard,
       input: iosVehicleModalInput,
       closeBtn:
-        'flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-black/5 text-zinc-600 transition-colors hover:bg-black/10 dark:bg-white/10 dark:hover:bg-white/15',
+        'inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-100 text-slate-600 transition-colors hover:bg-slate-200 dark:bg-white/[0.08] dark:text-white/90 dark:hover:bg-white/[0.14]',
       assignHintLabel: 'Toque para atribuir',
       openHintLabel: 'Toque para abrir',
       sectionTitle: '',
       commentsList:
         'patio-vm-scroll--minimal space-y-2.5 bg-[#F2F2F7]/80 p-3 dark:bg-black/25',
-      customerMetaLabel: 'Dados da ficha',
-      technicianMetaLabel: 'Técnico',
-      deliveryDateMetaLabel: 'ENTREGA',
-      hideOsBadge: false,
+      customerMetaLabel: 'Cliente',
+      technicianMetaLabel: 'Técnico responsável',
+      deliveryDateMetaLabel: 'Entrega',
+      hideOsBadge: true,
       showStageRing: false,
       isMetaPcLike: true,
       compact: COMPACT_MOBILE_TABLET_LIKE,
@@ -295,36 +297,37 @@ export function getPatioVehicleModalLayout(
       'patio-vehicle-modal patio-vehicle-modal--desktop fixed inset-0 z-[100] flex flex-col overflow-hidden bg-[#F2F2F7] dark:bg-[#0a0a0a] animate-in fade-in duration-200',
     shell:
       'patio-vehicle-modal__shell relative flex h-[100dvh] max-h-[100dvh] w-full min-h-0 flex-col overflow-hidden rounded-none border-0 bg-[#F2F2F7] shadow-none dark:bg-[#0a0a0a] dark:shadow-none',
-    scroll: 'patio-vm-scroll min-h-0 flex-1 overflow-y-auto overscroll-y-auto custom-scrollbar',
+    // Grid 2 colunas do topo: header+abas+conteúdo à esquerda; sidebar (status/ações) à direita.
+    scroll:
+      'patio-vm-scroll patio-vm-desktop-scroll min-h-0 flex-1 overflow-y-auto overscroll-y-auto custom-scrollbar',
     header:
-      'patio-vm-desktop-header shrink-0 border-b border-zinc-300/80 bg-white/95 px-6 py-1.5 dark:border-white/[0.08] dark:bg-zinc-900/95 xl:px-8 xl:py-1.5',
-    headerInner: 'mx-auto flex w-full min-w-0 max-w-[1680px] flex-col gap-1',
+      'patio-vm-desktop-header shrink-0 border-b border-zinc-300/80 bg-white/95 px-6 py-3 dark:border-white/[0.08] dark:bg-zinc-900/95 xl:px-8 xl:py-3.5',
+    headerInner: 'flex w-full min-w-0 flex-col gap-1',
     headerTitlePad: 'min-w-0',
     headerMeta:
-      'patio-vm-header-meta patio-vm-header-meta--pc mt-1.5 grid w-full min-w-0 grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4',
+      'patio-vm-header-meta patio-vm-header-meta--pc mt-2 grid w-full min-w-0 grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4',
     title:
       'patio-vehicle-modal__title font-vehicle min-w-0 flex-1 truncate text-[2rem] font-bold uppercase leading-none tracking-tight text-zinc-900 dark:text-white xl:text-[2.35rem]',
     titlePlateRow: 'mt-0 flex min-w-0 items-center gap-3',
     stagePill: `${STAGE_PILL_BASE} rounded-[16px] px-4 py-2 text-[15px] tracking-widest`,
     brandLogoSize: 'modalPc',
     plateMockupSize: 'modalPc',
-    body:
-      'patio-vm-desktop-body mx-auto grid w-full max-w-[1680px] grid-cols-1 gap-5 px-6 pb-6 pt-4 lg:grid-cols-[minmax(0,1fr)_minmax(360px,440px)] lg:items-start lg:gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(380px,460px)] xl:px-8',
-    mainCol: 'patio-vm-main-col min-w-0 space-y-5',
+    body: 'patio-vm-desktop-body',
+    mainCol: 'patio-vm-main-col min-w-0 space-y-5 px-6 pb-6 pt-4 xl:px-8',
     asideCol:
-      'patio-vm-aside-col min-w-0 space-y-5 border-t border-zinc-300/70 bg-[#F2F2F7]/80 pt-5 dark:border-white/[0.08] dark:bg-zinc-950/40 lg:border-l lg:border-t-0 lg:pl-6 lg:pt-0',
+      'patio-vm-aside-col custom-scrollbar min-w-0 space-y-4 border-zinc-300/70 bg-[#F2F2F7] px-5 py-4 dark:border-white/[0.08] dark:bg-[#0a0a0a] xl:px-6 xl:py-5',
     insetCard:
-      'patio-vm-card rounded-[6px] border-0 bg-white shadow-none dark:bg-zinc-900/80',
+      'patio-vm-card overflow-hidden rounded-[10px] border border-zinc-200/90 bg-white shadow-none dark:border-white/[0.1] dark:bg-[#1a1d21]',
     input:
       'w-full rounded-md border-0 bg-zinc-100/90 px-3.5 py-2.5 text-[15px] leading-relaxed text-zinc-950 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/30 transition-shadow dark:bg-zinc-950/60 dark:text-white dark:placeholder:text-zinc-500',
     closeBtn:
-      'patio-vehicle-modal__icon-btn flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-full bg-black/5 text-zinc-600 transition-colors hover:bg-black/10 dark:bg-white/10 dark:hover:bg-white/15',
+      'patio-vehicle-modal__icon-btn flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-full bg-black/5 text-zinc-600 transition-colors hover:bg-black/10 dark:bg-white/10 dark:text-zinc-200 dark:hover:bg-white/15',
     assignHintLabel: 'Clique para atribuir',
     openHintLabel: 'Clique para abrir',
     sectionTitle:
       'text-[12px] font-bold uppercase tracking-[0.12em] text-zinc-500 dark:text-zinc-400 mb-2 flex items-center gap-1.5',
-      commentsList:
-        'custom-scrollbar space-y-2.5 bg-[#F2F2F7]/80 p-3 dark:bg-black/25',
+    commentsList:
+      'custom-scrollbar space-y-2.5 bg-[#F2F2F7]/80 p-3 dark:bg-black/25',
     customerMetaLabel: 'Cliente',
     technicianMetaLabel: 'Técnico',
     deliveryDateMetaLabel: 'Entrada',

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { KeyRound, Loader2, Check, Trash2, Eye, EyeOff, Package, X } from 'lucide-react';
+import { KeyRound, Loader2, Check, Trash2, Eye, EyeOff, Package, X, Lock } from 'lucide-react';
 import { iosModalShell, iosModalClose, iosModalInsetCard, iosInput, resolveIosModalOverlayClass } from './ui/iosModalStyles';
 import { ModalPortal } from './ui/ModalPortal';
 import { useDesktopShellLayout } from './ui/DesktopShellContext';
@@ -15,9 +15,11 @@ interface ChangePasswordsModalProps {
 export const ChangePasswordsModal: React.FC<ChangePasswordsModalProps> = ({ isOpen, onClose }) => {
   const isDesktopShell = useDesktopShellLayout();
   const [patioPin, setPatioPin] = useState('');
-  const [loading, setLoading] = useState(false);
   const [loadingSettings, setLoadingSettings] = useState(false);
   const [savingPin, setSavingPin] = useState(false);
+  const [adminPassword, setAdminPassword] = useState('');
+  const [adminConfirm, setAdminConfirm] = useState('');
+  const [savingAdmin, setSavingAdmin] = useState(false);
   const [vehicleDeletePassword, setVehicleDeletePassword] = useState('');
   const [vehicleDeleteConfirm, setVehicleDeleteConfirm] = useState('');
   const [savingVehicleDelete, setSavingVehicleDelete] = useState(false);
@@ -32,8 +34,12 @@ export const ChangePasswordsModal: React.FC<ChangePasswordsModalProps> = ({ isOp
     if (isOpen) {
       setMessage(null);
       setShowPatioPin(false);
+      setAdminPassword('');
+      setAdminConfirm('');
       setStockGuardPassword('');
       setStockGuardConfirm('');
+      setVehicleDeletePassword('');
+      setVehicleDeleteConfirm('');
       setLoadingSettings(true);
       getWorkshopSettings()
         .then((s) => {
@@ -47,6 +53,31 @@ export const ChangePasswordsModal: React.FC<ChangePasswordsModalProps> = ({ isOp
 
   useRegisterModalOpen(isOpen);
 
+  const handleSaveAdminPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setMessage(null);
+    const next = adminPassword.trim();
+    if (next.length < 4) {
+      setMessage({ type: 'err', text: 'A senha da Gerência deve ter pelo menos 4 caracteres.' });
+      return;
+    }
+    if (adminPassword !== adminConfirm) {
+      setMessage({ type: 'err', text: 'As senhas da Gerência não coincidem.' });
+      return;
+    }
+    setSavingAdmin(true);
+    try {
+      await updateWorkshopSettings({ adminPassword: next });
+      setMessage({ type: 'ok', text: 'Senha do login Gerência alterada! Use-a no próximo login.' });
+      setAdminPassword('');
+      setAdminConfirm('');
+    } catch (err) {
+      setMessage({ type: 'err', text: err instanceof Error ? err.message : 'Erro ao salvar.' });
+    } finally {
+      setSavingAdmin(false);
+    }
+  };
+
   const handleSavePin = async (e: React.FormEvent) => {
     e.preventDefault();
     setMessage(null);
@@ -58,8 +89,8 @@ export const ChangePasswordsModal: React.FC<ChangePasswordsModalProps> = ({ isOp
     try {
       await updateWorkshopSettings({ patioPin: patioPin.trim() });
       setMessage({ type: 'ok', text: 'PIN dos técnicos alterado!' });
-    } catch (e) {
-      setMessage({ type: 'err', text: e instanceof Error ? e.message : 'Erro ao salvar.' });
+    } catch (err) {
+      setMessage({ type: 'err', text: err instanceof Error ? err.message : 'Erro ao salvar.' });
     } finally {
       setSavingPin(false);
     }
@@ -129,7 +160,7 @@ export const ChangePasswordsModal: React.FC<ChangePasswordsModalProps> = ({ isOp
             <IosModalHeader
               icon={<img src="/icons/senhas-ios.png" alt="" className="h-full w-full min-h-0 object-cover" />}
               title="Alterar senhas"
-              subtitle="PIN do pátio, exclusão de veículos e proteção do estoque"
+              subtitle="Gerência, PIN do pátio, exclusão de veículos e estoque"
               gradientClass="from-slate-600 to-zinc-800"
             />
           </div>
@@ -146,6 +177,48 @@ export const ChangePasswordsModal: React.FC<ChangePasswordsModalProps> = ({ isOp
               {message.text}
             </div>
           )}
+
+          {/* Senha do login Gerência */}
+          <section className={`${iosModalInsetCard} p-4 sm:p-5`}>
+            <div className="flex items-center gap-2 mb-3">
+              <Lock className="w-5 h-5 text-amber-500" />
+              <h3 className="text-[13px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+                Senha do login Gerência
+              </h3>
+            </div>
+            <p className="text-[13px] text-zinc-600 dark:text-zinc-400 mb-4">
+              Usuário de login: <strong className="font-semibold text-zinc-800 dark:text-zinc-200">Gerência</strong>.
+              Esta é a senha de acesso total do sistema.
+            </p>
+            <form onSubmit={handleSaveAdminPassword} className="space-y-3">
+              <input
+                type="password"
+                autoComplete="new-password"
+                value={adminPassword}
+                onChange={(e) => setAdminPassword(e.target.value)}
+                placeholder="Nova senha da Gerência"
+                className={iosInput}
+              />
+              <input
+                type="password"
+                autoComplete="new-password"
+                value={adminConfirm}
+                onChange={(e) => setAdminConfirm(e.target.value)}
+                placeholder="Confirmar senha"
+                className={iosInput}
+              />
+              <button
+                type="submit"
+                disabled={
+                  savingAdmin || !adminPassword.trim() || adminPassword !== adminConfirm
+                }
+                className="w-full py-3 rounded-xl bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white font-semibold text-[15px] flex items-center justify-center gap-2"
+              >
+                {savingAdmin ? <Loader2 className="w-5 h-5 animate-spin" /> : <Check className="w-5 h-5" />}
+                Salvar senha da Gerência
+              </button>
+            </form>
+          </section>
 
           {/* PIN dos técnicos */}
           <section className={`${iosModalInsetCard} p-4 sm:p-5`}>

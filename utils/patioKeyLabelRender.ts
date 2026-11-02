@@ -1,3 +1,4 @@
+import { withLabelElementStyle } from './labelElementStyle';
 import {
   cssFontForElement,
   loadLabelTemplate,
@@ -10,6 +11,12 @@ import {
   type LabelTemplateLayout,
   type LabelVAlign,
 } from './labelTemplates';
+import { drawMercosulPlateOnCanvas } from './mercosulPlateCanvas';
+import {
+  drawKeyLabelIcon,
+  keyLabelIconSlotWidth,
+  splitKeyLabelPrefix,
+} from './keyLabelIcons';
 import { NIIMBOT_LABEL_H_PX, NIIMBOT_LABEL_W_PX } from './niimbotLabelRender';
 
 export type PatioKeyLabelInput = {
@@ -99,23 +106,34 @@ function applyStyleToTemplate(
 ): LabelTemplateLayout {
   const show = style.showLabels !== false;
   const defaults: Record<string, string> = {
-    customer: 'Cliente:',
-    vehicle: 'Carro:',
-    color: 'Cor:',
-    plate: 'Placa:',
+    customer: '👤 ',
+    vehicle: '🚗 ',
+    color: '🎨 ',
+    plate: '',
   };
   return {
     ...layout,
-    elements: layout.elements.map((e) => ({
-      ...e,
-      fontFamily: style.fontFamily,
-      fontSize: style.fontSize,
-      valueFontSize: style.fontSize,
-      fontWeight: style.fontWeight,
-      align: style.align,
-      labelText: show ? e.labelText || defaults[e.id] || e.labelText : '',
-      visible: e.visible !== false,
-    })),
+    elements: layout.elements.map((e) => {
+      // Placa Mercosul: tipografia/tamanho vêm só do editor de etiquetas.
+      // Ajustes rápidos do modal de impressão não podem sobrescrever valueFontSize.
+      if (e.id === 'plate') {
+        return {
+          ...e,
+          labelText: '',
+          visible: e.visible !== false,
+        };
+      }
+      return {
+        ...e,
+        fontFamily: style.fontFamily,
+        fontSize: style.fontSize,
+        valueFontSize: style.fontSize,
+        fontWeight: style.fontWeight,
+        align: style.align,
+        labelText: show ? e.labelText || defaults[e.id] || e.labelText : '',
+        visible: e.visible !== false,
+      };
+    }),
     keyOptions: {
       letterSpacing: style.letterSpacing,
       lineSpacing: style.lineSpacing,
@@ -125,6 +143,7 @@ function applyStyleToTemplate(
       dualCopy: layout.keyOptions?.dualCopy !== false,
       offsetX: style.offsetX,
       offsetY: style.offsetY,
+      mercosulPlate: layout.keyOptions?.mercosulPlate !== false,
     } satisfies LabelKeyOptions,
   };
 }
@@ -213,9 +232,6 @@ function renderKeyBlock(
   ctx.textBaseline = 'top';
 
   const opts = layout.keyOptions!;
-  const margin = opts.margin;
-  const contentW = Math.max(8, blockW - margin * 2);
-
   const valueById: Record<string, string> = {
     customer: formatKeyLabelCustomerName(input.customerName),
     vehicle: formatKeyLabelVehicleModel(input.vehicleModel),
@@ -226,19 +242,6 @@ function renderKeyBlock(
   const rows = layout.elements.filter((e) => e.visible !== false && e.kind === 'text_field');
   if (rows.length === 0) return canvas;
 
-  const fontSize = rows[0]!.fontSize;
-  const lineHeight = Math.max(fontSize * opts.lineSpacing, fontSize);
-  const blockTextH = lineHeight * rows.length;
-  const usableH = Math.max(0, blockH - margin * 2);
-
-  let startY = margin;
-  if (opts.vAlign === 'middle') {
-    startY = margin + Math.max(0, (usableH - blockTextH) / 2);
-  } else if (opts.vAlign === 'bottom') {
-    startY = margin + Math.max(0, usableH - blockTextH);
-  }
-  startY += opts.offsetY;
-
   try {
     (ctx as CanvasRenderingContext2D & { letterSpacing?: string }).letterSpacing =
       `${opts.letterSpacing}px`;
@@ -246,35 +249,132 @@ function renderKeyBlock(
     /* letterSpacing pode não existir em alguns browsers */
   }
 
-  for (let i = 0; i < rows.length; i++) {
-    const row = rows[i]!;
-    const y = startY + i * lineHeight;
-    const font = cssFontForElement(row);
-    ctx.font = font;
+  // Cada texto usa x/y/w/h/rotação próprios (igual ABS / lab / estoque).
+  for (const row of rows) {
+    const x = Math.round(row.x + opts.offsetX);
+    const y = Math.round(row.y + opts.offsetY);
+    const boxW = Math.max(8, row.w);
+    const boxH = Math.max(8, row.h);
+    const valueText = valueById[row.id] ?? '—';
 
-    const labelText = (row.labelText || '').trim()
-      ? row.labelText.endsWith(' ')
-        ? row.labelText
-        : `${row.labelText} `
-      : '';
-    const labelW = labelText ? ctx.measureText(labelText).width : 0;
-    const valueMax = Math.max(8, contentW - labelW);
-    const valueText = fitLineNoEllipsis(ctx, valueById[row.id] ?? '—', valueMax);
-    const fullW = labelW + ctx.measureText(valueText).width;
+    withLabelElementStyle(
+      ctx,
+      {
+        x,
+        y,
+        w: boxW,
+        h: boxH,
+        opacity: row.opacity ?? 100,
+        rotation: row.rotation ?? 0,
+      },
+      (c) => {
+        // Placa: Mercosul (P&B) ou texto tradicional — sem rótulo "Placa:".
+        if (row.id === 'plate') {
+          const useMercosul = opts.mercosulPlate !== false;
+          if (useMercosul) {
+            drawMercosulPlateOnCanvas(c, x, y, boxW, boxH, valueText, {
+              textSize: row.valueFontSize || row.fontSize,
+            });
+            return;
+          }
+          // Modo tradicional: só o texto da placa, tipografia forte.
+          const valueFont = cssFontForElement({
+            ...row,
+            fontSize: row.valueFontSize || row.fontSize,
+            fontWeight: row.fontWeight || '900',
+          });
+          c.fillStyle = '#000000';
+          c.font = valueFont;
+          c.textBaseline = 'top';
+          const fitted = fitLineNoEllipsis(c, valueText, boxW);
+          const tw = c.measureText(fitted).width;
+          let drawX = x;
+          if (row.align === 'center') drawX = x + (boxW - tw) / 2;
+          else if (row.align === 'right') drawX = x + (boxW - tw);
+          const lineH = row.valueFontSize || row.fontSize;
+          let drawY = y;
+          if (opts.vAlign === 'middle') drawY = y + Math.max(0, (boxH - lineH) / 2);
+          else if (opts.vAlign === 'bottom') drawY = y + Math.max(0, boxH - lineH);
+          c.fillText(fitted, drawX, drawY);
+          return;
+        }
 
-    let x = margin + opts.offsetX;
-    if (row.align === 'center') {
-      x = margin + opts.offsetX + (contentW - fullW) / 2;
-    } else if (row.align === 'right') {
-      x = margin + opts.offsetX + (contentW - fullW);
-    }
+        const font = cssFontForElement(row);
+        const valueFont = cssFontForElement({
+          ...row,
+          fontSize: row.valueFontSize || row.fontSize,
+        });
+        c.fillStyle = '#000000';
+        c.textBaseline = 'top';
 
-    if (labelText) {
-      ctx.fillText(labelText, x, y);
-      ctx.fillText(valueText, x + labelW, y);
-    } else {
-      ctx.fillText(valueText, x, y);
-    }
+        const rawLabel = row.labelText || '';
+        const hasLabel = rawLabel.trim().length > 0;
+        const labelText = hasLabel
+          ? rawLabel.endsWith(' ')
+            ? rawLabel
+            : `${rawLabel} `
+          : '';
+        const { icon, rest } = splitKeyLabelPrefix(labelText);
+        const iconSize = Math.max(
+          12,
+          Math.round((row.valueFontSize || row.fontSize) * 0.95)
+        );
+        const iconW = icon ? keyLabelIconSlotWidth(iconSize) : 0;
+
+        c.font = font;
+        const restText = icon ? rest : labelText;
+        const restW = restText ? c.measureText(restText).width : 0;
+        const labelW = iconW + restW;
+
+        c.font = valueFont;
+        const valueMax = Math.max(8, boxW - labelW);
+        const fitted = fitLineNoEllipsis(c, valueText, valueMax);
+        const valueW = c.measureText(fitted).width;
+        const fullW = labelW + valueW;
+
+        let drawX = x;
+        if (row.align === 'center') {
+          drawX = x + (boxW - fullW) / 2;
+        } else if (row.align === 'right') {
+          drawX = x + (boxW - fullW);
+        }
+
+        const lineH = Math.max(
+          (row.valueFontSize || row.fontSize) * (opts.lineSpacing || 1),
+          row.valueFontSize || row.fontSize,
+          icon ? iconSize : 0
+        );
+        let drawY = y;
+        if (opts.vAlign === 'middle') {
+          drawY = y + Math.max(0, (boxH - lineH) / 2);
+        } else if (opts.vAlign === 'bottom') {
+          drawY = y + Math.max(0, boxH - lineH);
+        }
+
+        let cursorX = drawX;
+        if (icon) {
+          const iconY = drawY + Math.max(0, (lineH - iconSize) / 2);
+          drawKeyLabelIcon(c, icon, cursorX, iconY, iconSize);
+          cursorX += iconW;
+        }
+        if (restText) {
+          c.font = font;
+          c.fillStyle = '#000000';
+          c.textBaseline = 'top';
+          const textY =
+            drawY + Math.max(0, (lineH - (row.fontSize || 16)) / 2);
+          c.fillText(restText, cursorX, textY);
+          cursorX += restW;
+        }
+        c.font = valueFont;
+        c.fillStyle = '#000000';
+        c.textBaseline = 'top';
+        const valueY =
+          drawY +
+          Math.max(0, (lineH - (row.valueFontSize || row.fontSize)) / 2);
+        c.fillText(fitted, cursorX, valueY);
+      }
+    );
   }
 
   return canvas;
@@ -305,7 +405,10 @@ export function renderPatioKeyLabelDataUrl(
   const opts = layout.keyOptions!;
   const portraitW = NIIMBOT_LABEL_H_PX; // 240 = 30 mm
   const portraitH = NIIMBOT_LABEL_W_PX; // 384 = 50 mm
+  const dual = opts.dualCopy !== false;
   const halfH = Math.floor((portraitH - opts.halfGap) / 2);
+  // Sem espelhamento: usa a etiqueta inteira para posicionar textos/placa.
+  const blockH = dual ? halfH : portraitH;
 
   const portrait = document.createElement('canvas');
   portrait.width = portraitW;
@@ -316,10 +419,10 @@ export function renderPatioKeyLabelDataUrl(
   pctx.fillStyle = '#ffffff';
   pctx.fillRect(0, 0, portraitW, portraitH);
 
-  const block = renderKeyBlock(portraitW, halfH, input, layout);
+  const block = renderKeyBlock(portraitW, blockH, input, layout);
   pctx.drawImage(block, 0, 0);
 
-  if (opts.dualCopy !== false) {
+  if (dual) {
     pctx.save();
     pctx.translate(portraitW, portraitH);
     pctx.rotate(Math.PI);

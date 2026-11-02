@@ -23,6 +23,7 @@ import {
 } from './MacOsNotificationCard';
 import {
   budgetBannerToCardModel,
+  resolveBannerBoardScope,
   type MacOsBudgetBannerItem,
 } from './MacOsBudgetBannerStack';
 import { findDesktopNotificationsBellTarget } from '../utils/macGenieMinimize';
@@ -174,6 +175,20 @@ function notificationToCardModel(
     accent: 'blue' as MacOsNotifAccent,
     icon: 'file' as MacOsNotifIconKind,
   };
+  const orderTypeRaw =
+    typeof n.payload.order_type === 'string' ? n.payload.order_type.trim().toLowerCase() : '';
+  const boardScope = resolveBannerBoardScope({
+    kind:
+      n.type === 'comment' ||
+      n.type === 'lab_sem_conserto' ||
+      n.type === 'budget_created' ||
+      n.type === 'budget_edited' ||
+      n.type === 'budget_items_approved'
+        ? n.type
+        : 'budget_created',
+    orderType: orderTypeRaw || (n.type === 'lab_sem_conserto' ? 'module' : null),
+  });
+  const scopeLabel = boardScope === 'lab' ? 'desta OS' : 'deste veículo';
   const hint =
     n.type === 'comment' && n.payload.text
       ? n.payload.text.length > 100
@@ -184,11 +199,9 @@ function notificationToCardModel(
           n.type === 'budget_items_approved'
         ? (() => {
             const num = budgetNumberFromPayload(n.payload);
-            return num != null && num >= 2 ? `${num}º orçamento deste veículo` : null;
+            return num != null && num >= 2 ? `${num}º orçamento ${scopeLabel}` : null;
           })()
-        : n.type === 'lab_sem_conserto'
-          ? 'Laboratório'
-          : null;
+        : null;
 
   let timeLabel = 'agora';
   try {
@@ -208,6 +221,7 @@ function notificationToCardModel(
     accent: visual.accent,
     icon: visual.icon,
     unread: !n.read_at,
+    boardScope,
   };
 }
 
@@ -546,8 +560,8 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
     await GenieNotificationDismiss({
       source: sources[0],
       genieOrigin: origin,
-      durationMs: 500,
-      stripCount: 40,
+      durationMs: 420,
+      stripCount: 16,
       leaveSourceHidden: true,
     });
   }, [genieOriginProp]);

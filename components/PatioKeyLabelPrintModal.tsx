@@ -31,11 +31,13 @@ import {
   type PatioKeyLabelInput,
   type PatioKeyLabelStyle,
 } from '../utils/patioKeyLabelRender';
+import { loadLabelTemplate } from '../utils/labelTemplates';
 import { NIIMBOT_LABEL_H_PX, NIIMBOT_LABEL_W_PX } from '../utils/niimbotLabelRender';
 import { ModalPortal } from './ui/ModalPortal';
 import { IosModalHeader } from './ui/IosModalHeader';
 import { iosModalClose, iosModalShell } from './ui/iosModalStyles';
 import { useBrowserBackLayer } from './ui/BackNavigationContext';
+import { NiimbotBleConnectControls } from './NiimbotBleConnectControls';
 
 export type PatioKeyLabelPrintModalProps = {
   open: boolean;
@@ -154,12 +156,13 @@ export function PatioKeyLabelPrintModal({ open, label, onClose }: PatioKeyLabelP
     }
     try {
       setLocalError(null);
-      setPreviewUrl(renderPatioKeyLabelDataUrl(label, normalizedStyle));
+      // Sempre o template do editor (não achatar tipografia da placa Mercosul).
+      setPreviewUrl(renderPatioKeyLabelDataUrl(label, loadLabelTemplate('chave')));
     } catch (err) {
       setPreviewUrl(null);
       setLocalError(err instanceof Error ? err.message : 'Falha ao montar etiqueta');
     }
-  }, [open, label, normalizedStyle]);
+  }, [open, label, style]);
 
   if (!open || !label) return null;
 
@@ -281,7 +284,9 @@ export function PatioKeyLabelPrintModal({ open, label, onClose }: PatioKeyLabelP
                 </button>
               </div>
               <p className="rounded-xl bg-sky-50 px-3 py-2 text-[12px] text-sky-900 dark:bg-sky-950/40 dark:text-sky-100">
-                Editor completo (todas as etiquetas): Configurações → Editor de etiquetas.
+                A placa Mercosul (tamanho e texto) segue o Editor de etiquetas. Ajustes
+                rápidos abaixo alteram só os textos Cliente/Carro/Cor. Editor completo:
+                Configurações → Editor de etiquetas.
               </p>
 
               <div className="space-y-3 rounded-2xl border-0 bg-zinc-50 p-3.5 dark:bg-white/[0.03] sm:p-4">
@@ -308,7 +313,7 @@ export function PatioKeyLabelPrintModal({ open, label, onClose }: PatioKeyLabelP
                 </label>
 
                 <Stepper
-                  label="Tamanho"
+                  label="Tamanho dos textos"
                   value={normalizedStyle.fontSize}
                   display={`${normalizedStyle.fontSize} px`}
                   disabled={printing}
@@ -424,7 +429,7 @@ export function PatioKeyLabelPrintModal({ open, label, onClose }: PatioKeyLabelP
 
                 <label className="flex items-center justify-between gap-3 rounded-xl bg-white px-3 py-2.5 dark:bg-zinc-900">
                   <span className="text-[12px] font-medium text-zinc-700 dark:text-zinc-200">
-                    Mostrar rótulos (Cliente:, Carro:…)
+                    Mostrar ícones/rótulos (👤 🚗 🎨)
                   </span>
                   <input
                     type="checkbox"
@@ -453,25 +458,13 @@ export function PatioKeyLabelPrintModal({ open, label, onClose }: PatioKeyLabelP
                   </p>
                 </div>
                 {!unsupported ? (
-                  connected && snap.status !== 'printing' ? (
-                    <button
-                      type="button"
-                      onClick={() => run(() => niimbotService.disconnect())}
-                      disabled={printing}
-                      className="shrink-0 rounded-lg px-2.5 py-1.5 text-[12px] font-semibold text-zinc-600 hover:bg-zinc-200/60 disabled:opacity-50 dark:text-zinc-300"
-                    >
-                      Desconectar
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => run(() => niimbotService.connect())}
-                      disabled={printing}
-                      className="shrink-0 rounded-lg bg-zinc-900 px-2.5 py-1.5 text-[12px] font-semibold text-white disabled:opacity-50 dark:bg-zinc-100 dark:text-zinc-900"
-                    >
-                      Conectar
-                    </button>
-                  )
+                  <NiimbotBleConnectControls
+                    connected={connected}
+                    busy={printing}
+                    connecting={snap.status === 'connecting'}
+                    onConnect={(opts) => run(() => niimbotService.connect(opts))}
+                    onDisconnect={() => run(() => niimbotService.disconnect())}
+                  />
                 ) : null}
               </div>
 
@@ -509,8 +502,7 @@ export function PatioKeyLabelPrintModal({ open, label, onClose }: PatioKeyLabelP
               disabled={printing || unsupported || !previewUrl}
               onClick={() =>
                 run(async () => {
-                  savePatioKeyLabelStyle(normalizedStyle);
-                  const url = renderPatioKeyLabelDataUrl(label, normalizedStyle);
+                  const url = renderPatioKeyLabelDataUrl(label, loadLabelTemplate('chave'));
                   await niimbotService.printLabelImageUrl(url, { copies });
                 })
               }

@@ -1,0 +1,91 @@
+RDA Intelligence — Preview no navegador (homologação isolada)
+=============================================================
+Objetivo: URL de teste no browser, só no Supabase rei-do-abs-homologacao.
+Este agente NÃO faz deploy nem cria recursos pagos sem sua autorização.
+
+────────────────────────────────────────────────────────────
+A) SQL extra no projeto de TESTE (SQL Editor)
+────────────────────────────────────────────────────────────
+Se ainda não rodou o suporte de UI:
+  1. scripts/rdaHomologation/00b_bootstrap_ui_support.sql
+  2. scripts/rdaHomologation/01b_ui_access_and_preview_passwords.sql
+     → aplica permissões de abas (pátio / radar)
+  3. Antes de compartilhar a URL: gere hash local
+       node scripts/rdaHomologation/printPasswordHash.mjs 'SUA_SENHA_FORTE'
+     descomente o UPDATE de senha no 01b e rode (não use homolog123 na URL).
+
+────────────────────────────────────────────────────────────
+B) Projeto Vercel ISOLADO (recomendado)
+────────────────────────────────────────────────────────────
+1. Na Vercel: Add New Project → importe GabryelGoes/Sistema-Completo2
+   Nome sugerido: sistema-completo2-homolog
+2. NÃO reutilize o projeto de produção; não mexa nas env vars de produção.
+3. Em Settings → Environment Variables, cadastre TODAS as chaves de
+   scripts/rdaHomologation/env.preview.vercel.example
+   (valores do Dashboard Supabase do projeto de TESTE).
+4. Settings → Deployment Protection:
+   - Standard Protection (Vercel Auth) OU Password Protection
+   - Obrigatório: a URL não deve ser pública sem autenticação de borda.
+5. Deploy da branch cursor/rda-intelligence-485b
+   (Deployments → Create Deployment → escolha a branch)
+   OU conecte a branch e deixe Preview automático do PR #119.
+
+────────────────────────────────────────────────────────────
+C) Variáveis que você cadastra (valores só no painel Vercel)
+────────────────────────────────────────────────────────────
+Servidor:
+  HOMOLOGATION_MODE=true
+  HOMOLOGATION_OK=rei-do-abs-homologacao
+  SUPABASE_URL                  ← Project URL do TESTE
+  SUPABASE_SERVICE_ROLE_KEY     ← service_role do TESTE
+  WORKSHOP_ID=11111111-1111-4111-8111-111111111111
+  ADMIN_PASSWORD                ← senha forte só de homolog (Gerência)
+  SESSION_SECRET                ← aleatório longo
+  RDA_INTELLIGENCE_ENABLED=false
+  RDA_ALLOW_LLM_CALLS=false
+  RDA_LLM_PROVIDER=noop
+  TV_API_TOKEN                  ← aleatório (não deixe TV aberta)
+  SUPABASE_VEHICLE_PHOTOS_BUCKET=vehicle-photos
+
+Build (Vite):
+  VITE_SUPABASE_URL             ← mesma URL do TESTE
+  VITE_SUPABASE_ANON_KEY        ← anon do TESTE
+  VITE_WORKSHOP_ID=11111111-1111-4111-8111-111111111111
+
+Não defina OPENAI_API_KEY. Não use service_role/anon de produção.
+
+────────────────────────────────────────────────────────────
+D) Como obter a URL
+────────────────────────────────────────────────────────────
+Após o deploy autorizado por você:
+  Vercel → projeto homolog → Deployments → abrir o deployment
+  → Domains (ex.: sistema-completo2-homolog.vercel.app
+     ou *.vercel.app do Preview do PR).
+
+Fluxo no browser:
+  1) Passar pela proteção Vercel (login Vercel ou senha do projeto)
+  2) Login do app com usuário fictício + senha que VOCÊ definiu no 01b
+  3) Cronômetro: login técnico → Pátio → abrir OS-A/OS-B → painel de tempo
+  4) Avaliações: login gerente → Radar de Qualidade → Avaliações
+
+IDs fictícios (seed):
+  OS-A 33333333-3333-4333-8333-333333333301
+  OS-B 33333333-3333-4333-8333-333333333302
+  Users: homolog_tech1 | homolog_tech2 | homolog_gerente | homolog_patio
+
+────────────────────────────────────────────────────────────
+E) Alternativa local (sem Vercel)
+────────────────────────────────────────────────────────────
+  cp scripts/rdaHomologation/env.homologation.example .env
+  (preencha com o TESTE; HOMOLOGATION_MODE=true)
+  npm run dev → http://localhost:3000
+  Mesmas regras de senha / IA desligada.
+
+────────────────────────────────────────────────────────────
+F) Proibido
+────────────────────────────────────────────────────────────
+- Alterar env do projeto Vercel de produção
+- Merge na main / deploy produção
+- Preview sem Deployment Protection
+- Publicar com senha padrão conhecida (homolog123)
+- Ligar IA / OPENAI_API_KEY

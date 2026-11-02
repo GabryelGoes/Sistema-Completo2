@@ -420,8 +420,8 @@ export const LabListaBoard: React.FC<LabListaBoardProps> = ({
       data-lab-lista-scroll={fillHeight ? 'true' : undefined}
       className={`rounded-[1.35rem] border border-zinc-200/70 bg-white/70 shadow-[0_10px_30px_-16px_rgba(0,0,0,0.18)] dark:border-white/[0.08] dark:bg-zinc-950/45 dark:shadow-none custom-scrollbar ${
         fillHeight
-          ? 'min-h-0 flex-1 overflow-auto overscroll-contain pb-8'
-          : 'max-h-full min-h-0 overflow-auto'
+          ? 'min-h-0 flex-1 overflow-auto overscroll-contain touch-pan-y [-webkit-overflow-scrolling:touch] pb-8'
+          : 'min-w-0 overflow-x-auto overscroll-x-contain pb-8 [-webkit-overflow-scrolling:touch]'
       }`}
     >
       <table className="w-full min-w-[64rem] border-collapse text-left">
@@ -445,7 +445,7 @@ export const LabListaBoard: React.FC<LabListaBoardProps> = ({
           </tr>
         </thead>
         <tbody>
-          {cards.map((card) => {
+          {cards.map((card, rowIndex) => {
             const titleParts = parsePatioCardTitle(card.name);
             const vehicle = titleParts.vehicle || '—';
             const customer = titleParts.customer || '—';
@@ -473,12 +473,40 @@ export const LabListaBoard: React.FC<LabListaBoardProps> = ({
                 listNameLower.includes('pronto pra entrega') ||
                 listNameLower.includes('pronto pra retirada') ||
                 listNameLower.includes('não aprovado'));
+            /** Listras a partir da 2ª peça: claras bem claras, escuras um pouco mais marcadas. */
+            const isStripeRow = rowIndex % 2 === 1;
 
             return (
               <tr
                 key={card.id}
-                className={`group border-b border-zinc-100/90 transition-colors last:border-b-0 hover:bg-zinc-50/80 dark:border-white/[0.05] dark:hover:bg-white/[0.035] ${
-                  isNewEntry ? 'bg-[#007AFF]/[0.035] dark:bg-[#0A84FF]/[0.06]' : ''
+                role="link"
+                tabIndex={0}
+                onClick={(e) => {
+                  const target = e.target as HTMLElement | null;
+                  if (
+                    target?.closest(
+                      'button, a, input, select, textarea, [role="button"], [data-no-row-open]'
+                    )
+                  ) {
+                    return;
+                  }
+                  onOpenCard(card);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key !== 'Enter' && e.key !== ' ') return;
+                  const target = e.target as HTMLElement | null;
+                  if (target !== e.currentTarget) return;
+                  e.preventDefault();
+                  onOpenCard(card);
+                }}
+                className={`group cursor-pointer border-b border-zinc-100/90 transition-colors last:border-b-0 hover:bg-zinc-200/60 dark:border-white/[0.05] dark:hover:bg-white/[0.1] ${
+                  isStripeRow
+                    ? isNewEntry
+                      ? 'bg-[#007AFF]/[0.1] dark:bg-[#0A84FF]/[0.16]'
+                      : 'bg-zinc-200/85 dark:bg-black/40'
+                    : isNewEntry
+                      ? 'bg-[#007AFF]/[0.03] dark:bg-[#0A84FF]/[0.05]'
+                      : 'bg-white dark:bg-white/[0.035]'
                 }`}
               >
                 <td className="px-3 py-3.5 sm:px-4">
@@ -493,11 +521,7 @@ export const LabListaBoard: React.FC<LabListaBoardProps> = ({
                   )}
                 </td>
                 <td className="px-3 py-3.5 sm:px-4">
-                  <button
-                    type="button"
-                    onClick={() => onOpenCard(card)}
-                    className="flex max-w-[20rem] items-center gap-3 text-left transition active:scale-[0.99]"
-                  >
+                  <div className="flex max-w-[20rem] items-center gap-3 text-left">
                     <span className="relative h-12 w-12 shrink-0">
                       <span className="relative flex h-12 w-12 overflow-hidden rounded-xl border border-zinc-200/80 bg-zinc-100 dark:border-white/[0.1] dark:bg-zinc-900">
                         {photoUrl ? (
@@ -525,7 +549,7 @@ export const LabListaBoard: React.FC<LabListaBoardProps> = ({
                         {moduleId || '—'}
                       </span>
                     </span>
-                  </button>
+                  </div>
                 </td>
                 <td className="px-3 py-3.5 sm:px-4">
                   {fromPatio ? (
@@ -539,18 +563,14 @@ export const LabListaBoard: React.FC<LabListaBoardProps> = ({
                   )}
                 </td>
                 <td className="px-3 py-3.5 sm:px-4">
-                  <button
-                    type="button"
-                    onClick={() => onOpenCard(card)}
-                    className="max-w-[16rem] text-left transition active:scale-[0.99]"
-                  >
+                  <div className="max-w-[16rem] text-left">
                     <span className="block truncate text-[14px] font-semibold leading-snug text-zinc-900 dark:text-white">
                       {vehicle}
                     </span>
                     <span className="mt-0.5 block truncate text-[12px] text-zinc-500 dark:text-zinc-400">
                       {customer}
                     </span>
-                  </button>
+                  </div>
                 </td>
                 <td className="relative px-3 py-3.5 sm:px-4">
                   <ListaSuggestionPicker

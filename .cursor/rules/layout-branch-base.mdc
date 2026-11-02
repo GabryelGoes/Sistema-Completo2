@@ -1,16 +1,21 @@
 ---
-description: Base de layout UI (não perder commits de design)
+description: Preservar layout UI aprovado (já na main oficial)
 alwaysApply: true
 ---
 
-# Base de layout UI (não perder commits de design)
+# Layout UI aprovado (ancestralidade)
 
-O layout visual aprovado (Pátio tablet, cabeçalhos, placas, hubs, etc.) está no commit **`95d91e2`** e no branch **`cursor/patio-tablet-header-fix-485b`**.
+O layout visual aprovado (Pátio tablet, cabeçalhos, placas, hubs, etc.) está no commit **`95d91e2`**. Esse commit **já está na história de `origin/main`** (versão oficial consolidada).
 
 Quando for alterar UI ou criar um branch novo para mudanças de interface neste app:
 
-1. **Não** criar o branch a partir de `main` se isso descartar o layout de `95d91e2`.
-2. Partir de `cursor/patio-tablet-header-fix-485b` (ou de `95d91e2` / do tip atual desse branch), **salvo** quando o tip da stack desta conversa já estiver à frente — nesse caso partir do tip mais recente da stack.
-3. Se a tarefa for só uma feature pequena em cima do layout, preferir continuar no mesmo branch de layout (ou rebasear o branch novo em cima dele) em vez de abrir um PR “limpo” só com `main`.
-4. Antes de commit/push, conferir com `git log --oneline -1` e `git merge-base --is-ancestor 95d91e2 HEAD` que o layout ainda está na história do branch.
-5. Antes de empilhar feature nova, conferir também que features UI já entregues na stack (ex.: `WorkshopPartsHomeDashboard`) não foram omitidas — ver `.cursor/rules/never-discard-user-work.mdc`.
+1. **Partir sempre de `origin/main` atualizado** (ver `main-official-base.mdc`). Não usar branches antigas de layout (`cursor/patio-tablet-header-fix-485b` etc.) como base de agentes novos.
+2. Antes de commit/push, conferir:
+   ```bash
+   git fetch origin main
+   git merge-base --is-ancestor origin/main HEAD   # main atual na história (ou tip == main no início)
+   git merge-base --is-ancestor 95d91e2 HEAD       # layout preservado
+   ```
+3. Se a branch de feature ficou atrás da `main`, incorporar `origin/main` antes de seguir com UI nova.
+4. Não abrir PR “limpo” a partir de sibling antigo que omita o tip da `main`.
+5. Antes de empilhar feature nova na **mesma** conversa, garantir que o tip atual já contém o trabalho recente desta conversa — ver `never-discard-user-work.mdc`.

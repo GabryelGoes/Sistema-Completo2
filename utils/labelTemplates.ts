@@ -7,7 +7,7 @@
 const LABEL_W = 384;
 const LABEL_H = 240;
 
-export type LabelTemplateId = 'lab_os' | 'estoque' | 'chave';
+export type LabelTemplateId = 'lab_os' | 'estoque' | 'chave' | 'abs_modulo';
 
 export type LabelFontFamily =
   | 'Arial'
@@ -30,7 +30,8 @@ export type LabelElementKind =
   | 'banner'
   | 'text_field'
   | 'text'
-  | 'human_code';
+  | 'human_code'
+  | 'logo';
 
 export type LabelElementDef = {
   id: string;
@@ -51,6 +52,13 @@ export type LabelElementDef = {
   valueFontSize: number;
   align: LabelAlign;
   maxLines: number;
+  /**
+   * Opacidade 0–100 (100 = sólido). Valores menores criam marca d'água
+   * (dither na impressão térmica).
+   */
+  opacity: number;
+  /** Rotação em graus (horário; centro do elemento). */
+  rotation: number;
 };
 
 export type LabelKeyOptions = {
@@ -63,11 +71,13 @@ export type LabelKeyOptions = {
   /** Offset global do bloco (compat com editor antigo da chave) */
   offsetX: number;
   offsetY: number;
+  /** Se true, a placa é desenhada no estilo Mercosul; se false, texto tradicional. */
+  mercosulPlate: boolean;
 };
 
 export type LabelTemplateLayout = {
   id: LabelTemplateId;
-  version: 1;
+  version: number;
   canvasW: number;
   canvasH: number;
   elements: LabelElementDef[];
@@ -92,7 +102,12 @@ export const LABEL_TEMPLATE_META: Array<{
   {
     id: 'chave',
     title: 'Chave (pátio)',
-    description: 'Duas faces verticais — cliente, carro, cor e placa',
+    description: 'Duas faces verticais — cliente, carro, cor e placa Mercosul',
+  },
+  {
+    id: 'abs_modulo',
+    title: 'Módulo ABS',
+    description: 'Fabricante, aplicação, código, local e Code128',
   },
 ];
 
@@ -117,8 +132,16 @@ function clamp(n: number, min: number, max: number): number {
 }
 
 function el(
-  partial: Omit<LabelElementDef, 'fontFamily' | 'fontWeight' | 'align' | 'maxLines' | 'valueFontSize'> &
-    Partial<Pick<LabelElementDef, 'fontFamily' | 'fontWeight' | 'align' | 'maxLines' | 'valueFontSize'>>
+  partial: Omit<
+    LabelElementDef,
+    'fontFamily' | 'fontWeight' | 'align' | 'maxLines' | 'valueFontSize' | 'opacity' | 'rotation'
+  > &
+    Partial<
+      Pick<
+        LabelElementDef,
+        'fontFamily' | 'fontWeight' | 'align' | 'maxLines' | 'valueFontSize' | 'opacity' | 'rotation'
+      >
+    >
 ): LabelElementDef {
   return {
     fontFamily: 'Arial',
@@ -126,6 +149,8 @@ function el(
     align: 'left',
     maxLines: 1,
     valueFontSize: partial.fontSize,
+    opacity: 100,
+    rotation: 0,
     ...partial,
   };
 }
@@ -312,9 +337,10 @@ export function createDefaultEstoqueTemplate(): LabelTemplateLayout {
 }
 
 export function createDefaultChaveTemplate(): LabelTemplateLayout {
+  // Coordenadas no bloco vertical (240 × ~191) — a impressão rotaciona o par de faces.
   return {
     id: 'chave',
-    version: 1,
+    version: 3,
     canvasW: LABEL_W,
     canvasH: LABEL_H,
     keyOptions: {
@@ -322,10 +348,11 @@ export function createDefaultChaveTemplate(): LabelTemplateLayout {
       lineSpacing: 1,
       margin: 4,
       halfGap: 2,
-      vAlign: 'middle',
+      vAlign: 'top',
       dualCopy: true,
       offsetX: 0,
       offsetY: 0,
+      mercosulPlate: true,
     },
     elements: [
       el({
@@ -333,48 +360,245 @@ export function createDefaultChaveTemplate(): LabelTemplateLayout {
         kind: 'text_field',
         name: 'Cliente',
         visible: true,
-        x: 0,
-        y: 0,
-        w: 240,
-        h: 28,
-        fontSize: 18,
-        labelText: 'Cliente:',
+        x: 6,
+        y: 6,
+        w: 228,
+        h: 26,
+        fontSize: 16,
+        valueFontSize: 18,
+        labelText: '👤 ',
       }),
       el({
         id: 'vehicle',
         kind: 'text_field',
         name: 'Carro',
         visible: true,
-        x: 0,
-        y: 28,
-        w: 240,
-        h: 28,
-        fontSize: 18,
-        labelText: 'Carro:',
+        x: 6,
+        y: 34,
+        w: 228,
+        h: 26,
+        fontSize: 16,
+        valueFontSize: 18,
+        labelText: '🚗 ',
       }),
       el({
         id: 'color',
         kind: 'text_field',
         name: 'Cor',
         visible: true,
-        x: 0,
-        y: 56,
-        w: 240,
-        h: 28,
-        fontSize: 18,
-        labelText: 'Cor:',
+        x: 6,
+        y: 62,
+        w: 228,
+        h: 26,
+        fontSize: 16,
+        valueFontSize: 18,
+        labelText: '🎨 ',
       }),
       el({
         id: 'plate',
         kind: 'text_field',
         name: 'Placa',
         visible: true,
-        x: 0,
-        y: 84,
-        w: 240,
-        h: 28,
+        x: 10,
+        y: 96,
+        w: 220,
+        h: 78,
+        fontSize: 12,
+        valueFontSize: 28,
+        labelText: '',
+        align: 'center',
+      }),
+    ],
+  };
+}
+
+export function createDefaultAbsModuloTemplate(): LabelTemplateLayout {
+  return {
+    id: 'abs_modulo',
+    version: 5,
+    canvasW: LABEL_W,
+    canvasH: LABEL_H,
+    elements: [
+      el({
+        id: 'sequence',
+        kind: 'text',
+        name: 'Sequência #N',
+        visible: true,
+        x: 8,
+        y: 4,
+        w: 72,
+        h: 20,
         fontSize: 18,
-        labelText: 'Placa:',
+        fontWeight: '900',
+        labelText: '',
+        align: 'left',
+      }),
+      el({
+        id: 'logo',
+        kind: 'logo',
+        name: 'Logo Rei do ABS',
+        visible: true,
+        x: 348,
+        y: 2,
+        w: 30,
+        h: 30,
+        fontSize: 10,
+        labelText: '',
+      }),
+      el({
+        id: 'kind',
+        kind: 'text',
+        name: 'Tipo',
+        visible: true,
+        x: 180,
+        y: 5,
+        w: 162,
+        h: 14,
+        fontSize: 10,
+        fontWeight: 'bold',
+        labelText: '',
+        align: 'right',
+      }),
+      el({
+        id: 'manufacturer',
+        kind: 'text_field',
+        name: 'Fabricante',
+        visible: true,
+        x: 8,
+        y: 24,
+        w: 368,
+        h: 20,
+        fontSize: 10,
+        fontWeight: 'bold',
+        valueFontSize: 16,
+        labelText: 'Fab.',
+        maxLines: 1,
+      }),
+      el({
+        id: 'app_brand',
+        kind: 'text_field',
+        name: 'Marca da aplicação',
+        visible: true,
+        x: 8,
+        y: 46,
+        w: 368,
+        h: 16,
+        fontSize: 10,
+        fontWeight: 'bold',
+        valueFontSize: 12,
+        labelText: 'Apl.',
+        maxLines: 1,
+      }),
+      el({
+        id: 'app_vehicles',
+        kind: 'text_field',
+        name: 'Veículos de aplicação',
+        visible: true,
+        x: 8,
+        y: 64,
+        w: 368,
+        h: 22,
+        fontSize: 10,
+        fontWeight: 'normal',
+        valueFontSize: 12,
+        labelText: 'Veíc.',
+        maxLines: 2,
+      }),
+      el({
+        id: 'app_years',
+        kind: 'text_field',
+        name: 'Ano da aplicação',
+        visible: true,
+        x: 8,
+        y: 88,
+        w: 368,
+        h: 16,
+        fontSize: 10,
+        fontWeight: 'bold',
+        valueFontSize: 12,
+        labelText: 'Ano',
+        maxLines: 1,
+      }),
+      el({
+        id: 'code_line',
+        kind: 'text_field',
+        name: 'Código',
+        visible: true,
+        x: 8,
+        y: 106,
+        w: 200,
+        h: 14,
+        fontSize: 10,
+        fontWeight: 'bold',
+        valueFontSize: 11,
+        labelText: 'Cód.',
+        maxLines: 1,
+      }),
+      el({
+        id: 'location',
+        kind: 'text_field',
+        name: 'Local',
+        visible: true,
+        x: 212,
+        y: 106,
+        w: 164,
+        h: 14,
+        fontSize: 10,
+        fontWeight: 'bold',
+        valueFontSize: 11,
+        labelText: 'Local',
+        maxLines: 1,
+      }),
+      el({
+        id: 'brand',
+        kind: 'text',
+        name: 'Marca da oficina',
+        visible: false,
+        x: 8,
+        y: 4,
+        w: 120,
+        h: 14,
+        fontSize: 10,
+        labelText: '',
+        align: 'left',
+      }),
+      el({
+        id: 'qr',
+        kind: 'qr',
+        name: 'QR Code',
+        /** Etiqueta ABS usa só código de barras (pistola USB). */
+        visible: false,
+        x: 262,
+        y: 60,
+        w: 112,
+        h: 112,
+        fontSize: 12,
+        labelText: '',
+      }),
+      el({
+        id: 'barcode',
+        kind: 'barcode',
+        name: 'Código de barras',
+        visible: true,
+        x: 8,
+        y: 124,
+        w: 368,
+        h: 74,
+        fontSize: 12,
+        labelText: '',
+      }),
+      el({
+        id: 'human_code',
+        kind: 'human_code',
+        name: 'ID legível',
+        visible: true,
+        x: 8,
+        y: 202,
+        w: 368,
+        h: 28,
+        fontSize: 14,
+        labelText: '',
+        align: 'center',
       }),
     ],
   };
@@ -383,6 +607,7 @@ export function createDefaultChaveTemplate(): LabelTemplateLayout {
 export function createDefaultTemplate(id: LabelTemplateId): LabelTemplateLayout {
   if (id === 'estoque') return createDefaultEstoqueTemplate();
   if (id === 'chave') return createDefaultChaveTemplate();
+  if (id === 'abs_modulo') return createDefaultAbsModuloTemplate();
   return createDefaultLabOsTemplate();
 }
 
@@ -404,16 +629,48 @@ function normalizeVAlign(v: unknown): LabelVAlign {
   return v === 'top' || v === 'bottom' ? v : 'middle';
 }
 
-function normalizeElement(raw: Partial<LabelElementDef>, fallback: LabelElementDef): LabelElementDef {
+type NormalizeElementBounds = {
+  maxX: number;
+  maxY: number;
+  maxW: number;
+  maxH: number;
+};
+
+const DEFAULT_ELEMENT_BOUNDS: NormalizeElementBounds = {
+  maxX: LABEL_W + 40,
+  maxY: LABEL_H + 40,
+  maxW: LABEL_W,
+  maxH: LABEL_H,
+};
+
+/** Chave: coords no bloco vertical (240×384), não na impressão paisagem. */
+const CHAVE_ELEMENT_BOUNDS: NormalizeElementBounds = {
+  maxX: LABEL_H + 40,
+  maxY: LABEL_W + 40,
+  maxW: LABEL_H,
+  maxH: LABEL_W,
+};
+
+function normalizeElement(
+  raw: Partial<LabelElementDef>,
+  fallback: LabelElementDef,
+  bounds: NormalizeElementBounds = DEFAULT_ELEMENT_BOUNDS
+): LabelElementDef {
+  const opacityRaw = raw.opacity ?? fallback.opacity ?? 100;
+  const rotationRaw = raw.rotation ?? fallback.rotation ?? 0;
+  let rotation = Math.round(Number(rotationRaw));
+  if (!Number.isFinite(rotation)) rotation = 0;
+  rotation = ((rotation % 360) + 360) % 360;
+  if (rotation > 180) rotation -= 360;
   return {
     id: fallback.id,
     kind: fallback.kind,
     name: typeof raw.name === 'string' && raw.name.trim() ? raw.name : fallback.name,
-    visible: raw.visible !== false,
-    x: clamp(Math.round(Number(raw.x ?? fallback.x)), -40, LABEL_W + 40),
-    y: clamp(Math.round(Number(raw.y ?? fallback.y)), -40, LABEL_H + 40),
-    w: clamp(Math.round(Number(raw.w ?? fallback.w)), 8, LABEL_W),
-    h: clamp(Math.round(Number(raw.h ?? fallback.h)), 8, LABEL_H),
+    visible: typeof raw.visible === 'boolean' ? raw.visible : fallback.visible,
+    x: clamp(Math.round(Number(raw.x ?? fallback.x)), -40, bounds.maxX),
+    y: clamp(Math.round(Number(raw.y ?? fallback.y)), -40, bounds.maxY),
+    w: clamp(Math.round(Number(raw.w ?? fallback.w)), 8, bounds.maxW),
+    h: clamp(Math.round(Number(raw.h ?? fallback.h)), 8, bounds.maxH),
     fontFamily: normalizeFontFamily(raw.fontFamily ?? fallback.fontFamily),
     fontSize: clamp(Math.round(Number(raw.fontSize ?? fallback.fontSize)), 6, 72),
     fontWeight: normalizeWeight(raw.fontWeight ?? fallback.fontWeight),
@@ -425,6 +682,8 @@ function normalizeElement(raw: Partial<LabelElementDef>, fallback: LabelElementD
     ),
     align: normalizeAlign(raw.align ?? fallback.align),
     maxLines: clamp(Math.round(Number(raw.maxLines ?? fallback.maxLines)), 1, 12),
+    opacity: clamp(Math.round(Number(opacityRaw)), 0, 100),
+    rotation,
   };
 }
 
@@ -442,6 +701,7 @@ function normalizeKeyOptions(
     dualCopy: src.dualCopy !== false,
     offsetX: clamp(Math.round(Number(src.offsetX ?? fallback.offsetX)), -40, 40),
     offsetY: clamp(Math.round(Number(src.offsetY ?? fallback.offsetY)), -40, 40),
+    mercosulPlate: (src.mercosulPlate ?? fallback.mercosulPlate) !== false,
   };
 }
 
@@ -450,35 +710,142 @@ export function normalizeLabelTemplate(
   raw: Partial<LabelTemplateLayout> | null | undefined
 ): LabelTemplateLayout {
   const def = createDefaultTemplate(id);
+  const bounds = id === 'chave' ? CHAVE_ELEMENT_BOUNDS : DEFAULT_ELEMENT_BOUNDS;
   const byId = new Map((raw?.elements ?? []).map((e) => [e.id, e]));
-  const elements = def.elements.map((fallback) =>
-    normalizeElement(byId.get(fallback.id) ?? {}, fallback)
+  let elements = def.elements.map((fallback) =>
+    normalizeElement(byId.get(fallback.id) ?? {}, fallback, bounds)
   );
   // Elementos extras salvos (futuras etiquetas) — preserva se tiverem id/kind
   for (const extra of raw?.elements ?? []) {
     if (!extra?.id || elements.some((e) => e.id === extra.id)) continue;
     if (!extra.kind) continue;
     elements.push(
-      normalizeElement(extra, {
-        ...el({
-          id: extra.id,
-          kind: extra.kind,
-          name: extra.name || extra.id,
-          visible: true,
-          x: 0,
-          y: 0,
-          w: 100,
-          h: 24,
-          fontSize: 14,
-          labelText: '',
-        }),
-        ...extra,
-      })
+      normalizeElement(
+        extra,
+        {
+          ...el({
+            id: extra.id,
+            kind: extra.kind,
+            name: extra.name || extra.id,
+            visible: true,
+            x: 0,
+            y: 0,
+            w: 100,
+            h: 24,
+            fontSize: 14,
+            labelText: '',
+          }),
+          ...extra,
+        },
+        bounds
+      )
     );
   }
+
+  // Chave: placa sem rótulo "Placa:" e nome amigável estável.
+  if (id === 'chave') {
+    elements = elements.map((e) =>
+      e.id === 'plate' ? { ...e, labelText: '', name: 'Placa' } : e
+    );
+  }
+
+  // ABS: só código de barras (sem QR).
+  // v1/v2 → v3: remapeia geometria (introdução Fab/Apl/Veíc).
+  // v3+ → v5+: NÃO remapeia posições customizadas — só adiciona campos novos (Ano, logo).
+  if (id === 'abs_modulo') {
+    const savedVersion = Number(raw?.version ?? 0);
+    const remapGeometry = savedVersion > 0 && savedVersion < 3;
+    elements = elements.map((e) => {
+      if (e.id === 'qr') return { ...e, visible: false };
+      if (e.id === 'brand' && remapGeometry) {
+        const fb = def.elements.find((d) => d.id === e.id);
+        return fb ? { ...fb } : { ...e, visible: false };
+      }
+      if (!remapGeometry) return e;
+      const fb = def.elements.find((d) => d.id === e.id);
+      if (!fb) return e;
+      return {
+        ...e,
+        x: fb.x,
+        y: fb.y,
+        w: fb.w,
+        h: fb.h,
+        fontSize: fb.fontSize,
+        valueFontSize: fb.valueFontSize,
+        fontWeight: fb.fontWeight,
+        labelText: fb.labelText,
+        align: fb.align,
+        maxLines: fb.maxLines,
+        visible: fb.visible,
+      };
+    });
+    // Garante elementos novos (manufacturer / app_* / app_years) mesmo em saves antigos.
+    for (const fb of def.elements) {
+      if (elements.some((e) => e.id === fb.id)) continue;
+      elements.push({ ...fb });
+    }
+  }
+
+  // Chave v1 → v2: placa passa a ser caixa Mercosul (geometria padrão da placa).
+  // Chave v2 → v3: rótulos Cliente/Carro/Cor viram ícones 👤/🚗/🎨 (só se ainda forem o texto clássico).
+  if (id === 'chave') {
+    const savedVersion = Number(raw?.version ?? 0);
+    if (savedVersion > 0 && savedVersion < 2) {
+      elements = elements.map((e) => {
+        if (e.id !== 'plate') return e;
+        const fb = def.elements.find((d) => d.id === 'plate');
+        if (!fb) return e;
+        return {
+          ...e,
+          x: fb.x,
+          y: fb.y,
+          w: fb.w,
+          h: fb.h,
+          fontSize: fb.fontSize,
+          valueFontSize: fb.valueFontSize,
+          labelText: '',
+          align: 'center',
+          name: fb.name,
+        };
+      });
+    }
+    if (savedVersion > 0 && savedVersion < 3) {
+      const classicToIcon: Record<string, string> = {
+        customer: '👤 ',
+        vehicle: '🚗 ',
+        color: '🎨 ',
+      };
+      const classicLabels = new Set([
+        'Cliente:',
+        'Cliente',
+        'Carro:',
+        'Carro',
+        'Cor:',
+        'Cor',
+        'Veículo:',
+        'Veículo',
+      ]);
+      elements = elements.map((e) => {
+        const next = classicToIcon[e.id];
+        if (!next) return e;
+        const t = (e.labelText || '').trim();
+        if (!t || classicLabels.has(t)) {
+          return { ...e, labelText: next };
+        }
+        return e;
+      });
+    }
+  }
+
   return {
     id,
-    version: 1,
+    // Mantém a versão salva se já for >= padrão; senão sobe para o default atual.
+    version:
+      id === 'abs_modulo'
+        ? Math.max(Number(raw?.version) || 0, Number(def.version) || 5)
+        : id === 'chave'
+          ? Math.max(Number(raw?.version) || 0, Number(def.version) || 3)
+          : 1,
     canvasW: LABEL_W,
     canvasH: LABEL_H,
     elements,
@@ -522,6 +889,7 @@ function migrateLegacyChave(): LabelTemplateLayout | null {
         dualCopy: true,
         offsetX: Number(parsed.offsetX) || 0,
         offsetY: Number(parsed.offsetY) || 0,
+        mercosulPlate: true,
       },
     });
   } catch {
@@ -529,21 +897,44 @@ function migrateLegacyChave(): LabelTemplateLayout | null {
   }
 }
 
-export function loadAllLabelTemplates(): LabelTemplatesStore {
-  const defaults: LabelTemplatesStore = {
+export function createDefaultLabelTemplatesStore(): LabelTemplatesStore {
+  return {
     lab_os: createDefaultLabOsTemplate(),
     estoque: createDefaultEstoqueTemplate(),
     chave: createDefaultChaveTemplate(),
+    abs_modulo: createDefaultAbsModuloTemplate(),
   };
+}
+
+/** Normaliza um store parcial (localStorage / API) para o formato canônico. */
+export function normalizeLabelTemplatesStore(
+  raw: Partial<Record<LabelTemplateId, Partial<LabelTemplateLayout>>> | null | undefined
+): LabelTemplatesStore {
+  const parsed = raw && typeof raw === 'object' ? raw : {};
+  return {
+    lab_os: normalizeLabelTemplate('lab_os', parsed.lab_os),
+    estoque: normalizeLabelTemplate('estoque', parsed.estoque),
+    chave: normalizeLabelTemplate('chave', parsed.chave),
+    abs_modulo: normalizeLabelTemplate('abs_modulo', parsed.abs_modulo),
+  };
+}
+
+/** True se este dispositivo já tem templates salvos localmente (edições do usuário). */
+export function hasLocalLabelTemplates(): boolean {
+  try {
+    return Boolean(localStorage.getItem(STORAGE_KEY)?.trim());
+  } catch {
+    return false;
+  }
+}
+
+export function loadAllLabelTemplates(): LabelTemplatesStore {
+  const defaults = createDefaultLabelTemplatesStore();
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw) as Partial<Record<LabelTemplateId, Partial<LabelTemplateLayout>>>;
-      return {
-        lab_os: normalizeLabelTemplate('lab_os', parsed.lab_os),
-        estoque: normalizeLabelTemplate('estoque', parsed.estoque),
-        chave: normalizeLabelTemplate('chave', parsed.chave),
-      };
+      return normalizeLabelTemplatesStore(parsed);
     }
   } catch {
     /* ignore */
@@ -575,11 +966,7 @@ export function saveLabelTemplate(layout: LabelTemplateLayout): void {
 }
 
 export function saveAllLabelTemplates(store: LabelTemplatesStore): void {
-  const next: LabelTemplatesStore = {
-    lab_os: normalizeLabelTemplate('lab_os', store.lab_os),
-    estoque: normalizeLabelTemplate('estoque', store.estoque),
-    chave: normalizeLabelTemplate('chave', store.chave),
-  };
+  const next = normalizeLabelTemplatesStore(store);
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
   } catch {
@@ -619,5 +1006,17 @@ export const LABEL_SAMPLE_DATA = {
     vehicleModel: 'COROLLA XEI',
     vehicleColor: 'PRATA',
     plate: 'ABC1D23',
+  },
+  abs_modulo: {
+    brand: 'REI DO ABS',
+    sequenceNumber: 12,
+    publicId: 'ABS-000012',
+    moduleKind: 'completo',
+    manufacturer: 'Bosch',
+    applicationBrand: 'Volkswagen',
+    applicationVehicles: 'Gol · Fox · Voyage · Saveiro',
+    applicationYears: '2010–2018',
+    code: '0265231548',
+    location: 'Prateleira B3',
   },
 } as const;

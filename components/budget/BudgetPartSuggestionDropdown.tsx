@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Eye, Image as ImageIcon, Package } from 'lucide-react';
 import type { WorkshopPart } from '../../services/apiService';
 import { PartPhotoImg } from '../ui/PartPhotoImg';
@@ -20,6 +20,11 @@ type BudgetPartSuggestionDropdownProps = {
   onKeepOpen?: () => void;
   /** Abre ficha completa do produto (estoque). */
   onOpenPartDetails?: (part: WorkshopPart) => void;
+  /** Layout touch: sem título/contagem, sem blur, sempre abaixo do campo. */
+  compactTouch?: boolean;
+  /** Índice destacado por teclado/mouse (−1 = nenhum). */
+  highlightedIndex?: number;
+  onHighlightedIndexChange?: (index: number) => void;
 };
 
 export const BudgetPartSuggestionDropdown: React.FC<BudgetPartSuggestionDropdownProps> = ({
@@ -30,7 +35,17 @@ export const BudgetPartSuggestionDropdown: React.FC<BudgetPartSuggestionDropdown
   onSelect,
   onKeepOpen,
   onOpenPartDetails,
+  compactTouch = false,
+  highlightedIndex = -1,
+  onHighlightedIndexChange,
 }) => {
+  const optionRefs = useRef<Array<HTMLDivElement | null>>([]);
+
+  useEffect(() => {
+    if (highlightedIndex < 0) return;
+    optionRefs.current[highlightedIndex]?.scrollIntoView({ block: 'nearest' });
+  }, [highlightedIndex]);
+
   if (!open || !position || suggestions.length === 0) return null;
 
   const handleSelect = (part: WorkshopPart) => {
@@ -47,15 +62,26 @@ export const BudgetPartSuggestionDropdown: React.FC<BudgetPartSuggestionDropdown
       ariaLabel="Sugestões de peças do estoque"
       title="Peças em estoque"
       subtitle={`${suggestions.length} sugest${suggestions.length === 1 ? 'ão' : 'ões'}`}
+      hideHeader={compactTouch}
+      clearBackdrop={compactTouch}
+      forceBelow={compactTouch}
     >
-      <div className="flex flex-col gap-0.5">
-        {suggestions.map((part) => {
+      <div className="flex flex-col gap-0.5" role="presentation">
+        {suggestions.map((part, index) => {
           const cover = getWorkshopPartCoverUrl(part);
+          const isActive = index === highlightedIndex;
           return (
             <div
               key={part.id}
+              ref={(node) => {
+                optionRefs.current[index] = node;
+              }}
               role="option"
-              className="flex w-full items-center gap-1.5 rounded-xl px-1.5 py-1 transition-colors hover:bg-sky-50"
+              aria-selected={isActive}
+              onMouseEnter={() => onHighlightedIndexChange?.(index)}
+              className={`flex w-full items-center gap-1.5 rounded-xl px-1.5 py-1 transition-colors ${
+                isActive ? 'bg-sky-100' : 'hover:bg-sky-50'
+              }`}
             >
               <button
                 type="button"
@@ -73,9 +99,14 @@ export const BudgetPartSuggestionDropdown: React.FC<BudgetPartSuggestionDropdown
                   <span className="block truncate text-[14px] font-medium leading-snug text-slate-800">
                     {part.name}
                   </span>
-                  <span className="mt-0.5 inline-flex items-center gap-1 text-[11px] font-semibold text-amber-800/85">
-                    <Package className="h-3 w-3 opacity-80" strokeWidth={2.2} aria-hidden />
-                    Estoque{part.stock_qty != null ? ` · ${formatWorkshopPartQty(part.stock_qty)}` : ''}
+                  <span className="mt-0.5 inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 dark:text-emerald-300">
+                    <Package
+                      className="h-3 w-3 text-emerald-600 dark:text-emerald-300"
+                      strokeWidth={2.2}
+                      aria-hidden
+                    />
+                    Estoque
+                    {part.stock_qty != null ? ` · ${formatWorkshopPartQty(part.stock_qty)}` : ''}
                   </span>
                 </span>
               </button>

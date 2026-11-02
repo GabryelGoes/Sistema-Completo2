@@ -1,4 +1,4 @@
-export type WorkshopPartStockMovementType = 'sale' | 'consumable';
+export type WorkshopPartStockMovementType = 'sale' | 'consumable' | 'purchase';
 
 export type WorkshopPartStockMovement = {
   id: string;
@@ -16,9 +16,19 @@ export type WorkshopPartStockMovement = {
   created_at: string;
   /** OS (pátio/lab) vinculada à retirada no modal do veículo. */
   service_order_id?: string | null;
+  /** Metadados de compra / NF-e (entrada). */
+  supplier_id?: string | null;
+  supplier_name?: string | null;
+  nfe_number?: string | null;
+  unit_cost?: number | null;
+  product_total?: number | null;
+  invoice_total?: number | null;
+  purchase_id?: string | null;
   part_name?: string | null;
   part_unit_of_measure?: string | null;
   part_photo_url?: string | null;
+  /** Rótulo amigável da OS (placa / cliente), quando enriquecido na API. */
+  service_order_label?: string | null;
 };
 
 export type StockOutboundPartSnapshot = {

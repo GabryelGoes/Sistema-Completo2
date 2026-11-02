@@ -118,7 +118,15 @@ export const VehicleOsStockCheckoutSection: React.FC<VehicleOsStockCheckoutSecti
         serviceOrderId,
         limit: 80,
       });
-      setItems(list);
+      // Só esta OS — evita misturar baixas de outros veículos se a API falhar o filtro.
+      const marker = `OS_ID:${serviceOrderId}`;
+      setItems(
+        list.filter((m) => {
+          const rowOs = (m.service_order_id || '').trim();
+          if (rowOs) return rowOs === serviceOrderId;
+          return String(m.notes ?? '').includes(marker);
+        })
+      );
     } catch {
       setItems([]);
     } finally {
@@ -205,8 +213,7 @@ export const VehicleOsStockCheckoutSection: React.FC<VehicleOsStockCheckoutSecti
       if (!budgetScanOpen) setActiveBarcodeScanClaim(null);
       return;
     }
-    setActiveBarcodeScanClaim((code) => registerRef.current(code));
-    return () => setActiveBarcodeScanClaim(null);
+    return setActiveBarcodeScanClaim((code) => registerRef.current(code));
   }, [budgetScanOpen, claimUsbScanner, serviceOrderId]);
 
   const handleCancel = async (password: string) => {

@@ -23,6 +23,9 @@ export type MacOsNotifIconKind =
   | 'alert'
   | 'branch';
 
+/** Origem da OS no banner (Pátio vs Laboratório). */
+export type MacOsNotifBoardScope = 'patio' | 'lab';
+
 export type MacOsNotificationCardModel = {
   id: string;
   authorName: string;
@@ -34,6 +37,8 @@ export type MacOsNotificationCardModel = {
   accent: MacOsNotifAccent;
   icon: MacOsNotifIconKind;
   unread?: boolean;
+  /** Selo visível: Pátio ou Laboratório. */
+  boardScope?: MacOsNotifBoardScope | null;
 };
 
 const ACCENT_AVATAR: Record<MacOsNotifAccent, string> = {
@@ -213,9 +218,26 @@ export function MacOsNotificationCard({
                 </span>
               ) : null}
             </div>
-            <p className={`mt-0.5 text-[14px] font-semibold leading-snug tracking-tight ${titleCls}`}>
-              {model.title}
-            </p>
+            <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
+              <p className={`min-w-0 text-[14px] font-semibold leading-snug tracking-tight ${titleCls}`}>
+                {model.title}
+              </p>
+              {model.boardScope === 'lab' || model.boardScope === 'patio' ? (
+                <span
+                  className={`inline-flex shrink-0 items-center rounded-full px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
+                    model.boardScope === 'lab'
+                      ? isDark
+                        ? 'bg-amber-400/20 text-amber-300 ring-1 ring-amber-400/35'
+                        : 'bg-amber-100 text-amber-800 ring-1 ring-amber-200'
+                      : isDark
+                        ? 'bg-sky-400/20 text-sky-300 ring-1 ring-sky-400/35'
+                        : 'bg-sky-100 text-sky-800 ring-1 ring-sky-200'
+                  }`}
+                >
+                  {model.boardScope === 'lab' ? 'Laboratório' : 'Pátio'}
+                </span>
+              ) : null}
+            </div>
             {model.body ? (
               <p className={`mt-0.5 text-[13px] leading-snug ${bodyCls}`}>{model.body}</p>
             ) : null}

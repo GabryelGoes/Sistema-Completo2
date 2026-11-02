@@ -3,6 +3,9 @@ import {
   getWorkshopTechnicians,
   type SystemUserDirectoryEntry,
 } from '../services/apiService';
+import { normalizeQualityRadarPersonKey } from './qualityRadarNormalize';
+
+export { normalizeQualityRadarPersonKey } from './qualityRadarNormalize';
 
 /** Prefixo no valor do select para técnicos da tabela workshop_technicians. */
 export const QUALITY_RADAR_WT_PREFIX = 'wt:';
@@ -15,11 +18,9 @@ export type QualityRadarTechnicianOption = {
   name: string;
   workshopTechnicianId: string | null;
   systemUserId: string | null;
+  jobTitle?: string | null;
+  source: 'workshop_technician' | 'system_user';
 };
-
-function normalizeName(s: string): string {
-  return s.trim().toLowerCase();
-}
 
 function systemUserDisplayName(u: SystemUserDirectoryEntry): string {
   const display = (u.display_name || '').trim();
@@ -29,8 +30,8 @@ function systemUserDisplayName(u: SystemUserDirectoryEntry): string {
 }
 
 /**
- * Lista unificada: técnicos cadastrados em Administração + todos os usuários do sistema.
- * Evita duplicar o mesmo nome quando já existe em workshop_technicians.
+ * Lista unificada: técnicos cadastrados em Administração + usuários do sistema.
+ * Evita duplicar a mesma pessoa (nome equivalente, inclusive com/sem acento).
  */
 export async function getQualityRadarTechnicianOptions(): Promise<QualityRadarTechnicianOption[]> {
   const [workshop, systemUsers] = await Promise.all([
@@ -43,25 +44,40 @@ export async function getQualityRadarTechnicianOptions(): Promise<QualityRadarTe
   for (const t of workshop) {
     const name = (t.name || '').trim();
     if (!name) continue;
-    const key = normalizeName(name);
+    const key = normalizeQualityRadarPersonKey(name);
+    const prev = byKey.get(key);
+    // Se já houver WT com o mesmo nome normalizado, mantém o primeiro (evita duplicata).
+    if (prev?.workshopTechnicianId) continue;
     byKey.set(key, {
       id: `${QUALITY_RADAR_WT_PREFIX}${t.id}`,
-      name,
+      name: prev?.name || name,
       workshopTechnicianId: t.id,
-      systemUserId: null,
+      systemUserId: prev?.systemUserId ?? null,
+      jobTitle: prev?.jobTitle ?? null,
+      source: 'workshop_technician',
     });
   }
 
   for (const u of systemUsers) {
     const name = systemUserDisplayName(u);
     if (!name) continue;
-    const key = normalizeName(name);
-    if (byKey.has(key)) continue;
+    const key = normalizeQualityRadarPersonKey(name);
+    const existing = byKey.get(key);
+    if (existing) {
+      byKey.set(key, {
+        ...existing,
+        jobTitle: existing.jobTitle || u.job_title || null,
+        systemUserId: existing.systemUserId ?? u.id,
+      });
+      continue;
+    }
     byKey.set(key, {
       id: `${QUALITY_RADAR_SU_PREFIX}${u.id}`,
       name,
       workshopTechnicianId: null,
       systemUserId: u.id,
+      jobTitle: u.job_title,
+      source: 'system_user',
     });
   }
 
@@ -92,9 +108,9 @@ export function qualityRadarTechnicianSelectValue(
     const wt = `${QUALITY_RADAR_WT_PREFIX}${technicianId}`;
     if (options.some((o) => o.id === wt)) return wt;
   }
-  const nameNorm = normalizeName(technicianName ?? '');
+  const nameNorm = normalizeQualityRadarPersonKey(technicianName ?? '');
   if (!nameNorm) return '';
-  const byName = options.find((o) => normalizeName(o.name) === nameNorm);
+  const byName = options.find((o) => normalizeQualityRadarPersonKey(o.name) === nameNorm);
   return byName?.id ?? '';
 }
 
