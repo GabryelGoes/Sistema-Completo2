@@ -72,6 +72,11 @@ export type {
 } from "./workSessions/types.js";
 
 export { runRdaChatTurn } from "./agent/orchestrator.js";
+export {
+  historyRowsToLlmMessages,
+  sanitizeMessagesForOpenAi,
+  toolCallsFromMetadata,
+} from "./agent/openaiMessages.js";
 export { generateTechnicalOsInsight } from "./insights/technicalOs.js";
 export { runManagementScan } from "./insights/managementScan.js";
 export { ensureProductionRdaToolsRegistered } from "./tools/registerProduction.js";

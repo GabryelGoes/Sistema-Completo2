@@ -9,10 +9,12 @@ import {
   createRdaSystemEvent,
   createRdaToolRegistry,
   describeRdaFeatureFlag,
+  historyRowsToLlmMessages,
   openAiRdaProvider,
   parseRdaEnabledFlag,
   resolveRdaIntelligenceEnabled,
   resolveRdaLlmProvider,
+  sanitizeMessagesForOpenAi,
   validateToolParams,
   type RdaToolDefinition,
 } from "../services/rdaIntelligence/index.js";
@@ -225,12 +227,78 @@ assert(
   `production registry tem ${RDA_PRODUCTION_TOOLS.length} tools`
 );
 assert(
-  productionRdaToolRegistry.has("rda.list_stalled_vehicles"),
+  productionRdaToolRegistry.has("rda_list_stalled_vehicles"),
   "tool stalled vehicles registrada"
 );
 assert(
-  productionRdaToolRegistry.has("rda.propose_open_service_order"),
+  productionRdaToolRegistry.has("rda_propose_open_service_order"),
   "tool propose open OS registrada (write+confirm)"
+);
+
+console.log("\n7) Histórico OpenAI: tool após assistant com tool_calls");
+const fromDb = historyRowsToLlmMessages([
+  { role: "user", content: "quais OS paradas?" },
+  {
+    role: "assistant",
+    content: "",
+    metadata: {
+      toolCalls: [
+        {
+          id: "call_1",
+          name: "rda_list_stalled_vehicles",
+          arguments: "{\"minHours\":24}",
+        },
+      ],
+    },
+  },
+  {
+    role: "tool",
+    content: "{\"ok\":true}",
+    tool_call_id: "call_1",
+    tool_name: "rda_list_stalled_vehicles",
+  },
+  { role: "assistant", content: "Há 2 OS paradas." },
+  { role: "user", content: "e agora?" },
+]);
+assert(fromDb[1]?.role === "assistant" && Array.isArray(fromDb[1].tool_calls), "restaura tool_calls do metadata");
+assert(fromDb[1].tool_calls?.[0]?.id === "call_1", "tool_call id call_1");
+assert(fromDb[2]?.role === "tool" && fromDb[2].tool_call_id === "call_1", "tool message com id");
+
+const orphanFixed = sanitizeMessagesForOpenAi([
+  { role: "system", content: "sys" },
+  { role: "user", content: "oi" },
+  { role: "assistant", content: "" }, // sem tool_calls (bug antigo)
+  {
+    role: "tool",
+    content: "{}",
+    tool_call_id: "call_orphan",
+    name: "rda_list_stalled_vehicles",
+  },
+  { role: "user", content: "continua" },
+]);
+assert(
+  orphanFixed.some((m) => m.role === "assistant" && (m.tool_calls?.length || 0) > 0),
+  "sanitiza reconstrói tool_calls antes do tool"
+);
+assert(
+  orphanFixed.filter((m) => m.role === "tool").every((m, _i, arr) => {
+    void arr;
+    const idx = orphanFixed.indexOf(m);
+    const prev = orphanFixed[idx - 1];
+    if (prev?.role === "tool") return true;
+    return (
+      prev?.role === "assistant" &&
+      (prev.tool_calls || []).some((c) => c.id === m.tool_call_id)
+    );
+  }),
+  "toda tool tem assistant.tool_calls precedente"
+);
+assert(
+  !sanitizeMessagesForOpenAi([
+    { role: "tool", content: "x", tool_call_id: "alone" },
+    { role: "user", content: "oi" },
+  ]).some((m) => m.role === "tool"),
+  "descarta tool órfã no início"
 );
 
 console.log(`\nResultado: ${passed} ok, ${failed} falhas`);

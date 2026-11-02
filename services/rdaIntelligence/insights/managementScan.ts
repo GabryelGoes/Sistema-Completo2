@@ -86,7 +86,7 @@ export async function runManagementScan(input: {
   const ctx = { workshopId: input.workshopId, supabase: input.supabase };
 
   const stalled = await executeRdaTool(
-    "rda.list_stalled_vehicles",
+    "rda_list_stalled_vehicles",
     { minHours: 48, limit: 10 },
     ctx
   );
@@ -113,7 +113,7 @@ export async function runManagementScan(input: {
   }
 
   const pending = await executeRdaTool(
-    "rda.pending_evaluations",
+    "rda_pending_evaluations",
     { status: "pending", limit: 50 },
     ctx
   );
@@ -132,7 +132,7 @@ export async function runManagementScan(input: {
     }
   }
 
-  const snapshot = await executeRdaTool("rda.patio_stage_snapshot", {}, ctx);
+  const snapshot = await executeRdaTool("rda_patio_stage_snapshot", {}, ctx);
   if (snapshot.ok) {
     const waiting = Number(
       (snapshot.data as { waitingApprovalCount?: number }).waitingApprovalCount || 0

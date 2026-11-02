@@ -56,11 +56,17 @@ export class OpenAiRdaProvider implements RdaLlmProvider {
       messages: request.messages.map((m) => {
         const row: Record<string, unknown> = {
           role: m.role,
-          content: m.content,
+          content: m.content ?? "",
         };
+        if (m.role === "tool") {
+          // Chat Completions: tool = { role, tool_call_id, content } (sem name).
+          if (m.tool_call_id) row.tool_call_id = m.tool_call_id;
+          return row;
+        }
         if (m.name) row.name = m.name;
-        if (m.tool_call_id) row.tool_call_id = m.tool_call_id;
-        if (m.tool_calls) row.tool_calls = m.tool_calls;
+        if (m.tool_calls && m.tool_calls.length > 0) {
+          row.tool_calls = m.tool_calls;
+        }
         return row;
       }),
       temperature: request.temperature ?? 0.2,
