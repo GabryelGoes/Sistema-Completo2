@@ -108,7 +108,7 @@ console.log("\n7) Preview browser + permissões UI");
   assert(seed.includes("access_home"), "seed home perm");
   const prev = readFileSync(join(root, "06_preview_browser.txt"), "utf8");
   assert(prev.includes("Deployment Protection"), "preview protection");
-  assert(prev.includes("NÃO alterar"), "nao alterar prod env");
+  assert(/n[aã]o mexa nas env|NÃO alterar/i.test(prev), "nao alterar prod env");
   const guard = readFileSync(
     join(process.cwd(), "utils/homologationGuard.ts"),
     "utf8"
