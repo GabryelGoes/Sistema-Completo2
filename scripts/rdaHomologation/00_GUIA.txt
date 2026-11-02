@@ -21,31 +21,31 @@ D. Sem OPENAI_API_KEY; RDA_INTELLIGENCE_ENABLED=false.
 ────────────────────────────────────────────────────────────
 Ver detalhe em `05_roteiro_sql_editor.txt`:
 
-  00_bootstrap_core_schema.sql     ← ANTES das migrations RDA
-  20261101220000 … 260000          ← cinco migrations RDA
+  00_bootstrap_core_schema.sql
+  00b_bootstrap_ui_support.sql     ← Pátio/Radar no browser
+  20261101220000 … 260000
   01_seed_fictional.sql
-  02_verify.sql   ← grade única; ALL_OK deve ser true
+  01b_ui_access_and_preview_passwords.sql
+  02_verify.sql   ← ALL_OK deve ser true
 
-Gaps documentados em `GAPS_SCHEMA.txt`.
-Se o verify falhar: envie as linhas com ok=false (check_id).
+Gaps: `GAPS_SCHEMA.txt`. Preview browser: `06_preview_browser.txt`.
 
 ────────────────────────────────────────────────────────────
 3) Backend + frontend só em homologação
 ────────────────────────────────────────────────────────────
-A. Copie `env.homologation.example` → `.env.homologation` (gitignored).
-B. Preencha URL + service_role + anon do projeto TESTE localmente.
-   Não envie chaves pelo chat.
-C. Defina HOMOLOGATION_OK=rei-do-abs-homologacao
-D. RDA_INTELLIGENCE_ENABLED=false; sem OPENAI_API_KEY
-E. WORKSHOP_ID=11111111-1111-4111-8111-111111111111
-F. Credenciais fictícias: homolog_tech1|tech2|gerente|patio / homolog123
-G. Para o front (opcional): VITE_SUPABASE_* e VITE_WORKSHOP_ID do TESTE
-H. Rode: npm run test:rda-homologation-api
-   (sobe API efêmera em localhost apontando só ao .env.homologation)
+Local: `.env.homologation` (ver env.homologation.example) + npm run dev
+       ou npm run test:rda-homologation-api
+Preview Vercel isolado: env.preview.vercel.example + 06_preview_browser.txt
+  → projeto Vercel SEPARADO; Deployment Protection obrigatória;
+  → NÃO alterar env do deployment de produção; NÃO deploy sem autorização.
+IA: RDA_INTELLIGENCE_ENABLED=false; sem OPENAI_API_KEY.
+WORKSHOP_ID do seed. Troque senhas (01b) antes de qualquer URL compartilhada.
 
 ────────────────────────────────────────────────────────────
 4) Proibido
 ────────────────────────────────────────────────────────────
 - Banco da oficina / produção
 - Copiar dump ou service_role de produção
-- Merge/deploy/IA nesta etapa
+- Merge/deploy produção / alterar env de produção
+- Preview sem proteção Vercel ou com senha padrão conhecida
+- IA nesta etapa

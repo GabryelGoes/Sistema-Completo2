@@ -70,6 +70,7 @@ import {
 import { registerRdaIntelligenceRoutes } from "./services/rdaIntelligence/index.js";
 import { registerRdaEvaluationRoutes } from "./services/rdaIntelligence/evaluations/registerRdaEvaluationRoutes.js";
 import { registerRdaWorkSessionRoutes } from "./services/rdaIntelligence/workSessions/registerRdaWorkSessionRoutes.js";
+import { assertHomologationSafeOrThrow } from "./utils/homologationGuard.js";
 
 const PBKDF2_ITERATIONS = 100000;
 const SALT_LEN = 16;
@@ -383,6 +384,9 @@ function countBudgetApprovalDecisions(services: unknown, parts: unknown): {
 }
 
 export function createApiApp() {
+  // No-op fora do modo homologação; em preview/homolog aborta se apontar para produção/IA.
+  assertHomologationSafeOrThrow();
+
   function isMissingRelationError(msg: string | undefined | null): boolean {
     if (!msg) return false;
     return /does not exist|relation|Could not find the table|schema cache/i.test(msg);
@@ -13166,6 +13170,19 @@ export function createApiApp() {
         .order("name", { ascending: true });
 
       if (error) {
+        if (isMissingRelationError(error.message)) {
+          return res.json([]);
+        }
+        // Coluna photo_url ausente em schema antigo: tenta sem ela.
+        if (/photo_url/i.test(error.message || "")) {
+          const retry = await supabaseAdmin
+            .from("workshop_technicians")
+            .select("id, slug, name, color_style, sort_order, created_at")
+            .eq("workshop_id", WORKSHOP_ID)
+            .order("sort_order", { ascending: true })
+            .order("name", { ascending: true });
+          if (!retry.error) return res.json(retry.data ?? []);
+        }
         console.error("[API] Erro ao listar técnicos:", error);
         return res.status(500).json({ error: error.message });
       }
@@ -15552,6 +15569,10 @@ export function createApiApp() {
 
       const { data, error } = await query;
       if (error) {
+        if (isMissingRelationError(error.message)) {
+          // Homologação com schema reduzido: Radar/avaliações seguem sem ocorrências.
+          return res.json([]);
+        }
         console.error("[API] GET quality-incidents:", error);
         return res.status(500).json({ error: error.message });
       }

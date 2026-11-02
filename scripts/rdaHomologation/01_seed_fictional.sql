@@ -20,7 +20,7 @@ INSERT INTO public.workshop_system_users (
     'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:289c77170cc53c343fc936833158f56c2494d2342e4f146349800e43e371591d363593dfecc80c9cff580fae40fcbc73bb7da62598b25a3610abe58000c438ed',
     'Homolog Tech Um',
     true,
-    '{}'::jsonb
+    '{"access_home": true, "access_patio": true}'::jsonb
   ),
   (
     '22222222-2222-4222-8222-222222222202',
@@ -29,7 +29,7 @@ INSERT INTO public.workshop_system_users (
     'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:289c77170cc53c343fc936833158f56c2494d2342e4f146349800e43e371591d363593dfecc80c9cff580fae40fcbc73bb7da62598b25a3610abe58000c438ed',
     'Homolog Tech Dois',
     true,
-    '{}'::jsonb
+    '{"access_home": true, "access_patio": true}'::jsonb
   ),
   (
     '22222222-2222-4222-8222-222222222203',
@@ -38,7 +38,7 @@ INSERT INTO public.workshop_system_users (
     'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:289c77170cc53c343fc936833158f56c2494d2342e4f146349800e43e371591d363593dfecc80c9cff580fae40fcbc73bb7da62598b25a3610abe58000c438ed',
     'Homolog Gerente Radar',
     false,
-    '{"access_radar_qualidade": true}'::jsonb
+    '{"access_home": true, "access_radar_qualidade": true}'::jsonb
   ),
   (
     '22222222-2222-4222-8222-222222222204',
@@ -47,7 +47,7 @@ INSERT INTO public.workshop_system_users (
     'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa:289c77170cc53c343fc936833158f56c2494d2342e4f146349800e43e371591d363593dfecc80c9cff580fae40fcbc73bb7da62598b25a3610abe58000c438ed',
     'Homolog Usuario Patio',
     false,
-    '{"access_patio": true}'::jsonb
+    '{"access_home": true, "access_patio": true}'::jsonb
   )
 ON CONFLICT (id) DO UPDATE SET
   password_hash = EXCLUDED.password_hash,

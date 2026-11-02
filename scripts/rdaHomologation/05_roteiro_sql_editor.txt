@@ -9,25 +9,34 @@ Ordem (colar/rodar um arquivo por vez; conferir “Success”):
    → Cria workshops, customers, service_orders, workshop_system_users,
      budgets, workshop_os_counters, get_next_os_number.
 
-2. supabase/migrations/20261101220000_rda_work_sessions.sql
+2. scripts/rdaHomologation/00b_bootstrap_ui_support.sql
+   → settings, dispositivos, workshop_technicians, ocorrências do Radar
+     (necessário para Pátio/Radar no navegador).
 
-3. supabase/migrations/20261101230000_rda_work_sessions_integrity.sql
+3. supabase/migrations/20261101220000_rda_work_sessions.sql
 
-4. supabase/migrations/20261101240000_rda_work_rpc_privileges.sql
+4. supabase/migrations/20261101230000_rda_work_sessions_integrity.sql
 
-5. supabase/migrations/20261101250000_rda_managerial_evaluations.sql
+5. supabase/migrations/20261101240000_rda_work_rpc_privileges.sql
 
-6. supabase/migrations/20261101260000_rda_rpc_idempotent_owner_guard.sql
+6. supabase/migrations/20261101250000_rda_managerial_evaluations.sql
 
-7. scripts/rdaHomologation/01_seed_fictional.sql
+7. supabase/migrations/20261101260000_rda_rpc_idempotent_owner_guard.sql
+
+8. scripts/rdaHomologation/01_seed_fictional.sql
    → Oficina, T1/T2/G/P, cliente, OS-A/OS-B, budget fictício.
-   → Senha dos usuários: homolog123
+   → Senha inicial local: homolog123 (NÃO usar em URL de preview).
 
-8. scripts/rdaHomologation/02_verify.sql
+9. scripts/rdaHomologation/01b_ui_access_and_preview_passwords.sql
+   → Permissões de abas; troque as senhas antes do preview.
+
+10. scripts/rdaHomologation/02_verify.sql
    → Uma grade só: cada check_id com ok = true, inclusive ALL_OK.
    → Se alguma linha vier ok = false, anote o check_id (ex.: rpcs, seed_os)
      — isso indica etapa anterior incompleta (migration ou seed), não
      precisa recriar o projeto; rode de novo o passo que faltou.
+
+Preview no browser: ver 06_preview_browser.txt (Vercel isolada, sem deploy automático).
 
 Backend local:
 - Preencher .env.homologation (URL + service_role do projeto de TESTE)

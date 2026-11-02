@@ -32,13 +32,17 @@ console.log("1) Arquivos do pacote");
 for (const f of [
   "00_GUIA.txt",
   "00_bootstrap_core_schema.sql",
+  "00b_bootstrap_ui_support.sql",
   "GAPS_SCHEMA.txt",
   "env.homologation.example",
+  "env.preview.vercel.example",
   "01_seed_fictional.sql",
+  "01b_ui_access_and_preview_passwords.sql",
   "02_verify.sql",
   "03_roteiro_api.txt",
   "04_criterios_liberacao.txt",
   "05_roteiro_sql_editor.txt",
+  "06_preview_browser.txt",
   "runRoteiroApi.ts",
 ]) {
   assert(existsSync(join(root, f)), f);
@@ -91,6 +95,25 @@ console.log("\n6) Gaps documentados");
   assert(g.includes("workshops"), "gap workshops");
   assert(g.includes("service_orders"), "gap service_orders");
   assert(g.includes("AUSENTES"), "seção ausentes");
+}
+
+console.log("\n7) Preview browser + permissões UI");
+{
+  const bootUi = readFileSync(join(root, "00b_bootstrap_ui_support.sql"), "utf8");
+  assert(bootUi.includes("workshop_technicians"), "ui technicians");
+  assert(bootUi.includes("workshop_technician_incidents"), "ui incidents");
+  assert(bootUi.includes("workshop_settings"), "ui settings");
+  const seed = readFileSync(join(root, "01_seed_fictional.sql"), "utf8");
+  assert(seed.includes("access_patio"), "seed patio perm");
+  assert(seed.includes("access_home"), "seed home perm");
+  const prev = readFileSync(join(root, "06_preview_browser.txt"), "utf8");
+  assert(prev.includes("Deployment Protection"), "preview protection");
+  assert(prev.includes("NÃO alterar"), "nao alterar prod env");
+  const guard = readFileSync(
+    join(process.cwd(), "utils/homologationGuard.ts"),
+    "utf8"
+  );
+  assert(guard.includes("hvxzloicztmwxmtnwfii"), "guard blocklist prod");
 }
 
 console.log(`\nResultado: ${passed} ok, ${failed} falhas`);
