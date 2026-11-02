@@ -8,6 +8,7 @@ import {
   canViewWorkPerformanceSummary,
   resolveWorkSessionListScope,
 } from '../services/rdaIntelligence/workSessions/access.js';
+import { shouldRejectCrossTechnicianIdempotentReplay } from '../services/rdaIntelligence/workSessions/rpcOwnership.js';
 import { computeLiveTotals, formatDurationHms } from '../services/rdaIntelligence/workSessions/timing.js';
 
 let passed = 0;
@@ -182,6 +183,34 @@ console.log('\n5) Produtivo ≠ pausado (regressão conceitual)');
   assert(runningThen.liveProductiveMs === 60_000, '1 min produtivo');
   assert(pausedThen.liveProductiveMs === 60_000, 'pausa não aumenta produtivo');
   assert(pausedThen.livePausedMs === 30_000, 'pausa conta só em pausedMs');
+}
+
+console.log('\n6) Ownership no replay idempotente');
+{
+  assert(
+    shouldRejectCrossTechnicianIdempotentReplay({
+      foundByMutation: true,
+      sessionTechnicianUserId: 't1',
+      actorTechnicianUserId: 't2',
+    }) === true,
+    'T2 reutilizando mutation de T1 → rejeitar'
+  );
+  assert(
+    shouldRejectCrossTechnicianIdempotentReplay({
+      foundByMutation: true,
+      sessionTechnicianUserId: 't1',
+      actorTechnicianUserId: 't1',
+    }) === false,
+    'T1 replaying própria mutation → ok'
+  );
+  assert(
+    shouldRejectCrossTechnicianIdempotentReplay({
+      foundByMutation: false,
+      sessionTechnicianUserId: 't1',
+      actorTechnicianUserId: 't2',
+    }) === false,
+    'sem mutation hit → segue fluxo normal'
+  );
 }
 
 console.log(`\nResultado: ${passed} ok, ${failed} falhas`);

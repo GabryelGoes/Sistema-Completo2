@@ -1,0 +1,42 @@
+Roteiro API — tempo + avaliações (homologação)
+==============================================
+Identidades (seed):
+  T1 = homolog_tech1 / homolog123   id 2222…2201
+  T2 = homolog_tech2 / homolog123   id 2222…2202
+  G  = homolog_gerente / homolog123 id 2222…2203 (access_radar_qualidade)
+  P  = homolog_patio / homolog123   id 2222…2204 (só access_patio)
+  WS = 11111111-1111-4111-8111-111111111111
+
+Pré: criar OS-A e OS-B na oficina via UI/API; anotar UUIDs.
+Backend com .env.homologation (nunca produção).
+
+--- Tempo ---
+1. Login T1 → POST /api/rda/work-sessions/start { serviceOrderId: OS-A, clientMutationId: m1 }
+   → 201 running
+2. Repetir com m1 → idempotent; 1 sessão
+3. T2 tenta POST finish na sessão de T1 (ou m1) → 403
+4. T1 pause (motivo break, m2) → paused; produtivo congela
+5. T1 resume m3 → running
+6. Anotar stage/status da OS-A
+7. T1 finish m4 → finished + 1 rda_eval_requests pending
+8. Confirmar stage/status da OS-A INALTERADO
+9. finish de novo com m4 → idempotent; ainda 1 request
+10. SELECT count(*) FROM rda_eval_requests WHERE work_session_id = … → 1
+11. T1 start OS-B com sessão ainda ativa (se não finalizou) → 409; após finish OK
+
+--- Avaliações ---
+12. Login P → GET /api/rda/evaluations/requests → 403
+13. Login T1 → GET evaluations/requests → 403
+14. Login G → GET summary → pending ≥ 1
+15. G POST evaluate scores 1–5 → evaluated; OS ainda inalterada
+16. Nova sessão T1 finish → nova request; G POST defer → deferred
+17. Outra request → G dismiss → dismissed (sem nota; averageScores ignora)
+18. evaluate com score 0 ou 6 → 400
+19. evaluate com evaluatorUserId no body → 400
+20. F5 / outro dispositivo: lista e totais persistem
+
+--- RPC segurança ---
+21. Com service_role no SQL Editor de TESTE apenas:
+    SELECT rda_work_session_finish(ws, session_t1, tech2_id, mut_t1);
+    → ok=false code RDA_MUTATION_OWNER_MISMATCH (após migration 260000)
+22. anon/authenticated sem EXECUTE nas RPCs (02_verify.sql)

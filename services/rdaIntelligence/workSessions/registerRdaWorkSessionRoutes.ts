@@ -185,6 +185,26 @@ export function registerRdaWorkSessionRoutes(app: Express, deps: RouteDeps): voi
     return row as unknown as SessionRow;
   }
 
+  /** Guarda pós-RPC: sessão retornada deve pertencer ao técnico autenticado. */
+  function assertRpcSessionOwner(
+    session: SessionRow | null,
+    technicianUserId: string
+  ): session is SessionRow {
+    return !!session && session.technician_user_id === technicianUserId;
+  }
+
+  function rpcDeniedPayload(data: Record<string, unknown>, fallback: string) {
+    const status =
+      typeof data.httpStatus === "number" ? data.httpStatus : 400;
+    return {
+      status,
+      body: {
+        error: typeof data.error === "string" ? data.error : fallback,
+        code: typeof data.code === "string" ? data.code : undefined,
+      },
+    };
+  }
+
   async function callSessionRpc(
     fn:
       | "rda_work_session_start"
@@ -763,20 +783,27 @@ export function registerRdaWorkSessionRoutes(app: Express, deps: RouteDeps): voi
       if (!rpc.data) {
         return res.status(500).json({ error: rpc.error || "Falha ao iniciar sessão." });
       }
-      if (rpc.data.ok === false && rpc.data.code === "RDA_ACTIVE_SESSION_EXISTS") {
-        const activeRow = sessionFromRpcJson(rpc.data.activeSession);
-        return res.status(409).json({
-          error:
-            typeof rpc.data.error === "string"
-              ? rpc.data.error
-              : "Já existe uma sessão ativa em outra OS.",
-          code: "RDA_ACTIVE_SESSION_EXISTS",
-          activeSession: activeRow ? mapSession(activeRow) : undefined,
-        });
+      if (rpc.data.ok === false) {
+        if (rpc.data.code === "RDA_ACTIVE_SESSION_EXISTS") {
+          const activeRow = sessionFromRpcJson(rpc.data.activeSession);
+          return res.status(409).json({
+            error:
+              typeof rpc.data.error === "string"
+                ? rpc.data.error
+                : "Já existe uma sessão ativa em outra OS.",
+            code: "RDA_ACTIVE_SESSION_EXISTS",
+            activeSession: activeRow ? mapSession(activeRow) : undefined,
+          });
+        }
+        const denied = rpcDeniedPayload(rpc.data, "Falha ao iniciar sessão.");
+        return res.status(denied.status).json(denied.body);
       }
       const session = sessionFromRpcJson(rpc.data.session);
-      if (!session) {
-        return res.status(500).json({ error: rpc.error || "Falha ao iniciar sessão." });
+      if (!assertRpcSessionOwner(session, tech.userId)) {
+        return res.status(403).json({
+          error: "Sessão retornada não pertence ao técnico autenticado.",
+          code: "RDA_MUTATION_OWNER_MISMATCH",
+        });
       }
       if (rpc.data.idempotent === true || rpc.data.alreadyActive === true) {
         return res.json({
@@ -848,16 +875,15 @@ export function registerRdaWorkSessionRoutes(app: Express, deps: RouteDeps): voi
         return res.status(500).json({ error: rpc.error || "Falha ao pausar." });
       }
       if (rpc.data.ok !== true) {
-        const status =
-          typeof rpc.data.httpStatus === "number" ? rpc.data.httpStatus : 400;
-        return res.status(status).json({
-          error:
-            typeof rpc.data.error === "string" ? rpc.data.error : "Falha ao pausar.",
-        });
+        const denied = rpcDeniedPayload(rpc.data, "Falha ao pausar.");
+        return res.status(denied.status).json(denied.body);
       }
       const session = sessionFromRpcJson(rpc.data.session);
-      if (!session) {
-        return res.status(500).json({ error: "Resposta inválida ao pausar." });
+      if (!assertRpcSessionOwner(session, tech.userId)) {
+        return res.status(403).json({
+          error: "Sessão retornada não pertence ao técnico autenticado.",
+          code: "RDA_MUTATION_OWNER_MISMATCH",
+        });
       }
       return res.json({
         session: mapSession(session),
@@ -916,16 +942,15 @@ export function registerRdaWorkSessionRoutes(app: Express, deps: RouteDeps): voi
         return res.status(500).json({ error: rpc.error || "Falha ao retomar." });
       }
       if (rpc.data.ok !== true) {
-        const status =
-          typeof rpc.data.httpStatus === "number" ? rpc.data.httpStatus : 400;
-        return res.status(status).json({
-          error:
-            typeof rpc.data.error === "string" ? rpc.data.error : "Falha ao retomar.",
-        });
+        const denied = rpcDeniedPayload(rpc.data, "Falha ao retomar.");
+        return res.status(denied.status).json(denied.body);
       }
       const session = sessionFromRpcJson(rpc.data.session);
-      if (!session) {
-        return res.status(500).json({ error: "Resposta inválida ao retomar." });
+      if (!assertRpcSessionOwner(session, tech.userId)) {
+        return res.status(403).json({
+          error: "Sessão retornada não pertence ao técnico autenticado.",
+          code: "RDA_MUTATION_OWNER_MISMATCH",
+        });
       }
       return res.json({
         session: mapSession(session),
@@ -984,18 +1009,15 @@ export function registerRdaWorkSessionRoutes(app: Express, deps: RouteDeps): voi
         return res.status(500).json({ error: rpc.error || "Falha ao finalizar." });
       }
       if (rpc.data.ok !== true) {
-        const status =
-          typeof rpc.data.httpStatus === "number" ? rpc.data.httpStatus : 400;
-        return res.status(status).json({
-          error:
-            typeof rpc.data.error === "string"
-              ? rpc.data.error
-              : "Falha ao finalizar.",
-        });
+        const denied = rpcDeniedPayload(rpc.data, "Falha ao finalizar.");
+        return res.status(denied.status).json(denied.body);
       }
       const session = sessionFromRpcJson(rpc.data.session);
-      if (!session) {
-        return res.status(500).json({ error: "Resposta inválida ao finalizar." });
+      if (!assertRpcSessionOwner(session, tech.userId)) {
+        return res.status(403).json({
+          error: "Sessão retornada não pertence ao técnico autenticado.",
+          code: "RDA_MUTATION_OWNER_MISMATCH",
+        });
       }
       // Repair/garantia da solicitação de avaliação (idempotente; RPC finish já tenta criar).
       await ensureEvalRequestForFinishedSession({

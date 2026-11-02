@@ -1,0 +1,70 @@
+RDA Intelligence — Guia de homologação segura (sem produção)
+============================================================
+Branch: cursor/rda-intelligence-485b
+Última preparação: commit tip do PR #119
+
+STATUS DESTE AMBIENTE (agente)
+- Não há `.env` nem projeto Supabase de homologação identificado nesta VM.
+- Nenhuma migration foi aplicada em produção.
+- Não conectar ao projeto de produção. Não copiar service_role/anon/senhas reais.
+
+────────────────────────────────────────────────────────────
+1) Pré-requisitos
+────────────────────────────────────────────────────────────
+A. Conta Supabase (plano free OK) — criar projeto NOVO só para teste.
+B. Node 24.x e o código deste branch.
+C. Arquivo `.env.homologation` local (não versionado) baseado em
+   `scripts/rdaHomologation/env.homologation.example`.
+D. Autorização humana antes de criar recursos pagos (preview Vercel pago, etc.).
+
+Dependências de schema já existentes no app (precisam existir no projeto de teste):
+- workshops
+- workshop_system_users (com permissions JSONB, is_technician)
+- service_orders (workshop_id, status/stage usados pelo pátio)
+- budgets (opcional para vínculo; workshop_id + service_order_id)
+- Demais migrations históricas do app se for bootstrap completo;
+  OU seed mínimo em `01_seed_fictional.sql` (oficina + usuários + 1 OS fictícios).
+
+────────────────────────────────────────────────────────────
+2) Sequência de migrations RDA (ordem obrigatória)
+────────────────────────────────────────────────────────────
+1. 20261101220000_rda_work_sessions.sql
+2. 20261101230000_rda_work_sessions_integrity.sql
+3. 20261101240000_rda_work_rpc_privileges.sql
+4. 20261101250000_rda_managerial_evaluations.sql
+5. 20261101260000_rda_rpc_idempotent_owner_guard.sql
+
+Como aplicar (homologação):
+- SQL Editor do projeto de TESTE: colar/rodar cada arquivo na ordem; OU
+- `supabase db push` / `supabase migration up` apontando só para o projeto de teste.
+
+NUNCA no projeto cujo URL/ref é o de produção do app.
+
+────────────────────────────────────────────────────────────
+3) Configurar backend/frontend isolados
+────────────────────────────────────────────────────────────
+1. Copiar `scripts/rdaHomologation/env.homologation.example` → `.env.homologation`
+2. Preencher apenas chaves do projeto de TESTE (URL + service_role + anon).
+3. Gerar UUIDs fictícios no seed; usar o WORKSHOP_ID do seed.
+4. `ADMIN_PASSWORD` e `SESSION_SECRET` novos (não reutilizar produção).
+5. Manter `RDA_INTELLIGENCE_ENABLED=false` e sem OPENAI_API_KEY.
+6. Subir API local: `cp .env.homologation .env` (só na máquina de teste) e `npm run dev`
+   — ou exportar as variáveis só no shell de teste.
+7. Front: mesmo host em dev (`/api` relativo). Não apontar VITE_API_BASE para produção.
+
+────────────────────────────────────────────────────────────
+4) Seed e verificação
+────────────────────────────────────────────────────────────
+Após migrations:
+1. Rodar `01_seed_fictional.sql` (dados fictícios: Homolog Tech 1/2, Gerente, Pátio).
+2. Rodar `02_verify.sql` e conferir que as queries de sanidade passam.
+3. Seguir `03_roteiro_api.txt` (técnicos + gerente + ACL).
+4. Conferir `04_criterios_liberacao.txt` antes de qualquer promoção.
+
+────────────────────────────────────────────────────────────
+5) O que NÃO fazer
+────────────────────────────────────────────────────────────
+- Dump/restore de produção → teste (traz PII e credenciais).
+- Reutilizar SUPABASE_* de produção no `.env` de teste.
+- Aplicar migrations RDA em produção sem autorização + roteiro verde.
+- Ativar IA / merge / deploy produção nesta etapa.
