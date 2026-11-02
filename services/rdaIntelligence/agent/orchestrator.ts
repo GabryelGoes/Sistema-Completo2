@@ -138,10 +138,12 @@ function toolsForAuth(auth: RdaAuthContext, settingValue: string | null): RdaOpe
     if (authProbe.allowed === false && authProbe.reason === "feature_disabled") continue;
     if (authProbe.allowed === false && authProbe.reason === "tool_not_found") continue;
     void permOk;
+    // OpenAI exige function.name ~= ^[a-zA-Z0-9_-]+$ (sem pontos).
+    const openAiName = tool.id.replace(/[^a-zA-Z0-9_-]/g, "_");
     specs.push({
       type: "function",
       function: {
-        name: tool.id,
+        name: openAiName,
         description: tool.description,
         parameters: tool.parameters as unknown as Record<string, unknown>,
       },

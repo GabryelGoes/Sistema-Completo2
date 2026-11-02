@@ -62,7 +62,7 @@ export async function generateTechnicalOsInsight(input: {
   );
 
   const so = await executeRdaTool(
-    "rda.get_service_order",
+    "rda_get_service_order",
     { serviceOrderId: input.serviceOrderId },
     { workshopId: input.workshopId, supabase: input.supabase }
   );
@@ -99,24 +99,24 @@ export async function generateTechnicalOsInsight(input: {
 
   const [history, similar, stock, bulletins] = await Promise.all([
     executeRdaTool(
-      "rda.vehicle_maintenance_history",
+      "rda_vehicle_maintenance_history",
       { plate, limit: 10 },
       { workshopId: input.workshopId, supabase: input.supabase }
     ),
     complaint
       ? executeRdaTool(
-          "rda.search_similar_complaints",
+          "rda_search_similar_complaints",
           { query: complaint, vehicleModel: model, limit: 8 },
           { workshopId: input.workshopId, supabase: input.supabase }
         )
       : Promise.resolve({ ok: true as const, data: { items: [] } }),
     executeRdaTool(
-      "rda.search_stock_parts",
+      "rda_search_stock_parts",
       { query: model.split(/\s+/)[0] || "ABS", onlyInStock: true, limit: 8 },
       { workshopId: input.workshopId, supabase: input.supabase }
     ),
     executeRdaTool(
-      "rda.search_error_bulletins",
+      "rda_search_error_bulletins",
       { query: complaint || model, limit: 5 },
       { workshopId: input.workshopId, supabase: input.supabase }
     ),

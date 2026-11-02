@@ -6,7 +6,7 @@ import type { RdaToolDefinition } from "../types.js";
  */
 export const RDA_PRODUCTION_TOOLS: RdaToolDefinition[] = [
   {
-    id: "rda.list_stalled_vehicles",
+    id: "rda_list_stalled_vehicles",
     description:
       "Lista veículos/OS do pátio parados há mais tempo (por status e idade em horas).",
     parameters: {
@@ -23,7 +23,7 @@ export const RDA_PRODUCTION_TOOLS: RdaToolDefinition[] = [
     requiresHumanConfirmation: false,
   },
   {
-    id: "rda.technician_active_work",
+    id: "rda_technician_active_work",
     description:
       "Lista sessões de cronômetro ativas e OS atribuídas a um mecânico (nome ou userId).",
     parameters: {
@@ -40,7 +40,7 @@ export const RDA_PRODUCTION_TOOLS: RdaToolDefinition[] = [
     requiresHumanConfirmation: false,
   },
   {
-    id: "rda.vehicle_maintenance_history",
+    id: "rda_vehicle_maintenance_history",
     description:
       "Histórico de OS/manutenção do veículo por placa (ou serviceOrderId).",
     parameters: {
@@ -58,7 +58,7 @@ export const RDA_PRODUCTION_TOOLS: RdaToolDefinition[] = [
     requiresHumanConfirmation: false,
   },
   {
-    id: "rda.search_similar_complaints",
+    id: "rda_search_similar_complaints",
     description:
       "Busca OS anteriores com queixa/diagnóstico semelhante (texto).",
     parameters: {
@@ -77,7 +77,7 @@ export const RDA_PRODUCTION_TOOLS: RdaToolDefinition[] = [
     requiresHumanConfirmation: false,
   },
   {
-    id: "rda.search_error_bulletins",
+    id: "rda_search_error_bulletins",
     description: "Consulta boletins técnicos / boletim de erros por texto ou DTC.",
     parameters: {
       type: "object",
@@ -94,7 +94,7 @@ export const RDA_PRODUCTION_TOOLS: RdaToolDefinition[] = [
     requiresHumanConfirmation: false,
   },
   {
-    id: "rda.search_stock_parts",
+    id: "rda_search_stock_parts",
     description:
       "Busca peças no estoque da oficina por texto (não afirma compatibilidade ABS sem evidência).",
     parameters: {
@@ -112,7 +112,7 @@ export const RDA_PRODUCTION_TOOLS: RdaToolDefinition[] = [
     requiresHumanConfirmation: false,
   },
   {
-    id: "rda.work_performance_summary",
+    id: "rda_work_performance_summary",
     description:
       "Resumo de produtividade dos mecânicos (tempo produtivo/pausas) no período.",
     parameters: {
@@ -129,7 +129,7 @@ export const RDA_PRODUCTION_TOOLS: RdaToolDefinition[] = [
     requiresHumanConfirmation: false,
   },
   {
-    id: "rda.pending_evaluations",
+    id: "rda_pending_evaluations",
     description: "Lista solicitações de avaliação gerencial pendentes/adiadas.",
     parameters: {
       type: "object",
@@ -145,7 +145,7 @@ export const RDA_PRODUCTION_TOOLS: RdaToolDefinition[] = [
     requiresHumanConfirmation: false,
   },
   {
-    id: "rda.patio_stage_snapshot",
+    id: "rda_patio_stage_snapshot",
     description:
       "Snapshot das etapas do pátio: contagem por status, aguardando aprovação/peças.",
     parameters: {
@@ -159,7 +159,7 @@ export const RDA_PRODUCTION_TOOLS: RdaToolDefinition[] = [
     requiresHumanConfirmation: false,
   },
   {
-    id: "rda.get_service_order",
+    id: "rda_get_service_order",
     description: "Detalhes de uma OS por id ou placa.",
     parameters: {
       type: "object",
@@ -175,7 +175,7 @@ export const RDA_PRODUCTION_TOOLS: RdaToolDefinition[] = [
     requiresHumanConfirmation: false,
   },
   {
-    id: "rda.propose_open_service_order",
+    id: "rda_propose_open_service_order",
     description:
       "Propõe abrir/navegar para uma OS na interface (não altera dados; exige confirmação humana).",
     parameters: {
