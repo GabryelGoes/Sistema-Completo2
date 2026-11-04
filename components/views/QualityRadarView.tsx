@@ -258,6 +258,8 @@ export const QualityRadarView: React.FC<{ authSession?: AuthSession | null }> = 
         incidents={incidents}
         loading={loading}
         onOpenIncidentsFor={openIncidentsForEmployee}
+        periodFrom={from}
+        periodTo={to}
       />
     );
   } else if (section === 'avaliacoes') {

@@ -73,6 +73,12 @@ import { registerRdaWorkSessionRoutes } from "./services/rdaIntelligence/workSes
 import { generateTechnicalOsInsight } from "./services/rdaIntelligence/insights/technicalOs.js";
 import { RDA_INTELLIGENCE_SETTING_KEY } from "./services/rdaIntelligence/types.js";
 import { assertHomologationSafeOrThrow } from "./utils/homologationGuard.js";
+import {
+  insertIncidentRevision,
+  registerQualityRadarPhase1Routes,
+} from "./services/qualityRadar/registerQualityRadarPhase1Routes.js";
+import { isFaultAttribution } from "./services/qualityRadar/identity.js";
+import { canAccessQualityRadar } from "./services/qualityRadar/access.js";
 
 const PBKDF2_ITERATIONS = 100000;
 const SALT_LEN = 16;
@@ -1487,7 +1493,7 @@ export function createApiApp() {
   async function requestCanAccessQualityRadar(req: express.Request): Promise<boolean> {
     const auth = (req as unknown as { auth?: SessionPayload }).auth;
     if (!auth) return false;
-    if (auth.r === "admin") return true;
+    if (auth.r === "admin") return canAccessQualityRadar({ role: "admin" });
     if (auth.r !== "user" || !auth.u || !supabaseAdmin || !WORKSHOP_ID) return false;
     const { data: me } = await supabaseAdmin
       .from("workshop_system_users")
@@ -1496,7 +1502,11 @@ export function createApiApp() {
       .eq("workshop_id", WORKSHOP_ID)
       .maybeSingle();
     const perms = (me?.permissions as Record<string, boolean> | null) || {};
-    return !!perms.full_access || !!perms.access_radar_qualidade;
+    return canAccessQualityRadar({
+      role: "user",
+      userId: auth.u,
+      permissions: perms,
+    });
   }
 
   async function createDeviceSessionRow(params: {
@@ -15459,6 +15469,8 @@ export function createApiApp() {
     "seguranca",
     "peca_material",
     "cliente",
+    "organizacao",
+    "procedimentos",
     "outro",
   ] as const;
   const QUALITY_SEVERITIES = ["baixa", "media", "alta", "critica"] as const;
@@ -15468,11 +15480,15 @@ export function createApiApp() {
     id: row.id,
     workshopId: row.workshop_id,
     technicianId: row.technician_id ?? null,
+    systemUserId: row.system_user_id ?? null,
     technicianName: row.technician_name ?? "",
     title: row.title ?? "",
     category: row.category ?? "outro",
     severity: row.severity ?? "media",
     status: row.status ?? "aberta",
+    faultAttribution: isFaultAttribution(row.fault_attribution)
+      ? row.fault_attribution
+      : "investigacao",
     occurredAt: row.occurred_at,
     description: row.description ?? "",
     impact: row.impact ?? "",
@@ -15480,6 +15496,7 @@ export function createApiApp() {
     correctiveAction: row.corrective_action ?? "",
     preventiveAction: row.preventive_action ?? "",
     lessonLearned: row.lesson_learned ?? "",
+    outcomeResult: row.outcome_result ?? "",
     plate: row.plate ?? "",
     vehicleSummary: row.vehicle_summary ?? "",
     serviceOrderId: row.service_order_id ?? null,
@@ -15489,6 +15506,7 @@ export function createApiApp() {
     resolvedAt: row.resolved_at ?? null,
     resolvedByName: row.resolved_by_name ?? "",
     tags: Array.isArray(row.tags) ? row.tags : [],
+    deletedAt: row.deleted_at ?? null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   });
@@ -15579,18 +15597,38 @@ export function createApiApp() {
       const to = typeof req.query.to === "string" ? req.query.to.trim() : "";
       const q = typeof req.query.q === "string" ? req.query.q.trim().toLowerCase() : "";
 
+      const includeDeleted =
+        typeof req.query.includeDeleted === "string" &&
+        ["1", "true"].includes(req.query.includeDeleted.trim().toLowerCase());
+
       let query = supabaseAdmin
         .from("workshop_technician_incidents")
         .select("*")
         .eq("workshop_id", WORKSHOP_ID)
         .order("occurred_at", { ascending: false });
 
+      if (!includeDeleted) {
+        // Coluna deleted_at existe após migration Fase 1; se falhar, lista completa legado.
+        query = query.is("deleted_at", null);
+      }
+
       if (status && status !== "all") query = query.eq("status", status);
-      if (technicianId) query = query.eq("technician_id", technicianId);
-      if (technicianSystemUserId) {
+      if (technicianId && technicianSystemUserId) {
+        // Pessoa vinculada: une por qualquer dos dois IDs estáveis (sem depender só do nome).
+        query = query.or(
+          `technician_id.eq.${technicianId},system_user_id.eq.${technicianSystemUserId}`
+        );
+      } else if (technicianId) {
+        query = query.eq("technician_id", technicianId);
+      } else if (technicianSystemUserId) {
         const sysName = await resolveSystemUserDisplayName(technicianSystemUserId);
-        if (sysName) query = query.eq("technician_name", sysName);
-        else query = query.eq("technician_id", "00000000-0000-0000-0000-000000000000");
+        if (sysName) {
+          query = query.or(
+            `system_user_id.eq.${technicianSystemUserId},technician_name.eq.${sysName}`
+          );
+        } else {
+          query = query.eq("system_user_id", technicianSystemUserId);
+        }
       }
       if (category) query = query.eq("category", category);
       if (severity) query = query.eq("severity", severity);
@@ -15683,52 +15721,92 @@ export function createApiApp() {
       const b = req.body ?? {};
       const now = new Date().toISOString();
       const technicianId = b.technicianId ?? null;
+      const systemUserId =
+        typeof b.systemUserId === "string" && b.systemUserId.trim()
+          ? b.systemUserId.trim()
+          : null;
       let technicianName = (b.technicianName ?? "").toString().trim();
       if (technicianId && !technicianName) {
         technicianName = await resolveTechnicianName(technicianId);
+      }
+      if (!technicianName && systemUserId) {
+        technicianName = await resolveSystemUserDisplayName(systemUserId);
       }
       const status = QUALITY_STATUSES.includes(b.status) ? b.status : "aberta";
       const resolvedAt =
         status === "resolvida"
           ? b.resolvedAt ?? now
           : b.resolvedAt ?? null;
+      const faultAttribution = isFaultAttribution(b.faultAttribution)
+        ? b.faultAttribution
+        : "investigacao";
 
-      const { data, error } = await supabaseAdmin
+      const insertPayload: Record<string, unknown> = {
+        workshop_id: WORKSHOP_ID,
+        technician_id: technicianId,
+        technician_name: technicianName,
+        title: (b.title ?? "").toString().trim(),
+        category: QUALITY_CATEGORIES.includes(b.category) ? b.category : "outro",
+        severity: QUALITY_SEVERITIES.includes(b.severity) ? b.severity : "media",
+        status,
+        occurred_at: b.occurredAt ?? now,
+        description: (b.description ?? "").toString(),
+        impact: (b.impact ?? "").toString(),
+        root_cause: (b.rootCause ?? "").toString(),
+        corrective_action: (b.correctiveAction ?? "").toString(),
+        preventive_action: (b.preventiveAction ?? "").toString(),
+        lesson_learned: (b.lessonLearned ?? "").toString(),
+        plate: b.plate ? String(b.plate).toUpperCase() : null,
+        vehicle_summary: b.vehicleSummary ?? null,
+        service_order_id: b.serviceOrderId ?? null,
+        service_order_label: b.serviceOrderLabel ?? null,
+        registered_by_user_id: b.registeredByUserId ?? null,
+        registered_by_name: (b.registeredByName ?? "").toString(),
+        resolved_at: resolvedAt,
+        resolved_by_name: b.resolvedByName ?? null,
+        tags: Array.isArray(b.tags) ? b.tags.map((t: unknown) => String(t).trim()).filter(Boolean) : [],
+        updated_at: now,
+        system_user_id: systemUserId,
+        fault_attribution: faultAttribution,
+        outcome_result: (b.outcomeResult ?? "").toString(),
+      };
+
+      let { data, error } = await supabaseAdmin
         .from("workshop_technician_incidents")
-        .insert({
-          workshop_id: WORKSHOP_ID,
-          technician_id: technicianId,
-          technician_name: technicianName,
-          title: (b.title ?? "").toString().trim(),
-          category: QUALITY_CATEGORIES.includes(b.category) ? b.category : "outro",
-          severity: QUALITY_SEVERITIES.includes(b.severity) ? b.severity : "media",
-          status,
-          occurred_at: b.occurredAt ?? now,
-          description: (b.description ?? "").toString(),
-          impact: (b.impact ?? "").toString(),
-          root_cause: (b.rootCause ?? "").toString(),
-          corrective_action: (b.correctiveAction ?? "").toString(),
-          preventive_action: (b.preventiveAction ?? "").toString(),
-          lesson_learned: (b.lessonLearned ?? "").toString(),
-          plate: b.plate ? String(b.plate).toUpperCase() : null,
-          vehicle_summary: b.vehicleSummary ?? null,
-          service_order_id: b.serviceOrderId ?? null,
-          service_order_label: b.serviceOrderLabel ?? null,
-          registered_by_user_id: b.registeredByUserId ?? null,
-          registered_by_name: (b.registeredByName ?? "").toString(),
-          resolved_at: resolvedAt,
-          resolved_by_name: b.resolvedByName ?? null,
-          tags: Array.isArray(b.tags) ? b.tags.map((t: unknown) => String(t).trim()).filter(Boolean) : [],
-          updated_at: now,
-        })
+        .insert(insertPayload)
         .select("*")
         .single();
+
+      // Migration ainda sem colunas novas: tenta sem campos Fase 1
+      if (
+        error &&
+        /fault_attribution|system_user_id|outcome_result|column/i.test(error.message)
+      ) {
+        delete insertPayload.system_user_id;
+        delete insertPayload.fault_attribution;
+        delete insertPayload.outcome_result;
+        ({ data, error } = await supabaseAdmin
+          .from("workshop_technician_incidents")
+          .insert(insertPayload)
+          .select("*")
+          .single());
+      }
 
       if (error) {
         console.error("[API] POST quality-incidents:", error);
         return res.status(500).json({ error: error.message });
       }
-      return res.status(201).json(mapQualityIncidentRow(data as Record<string, unknown>));
+      const mapped = mapQualityIncidentRow(data as Record<string, unknown>);
+      const auth = (req as unknown as { auth?: SessionPayload }).auth;
+      await insertIncidentRevision(supabaseAdmin, WORKSHOP_ID, {
+        incidentId: String(mapped.id),
+        actorUserId: auth?.u ?? (typeof b.registeredByUserId === "string" ? b.registeredByUserId : null),
+        actorName: (b.registeredByName ?? auth?.n ?? "").toString(),
+        action: "create",
+        previousSnapshot: null,
+        nextSnapshot: mapped,
+      });
+      return res.status(201).json(mapped);
     } catch (err: any) {
       console.error("[API] POST quality-incidents:", err);
       return res.status(500).json({ error: err?.message ?? "Erro" });
@@ -15749,12 +15827,25 @@ export function createApiApp() {
 
       const b = req.body ?? {};
       const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
+      const { data: beforeRow } = await supabaseAdmin
+        .from("workshop_technician_incidents")
+        .select("*")
+        .eq("id", id)
+        .eq("workshop_id", WORKSHOP_ID)
+        .maybeSingle();
+
       if (b.technicianId !== undefined) {
         updates.technician_id = b.technicianId;
         if (b.technicianId) {
           const name = await resolveTechnicianName(b.technicianId);
           if (name) updates.technician_name = name;
         }
+      }
+      if (b.systemUserId !== undefined) {
+        updates.system_user_id =
+          typeof b.systemUserId === "string" && b.systemUserId.trim()
+            ? b.systemUserId.trim()
+            : null;
       }
       if (b.technicianName !== undefined) updates.technician_name = String(b.technicianName).trim();
       if (b.title !== undefined) updates.title = String(b.title).trim();
@@ -15770,6 +15861,9 @@ export function createApiApp() {
           updates.resolved_at = new Date().toISOString();
         }
       }
+      if (b.faultAttribution !== undefined && isFaultAttribution(b.faultAttribution)) {
+        updates.fault_attribution = b.faultAttribution;
+      }
       if (b.occurredAt !== undefined) updates.occurred_at = b.occurredAt;
       if (b.description !== undefined) updates.description = String(b.description);
       if (b.impact !== undefined) updates.impact = String(b.impact);
@@ -15777,6 +15871,7 @@ export function createApiApp() {
       if (b.correctiveAction !== undefined) updates.corrective_action = String(b.correctiveAction);
       if (b.preventiveAction !== undefined) updates.preventive_action = String(b.preventiveAction);
       if (b.lessonLearned !== undefined) updates.lesson_learned = String(b.lessonLearned);
+      if (b.outcomeResult !== undefined) updates.outcome_result = String(b.outcomeResult);
       if (b.plate !== undefined) updates.plate = b.plate ? String(b.plate).toUpperCase() : null;
       if (b.vehicleSummary !== undefined) updates.vehicle_summary = b.vehicleSummary;
       if (b.serviceOrderId !== undefined) updates.service_order_id = b.serviceOrderId;
@@ -15799,7 +15894,19 @@ export function createApiApp() {
         console.error("[API] PATCH quality-incidents:", error);
         return res.status(500).json({ error: error.message });
       }
-      return res.json(mapQualityIncidentRow(data as Record<string, unknown>));
+      const mapped = mapQualityIncidentRow(data as Record<string, unknown>);
+      const auth = (req as unknown as { auth?: SessionPayload }).auth;
+      await insertIncidentRevision(supabaseAdmin, WORKSHOP_ID, {
+        incidentId: id,
+        actorUserId: auth?.u ?? null,
+        actorName: auth?.n ?? "",
+        action: "update",
+        previousSnapshot: beforeRow
+          ? mapQualityIncidentRow(beforeRow as Record<string, unknown>)
+          : null,
+        nextSnapshot: mapped,
+      });
+      return res.json(mapped);
     } catch (err: any) {
       console.error("[API] PATCH quality-incidents:", err);
       return res.status(500).json({ error: err?.message ?? "Erro" });
@@ -15818,15 +15925,57 @@ export function createApiApp() {
       const existing = await assertQualityIncidentInWorkshop(id);
       if (!existing) return res.status(404).json({ error: "Ocorrência não encontrada." });
 
-      const { error } = await supabaseAdmin
+      const { data: beforeRow } = await supabaseAdmin
         .from("workshop_technician_incidents")
-        .delete()
+        .select("*")
         .eq("id", id)
-        .eq("workshop_id", WORKSHOP_ID);
+        .eq("workshop_id", WORKSHOP_ID)
+        .maybeSingle();
+
+      const auth = (req as unknown as { auth?: SessionPayload }).auth;
+      const now = new Date().toISOString();
+      // Soft-delete: preserva histórico e anexos (sem exclusão silenciosa).
+      const softPayload: Record<string, unknown> = {
+        deleted_at: now,
+        deleted_by_user_id: auth?.u ?? null,
+        deleted_by_name: auth?.n ?? "",
+        updated_at: now,
+        status: "arquivada",
+      };
+      let { data, error } = await supabaseAdmin
+        .from("workshop_technician_incidents")
+        .update(softPayload)
+        .eq("id", id)
+        .eq("workshop_id", WORKSHOP_ID)
+        .select("*")
+        .maybeSingle();
+
+      if (error && /deleted_at|column/i.test(error.message)) {
+        // Schema antigo: arquiva sem coluna deleted_at
+        ({ data, error } = await supabaseAdmin
+          .from("workshop_technician_incidents")
+          .update({ status: "arquivada", updated_at: now })
+          .eq("id", id)
+          .eq("workshop_id", WORKSHOP_ID)
+          .select("*")
+          .maybeSingle());
+      }
 
       if (error) {
         console.error("[API] DELETE quality-incidents:", error);
         return res.status(500).json({ error: error.message });
+      }
+      if (data) {
+        await insertIncidentRevision(supabaseAdmin, WORKSHOP_ID, {
+          incidentId: id,
+          actorUserId: auth?.u ?? null,
+          actorName: auth?.n ?? "",
+          action: "soft_delete",
+          previousSnapshot: beforeRow
+            ? mapQualityIncidentRow(beforeRow as Record<string, unknown>)
+            : null,
+          nextSnapshot: mapQualityIncidentRow(data as Record<string, unknown>),
+        });
       }
       return res.status(204).send();
     } catch (err: any) {
@@ -16021,6 +16170,13 @@ export function createApiApp() {
   registerRdaEvaluationRoutes(app, {
     WORKSHOP_ID,
     supabaseAdmin,
+  });
+
+  // ----------------- Radar Fase 1: identidade, reconhecimentos, revisões ---
+  registerQualityRadarPhase1Routes(app, {
+    WORKSHOP_ID,
+    supabaseAdmin,
+    requestCanAccessQualityRadar,
   });
 
   return app;

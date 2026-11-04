@@ -13,6 +13,7 @@ import {
   updateQualityIncident,
   uploadQualityIncidentAttachment,
   type QualityIncidentAttachment,
+  type QualityFaultAttribution,
   type QualityIncidentCategory,
   type QualityIncidentSeverity,
   type QualityIncidentStatus,
@@ -25,6 +26,7 @@ import {
 } from '../utils/qualityRadarTechnicians';
 import {
   QUALITY_CATEGORIES,
+  QUALITY_FAULT_ATTRIBUTIONS,
   QUALITY_SEVERITIES,
   QUALITY_STATUSES,
 } from '../constants/qualityRadar';
@@ -81,10 +83,13 @@ export const QualityIncidentEditorModal: React.FC<Props> = ({
   const [occurredAt, setOccurredAt] = useState('');
   const [description, setDescription] = useState('');
   const [impact, setImpact] = useState('');
+  const [faultAttribution, setFaultAttribution] =
+    useState<QualityFaultAttribution>('investigacao');
   const [rootCause, setRootCause] = useState('');
   const [correctiveAction, setCorrectiveAction] = useState('');
   const [preventiveAction, setPreventiveAction] = useState('');
   const [lessonLearned, setLessonLearned] = useState('');
+  const [outcomeResult, setOutcomeResult] = useState('');
   const [plate, setPlate] = useState('');
   const [vehicleSummary, setVehicleSummary] = useState('');
   const [serviceOrderLabel, setServiceOrderLabel] = useState('');
@@ -123,10 +128,12 @@ export const QualityIncidentEditorModal: React.FC<Props> = ({
     setOccurredAt(toLocalDatetimeValue(new Date().toISOString()));
     setDescription('');
     setImpact('');
+    setFaultAttribution('investigacao');
     setRootCause('');
     setCorrectiveAction('');
     setPreventiveAction('');
     setLessonLearned('');
+    setOutcomeResult('');
     setPlate('');
     setVehicleSummary('');
     setServiceOrderLabel('');
@@ -159,11 +166,19 @@ export const QualityIncidentEditorModal: React.FC<Props> = ({
         if (cancelled) return;
         const opts = technicians.length ? technicians : await getQualityRadarTechnicianOptions();
         if (!cancelled && !technicians.length) setTechnicians(opts);
-        setTechnicianId(qualityRadarTechnicianSelectValue(d.technicianId, d.technicianName, opts));
+        setTechnicianId(
+          qualityRadarTechnicianSelectValue(
+            d.technicianId,
+            d.technicianName,
+            opts,
+            d.systemUserId
+          )
+        );
         setTitle(d.title);
         setCategory(d.category);
         setSeverity(d.severity);
         setStatus(d.status);
+        setFaultAttribution(d.faultAttribution || 'investigacao');
         setOccurredAt(toLocalDatetimeValue(d.occurredAt));
         setDescription(d.description);
         setImpact(d.impact);
@@ -171,6 +186,7 @@ export const QualityIncidentEditorModal: React.FC<Props> = ({
         setCorrectiveAction(d.correctiveAction);
         setPreventiveAction(d.preventiveAction);
         setLessonLearned(d.lessonLearned);
+        setOutcomeResult(d.outcomeResult || '');
         setPlate(d.plate);
         setVehicleSummary(d.vehicleSummary);
         setServiceOrderLabel(d.serviceOrderLabel);
@@ -189,17 +205,20 @@ export const QualityIncidentEditorModal: React.FC<Props> = ({
   }, [open, incidentId]);
 
   const buildPayload = () => {
-    const { technicianId: wtId, technicianName } = resolveQualityRadarTechnicianPayload(
-      technicianId,
-      technicians
-    );
+    const {
+      technicianId: wtId,
+      systemUserId: suId,
+      technicianName,
+    } = resolveQualityRadarTechnicianPayload(technicianId, technicians);
     return {
     technicianId: wtId,
+    systemUserId: suId,
     technicianName,
     title: title.trim() || 'Ocorrência sem título',
     category,
     severity,
     status,
+    faultAttribution,
     occurredAt: occurredAt ? new Date(occurredAt).toISOString() : new Date().toISOString(),
     description: description.trim(),
     impact: impact.trim(),
@@ -207,8 +226,10 @@ export const QualityIncidentEditorModal: React.FC<Props> = ({
     correctiveAction: correctiveAction.trim(),
     preventiveAction: preventiveAction.trim(),
     lessonLearned: lessonLearned.trim(),
+    outcomeResult: outcomeResult.trim(),
     plate: plate.trim(),
     vehicleSummary: vehicleSummary.trim(),
+    serviceOrderId: selectedOrderId,
     serviceOrderLabel: serviceOrderLabel.trim(),
     tags: tagsRaw
       .split(',')
@@ -251,7 +272,12 @@ export const QualityIncidentEditorModal: React.FC<Props> = ({
 
   const handleDelete = async () => {
     if (!incidentId) return;
-    if (!window.confirm('Excluir esta ocorrência permanentemente?')) return;
+    if (
+      !window.confirm(
+        'Arquivar esta ocorrência? O registro e anexos são preservados (exclusão lógica).'
+      )
+    )
+      return;
     setSaving(true);
     try {
       await deleteQualityIncident(incidentId);
@@ -421,6 +447,26 @@ export const QualityIncidentEditorModal: React.FC<Props> = ({
                     </select>
                   </div>
                   <div>
+                    <label className={labelClass}>Atribuição / responsabilidade</label>
+                    <select
+                      className={inputClass}
+                      value={faultAttribution}
+                      onChange={(e) =>
+                        setFaultAttribution(e.target.value as QualityFaultAttribution)
+                      }
+                    >
+                      {QUALITY_FAULT_ATTRIBUTIONS.map((f) => (
+                        <option key={f.id} value={f.id}>
+                          {f.label}
+                        </option>
+                      ))}
+                    </select>
+                    <p className="mt-1 text-[11px] text-zinc-500">
+                      Em investigação não atribui culpa ao mecânico. Use fator externo para peça,
+                      processo ou falta de recursos.
+                    </p>
+                  </div>
+                  <div>
                     <label className={labelClass}>Data da ocorrência</label>
                     <input
                       type="datetime-local"
@@ -435,7 +481,7 @@ export const QualityIncidentEditorModal: React.FC<Props> = ({
                       className={`${inputClass} min-h-[88px]`}
                       value={description}
                       onChange={(e) => setDescription(e.target.value)}
-                      placeholder="Descreva o erro ou desvio com objetividade…"
+                      placeholder="Descreva o contexto com objetividade — sem assumir culpa automaticamente…"
                     />
                   </div>
                   <div className="sm:col-span-2">
@@ -476,6 +522,15 @@ export const QualityIncidentEditorModal: React.FC<Props> = ({
                       className={`${inputClass} min-h-[72px]`}
                       value={lessonLearned}
                       onChange={(e) => setLessonLearned(e.target.value)}
+                    />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label className={labelClass}>Resultado / desfecho</label>
+                    <textarea
+                      className={`${inputClass} min-h-[72px]`}
+                      value={outcomeResult}
+                      onChange={(e) => setOutcomeResult(e.target.value)}
+                      placeholder="Como foi resolvido, o que ficou definido…"
                     />
                   </div>
                   <VehicleOrderPickerSection
@@ -694,7 +749,7 @@ export const QualityIncidentEditorModal: React.FC<Props> = ({
                 disabled={saving}
                 className="rounded-xl border border-red-300/80 px-4 py-2.5 text-[13px] font-semibold text-red-600 dark:border-red-500/40 dark:text-red-400"
               >
-                Excluir
+                Arquivar
               </button>
             ) : (
               <span />

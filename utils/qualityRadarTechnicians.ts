@@ -1,9 +1,14 @@
 import {
+  getQualityRadarPeople,
   getSystemUsersDirectory,
   getWorkshopTechnicians,
   type SystemUserDirectoryEntry,
 } from '../services/apiService';
 import { normalizeQualityRadarPersonKey } from './qualityRadarNormalize';
+import {
+  buildUnifiedPeople,
+  type ConfirmedPersonLink,
+} from '../services/qualityRadar/identity';
 
 export { normalizeQualityRadarPersonKey } from './qualityRadarNormalize';
 
@@ -11,15 +16,19 @@ export { normalizeQualityRadarPersonKey } from './qualityRadarNormalize';
 export const QUALITY_RADAR_WT_PREFIX = 'wt:';
 /** Prefixo para usuários do sistema (workshop_system_users). */
 export const QUALITY_RADAR_SU_PREFIX = 'su:';
+/** Prefixo para vínculo confirmado WT+SU. */
+export const QUALITY_RADAR_LINK_PREFIX = 'link:';
 
 export type QualityRadarTechnicianOption = {
-  /** Valor do select (`wt:uuid` ou `su:uuid`). */
+  /** Valor do select (`link:…`, `wt:uuid` ou `su:uuid`). */
   id: string;
   name: string;
   workshopTechnicianId: string | null;
   systemUserId: string | null;
   jobTitle?: string | null;
-  source: 'workshop_technician' | 'system_user';
+  source: 'linked' | 'workshop_technician' | 'system_user';
+  /** Outros cadastros com o mesmo nome normalizado — NÃO unidos automaticamente. */
+  possibleDuplicateIds?: string[];
 };
 
 function systemUserDisplayName(u: SystemUserDirectoryEntry): string {
@@ -30,70 +39,65 @@ function systemUserDisplayName(u: SystemUserDirectoryEntry): string {
 }
 
 /**
- * Lista unificada: técnicos cadastrados em Administração + usuários do sistema.
- * Evita duplicar a mesma pessoa (nome equivalente, inclusive com/sem acento).
+ * Lista unificada com identidade estável.
+ * Preferência: endpoint /quality-radar/people (links confirmados).
+ * Fallback local: NÃO une por nome — só por links vazios (mostra WT e SU separados).
  */
 export async function getQualityRadarTechnicianOptions(): Promise<QualityRadarTechnicianOption[]> {
+  try {
+    const people = await getQualityRadarPeople();
+    if (Array.isArray(people?.people) && people.people.length >= 0) {
+      return people.people.map((p) => ({
+        id: p.id,
+        name: p.name,
+        workshopTechnicianId: p.workshopTechnicianId,
+        systemUserId: p.systemUserId,
+        jobTitle: p.jobTitle,
+        source: p.source,
+        possibleDuplicateIds: p.possibleDuplicateIds ?? [],
+      }));
+    }
+  } catch {
+    // fallback abaixo (migration pendente ou rede)
+  }
+
   const [workshop, systemUsers] = await Promise.all([
     getWorkshopTechnicians(),
     getSystemUsersDirectory(),
   ]);
-
-  const byKey = new Map<string, QualityRadarTechnicianOption>();
-
-  for (const t of workshop) {
-    const name = (t.name || '').trim();
-    if (!name) continue;
-    const key = normalizeQualityRadarPersonKey(name);
-    const prev = byKey.get(key);
-    // Se já houver WT com o mesmo nome normalizado, mantém o primeiro (evita duplicata).
-    if (prev?.workshopTechnicianId) continue;
-    byKey.set(key, {
-      id: `${QUALITY_RADAR_WT_PREFIX}${t.id}`,
-      name: prev?.name || name,
-      workshopTechnicianId: t.id,
-      systemUserId: prev?.systemUserId ?? null,
-      jobTitle: prev?.jobTitle ?? null,
-      source: 'workshop_technician',
-    });
-  }
-
-  for (const u of systemUsers) {
-    const name = systemUserDisplayName(u);
-    if (!name) continue;
-    const key = normalizeQualityRadarPersonKey(name);
-    const existing = byKey.get(key);
-    if (existing) {
-      byKey.set(key, {
-        ...existing,
-        jobTitle: existing.jobTitle || u.job_title || null,
-        systemUserId: existing.systemUserId ?? u.id,
-      });
-      continue;
-    }
-    byKey.set(key, {
-      id: `${QUALITY_RADAR_SU_PREFIX}${u.id}`,
-      name,
-      workshopTechnicianId: null,
-      systemUserId: u.id,
-      jobTitle: u.job_title,
-      source: 'system_user',
-    });
-  }
-
-  return [...byKey.values()].sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
+  const links: ConfirmedPersonLink[] = [];
+  const unified = buildUnifiedPeople({
+    workshopTechnicians: workshop.map((t) => ({ id: t.id, name: t.name })),
+    systemUsers: systemUsers.map((u) => ({
+      id: u.id,
+      display_name: u.display_name,
+      username: u.username,
+      job_title: u.job_title,
+    })),
+    links,
+  });
+  return unified.map((p) => ({
+    id: p.id,
+    name: p.name,
+    workshopTechnicianId: p.workshopTechnicianId,
+    systemUserId: p.systemUserId,
+    jobTitle: p.jobTitle,
+    source: p.source,
+    possibleDuplicateIds: p.possibleDuplicateIds,
+  }));
 }
 
 export function resolveQualityRadarTechnicianPayload(
   selectValue: string,
   options: QualityRadarTechnicianOption[]
-): { technicianId: string | null; technicianName: string } {
+): { technicianId: string | null; systemUserId: string | null; technicianName: string } {
   const opt = options.find((o) => o.id === selectValue);
   if (!opt) {
-    return { technicianId: null, technicianName: '' };
+    return { technicianId: null, systemUserId: null, technicianName: '' };
   }
   return {
     technicianId: opt.workshopTechnicianId,
+    systemUserId: opt.systemUserId,
     technicianName: opt.name,
   };
 }
@@ -102,16 +106,39 @@ export function resolveQualityRadarTechnicianPayload(
 export function qualityRadarTechnicianSelectValue(
   technicianId: string | null | undefined,
   technicianName: string | null | undefined,
-  options: QualityRadarTechnicianOption[]
+  options: QualityRadarTechnicianOption[],
+  systemUserId?: string | null
 ): string {
+  if (technicianId && systemUserId) {
+    const link = options.find(
+      (o) =>
+        o.workshopTechnicianId === technicianId && o.systemUserId === systemUserId
+    );
+    if (link) return link.id;
+  }
+  if (systemUserId) {
+    const su = `${QUALITY_RADAR_SU_PREFIX}${systemUserId}`;
+    if (options.some((o) => o.id === su || o.systemUserId === systemUserId)) {
+      const hit = options.find((o) => o.systemUserId === systemUserId);
+      if (hit) return hit.id;
+    }
+  }
   if (technicianId) {
     const wt = `${QUALITY_RADAR_WT_PREFIX}${technicianId}`;
-    if (options.some((o) => o.id === wt)) return wt;
+    if (options.some((o) => o.id === wt || o.workshopTechnicianId === technicianId)) {
+      const hit = options.find((o) => o.workshopTechnicianId === technicianId);
+      if (hit) return hit.id;
+    }
   }
+  // Fallback legado: só por nome quando a ocorrência não tem UUID estável.
   const nameNorm = normalizeQualityRadarPersonKey(technicianName ?? '');
   if (!nameNorm) return '';
-  const byName = options.find((o) => normalizeQualityRadarPersonKey(o.name) === nameNorm);
-  return byName?.id ?? '';
+  const byName = options.filter(
+    (o) => normalizeQualityRadarPersonKey(o.name) === nameNorm
+  );
+  // Se houver ambiguidade (2+), não escolhe automaticamente.
+  if (byName.length === 1) return byName[0].id;
+  return '';
 }
 
 /** Converte valor do filtro da listagem para parâmetro da API. */
@@ -119,6 +146,13 @@ export function qualityRadarTechnicianFilterParam(
   selectValue: string
 ): { technicianId?: string; technicianSystemUserId?: string } {
   if (!selectValue) return {};
+  if (selectValue.startsWith(QUALITY_RADAR_LINK_PREFIX)) {
+    // link:wtId:suId
+    const parts = selectValue.split(':');
+    const wtId = parts[1];
+    const suId = parts[2];
+    if (wtId && suId) return { technicianId: wtId, technicianSystemUserId: suId };
+  }
   if (selectValue.startsWith(QUALITY_RADAR_SU_PREFIX)) {
     return { technicianSystemUserId: selectValue.slice(QUALITY_RADAR_SU_PREFIX.length) };
   }
@@ -126,4 +160,9 @@ export function qualityRadarTechnicianFilterParam(
     return { technicianId: selectValue.slice(QUALITY_RADAR_WT_PREFIX.length) };
   }
   return { technicianId: selectValue };
+}
+
+/** @deprecated Prefer getQualityRadarTechnicianOptions — mantido para testes legados. */
+export function systemUserDisplayNameForTest(u: SystemUserDirectoryEntry): string {
+  return systemUserDisplayName(u);
 }

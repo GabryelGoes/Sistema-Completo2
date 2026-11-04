@@ -595,6 +595,8 @@ export type QualityIncidentCategory =
   | "seguranca"
   | "peca_material"
   | "cliente"
+  | "organizacao"
+  | "procedimentos"
   | "outro";
 
 export type QualityIncidentSeverity = "baixa" | "media" | "alta" | "critica";
@@ -605,6 +607,25 @@ export type QualityIncidentStatus =
   | "plano_acao"
   | "resolvida"
   | "arquivada";
+
+export type QualityFaultAttribution =
+  | "investigacao"
+  | "erro_comprovado"
+  | "fator_externo"
+  | "nao_aplicavel";
+
+export type QualityRecognitionCategory =
+  | "diagnostico_complexo"
+  | "qualidade_execucao"
+  | "autonomia"
+  | "iniciativa"
+  | "organizacao"
+  | "colaboracao"
+  | "evolucao"
+  | "procedimentos"
+  | "ajuda_colegas"
+  | "melhoria_oficina"
+  | "outro";
 
 export type QualityIncidentAttachment = {
   id: string;
@@ -623,11 +644,13 @@ export type QualityIncident = {
   id: string;
   workshopId: string;
   technicianId: string | null;
+  systemUserId?: string | null;
   technicianName: string;
   title: string;
   category: QualityIncidentCategory;
   severity: QualityIncidentSeverity;
   status: QualityIncidentStatus;
+  faultAttribution?: QualityFaultAttribution;
   occurredAt: string;
   description: string;
   impact: string;
@@ -635,6 +658,7 @@ export type QualityIncident = {
   correctiveAction: string;
   preventiveAction: string;
   lessonLearned: string;
+  outcomeResult?: string;
   plate: string;
   vehicleSummary: string;
   serviceOrderId: string | null;
@@ -644,8 +668,38 @@ export type QualityIncident = {
   resolvedAt: string | null;
   resolvedByName: string;
   tags: string[];
+  deletedAt?: string | null;
   createdAt: string;
   updatedAt: string;
+};
+
+export type QualityRecognition = {
+  id: string;
+  workshopId: string;
+  technicianId: string | null;
+  systemUserId: string | null;
+  personName: string;
+  category: QualityRecognitionCategory;
+  title: string;
+  description: string;
+  serviceOrderId: string | null;
+  serviceOrderLabel: string;
+  occurredAt: string;
+  registeredByUserId: string | null;
+  registeredByName: string;
+  deletedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type QualityRadarPerson = {
+  id: string;
+  name: string;
+  workshopTechnicianId: string | null;
+  systemUserId: string | null;
+  jobTitle: string | null;
+  source: "linked" | "workshop_technician" | "system_user";
+  possibleDuplicateIds: string[];
 };
 
 export type QualityIncidentDetail = QualityIncident & {
@@ -690,13 +744,121 @@ export async function getQualityIncidentById(id: string): Promise<QualityInciden
   return response.json();
 }
 
+export async function getQualityRadarPeople(): Promise<{
+  people: QualityRadarPerson[];
+  suggestions: Array<{
+    workshopTechnicianId: string;
+    systemUserId: string;
+    normalizedName: string;
+  }>;
+  pendingProposals: unknown[];
+  linksMissing?: boolean;
+}> {
+  const response = await fetch(`${API_BASE}/quality-radar/people`);
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error((err as { error?: string }).error || "Falha ao carregar pessoas do Radar.");
+  }
+  return response.json();
+}
+
+export async function confirmQualityPersonLink(input: {
+  workshopTechnicianId: string;
+  systemUserId: string;
+  note?: string;
+  proposalId?: string;
+}): Promise<void> {
+  const response = await fetch(`${API_BASE}/quality-radar/person-links`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error((err as { error?: string }).error || "Falha ao confirmar vínculo.");
+  }
+}
+
+export async function proposeQualityPersonLink(input: {
+  workshopTechnicianId: string;
+  systemUserId: string;
+  proposedReason: string;
+  normalizedNameHint?: string;
+}): Promise<void> {
+  const response = await fetch(`${API_BASE}/quality-radar/person-link-proposals`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error((err as { error?: string }).error || "Falha ao propor vínculo.");
+  }
+}
+
+export async function getQualityRecognitions(params?: {
+  technicianId?: string;
+  systemUserId?: string;
+  from?: string;
+  to?: string;
+}): Promise<QualityRecognition[]> {
+  const search = new URLSearchParams();
+  if (params?.technicianId) search.set("technicianId", params.technicianId);
+  if (params?.systemUserId) search.set("systemUserId", params.systemUserId);
+  if (params?.from) search.set("from", params.from);
+  if (params?.to) search.set("to", params.to);
+  const qs = search.toString();
+  const response = await fetch(`${API_BASE}/quality-recognitions${qs ? `?${qs}` : ""}`);
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error((err as { error?: string }).error || "Falha ao listar reconhecimentos.");
+  }
+  const data = await response.json();
+  return (data?.recognitions as QualityRecognition[]) ?? [];
+}
+
+export async function createQualityRecognition(payload: {
+  technicianId?: string | null;
+  systemUserId?: string | null;
+  personName: string;
+  category?: QualityRecognitionCategory;
+  title?: string;
+  description?: string;
+  serviceOrderId?: string | null;
+  serviceOrderLabel?: string;
+  occurredAt?: string;
+}): Promise<QualityRecognition> {
+  const response = await fetch(`${API_BASE}/quality-recognitions`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error((err as { error?: string }).error || "Falha ao registrar reconhecimento.");
+  }
+  return response.json();
+}
+
+export async function deleteQualityRecognition(id: string): Promise<void> {
+  const response = await fetch(`${API_BASE}/quality-recognitions/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+  });
+  if (!response.ok && response.status !== 204) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error((err as { error?: string }).error || "Falha ao arquivar reconhecimento.");
+  }
+}
+
 export async function createQualityIncident(payload: {
   technicianId?: string | null;
+  systemUserId?: string | null;
   technicianName?: string;
   title?: string;
   category?: QualityIncidentCategory;
   severity?: QualityIncidentSeverity;
   status?: QualityIncidentStatus;
+  faultAttribution?: QualityFaultAttribution;
   occurredAt?: string;
   description?: string;
   impact?: string;
@@ -704,6 +866,7 @@ export async function createQualityIncident(payload: {
   correctiveAction?: string;
   preventiveAction?: string;
   lessonLearned?: string;
+  outcomeResult?: string;
   plate?: string;
   vehicleSummary?: string;
   serviceOrderId?: string | null;
@@ -730,11 +893,13 @@ export async function updateQualityIncident(
   id: string,
   payload: Partial<{
     technicianId: string | null;
+    systemUserId: string | null;
     technicianName: string;
     title: string;
     category: QualityIncidentCategory;
     severity: QualityIncidentSeverity;
     status: QualityIncidentStatus;
+    faultAttribution: QualityFaultAttribution;
     occurredAt: string;
     description: string;
     impact: string;
@@ -742,6 +907,7 @@ export async function updateQualityIncident(
     correctiveAction: string;
     preventiveAction: string;
     lessonLearned: string;
+    outcomeResult: string;
     plate: string;
     vehicleSummary: string;
     serviceOrderId: string | null;

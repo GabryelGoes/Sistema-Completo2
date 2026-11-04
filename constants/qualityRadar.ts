@@ -15,6 +15,8 @@ export type QualityIncidentCategory =
   | 'seguranca'
   | 'peca_material'
   | 'cliente'
+  | 'organizacao'
+  | 'procedimentos'
   | 'outro';
 
 export type QualityIncidentSeverity = 'baixa' | 'media' | 'alta' | 'critica';
@@ -26,20 +28,86 @@ export type QualityIncidentStatus =
   | 'resolvida'
   | 'arquivada';
 
+/** Distingue investigação de culpa comprovada / fator externo. */
+export type QualityFaultAttribution =
+  | 'investigacao'
+  | 'erro_comprovado'
+  | 'fator_externo'
+  | 'nao_aplicavel';
+
+export type QualityRecognitionCategory =
+  | 'diagnostico_complexo'
+  | 'qualidade_execucao'
+  | 'autonomia'
+  | 'iniciativa'
+  | 'organizacao'
+  | 'colaboracao'
+  | 'evolucao'
+  | 'procedimentos'
+  | 'ajuda_colegas'
+  | 'melhoria_oficina'
+  | 'outro';
+
 export const QUALITY_CATEGORIES: {
   id: QualityIncidentCategory;
   label: string;
   description: string;
 }[] = [
-  { id: 'montagem', label: 'Montagem / Instalação', description: 'Peça invertida, torque, montagem incompleta' },
-  { id: 'diagnostico', label: 'Diagnóstico', description: 'Causa raiz incorreta ou caminho de teste falho' },
-  { id: 'retrabalho', label: 'Retrabalho', description: 'Serviço refeito por falha do processo' },
+  { id: 'montagem', label: 'Falhas de montagem', description: 'Peça invertida, torque, montagem incompleta' },
+  { id: 'diagnostico', label: 'Erros de diagnóstico', description: 'Causa raiz incorreta ou caminho de teste falho' },
+  { id: 'retrabalho', label: 'Retrabalhos', description: 'Serviço refeito por falha do processo' },
+  { id: 'organizacao', label: 'Problemas de organização', description: 'Posto de trabalho, ferramentas, ordem' },
+  { id: 'procedimentos', label: 'Descumprimento de procedimentos', description: 'Protocolo ou checklist não seguido' },
+  { id: 'comunicacao', label: 'Falhas de comunicação', description: 'Falta de alinhamento com equipe ou cliente' },
+  { id: 'seguranca', label: 'Problemas de segurança', description: 'EPI, procedimento ou risco no box' },
   { id: 'prazo', label: 'Prazo / Atraso', description: 'Entrega, fila ou priorização inadequada' },
-  { id: 'comunicacao', label: 'Comunicação', description: 'Falta de alinhamento com equipe ou cliente' },
-  { id: 'seguranca', label: 'Segurança', description: 'EPI, procedimento ou risco no box' },
   { id: 'peca_material', label: 'Peça / Material', description: 'Peça errada, qualidade ou conferência' },
   { id: 'cliente', label: 'Relacionamento', description: 'Postura, registro ou expectativa com cliente' },
-  { id: 'outro', label: 'Outro', description: 'Demais desvios operacionais' },
+  { id: 'outro', label: 'Outras ocorrências', description: 'Demais desvios operacionais relevantes' },
+];
+
+export const QUALITY_FAULT_ATTRIBUTIONS: {
+  id: QualityFaultAttribution;
+  label: string;
+  description: string;
+}[] = [
+  {
+    id: 'investigacao',
+    label: 'Em investigação',
+    description: 'Ainda sem conclusão — não atribui culpa ao mecânico',
+  },
+  {
+    id: 'erro_comprovado',
+    label: 'Erro comprovado',
+    description: 'Responsabilidade técnica do mecânico comprovada',
+  },
+  {
+    id: 'fator_externo',
+    label: 'Fator externo',
+    description: 'Peça, processo, recurso ou causa fora do mecânico',
+  },
+  {
+    id: 'nao_aplicavel',
+    label: 'Não aplicável',
+    description: 'Registro informativo sem atribuição de culpa',
+  },
+];
+
+export const QUALITY_RECOGNITION_CATEGORIES: {
+  id: QualityRecognitionCategory;
+  label: string;
+}[] = [
+  { id: 'diagnostico_complexo', label: 'Diagnóstico complexo resolvido' },
+  { id: 'qualidade_execucao', label: 'Excelente qualidade de execução' },
+  { id: 'autonomia', label: 'Autonomia técnica' },
+  { id: 'iniciativa', label: 'Iniciativa' },
+  { id: 'organizacao', label: 'Organização' },
+  { id: 'colaboracao', label: 'Colaboração' },
+  { id: 'evolucao', label: 'Evolução profissional' },
+  { id: 'procedimentos', label: 'Cumprimento de procedimentos' },
+  { id: 'ajuda_colegas', label: 'Ajuda a outros funcionários' },
+  { id: 'melhoria_oficina', label: 'Contribuição para melhorias da oficina' },
+  { id: 'outro', label: 'Outro reconhecimento' },
 ];
 
 export const QUALITY_SEVERITIES: {
@@ -84,3 +152,15 @@ export const QUALITY_SEVERITY_SOLID: Record<QualityIncidentSeverity, string> = O
 export const QUALITY_STATUS_SOLID: Record<QualityIncidentStatus, string> = Object.fromEntries(
   QUALITY_STATUSES.map((s) => [s.id, s.solidClass])
 ) as Record<QualityIncidentStatus, string>;
+
+export const QUALITY_FAULT_ATTRIBUTION_LABEL: Record<QualityFaultAttribution, string> =
+  Object.fromEntries(QUALITY_FAULT_ATTRIBUTIONS.map((f) => [f.id, f.label])) as Record<
+    QualityFaultAttribution,
+    string
+  >;
+
+export const QUALITY_RECOGNITION_CATEGORY_LABEL: Record<QualityRecognitionCategory, string> =
+  Object.fromEntries(QUALITY_RECOGNITION_CATEGORIES.map((c) => [c.id, c.label])) as Record<
+    QualityRecognitionCategory,
+    string
+  >;

@@ -71,6 +71,8 @@ export function buildQualityRadarReport(
           seguranca: 0,
           peca_material: 0,
           cliente: 0,
+          organizacao: 0,
+          procedimentos: 0,
           outro: 0,
         },
         bySeverity: { baixa: 0, media: 0, alta: 0, critica: 0 },

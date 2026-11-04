@@ -12,6 +12,9 @@ import {
 import type { QualityIncident, RdaEvalRequest, RdaEvalScores } from '../../services/apiService';
 import {
   QUALITY_CATEGORY_LABEL,
+  QUALITY_FAULT_ATTRIBUTION_LABEL,
+  QUALITY_RECOGNITION_CATEGORIES,
+  QUALITY_RECOGNITION_CATEGORY_LABEL,
   type QualityIncidentCategory,
 } from '../../constants/qualityRadar';
 import {
@@ -23,7 +26,10 @@ import type { QualityRadarTechnicianOption } from '../../utils/qualityRadarTechn
 import {
   criticalIncidentCount,
   incidentsForEmployee,
+  investigationIncidents,
   openIncidentCount,
+  provenFaultIncidents,
+  recognitionsForEmployee,
   reworkIncidentCount,
 } from '../../utils/qualityRadarPeople';
 import { RDA_EVAL_COMPETENCY_LABELS } from '../../services/rdaIntelligence/evaluations/types';
@@ -194,17 +200,33 @@ export function EmployeesPanel({
   incidents,
   loading,
   onOpenIncidentsFor,
+  periodFrom,
+  periodTo,
 }: {
   employees: QualityRadarTechnicianOption[];
   incidents: QualityIncident[];
   loading: boolean;
   onOpenIncidentsFor: (employeeSelectId: string) => void;
+  periodFrom?: string;
+  periodTo?: string;
 }) {
   const [q, setQ] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [evalHistory, setEvalHistory] = useState<RdaEvalRequest[]>([]);
   const [evalAvg, setEvalAvg] = useState<RdaEvalScores | null>(null);
   const [evalLoading, setEvalLoading] = useState(false);
+  const [recognitions, setRecognitions] = useState<
+    import('../../services/apiService').QualityRecognition[]
+  >([]);
+  const [recogLoading, setRecogLoading] = useState(false);
+  const [recogTitle, setRecogTitle] = useState('');
+  const [recogCategory, setRecogCategory] = useState<
+    import('../../services/apiService').QualityRecognitionCategory
+  >('qualidade_execucao');
+  const [recogDesc, setRecogDesc] = useState('');
+  const [recogBusy, setRecogBusy] = useState(false);
+  const [recogMsg, setRecogMsg] = useState<string | null>(null);
+  const [linkBusy, setLinkBusy] = useState(false);
 
   const filtered = useMemo(() => {
     const needle = q.trim().toLowerCase();
@@ -218,6 +240,11 @@ export function EmployeesPanel({
 
   const selected = employees.find((e) => e.id === selectedId) ?? null;
   const selectedIncidents = selected ? incidentsForEmployee(incidents, selected) : [];
+  const selectedProven = selected ? provenFaultIncidents(selectedIncidents) : [];
+  const selectedInvestigation = selected ? investigationIncidents(selectedIncidents) : [];
+  const selectedRecognitions = selected
+    ? recognitionsForEmployee(recognitions, selected)
+    : [];
 
   useEffect(() => {
     let cancelled = false;
@@ -249,11 +276,47 @@ export function EmployeesPanel({
     };
   }, [selected?.systemUserId]);
 
+  useEffect(() => {
+    let cancelled = false;
+    if (!selected) {
+      setRecognitions([]);
+      return;
+    }
+    setRecogLoading(true);
+    void import('../../services/apiService')
+      .then(({ getQualityRecognitions }) =>
+        getQualityRecognitions({
+          technicianId: selected.workshopTechnicianId || undefined,
+          systemUserId: selected.systemUserId || undefined,
+          from: periodFrom,
+          to: periodTo,
+        })
+      )
+      .then((rows) => {
+        if (!cancelled) setRecognitions(rows);
+      })
+      .catch(() => {
+        if (!cancelled) setRecognitions([]);
+      })
+      .finally(() => {
+        if (!cancelled) setRecogLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    selected?.id,
+    selected?.workshopTechnicianId,
+    selected?.systemUserId,
+    periodFrom,
+    periodTo,
+  ]);
+
   return (
     <div className="space-y-4">
       <HubSectionHeader
         title="Funcionários"
-        subtitle="Lista real de técnicos e usuários. Perfil mostra ocorrências (histórico) e avaliações gerenciais reais."
+        subtitle="Identidade estável, ocorrências, reconhecimentos e avaliações — sem inventar nota quando não há dados."
       />
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
@@ -320,35 +383,136 @@ export function EmployeesPanel({
             <HubEmptyState
               icon={Users}
               title="Selecione um funcionário"
-              description="O perfil mostra histórico de ocorrências e espaços reservados para avaliações e evolução profissional."
+              description="O perfil mostra cargo, ocorrências, reconhecimentos e avaliações reais — sem inventar dados."
             />
           ) : (
             <div className="space-y-4">
               <div>
                 <p className={`text-[11px] font-semibold uppercase tracking-[0.14em] ${hub.muted}`}>
-                  Perfil
+                  Informações profissionais
                 </p>
                 <h3 className="mt-1 text-[22px] font-semibold tracking-tight text-zinc-900 dark:text-white">
                   {selected.name}
                 </h3>
                 <p className={`mt-1 text-[13px] ${hub.muted}`}>
                   {selected.jobTitle?.trim() ||
-                    (selected.source === 'workshop_technician'
-                      ? 'Técnico cadastrado'
-                      : 'Usuário do sistema')}
+                    (selected.source === 'linked'
+                      ? 'Técnico vinculado ao usuário do sistema'
+                      : selected.source === 'workshop_technician'
+                        ? 'Técnico cadastrado (sem vínculo de login)'
+                        : 'Usuário do sistema')}
+                </p>
+                <p className={`mt-1 text-[11px] font-mono ${hub.muted}`}>
+                  ID {selected.id}
+                  {selected.workshopTechnicianId ? ` · WT ${selected.workshopTechnicianId.slice(0, 8)}` : ''}
+                  {selected.systemUserId ? ` · SU ${selected.systemUserId.slice(0, 8)}` : ''}
                 </p>
               </div>
 
-              <div className="grid grid-cols-3 gap-2">
+              {selected.possibleDuplicateIds && selected.possibleDuplicateIds.length > 0 ? (
+                <div className="rounded-xl border border-amber-300/80 bg-amber-50 px-3 py-2.5 text-[12px] text-amber-950 dark:border-amber-500/40 dark:bg-amber-950/30 dark:text-amber-100">
+                  <p className="font-semibold">Possível duplicidade de cadastro</p>
+                  <p className="mt-1">
+                    Outro registro com nome equivalente existe. Não unimos automaticamente —
+                    confirme o vínculo só se for a mesma pessoa.
+                  </p>
+                  {selected.source === 'workshop_technician' &&
+                  selected.possibleDuplicateIds.some((id) => id.startsWith('su:')) ? (
+                    <button
+                      type="button"
+                      disabled={linkBusy}
+                      className="mt-2 rounded-lg bg-zinc-900 px-3 py-1.5 text-[12px] font-semibold text-white disabled:opacity-50"
+                      onClick={() => {
+                        const suId = selected.possibleDuplicateIds!
+                          .find((id) => id.startsWith('su:'))
+                          ?.slice(3);
+                        if (!selected.workshopTechnicianId || !suId) return;
+                        const reason = window.prompt(
+                          'Justificativa para unificar estes cadastros (obrigatória):'
+                        );
+                        if (!reason || reason.trim().length < 3) return;
+                        setLinkBusy(true);
+                        void import('../../services/apiService')
+                          .then(({ proposeQualityPersonLink, confirmQualityPersonLink }) =>
+                            proposeQualityPersonLink({
+                              workshopTechnicianId: selected.workshopTechnicianId!,
+                              systemUserId: suId,
+                              proposedReason: reason.trim(),
+                            }).then(() =>
+                              confirmQualityPersonLink({
+                                workshopTechnicianId: selected.workshopTechnicianId!,
+                                systemUserId: suId,
+                                note: reason.trim(),
+                              })
+                            )
+                          )
+                          .then(() => window.location.reload())
+                          .catch((e) =>
+                            window.alert(e instanceof Error ? e.message : 'Falha ao vincular')
+                          )
+                          .finally(() => setLinkBusy(false));
+                      }}
+                    >
+                      Confirmar vínculo com usuário do sistema
+                    </button>
+                  ) : null}
+                </div>
+              ) : null}
+
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
                 <HubStatCard label="Ocorrências" value={selectedIncidents.length} />
                 <HubStatCard label="Em aberto" value={openIncidentCount(selectedIncidents)} />
-                <HubStatCard label="Retrabalhos" value={reworkIncidentCount(selectedIncidents)} />
+                <HubStatCard label="Erro comprovado" value={selectedProven.length} />
+                <HubStatCard label="Reconhecimentos" value={selectedRecognitions.length} />
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <div className={`${hub.surfaceInset} p-3`}>
+                  <p className="text-[12px] font-semibold text-zinc-900 dark:text-white">
+                    Pontos fortes (reconhecimentos)
+                  </p>
+                  {selectedRecognitions.length === 0 ? (
+                    <p className={`mt-2 text-[12px] ${hub.muted}`}>
+                      Sem reconhecimentos no período — ausência não é avaliação negativa.
+                    </p>
+                  ) : (
+                    <ul className="mt-2 space-y-1">
+                      {[...new Set(selectedRecognitions.map((r) => r.category))]
+                        .slice(0, 5)
+                        .map((c) => (
+                          <li key={c} className={`text-[12px] ${hub.muted}`}>
+                            {QUALITY_RECOGNITION_CATEGORY_LABEL[c] || c}
+                          </li>
+                        ))}
+                    </ul>
+                  )}
+                </div>
+                <div className={`${hub.surfaceInset} p-3`}>
+                  <p className="text-[12px] font-semibold text-zinc-900 dark:text-white">
+                    Dificuldades registradas
+                  </p>
+                  {selectedProven.length === 0 ? (
+                    <p className={`mt-2 text-[12px] ${hub.muted}`}>
+                      Sem erros comprovados. Em investigação: {selectedInvestigation.length}.
+                    </p>
+                  ) : (
+                    <ul className="mt-2 space-y-1">
+                      {[...new Set(selectedProven.map((i) => i.category))]
+                        .slice(0, 5)
+                        .map((c) => (
+                          <li key={c} className={`text-[12px] ${hub.muted}`}>
+                            {QUALITY_CATEGORY_LABEL[c]}
+                          </li>
+                        ))}
+                    </ul>
+                  )}
+                </div>
               </div>
 
               <div>
                 <div className="mb-2 flex items-center justify-between gap-2">
                   <p className="text-[13px] font-semibold text-zinc-900 dark:text-white">
-                    Histórico de ocorrências
+                    Ocorrências
                   </p>
                   <button
                     type="button"
@@ -374,12 +538,110 @@ export function EmployeesPanel({
                         </p>
                         <p className={`mt-0.5 text-[12px] ${hub.muted}`}>
                           {QUALITY_CATEGORY_LABEL[inc.category]} ·{' '}
-                          {new Date(inc.occurredAt).toLocaleDateString('pt-BR')}
+                          {QUALITY_FAULT_ATTRIBUTION_LABEL[
+                            inc.faultAttribution || 'investigacao'
+                          ] || 'Em investigação'}{' '}
+                          · {new Date(inc.occurredAt).toLocaleDateString('pt-BR')}
                         </p>
                       </li>
                     ))}
                   </ul>
                 )}
+              </div>
+
+              <div>
+                <p className="mb-2 text-[13px] font-semibold text-zinc-900 dark:text-white">
+                  Conquistas e reconhecimentos
+                </p>
+                {recogLoading ? (
+                  <p className={`text-[13px] ${hub.muted}`}>Carregando…</p>
+                ) : selectedRecognitions.length === 0 ? (
+                  <p className={`rounded-xl border border-dashed px-3 py-4 text-[13px] ${hub.muted}`}>
+                    Nenhum reconhecimento no período.
+                  </p>
+                ) : (
+                  <ul className="mb-3 space-y-2">
+                    {selectedRecognitions.slice(0, 6).map((r) => (
+                      <li
+                        key={r.id}
+                        className="rounded-xl border border-zinc-200 px-3 py-2.5 dark:border-zinc-800"
+                      >
+                        <p className="text-[13px] font-semibold text-zinc-900 dark:text-white">
+                          {r.title || QUALITY_RECOGNITION_CATEGORY_LABEL[r.category]}
+                        </p>
+                        <p className={`mt-0.5 text-[12px] ${hub.muted}`}>
+                          {QUALITY_RECOGNITION_CATEGORY_LABEL[r.category]} ·{' '}
+                          {new Date(r.occurredAt).toLocaleDateString('pt-BR')}
+                        </p>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                <div className="rounded-xl border border-zinc-200 p-3 dark:border-zinc-800">
+                  <p className="text-[12px] font-semibold text-zinc-900 dark:text-white">
+                    Novo reconhecimento
+                  </p>
+                  <select
+                    className={`${hub.input} mt-2`}
+                    value={recogCategory}
+                    onChange={(e) =>
+                      setRecogCategory(
+                        e.target.value as import('../../services/apiService').QualityRecognitionCategory
+                      )
+                    }
+                  >
+                    {QUALITY_RECOGNITION_CATEGORIES.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.label}
+                      </option>
+                    ))}
+                  </select>
+                  <input
+                    className={`${hub.input} mt-2`}
+                    value={recogTitle}
+                    onChange={(e) => setRecogTitle(e.target.value)}
+                    placeholder="Título (opcional)"
+                  />
+                  <textarea
+                    className={`${hub.input} mt-2 min-h-[64px]`}
+                    value={recogDesc}
+                    onChange={(e) => setRecogDesc(e.target.value)}
+                    placeholder="Descrição do acontecimento positivo…"
+                  />
+                  <button
+                    type="button"
+                    disabled={recogBusy || !recogDesc.trim()}
+                    className="mt-2 rounded-xl bg-[#FFD60A] px-3 py-2 text-[13px] font-semibold text-zinc-900 disabled:opacity-50"
+                    onClick={() => {
+                      setRecogBusy(true);
+                      setRecogMsg(null);
+                      void import('../../services/apiService')
+                        .then(({ createQualityRecognition }) =>
+                          createQualityRecognition({
+                            technicianId: selected.workshopTechnicianId,
+                            systemUserId: selected.systemUserId,
+                            personName: selected.name,
+                            category: recogCategory,
+                            title: recogTitle.trim(),
+                            description: recogDesc.trim(),
+                          })
+                        )
+                        .then((created) => {
+                          setRecognitions((prev) => [created, ...prev]);
+                          setRecogTitle('');
+                          setRecogDesc('');
+                          setRecogMsg('Reconhecimento registrado.');
+                        })
+                        .catch((e) =>
+                          setRecogMsg(e instanceof Error ? e.message : 'Falha ao salvar.')
+                        )
+                        .finally(() => setRecogBusy(false));
+                    }}
+                  >
+                    {recogBusy ? 'Salvando…' : 'Registrar'}
+                  </button>
+                  {recogMsg ? <p className={`mt-2 text-[12px] ${hub.muted}`}>{recogMsg}</p> : null}
+                </div>
               </div>
 
               <div>
