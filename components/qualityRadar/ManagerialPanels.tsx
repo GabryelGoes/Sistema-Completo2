@@ -22,7 +22,10 @@ import {
   formatReportPeriodLabel,
   type TechnicianQualityRow,
 } from '../../utils/qualityRadarReports';
-import type { QualityRadarTechnicianOption } from '../../utils/qualityRadarTechnicians';
+import {
+  normalizeQualityRadarPersonKey,
+  type QualityRadarTechnicianOption,
+} from '../../utils/qualityRadarTechnicians';
 import {
   criticalIncidentCount,
   incidentsForEmployee,
@@ -1268,9 +1271,13 @@ function IncidentLoadCard({
       const wt = technicians.find((t) => t.workshopTechnicianId === row.technicianId);
       if (wt) return wt.id;
     }
-    const nameNorm = row.technicianName.trim().toLowerCase();
-    const byName = technicians.find((t) => t.name.trim().toLowerCase() === nameNorm);
-    return byName?.id ?? null;
+    const nameNorm = normalizeQualityRadarPersonKey(row.technicianName);
+    if (!nameNorm) return null;
+    const byName = technicians.filter(
+      (t) => normalizeQualityRadarPersonKey(t.name) === nameNorm
+    );
+    // Ambíguo (2+ cadastros): não escolhe automaticamente — deixa filtro por busca.
+    return byName.length === 1 ? byName[0].id : null;
   };
 
   return (
