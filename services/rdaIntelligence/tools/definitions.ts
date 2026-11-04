@@ -232,4 +232,186 @@ export const RDA_PRODUCTION_TOOLS: RdaToolDefinition[] = [
     side: "write",
     requiresHumanConfirmation: true,
   },
+  // ----- Radar Fase 3: consultas gerenciais (somente gestão / access_radar_qualidade) -----
+  {
+    id: "rda_quality_person_profile",
+    description:
+      "Perfil profissional do funcionário no Radar: identidade, nível de carreira e matriz de competências (score null = não avaliado, nunca zero).",
+    parameters: {
+      type: "object",
+      properties: {
+        personName: { type: "string" },
+        systemUserId: { type: "string" },
+        workshopTechnicianId: { type: "string" },
+        from: { type: "string", description: "Início do período (ISO ou YYYY-MM-DD)" },
+        to: { type: "string", description: "Fim do período" },
+      },
+      required: [],
+      additionalProperties: false,
+    },
+    requiredPermission: "access_radar_qualidade",
+    side: "read",
+    requiresHumanConfirmation: false,
+  },
+  {
+    id: "rda_quality_recognitions",
+    description: "Registros positivos / reconhecimentos do funcionário no Radar.",
+    parameters: {
+      type: "object",
+      properties: {
+        personName: { type: "string" },
+        systemUserId: { type: "string" },
+        workshopTechnicianId: { type: "string" },
+        from: { type: "string" },
+        to: { type: "string" },
+        limit: { type: "number" },
+      },
+      required: [],
+      additionalProperties: false,
+    },
+    requiredPermission: "access_radar_qualidade",
+    side: "read",
+    requiresHumanConfirmation: false,
+  },
+  {
+    id: "rda_quality_incidents",
+    description:
+      "Ocorrências e possíveis retrabalhos do funcionário (workshop_technician_incidents). Fatos do sistema; não inventar culpa.",
+    parameters: {
+      type: "object",
+      properties: {
+        personName: { type: "string" },
+        systemUserId: { type: "string" },
+        workshopTechnicianId: { type: "string" },
+        from: { type: "string" },
+        to: { type: "string" },
+        limit: { type: "number" },
+      },
+      required: [],
+      additionalProperties: false,
+    },
+    requiredPermission: "access_radar_qualidade",
+    side: "read",
+    requiresHumanConfirmation: false,
+  },
+  {
+    id: "rda_quality_service_history",
+    description:
+      "Histórico de serviços apontados ao mecânico, SEPARADO em Pátio (vehicle) e Laboratório (module). Nunca misturar setores.",
+    parameters: {
+      type: "object",
+      properties: {
+        personName: { type: "string" },
+        systemUserId: { type: "string" },
+        workshopTechnicianId: { type: "string" },
+        from: { type: "string" },
+        to: { type: "string" },
+        limit: { type: "number" },
+      },
+      required: [],
+      additionalProperties: false,
+    },
+    requiredPermission: "access_radar_qualidade",
+    side: "read",
+    requiresHumanConfirmation: false,
+  },
+  {
+    id: "rda_quality_work_times",
+    description:
+      "Tempos produtivos e pausas do mecânico (rda_work_sessions), com quebra Pátio/Lab quando order_type existir.",
+    parameters: {
+      type: "object",
+      properties: {
+        personName: { type: "string" },
+        systemUserId: { type: "string" },
+        workshopTechnicianId: { type: "string" },
+        from: { type: "string" },
+        to: { type: "string" },
+      },
+      required: [],
+      additionalProperties: false,
+    },
+    requiredPermission: "access_radar_qualidade",
+    side: "read",
+    requiresHumanConfirmation: false,
+  },
+  {
+    id: "rda_quality_career_and_pdi",
+    description:
+      "Metas, PDI, treinamentos necessários e reuniões/feedbacks anteriores do funcionário.",
+    parameters: {
+      type: "object",
+      properties: {
+        personName: { type: "string" },
+        systemUserId: { type: "string" },
+        workshopTechnicianId: { type: "string" },
+        from: { type: "string" },
+        to: { type: "string" },
+      },
+      required: [],
+      additionalProperties: false,
+    },
+    requiredPermission: "access_radar_qualidade",
+    side: "read",
+    requiresHumanConfirmation: false,
+  },
+  {
+    id: "rda_quality_managerial_evaluations",
+    description: "Avaliações gerenciais RDA (solicitações/status) do mecânico no período.",
+    parameters: {
+      type: "object",
+      properties: {
+        personName: { type: "string" },
+        systemUserId: { type: "string" },
+        workshopTechnicianId: { type: "string" },
+        from: { type: "string" },
+        to: { type: "string" },
+        limit: { type: "number" },
+      },
+      required: [],
+      additionalProperties: false,
+    },
+    requiredPermission: "access_radar_qualidade",
+    side: "read",
+    requiresHumanConfirmation: false,
+  },
+  {
+    id: "rda_quality_prior_weekly_reviews",
+    description:
+      "Memória estruturada: revisões semanais anteriores e rascunhos/aprovados do Radar (não só o chat).",
+    parameters: {
+      type: "object",
+      properties: {
+        personName: { type: "string" },
+        systemUserId: { type: "string" },
+        workshopTechnicianId: { type: "string" },
+        limit: { type: "number" },
+      },
+      required: [],
+      additionalProperties: false,
+    },
+    requiredPermission: "access_radar_qualidade",
+    side: "read",
+    requiresHumanConfirmation: false,
+  },
+  {
+    id: "rda_quality_week_dossier",
+    description:
+      "Pacote consolidado da semana para entrevista gerencial: perfil, serviços (Pátio/Lab), tempos, reconhecimentos, ocorrências, PDI, reuniões, avaliações e lacunas. Use no início da Revisão Semanal.",
+    parameters: {
+      type: "object",
+      properties: {
+        personName: { type: "string" },
+        systemUserId: { type: "string" },
+        workshopTechnicianId: { type: "string" },
+        from: { type: "string" },
+        to: { type: "string" },
+      },
+      required: [],
+      additionalProperties: false,
+    },
+    requiredPermission: "access_radar_qualidade",
+    side: "read",
+    requiresHumanConfirmation: false,
+  },
 ];

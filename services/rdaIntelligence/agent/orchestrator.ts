@@ -10,6 +10,7 @@ import type {
   RdaLlmMessage,
   RdaOpenAiToolSpec,
 } from "../types.js";
+import { MANAGERIAL_INTERVIEW_SYSTEM_ADDENDUM } from "../../qualityRadar/weeklyReviewDefaults.js";
 import {
   historyRowsToLlmMessages,
   sanitizeMessagesForOpenAi,
@@ -32,7 +33,19 @@ Setores da oficina (nunca misturar):
 - Laboratório = OS com order_type=module (módulos recebidos para reparo). Tools: rda_list_stalled_modules, rda_lab_stage_snapshot.
 - Estoque (rda_search_stock_parts) = cadastro de peças em workshop_parts. NÃO é o Laboratório; um "módulo ABS" no estoque não é OS de módulo do Lab.
 - Perguntas sobre a oficina inteira: chame as tools do Pátio e do Laboratório e apresente os dois setores em seções separadas (nunca uma lista única misturada).
-- Consulta de OS específica (rda_get_service_order) pode retornar veículo ou módulo; sempre diga o setor (Pátio/Laboratório) com base em order_type/sector.`;
+- Consulta de OS específica (rda_get_service_order) pode retornar veículo ou módulo; sempre diga o setor (Pátio/Laboratório) com base em order_type/sector.
+- Radar / pessoas: tools rda_quality_* exigem access_radar_qualidade; use-as para fatos profissionais verificáveis.`;
+
+export type RdaManagerialInterviewContext = {
+  reviewId: string;
+  personName: string;
+  systemUserId?: string | null;
+  workshopTechnicianId?: string | null;
+  weekFrom: string;
+  weekTo: string;
+  topicsCovered?: string[];
+  incompleteSignals?: string[];
+};
 
 export type RdaChatTurnInput = {
   workshopId: string;
@@ -43,6 +56,10 @@ export type RdaChatTurnInput = {
   userMessage: string;
   contextServiceOrderId?: string | null;
   humanConfirmedToolIds?: string[];
+  /** Modo entrevista gerencial (Revisão Semanal com RDA). */
+  mode?: "default" | "managerial_interview";
+  managerialContext?: RdaManagerialInterviewContext | null;
+  conversationTitle?: string | null;
 };
 
 export type RdaChatTurnResult = {
@@ -59,7 +76,8 @@ async function ensureConversation(
   workshopId: string,
   auth: RdaAuthContext,
   conversationId: string | null | undefined,
-  contextServiceOrderId?: string | null
+  contextServiceOrderId?: string | null,
+  title?: string | null
 ): Promise<string> {
   if (conversationId) {
     const { data } = await supabase
@@ -76,7 +94,7 @@ async function ensureConversation(
       workshop_id: workshopId,
       created_by_user_id: auth.userId || null,
       created_by_role: auth.role,
-      title: "Conversa RDA",
+      title: (title && title.trim()) || "Conversa RDA",
       context_service_order_id: contextServiceOrderId || null,
       status: "open",
     })
@@ -86,6 +104,32 @@ async function ensureConversation(
     throw new Error(error?.message || "Não foi possível criar conversa RDA.");
   }
   return String(data.id);
+}
+
+function buildSystemMessages(input: RdaChatTurnInput): RdaLlmMessage[] {
+  const msgs: RdaLlmMessage[] = [{ role: "system", content: SYSTEM_PROMPT }];
+  if (input.contextServiceOrderId) {
+    msgs.push({
+      role: "system",
+      content: `Contexto: serviceOrderId=${input.contextServiceOrderId}`,
+    });
+  }
+  if (input.mode === "managerial_interview") {
+    msgs.push({ role: "system", content: MANAGERIAL_INTERVIEW_SYSTEM_ADDENDUM });
+    const ctx = input.managerialContext;
+    if (ctx) {
+      const covered = (ctx.topicsCovered || []).join(", ") || "(nenhum ainda)";
+      const gaps = (ctx.incompleteSignals || []).join("; ") || "(não informado)";
+      msgs.push({
+        role: "system",
+        content: `Contexto da revisão: reviewId=${ctx.reviewId}; pessoa="${ctx.personName}"; systemUserId=${ctx.systemUserId || ""}; workshopTechnicianId=${ctx.workshopTechnicianId || ""}; semana=${ctx.weekFrom}→${ctx.weekTo}.
+Temas já cobertos: ${covered}.
+Lacunas sinalizadas: ${gaps}.
+No início, chame rda_quality_week_dossier com esses identificadores e o período da semana. Depois converse com o líder — uma pergunta por vez.`,
+      });
+    }
+  }
+  return msgs;
 }
 
 async function appendMessage(
@@ -184,7 +228,8 @@ export async function runRdaChatTurn(
     input.workshopId,
     input.auth,
     input.conversationId,
-    input.contextServiceOrderId
+    input.contextServiceOrderId,
+    input.conversationTitle
   );
 
   await appendMessage(input.supabase, input.workshopId, conversationId, {
@@ -203,15 +248,7 @@ export async function runRdaChatTurn(
   // Histórico precisa trazer tool_calls no assistant; senão a OpenAI rejeita
   // role=tool sem mensagem anterior com tool_calls (HTTP 400).
   const messages: RdaLlmMessage[] = [
-    { role: "system", content: SYSTEM_PROMPT },
-    ...(input.contextServiceOrderId
-      ? [
-          {
-            role: "system" as const,
-            content: `Contexto: serviceOrderId=${input.contextServiceOrderId}`,
-          },
-        ]
-      : []),
+    ...buildSystemMessages(input),
     ...historyRowsToLlmMessages(
       (history || []) as Array<{
         role: string;

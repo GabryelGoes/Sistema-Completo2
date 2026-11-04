@@ -1,21 +1,12 @@
 /**
- * Blueprint (somente tipos) — futura Central Gerencial de Funcionários.
+ * Blueprint (tipos legados) — Central Gerencial de Funcionários.
  *
- * O hub visual do Radar (`QualityRadarView` + painéis gerenciais) já expõe a
- * navegação alvo. Este arquivo documenta o contrato de dados futuro — ainda
- * sem migrations nem persistência de avaliações/tempo/planos.
+ * Persistência real evoluiu nas Fases 1–3 do Radar / RDA:
+ * - Fase 1: identidade, reconhecimentos, revisões de ocorrência
+ * - Fase 2: competências, níveis, PDI, reuniões
+ * - Fase 3: Revisão Semanal com RDA + memória estruturada + rascunhos
  *
- * Reuso do Radar:
- * - Shell de hub / filtros / período / relatório por pessoa
- * - Resolução de técnicos (WT + system users)
- * - Incidentes como histórico operacional (não nota 1–5)
- *
- * Domínios novos (a criar em fases posteriores):
- * - Avaliações por competência (1–5) + adiar/dispensar
- * - Sessões de tempo produtivo (start/pause/resume/finish)
- * - Pontos positivos/negativos estruturados
- * - Histórico de desempenho, reuniões, planos de carreira
- * - Relatórios diretoria + recomendações RDA
+ * Este arquivo permanece como referência de contrato; não criar schemas novos aqui.
  */
 
 /** Competência avaliável (catálogo da oficina). */

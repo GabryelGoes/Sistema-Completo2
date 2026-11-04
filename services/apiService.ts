@@ -1091,6 +1091,189 @@ export async function getQualityDecisionInsights(params: {
   return response.json();
 }
 
+// ---------- Radar Fase 3: Revisão Semanal com RDA ----------
+
+export type QualityWeeklyReview = {
+  id: string;
+  scope: "person" | "team";
+  systemUserId?: string | null;
+  workshopTechnicianId?: string | null;
+  personName: string;
+  weekFrom: string;
+  weekTo: string;
+  status: string;
+  rdaConversationId?: string | null;
+  topicsCovered?: string[];
+  incompleteSignals?: string[];
+  progressPct: number;
+  openedByName?: string;
+  closedAt?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+export type QualityWeeklyDraft = {
+  id: string;
+  reviewId: string;
+  version: number;
+  status: string;
+  weekSummary: string;
+  strengths: string;
+  difficulties: string;
+  observedSkills: string;
+  evolution: string;
+  recommendedActions: string;
+  proposedGoals: string;
+  followUps: string;
+  decidedByName?: string;
+  decidedAt?: string | null;
+  decisionNote?: string;
+};
+
+export async function listQualityWeeklyReviews(params?: {
+  status?: string;
+  systemUserId?: string;
+}): Promise<{ reviews: QualityWeeklyReview[]; code?: string; error?: string }> {
+  const q = new URLSearchParams();
+  if (params?.status) q.set("status", params.status);
+  if (params?.systemUserId) q.set("systemUserId", params.systemUserId);
+  const response = await fetch(`${API_BASE}/quality-radar/weekly-reviews?${q.toString()}`);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok && response.status !== 503) {
+    throw new Error((data as { error?: string }).error || "Falha ao listar revisões.");
+  }
+  return data as { reviews: QualityWeeklyReview[]; code?: string; error?: string };
+}
+
+export async function createQualityWeeklyReview(input: {
+  scope?: "person" | "team";
+  personName?: string;
+  systemUserId?: string | null;
+  workshopTechnicianId?: string | null;
+  weekFrom?: string;
+  weekTo?: string;
+}): Promise<{ review: QualityWeeklyReview }> {
+  const response = await fetch(`${API_BASE}/quality-radar/weekly-reviews`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error((data as { error?: string }).error || "Falha ao criar revisão.");
+  }
+  return data as { review: QualityWeeklyReview };
+}
+
+export async function getQualityWeeklyReview(id: string): Promise<{
+  review: QualityWeeklyReview;
+  progress: { covered: string[]; remaining: string[]; progressPct: number };
+  observations: Array<Record<string, unknown>>;
+  drafts: QualityWeeklyDraft[];
+  messages: Array<{ id?: string; role: string; content: string; createdAt?: string }>;
+}> {
+  const response = await fetch(
+    `${API_BASE}/quality-radar/weekly-reviews/${encodeURIComponent(id)}`
+  );
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error((err as { error?: string }).error || "Falha ao carregar revisão.");
+  }
+  return response.json();
+}
+
+export async function postQualityWeeklyReviewChat(
+  id: string,
+  input: { message: string }
+): Promise<{
+  conversationId: string;
+  assistantMessage: string;
+  toolTrace: Array<{ toolId: string; ok: boolean; summary: string }>;
+  progress: { covered: string[]; remaining: string[]; progressPct: number };
+  reviewId: string;
+}> {
+  const response = await fetch(
+    `${API_BASE}/quality-radar/weekly-reviews/${encodeURIComponent(id)}/chat`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input),
+    }
+  );
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error((err as { error?: string }).error || "Falha no chat da revisão.");
+  }
+  return response.json();
+}
+
+export async function saveQualityWeeklyDraft(
+  id: string,
+  fields: {
+    weekSummary?: string;
+    strengths?: string;
+    difficulties?: string;
+    observedSkills?: string;
+    evolution?: string;
+    recommendedActions?: string;
+    proposedGoals?: string;
+    followUps?: string;
+    generatedBy?: "rda" | "leader";
+  }
+): Promise<{ draft: QualityWeeklyDraft; note?: string }> {
+  const response = await fetch(
+    `${API_BASE}/quality-radar/weekly-reviews/${encodeURIComponent(id)}/draft`,
+    {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(fields),
+    }
+  );
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error((err as { error?: string }).error || "Falha ao salvar rascunho.");
+  }
+  return response.json();
+}
+
+export async function decideQualityWeeklyDraft(
+  id: string,
+  input: { decision: "approve" | "reject"; note?: string }
+): Promise<{ draft: QualityWeeklyDraft; note?: string }> {
+  const response = await fetch(
+    `${API_BASE}/quality-radar/weekly-reviews/${encodeURIComponent(id)}/draft/decide`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input),
+    }
+  );
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error((err as { error?: string }).error || "Falha ao decidir rascunho.");
+  }
+  return response.json();
+}
+
+export async function getQualityPersonMemory(params: {
+  personName?: string;
+  systemUserId?: string;
+  technicianId?: string;
+  months?: number;
+}): Promise<Record<string, unknown>> {
+  const q = new URLSearchParams();
+  if (params.personName) q.set("personName", params.personName);
+  if (params.systemUserId) q.set("systemUserId", params.systemUserId);
+  if (params.technicianId) q.set("technicianId", params.technicianId);
+  if (params.months) q.set("months", String(params.months));
+  const response = await fetch(`${API_BASE}/quality-radar/person-memory?${q.toString()}`);
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error((err as { error?: string }).error || "Falha ao consultar memória.");
+  }
+  return response.json();
+}
+
 export async function createQualityIncident(payload: {
   technicianId?: string | null;
   systemUserId?: string | null;

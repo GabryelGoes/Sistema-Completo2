@@ -1,5 +1,17 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
+  detectIncompleteSignals,
+  fetchIncidents,
+  fetchManagerialEvaluations,
+  fetchPersonProfileBundle,
+  fetchPdiAndMeetings,
+  fetchPriorWeeklyReviews,
+  fetchRecognitions,
+  fetchServiceHistorySplit,
+  fetchWorkTimes,
+  resolvePersonIdentity,
+} from "../../qualityRadar/personDossier.js";
+import {
   orderTypeToSector,
   parseSectorParam,
   RDA_ORDER_TYPE_LAB,
@@ -9,6 +21,25 @@ import {
   type RdaServiceOrderType,
   type RdaWorkshopSector,
 } from "./orderTypes.js";
+
+function periodFromParams(params: Record<string, unknown>): { from: string; to: string } | undefined {
+  const from = typeof params.from === "string" ? params.from.trim() : "";
+  const to = typeof params.to === "string" ? params.to.trim() : "";
+  if (!from && !to) return undefined;
+  return {
+    from: from || new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10),
+    to: to || new Date().toISOString().slice(0, 10),
+  };
+}
+
+function personRefFromParams(params: Record<string, unknown>) {
+  return {
+    personName: typeof params.personName === "string" ? params.personName : null,
+    systemUserId: typeof params.systemUserId === "string" ? params.systemUserId : null,
+    workshopTechnicianId:
+      typeof params.workshopTechnicianId === "string" ? params.workshopTechnicianId : null,
+  };
+}
 
 export type RdaToolExecContext = {
   workshopId: string;
@@ -523,6 +554,175 @@ export async function executeRdaTool(
             sector: first.sector || orderTypeToSector(first.order_type),
             message:
               "Ação proposta: abrir esta OS na interface. Nenhuma alteração foi feita no banco.",
+          },
+        };
+      }
+
+      case "rda_quality_person_profile": {
+        const data = await fetchPersonProfileBundle(
+          supabase,
+          workshopId,
+          personRefFromParams(params),
+          periodFromParams(params)
+        );
+        return { ok: true, data };
+      }
+
+      case "rda_quality_recognitions": {
+        const identity = await resolvePersonIdentity(
+          supabase,
+          workshopId,
+          personRefFromParams(params)
+        );
+        const data = await fetchRecognitions(
+          supabase,
+          workshopId,
+          identity,
+          periodFromParams(params),
+          clampLimit(params.limit, 20)
+        );
+        return { ok: true, data: { identity, ...data } };
+      }
+
+      case "rda_quality_incidents": {
+        const identity = await resolvePersonIdentity(
+          supabase,
+          workshopId,
+          personRefFromParams(params)
+        );
+        const data = await fetchIncidents(
+          supabase,
+          workshopId,
+          identity,
+          periodFromParams(params),
+          clampLimit(params.limit, 20)
+        );
+        return { ok: true, data: { identity, ...data } };
+      }
+
+      case "rda_quality_service_history": {
+        const identity = await resolvePersonIdentity(
+          supabase,
+          workshopId,
+          personRefFromParams(params)
+        );
+        const data = await fetchServiceHistorySplit(
+          supabase,
+          workshopId,
+          identity,
+          periodFromParams(params),
+          clampLimit(params.limit, 15)
+        );
+        return { ok: true, data: { identity, ...data } };
+      }
+
+      case "rda_quality_work_times": {
+        const identity = await resolvePersonIdentity(
+          supabase,
+          workshopId,
+          personRefFromParams(params)
+        );
+        const data = await fetchWorkTimes(
+          supabase,
+          workshopId,
+          identity,
+          periodFromParams(params)
+        );
+        return { ok: true, data: { identity, ...data } };
+      }
+
+      case "rda_quality_career_and_pdi": {
+        const identity = await resolvePersonIdentity(
+          supabase,
+          workshopId,
+          personRefFromParams(params)
+        );
+        const data = await fetchPdiAndMeetings(
+          supabase,
+          workshopId,
+          identity,
+          periodFromParams(params)
+        );
+        return { ok: true, data: { identity, ...data } };
+      }
+
+      case "rda_quality_managerial_evaluations": {
+        const identity = await resolvePersonIdentity(
+          supabase,
+          workshopId,
+          personRefFromParams(params)
+        );
+        const data = await fetchManagerialEvaluations(
+          supabase,
+          workshopId,
+          identity,
+          periodFromParams(params),
+          clampLimit(params.limit, 20)
+        );
+        return { ok: true, data: { identity, ...data } };
+      }
+
+      case "rda_quality_prior_weekly_reviews": {
+        const identity = await resolvePersonIdentity(
+          supabase,
+          workshopId,
+          personRefFromParams(params)
+        );
+        const data = await fetchPriorWeeklyReviews(
+          supabase,
+          workshopId,
+          identity,
+          clampLimit(params.limit, 8)
+        );
+        return { ok: true, data: { identity, ...data } };
+      }
+
+      case "rda_quality_week_dossier": {
+        const ref = personRefFromParams(params);
+        const period = periodFromParams(params);
+        const profile = await fetchPersonProfileBundle(supabase, workshopId, ref, period);
+        const identity = profile.identity;
+        const [recog, incidents, services, times, careerPdi, evals, prior] = await Promise.all([
+          fetchRecognitions(supabase, workshopId, identity, period, 10),
+          fetchIncidents(supabase, workshopId, identity, period, 10),
+          fetchServiceHistorySplit(supabase, workshopId, identity, period, 12),
+          fetchWorkTimes(supabase, workshopId, identity, period),
+          fetchPdiAndMeetings(supabase, workshopId, identity, period),
+          fetchManagerialEvaluations(supabase, workshopId, identity, period, 10),
+          fetchPriorWeeklyReviews(supabase, workshopId, identity, 5),
+        ]);
+        const incomplete = detectIncompleteSignals({
+          matrixUnratedCount: profile.competencyMatrix.unrated.length,
+          servicesPatio: services.patio?.length || 0,
+          servicesLab: services.laboratorio?.length || 0,
+          recognitions: recog.items?.length || 0,
+          incidents: incidents.items?.length || 0,
+          meetings: careerPdi.meetings?.length || 0,
+          hasCareerLevel: !!(profile.career && "career_level_id" in (profile.career as object)),
+          hasPdi: (careerPdi.pdi || []).length > 0,
+          workSessions: times.totals?.sessions || 0,
+        });
+        return {
+          ok: true,
+          data: {
+            classificationGuide: {
+              system_fact: "Somente o que veio destas tools",
+              leader_observation: "Declarado pelo líder na conversa",
+              ai_suggestion: "Interpretação da RDA — não é fato",
+              unconfirmed: "Lacuna ou hipótese — pedir confirmação",
+            },
+            identity,
+            period: period || null,
+            profile,
+            recognitions: recog,
+            incidents,
+            services,
+            workTimes: times,
+            careerPdi,
+            managerialEvaluations: evals,
+            priorWeeklyReviews: prior,
+            incompleteSignals: incomplete,
+            provenance: "system_fact",
           },
         };
       }
