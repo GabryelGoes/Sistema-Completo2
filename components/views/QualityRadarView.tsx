@@ -296,6 +296,7 @@ export const QualityRadarView: React.FC<{ authSession?: AuthSession | null }> = 
         loading={loading}
         technicians={technicians}
         onFocusEmployee={focusEmployeeFromReport}
+        onOpenInterview={() => setSection('revisao_semanal')}
       />
     );
   } else {

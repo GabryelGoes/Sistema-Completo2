@@ -23,6 +23,7 @@ import {
   normalizeQualityRadarPersonKey,
   type QualityRadarTechnicianOption,
 } from '../../utils/qualityRadarTechnicians';
+import { WeeklyCyclePanel } from './WeeklyCyclePanel';
 import {
   criticalIncidentCount,
   incidentsForEmployee,
@@ -1109,6 +1110,7 @@ export function ReportsPanel({
   loading,
   technicians,
   onFocusEmployee,
+  onOpenInterview,
 }: {
   incidents: QualityIncident[];
   from: string;
@@ -1116,6 +1118,7 @@ export function ReportsPanel({
   loading: boolean;
   technicians: QualityRadarTechnicianOption[];
   onFocusEmployee: (selectValue: string | null, techName: string) => void;
+  onOpenInterview?: (weeklyReviewId: string | null, personName: string) => void;
 }) {
   const report = useMemo(
     () => buildQualityRadarReport(incidents, from, to),
@@ -1126,13 +1129,14 @@ export function ReportsPanel({
     <div className="space-y-4">
       <HubSectionHeader
         title="Relatórios"
-        subtitle={`${formatReportPeriodLabel(from, to)}. Consolidado operacional — não é nota de desempenho.`}
+        subtitle={`${formatReportPeriodLabel(from, to)}. Ciclo semanal + consolidado operacional (ocorrências ≠ nota).`}
       />
 
+      <WeeklyCyclePanel onOpenInterview={onOpenInterview} />
+
       <HubPreparedNote>
-        Relatórios individuais enriquecidos, apresentações para diretoria e recomendações do RDA
-        Intelligence serão adicionados depois. O índice abaixo mede carga de ocorrências, não
-        avaliação 1–5.
+        Abaixo: carga de ocorrências do período (legado). Relatórios semanais profissionais estão
+        no ciclo acima — com PDF, versões e aprovação gerencial.
       </HubPreparedNote>
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -1185,15 +1189,6 @@ export function ReportsPanel({
         </>
       )}
 
-      <div className={`${hub.surface} p-4`}>
-        <p className="text-[14px] font-semibold text-zinc-900 dark:text-white">
-          Preparação para a diretoria
-        </p>
-        <p className={`mt-1 text-[13px] ${hub.muted}`}>
-          Exportações e roteiros de apresentação entram nas próximas fases do RDA Intelligence.
-        </p>
-        <p className={`${hub.badge} ${hub.accentSoft} mt-3`}>Em preparação</p>
-      </div>
     </div>
   );
 }

@@ -79,6 +79,7 @@ import {
 } from "./services/qualityRadar/registerQualityRadarPhase1Routes.js";
 import { registerQualityRadarPhase2Routes } from "./services/qualityRadar/registerQualityRadarPhase2Routes.js";
 import { registerQualityRadarPhase3Routes } from "./services/qualityRadar/registerQualityRadarPhase3Routes.js";
+import { registerQualityRadarPhase4Routes } from "./services/qualityRadar/registerQualityRadarPhase4Routes.js";
 import { isFaultAttribution } from "./services/qualityRadar/identity.js";
 import { canAccessQualityRadar } from "./services/qualityRadar/access.js";
 
@@ -16222,6 +16223,29 @@ export function createApiApp() {
         .eq("workshop_id", WORKSHOP_ID)
         .maybeSingle();
       return (me?.permissions as Record<string, boolean> | null) ?? null;
+    },
+  });
+
+  // ----------------- Radar Fase 4: ciclo semanal / relatórios -----------------
+  registerQualityRadarPhase4Routes(app, {
+    WORKSHOP_ID,
+    supabaseAdmin,
+    requestCanAccessQualityRadar,
+    getWorkshopSettingValue,
+    setWorkshopSettingValue: async (key: string, value: string) => {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        throw new Error("Supabase/WORKSHOP_ID não configurados.");
+      }
+      const { error } = await supabaseAdmin.from("workshop_settings").upsert(
+        {
+          workshop_id: WORKSHOP_ID,
+          key,
+          value,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "workshop_id,key" }
+      );
+      if (error) throw new Error(error.message);
     },
   });
 
