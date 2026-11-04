@@ -7,7 +7,17 @@ import {
   canViewWorkPerformanceSummary,
   resolveWorkSessionListScope,
 } from "./access.js";
-import { computeLiveTotals, asNonNegInt } from "./timing.js";
+import {
+  computeLiveTotals,
+  asNonNegInt,
+  clipInterval,
+  mergeDayMaps,
+  pausedIntervalsFromEvents,
+  productiveIntervalsFromEvents,
+  splitIntervalByCalendarDay,
+  sumIntervalsMs,
+  WORKSHOP_TIME_ZONE,
+} from "./timing.js";
 import type {
   RdaWorkPauseReason,
   RdaWorkPerformanceTechnicianRow,
@@ -15,6 +25,11 @@ import type {
   RdaWorkSessionEventDto,
   RdaWorkSessionStatus,
 } from "./types.js";
+import {
+  ensureBudgetServiceLineIds,
+  OS_GENERAL_SERVICE_LINE_ID,
+  readBudgetServiceLineId,
+} from "../../../utils/budgetServiceLineId.js";
 
 type SessionPayload = {
   r: "admin" | "user";
@@ -37,6 +52,7 @@ type SessionRow = {
   technician_user_id: string;
   budget_id: string | null;
   budget_service_description: string | null;
+  budget_service_line_id?: string | null;
   status: RdaWorkSessionStatus;
   started_at: string;
   ended_at: string | null;
@@ -47,6 +63,7 @@ type SessionRow = {
   current_pause_note: string | null;
   current_pause_started_at: string | null;
   client_mutation_id: string | null;
+  order_type?: string | null;
 };
 
 function authFromReq(req: Request): SessionPayload | null {
@@ -72,12 +89,17 @@ function mapSession(row: SessionRow, serverNow = new Date()): RdaWorkSessionDto 
     currentPauseStartedAt: row.current_pause_started_at,
     serverNowMs,
   });
+  const orderTypeRaw = String(row.order_type || "").toLowerCase();
+  const orderType =
+    orderTypeRaw === "module" ? ("module" as const) : orderTypeRaw === "vehicle" ? ("vehicle" as const) : null;
   return {
     id: row.id,
     serviceOrderId: row.service_order_id,
     technicianUserId: row.technician_user_id,
     budgetId: row.budget_id,
     budgetServiceDescription: row.budget_service_description,
+    budgetServiceLineId: row.budget_service_line_id ? String(row.budget_service_line_id) : null,
+    orderType,
     status: row.status,
     startedAt: row.started_at,
     endedAt: row.ended_at,
@@ -210,7 +232,8 @@ export function registerRdaWorkSessionRoutes(app: Express, deps: RouteDeps): voi
       | "rda_work_session_start"
       | "rda_work_session_pause"
       | "rda_work_session_resume"
-      | "rda_work_session_finish",
+      | "rda_work_session_finish"
+      | "rda_work_session_correct",
     args: Record<string, unknown>
   ): Promise<{ ok: boolean; data: Record<string, unknown> | null; missingFn: boolean; error?: string }> {
     if (!supabaseAdmin) {
@@ -506,15 +529,28 @@ export function registerRdaWorkSessionRoutes(app: Express, deps: RouteDeps): voi
 
       const from = typeof req.query.from === "string" ? req.query.from.trim() : "";
       const to = typeof req.query.to === "string" ? req.query.to.trim() : "";
+      const orderTypeRaw =
+        typeof req.query.orderType === "string" ? req.query.orderType.trim().toLowerCase() : "all";
+      const orderTypeFilter =
+        orderTypeRaw === "vehicle" || orderTypeRaw === "module" ? orderTypeRaw : "all";
+      const fromMs = from ? Date.parse(from) : null;
+      const toMs = to ? Date.parse(to) : null;
+      const serverNow = Date.now();
 
+      // Overlap: started_at < to AND (ended_at IS NULL OR ended_at > from)
       let query = supabaseAdmin
         .from("rda_work_sessions")
         .select("*")
         .eq("workshop_id", WORKSHOP_ID)
         .order("started_at", { ascending: false })
-        .limit(1000);
-      if (from) query = query.gte("started_at", from);
-      if (to) query = query.lte("started_at", to);
+        .limit(2000);
+      if (to && Number.isFinite(toMs)) query = query.lt("started_at", to);
+      // ended_at filter via post-filter (Supabase or() é verboso); buscamos folga no started_at
+      if (from && Number.isFinite(fromMs)) {
+        // inclui sessões que começaram antes do período mas podem se estender nele
+        const lookback = new Date((fromMs as number) - 7 * 86400000).toISOString();
+        query = query.gte("started_at", lookback);
+      }
 
       const { data, error } = await query;
       if (error) {
@@ -528,7 +564,40 @@ export function registerRdaWorkSessionRoutes(app: Express, deps: RouteDeps): voi
         return res.status(500).json({ error: error.message });
       }
 
-      const rows = (data ?? []) as SessionRow[];
+      let rows = (data ?? []) as SessionRow[];
+      // Descarta sessões que terminaram antes do período
+      if (from && Number.isFinite(fromMs)) {
+        rows = rows.filter((r) => {
+          if (!r.ended_at) return true;
+          const ended = Date.parse(r.ended_at);
+          return !Number.isFinite(ended) || ended > (fromMs as number);
+        });
+      }
+
+      // Join order_type
+      const osIds = [...new Set(rows.map((r) => r.service_order_id))];
+      const orderTypeByOs = new Map<string, string>();
+      if (osIds.length) {
+        const { data: sos } = await supabaseAdmin
+          .from("service_orders")
+          .select("id, order_type")
+          .eq("workshop_id", WORKSHOP_ID)
+          .in("id", osIds);
+        for (const so of sos ?? []) {
+          orderTypeByOs.set(
+            String((so as { id: string }).id),
+            String((so as { order_type?: string }).order_type || "vehicle").toLowerCase()
+          );
+        }
+      }
+      rows = rows.map((r) => ({
+        ...r,
+        order_type: orderTypeByOs.get(r.service_order_id) || "vehicle",
+      }));
+      if (orderTypeFilter !== "all") {
+        rows = rows.filter((r) => String(r.order_type) === orderTypeFilter);
+      }
+
       const techIds = [...new Set(rows.map((r) => r.technician_user_id))];
       const nameById = new Map<string, string>();
       if (techIds.length) {
@@ -555,58 +624,78 @@ export function registerRdaWorkSessionRoutes(app: Express, deps: RouteDeps): voi
       }
 
       const sessionIds = rows.map((r) => r.id);
-      const pauseMsBySessionReason = new Map<string, number>();
+      const eventsBySession = new Map<
+        string,
+        Array<{ eventType: string; occurredAt: string; pauseReasonId?: string | null }>
+      >();
       if (sessionIds.length) {
-        const { data: pauseEvents } = await supabaseAdmin
-          .from("rda_work_session_events")
-          .select("session_id, event_type, occurred_at, pause_reason_id")
-          .eq("workshop_id", WORKSHOP_ID)
-          .in("session_id", sessionIds)
-          .in("event_type", ["pause", "resume", "finish"])
-          .order("occurred_at", { ascending: true });
-
-        const openPause = new Map<string, { at: number; reasonId: string }>();
-        for (const ev of pauseEvents ?? []) {
-          const sid = String((ev as { session_id: string }).session_id);
-          const type = String((ev as { event_type: string }).event_type);
-          const at = Date.parse(String((ev as { occurred_at: string }).occurred_at));
-          if (type === "pause") {
-            const reasonId = String((ev as { pause_reason_id?: string }).pause_reason_id || "other");
-            openPause.set(sid, { at, reasonId });
-          } else if (type === "resume" || type === "finish") {
-            const open = openPause.get(sid);
-            if (open && Number.isFinite(at) && at > open.at) {
-              const key = `${sid}::${open.reasonId}`;
-              pauseMsBySessionReason.set(
-                key,
-                (pauseMsBySessionReason.get(key) || 0) + (at - open.at)
-              );
-              openPause.delete(sid);
-            }
+        // Pagina em chunks de 200 ids
+        for (let i = 0; i < sessionIds.length; i += 200) {
+          const chunk = sessionIds.slice(i, i + 200);
+          const { data: evs } = await supabaseAdmin
+            .from("rda_work_session_events")
+            .select("session_id, event_type, occurred_at, pause_reason_id")
+            .eq("workshop_id", WORKSHOP_ID)
+            .in("session_id", chunk)
+            .in("event_type", ["start", "pause", "resume", "finish", "cancel"])
+            .order("occurred_at", { ascending: true });
+          for (const ev of evs ?? []) {
+            const sid = String((ev as { session_id: string }).session_id);
+            const list = eventsBySession.get(sid) || [];
+            list.push({
+              eventType: String((ev as { event_type: string }).event_type),
+              occurredAt: String((ev as { occurred_at: string }).occurred_at),
+              pauseReasonId: (ev as { pause_reason_id?: string | null }).pause_reason_id ?? null,
+            });
+            eventsBySession.set(sid, list);
           }
-        }
-        // Pausas ainda abertas: conta até agora
-        const now = Date.now();
-        for (const [sid, open] of openPause) {
-          const key = `${sid}::${open.reasonId}`;
-          pauseMsBySessionReason.set(
-            key,
-            (pauseMsBySessionReason.get(key) || 0) + Math.max(0, now - open.at)
-          );
         }
       }
 
       const byTech = new Map<string, RdaWorkPerformanceTechnicianRow>();
-      const serverNow = Date.now();
+      const dayMaps = new Map<string, Map<string, number>>();
+
       for (const row of rows) {
-        const live = computeLiveTotals({
+        const events = eventsBySession.get(row.id) || [];
+        const prodIntervals = productiveIntervalsFromEvents(events, {
           status: row.status,
-          productiveMs: asNonNegInt(row.productive_ms),
-          pausedMs: asNonNegInt(row.paused_ms),
-          segmentStartedAt: row.segment_started_at,
-          currentPauseStartedAt: row.current_pause_started_at,
-          serverNowMs: serverNow,
-        });
+          openUntilMs: serverNow,
+        })
+          .map((iv) => clipInterval(iv, fromMs, toMs))
+          .filter((x): x is NonNullable<typeof x> => Boolean(x));
+        const pauseIntervals = pausedIntervalsFromEvents(events, {
+          status: row.status,
+          openUntilMs: serverNow,
+        })
+          .map((iv) => {
+            const clipped = clipInterval(iv, fromMs, toMs);
+            return clipped ? { ...clipped, reasonId: iv.reasonId } : null;
+          })
+          .filter((x): x is NonNullable<typeof x> => Boolean(x));
+
+        const productiveMs = sumIntervalsMs(prodIntervals);
+        const pausedMs = sumIntervalsMs(pauseIntervals);
+        // Sessão sem overlap efetivo no período → ignora totais (mas conta se começou no lookback sem trabalho)
+        if (productiveMs === 0 && pausedMs === 0 && row.status === "finished") {
+          // ainda pode ter começado no período sem eventos (legado): fallback nos totais da linha clipados
+          const live = computeLiveTotals({
+            status: row.status,
+            productiveMs: asNonNegInt(row.productive_ms),
+            pausedMs: asNonNegInt(row.paused_ms),
+            segmentStartedAt: row.segment_started_at,
+            currentPauseStartedAt: row.current_pause_started_at,
+            serverNowMs: serverNow,
+          });
+          // Se started fora e ended fora sem eventos, skip
+          const started = Date.parse(row.started_at);
+          const ended = row.ended_at ? Date.parse(row.ended_at) : serverNow;
+          const overlaps =
+            (!fromMs || ended > fromMs) && (!toMs || started < toMs);
+          if (!overlaps) continue;
+          // Sem timeline: atribui tudo ao started_at (limitação legada)
+          void live;
+        }
+
         let agg = byTech.get(row.technician_user_id);
         if (!agg) {
           agg = {
@@ -618,40 +707,53 @@ export function registerRdaWorkSessionRoutes(app: Express, deps: RouteDeps): voi
             livePausedMs: 0,
             pauseByReason: [],
             serviceDurations: [],
+            productiveByDay: [],
           };
           byTech.set(row.technician_user_id, agg);
+          dayMaps.set(row.technician_user_id, new Map());
         }
         agg.sessionCount += 1;
         if (row.status === "finished") agg.finishedCount += 1;
-        agg.liveProductiveMs += live.liveProductiveMs;
-        agg.livePausedMs += live.livePausedMs;
+        agg.liveProductiveMs += productiveMs;
+        agg.livePausedMs += pausedMs;
 
-        const desc = (row.budget_service_description || "").trim() || "Serviço geral";
-        const existing = agg.serviceDurations.find((s) => s.description === desc);
+        const desc = (row.budget_service_description || "").trim() || "Apontamento geral da OS";
+        const lineId = row.budget_service_line_id ? String(row.budget_service_line_id) : null;
+        const existing = agg.serviceDurations.find(
+          (s) => (lineId && s.lineId === lineId) || (!lineId && s.description === desc && !s.lineId)
+        );
         if (existing) {
-          existing.productiveMs += live.liveProductiveMs;
+          existing.productiveMs += productiveMs;
           existing.sessions += 1;
         } else {
           agg.serviceDurations.push({
             description: desc,
-            productiveMs: live.liveProductiveMs,
+            lineId,
+            productiveMs,
             sessions: 1,
           });
         }
+
+        for (const iv of pauseIntervals) {
+          const label = reasonLabel.get(iv.reasonId) || iv.reasonId;
+          const slot = agg.pauseByReason.find((p) => p.reasonId === iv.reasonId);
+          const ms = iv.endMs - iv.startMs;
+          if (slot) slot.pausedMs += ms;
+          else agg.pauseByReason.push({ reasonId: iv.reasonId, label, pausedMs: ms });
+        }
+
+        const dayMap = dayMaps.get(row.technician_user_id)!;
+        for (const iv of prodIntervals) {
+          mergeDayMaps(dayMap, splitIntervalByCalendarDay(iv, WORKSHOP_TIME_ZONE));
+        }
       }
 
-      // Agrega pausas por motivo por técnico
-      for (const row of rows) {
-        const agg = byTech.get(row.technician_user_id);
+      for (const [techId, dayMap] of dayMaps) {
+        const agg = byTech.get(techId);
         if (!agg) continue;
-        for (const [key, ms] of pauseMsBySessionReason) {
-          if (!key.startsWith(`${row.id}::`)) continue;
-          const reasonId = key.slice(row.id.length + 2);
-          const label = reasonLabel.get(reasonId) || reasonId;
-          const slot = agg.pauseByReason.find((p) => p.reasonId === reasonId);
-          if (slot) slot.pausedMs += ms;
-          else agg.pauseByReason.push({ reasonId, label, pausedMs: ms });
-        }
+        agg.productiveByDay = [...dayMap.entries()]
+          .sort(([a], [b]) => a.localeCompare(b))
+          .map(([day, productiveMs]) => ({ day, productiveMs }));
       }
 
       const technicians = [...byTech.values()].sort(
@@ -660,12 +762,165 @@ export function registerRdaWorkSessionRoutes(app: Express, deps: RouteDeps): voi
       return res.json({
         from: from || null,
         to: to || null,
+        orderType: orderTypeFilter,
+        timeZone: WORKSHOP_TIME_ZONE,
+        aggregation: "effective_intervals",
         serverNow: new Date(serverNow).toISOString(),
         technicians,
       });
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Erro";
       console.error("[API] GET performance-summary:", err);
+      return res.status(500).json({ error: message });
+    }
+  });
+
+  /** Serviços do orçamento da OS (com line_id estável) para o seletor do cronômetro. */
+  app.get("/api/rda/work-sessions/os-services", async (req, res) => {
+    try {
+      if (!(await canViewWorkSessions(req))) {
+        return res.status(403).json({ error: "Acesso negado." });
+      }
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({ error: "Servidor não configurado." });
+      }
+      const serviceOrderId =
+        typeof req.query.serviceOrderId === "string" ? req.query.serviceOrderId.trim() : "";
+      if (!serviceOrderId) {
+        return res.status(400).json({ error: "serviceOrderId é obrigatório." });
+      }
+
+      const { data: so } = await supabaseAdmin
+        .from("service_orders")
+        .select("id, order_type, os_number")
+        .eq("workshop_id", WORKSHOP_ID)
+        .eq("id", serviceOrderId)
+        .maybeSingle();
+      if (!so) return res.status(404).json({ error: "OS não encontrada." });
+
+      const { data: budgets, error } = await supabaseAdmin
+        .from("budgets")
+        .select("id, services, created_at")
+        .eq("workshop_id", WORKSHOP_ID)
+        .eq("service_order_id", serviceOrderId)
+        .order("created_at", { ascending: true });
+      if (error) return res.status(500).json({ error: error.message });
+
+      const services: Array<{
+        lineId: string;
+        budgetId: string;
+        description: string;
+        laborHours: number | null;
+        approved: boolean | null;
+      }> = [];
+
+      for (const b of budgets ?? []) {
+        const budgetId = String((b as { id: string }).id);
+        const { lines, changed } = ensureBudgetServiceLineIds((b as { services?: unknown }).services);
+        if (changed) {
+          await supabaseAdmin
+            .from("budgets")
+            .update({ services: lines })
+            .eq("id", budgetId)
+            .eq("workshop_id", WORKSHOP_ID);
+        }
+        for (const line of lines) {
+          const desc = String(line.description || "").trim();
+          if (!desc) continue;
+          const lineId = readBudgetServiceLineId(line);
+          if (!lineId) continue;
+          const labor =
+            typeof line.labor_hours === "number"
+              ? line.labor_hours
+              : line.labor_hours != null
+                ? Number(line.labor_hours)
+                : null;
+          services.push({
+            lineId,
+            budgetId,
+            description: desc,
+            laborHours: Number.isFinite(labor as number) ? (labor as number) : null,
+            approved: typeof line.approved === "boolean" ? line.approved : null,
+          });
+        }
+      }
+
+      return res.json({
+        serviceOrderId,
+        orderType: String((so as { order_type?: string }).order_type || "vehicle"),
+        osNumber: (so as { os_number?: number | null }).os_number ?? null,
+        generalOption: {
+          lineId: OS_GENERAL_SERVICE_LINE_ID,
+          budgetId: null,
+          description: "Apontamento geral da OS (sem serviço específico)",
+        },
+        services,
+      });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Erro";
+      console.error("[API] GET os-services:", err);
+      return res.status(500).json({ error: message });
+    }
+  });
+
+  /** Correção gerencial auditada (somente sessões finalizadas). */
+  app.post("/api/rda/work-sessions/:id/correct", async (req, res) => {
+    try {
+      const auth = authFromReq(req);
+      if (!auth) return res.status(401).json({ error: "Não autenticado." });
+      const flags =
+        auth.r === "user" && auth.u ? await loadTechFlags(auth.u) : null;
+      if (
+        !canViewWorkPerformanceSummary({
+          role: auth.r,
+          userId: auth.u,
+          flags,
+        })
+      ) {
+        return res.status(403).json({ error: "Apenas gestão pode corrigir apontamentos." });
+      }
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({ error: "Servidor não configurado." });
+      }
+      const sessionId = String(req.params.id || "").trim();
+      const body = (req.body || {}) as Record<string, unknown>;
+      const reason = typeof body.reason === "string" ? body.reason.trim() : "";
+      const newProductiveMs = Number(body.productiveMs);
+      const newPausedMs = Number(body.pausedMs);
+      const clientMutationId = mutationIdFromBody(body);
+      const actorUserId = auth.r === "admin" ? auth.u || null : auth.u || null;
+
+      if (!actorUserId && auth.r !== "admin") {
+        return res.status(400).json({ error: "Ator da correção não identificado." });
+      }
+
+      const rpc = await callSessionRpc("rda_work_session_correct", {
+        p_workshop_id: WORKSHOP_ID,
+        p_session_id: sessionId,
+        p_actor_user_id: actorUserId,
+        p_new_productive_ms: Math.floor(newProductiveMs),
+        p_new_paused_ms: Math.floor(newPausedMs),
+        p_reason: reason,
+        p_client_mutation_id: clientMutationId,
+      });
+      if (rpc.missingFn) {
+        return res.status(503).json({
+          error: "Migration de correção RDA pendente (20261104120000).",
+          code: "RDA_WORK_MIGRATION_REQUIRED",
+        });
+      }
+      if (!rpc.data || rpc.data.ok === false) {
+        const denied = rpcDeniedPayload(rpc.data || {}, rpc.error || "Falha na correção.");
+        return res.status(denied.status).json(denied.body);
+      }
+      const session = sessionFromRpcJson(rpc.data.session);
+      return res.json({
+        session: session ? mapSession(session) : null,
+        idempotent: rpc.data.idempotent === true,
+      });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Erro";
+      console.error("[API] POST correct:", err);
       return res.status(500).json({ error: message });
     }
   });
@@ -736,6 +991,12 @@ export function registerRdaWorkSessionRoutes(app: Express, deps: RouteDeps): voi
         typeof body.budgetServiceDescription === "string"
           ? body.budgetServiceDescription.trim().slice(0, 500) || null
           : null;
+      const rawLineId =
+        typeof body.budgetServiceLineId === "string"
+          ? body.budgetServiceLineId.trim().slice(0, 128)
+          : "";
+      const budgetServiceLineId =
+        !rawLineId || rawLineId === OS_GENERAL_SERVICE_LINE_ID ? null : rawLineId;
       const clientMutationId = mutationIdFromBody(body);
 
       const { data: so, error: soErr } = await supabaseAdmin
@@ -771,12 +1032,13 @@ export function registerRdaWorkSessionRoutes(app: Express, deps: RouteDeps): voi
         p_budget_id: budgetId,
         p_budget_service_description: budgetServiceDescription,
         p_client_mutation_id: clientMutationId,
+        p_budget_service_line_id: budgetServiceLineId,
       });
 
       if (rpc.missingFn) {
         return res.status(503).json({
           error:
-            "Funções atômicas de sessão RDA não instaladas. Aplique 20261101230000_rda_work_sessions_integrity.sql (e 20261101240000) na homologação.",
+            "Funções atômicas de sessão RDA não instaladas. Aplique 20261101230000_rda_work_sessions_integrity.sql (e 20261104120000_rda_work_sessions_service_line.sql) na homologação.",
           code: "RDA_WORK_MIGRATION_REQUIRED",
         });
       }
@@ -784,14 +1046,17 @@ export function registerRdaWorkSessionRoutes(app: Express, deps: RouteDeps): voi
         return res.status(500).json({ error: rpc.error || "Falha ao iniciar sessão." });
       }
       if (rpc.data.ok === false) {
-        if (rpc.data.code === "RDA_ACTIVE_SESSION_EXISTS") {
+        if (
+          rpc.data.code === "RDA_ACTIVE_SESSION_EXISTS" ||
+          rpc.data.code === "RDA_ACTIVE_OTHER_SERVICE"
+        ) {
           const activeRow = sessionFromRpcJson(rpc.data.activeSession);
           return res.status(409).json({
             error:
               typeof rpc.data.error === "string"
                 ? rpc.data.error
-                : "Já existe uma sessão ativa em outra OS.",
-            code: "RDA_ACTIVE_SESSION_EXISTS",
+                : "Já existe uma sessão ativa.",
+            code: String(rpc.data.code),
             activeSession: activeRow ? mapSession(activeRow) : undefined,
           });
         }

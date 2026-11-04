@@ -468,6 +468,13 @@ export function PerformancePanel({
   const [timeLoading, setTimeLoading] = useState(true);
   const [timeError, setTimeError] = useState<string | null>(null);
   const [migrationPending, setMigrationPending] = useState(false);
+  const [orderType, setOrderType] = useState<'all' | 'vehicle' | 'module'>('all');
+  const [correctSessionId, setCorrectSessionId] = useState('');
+  const [correctProdH, setCorrectProdH] = useState('');
+  const [correctPausedH, setCorrectPausedH] = useState('');
+  const [correctReason, setCorrectReason] = useState('');
+  const [correctBusy, setCorrectBusy] = useState(false);
+  const [correctMsg, setCorrectMsg] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -475,7 +482,11 @@ export function PerformancePanel({
     setTimeError(null);
     void import('../../services/apiService')
       .then(({ getRdaWorkPerformanceSummary }) =>
-        getRdaWorkPerformanceSummary({ from: periodFrom, to: periodTo })
+        getRdaWorkPerformanceSummary({
+          from: periodFrom,
+          to: periodTo,
+          orderType,
+        })
       )
       .then((summary) => {
         if (cancelled) return;
@@ -496,7 +507,7 @@ export function PerformancePanel({
     return () => {
       cancelled = true;
     };
-  }, [periodFrom, periodTo]);
+  }, [periodFrom, periodTo, orderType]);
 
   const incidentRows = useMemo(() => {
     return employees
@@ -529,24 +540,48 @@ export function PerformancePanel({
     <div className="space-y-4">
       <HubSectionHeader
         title="Desempenho"
-        subtitle="Tempo real das sessões RDA + histórico de ocorrências (sem nota 1–5)."
+        subtitle="Intervalos efetivos RDA (America/Sao_Paulo) + histórico de ocorrências."
       />
 
       <HubPreparedNote>
-        Tempos vêm do cronômetro RDA. Avaliações 1–5 ficam na aba Avaliações — ocorrências
-        permanecem histórico operacional separado (não viram nota).
+        Tempos vêm do cronômetro RDA, agregados por intervalo efetivo (não só started_at).
+        Pátio e Laboratório ficam separados pelo filtro de setor. Avaliações 1–5 ficam na aba
+        Avaliações.
       </HubPreparedNote>
+
+      <div className="flex flex-wrap gap-2">
+        {(
+          [
+            { id: 'all', label: 'Todos os setores' },
+            { id: 'vehicle', label: 'Pátio' },
+            { id: 'module', label: 'Laboratório' },
+          ] as const
+        ).map((opt) => (
+          <button
+            key={opt.id}
+            type="button"
+            onClick={() => setOrderType(opt.id)}
+            className={`rounded-xl px-3 py-2 text-[13px] font-semibold transition-colors ${
+              orderType === opt.id
+                ? 'bg-zinc-900 text-white dark:bg-white dark:text-zinc-900'
+                : 'bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200'
+            }`}
+          >
+            {opt.label}
+          </button>
+        ))}
+      </div>
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <HubStatCard
           label="Tempo produtivo"
           value={timeLoading ? '—' : formatMs(totalProductive)}
-          hint={migrationPending ? 'Migration pendente' : 'Soma das sessões no período'}
+          hint={migrationPending ? 'Migration pendente' : 'Soma efetiva no período'}
         />
         <HubStatCard
           label="Tempo pausado"
           value={timeLoading ? '—' : formatMs(totalPaused)}
-          hint="Inclui pausas abertas até agora"
+          hint="Pausas no período (separadas do produtivo)"
         />
         <HubStatCard
           label="Sessões finalizadas"
@@ -641,7 +676,7 @@ export function PerformancePanel({
                       <ul className="mt-1.5 space-y-1">
                         {r.serviceDurations.slice(0, 5).map((s) => (
                           <li
-                            key={s.description}
+                            key={`${s.lineId || 'gen'}-${s.description}`}
                             className="flex justify-between gap-3 text-[12px] text-zinc-700 dark:text-zinc-300"
                           >
                             <span className="truncate">{s.description}</span>
@@ -653,12 +688,115 @@ export function PerformancePanel({
                       </ul>
                     </div>
                   ) : null}
+                  {r.productiveByDay && r.productiveByDay.length > 0 ? (
+                    <div className="mt-3">
+                      <p className={`text-[11px] font-semibold uppercase tracking-wider ${hub.muted}`}>
+                        Produtivo por dia (SP)
+                      </p>
+                      <ul className="mt-1.5 space-y-1">
+                        {r.productiveByDay.slice(0, 7).map((d) => (
+                          <li
+                            key={d.day}
+                            className="flex justify-between text-[12px] text-zinc-700 dark:text-zinc-300"
+                          >
+                            <span>{d.day}</span>
+                            <span className="font-mono tabular-nums">{formatMs(d.productiveMs)}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
                 </div>
               ))}
             </div>
           ) : null}
         </div>
       )}
+
+      <div className={`${hub.surface} p-4`}>
+        <p className="mb-1 text-[14px] font-semibold text-zinc-900 dark:text-white">
+          Correção gerencial de apontamento
+        </p>
+        <p className={`mb-3 text-[12px] ${hub.muted}`}>
+          Ajusta tempos de sessão finalizada com justificativa obrigatória. O histórico de auditoria
+          não é apagado.
+        </p>
+        <div className="grid gap-2 sm:grid-cols-2">
+          <input
+            value={correctSessionId}
+            onChange={(e) => setCorrectSessionId(e.target.value)}
+            placeholder="ID da sessão"
+            className="rounded-xl border border-zinc-200 bg-white px-3 py-2 text-[13px] dark:border-zinc-700 dark:bg-zinc-950 dark:text-white"
+          />
+          <input
+            value={correctReason}
+            onChange={(e) => setCorrectReason(e.target.value)}
+            placeholder="Justificativa (obrigatória)"
+            className="rounded-xl border border-zinc-200 bg-white px-3 py-2 text-[13px] dark:border-zinc-700 dark:bg-zinc-950 dark:text-white"
+          />
+          <input
+            value={correctProdH}
+            onChange={(e) => setCorrectProdH(e.target.value)}
+            placeholder="Produtivo (minutos)"
+            inputMode="numeric"
+            className="rounded-xl border border-zinc-200 bg-white px-3 py-2 text-[13px] dark:border-zinc-700 dark:bg-zinc-950 dark:text-white"
+          />
+          <input
+            value={correctPausedH}
+            onChange={(e) => setCorrectPausedH(e.target.value)}
+            placeholder="Pausado (minutos)"
+            inputMode="numeric"
+            className="rounded-xl border border-zinc-200 bg-white px-3 py-2 text-[13px] dark:border-zinc-700 dark:bg-zinc-950 dark:text-white"
+          />
+        </div>
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            disabled={correctBusy}
+            className="rounded-xl bg-zinc-900 px-4 py-2 text-[13px] font-semibold text-white disabled:opacity-50 dark:bg-white dark:text-zinc-900"
+            onClick={() => {
+              const prodMin = Number(correctProdH);
+              const pausedMin = Number(correctPausedH);
+              if (!correctSessionId.trim() || !correctReason.trim() || correctReason.trim().length < 3) {
+                setCorrectMsg('Informe sessão e justificativa (mín. 3 caracteres).');
+                return;
+              }
+              if (!Number.isFinite(prodMin) || prodMin < 0 || !Number.isFinite(pausedMin) || pausedMin < 0) {
+                setCorrectMsg('Tempos em minutos devem ser números ≥ 0.');
+                return;
+              }
+              setCorrectBusy(true);
+              setCorrectMsg(null);
+              void import('../../services/apiService')
+                .then(async ({ correctRdaWorkSession }) => {
+                  const mut =
+                    typeof crypto !== 'undefined' && 'randomUUID' in crypto
+                      ? crypto.randomUUID()
+                      : `mut_${Date.now()}`;
+                  await correctRdaWorkSession({
+                    sessionId: correctSessionId.trim(),
+                    productiveMs: Math.round(prodMin * 60_000),
+                    pausedMs: Math.round(pausedMin * 60_000),
+                    reason: correctReason.trim(),
+                    clientMutationId: mut,
+                  });
+                  setCorrectMsg('Correção registrada com auditoria.');
+                  setCorrectSessionId('');
+                  setCorrectReason('');
+                  setCorrectProdH('');
+                  setCorrectPausedH('');
+                })
+                .catch((e) => {
+                  setCorrectMsg(e instanceof Error ? e.message : 'Falha na correção.');
+                })
+                .finally(() => setCorrectBusy(false));
+            }}
+          >
+            {correctBusy ? 'Salvando…' : 'Registrar correção'}
+          </button>
+          {correctMsg ? <p className={`text-[12px] ${hub.muted}`}>{correctMsg}</p> : null}
+        </div>
+      </div>
 
       <div className={`${hub.surface} p-4`}>
         <p className="mb-3 text-[14px] font-semibold text-zinc-900 dark:text-white">

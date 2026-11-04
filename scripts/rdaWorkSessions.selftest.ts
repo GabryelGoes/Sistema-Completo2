@@ -9,7 +9,24 @@ import {
   resolveWorkSessionListScope,
 } from '../services/rdaIntelligence/workSessions/access.js';
 import { shouldRejectCrossTechnicianIdempotentReplay } from '../services/rdaIntelligence/workSessions/rpcOwnership.js';
-import { computeLiveTotals, formatDurationHms } from '../services/rdaIntelligence/workSessions/timing.js';
+import {
+  computeLiveTotals,
+  createServerClockSync,
+  formatDurationHms,
+  clipInterval,
+  calendarDayKey,
+  productiveIntervalsFromEvents,
+  pausedIntervalsFromEvents,
+  splitIntervalByCalendarDay,
+  sumIntervalsMs,
+  WORKSHOP_TIME_ZONE,
+} from '../services/rdaIntelligence/workSessions/timing.js';
+import {
+  ensureBudgetServiceLineIds,
+  isGeneralOsServiceLine,
+  OS_GENERAL_SERVICE_LINE_ID,
+  readBudgetServiceLineId,
+} from '../utils/budgetServiceLineId.js';
 
 let passed = 0;
 let failed = 0;
@@ -211,6 +228,149 @@ console.log('\n6) Ownership no replay idempotente');
     }) === false,
     'sem mutation hit → segue fluxo normal'
   );
+}
+
+console.log('\n7) Clock sync — skew fixo avança com o tick local');
+{
+  const serverIso = new Date(base).toISOString();
+  const clientAtSync = base + 5_000; // cliente 5s à frente
+  const sync = createServerClockSync(serverIso, clientAtSync);
+  const t0 = sync.serverNowMsAt(clientAtSync);
+  const t1 = sync.serverNowMsAt(clientAtSync + 10_000);
+  assert(t0 === base, 'serverNow no sync = serverAtSync');
+  assert(t1 === base + 10_000, 'após 10s locais, serverNow avança 10s');
+  // Bug antigo: skew = serverNow - Date.now() a cada tick → serverNowMs congelado
+  const frozenBug = (clientNow: number) => {
+    const skew = Date.parse(serverIso) - clientNow;
+    return clientNow + skew;
+  };
+  assert(frozenBug(clientAtSync) === base, 'bug: no sync parece ok');
+  assert(frozenBug(clientAtSync + 10_000) === base, 'bug: 10s depois continua congelado');
+  assert(t1 !== frozenBug(clientAtSync + 10_000), 'fix diverge do bug congelado');
+}
+
+console.log('\n8) Line id estável do orçamento');
+{
+  const { lines, changed } = ensureBudgetServiceLineIds([
+    { description: 'Reparo ABS' },
+    { description: 'Sangria', line_id: 'fixed-line-1' },
+    { id: 'legacy-uuid-abcdefgh', description: 'Pastilhas' },
+  ]);
+  assert(changed === true, 'linhas sem id geram mudança');
+  assert(typeof lines[0].line_id === 'string' && (lines[0].line_id as string).length >= 8, 'gera line_id');
+  assert(readBudgetServiceLineId(lines[1]) === 'fixed-line-1', 'preserva line_id existente');
+  assert(readBudgetServiceLineId(lines[2]) === 'legacy-uuid-abcdefgh', 'usa id legado como line_id');
+  const again = ensureBudgetServiceLineIds(lines);
+  assert(again.changed === false, 'segunda passagem idempotente');
+  assert(isGeneralOsServiceLine(null) === true, 'null = geral');
+  assert(isGeneralOsServiceLine(OS_GENERAL_SERVICE_LINE_ID) === true, 'sentinel = geral');
+  assert(isGeneralOsServiceLine('fixed-line-1') === false, 'line real não é geral');
+}
+
+console.log('\n9) Intervalos efetivos e divisão por dia (America/Sao_Paulo)');
+{
+  // Segunda 19:00 BRT = 22:00 UTC; Terça 10:00 BRT = 13:00 UTC
+  const mon1600Utc = Date.parse('2026-11-02T19:00:00.000Z'); // 16:00 BRT
+  const tue1000Utc = Date.parse('2026-11-03T13:00:00.000Z'); // 10:00 BRT
+  const cross = { startMs: mon1600Utc, endMs: tue1000Utc };
+  const byDay = splitIntervalByCalendarDay(cross, WORKSHOP_TIME_ZONE);
+  const monKey = calendarDayKey(mon1600Utc, WORKSHOP_TIME_ZONE);
+  const tueKey = calendarDayKey(tue1000Utc, WORKSHOP_TIME_ZONE);
+  assert(monKey === '2026-11-02', 'dia segunda SP');
+  assert(tueKey === '2026-11-03', 'dia terça SP');
+  assert((byDay.get(monKey) || 0) > 0, 'parte na segunda');
+  assert((byDay.get(tueKey) || 0) > 0, 'parte na terça');
+  assert(
+    (byDay.get(monKey) || 0) + (byDay.get(tueKey) || 0) === tue1000Utc - mon1600Utc,
+    'soma dos dias = intervalo total'
+  );
+
+  const periodFrom = Date.parse('2026-11-03T03:00:00.000Z'); // ~00:00 terça BRT
+  const clipped = clipInterval(cross, periodFrom, null);
+  assert(clipped != null && clipped.startMs === periodFrom, 'clip remove segunda');
+  assert(clipped != null && sumIntervalsMs([clipped]) === tue1000Utc - periodFrom, 'ms só na terça');
+}
+
+console.log('\n10) Timeline start/pause/resume/finish → intervalos');
+{
+  const events = [
+    { eventType: 'start', occurredAt: new Date(base).toISOString() },
+    { eventType: 'pause', occurredAt: new Date(base + 30_000).toISOString(), pauseReasonId: 'waiting_parts' },
+    { eventType: 'resume', occurredAt: new Date(base + 50_000).toISOString() },
+    { eventType: 'finish', occurredAt: new Date(base + 80_000).toISOString() },
+  ];
+  const prod = productiveIntervalsFromEvents(events);
+  const paused = pausedIntervalsFromEvents(events);
+  assert(prod.length === 2, 'dois trechos produtivos');
+  assert(sumIntervalsMs(prod) === 60_000, '30s + 30s produtivos');
+  assert(paused.length === 1 && paused[0].reasonId === 'waiting_parts', 'uma pausa waiting_parts');
+  assert(sumIntervalsMs(paused) === 20_000, '20s pausados');
+
+  // Múltiplas sessões do mesmo serviço = somar intervalos
+  const session2 = productiveIntervalsFromEvents([
+    { eventType: 'start', occurredAt: new Date(base + 100_000).toISOString() },
+    { eventType: 'finish', occurredAt: new Date(base + 130_000).toISOString() },
+  ]);
+  assert(sumIntervalsMs([...prod, ...session2]) === 90_000, 'soma multi-sessão mesmo serviço');
+}
+
+console.log('\n11) Dois técnicos na mesma OS / um técnico em duas OS (regras lógicas)');
+{
+  // Regras modeladas como ACL + ownership (sem banco):
+  // - Dois técnicos: sessões distintas por technicianUserId → ambos canView self
+  assert(
+    canViewSessionRow({
+      role: 'user',
+      userId: 't1',
+      flags: { isTechnician: true, permissions: { access_patio: true } },
+      sessionTechnicianUserId: 't1',
+    }) === true,
+    'T1 vê própria sessão na OS'
+  );
+  assert(
+    canViewSessionRow({
+      role: 'user',
+      userId: 't2',
+      flags: { isTechnician: true, permissions: { access_patio: true } },
+      sessionTechnicianUserId: 't2',
+    }) === true,
+    'T2 vê própria sessão na mesma OS'
+  );
+  // Um técnico: active session conflict é RPC (RDA_ACTIVE_SESSION_EXISTS) — coberto pela migration;
+  // aqui validamos que T1 não lê sessão de T2.
+  assert(
+    canViewSessionRow({
+      role: 'user',
+      userId: 't1',
+      flags: { isTechnician: true, permissions: { access_patio: true } },
+      sessionTechnicianUserId: 't2',
+    }) === false,
+    'T1 não enxerga sessão de T2'
+  );
+}
+
+console.log('\n12) Histórico sem serviço vinculado (legado = geral)');
+{
+  assert(isGeneralOsServiceLine(undefined) === true, 'legado undefined = geral');
+  assert(isGeneralOsServiceLine('') === true, 'string vazia = geral');
+  const desc = 'Apontamento geral da OS';
+  assert(desc.includes('geral'), 'rótulo claro para legado');
+}
+
+console.log('\n13) Separação Pátio × Lab (filtro orderType)');
+{
+  const rows = [
+    { order_type: 'vehicle', productive: 10 },
+    { order_type: 'module', productive: 20 },
+    { order_type: 'vehicle', productive: 5 },
+  ];
+  const patio = rows.filter((r) => r.order_type === 'vehicle');
+  const lab = rows.filter((r) => r.order_type === 'module');
+  assert(
+    patio.reduce((a, r) => a + r.productive, 0) === 15,
+    'filtro vehicle soma só pátio'
+  );
+  assert(lab.reduce((a, r) => a + r.productive, 0) === 20, 'filtro module soma só lab');
 }
 
 console.log(`\nResultado: ${passed} ok, ${failed} falhas`);

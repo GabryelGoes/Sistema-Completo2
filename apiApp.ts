@@ -302,7 +302,13 @@ function budgetContentWithoutApprovals(row: {
       };
     }
     const s = item as Record<string, unknown>;
+    const lineId =
+      asOptionalText(s.line_id) ||
+      (typeof s.id === "string" && String(s.id).trim().length >= 8
+        ? String(s.id).trim()
+        : null);
     return {
+      ...(lineId ? { line_id: lineId } : {}),
       description: asText(s.description).trim(),
       labor_hours: asOptionalNumber(s.labor_hours),
       outsourced: s.outsourced === true,

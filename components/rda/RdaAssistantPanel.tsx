@@ -58,7 +58,7 @@ export const RdaAssistantPanel: React.FC<Props> = ({
   const [pendingConfirmTools, setPendingConfirmTools] = useState<string[]>([]);
   const listeningRef = useRef(false);
   const listRef = useRef<HTMLDivElement | null>(null);
-  const { isDesktopShell } = useDesktopShellLayout();
+  const isDesktopShell = useDesktopShellLayout();
 
   const visible = canSeeAssistant(authSession);
 

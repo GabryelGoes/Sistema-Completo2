@@ -1,4 +1,16 @@
 import type { RdaWorkSessionStatus } from "./types.js";
+export { createServerClockSync, type ServerClockSync } from "./clockSync.js";
+export {
+  WORKSHOP_TIME_ZONE,
+  calendarDayKey,
+  clipInterval,
+  mergeDayMaps,
+  pausedIntervalsFromEvents,
+  productiveIntervalsFromEvents,
+  splitIntervalByCalendarDay,
+  sumIntervalsMs,
+  type TimeInterval,
+} from "./periodSplit.js";
 
 export function asNonNegInt(n: unknown): number {
   const v = typeof n === "number" ? n : Number(n);

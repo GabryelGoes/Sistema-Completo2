@@ -11134,6 +11134,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             serviceOrderId={selectedCard.id}
                             technicianUserId={workTimeTechnician.userId}
                             technicianDisplayName={workTimeTechnician.displayName}
+                            defaultExpanded={!isPatioPcModal}
                           />
                         ) : null}
                         {selectedCard?.id ? (

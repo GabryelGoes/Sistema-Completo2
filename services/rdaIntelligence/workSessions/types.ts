@@ -31,6 +31,10 @@ export type RdaWorkSessionDto = {
   technicianUserId: string;
   budgetId: string | null;
   budgetServiceDescription: string | null;
+  /** line_id estável da linha em budgets.services; null = geral/legado. */
+  budgetServiceLineId: string | null;
+  /** vehicle | module — preenchido quando o join com service_orders está disponível. */
+  orderType?: "vehicle" | "module" | null;
   status: RdaWorkSessionStatus;
   startedAt: string;
   endedAt: string | null;
@@ -64,5 +68,12 @@ export type RdaWorkPerformanceTechnicianRow = {
   liveProductiveMs: number;
   livePausedMs: number;
   pauseByReason: { reasonId: string; label: string; pausedMs: number }[];
-  serviceDurations: { description: string; productiveMs: number; sessions: number }[];
+  serviceDurations: {
+    description: string;
+    lineId: string | null;
+    productiveMs: number;
+    sessions: number;
+  }[];
+  /** Produtivo por dia civil (America/Sao_Paulo), chave YYYY-MM-DD. */
+  productiveByDay?: { day: string; productiveMs: number }[];
 };

@@ -2692,6 +2692,8 @@ interface ApiBudget {
 
 /** Linha de serviço no orçamento (campos extras para avaliação do lab). */
 export type BudgetServiceLine = {
+  /** Identificador estável da linha (persistido no JSONB). */
+  line_id?: string;
   description: string;
   approved?: boolean;
   labor_hours?: number | null;
@@ -5743,6 +5745,8 @@ export type RdaWorkSession = {
   technicianUserId: string;
   budgetId: string | null;
   budgetServiceDescription: string | null;
+  budgetServiceLineId?: string | null;
+  orderType?: "vehicle" | "module" | null;
   status: RdaWorkSessionStatus;
   startedAt: string;
   endedAt: string | null;
@@ -5757,6 +5761,14 @@ export type RdaWorkSession = {
   serverNow: string;
 };
 
+export type RdaWorkOsServiceOption = {
+  lineId: string;
+  budgetId: string | null;
+  description: string;
+  laborHours?: number | null;
+  approved?: boolean | null;
+};
+
 export type RdaWorkPerformanceTechnicianRow = {
   technicianUserId: string;
   displayName: string;
@@ -5765,7 +5777,13 @@ export type RdaWorkPerformanceTechnicianRow = {
   liveProductiveMs: number;
   livePausedMs: number;
   pauseByReason: { reasonId: string; label: string; pausedMs: number }[];
-  serviceDurations: { description: string; productiveMs: number; sessions: number }[];
+  serviceDurations: {
+    description: string;
+    lineId?: string | null;
+    productiveMs: number;
+    sessions: number;
+  }[];
+  productiveByDay?: { day: string; productiveMs: number }[];
 };
 
 async function readRdaWorkError(response: Response, fallback: string): Promise<string> {
@@ -5804,10 +5822,23 @@ export async function listRdaWorkSessions(params: {
   return response.json();
 }
 
+export async function listRdaWorkOsServices(serviceOrderId: string): Promise<{
+  serviceOrderId: string;
+  orderType: string;
+  services: RdaWorkOsServiceOption[];
+  generalOption: RdaWorkOsServiceOption;
+}> {
+  const q = new URLSearchParams({ serviceOrderId });
+  const response = await fetch(`${API_BASE}/rda/work-sessions/os-services?${q.toString()}`);
+  if (!response.ok) throw new Error(await readRdaWorkError(response, "Falha ao listar serviços da OS."));
+  return response.json();
+}
+
 export async function startRdaWorkSession(input: {
   serviceOrderId: string;
   budgetId?: string | null;
   budgetServiceDescription?: string | null;
+  budgetServiceLineId?: string | null;
   clientMutationId: string;
 }): Promise<{ session: RdaWorkSession; alreadyActive?: boolean; idempotent?: boolean }> {
   const response = await fetch(`${API_BASE}/rda/work-sessions/start`, {
@@ -5817,6 +5848,7 @@ export async function startRdaWorkSession(input: {
       serviceOrderId: input.serviceOrderId,
       budgetId: input.budgetId ?? undefined,
       budgetServiceDescription: input.budgetServiceDescription ?? undefined,
+      budgetServiceLineId: input.budgetServiceLineId ?? undefined,
       clientMutationId: input.clientMutationId,
     }),
   });
@@ -5833,6 +5865,30 @@ export async function startRdaWorkSession(input: {
     throw err;
   }
   return data as { session: RdaWorkSession; alreadyActive?: boolean; idempotent?: boolean };
+}
+
+export async function correctRdaWorkSession(input: {
+  sessionId: string;
+  productiveMs: number;
+  pausedMs: number;
+  reason: string;
+  clientMutationId: string;
+}): Promise<{ session: RdaWorkSession | null; idempotent?: boolean }> {
+  const response = await fetch(
+    `${API_BASE}/rda/work-sessions/${encodeURIComponent(input.sessionId)}/correct`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        productiveMs: input.productiveMs,
+        pausedMs: input.pausedMs,
+        reason: input.reason,
+        clientMutationId: input.clientMutationId,
+      }),
+    }
+  );
+  if (!response.ok) throw new Error(await readRdaWorkError(response, "Falha ao corrigir sessão."));
+  return response.json();
 }
 
 export async function pauseRdaWorkSession(input: {
@@ -5883,9 +5939,12 @@ export async function finishRdaWorkSession(input: {
 export async function getRdaWorkPerformanceSummary(params: {
   from?: string;
   to?: string;
+  orderType?: "vehicle" | "module" | "all";
 }): Promise<{
   from: string | null;
   to: string | null;
+  orderType?: string;
+  timeZone?: string;
   serverNow: string;
   technicians: RdaWorkPerformanceTechnicianRow[];
   code?: string;
@@ -5894,6 +5953,7 @@ export async function getRdaWorkPerformanceSummary(params: {
   const q = new URLSearchParams();
   if (params.from) q.set("from", params.from);
   if (params.to) q.set("to", params.to);
+  if (params.orderType && params.orderType !== "all") q.set("orderType", params.orderType);
   const response = await fetch(`${API_BASE}/rda/work-sessions/performance-summary?${q.toString()}`);
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
