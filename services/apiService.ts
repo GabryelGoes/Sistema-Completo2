@@ -850,6 +850,247 @@ export async function deleteQualityRecognition(id: string): Promise<void> {
   }
 }
 
+// ---------- Radar Fase 2: carreira / PDI / reuniões ----------
+
+export async function getQualityCareerCatalog(): Promise<{
+  competencies: Array<{
+    id: string;
+    code: string;
+    name: string;
+    kind: "technical" | "professional";
+    rubrics: Array<{ level: number; label: string; description: string }>;
+  }>;
+  careerLevels: Array<{
+    id: string;
+    code: string;
+    name: string;
+    description: string;
+    requirements: Array<{ competencyId: string; minLevel: number }>;
+  }>;
+  code?: string;
+  error?: string;
+}> {
+  const response = await fetch(`${API_BASE}/quality-career/catalog`);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    if (response.status === 503) {
+      return {
+        competencies: [],
+        careerLevels: [],
+        code: (data as { code?: string }).code,
+        error: (data as { error?: string }).error,
+      };
+    }
+    throw new Error((data as { error?: string }).error || "Falha ao carregar catálogo de carreira.");
+  }
+  return data;
+}
+
+export async function getQualityPersonCareerSummary(params: {
+  systemUserId?: string | null;
+  technicianId?: string | null;
+  personName?: string;
+}): Promise<Record<string, unknown>> {
+  const q = new URLSearchParams();
+  if (params.systemUserId) q.set("systemUserId", params.systemUserId);
+  if (params.technicianId) q.set("technicianId", params.technicianId);
+  if (params.personName) q.set("personName", params.personName);
+  const response = await fetch(`${API_BASE}/quality-career/person-summary?${q.toString()}`);
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error((err as { error?: string }).error || "Falha ao carregar resumo de carreira.");
+  }
+  return response.json();
+}
+
+export async function putQualityCompetencyAssessment(input: {
+  competencyId: string;
+  personName: string;
+  systemUserId?: string | null;
+  workshopTechnicianId?: string | null;
+  score: number | null;
+  note?: string;
+}): Promise<unknown> {
+  const response = await fetch(`${API_BASE}/quality-career/assessments`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error((err as { error?: string }).error || "Falha ao salvar competência.");
+  }
+  return response.json();
+}
+
+export async function putQualityPersonCareerLevel(input: {
+  personName: string;
+  systemUserId?: string | null;
+  workshopTechnicianId?: string | null;
+  careerLevelId: string | null;
+  notes?: string;
+}): Promise<unknown> {
+  const response = await fetch(`${API_BASE}/quality-career/person-level`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error((err as { error?: string }).error || "Falha ao atribuir nível.");
+  }
+  return response.json();
+}
+
+export async function getQualityPdiPlans(params?: {
+  systemUserId?: string;
+  technicianId?: string;
+}): Promise<{ plans: Array<Record<string, unknown>>; code?: string }> {
+  const q = new URLSearchParams();
+  if (params?.systemUserId) q.set("systemUserId", params.systemUserId);
+  if (params?.technicianId) q.set("technicianId", params.technicianId);
+  const response = await fetch(`${API_BASE}/quality-career/pdi?${q.toString()}`);
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error((err as { error?: string }).error || "Falha ao listar PDI.");
+  }
+  return response.json();
+}
+
+export async function createQualityPdiPlan(input: {
+  personName: string;
+  systemUserId?: string | null;
+  workshopTechnicianId?: string | null;
+  currentSituation?: string;
+  strengthsSummary?: string;
+  developmentSummary?: string;
+  targetDate?: string;
+}): Promise<{ plan: Record<string, unknown> }> {
+  const response = await fetch(`${API_BASE}/quality-career/pdi`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error((err as { error?: string }).error || "Falha ao criar PDI.");
+  }
+  return response.json();
+}
+
+export async function createQualityPdiGoal(
+  planId: string,
+  input: {
+    title: string;
+    description?: string;
+    competencyId?: string | null;
+    trainingNeeded?: string;
+    dueDate?: string;
+  }
+): Promise<unknown> {
+  const response = await fetch(
+    `${API_BASE}/quality-career/pdi/${encodeURIComponent(planId)}/goals`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input),
+    }
+  );
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error((err as { error?: string }).error || "Falha ao criar meta.");
+  }
+  return response.json();
+}
+
+export async function patchQualityPdiGoal(
+  goalId: string,
+  input: { status?: string; progressNote?: string; evidence?: string; trainingNeeded?: string }
+): Promise<unknown> {
+  const response = await fetch(
+    `${API_BASE}/quality-career/pdi/goals/${encodeURIComponent(goalId)}`,
+    {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input),
+    }
+  );
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error((err as { error?: string }).error || "Falha ao atualizar meta.");
+  }
+  return response.json();
+}
+
+export async function getQualityMeetings(params?: {
+  systemUserId?: string;
+  technicianId?: string;
+}): Promise<{ meetings: Array<Record<string, unknown>>; code?: string }> {
+  const q = new URLSearchParams();
+  if (params?.systemUserId) q.set("systemUserId", params.systemUserId);
+  if (params?.technicianId) q.set("technicianId", params.technicianId);
+  const response = await fetch(`${API_BASE}/quality-meetings?${q.toString()}`);
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error((err as { error?: string }).error || "Falha ao listar reuniões.");
+  }
+  return response.json();
+}
+
+export async function createQualityMeeting(input: {
+  personName: string;
+  systemUserId?: string | null;
+  workshopTechnicianId?: string | null;
+  kind?: string;
+  title?: string;
+  agenda?: string;
+  observations?: string;
+  outcomes?: string;
+  participants?: string;
+  heldAt?: string;
+  followUpAt?: string;
+  commitments?: Array<{ description: string; ownerName?: string; dueDate?: string }>;
+}): Promise<unknown> {
+  const response = await fetch(`${API_BASE}/quality-meetings`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error((err as { error?: string }).error || "Falha ao registrar reunião.");
+  }
+  return response.json();
+}
+
+export async function ackQualityMeeting(id: string, note?: string): Promise<unknown> {
+  const response = await fetch(`${API_BASE}/quality-meetings/${encodeURIComponent(id)}/ack`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ note }),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error((err as { error?: string }).error || "Falha ao registrar ciência.");
+  }
+  return response.json();
+}
+
+export async function getQualityDecisionInsights(params: {
+  systemUserId?: string;
+  technicianId?: string;
+}): Promise<{ signals: string[]; disclaimer: string; scoredCount: number; meetingCount: number }> {
+  const q = new URLSearchParams();
+  if (params.systemUserId) q.set("systemUserId", params.systemUserId);
+  if (params.technicianId) q.set("technicianId", params.technicianId);
+  const response = await fetch(`${API_BASE}/quality-career/decision-insights?${q.toString()}`);
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error((err as { error?: string }).error || "Falha ao carregar insights.");
+  }
+  return response.json();
+}
+
 export async function createQualityIncident(payload: {
   technicianId?: string | null;
   systemUserId?: string | null;

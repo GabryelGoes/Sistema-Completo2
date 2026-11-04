@@ -1,11 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   AlertTriangle,
-  Calendar,
   ChevronRight,
   ClipboardCheck,
-  Flag,
-  Target,
   TrendingUp,
   Users,
 } from 'lucide-react';
@@ -1102,63 +1099,8 @@ export function PerformancePanel({
   );
 }
 
-export function CareerPlansPanel() {
-  return (
-    <div className="space-y-4">
-      <HubSectionHeader
-        title="Planos de Carreira"
-        subtitle="Competências, metas, treinamentos e histórico de desenvolvimento."
-      />
-      <HubEmptyState
-        icon={Target}
-        title="Planos ainda não disponíveis"
-        description="Esta área receberá competências, metas individuais, treinamentos e acompanhamento de evolução — sem persistência nesta fase."
-        prepared
-      />
-      <div className="grid gap-3 md:grid-cols-3">
-        {['Competências', 'Metas', 'Treinamentos'].map((label) => (
-          <div key={label} className={`${hub.surfaceInset} p-4`}>
-            <p className="text-[13px] font-semibold text-zinc-900 dark:text-white">{label}</p>
-            <p className={`mt-2 text-[12px] ${hub.muted}`}>Em preparação</p>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-export function MeetingsPanel() {
-  return (
-    <div className="space-y-4">
-      <HubSectionHeader
-        title="Reuniões e Feedbacks"
-        subtitle="Registros de reuniões, pautas, feedbacks, compromissos e datas de acompanhamento."
-      />
-      <HubEmptyState
-        icon={Calendar}
-        title="Nenhuma reunião registrada"
-        description="A API de reuniões/feedbacks ainda não existe. A interface está pronta para receber esses registros sem inventar dados."
-        prepared
-      />
-      <div className={`${hub.surface} p-4`}>
-        <p className={`text-[12px] font-semibold uppercase tracking-[0.12em] ${hub.muted}`}>
-          Estrutura prevista
-        </p>
-        <ul className={`mt-3 space-y-2 text-[13px] ${hub.muted}`}>
-          <li className="flex items-center gap-2">
-            <Flag className="h-3.5 w-3.5" /> Pauta e participantes
-          </li>
-          <li className="flex items-center gap-2">
-            <Flag className="h-3.5 w-3.5" /> Feedbacks e compromissos
-          </li>
-          <li className="flex items-center gap-2">
-            <Flag className="h-3.5 w-3.5" /> Data de acompanhamento
-          </li>
-        </ul>
-      </div>
-    </div>
-  );
-}
+export { CareerPlansPanel } from './CareerPlansPanel';
+export { MeetingsPanel } from './MeetingsFeedbackPanel';
 
 export function ReportsPanel({
   incidents,

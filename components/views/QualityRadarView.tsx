@@ -281,9 +281,9 @@ export const QualityRadarView: React.FC<{ authSession?: AuthSession | null }> = 
       />
     );
   } else if (section === 'planos') {
-    body = <CareerPlansPanel />;
+    body = <CareerPlansPanel employees={technicians} />;
   } else if (section === 'reunioes') {
-    body = <MeetingsPanel />;
+    body = <MeetingsPanel employees={technicians} />;
   } else if (section === 'relatorios') {
     body = (
       <ReportsPanel
