@@ -77,6 +77,7 @@ import {
   insertIncidentRevision,
   registerQualityRadarPhase1Routes,
 } from "./services/qualityRadar/registerQualityRadarPhase1Routes.js";
+import { registerQualityRadarPhase2Routes } from "./services/qualityRadar/registerQualityRadarPhase2Routes.js";
 import { isFaultAttribution } from "./services/qualityRadar/identity.js";
 import { canAccessQualityRadar } from "./services/qualityRadar/access.js";
 
@@ -16193,6 +16194,13 @@ export function createApiApp() {
 
   // ----------------- Radar Fase 1: identidade, reconhecimentos, revisões ---
   registerQualityRadarPhase1Routes(app, {
+    WORKSHOP_ID,
+    supabaseAdmin,
+    requestCanAccessQualityRadar,
+  });
+
+  // ----------------- Radar Fase 2: carreira, PDI, reuniões -----------------
+  registerQualityRadarPhase2Routes(app, {
     WORKSHOP_ID,
     supabaseAdmin,
     requestCanAccessQualityRadar,
