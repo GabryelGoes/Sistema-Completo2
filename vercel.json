@@ -9,5 +9,11 @@
   },
   "rewrites": [
     { "source": "/api/:path*", "destination": "/api?__path=:path*" }
+  ],
+  "crons": [
+    {
+      "path": "/api/quality-radar/weekly-cycle/prepare",
+      "schedule": "0 19 * * *"
+    }
   ]
 }

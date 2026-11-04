@@ -1,0 +1,50 @@
+-- OPCIONAL — agendar preparação do ciclo semanal via pg_cron + pg_net
+-- (mesmo padrão de cleanup-old-attachments).
+-- NÃO aplicar automaticamente. Requer Vault + WEEKLY_CYCLE_SECRET no app.
+--
+-- Sexta 19:00 UTC ≈ 16:00 America/Sao_Paulo (UTC−3 o ano todo).
+-- O endpoint ainda aplica janela ±30min e idempotência por semana.
+--
+-- PRÉ-REQUISITOS (uma vez; NÃO versionar segredos):
+--   select vault.create_secret('https://SEU_APP.vercel.app', 'quality_weekly_cycle_app_url');
+--   select vault.create_secret('SEU_WEEKLY_CYCLE_SECRET', 'quality_weekly_cycle_secret');
+--
+-- No host (Vercel): WEEKLY_CYCLE_SECRET=SEU_WEEKLY_CYCLE_SECRET
+--
+-- create extension if not exists pg_cron;
+-- create extension if not exists pg_net;
+--
+-- select cron.unschedule('quality-weekly-cycle-fri')
+-- where exists (select 1 from cron.job where jobname = 'quality-weekly-cycle-fri');
+--
+-- select cron.schedule(
+--   'quality-weekly-cycle-fri',
+--   '0 19 * * 5',
+--   $$
+--   select net.http_post(
+--     url := (
+--       select decrypted_secret from vault.decrypted_secrets
+--       where name = 'quality_weekly_cycle_app_url'
+--     ) || '/api/quality-radar/weekly-cycle/prepare',
+--     headers := jsonb_build_object(
+--       'Content-Type', 'application/json',
+--       'x-weekly-cycle-secret', (
+--         select decrypted_secret from vault.decrypted_secrets
+--         where name = 'quality_weekly_cycle_secret'
+--       )
+--     ),
+--     body := jsonb_build_object(
+--       'respectSchedule', true,
+--       'triggerSource', 'pg_cron',
+--       'notify', true
+--     ),
+--     timeout_milliseconds := 55000
+--   );
+--   $$
+-- );
+--
+-- Nota Vercel: plano Hobby só permite crons diários; por isso o vercel.json usa
+-- "0 19 * * *" (todo dia 19:00 UTC) e o handler no-op fora da janela/sexta.
+-- Prefira este pg_cron (sexta) quando disponível.
+
+SELECT 1; -- placeholder no-op para a migration versionada sem efeitos.

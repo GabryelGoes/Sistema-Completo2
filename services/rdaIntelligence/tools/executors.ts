@@ -727,6 +727,79 @@ export async function executeRdaTool(
         };
       }
 
+      case "rda_quality_approved_weekly_reports": {
+        const identity = await resolvePersonIdentity(
+          supabase,
+          workshopId,
+          personRefFromParams(params)
+        );
+        const months = Math.min(12, Math.max(1, Number(params.months || 3) || 3));
+        const limit = clampLimit(params.limit, 12);
+        let q = supabase
+          .from("workshop_quality_weekly_person_reports")
+          .select(
+            "id, cycle_id, person_name, job_title, status, current_version, approved_at, approved_by_name"
+          )
+          .eq("workshop_id", workshopId)
+          .eq("status", "approved")
+          .order("approved_at", { ascending: false })
+          .limit(limit);
+        if (identity.systemUserId) q = q.eq("system_user_id", identity.systemUserId);
+        else if (identity.workshopTechnicianId)
+          q = q.eq("workshop_technician_id", identity.workshopTechnicianId);
+        else if (identity.personName) q = q.ilike("person_name", `%${identity.personName}%`);
+        const { data, error } = await q;
+        if (error) {
+          return {
+            ok: true,
+            data: {
+              identity,
+              items: [],
+              note: error.message,
+              provenance: "unconfirmed",
+            },
+          };
+        }
+        const fromCut = new Date();
+        fromCut.setMonth(fromCut.getMonth() - months);
+        const items = [];
+        for (const r of data || []) {
+          const { data: cycle } = await supabase
+            .from("workshop_quality_weekly_cycles")
+            .select("week_from, week_to")
+            .eq("id", (r as { cycle_id: string }).cycle_id)
+            .maybeSingle();
+          const wf = String((cycle as { week_from?: string } | null)?.week_from || "");
+          if (wf && wf < fromCut.toISOString().slice(0, 10)) continue;
+          const { data: ver } = await supabase
+            .from("workshop_quality_weekly_person_report_versions")
+            .select(
+              "version, status, indicators_json, analysis_json, action_plan_json, conclusion_json, unavailable_fields"
+            )
+            .eq("report_id", (r as { id: string }).id)
+            .eq("status", "approved")
+            .order("version", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+          items.push({
+            ...r,
+            cycle,
+            latestApprovedVersion: ver,
+            provenance: "system_fact",
+          });
+        }
+        return {
+          ok: true,
+          data: {
+            identity,
+            months,
+            items,
+            note: "Apenas relatórios aprovados. Não inventar métricas ausentes.",
+            provenance: "system_fact",
+          },
+        };
+      }
+
       default:
         return { ok: false, error: `Executor não implementado: ${toolId}` };
     }

@@ -414,4 +414,24 @@ export const RDA_PRODUCTION_TOOLS: RdaToolDefinition[] = [
     side: "read",
     requiresHumanConfirmation: false,
   },
+  {
+    id: "rda_quality_approved_weekly_reports",
+    description:
+      "Consulta relatórios semanais aprovados (Fase 4) e histórico de versões para contextualizar novas revisões. Sem inventar métricas.",
+    parameters: {
+      type: "object",
+      properties: {
+        personName: { type: "string" },
+        systemUserId: { type: "string" },
+        workshopTechnicianId: { type: "string" },
+        months: { type: "number", description: "Janela em meses (default 3)" },
+        limit: { type: "number" },
+      },
+      required: [],
+      additionalProperties: false,
+    },
+    requiredPermission: "access_radar_qualidade",
+    side: "read",
+    requiresHumanConfirmation: false,
+  },
 ];

@@ -1274,6 +1274,252 @@ export async function getQualityPersonMemory(params: {
   return response.json();
 }
 
+// ---------- Radar Fase 4: ciclo semanal / relatórios ----------
+
+export type QualityWeeklyCycle = {
+  id: string;
+  week_from: string;
+  week_to: string;
+  status: string;
+  person_count: number;
+  approved_count: number;
+  skipped_count?: number;
+  prepared_at?: string | null;
+  timezone?: string;
+};
+
+export type QualityWeeklyPersonReport = {
+  id: string;
+  cycle_id: string;
+  person_name: string;
+  job_title?: string;
+  status: string;
+  weekly_review_id?: string | null;
+  current_version?: number;
+  leader_name?: string;
+  system_user_id?: string | null;
+  workshop_technician_id?: string | null;
+  incomplete_signals?: string[];
+};
+
+export async function getQualityWeeklyCycleSettings(): Promise<{
+  schedule: {
+    enabled: boolean;
+    weekday: number;
+    hour: number;
+    minute: number;
+    timezone: string;
+  };
+  lastRun: Record<string, unknown> | null;
+  schedulerNotes?: { vercel?: string; preferred?: string; noLongLlm?: boolean };
+}> {
+  const response = await fetch(`${API_BASE}/quality-radar/weekly-cycle/settings`);
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error((err as { error?: string }).error || "Falha ao carregar agenda.");
+  }
+  return response.json();
+}
+
+export async function updateQualityWeeklyCycleSettings(input: {
+  enabled?: boolean;
+  weekday?: number;
+  hour?: number;
+  minute?: number;
+  timezone?: string;
+}): Promise<{ schedule: { enabled: boolean; weekday: number; hour: number; minute: number; timezone: string } }> {
+  const response = await fetch(`${API_BASE}/quality-radar/weekly-cycle/settings`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error((err as { error?: string }).error || "Falha ao salvar agenda.");
+  }
+  return response.json();
+}
+
+export async function prepareQualityWeeklyCycle(input?: {
+  force?: boolean;
+  notify?: boolean;
+  weekFrom?: string;
+  weekTo?: string;
+  respectSchedule?: boolean;
+}): Promise<{
+  ok: boolean;
+  skipped?: boolean;
+  skipReason?: string;
+  cycleId?: string;
+  personsPrepared?: number;
+  error?: string;
+}> {
+  const response = await fetch(`${API_BASE}/quality-radar/weekly-cycle/prepare`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input || { force: true }),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok && response.status !== 503) {
+    throw new Error((data as { error?: string }).error || "Falha na preparação.");
+  }
+  return data as {
+    ok: boolean;
+    skipped?: boolean;
+    skipReason?: string;
+    cycleId?: string;
+    personsPrepared?: number;
+    error?: string;
+  };
+}
+
+export async function listQualityWeeklyCycles(): Promise<{
+  cycles: QualityWeeklyCycle[];
+  code?: string;
+  error?: string;
+}> {
+  const response = await fetch(`${API_BASE}/quality-radar/weekly-cycles`);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok && response.status !== 503) {
+    throw new Error((data as { error?: string }).error || "Falha ao listar ciclos.");
+  }
+  return data as { cycles: QualityWeeklyCycle[]; code?: string; error?: string };
+}
+
+export async function getQualityWeeklyCycle(id: string): Promise<{
+  cycle: QualityWeeklyCycle;
+  reports: QualityWeeklyPersonReport[];
+  teamReport: Record<string, unknown> | null;
+}> {
+  const response = await fetch(
+    `${API_BASE}/quality-radar/weekly-cycles/${encodeURIComponent(id)}`
+  );
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error((err as { error?: string }).error || "Falha ao carregar ciclo.");
+  }
+  return response.json();
+}
+
+export async function getQualityPersonWeeklyReport(id: string): Promise<{
+  report: QualityWeeklyPersonReport;
+  versions: Array<{
+    version: number;
+    status: string;
+    header_json?: Record<string, unknown>;
+    indicators_json?: Record<string, unknown>;
+    analysis_json?: Record<string, unknown>;
+    action_plan_json?: Record<string, unknown>;
+    conclusion_json?: Record<string, unknown>;
+    unavailable_fields?: unknown;
+    created_at?: string;
+  }>;
+}> {
+  const response = await fetch(
+    `${API_BASE}/quality-radar/weekly-person-reports/${encodeURIComponent(id)}`
+  );
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error((err as { error?: string }).error || "Falha ao carregar relatório.");
+  }
+  return response.json();
+}
+
+export async function saveQualityPersonWeeklyReport(
+  id: string,
+  body: Record<string, unknown>
+): Promise<unknown> {
+  const response = await fetch(
+    `${API_BASE}/quality-radar/weekly-person-reports/${encodeURIComponent(id)}/content`,
+    {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    }
+  );
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error((err as { error?: string }).error || "Falha ao salvar relatório.");
+  }
+  return response.json();
+}
+
+export async function approveQualityPersonWeeklyReport(id: string): Promise<unknown> {
+  const response = await fetch(
+    `${API_BASE}/quality-radar/weekly-person-reports/${encodeURIComponent(id)}/approve`,
+    { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" }
+  );
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error((err as { error?: string }).error || "Falha ao aprovar.");
+  }
+  return response.json();
+}
+
+export async function skipQualityPersonWeeklyReport(
+  id: string,
+  input: { reason?: string; insufficientData?: boolean }
+): Promise<unknown> {
+  const response = await fetch(
+    `${API_BASE}/quality-radar/weekly-person-reports/${encodeURIComponent(id)}/skip`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input),
+    }
+  );
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error((err as { error?: string }).error || "Falha ao pular.");
+  }
+  return response.json();
+}
+
+export async function getQualityTeamWeeklyReport(cycleId: string): Promise<{
+  teamReport: { approved_by_name?: string; status?: string } | null;
+  versions: Array<{ body_json?: Record<string, unknown>; version?: number }>;
+}> {
+  const response = await fetch(
+    `${API_BASE}/quality-radar/weekly-cycles/${encodeURIComponent(cycleId)}/team-report`
+  );
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error((err as { error?: string }).error || "Falha ao carregar consolidado.");
+  }
+  return response.json();
+}
+
+export async function saveQualityTeamWeeklyReport(
+  cycleId: string,
+  body: Record<string, unknown>
+): Promise<unknown> {
+  const response = await fetch(
+    `${API_BASE}/quality-radar/weekly-cycles/${encodeURIComponent(cycleId)}/team-report`,
+    {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    }
+  );
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error((err as { error?: string }).error || "Falha ao salvar consolidado.");
+  }
+  return response.json();
+}
+
+export async function approveQualityTeamWeeklyReport(cycleId: string): Promise<unknown> {
+  const response = await fetch(
+    `${API_BASE}/quality-radar/weekly-cycles/${encodeURIComponent(cycleId)}/team-report/approve`,
+    { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" }
+  );
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error((err as { error?: string }).error || "Falha ao aprovar consolidado.");
+  }
+  return response.json();
+}
+
 export async function createQualityIncident(payload: {
   technicianId?: string | null;
   systemUserId?: string | null;
