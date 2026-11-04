@@ -2825,21 +2825,105 @@ export function createApiApp() {
     }
   );
 
+  const SYSTEM_USER_SELECT_FULL =
+    "id, username, display_name, full_name, permissions, is_technician, is_managerial, is_active, job_title, professional_role, sector, created_at, updated_at";
+  const SYSTEM_USER_SELECT_LEGACY =
+    "id, username, display_name, permissions, is_technician, job_title, created_at, updated_at";
+
+  async function fetchSystemUsersList(): Promise<{
+    data: Array<Record<string, unknown>> | null;
+    error: { message: string } | null;
+  }> {
+    const full = await supabaseAdmin
+      .from("workshop_system_users")
+      .select(SYSTEM_USER_SELECT_FULL)
+      .eq("workshop_id", WORKSHOP_ID)
+      .order("username");
+    if (full.error && /column|does not exist/i.test(full.error.message)) {
+      const legacy = await supabaseAdmin
+        .from("workshop_system_users")
+        .select(SYSTEM_USER_SELECT_LEGACY)
+        .eq("workshop_id", WORKSHOP_ID)
+        .order("username");
+      return {
+        data: (legacy.data as Array<Record<string, unknown>> | null) ?? null,
+        error: legacy.error,
+      };
+    }
+    return {
+      data: (full.data as Array<Record<string, unknown>> | null) ?? null,
+      error: full.error,
+    };
+  }
+
+  async function syncAdditionalRoles(
+    systemUserId: string,
+    roles: string[],
+    primaryRole: string
+  ): Promise<void> {
+    if (!supabaseAdmin || !WORKSHOP_ID) return;
+    try {
+      await supabaseAdmin
+        .from("workshop_quality_user_roles")
+        .delete()
+        .eq("workshop_id", WORKSHOP_ID)
+        .eq("system_user_id", systemUserId);
+      const codes = [...new Set(roles.map((r) => String(r || "").trim()).filter(Boolean))];
+      if (codes.length === 0) return;
+      await supabaseAdmin.from("workshop_quality_user_roles").insert(
+        codes.map((role_code) => ({
+          workshop_id: WORKSHOP_ID,
+          system_user_id: systemUserId,
+          role_code,
+          is_primary: role_code === primaryRole,
+        }))
+      );
+    } catch (e) {
+      console.warn("[API] syncAdditionalRoles skipped:", e);
+    }
+  }
+
+  async function attachAdditionalRoles(
+    rows: Array<Record<string, unknown>>
+  ): Promise<Array<Record<string, unknown>>> {
+    if (!rows.length || !supabaseAdmin || !WORKSHOP_ID) return rows;
+    try {
+      const ids = rows.map((r) => String(r.id));
+      const { data, error } = await supabaseAdmin
+        .from("workshop_quality_user_roles")
+        .select("system_user_id, role_code, is_primary")
+        .eq("workshop_id", WORKSHOP_ID)
+        .in("system_user_id", ids);
+      if (error) return rows.map((r) => ({ ...r, additional_roles: [] as string[] }));
+      const byUser = new Map<string, string[]>();
+      for (const row of data || []) {
+        const uid = String((row as { system_user_id: string }).system_user_id);
+        const code = String((row as { role_code: string }).role_code);
+        const list = byUser.get(uid) || [];
+        list.push(code);
+        byUser.set(uid, list);
+      }
+      return rows.map((r) => ({
+        ...r,
+        additional_roles: byUser.get(String(r.id)) || [],
+      }));
+    } catch {
+      return rows.map((r) => ({ ...r, additional_roles: [] as string[] }));
+    }
+  }
+
   app.get("/api/system-users", async (req, res) => {
     try {
       const adminPassword = adminPasswordFromReq(req);
       if (!WORKSHOP_ID || !(isAdminRequest(req) || (await verifyAdmin(ADMIN_USERNAME, adminPassword)))) {
         return res.status(403).json({ error: "Acesso negado." });
       }
-      const { data, error } = await supabaseAdmin
-        .from("workshop_system_users")
-        .select("id, username, display_name, permissions, is_technician, job_title, created_at, updated_at")
-        .eq("workshop_id", WORKSHOP_ID)
-        .order("username");
+      const { data, error } = await fetchSystemUsersList();
       if (error) {
         return res.status(500).json({ error: error.message });
       }
-      return res.json(data || []);
+      const withRoles = await attachAdditionalRoles((data || []) as Array<Record<string, unknown>>);
+      return res.json(withRoles);
     } catch (err: any) {
       console.error("[API] Erro em GET /api/system-users:", err);
       return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
@@ -2848,7 +2932,21 @@ export function createApiApp() {
 
   app.post("/api/system-users", async (req, res) => {
     try {
-      const { adminPassword, username, password, displayName, permissions, isTechnician, jobTitle } = req.body || {};
+      const {
+        adminPassword,
+        username,
+        password,
+        displayName,
+        fullName,
+        permissions,
+        isTechnician,
+        isManagerial,
+        isActive,
+        jobTitle,
+        professionalRole,
+        sector,
+        additionalRoles,
+      } = req.body || {};
       if (!WORKSHOP_ID || !(await verifyAdmin(ADMIN_USERNAME, adminPassword))) {
         return res.status(403).json({ error: "Acesso negado." });
       }
@@ -2859,9 +2957,41 @@ export function createApiApp() {
       const perms = typeof permissions === "object" && permissions !== null ? permissions : {};
       const isTech = isTechnician === true || isTechnician === "true";
       const job = typeof jobTitle === "string" ? jobTitle.trim() || null : null;
-      const { data, error } = await supabaseAdmin
-        .from("workshop_system_users")
-        .insert({
+      const insertRow: Record<string, unknown> = {
+        workshop_id: WORKSHOP_ID,
+        username: u,
+        password_hash: hashPassword(p),
+        display_name: typeof displayName === "string" ? displayName.trim() || null : null,
+        permissions: perms,
+        is_technician: isTech,
+        job_title: job,
+        updated_at: new Date().toISOString(),
+      };
+      if (typeof fullName === "string") insertRow.full_name = fullName.trim() || null;
+      if (isManagerial !== undefined) {
+        insertRow.is_managerial = isManagerial === true || isManagerial === "true";
+      }
+      if (isActive !== undefined) {
+        insertRow.is_active = !(isActive === false || isActive === "false");
+      }
+      if (typeof professionalRole === "string") {
+        insertRow.professional_role = professionalRole.trim();
+      }
+      if (typeof sector === "string") insertRow.sector = sector.trim();
+
+      let data: Record<string, unknown> | null = null;
+      let error: { message: string; code?: string } | null = null;
+      {
+        const inserted = await supabaseAdmin
+          .from("workshop_system_users")
+          .insert(insertRow)
+          .select(SYSTEM_USER_SELECT_FULL)
+          .single();
+        data = (inserted.data as Record<string, unknown> | null) ?? null;
+        error = inserted.error;
+      }
+      if (error && /column|does not exist/i.test(error.message)) {
+        const legacy = {
           workshop_id: WORKSHOP_ID,
           username: u,
           password_hash: hashPassword(p),
@@ -2870,14 +3000,28 @@ export function createApiApp() {
           is_technician: isTech,
           job_title: job,
           updated_at: new Date().toISOString(),
-        })
-        .select("id, username, display_name, permissions, is_technician, job_title, created_at, updated_at")
-        .single();
+        };
+        const retry = await supabaseAdmin
+          .from("workshop_system_users")
+          .insert(legacy)
+          .select(SYSTEM_USER_SELECT_LEGACY)
+          .single();
+        data = (retry.data as Record<string, unknown> | null) ?? null;
+        error = retry.error;
+      }
       if (error) {
         if (error.code === "23505") return res.status(400).json({ error: "Este nome de usuário já existe." });
         return res.status(500).json({ error: error.message });
       }
-      return res.status(201).json(data);
+      if (data && Array.isArray(additionalRoles)) {
+        await syncAdditionalRoles(
+          String((data as { id: string }).id),
+          additionalRoles.map(String),
+          typeof professionalRole === "string" ? professionalRole.trim() : ""
+        );
+      }
+      const [enriched] = await attachAdditionalRoles([data as Record<string, unknown>]);
+      return res.status(201).json(enriched);
     } catch (err: any) {
       console.error("[API] Erro em POST /api/system-users:", err);
       return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
@@ -2886,7 +3030,20 @@ export function createApiApp() {
 
   app.put("/api/system-users/:id", async (req, res) => {
     try {
-      const { adminPassword, password, displayName, permissions, isTechnician, jobTitle } = req.body || {};
+      const {
+        adminPassword,
+        password,
+        displayName,
+        fullName,
+        permissions,
+        isTechnician,
+        isManagerial,
+        isActive,
+        jobTitle,
+        professionalRole,
+        sector,
+        additionalRoles,
+      } = req.body || {};
       if (!WORKSHOP_ID || !(await verifyAdmin(ADMIN_USERNAME, adminPassword))) {
         return res.status(403).json({ error: "Acesso negado." });
       }
@@ -2894,19 +3051,65 @@ export function createApiApp() {
       const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
       if (typeof permissions === "object" && permissions !== null) updates.permissions = permissions;
       if (typeof displayName === "string") updates.display_name = displayName.trim() || null;
+      if (typeof fullName === "string") updates.full_name = fullName.trim() || null;
       if (typeof password === "string" && password.length >= 6) updates.password_hash = hashPassword(password);
       if (isTechnician !== undefined) updates.is_technician = isTechnician === true || isTechnician === "true";
+      if (isManagerial !== undefined) updates.is_managerial = isManagerial === true || isManagerial === "true";
+      if (isActive !== undefined) updates.is_active = !(isActive === false || isActive === "false");
       if (jobTitle !== undefined) updates.job_title = typeof jobTitle === "string" ? jobTitle.trim() || null : null;
-      const { data, error } = await supabaseAdmin
-        .from("workshop_system_users")
-        .update(updates)
-        .eq("id", id)
-        .eq("workshop_id", WORKSHOP_ID)
-        .select("id, username, display_name, permissions, is_technician, job_title, created_at, updated_at")
-        .single();
+      if (professionalRole !== undefined) {
+        updates.professional_role =
+          typeof professionalRole === "string" ? professionalRole.trim() : "";
+      }
+      if (sector !== undefined) {
+        updates.sector = typeof sector === "string" ? sector.trim() : "";
+      }
+      // applySuggestedPermissions é só contrato do cliente — permissões já vêm no body se confirmadas
+      let data: Record<string, unknown> | null = null;
+      let error: { message: string } | null = null;
+      {
+        const updated = await supabaseAdmin
+          .from("workshop_system_users")
+          .update(updates)
+          .eq("id", id)
+          .eq("workshop_id", WORKSHOP_ID)
+          .select(SYSTEM_USER_SELECT_FULL)
+          .single();
+        data = (updated.data as Record<string, unknown> | null) ?? null;
+        error = updated.error;
+      }
+      if (error && /column|does not exist/i.test(error.message)) {
+        const legacyUpdates: Record<string, unknown> = {
+          updated_at: updates.updated_at,
+        };
+        if (updates.permissions !== undefined) legacyUpdates.permissions = updates.permissions;
+        if (updates.display_name !== undefined) legacyUpdates.display_name = updates.display_name;
+        if (updates.password_hash !== undefined) legacyUpdates.password_hash = updates.password_hash;
+        if (updates.is_technician !== undefined) legacyUpdates.is_technician = updates.is_technician;
+        if (updates.job_title !== undefined) legacyUpdates.job_title = updates.job_title;
+        const retry = await supabaseAdmin
+          .from("workshop_system_users")
+          .update(legacyUpdates)
+          .eq("id", id)
+          .eq("workshop_id", WORKSHOP_ID)
+          .select(SYSTEM_USER_SELECT_LEGACY)
+          .single();
+        data = (retry.data as Record<string, unknown> | null) ?? null;
+        error = retry.error;
+      }
       if (error) return res.status(500).json({ error: error.message });
       if (!data) return res.status(404).json({ error: "Usuário não encontrado." });
-      return res.json(data);
+      if (Array.isArray(additionalRoles)) {
+        await syncAdditionalRoles(
+          id,
+          additionalRoles.map(String),
+          typeof updates.professional_role === "string"
+            ? String(updates.professional_role)
+            : String((data as { professional_role?: string }).professional_role || "")
+        );
+      }
+      const [enriched] = await attachAdditionalRoles([data as Record<string, unknown>]);
+      return res.json(enriched);
     } catch (err: any) {
       console.error("[API] Erro em PUT /api/system-users/:id:", err);
       return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
@@ -2938,11 +3141,25 @@ export function createApiApp() {
       if (!supabaseAdmin || !WORKSHOP_ID) {
         return res.status(500).json({ error: "Servidor não configurado." });
       }
-      const { data, error } = await supabaseAdmin
+      const selectFull =
+        "id, username, display_name, full_name, job_title, is_technician, is_managerial, is_active, professional_role, sector";
+      const selectLegacy = "id, username, display_name, job_title";
+      const full = await supabaseAdmin
         .from("workshop_system_users")
-        .select("id, username, display_name, job_title")
+        .select(selectFull)
         .eq("workshop_id", WORKSHOP_ID)
         .order("username", { ascending: true });
+      let data: unknown[] | null = full.data;
+      let error = full.error;
+      if (error && /column|does not exist/i.test(error.message)) {
+        const retry = await supabaseAdmin
+          .from("workshop_system_users")
+          .select(selectLegacy)
+          .eq("workshop_id", WORKSHOP_ID)
+          .order("username", { ascending: true });
+        data = retry.data;
+        error = retry.error;
+      }
       if (error) {
         return res.status(500).json({ error: error.message });
       }
