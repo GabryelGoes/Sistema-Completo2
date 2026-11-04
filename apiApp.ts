@@ -78,6 +78,7 @@ import {
   registerQualityRadarPhase1Routes,
 } from "./services/qualityRadar/registerQualityRadarPhase1Routes.js";
 import { registerQualityRadarPhase2Routes } from "./services/qualityRadar/registerQualityRadarPhase2Routes.js";
+import { registerQualityRadarPhase3Routes } from "./services/qualityRadar/registerQualityRadarPhase3Routes.js";
 import { isFaultAttribution } from "./services/qualityRadar/identity.js";
 import { canAccessQualityRadar } from "./services/qualityRadar/access.js";
 
@@ -16204,6 +16205,24 @@ export function createApiApp() {
     WORKSHOP_ID,
     supabaseAdmin,
     requestCanAccessQualityRadar,
+  });
+
+  // ----------------- Radar Fase 3: Revisão Semanal com RDA -----------------
+  registerQualityRadarPhase3Routes(app, {
+    WORKSHOP_ID,
+    supabaseAdmin,
+    requestCanAccessQualityRadar,
+    getWorkshopSettingValue,
+    loadUserPermissions: async (userId: string) => {
+      if (!supabaseAdmin || !WORKSHOP_ID || !userId) return null;
+      const { data: me } = await supabaseAdmin
+        .from("workshop_system_users")
+        .select("permissions")
+        .eq("id", userId)
+        .eq("workshop_id", WORKSHOP_ID)
+        .maybeSingle();
+      return (me?.permissions as Record<string, boolean> | null) ?? null;
+    },
   });
 
   return app;

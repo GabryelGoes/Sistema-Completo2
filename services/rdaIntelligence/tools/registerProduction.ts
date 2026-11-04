@@ -3,13 +3,10 @@ import { RDA_PRODUCTION_TOOLS } from "./definitions.js";
 
 let registered = false;
 
-/** Registra tools reais uma vez (idempotente). */
+/** Registra tools reais (idempotente; upsert garante tools novas após hot-reload). */
 export function ensureProductionRdaToolsRegistered(): void {
-  if (registered) return;
   for (const tool of RDA_PRODUCTION_TOOLS) {
-    if (!productionRdaToolRegistry.has(tool.id)) {
-      productionRdaToolRegistry.register(tool);
-    }
+    productionRdaToolRegistry.upsert(tool);
   }
   registered = true;
 }

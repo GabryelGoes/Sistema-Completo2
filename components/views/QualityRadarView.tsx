@@ -32,6 +32,7 @@ import {
   PerformancePanel,
   ReportsPanel,
 } from '../qualityRadar/ManagerialPanels';
+import { WeeklyReviewPanel } from '../qualityRadar/WeeklyReviewPanel';
 
 type PeriodPreset = 'month' | 'quarter' | 'year';
 
@@ -284,6 +285,8 @@ export const QualityRadarView: React.FC<{ authSession?: AuthSession | null }> = 
     body = <CareerPlansPanel employees={technicians} />;
   } else if (section === 'reunioes') {
     body = <MeetingsPanel employees={technicians} />;
+  } else if (section === 'revisao_semanal') {
+    body = <WeeklyReviewPanel employees={technicians} />;
   } else if (section === 'relatorios') {
     body = (
       <ReportsPanel

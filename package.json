@@ -14,6 +14,7 @@
     "test:rda-foundation": "tsx scripts/rdaIntelligenceFoundation.selftest.ts",
     "test:quality-radar-hub": "tsx scripts/qualityRadarHub.selftest.ts",
     "test:quality-radar-career": "tsx scripts/qualityRadarCareer.selftest.ts",
+    "test:quality-radar-phase3": "tsx scripts/qualityRadarPhase3.selftest.ts",
     "test:rda-work-sessions": "tsx scripts/rdaWorkSessions.selftest.ts",
     "test:rda-evaluations": "tsx scripts/rdaEvaluations.selftest.ts",
     "test:rda-homologation-prep": "tsx scripts/rdaHomologation/selfcheck.ts",

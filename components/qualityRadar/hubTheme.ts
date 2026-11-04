@@ -39,6 +39,7 @@ export type HubSectionId =
   | 'desempenho'
   | 'planos'
   | 'reunioes'
+  | 'revisao_semanal'
   | 'relatorios'
   | 'ocorrencias';
 
@@ -83,6 +84,12 @@ export const HUB_SECTIONS: {
     label: 'Reuniões e Feedbacks',
     shortLabel: 'Reuniões',
     description: 'Pautas, feedbacks e compromissos',
+  },
+  {
+    id: 'revisao_semanal',
+    label: 'Revisão Semanal com RDA',
+    shortLabel: 'RDA',
+    description: 'Entrevista gerencial e memória profissional',
   },
   {
     id: 'relatorios',
