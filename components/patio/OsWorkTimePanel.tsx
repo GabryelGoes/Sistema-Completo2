@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Clock3, Pause, Play, Square, Loader2 } from 'lucide-react';
+import { ChevronDown, Clock3, Pause, Play, Square, Loader2 } from 'lucide-react';
 import {
   finishRdaWorkSession,
   getMyActiveRdaWorkSession,
@@ -22,6 +22,12 @@ type Props = {
   /** Sempre o usuário autenticado — nunca editável na UI. */
   technicianUserId: string;
   technicianDisplayName: string;
+  /**
+   * Se false, inicia recolhido (padrão no modal PC, logo abaixo dos checklists).
+   * Default true (tablet/mobile).
+   */
+  defaultExpanded?: boolean;
+  className?: string;
 };
 
 function useTickingLiveMs(session: RdaWorkSession | null): {
@@ -58,6 +64,8 @@ export const OsWorkTimePanel: React.FC<Props> = ({
   serviceOrderId,
   technicianUserId,
   technicianDisplayName,
+  defaultExpanded = true,
+  className = '',
 }) => {
   const [session, setSession] = useState<RdaWorkSession | null>(null);
   const [osSessions, setOsSessions] = useState<RdaWorkSession[]>([]);
@@ -70,6 +78,11 @@ export const OsWorkTimePanel: React.FC<Props> = ({
   const [pauseReasonId, setPauseReasonId] = useState('break');
   const [pauseNote, setPauseNote] = useState('');
   const [otherActiveOsId, setOtherActiveOsId] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState(defaultExpanded);
+
+  useEffect(() => {
+    setExpanded(defaultExpanded);
+  }, [defaultExpanded, serviceOrderId]);
 
   const live = useTickingLiveMs(
     session && session.serviceOrderId === serviceOrderId ? session : null
@@ -151,7 +164,9 @@ export const OsWorkTimePanel: React.FC<Props> = ({
 
   if (loading) {
     return (
-      <div className="mb-4 rounded-2xl border border-zinc-200 bg-white px-4 py-4 dark:border-zinc-800 dark:bg-zinc-900">
+      <div
+        className={`mb-4 rounded-2xl border border-zinc-200 bg-white px-4 py-4 dark:border-zinc-800 dark:bg-zinc-900 ${className}`.trim()}
+      >
         <div className="flex items-center gap-2 text-[13px] text-zinc-500">
           <Loader2 className="h-4 w-4 animate-spin" />
           Carregando controle de tempo…
@@ -162,7 +177,9 @@ export const OsWorkTimePanel: React.FC<Props> = ({
 
   if (migrationMissing) {
     return (
-      <div className="mb-4 rounded-2xl border border-dashed border-amber-400/70 bg-amber-50 px-4 py-3 text-[13px] text-amber-950 dark:border-amber-500/40 dark:bg-amber-950/30 dark:text-amber-100">
+      <div
+        className={`mb-4 rounded-2xl border border-dashed border-amber-400/70 bg-amber-50 px-4 py-3 text-[13px] text-amber-950 dark:border-amber-500/40 dark:bg-amber-950/30 dark:text-amber-100 ${className}`.trim()}
+      >
         Controle de tempo disponível após aplicar a migration{' '}
         <code className="text-[12px]">20261101220000_rda_work_sessions.sql</code> no ambiente de
         teste.
@@ -187,19 +204,66 @@ export const OsWorkTimePanel: React.FC<Props> = ({
 
   const finishedCountOnOs = osSessions.filter((s) => s.status === 'finished').length;
 
+  const statusLabel =
+    displaySession?.status === 'running'
+      ? 'Em execução'
+      : displaySession?.status === 'paused'
+        ? 'Pausado'
+        : displaySession?.status === 'finished'
+          ? 'Finalizado'
+          : 'Sem sessão';
+
+  const statusChipClass =
+    displaySession?.status === 'running'
+      ? 'bg-emerald-500 text-white'
+      : displaySession?.status === 'paused'
+        ? 'bg-[#FFD60A] text-zinc-900'
+        : displaySession?.status === 'finished'
+          ? 'bg-zinc-800 text-white'
+          : 'bg-zinc-200 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200';
+
   return (
-    <div className="mb-4 overflow-hidden rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
-      <div className="flex items-center justify-between gap-3 border-b border-zinc-100 bg-zinc-950 px-4 py-3 text-white dark:border-zinc-800">
-        <div className="min-w-0">
+    <div
+      className={`mb-4 overflow-hidden rounded-2xl border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900 ${className}`.trim()}
+    >
+      <button
+        type="button"
+        onClick={() => setExpanded((v) => !v)}
+        className="flex w-full items-center justify-between gap-3 border-b border-zinc-100 bg-zinc-950 px-4 py-3 text-left text-white transition-colors hover:bg-zinc-900 dark:border-zinc-800"
+        aria-expanded={expanded}
+        aria-controls={`os-work-time-body-${serviceOrderId}`}
+      >
+        <div className="min-w-0 flex-1">
           <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#FFD60A]">
             Meu tempo nesta OS
           </p>
           <p className="truncate text-[13px] text-zinc-300">{technicianDisplayName}</p>
+          {!expanded ? (
+            <div className="mt-1.5 flex flex-wrap items-center gap-2">
+              <span
+                className={`rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${statusChipClass}`}
+              >
+                {statusLabel}
+              </span>
+              <span className="font-mono text-[12px] tabular-nums text-zinc-400">
+                {formatDurationHms(productiveDisplayMs)}
+              </span>
+            </div>
+          ) : null}
         </div>
-        <Clock3 className="h-5 w-5 shrink-0 text-[#FFD60A]" aria-hidden />
-      </div>
+        <div className="flex shrink-0 items-center gap-2">
+          <Clock3 className="h-5 w-5 text-[#FFD60A]" aria-hidden />
+          <ChevronDown
+            className={`h-4 w-4 text-zinc-400 transition-transform duration-200 ${
+              expanded ? 'rotate-180' : ''
+            }`}
+            aria-hidden
+          />
+        </div>
+      </button>
 
-      <div className="space-y-3 p-4">
+      {expanded ? (
+      <div id={`os-work-time-body-${serviceOrderId}`} className="space-y-3 p-4">
         {error ? (
           <p className="rounded-xl bg-red-50 px-3 py-2 text-[13px] text-red-700 dark:bg-red-950/40 dark:text-red-300">
             {error}
@@ -234,15 +298,7 @@ export const OsWorkTimePanel: React.FC<Props> = ({
 
         <div className="flex flex-wrap items-center gap-2">
           <span
-            className={`rounded-lg px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide ${
-              displaySession?.status === 'running'
-                ? 'bg-emerald-500 text-white'
-                : displaySession?.status === 'paused'
-                  ? 'bg-[#FFD60A] text-zinc-900'
-                  : displaySession?.status === 'finished'
-                    ? 'bg-zinc-800 text-white'
-                    : 'bg-zinc-200 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200'
-            }`}
+            className={`rounded-lg px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide ${statusChipClass}`}
           >
             {displaySession?.status === 'running'
               ? 'Em execução'
@@ -404,6 +460,7 @@ export const OsWorkTimePanel: React.FC<Props> = ({
           </div>
         ) : null}
       </div>
+      ) : null}
     </div>
   );
 };
