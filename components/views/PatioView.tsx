@@ -11129,12 +11129,13 @@ export const PatioView: React.FC<PatioViewProps> = ({
                       <div className={patioVehicleVm.mainCol}>
                         {showPcOsTab('dados') ? (
                         <>
-                        {workTimeTechnician && selectedCard?.id ? (
+                        {/* Tablet/mobile: Meu tempo no topo. No PC fica minimizado abaixo dos Checklists. */}
+                        {!isPatioPcModal && workTimeTechnician && selectedCard?.id ? (
                           <OsWorkTimePanel
                             serviceOrderId={selectedCard.id}
                             technicianUserId={workTimeTechnician.userId}
                             technicianDisplayName={workTimeTechnician.displayName}
-                            defaultExpanded={!isPatioPcModal}
+                            defaultExpanded
                           />
                         ) : null}
                         {selectedCard?.id ? (
@@ -12492,6 +12493,16 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                </div>
                              )}
                          </div>
+                        ) : null}
+
+                        {isPatioPcModal && workTimeTechnician && selectedCard?.id ? (
+                          <OsWorkTimePanel
+                            serviceOrderId={selectedCard.id}
+                            technicianUserId={workTimeTechnician.userId}
+                            technicianDisplayName={workTimeTechnician.displayName}
+                            defaultExpanded={false}
+                            className="mt-3 mb-0"
+                          />
                         ) : null}
 
                       </div>
