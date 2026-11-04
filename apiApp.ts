@@ -15635,7 +15635,26 @@ export function createApiApp() {
       if (from) query = query.gte("occurred_at", from);
       if (to) query = query.lte("occurred_at", to);
 
-      const { data, error } = await query;
+      let { data, error } = await query;
+      if (error && /deleted_at|column/i.test(error.message) && !includeDeleted) {
+        // Schema pré-Fase1: reconsulta sem filtro deleted_at
+        let legacy = supabaseAdmin
+          .from("workshop_technician_incidents")
+          .select("*")
+          .eq("workshop_id", WORKSHOP_ID)
+          .order("occurred_at", { ascending: false });
+        if (status && status !== "all") legacy = legacy.eq("status", status);
+        if (technicianId && technicianSystemUserId) {
+          legacy = legacy.or(
+            `technician_id.eq.${technicianId},system_user_id.eq.${technicianSystemUserId}`
+          );
+        } else if (technicianId) legacy = legacy.eq("technician_id", technicianId);
+        if (category) legacy = legacy.eq("category", category);
+        if (severity) legacy = legacy.eq("severity", severity);
+        if (from) legacy = legacy.gte("occurred_at", from);
+        if (to) legacy = legacy.lte("occurred_at", to);
+        ({ data, error } = await legacy);
+      }
       if (error) {
         if (isMissingRelationError(error.message)) {
           // Homologação com schema reduzido: Radar/avaliações seguem sem ocorrências.
