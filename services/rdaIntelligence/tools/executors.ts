@@ -29,6 +29,14 @@ import {
 import { findKnowledgeConflicts, normalizeKnowledgeKey } from "../knowledge/rules.js";
 import { allowedKnowledgeVisibilitiesForAuth } from "../knowledge/access.js";
 import type { RdaKnowledgeItemRow } from "../knowledge/types.js";
+import {
+  queryOperationalOverview,
+  queryOperationalPatterns,
+  queryPauseReasonsSummary,
+  queryServiceDurationStats,
+  queryTechnicianBreakdown,
+} from "../operationalLearning/service.js";
+import type { RdaWorkTimeKind } from "../workSessions/stageRules.js";
 
 function periodFromParams(params: Record<string, unknown>): { from: string; to: string } | undefined {
   const from = typeof params.from === "string" ? params.from.trim() : "";
@@ -924,6 +932,112 @@ export async function executeRdaTool(
             items,
             note: "Apenas relatórios aprovados. Não inventar métricas ausentes.",
             provenance: "system_fact",
+          },
+        };
+      }
+
+      case "rda_ops_overview": {
+        const data = await queryOperationalOverview({
+          workshopId,
+          from: typeof params.from === "string" ? params.from : undefined,
+          to: typeof params.to === "string" ? params.to : undefined,
+          days: typeof params.days === "number" ? params.days : undefined,
+          serviceQuery:
+            typeof params.serviceQuery === "string" ? params.serviceQuery : undefined,
+          supabase,
+        });
+        return {
+          ok: true,
+          data: {
+            ...data,
+            provenance: "calculated",
+            factsVsHypothesis:
+              "Fatos: somas de productive_ms/paused_ms de sessões no período. Hipótese: qualquer interpretação causal.",
+          },
+        };
+      }
+
+      case "rda_ops_service_duration_stats": {
+        const tkRaw = String(params.timeKind || "all").toLowerCase();
+        const timeKind: RdaWorkTimeKind | "all" =
+          tkRaw === "diagnostic" || tkRaw === "execution" || tkRaw === "all" ? tkRaw : "all";
+        const data = await queryServiceDurationStats({
+          workshopId,
+          from: typeof params.from === "string" ? params.from : undefined,
+          to: typeof params.to === "string" ? params.to : undefined,
+          days: typeof params.days === "number" ? params.days : undefined,
+          serviceQuery:
+            typeof params.serviceQuery === "string" ? params.serviceQuery : undefined,
+          timeKind,
+          limit: clampLimit(params.limit, 25),
+          supabase,
+        });
+        return {
+          ok: true,
+          data: {
+            ...data,
+            provenance: "calculated",
+            insufficientSamples: data.rows.filter(
+              (r) =>
+                r.distribution.confidence === "insufficient" ||
+                r.distribution.confidence === "low"
+            ).length,
+          },
+        };
+      }
+
+      case "rda_ops_pause_reasons_summary": {
+        const data = await queryPauseReasonsSummary({
+          workshopId,
+          from: typeof params.from === "string" ? params.from : undefined,
+          to: typeof params.to === "string" ? params.to : undefined,
+          days: typeof params.days === "number" ? params.days : undefined,
+          limit: clampLimit(params.limit, 20),
+          supabase,
+        });
+        return { ok: true, data: { ...data, provenance: "calculated" } };
+      }
+
+      case "rda_ops_technician_time_breakdown": {
+        const data = await queryTechnicianBreakdown({
+          workshopId,
+          from: typeof params.from === "string" ? params.from : undefined,
+          to: typeof params.to === "string" ? params.to : undefined,
+          days: typeof params.days === "number" ? params.days : undefined,
+          technicianUserId:
+            typeof params.technicianUserId === "string" ? params.technicianUserId : undefined,
+          serviceQuery:
+            typeof params.serviceQuery === "string" ? params.serviceQuery : undefined,
+          supabase,
+        });
+        return {
+          ok: true,
+          data: {
+            ...data,
+            provenance: "calculated",
+            judgmentPolicy:
+              "Não ranquear desempenho. Contextualizar complexidade, retrabalho e interrupções.",
+          },
+        };
+      }
+
+      case "rda_ops_detect_patterns": {
+        const data = await queryOperationalPatterns({
+          workshopId,
+          from: typeof params.from === "string" ? params.from : undefined,
+          to: typeof params.to === "string" ? params.to : undefined,
+          days: typeof params.days === "number" ? params.days : undefined,
+          serviceQuery:
+            typeof params.serviceQuery === "string" ? params.serviceQuery : undefined,
+          supabase,
+        });
+        return {
+          ok: true,
+          data: {
+            ...data,
+            provenance: "hypothesis",
+            memoryBridge:
+              "Para tornar orientação oficial, chame rda_propose_knowledge com o proposedKnowledge (confirmação humana). Nunca auto-aprovar.",
           },
         };
       }

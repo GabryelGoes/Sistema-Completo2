@@ -40,6 +40,7 @@ export type AjustesVisibility = {
   dispositivo: boolean;
   etiquetas: boolean;
   memoria_rda: boolean;
+  inteligencia_operacional: boolean;
 };
 
 export type AjustesHubPanelProps = {
