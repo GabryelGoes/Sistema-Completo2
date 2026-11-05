@@ -365,16 +365,6 @@ export default function App() {
   const canApproveBudgetItemsApp =
     authSession?.role === 'admin' ||
     (authSession?.role === 'user' && effectivePatioApproveBudgetItems(authSession.permissions));
-  /** Cronômetro RDA: só usuário do sistema marcado como técnico; identidade vem do login. */
-  const workTimeTechnician =
-    authSession?.role === 'user' &&
-    authSession.isTechnician &&
-    authSession.userId
-      ? {
-          userId: authSession.userId,
-          displayName: authSession.displayName ?? authSession.username ?? 'Técnico',
-        }
-      : null;
   const budgetHubActorOptions =
     authSession?.role === 'admin'
       ? { actor: 'admin' as const, actorDisplayName: adminDisplayName }
@@ -2050,7 +2040,6 @@ export default function App() {
               actorOptions={{ actor: 'technician', actorTechnicianSlug: authSession.userId, actorTechnicianName: authSession.displayName ?? authSession.username }}
               patioPermissions={patioPerms}
               canApproveBudgetItems={canApproveBudgetItemsApp}
-              workTimeTechnician={workTimeTechnician}
               />
             </LazyTabBoundary>
           </KeepAliveTabPanel>
@@ -2083,7 +2072,6 @@ export default function App() {
               patioPermissions={patioPerms}
               labScanMode={labScanMode}
               onLabScanModeChange={handleLabScanModeChange}
-              workTimeTechnician={workTimeTechnician}
               />
             </LazyTabBoundary>
           </KeepAliveTabPanel>
@@ -2464,7 +2452,6 @@ export default function App() {
             requiresExplicitCommentRead={canVerifyBudgetsApp}
             canApproveBudgetItems={canApproveBudgetItemsApp}
             actorOptions={authSession?.role === 'admin' ? { actor: 'admin', actorDisplayName: adminDisplayName } : { actor: 'technician', actorTechnicianSlug: authSession?.userId, actorTechnicianName: authSession?.displayName ?? authSession?.username, actorDisplayName: authSession?.displayName ?? authSession?.username }}
-            workTimeTechnician={workTimeTechnician}
             />
           </LazyTabBoundary>
         </KeepAliveTabPanel>
@@ -2500,7 +2487,6 @@ export default function App() {
             actorOptions={authSession?.role === 'admin' ? { actor: 'admin', actorDisplayName: adminDisplayName } : { actor: 'technician', actorTechnicianSlug: authSession?.userId, actorTechnicianName: authSession?.displayName ?? authSession?.username, actorDisplayName: authSession?.displayName ?? authSession?.username }}
             labScanMode={labScanMode}
             onLabScanModeChange={handleLabScanModeChange}
-            workTimeTechnician={workTimeTechnician}
             />
           </LazyTabBoundary>
         </KeepAliveTabPanel>
