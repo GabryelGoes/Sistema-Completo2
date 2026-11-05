@@ -28,7 +28,8 @@
     "test:rda-patio-intel": "tsx scripts/rdaPatioIntelligence.selftest.ts",
     "test:rda-lab-estoque": "tsx scripts/rdaLabEstoqueIntelligence.selftest.ts",
     "test:rda-proactive": "tsx scripts/rdaProactiveIntelligence.selftest.ts",
-    "test:rda-proactive-cron-auth": "tsx scripts/rdaProactiveCronAuth.selftest.ts"
+    "test:rda-proactive-cron-auth": "tsx scripts/rdaProactiveCronAuth.selftest.ts",
+    "test:rda-panels-zindex": "tsx scripts/rdaPanelsZIndex.selftest.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.48.0",

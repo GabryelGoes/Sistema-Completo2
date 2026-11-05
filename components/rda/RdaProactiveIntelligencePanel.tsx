@@ -9,6 +9,7 @@ import {
   type RdaProactiveAlert,
   type RdaProactiveDashboard,
 } from '../../services/apiService';
+import { RdaSettingsChildShell } from './RdaSettingsChildShell';
 
 type Props = {
   isOpen: boolean;
@@ -29,7 +30,11 @@ const SEVERITY_LABEL: Record<RdaProactiveAlert['severity'], string> = {
   critical: 'Crítico',
 };
 
-export const RdaProactiveIntelligencePanel: React.FC<Props> = ({ isOpen, onClose }) => {
+export const RdaProactiveIntelligencePanel: React.FC<Props> = ({
+  isOpen,
+  onClose,
+  desktopShell,
+}) => {
   const [data, setData] = useState<RdaProactiveDashboard | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -86,8 +91,6 @@ export const RdaProactiveIntelligencePanel: React.FC<Props> = ({ isOpen, onClose
     });
   }, [data, category, severity]);
 
-  if (!isOpen) return null;
-
   async function act(alertId: string, status: RdaProactiveAlert['status']) {
     setBusyId(alertId);
     setMsg(null);
@@ -112,11 +115,11 @@ export const RdaProactiveIntelligencePanel: React.FC<Props> = ({ isOpen, onClose
   }
 
   return (
-    <div
-      className="fixed inset-0 z-[70] flex min-h-0 flex-col bg-zinc-100 text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100"
-      role="dialog"
-      aria-modal="true"
-      aria-label="Monitoramento Proativo"
+    <RdaSettingsChildShell
+      isOpen={isOpen}
+      onClose={onClose}
+      desktopShell={desktopShell}
+      ariaLabel="Monitoramento Proativo"
     >
       <header className="shrink-0 border-b border-zinc-200 bg-white px-4 py-3 dark:border-zinc-800 dark:bg-zinc-900">
         <div className="mx-auto flex max-w-5xl items-center gap-3">
@@ -355,7 +358,7 @@ export const RdaProactiveIntelligencePanel: React.FC<Props> = ({ isOpen, onClose
           </div>
         ) : null}
       </div>
-    </div>
+    </RdaSettingsChildShell>
   );
 };
 

@@ -286,6 +286,10 @@ export const HomeView: React.FC<HomeViewProps> = ({
     setIsBudgetPrefsOpen(false);
     setIsLabelEditorOpen(false);
     setIsRdaMemoryOpen(false);
+    setIsRdaOpsOpen(false);
+    setIsRdaPatioIntelOpen(false);
+    setIsRdaLabEstoqueIntelOpen(false);
+    setIsRdaProactiveOpen(false);
   }, []);
 
   const setSettingsHubOpen = useCallback(
@@ -498,18 +502,38 @@ export const HomeView: React.FC<HomeViewProps> = ({
           setIsLabelEditorOpen(true);
           break;
         case 'memoria_rda':
+          setIsRdaOpsOpen(false);
+          setIsRdaPatioIntelOpen(false);
+          setIsRdaLabEstoqueIntelOpen(false);
+          setIsRdaProactiveOpen(false);
           setIsRdaMemoryOpen(true);
           break;
         case 'inteligencia_operacional':
+          setIsRdaMemoryOpen(false);
+          setIsRdaPatioIntelOpen(false);
+          setIsRdaLabEstoqueIntelOpen(false);
+          setIsRdaProactiveOpen(false);
           setIsRdaOpsOpen(true);
           break;
         case 'gestao_patio_rda':
+          setIsRdaMemoryOpen(false);
+          setIsRdaOpsOpen(false);
+          setIsRdaLabEstoqueIntelOpen(false);
+          setIsRdaProactiveOpen(false);
           setIsRdaPatioIntelOpen(true);
           break;
         case 'lab_estoque_rda':
+          setIsRdaMemoryOpen(false);
+          setIsRdaOpsOpen(false);
+          setIsRdaPatioIntelOpen(false);
+          setIsRdaProactiveOpen(false);
           setIsRdaLabEstoqueIntelOpen(true);
           break;
         case 'monitoramento_proativo_rda':
+          setIsRdaMemoryOpen(false);
+          setIsRdaOpsOpen(false);
+          setIsRdaPatioIntelOpen(false);
+          setIsRdaLabEstoqueIntelOpen(false);
           setIsRdaProactiveOpen(true);
           break;
         default:
