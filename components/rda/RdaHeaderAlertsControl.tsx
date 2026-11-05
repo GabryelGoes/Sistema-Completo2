@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { BrainCircuit, Loader2, X } from 'lucide-react';
+import { Loader2, ScanSearch, X } from 'lucide-react';
 import {
   fetchRdaProactiveSummary,
   transitionRdaProactiveAlert,
@@ -194,7 +194,7 @@ export const RdaHeaderAlertsControl: React.FC<RdaHeaderAlertsControlProps> = ({
           aria-label="Alertas do RDA Intelligence"
         >
           <div className="flex items-center gap-2 border-b border-zinc-200/80 px-3.5 py-2.5 dark:border-white/10">
-            <BrainCircuit className="h-4 w-4 text-sky-600 dark:text-sky-400" strokeWidth={2} />
+            <ScanSearch className="h-4 w-4 text-zinc-600 dark:text-zinc-300" strokeWidth={2} />
             <div className="min-w-0 flex-1">
               <p className="text-[13px] font-semibold text-zinc-900 dark:text-white">RDA Intelligence</p>
               <p className="text-[11px] text-zinc-500">
@@ -390,7 +390,7 @@ export const RdaHeaderAlertsControl: React.FC<RdaHeaderAlertsControlProps> = ({
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
       >
-        <BrainCircuit className="h-4 w-4 sm:h-[18px] sm:w-[18px]" strokeWidth={2.1} aria-hidden />
+        <ScanSearch className="h-4 w-4 sm:h-[18px] sm:w-[18px]" strokeWidth={2} aria-hidden />
         {criticalCount > 0 ? (
           <span
             className="absolute -right-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold leading-none text-white shadow-sm"
