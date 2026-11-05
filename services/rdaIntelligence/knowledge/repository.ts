@@ -152,12 +152,13 @@ export async function getKnowledgeItemDetail(
 /**
  * Recuperação contextual: somente conteúdos oficiais (approved_version).
  * Conteúdo tratado como DADO — nunca instrução privilegiada.
+ * `allowedVisibilities` é OBRIGATÓRIO (política por ator).
  */
 export async function retrieveApprovedKnowledge(
   supabase: SupabaseClient,
   workshopId: string,
   queryText: string,
-  opts?: { limit?: number; visibility?: string[] }
+  opts: { limit?: number; allowedVisibilities: string[] }
 ): Promise<
   Array<{
     knowledgeKey: string;
@@ -167,8 +168,13 @@ export async function retrieveApprovedKnowledge(
     content: string;
     citationKind: string;
     itemId: string;
+    visibility: string;
   }>
 > {
+  const allowed = (opts.allowedVisibilities || []).filter(Boolean);
+  if (!allowed.length) {
+    throw new Error("allowedVisibilities é obrigatório para recuperação de memória.");
+  }
   const limit = Math.min(Math.max(opts?.limit ?? 8, 1), 20);
   const { data, error } = await supabase
     .from("rda_knowledge_items")
@@ -176,6 +182,7 @@ export async function retrieveApprovedKnowledge(
     .eq("workshop_id", workshopId)
     .gt("approved_version", 0)
     .in("lifecycle", ["approved", "pending_approval"])
+    .in("visibility", allowed)
     .order("updated_at", { ascending: false })
     .limit(80);
   if (error) throw new Error(error.message);
@@ -200,7 +207,7 @@ export async function retrieveApprovedKnowledge(
     ) {
       continue;
     }
-    if (opts?.visibility?.length && !opts.visibility.includes(row.visibility)) {
+    if (!allowed.includes(row.visibility)) {
       continue;
     }
     const hay = `${row.title} ${row.knowledge_key} ${row.category}`.toLowerCase();
@@ -222,6 +229,7 @@ export async function retrieveApprovedKnowledge(
     content: string;
     citationKind: string;
     itemId: string;
+    visibility: string;
   }> = [];
 
   for (const { row } of top) {
@@ -255,6 +263,7 @@ export async function retrieveApprovedKnowledge(
         category: row.category,
       }),
       itemId: row.id,
+      visibility: row.visibility,
     });
   }
   return results;

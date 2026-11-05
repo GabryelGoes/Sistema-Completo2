@@ -92,6 +92,8 @@ export {
 } from "./tools/orderTypes.js";
 
 export {
+  allowedKnowledgeVisibilitiesForAuth,
+  assertVisibilityAllowedForAuth,
   canManageRdaKnowledge,
   canProposeRdaKnowledge,
   canViewRdaKnowledgeAdmin,
@@ -105,6 +107,7 @@ export {
   isOfficialRetrievalEligible,
   looksLikePermanentGuidance,
   normalizeKnowledgeKey,
+  shouldDeferItemMetadataUntilApprove,
 } from "./knowledge/rules.js";
 export { registerRdaKnowledgeRoutes } from "./knowledge/registerKnowledgeRoutes.js";
 export {

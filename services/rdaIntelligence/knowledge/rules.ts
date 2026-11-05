@@ -42,9 +42,20 @@ export function isOfficialRetrievalEligible(item: {
   approvedVersion: number;
 }): boolean {
   if (item.approvedVersion <= 0) return false;
-  if (item.lifecycle === "retired" || item.lifecycle === "draft") return false;
+  if (
+    item.lifecycle === "retired" ||
+    item.lifecycle === "draft" ||
+    item.lifecycle === "purged"
+  ) {
+    return false;
+  }
   // approved OU pending_approval (revisão em curso) — a oficial continua sendo approved_version
   return item.lifecycle === "approved" || item.lifecycle === "pending_approval";
+}
+
+/** Metadados de proposta não devem alterar cabeçalho já aprovado até o approve. */
+export function shouldDeferItemMetadataUntilApprove(approvedVersion: number): boolean {
+  return Number(approvedVersion || 0) > 0;
 }
 
 export function citationKindForItem(item: {

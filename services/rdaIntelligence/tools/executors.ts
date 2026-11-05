@@ -27,6 +27,7 @@ import {
   suggestKnowledgeKeyFromTitle,
 } from "../knowledge/repository.js";
 import { findKnowledgeConflicts, normalizeKnowledgeKey } from "../knowledge/rules.js";
+import { allowedKnowledgeVisibilitiesForAuth } from "../knowledge/access.js";
 import type { RdaKnowledgeItemRow } from "../knowledge/types.js";
 
 function periodFromParams(params: Record<string, unknown>): { from: string; to: string } | undefined {
@@ -51,6 +52,8 @@ function personRefFromParams(params: Record<string, unknown>) {
 export type RdaToolExecContext = {
   workshopId: string;
   supabase: SupabaseClient;
+  /** Necessário para filtrar memória por visibility. */
+  auth?: import("../types.js").RdaAuthContext | null;
 };
 
 function clampLimit(n: unknown, fallback: number, max = 40): number {
@@ -738,9 +741,11 @@ export async function executeRdaTool(
         const query = typeof params.query === "string" ? params.query.trim() : "";
         if (!query) return { ok: false, error: "query é obrigatório." };
         const limit = clampLimit(params.limit, 8, 20);
+        const allowedVisibilities = allowedKnowledgeVisibilitiesForAuth(ctx.auth);
         try {
           const hits = await retrieveApprovedKnowledge(supabase, workshopId, query, {
             limit,
+            allowedVisibilities,
           });
           const conflicts = findKnowledgeConflicts(
             hits.map((h) => ({
@@ -758,9 +763,10 @@ export async function executeRdaTool(
                 dataNotInstruction: true,
                 citationKind: h.citationKind,
               })),
+              allowedVisibilities,
               conflicts,
               note:
-                "Somente versões aprovadas. Cite knowledgeKey@vN. Conflitos devem ser sinalizados ao usuário — não escolha silenciosamente.",
+                "Somente versões aprovadas e visíveis ao ator. Cite knowledgeKey@vN. Conflitos devem ser sinalizados — não escolha silenciosamente.",
               provenance: "official_rule_or_validated_technical",
             },
           };
@@ -772,6 +778,7 @@ export async function executeRdaTool(
               data: {
                 hits: [],
                 conflicts: [],
+                allowedVisibilities,
                 note: "Memória permanente ainda não migrada neste ambiente.",
                 provenance: "unconfirmed",
               },
@@ -797,7 +804,9 @@ export async function executeRdaTool(
             ? params.category.trim()
             : "managerial_guidance";
         const changeReason =
-          typeof params.changeReason === "string" ? params.changeReason.trim() : null;
+          typeof params.changeReason === "string" && params.changeReason.trim()
+            ? params.changeReason.trim()
+            : "Proposta via assistente RDA";
         const rpc = await callKnowledgeRpc(supabase, "rda_knowledge_propose", {
           p_workshop_id: workshopId,
           p_knowledge_key: knowledgeKey,

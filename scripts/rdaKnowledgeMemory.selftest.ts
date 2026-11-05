@@ -3,8 +3,10 @@
  * npm run test:rda-knowledge
  */
 import {
+  allowedKnowledgeVisibilitiesForAuth,
   applyApproveToHeader,
   applyProposeRevisionToHeader,
+  assertVisibilityAllowedForAuth,
   canManageRdaKnowledge,
   canProposeRdaKnowledge,
   citationKindForItem,
@@ -13,6 +15,7 @@ import {
   isOfficialRetrievalEligible,
   looksLikePermanentGuidance,
   normalizeKnowledgeKey,
+  shouldDeferItemMetadataUntilApprove,
 } from '../services/rdaIntelligence/index.js';
 import type { RdaAuthContext } from '../services/rdaIntelligence/types.js';
 
@@ -161,6 +164,59 @@ console.log('\n5) Detecção de orientação + conflitos');
   ]);
   assert(conflicts.length >= 1, 'sinaliza possível inconsistência sempre/nunca');
   assert(normalizeKnowledgeKey(' Espera Peças 2d ') === 'espera_pecas_2d', 'normaliza key');
+}
+
+console.log('\n6) Visibility obrigatória (management/restricted)');
+{
+  const common: RdaAuthContext = {
+    role: 'user',
+    userId: 'u2',
+    permissions: { access_patio: true },
+  };
+  const manager: RdaAuthContext = { role: 'admin' };
+  assert(
+    allowedKnowledgeVisibilitiesForAuth(common).join(',') === 'workshop',
+    'usuário comum só workshop'
+  );
+  assert(
+    !assertVisibilityAllowedForAuth(common, 'management'),
+    'comum bloqueado em management'
+  );
+  assert(
+    !assertVisibilityAllowedForAuth(common, 'restricted'),
+    'comum bloqueado em restricted (pergunta indireta também)'
+  );
+  assert(assertVisibilityAllowedForAuth(manager, 'restricted'), 'gestão vê restricted');
+  assert(
+    allowedKnowledgeVisibilitiesForAuth(manager).includes('management'),
+    'gestão vê management'
+  );
+  // Simula grounding: filtro aplicado antes de expor conteúdo
+  const corpus = [
+    { visibility: 'workshop', key: 'public_rule' },
+    { visibility: 'management', key: 'mgmt_secret' },
+    { visibility: 'restricted', key: 'owner_only' },
+  ];
+  const allowed = new Set(allowedKnowledgeVisibilitiesForAuth(common));
+  const leaked = corpus.filter((c) => !allowed.has(c.visibility as 'workshop'));
+  assert(
+    leaked.every((c) => c.visibility !== 'workshop'),
+    'vazamento potencial identificado'
+  );
+  const visible = corpus.filter((c) => allowed.has(c.visibility as 'workshop'));
+  assert(visible.length === 1 && visible[0].key === 'public_rule', 'só regra workshop no grounding');
+  assert(!visible.some((c) => c.key === 'mgmt_secret'), 'management não vaza por pergunta indireta');
+  assert(!visible.some((c) => c.key === 'owner_only'), 'restricted não vaza por pergunta indireta');
+}
+
+console.log('\n7) Metadados de proposta vs regra aprovada');
+{
+  assert(shouldDeferItemMetadataUntilApprove(1), 'defere meta com aprovada vigente');
+  assert(!shouldDeferItemMetadataUntilApprove(0), 'sem aprovada pode atualizar meta');
+  assert(
+    !isOfficialRetrievalEligible({ lifecycle: 'purged', approvedVersion: 0 }),
+    'purged fora do retrieval'
+  );
 }
 
 console.log(`\nResultado: ${passed} ok, ${failed} falhas`);

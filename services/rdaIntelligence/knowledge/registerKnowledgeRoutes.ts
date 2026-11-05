@@ -1,7 +1,12 @@
 import type { Express, Request, Response } from "express";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { RdaAuthContext, RdaRole } from "../types.js";
-import { canManageRdaKnowledge, canProposeRdaKnowledge, canViewRdaKnowledgeAdmin } from "./access.js";
+import {
+  allowedKnowledgeVisibilitiesForAuth,
+  canManageRdaKnowledge,
+  canProposeRdaKnowledge,
+  canViewRdaKnowledgeAdmin,
+} from "./access.js";
 import {
   callKnowledgeRpc,
   getKnowledgeItemDetail,
@@ -131,7 +136,10 @@ export function registerRdaKnowledgeRoutes(
         deps.supabaseAdmin,
         deps.WORKSHOP_ID,
         q,
-        { limit: 12 }
+        {
+          limit: 12,
+          allowedVisibilities: allowedKnowledgeVisibilitiesForAuth(auth),
+        }
       );
       return res.json({
         hits,
@@ -191,7 +199,9 @@ export function registerRdaKnowledgeRoutes(
       const visibility =
         typeof body.visibility === "string" ? body.visibility : "workshop";
       const changeReason =
-        typeof body.changeReason === "string" ? body.changeReason.trim() : null;
+        typeof body.changeReason === "string" && body.changeReason.trim()
+          ? body.changeReason.trim()
+          : "Proposta via Memória do RDA";
       const submitForApproval = body.submitForApproval !== false;
       const expectedUpdatedAt =
         typeof body.expectedUpdatedAt === "string" ? body.expectedUpdatedAt : null;
