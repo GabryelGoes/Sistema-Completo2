@@ -143,15 +143,29 @@ export {
   percentileNearestRank,
 } from "./operationalLearning/stats.js";
 export {
+  definitiveOccurrenceDurations,
   definitiveProductiveValues,
   serviceKeyFromDescription,
+  serviceOccurrenceKey,
   toSessionFact,
+  bucketTotals,
 } from "./operationalLearning/sessionFacts.js";
 export {
   buildOverview,
   buildPauseReasonRows,
   buildServiceDurationRows,
   buildTechnicianBreakdown,
+  clampOpsLimit,
+  clampOpsOffset,
 } from "./operationalLearning/aggregations.js";
+export {
+  computePauseIntervals,
+  intervalsOverlappingPeriod,
+} from "./operationalLearning/pauseIntervals.js";
 export { detectOperationalPatterns } from "./operationalLearning/patterns.js";
 export { registerOperationalLearningRoutes } from "./operationalLearning/registerOperationalLearningRoutes.js";
+export {
+  OPS_SESSION_SELECT_PRODUCTION,
+  OPS_QUERY_DEFAULT_LIMIT,
+  OPS_QUERY_MAX_LIMIT,
+} from "./operationalLearning/types.js";

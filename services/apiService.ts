@@ -7260,16 +7260,37 @@ export type RdaOperationalDashboard = {
     cancelledSessions: number;
     servicesFinishedCount: number;
     confidenceNote: string;
+    reconciliationNote?: string;
+    finished?: {
+      diagnosticProductiveMs: number;
+      executionProductiveMs: number;
+      productiveMs: number;
+      pausedMs: number;
+      totalPointedMs: number;
+      sessions: number;
+    };
+    open?: {
+      diagnosticProductiveMs: number;
+      executionProductiveMs: number;
+      productiveMs: number;
+      pausedMs: number;
+      totalPointedMs: number;
+      sessions: number;
+    };
   };
   formatted: {
     diagnostic: string;
     execution: string;
     paused: string;
     totalPointed: string;
+    openProductive?: string;
+    openPaused?: string;
+    openTotalPointed?: string;
   };
   services: Array<{
     serviceKey: string;
     serviceLabel: string;
+    timeKind?: string;
     distribution: {
       sampleCount: number;
       medianMs: number | null;
@@ -7286,6 +7307,7 @@ export type RdaOperationalDashboard = {
     label: string;
     pauseEventCount: number;
     pausedMs: number | null;
+    durationNote?: string;
   }>;
   technicians: Array<{
     technicianUserId: string;

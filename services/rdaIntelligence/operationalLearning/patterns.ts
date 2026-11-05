@@ -25,7 +25,7 @@ export function detectOperationalPatterns(
       id: `slow_diagnostic:${row.serviceKey}`,
       kind: "slow_diagnostic",
       title: `Diagnóstico demorado: ${row.serviceLabel}`,
-      summary: `Mediana ${formatDurationPt(med)} em ${row.distribution.sampleCount} sessões finalizadas (${periodLabel}). ${row.distribution.note}`,
+      summary: `Mediana ${formatDurationPt(med)} em ${row.distribution.sampleCount} ocorrência(s) OS+serviço (diagnóstico; sessões somadas) (${periodLabel}). ${row.distribution.note}`,
       sampleCount: row.distribution.sampleCount,
       confidence: row.distribution.confidence,
       proposedKnowledge: {
@@ -50,21 +50,21 @@ export function detectOperationalPatterns(
   );
   for (const row of highVar.slice(0, 3)) {
     out.push({
-      id: `high_variance:${row.serviceKey}`,
+      id: `high_variance:${row.timeKind}:${row.serviceKey}`,
       kind: "high_variance",
-      title: `Alta variação: ${row.serviceLabel}`,
-      summary: `Dispersão relativa ${row.distribution.relativeDispersion} (IQR/mediana) com n=${row.distribution.sampleCount}. Não usar para ranking de pessoas.`,
+      title: `Alta variação (${row.timeKind}): ${row.serviceLabel}`,
+      summary: `Dispersão relativa ${row.distribution.relativeDispersion} (IQR/mediana) com n=${row.distribution.sampleCount} ocorrências. Kind isolado; sem misturar diag/exec. Não usar para ranking de pessoas.`,
       sampleCount: row.distribution.sampleCount,
       confidence: row.distribution.confidence,
       proposedKnowledge: {
         title: `Atenção à variação — ${row.serviceLabel}`,
         content: [
-          `Cálculo: IQR/mediana = ${row.distribution.relativeDispersion}; n=${row.distribution.sampleCount}; período ${periodLabel}.`,
+          `Cálculo: IQR/mediana = ${row.distribution.relativeDispersion}; n=${row.distribution.sampleCount}; time_kind=${row.timeKind}; período ${periodLabel}.`,
           `Hipótese: complexidade variável, retrabalho ou escopo inconsistente entre OS.`,
           `Sugestão: padronizar escopo e anotar interrupções antes de comparar técnicos.`,
         ].join("\n"),
         category: "operational_learning",
-        knowledgeKeyHint: `ops.var.${row.serviceKey}`.slice(0, 100),
+        knowledgeKeyHint: `ops.var.${row.timeKind}.${row.serviceKey}`.slice(0, 100),
       },
     });
   }

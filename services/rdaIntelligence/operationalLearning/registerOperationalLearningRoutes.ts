@@ -115,6 +115,7 @@ export function registerOperationalLearningRoutes(
         serviceQuery: typeof req.query.service === "string" ? req.query.service : undefined,
         timeKind: parseTimeKind(req.query.timeKind),
         limit: req.query.limit != null ? Number(req.query.limit) : 40,
+        offset: req.query.offset != null ? Number(req.query.offset) : 0,
         supabase: deps.supabaseAdmin!,
       });
       return res.json({ ok: true, ...data });

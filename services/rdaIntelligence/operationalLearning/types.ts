@@ -16,15 +16,17 @@ export type OpsSessionFact = {
   status: "running" | "paused" | "finished" | "cancelled";
   startedAt: string;
   endedAt: string | null;
-  /** Totais gravados (sem live). */
+  /** Totais gravados na sessão (sem live). */
   productiveMs: number;
   pausedMs: number;
   /** Produtivo usable em estatística definitiva (só finished). */
   definitiveProductiveMs: number | null;
   /** Se true, duração NÃO é definitiva (aberta/pausada). */
   isPartial: boolean;
+  /** Identidade do serviço (descrição normalizada; line_id opcional se existir). */
   serviceKey: string;
   serviceLabel: string;
+  /** Presente só se a coluna existir no banco; senão sempre null. */
   budgetServiceLineId: string | null;
   orderType: "vehicle" | "module" | null;
   currentPauseReasonId: string | null;
@@ -37,7 +39,6 @@ export type OpsDistribution = {
   p75Ms: number | null;
   minMs: number | null;
   maxMs: number | null;
-  /** IQR / mediana — dispersão relativa; null se insuficientes. */
   relativeDispersion: number | null;
   confidence: OpsConfidence;
   note: string;
@@ -46,9 +47,13 @@ export type OpsDistribution = {
 export type OpsServiceDurationRow = {
   serviceKey: string;
   serviceLabel: string;
-  timeKind: RdaWorkTimeKind | "all";
+  /** Sempre um kind concreto — nunca mistura diagnóstico+execução. */
+  timeKind: RdaWorkTimeKind;
   distribution: OpsDistribution;
+  /** Sessões finished que entraram no colapso OS+serviço+kind. */
   finishedSessionCount: number;
+  /** Ocorrências = OS distintas com ao menos 1 sessão finished deste serviço/kind. */
+  finishedOccurrenceCount: number;
   openSessionCount: number;
   distinctTechnicians: number;
   distinctOs: number;
@@ -58,34 +63,56 @@ export type OpsPauseReasonRow = {
   reasonId: string;
   label: string;
   pauseEventCount: number;
-  /** Soma de intervalos de pausa estimada quando disponível; senão null. */
+  /**
+   * Soma das durações calculadas por timestamps (pause→resume/finish/cancel).
+   * null = duração por motivo desconhecida (faltam eventos de fechamento).
+   */
   pausedMs: number | null;
+  durationKnownCount: number;
+  durationUnknownCount: number;
+  durationNote: string;
+};
+
+export type OpsBucketTotals = {
+  diagnosticProductiveMs: number;
+  executionProductiveMs: number;
+  productiveMs: number;
+  pausedMs: number;
+  /** productive + paused (apontado) — ≠ tempo corrido da OS. */
+  totalPointedMs: number;
+  sessions: number;
 };
 
 export type OpsTechnicianBreakdownRow = {
   technicianUserId: string;
   displayName: string;
+  finished: OpsBucketTotals;
+  open: OpsBucketTotals;
+  finishedSessions: number;
+  openSessions: number;
+  servicesCount: number;
+  /** Aliases legados = finished.* (não incluem parciais). */
   diagnosticMs: number;
   executionMs: number;
   pausedMs: number;
   totalPointedMs: number;
-  finishedSessions: number;
-  openSessions: number;
-  servicesCount: number;
 };
 
 export type OpsOverview = {
   period: OpsPeriod;
+  finished: OpsBucketTotals;
+  open: OpsBucketTotals;
+  cancelledSessions: number;
+  servicesFinishedCount: number;
+  /** Aliases = finished.* para UI/tools. */
   diagnosticMs: number;
   executionMs: number;
   pausedMs: number;
-  /** Soma apontada (diag+exec+pausas) — não é tempo desde check-in. */
   totalPointedMs: number;
   finishedSessions: number;
   openSessions: number;
-  cancelledSessions: number;
-  servicesFinishedCount: number;
   confidenceNote: string;
+  reconciliationNote: string;
 };
 
 export type OpsPatternSuggestion = {
@@ -95,7 +122,6 @@ export type OpsPatternSuggestion = {
   summary: string;
   sampleCount: number;
   confidence: OpsConfidence;
-  /** Rascunho sugerido para Memória (nunca auto-aprovado). */
   proposedKnowledge: {
     title: string;
     content: string;
@@ -103,3 +129,11 @@ export type OpsPatternSuggestion = {
     knowledgeKeyHint: string;
   };
 };
+
+/** Colunas seguras no schema de produção (sem budget_service_line_id). */
+export const OPS_SESSION_SELECT_PRODUCTION =
+  "id, workshop_id, service_order_id, technician_user_id, time_kind, status, started_at, ended_at, productive_ms, paused_ms, budget_service_description, current_pause_reason_id";
+
+export const OPS_QUERY_DEFAULT_LIMIT = 40;
+export const OPS_QUERY_MAX_LIMIT = 200;
+export const OPS_QUERY_MAX_ROWS = 5000;

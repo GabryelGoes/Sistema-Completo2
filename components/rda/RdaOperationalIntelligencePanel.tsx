@@ -156,6 +156,9 @@ export const RdaOperationalIntelligencePanel: React.FC<Props> = ({
               <h2 className="mb-1 text-[14px] font-semibold">Visão geral</h2>
               <p className="mb-3 text-[12px] text-zinc-500">{data.disclaimer}</p>
               <p className="mb-3 text-[12px] text-zinc-500">{data.overview.confidenceNote}</p>
+              <p className="mb-2 text-[12px] font-medium text-zinc-600 dark:text-zinc-400">
+                Consolidados (finished)
+              </p>
               <dl className="grid grid-cols-2 gap-x-6 gap-y-2 text-[13px] sm:grid-cols-4">
                 <div>
                   <dt className="text-zinc-500">Diagnóstico</dt>
@@ -174,11 +177,35 @@ export const RdaOperationalIntelligencePanel: React.FC<Props> = ({
                   <dd className="font-semibold tabular-nums">{data.formatted.totalPointed}</dd>
                 </div>
               </dl>
+              {(data.formatted.openTotalPointed || data.overview.openSessions > 0) && (
+                <>
+                  <p className="mb-2 mt-4 text-[12px] font-medium text-zinc-600 dark:text-zinc-400">
+                    Parciais (abertas/pausadas — não entram no consolidado)
+                  </p>
+                  <dl className="grid grid-cols-2 gap-x-6 gap-y-2 text-[13px] sm:grid-cols-3">
+                    <div>
+                      <dt className="text-zinc-500">Produtivo parcial</dt>
+                      <dd className="tabular-nums">{data.formatted.openProductive || '—'}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-zinc-500">Pausas parciais</dt>
+                      <dd className="tabular-nums">{data.formatted.openPaused || '—'}</dd>
+                    </div>
+                    <div>
+                      <dt className="text-zinc-500">Apontado parcial</dt>
+                      <dd className="tabular-nums">{data.formatted.openTotalPointed || '—'}</dd>
+                    </div>
+                  </dl>
+                </>
+              )}
               <p className="mt-2 text-[12px] text-zinc-500">
                 Sessões: {data.overview.finishedSessions} finalizadas · {data.overview.openSessions}{' '}
                 abertas/pausadas · {data.overview.cancelledSessions} canceladas ·{' '}
-                {data.overview.servicesFinishedCount} serviços (chaves)
+                {data.overview.servicesFinishedCount} ocorrências OS+serviço+kind
               </p>
+              {data.overview.reconciliationNote ? (
+                <p className="mt-1 text-[11px] text-zinc-400">{data.overview.reconciliationNote}</p>
+              ) : null}
             </section>
 
             <section>
@@ -188,6 +215,7 @@ export const RdaOperationalIntelligencePanel: React.FC<Props> = ({
                   <thead>
                     <tr className="border-b border-zinc-200 text-zinc-500 dark:border-zinc-800">
                       <th className="py-2 pr-2 font-medium">Serviço</th>
+                      <th className="py-2 pr-2 font-medium">Kind</th>
                       <th className="py-2 pr-2 font-medium">n</th>
                       <th className="py-2 pr-2 font-medium">Mediana</th>
                       <th className="py-2 pr-2 font-medium">p25–p75</th>
@@ -197,17 +225,18 @@ export const RdaOperationalIntelligencePanel: React.FC<Props> = ({
                   <tbody>
                     {data.services.length === 0 ? (
                       <tr>
-                        <td colSpan={5} className="py-3 text-zinc-500">
-                          Sem sessões finalizadas no filtro.
+                        <td colSpan={6} className="py-3 text-zinc-500">
+                          Sem ocorrências finalizadas no filtro.
                         </td>
                       </tr>
                     ) : (
                       data.services.map((row) => (
                         <tr
-                          key={row.serviceKey}
+                          key={`${row.timeKind}:${row.serviceKey}`}
                           className="border-b border-zinc-100 dark:border-zinc-900"
                         >
                           <td className="py-2 pr-2">{row.serviceLabel}</td>
+                          <td className="py-2 pr-2 text-zinc-500">{row.timeKind || '—'}</td>
                           <td className="py-2 pr-2 tabular-nums">{row.distribution.sampleCount}</td>
                           <td className="py-2 pr-2 tabular-nums">
                             {fmtMs(row.distribution.medianMs)}
@@ -268,11 +297,13 @@ export const RdaOperationalIntelligencePanel: React.FC<Props> = ({
                   <li className="text-zinc-500">Nenhum evento de pausa no período.</li>
                 ) : (
                   data.pauses.map((p) => (
-                    <li key={p.reasonId} className="flex justify-between gap-2">
+                    <li key={p.reasonId} className="flex flex-col gap-0.5 sm:flex-row sm:justify-between">
                       <span>{p.label}</span>
                       <span className="tabular-nums text-zinc-600 dark:text-zinc-400">
                         {p.pauseEventCount} eventos
-                        {p.pausedMs != null ? ` · ~${fmtMs(p.pausedMs)}` : ''}
+                        {p.pausedMs != null
+                          ? ` · ${fmtMs(p.pausedMs)}`
+                          : ' · duração desconhecida'}
                       </span>
                     </li>
                   ))
