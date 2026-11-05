@@ -5,8 +5,9 @@ import { PATIO_ACTIVE_STAGES } from "./stages.js";
 export const RDA_PATIO_THRESHOLDS_SETTING_KEY = "rda_patio_stage_thresholds_hours";
 
 /**
- * Limites padrão (horas na etapa via updated_at) — configuráveis pela gestão.
+ * Limites padrão (horas desde status_entered_at) — configuráveis pela gestão.
  * Não são prazos fixos rígidos; apenas alertas de atenção.
+ * OS sem status_entered_at não entram nos gargalos de permanência.
  */
 export const DEFAULT_PATIO_STAGE_THRESHOLD_HOURS: Record<PatioStageId, number> = {
   GARANTIA: 72,

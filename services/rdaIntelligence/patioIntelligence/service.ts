@@ -4,6 +4,7 @@ import { retrieveApprovedKnowledge } from "../knowledge/repository.js";
 import type { RdaAuthContext } from "../types.js";
 import {
   buildPatioDashboard,
+  buildProductiveContext,
   detectDeliveryRisks,
   detectPatioBottlenecks,
   filterOrdersByStatus,
@@ -74,7 +75,8 @@ export async function queryPatioBottlenecks(input: PatioIntelQueryInput) {
   return {
     bottlenecks: detectPatioBottlenecks(orders, thresholds, histHints),
     thresholds,
-    note: "Gargalos por permanência (updated_at) vs limiares configuráveis. Sem alteração automática de etapa.",
+    productiveContext: buildProductiveContext(histHints),
+    note: "Gargalos por permanência real na etapa (status_entered_at) vs limiares. Sem comparar com tempo produtivo da Fase 2. Sem alteração automática de etapa.",
   };
 }
 
@@ -83,7 +85,7 @@ export async function queryPatioPriorities(input: PatioIntelQueryInput & { limit
   const orders = await loadPatioActiveOrders(input.workshopId, input.supabase);
   return {
     priorities: suggestPatioPriorities(orders, thresholds, input.limit || 20),
-    note: "Prioridades sugeridas com motivos. RDA não altera atribuições nem datas.",
+    note: "Prioridades sugeridas com motivos. Permanência usa status_entered_at; sem histórico → tempo desconhecido. RDA não altera atribuições nem datas.",
   };
 }
 
@@ -121,6 +123,7 @@ export async function queryPatioAttentionToday(input: PatioIntelQueryInput) {
     attention: dash.attention,
     summary: dash.summary,
     topBottleneck: dash.bottlenecks[0] || null,
+    productiveContext: dash.productiveContext,
     disclaimer: dash.disclaimer,
   };
 }

@@ -7378,6 +7378,7 @@ export type RdaPatioIntelDashboard = {
     priorityCount: number;
     riskCount: number;
     attentionCount: number;
+    unknownStageTimeCount?: number;
     note: string;
   };
   attention: Array<{
@@ -7388,7 +7389,8 @@ export type RdaPatioIntelDashboard = {
     statusLabel: string;
     kind: string;
     summary: string;
-    hoursInStage: number;
+    hoursInStage: number | null;
+    stageTimeLabel?: string;
   }>;
   bottlenecks: Array<{
     kind: string;
@@ -7406,7 +7408,8 @@ export type RdaPatioIntelDashboard = {
     statusLabel: string;
     score: number;
     reasons: string[];
-    hoursInStage: number;
+    hoursInStage: number | null;
+    stageTimeLabel?: string;
     hoursToDelivery: number | null;
     technician: string | null;
   }>;
@@ -7421,6 +7424,13 @@ export type RdaPatioIntelDashboard = {
     risk: string;
     reasons: string[];
   }>;
+  productiveContext?: {
+    available: boolean;
+    sampleCount: number;
+    confidence: string;
+    medianProductiveHours: number | null;
+    note: string;
+  };
   knowledgeHints?: Array<{ knowledgeKey: string; title: string; excerpt: string }>;
   proposedKnowledgeDrafts?: Array<{
     title: string;

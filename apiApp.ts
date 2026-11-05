@@ -75,6 +75,7 @@ import {
   listRunningWorkSessionIdsForKinds,
 } from "./services/rdaIntelligence/workSessions/autoPauseOnStageChange.js";
 import { timeKindsToAutoPauseOnStageChange } from "./services/rdaIntelligence/workSessions/stageRules.js";
+import { recordServiceOrderStageEntry } from "./services/rdaIntelligence/patioIntelligence/recordStageEntry.js";
 import { assertHomologationSafeOrThrow } from "./utils/homologationGuard.js";
 import {
   insertIncidentRevision,
@@ -14069,6 +14070,37 @@ export function createApiApp() {
         if (statusChanged && supabaseAdmin && WORKSHOP_ID) {
           const prevStatus = String(previous.status ?? "");
           const nextStatus = String(data?.status ?? "");
+          // Permanência real na etapa (Fase 3): não usar updated_at.
+          // Best-effort — se a migration ainda não existir, o pátio segue normal.
+          try {
+            const actorUserIdForStage =
+              typeof (req as { auth?: { u?: string } }).auth?.u === "string"
+                ? String((req as { auth?: { u?: string } }).auth?.u)
+                : null;
+            const stageRec = await recordServiceOrderStageEntry({
+              supabase: supabaseAdmin,
+              workshopId: WORKSHOP_ID,
+              serviceOrderId: id,
+              fromStatus: prevStatus || null,
+              toStatus: nextStatus,
+              actorUserId: actorUserIdForStage,
+              source: "api_service_order_update",
+              enteredAt:
+                typeof (data as { status_entered_at?: string | null })?.status_entered_at ===
+                "string"
+                  ? String((data as { status_entered_at?: string }).status_entered_at)
+                  : undefined,
+            });
+            if (!stageRec.ok && stageRec.via !== "schema_missing") {
+              console.warn(
+                "[patio-intel] registro de entrada na etapa:",
+                stageRec.via,
+                stageRec.error || ""
+              );
+            }
+          } catch (stageErr) {
+            console.warn("[patio-intel] falha ao registrar entrada na etapa:", stageErr);
+          }
           const kindsToPause = timeKindsToAutoPauseOnStageChange({
             previousStatus: prevStatus,
             nextStatus,

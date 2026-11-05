@@ -184,12 +184,15 @@ export {
 } from "./patioIntelligence/access.js";
 export {
   buildPatioDashboard,
+  buildProductiveContext,
   detectDeliveryRisks,
   detectPatioBottlenecks,
   enrichOrderFact,
+  formatStageTimeLabel,
   ordersReadyToStart,
   suggestPatioPriorities,
 } from "./patioIntelligence/analysis.js";
+export { recordServiceOrderStageEntry } from "./patioIntelligence/recordStageEntry.js";
 export {
   PATIO_STAGE_IDS,
   PATIO_STAGE_LABELS,
