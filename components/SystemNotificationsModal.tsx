@@ -12,6 +12,7 @@ import {
   type AgendaReminderSettings,
   type AgendaSoonMinutes,
 } from "../utils/agendaReminderSettings";
+import type { RdaBannerSettings } from "../utils/rdaBannerSettings";
 import {
   iosModalClose,
   iosModalInsetCard,
@@ -110,6 +111,9 @@ interface SystemNotificationsModalProps {
   /** Lembretes da Agenda (banners + bloco da home). */
   agendaReminderSettings?: AgendaReminderSettings;
   onAgendaReminderSettingsChange?: (next: AgendaReminderSettings) => void;
+  /** Banners macOS do RDA Intelligence (Monitoramento Proativo). */
+  rdaBannerSettings?: RdaBannerSettings;
+  onRdaBannerSettingsChange?: (next: RdaBannerSettings) => void;
 }
 
 export const SystemNotificationsModal: React.FC<SystemNotificationsModalProps> = ({
@@ -121,6 +125,8 @@ export const SystemNotificationsModal: React.FC<SystemNotificationsModalProps> =
   onCommentBannerNotificationsChange,
   agendaReminderSettings,
   onAgendaReminderSettingsChange,
+  rdaBannerSettings,
+  onRdaBannerSettingsChange,
 }) => {
   const isDesktopShell = useDesktopShellLayout();
   const [loading, setLoading] = useState(false);
@@ -267,6 +273,105 @@ export const SystemNotificationsModal: React.FC<SystemNotificationsModalProps> =
                   </div>
                 </div>
               )}
+
+              {rdaBannerSettings && typeof onRdaBannerSettingsChange === 'function' ? (
+                <div className={`${iosModalInsetCard} p-4`}>
+                  <p className="text-[13px] font-semibold text-zinc-800 dark:text-zinc-200 mb-1">
+                    Banners do RDA Intelligence
+                  </p>
+                  <p className="text-[12px] text-zinc-500 dark:text-zinc-400 mb-3">
+                    Alertas do Monitoramento Proativo no canto da tela. Com banners desativados,
+                    os alertas continuam na Central de Notificações e no painel proativo.
+                  </p>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[14px] font-medium text-zinc-900 dark:text-white">
+                          Banners do RDA
+                        </p>
+                        <p className="text-[12px] text-zinc-500 dark:text-zinc-400 mt-0.5">
+                          Ativar ou desativar todos os banners do monitoramento
+                        </p>
+                      </div>
+                      <IosSwitch
+                        id="notif-rda-banners"
+                        checked={rdaBannerSettings.enabled}
+                        onChange={() =>
+                          onRdaBannerSettingsChange({
+                            ...rdaBannerSettings,
+                            enabled: !rdaBannerSettings.enabled,
+                          })
+                        }
+                        ariaLabel="Ativar banners do RDA"
+                      />
+                    </div>
+                    <div className="h-px bg-zinc-200/80 dark:bg-white/[0.08]" />
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[14px] font-medium text-zinc-900 dark:text-white">
+                          Alertas críticos
+                        </p>
+                        <p className="text-[12px] text-zinc-500 dark:text-zinc-400 mt-0.5">
+                          Situações críticas ativas
+                        </p>
+                      </div>
+                      <IosSwitch
+                        id="notif-rda-critical"
+                        checked={rdaBannerSettings.critical}
+                        onChange={() =>
+                          onRdaBannerSettingsChange({
+                            ...rdaBannerSettings,
+                            critical: !rdaBannerSettings.critical,
+                          })
+                        }
+                        ariaLabel="Ativar banners de alertas críticos"
+                      />
+                    </div>
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[14px] font-medium text-zinc-900 dark:text-white">
+                          Alertas de atenção
+                        </p>
+                        <p className="text-[12px] text-zinc-500 dark:text-zinc-400 mt-0.5">
+                          Severidade atenção (warning)
+                        </p>
+                      </div>
+                      <IosSwitch
+                        id="notif-rda-warning"
+                        checked={rdaBannerSettings.warning}
+                        onChange={() =>
+                          onRdaBannerSettingsChange({
+                            ...rdaBannerSettings,
+                            warning: !rdaBannerSettings.warning,
+                          })
+                        }
+                        ariaLabel="Ativar banners de atenção"
+                      />
+                    </div>
+                    <div className="flex items-center justify-between gap-4">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[14px] font-medium text-zinc-900 dark:text-white">
+                          Alertas informativos
+                        </p>
+                        <p className="text-[12px] text-zinc-500 dark:text-zinc-400 mt-0.5">
+                          Severidade informativa (desligado por padrão)
+                        </p>
+                      </div>
+                      <IosSwitch
+                        id="notif-rda-info"
+                        checked={rdaBannerSettings.info}
+                        onChange={() =>
+                          onRdaBannerSettingsChange({
+                            ...rdaBannerSettings,
+                            info: !rdaBannerSettings.info,
+                          })
+                        }
+                        ariaLabel="Ativar banners informativos"
+                      />
+                    </div>
+                  </div>
+                </div>
+              ) : null}
 
               {agendaReminderSettings && typeof onAgendaReminderSettingsChange === 'function' ? (
                 <div className={`${iosModalInsetCard} p-4`}>

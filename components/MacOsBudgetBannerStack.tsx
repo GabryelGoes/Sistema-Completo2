@@ -30,7 +30,8 @@ export type MacOsBudgetBannerItem = {
     | 'comment'
     | 'lab_sem_conserto'
     | 'agenda_day_before'
-    | 'agenda_soon';
+    | 'agenda_soon'
+    | 'rda_management_alert';
   serviceOrderId: string;
   /** Obrigatório para orçamentos; ausente em comentários / Sem conserto. */
   budgetId?: string;
@@ -54,6 +55,13 @@ export type MacOsBudgetBannerItem = {
   soonMinutes?: number | null;
   /** Horário do agendamento (HH:mm). */
   appointmentTime?: string | null;
+  /** Id do alerta em `rda_management_alerts` (banner RDA). */
+  rdaAlertId?: string | null;
+  /** Severidade do alerta RDA. */
+  rdaSeverity?: 'info' | 'warning' | 'critical' | string | null;
+  /** Título/corpo do alerta RDA. */
+  rdaTitle?: string | null;
+  rdaBody?: string | null;
   /**
    * Origem da OS: Pátio (vehicle) ou Laboratório (module).
    * Se omitido, infere por `kind` / payload.
@@ -106,6 +114,10 @@ function titleFor(item: MacOsBudgetBannerItem): string {
     if (typeof m === 'number' && m > 0) return `Agendamento em ${m} min`;
     return 'Agendamento em breve';
   }
+  if (item.kind === 'rda_management_alert') {
+    const t = (item.rdaTitle || '').trim();
+    return t || 'Alerta do RDA';
+  }
   if (item.kind === 'comment') return 'Novo comentário';
   if (item.kind === 'lab_sem_conserto') return 'Sem conserto';
   if (item.kind === 'budget_items_approved') {
@@ -131,6 +143,7 @@ function titleFor(item: MacOsBudgetBannerItem): string {
 }
 
 function authorLabel(item: MacOsBudgetBannerItem): string {
+  if (item.kind === 'rda_management_alert') return 'RDA';
   const name = item.authorName?.trim();
   return name || 'Usuário';
 }
@@ -194,6 +207,25 @@ export function budgetBannerToCardModel(item: MacOsBudgetBannerItem): MacOsNotif
       icon: 'alert',
       unread: true,
       boardScope: 'lab',
+    };
+  }
+  if (item.kind === 'rda_management_alert') {
+    const sev = String(item.rdaSeverity || '').toLowerCase();
+    const body =
+      commentPreview(item.rdaBody) ||
+      (sev === 'critical' ? 'Alerta crítico' : sev === 'warning' ? 'Atenção' : 'Informativo');
+    return {
+      id: item.id,
+      authorName: authorLabel(item),
+      authorPhotoUrl: item.authorPhotoUrl,
+      title: titleFor(item),
+      body,
+      hint: 'Toque para abrir o alerta',
+      timeLabel: 'agora',
+      accent: sev === 'critical' ? 'rose' : sev === 'info' ? 'blue' : 'amber',
+      icon: 'alert',
+      unread: true,
+      boardScope: null,
     };
   }
   const scopeHint = boardScope === 'lab' ? 'desta OS' : 'deste veículo';

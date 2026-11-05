@@ -408,9 +408,11 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
       n.type === 'budget_created' ||
       n.type === 'budget_edited' ||
       n.type === 'budget_items_approved' ||
-      n.type === 'lab_sem_conserto'
+      n.type === 'lab_sem_conserto' ||
+      n.type === 'rda_management_alert'
     ) {
       onBudgetBannerRef.current?.(n);
+      // Som só se a notificação nativa não cobriu o aviso (evita duplicar).
       if (!shownNative) playOtherNotificationSound();
     } else if (!shownNative) {
       playOtherNotificationSound();
