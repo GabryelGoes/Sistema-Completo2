@@ -291,7 +291,6 @@ import { DiagnosticAuthorizationSheetModal } from '../diagnostic/DiagnosticAutho
 import { DiagnosticAuthorizationSignModal } from '../diagnostic/DiagnosticAuthorizationSignModal';
 import { ServiceTechnicianClosingModal } from '../patio/ServiceTechnicianClosingModal';
 import { OsWorkTimePanel } from '../patio/OsWorkTimePanel';
-import { RdaOsInsightCard } from '../rda/RdaOsInsightCard';
 import { BudgetApprovalModal } from '../budget/BudgetApprovalModal';
 import { LabEvaluationSection } from '../lab/LabEvaluationSection';
 import {
@@ -11138,11 +11137,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             serviceOrderStatus={selectedCard.idList}
                             defaultExpanded
                           />
-                        ) : null}
-                        {selectedCard?.id ? (
-                          <div className="mb-3">
-                            <RdaOsInsightCard serviceOrderId={selectedCard.id} />
-                          </div>
                         ) : null}
                         {/* Queixa: no tablet veículo fica no cabeçalho rolável; edição só na ficha. */}
                         {!(isPatioTabletLikeModal && !isModuleMode) ? (
