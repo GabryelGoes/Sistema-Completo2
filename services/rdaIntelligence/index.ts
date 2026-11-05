@@ -65,6 +65,22 @@ export {
 
 export { registerRdaWorkSessionRoutes } from "./workSessions/registerRdaWorkSessionRoutes.js";
 export { formatDurationHms, newClientMutationId, computeLiveTotals } from "./workSessions/timing.js";
+export {
+  aggregateOsTimeIndicators,
+  canStartOrResumeTimeKind,
+  timeKindAllowedForOsStatus,
+  timeKindsToAutoPauseOnStageChange,
+  timeKindLabel,
+  RDA_EXECUTION_OS_STATUS,
+  RDA_DIAGNOSTIC_OS_STATUS,
+  RDA_PAUSE_REASON_STAGE_CHANGE,
+  type RdaWorkTimeKind,
+} from "./workSessions/stageRules.js";
+export {
+  autoPauseWorkSessionsOnStageChange,
+  listRunningWorkSessionIdsForKinds,
+  applyAutoPauseKindsToRunning,
+} from "./workSessions/autoPauseOnStageChange.js";
 export type {
   RdaWorkSessionDto,
   RdaWorkPauseReason,

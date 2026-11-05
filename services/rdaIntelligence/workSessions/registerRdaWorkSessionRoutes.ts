@@ -30,6 +30,13 @@ import {
   OS_GENERAL_SERVICE_LINE_ID,
   readBudgetServiceLineId,
 } from "../../../utils/budgetServiceLineId.js";
+import {
+  canStartOrResumeTimeKind,
+  isRdaWorkTimeKind,
+  timeKindAllowedForOsStatus,
+  timeKindLabel,
+  type RdaWorkTimeKind,
+} from "./stageRules.js";
 
 type SessionPayload = {
   r: "admin" | "user";
@@ -53,6 +60,7 @@ type SessionRow = {
   budget_id: string | null;
   budget_service_description: string | null;
   budget_service_line_id?: string | null;
+  time_kind?: string | null;
   status: RdaWorkSessionStatus;
   started_at: string;
   ended_at: string | null;
@@ -65,6 +73,10 @@ type SessionRow = {
   client_mutation_id: string | null;
   order_type?: string | null;
 };
+
+function resolveTimeKind(raw: unknown): RdaWorkTimeKind {
+  return isRdaWorkTimeKind(raw) ? raw : "execution";
+}
 
 function authFromReq(req: Request): SessionPayload | null {
   return (req as unknown as { auth?: SessionPayload }).auth ?? null;
@@ -99,6 +111,7 @@ function mapSession(row: SessionRow, serverNow = new Date()): RdaWorkSessionDto 
     budgetId: row.budget_id,
     budgetServiceDescription: row.budget_service_description,
     budgetServiceLineId: row.budget_service_line_id ? String(row.budget_service_line_id) : null,
+    timeKind: resolveTimeKind(row.time_kind),
     orderType,
     status: row.status,
     startedAt: row.started_at,
@@ -1001,12 +1014,23 @@ export function registerRdaWorkSessionRoutes(app: Express, deps: RouteDeps): voi
 
       const { data: so, error: soErr } = await supabaseAdmin
         .from("service_orders")
-        .select("id")
+        .select("id, status")
         .eq("id", serviceOrderId)
         .eq("workshop_id", WORKSHOP_ID)
         .maybeSingle();
       if (soErr || !so) {
         return res.status(404).json({ error: "Ordem de serviço não encontrada." });
+      }
+
+      const osStatus = String((so as { status?: string }).status || "");
+      const timeKind = timeKindAllowedForOsStatus(osStatus);
+      if (!timeKind) {
+        return res.status(409).json({
+          error:
+            "Apontamento produtivo só é permitido em Avaliação técnica (diagnóstico) ou Em serviço (execução).",
+          code: "RDA_STAGE_NOT_ALLOWED",
+          osStatus,
+        });
       }
 
       const budgetCheck = await validateBudgetForOs(serviceOrderId, budgetId);
@@ -1025,7 +1049,7 @@ export function registerRdaWorkSessionRoutes(app: Express, deps: RouteDeps): voi
         }
       }
 
-      const rpc = await callSessionRpc("rda_work_session_start", {
+      let rpc = await callSessionRpc("rda_work_session_start", {
         p_workshop_id: WORKSHOP_ID,
         p_service_order_id: serviceOrderId,
         p_technician_user_id: tech.userId,
@@ -1033,12 +1057,25 @@ export function registerRdaWorkSessionRoutes(app: Express, deps: RouteDeps): voi
         p_budget_service_description: budgetServiceDescription,
         p_client_mutation_id: clientMutationId,
         p_budget_service_line_id: budgetServiceLineId,
+        p_time_kind: timeKind,
       });
+      // Pré-migration stage rules: tenta assinatura antiga (API já bloqueou etapa).
+      if (rpc.missingFn) {
+        rpc = await callSessionRpc("rda_work_session_start", {
+          p_workshop_id: WORKSHOP_ID,
+          p_service_order_id: serviceOrderId,
+          p_technician_user_id: tech.userId,
+          p_budget_id: budgetId,
+          p_budget_service_description: budgetServiceDescription,
+          p_client_mutation_id: clientMutationId,
+          p_budget_service_line_id: budgetServiceLineId,
+        });
+      }
 
       if (rpc.missingFn) {
         return res.status(503).json({
           error:
-            "Funções atômicas de sessão RDA não instaladas. Aplique 20261101230000_rda_work_sessions_integrity.sql (e 20261104120000_rda_work_sessions_service_line.sql) na homologação.",
+            "Funções atômicas de sessão RDA não instaladas. Aplique 20261101230000_rda_work_sessions_integrity.sql (e 20261104120000 / 20261105010000) na homologação.",
           code: "RDA_WORK_MIGRATION_REQUIRED",
         });
       }
@@ -1058,6 +1095,17 @@ export function registerRdaWorkSessionRoutes(app: Express, deps: RouteDeps): voi
                 : "Já existe uma sessão ativa.",
             code: String(rpc.data.code),
             activeSession: activeRow ? mapSession(activeRow) : undefined,
+          });
+        }
+        if (rpc.data.code === "RDA_STAGE_NOT_ALLOWED") {
+          return res.status(409).json({
+            error:
+              typeof rpc.data.error === "string"
+                ? rpc.data.error
+                : "Etapa da OS não permite este apontamento.",
+            code: "RDA_STAGE_NOT_ALLOWED",
+            osStatus: rpc.data.osStatus,
+            timeKind: rpc.data.timeKind ?? timeKind,
           });
         }
         const denied = rpcDeniedPayload(rpc.data, "Falha ao iniciar sessão.");
@@ -1189,6 +1237,30 @@ export function registerRdaWorkSessionRoutes(app: Express, deps: RouteDeps): voi
         }
       }
 
+      const existingSession = await loadSession(id);
+      if (!existingSession) {
+        return res.status(404).json({ error: "Sessão não encontrada." });
+      }
+      if (existingSession.technician_user_id !== tech.userId) {
+        return res.status(403).json({ error: "Sessão de outro técnico." });
+      }
+      const kind = resolveTimeKind(existingSession.time_kind);
+      const { data: soRow } = await supabaseAdmin
+        .from("service_orders")
+        .select("status")
+        .eq("id", existingSession.service_order_id)
+        .eq("workshop_id", WORKSHOP_ID)
+        .maybeSingle();
+      const osStatus = String((soRow as { status?: string } | null)?.status || "");
+      if (!canStartOrResumeTimeKind(kind, osStatus)) {
+        return res.status(409).json({
+          error: `Retome o tempo de ${timeKindLabel(kind).toLowerCase()} apenas na etapa correta da OS.`,
+          code: "RDA_STAGE_NOT_ALLOWED",
+          osStatus,
+          timeKind: kind,
+        });
+      }
+
       const rpc = await callSessionRpc("rda_work_session_resume", {
         p_workshop_id: WORKSHOP_ID,
         p_session_id: id,
@@ -1207,6 +1279,17 @@ export function registerRdaWorkSessionRoutes(app: Express, deps: RouteDeps): voi
         return res.status(500).json({ error: rpc.error || "Falha ao retomar." });
       }
       if (rpc.data.ok !== true) {
+        if (rpc.data.code === "RDA_STAGE_NOT_ALLOWED") {
+          return res.status(409).json({
+            error:
+              typeof rpc.data.error === "string"
+                ? rpc.data.error
+                : "Etapa da OS não permite retomar.",
+            code: "RDA_STAGE_NOT_ALLOWED",
+            osStatus: rpc.data.osStatus,
+            timeKind: rpc.data.timeKind ?? kind,
+          });
+        }
         const denied = rpcDeniedPayload(rpc.data, "Falha ao retomar.");
         return res.status(denied.status).json(denied.body);
       }
