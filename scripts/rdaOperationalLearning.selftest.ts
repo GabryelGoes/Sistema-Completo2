@@ -247,8 +247,9 @@ console.log("\n3) Pausas com durações diferentes (timestamps)");
   );
   const parts = rows.find((r) => r.reasonId === "awaiting_parts")!;
   assert(parts.pauseEventCount === 2, "2 eventos awaiting_parts");
-  assert(parts.pausedMs === null, "duração omitida se houver desconhecida no motivo");
+  assert(parts.pausedMs === 10 * 60 * 1000, "pausedMs = só confirmadas (10min)");
   assert(parts.durationUnknownCount === 1, "1 desconhecida");
+  assert(parts.durationKnownCount === 1, "1 confirmada");
   const brk = rows.find((r) => r.reasonId === "break")!;
   assert(brk.pausedMs === 30 * 60 * 1000, "break com duração conhecida");
 }
@@ -714,6 +715,82 @@ console.log("\n13) Sinalização de resultados incompletos (limites)");
   assert(truncated, "limite saturado → truncated");
   assert(!!truncatedNote && truncatedNote.includes("incompletos"), "mensagem de truncamento");
   assert(clampOpsLimit(OPS_QUERY_MAX_LIMIT + 50) === OPS_QUERY_MAX_LIMIT, "cap de paginação");
+}
+
+console.log("\n14) Pausa atravessa período inteiro + pausa ainda aberta");
+{
+  const period = { from: "2026-10-01T00:00:00.000Z", to: "2026-10-07T00:00:00.000Z" };
+  // Span completo: pause antes, resume depois — nenhum evento DENTRO do período
+  const spanClosed = computePauseIntervals([
+    {
+      sessionId: "span",
+      eventType: "pause",
+      occurredAt: "2026-09-20T10:00:00.000Z",
+      pauseReasonId: "awaiting_parts",
+    },
+    {
+      sessionId: "span",
+      eventType: "resume",
+      occurredAt: "2026-10-10T10:00:00.000Z",
+      pauseReasonId: null,
+    },
+  ]);
+  const spanAttr = attributePauseIntervalsToPeriod(spanClosed, period);
+  assert(spanAttr.length === 1, "span completo incluído sem evento interno");
+  assert(spanAttr[0]!.spansEntirePeriod, "spansEntirePeriod");
+  assert(spanAttr[0]!.durationConfirmed, "span fechado = confirmado");
+  assert(
+    spanAttr[0]!.durationMsInPeriod === 6 * 24 * 60 * 60 * 1000,
+    "duração confirmada = largura do período (7d-1d? 1→7 = 6 dias)"
+  );
+  // Oct 1 00:00 to Oct 7 00:00 = 6 days
+  assert(spanAttr[0]!.attribution === "clipped", "attribution clipped no span");
+  assert(
+    spanAttr[0]!.durationMs! > spanAttr[0]!.durationMsInPeriod!,
+    "integral > clipada (não apresentar integral como do período)"
+  );
+
+  // Ainda aberta: iniciada antes, sem fechamento
+  const openIv = computePauseIntervals([
+    {
+      sessionId: "open",
+      eventType: "pause",
+      occurredAt: "2026-09-28T12:00:00.000Z",
+      pauseReasonId: "break",
+    },
+  ]);
+  const openAttr = attributePauseIntervalsToPeriod(openIv, period);
+  assert(openAttr.length === 1, "pausa aberta sobrepõe período");
+  assert(!openAttr[0]!.durationConfirmed, "aberta NÃO confirmada");
+  assert(openAttr[0]!.durationMsInPeriod === null, "pausedMs definitivo null");
+  assert(
+    openAttr[0]!.estimatedDurationMsInPeriod === 6 * 24 * 60 * 60 * 1000,
+    "estimativa = clip até fim do período"
+  );
+  assert(openAttr[0]!.attribution === "estimated_open", "attribution estimated_open");
+  assert(openAttr[0]!.spansEntirePeriod, "aberta iniciada antes cobre o período inteiro");
+
+  const rows = buildPauseReasonRows(
+    [...spanAttr, ...openAttr].map((a) => ({
+      reasonId: a.reasonId,
+      label: a.reasonId,
+      pausedMs: a.durationMsInPeriod,
+      estimatedPausedMs: a.estimatedDurationMsInPeriod,
+      durationConfirmed: a.durationConfirmed,
+      crossesPeriodBoundary: a.crossesPeriodBoundary,
+      spansEntirePeriod: a.spansEntirePeriod,
+    })),
+    10
+  );
+  const parts = rows.find((r) => r.reasonId === "awaiting_parts")!;
+  assert(parts.pausedMs === 6 * 24 * 60 * 60 * 1000, "confirmado no agregado");
+  assert(parts.estimatedPausedMs == null, "sem estimativa neste motivo");
+  assert(parts.spansEntirePeriodCount === 1, "conta span inteiro");
+  const brk = rows.find((r) => r.reasonId === "break")!;
+  assert(brk.pausedMs === null, "aberto não entra em pausedMs definitivo");
+  assert(brk.estimatedPausedMs === 6 * 24 * 60 * 60 * 1000, "estimativa separada");
+  assert(brk.openPauseCount === 1, "openPauseCount");
+  assert(brk.durationNote.includes("não confirmada") || brk.durationNote.includes("aberta"), "nota aberta");
 }
 
 console.log(`\nResultado: ${passed} ok, ${failed} fail`);

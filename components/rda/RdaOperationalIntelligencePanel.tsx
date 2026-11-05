@@ -308,8 +308,10 @@ export const RdaOperationalIntelligencePanel: React.FC<Props> = ({
                       <span className="tabular-nums text-zinc-600 dark:text-zinc-400">
                         {p.pauseEventCount} eventos
                         {p.pausedMs != null
-                          ? ` · ${fmtMs(p.pausedMs)}`
-                          : ' · duração desconhecida'}
+                          ? ` · confirmado ${fmtMs(p.pausedMs)}`
+                          : p.estimatedPausedMs != null
+                            ? ` · estimado ${fmtMs(p.estimatedPausedMs)} (aberto)`
+                            : ' · duração desconhecida'}
                       </span>
                     </li>
                   ))

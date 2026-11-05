@@ -7316,6 +7316,8 @@ export type RdaOperationalDashboard = {
     label: string;
     pauseEventCount: number;
     pausedMs: number | null;
+    estimatedPausedMs?: number | null;
+    openPauseCount?: number;
     durationNote?: string;
   }>;
   technicians: Array<{

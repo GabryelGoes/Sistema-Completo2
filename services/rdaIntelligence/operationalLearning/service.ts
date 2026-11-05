@@ -126,7 +126,10 @@ export async function queryPauseReasonsSummary(input: OpsQueryInput) {
       reasonId: e.reasonId,
       label: e.label,
       pausedMs: e.pausedMs,
+      estimatedPausedMs: e.estimatedPausedMs,
+      durationConfirmed: e.durationConfirmed,
       crossesPeriodBoundary: e.crossesPeriodBoundary,
+      spansEntirePeriod: e.spansEntirePeriod,
     })),
     limit
   );
@@ -134,7 +137,7 @@ export async function queryPauseReasonsSummary(input: OpsQueryInput) {
     kind: "pause_reasons" as const,
     period,
     criteria:
-      "Inclui pausas iniciadas antes e encerradas no período. Duração = clipada ao recorte (não integral se atravessar limites).",
+      "Inclui pausas que atravessam o período inteiro (mesmo sem evento interno). Confirmadas = fechadas clipadas; abertas = só estimativa (não definitiva).",
     limit,
     completeness: loaded.completeness,
     rows,

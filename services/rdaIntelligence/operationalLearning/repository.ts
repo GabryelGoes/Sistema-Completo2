@@ -150,11 +150,15 @@ export async function loadSessionFacts(
 export type PauseEventLoaded = {
   reasonId: string;
   label: string;
-  /** Duração atribuída ao período (clipada). null se desconhecida. */
+  /** Duração CONFIRMADA no período (só fechadas, clipada). */
   pausedMs: number | null;
+  /** Estimativa no período se ainda aberta — não definitiva. */
+  estimatedPausedMs: number | null;
+  durationConfirmed: boolean;
   fullDurationMs: number | null;
   crossesPeriodBoundary: boolean;
-  attribution: "full" | "clipped" | "unknown";
+  spansEntirePeriod: boolean;
+  attribution: "full" | "clipped" | "estimated_open" | "unknown";
   at: string;
   sessionId: string;
   endedAt: string | null;
@@ -166,8 +170,10 @@ export type LoadPauseEventsResult = {
 };
 
 /**
- * Pausas com duração via timeline; inclui iniciadas antes e encerradas no período.
- * Duração reportada é clipada ao período.
+ * Pausas com duração via timeline.
+ * Inclui: iniciadas/fechadas no período; atravessando o período inteiro
+ * (pause antes + resume depois, ou ainda abertas) mesmo sem evento interno.
+ * Abertas → só estimativa; confirmadas → duração clipada.
  */
 export async function loadPauseEvents(
   workshopId: string,
@@ -205,15 +211,67 @@ export async function loadPauseEvents(
     .limit(eventLimit);
   if (closeErr) throw new Error(closeErr.message);
 
+  // Pausas iniciadas ANTES do período (candidatas a atravessar o recorte inteiro)
+  const { data: earlyPauses, error: earlyErr } = await admin
+    .from("rda_work_session_events")
+    .select("session_id")
+    .eq("workshop_id", workshopId)
+    .eq("event_type", "pause")
+    .lt("occurred_at", period.from)
+    .order("occurred_at", { ascending: false })
+    .limit(eventLimit);
+  if (earlyErr) throw new Error(earlyErr.message);
+
+  const earlySessionIds = [
+    ...new Set(
+      (earlyPauses || []).map((e) => String((e as { session_id: string }).session_id))
+    ),
+  ].slice(0, 500);
+
+  // Fechamentos DEPOIS do período nas mesmas sessões → span completo fechado
+  let lateCloserIds: string[] = [];
+  if (earlySessionIds.length) {
+    const { data: lateClosers, error: lateErr } = await admin
+      .from("rda_work_session_events")
+      .select("session_id")
+      .eq("workshop_id", workshopId)
+      .in("event_type", ["resume", "finish", "cancel"])
+      .gt("occurred_at", period.to)
+      .in("session_id", earlySessionIds)
+      .limit(eventLimit);
+    if (lateErr) throw new Error(lateErr.message);
+    lateCloserIds = (lateClosers || []).map((e) =>
+      String((e as { session_id: string }).session_id)
+    );
+  }
+
+  // Sessões ainda pausadas cujo pause começou até o fim do período (abertas / span)
+  const { data: pausedSessions, error: pausedErr } = await admin
+    .from("rda_work_sessions")
+    .select("id")
+    .eq("workshop_id", workshopId)
+    .eq("status", "paused")
+    .lte("current_pause_started_at", period.to)
+    .limit(500);
+  if (pausedErr) throw new Error(pausedErr.message);
+
   const pauseStartsFetched = (pauseStarts || []).length;
   const closersFetched = (closers || []).length;
+  const earlyFetched = (earlyPauses || []).length;
   const discoveryTruncated =
-    pauseStartsFetched >= eventLimit || closersFetched >= eventLimit;
+    pauseStartsFetched >= eventLimit ||
+    closersFetched >= eventLimit ||
+    earlyFetched >= eventLimit;
 
   const sessionIds = [
     ...new Set([
       ...(pauseStarts || []).map((e) => String((e as { session_id: string }).session_id)),
       ...(closers || []).map((e) => String((e as { session_id: string }).session_id)),
+      ...lateCloserIds,
+      ...earlySessionIds.filter((id) =>
+        (pausedSessions || []).some((s) => String((s as { id: string }).id) === id)
+      ),
+      ...(pausedSessions || []).map((s) => String((s as { id: string }).id)),
     ]),
   ].slice(0, 1000);
 
@@ -224,8 +282,8 @@ export async function loadPauseEvents(
     finishedLimit: 0,
     openFetched: 0,
     openLimit: 0,
-    pauseEventsFetched: pauseStartsFetched + closersFetched,
-    pauseEventsLimit: eventLimit * 2,
+    pauseEventsFetched: pauseStartsFetched + closersFetched + earlyFetched,
+    pauseEventsLimit: eventLimit * 3,
     note: discoveryTruncated
       ? "Descoberta de eventos de pausa truncada pelo limite — resultados podem estar incompletos."
       : null,
@@ -274,8 +332,11 @@ export async function loadPauseEvents(
       reasonId: iv.reasonId,
       label: labelById.get(iv.reasonId) || iv.reasonId,
       pausedMs: iv.durationMsInPeriod,
+      estimatedPausedMs: iv.estimatedDurationMsInPeriod,
+      durationConfirmed: iv.durationConfirmed,
       fullDurationMs: iv.durationMs,
       crossesPeriodBoundary: iv.crossesPeriodBoundary,
+      spansEntirePeriod: iv.spansEntirePeriod,
       attribution: iv.attribution,
       at: iv.startedAt,
       sessionId: iv.sessionId,

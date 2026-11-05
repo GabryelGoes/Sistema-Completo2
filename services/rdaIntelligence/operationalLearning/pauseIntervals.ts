@@ -19,13 +19,29 @@ export type PauseInterval = {
   durationMs: number | null;
 };
 
+export type PauseAttribution =
+  | "full"
+  | "clipped"
+  /** Pausa ainda aberta: tempo no período é estimativa, não duração definitiva. */
+  | "estimated_open"
+  | "unknown";
+
 export type PauseIntervalInPeriod = PauseInterval & {
-  /** Duração atribuída ao período (clipada aos limites). null se desconhecida. */
+  /**
+   * Duração CONFIRMADA no período (só intervalos fechados).
+   * null se aberta/desconhecida — nunca trate estimativa como definitiva.
+   */
   durationMsInPeriod: number | null;
-  /** true se o intervalo começa antes ou termina depois do período (ou ainda aberto). */
+  /**
+   * Estimativa clipada ao período para pausas ainda abertas.
+   * Não usar como duração definitiva de serviço/pausa concluída.
+   */
+  estimatedDurationMsInPeriod: number | null;
+  durationConfirmed: boolean;
   crossesPeriodBoundary: boolean;
-  /** full = inteiro no período; clipped = atravessa limite; unknown = sem fechamento útil. */
-  attribution: "full" | "clipped" | "unknown";
+  /** true se o intervalo cobre o período inteiro (início ≤ from e fim ≥ to ou ainda aberta). */
+  spansEntirePeriod: boolean;
+  attribution: PauseAttribution;
 };
 
 function parseTs(iso: string | null | undefined): number | null {
@@ -103,12 +119,10 @@ export function computePauseIntervals(events: PauseTimelineEvent[]): PauseInterv
 }
 
 /**
- * Inclui intervalos que se sobrepõem ao período:
- * - iniciados no período, ou
- * - encerrados no período (mesmo que iniciados antes), ou
- * - ainda abertos que começaram antes/durante e atravessam o recorte.
+ * Inclui intervalos que se sobrepõem ao período, inclusive os que o atravessam
+ * por completo (início antes e fim depois / ainda abertos), sem evento interno.
  *
- * Duração reportada = clipada ao período — nunca a duração integral se atravessar limites.
+ * Duração confirmada só para intervalos fechados; abertas → estimativa separada.
  */
 export function attributePauseIntervalsToPeriod(
   intervals: PauseInterval[],
@@ -124,51 +138,61 @@ export function attributePauseIntervalsToPeriod(
     if (start == null) continue;
     const end = parseTs(iv.endedAt);
 
-    // Sobreposição com [from, to]
-    const overlaps =
-      start <= to && (end == null || end >= from);
+    const overlaps = start <= to && (end == null || end >= from);
     if (!overlaps) continue;
 
+    const spansEntirePeriod = start <= from && (end == null || end >= to);
     const crosses =
-      start < from || end == null || (end != null && end > to);
-
-    let durationMsInPeriod: number | null = null;
-    let attribution: PauseIntervalInPeriod["attribution"] = "unknown";
+      start < from || end == null || (end != null && end > to) || spansEntirePeriod;
 
     if (end == null) {
-      // Aberta: clipamos até o fim do período se já começou
+      // Ainda aberta: estimativa clipada — NÃO é duração definitiva
       const clipStart = Math.max(start, from);
       const clipEnd = to;
-      if (clipEnd >= clipStart) {
-        durationMsInPeriod = clipEnd - clipStart;
-        attribution = "clipped";
-      } else {
-        durationMsInPeriod = null;
-        attribution = "unknown";
-      }
-    } else {
-      const clipStart = Math.max(start, from);
-      const clipEnd = Math.min(end, to);
-      if (clipEnd >= clipStart) {
-        durationMsInPeriod = clipEnd - clipStart;
-        attribution = crosses ? "clipped" : "full";
-      } else {
-        durationMsInPeriod = null;
-        attribution = "unknown";
-      }
+      const estimated =
+        clipEnd >= clipStart ? clipEnd - clipStart : null;
+      out.push({
+        ...iv,
+        durationMsInPeriod: null,
+        estimatedDurationMsInPeriod: estimated,
+        durationConfirmed: false,
+        crossesPeriodBoundary: true,
+        spansEntirePeriod,
+        attribution: estimated != null ? "estimated_open" : "unknown",
+      });
+      continue;
     }
 
+    const clipStart = Math.max(start, from);
+    const clipEnd = Math.min(end, to);
+    if (clipEnd < clipStart) {
+      out.push({
+        ...iv,
+        durationMsInPeriod: null,
+        estimatedDurationMsInPeriod: null,
+        durationConfirmed: false,
+        crossesPeriodBoundary: crosses,
+        spansEntirePeriod,
+        attribution: "unknown",
+      });
+      continue;
+    }
+
+    const clipped = clipEnd - clipStart;
     out.push({
       ...iv,
-      durationMsInPeriod,
+      durationMsInPeriod: clipped,
+      estimatedDurationMsInPeriod: null,
+      durationConfirmed: true,
       crossesPeriodBoundary: crosses,
-      attribution,
+      spansEntirePeriod,
+      attribution: crosses ? "clipped" : "full",
     });
   }
   return out;
 }
 
-/** @deprecated Prefer attributePauseIntervalsToPeriod (inclui iniciadas antes e clipa). */
+/** @deprecated Prefer attributePauseIntervalsToPeriod. */
 export function intervalsOverlappingPeriod(
   intervals: PauseInterval[],
   period: { from: string; to: string }
@@ -178,6 +202,7 @@ export function intervalsOverlappingPeriod(
     reasonId: iv.reasonId,
     startedAt: iv.startedAt,
     endedAt: iv.endedAt,
+    // Só duração confirmada; abertas ficam null
     durationMs: iv.durationMsInPeriod,
   }));
 }

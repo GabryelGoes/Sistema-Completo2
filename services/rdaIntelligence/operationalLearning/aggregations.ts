@@ -109,9 +109,13 @@ export function buildPauseReasonRows(
   pauseEvents: Array<{
     reasonId: string;
     label: string;
-    /** Duração já atribuída ao período (clipada). */
+    /** Duração confirmada no período (só fechadas). */
     pausedMs: number | null;
+    /** Estimativa de pausa ainda aberta (não definitiva). */
+    estimatedPausedMs?: number | null;
+    durationConfirmed?: boolean;
     crossesPeriodBoundary?: boolean;
+    spansEntirePeriod?: boolean;
   }>,
   limit = 30
 ): OpsPauseReasonRow[] {
@@ -123,8 +127,11 @@ export function buildPauseReasonRows(
       pauseEventCount: number;
       knownSum: number;
       knownCount: number;
+      estimatedSum: number;
+      openCount: number;
       unknownCount: number;
       crossBoundaryCount: number;
+      spansEntirePeriodCount: number;
     }
   >();
 
@@ -136,14 +143,33 @@ export function buildPauseReasonRows(
       pauseEventCount: 0,
       knownSum: 0,
       knownCount: 0,
+      estimatedSum: 0,
+      openCount: 0,
       unknownCount: 0,
       crossBoundaryCount: 0,
+      spansEntirePeriodCount: 0,
     };
     cur.pauseEventCount += 1;
     if (ev.crossesPeriodBoundary) cur.crossBoundaryCount += 1;
-    if (ev.pausedMs != null && Number.isFinite(ev.pausedMs) && ev.pausedMs >= 0) {
-      cur.knownSum += ev.pausedMs;
+    if (ev.spansEntirePeriod) cur.spansEntirePeriodCount += 1;
+
+    const confirmed =
+      ev.durationConfirmed !== false &&
+      ev.pausedMs != null &&
+      Number.isFinite(ev.pausedMs) &&
+      ev.pausedMs >= 0;
+    const estimated =
+      ev.estimatedPausedMs != null &&
+      Number.isFinite(ev.estimatedPausedMs) &&
+      ev.estimatedPausedMs >= 0;
+
+    if (confirmed) {
+      cur.knownSum += ev.pausedMs!;
       cur.knownCount += 1;
+    } else if (estimated || ev.durationConfirmed === false) {
+      cur.openCount += 1;
+      if (estimated) cur.estimatedSum += ev.estimatedPausedMs!;
+      else cur.unknownCount += 1;
     } else {
       cur.unknownCount += 1;
     }
@@ -152,27 +178,45 @@ export function buildPauseReasonRows(
 
   return [...byId.values()]
     .map((cur) => {
-      const allKnown = cur.unknownCount === 0 && cur.knownCount > 0;
-      const noneKnown = cur.knownCount === 0;
+      const hasConfirmed = cur.knownCount > 0;
+      const onlyConfirmed = hasConfirmed && cur.openCount === 0 && cur.unknownCount === 0;
       const clipNote =
         cur.crossBoundaryCount > 0
           ? ` ${cur.crossBoundaryCount} intervalo(s) atravessam o período — duração clipada ao recorte (não integral).`
           : "";
+      const spanNote =
+        cur.spansEntirePeriodCount > 0
+          ? ` ${cur.spansEntirePeriodCount} atravessa(m) o período inteiro.`
+          : "";
+      const openNote =
+        cur.openCount > 0
+          ? ` ${cur.openCount} pausa(s) ainda aberta(s): estimativa no recorte — não definitiva.`
+          : "";
+      let durationNote: string;
+      if (!hasConfirmed && cur.openCount === 0) {
+        durationNote =
+          "Duração por motivo desconhecida (faltam timestamps de fechamento pause→resume/finish).";
+      } else if (!hasConfirmed && cur.openCount > 0) {
+        durationNote =
+          "Apenas pausas abertas — duração estimada no período, não confirmada.";
+      } else if (onlyConfirmed) {
+        durationNote = `Duração confirmada no período a partir de ${cur.knownCount} intervalo(s) fechado(s) (clipada se atravessar limites).`;
+      } else {
+        durationNote = `Confirmado: ${cur.knownCount} intervalo(s); abertas/estimadas: ${cur.openCount}; desconhecidas: ${cur.unknownCount}. pausedMs = só confirmadas.`;
+      }
       return {
         reasonId: cur.reasonId,
         label: cur.label,
         pauseEventCount: cur.pauseEventCount,
-        pausedMs: allKnown ? cur.knownSum : null,
+        // Nunca inclui estimativas de pausas abertas
+        pausedMs: hasConfirmed ? cur.knownSum : null,
+        estimatedPausedMs: cur.openCount > 0 ? cur.estimatedSum : null,
+        openPauseCount: cur.openCount,
         durationKnownCount: cur.knownCount,
         durationUnknownCount: cur.unknownCount,
         crossBoundaryCount: cur.crossBoundaryCount,
-        durationNote:
-          (noneKnown
-            ? "Duração por motivo desconhecida (faltam timestamps de fechamento pause→resume/finish)."
-            : allKnown
-              ? `Duração no período somada a partir de ${cur.knownCount} intervalo(s) (timestamps; clipada se atravessar limites).`
-              : `Parcial: ${cur.knownCount} com duração conhecida, ${cur.unknownCount} desconhecida(s) — total por motivo omitido.`) +
-          clipNote,
+        spansEntirePeriodCount: cur.spansEntirePeriodCount,
+        durationNote: durationNote + clipNote + spanNote + openNote,
       } satisfies OpsPauseReasonRow;
     })
     .sort((a, b) => b.pauseEventCount - a.pauseEventCount)

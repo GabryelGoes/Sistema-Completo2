@@ -64,14 +64,19 @@ export type OpsPauseReasonRow = {
   label: string;
   pauseEventCount: number;
   /**
-   * Soma das durações ATRIBUÍDAS AO PERÍODO (clipadas).
-   * null = duração desconhecida ou mistura com desconhecidas.
+   * Soma das durações CONFIRMADAS no período (intervalos fechados, clipadas).
+   * null se não houver confirmadas ou houver mistura com desconhecidas sem confirmada pura.
    */
   pausedMs: number | null;
+  /** Soma de estimativas de pausas ainda abertas (não definitiva). */
+  estimatedPausedMs: number | null;
+  openPauseCount: number;
   durationKnownCount: number;
   durationUnknownCount: number;
   /** Intervalos que atravessam o limite do período (duração clipada, não integral). */
   crossBoundaryCount: number;
+  /** Pausas que cobrem o período inteiro sem evento interno. */
+  spansEntirePeriodCount: number;
   durationNote: string;
 };
 
