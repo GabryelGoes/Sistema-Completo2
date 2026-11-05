@@ -330,15 +330,16 @@ export function registerProactiveIntelligenceRoutes(
    * GET para Hobby cron; POST para pg_cron/manual secret.
    */
   async function handleCronScan(req: Request, res: Response, fromCronGet: boolean) {
-    if (!deps.WORKSHOP_ID || !deps.supabaseAdmin) {
-      return res.status(500).json({ error: "Servidor não configurado." });
-    }
+    // Segredo antes de qualquer detalhe de infra — sem secret válido, 403.
     const secretOk = proactiveSecretOk(req);
     const cronAuth = fromCronGet && cronBearerOk(req);
     if (!secretOk && !cronAuth) {
       return res.status(403).json({
         error: "Acesso negado (RDA_PROACTIVE_SCAN_SECRET ou CRON_SECRET).",
       });
+    }
+    if (!deps.WORKSHOP_ID || !deps.supabaseAdmin) {
+      return res.status(500).json({ error: "Servidor não configurado." });
     }
 
     const settingValue = await deps.getWorkshopSettingValue(RDA_INTELLIGENCE_SETTING_KEY);
