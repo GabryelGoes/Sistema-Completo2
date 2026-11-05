@@ -37,6 +37,14 @@ import {
   queryTechnicianBreakdown,
 } from "../operationalLearning/service.js";
 import type { RdaWorkTimeKind } from "../workSessions/stageRules.js";
+import {
+  queryPatioAttentionToday,
+  queryPatioBottlenecks,
+  queryPatioDeliveryRisks,
+  queryPatioPriorities,
+  queryPatioReadyToStart,
+  queryPatioWaitingParts,
+} from "../patioIntelligence/service.js";
 
 function periodFromParams(params: Record<string, unknown>): { from: string; to: string } | undefined {
   const from = typeof params.from === "string" ? params.from.trim() : "";
@@ -1040,6 +1048,48 @@ export async function executeRdaTool(
               "Para tornar orientação oficial, chame rda_propose_knowledge com o proposedKnowledge (confirmação humana). Nunca auto-aprovar.",
           },
         };
+      }
+
+      case "rda_patio_attention_today": {
+        const data = await queryPatioAttentionToday({
+          workshopId,
+          supabase,
+          auth: ctx.auth,
+        });
+        return { ok: true, data: { ...data, provenance: "calculated", sector: "patio" } };
+      }
+
+      case "rda_patio_bottlenecks": {
+        const data = await queryPatioBottlenecks({ workshopId, supabase });
+        return { ok: true, data: { ...data, provenance: "calculated", sector: "patio" } };
+      }
+
+      case "rda_patio_priorities": {
+        const data = await queryPatioPriorities({
+          workshopId,
+          supabase,
+          limit: clampLimit(params.limit, 20),
+        });
+        return { ok: true, data: { ...data, provenance: "calculated", sector: "patio" } };
+      }
+
+      case "rda_patio_delivery_risks": {
+        const data = await queryPatioDeliveryRisks({
+          workshopId,
+          supabase,
+          limit: clampLimit(params.limit, 20),
+        });
+        return { ok: true, data: { ...data, provenance: "calculated", sector: "patio" } };
+      }
+
+      case "rda_patio_waiting_parts": {
+        const data = await queryPatioWaitingParts({ workshopId, supabase });
+        return { ok: true, data: { ...data, provenance: "system_fact", sector: "patio" } };
+      }
+
+      case "rda_patio_ready_to_start": {
+        const data = await queryPatioReadyToStart({ workshopId, supabase });
+        return { ok: true, data: { ...data, provenance: "system_fact", sector: "patio" } };
       }
 
       default:

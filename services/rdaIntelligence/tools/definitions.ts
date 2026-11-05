@@ -577,4 +577,92 @@ export const RDA_PRODUCTION_TOOLS: RdaToolDefinition[] = [
     side: "read",
     requiresHumanConfirmation: false,
   },
+  // ----- Fase 3: Gestão Inteligente do Pátio (order_type=vehicle) -----
+  {
+    id: "rda_patio_attention_today",
+    description:
+      "Veículos do Pátio que precisam de atenção hoje (riscos de entrega, prioridades e amostras de gargalos). Só order_type=vehicle. Não altera etapas.",
+    parameters: {
+      type: "object",
+      properties: {},
+      required: [],
+      additionalProperties: false,
+    },
+    requiredPermission: "access_patio",
+    side: "read",
+    requiresHumanConfirmation: false,
+  },
+  {
+    id: "rda_patio_bottlenecks",
+    description:
+      "Gargalos do Pátio por etapa real (AGUARDANDO_AVALIACAO, AVALIACAO_TECNICA, AGUARDANDO_APROVACAO, ORCAMENTO_APROVADO, AGUARDANDO_PECAS, EM_SERVICO, FASE_DE_TESTE, etc.) vs limiares configuráveis. Qual é o maior gargalo? Use esta tool.",
+    parameters: {
+      type: "object",
+      properties: {},
+      required: [],
+      additionalProperties: false,
+    },
+    requiredPermission: "access_patio",
+    side: "read",
+    requiresHumanConfirmation: false,
+  },
+  {
+    id: "rda_patio_priorities",
+    description:
+      "Prioridades sugeridas do Pátio com motivos (permanência, entrega prometida, peças, aprovação, técnico). Não altera atribuições.",
+    parameters: {
+      type: "object",
+      properties: {
+        limit: { type: "number" },
+      },
+      required: [],
+      additionalProperties: false,
+    },
+    requiredPermission: "access_patio",
+    side: "read",
+    requiresHumanConfirmation: false,
+  },
+  {
+    id: "rda_patio_delivery_risks",
+    description:
+      "Veículos com risco de atrasar a entrega (delivery_date). overdue / imminent / watch com evidências.",
+    parameters: {
+      type: "object",
+      properties: {
+        limit: { type: "number" },
+      },
+      required: [],
+      additionalProperties: false,
+    },
+    requiredPermission: "access_patio",
+    side: "read",
+    requiresHumanConfirmation: false,
+  },
+  {
+    id: "rda_patio_waiting_parts",
+    description: "Lista OS do Pátio em AGUARDANDO_PECAS (veículos aguardando peças).",
+    parameters: {
+      type: "object",
+      properties: {},
+      required: [],
+      additionalProperties: false,
+    },
+    requiredPermission: "access_patio",
+    side: "read",
+    requiresHumanConfirmation: false,
+  },
+  {
+    id: "rda_patio_ready_to_start",
+    description:
+      "Veículos prontos para iniciar serviço: ORCAMENTO_APROVADO ou PECAS_DISPONIVEIS.",
+    parameters: {
+      type: "object",
+      properties: {},
+      required: [],
+      additionalProperties: false,
+    },
+    requiredPermission: "access_patio",
+    side: "read",
+    requiresHumanConfirmation: false,
+  },
 ];
