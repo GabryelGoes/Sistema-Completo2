@@ -1328,6 +1328,13 @@ export function createApiApp() {
     if (urlPath === "/api/auth/login" && method === "POST") return true;
     // RDA Fase 0: health introspectivo (sem IA / sem dados).
     if (method === "GET" && urlPath === "/api/rda/health") return true;
+    // RDA Fase 5: Vercel/pg cron — sem sessão; a rota exige CRON_SECRET ou RDA_PROACTIVE_SCAN_SECRET.
+    if (
+      (method === "GET" || method === "POST") &&
+      urlPath === "/api/rda/proactive/scan/cron"
+    ) {
+      return true;
+    }
     // Painel TV HTML (cronômetro vermelho) — sem login; dados vêm de /api/service-orders.
     if (method === "GET" && urlPath === "/api/tv/display") return true;
     return false;
