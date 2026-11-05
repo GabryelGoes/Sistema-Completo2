@@ -90,7 +90,14 @@ export const RdaPatioIntelligencePanel: React.FC<Props> = ({ isOpen, onClose }) 
                 <span className="font-semibold tabular-nums">{data.summary.totalActive}</span> OS
                 ativas · {data.summary.bottleneckCount} gargalos · {data.summary.priorityCount}{' '}
                 prioridades · {data.summary.riskCount} riscos
+                {typeof data.summary.unknownStageTimeCount === 'number' &&
+                data.summary.unknownStageTimeCount > 0
+                  ? ` · ${data.summary.unknownStageTimeCount} sem tempo de etapa`
+                  : null}
               </p>
+              {data.productiveContext ? (
+                <p className="mt-2 text-[12px] text-zinc-500">{data.productiveContext.note}</p>
+              ) : null}
               <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[12px] text-zinc-600 dark:text-zinc-400">
                 {Object.entries(data.summary.byStatus)
                   .sort((a, b) => b[1] - a[1])
@@ -155,6 +162,12 @@ export const RdaPatioIntelligencePanel: React.FC<Props> = ({ isOpen, onClose }) 
                           {' '}
                           · {p.statusLabel} · score {p.score}
                         </span>
+                      </p>
+                      <p className="mt-0.5 text-zinc-500">
+                        {p.stageTimeLabel ||
+                          (p.hoursInStage == null
+                            ? 'Tempo na etapa desconhecido'
+                            : `${p.hoursInStage}h na etapa`)}
                       </p>
                       <ul className="mt-1 list-disc pl-4 text-zinc-600 dark:text-zinc-400">
                         {p.reasons.map((r) => (

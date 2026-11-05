@@ -8,12 +8,13 @@ import type {
   PatioDeliveryRisk,
   PatioOrderFact,
   PatioPriorityItem,
+  PatioProductiveContext,
 } from "./types.js";
 
-function hoursSinceIso(iso: string | null | undefined, nowMs: number): number {
-  if (!iso) return 0;
+function hoursSinceIso(iso: string | null | undefined, nowMs: number): number | null {
+  if (!iso) return null;
   const t = Date.parse(iso);
-  if (!Number.isFinite(t)) return 0;
+  if (!Number.isFinite(t)) return null;
   return Math.max(0, (nowMs - t) / 3_600_000);
 }
 
@@ -22,6 +23,12 @@ function hoursUntilIso(iso: string | null | undefined, nowMs: number): number | 
   const t = Date.parse(iso);
   if (!Number.isFinite(t)) return null;
   return (t - nowMs) / 3_600_000;
+}
+
+export function formatStageTimeLabel(hoursInStage: number | null, known: boolean): string {
+  if (!known || hoursInStage == null) return "Tempo na etapa desconhecido";
+  const rounded = Math.round(hoursInStage * 10) / 10;
+  return `${rounded}h na etapa`;
 }
 
 export function enrichOrderFact(
@@ -37,11 +44,21 @@ export function enrichOrderFact(
     delivery_date?: string | null;
     created_at?: string | null;
     updated_at?: string | null;
+    status_entered_at?: string | null;
   },
   nowMs = Date.now()
 ): PatioOrderFact {
   const status = String(row.status || "").trim();
   const updatedAt = String(row.updated_at || row.created_at || new Date(nowMs).toISOString());
+  const rawEntered =
+    row.status_entered_at != null && String(row.status_entered_at).trim() !== ""
+      ? String(row.status_entered_at)
+      : null;
+  const stageTimeKnown = rawEntered != null;
+  const hoursRaw = stageTimeKnown ? hoursSinceIso(rawEntered, nowMs) : null;
+  const hoursInStage =
+    hoursRaw == null ? null : Math.round(hoursRaw * 10) / 10;
+
   return {
     id: row.id,
     osNumber: row.os_number ?? null,
@@ -55,7 +72,11 @@ export function enrichOrderFact(
     deliveryDate: row.delivery_date ?? null,
     createdAt: String(row.created_at || updatedAt),
     updatedAt,
-    hoursInStage: Math.round(hoursSinceIso(updatedAt, nowMs) * 10) / 10,
+    statusEnteredAt: rawEntered,
+    stageTimeKnown,
+    stageTimeSource: stageTimeKnown ? "status_entered_at" : "unknown",
+    hoursInStage,
+    stageTimeLabel: formatStageTimeLabel(hoursInStage, stageTimeKnown),
     hoursToDelivery: (() => {
       const h = hoursUntilIso(row.delivery_date, nowMs);
       return h == null ? null : Math.round(h * 10) / 10;
@@ -64,7 +85,16 @@ export function enrichOrderFact(
   };
 }
 
-type HistHint = { serviceKey?: string; medianMs?: number | null; sampleCount?: number; confidence?: string };
+type HistHint = {
+  serviceKey?: string;
+  medianMs?: number | null;
+  sampleCount?: number;
+  confidence?: string;
+};
+
+function knownHours(o: PatioOrderFact): number | null {
+  return o.stageTimeKnown && o.hoursInStage != null ? o.hoursInStage : null;
+}
 
 function buildBottleneck(
   kind: PatioBottleneckKind,
@@ -88,6 +118,7 @@ function buildBottleneck(
       plate: o.plate,
       osNumber: o.osNumber,
       hoursInStage: o.hoursInStage,
+      stageTimeLabel: o.stageTimeLabel,
       technician: o.assignedTechnician,
     })),
   };
@@ -96,13 +127,20 @@ function buildBottleneck(
 export function detectPatioBottlenecks(
   orders: PatioOrderFact[],
   thresholds: PatioThresholds,
-  histHints?: HistHint[]
+  _histHints?: HistHint[]
 ): PatioBottleneck[] {
+  // histHints (Fase 2) deliberadamente NÃO usados para marcar atraso por permanência na etapa.
+  void _histHints;
+
   const over = (status: string) => {
     const th = thresholdHoursForStatus(thresholds, status);
     return {
       th,
-      list: orders.filter((o) => o.status === status && o.hoursInStage >= th),
+      list: orders.filter((o) => {
+        if (o.status !== status) return false;
+        const h = knownHours(o);
+        return h != null && h >= th;
+      }),
     };
   };
 
@@ -120,7 +158,7 @@ export function detectPatioBottlenecks(
         "AGUARDANDO_AVALIACAO",
         list,
         th,
-        `${list.length} veículo(s) ≥ ${th}h na etapa (updated_at).`
+        `${list.length} veículo(s) ≥ ${th}h na etapa (entrada real em status_entered_at).`
       )
     );
   }
@@ -133,7 +171,7 @@ export function detectPatioBottlenecks(
         "AVALIACAO_TECNICA",
         list,
         th,
-        `${list.length} OS em Avaliação técnica ≥ ${th}h.`
+        `${list.length} OS em Avaliação técnica ≥ ${th}h de permanência na etapa.`
       )
     );
   }
@@ -198,7 +236,7 @@ export function detectPatioBottlenecks(
         "EM_SERVICO",
         list,
         th,
-        `${list.length} OS em serviço ≥ ${th}h (não confundir com tempo apontado da Fase 2).`
+        `${list.length} OS em serviço ≥ ${th}h de permanência na etapa (não é tempo apontado da Fase 2).`
       )
     );
   }
@@ -216,35 +254,46 @@ export function detectPatioBottlenecks(
     );
   }
 
-  // Histórico Fase 2: só se confiança suficiente
-  const reliable = (histHints || []).filter(
-    (h) =>
-      (h.sampleCount || 0) >= 15 &&
-      (h.confidence === "medium" || h.confidence === "high") &&
-      h.medianMs != null &&
-      h.medianMs > 0
-  );
-  if (reliable.length) {
-    const med = Math.max(...reliable.map((h) => h.medianMs!));
-    const medHours = med / 3_600_000;
-    const slow = orders.filter(
-      (o) => o.status === "EM_SERVICO" && o.hoursInStage > medHours * 1.5
-    );
-    if (slow.length) {
-      push(
-        buildBottleneck(
-          "above_historical",
-          "Duração acima do histórico esperado",
-          "EM_SERVICO",
-          slow,
-          Math.round(medHours * 1.5),
-          `Comparado à mediana histórica (~${Math.round(medHours)}h, n≥15). Evidência Fase 2; não é julgamento individual.`
-        )
-      );
-    }
+  return out.sort((a, b) => b.count - a.count || b.thresholdHours - a.thresholdHours);
+}
+
+/** Contexto Fase 2: só descritivo; nunca gera gargalo de “atraso” por comparação direta. */
+export function buildProductiveContext(histHints?: HistHint[]): PatioProductiveContext {
+  const hints = histHints || [];
+  const best = hints
+    .filter((h) => (h.sampleCount || 0) > 0)
+    .sort((a, b) => (b.sampleCount || 0) - (a.sampleCount || 0))[0];
+
+  if (!best || (best.sampleCount || 0) < 15 || best.medianMs == null || best.medianMs <= 0) {
+    return {
+      available: false,
+      sampleCount: best?.sampleCount || 0,
+      confidence: best?.confidence || "insufficient",
+      medianProductiveHours: null,
+      note:
+        "Sem previsão histórica de tempo produtivo: amostra insuficiente (Fase 2). Permanência na etapa e horas apontadas são métricas distintas.",
+    };
   }
 
-  return out.sort((a, b) => b.count - a.count || b.thresholdHours - a.thresholdHours);
+  if (best.confidence !== "medium" && best.confidence !== "high") {
+    return {
+      available: false,
+      sampleCount: best.sampleCount || 0,
+      confidence: best.confidence || "low",
+      medianProductiveHours: null,
+      note:
+        "Confiança baixa no histórico de apontamentos — sem previsão histórica. Não comparar permanência na etapa com tempo produtivo.",
+    };
+  }
+
+  const medianHours = Math.round((best.medianMs / 3_600_000) * 10) / 10;
+  return {
+    available: true,
+    sampleCount: best.sampleCount || 0,
+    confidence: best.confidence || "medium",
+    medianProductiveHours: medianHours,
+    note: `Contexto Fase 2 (apontamento): mediana de tempo produtivo em execução ≈ ${medianHours}h (n=${best.sampleCount}, confiança ${best.confidence}). Isso NÃO mede permanência na etapa nem atrasa automaticamente o serviço.`,
+  };
 }
 
 export function suggestPatioPriorities(
@@ -258,13 +307,16 @@ export function suggestPatioPriorities(
     const reasons: string[] = [];
     let score = 0;
     const th = thresholdHoursForStatus(thresholds, o.status);
+    const h = knownHours(o);
 
-    if (o.hoursInStage >= th) {
-      score += 30 + Math.min(40, o.hoursInStage - th);
-      reasons.push(`Permanência na etapa (${o.hoursInStage}h ≥ limite ${th}h)`);
-    } else if (o.hoursInStage >= th * 0.7) {
+    if (h == null) {
+      reasons.push("Tempo na etapa desconhecido");
+    } else if (h >= th) {
+      score += 30 + Math.min(40, h - th);
+      reasons.push(`Permanência na etapa (${h}h ≥ limite ${th}h)`);
+    } else if (h >= th * 0.7) {
       score += 12;
-      reasons.push(`Próximo do limite de etapa (${o.hoursInStage}h / ${th}h)`);
+      reasons.push(`Próximo do limite de etapa (${h}h / ${th}h)`);
     }
 
     if (o.hoursToDelivery != null) {
@@ -288,7 +340,7 @@ export function suggestPatioPriorities(
       score += 18;
       reasons.push("Pronto para iniciar serviço (aprovado / peças)");
     }
-    if (o.status === "AGUARDANDO_AVALIACAO" && o.hoursInStage >= 8) {
+    if (o.status === "AGUARDANDO_AVALIACAO" && h != null && h >= 8) {
       score += 8;
       reasons.push("Fila de avaliação");
     }
@@ -309,6 +361,7 @@ export function suggestPatioPriorities(
       score: Math.round(score),
       reasons,
       hoursInStage: o.hoursInStage,
+      stageTimeLabel: o.stageTimeLabel,
       hoursToDelivery: o.hoursToDelivery,
       technician: o.assignedTechnician,
     });
@@ -326,19 +379,21 @@ export function detectDeliveryRisks(
     if (o.status === "FINALIZADO" || o.status === "CANCELLED") continue;
     const reasons: string[] = [];
     let risk: PatioDeliveryRisk["risk"] | null = null;
+    const h = knownHours(o);
     if (o.hoursToDelivery < 0) {
       risk = "overdue";
       reasons.push(`Atrasado ${Math.abs(o.hoursToDelivery)}h em relação a ${o.deliveryDate}`);
     } else if (o.hoursToDelivery <= 24) {
       risk = "imminent";
       reasons.push(`Entrega em ${o.hoursToDelivery}h — status atual: ${o.statusLabel}`);
-    } else if (o.hoursToDelivery <= 72 && o.hoursInStage >= 24) {
+    } else if (o.hoursToDelivery <= 72 && h != null && h >= 24) {
       risk = "watch";
-      reasons.push(`Entrega em ${o.hoursToDelivery}h e ${o.hoursInStage}h na etapa ${o.statusLabel}`);
+      reasons.push(`Entrega em ${o.hoursToDelivery}h e ${h}h na etapa ${o.statusLabel}`);
     }
     if (!risk) continue;
     if (o.status === "AGUARDANDO_PECAS") reasons.push("Ainda aguarda peças");
     if (o.status === "AGUARDANDO_APROVACAO") reasons.push("Ainda aguarda aprovação do orçamento");
+    if (h == null) reasons.push("Tempo na etapa desconhecido");
     out.push({
       orderId: o.id,
       plate: o.plate,
@@ -371,7 +426,8 @@ export function buildAttentionList(
       statusLabel: r.statusLabel,
       kind: `risk_${r.risk}`,
       summary: r.reasons[0] || "Risco de entrega",
-      hoursInStage: 0,
+      hoursInStage: null,
+      stageTimeLabel: "Tempo na etapa desconhecido",
     });
   }
   for (const p of priorities.slice(0, 15)) {
@@ -385,6 +441,7 @@ export function buildAttentionList(
       kind: "priority",
       summary: p.reasons[0] || "Prioridade sugerida",
       hoursInStage: p.hoursInStage,
+      stageTimeLabel: p.stageTimeLabel,
     });
   }
   for (const b of bottlenecks) {
@@ -399,6 +456,7 @@ export function buildAttentionList(
         kind: b.kind,
         summary: b.title,
         hoursInStage: s.hoursInStage,
+        stageTimeLabel: s.stageTimeLabel,
       });
     }
   }
@@ -413,13 +471,16 @@ export function buildPatioDashboard(input: {
 }): PatioDashboard {
   const orders = input.orders;
   const byStatus: Record<string, number> = {};
+  let unknownStageTimeCount = 0;
   for (const o of orders) {
     byStatus[o.status] = (byStatus[o.status] || 0) + 1;
+    if (!o.stageTimeKnown) unknownStageTimeCount += 1;
   }
   const bottlenecks = detectPatioBottlenecks(orders, input.thresholds, input.histHints);
   const priorities = suggestPatioPriorities(orders, input.thresholds);
   const risks = detectDeliveryRisks(orders);
   const attention = buildAttentionList(bottlenecks, priorities, risks);
+  const productiveContext = buildProductiveContext(input.histHints);
 
   const proposedKnowledgeDrafts: PatioDashboard["proposedKnowledgeDrafts"] = [];
   for (const b of bottlenecks.slice(0, 2)) {
@@ -445,17 +506,20 @@ export function buildPatioDashboard(input: {
       priorityCount: priorities.length,
       riskCount: risks.length,
       attentionCount: attention.length,
-      note: "Somente OS do Pátio (order_type=vehicle). Permanência ≈ updated_at. RDA não altera etapas.",
+      unknownStageTimeCount,
+      note:
+        "Somente OS do Pátio (order_type=vehicle). Permanência = status_entered_at (não updated_at). OS sem histórico: tempo na etapa desconhecido. RDA não altera etapas.",
     },
     attention,
     bottlenecks,
     priorities,
     risks,
     thresholds: { ...input.thresholds },
+    productiveContext,
     knowledgeHints: input.knowledgeHints || [],
     proposedKnowledgeDrafts,
     disclaimer:
-      "Sugestões com evidências dos dados. Sem movimentação automática. Limites de etapa são configuráveis pela gestão.",
+      "Sugestões com evidências dos dados. Sem movimentação automática. Permanência na etapa ≠ tempo produtivo apontado (Fase 2). Limites de etapa são configuráveis pela gestão.",
   };
 }
 
