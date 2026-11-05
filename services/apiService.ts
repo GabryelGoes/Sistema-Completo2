@@ -700,6 +700,37 @@ export type QualityRadarPerson = {
   jobTitle: string | null;
   source: "linked" | "workshop_technician" | "system_user";
   possibleDuplicateIds: string[];
+  hasLogin?: boolean;
+  hasWorkshopTechnician?: boolean;
+  isTechnicianFlag?: boolean;
+  isManagerial?: boolean;
+  isActive?: boolean;
+  professionalRole?: string;
+  sector?: string;
+  incomplete?: boolean;
+  incompleteReasons?: string[];
+};
+
+export type QualityRadarPeopleDiagnostics = {
+  counts: Record<string, number>;
+  queryErrors: {
+    technicians: string | null;
+    systemUsers: string | null;
+    links: string | null;
+  };
+  dropped: Array<{ reason: string; table: string; id: string; label?: string }>;
+  unlinkedSameName: Array<{
+    workshopTechnicianId: string;
+    systemUserId: string;
+    normalizedName: string;
+  }>;
+  bySource: Record<string, number>;
+  weeklyCycleEligible: {
+    wouldInclude: number;
+    excludedInactive: string[];
+    note: string;
+  };
+  schemaHints: string[];
 };
 
 export type QualityIncidentDetail = QualityIncident & {
@@ -753,11 +784,47 @@ export async function getQualityRadarPeople(): Promise<{
   }>;
   pendingProposals: unknown[];
   linksMissing?: boolean;
+  queryErrors?: {
+    technicians: string | null;
+    systemUsers: string | null;
+    links: string | null;
+  };
+  diagnostics?: QualityRadarPeopleDiagnostics;
 }> {
   const response = await fetch(`${API_BASE}/quality-radar/people`);
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
     throw new Error((err as { error?: string }).error || "Falha ao carregar pessoas do Radar.");
+  }
+  return response.json();
+}
+
+export async function getQualityRadarPeopleDiagnostics(): Promise<{
+  diagnostics: QualityRadarPeopleDiagnostics;
+  people: QualityRadarPerson[];
+  suggestions: Array<{
+    workshopTechnicianId: string;
+    systemUserId: string;
+    normalizedName: string;
+  }>;
+  pendingProposals: unknown[];
+  linksMissing?: boolean;
+  catalog?: {
+    professionalRoles: Array<{ code: string; label: string }>;
+    sectors: Array<{ code: string; label: string }>;
+    suggestedPermissionProfiles: Array<{
+      id: string;
+      label: string;
+      description: string;
+      forRoles: string[];
+      permissionKeys: string[];
+    }>;
+  };
+}> {
+  const response = await fetch(`${API_BASE}/quality-radar/people/diagnostics`);
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error((err as { error?: string }).error || "Falha ao carregar diagnóstico.");
   }
   return response.json();
 }
@@ -5803,9 +5870,15 @@ export interface SystemUser {
   id: string;
   username: string;
   display_name: string | null;
+  full_name?: string | null;
   permissions: SystemUserPermissions;
   is_technician?: boolean;
+  is_managerial?: boolean;
+  is_active?: boolean;
   job_title?: string | null;
+  professional_role?: string | null;
+  sector?: string | null;
+  additional_roles?: string[];
   created_at: string;
   updated_at: string;
 }
@@ -5846,6 +5919,12 @@ export interface SystemUserDirectoryEntry {
   username: string;
   display_name: string | null;
   job_title: string | null;
+  full_name?: string | null;
+  is_technician?: boolean;
+  is_managerial?: boolean;
+  is_active?: boolean;
+  professional_role?: string | null;
+  sector?: string | null;
 }
 
 export async function getSystemUsersDirectory(): Promise<SystemUserDirectoryEntry[]> {
@@ -5857,16 +5936,26 @@ export async function getSystemUsersDirectory(): Promise<SystemUserDirectoryEntr
   return response.json();
 }
 
+export type SystemUserWriteFields = {
+  username?: string;
+  password?: string;
+  displayName?: string;
+  fullName?: string | null;
+  permissions: SystemUserPermissions;
+  isTechnician?: boolean;
+  isManagerial?: boolean;
+  isActive?: boolean;
+  jobTitle?: string | null;
+  professionalRole?: string | null;
+  sector?: string | null;
+  additionalRoles?: string[];
+  /** Só aplica perfil sugerido se true — evita mudar ACL só ao trocar função. */
+  applySuggestedPermissions?: boolean;
+};
+
 export async function createSystemUser(
   adminPassword: string,
-  data: {
-    username: string;
-    password: string;
-    displayName?: string;
-    permissions: SystemUserPermissions;
-    isTechnician?: boolean;
-    jobTitle?: string | null;
-  }
+  data: SystemUserWriteFields & { username: string; password: string }
 ): Promise<SystemUser> {
   const response = await fetch(`${API_BASE}/system-users`, {
     method: "POST",
@@ -5876,9 +5965,16 @@ export async function createSystemUser(
       username: data.username.trim(),
       password: data.password,
       displayName: data.displayName?.trim() || null,
+      fullName: data.fullName?.trim() || null,
       permissions: data.permissions,
       isTechnician: data.isTechnician ?? false,
+      isManagerial: data.isManagerial ?? false,
+      isActive: data.isActive !== false,
       jobTitle: data.jobTitle?.trim() || null,
+      professionalRole: data.professionalRole?.trim() || "",
+      sector: data.sector?.trim() || "",
+      additionalRoles: data.additionalRoles ?? [],
+      applySuggestedPermissions: data.applySuggestedPermissions === true,
     }),
   });
   if (!response.ok) {
@@ -5891,13 +5987,7 @@ export async function createSystemUser(
 export async function updateSystemUser(
   id: string,
   adminPassword: string,
-  data: {
-    password?: string;
-    displayName?: string;
-    permissions: SystemUserPermissions;
-    isTechnician?: boolean;
-    jobTitle?: string | null;
-  }
+  data: SystemUserWriteFields
 ): Promise<SystemUser> {
   const response = await fetch(`${API_BASE}/system-users/${id}`, {
     method: "PUT",
@@ -5906,9 +5996,19 @@ export async function updateSystemUser(
       adminPassword,
       password: data.password,
       displayName: data.displayName?.trim() ?? null,
+      fullName: data.fullName === undefined ? undefined : data.fullName?.trim() || null,
       permissions: data.permissions,
       isTechnician: data.isTechnician,
+      isManagerial: data.isManagerial,
+      isActive: data.isActive,
       jobTitle: data.jobTitle?.trim() || null,
+      professionalRole:
+        data.professionalRole === undefined
+          ? undefined
+          : data.professionalRole?.trim() || "",
+      sector: data.sector === undefined ? undefined : data.sector?.trim() || "",
+      additionalRoles: data.additionalRoles,
+      applySuggestedPermissions: data.applySuggestedPermissions === true,
     }),
   });
   if (!response.ok) {

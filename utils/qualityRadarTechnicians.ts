@@ -29,6 +29,15 @@ export type QualityRadarTechnicianOption = {
   source: 'linked' | 'workshop_technician' | 'system_user';
   /** Outros cadastros com o mesmo nome normalizado — NÃO unidos automaticamente. */
   possibleDuplicateIds?: string[];
+  hasLogin?: boolean;
+  hasWorkshopTechnician?: boolean;
+  isTechnicianFlag?: boolean;
+  isManagerial?: boolean;
+  isActive?: boolean;
+  professionalRole?: string;
+  sector?: string;
+  incomplete?: boolean;
+  incompleteReasons?: string[];
 };
 
 function systemUserDisplayName(u: SystemUserDirectoryEntry): string {
@@ -43,19 +52,59 @@ function systemUserDisplayName(u: SystemUserDirectoryEntry): string {
  * Preferência: endpoint /quality-radar/people (links confirmados).
  * Fallback local: NÃO une por nome — só por links vazios (mostra WT e SU separados).
  */
+function mapUnifiedOption(p: {
+  id: string;
+  name: string;
+  workshopTechnicianId: string | null;
+  systemUserId: string | null;
+  jobTitle?: string | null;
+  source: 'linked' | 'workshop_technician' | 'system_user';
+  possibleDuplicateIds?: string[];
+  hasLogin?: boolean;
+  hasWorkshopTechnician?: boolean;
+  isTechnicianFlag?: boolean;
+  isManagerial?: boolean;
+  isActive?: boolean;
+  professionalRole?: string;
+  sector?: string;
+  incomplete?: boolean;
+  incompleteReasons?: string[];
+}): QualityRadarTechnicianOption {
+  return {
+    id: p.id,
+    name: p.name,
+    workshopTechnicianId: p.workshopTechnicianId,
+    systemUserId: p.systemUserId,
+    jobTitle: p.jobTitle,
+    source: p.source,
+    possibleDuplicateIds: p.possibleDuplicateIds ?? [],
+    hasLogin: p.hasLogin,
+    hasWorkshopTechnician: p.hasWorkshopTechnician,
+    isTechnicianFlag: p.isTechnicianFlag,
+    isManagerial: p.isManagerial,
+    isActive: p.isActive,
+    professionalRole: p.professionalRole,
+    sector: p.sector,
+    incomplete: p.incomplete,
+    incompleteReasons: p.incompleteReasons,
+  };
+}
+
 export async function getQualityRadarTechnicianOptions(): Promise<QualityRadarTechnicianOption[]> {
   try {
     const people = await getQualityRadarPeople();
-    if (Array.isArray(people?.people) && people.people.length >= 0) {
-      return people.people.map((p) => ({
-        id: p.id,
-        name: p.name,
-        workshopTechnicianId: p.workshopTechnicianId,
-        systemUserId: p.systemUserId,
-        jobTitle: p.jobTitle,
-        source: p.source,
-        possibleDuplicateIds: p.possibleDuplicateIds ?? [],
-      }));
+    // length > 0: lista vazia força fallback (API ok mas fontes falharam parcialmente)
+    // length >= 0 era bug: tratava erro/vazio como sucesso e engolia o fallback
+    if (Array.isArray(people?.people) && people.people.length > 0) {
+      return people.people.map(mapUnifiedOption);
+    }
+    if (Array.isArray(people?.people) && people.people.length === 0) {
+      // API respondeu mas sem gente — ainda tenta fallback local
+      if (people.queryErrors?.technicians || people.queryErrors?.systemUsers) {
+        // continua para fallback
+      } else {
+        return [];
+      }
     }
   } catch {
     // fallback abaixo (migration pendente ou rede)
@@ -73,18 +122,16 @@ export async function getQualityRadarTechnicianOptions(): Promise<QualityRadarTe
       display_name: u.display_name,
       username: u.username,
       job_title: u.job_title,
+      is_technician: u.is_technician,
+      professional_role: u.professional_role,
+      sector: u.sector,
+      is_managerial: u.is_managerial,
+      is_active: u.is_active,
+      full_name: u.full_name,
     })),
     links,
   });
-  return unified.map((p) => ({
-    id: p.id,
-    name: p.name,
-    workshopTechnicianId: p.workshopTechnicianId,
-    systemUserId: p.systemUserId,
-    jobTitle: p.jobTitle,
-    source: p.source,
-    possibleDuplicateIds: p.possibleDuplicateIds,
-  }));
+  return unified.map(mapUnifiedOption);
 }
 
 export function resolveQualityRadarTechnicianPayload(

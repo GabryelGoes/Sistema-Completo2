@@ -62,65 +62,23 @@ async function listActivePeople(
   supabase: SupabaseClient,
   workshopId: string
 ): Promise<ActivePerson[]> {
-  const [{ data: users }, { data: techs }, { data: links }] = await Promise.all([
-    supabase
-      .from("workshop_system_users")
-      .select("id, display_name, username, job_title, is_technician, active, is_active")
-      .eq("workshop_id", workshopId),
-    supabase.from("workshop_technicians").select("id, name").eq("workshop_id", workshopId),
-    supabase
-      .from("workshop_quality_person_links")
-      .select("system_user_id, workshop_technician_id")
-      .eq("workshop_id", workshopId),
-  ]);
-
-  const linkBySu = new Map<string, string>();
-  const linkByWt = new Map<string, string>();
-  for (const l of links || []) {
-    const su = String((l as { system_user_id?: string }).system_user_id || "");
-    const wt = String((l as { workshop_technician_id?: string }).workshop_technician_id || "");
-    if (su && wt) {
-      linkBySu.set(su, wt);
-      linkByWt.set(wt, su);
-    }
+  const { loadWorkshopPeople, peopleEligibleForWeeklyCycle } = await import(
+    "./loadWorkshopPeople.js"
+  );
+  const loaded = await loadWorkshopPeople(supabase, workshopId);
+  if (!loaded.ok) {
+    console.error("[prepareWeeklyCycle] falha ao listar pessoas:", loaded.fatalError, loaded.queryErrors);
+    return [];
   }
-
-  const out: ActivePerson[] = [];
-  const seenSu = new Set<string>();
-  const seenWt = new Set<string>();
-
-  for (const u of users || []) {
-    const row = u as Record<string, unknown>;
-    const isTech = row.is_technician === true;
-    if (!isTech) continue;
-    // active flags variam entre schemas
-    if (row.active === false || row.is_active === false) continue;
-    const id = String(row.id);
-    seenSu.add(id);
-    const wt = linkBySu.get(id) || null;
-    if (wt) seenWt.add(wt);
-    const name =
-      String(row.display_name || "").trim() || String(row.username || "").trim() || "Técnico";
-    out.push({
-      systemUserId: id,
-      workshopTechnicianId: wt,
-      personName: name,
-      jobTitle: String(row.job_title || "").trim() || "Mecânico",
-    });
+  if (loaded.queryErrors.technicians || loaded.queryErrors.systemUsers) {
+    console.warn("[prepareWeeklyCycle] query parcial:", loaded.queryErrors);
   }
-
-  for (const t of techs || []) {
-    const id = String((t as { id: string }).id);
-    if (seenWt.has(id) || linkByWt.has(id)) continue;
-    out.push({
-      systemUserId: linkByWt.get(id) || null,
-      workshopTechnicianId: id,
-      personName: String((t as { name?: string }).name || "").trim() || "Técnico",
-      jobTitle: "Mecânico",
-    });
-  }
-
-  return out;
+  return peopleEligibleForWeeklyCycle(loaded.people).map((p) => ({
+    systemUserId: p.systemUserId,
+    workshopTechnicianId: p.workshopTechnicianId,
+    personName: p.name.startsWith("(sem nome") ? "Técnico" : p.name,
+    jobTitle: p.jobTitle?.trim() || p.professionalRole || "Mecânico",
+  }));
 }
 
 async function buildPreliminaryForPerson(
