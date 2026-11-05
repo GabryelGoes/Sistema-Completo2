@@ -18,6 +18,7 @@ import { generateTechnicalOsInsight } from "./insights/technicalOs.js";
 import { runManagementScan } from "./insights/managementScan.js";
 import { RDA_ALLOW_LLM_CALLS_ENV_KEY, type RdaAuthContext, type RdaRole } from "./types.js";
 import { createRdaSystemEvent, productionRdaEventBus } from "./events/bus.js";
+import { registerRdaKnowledgeRoutes } from "./knowledge/registerKnowledgeRoutes.js";
 
 type SessionLike = {
   r?: RdaRole;
@@ -72,11 +73,18 @@ export function registerRdaIntelligenceRoutes(
 ): void {
   ensureProductionRdaToolsRegistered();
 
+  registerRdaKnowledgeRoutes(app, {
+    WORKSHOP_ID: deps.WORKSHOP_ID,
+    supabaseAdmin: deps.supabaseAdmin,
+    loadUserPermissions: deps.loadUserPermissions,
+  });
+
   app.get("/api/rda/health", (_req: Request, res: Response) => {
     return res.json({
       ok: true,
       module: "rda-intelligence",
       phase: 1,
+      memory: true,
       operational: true,
     });
   });

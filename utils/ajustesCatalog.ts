@@ -13,7 +13,8 @@ export type AjustesCategoryId =
   | 'orcamentos'
   | 'notificacoes'
   | 'aparencia'
-  | 'dispositivos';
+  | 'dispositivos'
+  | 'inteligencia';
 
 export type AjustesItemId =
   | 'perfil'
@@ -30,7 +31,8 @@ export type AjustesItemId =
   | 'tema'
   | 'dispositivo'
   | 'dispositivos_conectados'
-  | 'etiquetas';
+  | 'etiquetas'
+  | 'memoria_rda';
 
 export type AjustesItemKind = 'action' | 'external';
 
@@ -119,6 +121,12 @@ export const AJUSTES_CATEGORIES: AjustesCategoryMeta[] = [
     id: 'dispositivos',
     label: 'Dispositivos e impressão',
     hint: 'Sessões conectadas, layout e etiquetas',
+    iconSrc: '/icons/configuracoes-ios.png',
+  },
+  {
+    id: 'inteligencia',
+    label: 'RDA Intelligence',
+    hint: 'Memória permanente e assistente',
     iconSrc: '/icons/configuracoes-ios.png',
   },
 ];
@@ -250,6 +258,14 @@ export const AJUSTES_ITEMS: AjustesItemMeta[] = [
     subtitle: 'Laboratório, estoque e chave',
     kind: 'action',
     iconFallback: 'tag',
+  },
+  {
+    id: 'memoria_rda',
+    categoryId: 'inteligencia',
+    title: 'Memória do RDA',
+    subtitle: 'Regras, procedimentos e orientações aprovadas',
+    kind: 'action',
+    iconFallback: 'wrench',
   },
 ];
 

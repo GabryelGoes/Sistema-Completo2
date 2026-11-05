@@ -21,7 +21,8 @@
     "test:rda-homologation-prep": "tsx scripts/rdaHomologation/selfcheck.ts",
     "test:rda-homologation-api": "tsx scripts/rdaHomologation/runRoteiroApi.ts",
     "test:rda-llm": "tsx scripts/rdaIntelligenceLlm.selftest.ts",
-    "test:rda-patio-lab": "tsx scripts/rdaPatioLabSeparation.selftest.ts"
+    "test:rda-patio-lab": "tsx scripts/rdaPatioLabSeparation.selftest.ts",
+    "test:rda-knowledge": "tsx scripts/rdaKnowledgeMemory.selftest.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.48.0",

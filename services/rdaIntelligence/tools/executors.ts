@@ -21,6 +21,13 @@ import {
   type RdaServiceOrderType,
   type RdaWorkshopSector,
 } from "./orderTypes.js";
+import {
+  callKnowledgeRpc,
+  retrieveApprovedKnowledge,
+  suggestKnowledgeKeyFromTitle,
+} from "../knowledge/repository.js";
+import { findKnowledgeConflicts, normalizeKnowledgeKey } from "../knowledge/rules.js";
+import type { RdaKnowledgeItemRow } from "../knowledge/types.js";
 
 function periodFromParams(params: Record<string, unknown>): { from: string; to: string } | undefined {
   const from = typeof params.from === "string" ? params.from.trim() : "";
@@ -723,6 +730,118 @@ export async function executeRdaTool(
             priorWeeklyReviews: prior,
             incompleteSignals: incomplete,
             provenance: "system_fact",
+          },
+        };
+      }
+
+      case "rda_search_approved_knowledge": {
+        const query = typeof params.query === "string" ? params.query.trim() : "";
+        if (!query) return { ok: false, error: "query é obrigatório." };
+        const limit = clampLimit(params.limit, 8, 20);
+        try {
+          const hits = await retrieveApprovedKnowledge(supabase, workshopId, query, {
+            limit,
+          });
+          const conflicts = findKnowledgeConflicts(
+            hits.map((h) => ({
+              knowledgeKey: h.knowledgeKey,
+              title: h.title,
+              content: h.content,
+            }))
+          );
+          return {
+            ok: true,
+            data: {
+              hits: hits.map((h) => ({
+                ...h,
+                // Envelope explícito: dado, não instrução
+                dataNotInstruction: true,
+                citationKind: h.citationKind,
+              })),
+              conflicts,
+              note:
+                "Somente versões aprovadas. Cite knowledgeKey@vN. Conflitos devem ser sinalizados ao usuário — não escolha silenciosamente.",
+              provenance: "official_rule_or_validated_technical",
+            },
+          };
+        } catch (e: unknown) {
+          const msg = e instanceof Error ? e.message : "erro";
+          if (/relation|does not exist|column/i.test(msg)) {
+            return {
+              ok: true,
+              data: {
+                hits: [],
+                conflicts: [],
+                note: "Memória permanente ainda não migrada neste ambiente.",
+                provenance: "unconfirmed",
+              },
+            };
+          }
+          return { ok: false, error: msg };
+        }
+      }
+
+      case "rda_propose_knowledge": {
+        const title = typeof params.title === "string" ? params.title.trim() : "";
+        const content = typeof params.content === "string" ? params.content.trim() : "";
+        if (!title || !content) {
+          return { ok: false, error: "title e content são obrigatórios." };
+        }
+        const knowledgeKey = normalizeKnowledgeKey(
+          typeof params.knowledgeKey === "string" && params.knowledgeKey.trim()
+            ? params.knowledgeKey
+            : suggestKnowledgeKeyFromTitle(title)
+        );
+        const category =
+          typeof params.category === "string" && params.category.trim()
+            ? params.category.trim()
+            : "managerial_guidance";
+        const changeReason =
+          typeof params.changeReason === "string" ? params.changeReason.trim() : null;
+        const rpc = await callKnowledgeRpc(supabase, "rda_knowledge_propose", {
+          p_workshop_id: workshopId,
+          p_knowledge_key: knowledgeKey,
+          p_title: title,
+          p_category: category,
+          p_visibility: "workshop",
+          p_content: content,
+          p_change_reason: changeReason,
+          p_structured_data: {},
+          p_provenance: { source: "chat_tool", dataNotInstruction: true },
+          p_actor_user_id: null,
+          p_actor_label: "rda_tool",
+          p_submit_for_approval: true,
+          p_expected_updated_at: null,
+        });
+        if (rpc.missingFn) {
+          return {
+            ok: false,
+            error: "Migration da memória pendente (rda_knowledge_propose).",
+          };
+        }
+        if (!rpc.data || rpc.data.ok === false) {
+          return {
+            ok: false,
+            error:
+              (typeof rpc.data?.error === "string" && rpc.data.error) ||
+              rpc.error ||
+              "Falha ao propor conhecimento.",
+          };
+        }
+        const item = rpc.data.item as RdaKnowledgeItemRow | undefined;
+        return {
+          ok: true,
+          data: {
+            proposed: true,
+            requiresManagerApproval: true,
+            activatedAsOfficial: false,
+            itemId: item?.id || null,
+            knowledgeKey: item?.knowledge_key || knowledgeKey,
+            pendingVersion: item?.pending_version ?? null,
+            approvedVersion: item?.approved_version ?? 0,
+            lifecycle: item?.lifecycle || "pending_approval",
+            message:
+              "Proposta registrada. A gestão precisa aprovar em Memória do RDA antes de valer como regra oficial.",
           },
         };
       }

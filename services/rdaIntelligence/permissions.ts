@@ -23,13 +23,22 @@ export function authAllowsToolPermission(
 ): boolean {
   if (authHasFullAccess(auth)) return true;
   if (auth.role !== "user") return false;
+  const perms = auth.permissions;
+  if (!perms || typeof perms !== "object") return false;
+  // Memória oficial: quem pode usar o assistente pode recuperar regras aprovadas.
+  if (tool.id === "rda_search_approved_knowledge") {
+    return (
+      perms.access_home === true ||
+      perms.access_patio === true ||
+      perms.access_laboratorio === true ||
+      perms.access_radar_qualidade === true
+    );
+  }
   if (!tool.requiredPermission) {
     // Tool sem permissão específica: ainda exige usuário autenticado com perms conhecidas
     // e full_access já retornou true acima. Sem requiredPermission → só admin/full_access.
     return false;
   }
-  const perms = auth.permissions;
-  if (!perms || typeof perms !== "object") return false;
   return perms[tool.requiredPermission] === true;
 }
 

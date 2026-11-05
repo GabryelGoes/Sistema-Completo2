@@ -27,6 +27,7 @@ import { TvPatioModal } from '../TvPatioModal';
 import { UserProfileModal } from '../UserProfileModal';
 import { AjustesHubPanel, type AjustesVisibility } from '../ajustes/AjustesHubPanel';
 import type { AjustesItemId } from '../../utils/ajustesCatalog';
+import { RdaKnowledgeMemoryPanel } from '../rda/RdaKnowledgeMemoryPanel';
 import { QUALITY_RADAR_ICON } from '../../constants/qualityRadar';
 import { ERROR_BULLETIN_ICON, TECHNICAL_BULLETINS_MODULE_LABEL } from '../../constants/errorBulletinIcon';
 import { effectiveAccessOrcamentos, type SystemUserPermissions } from '../../services/apiService';
@@ -259,6 +260,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
   const [isConnectedDevicesOpen, setIsConnectedDevicesOpen] = useState(false);
   const [isBudgetPrefsOpen, setIsBudgetPrefsOpen] = useState(false);
   const [isLabelEditorOpen, setIsLabelEditorOpen] = useState(false);
+  const [isRdaMemoryOpen, setIsRdaMemoryOpen] = useState(false);
 
   const closeAllSettingsChildModals = useCallback(() => {
     setIsServicesModalOpen(false);
@@ -275,6 +277,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
     setIsConnectedDevicesOpen(false);
     setIsBudgetPrefsOpen(false);
     setIsLabelEditorOpen(false);
+    setIsRdaMemoryOpen(false);
   }, []);
 
   const setSettingsHubOpen = useCallback(
@@ -384,6 +387,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
       dispositivos_conectados: isWorkshopAdmin || (isSystemUser && !!perms.full_access),
       dispositivo: true,
       etiquetas: showFullAdminHub || !!perms.access_settings || !!perms.full_access,
+      memoria_rda: isWorkshopAdmin || (isSystemUser && !!perms.full_access),
     }),
     [
       isSystemUser,
@@ -456,6 +460,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
           break;
         case 'etiquetas':
           setIsLabelEditorOpen(true);
+          break;
+        case 'memoria_rda':
+          setIsRdaMemoryOpen(true);
           break;
         default:
           break;
@@ -629,6 +636,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
       isConnectedDevicesOpen ||
       isBudgetPrefsOpen ||
       isLabelEditorOpen ||
+      isRdaMemoryOpen ||
       (!onOpenTvPatio && isTvPatioOpen) ||
       (Boolean(technicianId) && isTechnicianProfileOpen) ||
       isAdminProfileOpen ||
@@ -647,6 +655,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
       isConnectedDevicesOpen,
       isBudgetPrefsOpen,
       isLabelEditorOpen,
+      isRdaMemoryOpen,
       onOpenTvPatio,
       isTvPatioOpen,
       technicianId,
@@ -675,6 +684,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
   useBrowserBackLayer(isConnectedDevicesOpen, () => setIsConnectedDevicesOpen(false));
   useBrowserBackLayer(isBudgetPrefsOpen, () => setIsBudgetPrefsOpen(false));
   useBrowserBackLayer(isLabelEditorOpen, () => setIsLabelEditorOpen(false));
+  useBrowserBackLayer(isRdaMemoryOpen, () => setIsRdaMemoryOpen(false));
   useBrowserBackLayer(isHeaderProfileMenuOpen, () => setIsHeaderProfileMenuOpen(false));
 
   const operationalForView = useMemo(() => {
@@ -1256,6 +1266,11 @@ export const HomeView: React.FC<HomeViewProps> = ({
 
       {!isTechnician && (
         <>
+          <RdaKnowledgeMemoryPanel
+            isOpen={isRdaMemoryOpen}
+            onClose={() => setIsRdaMemoryOpen(false)}
+            desktopShell={Boolean(desktopShell)}
+          />
           <SystemUsersModal isOpen={isSystemUsersOpen} onClose={() => setIsSystemUsersOpen(false)} refreshTrigger={systemUsersRefreshTrigger} />
           <SystemNotificationsModal
             isOpen={isSystemNotificationsOpen}
