@@ -90,18 +90,19 @@ export async function loadWorkshopPartsFacts(
   supabase: SupabaseClient,
   limit = 1500
 ): Promise<StockPartFact[]> {
-  // Colunas reais: stock_qty / min_stock_qty (não quantity / min_quantity).
+  // Colunas reais em produção: original_code (código), barcode, stock_qty, min_stock_qty, location.
+  // Não existe coluna `sku`.
   const { data, error } = await supabase
     .from("workshop_parts")
     .select(
-      "id, name, sku, barcode, brand, stock_qty, min_stock_qty, location, original_code"
+      "id, name, barcode, brand, stock_qty, min_stock_qty, location, original_code"
     )
     .eq("workshop_id", workshopId)
     .limit(Math.min(Math.max(limit, 1), 3000));
   if (error) {
     const alt = await supabase
       .from("workshop_parts")
-      .select("id, name, brand, stock_qty, location")
+      .select("id, name, brand, stock_qty, location, original_code, barcode")
       .eq("workshop_id", workshopId)
       .limit(Math.min(Math.max(limit, 1), 3000));
     if (alt.error) throw new Error(alt.error.message);
@@ -110,8 +111,8 @@ export async function loadWorkshopPartsFacts(
       return {
         id: String((r as { id: string }).id),
         name: String((r as { name?: string }).name || ""),
-        sku: null,
-        barcode: null,
+        sku: (r as { original_code?: string | null }).original_code ?? null,
+        barcode: (r as { barcode?: string | null }).barcode ?? null,
         brand: (r as { brand?: string | null }).brand ?? null,
         quantity: qty,
         minQuantity: null,
@@ -128,10 +129,8 @@ export async function loadWorkshopPartsFacts(
     return {
       id: String((r as { id: string }).id),
       name: String((r as { name?: string }).name || ""),
-      sku:
-        (r as { sku?: string | null }).sku ??
-        (r as { original_code?: string | null }).original_code ??
-        null,
+      // StockPartFact.sku = código do produto via original_code (coluna sku inexistente).
+      sku: (r as { original_code?: string | null }).original_code ?? null,
       barcode: (r as { barcode?: string | null }).barcode ?? null,
       brand: (r as { brand?: string | null }).brand ?? null,
       quantity: qty,
@@ -311,7 +310,7 @@ export async function searchWorkshopPartsByText(
   if (!q) return [];
   return all
     .filter((p) => {
-      const hay = `${p.name} ${p.sku || ""} ${p.barcode || ""} ${p.brand || ""} ${p.location || ""}`.toLowerCase();
+      const hay = `${p.name} ${p.sku || ""} ${p.barcode || ""} ${p.brand || ""} ${p.location || ""}`.toLowerCase(); // sku = original_code
       return hay.includes(q);
     })
     .filter((p) => (onlyInStock ? p.quantity > 0 : true))

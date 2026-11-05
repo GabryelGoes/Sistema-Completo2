@@ -116,6 +116,7 @@ export type AbsSearchResult = {
 export type StockPartFact = {
   id: string;
   name: string;
+  /** Código do produto = workshop_parts.original_code (coluna sku não existe). */
   sku: string | null;
   barcode: string | null;
   brand: string | null;

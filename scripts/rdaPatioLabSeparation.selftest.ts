@@ -394,7 +394,8 @@ console.log("\n7) estoque não usa service_orders");
         name: "Módulo ABS Bosch",
         stock_qty: 2,
         min_stock_qty: 0,
-        sku: "ABS-1",
+        original_code: "ABS-1",
+        barcode: "7891000100015",
       },
     ],
   });
@@ -413,6 +414,32 @@ console.log("\n7) estoque não usa service_orders");
   assert(
     !sb.orderTypeEqValues().length,
     "estoque não filtra order_type de service_orders"
+  );
+
+  const byCode = await executeRdaTool(
+    "rda_search_stock_parts",
+    { query: "ABS-1", onlyInStock: true, limit: 10 },
+    { workshopId: WID, supabase: sb as never }
+  );
+  assert(byCode.ok === true, "busca por original_code ok");
+  assert(
+    (((byCode as { data: { items: FakeRow[] } }).data.items || []) as FakeRow[]).some(
+      (i) => i.id === "p1"
+    ),
+    "encontra peça pelo original_code"
+  );
+
+  const byBarcode = await executeRdaTool(
+    "rda_search_stock_parts",
+    { query: "7891000100015", onlyInStock: true, limit: 10 },
+    { workshopId: WID, supabase: sb as never }
+  );
+  assert(byBarcode.ok === true, "busca por barcode ok");
+  assert(
+    (((byBarcode as { data: { items: FakeRow[] } }).data.items || []) as FakeRow[]).some(
+      (i) => i.id === "p1"
+    ),
+    "encontra peça pelo barcode"
   );
 }
 

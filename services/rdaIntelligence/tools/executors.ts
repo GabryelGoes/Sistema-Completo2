@@ -427,18 +427,18 @@ export async function executeRdaTool(
         const onlyInStock = params.onlyInStock !== false;
         const limit = clampLimit(params.limit, 20);
         const stockDisclaimer =
-          "Resultado do ESTOQUE (workshop_parts). Não são OS do Laboratório nem módulos recebidos para reparo. NÃO afirma compatibilidade ABS/veículo sem evidência documentada. Quantidade = stock_qty.";
+          "Resultado do ESTOQUE (workshop_parts). Código do produto = original_code (não há coluna sku). Quantidade = stock_qty. Não são OS do Lab nem unidades ABS. Sem afirmar compatibilidade sem evidência.";
         const like = `%${query}%`;
+        // Colunas existentes em produção: original_code, barcode, stock_qty, min_stock_qty, location (sem sku).
         const { data, error } = await supabase
           .from("workshop_parts")
           .select(
-            "id, name, sku, barcode, brand, stock_qty, min_stock_qty, location, notes, original_code"
+            "id, name, barcode, brand, stock_qty, min_stock_qty, location, notes, original_code"
           )
           .eq("workshop_id", workshopId)
           .or(
             [
               `name.ilike.${like}`,
-              `sku.ilike.${like}`,
               `barcode.ilike.${like}`,
               `brand.ilike.${like}`,
               `original_code.ilike.${like}`,
@@ -454,7 +454,19 @@ export async function executeRdaTool(
           if (all.error) return { ok: false, error: all.error.message };
           const qtext = query.toLowerCase();
           const items = (all.data || [])
-            .filter((r) => JSON.stringify(r).toLowerCase().includes(qtext))
+            .filter((r) => {
+              const hay = [
+                (r as { name?: string }).name,
+                (r as { brand?: string }).brand,
+                (r as { original_code?: string }).original_code,
+                (r as { barcode?: string }).barcode,
+                (r as { location?: string }).location,
+              ]
+                .filter(Boolean)
+                .join(" ")
+                .toLowerCase();
+              return hay.includes(qtext);
+            })
             .filter((r) =>
               onlyInStock ? Number((r as { stock_qty?: number }).stock_qty || 0) > 0 : true
             )
