@@ -14,6 +14,10 @@
     {
       "path": "/api/quality-radar/weekly-cycle/prepare",
       "schedule": "0 19 * * *"
+    },
+    {
+      "path": "/api/rda/proactive/scan/cron",
+      "schedule": "*/30 * * * *"
     }
   ]
 }

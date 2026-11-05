@@ -34,6 +34,21 @@ export function authAllowsToolPermission(
       perms.access_radar_qualidade === true
     );
   }
+  // Fase 5: alertas proativos — gestão ou área operacional (filtro por categoria no executor).
+  if (
+    tool.id === "rda_proactive_alerts_attention" ||
+    tool.id === "rda_proactive_what_happened_today" ||
+    tool.id === "rda_proactive_unresolved" ||
+    tool.id === "rda_proactive_critical" ||
+    tool.id === "rda_proactive_recommend_first"
+  ) {
+    return (
+      perms.access_radar_qualidade === true ||
+      perms.access_patio === true ||
+      perms.access_laboratorio === true ||
+      perms.access_estoque_pecas === true
+    );
+  }
   if (!tool.requiredPermission) {
     // Tool sem permissão específica: ainda exige usuário autenticado com perms conhecidas
     // e full_access já retornou true acima. Sem requiredPermission → só admin/full_access.

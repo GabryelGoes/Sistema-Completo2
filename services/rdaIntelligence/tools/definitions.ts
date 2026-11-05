@@ -812,4 +812,90 @@ export const RDA_PRODUCTION_TOOLS: RdaToolDefinition[] = [
     side: "read",
     requiresHumanConfirmation: false,
   },
+  // ----- Fase 5: Monitoramento Proativo -----
+  {
+    id: "rda_proactive_alerts_attention",
+    description:
+      "Quais alertas precisam da minha atenção? Lista alertas ativos do monitor proativo (pátio, lab, estoque, produtividade) com evidência e recomendação. Não inventa alertas.",
+    parameters: {
+      type: "object",
+      properties: {
+        category: {
+          type: "string",
+          description: "patio | laboratorio | estoque | produtividade",
+        },
+        severity: { type: "string", description: "info | warning | critical" },
+        limit: { type: "number" },
+      },
+      required: [],
+      additionalProperties: false,
+    },
+    requiredPermission: "access_radar_qualidade",
+    side: "read",
+    requiresHumanConfirmation: false,
+  },
+  {
+    id: "rda_proactive_what_happened_today",
+    description:
+      "O que aconteceu de importante hoje? Alertas identificados ou atualizados hoje (fatos observados pelo monitor).",
+    parameters: {
+      type: "object",
+      properties: {
+        limit: { type: "number" },
+      },
+      required: [],
+      additionalProperties: false,
+    },
+    requiredPermission: "access_radar_qualidade",
+    side: "read",
+    requiresHumanConfirmation: false,
+  },
+  {
+    id: "rda_proactive_unresolved",
+    description:
+      "Quais problemas ainda não foram resolvidos? Alertas ativos ou reconhecidos pendentes de resolução.",
+    parameters: {
+      type: "object",
+      properties: {
+        limit: { type: "number" },
+      },
+      required: [],
+      additionalProperties: false,
+    },
+    requiredPermission: "access_radar_qualidade",
+    side: "read",
+    requiresHumanConfirmation: false,
+  },
+  {
+    id: "rda_proactive_critical",
+    description:
+      "Quais situações críticas estão acontecendo? Apenas alertas com severidade critical e status ativo.",
+    parameters: {
+      type: "object",
+      properties: {
+        limit: { type: "number" },
+      },
+      required: [],
+      additionalProperties: false,
+    },
+    requiredPermission: "access_radar_qualidade",
+    side: "read",
+    requiresHumanConfirmation: false,
+  },
+  {
+    id: "rda_proactive_recommend_first",
+    description:
+      "O que você recomenda resolver primeiro? Ordena alertas ativos por severidade e sugere a primeira ação (hipótese — sem executar).",
+    parameters: {
+      type: "object",
+      properties: {
+        limit: { type: "number" },
+      },
+      required: [],
+      additionalProperties: false,
+    },
+    requiredPermission: "access_radar_qualidade",
+    side: "read",
+    requiresHumanConfirmation: false,
+  },
 ];

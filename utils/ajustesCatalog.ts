@@ -35,7 +35,8 @@ export type AjustesItemId =
   | 'memoria_rda'
   | 'inteligencia_operacional'
   | 'gestao_patio_rda'
-  | 'lab_estoque_rda';
+  | 'lab_estoque_rda'
+  | 'monitoramento_proativo_rda';
 
 export type AjustesItemKind = 'action' | 'external';
 
@@ -291,6 +292,14 @@ export const AJUSTES_ITEMS: AjustesItemMeta[] = [
     categoryId: 'inteligencia',
     title: 'Inteligência do Laboratório e Estoque',
     subtitle: 'Bancada, gargalos do lab e disponibilidade ABS',
+    kind: 'action',
+    iconFallback: 'wrench',
+  },
+  {
+    id: 'monitoramento_proativo_rda',
+    categoryId: 'inteligencia',
+    title: 'Monitoramento Proativo',
+    subtitle: 'Alertas, recomendações e situações críticas',
     kind: 'action',
     iconFallback: 'wrench',
   },
