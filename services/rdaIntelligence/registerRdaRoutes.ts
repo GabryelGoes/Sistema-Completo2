@@ -14,7 +14,6 @@ import { productionRdaAuditLog } from "./audit/memoryLog.js";
 import { RDA_MANAGERIAL_HUB_BLUEPRINT_VERSION } from "./future/managerialHubBlueprint.js";
 import { runRdaChatTurn } from "./agent/orchestrator.js";
 import { getTodayUsage, resolveDailyTokenLimit } from "./agent/usage.js";
-import { generateTechnicalOsInsight } from "./insights/technicalOs.js";
 import { runManagementScan } from "./insights/managementScan.js";
 import { RDA_ALLOW_LLM_CALLS_ENV_KEY, type RdaAuthContext, type RdaRole } from "./types.js";
 import { createRdaSystemEvent, productionRdaEventBus } from "./events/bus.js";
@@ -333,62 +332,6 @@ export function registerRdaIntelligenceRoutes(
       return res.json({ messages: data || [] });
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Erro";
-      return res.status(500).json({ error: message });
-    }
-  });
-
-  /** Insight técnico de uma OS. */
-  app.get("/api/rda/insights/os/:serviceOrderId", async (req: Request, res: Response) => {
-    try {
-      const baseAuth = authFromRequest(req);
-      if (!baseAuth) return res.status(401).json({ error: "Não autenticado." });
-      if (!deps.supabaseAdmin || !deps.WORKSHOP_ID) {
-        return res.status(500).json({ error: "Servidor não configurado." });
-      }
-      const serviceOrderId = String(req.params.serviceOrderId || "").trim();
-      const { data, error } = await deps.supabaseAdmin
-        .from("rda_os_insights")
-        .select("*")
-        .eq("workshop_id", deps.WORKSHOP_ID)
-        .eq("service_order_id", serviceOrderId)
-        .maybeSingle();
-      if (error) {
-        if (/does not exist|schema cache/i.test(error.message)) {
-          return res.status(503).json({
-            error: "Aplique a migration 20261102010000_rda_intelligence_runtime.sql",
-            code: "RDA_RUNTIME_MIGRATION_REQUIRED",
-          });
-        }
-        return res.status(500).json({ error: error.message });
-      }
-      return res.json({ insight: data || null });
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Erro";
-      return res.status(500).json({ error: message });
-    }
-  });
-
-  app.post("/api/rda/insights/os/:serviceOrderId/refresh", async (req: Request, res: Response) => {
-    try {
-      const baseAuth = authFromRequest(req);
-      if (!baseAuth) return res.status(401).json({ error: "Não autenticado." });
-      if (!deps.supabaseAdmin || !deps.WORKSHOP_ID) {
-        return res.status(500).json({ error: "Servidor não configurado." });
-      }
-      const settingValue = await deps.getWorkshopSettingValue(
-        RDA_INTELLIGENCE_SETTING_KEY
-      );
-      const serviceOrderId = String(req.params.serviceOrderId || "").trim();
-      const insight = await generateTechnicalOsInsight({
-        workshopId: deps.WORKSHOP_ID,
-        supabase: deps.supabaseAdmin,
-        serviceOrderId,
-        settingValue,
-      });
-      return res.json({ insight });
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Erro";
-      console.error("[API] POST insights refresh:", err);
       return res.status(500).json({ error: message });
     }
   });

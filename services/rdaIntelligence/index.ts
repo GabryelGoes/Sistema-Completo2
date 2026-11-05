@@ -93,7 +93,6 @@ export {
   sanitizeMessagesForOpenAi,
   toolCallsFromMetadata,
 } from "./agent/openaiMessages.js";
-export { generateTechnicalOsInsight } from "./insights/technicalOs.js";
 export { runManagementScan } from "./insights/managementScan.js";
 export { ensureProductionRdaToolsRegistered } from "./tools/registerProduction.js";
 export { RDA_PRODUCTION_TOOLS } from "./tools/definitions.js";

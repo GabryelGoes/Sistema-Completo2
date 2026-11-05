@@ -7084,29 +7084,6 @@ export async function postRdaChat(input: {
   return response.json();
 }
 
-export async function getRdaOsInsight(serviceOrderId: string): Promise<{ insight: unknown }> {
-  const response = await fetch(
-    `${API_BASE}/rda/insights/os/${encodeURIComponent(serviceOrderId)}`
-  );
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    throw new Error((err as { error?: string }).error || "Falha ao carregar insight.");
-  }
-  return response.json();
-}
-
-export async function refreshRdaOsInsight(serviceOrderId: string): Promise<{ insight: unknown }> {
-  const response = await fetch(
-    `${API_BASE}/rda/insights/os/${encodeURIComponent(serviceOrderId)}/refresh`,
-    { method: "POST" }
-  );
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    throw new Error((err as { error?: string }).error || "Falha ao gerar insight.");
-  }
-  return response.json();
-}
-
 export async function runRdaManagementScan(): Promise<{
   alertsCreated: number;
   alerts: Array<{ alertKey: string; title: string; severity: string }>;

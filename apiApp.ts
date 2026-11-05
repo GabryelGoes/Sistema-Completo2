@@ -75,8 +75,6 @@ import {
   listRunningWorkSessionIdsForKinds,
 } from "./services/rdaIntelligence/workSessions/autoPauseOnStageChange.js";
 import { timeKindsToAutoPauseOnStageChange } from "./services/rdaIntelligence/workSessions/stageRules.js";
-import { generateTechnicalOsInsight } from "./services/rdaIntelligence/insights/technicalOs.js";
-import { RDA_INTELLIGENCE_SETTING_KEY } from "./services/rdaIntelligence/types.js";
 import { assertHomologationSafeOrThrow } from "./utils/homologationGuard.js";
 import {
   insertIncidentRevision,
@@ -1711,24 +1709,6 @@ export function createApiApp() {
       .maybeSingle();
     const v = typeof data?.value === "string" ? data.value.trim() : "";
     return v || null;
-  }
-
-  /** Dispara insight técnico RDA em background (não atrasa a criação da OS). */
-  function triggerRdaOsInsight(serviceOrderId: string): void {
-    if (!supabaseAdmin || !WORKSHOP_ID || !serviceOrderId) return;
-    void (async () => {
-      try {
-        const settingValue = await getWorkshopSettingValue(RDA_INTELLIGENCE_SETTING_KEY);
-        await generateTechnicalOsInsight({
-          workshopId: WORKSHOP_ID,
-          supabase: supabaseAdmin,
-          serviceOrderId,
-          settingValue,
-        });
-      } catch (err) {
-        console.warn("[RDA] insight automático falhou:", err);
-      }
-    })();
   }
 
   async function getAdminDisplayMeta(): Promise<{ name: string; photoUrl: string | null }> {
@@ -5765,13 +5745,11 @@ export function createApiApp() {
             .eq("workshop_id", WORKSHOP_ID)
             .maybeSingle();
           if (refreshed) {
-            void triggerRdaOsInsight(String(refreshed.id));
             return res.status(201).json(refreshed);
           }
         }
       }
 
-      if (data?.id) void triggerRdaOsInsight(String(data.id));
       return res.status(201).json(data);
     } catch (err: any) {
       console.error("[API] Erro inesperado em POST /api/service-orders:", err);
