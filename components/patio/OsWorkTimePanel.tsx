@@ -401,7 +401,7 @@ export const OsWorkTimePanel: React.FC<Props> = ({
             </div>
             <div className="rounded-xl bg-[#FAFAFA] px-3 py-3 dark:bg-zinc-950">
               <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
-                Total OS
+                Tempo total apontado
               </p>
               <p className="mt-1 font-mono text-lg font-semibold tabular-nums text-zinc-900 dark:text-white sm:text-xl">
                 {formatDurationHms(indicators.totalOsMs)}

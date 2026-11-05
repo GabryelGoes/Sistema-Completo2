@@ -33,6 +33,8 @@ import {
   timeKindAllowedForOsStatus,
   timeKindsToAutoPauseOnStageChange,
 } from '../services/rdaIntelligence/workSessions/stageRules.js';
+import { applyAutoPauseKindsToRunning } from '../services/rdaIntelligence/workSessions/autoPauseOnStageChange.js';
+import type { RdaWorkTimeKind } from '../services/rdaIntelligence/workSessions/stageRules.js';
 
 let passed = 0;
 let failed = 0;
@@ -449,6 +451,78 @@ console.log('\n17) Segurança RPC — assinatura canônica e sem bypass de etapa
     nextStatus: 'FASE_DE_TESTE',
   });
   assert(kinds.includes('execution'), 'trigger/RPC pausa execução ao sair de EM_SERVICO');
+}
+
+console.log('\n18) Concorrência / mudanças rápidas / idempotência de auto-pause');
+{
+  // Sequência rápida típica da oficina: avaliação → espera → serviço → espera → serviço
+  const sequence: Array<{ from: string; to: string; runningBefore: RdaWorkTimeKind[] }> = [
+    { from: 'AVALIACAO_TECNICA', to: 'AGUARDANDO_APROVACAO', runningBefore: ['diagnostic'] },
+    { from: 'AGUARDANDO_APROVACAO', to: 'EM_SERVICO', runningBefore: [] },
+    { from: 'EM_SERVICO', to: 'AGUARDANDO_PECAS', runningBefore: ['execution'] },
+    { from: 'AGUARDANDO_PECAS', to: 'EM_SERVICO', runningBefore: [] },
+    { from: 'EM_SERVICO', to: 'FASE_DE_TESTE', runningBefore: ['execution'] },
+    { from: 'AVALIACAO_TECNICA', to: 'EM_SERVICO', runningBefore: ['diagnostic'] },
+  ];
+  for (const step of sequence) {
+    const after = applyAutoPauseKindsToRunning(step.runningBefore, step.from, step.to);
+    const mustPause = timeKindsToAutoPauseOnStageChange({
+      previousStatus: step.from,
+      nextStatus: step.to,
+    });
+    for (const k of mustPause) {
+      assert(!after.includes(k), `${step.from}→${step.to}: ${k} não fica running`);
+    }
+    for (const k of after) {
+      assert(
+        canStartOrResumeTimeKind(k, step.to),
+        `${step.from}→${step.to}: residual ${k} só se etapa autorizar`
+      );
+    }
+  }
+
+  // Idempotência: aplicar a mesma transição duas vezes (2ª vez já sem running)
+  const first = applyAutoPauseKindsToRunning(['execution'], 'EM_SERVICO', 'AGUARDANDO_PECAS');
+  const second = applyAutoPauseKindsToRunning(first, 'EM_SERVICO', 'AGUARDANDO_PECAS');
+  assert(first.length === 0 && second.length === 0, 'idempotente: 2ª pausa é noop');
+
+  // Ambos kinds running (cenário inconsistente) ao sair de avaliação: só diagnostic pausa
+  const both = applyAutoPauseKindsToRunning(
+    ['diagnostic', 'execution'],
+    'AVALIACAO_TECNICA',
+    'AGUARDANDO_APROVACAO'
+  );
+  assert(both.includes('execution') && !both.includes('diagnostic'), 'só diagnostic pausa ao sair de avaliação');
+
+  // Sair de EM_SERVICO com ambos: só execution pausa
+  const leaveSvc = applyAutoPauseKindsToRunning(
+    ['diagnostic', 'execution'],
+    'EM_SERVICO',
+    'AGUARDANDO_PECAS'
+  );
+  assert(leaveSvc.includes('diagnostic') && !leaveSvc.includes('execution'), 'só execution pausa ao sair de serviço');
+
+  // Entrar em espera a partir de espera: noop
+  assert(
+    timeKindsToAutoPauseOnStageChange({
+      previousStatus: 'AGUARDANDO_PECAS',
+      nextStatus: 'AGUARDANDO_APROVACAO',
+    }).length === 0,
+    'espera→espera não pausa'
+  );
+}
+
+console.log('\n19) Indicador total = tempo apontado (não tempo desde entrada)');
+{
+  const ind = aggregateOsTimeIndicators([
+    { timeKind: 'execution', liveProductiveMs: 10_000, livePausedMs: 2_000 },
+  ]);
+  // totalOsMs = apontamentos (diag+exec+pausas), não elapsed desde check-in do veículo
+  assert(ind.totalOsMs === 12_000, 'total apontado = produtivo + pausas');
+  assert(
+    ind.totalOsMs === ind.executionMs + ind.diagnosticMs + ind.pausedMs,
+    'identidade: Tempo total apontado'
+  );
 }
 
 console.log(`\nResultado: ${passed} ok, ${failed} falhas`);

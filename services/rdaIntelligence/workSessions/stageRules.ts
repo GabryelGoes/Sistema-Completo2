@@ -73,7 +73,10 @@ export type OsTimeIndicators = {
   diagnosticMs: number;
   executionMs: number;
   pausedMs: number;
-  /** Diagnóstico + execução + pausas (apontamentos da OS). */
+  /**
+   * Soma dos apontamentos (diagnóstico + execução + pausas).
+   * Não é o tempo decorrido desde a entrada do veículo — UI: "Tempo total apontado".
+   */
   totalOsMs: number;
 };
 

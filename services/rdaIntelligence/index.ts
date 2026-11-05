@@ -76,7 +76,11 @@ export {
   RDA_PAUSE_REASON_STAGE_CHANGE,
   type RdaWorkTimeKind,
 } from "./workSessions/stageRules.js";
-export { autoPauseWorkSessionsOnStageChange } from "./workSessions/autoPauseOnStageChange.js";
+export {
+  autoPauseWorkSessionsOnStageChange,
+  listRunningWorkSessionIdsForKinds,
+  applyAutoPauseKindsToRunning,
+} from "./workSessions/autoPauseOnStageChange.js";
 export type {
   RdaWorkSessionDto,
   RdaWorkPauseReason,

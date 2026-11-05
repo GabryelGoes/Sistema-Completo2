@@ -70,7 +70,11 @@ import {
 import { registerRdaIntelligenceRoutes } from "./services/rdaIntelligence/index.js";
 import { registerRdaEvaluationRoutes } from "./services/rdaIntelligence/evaluations/registerRdaEvaluationRoutes.js";
 import { registerRdaWorkSessionRoutes } from "./services/rdaIntelligence/workSessions/registerRdaWorkSessionRoutes.js";
-import { autoPauseWorkSessionsOnStageChange } from "./services/rdaIntelligence/workSessions/autoPauseOnStageChange.js";
+import {
+  autoPauseWorkSessionsOnStageChange,
+  listRunningWorkSessionIdsForKinds,
+} from "./services/rdaIntelligence/workSessions/autoPauseOnStageChange.js";
+import { timeKindsToAutoPauseOnStageChange } from "./services/rdaIntelligence/workSessions/stageRules.js";
 import { generateTechnicalOsInsight } from "./services/rdaIntelligence/insights/technicalOs.js";
 import { RDA_INTELLIGENCE_SETTING_KEY } from "./services/rdaIntelligence/types.js";
 import { assertHomologationSafeOrThrow } from "./utils/homologationGuard.js";
@@ -14085,26 +14089,91 @@ export function createApiApp() {
         const statusChanged =
           updatePayload.status !== undefined && previous.status !== data?.status;
         if (statusChanged && supabaseAdmin && WORKSHOP_ID) {
-          try {
+          const prevStatus = String(previous.status ?? "");
+          const nextStatus = String(data?.status ?? "");
+          const kindsToPause = timeKindsToAutoPauseOnStageChange({
+            previousStatus: prevStatus,
+            nextStatus,
+          });
+          if (kindsToPause.length > 0) {
+            // O trigger SQL já pausou na mesma transação do UPDATE.
+            // A RPC abaixo é idempotente (só afeta status=running) e atribui ator quando ainda houver sessão.
             const actorUserId =
               typeof (req as { auth?: { u?: string } }).auth?.u === "string"
                 ? String((req as { auth?: { u?: string } }).auth?.u)
                 : null;
-            const pauseResult = await autoPauseWorkSessionsOnStageChange({
+            let pauseResult: Awaited<
+              ReturnType<typeof autoPauseWorkSessionsOnStageChange>
+            >;
+            try {
+              pauseResult = await autoPauseWorkSessionsOnStageChange({
+                supabase: supabaseAdmin,
+                workshopId: WORKSHOP_ID,
+                serviceOrderId: id,
+                previousStatus: prevStatus,
+                nextStatus,
+                actorUserId,
+              });
+            } catch (pauseErr) {
+              const msg =
+                pauseErr instanceof Error ? pauseErr.message : String(pauseErr);
+              console.error("[RDA] auto-pause on stage change threw:", pauseErr);
+              pauseResult = {
+                pausedCount: 0,
+                sessionIds: [],
+                kinds: kindsToPause,
+                via: "error",
+                error: msg,
+              };
+            }
+
+            if (pauseResult.pausedCount > 0) {
+              console.info(
+                `[RDA] auto-pause ${pauseResult.pausedCount} sessão(ões) (${pauseResult.via}) OS=${id} ${prevStatus}→${nextStatus}`
+              );
+            }
+
+            const lingering = await listRunningWorkSessionIdsForKinds({
               supabase: supabaseAdmin,
               workshopId: WORKSHOP_ID,
               serviceOrderId: id,
-              previousStatus: String(previous.status ?? ""),
-              nextStatus: String(data?.status ?? ""),
-              actorUserId,
+              kinds: kindsToPause,
             });
-            if (pauseResult.pausedCount > 0) {
-              console.info(
-                `[RDA] auto-pause ${pauseResult.pausedCount} sessão(ões) (${pauseResult.via}) OS=${id} ${previous.status}→${data?.status}`
+            if (lingering.error) {
+              console.error(
+                "[RDA] falha ao verificar sessões running após mudança de etapa:",
+                lingering.error
+              );
+              return res.status(500).json({
+                error:
+                  "Etapa atualizada, mas não foi possível confirmar a pausa automática do cronômetro. Verifique os apontamentos.",
+                code: "RDA_AUTO_PAUSE_VERIFY_FAILED",
+                detail: lingering.error,
+                serviceOrder: data,
+              });
+            }
+            if (lingering.ids.length > 0) {
+              console.error(
+                `[RDA] sessões ainda running após saída de etapa OS=${id}:`,
+                lingering.ids,
+                pauseResult.error || pauseResult.via
+              );
+              return res.status(500).json({
+                error:
+                  "Etapa atualizada, mas há apontamento produtivo ainda ativo fora da etapa permitida. Recarregue e pause manualmente se necessário.",
+                code: "RDA_AUTO_PAUSE_INCOMPLETE",
+                sessionIds: lingering.ids,
+                pauseError: pauseResult.error || null,
+                serviceOrder: data,
+              });
+            }
+            if (pauseResult.via === "error") {
+              // Trigger provavelmente já pausou; RPC falhou sem deixar running.
+              console.error(
+                "[RDA] auto-pause RPC falhou após etapa (sem sessões running residual):",
+                pauseResult.error
               );
             }
-          } catch (pauseErr) {
-            console.error("[RDA] auto-pause on stage change failed:", pauseErr);
           }
         }
         const enteredLabSemConserto =
