@@ -61,6 +61,7 @@ function createFakeSupabase(rowsByTable: Record<string, FakeRow[]>) {
     api.lte = () => self();
     api.lt = () => self();
     api.ilike = () => self();
+    api.or = () => self();
     api.order = (_col: string, opts?: { ascending?: boolean }) => {
       state.orderAsc = opts?.ascending !== false;
       return self();
@@ -391,7 +392,8 @@ console.log("\n7) estoque não usa service_orders");
         id: "p1",
         workshop_id: WID,
         name: "Módulo ABS Bosch",
-        quantity: 2,
+        stock_qty: 2,
+        min_stock_qty: 0,
         sku: "ABS-1",
       },
     ],

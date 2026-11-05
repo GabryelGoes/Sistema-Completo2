@@ -122,7 +122,7 @@ export const RDA_PRODUCTION_TOOLS: RdaToolDefinition[] = [
   {
     id: "rda_search_stock_parts",
     description:
-      "Busca PEÇAS/CADASTROS no ESTOQUE (workshop_parts) por texto. Não lista OS do Laboratório nem módulos recebidos para conserto. Nunca confundir item de estoque com OS de módulo do Lab.",
+      "Busca PEÇAS/CADASTROS no ESTOQUE (workshop_parts) por nome, sku, barcode, brand ou original_code. Usa stock_qty. Não lista OS do Laboratório nem unidades ABS individuais (use rda_stock_abs_search). Nunca confundir item de estoque com OS de módulo do Lab.",
     parameters: {
       type: "object",
       properties: {
@@ -787,7 +787,7 @@ export const RDA_PRODUCTION_TOOLS: RdaToolDefinition[] = [
   },
   {
     id: "rda_stock_low_parts",
-    description: "Peças do cadastro workshop_parts com estoque baixo (quantity ≤ min_quantity).",
+    description: "Peças do cadastro workshop_parts com estoque baixo (stock_qty ≤ min_stock_qty).",
     parameters: {
       type: "object",
       properties: {},

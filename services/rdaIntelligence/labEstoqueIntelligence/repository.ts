@@ -90,43 +90,48 @@ export async function loadWorkshopPartsFacts(
   supabase: SupabaseClient,
   limit = 1500
 ): Promise<StockPartFact[]> {
+  // Colunas reais: stock_qty / min_stock_qty (não quantity / min_quantity).
   const { data, error } = await supabase
     .from("workshop_parts")
-    .select("id, name, sku, barcode, brand, quantity, min_quantity, location")
+    .select(
+      "id, name, sku, barcode, brand, stock_qty, min_stock_qty, location, original_code"
+    )
     .eq("workshop_id", workshopId)
     .limit(Math.min(Math.max(limit, 1), 3000));
   if (error) {
-    // Schema parcial
     const alt = await supabase
       .from("workshop_parts")
-      .select("id, name, sku, brand, quantity, location")
+      .select("id, name, brand, stock_qty, location")
       .eq("workshop_id", workshopId)
       .limit(Math.min(Math.max(limit, 1), 3000));
     if (alt.error) throw new Error(alt.error.message);
     return (alt.data || []).map((r) => {
-      const qty = Number((r as { quantity?: number }).quantity) || 0;
+      const qty = Number((r as { stock_qty?: number }).stock_qty) || 0;
       return {
         id: String((r as { id: string }).id),
         name: String((r as { name?: string }).name || ""),
-        sku: (r as { sku?: string | null }).sku ?? null,
+        sku: null,
         barcode: null,
         brand: (r as { brand?: string | null }).brand ?? null,
         quantity: qty,
         minQuantity: null,
         location: (r as { location?: string | null }).location ?? null,
-        lowStock: false,
+        lowStock: qty <= 0,
       };
     });
   }
   return (data || []).map((r) => {
-    const qty = Number((r as { quantity?: number }).quantity) || 0;
-    const minRaw = (r as { min_quantity?: number | null }).min_quantity;
+    const qty = Number((r as { stock_qty?: number }).stock_qty) || 0;
+    const minRaw = (r as { min_stock_qty?: number | null }).min_stock_qty;
     const min =
       minRaw != null && Number.isFinite(Number(minRaw)) ? Number(minRaw) : null;
     return {
       id: String((r as { id: string }).id),
       name: String((r as { name?: string }).name || ""),
-      sku: (r as { sku?: string | null }).sku ?? null,
+      sku:
+        (r as { sku?: string | null }).sku ??
+        (r as { original_code?: string | null }).original_code ??
+        null,
       barcode: (r as { barcode?: string | null }).barcode ?? null,
       brand: (r as { brand?: string | null }).brand ?? null,
       quantity: qty,

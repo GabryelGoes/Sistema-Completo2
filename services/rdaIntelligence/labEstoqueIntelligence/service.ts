@@ -181,7 +181,7 @@ export async function queryStockLowParts(input: LabEstoqueQueryInput) {
   return {
     count: low.length,
     items: low.slice(0, 50),
-    note: "Baixo estoque = quantity ≤ min_quantity (ou quantity≤0 se min ausente).",
+    note: "Baixo estoque = stock_qty ≤ min_stock_qty (ou stock_qty≤0 se min ausente).",
   };
 }
 

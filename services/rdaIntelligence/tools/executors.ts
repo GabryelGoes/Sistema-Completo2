@@ -427,27 +427,36 @@ export async function executeRdaTool(
         const onlyInStock = params.onlyInStock !== false;
         const limit = clampLimit(params.limit, 20);
         const stockDisclaimer =
-          "Resultado do ESTOQUE (workshop_parts). Não são OS do Laboratório nem módulos recebidos para reparo. NÃO afirma compatibilidade ABS/veículo sem evidência documentada.";
+          "Resultado do ESTOQUE (workshop_parts). Não são OS do Laboratório nem módulos recebidos para reparo. NÃO afirma compatibilidade ABS/veículo sem evidência documentada. Quantidade = stock_qty.";
+        const like = `%${query}%`;
         const { data, error } = await supabase
           .from("workshop_parts")
           .select(
-            "id, name, sku, barcode, brand, quantity, min_quantity, location, notes"
+            "id, name, sku, barcode, brand, stock_qty, min_stock_qty, location, notes, original_code"
           )
           .eq("workshop_id", workshopId)
-          .ilike("name", `%${query}%`)
-          .limit(limit);
+          .or(
+            [
+              `name.ilike.${like}`,
+              `sku.ilike.${like}`,
+              `barcode.ilike.${like}`,
+              `brand.ilike.${like}`,
+              `original_code.ilike.${like}`,
+            ].join(",")
+          )
+          .limit(Math.max(limit * 3, 40));
         if (error) {
           const all = await supabase
             .from("workshop_parts")
-            .select("id, name, sku, barcode, brand, quantity, location")
+            .select("id, name, brand, stock_qty, location, original_code, barcode")
             .eq("workshop_id", workshopId)
-            .limit(100);
+            .limit(200);
           if (all.error) return { ok: false, error: all.error.message };
           const qtext = query.toLowerCase();
           const items = (all.data || [])
             .filter((r) => JSON.stringify(r).toLowerCase().includes(qtext))
             .filter((r) =>
-              onlyInStock ? Number((r as { quantity?: number }).quantity || 0) > 0 : true
+              onlyInStock ? Number((r as { stock_qty?: number }).stock_qty || 0) > 0 : true
             )
             .slice(0, limit);
           return {
@@ -459,9 +468,11 @@ export async function executeRdaTool(
             },
           };
         }
-        const items = (data || []).filter((r) =>
-          onlyInStock ? Number((r as { quantity?: number }).quantity || 0) > 0 : true
-        );
+        const items = (data || [])
+          .filter((r) =>
+            onlyInStock ? Number((r as { stock_qty?: number }).stock_qty || 0) > 0 : true
+          )
+          .slice(0, limit);
         return {
           ok: true,
           data: {
