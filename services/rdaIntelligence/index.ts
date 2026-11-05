@@ -239,6 +239,7 @@ export {
 export { registerLabEstoqueIntelligenceRoutes } from "./labEstoqueIntelligence/registerLabEstoqueIntelligenceRoutes.js";
 
 export {
+  canAccessProactiveCategory,
   canConfigureProactiveMonitor,
   canMutateProactiveAlerts,
   canViewProactiveIntelligence,

@@ -62,3 +62,16 @@ export function canMutateProactiveAlerts(input: {
 }): boolean {
   return canViewProactiveIntelligence(input);
 }
+
+/** Transição/histórico só na categoria permitida ao usuário. */
+export function canAccessProactiveCategory(
+  input: {
+    role: WorkSessionAuthRole | string | undefined;
+    flags: WorkSessionViewerFlags | null;
+    permissions?: Record<string, boolean> | null;
+  },
+  category: ProactiveCategory | string | null | undefined
+): boolean {
+  if (!category) return false;
+  return allowedProactiveCategories(input).includes(category as ProactiveCategory);
+}

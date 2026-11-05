@@ -89,6 +89,23 @@ async function maybeNotify(
   return (data as { id?: string } | null)?.id || null;
 }
 
+async function attachNotificationId(
+  supabase: SupabaseClient,
+  alertId: string,
+  workshopId: string,
+  notificationId: string | null
+): Promise<void> {
+  if (!notificationId) return;
+  const { error } = await supabase
+    .from("rda_management_alerts")
+    .update({ notification_id: notificationId, updated_at: new Date().toISOString() })
+    .eq("id", alertId)
+    .eq("workshop_id", workshopId);
+  if (error) {
+    console.warn("[proactive] attach notification_id:", error.message);
+  }
+}
+
 export type UpsertAlertsResult = {
   created: number;
   updated: number;
@@ -100,7 +117,7 @@ export type UpsertAlertsResult = {
  * Persistência idempotente:
  * - ativo/reconhecido → atualiza last_seen (sem nova notificação)
  * - resolvido/descartado → reabre só após cooldown
- * - novo → insert + notificação opcional
+ * - novo → INSERT confirmado → notificação opcional → contabiliza
  */
 export async function upsertProactiveAlerts(input: {
   workshopId: string;
@@ -127,12 +144,6 @@ export async function upsertProactiveAlerts(input: {
     }
 
     if (!existing) {
-      const notifId = await maybeNotify(
-        input.supabase,
-        input.workshopId,
-        draft,
-        input.notifyOnCreate
-      );
       const row = {
         workshop_id: input.workshopId,
         alert_key: draft.alertKey,
@@ -146,7 +157,7 @@ export async function upsertProactiveAlerts(input: {
         ref_type: draft.refType || null,
         ref_id: draft.refId || null,
         payload: draft.payload || {},
-        notification_id: notifId,
+        notification_id: null as string | null,
         dismissed_at: null,
         last_seen_at: nowIso,
         updated_at: nowIso,
@@ -157,27 +168,51 @@ export async function upsertProactiveAlerts(input: {
         .insert(row)
         .select("id")
         .maybeSingle();
+
       if (insErr) {
         // Fallback se migration ainda não aplicada (colunas novas ausentes)
         if (/column|schema cache|does not exist/i.test(insErr.message)) {
-          await input.supabase.from("rda_management_alerts").upsert(
-            {
-              workshop_id: input.workshopId,
-              alert_key: draft.alertKey,
-              severity: draft.severity,
-              title: draft.title,
-              body: formatAlertBody(draft),
-              payload: {
-                ...(draft.payload || {}),
-                category: draft.category,
-                recommendation: draft.recommendation,
-                evidence: draft.evidence,
+          const { data: legacy, error: legErr } = await input.supabase
+            .from("rda_management_alerts")
+            .upsert(
+              {
+                workshop_id: input.workshopId,
+                alert_key: draft.alertKey,
+                severity: draft.severity,
+                title: draft.title,
+                body: formatAlertBody(draft),
+                payload: {
+                  ...(draft.payload || {}),
+                  category: draft.category,
+                  recommendation: draft.recommendation,
+                  evidence: draft.evidence,
+                },
+                notification_id: null,
+                dismissed_at: null,
+                created_at: nowIso,
               },
-              notification_id: notifId,
-              dismissed_at: null,
-              created_at: nowIso,
-            },
-            { onConflict: "workshop_id,alert_key" }
+              { onConflict: "workshop_id,alert_key" }
+            )
+            .select("id")
+            .maybeSingle();
+          if (legErr || !legacy?.id) {
+            console.warn(
+              "[proactive] legacy upsert alert:",
+              legErr?.message || "sem id retornado"
+            );
+            continue;
+          }
+          const notifId = await maybeNotify(
+            input.supabase,
+            input.workshopId,
+            draft,
+            input.notifyOnCreate
+          );
+          await attachNotificationId(
+            input.supabase,
+            String(legacy.id),
+            input.workshopId,
+            notifId
           );
           result.created += 1;
           result.alerts.push({
@@ -191,9 +226,29 @@ export async function upsertProactiveAlerts(input: {
         console.warn("[proactive] insert alert:", insErr.message);
         continue;
       }
-      if (inserted?.id) {
-        await insertEvent(input.supabase, input.workshopId, String(inserted.id), null, "active", null, "created");
+
+      if (!inserted?.id) {
+        console.warn("[proactive] insert alert: sem id retornado");
+        continue;
       }
+
+      await insertEvent(
+        input.supabase,
+        input.workshopId,
+        String(inserted.id),
+        null,
+        "active",
+        null,
+        "created"
+      );
+      const notifId = await maybeNotify(
+        input.supabase,
+        input.workshopId,
+        draft,
+        input.notifyOnCreate
+      );
+      await attachNotificationId(input.supabase, String(inserted.id), input.workshopId, notifId);
+
       result.created += 1;
       result.alerts.push({
         alertKey: draft.alertKey,
@@ -208,7 +263,7 @@ export async function upsertProactiveAlerts(input: {
     const status = (row.status || (row.dismissed_at ? "dismissed" : "active")) as ProactiveAlertStatus;
 
     if (status === "active" || status === "acknowledged") {
-      await input.supabase
+      const { error: updErr } = await input.supabase
         .from("rda_management_alerts")
         .update({
           severity: draft.severity,
@@ -223,7 +278,12 @@ export async function upsertProactiveAlerts(input: {
           last_seen_at: nowIso,
           updated_at: nowIso,
         })
-        .eq("id", row.id);
+        .eq("id", row.id)
+        .eq("workshop_id", input.workshopId);
+      if (updErr) {
+        console.warn("[proactive] update alert:", updErr.message);
+        continue;
+      }
       result.updated += 1;
       continue;
     }
@@ -237,13 +297,7 @@ export async function upsertProactiveAlerts(input: {
       continue;
     }
 
-    const notifId = await maybeNotify(
-      input.supabase,
-      input.workshopId,
-      draft,
-      input.notifyOnCreate
-    );
-    await input.supabase
+    const { data: reopenedRow, error: reopenErr } = await input.supabase
       .from("rda_management_alerts")
       .update({
         status: "active",
@@ -256,14 +310,25 @@ export async function upsertProactiveAlerts(input: {
         ref_type: draft.refType || null,
         ref_id: draft.refId || null,
         payload: draft.payload || {},
-        notification_id: notifId || row.notification_id,
         dismissed_at: null,
         resolved_at: null,
         acknowledged_at: null,
         last_seen_at: nowIso,
         updated_at: nowIso,
       })
-      .eq("id", row.id);
+      .eq("id", row.id)
+      .eq("workshop_id", input.workshopId)
+      .select("id")
+      .maybeSingle();
+
+    if (reopenErr || !reopenedRow?.id) {
+      console.warn(
+        "[proactive] reopen alert:",
+        reopenErr?.message || "sem id retornado"
+      );
+      continue;
+    }
+
     await insertEvent(
       input.supabase,
       input.workshopId,
@@ -273,6 +338,19 @@ export async function upsertProactiveAlerts(input: {
       null,
       "reopened_by_monitor"
     );
+    const notifId = await maybeNotify(
+      input.supabase,
+      input.workshopId,
+      draft,
+      input.notifyOnCreate
+    );
+    await attachNotificationId(
+      input.supabase,
+      row.id,
+      input.workshopId,
+      notifId || null
+    );
+
     result.reopened += 1;
     result.alerts.push({
       alertKey: draft.alertKey,
@@ -283,6 +361,35 @@ export async function upsertProactiveAlerts(input: {
   }
 
   return result;
+}
+
+export async function getProactiveAlertById(input: {
+  workshopId: string;
+  supabase: SupabaseClient;
+  alertId: string;
+}): Promise<ProactiveAlertView | null> {
+  const { data, error } = await input.supabase
+    .from("rda_management_alerts")
+    .select("*")
+    .eq("workshop_id", input.workshopId)
+    .eq("id", input.alertId)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!data) return null;
+  const r = data as ProactiveAlertRow;
+  return mapRow({
+    ...r,
+    category:
+      r.category ||
+      ((r.payload as { category?: string } | undefined)?.category as ProactiveAlertRow["category"]) ||
+      "patio",
+    status: r.status || (r.dismissed_at ? "dismissed" : "active"),
+    recommendation:
+      r.recommendation ||
+      String((r.payload as { recommendation?: string } | undefined)?.recommendation || ""),
+    evidence:
+      r.evidence || String((r.payload as { evidence?: string } | undefined)?.evidence || ""),
+  });
 }
 
 export async function listProactiveAlerts(input: {
@@ -304,14 +411,12 @@ export async function listProactiveAlerts(input: {
     ? input.statuses
     : (["active", "acknowledged"] as ProactiveAlertStatus[]);
 
-  // Prefer status column; fallback to dismissed_at filter if column missing handled by caller
   q = q.in("status", statuses);
   if (input.category) q = q.eq("category", input.category);
   if (input.severity) q = q.eq("severity", input.severity);
 
   const { data, error } = await q;
   if (error) {
-    // Legacy schema: only dismissed_at
     if (/status|category|schema cache|does not exist/i.test(error.message)) {
       const legacy = await input.supabase
         .from("rda_management_alerts")
@@ -395,6 +500,7 @@ export async function transitionProactiveAlert(input: {
     .select("*")
     .maybeSingle();
   if (updErr) throw new Error(updErr.message);
+  if (!updated) return null;
 
   await insertEvent(
     input.supabase,
@@ -406,7 +512,7 @@ export async function transitionProactiveAlert(input: {
     input.note
   );
 
-  return updated ? mapRow(updated as ProactiveAlertRow) : null;
+  return mapRow(updated as ProactiveAlertRow);
 }
 
 export async function listAlertEvents(input: {

@@ -159,12 +159,30 @@ export async function runProactiveScan(
         alerts: [],
       };
     }
-    // Tabela ainda não migrada — segue sem lock
-    if (!/does not exist|schema cache/i.test(lockErr.message)) {
-      console.warn("[proactive] lock insert:", lockErr.message);
-    }
-  } else {
-    runId = (runRow as { id?: string } | null)?.id;
+    // Qualquer outra falha de lock: não executar sem proteção.
+    console.warn("[proactive] lock insert failed:", lockErr.message);
+    return {
+      ok: false,
+      skipped: false,
+      alertsCreated: 0,
+      alertsUpdated: 0,
+      alertsReopened: 0,
+      alerts: [],
+      error: `lock_failed: ${lockErr.message}`,
+    };
+  }
+
+  runId = (runRow as { id?: string } | null)?.id;
+  if (!runId) {
+    return {
+      ok: false,
+      skipped: false,
+      alertsCreated: 0,
+      alertsUpdated: 0,
+      alertsReopened: 0,
+      alerts: [],
+      error: "lock_not_acquired",
+    };
   }
 
   try {

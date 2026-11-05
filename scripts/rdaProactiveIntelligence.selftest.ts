@@ -5,6 +5,7 @@
 import {
   authorizeToolInvocation,
   buildRecommendation,
+  canAccessProactiveCategory,
   canConfigureProactiveMonitor,
   canViewProactiveIntelligence,
   allowedProactiveCategories,
@@ -81,6 +82,15 @@ console.log("\n2) Permissões");
     permissions: { access_estoque_pecas: true },
   });
   assert(cats.includes("estoque") && cats.length === 1, "só estoque");
+  const patioOnly = {
+    role: "user" as const,
+    flags: { isTechnician: false, permissions: { access_patio: true } },
+    permissions: { access_patio: true },
+  };
+  assert(canAccessProactiveCategory(patioOnly, "patio"), "pátio acessa pátio");
+  assert(!canAccessProactiveCategory(patioOnly, "laboratorio"), "pátio não acessa lab");
+  assert(!canAccessProactiveCategory(patioOnly, "estoque"), "pátio não acessa estoque");
+  assert(!canAccessProactiveCategory(patioOnly, "produtividade"), "pátio não acessa prod");
 }
 
 console.log("\n3) Recomendações e body");

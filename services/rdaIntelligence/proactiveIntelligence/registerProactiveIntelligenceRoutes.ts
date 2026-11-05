@@ -3,6 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { resolveRdaIntelligenceEnabled, RDA_INTELLIGENCE_SETTING_KEY } from "../featureFlag.js";
 import type { RdaAuthContext, RdaRole } from "../types.js";
 import {
+  canAccessProactiveCategory,
   canConfigureProactiveMonitor,
   canMutateProactiveAlerts,
   canViewProactiveIntelligence,
@@ -17,6 +18,7 @@ import {
   listProactiveAlerts,
   filterAlertsForAuth,
 } from "./service.js";
+import { getProactiveAlertById } from "./store.js";
 import type { ProactiveAlertStatus, ProactiveCategory, ProactiveSeverity } from "./types.js";
 
 type SessionLike = { r?: string; u?: string; n?: string };
@@ -157,6 +159,27 @@ export function registerProactiveIntelligenceRoutes(
       ) {
         return res.status(403).json({ error: "Sem permissão para alterar alertas." });
       }
+      const alertId = String(req.params.id || "").trim();
+      const existing = await getProactiveAlertById({
+        workshopId: ctx.workshopId,
+        supabase: deps.supabaseAdmin!,
+        alertId,
+      });
+      if (!existing) return res.status(404).json({ error: "Alerta não encontrado." });
+      if (
+        !canAccessProactiveCategory(
+          {
+            role: ctx.auth.role,
+            flags: ctx.flags,
+            permissions: ctx.flags.permissions,
+          },
+          existing.category
+        )
+      ) {
+        return res.status(403).json({
+          error: "Sem permissão para alterar alertas desta categoria.",
+        });
+      }
       const toStatus = String((req.body as { status?: string })?.status || "").trim() as ProactiveAlertStatus;
       if (!["active", "acknowledged", "resolved", "dismissed"].includes(toStatus)) {
         return res.status(400).json({ error: "status inválido." });
@@ -165,7 +188,7 @@ export function registerProactiveIntelligenceRoutes(
       const alert = await transitionProactiveAlert({
         workshopId: ctx.workshopId,
         supabase: deps.supabaseAdmin!,
-        alertId: String(req.params.id || ""),
+        alertId,
         toStatus,
         actorUserId: ctx.auth.userId,
         note,
@@ -182,10 +205,31 @@ export function registerProactiveIntelligenceRoutes(
     try {
       const ctx = await requireView(req, res);
       if (!ctx) return;
+      const alertId = String(req.params.id || "").trim();
+      const existing = await getProactiveAlertById({
+        workshopId: ctx.workshopId,
+        supabase: deps.supabaseAdmin!,
+        alertId,
+      });
+      if (!existing) return res.status(404).json({ error: "Alerta não encontrado." });
+      if (
+        !canAccessProactiveCategory(
+          {
+            role: ctx.auth.role,
+            flags: ctx.flags,
+            permissions: ctx.flags.permissions,
+          },
+          existing.category
+        )
+      ) {
+        return res.status(403).json({
+          error: "Sem permissão para ver o histórico desta categoria.",
+        });
+      }
       const events = await listAlertEvents({
         workshopId: ctx.workshopId,
         supabase: deps.supabaseAdmin!,
-        alertId: String(req.params.id || ""),
+        alertId,
         limit: 50,
       });
       return res.json({ ok: true, events });
