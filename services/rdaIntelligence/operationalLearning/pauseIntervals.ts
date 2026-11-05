@@ -19,7 +19,17 @@ export type PauseInterval = {
   durationMs: number | null;
 };
 
-function parseTs(iso: string): number | null {
+export type PauseIntervalInPeriod = PauseInterval & {
+  /** Duração atribuída ao período (clipada aos limites). null se desconhecida. */
+  durationMsInPeriod: number | null;
+  /** true se o intervalo começa antes ou termina depois do período (ou ainda aberto). */
+  crossesPeriodBoundary: boolean;
+  /** full = inteiro no período; clipped = atravessa limite; unknown = sem fechamento útil. */
+  attribution: "full" | "clipped" | "unknown";
+};
+
+function parseTs(iso: string | null | undefined): number | null {
+  if (!iso) return null;
   const t = Date.parse(iso);
   return Number.isFinite(t) ? t : null;
 }
@@ -49,7 +59,6 @@ export function computePauseIntervals(events: PauseTimelineEvent[]): PauseInterv
       const type = String(ev.eventType || "").toLowerCase();
       if (type === "pause") {
         if (open) {
-          // Pause sem fechamento explícito antes de outra pause → duração desconhecida
           out.push({
             sessionId,
             reasonId: open.reasonId,
@@ -93,17 +102,82 @@ export function computePauseIntervals(events: PauseTimelineEvent[]): PauseInterv
   return out;
 }
 
+/**
+ * Inclui intervalos que se sobrepõem ao período:
+ * - iniciados no período, ou
+ * - encerrados no período (mesmo que iniciados antes), ou
+ * - ainda abertos que começaram antes/durante e atravessam o recorte.
+ *
+ * Duração reportada = clipada ao período — nunca a duração integral se atravessar limites.
+ */
+export function attributePauseIntervalsToPeriod(
+  intervals: PauseInterval[],
+  period: { from: string; to: string }
+): PauseIntervalInPeriod[] {
+  const from = parseTs(period.from);
+  const to = parseTs(period.to);
+  if (from == null || to == null) return [];
+
+  const out: PauseIntervalInPeriod[] = [];
+  for (const iv of intervals) {
+    const start = parseTs(iv.startedAt);
+    if (start == null) continue;
+    const end = parseTs(iv.endedAt);
+
+    // Sobreposição com [from, to]
+    const overlaps =
+      start <= to && (end == null || end >= from);
+    if (!overlaps) continue;
+
+    const crosses =
+      start < from || end == null || (end != null && end > to);
+
+    let durationMsInPeriod: number | null = null;
+    let attribution: PauseIntervalInPeriod["attribution"] = "unknown";
+
+    if (end == null) {
+      // Aberta: clipamos até o fim do período se já começou
+      const clipStart = Math.max(start, from);
+      const clipEnd = to;
+      if (clipEnd >= clipStart) {
+        durationMsInPeriod = clipEnd - clipStart;
+        attribution = "clipped";
+      } else {
+        durationMsInPeriod = null;
+        attribution = "unknown";
+      }
+    } else {
+      const clipStart = Math.max(start, from);
+      const clipEnd = Math.min(end, to);
+      if (clipEnd >= clipStart) {
+        durationMsInPeriod = clipEnd - clipStart;
+        attribution = crosses ? "clipped" : "full";
+      } else {
+        durationMsInPeriod = null;
+        attribution = "unknown";
+      }
+    }
+
+    out.push({
+      ...iv,
+      durationMsInPeriod,
+      crossesPeriodBoundary: crosses,
+      attribution,
+    });
+  }
+  return out;
+}
+
+/** @deprecated Prefer attributePauseIntervalsToPeriod (inclui iniciadas antes e clipa). */
 export function intervalsOverlappingPeriod(
   intervals: PauseInterval[],
   period: { from: string; to: string }
 ): PauseInterval[] {
-  const from = parseTs(period.from);
-  const to = parseTs(period.to);
-  if (from == null || to == null) return intervals;
-  return intervals.filter((iv) => {
-    const start = parseTs(iv.startedAt);
-    if (start == null) return false;
-    // Inclui pausas que começaram no período (critério principal de contagem).
-    return start >= from && start <= to;
-  });
+  return attributePauseIntervalsToPeriod(intervals, period).map((iv) => ({
+    sessionId: iv.sessionId,
+    reasonId: iv.reasonId,
+    startedAt: iv.startedAt,
+    endedAt: iv.endedAt,
+    durationMs: iv.durationMsInPeriod,
+  }));
 }

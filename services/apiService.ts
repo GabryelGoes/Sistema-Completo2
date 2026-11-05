@@ -7249,6 +7249,15 @@ export type RdaOperationalDashboard = {
   ok: boolean;
   disclaimer: string;
   period: { from: string; to: string };
+  completeness?: {
+    complete: boolean;
+    truncated: boolean;
+    finishedFetched?: number;
+    finishedLimit?: number;
+    openFetched?: number;
+    openLimit?: number;
+    note: string | null;
+  };
   overview: {
     period: { from: string; to: string };
     diagnosticMs: number;

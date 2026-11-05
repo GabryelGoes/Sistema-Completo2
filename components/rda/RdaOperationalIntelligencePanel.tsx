@@ -152,6 +152,12 @@ export const RdaOperationalIntelligencePanel: React.FC<Props> = ({
           <p className="text-[13px] text-zinc-500">Carregando…</p>
         ) : data ? (
           <div className="space-y-8">
+            {data.completeness?.truncated ? (
+              <p className="rounded-lg border border-amber-300/80 bg-amber-50 px-3 py-2 text-[12px] text-amber-900 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-100">
+                {data.completeness.note ||
+                  'Resultados incompletos — limite de consulta atingido. Refine o período.'}
+              </p>
+            ) : null}
             <section>
               <h2 className="mb-1 text-[14px] font-semibold">Visão geral</h2>
               <p className="mb-3 text-[12px] text-zinc-500">{data.disclaimer}</p>

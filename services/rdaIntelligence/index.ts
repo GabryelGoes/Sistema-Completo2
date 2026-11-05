@@ -159,13 +159,21 @@ export {
   clampOpsOffset,
 } from "./operationalLearning/aggregations.js";
 export {
+  attributePauseIntervalsToPeriod,
   computePauseIntervals,
   intervalsOverlappingPeriod,
 } from "./operationalLearning/pauseIntervals.js";
+export {
+  factsForPeriodAnalysis,
+  finishedSessionInPeriod,
+  openSessionRelevantToPeriod,
+  partitionFactsByPeriod,
+} from "./operationalLearning/periodAttribution.js";
 export { detectOperationalPatterns } from "./operationalLearning/patterns.js";
 export { registerOperationalLearningRoutes } from "./operationalLearning/registerOperationalLearningRoutes.js";
 export {
   OPS_SESSION_SELECT_PRODUCTION,
   OPS_QUERY_DEFAULT_LIMIT,
   OPS_QUERY_MAX_LIMIT,
+  OPS_QUERY_MAX_ROWS,
 } from "./operationalLearning/types.js";

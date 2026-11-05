@@ -64,13 +64,27 @@ export type OpsPauseReasonRow = {
   label: string;
   pauseEventCount: number;
   /**
-   * Soma das durações calculadas por timestamps (pause→resume/finish/cancel).
-   * null = duração por motivo desconhecida (faltam eventos de fechamento).
+   * Soma das durações ATRIBUÍDAS AO PERÍODO (clipadas).
+   * null = duração desconhecida ou mistura com desconhecidas.
    */
   pausedMs: number | null;
   durationKnownCount: number;
   durationUnknownCount: number;
+  /** Intervalos que atravessam o limite do período (duração clipada, não integral). */
+  crossBoundaryCount: number;
   durationNote: string;
+};
+
+export type OpsLoadCompleteness = {
+  complete: boolean;
+  truncated: boolean;
+  finishedFetched: number;
+  finishedLimit: number;
+  openFetched: number;
+  openLimit: number;
+  pauseEventsFetched?: number;
+  pauseEventsLimit?: number;
+  note: string | null;
 };
 
 export type OpsBucketTotals = {

@@ -43,8 +43,8 @@ export function buildOverview(facts: OpsSessionFact[], period: OpsPeriod): OpsOv
     openSessions: open.length,
     confidenceNote:
       n === 0
-        ? "Sem sessões finalizadas no período. Totais consolidados usam só finished; abertas ficam em open (parciais)."
-        : `Base consolidada: ${n} sessão(ões) finalizada(s). Abertas/pausadas em open.*. Tempo apontado ≠ tempo desde a entrada do veículo.`,
+        ? "Sem sessões finalizadas (ended_at) no período. Totais consolidados usam só finished; abertas ficam em open (parciais)."
+        : `Base consolidada: ${n} sessão(ões) com ended_at no período. Abertas/pausadas em open.*. Tempo apontado ≠ tempo desde a entrada do veículo.`,
     reconciliationNote,
   };
 }
@@ -109,7 +109,9 @@ export function buildPauseReasonRows(
   pauseEvents: Array<{
     reasonId: string;
     label: string;
+    /** Duração já atribuída ao período (clipada). */
     pausedMs: number | null;
+    crossesPeriodBoundary?: boolean;
   }>,
   limit = 30
 ): OpsPauseReasonRow[] {
@@ -122,6 +124,7 @@ export function buildPauseReasonRows(
       knownSum: number;
       knownCount: number;
       unknownCount: number;
+      crossBoundaryCount: number;
     }
   >();
 
@@ -134,8 +137,10 @@ export function buildPauseReasonRows(
       knownSum: 0,
       knownCount: 0,
       unknownCount: 0,
+      crossBoundaryCount: 0,
     };
     cur.pauseEventCount += 1;
+    if (ev.crossesPeriodBoundary) cur.crossBoundaryCount += 1;
     if (ev.pausedMs != null && Number.isFinite(ev.pausedMs) && ev.pausedMs >= 0) {
       cur.knownSum += ev.pausedMs;
       cur.knownCount += 1;
@@ -149,6 +154,10 @@ export function buildPauseReasonRows(
     .map((cur) => {
       const allKnown = cur.unknownCount === 0 && cur.knownCount > 0;
       const noneKnown = cur.knownCount === 0;
+      const clipNote =
+        cur.crossBoundaryCount > 0
+          ? ` ${cur.crossBoundaryCount} intervalo(s) atravessam o período — duração clipada ao recorte (não integral).`
+          : "";
       return {
         reasonId: cur.reasonId,
         label: cur.label,
@@ -156,11 +165,14 @@ export function buildPauseReasonRows(
         pausedMs: allKnown ? cur.knownSum : null,
         durationKnownCount: cur.knownCount,
         durationUnknownCount: cur.unknownCount,
-        durationNote: noneKnown
-          ? "Duração por motivo desconhecida (faltam timestamps de fechamento pause→resume/finish)."
-          : allKnown
-            ? `Duração somada a partir de ${cur.knownCount} intervalo(s) com timestamps.`
-            : `Parcial: ${cur.knownCount} com duração conhecida, ${cur.unknownCount} desconhecida(s) — total por motivo omitido.`,
+        crossBoundaryCount: cur.crossBoundaryCount,
+        durationNote:
+          (noneKnown
+            ? "Duração por motivo desconhecida (faltam timestamps de fechamento pause→resume/finish)."
+            : allKnown
+              ? `Duração no período somada a partir de ${cur.knownCount} intervalo(s) (timestamps; clipada se atravessar limites).`
+              : `Parcial: ${cur.knownCount} com duração conhecida, ${cur.unknownCount} desconhecida(s) — total por motivo omitido.`) +
+          clipNote,
       } satisfies OpsPauseReasonRow;
     })
     .sort((a, b) => b.pauseEventCount - a.pauseEventCount)

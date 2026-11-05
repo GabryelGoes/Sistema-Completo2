@@ -3,6 +3,7 @@
  * npm run test:rda-ops
  */
 import {
+  attributePauseIntervalsToPeriod,
   authorizeToolInvocation,
   buildDistribution,
   buildOverview,
@@ -18,9 +19,13 @@ import {
   definitiveOccurrenceDurations,
   definitiveProductiveValues,
   detectOperationalPatterns,
+  factsForPeriodAnalysis,
+  finishedSessionInPeriod,
   medianMs,
   OPS_QUERY_MAX_LIMIT,
   OPS_SESSION_SELECT_PRODUCTION,
+  openSessionRelevantToPeriod,
+  partitionFactsByPeriod,
   productionRdaToolRegistry,
   serviceKeyFromDescription,
   serviceOccurrenceKey,
@@ -568,6 +573,147 @@ console.log("\n10) bucketTotals identidade");
     }),
   ]);
   assert(b.productiveMs === 30 && b.pausedMs === 10 && b.totalPointedMs === 40, "bucket id");
+}
+
+console.log("\n11) Período por ended_at + abertas separadas");
+{
+  const period = { from: "2026-08-01T00:00:00.000Z", to: "2026-08-31T23:59:59.000Z" };
+  const startedBeforeEndedIn = fact({
+    id: "cross-fin",
+    os: "os1",
+    tech: "t1",
+    kind: "execution",
+    status: "finished",
+    started: "2026-07-20T10:00:00Z",
+    ended: "2026-08-05T12:00:00Z",
+    productive: 5_000_000,
+    paused: 0,
+    desc: "ABS",
+  });
+  const endedBefore = fact({
+    id: "old-fin",
+    os: "os2",
+    tech: "t1",
+    kind: "execution",
+    status: "finished",
+    started: "2026-07-01T10:00:00Z",
+    ended: "2026-07-15T12:00:00Z",
+    productive: 1_000_000,
+    paused: 0,
+    desc: "ABS",
+  });
+  const openFromBefore = fact({
+    id: "open-old",
+    os: "os3",
+    tech: "t2",
+    kind: "diagnostic",
+    status: "running",
+    started: "2026-07-25T08:00:00Z",
+    productive: 400_000,
+    paused: 0,
+    desc: "Diag",
+  });
+  assert(finishedSessionInPeriod(startedBeforeEndedIn, period), "finished por ended_at no período");
+  assert(!finishedSessionInPeriod(endedBefore, period), "finished fora (ended_at antes) excluída");
+  assert(openSessionRelevantToPeriod(openFromBefore, period), "aberta iniciada antes entra");
+  const part = partitionFactsByPeriod(
+    [startedBeforeEndedIn, endedBefore, openFromBefore],
+    period
+  );
+  assert(part.finishedOrCancelled.length === 1, "só 1 finished no período");
+  assert(part.open.length === 1, "1 aberta separada");
+  assert(part.excluded.length === 1, "1 excluída");
+  const analyzed = factsForPeriodAnalysis(
+    [startedBeforeEndedIn, endedBefore, openFromBefore],
+    period
+  );
+  assert(analyzed.length === 2, "análise = finished no período + abertas");
+  const ov = buildOverview(analyzed, period);
+  assert(ov.finished.executionProductiveMs === 5_000_000, "inclui iniciada antes / ended_at no mês");
+  assert(ov.open.sessions === 1, "aberta não mistura no consolidado");
+  assert(ov.totalPointedMs === 5_000_000, "consolidado sem parcial da aberta");
+}
+
+console.log("\n12) Pausas atravessando período (clip, não integral)");
+{
+  const period = { from: "2026-09-10T00:00:00.000Z", to: "2026-09-10T12:00:00.000Z" };
+  const raw = computePauseIntervals([
+    {
+      sessionId: "s",
+      eventType: "pause",
+      occurredAt: "2026-09-09T22:00:00.000Z", // antes
+      pauseReasonId: "awaiting_parts",
+    },
+    {
+      sessionId: "s",
+      eventType: "resume",
+      occurredAt: "2026-09-10T02:00:00.000Z", // fecha no período
+      pauseReasonId: null,
+    },
+    {
+      sessionId: "s",
+      eventType: "pause",
+      occurredAt: "2026-09-10T10:00:00.000Z",
+      pauseReasonId: "break",
+    },
+    {
+      sessionId: "s",
+      eventType: "resume",
+      occurredAt: "2026-09-10T14:00:00.000Z", // termina depois
+      pauseReasonId: null,
+    },
+    {
+      sessionId: "s2",
+      eventType: "pause",
+      occurredAt: "2026-09-08T10:00:00.000Z",
+      pauseReasonId: "awaiting_tools",
+    },
+    {
+      sessionId: "s2",
+      eventType: "resume",
+      occurredAt: "2026-09-08T11:00:00.000Z", // totalmente antes
+      pauseReasonId: null,
+    },
+  ]);
+  const attributed = attributePauseIntervalsToPeriod(raw, period);
+  assert(attributed.length === 2, "2 intervalos sobrepõem o período (exclui total antes)");
+  const crossIn = attributed.find((a) => a.reasonId === "awaiting_parts")!;
+  assert(crossIn.crossesPeriodBoundary, "iniciada antes marca boundary");
+  assert(crossIn.attribution === "clipped", "attribution clipped");
+  // 00:00→02:00 no período = 2h (não as 4h integrais 22:00→02:00)
+  assert(crossIn.durationMsInPeriod === 2 * 60 * 60 * 1000, "duração clipada 2h no período");
+  assert(crossIn.durationMs === 4 * 60 * 60 * 1000, "duração integral 4h preservada à parte");
+  const crossOut = attributed.find((a) => a.reasonId === "break")!;
+  assert(crossOut.crossesPeriodBoundary, "termina depois marca boundary");
+  assert(crossOut.durationMsInPeriod === 2 * 60 * 60 * 1000, "break clipado 10:00→12:00 = 2h");
+  assert(crossOut.durationMs === 4 * 60 * 60 * 1000, "break integral 4h não atribuído ao período");
+
+  const rows = buildPauseReasonRows(
+    attributed.map((a) => ({
+      reasonId: a.reasonId,
+      label: a.reasonId,
+      pausedMs: a.durationMsInPeriod,
+      crossesPeriodBoundary: a.crossesPeriodBoundary,
+    })),
+    10
+  );
+  const parts = rows.find((r) => r.reasonId === "awaiting_parts")!;
+  assert(parts.pausedMs === 2 * 60 * 60 * 1000, "agregado usa clip, não integral");
+  assert(parts.crossBoundaryCount === 1, "crossBoundaryCount");
+  assert(parts.durationNote.includes("clipada"), "nota menciona clip");
+}
+
+console.log("\n13) Sinalização de resultados incompletos (limites)");
+{
+  const finishedFetched = 5000;
+  const finishedLimit = 5000;
+  const truncated = finishedFetched >= finishedLimit;
+  const truncatedNote = truncated
+    ? `Resultados incompletos: limite atingido (finished ${finishedFetched}/${finishedLimit})`
+    : null;
+  assert(truncated, "limite saturado → truncated");
+  assert(!!truncatedNote && truncatedNote.includes("incompletos"), "mensagem de truncamento");
+  assert(clampOpsLimit(OPS_QUERY_MAX_LIMIT + 50) === OPS_QUERY_MAX_LIMIT, "cap de paginação");
 }
 
 console.log(`\nResultado: ${passed} ok, ${failed} fail`);
