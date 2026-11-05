@@ -7244,3 +7244,93 @@ export async function purgeRdaKnowledge(
   });
   return rdaKnowledgeJson(response);
 }
+
+export type RdaOperationalDashboard = {
+  ok: boolean;
+  disclaimer: string;
+  period: { from: string; to: string };
+  overview: {
+    period: { from: string; to: string };
+    diagnosticMs: number;
+    executionMs: number;
+    pausedMs: number;
+    totalPointedMs: number;
+    finishedSessions: number;
+    openSessions: number;
+    cancelledSessions: number;
+    servicesFinishedCount: number;
+    confidenceNote: string;
+  };
+  formatted: {
+    diagnostic: string;
+    execution: string;
+    paused: string;
+    totalPointed: string;
+  };
+  services: Array<{
+    serviceKey: string;
+    serviceLabel: string;
+    distribution: {
+      sampleCount: number;
+      medianMs: number | null;
+      p25Ms: number | null;
+      p75Ms: number | null;
+      confidence: string;
+      note: string;
+    };
+  }>;
+  diagnostics: RdaOperationalDashboard["services"];
+  executions: RdaOperationalDashboard["services"];
+  pauses: Array<{
+    reasonId: string;
+    label: string;
+    pauseEventCount: number;
+    pausedMs: number | null;
+  }>;
+  technicians: Array<{
+    technicianUserId: string;
+    displayName: string;
+    diagnosticFormatted: string;
+    executionFormatted: string;
+    pausedFormatted: string;
+    finishedSessions: number;
+    openSessions: number;
+  }>;
+  patterns: Array<{
+    id: string;
+    kind: string;
+    title: string;
+    summary: string;
+    sampleCount: number;
+    confidence: string;
+    proposedKnowledge: {
+      title: string;
+      content: string;
+      category: string;
+      knowledgeKeyHint: string;
+    };
+  }>;
+};
+
+export async function fetchRdaOperationalDashboard(input?: {
+  days?: number;
+  from?: string;
+  to?: string;
+  service?: string;
+  technicianUserId?: string;
+}): Promise<RdaOperationalDashboard> {
+  const qs = new URLSearchParams();
+  if (input?.days != null) qs.set("days", String(input.days));
+  if (input?.from) qs.set("from", input.from);
+  if (input?.to) qs.set("to", input.to);
+  if (input?.service) qs.set("service", input.service);
+  if (input?.technicianUserId) qs.set("technicianUserId", input.technicianUserId);
+  const response = await fetch(`${API_BASE}/rda/operational/dashboard?${qs.toString()}`);
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(
+      (err as { error?: string }).error || "Falha ao carregar Inteligência Operacional."
+    );
+  }
+  return response.json();
+}

@@ -130,3 +130,28 @@ export {
   RDA_KNOWLEDGE_LIFECYCLES,
   type RdaKnowledgeDto,
 } from "./knowledge/types.js";
+
+export {
+  canViewOperationalIntelligence,
+  canViewTechnicianTimeBreakdown,
+} from "./operationalLearning/access.js";
+export {
+  buildDistribution,
+  confidenceFromSamples,
+  formatDurationPt,
+  medianMs,
+  percentileNearestRank,
+} from "./operationalLearning/stats.js";
+export {
+  definitiveProductiveValues,
+  serviceKeyFromDescription,
+  toSessionFact,
+} from "./operationalLearning/sessionFacts.js";
+export {
+  buildOverview,
+  buildPauseReasonRows,
+  buildServiceDurationRows,
+  buildTechnicianBreakdown,
+} from "./operationalLearning/aggregations.js";
+export { detectOperationalPatterns } from "./operationalLearning/patterns.js";
+export { registerOperationalLearningRoutes } from "./operationalLearning/registerOperationalLearningRoutes.js";

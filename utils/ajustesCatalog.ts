@@ -32,7 +32,8 @@ export type AjustesItemId =
   | 'dispositivo'
   | 'dispositivos_conectados'
   | 'etiquetas'
-  | 'memoria_rda';
+  | 'memoria_rda'
+  | 'inteligencia_operacional';
 
 export type AjustesItemKind = 'action' | 'external';
 
@@ -126,7 +127,7 @@ export const AJUSTES_CATEGORIES: AjustesCategoryMeta[] = [
   {
     id: 'inteligencia',
     label: 'RDA Intelligence',
-    hint: 'Memória permanente e assistente',
+    hint: 'Memória, tempos e aprendizado operacional',
     iconSrc: '/icons/configuracoes-ios.png',
   },
 ];
@@ -264,6 +265,14 @@ export const AJUSTES_ITEMS: AjustesItemMeta[] = [
     categoryId: 'inteligencia',
     title: 'Memória do RDA',
     subtitle: 'Regras, procedimentos e orientações aprovadas',
+    kind: 'action',
+    iconFallback: 'wrench',
+  },
+  {
+    id: 'inteligencia_operacional',
+    categoryId: 'inteligencia',
+    title: 'Inteligência Operacional',
+    subtitle: 'Tempos, padrões históricos e recomendações',
     kind: 'action',
     iconFallback: 'wrench',
   },

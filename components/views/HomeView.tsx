@@ -28,6 +28,7 @@ import { UserProfileModal } from '../UserProfileModal';
 import { AjustesHubPanel, type AjustesVisibility } from '../ajustes/AjustesHubPanel';
 import type { AjustesItemId } from '../../utils/ajustesCatalog';
 import { RdaKnowledgeMemoryPanel } from '../rda/RdaKnowledgeMemoryPanel';
+import { RdaOperationalIntelligencePanel } from '../rda/RdaOperationalIntelligencePanel';
 import { QUALITY_RADAR_ICON } from '../../constants/qualityRadar';
 import { ERROR_BULLETIN_ICON, TECHNICAL_BULLETINS_MODULE_LABEL } from '../../constants/errorBulletinIcon';
 import { effectiveAccessOrcamentos, type SystemUserPermissions } from '../../services/apiService';
@@ -261,6 +262,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
   const [isBudgetPrefsOpen, setIsBudgetPrefsOpen] = useState(false);
   const [isLabelEditorOpen, setIsLabelEditorOpen] = useState(false);
   const [isRdaMemoryOpen, setIsRdaMemoryOpen] = useState(false);
+  const [isRdaOpsOpen, setIsRdaOpsOpen] = useState(false);
 
   const closeAllSettingsChildModals = useCallback(() => {
     setIsServicesModalOpen(false);
@@ -388,6 +390,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
       dispositivo: true,
       etiquetas: showFullAdminHub || !!perms.access_settings || !!perms.full_access,
       memoria_rda: isWorkshopAdmin || (isSystemUser && !!perms.full_access),
+      inteligencia_operacional:
+        isWorkshopAdmin ||
+        (isSystemUser && (!!perms.full_access || !!perms.access_radar_qualidade)),
     }),
     [
       isSystemUser,
@@ -395,6 +400,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
       technicianId,
       isWorkshopAdmin,
       perms.full_access,
+      perms.access_radar_qualidade,
       perms.access_servicos_oficina,
       perms.access_checklists_patio,
       perms.access_tv_patio,
@@ -463,6 +469,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
           break;
         case 'memoria_rda':
           setIsRdaMemoryOpen(true);
+          break;
+        case 'inteligencia_operacional':
+          setIsRdaOpsOpen(true);
           break;
         default:
           break;
@@ -637,6 +646,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
       isBudgetPrefsOpen ||
       isLabelEditorOpen ||
       isRdaMemoryOpen ||
+      isRdaOpsOpen ||
       (!onOpenTvPatio && isTvPatioOpen) ||
       (Boolean(technicianId) && isTechnicianProfileOpen) ||
       isAdminProfileOpen ||
@@ -656,6 +666,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
       isBudgetPrefsOpen,
       isLabelEditorOpen,
       isRdaMemoryOpen,
+      isRdaOpsOpen,
       onOpenTvPatio,
       isTvPatioOpen,
       technicianId,
@@ -685,6 +696,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
   useBrowserBackLayer(isBudgetPrefsOpen, () => setIsBudgetPrefsOpen(false));
   useBrowserBackLayer(isLabelEditorOpen, () => setIsLabelEditorOpen(false));
   useBrowserBackLayer(isRdaMemoryOpen, () => setIsRdaMemoryOpen(false));
+  useBrowserBackLayer(isRdaOpsOpen, () => setIsRdaOpsOpen(false));
   useBrowserBackLayer(isHeaderProfileMenuOpen, () => setIsHeaderProfileMenuOpen(false));
 
   const operationalForView = useMemo(() => {
@@ -1269,6 +1281,11 @@ export const HomeView: React.FC<HomeViewProps> = ({
           <RdaKnowledgeMemoryPanel
             isOpen={isRdaMemoryOpen}
             onClose={() => setIsRdaMemoryOpen(false)}
+            desktopShell={Boolean(desktopShell)}
+          />
+          <RdaOperationalIntelligencePanel
+            isOpen={isRdaOpsOpen}
+            onClose={() => setIsRdaOpsOpen(false)}
             desktopShell={Boolean(desktopShell)}
           />
           <SystemUsersModal isOpen={isSystemUsersOpen} onClose={() => setIsSystemUsersOpen(false)} refreshTrigger={systemUsersRefreshTrigger} />

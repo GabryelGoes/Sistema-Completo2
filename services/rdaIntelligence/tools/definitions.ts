@@ -475,4 +475,106 @@ export const RDA_PRODUCTION_TOOLS: RdaToolDefinition[] = [
     side: "write",
     requiresHumanConfirmation: true,
   },
+  // ----- Fase 2: Aprendizado Operacional (apontamentos reais; sem SQL arbitrário) -----
+  {
+    id: "rda_ops_overview",
+    description:
+      "Visão geral dos tempos apontados no período: diagnóstico, execução, pausas e total apontado. Não confundir com tempo desde a entrada do veículo. Informe n de sessões e limitações.",
+    parameters: {
+      type: "object",
+      properties: {
+        from: { type: "string" },
+        to: { type: "string" },
+        days: { type: "number", description: "Janela em dias se from/to omitidos (default 30)" },
+        serviceQuery: { type: "string", description: "Filtro por descrição/chave do serviço" },
+      },
+      required: [],
+      additionalProperties: false,
+    },
+    requiredPermission: "access_radar_qualidade",
+    side: "read",
+    requiresHumanConfirmation: false,
+  },
+  {
+    id: "rda_ops_service_duration_stats",
+    description:
+      "Estatísticas de duração típica por tipo de serviço (mediana, p25/p75, n, confiança). Só sessões finished entram na distribuição. Use para perguntas como 'quanto tempo geralmente levamos para trocar um módulo ABS?'.",
+    parameters: {
+      type: "object",
+      properties: {
+        from: { type: "string" },
+        to: { type: "string" },
+        days: { type: "number" },
+        serviceQuery: { type: "string" },
+        timeKind: {
+          type: "string",
+          description: "diagnostic | execution | all (default all)",
+        },
+        limit: { type: "number" },
+      },
+      required: [],
+      additionalProperties: false,
+    },
+    requiredPermission: "access_radar_qualidade",
+    side: "read",
+    requiresHumanConfirmation: false,
+  },
+  {
+    id: "rda_ops_pause_reasons_summary",
+    description:
+      "Motivos de pausa mais recorrentes no período (contagem de eventos). Pausas não contam como tempo produtivo.",
+    parameters: {
+      type: "object",
+      properties: {
+        from: { type: "string" },
+        to: { type: "string" },
+        days: { type: "number" },
+        limit: { type: "number" },
+      },
+      required: [],
+      additionalProperties: false,
+    },
+    requiredPermission: "access_radar_qualidade",
+    side: "read",
+    requiresHumanConfirmation: false,
+  },
+  {
+    id: "rda_ops_technician_time_breakdown",
+    description:
+      "Tempo apontado por técnico (diagnóstico / execução / pausas). Uso descritivo — NÃO emitir ranking punitivo nem julgamento automático de desempenho.",
+    parameters: {
+      type: "object",
+      properties: {
+        from: { type: "string" },
+        to: { type: "string" },
+        days: { type: "number" },
+        technicianUserId: { type: "string" },
+        serviceQuery: { type: "string" },
+      },
+      required: [],
+      additionalProperties: false,
+    },
+    requiredPermission: "access_radar_qualidade",
+    side: "read",
+    requiresHumanConfirmation: false,
+  },
+  {
+    id: "rda_ops_detect_patterns",
+    description:
+      "Detecta padrões operacionais (diagnósticos demorados, alta variação, pausas frequentes) com n e confiança. Retorna rascunhos sugeridos para Memória — nunca grava como regra oficial. Para persistir, use rda_propose_knowledge com confirmação.",
+    parameters: {
+      type: "object",
+      properties: {
+        from: { type: "string" },
+        to: { type: "string" },
+        days: { type: "number" },
+        serviceQuery: { type: "string" },
+      },
+      required: [],
+      additionalProperties: false,
+    },
+    requiredPermission: "access_radar_qualidade",
+    side: "read",
+    requiresHumanConfirmation: false,
+  },
 ];
