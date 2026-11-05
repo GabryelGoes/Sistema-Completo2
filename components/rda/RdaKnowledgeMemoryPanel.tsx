@@ -12,6 +12,8 @@ import {
   retireRdaKnowledge,
   type RdaKnowledgeListItem,
 } from '../../services/apiService';
+import { NESTED_IOS_MODAL_PICKER_Z } from '../ui/iosModalStyles';
+import { RdaSettingsChildShell } from './RdaSettingsChildShell';
 
 type TabId = 'approved' | 'pending_approval' | 'draft' | 'retired';
 
@@ -97,8 +99,6 @@ export const RdaKnowledgeMemoryPanel: React.FC<Props> = ({
     [items, selectedId, detail]
   );
 
-  if (!isOpen) return null;
-
   async function runAction(fn: () => Promise<unknown>, okMsg: string) {
     setBusy(true);
     setMsg(null);
@@ -119,13 +119,11 @@ export const RdaKnowledgeMemoryPanel: React.FC<Props> = ({
   }
 
   return (
-    <div
-      className={`fixed inset-0 z-[70] flex min-h-0 flex-col bg-zinc-100 text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100 ${
-        desktopShell ? '' : ''
-      }`}
-      role="dialog"
-      aria-modal="true"
-      aria-label="Memória do RDA"
+    <RdaSettingsChildShell
+      isOpen={isOpen}
+      onClose={onClose}
+      desktopShell={desktopShell}
+      ariaLabel="Memória do RDA"
     >
       <header className="shrink-0 border-b border-zinc-200 bg-white px-4 py-3 dark:border-zinc-800 dark:bg-zinc-900">
         <div className="mx-auto flex max-w-5xl items-center gap-3">
@@ -409,7 +407,9 @@ export const RdaKnowledgeMemoryPanel: React.FC<Props> = ({
       </div>
 
       {composeOpen ? (
-        <div className="fixed inset-0 z-[80] flex items-end justify-center bg-black/40 p-4 sm:items-center">
+        <div
+          className={`fixed inset-0 ${NESTED_IOS_MODAL_PICKER_Z} flex items-end justify-center bg-black/40 p-4 sm:items-center`}
+        >
           <div className="w-full max-w-lg rounded-2xl bg-white p-4 shadow-xl dark:bg-zinc-900">
             <div className="mb-3 flex items-center justify-between">
               <h3 className="text-[16px] font-semibold">Nova proposta</h3>
@@ -471,6 +471,6 @@ export const RdaKnowledgeMemoryPanel: React.FC<Props> = ({
           </div>
         </div>
       ) : null}
-    </div>
+    </RdaSettingsChildShell>
   );
 };

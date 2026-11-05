@@ -5,6 +5,7 @@ import {
   proposeRdaKnowledge,
   type RdaLabEstoqueIntelDashboard,
 } from '../../services/apiService';
+import { RdaSettingsChildShell } from './RdaSettingsChildShell';
 
 type Props = {
   isOpen: boolean;
@@ -12,7 +13,11 @@ type Props = {
   desktopShell?: boolean;
 };
 
-export const RdaLabEstoqueIntelligencePanel: React.FC<Props> = ({ isOpen, onClose }) => {
+export const RdaLabEstoqueIntelligencePanel: React.FC<Props> = ({
+  isOpen,
+  onClose,
+  desktopShell,
+}) => {
   const [data, setData] = useState<RdaLabEstoqueIntelDashboard | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -38,14 +43,12 @@ export const RdaLabEstoqueIntelligencePanel: React.FC<Props> = ({ isOpen, onClos
     void load();
   }, [isOpen, load]);
 
-  if (!isOpen) return null;
-
   return (
-    <div
-      className="fixed inset-0 z-[70] flex min-h-0 flex-col bg-zinc-100 text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100"
-      role="dialog"
-      aria-modal="true"
-      aria-label="Inteligência do Laboratório e Estoque"
+    <RdaSettingsChildShell
+      isOpen={isOpen}
+      onClose={onClose}
+      desktopShell={desktopShell}
+      ariaLabel="Inteligência do Laboratório e Estoque"
     >
       <header className="shrink-0 border-b border-zinc-200 bg-white px-4 py-3 dark:border-zinc-800 dark:bg-zinc-900">
         <div className="mx-auto flex max-w-5xl items-center gap-3">
@@ -295,6 +298,6 @@ export const RdaLabEstoqueIntelligencePanel: React.FC<Props> = ({ isOpen, onClos
           </div>
         ) : null}
       </div>
-    </div>
+    </RdaSettingsChildShell>
   );
 };
