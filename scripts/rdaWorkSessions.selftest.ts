@@ -27,6 +27,12 @@ import {
   OS_GENERAL_SERVICE_LINE_ID,
   readBudgetServiceLineId,
 } from '../utils/budgetServiceLineId.js';
+import {
+  aggregateOsTimeIndicators,
+  canStartOrResumeTimeKind,
+  timeKindAllowedForOsStatus,
+  timeKindsToAutoPauseOnStageChange,
+} from '../services/rdaIntelligence/workSessions/stageRules.js';
 
 let passed = 0;
 let failed = 0;
@@ -371,6 +377,60 @@ console.log('\n13) Separação Pátio × Lab (filtro orderType)');
     'filtro vehicle soma só pátio'
   );
   assert(lab.reduce((a, r) => a + r.productive, 0) === 20, 'filtro module soma só lab');
+}
+
+console.log('\n14) Etapas × time_kind');
+{
+  assert(timeKindAllowedForOsStatus('EM_SERVICO') === 'execution', 'EM_SERVICO → execução');
+  assert(
+    timeKindAllowedForOsStatus('AVALIACAO_TECNICA') === 'diagnostic',
+    'AVALIACAO_TECNICA → diagnóstico'
+  );
+  assert(timeKindAllowedForOsStatus('AGUARDANDO_PECAS') === null, 'espera peças sem produtivo');
+  assert(timeKindAllowedForOsStatus('AGUARDANDO_APROVACAO') === null, 'espera aprovação sem produtivo');
+  assert(timeKindAllowedForOsStatus('ORCAMENTO_APROVADO') === null, 'orçamento aprovado sem produtivo');
+  assert(timeKindAllowedForOsStatus('FASE_DE_TESTE') === null, 'fase teste sem produtivo');
+  assert(canStartOrResumeTimeKind('execution', 'EM_SERVICO') === true, 'pode iniciar execução');
+  assert(canStartOrResumeTimeKind('execution', 'AVALIACAO_TECNICA') === false, 'não execução em avaliação');
+  assert(canStartOrResumeTimeKind('diagnostic', 'AVALIACAO_TECNICA') === true, 'pode diagnosticar');
+  assert(canStartOrResumeTimeKind('diagnostic', 'EM_SERVICO') === false, 'diagnóstico só em avaliação');
+}
+
+console.log('\n15) Auto-pause ao sair da etapa');
+{
+  const leaveService = timeKindsToAutoPauseOnStageChange({
+    previousStatus: 'EM_SERVICO',
+    nextStatus: 'AGUARDANDO_PECAS',
+  });
+  assert(leaveService.includes('execution') && leaveService.length === 1, 'sai EM_SERVICO → pause execução');
+  const leaveDiag = timeKindsToAutoPauseOnStageChange({
+    previousStatus: 'AVALIACAO_TECNICA',
+    nextStatus: 'AGUARDANDO_APROVACAO',
+  });
+  assert(leaveDiag.includes('diagnostic') && leaveDiag.length === 1, 'sai avaliação → pause diagnóstico');
+  const enterService = timeKindsToAutoPauseOnStageChange({
+    previousStatus: 'AGUARDANDO_PECAS',
+    nextStatus: 'EM_SERVICO',
+  });
+  assert(enterService.length === 0, 'entrar em EM_SERVICO não pausa');
+  const same = timeKindsToAutoPauseOnStageChange({
+    previousStatus: 'EM_SERVICO',
+    nextStatus: 'EM_SERVICO',
+  });
+  assert(same.length === 0, 'mesma etapa = noop');
+}
+
+console.log('\n16) Indicadores separados + preservação de totais');
+{
+  const ind = aggregateOsTimeIndicators([
+    { timeKind: 'execution', liveProductiveMs: 60_000, livePausedMs: 10_000 },
+    { timeKind: 'diagnostic', liveProductiveMs: 30_000, livePausedMs: 5_000 },
+    { timeKind: 'execution', productiveMs: 20_000, pausedMs: 0 },
+  ]);
+  assert(ind.executionMs === 80_000, 'execução soma');
+  assert(ind.diagnosticMs === 30_000, 'diagnóstico separado');
+  assert(ind.pausedMs === 15_000, 'pausas somadas');
+  assert(ind.totalOsMs === 125_000, 'total = diag + exec + pausas');
 }
 
 console.log(`\nResultado: ${passed} ok, ${failed} falhas`);

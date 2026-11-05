@@ -11135,6 +11135,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             serviceOrderId={selectedCard.id}
                             technicianUserId={workTimeTechnician.userId}
                             technicianDisplayName={workTimeTechnician.displayName}
+                            serviceOrderStatus={selectedCard.idList}
                             defaultExpanded
                           />
                         ) : null}
@@ -12500,6 +12501,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             serviceOrderId={selectedCard.id}
                             technicianUserId={workTimeTechnician.userId}
                             technicianDisplayName={workTimeTechnician.displayName}
+                            serviceOrderStatus={selectedCard.idList}
                             defaultExpanded={false}
                             className="mt-3 mb-0"
                           />

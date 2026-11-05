@@ -20,12 +20,20 @@ import {
   newClientMutationId,
   type ServerClockSync,
 } from '../../services/rdaIntelligence/workSessions/timing';
+import {
+  aggregateOsTimeIndicators,
+  canStartOrResumeTimeKind,
+  timeKindAllowedForOsStatus,
+  timeKindLabel,
+} from '../../services/rdaIntelligence/workSessions/stageRules';
 import { OS_GENERAL_SERVICE_LINE_ID } from '../../utils/budgetServiceLineId';
 
 type Props = {
   serviceOrderId: string;
   technicianUserId: string;
   technicianDisplayName: string;
+  /** Status atual da OS — define se o apontamento é diagnóstico ou execução. */
+  serviceOrderStatus?: string | null;
   /** PC: inicia recolhido. Default true. */
   defaultExpanded?: boolean;
   className?: string;
@@ -89,6 +97,7 @@ export const OsWorkTimePanel: React.FC<Props> = ({
   serviceOrderId,
   technicianUserId,
   technicianDisplayName,
+  serviceOrderStatus = null,
   defaultExpanded = true,
   className = '',
 }) => {
@@ -185,6 +194,11 @@ export const OsWorkTimePanel: React.FC<Props> = ({
         setError('Você já tem uma sessão ativa em outra OS. Finalize-a antes de iniciar nesta.');
       } else if (err.code === 'RDA_ACTIVE_OTHER_SERVICE') {
         setError('Finalize ou pause o apontamento do serviço atual antes de iniciar outro.');
+      } else if (err.code === 'RDA_STAGE_NOT_ALLOWED') {
+        setError(
+          err.message ||
+            'Esta etapa da OS não permite apontamento produtivo. Use Avaliação técnica ou Em serviço.'
+        );
       } else {
         setError(err.message || 'Operação falhou.');
       }
@@ -238,10 +252,31 @@ export const OsWorkTimePanel: React.FC<Props> = ({
     : displaySession?.livePausedMs ?? displaySession?.pausedMs ?? 0;
 
   const finishedOnOs = osSessions.filter((s) => s.status === 'finished');
+  const allowedKind = timeKindAllowedForOsStatus(serviceOrderStatus);
+  const canClockNow = !!allowedKind;
+  const activeKind = displaySession?.timeKind || allowedKind || 'execution';
+  const canResumeHere =
+    displaySession?.status === 'paused' &&
+    canStartOrResumeTimeKind(displaySession.timeKind || 'execution', serviceOrderStatus);
+
+  const sessionsForIndicators = new Map(
+    osSessions.map((s) => [s.id, s] as const)
+  );
+  if (displaySession) sessionsForIndicators.set(displaySession.id, displaySession);
+  const indicators = aggregateOsTimeIndicators(
+    [...sessionsForIndicators.values()].map((s) => {
+      const isLive = mineActiveHere && displaySession?.id === s.id;
+      return {
+        timeKind: s.timeKind || 'execution',
+        liveProductiveMs: isLive ? live.productiveMs : s.liveProductiveMs ?? s.productiveMs,
+        livePausedMs: isLive ? live.pausedMs : s.livePausedMs ?? s.pausedMs,
+      };
+    })
+  );
 
   const statusLabel =
     displaySession?.status === 'running'
-      ? 'Em execução'
+      ? `Em ${timeKindLabel(activeKind).toLowerCase()}`
       : displaySession?.status === 'paused'
         ? 'Pausado'
         : displaySession?.status === 'finished'
@@ -339,35 +374,66 @@ export const OsWorkTimePanel: React.FC<Props> = ({
             ) : null}
           </div>
 
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
             <div className="rounded-xl bg-zinc-950 px-3 py-3 text-white">
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-[#FFD60A]">
-                Produtivo
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-[#FFD60A]">
+                Execução
               </p>
-              <p className="mt-1 font-mono text-2xl font-semibold tabular-nums tracking-tight">
-                {formatDurationHms(productiveDisplayMs)}
+              <p className="mt-1 font-mono text-lg font-semibold tabular-nums tracking-tight sm:text-xl">
+                {formatDurationHms(indicators.executionMs)}
+              </p>
+            </div>
+            <div className="rounded-xl bg-sky-950 px-3 py-3 text-white">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-sky-300">
+                Diagnóstico
+              </p>
+              <p className="mt-1 font-mono text-lg font-semibold tabular-nums tracking-tight sm:text-xl">
+                {formatDurationHms(indicators.diagnosticMs)}
               </p>
             </div>
             <div className="rounded-xl bg-[#FAFAFA] px-3 py-3 dark:bg-zinc-950">
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-zinc-500">
-                Pausado
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+                Pausas
               </p>
-              <p className="mt-1 font-mono text-2xl font-semibold tabular-nums text-zinc-900 dark:text-white">
-                {formatDurationHms(pausedDisplayMs)}
+              <p className="mt-1 font-mono text-lg font-semibold tabular-nums text-zinc-900 dark:text-white sm:text-xl">
+                {formatDurationHms(indicators.pausedMs)}
+              </p>
+            </div>
+            <div className="rounded-xl bg-[#FAFAFA] px-3 py-3 dark:bg-zinc-950">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500">
+                Total OS
+              </p>
+              <p className="mt-1 font-mono text-lg font-semibold tabular-nums text-zinc-900 dark:text-white sm:text-xl">
+                {formatDurationHms(indicators.totalOsMs)}
               </p>
             </div>
           </div>
 
+          {mineActiveHere ? (
+            <p className="text-[12px] text-zinc-500">
+              Sessão atual ({timeKindLabel(activeKind)}):{' '}
+              <span className="font-mono tabular-nums text-zinc-800 dark:text-zinc-200">
+                {formatDurationHms(productiveDisplayMs)}
+              </span>
+              {' · '}
+              pausa{' '}
+              <span className="font-mono tabular-nums">{formatDurationHms(pausedDisplayMs)}</span>
+            </p>
+          ) : null}
+
           <div className="flex flex-wrap items-center gap-2">
             <span className={`rounded-lg px-2.5 py-1 text-[11px] font-bold uppercase ${statusChipClass}`}>
-              {displaySession?.status === 'running'
-                ? 'Em execução'
-                : displaySession?.status === 'paused'
-                  ? 'Pausado'
-                  : displaySession?.status === 'finished'
-                    ? 'Finalizado (salvo)'
-                    : 'Sem sessão ativa'}
+              {statusLabel}
             </span>
+            {allowedKind ? (
+              <span className="rounded-lg bg-zinc-100 px-2.5 py-1 text-[11px] font-semibold text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200">
+                Etapa: {timeKindLabel(allowedKind)}
+              </span>
+            ) : (
+              <span className="rounded-lg bg-amber-100 px-2.5 py-1 text-[11px] font-semibold text-amber-900 dark:bg-amber-950/40 dark:text-amber-100">
+                Etapa de espera — sem tempo produtivo
+              </span>
+            )}
             {displaySession?.budgetServiceDescription ? (
               <span className="truncate text-[12px] text-zinc-500">
                 {displaySession.budgetServiceDescription}
@@ -376,14 +442,15 @@ export const OsWorkTimePanel: React.FC<Props> = ({
           </div>
 
           <p className="text-[12px] text-zinc-500">
-            Finalizar o cronômetro não muda a etapa da OS.
+            Diagnóstico só em Avaliação técnica; execução só em Em serviço. Sair da etapa pausa
+            automaticamente. Finalizar o cronômetro não muda a etapa da OS.
           </p>
 
           <div className="flex flex-wrap gap-2">
             {!mineActiveHere ? (
               <button
                 type="button"
-                disabled={busy || !!otherActiveOsId}
+                disabled={busy || !!otherActiveOsId || !canClockNow}
                 onClick={() =>
                   void run(async () => {
                     const res = await startRdaWorkSession({
@@ -403,7 +470,7 @@ export const OsWorkTimePanel: React.FC<Props> = ({
                 className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-[#FFD60A] px-4 text-[14px] font-semibold text-zinc-900 disabled:opacity-50 sm:flex-none"
               >
                 {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
-                Iniciar
+                {allowedKind ? `Iniciar ${timeKindLabel(allowedKind).toLowerCase()}` : 'Iniciar'}
               </button>
             ) : null}
 
@@ -426,7 +493,12 @@ export const OsWorkTimePanel: React.FC<Props> = ({
             {displaySession?.status === 'paused' ? (
               <button
                 type="button"
-                disabled={busy}
+                disabled={busy || !canResumeHere}
+                title={
+                  canResumeHere
+                    ? undefined
+                    : 'Volte a OS para a etapa correta para retomar sem perder o histórico.'
+                }
                 onClick={() =>
                   void run(async () => {
                     const res = await resumeRdaWorkSession({

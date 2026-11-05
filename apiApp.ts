@@ -70,6 +70,7 @@ import {
 import { registerRdaIntelligenceRoutes } from "./services/rdaIntelligence/index.js";
 import { registerRdaEvaluationRoutes } from "./services/rdaIntelligence/evaluations/registerRdaEvaluationRoutes.js";
 import { registerRdaWorkSessionRoutes } from "./services/rdaIntelligence/workSessions/registerRdaWorkSessionRoutes.js";
+import { autoPauseWorkSessionsOnStageChange } from "./services/rdaIntelligence/workSessions/autoPauseOnStageChange.js";
 import { generateTechnicalOsInsight } from "./services/rdaIntelligence/insights/technicalOs.js";
 import { RDA_INTELLIGENCE_SETTING_KEY } from "./services/rdaIntelligence/types.js";
 import { assertHomologationSafeOrThrow } from "./utils/homologationGuard.js";
@@ -14083,6 +14084,29 @@ export function createApiApp() {
       if (previous) {
         const statusChanged =
           updatePayload.status !== undefined && previous.status !== data?.status;
+        if (statusChanged && supabaseAdmin && WORKSHOP_ID) {
+          try {
+            const actorUserId =
+              typeof (req as { auth?: { u?: string } }).auth?.u === "string"
+                ? String((req as { auth?: { u?: string } }).auth?.u)
+                : null;
+            const pauseResult = await autoPauseWorkSessionsOnStageChange({
+              supabase: supabaseAdmin,
+              workshopId: WORKSHOP_ID,
+              serviceOrderId: id,
+              previousStatus: String(previous.status ?? ""),
+              nextStatus: String(data?.status ?? ""),
+              actorUserId,
+            });
+            if (pauseResult.pausedCount > 0) {
+              console.info(
+                `[RDA] auto-pause ${pauseResult.pausedCount} sessão(ões) (${pauseResult.via}) OS=${id} ${previous.status}→${data?.status}`
+              );
+            }
+          } catch (pauseErr) {
+            console.error("[RDA] auto-pause on stage change failed:", pauseErr);
+          }
+        }
         const enteredLabSemConserto =
           statusChanged &&
           effectiveOrderType === "module" &&

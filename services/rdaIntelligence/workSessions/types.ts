@@ -25,6 +25,10 @@ export type RdaWorkPauseReason = {
   sortOrder: number;
 };
 
+import type { RdaWorkTimeKind } from "./stageRules.js";
+
+export type { RdaWorkTimeKind };
+
 export type RdaWorkSessionDto = {
   id: string;
   serviceOrderId: string;
@@ -33,6 +37,11 @@ export type RdaWorkSessionDto = {
   budgetServiceDescription: string | null;
   /** line_id estável da linha em budgets.services; null = geral/legado. */
   budgetServiceLineId: string | null;
+  /**
+   * execution = Em serviço; diagnostic = Avaliação técnica.
+   * Legado sem coluna → tratado como execution.
+   */
+  timeKind: RdaWorkTimeKind;
   /** vehicle | module — preenchido quando o join com service_orders está disponível. */
   orderType?: "vehicle" | "module" | null;
   status: RdaWorkSessionStatus;

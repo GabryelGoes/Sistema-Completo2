@@ -6575,6 +6575,8 @@ export type RdaWorkPauseReason = {
   sortOrder: number;
 };
 
+export type RdaWorkTimeKind = "execution" | "diagnostic";
+
 export type RdaWorkSession = {
   id: string;
   serviceOrderId: string;
@@ -6582,6 +6584,8 @@ export type RdaWorkSession = {
   budgetId: string | null;
   budgetServiceDescription: string | null;
   budgetServiceLineId?: string | null;
+  /** execution = Em serviço; diagnostic = Avaliação técnica. */
+  timeKind?: RdaWorkTimeKind;
   orderType?: "vehicle" | "module" | null;
   status: RdaWorkSessionStatus;
   startedAt: string;
@@ -6755,8 +6759,15 @@ export async function resumeRdaWorkSession(input: {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ clientMutationId: input.clientMutationId }),
   });
-  if (!response.ok) throw new Error(await readRdaWorkError(response, "Falha ao retomar."));
-  return response.json();
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const err = new Error((data as { error?: string }).error || "Falha ao retomar.") as Error & {
+      code?: string;
+    };
+    err.code = (data as { code?: string }).code;
+    throw err;
+  }
+  return data as { session: RdaWorkSession };
 }
 
 export async function finishRdaWorkSession(input: {
