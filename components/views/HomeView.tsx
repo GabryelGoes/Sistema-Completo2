@@ -1362,6 +1362,22 @@ export const HomeView: React.FC<HomeViewProps> = ({
         </SettingsHubShell>
       ) : null}
 
+      {/* Notificações do sistema (inclui switches de banners RDA) — fora do gate isTechnician. */}
+      {ajustesVisibility.notificacoes_sistema ? (
+        <SystemNotificationsModal
+          isOpen={isSystemNotificationsOpen}
+          onClose={() => setIsSystemNotificationsOpen(false)}
+          budgetBannerNotifications={budgetBannerNotifications}
+          onBudgetBannerNotificationsChange={onBudgetBannerNotificationsChange}
+          commentBannerNotifications={commentBannerNotifications}
+          onCommentBannerNotificationsChange={onCommentBannerNotificationsChange}
+          rdaBannerSettings={rdaBannerSettings}
+          onRdaBannerSettingsChange={onRdaBannerSettingsChange}
+          agendaReminderSettings={agendaReminderSettings}
+          onAgendaReminderSettingsChange={onAgendaReminderSettingsChange}
+        />
+      ) : null}
+
       {!isTechnician && (
         <>
           <RdaKnowledgeMemoryPanel
@@ -1392,18 +1408,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
             />
           ) : null}
           <SystemUsersModal isOpen={isSystemUsersOpen} onClose={() => setIsSystemUsersOpen(false)} refreshTrigger={systemUsersRefreshTrigger} />
-          <SystemNotificationsModal
-            isOpen={isSystemNotificationsOpen}
-            onClose={() => setIsSystemNotificationsOpen(false)}
-            budgetBannerNotifications={budgetBannerNotifications}
-            onBudgetBannerNotificationsChange={onBudgetBannerNotificationsChange}
-            commentBannerNotifications={commentBannerNotifications}
-            onCommentBannerNotificationsChange={onCommentBannerNotificationsChange}
-            rdaBannerSettings={rdaBannerSettings}
-            onRdaBannerSettingsChange={onRdaBannerSettingsChange}
-            agendaReminderSettings={agendaReminderSettings}
-            onAgendaReminderSettingsChange={onAgendaReminderSettingsChange}
-          />
           <DeviceLayoutSettingsModal
             isOpen={isDeviceLayoutOpen}
             onClose={() => setIsDeviceLayoutOpen(false)}

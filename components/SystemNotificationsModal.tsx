@@ -280,8 +280,9 @@ export const SystemNotificationsModal: React.FC<SystemNotificationsModalProps> =
                     Banners do RDA Intelligence
                   </p>
                   <p className="text-[12px] text-zinc-500 dark:text-zinc-400 mb-3">
-                    Alertas do Monitoramento Proativo no canto da tela. Com banners desativados,
-                    os alertas continuam na Central de Notificações e no painel proativo.
+                    Alertas novos do Monitoramento Proativo no canto da tela (modo PC). Com banners
+                    desativados, os alertas continuam na Central de Notificações e no botão RDA do
+                    cabeçalho. Não dispara aviso em massa ao abrir o sistema.
                   </p>
                   <div className="space-y-3">
                     <div className="flex items-center justify-between gap-4">
