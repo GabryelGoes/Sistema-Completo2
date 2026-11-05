@@ -14070,8 +14070,8 @@ export function createApiApp() {
         if (statusChanged && supabaseAdmin && WORKSHOP_ID) {
           const prevStatus = String(previous.status ?? "");
           const nextStatus = String(data?.status ?? "");
-          // Permanência real na etapa (Fase 3): não usar updated_at.
-          // Best-effort — se a migration ainda não existir, o pátio segue normal.
+          // Permanência real na etapa (Fase 3): status_entered_at + histórico.
+          // Não engolir falha de histórico (evita inconsistência silenciosa).
           try {
             const actorUserIdForStage =
               typeof (req as { auth?: { u?: string } }).auth?.u === "string"
@@ -14091,15 +14091,36 @@ export function createApiApp() {
                   ? String((data as { status_entered_at?: string }).status_entered_at)
                   : undefined,
             });
-            if (!stageRec.ok && stageRec.via !== "schema_missing") {
-              console.warn(
-                "[patio-intel] registro de entrada na etapa:",
+            if (!stageRec.eventConfirmed && stageRec.via !== "schema_missing") {
+              console.error(
+                "[patio-intel] histórico de etapa não confirmado após mudança de status:",
                 stageRec.via,
+                stageRec.error || ""
+              );
+              return res.status(500).json({
+                error:
+                  "Etapa atualizada, mas o histórico de entrada na etapa não foi confirmado. Recarregue e verifique a OS.",
+                code: "RDA_STAGE_HISTORY_INCOMPLETE",
+                detail: stageRec.error || stageRec.via,
+                serviceOrder: data,
+              });
+            }
+            if (!stageRec.ok && stageRec.via === "schema_missing") {
+              console.error(
+                "[patio-intel] schema de histórico de etapa ausente:",
                 stageRec.error || ""
               );
             }
           } catch (stageErr) {
-            console.warn("[patio-intel] falha ao registrar entrada na etapa:", stageErr);
+            const msg = stageErr instanceof Error ? stageErr.message : String(stageErr);
+            console.error("[patio-intel] falha ao registrar entrada na etapa:", stageErr);
+            return res.status(500).json({
+              error:
+                "Etapa atualizada, mas falhou o registro do histórico de permanência na etapa.",
+              code: "RDA_STAGE_HISTORY_EXCEPTION",
+              detail: msg,
+              serviceOrder: data,
+            });
           }
           const kindsToPause = timeKindsToAutoPauseOnStageChange({
             previousStatus: prevStatus,

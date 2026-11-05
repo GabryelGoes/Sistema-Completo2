@@ -59,21 +59,18 @@ BEGIN
   IF TG_OP = 'UPDATE' THEN
     IF NEW.status IS DISTINCT FROM OLD.status THEN
       NEW.status_entered_at := now();
-      BEGIN
-        INSERT INTO public.service_order_stage_events (
-          workshop_id, service_order_id, from_status, to_status, entered_at, source, meta
-        ) VALUES (
-          NEW.workshop_id,
-          NEW.id,
-          OLD.status,
-          NEW.status,
-          NEW.status_entered_at,
-          'trigger',
-          jsonb_build_object('order_type', to_jsonb(NEW.order_type))
-        );
-      EXCEPTION WHEN others THEN
-        RAISE NOTICE 'service_order_stage_events insert: %', SQLERRM;
-      END;
+      -- Sem EXCEPTION silencioso: falha do INSERT aborta o UPDATE (evita inconsistência).
+      INSERT INTO public.service_order_stage_events (
+        workshop_id, service_order_id, from_status, to_status, entered_at, source, meta
+      ) VALUES (
+        NEW.workshop_id,
+        NEW.id,
+        OLD.status,
+        NEW.status,
+        NEW.status_entered_at,
+        'trigger',
+        jsonb_build_object('order_type', to_jsonb(NEW.order_type))
+      );
     END IF;
     RETURN NEW;
   END IF;
@@ -89,4 +86,5 @@ CREATE TRIGGER trg_service_orders_status_entered_at
   EXECUTE FUNCTION public.trg_service_order_status_entered_at();
 
 COMMENT ON FUNCTION public.trg_service_order_status_entered_at() IS
-  'Mantém status_entered_at e histórico de etapas. Não altera updated_at nem outros campos.';
+  'Mantém status_entered_at e histórico de etapas. Falha do INSERT propaga. Não altera updated_at.';
+
