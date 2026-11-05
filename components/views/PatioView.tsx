@@ -417,6 +417,8 @@ interface PatioViewProps {
   onNotificationClick?: (notification: import('../../services/apiService').Notification) => void;
   /** Callback quando há novo comentário (pop-up). */
   onNewCommentNotification?: (notification: import('../../services/apiService').Notification) => void;
+  /** Botão RDA Intelligence ao lado da Central de Notificações (mobile/tablet). */
+  rdaHeaderControl?: React.ReactNode;
   /** Se definido, abre o modal do veículo com esta OS (vindo ex.: da central de notificações). */
   openServiceOrderId?: string | null;
   /** Muda a cada scan USB para reabrir o modal mesmo se o id da OS for o mesmo. */
@@ -1452,6 +1454,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
   onBudgetBannerNotification,
   onNotificationClick,
   onNewCommentNotification,
+  rdaHeaderControl = null,
   openServiceOrderId: openServiceOrderIdProp,
   openServiceOrderScanToken = 0,
   openServiceOrderSection,
@@ -7581,6 +7584,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   </button>
                   {patioHeaderToolsMenu}
                 </div>
+                {isAppTabActive && rdaHeaderControl ? (
+                  <div className="flex shrink-0 items-center">{rdaHeaderControl}</div>
+                ) : null}
                 {isAppTabActive ? (
                   <div className="flex shrink-0 items-center [&_button]:!h-10 [&_button]:!w-10 [&_button]:!rounded-lg [&_button]:!shadow-[0_2px_10px_-3px_rgba(0,0,0,0.1)]">
                     <NotificationCenter

@@ -101,6 +101,12 @@ interface HomeViewProps {
   onBudgetBannerNotificationsChange?: (enabled: boolean) => void;
   commentBannerNotifications?: boolean;
   onCommentBannerNotificationsChange?: (enabled: boolean) => void;
+  rdaBannerSettings?: import('../../utils/rdaBannerSettings').RdaBannerSettings;
+  onRdaBannerSettingsChange?: (
+    next: import('../../utils/rdaBannerSettings').RdaBannerSettings
+  ) => void;
+  /** Abre o Monitoramento Proativo (painel montado no App). */
+  onOpenRdaProactive?: (focusAlertId?: string | null) => void;
   agendaReminderSettings?: AgendaReminderSettings;
   onAgendaReminderSettingsChange?: (next: AgendaReminderSettings) => void;
   /** Agendamentos (bloco Próximos amanhã + badge do dia). */
@@ -231,6 +237,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
   onBudgetBannerNotificationsChange,
   commentBannerNotifications = true,
   onCommentBannerNotificationsChange,
+  rdaBannerSettings,
+  onRdaBannerSettingsChange,
+  onOpenRdaProactive,
   agendaReminderSettings,
   onAgendaReminderSettingsChange,
   appointments = [],
@@ -534,7 +543,11 @@ export const HomeView: React.FC<HomeViewProps> = ({
           setIsRdaOpsOpen(false);
           setIsRdaPatioIntelOpen(false);
           setIsRdaLabEstoqueIntelOpen(false);
-          setIsRdaProactiveOpen(true);
+          if (typeof onOpenRdaProactive === 'function') {
+            onOpenRdaProactive();
+          } else {
+            setIsRdaProactiveOpen(true);
+          }
           break;
         default:
           break;
@@ -548,6 +561,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
       onOpenChangePasswords,
       onOpenSettings,
       onOpenApp,
+      onOpenRdaProactive,
       setSettingsHubOpen,
     ]
   );
@@ -1370,11 +1384,13 @@ export const HomeView: React.FC<HomeViewProps> = ({
             onClose={() => setIsRdaLabEstoqueIntelOpen(false)}
             desktopShell={Boolean(desktopShell)}
           />
-          <RdaProactiveIntelligencePanel
-            isOpen={isRdaProactiveOpen}
-            onClose={() => setIsRdaProactiveOpen(false)}
-            desktopShell={Boolean(desktopShell)}
-          />
+          {typeof onOpenRdaProactive !== 'function' ? (
+            <RdaProactiveIntelligencePanel
+              isOpen={isRdaProactiveOpen}
+              onClose={() => setIsRdaProactiveOpen(false)}
+              desktopShell={Boolean(desktopShell)}
+            />
+          ) : null}
           <SystemUsersModal isOpen={isSystemUsersOpen} onClose={() => setIsSystemUsersOpen(false)} refreshTrigger={systemUsersRefreshTrigger} />
           <SystemNotificationsModal
             isOpen={isSystemNotificationsOpen}
@@ -1383,6 +1399,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
             onBudgetBannerNotificationsChange={onBudgetBannerNotificationsChange}
             commentBannerNotifications={commentBannerNotifications}
             onCommentBannerNotificationsChange={onCommentBannerNotificationsChange}
+            rdaBannerSettings={rdaBannerSettings}
+            onRdaBannerSettingsChange={onRdaBannerSettingsChange}
             agendaReminderSettings={agendaReminderSettings}
             onAgendaReminderSettingsChange={onAgendaReminderSettingsChange}
           />

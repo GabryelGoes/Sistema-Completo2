@@ -117,6 +117,50 @@ export function registerProactiveIntelligenceRoutes(
     }
   });
 
+  /** Resumo leve para badge/painel rápido do cabeçalho (sem histórico/config). */
+  app.get("/api/rda/proactive/summary", async (req, res) => {
+    try {
+      const ctx = await requireView(req, res);
+      if (!ctx) return;
+      const raw = await listProactiveAlerts({
+        workshopId: ctx.workshopId,
+        supabase: deps.supabaseAdmin!,
+        statuses: ["active", "acknowledged"],
+        limit: 100,
+      });
+      const alerts = filterAlertsForAuth(raw, ctx.auth, ctx.flags);
+      const criticalAlerts = alerts.filter(
+        (a) => a.severity === "critical" && a.status === "active"
+      );
+      const activeOnly = alerts.filter((a) => a.status === "active");
+      const acknowledged = alerts.filter((a) => a.status === "acknowledged");
+      const recommendations = alerts
+        .filter((a) => a.status === "active" && String(a.recommendation || "").trim())
+        .slice(0, 12)
+        .map((a) => ({
+          alertId: a.id,
+          title: a.title,
+          recommendation: a.recommendation,
+          severity: a.severity,
+          category: a.category,
+        }));
+      return res.json({
+        ok: true,
+        summary: {
+          active: activeOnly.length,
+          critical: criticalAlerts.length,
+          acknowledged: acknowledged.length,
+        },
+        criticalAlerts: criticalAlerts.slice(0, 20),
+        activeAlerts: alerts.slice(0, 30),
+        recommendations,
+      });
+    } catch (err) {
+      console.error("[API] GET proactive/summary:", err);
+      return res.status(500).json({ error: "Falha ao carregar resumo proativo." });
+    }
+  });
+
   app.get("/api/rda/proactive/alerts", async (req, res) => {
     try {
       const ctx = await requireView(req, res);

@@ -57,7 +57,8 @@ async function maybeNotify(
   supabase: SupabaseClient,
   workshopId: string,
   draft: ProactiveAlertDraft,
-  enabled: boolean
+  enabled: boolean,
+  alertId?: string | null
 ): Promise<string | null> {
   if (!enabled) return null;
   const { data, error } = await supabase
@@ -69,6 +70,7 @@ async function maybeNotify(
         title: draft.title,
         body: formatAlertBody(draft),
         alertKey: draft.alertKey,
+        alertId: alertId || null,
         severity: draft.severity,
         category: draft.category,
         recommendation: draft.recommendation,
@@ -206,7 +208,8 @@ export async function upsertProactiveAlerts(input: {
             input.supabase,
             input.workshopId,
             draft,
-            input.notifyOnCreate
+            input.notifyOnCreate,
+            String(legacy.id)
           );
           await attachNotificationId(
             input.supabase,
@@ -245,7 +248,8 @@ export async function upsertProactiveAlerts(input: {
         input.supabase,
         input.workshopId,
         draft,
-        input.notifyOnCreate
+        input.notifyOnCreate,
+        String(inserted.id)
       );
       await attachNotificationId(input.supabase, String(inserted.id), input.workshopId, notifId);
 
@@ -342,7 +346,8 @@ export async function upsertProactiveAlerts(input: {
       input.supabase,
       input.workshopId,
       draft,
-      input.notifyOnCreate
+      input.notifyOnCreate,
+      row.id
     );
     await attachNotificationId(
       input.supabase,

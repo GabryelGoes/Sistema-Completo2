@@ -15,6 +15,8 @@ type Props = {
   isOpen: boolean;
   onClose: () => void;
   desktopShell?: boolean;
+  /** Destaca/abre o alerta ao abrir (banner / painel rápido). */
+  focusAlertId?: string | null;
 };
 
 const CATEGORY_LABEL: Record<RdaProactiveAlert['category'], string> = {
@@ -34,6 +36,7 @@ export const RdaProactiveIntelligencePanel: React.FC<Props> = ({
   isOpen,
   onClose,
   desktopShell,
+  focusAlertId = null,
 }) => {
   const [data, setData] = useState<RdaProactiveDashboard | null>(null);
   const [loading, setLoading] = useState(false);
@@ -45,6 +48,7 @@ export const RdaProactiveIntelligencePanel: React.FC<Props> = ({
   const [tab, setTab] = useState<'ativos' | 'criticos' | 'recomendacoes' | 'historico' | 'config'>(
     'ativos'
   );
+  const [highlightId, setHighlightId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -64,6 +68,18 @@ export const RdaProactiveIntelligencePanel: React.FC<Props> = ({
     if (!isOpen) return;
     void load();
   }, [isOpen, load]);
+
+  useEffect(() => {
+    if (!isOpen || !focusAlertId || !data) return;
+    const inCritical = data.criticalAlerts.some((a) => a.id === focusAlertId);
+    setTab(inCritical ? 'criticos' : 'ativos');
+    setHighlightId(focusAlertId);
+    const t = window.setTimeout(() => {
+      const el = document.getElementById(`rda-proactive-alert-${focusAlertId}`);
+      el?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }, 80);
+    return () => window.clearTimeout(t);
+  }, [isOpen, focusAlertId, data]);
 
   const filteredActive = useMemo(() => {
     if (!data) return [];
@@ -230,6 +246,7 @@ export const RdaProactiveIntelligencePanel: React.FC<Props> = ({
               <AlertList
                 items={filteredActive}
                 busyId={busyId}
+                highlightId={highlightId}
                 onAcknowledge={(id) => void act(id, 'acknowledged')}
                 onResolve={(id) => void act(id, 'resolved')}
                 onDismiss={(id) => void act(id, 'dismissed')}
@@ -241,6 +258,7 @@ export const RdaProactiveIntelligencePanel: React.FC<Props> = ({
               <AlertList
                 items={filteredCritical}
                 busyId={busyId}
+                highlightId={highlightId}
                 onAcknowledge={(id) => void act(id, 'acknowledged')}
                 onResolve={(id) => void act(id, 'resolved')}
                 onDismiss={(id) => void act(id, 'dismissed')}
@@ -367,6 +385,7 @@ function AlertList(props: {
   busyId: string | null;
   empty: string;
   readOnly?: boolean;
+  highlightId?: string | null;
   onAcknowledge?: (id: string) => void;
   onResolve?: (id: string) => void;
   onDismiss?: (id: string) => void;
@@ -377,7 +396,15 @@ function AlertList(props: {
   return (
     <ul className="space-y-3 text-[12px]">
       {props.items.map((a) => (
-        <li key={a.id} className="border-b border-zinc-200 pb-3 dark:border-zinc-800">
+        <li
+          key={a.id}
+          id={`rda-proactive-alert-${a.id}`}
+          className={`border-b border-zinc-200 pb-3 dark:border-zinc-800 ${
+            props.highlightId === a.id
+              ? 'rounded-xl border border-sky-500/40 bg-sky-500/5 px-3 pt-2'
+              : ''
+          }`}
+        >
           <div className="flex flex-wrap items-baseline justify-between gap-2">
             <p className="font-semibold text-[13px]">{a.title}</p>
             <span className="text-zinc-500">

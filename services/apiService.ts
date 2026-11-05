@@ -7607,6 +7607,38 @@ export async function fetchRdaProactiveDashboard(): Promise<RdaProactiveDashboar
   return response.json();
 }
 
+export type RdaProactiveSummary = {
+  ok?: boolean;
+  summary: {
+    active: number;
+    critical: number;
+    acknowledged: number;
+  };
+  criticalAlerts: RdaProactiveAlert[];
+  activeAlerts: RdaProactiveAlert[];
+  recommendations: Array<{
+    alertId: string;
+    title: string;
+    recommendation: string;
+    severity: RdaProactiveAlert["severity"];
+    category: RdaProactiveAlert["category"];
+  }>;
+};
+
+export async function fetchRdaProactiveSummary(): Promise<RdaProactiveSummary> {
+  const response = await fetch(`${API_BASE}/rda/proactive/summary`);
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    const statusHint = response.status === 403 ? "403" : "";
+    throw new Error(
+      (err as { error?: string }).error ||
+        statusHint ||
+        "Falha ao carregar resumo do Monitoramento Proativo."
+    );
+  }
+  return response.json();
+}
+
 export async function transitionRdaProactiveAlert(
   alertId: string,
   status: RdaProactiveAlert["status"],

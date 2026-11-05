@@ -87,6 +87,15 @@ import {
   writeAgendaReminderSettings,
   type AgendaReminderSettings,
 } from './utils/agendaReminderSettings';
+import {
+  readRdaBannerSettings,
+  rdaBannerAllowedForSeverity,
+  writeRdaBannerSettings,
+  type RdaBannerSettings,
+} from './utils/rdaBannerSettings';
+import { clientCanViewProactiveIntelligence } from './utils/rdaProactiveClientAccess';
+import { RdaHeaderAlertsControl } from './components/rda/RdaHeaderAlertsControl';
+import { RdaProactiveIntelligencePanel } from './components/rda/RdaProactiveIntelligencePanel';
 
 import { lazyWithRetry } from './utils/lazyWithRetry';
 
@@ -267,6 +276,13 @@ export default function App() {
   const [budgetBannerNotifications, setBudgetBannerNotifications] = useState(true);
   /** Banners macOS de comentários (ligado por padrão). */
   const [commentBannerNotifications, setCommentBannerNotifications] = useState(true);
+  /** Banners macOS do RDA Intelligence. */
+  const [rdaBannerSettings, setRdaBannerSettings] = useState<RdaBannerSettings>(() =>
+    readRdaBannerSettings()
+  );
+  const [isRdaProactiveOpen, setIsRdaProactiveOpen] = useState(false);
+  const [rdaProactiveFocusAlertId, setRdaProactiveFocusAlertId] = useState<string | null>(null);
+  const [rdaHeaderRefreshToken, setRdaHeaderRefreshToken] = useState(0);
   /** Lembretes da Agenda (banners + bloco home). */
   const [agendaReminderSettings, setAgendaReminderSettings] = useState<AgendaReminderSettings>(() =>
     readAgendaReminderSettings()
@@ -378,6 +394,29 @@ export default function App() {
         : undefined;
   /** Qualquer usuário logado pode tentar excluir; a senha do admin (ou de exclusão) é a proteção. */
   const canDeleteOrdersInReports = Boolean(authSession);
+  const canViewRdaProactive = useMemo(
+    () =>
+      clientCanViewProactiveIntelligence({
+        role: authSession?.role,
+        isTechnician: authSession?.role === 'user' ? Boolean(authSession.isTechnician) : false,
+        permissions:
+          authSession?.role === 'user' && authSession.permissions
+            ? (authSession.permissions as unknown as Record<string, boolean>)
+            : null,
+      }),
+    [authSession]
+  );
+
+  const openRdaProactivePanel = useCallback((focusAlertId?: string | null) => {
+    setRdaProactiveFocusAlertId(focusAlertId?.trim() || null);
+    setIsRdaProactiveOpen(true);
+  }, []);
+
+  const closeRdaProactivePanel = useCallback(() => {
+    setIsRdaProactiveOpen(false);
+    setRdaProactiveFocusAlertId(null);
+    setRdaHeaderRefreshToken((n) => n + 1);
+  }, []);
   const [userTab, setUserTab] = useState<TabId>('home');
   const activeAppTab: TabId = isLimitedSystemUser ? userTab : currentTab;
   const showMobileBackgroundNotifications =
@@ -535,6 +574,10 @@ export default function App() {
         }
         return;
       }
+      if (item.kind === 'rda_management_alert') {
+        openRdaProactivePanel(item.rdaAlertId || null);
+        return;
+      }
       if (item.kind === 'lab_sem_conserto') {
         const soId = item.serviceOrderId?.trim() || '';
         if (!soId) return;
@@ -574,6 +617,7 @@ export default function App() {
       goToAgendaTab,
       goToOrcamentosTab,
       isLimitedSystemUser,
+      openRdaProactivePanel,
       userAllowedTabs,
     ]
   );
@@ -611,18 +655,28 @@ export default function App() {
     (item: MacOsBudgetBannerItem) => {
       const isAgenda =
         item.kind === 'agenda_day_before' || item.kind === 'agenda_soon';
+      const isRda = item.kind === 'rda_management_alert';
       if (!isDesktopShell && !isAgenda) return;
       const isComment = item.kind === 'comment';
       const isLabSemConserto = item.kind === 'lab_sem_conserto';
       if (isAgenda) {
         if (item.kind === 'agenda_day_before' && !agendaReminderSettings.dayBeforeEnabled) return;
         if (item.kind === 'agenda_soon' && !agendaReminderSettings.soonEnabled) return;
+      } else if (isRda) {
+        if (!rdaBannerAllowedForSeverity(rdaBannerSettings, item.rdaSeverity)) return;
       } else if (isComment && !commentBannerNotifications) return;
       else if (!isComment && !isLabSemConserto && !budgetBannerNotifications) return;
       setMinimizedBudgetBanners((prev) =>
         prev.filter((x) => {
           if (isAgenda) {
             return x.id !== item.id;
+          }
+          if (isRda) {
+            return !(
+              x.kind === 'rda_management_alert' &&
+              (x.id === item.id ||
+                (item.rdaAlertId && x.rdaAlertId === item.rdaAlertId))
+            );
           }
           if (isComment) {
             return !(x.kind === 'comment' && x.id === item.id);
@@ -640,12 +694,17 @@ export default function App() {
           prev.some((x) =>
             isAgenda
               ? x.id === item.id
-              : isComment
-                ? x.id === item.id || (x.kind === 'comment' && x.commentNotification?.id === item.id)
-                : isLabSemConserto
-                  ? x.id === item.id ||
-                    (x.kind === 'lab_sem_conserto' && x.serviceOrderId === item.serviceOrderId)
-                  : x.id === item.id || (x.budgetId === item.budgetId && x.kind === item.kind)
+              : isRda
+                ? x.id === item.id ||
+                  (x.kind === 'rda_management_alert' &&
+                    !!item.rdaAlertId &&
+                    x.rdaAlertId === item.rdaAlertId)
+                : isComment
+                  ? x.id === item.id || (x.kind === 'comment' && x.commentNotification?.id === item.id)
+                  : isLabSemConserto
+                    ? x.id === item.id ||
+                      (x.kind === 'lab_sem_conserto' && x.serviceOrderId === item.serviceOrderId)
+                    : x.id === item.id || (x.budgetId === item.budgetId && x.kind === item.kind)
           )
         ) {
           return prev;
@@ -658,6 +717,7 @@ export default function App() {
       isDesktopShell,
       budgetBannerNotifications,
       commentBannerNotifications,
+      rdaBannerSettings,
       agendaReminderSettings.dayBeforeEnabled,
       agendaReminderSettings.soonEnabled,
     ]
@@ -809,6 +869,38 @@ export default function App() {
   const handleBudgetBannerNotification = useCallback(
     (n: Notification) => {
       if (!isDesktopShell) return;
+      if (n.type === 'rda_management_alert') {
+        const severity =
+          typeof n.payload.severity === 'string' ? n.payload.severity : 'warning';
+        if (!rdaBannerAllowedForSeverity(rdaBannerSettings, severity)) return;
+        const alertIdRaw = n.payload.alertId ?? n.payload.alert_id;
+        const alertId =
+          typeof alertIdRaw === 'string' && alertIdRaw.trim()
+            ? alertIdRaw.trim()
+            : null;
+        const title =
+          typeof n.payload.title === 'string' && n.payload.title.trim()
+            ? n.payload.title.trim()
+            : 'Alerta do RDA';
+        const body =
+          typeof n.payload.body === 'string'
+            ? n.payload.body
+            : typeof n.payload.recommendation === 'string'
+              ? n.payload.recommendation
+              : null;
+        pushBudgetBanner({
+          id: n.id,
+          kind: 'rda_management_alert',
+          serviceOrderId: '',
+          rdaAlertId: alertId,
+          rdaSeverity: severity,
+          rdaTitle: title,
+          rdaBody: body,
+          authorName: 'RDA',
+        });
+        setRdaHeaderRefreshToken((x) => x + 1);
+        return;
+      }
       if (n.type === 'lab_sem_conserto') {
         const soId =
           typeof n.payload.service_order_id === 'string' ? n.payload.service_order_id.trim() : '';
@@ -908,11 +1000,25 @@ export default function App() {
         }),
       });
     },
-    [isDesktopShell, budgetBannerNotifications, pushBudgetBanner]
+    [isDesktopShell, budgetBannerNotifications, pushBudgetBanner, rdaBannerSettings]
   );
 
   const handleNotificationClick = useCallback(
     (n: Notification) => {
+      if (n.type === 'rda_management_alert') {
+        const alertIdRaw = n.payload.alertId ?? n.payload.alert_id;
+        const alertId =
+          typeof alertIdRaw === 'string' && alertIdRaw.trim() ? alertIdRaw.trim() : null;
+        beginNotificationDestination();
+        openRdaProactivePanel(alertId);
+        void markNotificationRead(
+          n.id,
+          authSession?.role === 'user' && authSession.userId
+            ? { for: 'technician', technicianSlug: authSession.userId }
+            : undefined
+        ).catch(() => {});
+        return;
+      }
       if (n.type === 'comment') {
         beginNotificationDestination();
         setCommentPopUpNotification(n);
@@ -983,6 +1089,7 @@ export default function App() {
       dismissShellOverlaysForNavigation,
       goToOrcamentosTab,
       isLimitedSystemUser,
+      openRdaProactivePanel,
       userAllowedTabs,
     ]
   );
@@ -1011,6 +1118,32 @@ export default function App() {
     minimizedBudgetBanners,
     handleMinimizedBudgetActivate,
   ]);
+
+  const rdaHeaderControlDesktop = useMemo(() => {
+    if (!canViewRdaProactive) return null;
+    return (
+      <RdaHeaderAlertsControl
+        enabled
+        theme={theme}
+        placement="desktopTopbar"
+        onOpenFullPanel={openRdaProactivePanel}
+        refreshToken={rdaHeaderRefreshToken}
+      />
+    );
+  }, [canViewRdaProactive, theme, openRdaProactivePanel, rdaHeaderRefreshToken]);
+
+  const rdaHeaderControlMobile = useMemo(() => {
+    if (!canViewRdaProactive || isDesktopShell) return null;
+    return (
+      <RdaHeaderAlertsControl
+        enabled
+        theme="light"
+        placement="headerInline"
+        onOpenFullPanel={openRdaProactivePanel}
+        refreshToken={rdaHeaderRefreshToken}
+      />
+    );
+  }, [canViewRdaProactive, isDesktopShell, openRdaProactivePanel, rdaHeaderRefreshToken]);
 
   const handleOpenLaboratoryOrderFromPatio = useCallback(
     (serviceOrderId: string) => {
@@ -1477,7 +1610,8 @@ export default function App() {
             x.kind === 'comment' ||
             x.kind === 'agenda_day_before' ||
             x.kind === 'agenda_soon' ||
-            x.kind === 'lab_sem_conserto'
+            x.kind === 'lab_sem_conserto' ||
+            x.kind === 'rda_management_alert'
         )
       );
       setMinimizedBudgetBanners((prev) =>
@@ -1486,7 +1620,8 @@ export default function App() {
             x.kind === 'comment' ||
             x.kind === 'agenda_day_before' ||
             x.kind === 'agenda_soon' ||
-            x.kind === 'lab_sem_conserto'
+            x.kind === 'lab_sem_conserto' ||
+            x.kind === 'rda_management_alert'
         )
       );
     }
@@ -1499,6 +1634,34 @@ export default function App() {
       setMinimizedBudgetBanners((prev) => prev.filter((x) => x.kind !== 'comment'));
     }
   }, [commentBannerNotifications]);
+
+  const handleRdaBannerSettingsChange = useCallback((next: RdaBannerSettings) => {
+    setRdaBannerSettings(next);
+    writeRdaBannerSettings(next);
+  }, []);
+
+  useEffect(() => {
+    writeRdaBannerSettings(rdaBannerSettings);
+    if (!rdaBannerSettings.enabled) {
+      setBudgetBannerItems((prev) => prev.filter((x) => x.kind !== 'rda_management_alert'));
+      setMinimizedBudgetBanners((prev) => prev.filter((x) => x.kind !== 'rda_management_alert'));
+      return;
+    }
+    setBudgetBannerItems((prev) =>
+      prev.filter(
+        (x) =>
+          x.kind !== 'rda_management_alert' ||
+          rdaBannerAllowedForSeverity(rdaBannerSettings, x.rdaSeverity)
+      )
+    );
+    setMinimizedBudgetBanners((prev) =>
+      prev.filter(
+        (x) =>
+          x.kind !== 'rda_management_alert' ||
+          rdaBannerAllowedForSeverity(rdaBannerSettings, x.rdaSeverity)
+      )
+    );
+  }, [rdaBannerSettings]);
 
   useEffect(() => {
     localStorage.setItem('app_blur_unverified_budgets', String(blurUnverifiedBudgets));
@@ -1823,6 +1986,7 @@ export default function App() {
         orcamentosBadge={patioBudgetsHub.badgeCount}
         agendaBadge={agendaTodayBadge}
         notificationCenter={isDesktopShell ? notificationCenterProps : undefined}
+        rdaHeaderControl={isDesktopShell ? rdaHeaderControlDesktop : undefined}
         shellOverlayTopbar={shellOverlayTopbar}
         activeSidebarAction={activeDesktopSidebarAction}
         topbarCountLabel={desktopTopbarCountLabel}
@@ -1904,6 +2068,9 @@ export default function App() {
               onBudgetBannerNotificationsChange={setBudgetBannerNotifications}
               commentBannerNotifications={commentBannerNotifications}
               onCommentBannerNotificationsChange={setCommentBannerNotifications}
+              rdaBannerSettings={rdaBannerSettings}
+              onRdaBannerSettingsChange={handleRdaBannerSettingsChange}
+              onOpenRdaProactive={openRdaProactivePanel}
               agendaReminderSettings={agendaReminderSettings}
               onAgendaReminderSettingsChange={handleAgendaReminderSettingsChange}
               appointments={appointments}
@@ -2028,6 +2195,7 @@ export default function App() {
               onBudgetBannerNotification={handleBudgetBannerNotification}
               onNotificationClick={handleNotificationClick}
               onNewCommentNotification={handleNewCommentNotification}
+              rdaHeaderControl={userTab === 'patio' ? rdaHeaderControlMobile : null}
               blurPlates={cinematographicMode}
               isAppTabActive={userTab === 'patio'}
               suppressVehiclePortals={isDesktopShell && shellOverlayTopbar !== null}
@@ -2058,6 +2226,7 @@ export default function App() {
               onBudgetBannerNotification={handleBudgetBannerNotification}
               onNotificationClick={handleNotificationClick}
               onNewCommentNotification={handleNewCommentNotification}
+              rdaHeaderControl={userTab === 'laboratorio' ? rdaHeaderControlMobile : null}
               blurPlates={cinematographicMode}
               isAppTabActive={userTab === 'laboratorio'}
               suppressVehiclePortals={isDesktopShell && shellOverlayTopbar !== null}
@@ -2136,6 +2305,14 @@ export default function App() {
             onDismissAll={clearAllSystemBanners}
             onMinimize={handleMinimizeBudgetBanners}
             onActivate={(item) => openBudgetFromBanner(item)}
+          />
+        ) : null}
+        {canViewRdaProactive ? (
+          <RdaProactiveIntelligencePanel
+            isOpen={isRdaProactiveOpen}
+            onClose={closeRdaProactivePanel}
+            desktopShell={isDesktopShell}
+            focusAlertId={rdaProactiveFocusAlertId}
           />
         ) : null}
         <LabOsScanQuickModal
@@ -2247,6 +2424,7 @@ export default function App() {
       orcamentosBadge={patioBudgetsHub.badgeCount}
       agendaBadge={agendaTodayBadge}
       notificationCenter={isDesktopShell ? notificationCenterProps : undefined}
+      rdaHeaderControl={isDesktopShell ? rdaHeaderControlDesktop : undefined}
       shellOverlayTopbar={shellOverlayTopbar}
       activeSidebarAction={activeDesktopSidebarAction}
       topbarCountLabel={desktopTopbarCountLabel}
@@ -2303,6 +2481,9 @@ export default function App() {
             onBudgetBannerNotificationsChange={setBudgetBannerNotifications}
             commentBannerNotifications={commentBannerNotifications}
             onCommentBannerNotificationsChange={setCommentBannerNotifications}
+            rdaBannerSettings={rdaBannerSettings}
+            onRdaBannerSettingsChange={handleRdaBannerSettingsChange}
+            onOpenRdaProactive={openRdaProactivePanel}
             agendaReminderSettings={agendaReminderSettings}
             onAgendaReminderSettingsChange={handleAgendaReminderSettingsChange}
             appointments={appointments}
@@ -2439,6 +2620,7 @@ export default function App() {
             onBudgetBannerNotification={handleBudgetBannerNotification}
             onNotificationClick={handleNotificationClick}
             onNewCommentNotification={handleNewCommentNotification}
+            rdaHeaderControl={currentTab === 'patio' ? rdaHeaderControlMobile : null}
             blurPlates={cinematographicMode}
             isAppTabActive={currentTab === 'patio'}
             suppressVehiclePortals={isDesktopShell && shellOverlayTopbar !== null}
@@ -2471,6 +2653,7 @@ export default function App() {
             onBudgetBannerNotification={handleBudgetBannerNotification}
             onNotificationClick={handleNotificationClick}
             onNewCommentNotification={handleNewCommentNotification}
+            rdaHeaderControl={currentTab === 'laboratorio' ? rdaHeaderControlMobile : null}
             blurPlates={cinematographicMode}
             isAppTabActive={currentTab === 'laboratorio'}
             suppressVehiclePortals={isDesktopShell && shellOverlayTopbar !== null}
@@ -2530,6 +2713,14 @@ export default function App() {
           onDismissAll={clearAllSystemBanners}
           onMinimize={handleMinimizeBudgetBanners}
           onActivate={(item) => openBudgetFromBanner(item)}
+        />
+      ) : null}
+      {canViewRdaProactive ? (
+        <RdaProactiveIntelligencePanel
+          isOpen={isRdaProactiveOpen}
+          onClose={closeRdaProactivePanel}
+          desktopShell={isDesktopShell}
+          focusAlertId={rdaProactiveFocusAlertId}
         />
       ) : null}
       <LabOsScanQuickModal

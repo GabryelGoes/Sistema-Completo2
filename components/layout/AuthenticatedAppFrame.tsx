@@ -29,6 +29,7 @@ export type AuthenticatedAppFrameProps = {
   orcamentosBadge?: number;
   agendaBadge?: number;
   notificationCenter?: Omit<NotificationCenterProps, 'placement'>;
+  rdaHeaderControl?: React.ReactNode;
   /** Título/cor da barra superior quando um módulo da sidebar está aberto (PC). */
   shellOverlayTopbar?: DesktopShellOverlayTopbar | null;
   activeSidebarAction?: DesktopShellSidebarModuleId | null;
@@ -58,6 +59,7 @@ export function AuthenticatedAppFrame({
   orcamentosBadge,
   agendaBadge,
   notificationCenter,
+  rdaHeaderControl,
   shellOverlayTopbar = null,
   activeSidebarAction = null,
   topbarCountLabel,
@@ -87,6 +89,7 @@ export function AuthenticatedAppFrame({
             orcamentosBadge={orcamentosBadge}
             agendaBadge={agendaBadge}
             notificationCenter={notificationCenter}
+            rdaHeaderControl={rdaHeaderControl}
             shellOverlayTopbar={shellOverlayTopbar}
             activeSidebarAction={activeSidebarAction}
             topbarCountLabel={topbarCountLabel}

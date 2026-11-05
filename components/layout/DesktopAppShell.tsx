@@ -46,6 +46,8 @@ export type DesktopAppShellProps = {
   /** Agendamentos do dia atual (ícone Agenda). */
   agendaBadge?: number;
   notificationCenter?: Omit<NotificationCenterProps, 'placement'>;
+  /** Controle RDA Intelligence ao lado da Central de Notificações. */
+  rdaHeaderControl?: React.ReactNode;
   shellOverlayTopbar?: DesktopShellOverlayTopbar | null;
   /** Atalho da sidebar aberto (Estoque, Painéis) ou hub de Ajustes. */
   activeSidebarAction?: DesktopSidebarActionId | null;
@@ -107,6 +109,7 @@ export function DesktopAppShell({
   orcamentosBadge = 0,
   agendaBadge = 0,
   notificationCenter,
+  rdaHeaderControl = null,
   shellOverlayTopbar = null,
   activeSidebarAction = null,
   topbarCountLabel,
@@ -316,6 +319,7 @@ export function DesktopAppShell({
                 <Settings className="h-4 w-4" strokeWidth={2} />
               </button>
             ) : null}
+            {rdaHeaderControl}
             {notificationCenter ? (
               <NotificationCenter placement="desktopTopbar" {...notificationCenter} />
             ) : null}
