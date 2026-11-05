@@ -177,3 +177,28 @@ export {
   OPS_QUERY_MAX_LIMIT,
   OPS_QUERY_MAX_ROWS,
 } from "./operationalLearning/types.js";
+
+export {
+  canConfigurePatioThresholds,
+  canViewPatioIntelligence,
+} from "./patioIntelligence/access.js";
+export {
+  buildPatioDashboard,
+  detectDeliveryRisks,
+  detectPatioBottlenecks,
+  enrichOrderFact,
+  ordersReadyToStart,
+  suggestPatioPriorities,
+} from "./patioIntelligence/analysis.js";
+export {
+  PATIO_STAGE_IDS,
+  PATIO_STAGE_LABELS,
+  patioStageLabel,
+} from "./patioIntelligence/stages.js";
+export {
+  DEFAULT_PATIO_STAGE_THRESHOLD_HOURS,
+  parsePatioThresholds,
+  RDA_PATIO_THRESHOLDS_SETTING_KEY,
+  thresholdHoursForStatus,
+} from "./patioIntelligence/thresholds.js";
+export { registerPatioIntelligenceRoutes } from "./patioIntelligence/registerPatioIntelligenceRoutes.js";

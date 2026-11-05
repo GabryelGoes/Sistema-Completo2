@@ -19,6 +19,7 @@ import { RDA_ALLOW_LLM_CALLS_ENV_KEY, type RdaAuthContext, type RdaRole } from "
 import { createRdaSystemEvent, productionRdaEventBus } from "./events/bus.js";
 import { registerRdaKnowledgeRoutes } from "./knowledge/registerKnowledgeRoutes.js";
 import { registerOperationalLearningRoutes } from "./operationalLearning/registerOperationalLearningRoutes.js";
+import { registerPatioIntelligenceRoutes } from "./patioIntelligence/registerPatioIntelligenceRoutes.js";
 
 type SessionLike = {
   r?: RdaRole;
@@ -85,13 +86,22 @@ export function registerRdaIntelligenceRoutes(
     loadUserPermissions: deps.loadUserPermissions,
   });
 
+  registerPatioIntelligenceRoutes(app, {
+    WORKSHOP_ID: deps.WORKSHOP_ID,
+    supabaseAdmin: deps.supabaseAdmin,
+    loadUserPermissions: deps.loadUserPermissions,
+    getWorkshopSettingValue: deps.getWorkshopSettingValue,
+    setWorkshopSettingValue: deps.setWorkshopSettingValue,
+  });
+
   app.get("/api/rda/health", (_req: Request, res: Response) => {
     return res.json({
       ok: true,
       module: "rda-intelligence",
-      phase: 2,
+      phase: 3,
       memory: true,
       operationalLearning: true,
+      patioIntelligence: true,
     });
   });
 

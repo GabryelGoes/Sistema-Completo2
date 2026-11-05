@@ -7367,3 +7367,76 @@ export async function fetchRdaOperationalDashboard(input?: {
   }
   return response.json();
 }
+
+export type RdaPatioIntelDashboard = {
+  ok?: boolean;
+  disclaimer: string;
+  summary: {
+    totalActive: number;
+    byStatus: Record<string, number>;
+    bottleneckCount: number;
+    priorityCount: number;
+    riskCount: number;
+    attentionCount: number;
+    note: string;
+  };
+  attention: Array<{
+    orderId: string;
+    plate: string | null;
+    osNumber: number | null;
+    status: string;
+    statusLabel: string;
+    kind: string;
+    summary: string;
+    hoursInStage: number;
+  }>;
+  bottlenecks: Array<{
+    kind: string;
+    title: string;
+    status: string;
+    count: number;
+    thresholdHours: number;
+    evidence: string;
+  }>;
+  priorities: Array<{
+    orderId: string;
+    plate: string | null;
+    osNumber: number | null;
+    status: string;
+    statusLabel: string;
+    score: number;
+    reasons: string[];
+    hoursInStage: number;
+    hoursToDelivery: number | null;
+    technician: string | null;
+  }>;
+  risks: Array<{
+    orderId: string;
+    plate: string | null;
+    osNumber: number | null;
+    status: string;
+    statusLabel: string;
+    deliveryDate: string;
+    hoursToDelivery: number;
+    risk: string;
+    reasons: string[];
+  }>;
+  knowledgeHints?: Array<{ knowledgeKey: string; title: string; excerpt: string }>;
+  proposedKnowledgeDrafts?: Array<{
+    title: string;
+    content: string;
+    knowledgeKeyHint: string;
+    category: string;
+  }>;
+};
+
+export async function fetchRdaPatioIntelDashboard(): Promise<RdaPatioIntelDashboard> {
+  const response = await fetch(`${API_BASE}/rda/patio-intel/dashboard`);
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(
+      (err as { error?: string }).error || "Falha ao carregar Gestão Inteligente do Pátio."
+    );
+  }
+  return response.json();
+}

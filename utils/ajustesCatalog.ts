@@ -33,7 +33,8 @@ export type AjustesItemId =
   | 'dispositivos_conectados'
   | 'etiquetas'
   | 'memoria_rda'
-  | 'inteligencia_operacional';
+  | 'inteligencia_operacional'
+  | 'gestao_patio_rda';
 
 export type AjustesItemKind = 'action' | 'external';
 
@@ -273,6 +274,14 @@ export const AJUSTES_ITEMS: AjustesItemMeta[] = [
     categoryId: 'inteligencia',
     title: 'Inteligência Operacional',
     subtitle: 'Tempos, padrões históricos e recomendações',
+    kind: 'action',
+    iconFallback: 'wrench',
+  },
+  {
+    id: 'gestao_patio_rda',
+    categoryId: 'inteligencia',
+    title: 'Gestão Inteligente do Pátio',
+    subtitle: 'Gargalos, prioridades e riscos de entrega',
     kind: 'action',
     iconFallback: 'wrench',
   },
