@@ -48,7 +48,6 @@ export const RdaHeaderAlertsControl: React.FC<RdaHeaderAlertsControlProps> = ({
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<RdaProactiveSummary | null>(null);
-  const [forbidden, setForbidden] = useState(false);
   const [detailId, setDetailId] = useState<string | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -65,15 +64,13 @@ export const RdaHeaderAlertsControl: React.FC<RdaHeaderAlertsControlProps> = ({
     try {
       const res = await fetchRdaProactiveSummary();
       setData(res);
-      setForbidden(false);
+      setError(null);
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : 'Falha ao carregar alertas.';
-      if (/403|permiss/i.test(msg)) {
-        setForbidden(true);
-        setData(null);
-      } else if (!silent) {
-        setError(msg);
-      }
+      // Não desmonta o botão do cabeçalho (ex.: 403/rede) — o painel mostra o erro.
+      setData(null);
+      if (!silent) setError(msg);
+      else setError(msg);
     } finally {
       if (!silent) setLoading(false);
     }
@@ -147,7 +144,7 @@ export const RdaHeaderAlertsControl: React.FC<RdaHeaderAlertsControlProps> = ({
     };
   }, [open]);
 
-  if (!enabled || forbidden) return null;
+  if (!enabled) return null;
 
   const criticalCount = data?.summary.critical ?? 0;
   const isDesktopTopbar = placement === 'desktopTopbar';
