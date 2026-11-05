@@ -7107,3 +7107,152 @@ export async function runRdaManagementScan(): Promise<{
   }
   return response.json();
 }
+
+export type RdaKnowledgeListItem = {
+  id: string;
+  knowledgeKey: string;
+  title: string;
+  category: string;
+  visibility: string;
+  lifecycle: string;
+  currentVersion: number;
+  approvedVersion: number;
+  pendingVersion: number | null;
+  approvedAt: string | null;
+  retiredAt: string | null;
+  updatedAt: string;
+  createdAt: string;
+  approvedContent?: string | null;
+  pendingContent?: string | null;
+};
+
+async function rdaKnowledgeJson<T>(response: Response): Promise<T> {
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error((err as { error?: string }).error || "Falha na Memória do RDA.");
+  }
+  return response.json() as Promise<T>;
+}
+
+export async function fetchRdaKnowledgeMeta(): Promise<{
+  categories: string[];
+  lifecycles: string[];
+  visibilities: string[];
+  canManage: boolean;
+  canPropose: boolean;
+}> {
+  const response = await fetch(`${API_BASE}/rda/knowledge/meta`);
+  return rdaKnowledgeJson(response);
+}
+
+export async function fetchRdaKnowledgeList(input?: {
+  lifecycle?: string;
+  category?: string;
+  q?: string;
+  includeContent?: boolean;
+}): Promise<{ items: RdaKnowledgeListItem[] }> {
+  const q = new URLSearchParams();
+  if (input?.lifecycle) q.set("lifecycle", input.lifecycle);
+  if (input?.category) q.set("category", input.category);
+  if (input?.q) q.set("q", input.q);
+  if (input?.includeContent) q.set("includeContent", "1");
+  const response = await fetch(`${API_BASE}/rda/knowledge?${q.toString()}`);
+  return rdaKnowledgeJson(response);
+}
+
+export async function fetchRdaKnowledgeDetail(id: string): Promise<{
+  item: RdaKnowledgeListItem;
+  versions: Array<{
+    id: string;
+    version_number: number;
+    content: string;
+    change_reason: string | null;
+    created_at: string;
+  }>;
+  audit: unknown[];
+}> {
+  const response = await fetch(`${API_BASE}/rda/knowledge/${encodeURIComponent(id)}`);
+  return rdaKnowledgeJson(response);
+}
+
+export async function proposeRdaKnowledge(input: {
+  title: string;
+  content: string;
+  knowledgeKey?: string;
+  category?: string;
+  visibility?: string;
+  changeReason?: string;
+  submitForApproval?: boolean;
+  expectedUpdatedAt?: string | null;
+  provenance?: Record<string, unknown>;
+}): Promise<{ ok: boolean; item: RdaKnowledgeListItem | null }> {
+  const response = await fetch(`${API_BASE}/rda/knowledge/propose`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  return rdaKnowledgeJson(response);
+}
+
+export async function approveRdaKnowledge(
+  id: string,
+  input?: { reason?: string; expectedUpdatedAt?: string }
+): Promise<{ ok: boolean; item: RdaKnowledgeListItem | null }> {
+  const response = await fetch(`${API_BASE}/rda/knowledge/${encodeURIComponent(id)}/approve`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input || {}),
+  });
+  return rdaKnowledgeJson(response);
+}
+
+export async function rejectRdaKnowledgePending(
+  id: string,
+  input?: { reason?: string; expectedUpdatedAt?: string }
+): Promise<{ ok: boolean; item: RdaKnowledgeListItem | null }> {
+  const response = await fetch(
+    `${API_BASE}/rda/knowledge/${encodeURIComponent(id)}/reject-pending`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input || {}),
+    }
+  );
+  return rdaKnowledgeJson(response);
+}
+
+export async function retireRdaKnowledge(
+  id: string,
+  input?: { reason?: string; expectedUpdatedAt?: string }
+): Promise<{ ok: boolean; item: RdaKnowledgeListItem | null }> {
+  const response = await fetch(`${API_BASE}/rda/knowledge/${encodeURIComponent(id)}/retire`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input || {}),
+  });
+  return rdaKnowledgeJson(response);
+}
+
+export async function restoreRdaKnowledge(
+  id: string,
+  input?: { fromVersion?: number | null; reason?: string; expectedUpdatedAt?: string }
+): Promise<{ ok: boolean; item: RdaKnowledgeListItem | null }> {
+  const response = await fetch(`${API_BASE}/rda/knowledge/${encodeURIComponent(id)}/restore`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input || {}),
+  });
+  return rdaKnowledgeJson(response);
+}
+
+export async function purgeRdaKnowledge(
+  id: string,
+  input: { confirmKey: string; reason: string; expectedUpdatedAt?: string }
+): Promise<{ ok: boolean; purged?: boolean }> {
+  const response = await fetch(`${API_BASE}/rda/knowledge/${encodeURIComponent(id)}/purge`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  return rdaKnowledgeJson(response);
+}

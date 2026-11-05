@@ -90,3 +90,28 @@ export {
   sectorLabel,
   sectorToOrderType,
 } from "./tools/orderTypes.js";
+
+export {
+  allowedKnowledgeVisibilitiesForAuth,
+  assertVisibilityAllowedForAuth,
+  canManageRdaKnowledge,
+  canProposeRdaKnowledge,
+  canViewRdaKnowledgeAdmin,
+} from "./knowledge/access.js";
+export {
+  applyApproveToHeader,
+  applyProposeRevisionToHeader,
+  citationKindForItem,
+  concurrencyAllowsUpdate,
+  findKnowledgeConflicts,
+  isOfficialRetrievalEligible,
+  looksLikePermanentGuidance,
+  normalizeKnowledgeKey,
+  shouldDeferItemMetadataUntilApprove,
+} from "./knowledge/rules.js";
+export { registerRdaKnowledgeRoutes } from "./knowledge/registerKnowledgeRoutes.js";
+export {
+  RDA_KNOWLEDGE_CATEGORIES,
+  RDA_KNOWLEDGE_LIFECYCLES,
+  type RdaKnowledgeDto,
+} from "./knowledge/types.js";
