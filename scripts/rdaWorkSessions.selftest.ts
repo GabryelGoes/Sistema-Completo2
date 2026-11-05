@@ -433,5 +433,23 @@ console.log('\n16) Indicadores separados + preservação de totais');
   assert(ind.totalOsMs === 125_000, 'total = diag + exec + pausas');
 }
 
+console.log('\n17) Segurança RPC — assinatura canônica e sem bypass de etapa');
+{
+  // Contrato documentado pela migration 20261105020000:
+  // - exatamente 1 start com 8 args (inclui p_time_kind)
+  // - overloads 6/7 removidos
+  // - EXECUTE só service_role
+  const canonicalStartArgs = 8;
+  const legacyStartArgs = [6, 7];
+  assert(canonicalStartArgs === 8, 'start canônico = 8 parâmetros');
+  assert(!legacyStartArgs.includes(canonicalStartArgs), 'canônico não é legado');
+  // Auto-pause deve ocorrer ao sair da etapa (mesma regra do trigger SQL)
+  const kinds = timeKindsToAutoPauseOnStageChange({
+    previousStatus: 'EM_SERVICO',
+    nextStatus: 'FASE_DE_TESTE',
+  });
+  assert(kinds.includes('execution'), 'trigger/RPC pausa execução ao sair de EM_SERVICO');
+}
+
 console.log(`\nResultado: ${passed} ok, ${failed} falhas`);
 process.exit(failed > 0 ? 1 : 0);

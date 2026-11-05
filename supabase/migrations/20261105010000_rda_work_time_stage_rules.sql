@@ -36,7 +36,9 @@ SET label = EXCLUDED.label,
 
 -- ---------------------------------------------------------------------------
 -- 2) start: exige etapa compatível com time_kind
+-- Remove TODAS as assinaturas anteriores (6 e 7 params) para não deixar bypass.
 -- ---------------------------------------------------------------------------
+DROP FUNCTION IF EXISTS public.rda_work_session_start(UUID, UUID, UUID, UUID, TEXT, TEXT);
 DROP FUNCTION IF EXISTS public.rda_work_session_start(UUID, UUID, UUID, UUID, TEXT, TEXT, TEXT);
 
 CREATE OR REPLACE FUNCTION public.rda_work_session_start(
@@ -269,6 +271,7 @@ END;
 $$;
 
 REVOKE ALL ON FUNCTION public.rda_work_session_start(UUID, UUID, UUID, UUID, TEXT, TEXT, TEXT, TEXT) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.rda_work_session_start(UUID, UUID, UUID, UUID, TEXT, TEXT, TEXT, TEXT) FROM anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.rda_work_session_start(UUID, UUID, UUID, UUID, TEXT, TEXT, TEXT, TEXT) TO service_role;
 
 -- ---------------------------------------------------------------------------
@@ -485,7 +488,13 @@ END;
 $$;
 
 REVOKE ALL ON FUNCTION public.rda_work_sessions_auto_pause_for_os_stage(UUID, UUID, TEXT, TEXT, UUID) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.rda_work_sessions_auto_pause_for_os_stage(UUID, UUID, TEXT, TEXT, UUID) FROM anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.rda_work_sessions_auto_pause_for_os_stage(UUID, UUID, TEXT, TEXT, UUID) TO service_role;
 
 COMMENT ON FUNCTION public.rda_work_sessions_auto_pause_for_os_stage IS
   'Pausa sessões running de execução/diagnóstico ao sair de EM_SERVICO / AVALIACAO_TECNICA. Preserva totais.';
+
+-- resume: só backend
+REVOKE ALL ON FUNCTION public.rda_work_session_resume(UUID, UUID, UUID, TEXT) FROM PUBLIC;
+REVOKE ALL ON FUNCTION public.rda_work_session_resume(UUID, UUID, UUID, TEXT) FROM anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.rda_work_session_resume(UUID, UUID, UUID, TEXT) TO service_role;
