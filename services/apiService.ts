@@ -3185,7 +3185,8 @@ export type NotificationType =
   | "vehicle_scheduled"
   | "vehicle_registered"
   | "complaint_edited"
-  | "delivery_date_changed";
+  | "delivery_date_changed"
+  | "rda_management_alert";
 
 export interface NotificationPayload {
   service_order_id?: string;
@@ -7537,4 +7538,128 @@ export async function fetchRdaLabEstoqueIntelDashboard(): Promise<RdaLabEstoqueI
     );
   }
   return response.json();
+}
+
+export type RdaProactiveAlert = {
+  id: string;
+  alertKey: string;
+  category: "patio" | "laboratorio" | "estoque" | "produtividade";
+  severity: "info" | "warning" | "critical";
+  status: "active" | "acknowledged" | "resolved" | "dismissed";
+  title: string;
+  body: string;
+  recommendation: string;
+  evidence: string;
+  refType: string | null;
+  refId: string | null;
+  payload: Record<string, unknown>;
+  lastSeenAt: string;
+  createdAt: string;
+  updatedAt: string;
+  acknowledgedAt: string | null;
+  resolvedAt: string | null;
+  dismissedAt: string | null;
+};
+
+export type RdaProactiveDashboard = {
+  ok?: boolean;
+  disclaimer: string;
+  summary: {
+    active: number;
+    critical: number;
+    acknowledged: number;
+    byCategory: Record<string, number>;
+  };
+  activeAlerts: RdaProactiveAlert[];
+  criticalAlerts: RdaProactiveAlert[];
+  recommendations: Array<{
+    alertId: string;
+    title: string;
+    recommendation: string;
+    severity: RdaProactiveAlert["severity"];
+    category: RdaProactiveAlert["category"];
+  }>;
+  history: RdaProactiveAlert[];
+  config: {
+    enabled: boolean;
+    intervalMinutes: number;
+    reopenAfterHours: number;
+    notifyOnCreate: boolean;
+  };
+  canConfigure: boolean;
+  knowledgeHints?: Array<{ knowledgeKey: string; title: string; excerpt: string }>;
+  proposedKnowledgeDrafts?: Array<{
+    title: string;
+    content: string;
+    knowledgeKeyHint: string;
+    category: string;
+  }>;
+};
+
+export async function fetchRdaProactiveDashboard(): Promise<RdaProactiveDashboard> {
+  const response = await fetch(`${API_BASE}/rda/proactive/dashboard`);
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(
+      (err as { error?: string }).error || "Falha ao carregar Monitoramento Proativo."
+    );
+  }
+  return response.json();
+}
+
+export async function transitionRdaProactiveAlert(
+  alertId: string,
+  status: RdaProactiveAlert["status"],
+  note?: string
+): Promise<RdaProactiveAlert> {
+  const response = await fetch(
+    `${API_BASE}/rda/proactive/alerts/${encodeURIComponent(alertId)}/transition`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status, note }),
+    }
+  );
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error((err as { error?: string }).error || "Falha ao atualizar alerta.");
+  }
+  const data = (await response.json()) as { alert: RdaProactiveAlert };
+  return data.alert;
+}
+
+export async function runRdaProactiveScan(): Promise<{
+  ok: boolean;
+  skipped?: boolean;
+  skipReason?: string;
+  alertsCreated: number;
+  alertsUpdated?: number;
+  alertsReopened?: number;
+  alerts: Array<{ alertKey: string; title: string; severity: string; category: string }>;
+}> {
+  const response = await fetch(`${API_BASE}/rda/proactive/scan`, { method: "POST" });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error((err as { error?: string }).error || "Falha na varredura proativa.");
+  }
+  return response.json();
+}
+
+export async function saveRdaProactiveConfig(config: {
+  enabled: boolean;
+  intervalMinutes: number;
+  reopenAfterHours: number;
+  notifyOnCreate: boolean;
+}): Promise<RdaProactiveDashboard["config"]> {
+  const response = await fetch(`${API_BASE}/rda/proactive/config`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(config),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error((err as { error?: string }).error || "Falha ao salvar configuração.");
+  }
+  const data = (await response.json()) as { config: RdaProactiveDashboard["config"] };
+  return data.config;
 }

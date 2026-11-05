@@ -237,3 +237,39 @@ export {
   thresholdHoursForLabStatus,
 } from "./labEstoqueIntelligence/thresholds.js";
 export { registerLabEstoqueIntelligenceRoutes } from "./labEstoqueIntelligence/registerLabEstoqueIntelligenceRoutes.js";
+
+export {
+  canAccessProactiveCategory,
+  canConfigureProactiveMonitor,
+  canMutateProactiveAlerts,
+  canViewProactiveIntelligence,
+  allowedProactiveCategories,
+} from "./proactiveIntelligence/access.js";
+export {
+  DEFAULT_PROACTIVE_MONITOR_CONFIG,
+  parseProactiveMonitorConfig,
+  RDA_PROACTIVE_ENABLED_KEY,
+  RDA_PROACTIVE_INTERVAL_MINUTES_KEY,
+  RDA_PROACTIVE_NOTIFY_KEY,
+  RDA_PROACTIVE_REOPEN_HOURS_KEY,
+} from "./proactiveIntelligence/config.js";
+export { buildRecommendation, formatAlertBody } from "./proactiveIntelligence/recommendations.js";
+export { detectProactiveAlerts } from "./proactiveIntelligence/detectors.js";
+export { runProactiveScan } from "./proactiveIntelligence/runner.js";
+export {
+  filterAlertsForAuth,
+  queryProactiveAlertsForAssistant,
+  queryProactiveDashboard,
+  loadProactiveMonitorConfig,
+  saveProactiveMonitorConfig,
+} from "./proactiveIntelligence/service.js";
+export { registerProactiveIntelligenceRoutes } from "./proactiveIntelligence/registerProactiveIntelligenceRoutes.js";
+export type {
+  ProactiveAlertDraft,
+  ProactiveAlertStatus,
+  ProactiveAlertView,
+  ProactiveCategory,
+  ProactiveMonitorConfig,
+  ProactiveScanResult,
+  ProactiveSeverity,
+} from "./proactiveIntelligence/types.js";

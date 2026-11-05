@@ -2031,6 +2031,10 @@ export function createApiApp() {
     if (type === "budget_items_approved" && cfg.adminNotificationTypes.includes("budget_edited")) {
       return true;
     }
+    // RDA proativo: se a gestão ainda não configurou tipos, entrega alertas por padrão.
+    if (type === "rda_management_alert" && !cfg.hasExplicitConfig) {
+      return true;
+    }
     return false;
   }
 

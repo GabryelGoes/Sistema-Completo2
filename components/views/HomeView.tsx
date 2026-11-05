@@ -31,6 +31,7 @@ import { RdaKnowledgeMemoryPanel } from '../rda/RdaKnowledgeMemoryPanel';
 import { RdaOperationalIntelligencePanel } from '../rda/RdaOperationalIntelligencePanel';
 import { RdaPatioIntelligencePanel } from '../rda/RdaPatioIntelligencePanel';
 import { RdaLabEstoqueIntelligencePanel } from '../rda/RdaLabEstoqueIntelligencePanel';
+import { RdaProactiveIntelligencePanel } from '../rda/RdaProactiveIntelligencePanel';
 import { QUALITY_RADAR_ICON } from '../../constants/qualityRadar';
 import { ERROR_BULLETIN_ICON, TECHNICAL_BULLETINS_MODULE_LABEL } from '../../constants/errorBulletinIcon';
 import { effectiveAccessOrcamentos, type SystemUserPermissions } from '../../services/apiService';
@@ -267,6 +268,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
   const [isRdaOpsOpen, setIsRdaOpsOpen] = useState(false);
   const [isRdaPatioIntelOpen, setIsRdaPatioIntelOpen] = useState(false);
   const [isRdaLabEstoqueIntelOpen, setIsRdaLabEstoqueIntelOpen] = useState(false);
+  const [isRdaProactiveOpen, setIsRdaProactiveOpen] = useState(false);
 
   const closeAllSettingsChildModals = useCallback(() => {
     setIsServicesModalOpen(false);
@@ -410,6 +412,14 @@ export const HomeView: React.FC<HomeViewProps> = ({
             !!perms.access_radar_qualidade ||
             !!perms.access_laboratorio ||
             !!perms.access_estoque_pecas)),
+      monitoramento_proativo_rda:
+        isWorkshopAdmin ||
+        (isSystemUser &&
+          (!!perms.full_access ||
+            !!perms.access_radar_qualidade ||
+            !!perms.access_patio ||
+            !!perms.access_laboratorio ||
+            !!perms.access_estoque_pecas)),
     }),
     [
       isSystemUser,
@@ -498,6 +508,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
           break;
         case 'lab_estoque_rda':
           setIsRdaLabEstoqueIntelOpen(true);
+          break;
+        case 'monitoramento_proativo_rda':
+          setIsRdaProactiveOpen(true);
           break;
         default:
           break;
@@ -675,6 +688,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
       isRdaOpsOpen ||
       isRdaPatioIntelOpen ||
       isRdaLabEstoqueIntelOpen ||
+      isRdaProactiveOpen ||
       (!onOpenTvPatio && isTvPatioOpen) ||
       (Boolean(technicianId) && isTechnicianProfileOpen) ||
       isAdminProfileOpen ||
@@ -697,6 +711,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
       isRdaOpsOpen,
       isRdaPatioIntelOpen,
       isRdaLabEstoqueIntelOpen,
+      isRdaProactiveOpen,
       onOpenTvPatio,
       isTvPatioOpen,
       technicianId,
@@ -729,6 +744,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
   useBrowserBackLayer(isRdaOpsOpen, () => setIsRdaOpsOpen(false));
   useBrowserBackLayer(isRdaPatioIntelOpen, () => setIsRdaPatioIntelOpen(false));
   useBrowserBackLayer(isRdaLabEstoqueIntelOpen, () => setIsRdaLabEstoqueIntelOpen(false));
+  useBrowserBackLayer(isRdaProactiveOpen, () => setIsRdaProactiveOpen(false));
   useBrowserBackLayer(isHeaderProfileMenuOpen, () => setIsHeaderProfileMenuOpen(false));
 
   const operationalForView = useMemo(() => {
@@ -1328,6 +1344,11 @@ export const HomeView: React.FC<HomeViewProps> = ({
           <RdaLabEstoqueIntelligencePanel
             isOpen={isRdaLabEstoqueIntelOpen}
             onClose={() => setIsRdaLabEstoqueIntelOpen(false)}
+            desktopShell={Boolean(desktopShell)}
+          />
+          <RdaProactiveIntelligencePanel
+            isOpen={isRdaProactiveOpen}
+            onClose={() => setIsRdaProactiveOpen(false)}
             desktopShell={Boolean(desktopShell)}
           />
           <SystemUsersModal isOpen={isSystemUsersOpen} onClose={() => setIsSystemUsersOpen(false)} refreshTrigger={systemUsersRefreshTrigger} />

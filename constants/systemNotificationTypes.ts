@@ -39,6 +39,11 @@ export const SYSTEM_NOTIFICATION_TYPE_OPTIONS = [
     label: "Data de entrega alterada",
     description: "A previsão de entrega da OS mudou.",
   },
+  {
+    id: "rda_management_alert",
+    label: "Alertas do RDA",
+    description: "Monitoramento proativo: pátio, laboratório, estoque e produtividade.",
+  },
 ] as const;
 
 export type SystemNotificationTypeId = (typeof SYSTEM_NOTIFICATION_TYPE_OPTIONS)[number]["id"];

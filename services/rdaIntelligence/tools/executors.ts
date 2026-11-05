@@ -57,6 +57,11 @@ import {
   queryStockLowParts,
   queryStockSummary,
 } from "../labEstoqueIntelligence/service.js";
+import { queryProactiveAlertsForAssistant } from "../proactiveIntelligence/service.js";
+import type {
+  ProactiveCategory,
+  ProactiveSeverity,
+} from "../proactiveIntelligence/types.js";
 
 function periodFromParams(params: Record<string, unknown>): { from: string; to: string } | undefined {
   const from = typeof params.from === "string" ? params.from.trim() : "";
@@ -1221,6 +1226,43 @@ export async function executeRdaTool(
       case "rda_stock_summary": {
         const data = await queryStockSummary({ workshopId, supabase });
         return { ok: true, data: { ...data, provenance: "calculated", sector: "estoque" } };
+      }
+
+      case "rda_proactive_alerts_attention":
+      case "rda_proactive_what_happened_today":
+      case "rda_proactive_unresolved":
+      case "rda_proactive_critical":
+      case "rda_proactive_recommend_first": {
+        if (!ctx.auth) {
+          return { ok: false, error: "Contexto de autenticação necessário." };
+        }
+        const focus =
+          toolId === "rda_proactive_what_happened_today"
+            ? "today"
+            : toolId === "rda_proactive_unresolved"
+              ? "unresolved"
+              : toolId === "rda_proactive_critical"
+                ? "critical"
+                : toolId === "rda_proactive_recommend_first"
+                  ? "priority"
+                  : "attention";
+        const categoryRaw = String(params.category || "").trim();
+        const severityRaw = String(params.severity || "").trim();
+        const flags = {
+          isTechnician: ctx.auth.permissions?.is_technician === true,
+          permissions: ctx.auth.permissions || {},
+        };
+        const data = await queryProactiveAlertsForAssistant({
+          workshopId,
+          supabase,
+          auth: ctx.auth,
+          flags,
+          focus,
+          category: (categoryRaw || null) as ProactiveCategory | null,
+          severity: (severityRaw || null) as ProactiveSeverity | null,
+          limit: clampLimit(params.limit, 15),
+        });
+        return { ok: true, data: { ...data, provenance: "system_fact" } };
       }
 
       default:

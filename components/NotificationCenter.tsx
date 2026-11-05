@@ -164,6 +164,14 @@ const TYPE_VISUAL: Record<NotificationType, TypeVisual> = {
     accent: 'amber',
     icon: 'calendar',
   },
+  rda_management_alert: {
+    title: (n) =>
+      typeof n.payload.title === 'string' && n.payload.title.trim()
+        ? n.payload.title.trim()
+        : 'Alerta do RDA',
+    accent: 'amber',
+    icon: 'alert',
+  },
 };
 
 function notificationToCardModel(
@@ -194,6 +202,17 @@ function notificationToCardModel(
       ? n.payload.text.length > 100
         ? `${n.payload.text.slice(0, 100)}…`
         : n.payload.text
+      : n.type === 'rda_management_alert'
+        ? (() => {
+            const body =
+              typeof n.payload.body === 'string'
+                ? n.payload.body
+                : typeof n.payload.recommendation === 'string'
+                  ? n.payload.recommendation
+                  : '';
+            if (!body.trim()) return null;
+            return body.length > 120 ? `${body.slice(0, 120)}…` : body;
+          })()
       : n.type === 'budget_created' ||
           n.type === 'budget_edited' ||
           n.type === 'budget_items_approved'
@@ -210,12 +229,27 @@ function notificationToCardModel(
     /* ignore */
   }
 
+  const body =
+    n.type === 'rda_management_alert'
+      ? (() => {
+          const cat =
+            typeof n.payload.category === 'string' ? n.payload.category : '';
+          const sev =
+            typeof n.payload.severity === 'string' ? n.payload.severity : '';
+          const bits = [cat, sev].filter(Boolean).join(' · ');
+          return bits || 'Monitoramento proativo';
+        })()
+      : vehicleBody(n.payload);
+
   return {
     id: n.id,
-    authorName: authorFromPayload(n.payload, forTechnician),
+    authorName:
+      n.type === 'rda_management_alert'
+        ? 'RDA'
+        : authorFromPayload(n.payload, forTechnician),
     authorPhotoUrl: photoFromPayload(n.payload),
     title: visual.title(n, forTechnician),
-    body: vehicleBody(n.payload),
+    body,
     hint,
     timeLabel,
     accent: visual.accent,
@@ -236,6 +270,17 @@ function formatNativeTitle(n: Notification, forTechnician?: boolean): string {
 function formatNativeBody(n: Notification): string {
   if (n.type === 'comment' && n.payload.text) {
     return n.payload.text.length > 80 ? `${n.payload.text.slice(0, 80)}…` : n.payload.text;
+  }
+  if (n.type === 'rda_management_alert') {
+    const body =
+      typeof n.payload.body === 'string'
+        ? n.payload.body
+        : typeof n.payload.recommendation === 'string'
+          ? n.payload.recommendation
+          : '';
+    if (body.trim()) {
+      return body.length > 120 ? `${body.slice(0, 120)}…` : body;
+    }
   }
   return vehicleBody(n.payload);
 }

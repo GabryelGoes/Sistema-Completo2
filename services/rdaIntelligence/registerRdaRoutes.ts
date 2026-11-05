@@ -21,6 +21,7 @@ import { registerRdaKnowledgeRoutes } from "./knowledge/registerKnowledgeRoutes.
 import { registerOperationalLearningRoutes } from "./operationalLearning/registerOperationalLearningRoutes.js";
 import { registerPatioIntelligenceRoutes } from "./patioIntelligence/registerPatioIntelligenceRoutes.js";
 import { registerLabEstoqueIntelligenceRoutes } from "./labEstoqueIntelligence/registerLabEstoqueIntelligenceRoutes.js";
+import { registerProactiveIntelligenceRoutes } from "./proactiveIntelligence/registerProactiveIntelligenceRoutes.js";
 
 type SessionLike = {
   r?: RdaRole;
@@ -104,14 +105,24 @@ export function registerRdaIntelligenceRoutes(
     setWorkshopSettingValue: deps.setWorkshopSettingValue,
   });
 
+  registerProactiveIntelligenceRoutes(app, {
+    WORKSHOP_ID: deps.WORKSHOP_ID,
+    supabaseAdmin: deps.supabaseAdmin,
+    loadUserPermissions: deps.loadUserPermissions,
+    getWorkshopSettingValue: deps.getWorkshopSettingValue,
+    setWorkshopSettingValue: deps.setWorkshopSettingValue,
+  });
+
   app.get("/api/rda/health", (_req: Request, res: Response) => {
     return res.json({
       ok: true,
       module: "rda-intelligence",
-      phase: 3,
+      phase: 5,
       memory: true,
       operationalLearning: true,
       patioIntelligence: true,
+      labEstoqueIntelligence: true,
+      proactiveIntelligence: true,
     });
   });
 
@@ -386,11 +397,16 @@ export function registerRdaIntelligenceRoutes(
         workshopId: deps.WORKSHOP_ID,
         supabase: deps.supabaseAdmin,
         settingValue,
+        getWorkshopSettingValue: deps.getWorkshopSettingValue,
       });
       await productionRdaEventBus.publish(
         createRdaSystemEvent(
           "rda.management_scan",
-          { alertsCreated: result.alertsCreated },
+          {
+            alertsCreated: result.alertsCreated,
+            alertsUpdated: result.alertsUpdated,
+            alertsReopened: result.alertsReopened,
+          },
           deps.WORKSHOP_ID
         ),
         { settingValue }
@@ -410,13 +426,25 @@ export function registerRdaIntelligenceRoutes(
       if (!deps.supabaseAdmin || !deps.WORKSHOP_ID) {
         return res.status(500).json({ error: "Servidor não configurado." });
       }
-      const { data, error } = await deps.supabaseAdmin
+      // Prefer status ativo/reconhecido (Fase 5); fallback dismissed_at legado.
+      let { data, error } = await deps.supabaseAdmin
         .from("rda_management_alerts")
         .select("*")
         .eq("workshop_id", deps.WORKSHOP_ID)
-        .is("dismissed_at", null)
+        .in("status", ["active", "acknowledged"])
         .order("created_at", { ascending: false })
         .limit(50);
+      if (error && /status|schema cache|does not exist/i.test(error.message)) {
+        const legacy = await deps.supabaseAdmin
+          .from("rda_management_alerts")
+          .select("*")
+          .eq("workshop_id", deps.WORKSHOP_ID)
+          .is("dismissed_at", null)
+          .order("created_at", { ascending: false })
+          .limit(50);
+        data = legacy.data;
+        error = legacy.error;
+      }
       if (error) return res.status(500).json({ error: error.message });
       return res.json({ alerts: data || [] });
     } catch (err: unknown) {
