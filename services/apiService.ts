@@ -7450,3 +7450,91 @@ export async function fetchRdaPatioIntelDashboard(): Promise<RdaPatioIntelDashbo
   }
   return response.json();
 }
+
+export type RdaLabEstoqueIntelDashboard = {
+  ok?: boolean;
+  disclaimer: string;
+  scopes: { lab: boolean; stock: boolean };
+  summary: {
+    labActive: number;
+    labByStatus: Record<string, number>;
+    labBottleneckCount: number;
+    labAttentionCount: number;
+    labUnknownStageTimeCount: number;
+    benchOccupied: number;
+    benchFree: number;
+    readyForPickup: number;
+    note: string;
+  };
+  labAttention: Array<{
+    orderId: string;
+    osNumber: number | null;
+    moduleIdentification: string | null;
+    status: string;
+    statusLabel: string;
+    kind: string;
+    summary: string;
+    benchSlot: number | null;
+    stageTimeLabel: string;
+  }>;
+  labBottlenecks: Array<{
+    kind: string;
+    title: string;
+    status: string;
+    count: number;
+    thresholdHours: number;
+    evidence: string;
+  }>;
+  bench: {
+    totalSlots: number;
+    occupied: number;
+    free: number;
+    queuedEstimate: number;
+    slots: Array<{
+      slot: number;
+      occupied: boolean;
+      orderId: string | null;
+      osNumber: number | null;
+      moduleIdentification: string | null;
+      status: string | null;
+      statusLabel: string | null;
+    }>;
+  } | null;
+  stockSummary: {
+    absAvailable: number;
+    absReserved: number;
+    absOut: number;
+    absDisassembled: number;
+    absByKind: Record<string, number>;
+    partsSkus: number;
+    partsLowStock: number;
+    partsOutOfStock: number;
+    note: string;
+  } | null;
+  lowStockParts: Array<{
+    id: string;
+    name: string;
+    quantity: number;
+    minQuantity: number | null;
+    location: string | null;
+  }>;
+  knowledgeHints?: Array<{ knowledgeKey: string; title: string; excerpt: string }>;
+  proposedKnowledgeDrafts?: Array<{
+    title: string;
+    content: string;
+    knowledgeKeyHint: string;
+    category: string;
+  }>;
+};
+
+export async function fetchRdaLabEstoqueIntelDashboard(): Promise<RdaLabEstoqueIntelDashboard> {
+  const response = await fetch(`${API_BASE}/rda/lab-estoque-intel/dashboard`);
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(
+      (err as { error?: string }).error ||
+        "Falha ao carregar Inteligência do Laboratório e Estoque."
+    );
+  }
+  return response.json();
+}

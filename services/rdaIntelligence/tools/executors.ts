@@ -45,6 +45,18 @@ import {
   queryPatioReadyToStart,
   queryPatioWaitingParts,
 } from "../patioIntelligence/service.js";
+import {
+  queryAbsLocate,
+  queryAbsStockSearch,
+  queryLabAttention,
+  queryLabBenchStatus,
+  queryLabBottlenecks,
+  queryLabEstoqueDashboard,
+  queryLabLongestModules,
+  queryLabReadyPickup,
+  queryStockLowParts,
+  queryStockSummary,
+} from "../labEstoqueIntelligence/service.js";
 
 function periodFromParams(params: Record<string, unknown>): { from: string; to: string } | undefined {
   const from = typeof params.from === "string" ? params.from.trim() : "";
@@ -90,9 +102,10 @@ function normPlate(p: string): string {
 }
 
 const STALLED_SELECT =
-  "id, os_number, plate, vehicle_model, vehicle_brand, status, updated_at, created_at, assigned_technician, issue_description, order_type, module_identification";
+  "id, os_number, plate, vehicle_model, vehicle_brand, status, updated_at, created_at, status_entered_at, assigned_technician, issue_description, order_type, module_identification, bench_slot, module_kind";
 
-const STAGE_SELECT = "id, status, updated_at, plate, os_number, order_type, module_identification";
+const STAGE_SELECT =
+  "id, status, updated_at, status_entered_at, plate, os_number, order_type, module_identification, bench_slot";
 
 async function listStalledByOrderType(
   ctx: RdaToolExecContext,
@@ -103,28 +116,54 @@ async function listStalledByOrderType(
     orderType === RDA_ORDER_TYPE_LAB ? "laboratorio" : "patio";
   const minHours = Number(params.minHours ?? 24);
   const limit = clampLimit(params.limit, 15);
-  const { data, error } = await ctx.supabase
+  let select = STALLED_SELECT;
+  let { data, error } = await ctx.supabase
     .from("service_orders")
-    .select(STALLED_SELECT)
+    .select(select)
     .eq("workshop_id", ctx.workshopId)
     .eq("order_type", orderType)
     .neq("status", "CANCELLED")
     .neq("status", "FINALIZADO")
     .neq("status", "ENTREGUE")
-    .order("updated_at", { ascending: true })
+    .neq("status", "PRONTO_PRA_RETIRADA")
+    .order("created_at", { ascending: true })
     .limit(80);
+  if (error && /status_entered_at/i.test(error.message)) {
+    select = STALLED_SELECT.replace(", status_entered_at", "");
+    const fallback = await ctx.supabase
+      .from("service_orders")
+      .select(select)
+      .eq("workshop_id", ctx.workshopId)
+      .eq("order_type", orderType)
+      .neq("status", "CANCELLED")
+      .neq("status", "FINALIZADO")
+      .neq("status", "ENTREGUE")
+      .neq("status", "PRONTO_PRA_RETIRADA")
+      .order("created_at", { ascending: true })
+      .limit(80);
+    data = fallback.data;
+    error = fallback.error;
+  }
   if (error) return { ok: false, error: error.message };
-  const rows = (data || [])
+  const threshold = Number.isFinite(minHours) ? minHours : 24;
+  const sourceRows = (data || []) as unknown as Array<Record<string, unknown>>;
+  const rows = sourceRows
     .map((r) => {
-      const hours = hoursSince(String((r as { updated_at?: string }).updated_at || ""));
+      const entered = r.status_entered_at;
+      const known = entered != null && String(entered).trim() !== "";
+      const hours = known ? hoursSince(String(entered)) : null;
       return {
         ...r,
+        stageTimeKnown: known,
         stalledHours: hours,
+        stageTimeLabel: known
+          ? `${Math.round((hours || 0) * 10) / 10}h na etapa`
+          : "Tempo na etapa desconhecido",
         sector,
         order_type: orderType,
       };
     })
-    .filter((r) => (r.stalledHours ?? 0) >= (Number.isFinite(minHours) ? minHours : 24))
+    .filter((r) => r.stageTimeKnown && (r.stalledHours ?? 0) >= threshold)
     .slice(0, limit);
   return {
     ok: true,
@@ -134,8 +173,8 @@ async function listStalledByOrderType(
       sectorLabel: sectorLabel(sector),
       note:
         orderType === RDA_ORDER_TYPE_PATIO
-          ? "Somente OS do Pátio (veículos). Idade baseada em updated_at; não implica culpa."
-          : "Somente OS do Laboratório (módulos recebidos). Não é estoque de peças. Idade por updated_at.",
+          ? "Somente OS do Pátio (veículos). Permanência = status_entered_at; sem histórico → omitido (não usa updated_at)."
+          : "Somente OS do Laboratório (módulos). Não é estoque. Permanência = status_entered_at; sem histórico → omitido.",
       items: rows,
     },
   };
@@ -388,27 +427,48 @@ export async function executeRdaTool(
         const onlyInStock = params.onlyInStock !== false;
         const limit = clampLimit(params.limit, 20);
         const stockDisclaimer =
-          "Resultado do ESTOQUE (workshop_parts). Não são OS do Laboratório nem módulos recebidos para reparo. NÃO afirma compatibilidade ABS/veículo sem evidência documentada.";
+          "Resultado do ESTOQUE (workshop_parts). Código do produto = original_code (não há coluna sku). Quantidade = stock_qty. Não são OS do Lab nem unidades ABS. Sem afirmar compatibilidade sem evidência.";
+        const like = `%${query}%`;
+        // Colunas existentes em produção: original_code, barcode, stock_qty, min_stock_qty, location (sem sku).
         const { data, error } = await supabase
           .from("workshop_parts")
           .select(
-            "id, name, sku, barcode, brand, quantity, min_quantity, location, notes"
+            "id, name, barcode, brand, stock_qty, min_stock_qty, location, notes, original_code"
           )
           .eq("workshop_id", workshopId)
-          .ilike("name", `%${query}%`)
-          .limit(limit);
+          .or(
+            [
+              `name.ilike.${like}`,
+              `barcode.ilike.${like}`,
+              `brand.ilike.${like}`,
+              `original_code.ilike.${like}`,
+            ].join(",")
+          )
+          .limit(Math.max(limit * 3, 40));
         if (error) {
           const all = await supabase
             .from("workshop_parts")
-            .select("id, name, sku, barcode, brand, quantity, location")
+            .select("id, name, brand, stock_qty, location, original_code, barcode")
             .eq("workshop_id", workshopId)
-            .limit(100);
+            .limit(200);
           if (all.error) return { ok: false, error: all.error.message };
           const qtext = query.toLowerCase();
           const items = (all.data || [])
-            .filter((r) => JSON.stringify(r).toLowerCase().includes(qtext))
+            .filter((r) => {
+              const hay = [
+                (r as { name?: string }).name,
+                (r as { brand?: string }).brand,
+                (r as { original_code?: string }).original_code,
+                (r as { barcode?: string }).barcode,
+                (r as { location?: string }).location,
+              ]
+                .filter(Boolean)
+                .join(" ")
+                .toLowerCase();
+              return hay.includes(qtext);
+            })
             .filter((r) =>
-              onlyInStock ? Number((r as { quantity?: number }).quantity || 0) > 0 : true
+              onlyInStock ? Number((r as { stock_qty?: number }).stock_qty || 0) > 0 : true
             )
             .slice(0, limit);
           return {
@@ -420,9 +480,11 @@ export async function executeRdaTool(
             },
           };
         }
-        const items = (data || []).filter((r) =>
-          onlyInStock ? Number((r as { quantity?: number }).quantity || 0) > 0 : true
-        );
+        const items = (data || [])
+          .filter((r) =>
+            onlyInStock ? Number((r as { stock_qty?: number }).stock_qty || 0) > 0 : true
+          )
+          .slice(0, limit);
         return {
           ok: true,
           data: {
@@ -1090,6 +1152,75 @@ export async function executeRdaTool(
       case "rda_patio_ready_to_start": {
         const data = await queryPatioReadyToStart({ workshopId, supabase });
         return { ok: true, data: { ...data, provenance: "system_fact", sector: "patio" } };
+      }
+
+      case "rda_lab_estoque_dashboard": {
+        const data = await queryLabEstoqueDashboard({
+          workshopId,
+          supabase,
+          auth: ctx.auth,
+          includeLab: true,
+          includeStock: true,
+        });
+        return { ok: true, data: { ...data, provenance: "calculated", sector: "lab_estoque" } };
+      }
+
+      case "rda_lab_attention": {
+        const data = await queryLabAttention({ workshopId, supabase, auth: ctx.auth });
+        return { ok: true, data: { ...data, provenance: "calculated", sector: "laboratorio" } };
+      }
+
+      case "rda_lab_bottlenecks": {
+        const data = await queryLabBottlenecks({ workshopId, supabase });
+        return { ok: true, data: { ...data, provenance: "calculated", sector: "laboratorio" } };
+      }
+
+      case "rda_lab_bench_status": {
+        const data = await queryLabBenchStatus({ workshopId, supabase });
+        return { ok: true, data: { ...data, provenance: "system_fact", sector: "laboratorio" } };
+      }
+
+      case "rda_lab_ready_pickup": {
+        const data = await queryLabReadyPickup({ workshopId, supabase });
+        return { ok: true, data: { ...data, provenance: "system_fact", sector: "laboratorio" } };
+      }
+
+      case "rda_lab_longest_modules": {
+        const data = await queryLabLongestModules({
+          workshopId,
+          supabase,
+          limit: clampLimit(params.limit, 15),
+        });
+        return { ok: true, data: { ...data, provenance: "calculated", sector: "laboratorio" } };
+      }
+
+      case "rda_stock_abs_search": {
+        const query = String(params.query || "").trim();
+        if (!query) return { ok: false, error: "query obrigatória." };
+        const data = await queryAbsStockSearch({
+          workshopId,
+          supabase,
+          query,
+          limit: clampLimit(params.limit, 40),
+        });
+        return { ok: true, data: { ...data, provenance: "system_fact", sector: "estoque" } };
+      }
+
+      case "rda_stock_abs_locate": {
+        const query = String(params.query || "").trim();
+        if (!query) return { ok: false, error: "query obrigatória (#N, ABS-######, código)." };
+        const data = await queryAbsLocate({ workshopId, supabase, query });
+        return { ok: true, data: { ...data, provenance: "system_fact", sector: "estoque" } };
+      }
+
+      case "rda_stock_low_parts": {
+        const data = await queryStockLowParts({ workshopId, supabase });
+        return { ok: true, data: { ...data, provenance: "system_fact", sector: "estoque" } };
+      }
+
+      case "rda_stock_summary": {
+        const data = await queryStockSummary({ workshopId, supabase });
+        return { ok: true, data: { ...data, provenance: "calculated", sector: "estoque" } };
       }
 
       default:

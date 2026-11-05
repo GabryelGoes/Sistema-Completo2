@@ -42,6 +42,7 @@ export type AjustesVisibility = {
   memoria_rda: boolean;
   inteligencia_operacional: boolean;
   gestao_patio_rda: boolean;
+  lab_estoque_rda: boolean;
 };
 
 export type AjustesHubPanelProps = {

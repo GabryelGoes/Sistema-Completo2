@@ -205,3 +205,35 @@ export {
   thresholdHoursForStatus,
 } from "./patioIntelligence/thresholds.js";
 export { registerPatioIntelligenceRoutes } from "./patioIntelligence/registerPatioIntelligenceRoutes.js";
+
+export {
+  canConfigureLabThresholds,
+  canViewLabEstoqueIntelligence,
+  canViewLabIntelligence,
+  canViewStockIntelligence,
+} from "./labEstoqueIntelligence/access.js";
+export {
+  buildLabBenchOccupancy,
+  buildLabEstoqueDashboard,
+  buildStockSummary,
+  detectLabBottlenecks,
+  enrichAbsUnit,
+  enrichLabOrderFact,
+  formatLabTimeLabel,
+  formatStageTimeLabel as formatLabStageTimeLabel,
+  listLongestInLab,
+  listReadyForPickup,
+} from "./labEstoqueIntelligence/analysis.js";
+export {
+  LAB_BENCH_SLOT_COUNT,
+  LAB_STAGE_IDS,
+  LAB_STAGE_LABELS,
+  labStageLabel,
+} from "./labEstoqueIntelligence/stages.js";
+export {
+  DEFAULT_LAB_STAGE_THRESHOLD_HOURS,
+  parseLabThresholds,
+  RDA_LAB_THRESHOLDS_SETTING_KEY,
+  thresholdHoursForLabStatus,
+} from "./labEstoqueIntelligence/thresholds.js";
+export { registerLabEstoqueIntelligenceRoutes } from "./labEstoqueIntelligence/registerLabEstoqueIntelligenceRoutes.js";

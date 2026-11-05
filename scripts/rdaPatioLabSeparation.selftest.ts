@@ -61,6 +61,7 @@ function createFakeSupabase(rowsByTable: Record<string, FakeRow[]>) {
     api.lte = () => self();
     api.lt = () => self();
     api.ilike = () => self();
+    api.or = () => self();
     api.order = (_col: string, opts?: { ascending?: boolean }) => {
       state.orderAsc = opts?.ascending !== false;
       return self();
@@ -129,6 +130,7 @@ const mixedOrders: FakeRow[] = [
     vehicle_brand: "VW",
     status: "EM_SERVICO",
     updated_at: hoursAgo(72),
+    status_entered_at: hoursAgo(72),
     created_at: hoursAgo(100),
     assigned_technician: "A",
     issue_description: "ABS falhando",
@@ -144,6 +146,7 @@ const mixedOrders: FakeRow[] = [
     vehicle_brand: "GM",
     status: "AGUARDANDO_APROVACAO",
     updated_at: hoursAgo(10),
+    status_entered_at: hoursAgo(10),
     created_at: hoursAgo(20),
     assigned_technician: "B",
     issue_description: "ruído",
@@ -159,6 +162,7 @@ const mixedOrders: FakeRow[] = [
     vehicle_brand: "",
     status: "EM_SERVICO",
     updated_at: hoursAgo(80),
+    status_entered_at: hoursAgo(80),
     created_at: hoursAgo(120),
     assigned_technician: "C",
     issue_description: "módulo sem comunicação",
@@ -174,6 +178,7 @@ const mixedOrders: FakeRow[] = [
     vehicle_brand: "",
     status: "AGUARDANDO_PECAS",
     updated_at: hoursAgo(5),
+    status_entered_at: hoursAgo(5),
     created_at: hoursAgo(40),
     assigned_technician: "D",
     issue_description: "reparo externo",
@@ -187,6 +192,7 @@ const mixedOrders: FakeRow[] = [
     plate: "OLD0001",
     status: "FINALIZADO",
     updated_at: hoursAgo(200),
+    status_entered_at: hoursAgo(200),
     created_at: hoursAgo(300),
     order_type: "vehicle",
     issue_description: "ok",
@@ -386,8 +392,10 @@ console.log("\n7) estoque não usa service_orders");
         id: "p1",
         workshop_id: WID,
         name: "Módulo ABS Bosch",
-        quantity: 2,
-        sku: "ABS-1",
+        stock_qty: 2,
+        min_stock_qty: 0,
+        original_code: "ABS-1",
+        barcode: "7891000100015",
       },
     ],
   });
@@ -406,6 +414,32 @@ console.log("\n7) estoque não usa service_orders");
   assert(
     !sb.orderTypeEqValues().length,
     "estoque não filtra order_type de service_orders"
+  );
+
+  const byCode = await executeRdaTool(
+    "rda_search_stock_parts",
+    { query: "ABS-1", onlyInStock: true, limit: 10 },
+    { workshopId: WID, supabase: sb as never }
+  );
+  assert(byCode.ok === true, "busca por original_code ok");
+  assert(
+    (((byCode as { data: { items: FakeRow[] } }).data.items || []) as FakeRow[]).some(
+      (i) => i.id === "p1"
+    ),
+    "encontra peça pelo original_code"
+  );
+
+  const byBarcode = await executeRdaTool(
+    "rda_search_stock_parts",
+    { query: "7891000100015", onlyInStock: true, limit: 10 },
+    { workshopId: WID, supabase: sb as never }
+  );
+  assert(byBarcode.ok === true, "busca por barcode ok");
+  assert(
+    (((byBarcode as { data: { items: FakeRow[] } }).data.items || []) as FakeRow[]).some(
+      (i) => i.id === "p1"
+    ),
+    "encontra peça pelo barcode"
   );
 }
 

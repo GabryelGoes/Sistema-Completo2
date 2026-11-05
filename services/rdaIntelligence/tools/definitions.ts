@@ -122,7 +122,7 @@ export const RDA_PRODUCTION_TOOLS: RdaToolDefinition[] = [
   {
     id: "rda_search_stock_parts",
     description:
-      "Busca PEÇAS/CADASTROS no ESTOQUE (workshop_parts) por texto. Não lista OS do Laboratório nem módulos recebidos para conserto. Nunca confundir item de estoque com OS de módulo do Lab.",
+      "Busca PEÇAS/CADASTROS no ESTOQUE (workshop_parts) por nome, original_code (código do produto), barcode, brand ou location. Usa stock_qty/min_stock_qty. Não há coluna sku. Não lista OS do Lab nem unidades ABS (use rda_stock_abs_search).",
     parameters: {
       type: "object",
       properties: {
@@ -662,6 +662,153 @@ export const RDA_PRODUCTION_TOOLS: RdaToolDefinition[] = [
       additionalProperties: false,
     },
     requiredPermission: "access_patio",
+    side: "read",
+    requiresHumanConfirmation: false,
+  },
+  // ----- Fase 4: Laboratório + Estoque -----
+  {
+    id: "rda_lab_estoque_dashboard",
+    description:
+      "Dashboard combinado Lab (order_type=module) + Estoque ABS/peças: volume por etapa, bancada, gargalos, prontos pra entrega, resumo de disponibilidade. Não altera nada.",
+    parameters: {
+      type: "object",
+      properties: {},
+      required: [],
+      additionalProperties: false,
+    },
+    requiredPermission: "access_laboratorio",
+    side: "read",
+    requiresHumanConfirmation: false,
+  },
+  {
+    id: "rda_lab_attention",
+    description:
+      "Módulos do Laboratório que precisam de atenção (prontos pra entrega, gargalos, mais tempo no lab). Só order_type=module.",
+    parameters: {
+      type: "object",
+      properties: {},
+      required: [],
+      additionalProperties: false,
+    },
+    requiredPermission: "access_laboratorio",
+    side: "read",
+    requiresHumanConfirmation: false,
+  },
+  {
+    id: "rda_lab_bottlenecks",
+    description:
+      "Gargalos do Laboratório por permanência real (status_entered_at) vs limiares: avaliação, aprovação, peças, reparo, prontos pra entrega. Qual é o maior gargalo do lab?",
+    parameters: {
+      type: "object",
+      properties: {},
+      required: [],
+      additionalProperties: false,
+    },
+    requiredPermission: "access_laboratorio",
+    side: "read",
+    requiresHumanConfirmation: false,
+  },
+  {
+    id: "rda_lab_bench_status",
+    description:
+      "Quais bancadas (1–24) estão ocupadas/livres no Laboratório, com módulo e etapa em cada slot.",
+    parameters: {
+      type: "object",
+      properties: {},
+      required: [],
+      additionalProperties: false,
+    },
+    requiredPermission: "access_laboratorio",
+    side: "read",
+    requiresHumanConfirmation: false,
+  },
+  {
+    id: "rda_lab_ready_pickup",
+    description:
+      "Módulos prontos para retirada/entrega (status PRONTO_PRA_RETIRADA).",
+    parameters: {
+      type: "object",
+      properties: {},
+      required: [],
+      additionalProperties: false,
+    },
+    requiredPermission: "access_laboratorio",
+    side: "read",
+    requiresHumanConfirmation: false,
+  },
+  {
+    id: "rda_lab_longest_modules",
+    description:
+      "Quais módulos estão há mais tempo no laboratório (por created_at). Inclui stageTimeLabel (status_entered_at).",
+    parameters: {
+      type: "object",
+      properties: {
+        limit: { type: "number" },
+      },
+      required: [],
+      additionalProperties: false,
+    },
+    requiredPermission: "access_laboratorio",
+    side: "read",
+    requiresHumanConfirmation: false,
+  },
+  {
+    id: "rda_stock_abs_search",
+    description:
+      "Busca estoque ABS por código/aplicação/veículo (ex.: Corolla 2018). Separa availableParts (eletrônico/hidráulico já desmembrados) de availableViaDisassembly (completo — NÃO vender parte sem desmembrar). Informe se compatibilidade não estiver confirmada no cadastro.",
+    parameters: {
+      type: "object",
+      properties: {
+        query: { type: "string" },
+        limit: { type: "number" },
+      },
+      required: ["query"],
+      additionalProperties: false,
+    },
+    requiredPermission: "access_estoque_pecas",
+    side: "read",
+    requiresHumanConfirmation: false,
+  },
+  {
+    id: "rda_stock_abs_locate",
+    description:
+      "Onde está o módulo ABS? Localiza por #sequência (ex. #4), ABS-######, código ou localização — qualquer status.",
+    parameters: {
+      type: "object",
+      properties: {
+        query: { type: "string" },
+      },
+      required: ["query"],
+      additionalProperties: false,
+    },
+    requiredPermission: "access_estoque_pecas",
+    side: "read",
+    requiresHumanConfirmation: false,
+  },
+  {
+    id: "rda_stock_low_parts",
+    description: "Peças do cadastro workshop_parts com estoque baixo (stock_qty ≤ min_stock_qty).",
+    parameters: {
+      type: "object",
+      properties: {},
+      required: [],
+      additionalProperties: false,
+    },
+    requiredPermission: "access_estoque_pecas",
+    side: "read",
+    requiresHumanConfirmation: false,
+  },
+  {
+    id: "rda_stock_summary",
+    description:
+      "Resumo do estoque: ABS disponíveis/reservados/fora/desmembrados por tipo; peças com estoque baixo. Não inventa disponibilidade.",
+    parameters: {
+      type: "object",
+      properties: {},
+      required: [],
+      additionalProperties: false,
+    },
+    requiredPermission: "access_estoque_pecas",
     side: "read",
     requiresHumanConfirmation: false,
   },

@@ -25,7 +25,8 @@
     "test:rda-knowledge": "tsx scripts/rdaKnowledgeMemory.selftest.ts",
     "test:rda-knowledge-integration": "bash scripts/rdaHomologation/runKnowledgeIntegration.sh",
     "test:rda-ops": "tsx scripts/rdaOperationalLearning.selftest.ts",
-    "test:rda-patio-intel": "tsx scripts/rdaPatioIntelligence.selftest.ts"
+    "test:rda-patio-intel": "tsx scripts/rdaPatioIntelligence.selftest.ts",
+    "test:rda-lab-estoque": "tsx scripts/rdaLabEstoqueIntelligence.selftest.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.48.0",
