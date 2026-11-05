@@ -1,3 +1,5 @@
+export type PatioStageTimeSource = "status_entered_at" | "unknown";
+
 export type PatioOrderFact = {
   id: string;
   osNumber: number | null;
@@ -11,8 +13,15 @@ export type PatioOrderFact = {
   deliveryDate: string | null;
   createdAt: string;
   updatedAt: string;
-  /** Horas desde updated_at (proxy de permanência na etapa). */
-  hoursInStage: number;
+  /** Entrada real na etapa atual (ISO); null se desconhecida. */
+  statusEnteredAt: string | null;
+  /** true quando status_entered_at é confiável. */
+  stageTimeKnown: boolean;
+  stageTimeSource: PatioStageTimeSource;
+  /** Horas desde a entrada na etapa; null se desconhecido (nunca usar updated_at como exato). */
+  hoursInStage: number | null;
+  /** Rótulo amigável para UI / textos. */
+  stageTimeLabel: string;
   /** Horas até a data prometida (negativo = atrasado). */
   hoursToDelivery: number | null;
   orderType: "vehicle";
@@ -26,8 +35,7 @@ export type PatioBottleneckKind =
   | "waiting_parts"
   | "parts_ready_not_started"
   | "slow_execution"
-  | "waiting_test_or_finish"
-  | "above_historical";
+  | "waiting_test_or_finish";
 
 export type PatioBottleneck = {
   kind: PatioBottleneckKind;
@@ -41,7 +49,8 @@ export type PatioBottleneck = {
     id: string;
     plate: string | null;
     osNumber: number | null;
-    hoursInStage: number;
+    hoursInStage: number | null;
+    stageTimeLabel: string;
     technician: string | null;
   }>;
 };
@@ -54,7 +63,8 @@ export type PatioPriorityItem = {
   statusLabel: string;
   score: number;
   reasons: string[];
-  hoursInStage: number;
+  hoursInStage: number | null;
+  stageTimeLabel: string;
   hoursToDelivery: number | null;
   technician: string | null;
 };
@@ -79,7 +89,8 @@ export type PatioAttentionItem = {
   statusLabel: string;
   kind: string;
   summary: string;
-  hoursInStage: number;
+  hoursInStage: number | null;
+  stageTimeLabel: string;
 };
 
 export type PatioOperationalSummary = {
@@ -89,6 +100,16 @@ export type PatioOperationalSummary = {
   priorityCount: number;
   riskCount: number;
   attentionCount: number;
+  unknownStageTimeCount: number;
+  note: string;
+};
+
+/** Contexto Fase 2 compatível (tempo produtivo apontado) — não confundir com permanência na etapa. */
+export type PatioProductiveContext = {
+  available: boolean;
+  sampleCount: number;
+  confidence: string;
+  medianProductiveHours: number | null;
   note: string;
 };
 
@@ -99,6 +120,7 @@ export type PatioDashboard = {
   priorities: PatioPriorityItem[];
   risks: PatioDeliveryRisk[];
   thresholds: Record<string, number>;
+  productiveContext: PatioProductiveContext;
   knowledgeHints: Array<{ knowledgeKey: string; title: string; excerpt: string }>;
   proposedKnowledgeDrafts: Array<{
     title: string;

@@ -75,6 +75,7 @@ import {
   listRunningWorkSessionIdsForKinds,
 } from "./services/rdaIntelligence/workSessions/autoPauseOnStageChange.js";
 import { timeKindsToAutoPauseOnStageChange } from "./services/rdaIntelligence/workSessions/stageRules.js";
+import { recordServiceOrderStageEntry } from "./services/rdaIntelligence/patioIntelligence/recordStageEntry.js";
 import { assertHomologationSafeOrThrow } from "./utils/homologationGuard.js";
 import {
   insertIncidentRevision,
@@ -14069,6 +14070,58 @@ export function createApiApp() {
         if (statusChanged && supabaseAdmin && WORKSHOP_ID) {
           const prevStatus = String(previous.status ?? "");
           const nextStatus = String(data?.status ?? "");
+          // Permanência real na etapa (Fase 3): status_entered_at + histórico.
+          // Não engolir falha de histórico (evita inconsistência silenciosa).
+          try {
+            const actorUserIdForStage =
+              typeof (req as { auth?: { u?: string } }).auth?.u === "string"
+                ? String((req as { auth?: { u?: string } }).auth?.u)
+                : null;
+            const stageRec = await recordServiceOrderStageEntry({
+              supabase: supabaseAdmin,
+              workshopId: WORKSHOP_ID,
+              serviceOrderId: id,
+              fromStatus: prevStatus || null,
+              toStatus: nextStatus,
+              actorUserId: actorUserIdForStage,
+              source: "api_service_order_update",
+              enteredAt:
+                typeof (data as { status_entered_at?: string | null })?.status_entered_at ===
+                "string"
+                  ? String((data as { status_entered_at?: string }).status_entered_at)
+                  : undefined,
+            });
+            if (!stageRec.eventConfirmed && stageRec.via !== "schema_missing") {
+              console.error(
+                "[patio-intel] histórico de etapa não confirmado após mudança de status:",
+                stageRec.via,
+                stageRec.error || ""
+              );
+              return res.status(500).json({
+                error:
+                  "Etapa atualizada, mas o histórico de entrada na etapa não foi confirmado. Recarregue e verifique a OS.",
+                code: "RDA_STAGE_HISTORY_INCOMPLETE",
+                detail: stageRec.error || stageRec.via,
+                serviceOrder: data,
+              });
+            }
+            if (!stageRec.ok && stageRec.via === "schema_missing") {
+              console.error(
+                "[patio-intel] schema de histórico de etapa ausente:",
+                stageRec.error || ""
+              );
+            }
+          } catch (stageErr) {
+            const msg = stageErr instanceof Error ? stageErr.message : String(stageErr);
+            console.error("[patio-intel] falha ao registrar entrada na etapa:", stageErr);
+            return res.status(500).json({
+              error:
+                "Etapa atualizada, mas falhou o registro do histórico de permanência na etapa.",
+              code: "RDA_STAGE_HISTORY_EXCEPTION",
+              detail: msg,
+              serviceOrder: data,
+            });
+          }
           const kindsToPause = timeKindsToAutoPauseOnStageChange({
             previousStatus: prevStatus,
             nextStatus,

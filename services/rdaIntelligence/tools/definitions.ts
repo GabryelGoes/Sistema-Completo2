@@ -595,7 +595,7 @@ export const RDA_PRODUCTION_TOOLS: RdaToolDefinition[] = [
   {
     id: "rda_patio_bottlenecks",
     description:
-      "Gargalos do Pátio por etapa real (AGUARDANDO_AVALIACAO, AVALIACAO_TECNICA, AGUARDANDO_APROVACAO, ORCAMENTO_APROVADO, AGUARDANDO_PECAS, EM_SERVICO, FASE_DE_TESTE, etc.) vs limiares configuráveis. Qual é o maior gargalo? Use esta tool.",
+      "Gargalos do Pátio por permanência real na etapa (status_entered_at, não updated_at) vs limiares configuráveis. Não confunda com tempo produtivo apontado (Fase 2). Qual é o maior gargalo? Use esta tool.",
     parameters: {
       type: "object",
       properties: {},
@@ -609,7 +609,7 @@ export const RDA_PRODUCTION_TOOLS: RdaToolDefinition[] = [
   {
     id: "rda_patio_priorities",
     description:
-      "Prioridades sugeridas do Pátio com motivos (permanência, entrega prometida, peças, aprovação, técnico). Não altera atribuições.",
+      "Prioridades sugeridas do Pátio com motivos (permanência via status_entered_at, entrega prometida, peças, aprovação, técnico). OS sem histórico: tempo na etapa desconhecido. Não altera atribuições.",
     parameters: {
       type: "object",
       properties: {
