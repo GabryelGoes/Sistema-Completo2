@@ -20,6 +20,7 @@ import { createRdaSystemEvent, productionRdaEventBus } from "./events/bus.js";
 import { registerRdaKnowledgeRoutes } from "./knowledge/registerKnowledgeRoutes.js";
 import { registerOperationalLearningRoutes } from "./operationalLearning/registerOperationalLearningRoutes.js";
 import { registerPatioIntelligenceRoutes } from "./patioIntelligence/registerPatioIntelligenceRoutes.js";
+import { registerLabEstoqueIntelligenceRoutes } from "./labEstoqueIntelligence/registerLabEstoqueIntelligenceRoutes.js";
 
 type SessionLike = {
   r?: RdaRole;
@@ -54,6 +55,7 @@ function canUseRdaAssistant(auth: RdaAuthContext): boolean {
     p.access_radar_qualidade === true ||
     p.access_patio === true ||
     p.access_laboratorio === true ||
+    p.access_estoque_pecas === true ||
     p.access_home === true
   );
 }
@@ -87,6 +89,14 @@ export function registerRdaIntelligenceRoutes(
   });
 
   registerPatioIntelligenceRoutes(app, {
+    WORKSHOP_ID: deps.WORKSHOP_ID,
+    supabaseAdmin: deps.supabaseAdmin,
+    loadUserPermissions: deps.loadUserPermissions,
+    getWorkshopSettingValue: deps.getWorkshopSettingValue,
+    setWorkshopSettingValue: deps.setWorkshopSettingValue,
+  });
+
+  registerLabEstoqueIntelligenceRoutes(app, {
     WORKSHOP_ID: deps.WORKSHOP_ID,
     supabaseAdmin: deps.supabaseAdmin,
     loadUserPermissions: deps.loadUserPermissions,
