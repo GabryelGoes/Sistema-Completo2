@@ -10,6 +10,12 @@ import {
 import { formatWorkshopPartQty } from '../../utils/workshopPartStock';
 import { PartPhotoImg } from '../ui/PartPhotoImg';
 import { ModalPortal } from '../ui/ModalPortal';
+import { useDesktopShellLayout } from '../ui/DesktopShellContext';
+import {
+  iosModalShell,
+  NESTED_STOCK_OVERLAY_Z,
+  resolveIosModalOverlayClass,
+} from '../ui/iosModalStyles';
 
 export type VehicleOsStockManualAddPopoverProps = {
   open: boolean;
@@ -28,6 +34,7 @@ export const VehicleOsStockManualAddPopover: React.FC<VehicleOsStockManualAddPop
   busy,
   onAdd,
 }) => {
+  const isDesktopShell = useDesktopShellLayout();
   const [catalog, setCatalog] = useState<WorkshopPart[]>([]);
   const [catalogLoading, setCatalogLoading] = useState(false);
   const [query, setQuery] = useState('');
@@ -132,10 +139,13 @@ export const VehicleOsStockManualAddPopover: React.FC<VehicleOsStockManualAddPop
 
   if (!open) return null;
 
+  // Mesmo empilhamento do modal “Peças do orçamento” — z-[80] ficava atrás do modal do veículo.
+  const overlayClass = resolveIosModalOverlayClass(isDesktopShell, NESTED_STOCK_OVERLAY_Z);
+
   return (
-    <ModalPortal onRequestClose={busy ? undefined : onClose}>
+    <ModalPortal onRequestClose={busy ? undefined : onClose} forceBody>
       <div
-        className="fixed inset-0 z-[80] flex items-end justify-center bg-black/35 p-3 sm:items-center sm:p-4"
+        className={`${overlayClass} animate-in fade-in duration-150`}
         onClick={() => {
           if (!busy) onClose();
         }}
@@ -145,7 +155,7 @@ export const VehicleOsStockManualAddPopover: React.FC<VehicleOsStockManualAddPop
           role="dialog"
           aria-modal="true"
           aria-labelledby="vehicle-os-stock-manual-add-title"
-          className="flex w-full max-w-md flex-col overflow-hidden rounded-2xl border border-zinc-200/90 bg-white shadow-2xl dark:border-white/10 dark:bg-zinc-950"
+          className={`${iosModalShell} flex max-h-[min(88dvh,560px)] w-full max-w-md flex-col`}
           onClick={(e) => e.stopPropagation()}
         >
           <div className="flex items-center justify-between gap-2 border-b border-zinc-200/80 px-3 py-2.5 dark:border-white/10">
