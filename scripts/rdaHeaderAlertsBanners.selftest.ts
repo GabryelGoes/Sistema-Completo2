@@ -40,9 +40,22 @@ assert.equal(
   clientCanViewProactiveIntelligence({ role: "admin", isTechnician: false }),
   true
 );
+// Flag isTechnician sozinha não bloqueia (igual ao servidor) se houver permissão de área.
 assert.equal(
-  clientCanViewProactiveIntelligence({ role: "user", isTechnician: true, permissions: { access_patio: true } }),
-  false
+  clientCanViewProactiveIntelligence({
+    role: "user",
+    isTechnician: true,
+    permissions: { access_patio: true },
+  }),
+  true
+);
+assert.equal(
+  clientCanViewProactiveIntelligence({
+    role: "user",
+    isTechnician: true,
+    permissions: { full_access: true },
+  }),
+  true
 );
 assert.equal(
   clientCanViewProactiveIntelligence({
@@ -55,7 +68,7 @@ assert.equal(
 assert.equal(
   clientCanViewProactiveIntelligence({
     role: "user",
-    isTechnician: false,
+    isTechnician: true,
     permissions: { access_home: true },
   }),
   false
