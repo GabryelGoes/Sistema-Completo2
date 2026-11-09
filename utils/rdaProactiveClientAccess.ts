@@ -2,10 +2,10 @@
 
 export function clientCanViewProactiveIntelligence(input: {
   role?: string | null;
+  /** Mantido por compatibilidade; não bloqueia sozinho (igual ao servidor). */
   isTechnician?: boolean | null;
   permissions?: Record<string, boolean> | null;
 }): boolean {
-  if (input.isTechnician) return false;
   if (input.role === "admin") return true;
   if (input.role !== "user") return false;
   const p = input.permissions || {};
