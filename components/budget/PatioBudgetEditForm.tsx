@@ -22,13 +22,16 @@ import { IosAccentIconSquircle } from '../ui/IosAccentIconSquircle';
 import { BudgetLinePositionControl } from './BudgetLinePositionControl';
 import { BudgetPartStockBadge } from '../ui/BudgetPartStockBadge';
 import { BudgetServiceOutsourcedBadge } from '../ui/BudgetServiceOutsourcedBadge';
+import { BudgetOutsourcedTextReplaceHint } from './BudgetOutsourcedTextReplaceHint';
 import { BudgetPartSuggestionDropdown } from './BudgetPartSuggestionDropdown';
 import { BudgetServiceSuggestionDropdown } from './BudgetServiceSuggestionDropdown';
 import { WorkshopPartQuickViewModal } from './WorkshopPartQuickViewModal';
 import {
+  descriptionHasOutsourcedWord,
+  findOutsourcedWordInDescription,
   isBudgetOutsourcedSuggestion,
-  isOutsourcedServiceDescription,
-  matchOutsourcedServiceSuggestion,
+  shouldOfferOutsourcedTextReplace,
+  stripOutsourcedWordFromDescription,
 } from '../../utils/budgetServiceOutsourced';
 
 export type PatioBudgetServiceDraft = {
@@ -203,6 +206,9 @@ export function PatioBudgetEditForm({
   const [budgetPartQuickView, setBudgetPartQuickView] = useState<WorkshopPart | null>(null);
   const [focusServiceId, setFocusServiceId] = useState<string | null>(null);
   const [focusPartId, setFocusPartId] = useState<string | null>(null);
+  const [outsourcedReplaceDismissedIds, setOutsourcedReplaceDismissedIds] = useState<
+    Record<string, true>
+  >({});
 
   const focusedServiceInputRef = useRef<HTMLDivElement | null>(null);
   const focusedPartInputRef = useRef<HTMLDivElement | null>(null);
@@ -303,9 +309,7 @@ export function PatioBudgetEditForm({
       prev.map((item) => {
         if (item.id !== id) return item;
         const match = workshopServicesExactMap.get(value.trim());
-        const outsourced = !value.trim()
-          ? false
-          : isOutsourcedServiceDescription(value) || item.outsourced === true;
+        const outsourced = !value.trim() ? false : item.outsourced === true;
         return {
           ...item,
           description: value,
@@ -313,6 +317,46 @@ export function PatioBudgetEditForm({
           outsourced,
         };
       })
+    );
+    if (!descriptionHasOutsourcedWord(value)) {
+      setOutsourcedReplaceDismissedIds((prev) => {
+        if (!prev[id]) return prev;
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
+    }
+  };
+
+  const acceptOutsourcedTextReplace = (id: string) => {
+    setBudgetServices((prev) =>
+      prev.map((item) => {
+        if (item.id !== id) return item;
+        const nextDescription = stripOutsourcedWordFromDescription(item.description);
+        const match = workshopServicesExactMap.get(nextDescription.trim());
+        return {
+          ...item,
+          description: nextDescription,
+          laborHours: match ? (match.labor_hours ?? null) : item.laborHours,
+          outsourced: true,
+        };
+      })
+    );
+    setOutsourcedReplaceDismissedIds((prev) => {
+      if (!prev[id]) return prev;
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
+  };
+
+  const dismissOutsourcedTextReplace = (id: string) => {
+    setOutsourcedReplaceDismissedIds((prev) => ({ ...prev, [id]: true }));
+  };
+
+  const removeOutsourcedBadge = (id: string) => {
+    setBudgetServices((prev) =>
+      prev.map((item) => (item.id === id ? { ...item, outsourced: false } : item))
     );
   };
 
@@ -361,8 +405,6 @@ export function PatioBudgetEditForm({
   };
 
   const getServiceSuggestions = (description: string) => {
-    const outsourcedOnly = matchOutsourcedServiceSuggestion(description);
-    if (outsourcedOnly) return outsourcedOnly;
     const q = normalizeText(description.trim());
     if (!q) return [];
     const out: WorkshopService[] = [];
@@ -728,12 +770,36 @@ export function PatioBudgetEditForm({
                                     compactBottom={
                                       (item.laborHours != null &&
                                         Number.isFinite(Number(item.laborHours))) ||
-                                      Boolean(item.outsourced)
+                                      Boolean(item.outsourced) ||
+                                      shouldOfferOutsourcedTextReplace({
+                                        description: item.description,
+                                        outsourced: item.outsourced,
+                                        dismissed: Boolean(
+                                          outsourcedReplaceDismissedIds[item.id]
+                                        ),
+                                      })
                                     }
                                   />
+                                  {shouldOfferOutsourcedTextReplace({
+                                    description: item.description,
+                                    outsourced: item.outsourced,
+                                    dismissed: Boolean(outsourcedReplaceDismissedIds[item.id]),
+                                  }) ? (
+                                    <BudgetOutsourcedTextReplaceHint
+                                      matchedWord={
+                                        findOutsourcedWordInDescription(item.description)
+                                          ?.matched || 'terceirizado'
+                                      }
+                                      onAccept={() => acceptOutsourcedTextReplace(item.id)}
+                                      onDismiss={() => dismissOutsourcedTextReplace(item.id)}
+                                    />
+                                  ) : null}
                                 </div>
                                 {item.outsourced ? (
-                                  <BudgetServiceOutsourcedBadge className="mt-3 shrink-0" />
+                                  <BudgetServiceOutsourcedBadge
+                                    className="mt-3 shrink-0"
+                                    onRemove={() => removeOutsourcedBadge(item.id)}
+                                  />
                                 ) : null}
                               </div>
                               {item.laborHours != null && Number.isFinite(Number(item.laborHours)) ? (

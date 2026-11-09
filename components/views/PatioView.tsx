@@ -201,11 +201,7 @@ import { formatLaborLabel } from '../../utils/workshopLaborFormat';
 import { moveItemInList } from '../../utils/moveItemInList';
 import { BudgetPartStockBadge } from '../ui/BudgetPartStockBadge';
 import { resolveBudgetPartStockFlags, type BudgetPartFields } from '../../utils/budgetPartStock';
-import {
-  isBudgetOutsourcedSuggestion,
-  isOutsourcedServiceDescription,
-  matchOutsourcedServiceSuggestion,
-} from '../../utils/budgetServiceOutsourced';
+import { isBudgetOutsourcedSuggestion } from '../../utils/budgetServiceOutsourced';
 import {
   mapPatioBudgetPartToPayload,
   type PatioBudgetEditDraft,
@@ -5924,9 +5920,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
         if (item.id !== id) return item;
         const trimmed = value.trim();
         const match = workshopServices.find((ws) => ws.name.trim() === trimmed);
-        const outsourced = !trimmed
-          ? false
-          : isOutsourcedServiceDescription(value) || item.outsourced === true;
+        const outsourced = !trimmed ? false : item.outsourced === true;
         return {
           ...item,
           description: value,
@@ -5968,8 +5962,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
   };
 
   const getServiceSuggestions = (description: string) => {
-    const outsourcedOnly = matchOutsourcedServiceSuggestion(description);
-    if (outsourcedOnly) return outsourcedOnly;
     const q = normalizeText(description.trim());
     if (!q) return [];
     const out: WorkshopService[] = [];

@@ -3,6 +3,8 @@ import type { WorkshopService } from '../services/apiService';
 export const BUDGET_OUTSOURCED_SERVICE_LABEL = 'Terceirizado';
 export const BUDGET_OUTSOURCED_SUGGESTION_ID = '__budget_service_terceirizado__';
 
+const OUTSOURCED_KEY = 'terceirizado';
+
 export function normalizeBudgetServiceText(text: string): string {
   return text
     .toLowerCase()
@@ -12,7 +14,10 @@ export function normalizeBudgetServiceText(text: string): string {
 }
 
 export function isOutsourcedServiceDescription(description: string): boolean {
-  return normalizeBudgetServiceText(description) === normalizeBudgetServiceText(BUDGET_OUTSOURCED_SERVICE_LABEL);
+  return (
+    normalizeBudgetServiceText(description) ===
+    normalizeBudgetServiceText(BUDGET_OUTSOURCED_SERVICE_LABEL)
+  );
 }
 
 export function isBudgetOutsourcedSuggestion(svc: Pick<WorkshopService, 'id' | 'name'>): boolean {
@@ -22,7 +27,7 @@ export function isBudgetOutsourcedSuggestion(svc: Pick<WorkshopService, 'id' | '
   );
 }
 
-/** Sugestão sintética única para marcar serviço terceirizado. */
+/** Sugestão sintética legada (catálogo); preferir substituição de texto. */
 export function budgetOutsourcedSuggestion(): WorkshopService {
   return {
     id: BUDGET_OUTSOURCED_SUGGESTION_ID,
@@ -34,19 +39,59 @@ export function budgetOutsourcedSuggestion(): WorkshopService {
   };
 }
 
+export type OutsourcedWordMatch = {
+  start: number;
+  end: number;
+  matched: string;
+};
+
 /**
- * Se a digitação aponta para "Terceirizado", retorna só essa sugestão.
- * Caso contrário, null (usar catálogo normal).
+ * Localiza a palavra "terceirizado" no texto (última ocorrência — costuma ir no fim).
+ * Ignora acentos/caixa.
  */
-export function matchOutsourcedServiceSuggestion(
+export function findOutsourcedWordInDescription(
   description: string
-): WorkshopService[] | null {
-  const q = normalizeBudgetServiceText(description);
-  if (!q) return null;
-  const key = normalizeBudgetServiceText(BUDGET_OUTSOURCED_SERVICE_LABEL);
-  // Prefixo a partir de 4 letras (ex.: "terc") ou match exato — evita roubar "te"/"ter".
-  if (q === key || (q.length >= 4 && key.startsWith(q))) {
-    return [budgetOutsourcedSuggestion()];
+): OutsourcedWordMatch | null {
+  const text = String(description ?? '');
+  if (!text) return null;
+  const tokenRe = /[\p{L}\p{N}]+/gu;
+  let last: OutsourcedWordMatch | null = null;
+  let m: RegExpExecArray | null;
+  while ((m = tokenRe.exec(text))) {
+    if (normalizeBudgetServiceText(m[0]) === OUTSOURCED_KEY) {
+      last = { start: m.index, end: m.index + m[0].length, matched: m[0] };
+    }
   }
-  return null;
+  return last;
+}
+
+export function descriptionHasOutsourcedWord(description: string): boolean {
+  return findOutsourcedWordInDescription(description) != null;
+}
+
+/** Remove a palavra "terceirizado" e limpa espaços sobrando. */
+export function stripOutsourcedWordFromDescription(description: string): string {
+  const match = findOutsourcedWordInDescription(description);
+  if (!match) return String(description ?? '').trim();
+  const before = description.slice(0, match.start);
+  const after = description.slice(match.end);
+  return `${before}${after}`
+    .replace(/\s{2,}/g, ' ')
+    .replace(/\s+([,.;:!?])/g, '$1')
+    .replace(/^[,.;:!?\s]+|[,.;:!\s]+$/g, '')
+    .trim();
+}
+
+/**
+ * Mostrar a dica de substituição estilo iOS quando a palavra está no texto
+ * e a linha ainda não tem a etiqueta.
+ */
+export function shouldOfferOutsourcedTextReplace(opts: {
+  description: string;
+  outsourced?: boolean;
+  dismissed?: boolean;
+}): boolean {
+  if (opts.outsourced) return false;
+  if (opts.dismissed) return false;
+  return descriptionHasOutsourcedWord(opts.description);
 }

@@ -30,14 +30,17 @@ import { getVehicleBrandLogoUrl } from '../../utils/vehicleBrandLogo';
 import { MercosulPlateMockup } from '../ui/MercosulPlateMockup';
 import { BudgetPartStockBadge } from '../ui/BudgetPartStockBadge';
 import { BudgetServiceOutsourcedBadge } from '../ui/BudgetServiceOutsourcedBadge';
+import { BudgetOutsourcedTextReplaceHint } from './BudgetOutsourcedTextReplaceHint';
 import { BudgetPartSuggestionDropdown } from './BudgetPartSuggestionDropdown';
 import { BudgetServiceSuggestionDropdown } from './BudgetServiceSuggestionDropdown';
 import { handleBudgetSuggestionKeyDown } from './budgetSuggestionKeyboard';
 import { WorkshopPartQuickViewModal } from './WorkshopPartQuickViewModal';
 import {
+  descriptionHasOutsourcedWord,
+  findOutsourcedWordInDescription,
   isBudgetOutsourcedSuggestion,
-  isOutsourcedServiceDescription,
-  matchOutsourcedServiceSuggestion,
+  shouldOfferOutsourcedTextReplace,
+  stripOutsourcedWordFromDescription,
 } from '../../utils/budgetServiceOutsourced';
 import type {
   PatioBudgetEditDraft,
@@ -432,6 +435,10 @@ export function PatioBudgetRequestTouchForm({
   const [focusServiceId, setFocusServiceId] = useState<string | null>(null);
   const [focusPartId, setFocusPartId] = useState<string | null>(null);
   const [leaveConfirmOpen, setLeaveConfirmOpen] = useState(false);
+  /** Linhas em que o usuário dispensou a substituição “terceirizado” → etiqueta. */
+  const [outsourcedReplaceDismissedIds, setOutsourcedReplaceDismissedIds] = useState<
+    Record<string, true>
+  >({});
 
   const focusedServiceInputRef = useRef<HTMLDivElement | null>(null);
   const focusedPartInputRef = useRef<HTMLDivElement | null>(null);
@@ -661,9 +668,8 @@ export function PatioBudgetRequestTouchForm({
       prev.map((item) => {
         if (item.id !== id) return item;
         const match = workshopServicesExactMap.get(value.trim());
-        const outsourced = !value.trim()
-          ? false
-          : isOutsourcedServiceDescription(value) || item.outsourced === true;
+        // Etiqueta só via aceitar a substituição (ou load); limpar texto não remove a flag.
+        const outsourced = !value.trim() ? false : item.outsourced === true;
         return {
           ...item,
           description: value,
@@ -671,6 +677,47 @@ export function PatioBudgetRequestTouchForm({
           outsourced,
         };
       })
+    );
+    // Se a palavra sumiu, libera a dica de novo na próxima vez que digitar.
+    if (!descriptionHasOutsourcedWord(value)) {
+      setOutsourcedReplaceDismissedIds((prev) => {
+        if (!prev[id]) return prev;
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
+    }
+  };
+
+  const acceptOutsourcedTextReplace = (id: string) => {
+    setBudgetServices((prev) =>
+      prev.map((item) => {
+        if (item.id !== id) return item;
+        const nextDescription = stripOutsourcedWordFromDescription(item.description);
+        const match = workshopServicesExactMap.get(nextDescription.trim());
+        return {
+          ...item,
+          description: nextDescription,
+          laborHours: match ? (match.labor_hours ?? null) : item.laborHours,
+          outsourced: true,
+        };
+      })
+    );
+    setOutsourcedReplaceDismissedIds((prev) => {
+      if (!prev[id]) return prev;
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
+  };
+
+  const dismissOutsourcedTextReplace = (id: string) => {
+    setOutsourcedReplaceDismissedIds((prev) => ({ ...prev, [id]: true }));
+  };
+
+  const removeOutsourcedBadge = (id: string) => {
+    setBudgetServices((prev) =>
+      prev.map((item) => (item.id === id ? { ...item, outsourced: false } : item))
     );
   };
 
@@ -699,8 +746,6 @@ export function PatioBudgetRequestTouchForm({
   };
 
   const getServiceSuggestions = (description: string) => {
-    const outsourcedOnly = matchOutsourcedServiceSuggestion(description);
-    if (outsourcedOnly) return outsourcedOnly;
     const q = normalizeText(description.trim());
     if (!q) return [];
     return workshopServices
@@ -1271,11 +1316,36 @@ export function PatioBudgetRequestTouchForm({
                                 }
                                 autoFocus={focusServiceId === item.id}
                                 dataBudgetServiceId={item.id}
-                                compactBottom={showLaborUnderText || Boolean(item.outsourced)}
+                                compactBottom={
+                                  showLaborUnderText ||
+                                  Boolean(item.outsourced) ||
+                                  shouldOfferOutsourcedTextReplace({
+                                    description: item.description,
+                                    outsourced: item.outsourced,
+                                    dismissed: Boolean(outsourcedReplaceDismissedIds[item.id]),
+                                  })
+                                }
                               />
+                              {shouldOfferOutsourcedTextReplace({
+                                description: item.description,
+                                outsourced: item.outsourced,
+                                dismissed: Boolean(outsourcedReplaceDismissedIds[item.id]),
+                              }) ? (
+                                <BudgetOutsourcedTextReplaceHint
+                                  matchedWord={
+                                    findOutsourcedWordInDescription(item.description)?.matched ||
+                                    'terceirizado'
+                                  }
+                                  onAccept={() => acceptOutsourcedTextReplace(item.id)}
+                                  onDismiss={() => dismissOutsourcedTextReplace(item.id)}
+                                />
+                              ) : null}
                             </div>
                             {item.outsourced ? (
-                              <BudgetServiceOutsourcedBadge className="mt-1.5 shrink-0" />
+                              <BudgetServiceOutsourcedBadge
+                                className="mt-1.5 shrink-0"
+                                onRemove={() => removeOutsourcedBadge(item.id)}
+                              />
                             ) : null}
                           </div>
                           {isLaborEditing ? (
