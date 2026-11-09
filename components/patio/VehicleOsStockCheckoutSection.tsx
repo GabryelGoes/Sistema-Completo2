@@ -1,10 +1,11 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Camera, ClipboardList, Loader2, PackageMinus, Trash2 } from 'lucide-react';
+import { Camera, ClipboardList, Loader2, PackageMinus, PackagePlus, Trash2 } from 'lucide-react';
 import {
   cancelWorkshopPartStockMovement,
   createWorkshopPartStockMovement,
   getWorkshopPartStockMovements,
   lookupWorkshopPartByCode,
+  type WorkshopPart,
   type WorkshopPartStockMovement,
 } from '../../services/apiService';
 import { formatWorkshopPartQty } from '../../utils/workshopPartStock';
@@ -16,6 +17,7 @@ import { PartPhotoImg } from '../ui/PartPhotoImg';
 import { BarcodeScanner } from '../BarcodeScanner';
 import { StockGuardPasswordModal } from '../StockGuardPasswordModal';
 import { VehicleOsBudgetPartsScanModal } from './VehicleOsBudgetPartsScanModal';
+import { VehicleOsStockManualAddPopover } from './VehicleOsStockManualAddPopover';
 import {
   uiOsModalCardSectionTitle,
   uiOsModalSectionAppIcon,
@@ -93,6 +95,7 @@ export const VehicleOsStockCheckoutSection: React.FC<VehicleOsStockCheckoutSecti
   const [cancelBusy, setCancelBusy] = useState(false);
   const [cancelError, setCancelError] = useState<string | null>(null);
   const [budgetScanOpen, setBudgetScanOpen] = useState(false);
+  const [manualAddOpen, setManualAddOpen] = useState(false);
   const scanLockRef = useRef(false);
   const registerRef = useRef<(code: string) => Promise<boolean>>(async () => false);
   const sectionRef = useRef<HTMLDivElement | null>(null);
@@ -138,6 +141,83 @@ export const VehicleOsStockCheckoutSection: React.FC<VehicleOsStockCheckoutSecti
     void loadItems();
   }, [loadItems]);
 
+  const commitPartWithdrawal = useCallback(
+    async (
+      part: WorkshopPart,
+      quantity: number,
+      opts?: { barcodeScanned?: string | null }
+    ): Promise<boolean> => {
+      const qty = Math.max(1, Math.floor(Number(quantity) || 0));
+      if (!part?.id || qty < 1) return false;
+
+      if (Number(part.stock_qty ?? 0) < qty) {
+        setError(
+          qty === 1
+            ? `Sem estoque para “${part.name}”.`
+            : `Estoque insuficiente para “${part.name}” (pedido: ${qty}).`
+        );
+        playCheckoutBeep(false);
+        return false;
+      }
+
+      const notes = formatConsumableMovementNotes({
+        osScope,
+        osLabel,
+        withdrawnBy: recordedByName || undefined,
+        notes: `OS_ID:${serviceOrderId}`,
+      });
+
+      const result = await createWorkshopPartStockMovement({
+        movement_type: 'consumable',
+        part_id: part.id,
+        quantity: qty,
+        notes,
+        barcode_scanned: opts?.barcodeScanned ?? null,
+        recorded_by_name: recordedByName || null,
+        service_order_id: serviceOrderId,
+      });
+
+      const movement: WorkshopPartStockMovement = {
+        ...result.movement,
+        part_name: result.part.name,
+        part_unit_of_measure: result.part.unit_of_measure,
+        part_photo_url: result.part.photo_url ?? null,
+        service_order_id: serviceOrderId,
+      };
+      setItems((prev) => [movement, ...prev.filter((m) => m.id !== movement.id)]);
+      setFlashId(movement.id);
+      setLastOk(
+        `${result.part.name}${qty > 1 ? ` ×${qty}` : ''} · estoque ${formatWorkshopPartQty(result.part.stock_qty)}`
+      );
+      playCheckoutBeep(true);
+      scrollToRegisteredProducts();
+      window.setTimeout(() => setFlashId((id) => (id === movement.id ? null : id)), 1200);
+      return true;
+    },
+    [osLabel, osScope, recordedByName, scrollToRegisteredProducts, serviceOrderId]
+  );
+
+  const registerPart = useCallback(
+    async (part: WorkshopPart, quantity: number): Promise<boolean> => {
+      if (scanLockRef.current) return false;
+      scanLockRef.current = true;
+      setBusyCode(part.name || part.id);
+      setError(null);
+      setLastOk(null);
+      try {
+        return await commitPartWithdrawal(part, quantity);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : 'Não foi possível registrar a peça.');
+        playCheckoutBeep(false);
+        return false;
+      } finally {
+        scanLockRef.current = false;
+        setBusyCode(null);
+      }
+    },
+    [commitPartWithdrawal]
+  );
+
   const registerCode = useCallback(
     async (rawCode: string): Promise<boolean> => {
       const code = normalizeBarcodeInput(rawCode);
@@ -156,42 +236,7 @@ export const VehicleOsStockCheckoutSection: React.FC<VehicleOsStockCheckoutSecti
           playCheckoutBeep(false);
           return true;
         }
-        if (Number(part.stock_qty ?? 0) < 1) {
-          setError(`Sem estoque para “${part.name}”.`);
-          playCheckoutBeep(false);
-          return true;
-        }
-
-        const notes = formatConsumableMovementNotes({
-          osScope,
-          osLabel,
-          withdrawnBy: recordedByName || undefined,
-          notes: `OS_ID:${serviceOrderId}`,
-        });
-
-        const result = await createWorkshopPartStockMovement({
-          movement_type: 'consumable',
-          part_id: part.id,
-          quantity: 1,
-          notes,
-          barcode_scanned: code,
-          recorded_by_name: recordedByName || null,
-          service_order_id: serviceOrderId,
-        });
-
-        const movement: WorkshopPartStockMovement = {
-          ...result.movement,
-          part_name: result.part.name,
-          part_unit_of_measure: result.part.unit_of_measure,
-          part_photo_url: result.part.photo_url ?? null,
-          service_order_id: serviceOrderId,
-        };
-        setItems((prev) => [movement, ...prev.filter((m) => m.id !== movement.id)]);
-        setFlashId(movement.id);
-        setLastOk(`${result.part.name} · estoque ${formatWorkshopPartQty(result.part.stock_qty)}`);
-        playCheckoutBeep(true);
-        scrollToRegisteredProducts();
-        window.setTimeout(() => setFlashId((id) => (id === movement.id ? null : id)), 1200);
+        await commitPartWithdrawal(part, 1, { barcodeScanned: code });
         return true;
       } catch (e) {
         setError(e instanceof Error ? e.message : 'Não foi possível registrar a peça.');
@@ -202,19 +247,19 @@ export const VehicleOsStockCheckoutSection: React.FC<VehicleOsStockCheckoutSecti
         setBusyCode(null);
       }
     },
-    [osLabel, osScope, recordedByName, scrollToRegisteredProducts, serviceOrderId]
+    [commitPartWithdrawal]
   );
 
   registerRef.current = registerCode;
 
   useEffect(() => {
-    // Enquanto o modal do orçamento estiver aberto, ele reivindica o leitor.
-    if (!claimUsbScanner || budgetScanOpen) {
-      if (!budgetScanOpen) setActiveBarcodeScanClaim(null);
+    // Orçamento / lista manual abertos: solta o claim da pistola (campo de busca recebe o foco).
+    if (!claimUsbScanner || budgetScanOpen || manualAddOpen) {
+      if (!budgetScanOpen && !manualAddOpen) setActiveBarcodeScanClaim(null);
       return;
     }
     return setActiveBarcodeScanClaim((code) => registerRef.current(code));
-  }, [budgetScanOpen, claimUsbScanner, serviceOrderId]);
+  }, [budgetScanOpen, claimUsbScanner, manualAddOpen, serviceOrderId]);
 
   const handleCancel = async (password: string) => {
     if (!cancelTarget) return;
@@ -254,6 +299,17 @@ export const VehicleOsStockCheckoutSection: React.FC<VehicleOsStockCheckoutSecti
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => setManualAddOpen(true)}
+            disabled={!!busyCode}
+            className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-[#007AFF]/25 bg-[#007AFF]/[0.09] px-2.5 py-1.5 text-[11px] font-semibold text-[#007AFF] shadow-[inset_0_1px_0_rgba(255,255,255,0.35)] transition-colors hover:border-[#007AFF]/40 hover:bg-[#007AFF]/15 disabled:opacity-50 dark:border-[#007AFF]/35 dark:bg-[#007AFF]/15 dark:text-[#b8d9ff]"
+            title="Adicionar peça digitando código ou nome"
+            aria-label="Adicionar peça do estoque"
+          >
+            <PackagePlus className="h-3.5 w-3.5" strokeWidth={2.4} aria-hidden />
+            Adicionar
+          </button>
           <button
             type="button"
             onClick={() => setBudgetScanOpen(true)}
@@ -317,7 +373,8 @@ export const VehicleOsStockCheckoutSection: React.FC<VehicleOsStockCheckoutSecti
           </div>
         ) : items.length === 0 ? (
           <p className="rounded-xl border border-dashed border-zinc-300/90 bg-white/70 px-3 py-4 text-center text-[12px] text-zinc-500 dark:border-white/10 dark:bg-white/[0.03] dark:text-zinc-400">
-            Nenhuma peça retirada ainda. Passe o primeiro código no leitor.
+            Nenhuma peça retirada ainda. Use Adicionar, o leitor USB
+            {showCameraButton ? ' ou a câmera' : ''}.
           </p>
         ) : (
           <ul className="max-h-[min(320px,40vh)] space-y-2 overflow-y-auto overscroll-contain pr-0.5 custom-scrollbar">
@@ -382,6 +439,16 @@ export const VehicleOsStockCheckoutSection: React.FC<VehicleOsStockCheckoutSecti
           }}
         />
       ) : null}
+
+      <VehicleOsStockManualAddPopover
+        open={manualAddOpen}
+        onClose={() => {
+          if (busyCode) return;
+          setManualAddOpen(false);
+        }}
+        busy={!!busyCode}
+        onAdd={async (part, quantity) => registerPart(part, quantity)}
+      />
 
       <VehicleOsBudgetPartsScanModal
         isOpen={budgetScanOpen}
