@@ -3665,7 +3665,7 @@ export async function createServiceOrderBudget(
   payload: {
     cardName: string;
     diagnosis: string;
-    services: { description: string; labor_hours?: number | null }[];
+    services: { description: string; labor_hours?: number | null; outsourced?: boolean }[];
     parts: { description: string; quantity: string }[];
     observations: string;
   },
@@ -3697,7 +3697,12 @@ export async function updateServiceOrderBudget(
   payload: {
     cardName: string;
     diagnosis: string;
-    services: { description: string; approved?: boolean; labor_hours?: number | null }[];
+    services: {
+      description: string;
+      approved?: boolean;
+      labor_hours?: number | null;
+      outsourced?: boolean;
+    }[];
     parts: { description: string; quantity: string; approved?: boolean }[];
     observations: string;
   },

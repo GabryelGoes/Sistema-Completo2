@@ -202,6 +202,11 @@ import { moveItemInList } from '../../utils/moveItemInList';
 import { BudgetPartStockBadge } from '../ui/BudgetPartStockBadge';
 import { resolveBudgetPartStockFlags, type BudgetPartFields } from '../../utils/budgetPartStock';
 import {
+  isBudgetOutsourcedSuggestion,
+  isOutsourcedServiceDescription,
+  matchOutsourcedServiceSuggestion,
+} from '../../utils/budgetServiceOutsourced';
+import {
   mapPatioBudgetPartToPayload,
   type PatioBudgetEditDraft,
 } from '../budget/PatioBudgetEditForm';
@@ -761,6 +766,8 @@ interface BudgetServiceItem {
   description: string;
   /** Horas de mão de obra (lista da oficina), exibidas no orçamento */
   laborHours: number | null;
+  /** Serviço terceirizado (etiqueta azul). */
+  outsourced?: boolean;
 }
 
 interface BudgetPartItem {
@@ -861,7 +868,12 @@ export interface SavedBudget {
   serviceOrderId: string;
   cardName: string;
   diagnosis: string;
-  services: { description: string; approved?: boolean; labor_hours?: number | null }[];
+  services: {
+    description: string;
+    approved?: boolean;
+    labor_hours?: number | null;
+    outsourced?: boolean;
+  }[];
   parts: BudgetPartFields[];
   observations: string;
   verifiedAt?: string | null;
@@ -5589,6 +5601,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
             description: s.description,
             laborHours:
               s.labor_hours != null && Number.isFinite(Number(s.labor_hours)) ? Number(s.labor_hours) : null,
+            outsourced: s.outsourced === true,
           }))
         : [{ id: '1', description: '', laborHours: null }]);
       setBudgetParts(
@@ -5911,10 +5924,14 @@ export const PatioView: React.FC<PatioViewProps> = ({
         if (item.id !== id) return item;
         const trimmed = value.trim();
         const match = workshopServices.find((ws) => ws.name.trim() === trimmed);
+        const outsourced = !trimmed
+          ? false
+          : isOutsourcedServiceDescription(value) || item.outsourced === true;
         return {
           ...item,
           description: value,
           laborHours: match ? (match.labor_hours ?? null) : null,
+          outsourced,
         };
       })
     );
@@ -5951,6 +5968,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
   };
 
   const getServiceSuggestions = (description: string) => {
+    const outsourcedOnly = matchOutsourcedServiceSuggestion(description);
+    if (outsourcedOnly) return outsourcedOnly;
     const q = normalizeText(description.trim());
     if (!q) return [];
     const out: WorkshopService[] = [];
@@ -6125,10 +6144,16 @@ export const PatioView: React.FC<PatioViewProps> = ({
   };
 
   const applySuggestion = (itemId: string, svc: WorkshopService) => {
+    const outsourced = isBudgetOutsourcedSuggestion(svc);
     setBudgetServices((prev) =>
       prev.map((item) =>
         item.id === itemId
-          ? { ...item, description: svc.name, laborHours: svc.labor_hours ?? null }
+          ? {
+              ...item,
+              description: svc.name,
+              laborHours: outsourced ? null : (svc.labor_hours ?? null),
+              outsourced,
+            }
           : item
       )
     );
@@ -6168,10 +6193,12 @@ export const PatioView: React.FC<PatioViewProps> = ({
             description: s.description.trim(),
             approved: editingBudget.services[i]?.approved,
             labor_hours: s.laborHours != null && Number.isFinite(Number(s.laborHours)) ? Number(s.laborHours) : null,
+            outsourced: s.outsourced === true,
           }))
         : validServices.map((s) => ({
             description: s.description.trim(),
             labor_hours: s.laborHours != null && Number.isFinite(Number(s.laborHours)) ? Number(s.laborHours) : null,
+            outsourced: s.outsourced === true,
           })),
       parts: editingBudget
         ? validParts.map((p, i) => ({

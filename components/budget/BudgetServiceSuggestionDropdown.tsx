@@ -2,6 +2,8 @@ import React, { useEffect, useRef } from 'react';
 import { Clock3 } from 'lucide-react';
 import type { WorkshopService } from '../../services/apiService';
 import { formatLaborLabel } from '../../utils/workshopLaborFormat';
+import { isBudgetOutsourcedSuggestion } from '../../utils/budgetServiceOutsourced';
+import { BudgetServiceOutsourcedBadge } from '../ui/BudgetServiceOutsourcedBadge';
 import {
   BudgetSuggestionPopoverShell,
   type BudgetSuggestionBoxPosition,
@@ -56,8 +58,11 @@ export const BudgetServiceSuggestionDropdown: React.FC<BudgetServiceSuggestionDr
     >
       <div className="flex flex-col gap-0.5" role="presentation">
         {suggestions.map((service, index) => {
+          const isOutsourced = isBudgetOutsourcedSuggestion(service);
           const hasLabor =
-            service.labor_hours != null && Number.isFinite(Number(service.labor_hours));
+            !isOutsourced &&
+            service.labor_hours != null &&
+            Number.isFinite(Number(service.labor_hours));
           const isActive = index === highlightedIndex;
           return (
             <button
@@ -82,6 +87,7 @@ export const BudgetServiceSuggestionDropdown: React.FC<BudgetServiceSuggestionDr
               <span className="min-w-0 flex-1 text-[14px] font-medium leading-snug text-slate-800">
                 {service.name}
               </span>
+              {isOutsourced ? <BudgetServiceOutsourcedBadge className="shrink-0" /> : null}
               {hasLabor ? (
                 <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-sky-200/80 bg-sky-50 px-2 py-0.5 text-[11px] font-semibold tabular-nums text-sky-800/90">
                   <Clock3 className="h-3 w-3 opacity-80" strokeWidth={2.2} aria-hidden />

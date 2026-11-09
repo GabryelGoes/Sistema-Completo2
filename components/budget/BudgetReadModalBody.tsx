@@ -6,6 +6,7 @@ import { formatSuggestedValueBrl } from '../../utils/budgetServiceFields';
 import { budgetHasExplicitApprovalDecisions, budgetReadRowClass } from '../../utils/budgetItemDisplay';
 import { technicianAccentFlatClass } from '../../utils/technicianAccentStyles';
 import { BudgetPartStockBadge } from '../ui/BudgetPartStockBadge';
+import { BudgetServiceOutsourcedBadge } from '../ui/BudgetServiceOutsourcedBadge';
 import { formatLaborLabel } from '../../utils/workshopLaborFormat';
 import { budgetReadBodyTextClass, budgetReadSectionTitleClass } from './budgetReadModalTheme';
 
@@ -91,9 +92,7 @@ export const BudgetReadModalBody: React.FC<BudgetReadModalBodyProps> = ({
                       </span>
                     ) : null}
                     {showInternalFields && s.outsourced ? (
-                      <span className="rounded-md bg-zinc-200/80 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-zinc-600 dark:bg-zinc-700 dark:text-zinc-300">
-                        Terceirizado
-                      </span>
+                      <BudgetServiceOutsourcedBadge />
                     ) : null}
                     {s.labor_hours != null && Number.isFinite(Number(s.labor_hours)) ? (
                       <span className="text-[13px] font-semibold tabular-nums text-slate-600">
