@@ -563,6 +563,8 @@ export function PatioBudgetRequestTouchForm({
   useLayoutEffect(() => {
     const id = pendingFocusPartIdRef.current;
     if (!id) return;
+    // Só foca quando a nova linha já está no estado (Enter / Adicionar).
+    if (!budgetParts.some((p) => p.id === id)) return;
     pendingFocusPartIdRef.current = null;
     setFocusPartId(id);
   }, [budgetParts]);
@@ -573,9 +575,29 @@ export function PatioBudgetRequestTouchForm({
     return () => window.clearTimeout(t);
   }, [focusServiceId]);
 
+  /**
+   * `autoFocus` do React só age no mount. No Enter a linha nova monta com
+   * focusPartId ainda null e só depois recebe autoFocus=true — sem este
+   * efeito o caret permanece no campo anterior.
+   */
+  useLayoutEffect(() => {
+    if (!focusPartId) return;
+    const el = document.querySelector(
+      `input[data-budget-part-id="${focusPartId}"]`
+    ) as HTMLInputElement | null;
+    if (!el) return;
+    el.focus({ preventScroll: true });
+    const len = el.value.length;
+    try {
+      el.setSelectionRange(len, len);
+    } catch {
+      /* ignore */
+    }
+  }, [focusPartId]);
+
   useEffect(() => {
     if (!focusPartId) return;
-    const t = window.setTimeout(() => setFocusPartId(null), 80);
+    const t = window.setTimeout(() => setFocusPartId(null), 120);
     return () => window.clearTimeout(t);
   }, [focusPartId]);
 
