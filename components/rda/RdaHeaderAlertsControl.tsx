@@ -174,7 +174,7 @@ export const RdaHeaderAlertsControl: React.FC<RdaHeaderAlertsControlProps> = ({
       : null;
 
   const btnClass = isDesktopTopbar
-    ? 'desktop-shell-topbar-btn relative'
+    ? 'desktop-shell-topbar-btn relative !w-auto min-w-8 gap-1 px-1.5'
     : `relative inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border-0 transition-colors active:scale-95 ${
         isDark
           ? 'bg-zinc-900/75 text-zinc-200 hover:bg-zinc-800 hover:text-sky-300'
@@ -383,14 +383,21 @@ export const RdaHeaderAlertsControl: React.FC<RdaHeaderAlertsControlProps> = ({
             ? `RDA Intelligence, ${criticalCount} alerta${criticalCount === 1 ? '' : 's'} crítico${criticalCount === 1 ? '' : 's'}`
             : 'RDA Intelligence'
         }
-        title="RDA Intelligence"
+        title="Central de avisos · RDA Intelligence"
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
       >
         <ScanSearch className="h-4 w-4 sm:h-[18px] sm:w-[18px]" strokeWidth={2} aria-hidden />
+        {isDesktopTopbar ? (
+          <span className="hidden text-[11px] font-semibold tracking-wide text-current sm:inline">
+            RDA
+          </span>
+        ) : null}
         {criticalCount > 0 ? (
           <span
-            className="absolute -right-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold leading-none text-white shadow-sm"
+            className={`absolute -right-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold leading-none text-white shadow-sm ${
+              isDesktopTopbar ? 'right-0 top-0' : ''
+            }`}
             aria-hidden
           >
             {criticalCount > 99 ? '99+' : criticalCount}
