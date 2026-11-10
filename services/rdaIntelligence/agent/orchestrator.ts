@@ -30,6 +30,10 @@ import {
   type RdaPendingAction,
 } from "../confirmationPolicy.js";
 import {
+  canAccessRdaConversation,
+  requireRdaActorKey,
+} from "./conversationAccess.js";
+import {
   claimPendingActionForExecution,
   createPendingAction,
   findSingleRecentPendingAction,
@@ -114,20 +118,42 @@ async function ensureConversation(
   contextServiceOrderId?: string | null,
   title?: string | null
 ): Promise<string> {
+  requireRdaActorKey(auth);
+
   if (conversationId) {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("rda_conversations")
-      .select("id")
+      .select("id, created_by_user_id, created_by_role")
       .eq("workshop_id", workshopId)
       .eq("id", conversationId)
       .maybeSingle();
-    if (data?.id) return String(data.id);
+    if (error) {
+      throw new Error(error.message || "Falha ao validar conversa RDA.");
+    }
+    if (data?.id) {
+      if (
+        !canAccessRdaConversation(auth, {
+          id: String(data.id),
+          created_by_user_id: (data as { created_by_user_id?: string | null })
+            .created_by_user_id,
+          created_by_role: (data as { created_by_role?: string | null })
+            .created_by_role,
+        })
+      ) {
+        throw new Error(
+          "Sem permissão para acessar esta conversa RDA."
+        );
+      }
+      return String(data.id);
+    }
+    // ID inexistente nesta oficina: não reaproveitar — cria conversa própria.
   }
+
   const { data, error } = await supabase
     .from("rda_conversations")
     .insert({
       workshop_id: workshopId,
-      created_by_user_id: auth.userId || null,
+      created_by_user_id: auth.role === "user" ? auth.userId || null : null,
       created_by_role: auth.role,
       title: (title && title.trim()) || "Conversa RDA",
       context_service_order_id: contextServiceOrderId || null,
@@ -434,13 +460,16 @@ export async function runRdaChatTurn(
           summary: authz.message,
         });
         execLines.push(`• ${action.summary}: ${authz.message}`);
-        await markPendingActionExecuted({
+        const markedDenied = await markPendingActionExecuted({
           supabase: input.supabase,
           workshopId: input.workshopId,
           actionId: action.id,
           ok: false,
           summary: authz.message,
         });
+        if (markedDenied.ok === false) {
+          execLines.push(`• Aviso: ${markedDenied.message}`);
+        }
         continue;
       }
       const exec = await executeRdaTool(action.toolId, authz.params, {
@@ -467,13 +496,17 @@ export async function runRdaChatTurn(
         ? formatExecutedActionSummary(action.toolId, exec.data)
         : `Falha: ${(exec as { error: string }).error}`;
       execLines.push(`• ${action.summary}: ${detail}`);
-      await markPendingActionExecuted({
+      const marked = await markPendingActionExecuted({
         supabase: input.supabase,
         workshopId: input.workshopId,
         actionId: action.id,
         ok: exec.ok,
         summary: detail,
       });
+      if (marked.ok === false) {
+        // Preserva transparência: execução pode ter ocorrido, mas o estado final não gravou.
+        execLines.push(`• Aviso ao gravar resultado: ${marked.message}`);
+      }
       await input.supabase.from("rda_tool_audit").insert({
         workshop_id: input.workshopId,
         conversation_id: conversationId,

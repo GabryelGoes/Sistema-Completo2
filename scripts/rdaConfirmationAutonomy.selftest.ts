@@ -6,15 +6,22 @@ import {
   authorizeToolInvocation,
   buildAuthenticatedActorSystemBlock,
   buildSaoPauloTemporalHint,
+  canAccessRdaConversation,
+  canShareRdaConversations,
   claimPendingActionForExecution,
   classifyPendingRowDenial,
   EXECUTING_STALE_MS,
   isAffirmativeConfirmationText,
+  isRdaConversationOwner,
   looksLikeOperationalTaskRequest,
+  markPendingActionExecuted,
   needsHumanConfirmation,
   PENDING_REASON,
+  pendingActorMatchesAuth,
   productionRdaToolRegistry,
+  RDA_ADMIN_ACTOR_KEY,
   resolveConfirmationPolicy,
+  resolveRdaActorKey,
   summarizePendingToolCall,
 } from "../services/rdaIntelligence/index.js";
 import { ensureProductionRdaToolsRegistered } from "../services/rdaIntelligence/tools/registerProduction.js";
@@ -50,6 +57,17 @@ const tech: RdaAuthContext = {
   userId: "t1",
   username: "tec",
   permissions: { access_patio: true, access_home: true },
+};
+const tech2: RdaAuthContext = {
+  role: "user",
+  userId: "t2",
+  username: "tec2",
+  permissions: { access_patio: true, access_home: true },
+};
+/** Login administrativo típico: role admin sem userId. */
+const adminSession: RdaAuthContext = {
+  role: "admin",
+  username: "admin",
 };
 
 console.log("1) Políticas por tool");
@@ -303,14 +321,27 @@ console.log("\n10) Classificação: outro usuário, reuso, interrupção");
     summary: "Abrir OS",
     expiresAt,
     conversationId: "c1",
+    actorKey: "user:m1",
+    actorRole: "user" as const,
   };
   const other = classifyPendingRowDenial({
     reason: PENDING_REASON.pending,
-    meta,
+    meta: { ...meta, actorKey: "user:other-user" },
     actorUserId: "other-user",
     auth: manager,
   });
   assert(other.status === "forbidden", "ID de outro usuário → forbidden");
+
+  const missingIds = classifyPendingRowDenial({
+    reason: PENDING_REASON.pending,
+    meta: { ...meta, actorKey: "" },
+    actorUserId: null,
+    auth: manager,
+  });
+  assert(
+    missingIds.status === "forbidden",
+    "actorKey/userId ausentes → forbidden (fail-closed)"
+  );
 
   const reused = classifyPendingRowDenial({
     reason: PENDING_REASON.executed,
@@ -358,7 +389,8 @@ console.log("\n11) Claim atômico: só uma requisição executa");
     tool_id: string;
     params: Record<string, unknown>;
     result_summary: string;
-    actor_user_id: string;
+    actor_user_id: string | null;
+    actor_role: string;
     conversation_id: string;
     reason: string;
     workshop_id: string;
@@ -372,6 +404,8 @@ console.log("\n11) Claim atômico: só uma requisição executa");
     summary: "Abrir OS teste",
     expiresAt,
     conversationId: "conv-1",
+    actorKey: "user:m1",
+    actorRole: "user",
   };
   const store: Row[] = [
     {
@@ -380,6 +414,7 @@ console.log("\n11) Claim atômico: só uma requisição executa");
       params: meta.params,
       result_summary: JSON.stringify(meta),
       actor_user_id: "m1",
+      actor_role: "user",
       conversation_id: "conv-1",
       reason: PENDING_REASON.pending,
       workshop_id: "ws-1",
@@ -452,8 +487,14 @@ console.log("\n11) Claim atômico: só uma requisição executa");
               if (typeof updatePayload!.result_summary === "string") {
                 t.result_summary = updatePayload!.result_summary as string;
               }
+              if (typeof updatePayload!.allowed === "boolean") {
+                /* noop for fake */
+              }
             }
-            return { data: targets.map((t) => ({ id: t.id })), error: null };
+            return {
+              data: targets.map((t) => ({ id: t.id, reason: t.reason })),
+              error: null,
+            };
           };
           return updateChain;
         };
@@ -489,8 +530,28 @@ console.log("\n11) Claim atômico: só uma requisição executa");
     "segunda concorrente → in_progress"
   );
 
-  // Simula finalização e tentativa de reuso
-  store[0].reason = PENDING_REASON.executed;
+  const marked = await markPendingActionExecuted({
+    supabase: sb,
+    workshopId: "ws-1",
+    actionId: "act-1",
+    ok: true,
+    summary: "ok",
+  });
+  assert(marked.ok === true, "markPending verifica UPDATE ok");
+  assert(store[0].reason === PENDING_REASON.executed, "estado final executed");
+
+  const markedAgain = await markPendingActionExecuted({
+    supabase: sb,
+    workshopId: "ws-1",
+    actionId: "act-1",
+    ok: true,
+    summary: "ok2",
+  });
+  assert(
+    markedAgain.ok === false && markedAgain.reason === "not_executing",
+    "mark sem executing → not_executing"
+  );
+
   const reuse = await claimPendingActionForExecution({
     supabase: sb,
     workshopId: "ws-1",
@@ -500,9 +561,11 @@ console.log("\n11) Claim atômico: só uma requisição executa");
   });
   assert(reuse.status === "already_executed", "reuso após executed bloqueado");
 
-  // Outro usuário
   store[0].reason = PENDING_REASON.pending;
-  store[0].result_summary = JSON.stringify(meta);
+  store[0].result_summary = JSON.stringify({
+    ...meta,
+    actorKey: "user:other",
+  });
   store[0].actor_user_id = "other";
   const foreign = await claimPendingActionForExecution({
     supabase: sb,
@@ -512,6 +575,149 @@ console.log("\n11) Claim atômico: só uma requisição executa");
     actionId: "act-1",
   });
   assert(foreign.status === "forbidden", "claim de outro usuário bloqueado");
+
+  // Admin session claim on admin-authored pending
+  store[0].reason = PENDING_REASON.pending;
+  store[0].actor_user_id = null;
+  store[0].actor_role = "admin";
+  store[0].result_summary = JSON.stringify({
+    ...meta,
+    actorKey: RDA_ADMIN_ACTOR_KEY,
+    actorRole: "admin",
+  });
+  const adminClaim = await claimPendingActionForExecution({
+    supabase: sb,
+    workshopId: "ws-1",
+    auth: adminSession,
+    conversationId: "conv-1",
+    actionId: "act-1",
+  });
+  assert(adminClaim.status === "claimed", "admin sem userId reivindica própria ação");
+
+  const techOnAdmin = await claimPendingActionForExecution({
+    supabase: sb,
+    workshopId: "ws-1",
+    auth: tech,
+    conversationId: "conv-1",
+    actionId: "act-1",
+  });
+  assert(
+    techOnAdmin.status === "forbidden" || techOnAdmin.status === "in_progress",
+    "tech não reivindica ação do admin"
+  );
+}
+
+console.log("\n12) Isolamento de conversas e identidade admin");
+{
+  assert(resolveRdaActorKey(manager) === "user:m1", "actorKey gestor");
+  assert(resolveRdaActorKey(tech) === "user:t1", "actorKey tech");
+  assert(resolveRdaActorKey(adminSession) === RDA_ADMIN_ACTOR_KEY, "actorKey admin estável");
+  assert(
+    resolveRdaActorKey({ role: "user", username: "x" }) === null,
+    "user sem userId → sem identidade"
+  );
+
+  const techConv = {
+    id: "c-tech",
+    created_by_user_id: "t1",
+    created_by_role: "user",
+  };
+  const tech2Conv = {
+    id: "c-tech2",
+    created_by_user_id: "t2",
+    created_by_role: "user",
+  };
+  const adminConv = {
+    id: "c-admin",
+    created_by_user_id: null,
+    created_by_role: "admin",
+  };
+
+  assert(isRdaConversationOwner(tech, techConv), "tech dono da própria conversa");
+  assert(!isRdaConversationOwner(tech, tech2Conv), "tech não é dono da outra");
+  assert(!isRdaConversationOwner(tech, adminConv), "tech não é dono da admin");
+  assert(isRdaConversationOwner(adminSession, adminConv), "admin dono da conversa admin");
+  assert(
+    !isRdaConversationOwner(adminSession, techConv),
+    "admin não é dono da conversa do tech (ownership)"
+  );
+
+  assert(canAccessRdaConversation(tech, techConv), "tech acessa a própria");
+  assert(
+    !canAccessRdaConversation(tech, tech2Conv),
+    "tech bloqueado em conversa cruzada mesma oficina"
+  );
+  assert(
+    !canAccessRdaConversation(tech2, techConv),
+    "tech2 bloqueado na conversa do tech"
+  );
+  assert(
+    canShareRdaConversations(manager),
+    "gestor tem política explícita de compartilhamento"
+  );
+  assert(
+    canAccessRdaConversation(manager, techConv),
+    "gestor acessa conversa do tech (política compartilhada)"
+  );
+  assert(
+    canAccessRdaConversation(adminSession, techConv),
+    "admin acessa conversa do tech (política compartilhada)"
+  );
+  assert(
+    !canShareRdaConversations(tech),
+    "tech sem política compartilhada"
+  );
+
+  // Pending: gestor NÃO confirma ação do tech só por ser gestor
+  assert(
+    !pendingActorMatchesAuth({
+      auth: manager,
+      actorKey: "user:t1",
+      actorUserId: "t1",
+      actorRole: "user",
+    }),
+    "gestor não confirma pending do tech"
+  );
+  assert(
+    pendingActorMatchesAuth({
+      auth: tech,
+      actorKey: "user:t1",
+      actorUserId: "t1",
+      actorRole: "user",
+    }),
+    "autor confirma própria pending"
+  );
+  assert(
+    pendingActorMatchesAuth({
+      auth: adminSession,
+      actorKey: RDA_ADMIN_ACTOR_KEY,
+      actorUserId: null,
+      actorRole: "admin",
+    }),
+    "admin confirma própria pending sem userId"
+  );
+  assert(
+    !pendingActorMatchesAuth({
+      auth: adminSession,
+      actorKey: "user:t1",
+      actorUserId: "t1",
+      actorRole: "user",
+    }),
+    "admin não confirma pending do tech"
+  );
+
+  const orch = readFileSync(
+    join(process.cwd(), "services/rdaIntelligence/agent/orchestrator.ts"),
+    "utf8"
+  );
+  const routes = readFileSync(
+    join(process.cwd(), "services/rdaIntelligence/registerRdaRoutes.ts"),
+    "utf8"
+  );
+  assert(orch.includes("canAccessRdaConversation"), "ensureConversation valida acesso");
+  assert(orch.includes("requireRdaActorKey"), "exige identidade estável");
+  assert(routes.includes("canAccessRdaConversation"), "GET messages valida acesso");
+  assert(routes.includes("RDA_CONVERSATION_FORBIDDEN"), "chat mapeia 403 conversa");
 }
 
 console.log(`\nResultado: ${passed} ok, ${failed} fail`);

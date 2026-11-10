@@ -6,6 +6,10 @@ import {
   type RdaPendingAction,
 } from "../confirmationPolicy.js";
 import type { RdaAuthContext } from "../types.js";
+import {
+  pendingActorMatchesAuth,
+  requireRdaActorKey,
+} from "./conversationAccess.js";
 
 /** Estados da ação pendente (coluna `reason` em rda_tool_audit). */
 export const PENDING_REASON = {
@@ -20,13 +24,16 @@ export const PENDING_REASON = {
 /** Após quanto tempo um `executing` órfão é tratado como interrompido (não reexecuta). */
 export const EXECUTING_STALE_MS = 2 * 60 * 1000;
 
-type AuditPendingMeta = {
+export type AuditPendingMeta = {
   kind: "rda_pending_action";
   toolId: string;
   params: Record<string, unknown>;
   summary: string;
   expiresAt: string;
   conversationId: string;
+  /** Identidade estável do autor (`user:<id>` | `admin`). Obrigatória em ações novas. */
+  actorKey: string;
+  actorRole: "admin" | "user";
   clientRequestId?: string | null;
   claimedAt?: string;
   claimCount?: number;
@@ -48,6 +55,10 @@ export type ClaimPendingResult =
       message: string;
     };
 
+export type MarkPendingResult =
+  | { ok: true }
+  | { ok: false; reason: "not_executing" | "update_error"; message: string };
+
 export async function createPendingAction(input: {
   supabase: SupabaseClient;
   workshopId: string;
@@ -57,6 +68,7 @@ export async function createPendingAction(input: {
   params: Record<string, unknown>;
   clientRequestId?: string | null;
 }): Promise<RdaPendingAction> {
+  const actorKey = requireRdaActorKey(input.auth);
   const expiresAt = pendingActionExpiryIso();
   const summary = summarizePendingToolCall(input.toolId, input.params);
   const meta: AuditPendingMeta = {
@@ -66,6 +78,8 @@ export async function createPendingAction(input: {
     summary,
     expiresAt,
     conversationId: input.conversationId,
+    actorKey,
+    actorRole: input.auth.role,
     clientRequestId: input.clientRequestId || null,
   };
   const { data, error } = await input.supabase
@@ -100,21 +114,25 @@ export async function createPendingAction(input: {
 export function parsePendingMeta(raw: unknown): AuditPendingMeta | null {
   if (typeof raw !== "string" || !raw.trim()) return null;
   try {
-    const parsed = JSON.parse(raw) as AuditPendingMeta;
+    const parsed = JSON.parse(raw) as Partial<AuditPendingMeta>;
     if (parsed?.kind !== "rda_pending_action") return null;
     if (!parsed.toolId || !parsed.expiresAt) return null;
-    return parsed;
+    return {
+      kind: "rda_pending_action",
+      toolId: String(parsed.toolId),
+      params: (parsed.params || {}) as Record<string, unknown>,
+      summary: String(parsed.summary || ""),
+      expiresAt: String(parsed.expiresAt),
+      conversationId: String(parsed.conversationId || ""),
+      actorKey: String(parsed.actorKey || ""),
+      actorRole: parsed.actorRole === "admin" ? "admin" : "user",
+      clientRequestId: parsed.clientRequestId ?? null,
+      claimedAt: parsed.claimedAt,
+      claimCount: parsed.claimCount,
+    };
   } catch {
     return null;
   }
-}
-
-function actorForbidden(
-  auth: RdaAuthContext,
-  actorUserId: string | null | undefined
-): boolean {
-  if (!auth.userId || !actorUserId) return false;
-  return String(actorUserId) !== String(auth.userId);
 }
 
 function rowToAction(
@@ -137,21 +155,34 @@ function rowToAction(
   };
 }
 
+function actorDenied(
+  auth: RdaAuthContext,
+  meta: AuditPendingMeta | null,
+  actorUserId: string | null | undefined,
+  actorRole?: string | null
+): boolean {
+  return !pendingActorMatchesAuth({
+    auth,
+    actorKey: meta?.actorKey,
+    actorUserId,
+    actorRole: meta?.actorRole || actorRole,
+  });
+}
+
 /** Classifica negação de claim a partir do estado atual (testável sem banco). */
 export function classifyPendingRowDenial(input: {
   reason: string | null | undefined;
   meta: AuditPendingMeta | null;
   actorUserId: string | null | undefined;
+  actorRole?: string | null;
   auth: RdaAuthContext;
   nowMs?: number;
 }): Exclude<ClaimPendingResult, { status: "claimed" }> {
   const now = input.nowMs ?? Date.now();
-  if (actorForbidden(input.auth, input.actorUserId)) {
+  if (actorDenied(input.auth, input.meta, input.actorUserId, input.actorRole)) {
     return { status: "forbidden", message: "Ação pendente de outro usuário." };
   }
-  if (!input.meta) {
-    return { status: "invalid", message: "Ação pendente inválida." };
-  }
+  // Estados terminais antes de exigir meta intacta (mark sobrescreve result_summary).
   if (input.reason === PENDING_REASON.executed) {
     return {
       status: "already_executed",
@@ -173,6 +204,9 @@ export function classifyPendingRowDenial(input: {
         input.reason === PENDING_REASON.interrupted ? "interrupted" : "expired",
       message: "Ação pendente expirada ou interrompida. Solicite de novo.",
     };
+  }
+  if (!input.meta) {
+    return { status: "invalid", message: "Ação pendente inválida." };
   }
   if (isPendingActionExpired(input.meta.expiresAt, now)) {
     return {
@@ -209,8 +243,7 @@ export function classifyPendingRowDenial(input: {
 
 /**
  * Transição atômica pending → executing.
- * Somente uma requisição obtém `claimed`; concorrentes e reuso são rejeitados.
- * Ações interrompidas (executing órfão além do TTL) NÃO são reexecutadas.
+ * Somente o autor autenticado (actorKey) pode reivindicar.
  */
 export async function claimPendingActionForExecution(input: {
   supabase: SupabaseClient;
@@ -225,10 +258,19 @@ export async function claimPendingActionForExecution(input: {
   const now = input.nowMs ?? Date.now();
   const claimedAt = new Date(now).toISOString();
 
+  try {
+    requireRdaActorKey(input.auth);
+  } catch (e) {
+    return {
+      status: "forbidden",
+      message: e instanceof Error ? e.message : "Sessão sem identidade.",
+    };
+  }
+
   const { data: existing, error: loadError } = await input.supabase
     .from("rda_tool_audit")
     .select(
-      "id, tool_id, params, result_summary, actor_user_id, conversation_id, reason"
+      "id, tool_id, params, result_summary, actor_user_id, actor_role, conversation_id, reason"
     )
     .eq("workshop_id", input.workshopId)
     .eq("conversation_id", input.conversationId)
@@ -249,6 +291,7 @@ export async function claimPendingActionForExecution(input: {
     params?: Record<string, unknown> | null;
     result_summary?: string | null;
     actor_user_id?: string | null;
+    actor_role?: string | null;
     reason?: string | null;
   };
 
@@ -259,6 +302,7 @@ export async function claimPendingActionForExecution(input: {
       reason: row.reason,
       meta,
       actorUserId: row.actor_user_id,
+      actorRole: row.actor_role,
       auth: input.auth,
       nowMs: now,
     });
@@ -280,7 +324,7 @@ export async function claimPendingActionForExecution(input: {
     return denial;
   }
 
-  if (actorForbidden(input.auth, row.actor_user_id)) {
+  if (actorDenied(input.auth, meta, row.actor_user_id, row.actor_role)) {
     return { status: "forbidden", message: "Ação pendente de outro usuário." };
   }
   if (!meta) {
@@ -309,7 +353,6 @@ export async function claimPendingActionForExecution(input: {
     claimCount: (meta.claimCount || 0) + 1,
   };
 
-  // Atomicidade: só quem ainda está `pending` consegue o UPDATE.
   const { data: claimedRows, error: claimError } = await input.supabase
     .from("rda_tool_audit")
     .update({
@@ -340,7 +383,7 @@ export async function claimPendingActionForExecution(input: {
   };
 }
 
-/** Única ação pendente recente da conversa (para "Sim"/"Confirmo"). */
+/** Única ação pendente recente da conversa do autor (para "Sim"/"Confirmo"). */
 export async function findSingleRecentPendingAction(input: {
   supabase: SupabaseClient;
   workshopId: string;
@@ -349,7 +392,9 @@ export async function findSingleRecentPendingAction(input: {
 }): Promise<RdaPendingAction | null> {
   const { data, error } = await input.supabase
     .from("rda_tool_audit")
-    .select("id, tool_id, params, result_summary, actor_user_id, created_at")
+    .select(
+      "id, tool_id, params, result_summary, actor_user_id, actor_role, created_at"
+    )
     .eq("workshop_id", input.workshopId)
     .eq("conversation_id", input.conversationId)
     .eq("reason", PENDING_REASON.pending)
@@ -365,9 +410,9 @@ export async function findSingleRecentPendingAction(input: {
     if (!meta || isPendingActionExpired(meta.expiresAt)) continue;
     const actor =
       (row as { actor_user_id?: string | null }).actor_user_id || null;
-    if (input.auth.userId && actor && String(actor) !== String(input.auth.userId)) {
-      continue;
-    }
+    const actorRole =
+      (row as { actor_role?: string | null }).actor_role || null;
+    if (actorDenied(input.auth, meta, actor, actorRole)) continue;
     valid.push({
       id: String((row as { id: string }).id),
       toolId: meta.toolId,
@@ -382,21 +427,45 @@ export async function findSingleRecentPendingAction(input: {
   return valid[0];
 }
 
+/**
+ * Finaliza ação em executing → executed|failed.
+ * Verifica o resultado do UPDATE para preservar estado final em falhas.
+ */
 export async function markPendingActionExecuted(input: {
   supabase: SupabaseClient;
   workshopId: string;
   actionId: string;
   ok: boolean;
   summary: string;
-}): Promise<void> {
-  await input.supabase
+}): Promise<MarkPendingResult> {
+  const nextReason = input.ok ? PENDING_REASON.executed : PENDING_REASON.failed;
+  const { data, error } = await input.supabase
     .from("rda_tool_audit")
     .update({
       allowed: input.ok,
-      reason: input.ok ? PENDING_REASON.executed : PENDING_REASON.failed,
+      reason: nextReason,
       result_summary: input.summary.slice(0, 2000),
     })
     .eq("workshop_id", input.workshopId)
     .eq("id", input.actionId)
-    .eq("reason", PENDING_REASON.executing);
+    .eq("reason", PENDING_REASON.executing)
+    .select("id, reason");
+
+  if (error) {
+    return {
+      ok: false,
+      reason: "update_error",
+      message: error.message,
+    };
+  }
+  const rows = Array.isArray(data) ? data : data ? [data] : [];
+  if (!rows.length) {
+    return {
+      ok: false,
+      reason: "not_executing",
+      message:
+        "Não foi possível gravar o resultado: ação não estava em execução.",
+    };
+  }
+  return { ok: true };
 }

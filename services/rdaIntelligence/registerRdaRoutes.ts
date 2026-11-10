@@ -13,6 +13,7 @@ import { RdaProviderDisabledError } from "./providers/types.js";
 import { productionRdaAuditLog } from "./audit/memoryLog.js";
 import { RDA_MANAGERIAL_HUB_BLUEPRINT_VERSION } from "./future/managerialHubBlueprint.js";
 import { runRdaChatTurn } from "./agent/orchestrator.js";
+import { canAccessRdaConversation } from "./agent/conversationAccess.js";
 import { getTodayUsage, resolveDailyTokenLimit } from "./agent/usage.js";
 import { runManagementScan } from "./insights/managementScan.js";
 import { RDA_ALLOW_LLM_CALLS_ENV_KEY, type RdaAuthContext, type RdaRole } from "./types.js";
@@ -355,6 +356,12 @@ export function registerRdaIntelligenceRoutes(
         return res.status(503).json({ error: err.message, code: err.code });
       }
       const message = err instanceof Error ? err.message : "Erro";
+      if (/sem permissão para acessar esta conversa/i.test(message)) {
+        return res.status(403).json({ error: message, code: "RDA_CONVERSATION_FORBIDDEN" });
+      }
+      if (/sem identidade autenticada estável/i.test(message)) {
+        return res.status(401).json({ error: message, code: "RDA_ACTOR_IDENTITY_REQUIRED" });
+      }
       console.error("[API] POST /api/rda/chat:", err);
       return res.status(500).json({ error: message });
     }
@@ -367,7 +374,34 @@ export function registerRdaIntelligenceRoutes(
       if (!deps.supabaseAdmin || !deps.WORKSHOP_ID) {
         return res.status(500).json({ error: "Servidor não configurado." });
       }
+      let permissions: Record<string, boolean> | null = null;
+      if (baseAuth.role === "user" && baseAuth.userId && deps.loadUserPermissions) {
+        permissions = await deps.loadUserPermissions(baseAuth.userId);
+      }
+      const auth: RdaAuthContext = { ...baseAuth, permissions };
       const id = String(req.params.id || "").trim();
+      if (!id) return res.status(400).json({ error: "conversationId inválido." });
+
+      const { data: conv, error: convErr } = await deps.supabaseAdmin
+        .from("rda_conversations")
+        .select("id, created_by_user_id, created_by_role")
+        .eq("workshop_id", deps.WORKSHOP_ID)
+        .eq("id", id)
+        .maybeSingle();
+      if (convErr) return res.status(500).json({ error: convErr.message });
+      if (!conv?.id) return res.status(404).json({ error: "Conversa não encontrada." });
+      if (
+        !canAccessRdaConversation(auth, {
+          id: String(conv.id),
+          created_by_user_id: (conv as { created_by_user_id?: string | null })
+            .created_by_user_id,
+          created_by_role: (conv as { created_by_role?: string | null })
+            .created_by_role,
+        })
+      ) {
+        return res.status(403).json({ error: "Sem permissão para esta conversa." });
+      }
+
       const { data, error } = await deps.supabaseAdmin
         .from("rda_messages")
         .select("id, role, content, tool_name, created_at, metadata")

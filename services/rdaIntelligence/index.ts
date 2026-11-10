@@ -47,8 +47,22 @@ export {
   claimPendingActionForExecution,
   classifyPendingRowDenial,
   parsePendingMeta,
+  markPendingActionExecuted,
 } from "./agent/pendingActions.js";
-export type { ClaimPendingResult } from "./agent/pendingActions.js";
+export type {
+  ClaimPendingResult,
+  MarkPendingResult,
+} from "./agent/pendingActions.js";
+
+export {
+  RDA_ADMIN_ACTOR_KEY,
+  resolveRdaActorKey,
+  requireRdaActorKey,
+  isRdaConversationOwner,
+  canShareRdaConversations,
+  canAccessRdaConversation,
+  pendingActorMatchesAuth,
+} from "./agent/conversationAccess.js";
 
 export {
   RdaToolRegistry,
