@@ -111,7 +111,6 @@ export const RdaAssistantPanel: React.FC<Props> = ({
   const send = async (opts?: {
     message?: string;
     confirmActionIds?: string[];
-    humanConfirmedToolIds?: string[];
     echoUser?: boolean;
   }) => {
     const message = (opts?.message ?? input).trim();
@@ -127,7 +126,6 @@ export const RdaAssistantPanel: React.FC<Props> = ({
         message: message || 'Confirmar',
         conversationId,
         contextServiceOrderId,
-        humanConfirmedToolIds: opts?.humanConfirmedToolIds,
         confirmActionIds: opts?.confirmActionIds,
       });
       setConversationId(res.conversationId);
@@ -150,12 +148,10 @@ export const RdaAssistantPanel: React.FC<Props> = ({
   const confirmPending = () => {
     if (!pendingActions.length || busy) return;
     const ids = pendingActions.map((a) => a.id);
-    const toolIds = [...new Set(pendingActions.map((a) => a.toolId))];
     setPendingActions([]);
     void send({
       message: 'Confirmar',
       confirmActionIds: ids,
-      humanConfirmedToolIds: toolIds,
       echoUser: true,
     });
   };

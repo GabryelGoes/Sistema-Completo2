@@ -7076,7 +7076,6 @@ export async function postRdaChat(input: {
   message: string;
   conversationId?: string | null;
   contextServiceOrderId?: string | null;
-  humanConfirmedToolIds?: string[];
   /** Executa ações pendentes pelos IDs (params já validados no servidor). */
   confirmActionIds?: string[];
 }): Promise<{

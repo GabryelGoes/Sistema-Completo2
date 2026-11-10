@@ -239,17 +239,17 @@ export function registerRdaIntelligenceRoutes(
       const body = (req.body || {}) as {
         toolId?: unknown;
         params?: unknown;
-        humanConfirmed?: unknown;
       };
       const toolId = typeof body.toolId === "string" ? body.toolId.trim() : "";
 
       ensureProductionRdaToolsRegistered();
+      // Nunca confiar em humanConfirmed do cliente — confirmação só via pending action no chat.
       const result = authorizeToolInvocation({
         registry: productionRdaToolRegistry,
         auth,
         toolId,
         params: body.params,
-        humanConfirmed: body.humanConfirmed === true,
+        humanConfirmed: false,
         settingValue,
       });
 
@@ -334,9 +334,7 @@ export function registerRdaIntelligenceRoutes(
         typeof body.contextServiceOrderId === "string"
           ? body.contextServiceOrderId.trim()
           : null;
-      const humanConfirmedToolIds = Array.isArray(body.humanConfirmedToolIds)
-        ? body.humanConfirmedToolIds.filter((x): x is string => typeof x === "string")
-        : [];
+      // Ignora humanConfirmedToolIds do body — bypass removido; só confirmActionIds.
       const confirmActionIds = Array.isArray(body.confirmActionIds)
         ? body.confirmActionIds.filter((x): x is string => typeof x === "string")
         : [];
@@ -349,7 +347,6 @@ export function registerRdaIntelligenceRoutes(
         conversationId,
         userMessage: message,
         contextServiceOrderId,
-        humanConfirmedToolIds,
         confirmActionIds,
       });
       return res.json(result);

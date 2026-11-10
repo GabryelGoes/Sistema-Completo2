@@ -30,9 +30,9 @@ import {
   type RdaPendingAction,
 } from "../confirmationPolicy.js";
 import {
+  claimPendingActionForExecution,
   createPendingAction,
   findSingleRecentPendingAction,
-  loadPendingActionsByIds,
   markPendingActionExecuted,
 } from "./pendingActions.js";
 
@@ -88,7 +88,6 @@ export type RdaChatTurnInput = {
   conversationId?: string | null;
   userMessage: string;
   contextServiceOrderId?: string | null;
-  humanConfirmedToolIds?: string[];
   /** Confirma ações pendentes pelos IDs (executa params já validados — sem reconstruir). */
   confirmActionIds?: string[];
   /** Modo entrevista gerencial (Revisão Semanal com RDA). */
@@ -375,7 +374,6 @@ export async function runRdaChatTurn(
   ];
 
   const openAiTools = toolsForAuth(input.auth, input.settingValue);
-  const confirmed = new Set(input.humanConfirmedToolIds || []);
   const toolTrace: RdaChatTurnResult["toolTrace"] = [];
   const proposedActions: unknown[] = [];
   const pendingActions: RdaPendingAction[] = [];
@@ -383,7 +381,8 @@ export async function runRdaChatTurn(
   let lastModel: string | undefined;
   let assistantText = "";
 
-  // --- Confirmação nível 2: executa params já validados (botão ou "Sim"/"Confirmo") ---
+  // --- Confirmação nível 2/3: só via ação pendente reivindicada atomicamente ---
+  // Nunca confiar em humanConfirmedToolIds do cliente.
   let confirmIds = (input.confirmActionIds || [])
     .map((x) => String(x || "").trim())
     .filter(Boolean);
@@ -401,17 +400,25 @@ export async function runRdaChatTurn(
   }
 
   if (confirmIds.length) {
-    const loaded = await loadPendingActionsByIds({
-      supabase: input.supabase,
-      workshopId: input.workshopId,
-      auth: input.auth,
-      conversationId,
-      ids: confirmIds,
-    });
     const execLines: string[] = [];
-    for (const err of loaded.errors) execLines.push(`• ${err}`);
-    for (const action of loaded.actions) {
-      confirmed.add(action.toolId);
+    for (const actionId of confirmIds) {
+      const claim = await claimPendingActionForExecution({
+        supabase: input.supabase,
+        workshopId: input.workshopId,
+        auth: input.auth,
+        conversationId,
+        actionId,
+      });
+      if (claim.status !== "claimed") {
+        execLines.push(`• ${claim.message}`);
+        toolTrace.push({
+          toolId: "pending_confirm",
+          ok: false,
+          summary: claim.message,
+        });
+        continue;
+      }
+      const action = claim.action;
       const authz = authorizeToolInvocation({
         registry: productionRdaToolRegistry,
         auth: input.auth,
@@ -552,12 +559,14 @@ export async function runRdaChatTurn(
       } catch {
         parsed = {};
       }
+      // confirm_once/protected: humanConfirmed só após claim de pending action
+      // (caminho acima). O loop LLM nunca confia em flags do cliente.
       const authz = authorizeToolInvocation({
         registry: productionRdaToolRegistry,
         auth: input.auth,
         toolId: tc.name,
         params: parsed,
-        humanConfirmed: confirmed.has(tc.name),
+        humanConfirmed: false,
         settingValue: input.settingValue,
       });
 

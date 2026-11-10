@@ -6,9 +6,13 @@ import {
   authorizeToolInvocation,
   buildAuthenticatedActorSystemBlock,
   buildSaoPauloTemporalHint,
+  claimPendingActionForExecution,
+  classifyPendingRowDenial,
+  EXECUTING_STALE_MS,
   isAffirmativeConfirmationText,
   looksLikeOperationalTaskRequest,
   needsHumanConfirmation,
+  PENDING_REASON,
   productionRdaToolRegistry,
   resolveConfirmationPolicy,
   summarizePendingToolCall,
@@ -18,6 +22,7 @@ import { looksLikePermanentGuidance } from "../services/rdaIntelligence/knowledg
 import type { RdaAuthContext } from "../services/rdaIntelligence/types.js";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 let passed = 0;
 let failed = 0;
@@ -239,7 +244,274 @@ console.log("\n8) Write legado ainda exige confirmação (fail-safe)");
     humanConfirmed: true,
     featureEnabled: true,
   });
-  assert(ok.allowed === true, "open OS com confirm → ok");
+  assert(ok.allowed === true, "open OS com confirm server-side → ok");
+}
+
+console.log("\n9) Bypass client-side removido (humanConfirmedToolIds)");
+{
+  const ui = readFileSync(
+    join(process.cwd(), "components/rda/RdaAssistantPanel.tsx"),
+    "utf8"
+  );
+  const orch = readFileSync(
+    join(process.cwd(), "services/rdaIntelligence/agent/orchestrator.ts"),
+    "utf8"
+  );
+  const routes = readFileSync(
+    join(process.cwd(), "services/rdaIntelligence/registerRdaRoutes.ts"),
+    "utf8"
+  );
+  const api = readFileSync(
+    join(process.cwd(), "services/apiService.ts"),
+    "utf8"
+  );
+  assert(!ui.includes("humanConfirmedToolIds"), "UI sem humanConfirmedToolIds");
+  assert(
+    !/humanConfirmedToolIds\s*\?:/.test(api),
+    "apiService sem humanConfirmedToolIds no postRdaChat"
+  );
+  assert(
+    !routes.includes("body.humanConfirmedToolIds"),
+    "rota chat não lê humanConfirmedToolIds"
+  );
+  assert(
+    !orch.includes("input.humanConfirmedToolIds"),
+    "orchestrator não usa humanConfirmedToolIds do input"
+  );
+  assert(
+    orch.includes("humanConfirmed: false"),
+    "loop LLM força humanConfirmed false"
+  );
+  assert(
+    orch.includes("claimPendingActionForExecution"),
+    "confirmação via claim atômico"
+  );
+  // Mesmo com humanConfirmed no authorize HTTP, rota ignora (false fixo).
+  assert(
+    routes.includes("humanConfirmed: false"),
+    "authorize-tool ignora flag do cliente"
+  );
+}
+
+console.log("\n10) Classificação: outro usuário, reuso, interrupção");
+{
+  const expiresAt = new Date(Date.now() + 60_000).toISOString();
+  const meta = {
+    kind: "rda_pending_action" as const,
+    toolId: "rda_propose_open_service_order",
+    params: { serviceOrderId: "00000000-0000-0000-0000-000000000099" },
+    summary: "Abrir OS",
+    expiresAt,
+    conversationId: "c1",
+  };
+  const other = classifyPendingRowDenial({
+    reason: PENDING_REASON.pending,
+    meta,
+    actorUserId: "other-user",
+    auth: manager,
+  });
+  assert(other.status === "forbidden", "ID de outro usuário → forbidden");
+
+  const reused = classifyPendingRowDenial({
+    reason: PENDING_REASON.executed,
+    meta,
+    actorUserId: manager.userId,
+    auth: manager,
+  });
+  assert(reused.status === "already_executed", "ação já executada → blocked");
+
+  const failedReuse = classifyPendingRowDenial({
+    reason: PENDING_REASON.failed,
+    meta,
+    actorUserId: manager.userId,
+    auth: manager,
+  });
+  assert(failedReuse.status === "already_failed", "ação falha → não reutiliza");
+
+  const inProgress = classifyPendingRowDenial({
+    reason: PENDING_REASON.executing,
+    meta: { ...meta, claimedAt: new Date().toISOString() },
+    actorUserId: manager.userId,
+    auth: manager,
+  });
+  assert(inProgress.status === "in_progress", "executing fresco → in_progress");
+
+  const interrupted = classifyPendingRowDenial({
+    reason: PENDING_REASON.executing,
+    meta: {
+      ...meta,
+      claimedAt: new Date(Date.now() - EXECUTING_STALE_MS - 1000).toISOString(),
+    },
+    actorUserId: manager.userId,
+    auth: manager,
+  });
+  assert(
+    interrupted.status === "interrupted",
+    "executing órfão → interrupted (não reexecuta)"
+  );
+}
+
+console.log("\n11) Claim atômico: só uma requisição executa");
+{
+  type Row = {
+    id: string;
+    tool_id: string;
+    params: Record<string, unknown>;
+    result_summary: string;
+    actor_user_id: string;
+    conversation_id: string;
+    reason: string;
+    workshop_id: string;
+  };
+
+  const expiresAt = new Date(Date.now() + 60_000).toISOString();
+  const meta = {
+    kind: "rda_pending_action",
+    toolId: "rda_propose_open_service_order",
+    params: { serviceOrderId: "00000000-0000-0000-0000-000000000099" },
+    summary: "Abrir OS teste",
+    expiresAt,
+    conversationId: "conv-1",
+  };
+  const store: Row[] = [
+    {
+      id: "act-1",
+      tool_id: "rda_propose_open_service_order",
+      params: meta.params,
+      result_summary: JSON.stringify(meta),
+      actor_user_id: "m1",
+      conversation_id: "conv-1",
+      reason: PENDING_REASON.pending,
+      workshop_id: "ws-1",
+    },
+  ];
+
+  function makeClient(): SupabaseClient {
+    const api = {
+      from(_table: string) {
+        let filters: Record<string, string> = {};
+        let updatePayload: Record<string, unknown> | null = null;
+        const chain: Record<string, unknown> = {};
+        const applySelect = () => {
+          const rows = store.filter((r) => {
+            if (filters.workshop_id && r.workshop_id !== filters.workshop_id)
+              return false;
+            if (
+              filters.conversation_id &&
+              r.conversation_id !== filters.conversation_id
+            )
+              return false;
+            if (filters.id && r.id !== filters.id) return false;
+            if (filters.reason && r.reason !== filters.reason) return false;
+            return true;
+          });
+          return rows;
+        };
+        chain.select = () => chain;
+        chain.eq = (col: string, val: string) => {
+          filters[col] = val;
+          return chain;
+        };
+        chain.in = () => chain;
+        chain.order = () => chain;
+        chain.limit = () => chain;
+        chain.maybeSingle = async () => {
+          const rows = applySelect();
+          return { data: rows[0] || null, error: null };
+        };
+        chain.single = async () => {
+          const rows = applySelect();
+          return { data: rows[0] || null, error: null };
+        };
+        chain.update = (payload: Record<string, unknown>) => {
+          updatePayload = payload;
+          const updateChain: Record<string, unknown> = {};
+          const uFilters: Record<string, string> = {};
+          updateChain.eq = (col: string, val: string) => {
+            uFilters[col] = val;
+            return updateChain;
+          };
+          updateChain.select = async () => {
+            const targets = store.filter((r) => {
+              if (uFilters.workshop_id && r.workshop_id !== uFilters.workshop_id)
+                return false;
+              if (
+                uFilters.conversation_id &&
+                r.conversation_id !== uFilters.conversation_id
+              )
+                return false;
+              if (uFilters.id && r.id !== uFilters.id) return false;
+              if (uFilters.reason && r.reason !== uFilters.reason) return false;
+              return true;
+            });
+            if (!targets.length) return { data: [], error: null };
+            for (const t of targets) {
+              if (typeof updatePayload!.reason === "string") {
+                t.reason = updatePayload!.reason as string;
+              }
+              if (typeof updatePayload!.result_summary === "string") {
+                t.result_summary = updatePayload!.result_summary as string;
+              }
+            }
+            return { data: targets.map((t) => ({ id: t.id })), error: null };
+          };
+          return updateChain;
+        };
+        return chain;
+      },
+    };
+    return api as unknown as SupabaseClient;
+  }
+
+  const sb = makeClient();
+  const first = await claimPendingActionForExecution({
+    supabase: sb,
+    workshopId: "ws-1",
+    auth: manager,
+    conversationId: "conv-1",
+    actionId: "act-1",
+  });
+  assert(first.status === "claimed", "primeira requisição reivindica");
+
+  const second = await claimPendingActionForExecution({
+    supabase: sb,
+    workshopId: "ws-1",
+    auth: manager,
+    conversationId: "conv-1",
+    actionId: "act-1",
+  });
+  assert(
+    second.status === "in_progress" || second.status === "already_executed",
+    "segunda requisição não executa de novo"
+  );
+  assert(
+    second.status === "in_progress",
+    "segunda concorrente → in_progress"
+  );
+
+  // Simula finalização e tentativa de reuso
+  store[0].reason = PENDING_REASON.executed;
+  const reuse = await claimPendingActionForExecution({
+    supabase: sb,
+    workshopId: "ws-1",
+    auth: manager,
+    conversationId: "conv-1",
+    actionId: "act-1",
+  });
+  assert(reuse.status === "already_executed", "reuso após executed bloqueado");
+
+  // Outro usuário
+  store[0].reason = PENDING_REASON.pending;
+  store[0].result_summary = JSON.stringify(meta);
+  store[0].actor_user_id = "other";
+  const foreign = await claimPendingActionForExecution({
+    supabase: sb,
+    workshopId: "ws-1",
+    auth: manager,
+    conversationId: "conv-1",
+    actionId: "act-1",
+  });
+  assert(foreign.status === "forbidden", "claim de outro usuário bloqueado");
 }
 
 console.log(`\nResultado: ${passed} ok, ${failed} fail`);

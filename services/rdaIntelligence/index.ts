@@ -42,6 +42,15 @@ export {
 export type { RdaPendingAction } from "./confirmationPolicy.js";
 
 export {
+  PENDING_REASON,
+  EXECUTING_STALE_MS,
+  claimPendingActionForExecution,
+  classifyPendingRowDenial,
+  parsePendingMeta,
+} from "./agent/pendingActions.js";
+export type { ClaimPendingResult } from "./agent/pendingActions.js";
+
+export {
   RdaToolRegistry,
   createRdaToolRegistry,
   productionRdaToolRegistry,
