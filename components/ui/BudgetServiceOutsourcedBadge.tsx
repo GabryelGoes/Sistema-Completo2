@@ -8,11 +8,11 @@ export const BudgetServiceOutsourcedBadge: React.FC<{
   onRemove?: () => void;
 }> = ({ className = '', onRemove }) => (
   <span
-    className={`inline-flex shrink-0 items-center gap-1 rounded-md bg-[#007AFF]/18 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#0055CC] ring-1 ring-[#007AFF]/45 dark:bg-[#007AFF]/25 dark:text-[#7AB8FF] dark:ring-[#007AFF]/50 ${className}`}
+    className={`inline-flex shrink-0 items-center gap-1 rounded-md bg-orange-500/18 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-orange-800 ring-1 ring-orange-500/45 dark:bg-orange-500/25 dark:text-orange-200 dark:ring-orange-400/50 ${className}`}
     title="Serviço terceirizado"
   >
     <Handshake
-      className="h-3 w-3 text-[#007AFF] dark:text-[#7AB8FF]"
+      className="h-3 w-3 text-orange-600 dark:text-orange-300"
       strokeWidth={2.2}
       aria-hidden
     />
@@ -25,7 +25,7 @@ export const BudgetServiceOutsourcedBadge: React.FC<{
           e.stopPropagation();
           onRemove();
         }}
-        className="-mr-0.5 ml-0.5 inline-flex h-3.5 w-3.5 items-center justify-center rounded-sm text-[#0055CC]/80 transition-colors hover:bg-[#007AFF]/20 hover:text-[#003d99] dark:text-[#7AB8FF] dark:hover:bg-white/10"
+        className="-mr-0.5 ml-0.5 inline-flex h-3.5 w-3.5 items-center justify-center rounded-sm text-orange-800/80 transition-colors hover:bg-orange-500/20 hover:text-orange-950 dark:text-orange-200 dark:hover:bg-white/10"
         aria-label="Remover etiqueta Terceirizado"
         title="Remover etiqueta"
       >
