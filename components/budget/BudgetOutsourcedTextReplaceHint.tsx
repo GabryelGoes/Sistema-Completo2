@@ -21,7 +21,7 @@ export const BudgetOutsourcedTextReplaceHint: React.FC<BudgetOutsourcedTextRepla
   className = '',
 }) => (
   <div
-    className={`mb-1 mt-0.5 flex items-center gap-1.5 rounded-lg border border-[#007AFF]/22 bg-[#E8F2FF]/90 px-1.5 py-1 dark:border-[#007AFF]/35 dark:bg-[#007AFF]/15 ${className}`}
+    className={`mb-1 mt-0.5 flex items-center gap-1.5 rounded-lg border border-orange-500/25 bg-orange-50/95 px-1.5 py-1 dark:border-orange-400/35 dark:bg-orange-500/15 ${className}`}
     role="status"
     aria-live="polite"
   >
@@ -35,9 +35,9 @@ export const BudgetOutsourcedTextReplaceHint: React.FC<BudgetOutsourcedTextRepla
       <span className="truncate text-[11px] font-medium text-slate-500 dark:text-zinc-400">
         “{matchedWord}” →
       </span>
-      <span className="inline-flex shrink-0 items-center gap-1 rounded-md bg-[#007AFF]/18 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#0055CC] ring-1 ring-[#007AFF]/45 dark:bg-[#007AFF]/25 dark:text-[#7AB8FF] dark:ring-[#007AFF]/50">
+      <span className="inline-flex shrink-0 items-center gap-1 rounded-md bg-orange-500/18 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-orange-800 ring-1 ring-orange-500/45 dark:bg-orange-500/25 dark:text-orange-200 dark:ring-orange-400/50">
         <Handshake
-          className="h-3 w-3 text-[#007AFF] dark:text-[#7AB8FF]"
+          className="h-3 w-3 text-orange-600 dark:text-orange-300"
           strokeWidth={2.2}
           aria-hidden
         />
