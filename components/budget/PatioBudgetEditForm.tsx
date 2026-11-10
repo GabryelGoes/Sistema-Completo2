@@ -21,14 +21,25 @@ import { ModalPortal } from '../ui/ModalPortal';
 import { IosAccentIconSquircle } from '../ui/IosAccentIconSquircle';
 import { BudgetLinePositionControl } from './BudgetLinePositionControl';
 import { BudgetPartStockBadge } from '../ui/BudgetPartStockBadge';
+import { BudgetServiceOutsourcedBadge } from '../ui/BudgetServiceOutsourcedBadge';
+import { BudgetOutsourcedTextReplaceHint } from './BudgetOutsourcedTextReplaceHint';
 import { BudgetPartSuggestionDropdown } from './BudgetPartSuggestionDropdown';
 import { BudgetServiceSuggestionDropdown } from './BudgetServiceSuggestionDropdown';
 import { WorkshopPartQuickViewModal } from './WorkshopPartQuickViewModal';
+import {
+  applyOutsourcedTextReplace,
+  descriptionHasOutsourcedWord,
+  findOutsourcedWordInDescription,
+  isBudgetOutsourcedSuggestion,
+  shouldOfferOutsourcedTextReplace,
+} from '../../utils/budgetServiceOutsourced';
 
 export type PatioBudgetServiceDraft = {
   id: string;
   description: string;
   laborHours: number | null;
+  /** Serviço terceirizado (etiqueta azul no orçamento). */
+  outsourced?: boolean;
 };
 
 export type PatioBudgetPartDraft = {
@@ -195,6 +206,9 @@ export function PatioBudgetEditForm({
   const [budgetPartQuickView, setBudgetPartQuickView] = useState<WorkshopPart | null>(null);
   const [focusServiceId, setFocusServiceId] = useState<string | null>(null);
   const [focusPartId, setFocusPartId] = useState<string | null>(null);
+  const [outsourcedReplaceDismissedIds, setOutsourcedReplaceDismissedIds] = useState<
+    Record<string, true>
+  >({});
 
   const focusedServiceInputRef = useRef<HTMLDivElement | null>(null);
   const focusedPartInputRef = useRef<HTMLDivElement | null>(null);
@@ -295,12 +309,54 @@ export function PatioBudgetEditForm({
       prev.map((item) => {
         if (item.id !== id) return item;
         const match = workshopServicesExactMap.get(value.trim());
+        const outsourced = !value.trim() ? false : item.outsourced === true;
         return {
           ...item,
           description: value,
           laborHours: match ? (match.labor_hours ?? null) : null,
+          outsourced,
         };
       })
+    );
+    if (!descriptionHasOutsourcedWord(value)) {
+      setOutsourcedReplaceDismissedIds((prev) => {
+        if (!prev[id]) return prev;
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
+    }
+  };
+
+  const acceptOutsourcedTextReplace = (id: string) => {
+    setBudgetServices((prev) =>
+      prev.map((item) => {
+        if (item.id !== id) return item;
+        const applied = applyOutsourcedTextReplace(item.description);
+        const match = workshopServicesExactMap.get(applied.description.trim());
+        return {
+          ...item,
+          description: applied.description,
+          laborHours: match ? (match.labor_hours ?? null) : item.laborHours,
+          outsourced: true,
+        };
+      })
+    );
+    setOutsourcedReplaceDismissedIds((prev) => {
+      if (!prev[id]) return prev;
+      const next = { ...prev };
+      delete next[id];
+      return next;
+    });
+  };
+
+  const dismissOutsourcedTextReplace = (id: string) => {
+    setOutsourcedReplaceDismissedIds((prev) => ({ ...prev, [id]: true }));
+  };
+
+  const removeOutsourcedBadge = (id: string) => {
+    setBudgetServices((prev) =>
+      prev.map((item) => (item.id === id ? { ...item, outsourced: false } : item))
     );
   };
 
@@ -341,9 +397,15 @@ export function PatioBudgetEditForm({
 
   const addServiceFromList = (svc: WorkshopService) => {
     scrollBudgetServicesAddRef.current = true;
+    const outsourced = isBudgetOutsourcedSuggestion(svc);
     setBudgetServices((prev) => [
       ...prev,
-      { id: Date.now().toString(), description: svc.name, laborHours: svc.labor_hours ?? null },
+      {
+        id: Date.now().toString(),
+        description: svc.name,
+        laborHours: outsourced ? null : (svc.labor_hours ?? null),
+        outsourced,
+      },
     ]);
     setIsServiceListOpen(false);
   };
@@ -528,10 +590,16 @@ export function PatioBudgetEditForm({
   };
 
   const applySuggestion = (itemId: string, svc: WorkshopService) => {
+    const outsourced = isBudgetOutsourcedSuggestion(svc);
     setBudgetServices((prev) =>
       prev.map((item) =>
         item.id === itemId
-          ? { ...item, description: svc.name, laborHours: svc.labor_hours ?? null }
+          ? {
+              ...item,
+              description: svc.name,
+              laborHours: outsourced ? null : (svc.labor_hours ?? null),
+              outsourced,
+            }
           : item
       )
     );
@@ -694,24 +762,71 @@ export function PatioBudgetEditForm({
                                   : undefined
                               }
                             >
-                              <BudgetServiceDescriptionTextarea
-                                value={item.description}
-                                onChange={(v) => updateServiceDescription(item.id, v)}
-                                onFocus={() => handleServiceInputFocus(item.id)}
-                                onBlur={handleServiceInputBlur}
-                                onEnterAdd={addServiceRow}
-                                autoFocus={focusServiceId === item.id}
-                                dataBudgetServiceId={item.id}
-                                inputClassName={budgetModalInput}
-                                compactBottom={
-                                  item.laborHours != null && Number.isFinite(Number(item.laborHours))
-                                }
-                              />
-                              {item.laborHours != null && Number.isFinite(Number(item.laborHours)) ? (
-                                <p className="mt-0.5 pb-0.5 text-[12px] font-semibold leading-tight tabular-nums text-sky-700/75">
-                                  {formatLaborLabel(Number(item.laborHours))}
-                                </p>
-                              ) : null}
+                              <div className="flex items-start gap-1.5">
+                                <div className="min-w-0 flex-1">
+                                  <BudgetServiceDescriptionTextarea
+                                    value={item.description}
+                                    onChange={(v) => updateServiceDescription(item.id, v)}
+                                    onFocus={() => handleServiceInputFocus(item.id)}
+                                    onBlur={handleServiceInputBlur}
+                                    onEnterAdd={() => {
+                                      if (
+                                        shouldOfferOutsourcedTextReplace({
+                                          description: item.description,
+                                          outsourced: item.outsourced,
+                                          dismissed: Boolean(
+                                            outsourcedReplaceDismissedIds[item.id]
+                                          ),
+                                        })
+                                      ) {
+                                        acceptOutsourcedTextReplace(item.id);
+                                      }
+                                      addServiceRow();
+                                    }}
+                                    autoFocus={focusServiceId === item.id}
+                                    dataBudgetServiceId={item.id}
+                                    inputClassName={budgetModalInput}
+                                    compactBottom={
+                                      (item.laborHours != null &&
+                                        Number.isFinite(Number(item.laborHours))) ||
+                                      Boolean(item.outsourced) ||
+                                      shouldOfferOutsourcedTextReplace({
+                                        description: item.description,
+                                        outsourced: item.outsourced,
+                                        dismissed: Boolean(
+                                          outsourcedReplaceDismissedIds[item.id]
+                                        ),
+                                      })
+                                    }
+                                  />
+                                  {shouldOfferOutsourcedTextReplace({
+                                    description: item.description,
+                                    outsourced: item.outsourced,
+                                    dismissed: Boolean(outsourcedReplaceDismissedIds[item.id]),
+                                  }) ? (
+                                    <BudgetOutsourcedTextReplaceHint
+                                      matchedWord={
+                                        findOutsourcedWordInDescription(item.description)
+                                          ?.matched || 'terceirizado'
+                                      }
+                                      onAccept={() => acceptOutsourcedTextReplace(item.id)}
+                                      onDismiss={() => dismissOutsourcedTextReplace(item.id)}
+                                    />
+                                  ) : null}
+                                  {item.laborHours != null &&
+                                  Number.isFinite(Number(item.laborHours)) ? (
+                                    <p className="mt-0.5 pb-0.5 text-[12px] font-semibold leading-tight tabular-nums text-sky-700/75">
+                                      {formatLaborLabel(Number(item.laborHours))}
+                                    </p>
+                                  ) : null}
+                                </div>
+                                {item.outsourced ? (
+                                  <BudgetServiceOutsourcedBadge
+                                    className="mt-1.5 shrink-0"
+                                    onRemove={() => removeOutsourcedBadge(item.id)}
+                                  />
+                                ) : null}
+                              </div>
                             </div>
                             <button
                               type="button"

@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Check, CheckCircle2, Package, RefreshCw, Sparkles, Wrench, X } from 'lucide-react';
 import { ModalPortal } from '../ui/ModalPortal';
 import { BudgetPartStockBadge } from '../ui/BudgetPartStockBadge';
+import { BudgetServiceOutsourcedBadge } from '../ui/BudgetServiceOutsourcedBadge';
 import type { BudgetPartFields } from '../../utils/budgetPartStock';
 import { formatLaborLabel } from '../../utils/workshopLaborFormat';
 import {
@@ -297,8 +298,11 @@ export const BudgetApprovalModal: React.FC<BudgetApprovalModalProps> = ({
                           }
                         />
                         <div className="min-w-0 flex-1">
-                          <span className="block whitespace-nowrap overflow-hidden text-ellipsis text-[14px] font-medium leading-snug text-slate-800 dark:text-zinc-100">
-                            {s.description}
+                          <span className="flex min-w-0 items-center gap-1.5">
+                            <span className="block min-w-0 flex-1 whitespace-nowrap overflow-hidden text-ellipsis text-[14px] font-medium leading-snug text-slate-800 dark:text-zinc-100">
+                              {s.description}
+                            </span>
+                            {s.outsourced ? <BudgetServiceOutsourcedBadge className="shrink-0" /> : null}
                           </span>
                           {s.labor_hours != null && Number.isFinite(Number(s.labor_hours)) ? (
                             <span className="mt-0.5 block text-[12px] font-semibold tabular-nums text-sky-700/75 dark:text-sky-400/80">
