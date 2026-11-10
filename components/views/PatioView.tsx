@@ -206,6 +206,10 @@ import {
   type PatioBudgetEditDraft,
 } from '../budget/PatioBudgetEditForm';
 import { PatioBudgetRequestTouchForm } from '../budget/PatioBudgetRequestTouchForm';
+import {
+  isBudgetOutsourcedSuggestion,
+  resolveOutsourcedServiceDescription,
+} from '../../utils/budgetServiceOutsourced';
 import { buildBudgetServiceTechnicians } from '../../utils/budgetServiceTechnicians';
 import { parseReferenceLinksFromApi, formatReferenceLinkDisplay } from '../../utils/vehicleReferenceLinks';
 import { capitalizeFirst, firstTwoNames } from '../../utils/personNameFormat';
@@ -761,6 +765,8 @@ interface BudgetServiceItem {
   description: string;
   /** Horas de mão de obra (lista da oficina), exibidas no orçamento */
   laborHours: number | null;
+  /** Serviço terceirizado (etiqueta azul). */
+  outsourced?: boolean;
 }
 
 interface BudgetPartItem {
@@ -861,7 +867,12 @@ export interface SavedBudget {
   serviceOrderId: string;
   cardName: string;
   diagnosis: string;
-  services: { description: string; approved?: boolean; labor_hours?: number | null }[];
+  services: {
+    description: string;
+    approved?: boolean;
+    labor_hours?: number | null;
+    outsourced?: boolean;
+  }[];
   parts: BudgetPartFields[];
   observations: string;
   verifiedAt?: string | null;
@@ -5589,6 +5600,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
             description: s.description,
             laborHours:
               s.labor_hours != null && Number.isFinite(Number(s.labor_hours)) ? Number(s.labor_hours) : null,
+            outsourced: s.outsourced === true,
           }))
         : [{ id: '1', description: '', laborHours: null }]);
       setBudgetParts(
@@ -5911,10 +5923,12 @@ export const PatioView: React.FC<PatioViewProps> = ({
         if (item.id !== id) return item;
         const trimmed = value.trim();
         const match = workshopServices.find((ws) => ws.name.trim() === trimmed);
+        const outsourced = !trimmed ? false : item.outsourced === true;
         return {
           ...item,
           description: value,
           laborHours: match ? (match.labor_hours ?? null) : null,
+          outsourced,
         };
       })
     );
@@ -5943,9 +5957,15 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
   const addServiceFromList = (svc: WorkshopService) => {
     scrollBudgetServicesAddRef.current = true;
+    const outsourced = isBudgetOutsourcedSuggestion(svc);
     setBudgetServices((prev) => [
       ...prev,
-      { id: Date.now().toString(), description: svc.name, laborHours: svc.labor_hours ?? null },
+      {
+        id: Date.now().toString(),
+        description: svc.name,
+        laborHours: outsourced ? null : (svc.labor_hours ?? null),
+        outsourced,
+      },
     ]);
     setIsServiceListOpen(false);
   };
@@ -6125,10 +6145,16 @@ export const PatioView: React.FC<PatioViewProps> = ({
   };
 
   const applySuggestion = (itemId: string, svc: WorkshopService) => {
+    const outsourced = isBudgetOutsourcedSuggestion(svc);
     setBudgetServices((prev) =>
       prev.map((item) =>
         item.id === itemId
-          ? { ...item, description: svc.name, laborHours: svc.labor_hours ?? null }
+          ? {
+              ...item,
+              description: svc.name,
+              laborHours: outsourced ? null : (svc.labor_hours ?? null),
+              outsourced,
+            }
           : item
       )
     );
@@ -6152,7 +6178,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const handleCreateBudget = async (draft: PatioBudgetEditDraft) => {
     if (!selectedCard) return;
 
-    const validServices = draft.services.filter((s) => s.description.trim());
+    const validServices = draft.services.filter(
+      (s) => s.description.trim() || s.outsourced === true
+    );
     const validParts = draft.parts.filter((p) => p.description.trim());
 
     if (validServices.length === 0 && validParts.length === 0 && !draft.diagnosis.trim()) {
@@ -6165,13 +6193,21 @@ export const PatioView: React.FC<PatioViewProps> = ({
       diagnosis: draft.diagnosis.trim(),
       services: editingBudget
         ? validServices.map((s, i) => ({
-            description: s.description.trim(),
+            description: resolveOutsourcedServiceDescription({
+              description: s.description,
+              outsourced: s.outsourced,
+            }),
             approved: editingBudget.services[i]?.approved,
             labor_hours: s.laborHours != null && Number.isFinite(Number(s.laborHours)) ? Number(s.laborHours) : null,
+            outsourced: s.outsourced === true,
           }))
         : validServices.map((s) => ({
-            description: s.description.trim(),
+            description: resolveOutsourcedServiceDescription({
+              description: s.description,
+              outsourced: s.outsourced,
+            }),
             labor_hours: s.laborHours != null && Number.isFinite(Number(s.laborHours)) ? Number(s.laborHours) : null,
+            outsourced: s.outsourced === true,
           })),
       parts: editingBudget
         ? validParts.map((p, i) => ({

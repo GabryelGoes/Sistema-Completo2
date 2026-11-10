@@ -32,6 +32,7 @@
     "test:rda-productivity": "tsx scripts/rdaProductivity.selftest.ts",
     "test:rda-productivity-cron-auth": "tsx scripts/rdaProductivityCronAuth.selftest.ts",
     "test:rda-confirmation-autonomy": "tsx scripts/rdaConfirmationAutonomy.selftest.ts",
+    "test:budget-service-outsourced": "tsx scripts/budgetServiceOutsourced.selftest.ts",
     "test:rda-panels-zindex": "tsx scripts/rdaPanelsZIndex.selftest.ts",
     "test:rda-header-alerts-banners": "tsx scripts/rdaHeaderAlertsBanners.selftest.ts",
     "test:remove-os-work-time-panel": "tsx scripts/removeOsWorkTimePanel.selftest.ts"
