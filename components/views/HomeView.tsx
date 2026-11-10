@@ -32,6 +32,7 @@ import { RdaOperationalIntelligencePanel } from '../rda/RdaOperationalIntelligen
 import { RdaPatioIntelligencePanel } from '../rda/RdaPatioIntelligencePanel';
 import { RdaLabEstoqueIntelligencePanel } from '../rda/RdaLabEstoqueIntelligencePanel';
 import { RdaProactiveIntelligencePanel } from '../rda/RdaProactiveIntelligencePanel';
+import { RdaProductivityPanel } from '../rda/RdaProductivityPanel';
 import { QUALITY_RADAR_ICON } from '../../constants/qualityRadar';
 import { ERROR_BULLETIN_ICON, TECHNICAL_BULLETINS_MODULE_LABEL } from '../../constants/errorBulletinIcon';
 import { effectiveAccessOrcamentos, type SystemUserPermissions } from '../../services/apiService';
@@ -107,6 +108,7 @@ interface HomeViewProps {
   ) => void;
   /** Abre o Monitoramento Proativo (painel montado no App). */
   onOpenRdaProactive?: (focusAlertId?: string | null) => void;
+  onOpenRdaProductivity?: (focusTaskId?: string | null) => void;
   agendaReminderSettings?: AgendaReminderSettings;
   onAgendaReminderSettingsChange?: (next: AgendaReminderSettings) => void;
   /** Agendamentos (bloco Próximos amanhã + badge do dia). */
@@ -240,6 +242,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
   rdaBannerSettings,
   onRdaBannerSettingsChange,
   onOpenRdaProactive,
+  onOpenRdaProductivity,
   agendaReminderSettings,
   onAgendaReminderSettingsChange,
   appointments = [],
@@ -278,6 +281,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
   const [isRdaPatioIntelOpen, setIsRdaPatioIntelOpen] = useState(false);
   const [isRdaLabEstoqueIntelOpen, setIsRdaLabEstoqueIntelOpen] = useState(false);
   const [isRdaProactiveOpen, setIsRdaProactiveOpen] = useState(false);
+  const [isRdaProductivityOpen, setIsRdaProductivityOpen] = useState(false);
 
   const closeAllSettingsChildModals = useCallback(() => {
     setIsServicesModalOpen(false);
@@ -299,6 +303,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
     setIsRdaPatioIntelOpen(false);
     setIsRdaLabEstoqueIntelOpen(false);
     setIsRdaProactiveOpen(false);
+    setIsRdaProductivityOpen(false);
   }, []);
 
   const setSettingsHubOpen = useCallback(
@@ -433,6 +438,15 @@ export const HomeView: React.FC<HomeViewProps> = ({
             !!perms.access_patio ||
             !!perms.access_laboratorio ||
             !!perms.access_estoque_pecas)),
+      produtividade_rda:
+        isWorkshopAdmin ||
+        (isSystemUser &&
+          (!!perms.full_access ||
+            !!perms.access_radar_qualidade ||
+            !!perms.access_home ||
+            !!perms.access_patio ||
+            !!perms.access_laboratorio ||
+            !!perms.access_estoque_pecas)),
     }),
     [
       isSystemUser,
@@ -444,6 +458,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
       perms.access_patio,
       perms.access_laboratorio,
       perms.access_estoque_pecas,
+      perms.access_home,
       perms.access_servicos_oficina,
       perms.access_checklists_patio,
       perms.access_tv_patio,
@@ -515,6 +530,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
           setIsRdaPatioIntelOpen(false);
           setIsRdaLabEstoqueIntelOpen(false);
           setIsRdaProactiveOpen(false);
+          setIsRdaProductivityOpen(false);
           setIsRdaMemoryOpen(true);
           break;
         case 'inteligencia_operacional':
@@ -522,6 +538,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
           setIsRdaPatioIntelOpen(false);
           setIsRdaLabEstoqueIntelOpen(false);
           setIsRdaProactiveOpen(false);
+          setIsRdaProductivityOpen(false);
           setIsRdaOpsOpen(true);
           break;
         case 'gestao_patio_rda':
@@ -529,6 +546,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
           setIsRdaOpsOpen(false);
           setIsRdaLabEstoqueIntelOpen(false);
           setIsRdaProactiveOpen(false);
+          setIsRdaProductivityOpen(false);
           setIsRdaPatioIntelOpen(true);
           break;
         case 'lab_estoque_rda':
@@ -536,6 +554,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
           setIsRdaOpsOpen(false);
           setIsRdaPatioIntelOpen(false);
           setIsRdaProactiveOpen(false);
+          setIsRdaProductivityOpen(false);
           setIsRdaLabEstoqueIntelOpen(true);
           break;
         case 'monitoramento_proativo_rda':
@@ -543,10 +562,23 @@ export const HomeView: React.FC<HomeViewProps> = ({
           setIsRdaOpsOpen(false);
           setIsRdaPatioIntelOpen(false);
           setIsRdaLabEstoqueIntelOpen(false);
+          setIsRdaProductivityOpen(false);
           if (typeof onOpenRdaProactive === 'function') {
             onOpenRdaProactive();
           } else {
             setIsRdaProactiveOpen(true);
+          }
+          break;
+        case 'produtividade_rda':
+          setIsRdaMemoryOpen(false);
+          setIsRdaOpsOpen(false);
+          setIsRdaPatioIntelOpen(false);
+          setIsRdaLabEstoqueIntelOpen(false);
+          setIsRdaProactiveOpen(false);
+          if (typeof onOpenRdaProductivity === 'function') {
+            onOpenRdaProductivity();
+          } else {
+            setIsRdaProductivityOpen(true);
           }
           break;
         default:
@@ -562,6 +594,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
       onOpenSettings,
       onOpenApp,
       onOpenRdaProactive,
+      onOpenRdaProductivity,
       setSettingsHubOpen,
     ]
   );
@@ -727,6 +760,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
       isRdaPatioIntelOpen ||
       isRdaLabEstoqueIntelOpen ||
       isRdaProactiveOpen ||
+      isRdaProductivityOpen ||
       (!onOpenTvPatio && isTvPatioOpen) ||
       (Boolean(technicianId) && isTechnicianProfileOpen) ||
       isAdminProfileOpen ||
@@ -750,6 +784,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
       isRdaPatioIntelOpen,
       isRdaLabEstoqueIntelOpen,
       isRdaProactiveOpen,
+      isRdaProductivityOpen,
       onOpenTvPatio,
       isTvPatioOpen,
       technicianId,
@@ -783,6 +818,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
   useBrowserBackLayer(isRdaPatioIntelOpen, () => setIsRdaPatioIntelOpen(false));
   useBrowserBackLayer(isRdaLabEstoqueIntelOpen, () => setIsRdaLabEstoqueIntelOpen(false));
   useBrowserBackLayer(isRdaProactiveOpen, () => setIsRdaProactiveOpen(false));
+  useBrowserBackLayer(isRdaProductivityOpen, () => setIsRdaProductivityOpen(false));
   useBrowserBackLayer(isHeaderProfileMenuOpen, () => setIsHeaderProfileMenuOpen(false));
 
   const operationalForView = useMemo(() => {
@@ -1404,6 +1440,13 @@ export const HomeView: React.FC<HomeViewProps> = ({
             <RdaProactiveIntelligencePanel
               isOpen={isRdaProactiveOpen}
               onClose={() => setIsRdaProactiveOpen(false)}
+              desktopShell={Boolean(desktopShell)}
+            />
+          ) : null}
+          {typeof onOpenRdaProductivity !== 'function' ? (
+            <RdaProductivityPanel
+              isOpen={isRdaProductivityOpen}
+              onClose={() => setIsRdaProductivityOpen(false)}
               desktopShell={Boolean(desktopShell)}
             />
           ) : null}

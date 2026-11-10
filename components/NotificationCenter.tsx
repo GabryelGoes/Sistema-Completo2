@@ -172,6 +172,14 @@ const TYPE_VISUAL: Record<NotificationType, TypeVisual> = {
     accent: 'amber',
     icon: 'alert',
   },
+  rda_productivity_task: {
+    title: (n) =>
+      typeof n.payload.title === 'string' && n.payload.title.trim()
+        ? n.payload.title.trim()
+        : 'Tarefa do RDA',
+    accent: 'amber',
+    icon: 'check',
+  },
 };
 
 function notificationToCardModel(
@@ -202,7 +210,7 @@ function notificationToCardModel(
       ? n.payload.text.length > 100
         ? `${n.payload.text.slice(0, 100)}…`
         : n.payload.text
-      : n.type === 'rda_management_alert'
+      : n.type === 'rda_management_alert' || n.type === 'rda_productivity_task'
         ? (() => {
             const body =
               typeof n.payload.body === 'string'
@@ -239,6 +247,17 @@ function notificationToCardModel(
           const bits = [cat, sev].filter(Boolean).join(' · ');
           return bits || 'Monitoramento proativo';
         })()
+      : n.type === 'rda_productivity_task'
+        ? (() => {
+            const kind =
+              typeof n.payload.productivityKind === 'string'
+                ? n.payload.productivityKind
+                : '';
+            const assignee =
+              typeof n.payload.assigneeName === 'string' ? n.payload.assigneeName : '';
+            const bits = [kind, assignee].filter(Boolean).join(' · ');
+            return bits || 'Produtividade RDA';
+          })()
       : vehicleBody(n.payload);
 
   return {
@@ -271,7 +290,7 @@ function formatNativeBody(n: Notification): string {
   if (n.type === 'comment' && n.payload.text) {
     return n.payload.text.length > 80 ? `${n.payload.text.slice(0, 80)}…` : n.payload.text;
   }
-  if (n.type === 'rda_management_alert') {
+  if (n.type === 'rda_management_alert' || n.type === 'rda_productivity_task') {
     const body =
       typeof n.payload.body === 'string'
         ? n.payload.body
@@ -409,7 +428,8 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
       n.type === 'budget_edited' ||
       n.type === 'budget_items_approved' ||
       n.type === 'lab_sem_conserto' ||
-      n.type === 'rda_management_alert'
+      n.type === 'rda_management_alert' ||
+      n.type === 'rda_productivity_task'
     ) {
       onBudgetBannerRef.current?.(n);
       // Som só se a notificação nativa não cobriu o aviso (evita duplicar).

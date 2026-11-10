@@ -62,6 +62,19 @@ import type {
   ProactiveCategory,
   ProactiveSeverity,
 } from "../proactiveIntelligence/types.js";
+import {
+  createProductivityTask,
+  listAssignablePeople,
+  listProductivityTasks,
+  summarizePendingTasks,
+  updateProductivityTask,
+} from "../productivity/service.js";
+import type {
+  ProductivityTaskFilters,
+  ProductivityTaskPriority,
+  ProductivityTaskRefType,
+  ProductivityTaskStatus,
+} from "../productivity/types.js";
 
 function periodFromParams(params: Record<string, unknown>): { from: string; to: string } | undefined {
   const from = typeof params.from === "string" ? params.from.trim() : "";
@@ -1263,6 +1276,178 @@ export async function executeRdaTool(
           limit: clampLimit(params.limit, 15),
         });
         return { ok: true, data: { ...data, provenance: "system_fact" } };
+      }
+
+      case "rda_productivity_list_tasks":
+      case "rda_productivity_list_overdue": {
+        if (!ctx.auth) return { ok: false, error: "Contexto de autenticação necessário." };
+        let assigneeUserId = String(params.assigneeUserId || "").trim() || undefined;
+        const assigneeName = String(params.assigneeName || "").trim();
+        if (!assigneeUserId && assigneeName) {
+          const people = await listAssignablePeople({
+            supabase,
+            workshopId,
+            auth: ctx.auth,
+            q: assigneeName,
+          });
+          if (people.length === 0) {
+            return {
+              ok: true,
+              data: { tasks: [], message: `Nenhum funcionário para “${assigneeName}”.` },
+            };
+          }
+          if (people.length > 1) {
+            return {
+              ok: true,
+              data: {
+                tasks: [],
+                ambiguous: true,
+                candidates: people.map((p) => ({ id: p.id, name: p.displayName })),
+                message: "Ambíguo — confirme o responsável.",
+              },
+            };
+          }
+          assigneeUserId = people[0]!.id;
+        }
+        const filters: ProductivityTaskFilters = {
+          status:
+            toolId === "rda_productivity_list_overdue"
+              ? "open"
+              : ((String(params.status || "open") as ProductivityTaskFilters["status"]) ||
+                "open"),
+          assigneeUserId,
+          priority: params.priority
+            ? (String(params.priority) as ProductivityTaskPriority)
+            : undefined,
+          overdueOnly: toolId === "rda_productivity_list_overdue" || params.overdueOnly === true,
+          q: params.q ? String(params.q) : undefined,
+          limit: clampLimit(params.limit, 30),
+        };
+        const tasks = await listProductivityTasks({
+          supabase,
+          workshopId,
+          auth: ctx.auth,
+          filters,
+        });
+        return { ok: true, data: { tasks, count: tasks.length, provenance: "system_fact" } };
+      }
+
+      case "rda_productivity_summarize_pending": {
+        if (!ctx.auth) return { ok: false, error: "Contexto de autenticação necessário." };
+        const summary = await summarizePendingTasks({
+          supabase,
+          workshopId,
+          auth: ctx.auth,
+        });
+        return { ok: true, data: { ...summary, provenance: "calculated" } };
+      }
+
+      case "rda_productivity_list_people": {
+        if (!ctx.auth) return { ok: false, error: "Contexto de autenticação necessário." };
+        const people = await listAssignablePeople({
+          supabase,
+          workshopId,
+          auth: ctx.auth,
+          q: params.q ? String(params.q) : null,
+        });
+        return { ok: true, data: { people, provenance: "system_fact" } };
+      }
+
+      case "rda_productivity_create_task": {
+        if (!ctx.auth) return { ok: false, error: "Contexto de autenticação necessário." };
+        const task = await createProductivityTask({
+          supabase,
+          workshopId,
+          auth: ctx.auth,
+          payload: {
+            title: String(params.title || ""),
+            description: params.description ? String(params.description) : "",
+            priority: params.priority
+              ? (String(params.priority) as ProductivityTaskPriority)
+              : "normal",
+            assigneeUserId: params.assigneeUserId ? String(params.assigneeUserId) : null,
+            assigneeName: params.assigneeName ? String(params.assigneeName) : null,
+            dueAt: params.dueAt ? String(params.dueAt) : null,
+            refType: params.refType
+              ? (String(params.refType) as ProductivityTaskRefType)
+              : null,
+            refId: params.refId ? String(params.refId) : null,
+            refLabel: params.refLabel ? String(params.refLabel) : null,
+            notes: params.notes ? String(params.notes) : "",
+            clientRequestId: params.clientRequestId ? String(params.clientRequestId) : null,
+          },
+        });
+        return { ok: true, data: { task, provenance: "system_fact" } };
+      }
+
+      case "rda_productivity_update_status": {
+        if (!ctx.auth) return { ok: false, error: "Contexto de autenticação necessário." };
+        const task = await updateProductivityTask({
+          supabase,
+          workshopId,
+          auth: ctx.auth,
+          taskId: String(params.taskId || ""),
+          patch: {
+            status: String(params.status || "") as ProductivityTaskStatus,
+            notes: params.notes != null ? String(params.notes) : undefined,
+          },
+        });
+        return { ok: true, data: { task, provenance: "system_fact" } };
+      }
+
+      case "rda_productivity_reassign": {
+        if (!ctx.auth) return { ok: false, error: "Contexto de autenticação necessário." };
+        const task = await updateProductivityTask({
+          supabase,
+          workshopId,
+          auth: ctx.auth,
+          taskId: String(params.taskId || ""),
+          patch: {
+            assigneeUserId: params.assigneeUserId ? String(params.assigneeUserId) : undefined,
+            assigneeName: params.assigneeName ? String(params.assigneeName) : undefined,
+          },
+        });
+        return { ok: true, data: { task, provenance: "system_fact" } };
+      }
+
+      case "rda_productivity_create_reminder": {
+        if (!ctx.auth) return { ok: false, error: "Contexto de autenticação necessário." };
+        const text = String(params.text || "").trim();
+        if (text.length < 2) return { ok: false, error: "Informe o texto do lembrete." };
+        const scopeRaw = String(params.scope || "vehicle").trim().toLowerCase();
+        const scope = scopeRaw === "module" ? "module" : "vehicle";
+        const { data: reminder, error: rErr } = await supabase
+          .from("workshop_reminders")
+          .insert({
+            workshop_id: workshopId,
+            scope,
+            text,
+            done: false,
+            created_by: ctx.auth.username || ctx.auth.userId || "rda",
+          })
+          .select("id, scope, text, done, created_at")
+          .single();
+        if (rErr) return { ok: false, error: rErr.message };
+        const taskId = String(params.taskId || "").trim();
+        if (taskId) {
+          try {
+            await updateProductivityTask({
+              supabase,
+              workshopId,
+              auth: ctx.auth,
+              taskId,
+              patch: {
+                notes: `Lembrete (${scope}): ${text}`,
+              },
+            });
+          } catch {
+            /* tarefa opcional */
+          }
+        }
+        return {
+          ok: true,
+          data: { reminder, linkedTaskId: taskId || null, provenance: "system_fact" },
+        };
       }
 
       default:

@@ -36,7 +36,8 @@ export type AjustesItemId =
   | 'inteligencia_operacional'
   | 'gestao_patio_rda'
   | 'lab_estoque_rda'
-  | 'monitoramento_proativo_rda';
+  | 'monitoramento_proativo_rda'
+  | 'produtividade_rda';
 
 export type AjustesItemKind = 'action' | 'external';
 
@@ -300,6 +301,14 @@ export const AJUSTES_ITEMS: AjustesItemMeta[] = [
     categoryId: 'inteligencia',
     title: 'Monitoramento Proativo',
     subtitle: 'Alertas, recomendações e situações críticas',
+    kind: 'action',
+    iconFallback: 'wrench',
+  },
+  {
+    id: 'produtividade_rda',
+    categoryId: 'inteligencia',
+    title: 'Assistente de Produtividade',
+    subtitle: 'Tarefas, prazos, delegação e pendências',
     kind: 'action',
     iconFallback: 'wrench',
   },

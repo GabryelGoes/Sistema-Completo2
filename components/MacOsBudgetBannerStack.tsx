@@ -31,7 +31,8 @@ export type MacOsBudgetBannerItem = {
     | 'lab_sem_conserto'
     | 'agenda_day_before'
     | 'agenda_soon'
-    | 'rda_management_alert';
+    | 'rda_management_alert'
+    | 'rda_productivity_task';
   serviceOrderId: string;
   /** Obrigatório para orçamentos; ausente em comentários / Sem conserto. */
   budgetId?: string;
@@ -57,6 +58,8 @@ export type MacOsBudgetBannerItem = {
   appointmentTime?: string | null;
   /** Id do alerta em `rda_management_alerts` (banner RDA). */
   rdaAlertId?: string | null;
+  /** Id da tarefa de produtividade (banner Fase 6). */
+  rdaTaskId?: string | null;
   /** Severidade do alerta RDA. */
   rdaSeverity?: 'info' | 'warning' | 'critical' | string | null;
   /** Título/corpo do alerta RDA. */
@@ -118,6 +121,10 @@ function titleFor(item: MacOsBudgetBannerItem): string {
     const t = (item.rdaTitle || '').trim();
     return t || 'Alerta do RDA';
   }
+  if (item.kind === 'rda_productivity_task') {
+    const t = (item.rdaTitle || '').trim();
+    return t || 'Tarefa do RDA';
+  }
   if (item.kind === 'comment') return 'Novo comentário';
   if (item.kind === 'lab_sem_conserto') return 'Sem conserto';
   if (item.kind === 'budget_items_approved') {
@@ -143,7 +150,7 @@ function titleFor(item: MacOsBudgetBannerItem): string {
 }
 
 function authorLabel(item: MacOsBudgetBannerItem): string {
-  if (item.kind === 'rda_management_alert') return 'RDA';
+  if (item.kind === 'rda_management_alert' || item.kind === 'rda_productivity_task') return 'RDA';
   const name = item.authorName?.trim();
   return name || 'Usuário';
 }
@@ -209,7 +216,7 @@ export function budgetBannerToCardModel(item: MacOsBudgetBannerItem): MacOsNotif
       boardScope: 'lab',
     };
   }
-  if (item.kind === 'rda_management_alert') {
+  if (item.kind === 'rda_management_alert' || item.kind === 'rda_productivity_task') {
     const sev = String(item.rdaSeverity || '').toLowerCase();
     const body =
       commentPreview(item.rdaBody) ||
@@ -220,10 +227,13 @@ export function budgetBannerToCardModel(item: MacOsBudgetBannerItem): MacOsNotif
       authorPhotoUrl: item.authorPhotoUrl,
       title: titleFor(item),
       body,
-      hint: 'Toque para abrir o alerta',
+      hint:
+        item.kind === 'rda_productivity_task'
+          ? 'Toque para abrir a tarefa'
+          : 'Toque para abrir o alerta',
       timeLabel: 'agora',
       accent: sev === 'critical' ? 'rose' : sev === 'info' ? 'blue' : 'amber',
-      icon: 'alert',
+      icon: item.kind === 'rda_productivity_task' ? 'check' : 'alert',
       unread: true,
       boardScope: null,
     };

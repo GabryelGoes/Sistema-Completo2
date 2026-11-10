@@ -1,5 +1,5 @@
 /**
- * Garante que os 5 painéis RDA usam o shell acima do Hub de Ajustes.
+ * Garante que os painéis RDA usam o shell acima do Hub de Ajustes.
  * npm run test:rda-panels-zindex
  */
 import { readFileSync } from "node:fs";
@@ -25,6 +25,7 @@ const panels = [
   "RdaPatioIntelligencePanel.tsx",
   "RdaLabEstoqueIntelligencePanel.tsx",
   "RdaProactiveIntelligencePanel.tsx",
+  "RdaProductivityPanel.tsx",
 ];
 
 console.log("RDA panels z-index / shell selftest\n");
@@ -47,7 +48,7 @@ console.log("\n2) Shell compartilhado");
   assert(shell.includes("manageBackLayer={false}"), "back layer no HomeView (sem duplicar)");
 }
 
-console.log("\n3) Cinco painéis usam o shell (não z-[70])");
+console.log("\n3) Painéis usam o shell (não z-[70])");
 {
   for (const file of panels) {
     const src = readFileSync(join(root, "components/rda", file), "utf8");
@@ -56,7 +57,7 @@ console.log("\n3) Cinco painéis usam o shell (não z-[70])");
   }
 }
 
-console.log("\n4) HomeView limpa os 5 estados ao fechar o hub");
+console.log("\n4) HomeView limpa os estados RDA ao fechar o hub");
 {
   const home = readFileSync(join(root, "components/views/HomeView.tsx"), "utf8");
   assert(home.includes("setIsRdaMemoryOpen(false)"), "fecha memória");
@@ -64,12 +65,14 @@ console.log("\n4) HomeView limpa os 5 estados ao fechar o hub");
   assert(home.includes("setIsRdaPatioIntelOpen(false)"), "fecha pátio");
   assert(home.includes("setIsRdaLabEstoqueIntelOpen(false)"), "fecha lab");
   assert(home.includes("setIsRdaProactiveOpen(false)"), "fecha proativo");
+  assert(home.includes("setIsRdaProductivityOpen(false)"), "fecha produtividade");
   const closeBlock = home.slice(
     home.indexOf("closeAllSettingsChildModals"),
-    home.indexOf("closeAllSettingsChildModals") + 900
+    home.indexOf("closeAllSettingsChildModals") + 1100
   );
   assert(closeBlock.includes("setIsRdaOpsOpen(false)"), "closeAll inclui ops");
   assert(closeBlock.includes("setIsRdaProactiveOpen(false)"), "closeAll inclui proativo");
+  assert(closeBlock.includes("setIsRdaProductivityOpen(false)"), "closeAll inclui produtividade");
 }
 
 console.log(`\nResultado: ${passed} ok, ${failed} fail`);

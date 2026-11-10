@@ -22,6 +22,7 @@ import { registerOperationalLearningRoutes } from "./operationalLearning/registe
 import { registerPatioIntelligenceRoutes } from "./patioIntelligence/registerPatioIntelligenceRoutes.js";
 import { registerLabEstoqueIntelligenceRoutes } from "./labEstoqueIntelligence/registerLabEstoqueIntelligenceRoutes.js";
 import { registerProactiveIntelligenceRoutes } from "./proactiveIntelligence/registerProactiveIntelligenceRoutes.js";
+import { registerProductivityRoutes } from "./productivity/registerProductivityRoutes.js";
 
 type SessionLike = {
   r?: RdaRole;
@@ -113,16 +114,23 @@ export function registerRdaIntelligenceRoutes(
     setWorkshopSettingValue: deps.setWorkshopSettingValue,
   });
 
+  registerProductivityRoutes(app, {
+    WORKSHOP_ID: deps.WORKSHOP_ID,
+    supabaseAdmin: deps.supabaseAdmin,
+    loadUserPermissions: deps.loadUserPermissions,
+  });
+
   app.get("/api/rda/health", (_req: Request, res: Response) => {
     return res.json({
       ok: true,
       module: "rda-intelligence",
-      phase: 5,
+      phase: 6,
       memory: true,
       operationalLearning: true,
       patioIntelligence: true,
       labEstoqueIntelligence: true,
       proactiveIntelligence: true,
+      productivity: true,
     });
   });
 

@@ -898,4 +898,152 @@ export const RDA_PRODUCTION_TOOLS: RdaToolDefinition[] = [
     side: "read",
     requiresHumanConfirmation: false,
   },
+
+  // ----- Fase 6: Produtividade -----
+  {
+    id: "rda_productivity_list_tasks",
+    description:
+      "Lista tarefas de produtividade (pendentes/em andamento por padrão). Filtra por responsável, prioridade, status ou atrasadas. Não inventa tarefas.",
+    parameters: {
+      type: "object",
+      properties: {
+        status: {
+          type: "string",
+          description: "open | all | pending | in_progress | done | cancelled",
+        },
+        assigneeName: { type: "string" },
+        assigneeUserId: { type: "string" },
+        priority: { type: "string", description: "low | normal | high | urgent" },
+        overdueOnly: { type: "boolean" },
+        q: { type: "string" },
+        limit: { type: "number" },
+      },
+      required: [],
+      additionalProperties: false,
+    },
+    requiredPermission: "access_home",
+    side: "read",
+    requiresHumanConfirmation: false,
+  },
+  {
+    id: "rda_productivity_list_overdue",
+    description: "Lista apenas tarefas abertas com prazo vencido.",
+    parameters: {
+      type: "object",
+      properties: { limit: { type: "number" } },
+      required: [],
+      additionalProperties: false,
+    },
+    requiredPermission: "access_home",
+    side: "read",
+    requiresHumanConfirmation: false,
+  },
+  {
+    id: "rda_productivity_summarize_pending",
+    description:
+      "Resumo de pendências: abertas, atrasadas, a vencer em 48h e por responsável. Use para briefing gerencial.",
+    parameters: {
+      type: "object",
+      properties: {},
+      required: [],
+      additionalProperties: false,
+    },
+    requiredPermission: "access_home",
+    side: "read",
+    requiresHumanConfirmation: false,
+  },
+  {
+    id: "rda_productivity_list_people",
+    description:
+      "Lista funcionários cadastrados da oficina para atribuição de tarefas. Não inventa nomes.",
+    parameters: {
+      type: "object",
+      properties: { q: { type: "string" } },
+      required: [],
+      additionalProperties: false,
+    },
+    requiredPermission: "access_home",
+    side: "read",
+    requiresHumanConfirmation: false,
+  },
+  {
+    id: "rda_productivity_create_task",
+    description:
+      "Cria tarefa de produtividade. Exige confirmação humana. Informe título; responsável por nome ou userId (resolvido no cadastro). Não inventa pessoas nem prazos.",
+    parameters: {
+      type: "object",
+      properties: {
+        title: { type: "string" },
+        description: { type: "string" },
+        priority: { type: "string" },
+        assigneeName: { type: "string" },
+        assigneeUserId: { type: "string" },
+        dueAt: { type: "string", description: "ISO datetime" },
+        refType: { type: "string", description: "service_order | vehicle | module" },
+        refId: { type: "string" },
+        refLabel: { type: "string" },
+        notes: { type: "string" },
+        clientRequestId: { type: "string", description: "Idempotência" },
+      },
+      required: ["title"],
+      additionalProperties: false,
+    },
+    requiredPermission: "access_home",
+    side: "write",
+    requiresHumanConfirmation: true,
+  },
+  {
+    id: "rda_productivity_update_status",
+    description:
+      "Atualiza status de uma tarefa (pending | in_progress | done | cancelled). Exige confirmação. Não inventa conclusão.",
+    parameters: {
+      type: "object",
+      properties: {
+        taskId: { type: "string" },
+        status: { type: "string" },
+        notes: { type: "string" },
+      },
+      required: ["taskId", "status"],
+      additionalProperties: false,
+    },
+    requiredPermission: "access_home",
+    side: "write",
+    requiresHumanConfirmation: true,
+  },
+  {
+    id: "rda_productivity_reassign",
+    description:
+      "Reatribui tarefa a outro funcionário cadastrado. Exige confirmação e permissão de gestão.",
+    parameters: {
+      type: "object",
+      properties: {
+        taskId: { type: "string" },
+        assigneeName: { type: "string" },
+        assigneeUserId: { type: "string" },
+      },
+      required: ["taskId"],
+      additionalProperties: false,
+    },
+    requiredPermission: "access_radar_qualidade",
+    side: "write",
+    requiresHumanConfirmation: true,
+  },
+  {
+    id: "rda_productivity_create_reminder",
+    description:
+      "Cria lembrete no módulo de lembretes da oficina (pátio/lab) e/ou vincula observação à tarefa. Exige confirmação. Não substitui a tarefa.",
+    parameters: {
+      type: "object",
+      properties: {
+        text: { type: "string" },
+        scope: { type: "string", description: "vehicle | module" },
+        taskId: { type: "string", description: "Opcional: anexa nota na tarefa" },
+      },
+      required: ["text"],
+      additionalProperties: false,
+    },
+    requiredPermission: "access_home",
+    side: "write",
+    requiresHumanConfirmation: true,
+  },
 ];

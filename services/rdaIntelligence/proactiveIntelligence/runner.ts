@@ -214,6 +214,20 @@ export async function runProactiveScan(
       },
     });
 
+    // Fase 6: tick de prazos de tarefas (fail-soft — nunca derruba o scan proativo).
+    try {
+      const { runProductivityDeadlineTick } = await import("../productivity/service.js");
+      await runProductivityDeadlineTick({
+        supabase: input.supabase,
+        workshopId: input.workshopId,
+      });
+    } catch (tickErr) {
+      console.warn(
+        "[proactive] productivity deadline tick:",
+        tickErr instanceof Error ? tickErr.message : tickErr
+      );
+    }
+
     return {
       ok: true,
       skipped: false,
