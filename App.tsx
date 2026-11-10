@@ -96,6 +96,7 @@ import {
 import { clientCanViewProactiveIntelligence } from './utils/rdaProactiveClientAccess';
 import { RdaHeaderAlertsControl } from './components/rda/RdaHeaderAlertsControl';
 import { RdaProactiveIntelligencePanel } from './components/rda/RdaProactiveIntelligencePanel';
+import { RdaProductivityPanel } from './components/rda/RdaProductivityPanel';
 
 import { lazyWithRetry } from './utils/lazyWithRetry';
 
@@ -282,6 +283,10 @@ export default function App() {
   );
   const [isRdaProactiveOpen, setIsRdaProactiveOpen] = useState(false);
   const [rdaProactiveFocusAlertId, setRdaProactiveFocusAlertId] = useState<string | null>(null);
+  const [isRdaProductivityOpen, setIsRdaProductivityOpen] = useState(false);
+  const [rdaProductivityFocusTaskId, setRdaProductivityFocusTaskId] = useState<string | null>(
+    null
+  );
   const [rdaHeaderRefreshToken, setRdaHeaderRefreshToken] = useState(0);
   /** Lembretes da Agenda (banners + bloco home). */
   const [agendaReminderSettings, setAgendaReminderSettings] = useState<AgendaReminderSettings>(() =>
@@ -416,6 +421,16 @@ export default function App() {
     setIsRdaProactiveOpen(false);
     setRdaProactiveFocusAlertId(null);
     setRdaHeaderRefreshToken((n) => n + 1);
+  }, []);
+
+  const openRdaProductivityPanel = useCallback((focusTaskId?: string | null) => {
+    setRdaProductivityFocusTaskId(focusTaskId?.trim() || null);
+    setIsRdaProductivityOpen(true);
+  }, []);
+
+  const closeRdaProductivityPanel = useCallback(() => {
+    setIsRdaProductivityOpen(false);
+    setRdaProductivityFocusTaskId(null);
   }, []);
   const [userTab, setUserTab] = useState<TabId>('home');
   const activeAppTab: TabId = isLimitedSystemUser ? userTab : currentTab;
@@ -578,6 +593,10 @@ export default function App() {
         openRdaProactivePanel(item.rdaAlertId || null);
         return;
       }
+      if (item.kind === 'rda_productivity_task') {
+        openRdaProductivityPanel(item.rdaTaskId || null);
+        return;
+      }
       if (item.kind === 'lab_sem_conserto') {
         const soId = item.serviceOrderId?.trim() || '';
         if (!soId) return;
@@ -618,6 +637,7 @@ export default function App() {
       goToOrcamentosTab,
       isLimitedSystemUser,
       openRdaProactivePanel,
+      openRdaProductivityPanel,
       userAllowedTabs,
     ]
   );
@@ -901,6 +921,30 @@ export default function App() {
         setRdaHeaderRefreshToken((x) => x + 1);
         return;
       }
+      if (n.type === 'rda_productivity_task') {
+        const severity =
+          typeof n.payload.severity === 'string' ? n.payload.severity : 'info';
+        if (!rdaBannerAllowedForSeverity(rdaBannerSettings, severity)) return;
+        const taskIdRaw = n.payload.taskId ?? n.payload.task_id;
+        const taskId =
+          typeof taskIdRaw === 'string' && taskIdRaw.trim() ? taskIdRaw.trim() : null;
+        const title =
+          typeof n.payload.title === 'string' && n.payload.title.trim()
+            ? n.payload.title.trim()
+            : 'Tarefa do RDA';
+        const body = typeof n.payload.body === 'string' ? n.payload.body : null;
+        pushBudgetBanner({
+          id: n.id,
+          kind: 'rda_productivity_task',
+          serviceOrderId: '',
+          rdaTaskId: taskId,
+          rdaSeverity: severity,
+          rdaTitle: title,
+          rdaBody: body,
+          authorName: 'RDA',
+        });
+        return;
+      }
       if (n.type === 'lab_sem_conserto') {
         const soId =
           typeof n.payload.service_order_id === 'string' ? n.payload.service_order_id.trim() : '';
@@ -1019,6 +1063,20 @@ export default function App() {
         ).catch(() => {});
         return;
       }
+      if (n.type === 'rda_productivity_task') {
+        const taskIdRaw = n.payload.taskId ?? n.payload.task_id;
+        const taskId =
+          typeof taskIdRaw === 'string' && taskIdRaw.trim() ? taskIdRaw.trim() : null;
+        beginNotificationDestination();
+        openRdaProductivityPanel(taskId);
+        void markNotificationRead(
+          n.id,
+          authSession?.role === 'user' && authSession.userId
+            ? { for: 'technician', technicianSlug: authSession.userId }
+            : undefined
+        ).catch(() => {});
+        return;
+      }
       if (n.type === 'comment') {
         beginNotificationDestination();
         setCommentPopUpNotification(n);
@@ -1090,6 +1148,7 @@ export default function App() {
       goToOrcamentosTab,
       isLimitedSystemUser,
       openRdaProactivePanel,
+      openRdaProductivityPanel,
       userAllowedTabs,
     ]
   );
@@ -2071,6 +2130,7 @@ export default function App() {
               rdaBannerSettings={rdaBannerSettings}
               onRdaBannerSettingsChange={handleRdaBannerSettingsChange}
               onOpenRdaProactive={openRdaProactivePanel}
+              onOpenRdaProductivity={openRdaProductivityPanel}
               agendaReminderSettings={agendaReminderSettings}
               onAgendaReminderSettingsChange={handleAgendaReminderSettingsChange}
               appointments={appointments}
@@ -2315,6 +2375,12 @@ export default function App() {
             focusAlertId={rdaProactiveFocusAlertId}
           />
         ) : null}
+        <RdaProductivityPanel
+          isOpen={isRdaProductivityOpen}
+          onClose={closeRdaProductivityPanel}
+          desktopShell={isDesktopShell}
+          focusTaskId={rdaProductivityFocusTaskId}
+        />
         <LabOsScanQuickModal
           serviceOrderId={labOsScanQuick?.id ?? null}
           scanToken={labOsScanQuick?.token ?? 0}
@@ -2484,6 +2550,7 @@ export default function App() {
             rdaBannerSettings={rdaBannerSettings}
             onRdaBannerSettingsChange={handleRdaBannerSettingsChange}
             onOpenRdaProactive={openRdaProactivePanel}
+            onOpenRdaProductivity={openRdaProductivityPanel}
             agendaReminderSettings={agendaReminderSettings}
             onAgendaReminderSettingsChange={handleAgendaReminderSettingsChange}
             appointments={appointments}
@@ -2723,6 +2790,12 @@ export default function App() {
           focusAlertId={rdaProactiveFocusAlertId}
         />
       ) : null}
+      <RdaProductivityPanel
+        isOpen={isRdaProductivityOpen}
+        onClose={closeRdaProductivityPanel}
+        desktopShell={isDesktopShell}
+        focusTaskId={rdaProductivityFocusTaskId}
+      />
       <LabOsScanQuickModal
         serviceOrderId={labOsScanQuick?.id ?? null}
         scanToken={labOsScanQuick?.token ?? 0}
@@ -2757,6 +2830,7 @@ export default function App() {
         <RdaAssistantPanel
           authSession={authSession}
           contextServiceOrderId={null}
+          onOpenProductivity={() => openRdaProductivityPanel()}
         />
       ) : null}
       {authSession?.role === 'admin' ? (

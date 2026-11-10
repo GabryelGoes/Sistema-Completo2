@@ -18,6 +18,19 @@ type Props = {
   authSession: AuthSession | null;
   contextServiceOrderId?: string | null;
   onProposeOpenOs?: (serviceOrderId: string) => void;
+  /** Atalho para o painel de produtividade (Fase 6), fora do cabeçalho. */
+  onOpenProductivity?: () => void;
+};
+
+type SpeechRec = {
+  lang: string;
+  interimResults: boolean;
+  continuous: boolean;
+  start: () => void;
+  stop: () => void;
+  onresult: ((ev: { results?: ArrayLike<ArrayLike<{ transcript?: string }>> }) => void) | null;
+  onerror: ((ev?: { error?: string }) => void) | null;
+  onend: (() => void) | null;
 };
 
 function canSeeAssistant(session: AuthSession | null): boolean {
@@ -41,12 +54,13 @@ function canManageFlag(session: AuthSession | null): boolean {
 
 /**
  * Assistente RDA — conversa real com tools do backend.
- * Voz: Web Speech API preenche o campo de texto (preparação).
+ * Voz: Web Speech API preenche o campo de texto para revisão — nunca envia sozinha.
  */
 export const RdaAssistantPanel: React.FC<Props> = ({
   authSession,
   contextServiceOrderId,
   onProposeOpenOs,
+  onOpenProductivity,
 }) => {
   const [open, setOpen] = useState(false);
   const [status, setStatus] = useState<RdaStatusDto | null>(null);
@@ -56,9 +70,19 @@ export const RdaAssistantPanel: React.FC<Props> = ({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pendingConfirmTools, setPendingConfirmTools] = useState<string[]>([]);
-  const listeningRef = useRef(false);
+  const [listening, setListening] = useState(false);
+  const [voiceSupported, setVoiceSupported] = useState(false);
+  const recognitionRef = useRef<SpeechRec | null>(null);
   const listRef = useRef<HTMLDivElement | null>(null);
   const isDesktopShell = useDesktopShellLayout();
+
+  useEffect(() => {
+    const w = window as unknown as {
+      webkitSpeechRecognition?: new () => SpeechRec;
+      SpeechRecognition?: new () => SpeechRec;
+    };
+    setVoiceSupported(Boolean(w.webkitSpeechRecognition || w.SpeechRecognition));
+  }, []);
 
   const visible = canSeeAssistant(authSession);
 
@@ -117,45 +141,70 @@ export const RdaAssistantPanel: React.FC<Props> = ({
     }
   };
 
+  const stopVoice = () => {
+    try {
+      recognitionRef.current?.stop();
+    } catch {
+      /* ignore */
+    }
+    recognitionRef.current = null;
+    setListening(false);
+  };
+
   const startVoice = () => {
+    if (listening) {
+      stopVoice();
+      return;
+    }
     const w = window as unknown as {
-      webkitSpeechRecognition?: new () => {
-        lang: string;
-        interimResults: boolean;
-        start: () => void;
-        onresult: ((ev: { results?: ArrayLike<ArrayLike<{ transcript?: string }>> }) => void) | null;
-        onerror: (() => void) | null;
-        onend: (() => void) | null;
-      };
-      SpeechRecognition?: new () => {
-        lang: string;
-        interimResults: boolean;
-        start: () => void;
-        onresult: ((ev: { results?: ArrayLike<ArrayLike<{ transcript?: string }>> }) => void) | null;
-        onerror: (() => void) | null;
-        onend: (() => void) | null;
-      };
+      webkitSpeechRecognition?: new () => SpeechRec;
+      SpeechRecognition?: new () => SpeechRec;
     };
     const SR = w.webkitSpeechRecognition || w.SpeechRecognition;
     if (!SR) {
       setError('Reconhecimento de voz não disponível neste navegador.');
       return;
     }
+    // Permissão de microfone (quando o browser expõe getUserMedia).
+    if (navigator.mediaDevices?.getUserMedia) {
+      void navigator.mediaDevices
+        .getUserMedia({ audio: true })
+        .then((stream) => {
+          stream.getTracks().forEach((t) => t.stop());
+        })
+        .catch(() => {
+          setError('Permissão de microfone necessária para ditado.');
+        });
+    }
     const rec = new SR();
     rec.lang = 'pt-BR';
     rec.interimResults = false;
+    rec.continuous = false;
     rec.onresult = (ev) => {
       const text = ev.results?.[0]?.[0]?.transcript || '';
-      if (text) setInput((prev) => (prev ? `${prev} ${text}` : text));
+      if (text) setInput((prev) => (prev ? `${prev} ${text}` : text).trim());
+      // Não envia automaticamente — o usuário revisa e confirma no campo de texto.
     };
-    rec.onerror = () => {
-      listeningRef.current = false;
+    rec.onerror = (ev) => {
+      setListening(false);
+      recognitionRef.current = null;
+      if (ev?.error === 'not-allowed') {
+        setError('Permissão de microfone negada.');
+      }
     };
     rec.onend = () => {
-      listeningRef.current = false;
+      setListening(false);
+      recognitionRef.current = null;
     };
-    listeningRef.current = true;
-    rec.start();
+    recognitionRef.current = rec;
+    setListening(true);
+    setError(null);
+    try {
+      rec.start();
+    } catch {
+      setListening(false);
+      setError('Não foi possível iniciar o microfone.');
+    }
   };
 
   if (!visible) return null;
@@ -252,6 +301,18 @@ export const RdaAssistantPanel: React.FC<Props> = ({
                     <RefreshCw className="h-3 w-3" /> Scan gestão
                   </button>
                 ) : null}
+                {typeof onOpenProductivity === 'function' ? (
+                  <button
+                    type="button"
+                    className="rounded-lg bg-zinc-100 px-2 py-1 text-[11px] dark:bg-zinc-800"
+                    onClick={() => {
+                      setOpen(false);
+                      onOpenProductivity();
+                    }}
+                  >
+                    Tarefas
+                  </button>
+                ) : null}
               </div>
 
               <div className="rda-chat-messages-shell">
@@ -259,8 +320,8 @@ export const RdaAssistantPanel: React.FC<Props> = ({
                   <div className="space-y-3">
                     {lines.length === 0 ? (
                       <p className="text-[13px] text-zinc-500">
-                        Exemplos: “Quais carros estão parados há mais tempo?” · “Resuma o desempenho
-                        dos mecânicos nesta semana.” · “Mostre o histórico deste veículo.”
+                        Exemplos: “Quais tarefas estão atrasadas?” · “Crie uma tarefa para o João
+                        revisar o estoque amanhã.” · “Resuma as pendências da equipe.”
                       </p>
                     ) : null}
                     {lines.map((l, i) => (
@@ -303,15 +364,30 @@ export const RdaAssistantPanel: React.FC<Props> = ({
                 </div>
               ) : null}
 
+              {listening ? (
+                <p className="shrink-0 border-t border-amber-200 bg-amber-50 px-3 py-1.5 text-[11px] text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-100">
+                  Ouvindo… a fala só preenche o campo. Revise e envie manualmente.
+                </p>
+              ) : null}
               <div className="flex shrink-0 items-end gap-2 border-t border-zinc-200 p-3 dark:border-zinc-700">
-                <button
-                  type="button"
-                  onClick={startVoice}
-                  className="rounded-lg p-2 text-zinc-500 hover:bg-zinc-100 dark:hover:bg-zinc-800"
-                  title="Falar (preenche o texto)"
-                >
-                  <Mic className="h-5 w-5" />
-                </button>
+                {voiceSupported ? (
+                  <button
+                    type="button"
+                    onClick={startVoice}
+                    className={`rounded-lg p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 ${
+                      listening ? 'text-amber-600' : 'text-zinc-500'
+                    }`}
+                    title={
+                      listening
+                        ? 'Parar ditado'
+                        : 'Ditado por voz (preenche o texto — não envia sozinho)'
+                    }
+                    aria-label={listening ? 'Parar ditado' : 'Iniciar ditado por voz'}
+                    aria-pressed={listening}
+                  >
+                    <Mic className={`h-5 w-5 ${listening ? 'animate-pulse' : ''}`} />
+                  </button>
+                ) : null}
                 <textarea
                   value={input}
                   onChange={(e) => setInput(e.target.value)}

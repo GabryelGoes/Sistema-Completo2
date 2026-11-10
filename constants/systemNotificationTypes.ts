@@ -44,6 +44,11 @@ export const SYSTEM_NOTIFICATION_TYPE_OPTIONS = [
     label: "Alertas do RDA",
     description: "Monitoramento proativo: pátio, laboratório, estoque e produtividade.",
   },
+  {
+    id: "rda_productivity_task",
+    label: "Tarefas do RDA",
+    description: "Atribuições, prazos, conclusões e reatribuições do Assistente de Produtividade.",
+  },
 ] as const;
 
 export type SystemNotificationTypeId = (typeof SYSTEM_NOTIFICATION_TYPE_OPTIONS)[number]["id"];

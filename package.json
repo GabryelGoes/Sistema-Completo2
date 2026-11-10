@@ -29,6 +29,8 @@
     "test:rda-lab-estoque": "tsx scripts/rdaLabEstoqueIntelligence.selftest.ts",
     "test:rda-proactive": "tsx scripts/rdaProactiveIntelligence.selftest.ts",
     "test:rda-proactive-cron-auth": "tsx scripts/rdaProactiveCronAuth.selftest.ts",
+    "test:rda-productivity": "tsx scripts/rdaProductivity.selftest.ts",
+    "test:rda-productivity-cron-auth": "tsx scripts/rdaProductivityCronAuth.selftest.ts",
     "test:rda-panels-zindex": "tsx scripts/rdaPanelsZIndex.selftest.ts",
     "test:rda-header-alerts-banners": "tsx scripts/rdaHeaderAlertsBanners.selftest.ts",
     "test:remove-os-work-time-panel": "tsx scripts/removeOsWorkTimePanel.selftest.ts"

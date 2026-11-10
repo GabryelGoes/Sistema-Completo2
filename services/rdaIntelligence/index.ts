@@ -273,3 +273,44 @@ export type {
   ProactiveScanResult,
   ProactiveSeverity,
 } from "./proactiveIntelligence/types.js";
+
+export {
+  canAccessProductivityTask,
+  canManageProductivity,
+  canUpdateTaskAsAssignee,
+  canViewProductivity,
+  validateAssigneeFilterAccess,
+  validateDelegationAccess,
+} from "./productivity/access.js";
+export {
+  createProductivityTask,
+  listAssignablePeople,
+  listProductivityTasks,
+  runProductivityDeadlineTick,
+  summarizePendingTasks,
+  updateProductivityTask,
+  normalizePriority as normalizeProductivityPriority,
+  normalizeStatus as normalizeProductivityStatus,
+} from "./productivity/service.js";
+export { registerProductivityRoutes } from "./productivity/registerProductivityRoutes.js";
+export {
+  buildProductivityDedupeKey,
+  notifyProductivityEvent,
+  reserveProductivityDedupeKey,
+  severityForProductivityNotify,
+  titleForProductivityNotify,
+} from "./productivity/notifications.js";
+export type {
+  ProductivityNotifyKind,
+  ReserveDedupeResult,
+} from "./productivity/notifications.js";
+export type {
+  CreateProductivityTaskInput,
+  ProductivityAssignablePerson,
+  ProductivityPendingSummary,
+  ProductivityTaskFilters,
+  ProductivityTaskPriority,
+  ProductivityTaskStatus,
+  ProductivityTaskView,
+  UpdateProductivityTaskInput,
+} from "./productivity/types.js";

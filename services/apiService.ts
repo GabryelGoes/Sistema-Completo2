@@ -3186,7 +3186,8 @@ export type NotificationType =
   | "vehicle_registered"
   | "complaint_edited"
   | "delivery_date_changed"
-  | "rda_management_alert";
+  | "rda_management_alert"
+  | "rda_productivity_task";
 
 export interface NotificationPayload {
   service_order_id?: string;
@@ -7694,4 +7695,166 @@ export async function saveRdaProactiveConfig(config: {
   }
   const data = (await response.json()) as { config: RdaProactiveDashboard["config"] };
   return data.config;
+}
+
+// ---------- RDA Fase 6 — Produtividade ----------
+
+export type RdaProductivityTaskPriority = "low" | "normal" | "high" | "urgent";
+export type RdaProductivityTaskStatus = "pending" | "in_progress" | "done" | "cancelled";
+
+export type RdaProductivityTask = {
+  id: string;
+  title: string;
+  description: string;
+  priority: RdaProductivityTaskPriority;
+  status: RdaProductivityTaskStatus;
+  requesterUserId: string | null;
+  requesterName: string | null;
+  assigneeUserId: string | null;
+  assigneeName: string | null;
+  dueAt: string | null;
+  completedAt: string | null;
+  cancelledAt: string | null;
+  refType: "service_order" | "vehicle" | "module" | null;
+  refId: string | null;
+  refLabel: string | null;
+  notes: string;
+  createdByUserId: string | null;
+  createdByName: string | null;
+  updatedByUserId: string | null;
+  updatedByName: string | null;
+  clientRequestId: string | null;
+  createdAt: string;
+  updatedAt: string;
+  overdue: boolean;
+};
+
+export type RdaProductivitySummary = {
+  openCount: number;
+  overdueCount: number;
+  dueSoonCount: number;
+  doneLast7d: number;
+  byAssignee: Array<{
+    assigneeUserId: string | null;
+    assigneeName: string | null;
+    openCount: number;
+    overdueCount: number;
+  }>;
+  topOverdue: RdaProductivityTask[];
+};
+
+export type RdaProductivityPerson = {
+  id: string;
+  displayName: string;
+  username: string | null;
+  jobTitle: string | null;
+  isTechnician: boolean;
+};
+
+export async function fetchRdaProductivityTasks(params?: {
+  status?: string;
+  assigneeUserId?: string;
+  priority?: string;
+  overdueOnly?: boolean;
+  q?: string;
+  limit?: number;
+}): Promise<RdaProductivityTask[]> {
+  const qs = new URLSearchParams();
+  if (params?.status) qs.set("status", params.status);
+  if (params?.assigneeUserId) qs.set("assigneeUserId", params.assigneeUserId);
+  if (params?.priority) qs.set("priority", params.priority);
+  if (params?.overdueOnly) qs.set("overdueOnly", "1");
+  if (params?.q) qs.set("q", params.q);
+  if (params?.limit) qs.set("limit", String(params.limit));
+  const q = qs.toString();
+  const response = await fetch(`${API_BASE}/rda/productivity/tasks${q ? `?${q}` : ""}`);
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error((err as { error?: string }).error || "Falha ao listar tarefas.");
+  }
+  const data = (await response.json()) as { tasks?: RdaProductivityTask[] };
+  return data.tasks || [];
+}
+
+export async function fetchRdaProductivityTask(
+  id: string
+): Promise<{ task: RdaProductivityTask; events: unknown[] }> {
+  const response = await fetch(`${API_BASE}/rda/productivity/tasks/${encodeURIComponent(id)}`);
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error((err as { error?: string }).error || "Falha ao carregar tarefa.");
+  }
+  return response.json();
+}
+
+export async function createRdaProductivityTask(payload: {
+  title: string;
+  description?: string;
+  priority?: RdaProductivityTaskPriority;
+  assigneeUserId?: string | null;
+  assigneeName?: string | null;
+  dueAt?: string | null;
+  notes?: string;
+  clientRequestId?: string | null;
+}): Promise<RdaProductivityTask> {
+  const response = await fetch(`${API_BASE}/rda/productivity/tasks`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error((err as { error?: string }).error || "Falha ao criar tarefa.");
+  }
+  const data = (await response.json()) as { task: RdaProductivityTask };
+  return data.task;
+}
+
+export async function updateRdaProductivityTask(
+  id: string,
+  patch: {
+    title?: string;
+    description?: string;
+    priority?: RdaProductivityTaskPriority;
+    status?: RdaProductivityTaskStatus;
+    assigneeUserId?: string | null;
+    assigneeName?: string | null;
+    dueAt?: string | null;
+    notes?: string;
+  }
+): Promise<RdaProductivityTask> {
+  const response = await fetch(`${API_BASE}/rda/productivity/tasks/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(patch),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error((err as { error?: string }).error || "Falha ao atualizar tarefa.");
+  }
+  const data = (await response.json()) as { task: RdaProductivityTask };
+  return data.task;
+}
+
+export async function fetchRdaProductivitySummary(): Promise<{
+  summary: RdaProductivitySummary;
+  canManage: boolean;
+}> {
+  const response = await fetch(`${API_BASE}/rda/productivity/summary`);
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error((err as { error?: string }).error || "Falha no resumo de produtividade.");
+  }
+  return response.json();
+}
+
+export async function fetchRdaProductivityPeople(q?: string): Promise<RdaProductivityPerson[]> {
+  const qs = q ? `?q=${encodeURIComponent(q)}` : "";
+  const response = await fetch(`${API_BASE}/rda/productivity/people${qs}`);
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error((err as { error?: string }).error || "Falha ao listar pessoas.");
+  }
+  const data = (await response.json()) as { people?: RdaProductivityPerson[] };
+  return data.people || [];
 }
