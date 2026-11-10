@@ -199,10 +199,7 @@ export function registerProductivityRoutes(
 
   /** Tick de prazos (cron / gestão). Não substitui o scan proativo. */
   async function handleDeadlineTick(req: Request, res: Response, fromCronGet: boolean) {
-    const workshopId = deps.WORKSHOP_ID;
-    if (!workshopId || !deps.supabaseAdmin) {
-      return res.status(503).json({ error: "Indisponível." });
-    }
+    // Segredo / sessão gerencial ANTES de detalhes de infra — sem auth válido → 403.
     const cronSecret = (process.env.CRON_SECRET || "").trim();
     const scanSecret = (process.env.RDA_PROACTIVE_SCAN_SECRET || "").trim();
     const authHeader = String(req.headers.authorization || "");
@@ -216,11 +213,22 @@ export function registerProductivityRoutes(
       (!!cronSecret && bearer === cronSecret);
     if (!cronOk && !secretOk) {
       const raw = authFromReq(req);
-      if (!raw) return res.status(403).json({ error: "Não autorizado." });
+      if (!raw) {
+        return res.status(403).json({
+          error: "Acesso negado (CRON_SECRET ou sessão gerencial).",
+        });
+      }
       const auth = await hydrate(deps, raw);
       if (!canManageProductivity(auth)) {
-        return res.status(403).json({ error: "Não autorizado." });
+        return res.status(403).json({
+          error: "Acesso negado (CRON_SECRET ou sessão gerencial).",
+        });
       }
+    }
+
+    const workshopId = deps.WORKSHOP_ID;
+    if (!workshopId || !deps.supabaseAdmin) {
+      return res.status(503).json({ error: "Indisponível." });
     }
     const result = await runProductivityDeadlineTick({
       supabase: deps.supabaseAdmin,

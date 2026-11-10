@@ -78,9 +78,77 @@ function dedupeKey(kind: ProductivityNotifyKind, taskId: string, extra = ""): st
   return buildProductivityDedupeKey(kind, taskId, extra);
 }
 
+export type ReserveDedupeResult =
+  | { reserved: true; reservationId: string }
+  | { reserved: false; notificationId: string | null; reason: "already_exists" | "error" };
+
 /**
- * Insere notificação com dedupe por (workshop, dedupe_key).
- * target_type admin para gestão; também notifica assignee via target_slug quando houver user id.
+ * Reserva atômica da chave de dedupe (INSERT único).
+ * Em corrida, só um caller ganha; o outro recebe reserved:false.
+ */
+export async function reserveProductivityDedupeKey(input: {
+  supabase: SupabaseClient;
+  workshopId: string;
+  dedupeKey: string;
+  taskId: string;
+}): Promise<ReserveDedupeResult> {
+  const { supabase, workshopId, dedupeKey: key, taskId } = input;
+  const { data, error } = await supabase
+    .from("rda_productivity_notification_dedupe")
+    .insert({
+      workshop_id: workshopId,
+      dedupe_key: key,
+      task_id: taskId,
+      notification_id: null,
+    })
+    .select("id")
+    .maybeSingle();
+
+  if (!error && data && (data as { id?: string }).id) {
+    return { reserved: true, reservationId: String((data as { id: string }).id) };
+  }
+
+  if (error && /duplicate|unique/i.test(error.message)) {
+    const { data: existing } = await supabase
+      .from("rda_productivity_notification_dedupe")
+      .select("notification_id")
+      .eq("workshop_id", workshopId)
+      .eq("dedupe_key", key)
+      .maybeSingle();
+    return {
+      reserved: false,
+      notificationId:
+        (existing as { notification_id?: string | null } | null)?.notification_id || null,
+      reason: "already_exists",
+    };
+  }
+
+  if (error) {
+    console.warn("[productivity] dedupe reserve:", error.message);
+    return { reserved: false, notificationId: null, reason: "error" };
+  }
+
+  // Insert sem id retornado — trata como falha segura.
+  return { reserved: false, notificationId: null, reason: "error" };
+}
+
+async function releaseProductivityDedupeReservation(
+  supabase: SupabaseClient,
+  reservationId: string
+): Promise<void> {
+  const { error } = await supabase
+    .from("rda_productivity_notification_dedupe")
+    .delete()
+    .eq("id", reservationId);
+  if (error) {
+    console.warn("[productivity] dedupe release:", error.message);
+  }
+}
+
+/**
+ * Insere notificação com reserva atômica por (workshop, dedupe_key).
+ * Corridas concorrentes: só uma emite; a outra retorna sent:false.
+ * Falha parcial (notificação não criada): libera a reserva para retry.
  */
 export async function notifyProductivityEvent(input: {
   supabase: SupabaseClient;
@@ -93,17 +161,14 @@ export async function notifyProductivityEvent(input: {
   const { supabase, workshopId, task, kind } = input;
   const key = input.stableKey || dedupeKey(kind, task.id);
 
-  const { data: existing } = await supabase
-    .from("rda_productivity_notification_dedupe")
-    .select("id, notification_id")
-    .eq("workshop_id", workshopId)
-    .eq("dedupe_key", key)
-    .maybeSingle();
-  if (existing) {
-    return {
-      sent: false,
-      notificationId: (existing as { notification_id?: string | null }).notification_id || null,
-    };
+  const reservation = await reserveProductivityDedupeKey({
+    supabase,
+    workshopId,
+    dedupeKey: key,
+    taskId: task.id,
+  });
+  if (reservation.reserved === false) {
+    return { sent: false, notificationId: reservation.notificationId };
   }
 
   const severity = severityFor(kind);
@@ -122,45 +187,60 @@ export async function notifyProductivityEvent(input: {
     refLabel: task.refLabel,
   };
 
-  const { data: notif, error: nErr } = await supabase
-    .from("notifications")
-    .insert({
-      workshop_id: workshopId,
-      type: "rda_productivity_task",
-      payload,
-      target_type: "admin",
-      target_slug: null,
-    })
-    .select("id")
-    .maybeSingle();
+  try {
+    const { data: notif, error: nErr } = await supabase
+      .from("notifications")
+      .insert({
+        workshop_id: workshopId,
+        type: "rda_productivity_task",
+        payload,
+        target_type: "admin",
+        target_slug: null,
+      })
+      .select("id")
+      .maybeSingle();
 
-  if (nErr) {
-    console.warn("[productivity] notification:", nErr.message);
+    if (nErr) {
+      console.warn("[productivity] notification:", nErr.message);
+      await releaseProductivityDedupeReservation(supabase, reservation.reservationId);
+      return { sent: false, notificationId: null };
+    }
+
+    const notificationId = (notif as { id?: string } | null)?.id || null;
+    if (!notificationId) {
+      await releaseProductivityDedupeReservation(supabase, reservation.reservationId);
+      return { sent: false, notificationId: null };
+    }
+
+    // Notificação dirigida ao responsável (quando houver user id). Fail-soft.
+    if (task.assigneeUserId) {
+      const { error: aErr } = await supabase.from("notifications").insert({
+        workshop_id: workshopId,
+        type: "rda_productivity_task",
+        payload,
+        target_type: "user",
+        target_slug: task.assigneeUserId,
+      });
+      if (aErr) {
+        console.warn("[productivity] assignee notification:", aErr.message);
+      }
+    }
+
+    const { error: uErr } = await supabase
+      .from("rda_productivity_notification_dedupe")
+      .update({ notification_id: notificationId })
+      .eq("id", reservation.reservationId);
+    if (uErr) {
+      console.warn("[productivity] dedupe update:", uErr.message);
+    }
+
+    return { sent: true, notificationId };
+  } catch (err) {
+    console.warn(
+      "[productivity] notify failed:",
+      err instanceof Error ? err.message : err
+    );
+    await releaseProductivityDedupeReservation(supabase, reservation.reservationId);
     return { sent: false, notificationId: null };
   }
-
-  const notificationId = (notif as { id?: string } | null)?.id || null;
-
-  // Notificação dirigida ao responsável (quando houver user id).
-  if (task.assigneeUserId) {
-    await supabase.from("notifications").insert({
-      workshop_id: workshopId,
-      type: "rda_productivity_task",
-      payload,
-      target_type: "user",
-      target_slug: task.assigneeUserId,
-    });
-  }
-
-  const { error: dErr } = await supabase.from("rda_productivity_notification_dedupe").insert({
-    workshop_id: workshopId,
-    dedupe_key: key,
-    task_id: task.id,
-    notification_id: notificationId,
-  });
-  if (dErr && !/duplicate|unique/i.test(dErr.message)) {
-    console.warn("[productivity] dedupe:", dErr.message);
-  }
-
-  return { sent: true, notificationId };
 }

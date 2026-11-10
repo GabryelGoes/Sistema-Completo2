@@ -275,9 +275,12 @@ export type {
 } from "./proactiveIntelligence/types.js";
 
 export {
+  canAccessProductivityTask,
   canManageProductivity,
   canUpdateTaskAsAssignee,
   canViewProductivity,
+  validateAssigneeFilterAccess,
+  validateDelegationAccess,
 } from "./productivity/access.js";
 export {
   createProductivityTask,
@@ -292,10 +295,15 @@ export {
 export { registerProductivityRoutes } from "./productivity/registerProductivityRoutes.js";
 export {
   buildProductivityDedupeKey,
+  notifyProductivityEvent,
+  reserveProductivityDedupeKey,
   severityForProductivityNotify,
   titleForProductivityNotify,
 } from "./productivity/notifications.js";
-export type { ProductivityNotifyKind } from "./productivity/notifications.js";
+export type {
+  ProductivityNotifyKind,
+  ReserveDedupeResult,
+} from "./productivity/notifications.js";
 export type {
   CreateProductivityTaskInput,
   ProductivityAssignablePerson,

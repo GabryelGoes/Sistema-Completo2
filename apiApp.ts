@@ -1335,6 +1335,13 @@ export function createApiApp() {
     ) {
       return true;
     }
+    // RDA Fase 6: tick de prazos — sem sessão; a rota exige CRON_SECRET / secret / gestão.
+    if (
+      (method === "GET" || method === "POST") &&
+      urlPath === "/api/rda/productivity/deadlines/tick"
+    ) {
+      return true;
+    }
     // Painel TV HTML (cronômetro vermelho) — sem login; dados vêm de /api/service-orders.
     if (method === "GET" && urlPath === "/api/tv/display") return true;
     return false;

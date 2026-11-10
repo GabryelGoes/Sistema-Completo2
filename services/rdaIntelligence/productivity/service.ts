@@ -2,9 +2,12 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { RdaAuthContext } from "../types.js";
 import {
   actorDisplayName,
+  canAccessProductivityTask,
   canManageProductivity,
   canUpdateTaskAsAssignee,
   canViewProductivity,
+  validateAssigneeFilterAccess,
+  validateDelegationAccess,
 } from "./access.js";
 import { notifyProductivityEvent } from "./notifications.js";
 import type {
@@ -202,6 +205,13 @@ export async function listProductivityTasks(input: {
   if (!canViewProductivity(input.auth)) {
     throw new Error("Sem permissão para ver tarefas.");
   }
+  const filterErr = validateAssigneeFilterAccess(
+    input.auth,
+    input.filters?.assigneeUserId
+  );
+  if (filterErr) throw new Error(filterErr);
+
+  const isManager = canManageProductivity(input.auth);
   const limit = clampLimit(input.filters?.limit, 40);
   let q = input.supabase
     .from("rda_productivity_tasks")
@@ -219,13 +229,19 @@ export async function listProductivityTasks(input: {
     else q = q.eq("status", status);
   }
 
-  if (input.filters?.assigneeUserId) {
-    q = q.eq("assignee_user_id", input.filters.assigneeUserId);
-  } else if (!canManageProductivity(input.auth) && input.auth.userId) {
-    // Não-gestão: só próprias (como responsável ou solicitante).
+  const requestedAssignee = String(input.filters?.assigneeUserId || "").trim() || null;
+  if (!isManager) {
+    // Sempre restringe às próprias — nunca confiar só no filtro do cliente.
+    if (!input.auth.userId) throw new Error("Sem permissão para ver tarefas.");
+    const uid = input.auth.userId;
     q = q.or(
-      `assignee_user_id.eq.${input.auth.userId},requester_user_id.eq.${input.auth.userId},created_by_user_id.eq.${input.auth.userId}`
+      `assignee_user_id.eq.${uid},requester_user_id.eq.${uid},created_by_user_id.eq.${uid}`
     );
+    if (requestedAssignee) {
+      q = q.eq("assignee_user_id", requestedAssignee);
+    }
+  } else if (requestedAssignee) {
+    q = q.eq("assignee_user_id", requestedAssignee);
   }
 
   if (input.filters?.priority) {
@@ -235,6 +251,10 @@ export async function listProductivityTasks(input: {
   const { data, error } = await q;
   if (error) throw new Error(error.message);
   let rows = (data || []).map((r) => mapRow(r as ProductivityTaskRow));
+  // Cinto de segurança em memória (não vazar tarefas alheias se o filtro SQL falhar).
+  if (!isManager) {
+    rows = rows.filter((t) => canAccessProductivityTask(input.auth, t));
+  }
   if (input.filters?.overdueOnly) rows = rows.filter((t) => t.overdue);
   const text = String(input.filters?.q || "").trim().toLowerCase();
   if (text) {
@@ -255,14 +275,22 @@ export async function getProductivityTask(input: {
   auth: RdaAuthContext;
   taskId: string;
 }): Promise<{ task: ProductivityTaskView; events: unknown[] }> {
-  const tasks = await listProductivityTasks({
-    supabase: input.supabase,
-    workshopId: input.workshopId,
-    auth: input.auth,
-    filters: { status: "all", limit: 100 },
-  });
-  const task = tasks.find((t) => t.id === input.taskId);
-  if (!task) throw new Error("Tarefa não encontrada.");
+  if (!canViewProductivity(input.auth)) {
+    throw new Error("Sem permissão para ver tarefas.");
+  }
+  const { data, error } = await input.supabase
+    .from("rda_productivity_tasks")
+    .select("*")
+    .eq("workshop_id", input.workshopId)
+    .eq("id", input.taskId)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!data) throw new Error("Tarefa não encontrada.");
+  const task = mapRow(data as ProductivityTaskRow);
+  if (!canAccessProductivityTask(input.auth, task)) {
+    // Não vazar existência de tarefas alheias.
+    throw new Error("Tarefa não encontrada.");
+  }
   const { data: events } = await input.supabase
     .from("rda_productivity_task_events")
     .select("*")
@@ -283,16 +311,6 @@ export async function createProductivityTask(input: {
   const title = String(input.payload.title || "").trim();
   if (title.length < 2) throw new Error("Informe um título válido.");
 
-  const wantsOther =
-    Boolean(input.payload.assigneeUserId) || Boolean(input.payload.assigneeName);
-  if (wantsOther && !canManageProductivity(input.auth)) {
-    // Funcionário só pode criar para si.
-    const selfId = input.auth.userId;
-    if (input.payload.assigneeUserId && input.payload.assigneeUserId !== selfId) {
-      throw new Error("Sem permissão para delegar a outro funcionário.");
-    }
-  }
-
   const assignee = await resolveAssignee(
     input.supabase,
     input.workshopId,
@@ -300,6 +318,10 @@ export async function createProductivityTask(input: {
     input.payload.assigneeName
   );
   if (assignee.error) throw new Error(assignee.error);
+
+  // Autorização após resolver (cobre assigneeUserId e assigneeName).
+  const delegationErr = validateDelegationAccess(input.auth, assignee.id);
+  if (delegationErr) throw new Error(delegationErr);
 
   const clientRequestId = String(input.payload.clientRequestId || "").trim() || null;
   if (clientRequestId) {
@@ -527,12 +549,29 @@ export async function summarizePendingTasks(input: {
   }
 
   const since = new Date(Date.now() - 7 * 86400000).toISOString();
-  const { count } = await input.supabase
+  let doneQ = input.supabase
     .from("rda_productivity_tasks")
     .select("id", { count: "exact", head: true })
     .eq("workshop_id", input.workshopId)
     .eq("status", "done")
     .gte("completed_at", since);
+  if (!canManageProductivity(input.auth)) {
+    if (!input.auth.userId) {
+      return {
+        openCount: open.length,
+        overdueCount: overdue.length,
+        dueSoonCount: dueSoon.length,
+        doneLast7d: 0,
+        byAssignee: Array.from(byMap.values()).sort((a, b) => b.openCount - a.openCount),
+        topOverdue: overdue.slice(0, 8),
+      };
+    }
+    const uid = input.auth.userId;
+    doneQ = doneQ.or(
+      `assignee_user_id.eq.${uid},requester_user_id.eq.${uid},created_by_user_id.eq.${uid}`
+    );
+  }
+  const { count } = await doneQ;
 
   return {
     openCount: open.length,
