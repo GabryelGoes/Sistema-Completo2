@@ -7062,15 +7062,28 @@ export async function setRdaIntelligenceEnabled(enabled: boolean): Promise<RdaSt
   return data.feature;
 }
 
+export type RdaPendingChatAction = {
+  id: string;
+  toolId: string;
+  params: Record<string, unknown>;
+  summary: string;
+  expiresAt: string;
+  conversationId: string;
+  actorUserId: string | null;
+};
+
 export async function postRdaChat(input: {
   message: string;
   conversationId?: string | null;
   contextServiceOrderId?: string | null;
   humanConfirmedToolIds?: string[];
+  /** Executa ações pendentes pelos IDs (params já validados no servidor). */
+  confirmActionIds?: string[];
 }): Promise<{
   conversationId: string;
   assistantMessage: string;
   proposedActions: unknown[];
+  pendingActions?: RdaPendingChatAction[];
   usage?: { totalTokens: number };
   toolTrace: Array<{ toolId: string; ok: boolean; summary: string }>;
 }> {

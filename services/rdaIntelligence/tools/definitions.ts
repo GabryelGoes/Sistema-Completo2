@@ -231,6 +231,7 @@ export const RDA_PRODUCTION_TOOLS: RdaToolDefinition[] = [
     requiredPermission: "access_patio",
     side: "write",
     requiresHumanConfirmation: true,
+    confirmationPolicy: "confirm_once",
   },
   // ----- Radar Fase 3: consultas gerenciais (somente gestão / access_radar_qualidade) -----
   {
@@ -474,6 +475,7 @@ export const RDA_PRODUCTION_TOOLS: RdaToolDefinition[] = [
     requiredPermission: "access_radar_qualidade",
     side: "write",
     requiresHumanConfirmation: true,
+    confirmationPolicy: "protected",
   },
   // ----- Fase 2: Aprendizado Operacional (apontamentos reais; sem SQL arbitrário) -----
   {
@@ -969,7 +971,7 @@ export const RDA_PRODUCTION_TOOLS: RdaToolDefinition[] = [
   {
     id: "rda_productivity_create_task",
     description:
-      "Cria tarefa de produtividade. Exige confirmação humana. Informe título; responsável por nome ou userId (resolvido no cadastro). Não inventa pessoas nem prazos.",
+      "Cria tarefa de produtividade imediatamente (rotina autorizada). Informe título; responsável por nome ou userId (resolvido no cadastro — uma correspondência inequívoca basta). dueAt em ISO America/Sao_Paulo. Não inventa pessoas nem prazos. Não é abertura de OS nem regra permanente.",
     parameters: {
       type: "object",
       properties: {
@@ -978,7 +980,7 @@ export const RDA_PRODUCTION_TOOLS: RdaToolDefinition[] = [
         priority: { type: "string" },
         assigneeName: { type: "string" },
         assigneeUserId: { type: "string" },
-        dueAt: { type: "string", description: "ISO datetime" },
+        dueAt: { type: "string", description: "ISO datetime com offset -03:00" },
         refType: { type: "string", description: "service_order | vehicle | module" },
         refId: { type: "string" },
         refLabel: { type: "string" },
@@ -990,12 +992,13 @@ export const RDA_PRODUCTION_TOOLS: RdaToolDefinition[] = [
     },
     requiredPermission: "access_home",
     side: "write",
-    requiresHumanConfirmation: true,
+    requiresHumanConfirmation: false,
+    confirmationPolicy: "auto",
   },
   {
     id: "rda_productivity_update_status",
     description:
-      "Atualiza status de uma tarefa (pending | in_progress | done | cancelled). Exige confirmação. Não inventa conclusão.",
+      "Atualiza status de uma tarefa (pending | in_progress | done | cancelled). Rotina autorizada — execute sem pedir confirmação extra. Não inventa conclusão.",
     parameters: {
       type: "object",
       properties: {
@@ -1008,12 +1011,13 @@ export const RDA_PRODUCTION_TOOLS: RdaToolDefinition[] = [
     },
     requiredPermission: "access_home",
     side: "write",
-    requiresHumanConfirmation: true,
+    requiresHumanConfirmation: false,
+    confirmationPolicy: "auto",
   },
   {
     id: "rda_productivity_reassign",
     description:
-      "Reatribui tarefa a outro funcionário cadastrado. Exige confirmação e permissão de gestão.",
+      "Reatribui tarefa a outro funcionário cadastrado. Gestão autorizada executa direto (ACL no servidor). Não inventa pessoas.",
     parameters: {
       type: "object",
       properties: {
@@ -1026,12 +1030,13 @@ export const RDA_PRODUCTION_TOOLS: RdaToolDefinition[] = [
     },
     requiredPermission: "access_radar_qualidade",
     side: "write",
-    requiresHumanConfirmation: true,
+    requiresHumanConfirmation: false,
+    confirmationPolicy: "auto",
   },
   {
     id: "rda_productivity_create_reminder",
     description:
-      "Cria lembrete no módulo de lembretes da oficina (pátio/lab) e/ou vincula observação à tarefa. Exige confirmação. Não substitui a tarefa.",
+      "Cria lembrete no módulo de lembretes da oficina (pátio/lab) e/ou vincula observação à tarefa. Rotina autorizada. Não substitui a tarefa nem abre OS.",
     parameters: {
       type: "object",
       properties: {
@@ -1044,6 +1049,7 @@ export const RDA_PRODUCTION_TOOLS: RdaToolDefinition[] = [
     },
     requiredPermission: "access_home",
     side: "write",
-    requiresHumanConfirmation: true,
+    requiresHumanConfirmation: false,
+    confirmationPolicy: "auto",
   },
 ];

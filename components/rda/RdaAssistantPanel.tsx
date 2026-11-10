@@ -6,6 +6,7 @@ import {
   runRdaManagementScan,
   setRdaIntelligenceEnabled,
   type AuthSession,
+  type RdaPendingChatAction,
   type RdaStatusDto,
 } from '../../services/apiService';
 import { ModalPortal } from '../ui/ModalPortal';
@@ -69,7 +70,7 @@ export const RdaAssistantPanel: React.FC<Props> = ({
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [pendingConfirmTools, setPendingConfirmTools] = useState<string[]>([]);
+  const [pendingActions, setPendingActions] = useState<RdaPendingChatAction[]>([]);
   const [listening, setListening] = useState(false);
   const [voiceSupported, setVoiceSupported] = useState(false);
   const recognitionRef = useRef<SpeechRec | null>(null);
@@ -107,30 +108,35 @@ export const RdaAssistantPanel: React.FC<Props> = ({
     el.scrollTop = el.scrollHeight;
   }, [open, lines, busy, error]);
 
-  const send = async (humanConfirmedToolIds?: string[]) => {
-    const message = input.trim();
-    if (!message || busy) return;
+  const send = async (opts?: {
+    message?: string;
+    confirmActionIds?: string[];
+    humanConfirmedToolIds?: string[];
+    echoUser?: boolean;
+  }) => {
+    const message = (opts?.message ?? input).trim();
+    if ((!message && !(opts?.confirmActionIds || []).length) || busy) return;
     setBusy(true);
     setError(null);
-    setLines((prev) => [...prev, { role: 'user', content: message }]);
-    setInput('');
+    if (opts?.echoUser !== false && message) {
+      setLines((prev) => [...prev, { role: 'user', content: message }]);
+    }
+    if (!opts?.message) setInput('');
     try {
       const res = await postRdaChat({
-        message,
+        message: message || 'Confirmar',
         conversationId,
         contextServiceOrderId,
-        humanConfirmedToolIds,
+        humanConfirmedToolIds: opts?.humanConfirmedToolIds,
+        confirmActionIds: opts?.confirmActionIds,
       });
       setConversationId(res.conversationId);
       setLines((prev) => [...prev, { role: 'assistant', content: res.assistantMessage }]);
-      const needs = (res.toolTrace || [])
-        .filter((t) => !t.ok && /confirmação|confirmation/i.test(t.summary))
-        .map((t) => t.toolId);
-      setPendingConfirmTools(needs);
+      setPendingActions(res.pendingActions || []);
       for (const action of res.proposedActions || []) {
         const a = action as { proposedAction?: string; serviceOrderId?: string };
         if (a.proposedAction === 'open_service_order' && a.serviceOrderId && onProposeOpenOs) {
-          // só após confirmação explícita via botão
+          // abertura de OS só após confirmação da ação pendente correspondente
         }
       }
       void refreshStatus();
@@ -139,6 +145,27 @@ export const RdaAssistantPanel: React.FC<Props> = ({
     } finally {
       setBusy(false);
     }
+  };
+
+  const confirmPending = () => {
+    if (!pendingActions.length || busy) return;
+    const ids = pendingActions.map((a) => a.id);
+    const toolIds = [...new Set(pendingActions.map((a) => a.toolId))];
+    setPendingActions([]);
+    void send({
+      message: 'Confirmar',
+      confirmActionIds: ids,
+      humanConfirmedToolIds: toolIds,
+      echoUser: true,
+    });
+  };
+
+  const cancelPending = () => {
+    setPendingActions([]);
+    setLines((prev) => [
+      ...prev,
+      { role: 'assistant', content: 'Ok — ação cancelada. Nada foi executado.' },
+    ]);
   };
 
   const stopVoice = () => {
@@ -346,21 +373,37 @@ export const RdaAssistantPanel: React.FC<Props> = ({
                 </div>
               </div>
 
-              {pendingConfirmTools.length > 0 ? (
-                <div className="shrink-0 border-t border-amber-200 bg-amber-50 px-3 py-2 text-[12px] dark:border-amber-900 dark:bg-amber-950/40">
-                  Ação sensível pendente ({pendingConfirmTools.join(', ')}). Confirme para autorizar.
-                  <button
-                    type="button"
-                    className="ml-2 font-semibold underline"
-                    onClick={() => {
-                      const tools = [...pendingConfirmTools];
-                      setPendingConfirmTools([]);
-                      setInput((v) => v || 'Confirmo a abertura da OS proposta.');
-                      void send(tools);
-                    }}
-                  >
-                    Confirmar
-                  </button>
+              {pendingActions.length > 0 ? (
+                <div className="shrink-0 space-y-2 border-t border-amber-200 bg-amber-50 px-3 py-2 text-[12px] dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-50">
+                  <p className="font-semibold text-amber-950 dark:text-amber-100">
+                    Confirmação única
+                  </p>
+                  <ul className="space-y-1 text-amber-900 dark:text-amber-100/90">
+                    {pendingActions.map((a) => (
+                      <li key={a.id}>• {a.summary}</li>
+                    ))}
+                  </ul>
+                  <div className="flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      disabled={busy}
+                      className="rounded-lg bg-zinc-900 px-3 py-1.5 text-[12px] font-semibold text-white disabled:opacity-40 dark:bg-amber-500 dark:text-zinc-900"
+                      onClick={confirmPending}
+                    >
+                      Confirmar
+                    </button>
+                    <button
+                      type="button"
+                      disabled={busy}
+                      className="rounded-lg border border-amber-300 px-3 py-1.5 text-[12px] font-semibold text-amber-950 disabled:opacity-40 dark:border-amber-700 dark:text-amber-100"
+                      onClick={cancelPending}
+                    >
+                      Cancelar
+                    </button>
+                  </div>
+                  <p className="text-[11px] text-amber-800/80 dark:text-amber-200/70">
+                    Também aceita “Sim”, “Confirmo” ou “Pode fazer” no campo de texto.
+                  </p>
                 </div>
               ) : null}
 
@@ -397,14 +440,14 @@ export const RdaAssistantPanel: React.FC<Props> = ({
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' && !e.shiftKey) {
                       e.preventDefault();
-                      void send();
+                      void send({});
                     }
                   }}
                 />
                 <button
                   type="button"
                   disabled={busy || !input.trim()}
-                  onClick={() => void send()}
+                  onClick={() => void send({})}
                   className="rounded-xl bg-zinc-900 p-2.5 text-white disabled:opacity-40 dark:bg-amber-500 dark:text-zinc-900"
                 >
                   {busy ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}

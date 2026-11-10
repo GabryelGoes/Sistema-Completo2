@@ -100,29 +100,20 @@ console.log("\n3) Tools Fase 6 + confirmação humana");
     assert(!!productionRdaToolRegistry.get(id), id);
   }
   const create = productionRdaToolRegistry.get("rda_productivity_create_task")!;
-  assert(create.requiresHumanConfirmation === true, "create exige confirmação");
+  assert(create.confirmationPolicy === "auto", "create rotina auto");
   assert(create.side === "write", "create write");
   const reassign = productionRdaToolRegistry.get("rda_productivity_reassign")!;
-  assert(reassign.requiresHumanConfirmation === true, "reassign confirmação");
+  assert(reassign.confirmationPolicy === "auto", "reassign rotina auto");
   assert(reassign.requiredPermission === "access_radar_qualidade", "reassign radar");
 
-  const denied = authorizeToolInvocation({
-    registry: productionRdaToolRegistry,
-    auth: tech,
-    toolId: "rda_productivity_create_task",
-    params: { title: "Revisar estoque" },
-    featureEnabled: true,
-  });
-  assert(!denied.allowed, "write sem humanConfirmed bloqueia");
   const ok = authorizeToolInvocation({
     registry: productionRdaToolRegistry,
     auth: tech,
     toolId: "rda_productivity_create_task",
     params: { title: "Revisar estoque" },
-    humanConfirmed: true,
     featureEnabled: true,
   });
-  assert(ok.allowed, "write com confirmação ok para tech (próprias)");
+  assert(ok.allowed, "create auto autoriza tech (próprias) sem confirmação extra");
   const reassignDenied = authorizeToolInvocation({
     registry: productionRdaToolRegistry,
     auth: tech,

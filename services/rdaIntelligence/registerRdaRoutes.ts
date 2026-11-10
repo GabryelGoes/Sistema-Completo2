@@ -337,6 +337,9 @@ export function registerRdaIntelligenceRoutes(
       const humanConfirmedToolIds = Array.isArray(body.humanConfirmedToolIds)
         ? body.humanConfirmedToolIds.filter((x): x is string => typeof x === "string")
         : [];
+      const confirmActionIds = Array.isArray(body.confirmActionIds)
+        ? body.confirmActionIds.filter((x): x is string => typeof x === "string")
+        : [];
 
       const result = await runRdaChatTurn({
         workshopId: deps.WORKSHOP_ID,
@@ -347,6 +350,7 @@ export function registerRdaIntelligenceRoutes(
         userMessage: message,
         contextServiceOrderId,
         humanConfirmedToolIds,
+        confirmActionIds,
       });
       return res.json(result);
     } catch (err: unknown) {

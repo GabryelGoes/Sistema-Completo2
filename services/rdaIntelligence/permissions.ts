@@ -1,3 +1,4 @@
+import { needsHumanConfirmation } from "./confirmationPolicy.js";
 import { resolveRdaIntelligenceEnabled } from "./featureFlag.js";
 import type { RdaToolRegistry } from "./tools/registry.js";
 import { validateToolParams } from "./tools/validators.js";
@@ -137,9 +138,7 @@ export function authorizeToolInvocation(
     };
   }
 
-  const needsConfirm =
-    tool.requiresHumanConfirmation || tool.side === "write";
-  if (needsConfirm && input.humanConfirmed !== true) {
+  if (needsHumanConfirmation(tool, input.humanConfirmed)) {
     return {
       allowed: false,
       reason: "confirmation_required",

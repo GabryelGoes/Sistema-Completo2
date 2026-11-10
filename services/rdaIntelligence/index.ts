@@ -11,6 +11,7 @@ export {
   RDA_ALLOW_LLM_CALLS_ENV_KEY,
   type RdaAuthContext,
   type RdaToolDefinition,
+  type RdaConfirmationPolicy,
   type RdaAuthorizationResult,
   type RdaProviderId,
   type RdaSystemEvent,
@@ -28,6 +29,17 @@ export {
   authAllowsToolPermission,
   authHasFullAccess,
 } from "./permissions.js";
+
+export {
+  buildAuthenticatedActorSystemBlock,
+  buildSaoPauloTemporalHint,
+  isAffirmativeConfirmationText,
+  looksLikeOperationalTaskRequest,
+  needsHumanConfirmation,
+  resolveConfirmationPolicy,
+  summarizePendingToolCall,
+} from "./confirmationPolicy.js";
+export type { RdaPendingAction } from "./confirmationPolicy.js";
 
 export {
   RdaToolRegistry,
