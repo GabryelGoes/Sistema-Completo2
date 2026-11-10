@@ -46,6 +46,9 @@ export type RdaJsonSchema = {
   additionalProperties?: boolean;
 };
 
+/** Política de confirmação (risco no backend). */
+export type RdaConfirmationPolicy = "auto" | "confirm_once" | "protected";
+
 export type RdaToolDefinition = {
   id: string;
   description: string;
@@ -57,7 +60,18 @@ export type RdaToolDefinition = {
    */
   requiredPermission: RdaPermissionKey | null;
   side: RdaToolSide;
+  /**
+   * Legado: true ≈ confirm_once. Preferir `confirmationPolicy`.
+   * Writes sem policy explícita continuam exigindo confirmação (fail-safe).
+   */
   requiresHumanConfirmation: boolean;
+  /**
+   * Classificação de risco no backend:
+   * - auto: executa se ACL ok (tarefas/lembretes/consultas)
+   * - confirm_once: um resumo + Confirmar
+   * - protected: regras permanentes / alto risco
+   */
+  confirmationPolicy?: RdaConfirmationPolicy;
   /**
    * Se false, a tool não entra no registry “de produção” (só testes).
    * Default true quando omitido no register.

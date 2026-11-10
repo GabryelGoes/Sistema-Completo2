@@ -11,6 +11,7 @@ export {
   RDA_ALLOW_LLM_CALLS_ENV_KEY,
   type RdaAuthContext,
   type RdaToolDefinition,
+  type RdaConfirmationPolicy,
   type RdaAuthorizationResult,
   type RdaProviderId,
   type RdaSystemEvent,
@@ -28,6 +29,40 @@ export {
   authAllowsToolPermission,
   authHasFullAccess,
 } from "./permissions.js";
+
+export {
+  buildAuthenticatedActorSystemBlock,
+  buildSaoPauloTemporalHint,
+  isAffirmativeConfirmationText,
+  looksLikeOperationalTaskRequest,
+  needsHumanConfirmation,
+  resolveConfirmationPolicy,
+  summarizePendingToolCall,
+} from "./confirmationPolicy.js";
+export type { RdaPendingAction } from "./confirmationPolicy.js";
+
+export {
+  PENDING_REASON,
+  EXECUTING_STALE_MS,
+  claimPendingActionForExecution,
+  classifyPendingRowDenial,
+  parsePendingMeta,
+  markPendingActionExecuted,
+} from "./agent/pendingActions.js";
+export type {
+  ClaimPendingResult,
+  MarkPendingResult,
+} from "./agent/pendingActions.js";
+
+export {
+  RDA_ADMIN_ACTOR_KEY,
+  resolveRdaActorKey,
+  requireRdaActorKey,
+  isRdaConversationOwner,
+  canShareRdaConversations,
+  canAccessRdaConversation,
+  pendingActorMatchesAuth,
+} from "./agent/conversationAccess.js";
 
 export {
   RdaToolRegistry,

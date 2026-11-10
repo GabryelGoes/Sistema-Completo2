@@ -1377,7 +1377,27 @@ export async function executeRdaTool(
             clientRequestId: params.clientRequestId ? String(params.clientRequestId) : null,
           },
         });
-        return { ok: true, data: { task, provenance: "system_fact" } };
+        const dueLabel = task.dueAt
+          ? new Date(task.dueAt).toLocaleString("pt-BR", {
+              timeZone: "America/Sao_Paulo",
+              day: "2-digit",
+              month: "2-digit",
+              hour: "2-digit",
+              minute: "2-digit",
+            })
+          : null;
+        const message = [
+          `Tarefa criada: “${task.title}”`,
+          task.assigneeName ? `atribuída a ${task.assigneeName}` : null,
+          dueLabel ? `prazo ${dueLabel}` : null,
+          "(notificação registrada quando o destino existir).",
+        ]
+          .filter(Boolean)
+          .join(" — ");
+        return {
+          ok: true,
+          data: { task, message, provenance: "system_fact" },
+        };
       }
 
       case "rda_productivity_update_status": {
