@@ -240,6 +240,36 @@ export async function consultPlacaFipe(placa: string): Promise<PlacaFipeLookupRe
   return body as PlacaFipeLookupResult;
 }
 
+export type AiImproveTextKind = "budget_diagnosis" | "general";
+
+/** Melhora texto curto via OpenAI no servidor (ex.: diagnóstico do orçamento). */
+export async function improveTextWithAi(
+  text: string,
+  kind: AiImproveTextKind = "general"
+): Promise<{ text: string; model: string }> {
+  const response = await fetch(`${API_BASE}/ai/improve-text`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text, kind }),
+  });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(
+      typeof body.error === "string" && body.error.trim()
+        ? body.error
+        : `Falha ao melhorar texto (${response.status})`
+    );
+  }
+  const improved = typeof body.text === "string" ? body.text.trim() : "";
+  if (!improved) {
+    throw new Error("A IA não retornou texto.");
+  }
+  return {
+    text: improved,
+    model: typeof body.model === "string" ? body.model : "",
+  };
+}
+
 /** Linha da tabela workshop_appointments (API) */
 interface ApiAppointmentRow {
   id: string;

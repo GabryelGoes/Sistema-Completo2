@@ -4755,6 +4755,40 @@ export function createApiApp() {
     return normalizeBrazilianPlate(raw);
   }
 
+  /**
+   * Melhora texto curto com OpenAI (ex.: diagnóstico de orçamento).
+   * Body: { text: string, kind?: "budget_diagnosis" | "general" }
+   */
+  app.post("/api/ai/improve-text", async (req, res) => {
+    try {
+      const { improveTextWithOpenAi, isAiImproveTextConfigured } = await import(
+        "./services/aiTextImprove.js"
+      );
+      if (!isAiImproveTextConfigured()) {
+        return res.status(503).json({
+          error:
+            "Melhoria de texto não configurada. Defina OPENAI_API_KEY no ambiente do servidor.",
+        });
+      }
+      const text = typeof req.body?.text === "string" ? req.body.text : "";
+      const kindRaw = typeof req.body?.kind === "string" ? req.body.kind.trim() : "";
+      const kind =
+        kindRaw === "budget_diagnosis" || kindRaw === "general" ? kindRaw : "general";
+      const result = await improveTextWithOpenAi({ text, kind });
+      return res.json({ text: result.text, model: result.model });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Erro ao melhorar texto.";
+      const status =
+        /Informe um texto|muito longo/i.test(message)
+          ? 400
+          : /não configurada|OPENAI_API_KEY/i.test(message)
+            ? 503
+            : 502;
+      console.error("[API] POST /api/ai/improve-text:", message);
+      return res.status(status).json({ error: message });
+    }
+  });
+
   /** Consulta dados do veículo pela placa (token só no servidor: PLACAFIPE_TOKEN). */
   app.post("/api/consulta-placa", async (req, res) => {
     try {

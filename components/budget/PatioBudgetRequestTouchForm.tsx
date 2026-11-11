@@ -35,6 +35,7 @@ import { BudgetPartSuggestionDropdown } from './BudgetPartSuggestionDropdown';
 import { BudgetServiceSuggestionDropdown } from './BudgetServiceSuggestionDropdown';
 import { handleBudgetSuggestionKeyDown } from './budgetSuggestionKeyboard';
 import { WorkshopPartQuickViewModal } from './WorkshopPartQuickViewModal';
+import { AiImproveTextButton } from '../ui/AiImproveTextButton';
 import {
   applyOutsourcedTextReplace,
   descriptionHasOutsourcedWord,
@@ -1236,6 +1237,14 @@ export function PatioBudgetRequestTouchForm({
                   />
                 }
                 title="Diagnóstico"
+                action={
+                  <AiImproveTextButton
+                    value={budgetDiagnosis}
+                    onChange={setBudgetDiagnosis}
+                    kind="budget_diagnosis"
+                    disabled={sending}
+                  />
+                }
               >
                 <textarea
                   rows={isPc ? 5 : 4}

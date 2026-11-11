@@ -26,6 +26,7 @@ import { BudgetOutsourcedTextReplaceHint } from './BudgetOutsourcedTextReplaceHi
 import { BudgetPartSuggestionDropdown } from './BudgetPartSuggestionDropdown';
 import { BudgetServiceSuggestionDropdown } from './BudgetServiceSuggestionDropdown';
 import { WorkshopPartQuickViewModal } from './WorkshopPartQuickViewModal';
+import { AiImproveTextButton } from '../ui/AiImproveTextButton';
 import {
   applyOutsourcedTextReplace,
   descriptionHasOutsourcedWord,
@@ -714,7 +715,15 @@ export function PatioBudgetEditForm({
           >
             <div className={`budget-modal-compact-stack ${!isPatioPcModal ? 'space-y-3' : 'space-y-5'}`}>
               <div>
-                <p className={budgetModalFieldLabel}>Descrição do diagnóstico</p>
+                <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                  <p className={`${budgetModalFieldLabel} mb-0`}>Descrição do diagnóstico</p>
+                  <AiImproveTextButton
+                    value={budgetDiagnosis}
+                    onChange={setBudgetDiagnosis}
+                    kind="budget_diagnosis"
+                    disabled={sending}
+                  />
+                </div>
                 <div className={`${budgetModalPaperInset} overflow-hidden p-0`}>
                   <textarea
                     className={`${budgetModalInput} min-h-[120px] resize-y border-0 py-3.5 text-[15px] leading-relaxed shadow-none focus:ring-2`}
