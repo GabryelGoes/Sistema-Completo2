@@ -295,8 +295,8 @@ export function WeeklyCyclePanel({ onOpenInterview }: Props) {
   };
 
   return (
-    <div className="space-y-4">
-      <div className={`${hub.surface} p-4 md:p-5`}>
+    <div className={hub.stack}>
+      <div className={`${hub.surface} ${hub.cardPad} md:p-6`}>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h2 className="text-[17px] font-semibold">Ciclo semanal inteligente</h2>
@@ -327,7 +327,7 @@ export function WeeklyCyclePanel({ onOpenInterview }: Props) {
       </div>
 
       {settings && (
-        <div className={`${hub.surface} p-4`}>
+        <div className={`${hub.surface} ${hub.cardPad}`}>
           <h3 className="text-[14px] font-semibold">Agendamento</h3>
           <p className={`mt-1 text-[12px] ${hub.muted}`}>
             Padrão: sexta 16h America/Sao_Paulo. Vercel Hobby não tem cron semanal nativo —
@@ -439,7 +439,7 @@ export function WeeklyCyclePanel({ onOpenInterview }: Props) {
         <div className="space-y-3">
           {cycle && (
             <>
-              <div className={`${hub.surface} p-4`}>
+              <div className={`${hub.surface} ${hub.cardPad}`}>
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div>
                     <h3 className="text-[15px] font-semibold">
@@ -535,7 +535,7 @@ export function WeeklyCyclePanel({ onOpenInterview }: Props) {
                 </ul>
               </div>
 
-              <div className={`${hub.surface} p-4`}>
+              <div className={`${hub.surface} ${hub.cardPad}`}>
                 <h3 className="mb-2 text-[14px] font-semibold">Consolidado da equipe</h3>
                 <p className={`mb-3 text-[11px] ${hub.muted}`}>
                   Sem rankings entre funções/níveis diferentes.

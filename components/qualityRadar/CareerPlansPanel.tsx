@@ -125,7 +125,7 @@ export function CareerPlansPanel({
 
   if (migrationPending) {
     return (
-      <div className="space-y-4">
+      <div className={hub.stack}>
         <HubSectionHeader
           title="Planos de Carreira"
           subtitle="Competências, níveis, PDI e evolução."
@@ -139,7 +139,7 @@ export function CareerPlansPanel({
   }
 
   return (
-    <div className="space-y-4">
+    <div className={hub.stack}>
       <HubSectionHeader
         title="Planos de Carreira"
         subtitle="Matriz de competências, níveis configuráveis e PDI — promoção é decisão humana."
@@ -206,7 +206,7 @@ export function CareerPlansPanel({
             />
           </div>
 
-          <div className={`${hub.surface} p-4`}>
+          <div className={`${hub.surface} ${hub.cardPad}`}>
             <p className="text-[14px] font-semibold text-zinc-900 dark:text-white">
               Nível de carreira (manual)
             </p>
@@ -245,14 +245,14 @@ export function CareerPlansPanel({
             </select>
           </div>
 
-          <div className={`${hub.surface} p-4`}>
+          <div className={`${hub.surface} ${hub.cardPad}`}>
             <p className="text-[14px] font-semibold text-zinc-900 dark:text-white">
               Matriz de competências
             </p>
             <p className={`mt-1 text-[12px] ${hub.muted}`}>
               Escala 1–5 com rubrica. Deixe “—” para não avaliado (nunca conta como zero).
             </p>
-            <div className="mt-3 space-y-4">
+            <div className={`mt-3 ${hub.stack}`}>
               {(['technical', 'professional'] as const).map((kind) => (
                 <div key={kind}>
                   <p className={`mb-2 text-[11px] font-semibold uppercase tracking-wider ${hub.muted}`}>
@@ -320,7 +320,7 @@ export function CareerPlansPanel({
             </div>
           </div>
 
-          <div className={`${hub.surface} p-4`}>
+          <div className={`${hub.surface} ${hub.cardPad}`}>
             <p className="text-[14px] font-semibold text-zinc-900 dark:text-white">
               Prontidão por nível (informativa)
             </p>
@@ -352,7 +352,7 @@ export function CareerPlansPanel({
             </ul>
           </div>
 
-          <div className={`${hub.surface} p-4`}>
+          <div className={`${hub.surface} ${hub.cardPad}`}>
             <p className="text-[14px] font-semibold text-zinc-900 dark:text-white">
               Plano de desenvolvimento (PDI)
             </p>
@@ -481,7 +481,7 @@ export function CareerPlansPanel({
             )}
           </div>
 
-          <div className={`${hub.surface} p-4`}>
+          <div className={`${hub.surface} ${hub.cardPad}`}>
             <p className="text-[14px] font-semibold text-zinc-900 dark:text-white">
               Apoio a decisões gerenciais
             </p>

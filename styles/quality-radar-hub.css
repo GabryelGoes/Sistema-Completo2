@@ -1,0 +1,104 @@
+/**
+ * Radar de Qualidade — movimento e materiais (Apple Design).
+ * Mola CSS aproximada (criticamente amortecida): cubic-bezier(0.32, 0.72, 0, 1), ~0.38s.
+ * Reduced motion: só cross-fade.
+ */
+
+@keyframes qr-hub-panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.985);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes qr-hub-fade-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+.qr-hub-panel-in {
+  animation: qr-hub-panel-in 0.38s cubic-bezier(0.32, 0.72, 0, 1) both;
+  will-change: transform, opacity;
+}
+
+.qr-hub-chrome {
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(228, 228, 231, 0.9);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55);
+}
+
+html.dark .qr-hub-chrome {
+  background: rgba(24, 24, 27, 0.78);
+  border-color: rgba(63, 63, 70, 0.85);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.qr-hub-aside {
+  background: rgba(244, 244, 245, 0.88);
+  backdrop-filter: blur(18px) saturate(160%);
+  -webkit-backdrop-filter: blur(18px) saturate(160%);
+  border: 1px solid rgba(228, 228, 231, 0.95);
+}
+
+html.dark .qr-hub-aside {
+  background: rgba(9, 9, 11, 0.88);
+  border-color: rgba(63, 63, 70, 0.9);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .qr-hub-panel-in {
+    animation: qr-hub-fade-in 0.2s ease both;
+    will-change: opacity;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .qr-hub-chrome,
+  .qr-hub-aside {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+
+  .qr-hub-chrome {
+    background: #ffffff;
+  }
+
+  html.dark .qr-hub-chrome {
+    background: #18181b;
+  }
+
+  .qr-hub-aside {
+    background: #f4f4f5;
+  }
+
+  html.dark .qr-hub-aside {
+    background: #09090b;
+  }
+}
+
+@media (prefers-contrast: more) {
+  .qr-hub-chrome,
+  .qr-hub-aside {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    border-width: 2px;
+    border-color: #18181b;
+  }
+
+  html.dark .qr-hub-chrome,
+  html.dark .qr-hub-aside {
+    border-color: #fafafa;
+  }
+}
