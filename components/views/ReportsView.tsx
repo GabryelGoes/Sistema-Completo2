@@ -376,7 +376,7 @@ export const ReportsView: React.FC<{ blurPlates?: boolean; canDeleteOrders?: boo
   return (
     <div
       data-reports-print-root
-      className="relative flex min-h-full flex-col gap-4 px-4 pb-28 pt-[max(0.5rem,env(safe-area-inset-top))] md:px-8 md:pb-10 md:pt-8"
+      className="relative flex min-h-full flex-col gap-4 px-4 pb-10 pt-[max(0.5rem,env(safe-area-inset-top))] md:px-8 md:pb-10 md:pt-8"
     >
       <div
         className="pointer-events-none absolute inset-0 -z-10 opacity-[0.35] dark:opacity-[0.22]"

@@ -103,7 +103,7 @@ export const agendaModalInput =
   'dark:bg-zinc-950/60 dark:text-white dark:placeholder:text-zinc-500';
 
 export const iosModalClose =
-  'absolute top-4 right-4 z-20 flex h-10 w-10 items-center justify-center rounded-full bg-black/5 dark:bg-white/10 text-zinc-600 dark:text-zinc-300 hover:bg-black/10 dark:hover:bg-white/15 transition-colors';
+  'absolute top-4 right-4 z-20 flex h-11 w-11 items-center justify-center rounded-full bg-black/5 dark:bg-white/10 text-zinc-600 dark:text-zinc-300 hover:bg-black/10 dark:hover:bg-white/15 transition-[transform,background-color] duration-150 ease-out active:scale-[0.94]';
 
 /** Botões sobre fundo escuro (Lightbox, PDF) — ícone sempre claro; evita override do html.light em text-zinc-*. */
 export const mediaOverlayCloseBtn =

@@ -287,7 +287,7 @@ export const OsWorkTimePanel: React.FC<Props> = ({
     displaySession?.status === 'running'
       ? 'bg-emerald-500 text-white'
       : displaySession?.status === 'paused'
-        ? 'bg-[#FFD60A] text-zinc-900'
+        ? 'bg-[#F5D00B] text-zinc-900'
         : displaySession?.status === 'finished'
           ? 'bg-zinc-800 text-white'
           : 'bg-zinc-200 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200';
@@ -305,7 +305,7 @@ export const OsWorkTimePanel: React.FC<Props> = ({
         aria-expanded={expanded}
       >
         <div className="min-w-0 flex-1">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#FFD60A]">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#F5D00B]">
             Meu tempo nesta OS
           </p>
           <p className="truncate text-[13px] text-zinc-300">{technicianDisplayName}</p>
@@ -321,7 +321,7 @@ export const OsWorkTimePanel: React.FC<Props> = ({
           ) : null}
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          <Clock3 className="h-5 w-5 text-[#FFD60A]" aria-hidden />
+          <Clock3 className="h-5 w-5 text-[#F5D00B]" aria-hidden />
           <ChevronDown
             className={`h-4 w-4 text-zinc-400 transition-transform ${expanded ? 'rotate-180' : ''}`}
             aria-hidden
@@ -376,7 +376,7 @@ export const OsWorkTimePanel: React.FC<Props> = ({
 
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
             <div className="rounded-xl bg-zinc-950 px-3 py-3 text-white">
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-[#FFD60A]">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-[#F5D00B]">
                 Execução
               </p>
               <p className="mt-1 font-mono text-lg font-semibold tabular-nums tracking-tight sm:text-xl">
@@ -467,7 +467,7 @@ export const OsWorkTimePanel: React.FC<Props> = ({
                     setSession(res.session);
                   })
                 }
-                className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-[#FFD60A] px-4 text-[14px] font-semibold text-zinc-900 disabled:opacity-50 sm:flex-none"
+                className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-[#F5D00B] px-4 text-[14px] font-semibold text-zinc-900 disabled:opacity-50 sm:flex-none"
               >
                 {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
                 {allowedKind ? `Iniciar ${timeKindLabel(allowedKind).toLowerCase()}` : 'Iniciar'}

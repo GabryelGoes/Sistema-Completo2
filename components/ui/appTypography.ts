@@ -1,21 +1,26 @@
 /**
- * Tipografia da interface:
- * - Corpo: `font-sans` → SFProText (SF Pro Text webfont; PC/Windows incluso)
- * - Títulos: `font-display` / h1–h4 → SFProDisplay
- * - Nomes de veículo nos cards: `font-vehicle` (stack anterior, sem mudar)
+ * Tipografia da interface (Apple Design — tracking por tamanho):
+ * - Corpo: `font-sans` → SFProText
+ * - Títulos: `font-display` / h1–h4 → SFProDisplay (tracking negativo)
+ * - Rótulos pequenos: tracking positivo leve
+ * - Nomes de veículo nos cards: `font-vehicle`
  */
 export const fontUi = "font-sans antialiased";
 
 /** Títulos (páginas, modais, headings) — SF Pro Display */
-export const fontDisplay = "font-display antialiased";
+export const fontDisplay = "font-display antialiased tracking-[-0.02em]";
+
+/** Título de página (~22–28px) */
+export const uiPageTitle =
+  "font-display text-[22px] font-semibold leading-tight tracking-[-0.02em] text-zinc-950 dark:text-zinc-50 sm:text-[26px]";
 
 /** Labels de seção (Queixa, Orçamentos, Arquivos, etc.) */
 export const uiModalSectionLabel =
-  "block text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-950 dark:text-zinc-400 mb-2";
+  "mb-2 block text-[11px] font-semibold uppercase tracking-[0.06em] text-zinc-500 dark:text-zinc-400";
 
 /** Título de seção em linha (ícone + texto), modais */
 export const uiSectionTitleRow =
-  "mb-3 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-950 dark:text-zinc-400";
+  "mb-3 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.06em] text-zinc-500 dark:text-zinc-400";
 
 /** Ícone nos cabeçalhos de seção do modal de OS (Queixa, Orçamentos, etc.) */
 export const uiOsModalSectionIconWrap =
@@ -27,27 +32,28 @@ export const uiOsModalSectionAppIcon =
 
 /** Título no cabeçalho de card de seção do modal de OS */
 export const uiOsModalCardSectionTitle =
-  "text-[12px] font-bold uppercase tracking-[0.12em] text-zinc-800 dark:text-zinc-200 sm:text-[13px]";
+  "text-[12px] font-bold uppercase tracking-[0.06em] text-zinc-700 dark:text-zinc-300 sm:text-[13px]";
 
 /** Corpo de leitura: queixa, textos longos em caixas */
 export const uiReadBody =
-  "text-[15px] font-normal leading-relaxed text-zinc-950 dark:text-zinc-200";
+  "text-[15px] font-normal leading-relaxed tracking-normal text-zinc-950 dark:text-zinc-200";
 
 /** Parágrafos / lista em cards e modais */
 export const uiBody =
-  "text-[15px] font-normal leading-snug text-zinc-950 dark:text-zinc-200";
+  "text-[15px] font-normal leading-snug tracking-normal text-zinc-950 dark:text-zinc-200";
 
 /** Subtítulo / meta linha */
 export const uiSubtitle =
-  "text-[13px] font-normal leading-relaxed text-zinc-950 dark:text-zinc-400";
+  "text-[13px] font-normal leading-relaxed tracking-normal text-zinc-500 dark:text-zinc-400";
 
 /** Chat — bolhas e área de rolagem */
-export const uiChatScrollArea = "text-[15px] font-normal leading-relaxed text-zinc-950 dark:text-zinc-200";
+export const uiChatScrollArea =
+  "text-[15px] font-normal leading-relaxed tracking-normal text-zinc-950 dark:text-zinc-200";
 
 /** Chat — mensagem assistente / texto secundário */
 export const uiChatBubbleAssistant =
-  "text-[15px] font-normal leading-relaxed text-zinc-950 dark:text-zinc-100";
+  "text-[15px] font-normal leading-relaxed tracking-normal text-zinc-950 dark:text-zinc-100";
 
 /** Chat — estado vazio / meta */
 export const uiChatMeta =
-  "text-[13px] font-normal text-zinc-950 dark:text-zinc-400";
+  "text-[13px] font-normal tracking-normal text-zinc-500 dark:text-zinc-400";

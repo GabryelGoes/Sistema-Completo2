@@ -1,4 +1,5 @@
 import React, { useCallback, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import type { TrelloCard } from '../../types';
 import {
   ALL_BENCH_SLOTS,
@@ -10,6 +11,7 @@ import { getStageConfig } from '../../constants/serviceOrderStages';
 import { parsePatioCardTitle } from '../../utils/patioCardTitle';
 import { getBenchQueuedCards } from '../../utils/labBenchQueue';
 import { isLabModuleFromPatio } from '../../utils/externalRepair';
+import { useAppleBoardPointerDrag } from '../../hooks/useAppleBoardPointerDrag';
 
 function patioOriginRingClass(card: TrelloCard): string {
   return isLabModuleFromPatio(card.desc)
@@ -72,8 +74,6 @@ function BenchProductDetails({
   );
 }
 
-const BENCH_DRAG_MIME = 'application/x-lab-bench-card-id';
-
 const LabBenchPanel: React.FC<LabBenchPanelProps> = ({ cards, onOpenCard, onMoveCard }) => {
   const [movingCardId, setMovingCardId] = useState<string | null>(null);
   const [dragCardId, setDragCardId] = useState<string | null>(null);
@@ -81,6 +81,9 @@ const LabBenchPanel: React.FC<LabBenchPanelProps> = ({ cards, onOpenCard, onMove
   const [autoAssigning, setAutoAssigning] = useState(false);
   const [search, setSearch] = useState('');
   const benchSkipClickRef = useRef(false);
+  const appleBenchDragCardIdRef = useRef<string | null>(null);
+  const canDropOnSlotRef = useRef<(cardId: string, slot: number) => boolean>(() => false);
+  const finishMoveRef = useRef<(cardId: string, slot: number) => void>(() => undefined);
 
   const moduleEntries = useMemo(() => cards.map(toEntry), [cards]);
 
@@ -159,22 +162,6 @@ const LabBenchPanel: React.FC<LabBenchPanelProps> = ({ cards, onOpenCard, onMove
     setMovingCardId(cardId);
   };
 
-  const beginDrag = (cardId: string, e: React.DragEvent) => {
-    if (!onMoveCard) return;
-    e.stopPropagation();
-    e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData(BENCH_DRAG_MIME, cardId);
-    setDragCardId(cardId);
-    setMovingCardId(null);
-    setDragOverSlot(null);
-  };
-
-  const endDrag = () => {
-    setDragCardId(null);
-    setDragOverSlot(null);
-    benchSkipClickRef.current = true;
-  };
-
   const finishMove = (cardId: string, slot: number) => {
     if (!onMoveCard) return;
     void onMoveCard(cardId, slot);
@@ -183,6 +170,40 @@ const LabBenchPanel: React.FC<LabBenchPanelProps> = ({ cards, onOpenCard, onMove
     setDragOverSlot(null);
     benchSkipClickRef.current = true;
   };
+  finishMoveRef.current = finishMove;
+  canDropOnSlotRef.current = canDropOnSlot;
+
+  const appleBenchDrag = useAppleBoardPointerDrag({
+    enabled: !!onMoveCard,
+    columnSelector: '[data-bench-slot]',
+    onHoverList: (listId) => {
+      if (!listId) {
+        setDragOverSlot(null);
+        return;
+      }
+      const slot = Number(listId);
+      if (!Number.isFinite(slot)) return;
+      setDragOverSlot(slot);
+      setDragCardId(appleBenchDragCardIdRef.current);
+    },
+    onDrop: (cardId, targetListId) => {
+      const slot = Number(targetListId);
+      setDragOverSlot(null);
+      setDragCardId(null);
+      appleBenchDragCardIdRef.current = null;
+      if (!Number.isFinite(slot) || !canDropOnSlotRef.current(cardId, slot)) {
+        benchSkipClickRef.current = true;
+        return;
+      }
+      finishMoveRef.current(cardId, slot);
+    },
+    onCancel: () => {
+      setDragCardId(null);
+      setDragOverSlot(null);
+      appleBenchDragCardIdRef.current = null;
+      benchSkipClickRef.current = true;
+    },
+  });
 
   const handleSlotClick = (slot: number) => {
     if (benchSkipClickRef.current) {
@@ -312,10 +333,23 @@ const LabBenchPanel: React.FC<LabBenchPanelProps> = ({ cards, onOpenCard, onMove
             {unassigned.map((e) => (
               <li
                 key={e.card.id}
-                draggable={!!onMoveCard}
-                onDragStart={onMoveCard ? (ev) => beginDrag(e.card.id, ev) : undefined}
-                onDragEnd={onMoveCard ? endDrag : undefined}
-                className={`flex flex-wrap items-center justify-between gap-2 rounded-md border border-amber-200/80 bg-white px-2 py-1.5 dark:border-amber-800/50 dark:bg-zinc-900/60 ${patioOriginRingClass(e.card)}`}
+                data-apple-board-card={e.card.id}
+                onPointerDown={
+                  onMoveCard
+                    ? (ev) => {
+                        appleBenchDragCardIdRef.current = e.card.id;
+                        setDragCardId(e.card.id);
+                        setMovingCardId(null);
+                        appleBenchDrag.beginCardPointerDown(ev, {
+                          cardId: e.card.id,
+                          originListId: String(e.card.benchSlot ?? 0),
+                        });
+                      }
+                    : undefined
+                }
+                className={`flex flex-wrap items-center justify-between gap-2 rounded-md border border-amber-200/80 bg-white px-2 py-1.5 dark:border-amber-800/50 dark:bg-zinc-900/60 ${
+                  dragCardId === e.card.id ? 'opacity-50' : ''
+                } ${patioOriginRingClass(e.card)}`}
               >
                 <BenchProductDetails entry={e} size="list" />
                 <div className="flex shrink-0 gap-1">
@@ -374,37 +408,23 @@ const LabBenchPanel: React.FC<LabBenchPanelProps> = ({ cards, onOpenCard, onMove
               role="button"
               tabIndex={occupant || isClickMoveTarget ? 0 : -1}
               key={slot}
-              draggable={!!onMoveCard && !!occupant}
-              onDragStart={occupant && onMoveCard ? (ev) => beginDrag(occupant.card.id, ev) : undefined}
-              onDragEnd={onMoveCard && occupant ? endDrag : undefined}
+              data-bench-slot={slot}
+              data-stage-id={String(slot)}
+              data-apple-board-card={occupant?.card.id}
+              onPointerDown={
+                occupant && onMoveCard
+                  ? (ev) => {
+                      appleBenchDragCardIdRef.current = occupant.card.id;
+                      setDragCardId(occupant.card.id);
+                      setMovingCardId(null);
+                      appleBenchDrag.beginCardPointerDown(ev, {
+                        cardId: occupant.card.id,
+                        originListId: String(slot),
+                      });
+                    }
+                  : undefined
+              }
               onClick={() => handleSlotClick(slot)}
-              onDragOver={
-                onMoveCard
-                  ? (ev) => {
-                      if (!dragCardId || !canDropOnSlot(dragCardId, slot)) return;
-                      ev.preventDefault();
-                      ev.dataTransfer.dropEffect = 'move';
-                      setDragOverSlot(slot);
-                    }
-                  : undefined
-              }
-              onDragLeave={(ev) => {
-                const rel = ev.relatedTarget as Node | null;
-                if (rel && ev.currentTarget.contains(rel)) return;
-                setDragOverSlot((prev) => (prev === slot ? null : prev));
-              }}
-              onDrop={
-                onMoveCard
-                  ? (ev) => {
-                      ev.preventDefault();
-                      const cardId = ev.dataTransfer.getData(BENCH_DRAG_MIME) || dragCardId;
-                      setDragOverSlot(null);
-                      setDragCardId(null);
-                      if (!cardId || !canDropOnSlot(cardId, slot)) return;
-                      finishMove(cardId, slot);
-                    }
-                  : undefined
-              }
               className={[
                 'group relative flex min-h-[100px] flex-col rounded-lg border p-1.5 text-left transition',
                 occupant
@@ -412,9 +432,13 @@ const LabBenchPanel: React.FC<LabBenchPanelProps> = ({ cards, onOpenCard, onMove
                   : 'border-dashed border-zinc-200 bg-transparent dark:border-zinc-800',
                 isSuggested ? 'ring-2 ring-emerald-400/70 ring-offset-1 dark:ring-offset-[#111]' : '',
                 isClickMoveTarget ? 'border-blue-400 bg-blue-50/60 dark:bg-blue-950/30' : '',
-                isDropHighlight ? 'scale-[1.02] border-blue-500 bg-blue-50 ring-2 ring-blue-400/70' : '',
+                isDropHighlight || appleBenchDrag.overListId === String(slot)
+                  ? 'scale-[1.02] border-blue-500 bg-blue-50 ring-2 ring-blue-400/70'
+                  : '',
                 occupant && onMoveCard ? 'cursor-grab active:cursor-grabbing' : occupant ? 'cursor-pointer' : '',
-                isDraggingThis ? 'opacity-50' : '',
+                isDraggingThis || (occupant && appleBenchDrag.isDraggingCard(occupant.card.id))
+                  ? 'opacity-50'
+                  : '',
               ].join(' ')}
             >
               <div className="flex items-center justify-between gap-0.5">
@@ -468,6 +492,23 @@ const LabBenchPanel: React.FC<LabBenchPanelProps> = ({ cards, onOpenCard, onMove
           </div>
         </div>
       )}
+
+      {appleBenchDrag.drag?.ghost && typeof document !== 'undefined'
+        ? createPortal(
+            <div
+              className="apple-board-drag-ghost overflow-hidden rounded-lg border border-zinc-200 bg-white dark:border-zinc-700 dark:bg-zinc-900"
+              style={{
+                left: appleBenchDrag.drag.ghost.left,
+                top: appleBenchDrag.drag.ghost.top,
+                width: appleBenchDrag.drag.ghost.width,
+                height: appleBenchDrag.drag.ghost.height,
+                transform: 'scale(1.03) rotate(0.4deg)',
+              }}
+              dangerouslySetInnerHTML={{ __html: appleBenchDrag.drag.ghost.html }}
+            />,
+            document.body
+          )
+        : null}
     </div>
   );
 };

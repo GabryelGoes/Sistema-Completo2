@@ -47,7 +47,7 @@ const ACCENT_AVATAR: Record<MacOsNotifAccent, string> = {
   blue: 'bg-gradient-to-b from-[#5AC8FA] to-[#007AFF]',
   sky: 'bg-gradient-to-b from-[#64D2FF] to-[#0A84FF]',
   rose: 'bg-gradient-to-b from-[#FF6961] to-[#D70015]',
-  amber: 'bg-gradient-to-b from-[#FFD60A] to-[#FF9F0A]',
+  amber: 'bg-gradient-to-b from-[#F5D00B] to-[#FF9F0A]',
   violet: 'bg-gradient-to-b from-[#BF5AF2] to-[#8944AB]',
 };
 

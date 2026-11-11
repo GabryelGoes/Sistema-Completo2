@@ -325,17 +325,17 @@ export const QualityRadarView: React.FC<{ authSession?: AuthSession | null }> = 
 
   return (
     <div
-      className={`${hub.page} gap-4 px-4 pb-28 pt-[max(0.5rem,env(safe-area-inset-top))] md:px-8 md:pb-10 md:pt-8`}
+      className={`${hub.page} gap-4 px-4 pb-10 pt-[max(0.5rem,env(safe-area-inset-top))] md:px-8 md:pb-10 md:pt-8`}
     >
       <header className={`${hub.surface} overflow-hidden`}>
         <div className="flex flex-col gap-4 p-4 md:flex-row md:items-center md:justify-between md:p-5">
           <div className="min-w-0">
             {!isDesktopShell ? (
               <>
-                <p className={`text-[11px] font-semibold uppercase tracking-[0.16em] ${hub.muted}`}>
+                <p className={`text-[11px] font-semibold uppercase tracking-[0.06em] ${hub.muted}`}>
                   Gerência e diretoria
                 </p>
-                <h1 className="mt-1 flex items-center gap-2.5 text-2xl font-semibold tracking-tight text-zinc-900 dark:text-white md:text-[1.75rem]">
+                <h1 className="mt-1 flex items-center gap-2.5 text-2xl font-semibold tracking-[-0.02em] text-zinc-900 dark:text-white md:text-[1.75rem]">
                   <img
                     src={QUALITY_RADAR_ICON}
                     alt=""
@@ -378,7 +378,7 @@ export const QualityRadarView: React.FC<{ authSession?: AuthSession | null }> = 
                   onClick={() => setPeriodPreset(p.id)}
                   className={`rounded-lg px-3 py-1.5 text-[12px] font-semibold transition ${
                     periodPreset === p.id
-                      ? 'bg-[#FFD60A] text-zinc-900'
+                      ? 'bg-[#F5D00B] text-zinc-900'
                       : 'text-zinc-600 hover:bg-white dark:text-zinc-300 dark:hover:bg-zinc-900'
                   }`}
                 >

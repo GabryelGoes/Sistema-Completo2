@@ -2,10 +2,12 @@
  * Evita “click-through” / ghost click ao abrir hubs a partir da Home.
  * No tablet/iOS o `click` sintético após o toque cai no conteúdo que acabou de montar
  * (linhas do hub de Configurações, botões do Estoque, etc.).
+ *
+ * Abre no mesmo frame do toque (sem atraso visível); o guard engole eventos fantasma.
  */
 
 type GuardOptions = {
-  /** Atraso antes de montar o hub (ms). Dá tempo do click da Home ser engolido. */
+  /** Atraso antes de montar o hub (ms). Padrão 0 — abrir no frame do toque. */
   openDelayMs?: number;
   /** Quanto tempo bloquear interações após armar o guard (ms). */
   guardMs?: number;
@@ -39,7 +41,7 @@ function swallowEvent(e: Event) {
  * para CSS poder desligar `pointer-events` nos overlays.
  */
 export function openHomeHubSafely(open: () => void, options?: GuardOptions): void {
-  const openDelayMs = options?.openDelayMs ?? 250;
+  const openDelayMs = options?.openDelayMs ?? 0;
   const guardMs = options?.guardMs ?? 800;
 
   activeCleanup?.();
@@ -81,10 +83,17 @@ export function openHomeHubSafely(open: () => void, options?: GuardOptions): voi
     document.documentElement.dataset.homeHubOpenGuard = '1';
   }
 
-  openTimer = window.setTimeout(() => {
+  const runOpen = () => {
     openTimer = null;
     open();
-  }, openDelayMs);
+  };
+
+  if (openDelayMs <= 0) {
+    // Mesmo frame do toque — sem latência visível.
+    runOpen();
+  } else {
+    openTimer = window.setTimeout(runOpen, openDelayMs);
+  }
 
   endTimer = window.setTimeout(() => {
     cleanup();
@@ -96,3 +105,6 @@ export function openHomeHubSafely(open: () => void, options?: GuardOptions): voi
 export function clearHomeHubOpenGuard(): void {
   activeCleanup?.();
 }
+
+/** Atributo usado no CSS (documentado para consumidores). */
+export const HOME_HUB_OPEN_GUARD_ATTR = GUARD_ATTR;

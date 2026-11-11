@@ -62,7 +62,7 @@ function ScorePicker({
             onClick={() => onChange(n)}
             className={`h-9 w-9 rounded-lg text-[13px] font-bold tabular-nums transition ${
               value === n
-                ? 'bg-[#FFD60A] text-zinc-900'
+                ? 'bg-[#F5D00B] text-zinc-900'
                 : 'bg-white text-zinc-700 ring-1 ring-zinc-200 hover:bg-zinc-50 dark:bg-zinc-900 dark:text-zinc-200 dark:ring-zinc-700'
             }`}
           >

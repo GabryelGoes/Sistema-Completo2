@@ -316,6 +316,7 @@ html[data-desktop-shell='true'] .desktop-shell-main {
 }
 
 html[data-desktop-shell='true'] .desktop-shell-topbar {
+  position: relative;
   flex-shrink: 0;
   display: flex;
   align-items: center;
@@ -326,8 +327,21 @@ html[data-desktop-shell='true'] .desktop-shell-topbar {
   background-color: var(--desktop-topbar-accent);
   color: #fff;
   border-bottom: none;
-  box-shadow: none;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.22) inset;
   transition: background-color 0.2s ease;
+  z-index: 2;
+}
+
+/* Fade na junção topbar ↔ scroll (em vez de divisor duro) */
+html[data-desktop-shell='true'] .desktop-shell-topbar::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -10px;
+  height: 10px;
+  pointer-events: none;
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.08), transparent);
 }
 
 /* Fundos claros (Resumo, Pátio, Orçamentos): texto escuro */

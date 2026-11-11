@@ -366,7 +366,7 @@ export function EmployeesPanel({
                     <span
                       className={`ml-2 shrink-0 rounded-md px-2 py-0.5 text-[11px] font-bold tabular-nums ${
                         active
-                          ? 'bg-[#FFD60A] text-zinc-900'
+                          ? 'bg-[#F5D00B] text-zinc-900'
                           : 'bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200'
                       }`}
                     >
@@ -612,7 +612,7 @@ export function EmployeesPanel({
                   <button
                     type="button"
                     disabled={recogBusy || !recogDesc.trim()}
-                    className="mt-2 rounded-xl bg-[#FFD60A] px-3 py-2 text-[13px] font-semibold text-zinc-900 disabled:opacity-50"
+                    className="mt-2 rounded-xl bg-[#F5D00B] px-3 py-2 text-[13px] font-semibold text-zinc-900 disabled:opacity-50"
                     onClick={() => {
                       setRecogBusy(true);
                       setRecogMsg(null);
@@ -1266,7 +1266,7 @@ function IncidentLoadCard({
               </span>
               <div className="h-2 flex-1 overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-800">
                 <div
-                  className="h-full rounded-full bg-[#FFD60A]"
+                  className="h-full rounded-full bg-[#F5D00B]"
                   style={{ width: `${Math.round((count / maxCat) * 100)}%` }}
                 />
               </div>

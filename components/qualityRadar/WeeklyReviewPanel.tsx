@@ -313,7 +313,7 @@ export function WeeklyReviewPanel({ employees }: Props) {
                   key={t.id}
                   className={`${hub.badge} ${
                     done
-                      ? 'bg-[#FFD60A]/35 text-zinc-900'
+                      ? 'bg-[#F5D00B]/35 text-zinc-900'
                       : 'bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400'
                   }`}
                 >
@@ -351,7 +351,7 @@ export function WeeklyReviewPanel({ employees }: Props) {
                 >
                   {m.role === 'assistant' && (
                     <div className="mb-1 flex items-center gap-1 text-[11px] font-bold uppercase tracking-wide text-zinc-500">
-                      <Sparkles className="h-3 w-3 text-[#FFD60A]" /> RDA
+                      <Sparkles className="h-3 w-3 text-[#F5D00B]" /> RDA
                     </div>
                   )}
                   <div className="whitespace-pre-wrap">{m.content}</div>
