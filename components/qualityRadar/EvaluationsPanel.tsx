@@ -60,9 +60,9 @@ function ScorePicker({
             type="button"
             disabled={disabled}
             onClick={() => onChange(n)}
-            className={`h-9 w-9 rounded-lg text-[13px] font-bold tabular-nums transition ${
+            className={`h-9 w-9 rounded-lg text-[13px] font-bold tabular-nums transition-[transform,background-color,box-shadow] duration-150 ease-out active:scale-[0.96] ${
               value === n
-                ? 'bg-[#FFD60A] text-zinc-900'
+                ? hub.accent
                 : 'bg-white text-zinc-700 ring-1 ring-zinc-200 hover:bg-zinc-50 dark:bg-zinc-900 dark:text-zinc-200 dark:ring-zinc-700'
             }`}
           >
@@ -183,7 +183,7 @@ export function EvaluationsPanel({
   };
 
   return (
-    <div className="space-y-4">
+    <div className={hub.stack}>
       <HubSectionHeader
         title="Avaliações"
         subtitle="Fila gerencial após finalização do cronômetro. Dispensar não gera nota negativa. Não altera a etapa da OS."
@@ -256,7 +256,7 @@ export function EvaluationsPanel({
       ) : null}
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.15fr)]">
-        <div className={`${hub.surface} p-4`}>
+        <div className={`${hub.surface} ${hub.cardPad}`}>
           {loading ? (
             <p className={`flex items-center gap-2 text-[13px] ${hub.muted}`}>
               <Loader2 className="h-4 w-4 animate-spin" /> Carregando…
@@ -301,7 +301,7 @@ export function EvaluationsPanel({
           )}
         </div>
 
-        <div className={`${hub.surface} space-y-4 p-4`}>
+        <div className={`${hub.surface} ${hub.stackTight} ${hub.cardPad}`}>
           {!selected ? (
             <HubEmptyState
               icon={ClipboardCheck}
@@ -311,10 +311,10 @@ export function EvaluationsPanel({
           ) : (
             <>
               <div>
-                <p className={`text-[11px] font-semibold uppercase tracking-[0.14em] ${hub.muted}`}>
+                <p className={`${hub.eyebrow}`}>
                   {STATUS_LABEL[selected.status]}
                 </p>
-                <h3 className="mt-1 text-[20px] font-semibold text-zinc-900 dark:text-white">
+                <h3 className={`mt-1 ${hub.display}`}>
                   {selected.technicianDisplayName || 'Técnico'}
                 </h3>
                 <p className={`mt-1 text-[13px] ${hub.muted}`}>

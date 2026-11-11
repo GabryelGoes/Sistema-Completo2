@@ -75,7 +75,7 @@ export function MeetingsPanel({
 
   if (migrationPending) {
     return (
-      <div className="space-y-4">
+      <div className={hub.stack}>
         <HubSectionHeader
           title="Reuniões e Feedbacks"
           subtitle="Registros históricos com pauta, encaminhamentos e ciência."
@@ -89,7 +89,7 @@ export function MeetingsPanel({
   }
 
   return (
-    <div className="space-y-4">
+    <div className={hub.stack}>
       <HubSectionHeader
         title="Reuniões e Feedbacks"
         subtitle="Individuais, feedbacks, orientações e compromissos — ciência não exige concordância."
@@ -121,7 +121,7 @@ export function MeetingsPanel({
         />
       ) : (
         <>
-          <div className={`${hub.surface} p-4 space-y-3`}>
+          <div className={`${hub.surface} ${hub.cardPad} ${hub.stackTight}`}>
             <p className="text-[14px] font-semibold text-zinc-900 dark:text-white">
               Novo registro
             </p>
@@ -218,7 +218,7 @@ export function MeetingsPanel({
             </button>
           </div>
 
-          <div className={`${hub.surface} p-4`}>
+          <div className={`${hub.surface} ${hub.cardPad}`}>
             <p className="mb-3 text-[14px] font-semibold text-zinc-900 dark:text-white">
               Histórico
             </p>

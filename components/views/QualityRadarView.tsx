@@ -33,6 +33,7 @@ import {
   ReportsPanel,
 } from '../qualityRadar/ManagerialPanels';
 import { WeeklyReviewPanel } from '../qualityRadar/WeeklyReviewPanel';
+import { HubPanelShell } from '../qualityRadar/HubPrimitives';
 
 type PeriodPreset = 'month' | 'quarter' | 'year';
 
@@ -224,11 +225,10 @@ export const QualityRadarView: React.FC<{ authSession?: AuthSession | null }> = 
   if (!canAccessRadar) {
     return (
       <div className={`${hub.page} items-center justify-center px-6 py-24`}>
-        <div className={`${hub.surface} max-w-md p-8 text-center`}>
-          <h1 className="text-[18px] font-semibold text-zinc-900 dark:text-white">
-            Acesso restrito
-          </h1>
-          <p className={`mt-2 text-[14px] ${hub.muted}`}>
+        <div className={`${hub.surface} ${hub.cardPad} max-w-md p-8 text-center ${hub.panelMotion}`}>
+          <p className={hub.eyebrow}>Radar de Qualidade</p>
+          <h1 className={`mt-2 ${hub.title}`}>Acesso restrito</h1>
+          <p className={`mt-2 ${hub.meta}`}>
             O Radar de Qualidade é exclusivo da gerência e de usuários com permissão
             correspondente. Solicite acesso à Gerência se precisar deste módulo.
           </p>
@@ -323,39 +323,38 @@ export const QualityRadarView: React.FC<{ authSession?: AuthSession | null }> = 
     );
   }
 
+  const activeSection = HUB_SECTIONS.find((s) => s.id === section);
+
   return (
     <div
-      className={`${hub.page} gap-4 px-4 pb-28 pt-[max(0.5rem,env(safe-area-inset-top))] md:px-8 md:pb-10 md:pt-8`}
+      className={`${hub.page} gap-5 px-4 pb-28 pt-[max(0.5rem,env(safe-area-inset-top))] md:px-8 md:pb-10 md:pt-8`}
     >
-      <header className={`${hub.surface} overflow-hidden`}>
+      <header className={`${hub.chrome} sticky top-2 z-20 overflow-hidden md:top-3`}>
         <div className="flex flex-col gap-4 p-4 md:flex-row md:items-center md:justify-between md:p-5">
           <div className="min-w-0">
             {!isDesktopShell ? (
               <>
-                <p className={`text-[11px] font-semibold uppercase tracking-[0.16em] ${hub.muted}`}>
-                  Gerência e diretoria
-                </p>
-                <h1 className="mt-1 flex items-center gap-2.5 text-2xl font-semibold tracking-tight text-zinc-900 dark:text-white md:text-[1.75rem]">
+                <p className={hub.eyebrow}>Gerência e diretoria</p>
+                <h1 className={`mt-1.5 flex items-center gap-2.5 ${hub.display}`}>
                   <img
                     src={QUALITY_RADAR_ICON}
                     alt=""
-                    className="h-9 w-9 rounded-xl object-cover"
+                    className="h-9 w-9 rounded-[0.95rem] object-cover"
                     draggable={false}
                   />
                   {QUALITY_RADAR_MODULE_TITLE}
                 </h1>
-                <p className={`mt-1 max-w-2xl text-[14px] leading-relaxed ${hub.muted}`}>
-                  {QUALITY_RADAR_MODULE_SUBTITLE}
-                </p>
+                <p className={`mt-1.5 max-w-2xl ${hub.meta}`}>{QUALITY_RADAR_MODULE_SUBTITLE}</p>
               </>
             ) : (
               <div>
-                <p className={`text-[11px] font-semibold uppercase tracking-[0.16em] ${hub.muted}`}>
-                  Central gerencial
+                <p className={hub.eyebrow}>Central gerencial</p>
+                <p className={`mt-1 text-[15px] font-semibold leading-snug tracking-[-0.01em] ${hub.ink}`}>
+                  {activeSection?.label ?? QUALITY_RADAR_MODULE_TITLE}
                 </p>
-                <p className="mt-1 text-[15px] font-semibold text-zinc-900 dark:text-white">
-                  {HUB_SECTIONS.find((s) => s.id === section)?.label ?? QUALITY_RADAR_MODULE_TITLE}
-                </p>
+                {activeSection?.description ? (
+                  <p className={`mt-0.5 ${hub.caption}`}>{activeSection.description}</p>
+                ) : null}
               </div>
             )}
           </div>
@@ -370,17 +369,14 @@ export const QualityRadarView: React.FC<{ authSession?: AuthSession | null }> = 
               <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
               Atualizar
             </button>
-            <div className="flex flex-wrap gap-1 rounded-xl border border-zinc-200 bg-[#FAFAFA] p-1 dark:border-zinc-800 dark:bg-zinc-950">
+            <div className={hub.segmentTrack} role="group" aria-label="Período">
               {periodDefs.map((p) => (
                 <button
                   key={p.id}
                   type="button"
                   onClick={() => setPeriodPreset(p.id)}
-                  className={`rounded-lg px-3 py-1.5 text-[12px] font-semibold transition ${
-                    periodPreset === p.id
-                      ? 'bg-[#FFD60A] text-zinc-900'
-                      : 'text-zinc-600 hover:bg-white dark:text-zinc-300 dark:hover:bg-zinc-900'
-                  }`}
+                  className={hub.segmentItem(periodPreset === p.id)}
+                  aria-pressed={periodPreset === p.id}
                 >
                   {p.label}
                 </button>
@@ -388,14 +384,20 @@ export const QualityRadarView: React.FC<{ authSession?: AuthSession | null }> = 
             </div>
           </div>
         </div>
-        <div className={`border-t ${hub.hairline} px-4 py-2 text-[12px] ${hub.muted} md:px-5`}>
+        <div
+          className={`border-t border-zinc-200/80 px-4 py-2.5 ${hub.caption} dark:border-zinc-700/80 md:px-5`}
+        >
           Período: {periodLabel}
         </div>
       </header>
 
-      <div className="grid gap-4 lg:grid-cols-[220px_minmax(0,1fr)]">
-        <aside className={`${hub.surface} p-2 lg:sticky lg:top-4 lg:self-start`}>{nav}</aside>
-        <main className="min-w-0">{body}</main>
+      <div className="grid gap-5 lg:grid-cols-[232px_minmax(0,1fr)]">
+        <aside className={`${hub.aside} p-2 lg:sticky lg:top-[5.75rem] lg:self-start`}>
+          {nav}
+        </aside>
+        <main className="min-w-0">
+          <HubPanelShell key={section}>{body}</HubPanelShell>
+        </main>
       </div>
 
       <QualityIncidentEditorModal

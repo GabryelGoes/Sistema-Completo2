@@ -93,7 +93,7 @@ export function OverviewPanel({
   }
 
   return (
-    <div className="space-y-4">
+    <div className={hub.stack}>
       <HubSectionHeader
         title="Visão Geral"
         subtitle={`Indicadores do período ${periodLabel}. Avaliações usam dados reais da fila RDA.`}
@@ -133,8 +133,8 @@ export function OverviewPanel({
       </div>
 
       <div className="grid gap-3 lg:grid-cols-2">
-        <div className={`${hub.surface} p-4`}>
-          <p className={`text-[12px] font-semibold uppercase tracking-[0.12em] ${hub.muted}`}>
+        <div className={`${hub.surface} ${hub.cardPad}`}>
+          <p className={`${hub.sectionLabel}`}>
             Atalhos
           </p>
           <div className="mt-3 flex flex-col gap-2">
@@ -147,7 +147,7 @@ export function OverviewPanel({
                 key={item.label}
                 type="button"
                 onClick={item.onClick}
-                className="flex items-center justify-between rounded-xl border border-zinc-200 bg-[#FAFAFA] px-3 py-3 text-left transition hover:border-zinc-300 dark:border-zinc-800 dark:bg-zinc-950 dark:hover:border-zinc-700"
+                className={`${hub.surfaceInset} flex items-center justify-between px-3 py-3 text-left transition-[transform,border-color,background-color] duration-150 ease-out hover:border-zinc-300 active:scale-[0.99] dark:hover:border-zinc-700`}
               >
                 <span className="flex items-center gap-2 text-[14px] font-semibold text-zinc-900 dark:text-white">
                   <item.icon className="h-4 w-4 text-zinc-500" />
@@ -159,8 +159,8 @@ export function OverviewPanel({
           </div>
         </div>
 
-        <div className={`${hub.surface} p-4`}>
-          <p className={`text-[12px] font-semibold uppercase tracking-[0.12em] ${hub.muted}`}>
+        <div className={`${hub.surface} ${hub.cardPad}`}>
+          <p className={`${hub.sectionLabel}`}>
             Alertas e pendências
           </p>
           {alerts.length === 0 ? (
@@ -314,14 +314,14 @@ export function EmployeesPanel({
   ]);
 
   return (
-    <div className="space-y-4">
+    <div className={hub.stack}>
       <HubSectionHeader
         title="Funcionários"
         subtitle="Identidade estável, ocorrências, reconhecimentos e avaliações — sem inventar nota quando não há dados."
       />
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
-        <div className={`${hub.surface} p-4`}>
+        <div className={`${hub.surface} ${hub.cardPad}`}>
           <input
             type="search"
             value={q}
@@ -346,11 +346,7 @@ export function EmployeesPanel({
                     key={e.id}
                     type="button"
                     onClick={() => setSelectedId(e.id)}
-                    className={`flex w-full items-center justify-between rounded-xl px-3 py-3 text-left transition ${
-                      active
-                        ? 'bg-zinc-900 text-white dark:bg-white dark:text-zinc-900'
-                        : 'hover:bg-zinc-100 dark:hover:bg-zinc-800'
-                    }`}
+                    className={hub.listRow(active)}
                   >
                     <span className="min-w-0">
                       <span className="block truncate text-[14px] font-semibold">{e.name}</span>
@@ -366,7 +362,7 @@ export function EmployeesPanel({
                     <span
                       className={`ml-2 shrink-0 rounded-md px-2 py-0.5 text-[11px] font-bold tabular-nums ${
                         active
-                          ? 'bg-[#FFD60A] text-zinc-900'
+                          ? hub.accent
                           : 'bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200'
                       }`}
                     >
@@ -379,7 +375,7 @@ export function EmployeesPanel({
           </div>
         </div>
 
-        <div className={`${hub.surface} p-4`}>
+        <div className={`${hub.surface} ${hub.cardPad}`}>
           {!selected ? (
             <HubEmptyState
               icon={Users}
@@ -387,12 +383,12 @@ export function EmployeesPanel({
               description="O perfil mostra cargo, ocorrências, reconhecimentos e avaliações reais — sem inventar dados."
             />
           ) : (
-            <div className="space-y-4">
+            <div className={hub.stack}>
               <div>
-                <p className={`text-[11px] font-semibold uppercase tracking-[0.14em] ${hub.muted}`}>
+                <p className={`${hub.eyebrow}`}>
                   Informações profissionais
                 </p>
-                <h3 className="mt-1 text-[22px] font-semibold tracking-tight text-zinc-900 dark:text-white">
+                <h3 className={`mt-1 ${hub.display}`}>
                   {selected.name}
                 </h3>
                 <p className={`mt-1 text-[13px] ${hub.muted}`}>
@@ -422,7 +418,7 @@ export function EmployeesPanel({
                     <button
                       type="button"
                       disabled={linkBusy}
-                      className="mt-2 rounded-lg bg-zinc-900 px-3 py-1.5 text-[12px] font-semibold text-white disabled:opacity-50"
+                      className={`mt-2 ${hub.btnCompact}`}
                       onClick={() => {
                         const suId = selected.possibleDuplicateIds!
                           .find((id) => id.startsWith('su:'))
@@ -612,7 +608,7 @@ export function EmployeesPanel({
                   <button
                     type="button"
                     disabled={recogBusy || !recogDesc.trim()}
-                    className="mt-2 rounded-xl bg-[#FFD60A] px-3 py-2 text-[13px] font-semibold text-zinc-900 disabled:opacity-50"
+                    className={`mt-2 ${hub.btnAccent}`}
                     onClick={() => {
                       setRecogBusy(true);
                       setRecogMsg(null);
@@ -800,7 +796,7 @@ export function PerformancePanel({
   };
 
   return (
-    <div className="space-y-4">
+    <div className={hub.stack}>
       <HubSectionHeader
         title="Desempenho"
         subtitle="Intervalos efetivos RDA (America/Sao_Paulo) + histórico de ocorrências."
@@ -812,7 +808,7 @@ export function PerformancePanel({
         Avaliações.
       </HubPreparedNote>
 
-      <div className="flex flex-wrap gap-2">
+      <div className={hub.segmentTrack} role="group" aria-label="Setor">
         {(
           [
             { id: 'all', label: 'Todos os setores' },
@@ -824,11 +820,8 @@ export function PerformancePanel({
             key={opt.id}
             type="button"
             onClick={() => setOrderType(opt.id)}
-            className={`rounded-xl px-3 py-2 text-[13px] font-semibold transition-colors ${
-              orderType === opt.id
-                ? 'bg-zinc-900 text-white dark:bg-white dark:text-zinc-900'
-                : 'bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200'
-            }`}
+            className={hub.segmentItem(orderType === opt.id)}
+            aria-pressed={orderType === opt.id}
           >
             {opt.label}
           </button>
@@ -909,13 +902,13 @@ export function PerformancePanel({
           {timeRows.some((r) => r.pauseByReason.length > 0 || r.serviceDurations.length > 0) ? (
             <div className="grid gap-3 lg:grid-cols-2">
               {timeRows.slice(0, 6).map((r) => (
-                <div key={`detail-${r.technicianUserId}`} className={`${hub.surface} p-4`}>
+                <div key={`detail-${r.technicianUserId}`} className={`${hub.surface} ${hub.cardPad}`}>
                   <p className="text-[14px] font-semibold text-zinc-900 dark:text-white">
                     {r.displayName}
                   </p>
                   {r.pauseByReason.length > 0 ? (
                     <div className="mt-3">
-                      <p className={`text-[11px] font-semibold uppercase tracking-wider ${hub.muted}`}>
+                      <p className={`${hub.eyebrow}`}>
                         Pausas por motivo
                       </p>
                       <ul className="mt-1.5 space-y-1">
@@ -933,7 +926,7 @@ export function PerformancePanel({
                   ) : null}
                   {r.serviceDurations.length > 0 ? (
                     <div className="mt-3">
-                      <p className={`text-[11px] font-semibold uppercase tracking-wider ${hub.muted}`}>
+                      <p className={`${hub.eyebrow}`}>
                         Duração por serviço
                       </p>
                       <ul className="mt-1.5 space-y-1">
@@ -953,7 +946,7 @@ export function PerformancePanel({
                   ) : null}
                   {r.productiveByDay && r.productiveByDay.length > 0 ? (
                     <div className="mt-3">
-                      <p className={`text-[11px] font-semibold uppercase tracking-wider ${hub.muted}`}>
+                      <p className={`${hub.eyebrow}`}>
                         Produtivo por dia (SP)
                       </p>
                       <ul className="mt-1.5 space-y-1">
@@ -976,7 +969,7 @@ export function PerformancePanel({
         </div>
       )}
 
-      <div className={`${hub.surface} p-4`}>
+      <div className={`${hub.surface} ${hub.cardPad}`}>
         <p className="mb-1 text-[14px] font-semibold text-zinc-900 dark:text-white">
           Correção gerencial de apontamento
         </p>
@@ -1061,7 +1054,7 @@ export function PerformancePanel({
         </div>
       </div>
 
-      <div className={`${hub.surface} p-4`}>
+      <div className={`${hub.surface} ${hub.cardPad}`}>
         <p className="mb-3 text-[14px] font-semibold text-zinc-900 dark:text-white">
           Ocorrências no período (histórico)
         </p>
@@ -1126,7 +1119,7 @@ export function ReportsPanel({
   );
 
   return (
-    <div className="space-y-4">
+    <div className={hub.stack}>
       <HubSectionHeader
         title="Relatórios"
         subtitle={`${formatReportPeriodLabel(from, to)}. Ciclo semanal + consolidado operacional (ocorrências ≠ nota).`}
@@ -1159,7 +1152,7 @@ export function ReportsPanel({
       ) : (
         <>
           {report.topCategories.length > 0 ? (
-            <div className={`${hub.surface} p-4`}>
+            <div className={`${hub.surface} ${hub.cardPad}`}>
               <p className="mb-3 text-[13px] font-semibold text-zinc-900 dark:text-white">
                 Principais categorias
               </p>
@@ -1225,7 +1218,7 @@ function IncidentLoadCard({
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className={`text-[11px] font-semibold uppercase tracking-wider ${hub.muted}`}>
+          <p className={`${hub.eyebrow}`}>
             Funcionário
           </p>
           <h3 className="truncate text-lg font-semibold text-zinc-900 dark:text-white">
@@ -1266,7 +1259,7 @@ function IncidentLoadCard({
               </span>
               <div className="h-2 flex-1 overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-800">
                 <div
-                  className="h-full rounded-full bg-[#FFD60A]"
+                  className={`h-full rounded-full ${hub.accentBar}`}
                   style={{ width: `${Math.round((count / maxCat) * 100)}%` }}
                 />
               </div>

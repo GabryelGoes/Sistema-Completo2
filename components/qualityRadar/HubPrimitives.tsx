@@ -19,18 +19,18 @@ export function HubStatCard({
   const display = prepared ? '—' : value;
   return (
     <div
-      className={`${hub.surface} p-4 ${emphasize ? 'ring-2 ring-[#FFD60A]' : ''}`}
+      className={`${hub.surface} ${hub.cardPad} ${emphasize ? hub.accentRing : ''}`}
     >
       <div className="flex items-start justify-between gap-2">
-        <p className={`text-[11px] font-semibold uppercase tracking-[0.14em] ${hub.muted}`}>{label}</p>
+        <p className={hub.eyebrow}>{label}</p>
         {prepared ? (
           <span className={`${hub.badge} ${hub.accentSoft} shrink-0`}>Em preparação</span>
         ) : null}
       </div>
-      <p className="mt-2 text-3xl font-semibold tabular-nums tracking-tight text-zinc-900 dark:text-white">
+      <p className={`mt-2.5 text-3xl font-semibold tabular-nums leading-none tracking-[-0.02em] ${hub.ink}`}>
         {display}
       </p>
-      {hint ? <p className={`mt-1 text-[12px] ${hub.muted}`}>{hint}</p> : null}
+      {hint ? <p className={`mt-2 ${hub.caption}`}>{hint}</p> : null}
     </div>
   );
 }
@@ -47,13 +47,17 @@ export function HubEmptyState({
   prepared?: boolean;
 }) {
   return (
-    <div className={`${hub.surface} flex flex-col items-center gap-3 px-6 py-14 text-center`}>
+    <div
+      className={`${hub.surface} flex flex-col items-center gap-3.5 px-6 py-16 text-center`}
+    >
       <div className={`flex h-12 w-12 items-center justify-center rounded-2xl ${hub.accent}`}>
-        <Icon className="h-6 w-6 text-zinc-900" strokeWidth={2} />
+        <Icon className="h-6 w-6 text-zinc-950" strokeWidth={2} />
       </div>
       <div className="max-w-md space-y-1.5">
-        <h3 className="text-[16px] font-semibold text-zinc-900 dark:text-white">{title}</h3>
-        <p className={`text-[13px] leading-relaxed ${hub.muted}`}>{description}</p>
+        <h3 className="text-[16px] font-semibold leading-snug tracking-[-0.01em] text-zinc-900 dark:text-white">
+          {title}
+        </h3>
+        <p className={`${hub.meta} leading-relaxed`}>{description}</p>
       </div>
       {prepared ? (
         <p className={`${hub.badge} ${hub.accentSoft}`}>Funcionalidade em preparação</p>
@@ -75,13 +79,13 @@ export function HubScorePreview({
   value?: number | null;
 }) {
   return (
-    <div className={`${hub.surfaceInset} p-3`}>
+    <div className={`${hub.surfaceInset} p-3.5`}>
       <p className={`text-[12px] font-semibold ${hub.ink}`}>{label}</p>
-      <div className="mt-2 flex gap-1.5" aria-hidden>
+      <div className="mt-2.5 flex gap-1.5" aria-hidden>
         {[1, 2, 3, 4, 5].map((n) => (
           <span
             key={n}
-            className={`flex h-8 w-8 items-center justify-center rounded-lg text-[12px] font-bold ${
+            className={`flex h-9 w-9 items-center justify-center rounded-lg text-[12px] font-bold ${
               value === n
                 ? 'bg-zinc-900 text-white dark:bg-white dark:text-zinc-900'
                 : 'border border-zinc-200 bg-white text-zinc-400 dark:border-zinc-700 dark:bg-zinc-900'
@@ -105,12 +109,23 @@ export function HubSectionHeader({
   actions?: React.ReactNode;
 }) {
   return (
-    <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+    <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
       <div className="min-w-0">
-        <h2 className="text-[18px] font-semibold tracking-tight text-zinc-900 dark:text-white">{title}</h2>
-        {subtitle ? <p className={`mt-0.5 text-[13px] ${hub.muted}`}>{subtitle}</p> : null}
+        <h2 className={hub.title}>{title}</h2>
+        {subtitle ? <p className={`mt-1 ${hub.meta}`}>{subtitle}</p> : null}
       </div>
       {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
     </div>
   );
+}
+
+/** Envelope de seção: entrada com movimento (remonta com `key` da seção). */
+export function HubPanelShell({
+  children,
+  className = '',
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return <div className={`${hub.panelMotion} ${className}`.trim()}>{children}</div>;
 }

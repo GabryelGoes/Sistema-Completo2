@@ -313,7 +313,7 @@ export function WeeklyReviewPanel({ employees }: Props) {
                   key={t.id}
                   className={`${hub.badge} ${
                     done
-                      ? 'bg-[#FFD60A]/35 text-zinc-900'
+                      ? hub.accentSoft
                       : 'bg-zinc-100 text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400'
                   }`}
                 >
@@ -350,8 +350,8 @@ export function WeeklyReviewPanel({ employees }: Props) {
                   }`}
                 >
                   {m.role === 'assistant' && (
-                    <div className="mb-1 flex items-center gap-1 text-[11px] font-bold uppercase tracking-wide text-zinc-500">
-                      <Sparkles className="h-3 w-3 text-[#FFD60A]" /> RDA
+                    <div className={`mb-1 flex items-center gap-1 ${hub.eyebrow}`}>
+                      <Sparkles className={`h-3 w-3 ${hub.accentText}`} /> RDA
                     </div>
                   )}
                   <div className="whitespace-pre-wrap">{m.content}</div>
@@ -442,7 +442,7 @@ export function WeeklyReviewPanel({ employees }: Props) {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className={`${hub.surface} p-4 md:p-5`}>
+      <div className={`${hub.surface} ${hub.cardPad} md:p-6`}>
         <div className="flex items-start gap-3">
           <div className={`rounded-xl ${hub.accent} p-2.5`}>
             <MessageSquare className="h-5 w-5" />
