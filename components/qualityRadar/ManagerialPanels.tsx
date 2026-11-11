@@ -196,6 +196,21 @@ function formatScoreRow(scores: RdaEvalScores | null): string {
   return `QT ${scores.technicalQuality} · Org ${scores.organization} · Proc ${scores.procedures} · Aut ${scores.autonomy} · Com ${scores.communication}`;
 }
 
+function personFlagChips(e: QualityRadarTechnicianOption): string[] {
+  const chips: string[] = [];
+  if (e.hasLogin) chips.push('Com login');
+  else if (e.hasWorkshopTechnician) chips.push('Sem login');
+  if (e.hasWorkshopTechnician) chips.push('Técnico pátio');
+  if (e.source === 'linked') chips.push('Vinculado');
+  if (e.isManagerial) chips.push('Gerência');
+  if (e.sector) chips.push(`Setor: ${e.sector}`);
+  if (e.professionalRole) chips.push(`Função: ${e.professionalRole}`);
+  if (e.incomplete) chips.push('Incompleto');
+  if ((e.possibleDuplicateIds?.length || 0) > 0) chips.push('Possível duplicata');
+  if (e.isActive === false) chips.push('Inativo');
+  return chips;
+}
+
 export function EmployeesPanel({
   employees,
   incidents,
@@ -212,7 +227,23 @@ export function EmployeesPanel({
   periodTo?: string;
 }) {
   const [q, setQ] = useState('');
+  const [filterFlag, setFilterFlag] = useState<
+    'all' | 'no_login' | 'incomplete' | 'duplicate' | 'unlinked'
+  >('all');
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [diagOpen, setDiagOpen] = useState(false);
+  const [diagLoading, setDiagLoading] = useState(false);
+  const [diagError, setDiagError] = useState<string | null>(null);
+  const [diagSummary, setDiagSummary] = useState<{
+    counts: Record<string, number>;
+    queryErrors: Record<string, string | null>;
+    schemaHints: string[];
+    unlinkedSameName: Array<{
+      workshopTechnicianId: string;
+      systemUserId: string;
+      normalizedName: string;
+    }>;
+  } | null>(null);
   const [evalHistory, setEvalHistory] = useState<RdaEvalRequest[]>([]);
   const [evalAvg, setEvalAvg] = useState<RdaEvalScores | null>(null);
   const [evalLoading, setEvalLoading] = useState(false);
@@ -231,13 +262,43 @@ export function EmployeesPanel({
 
   const filtered = useMemo(() => {
     const needle = q.trim().toLowerCase();
-    if (!needle) return employees;
-    return employees.filter(
-      (e) =>
+    return employees.filter((e) => {
+      if (filterFlag === 'no_login') {
+        const noLogin = e.hasLogin === false || e.source === 'workshop_technician';
+        if (!noLogin) return false;
+      }
+      if (filterFlag === 'incomplete' && !e.incomplete) return false;
+      if (filterFlag === 'duplicate' && !(e.possibleDuplicateIds?.length)) return false;
+      if (filterFlag === 'unlinked' && e.source === 'linked') return false;
+      if (!needle) return true;
+      return (
         e.name.toLowerCase().includes(needle) ||
-        (e.jobTitle || '').toLowerCase().includes(needle)
-    );
-  }, [employees, q]);
+        (e.jobTitle || '').toLowerCase().includes(needle) ||
+        (e.professionalRole || '').toLowerCase().includes(needle) ||
+        (e.sector || '').toLowerCase().includes(needle)
+      );
+    });
+  }, [employees, q, filterFlag]);
+
+  const loadDiagnostics = () => {
+    setDiagOpen(true);
+    setDiagLoading(true);
+    setDiagError(null);
+    void import('../../services/apiService')
+      .then(({ getQualityRadarPeopleDiagnostics }) => getQualityRadarPeopleDiagnostics())
+      .then((data) => {
+        setDiagSummary({
+          counts: data.diagnostics.counts,
+          queryErrors: data.diagnostics.queryErrors,
+          schemaHints: data.diagnostics.schemaHints,
+          unlinkedSameName: data.diagnostics.unlinkedSameName,
+        });
+      })
+      .catch((err: unknown) => {
+        setDiagError(err instanceof Error ? err.message : 'Falha no diagnóstico.');
+      })
+      .finally(() => setDiagLoading(false));
+  };
 
   const selected = employees.find((e) => e.id === selectedId) ?? null;
   const selectedIncidents = selected ? incidentsForEmployee(incidents, selected) : [];
@@ -317,8 +378,79 @@ export function EmployeesPanel({
     <div className="space-y-4">
       <HubSectionHeader
         title="Funcionários"
-        subtitle="Identidade estável, ocorrências, reconhecimentos e avaliações — sem inventar nota quando não há dados."
+        subtitle="Listagem unificada (login + pátio). Vínculos só com confirmação — nunca por nome parecido."
       />
+
+      <div className={`${hub.surface} p-4`}>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className={`text-[13px] ${hub.muted}`}>
+            Diagnóstico administrativo: origens, órfãos e falhas de consulta (sem credenciais).
+          </p>
+          <button
+            type="button"
+            onClick={loadDiagnostics}
+            className="rounded-lg bg-zinc-900 px-3 py-1.5 text-[12px] font-semibold text-white dark:bg-white dark:text-zinc-900"
+          >
+            {diagOpen ? 'Atualizar diagnóstico' : 'Abrir diagnóstico'}
+          </button>
+        </div>
+        {diagOpen ? (
+          <div className="mt-3 space-y-2 text-[12px]">
+            {diagLoading ? <p className={hub.muted}>Carregando diagnóstico…</p> : null}
+            {diagError ? <p className="text-red-600 dark:text-red-400">{diagError}</p> : null}
+            {diagSummary ? (
+              <>
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                  {Object.entries(diagSummary.counts).map(([k, v]) => (
+                    <div key={k} className="rounded-lg bg-zinc-100 px-2 py-1.5 dark:bg-zinc-800">
+                      <p className={`text-[10px] uppercase tracking-wide ${hub.muted}`}>{k}</p>
+                      <p className="font-semibold tabular-nums text-zinc-900 dark:text-white">{v}</p>
+                    </div>
+                  ))}
+                </div>
+                {(diagSummary.queryErrors.technicians ||
+                  diagSummary.queryErrors.systemUsers ||
+                  diagSummary.queryErrors.links) && (
+                  <p className="rounded-lg border border-amber-300/70 bg-amber-50 px-2 py-1.5 text-amber-950 dark:border-amber-500/40 dark:bg-amber-950/30 dark:text-amber-100">
+                    Erros de consulta:{' '}
+                    {[
+                      diagSummary.queryErrors.technicians &&
+                        `técnicos: ${diagSummary.queryErrors.technicians}`,
+                      diagSummary.queryErrors.systemUsers &&
+                        `usuários: ${diagSummary.queryErrors.systemUsers}`,
+                      diagSummary.queryErrors.links && `vínculos: ${diagSummary.queryErrors.links}`,
+                    ]
+                      .filter(Boolean)
+                      .join(' · ')}
+                  </p>
+                )}
+                {diagSummary.schemaHints.length > 0 ? (
+                  <ul className={`list-disc pl-4 ${hub.muted}`}>
+                    {diagSummary.schemaHints.map((h) => (
+                      <li key={h}>{h}</li>
+                    ))}
+                  </ul>
+                ) : null}
+                {diagSummary.unlinkedSameName.length > 0 ? (
+                  <div>
+                    <p className="font-semibold text-zinc-800 dark:text-zinc-100">
+                      Mesmo nome sem vínculo confirmado ({diagSummary.unlinkedSameName.length})
+                    </p>
+                    <ul className={`mt-1 list-disc pl-4 ${hub.muted}`}>
+                      {diagSummary.unlinkedSameName.slice(0, 12).map((s) => (
+                        <li key={`${s.workshopTechnicianId}-${s.systemUserId}`}>
+                          «{s.normalizedName}» — WT {s.workshopTechnicianId.slice(0, 8)} ↔ SU{' '}
+                          {s.systemUserId.slice(0, 8)}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
+              </>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
 
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
         <div className={`${hub.surface} p-4`}>
@@ -326,9 +458,33 @@ export function EmployeesPanel({
             type="search"
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="Pesquisar por nome ou cargo…"
+            placeholder="Pesquisar por nome, cargo, função ou setor…"
             className={hub.input}
           />
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {(
+              [
+                ['all', 'Todos'],
+                ['no_login', 'Sem login'],
+                ['unlinked', 'Sem vínculo'],
+                ['incomplete', 'Incompletos'],
+                ['duplicate', 'Duplicatas'],
+              ] as const
+            ).map(([id, label]) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setFilterFlag(id)}
+                className={`rounded-lg px-2.5 py-1 text-[11px] font-semibold ${
+                  filterFlag === id
+                    ? 'bg-zinc-900 text-white dark:bg-white dark:text-zinc-900'
+                    : 'bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200'
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
           <p className={`mt-2 text-[12px] ${hub.muted}`}>
             {loading ? 'Carregando…' : `${filtered.length} de ${employees.length}`}
           </p>
@@ -341,6 +497,7 @@ export function EmployeesPanel({
               filtered.map((e) => {
                 const count = incidentsForEmployee(incidents, e).length;
                 const active = selectedId === e.id;
+                const chips = personFlagChips(e).slice(0, 3);
                 return (
                   <button
                     key={e.id}
@@ -360,8 +517,18 @@ export function EmployeesPanel({
                         }`}
                       >
                         {e.jobTitle?.trim() ||
+                          e.professionalRole ||
                           (e.source === 'workshop_technician' ? 'Técnico' : 'Usuário do sistema')}
                       </span>
+                      {chips.length > 0 ? (
+                        <span
+                          className={`mt-1 block truncate text-[10px] ${
+                            active ? 'text-white/60 dark:text-zinc-500' : 'text-zinc-400'
+                          }`}
+                        >
+                          {chips.join(' · ')}
+                        </span>
+                      ) : null}
                     </span>
                     <span
                       className={`ml-2 shrink-0 rounded-md px-2 py-0.5 text-[11px] font-bold tabular-nums ${
@@ -403,6 +570,21 @@ export function EmployeesPanel({
                         ? 'Técnico cadastrado (sem vínculo de login)'
                         : 'Usuário do sistema')}
                 </p>
+                <div className="mt-2 flex flex-wrap gap-1.5">
+                  {personFlagChips(selected).map((chip) => (
+                    <span
+                      key={chip}
+                      className="rounded-md bg-zinc-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200"
+                    >
+                      {chip}
+                    </span>
+                  ))}
+                </div>
+                {selected.incompleteReasons && selected.incompleteReasons.length > 0 ? (
+                  <p className={`mt-2 text-[12px] ${hub.muted}`}>
+                    Cadastro incompleto: {selected.incompleteReasons.join(', ')}
+                  </p>
+                ) : null}
                 <p className={`mt-1 text-[11px] font-mono ${hub.muted}`}>
                   ID {selected.id}
                   {selected.workshopTechnicianId ? ` · WT ${selected.workshopTechnicianId.slice(0, 8)}` : ''}

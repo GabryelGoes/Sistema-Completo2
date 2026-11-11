@@ -38,6 +38,14 @@ import {
   effectivePatioApproveBudgetItems,
 } from '../services/apiService';
 import { useRegisterModalOpen } from './ui/ModalLayerContext';
+import {
+  PROFESSIONAL_ROLE_CODES,
+  PROFESSIONAL_ROLE_LABELS,
+  SECTOR_CODES,
+  SECTOR_LABELS,
+  suggestedProfileForRole,
+  type ProfessionalRoleCode,
+} from '../services/qualityRadar/professionalRoles';
 
 /** Switch reutilizável para permissões */
 function PermSwitch({
@@ -266,9 +274,16 @@ export const SystemUsersModal: React.FC<SystemUsersModalProps> = ({ isOpen, onCl
   const [formUsername, setFormUsername] = useState('');
   const [formPassword, setFormPassword] = useState('');
   const [formDisplayName, setFormDisplayName] = useState('');
+  const [formFullName, setFormFullName] = useState('');
   const [formJobTitle, setFormJobTitle] = useState('');
+  const [formProfessionalRole, setFormProfessionalRole] = useState<ProfessionalRoleCode | ''>('');
+  const [formSector, setFormSector] = useState<string>('');
+  const [formAdditionalRoles, setFormAdditionalRoles] = useState<string[]>([]);
   const [formIsTechnician, setFormIsTechnician] = useState(false);
+  const [formIsManagerial, setFormIsManagerial] = useState(false);
+  const [formIsActive, setFormIsActive] = useState(true);
   const [formPermissions, setFormPermissions] = useState<SystemUserPermissions>({ ...DEFAULT_PERMISSIONS });
+  const [applySuggestedOnSave, setApplySuggestedOnSave] = useState(false);
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [togglingApproveUserId, setTogglingApproveUserId] = useState<string | null>(null);
@@ -317,9 +332,16 @@ export const SystemUsersModal: React.FC<SystemUsersModalProps> = ({ isOpen, onCl
     setFormUsername('');
     setFormPassword('');
     setFormDisplayName('');
+    setFormFullName('');
     setFormJobTitle('');
+    setFormProfessionalRole('');
+    setFormSector('');
+    setFormAdditionalRoles([]);
     setFormIsTechnician(false);
+    setFormIsManagerial(false);
+    setFormIsActive(true);
     setFormPermissions({ ...DEFAULT_PERMISSIONS });
+    setApplySuggestedOnSave(false);
     setError(null);
   };
 
@@ -328,15 +350,52 @@ export const SystemUsersModal: React.FC<SystemUsersModalProps> = ({ isOpen, onCl
     setFormUsername(u.username);
     setFormPassword('');
     setFormDisplayName(u.display_name || '');
+    setFormFullName(u.full_name || '');
     setFormJobTitle(u.job_title ?? '');
+    const role = (u.professional_role || '') as ProfessionalRoleCode | '';
+    setFormProfessionalRole(
+      role && (PROFESSIONAL_ROLE_CODES as readonly string[]).includes(role) ? role : ''
+    );
+    setFormSector(u.sector || '');
+    setFormAdditionalRoles(u.additional_roles || []);
     setFormIsTechnician(u.is_technician ?? false);
+    setFormIsManagerial(u.is_managerial ?? false);
+    setFormIsActive(u.is_active !== false);
     setFormPermissions({ ...DEFAULT_PERMISSIONS, ...u.permissions });
+    setApplySuggestedOnSave(false);
     setError(null);
   };
 
   const cancelEdit = () => {
     setEditingId(null);
+    setApplySuggestedOnSave(false);
     setError(null);
+  };
+
+  const handleProfessionalRoleChange = (next: ProfessionalRoleCode | '') => {
+    setFormProfessionalRole(next);
+    setApplySuggestedOnSave(false);
+  };
+
+  const applySuggestedProfile = () => {
+    const profile = suggestedProfileForRole(formProfessionalRole);
+    if (!profile) {
+      setError('Não há perfil sugerido para esta função.');
+      return;
+    }
+    const ok = window.confirm(
+      `Aplicar o perfil «${profile.label}»?\n\n${profile.description}\n\nIsso altera as permissões deste formulário. Função profissional sozinha NÃO concede acesso.`
+    );
+    if (!ok) return;
+    setFormPermissions((prev) => ({ ...prev, ...profile.permissions }));
+    setApplySuggestedOnSave(true);
+    setError(null);
+  };
+
+  const toggleAdditionalRole = (code: string) => {
+    setFormAdditionalRoles((prev) =>
+      prev.includes(code) ? prev.filter((c) => c !== code) : [...prev, code]
+    );
   };
 
   const setPerm = (key: keyof SystemUserPermissions, value: boolean) => {
@@ -364,18 +423,32 @@ export const SystemUsersModal: React.FC<SystemUsersModalProps> = ({ isOpen, onCl
           username: formUsername.trim(),
           password: formPassword,
           displayName: formDisplayName.trim() || undefined,
+          fullName: formFullName.trim() || null,
           permissions: formPermissions,
           isTechnician: formIsTechnician,
+          isManagerial: formIsManagerial,
+          isActive: formIsActive,
           jobTitle: formJobTitle.trim() || null,
+          professionalRole: formProfessionalRole || '',
+          sector: formSector || '',
+          additionalRoles: formAdditionalRoles,
+          applySuggestedPermissions: applySuggestedOnSave,
         });
         setUsers((prev) => [...prev, created]);
       } else {
         const updated = await updateSystemUser(editingId, adminPassword, {
           password: formPassword.length >= 4 ? formPassword : undefined,
           displayName: formDisplayName.trim() || undefined,
+          fullName: formFullName.trim() || null,
           permissions: formPermissions,
           isTechnician: formIsTechnician,
+          isManagerial: formIsManagerial,
+          isActive: formIsActive,
           jobTitle: formJobTitle.trim() || null,
+          professionalRole: formProfessionalRole || '',
+          sector: formSector || '',
+          additionalRoles: formAdditionalRoles,
+          applySuggestedPermissions: applySuggestedOnSave,
         });
         setUsers((prev) => prev.map((u) => (u.id === updated.id ? updated : u)));
       }
@@ -397,8 +470,14 @@ export const SystemUsersModal: React.FC<SystemUsersModalProps> = ({ isOpen, onCl
       const updated = await updateSystemUser(u.id, adminPassword, {
         permissions: nextPerms,
         displayName: u.display_name?.trim() || undefined,
+        fullName: u.full_name ?? null,
         isTechnician: u.is_technician ?? false,
+        isManagerial: u.is_managerial ?? false,
+        isActive: u.is_active !== false,
         jobTitle: u.job_title ?? null,
+        professionalRole: u.professional_role ?? '',
+        sector: u.sector ?? '',
+        additionalRoles: u.additional_roles ?? [],
       });
       setUsers((prev) => prev.map((x) => (x.id === updated.id ? updated : x)));
     } catch (err) {
@@ -440,7 +519,7 @@ export const SystemUsersModal: React.FC<SystemUsersModalProps> = ({ isOpen, onCl
             <IosModalHeader
               icon={<img src="/icons/usuarios-ios.png" alt="" className="h-full w-full min-h-0 object-cover" />}
               title="Usuários do sistema"
-              subtitle="Logins da oficina, permissões por módulo e aprovação de orçamentos"
+              subtitle="Identidade, função profissional, setor e permissões — cargo não concede acesso"
               gradientClass="from-violet-500 to-indigo-700"
             />
           </div>
@@ -533,7 +612,17 @@ export const SystemUsersModal: React.FC<SystemUsersModalProps> = ({ isOpen, onCl
                     </div>
                   </div>
                   <div>
-                    <label className="mb-1 block text-xs font-medium text-zinc-500 dark:text-zinc-400">Nome de exibição (opcional)</label>
+                    <label className="mb-1 block text-xs font-medium text-zinc-500 dark:text-zinc-400">Nome completo</label>
+                    <input
+                      type="text"
+                      value={formFullName}
+                      onChange={(e) => setFormFullName(e.target.value)}
+                      placeholder="João da Silva Santos"
+                      className="w-full rounded-xl border border-zinc-200/90 bg-white px-3 py-2.5 text-[15px] text-zinc-900 shadow-sm focus:border-[#007AFF]/50 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/25 dark:border-white/[0.08] dark:bg-zinc-950/50 dark:text-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1 block text-xs font-medium text-zinc-500 dark:text-zinc-400">Nome de exibição</label>
                     <input
                       type="text"
                       value={formDisplayName}
@@ -543,21 +632,126 @@ export const SystemUsersModal: React.FC<SystemUsersModalProps> = ({ isOpen, onCl
                     />
                   </div>
                   <div>
-                    <label className="mb-1 block text-xs font-medium text-zinc-500 dark:text-zinc-400">Cargo (opcional)</label>
+                    <label className="mb-1 block text-xs font-medium text-zinc-500 dark:text-zinc-400">
+                      Cargo textual (livre, não concede acesso)
+                    </label>
                     <input
                       type="text"
                       value={formJobTitle}
                       onChange={(e) => setFormJobTitle(e.target.value)}
-                      placeholder="Mecânico"
+                      placeholder="Ex.: Mecânico sênior"
                       className="w-full rounded-xl border border-zinc-200/90 bg-white px-3 py-2.5 text-[15px] text-zinc-900 shadow-sm focus:border-[#007AFF]/50 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/25 dark:border-white/[0.08] dark:bg-zinc-950/50 dark:text-white"
                     />
                   </div>
-                  <div className="border-t border-zinc-200/70 pt-3 dark:border-white/[0.06]">
+                </section>
+
+                <section className={`${iosModalInsetCard} space-y-4 p-4 sm:p-5`}>
+                  <h3 className="flex items-center gap-2 text-[13px] font-bold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                    <UsersRound className="h-4 w-4 text-emerald-600 dark:text-emerald-400" strokeWidth={2} />
+                    Função profissional e setor
+                  </h3>
+                  <p className="text-[12px] leading-relaxed text-zinc-500 dark:text-zinc-400">
+                    Função descreve o que a pessoa faz. Permissões são configuradas à parte — trocar a função
+                    <strong className="font-semibold text-zinc-700 dark:text-zinc-200"> não</strong> altera privilégios
+                    sem confirmação explícita.
+                  </p>
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div>
+                      <label className="mb-1 block text-xs font-medium text-zinc-500 dark:text-zinc-400">Função principal</label>
+                      <select
+                        value={formProfessionalRole}
+                        onChange={(e) =>
+                          handleProfessionalRoleChange(
+                            (e.target.value || '') as ProfessionalRoleCode | ''
+                          )
+                        }
+                        className="w-full rounded-xl border border-zinc-200/90 bg-white px-3 py-2.5 text-[15px] text-zinc-900 shadow-sm focus:border-[#007AFF]/50 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/25 dark:border-white/[0.08] dark:bg-zinc-950/50 dark:text-white"
+                      >
+                        <option value="">— Não definida —</option>
+                        {PROFESSIONAL_ROLE_CODES.map((code) => (
+                          <option key={code} value={code}>
+                            {PROFESSIONAL_ROLE_LABELS[code]}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-xs font-medium text-zinc-500 dark:text-zinc-400">Setor</label>
+                      <select
+                        value={formSector}
+                        onChange={(e) => setFormSector(e.target.value)}
+                        className="w-full rounded-xl border border-zinc-200/90 bg-white px-3 py-2.5 text-[15px] text-zinc-900 shadow-sm focus:border-[#007AFF]/50 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/25 dark:border-white/[0.08] dark:bg-zinc-950/50 dark:text-white"
+                      >
+                        <option value="">— Não definido —</option>
+                        {SECTOR_CODES.map((code) => (
+                          <option key={code} value={code}>
+                            {SECTOR_LABELS[code]}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                  <div>
+                    <p className="mb-2 text-xs font-medium text-zinc-500 dark:text-zinc-400">
+                      Funções adicionais (pode exercer mais de uma)
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {PROFESSIONAL_ROLE_CODES.filter((c) => c !== formProfessionalRole).map((code) => {
+                        const on = formAdditionalRoles.includes(code);
+                        return (
+                          <button
+                            key={code}
+                            type="button"
+                            onClick={() => toggleAdditionalRole(code)}
+                            className={`rounded-lg px-2.5 py-1 text-[12px] font-medium transition ${
+                              on
+                                ? 'bg-emerald-500/20 text-emerald-800 dark:text-emerald-200'
+                                : 'bg-zinc-100 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300'
+                            }`}
+                          >
+                            {PROFESSIONAL_ROLE_LABELS[code]}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  {formProfessionalRole && suggestedProfileForRole(formProfessionalRole) ? (
+                    <div className="rounded-xl border border-zinc-200/80 bg-zinc-50/80 p-3 dark:border-zinc-700 dark:bg-zinc-900/40">
+                      <p className="text-[12px] text-zinc-600 dark:text-zinc-400">
+                        Há um perfil de permissões sugerido para esta função. Só será aplicado se você confirmar.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={applySuggestedProfile}
+                        className="mt-2 rounded-lg bg-zinc-900 px-3 py-1.5 text-[12px] font-semibold text-white dark:bg-white dark:text-zinc-900"
+                      >
+                        Revisar e aplicar perfil sugerido
+                      </button>
+                      {applySuggestedOnSave ? (
+                        <p className="mt-2 text-[11px] font-medium text-emerald-700 dark:text-emerald-300">
+                          Perfil sugerido carregado no formulário — revise os interruptores abaixo antes de salvar.
+                        </p>
+                      ) : null}
+                    </div>
+                  ) : null}
+                  <div className="space-y-1 border-t border-zinc-200/70 pt-3 dark:border-white/[0.06]">
                     <PermSwitch
-                      label="Técnico da oficina"
-                      description="Aparece como mecânico nos cards do Pátio/Laboratório"
+                      label="Executa serviços técnicos"
+                      description="Aparece como técnico nos cards do Pátio/Laboratório e no ciclo do Radar"
                       checked={formIsTechnician}
                       onChange={setFormIsTechnician}
+                    />
+                    <PermSwitch
+                      label="Responsabilidade gerencial"
+                      description="Marca papel de liderança; NÃO libera Radar nem administração sozinho"
+                      checked={formIsManagerial}
+                      onChange={setFormIsManagerial}
+                    />
+                    <PermSwitch
+                      label="Cadastro ativo"
+                      description="Inativo permanece no histórico e some das listas operacionais"
+                      checked={formIsActive}
+                      onChange={setFormIsActive}
                     />
                   </div>
                 </section>
@@ -769,14 +963,36 @@ export const SystemUsersModal: React.FC<SystemUsersModalProps> = ({ isOpen, onCl
                             </p>
                           )}
                           <div className="mt-1.5 flex flex-wrap gap-1.5">
+                            {u.is_active === false ? (
+                              <span className="rounded-md bg-zinc-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-300">
+                                Inativo
+                              </span>
+                            ) : null}
                             {u.permissions?.full_access ? (
                               <span className="rounded-md bg-amber-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-800 dark:text-amber-200">
                                 Acesso total
                               </span>
                             ) : null}
+                            {u.professional_role ? (
+                              <span className="rounded-md bg-sky-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-sky-800 dark:text-sky-200">
+                                {PROFESSIONAL_ROLE_LABELS[
+                                  u.professional_role as ProfessionalRoleCode
+                                ] || u.professional_role}
+                              </span>
+                            ) : null}
+                            {u.sector ? (
+                              <span className="rounded-md bg-indigo-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-indigo-800 dark:text-indigo-200">
+                                {SECTOR_LABELS[u.sector as keyof typeof SECTOR_LABELS] || u.sector}
+                              </span>
+                            ) : null}
                             {u.is_technician ? (
                               <span className="rounded-md bg-emerald-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">
                                 Técnico
+                              </span>
+                            ) : null}
+                            {u.is_managerial ? (
+                              <span className="rounded-md bg-violet-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-violet-800 dark:text-violet-200">
+                                Gerencial
                               </span>
                             ) : null}
                           </div>

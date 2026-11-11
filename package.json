@@ -13,6 +13,7 @@
     "lint": "tsc --noEmit",
     "test:rda-foundation": "tsx scripts/rdaIntelligenceFoundation.selftest.ts",
     "test:quality-radar-hub": "tsx scripts/qualityRadarHub.selftest.ts",
+    "test:quality-radar-people": "tsx scripts/qualityRadarPeopleIdentity.selftest.ts",
     "test:quality-radar-career": "tsx scripts/qualityRadarCareer.selftest.ts",
     "test:quality-radar-phase3": "tsx scripts/qualityRadarPhase3.selftest.ts",
     "test:quality-radar-phase4": "tsx scripts/qualityRadarPhase4.selftest.ts",

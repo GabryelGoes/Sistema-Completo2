@@ -4,13 +4,19 @@
  */
 import type { Express, Request, Response } from "express";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import {
-  buildUnifiedPeople,
-  isFaultAttribution,
-  suggestPersonLinkPairs,
-  type ConfirmedPersonLink,
-} from "./identity.js";
+import { isFaultAttribution } from "./identity.js";
 import { canAccessQualityRadar } from "./access.js";
+import {
+  diagnosticsFromLoad,
+  loadWorkshopPeople,
+} from "./loadWorkshopPeople.js";
+import {
+  PROFESSIONAL_ROLE_CODES,
+  PROFESSIONAL_ROLE_LABELS,
+  SECTOR_CODES,
+  SECTOR_LABELS,
+  SUGGESTED_PERMISSION_PROFILES,
+} from "./professionalRoles.js";
 
 type SessionPayload = { r: "admin" | "user"; u?: string; n?: string };
 
@@ -94,80 +100,78 @@ export function registerQualityRadarPhase1Routes(app: Express, deps: Deps): void
         return res.status(500).json({ error: "Servidor não configurado." });
       }
 
-      const [{ data: techs }, { data: users }, linksRes, proposalsRes] = await Promise.all([
-        supabaseAdmin
-          .from("workshop_technicians")
-          .select("id, name")
-          .eq("workshop_id", WORKSHOP_ID)
-          .order("sort_order", { ascending: true }),
-        supabaseAdmin
-          .from("workshop_system_users")
-          .select("id, display_name, username, job_title, is_technician")
-          .eq("workshop_id", WORKSHOP_ID)
-          .order("display_name", { ascending: true }),
-        supabaseAdmin
-          .from("workshop_quality_person_links")
-          .select("workshop_technician_id, system_user_id")
-          .eq("workshop_id", WORKSHOP_ID),
-        supabaseAdmin
-          .from("workshop_quality_person_link_proposals")
-          .select("*")
-          .eq("workshop_id", WORKSHOP_ID)
-          .eq("status", "pending")
-          .order("created_at", { ascending: false }),
-      ]);
+      const loaded = await loadWorkshopPeople(supabaseAdmin, WORKSHOP_ID);
+      if (!loaded.ok) {
+        return res.status(500).json({
+          error: loaded.fatalError || "Falha ao carregar funcionários.",
+          queryErrors: loaded.queryErrors,
+        });
+      }
 
-      const linksMissing =
-        linksRes.error && /does not exist|relation/i.test(linksRes.error.message);
-      const links: ConfirmedPersonLink[] = linksMissing
-        ? []
-        : (linksRes.data ?? []).map((r) => ({
-            workshopTechnicianId: String(
-              (r as { workshop_technician_id: string }).workshop_technician_id
-            ),
-            systemUserId: String((r as { system_user_id: string }).system_user_id),
-          }));
-
-      const people = buildUnifiedPeople({
-        workshopTechnicians: (techs ?? []).map((t) => ({
-          id: String((t as { id: string }).id),
-          name: String((t as { name: string }).name || ""),
-        })),
-        systemUsers: (users ?? []).map((u) => ({
-          id: String((u as { id: string }).id),
-          display_name: (u as { display_name?: string }).display_name,
-          username: (u as { username?: string }).username,
-          job_title: (u as { job_title?: string }).job_title,
-        })),
-        links,
-      });
-
-      const suggestions = suggestPersonLinkPairs(people);
-      const pendingProposals = proposalsRes.error
-        ? []
-        : (proposalsRes.data ?? []).map((p) => {
-            const row = p as Record<string, unknown>;
-            return {
-              id: row.id,
-              workshopTechnicianId: row.workshop_technician_id,
-              systemUserId: row.system_user_id,
-              normalizedNameHint: row.normalized_name_hint ?? "",
-              status: row.status,
-              proposedReason: row.proposed_reason ?? "",
-              proposedByName: row.proposed_by_name ?? "",
-              createdAt: row.created_at,
-            };
-          });
+      const includeDiagnostics =
+        req.query.diagnostics === "1" || req.query.diagnostics === "true";
 
       return res.json({
-        people,
-        suggestions,
-        pendingProposals,
-        linksMissing: !!linksMissing,
+        people: loaded.people,
+        suggestions: loaded.suggestions,
+        pendingProposals: loaded.pendingProposals,
+        linksMissing: loaded.linksMissing,
+        queryErrors: loaded.queryErrors,
+        ...(includeDiagnostics
+          ? { diagnostics: diagnosticsFromLoad(loaded) }
+          : {}),
       });
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Erro";
       console.error("[API] GET quality-radar/people:", err);
+      return res.status(500).json({ error: message });
+    }
+  });
+
+  /** Diagnóstico administrativo — origens, órfãos, duplicatas; sem senhas. */
+  app.get("/api/quality-radar/people/diagnostics", async (req, res) => {
+    try {
+      if (!(await requestCanAccessQualityRadar(req))) {
+        return res.status(403).json({ error: "Acesso negado." });
+      }
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({ error: "Servidor não configurado." });
+      }
+      const loaded = await loadWorkshopPeople(supabaseAdmin, WORKSHOP_ID);
+      if (!loaded.ok) {
+        return res.status(500).json({
+          error: loaded.fatalError || "Falha no diagnóstico.",
+          queryErrors: loaded.queryErrors,
+        });
+      }
+      return res.json({
+        diagnostics: diagnosticsFromLoad(loaded),
+        people: loaded.people,
+        suggestions: loaded.suggestions,
+        pendingProposals: loaded.pendingProposals,
+        linksMissing: loaded.linksMissing,
+        catalog: {
+          professionalRoles: PROFESSIONAL_ROLE_CODES.map((code) => ({
+            code,
+            label: PROFESSIONAL_ROLE_LABELS[code],
+          })),
+          sectors: SECTOR_CODES.map((code) => ({
+            code,
+            label: SECTOR_LABELS[code],
+          })),
+          suggestedPermissionProfiles: SUGGESTED_PERMISSION_PROFILES.map((p) => ({
+            id: p.id,
+            label: p.label,
+            description: p.description,
+            forRoles: p.forRoles,
+            // Intencional: só chaves true — sem auto-aplicação
+            permissionKeys: Object.keys(p.permissions).filter((k) => p.permissions[k]),
+          })),
+        },
+      });
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Erro";
+      console.error("[API] GET quality-radar/people/diagnostics:", err);
       return res.status(500).json({ error: message });
     }
   });

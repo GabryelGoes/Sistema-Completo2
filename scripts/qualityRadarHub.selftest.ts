@@ -99,6 +99,20 @@ console.log('\n4) Identidade — link confirmado une');
   assert(people[0].source === 'linked', 'source linked');
   assert(people[0].workshopTechnicianId === 'wt1' && people[0].systemUserId === 'su1', 'ambos IDs');
   assert(people[0].possibleDuplicateIds.length === 0, 'sem duplicata após link');
+  assert(people[0].hasLogin === true && people[0].hasWorkshopTechnician === true, 'flags link');
+}
+
+console.log('\n4b) SU não técnico também entra na unificação');
+{
+  const people = buildUnifiedPeople({
+    workshopTechnicians: [],
+    systemUsers: [
+      { id: 'su1', display_name: 'Admin Office', is_technician: false, professional_role: 'administrativo' },
+    ],
+    links: [],
+  });
+  assert(people.length === 1, 'administrativo listado');
+  assert(people[0].isTechnicianFlag === false, 'não técnico');
 }
 
 console.log('\n5) ACL Radar');
