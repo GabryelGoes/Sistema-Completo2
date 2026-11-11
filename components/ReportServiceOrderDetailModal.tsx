@@ -7,6 +7,7 @@ import { StorageThumbImg } from './ui/StorageThumbImg';
 import { markdownComponentsApp } from './ui/markdownUi';
 import { uiReadBody, uiSectionTitleRow } from './ui/appTypography';
 import { BudgetHubViewerModal } from './BudgetHubViewerModal';
+import { PdfViewerModal } from './PdfViewerModal';
 import {
   budgetChronologicalNumber,
   budgetLastActivityMs,
@@ -350,20 +351,7 @@ export const ReportServiceOrderDetailModal: React.FC<ReportServiceOrderDetailMod
       </ModalPortal>
 
       {previewPdf ? (
-        <ModalPortal>
-          <div className="fixed inset-0 z-[290] flex flex-col bg-black/80 p-4">
-            <div className="mb-2 flex justify-end">
-              <button
-                type="button"
-                onClick={() => setPreviewPdf(null)}
-                className="rounded-xl bg-white/10 px-4 py-2 text-sm font-semibold text-white"
-              >
-                Fechar PDF
-              </button>
-            </div>
-            <iframe title="PDF" src={previewPdf} className="min-h-0 flex-1 rounded-xl bg-white" />
-          </div>
-        </ModalPortal>
+        <PdfViewerModal src={previewPdf} onClose={() => setPreviewPdf(null)} />
       ) : null}
 
       {order && budgetViewerId ? (

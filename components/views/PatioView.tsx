@@ -1826,8 +1826,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
     }
   }, [cardDetails?.attachments, vehicleModalPhotoVisibleCount]);
 
-  // Visualização de PDF
-  const [previewPdf, setPreviewPdf] = useState<string | null>(null);
+  // Visualização de PDF (in-app, não abre aba do navegador)
+  const [previewPdf, setPreviewPdf] = useState<{ src: string; title?: string } | null>(null);
 
   // Orçamento (Budget)
   const [isBudgetOpen, setIsBudgetOpen] = useState(false);
@@ -6657,7 +6657,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
         else if (oldIdx === prev.currentIndex) newIndex = Math.min(prev.currentIndex, newItems.length - 1);
         return { items: newItems, currentIndex: newIndex };
       });
-      setPreviewPdf((prev) => (prev === att.url ? null : prev));
+      setPreviewPdf((prev) => (prev?.src === att.url ? null : prev));
     } catch (err: any) {
       alert(err?.message ?? "Erro ao excluir anexo.");
     } finally {
@@ -8983,12 +8983,16 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                        const showImgThumb = !isPdf && isImage;
                                        const cardClass = `group block w-full overflow-hidden ${iosModalInsetCard} transition-all hover:border-[#007AFF]/35`;
                                        return isPdf ? (
-                                         <a
+                                         <button
                                            key={att.id}
-                                           href={att.url}
-                                           target="_blank"
-                                           rel="noopener noreferrer"
-                                           className={cardClass}
+                                           type="button"
+                                           onClick={() =>
+                                             setPreviewPdf({
+                                               src: att.url,
+                                               title: attachmentDisplayName(att.name),
+                                             })
+                                           }
+                                           className={`${cardClass} text-left`}
                                          >
                                            <div className="relative flex h-24 items-center justify-center overflow-hidden bg-zinc-100/80 dark:bg-white/[0.04]">
                                               <div className="flex flex-col items-center justify-center gap-1">
@@ -9002,7 +9006,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                            <div className="border-t border-zinc-200/60 p-2 dark:border-white/[0.06] text-left">
                                               <p className="truncate text-xs font-medium text-zinc-700 dark:text-zinc-200">{attachmentDisplayName(att.name)}</p>
                                            </div>
-                                         </a>
+                                         </button>
                                        ) : (
                                         <a
                                           key={att.id}
@@ -12022,8 +12026,22 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                                <>
                                                  <button
                                                    type="button"
-                                                   onClick={() => window.open(att.url, '_blank')}
+                                                   onClick={() => {
+                                                     if (isPdfAttachment(att.mimeType, att.url)) {
+                                                       setPreviewPdf({
+                                                         src: att.url,
+                                                         title: attachmentDisplayName(att.name),
+                                                       });
+                                                       return;
+                                                     }
+                                                     window.open(att.url, '_blank', 'noopener,noreferrer');
+                                                   }}
                                                    className="min-w-0 truncate text-left hover:text-[#007AFF]"
+                                                   title={
+                                                     isPdfAttachment(att.mimeType, att.url)
+                                                       ? 'Abrir no visualizador'
+                                                       : 'Abrir arquivo'
+                                                   }
                                                  >
                                                    {attachmentDisplayName(att.name)}
                                                  </button>
@@ -13169,9 +13187,13 @@ export const PatioView: React.FC<PatioViewProps> = ({
         />
       )}
 
-      {/* PDF VIEWER MODAL */}
+      {/* PDF VIEWER MODAL — in-app, acima do modal do veículo */}
       {previewPdf && patioPortalsVisible && (
-        <PdfViewerModal src={previewPdf} onClose={() => setPreviewPdf(null)} />
+        <PdfViewerModal
+          src={previewPdf.src}
+          title={previewPdf.title}
+          onClose={() => setPreviewPdf(null)}
+        />
       )}
 
       {/* MODAL VISUALIZAR ORÇAMENTO — tema claro + selo de verificação */}
