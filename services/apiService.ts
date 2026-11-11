@@ -6094,6 +6094,8 @@ export interface WorkshopSettings {
    * null = ainda não sincronizado no servidor.
    */
   labelTemplates?: Record<string, unknown> | null;
+  /** Nível de correção do botão Melhorar (diagnóstico etc.): light | balanced | strong. */
+  aiImproveTextLevel?: "light" | "balanced" | "strong";
 }
 
 export async function getWorkshopSettings(): Promise<WorkshopSettings> {
@@ -6123,6 +6125,7 @@ export async function updateWorkshopSettings(
       allowPreApproval?: boolean;
     }[];
     labelTemplates?: Record<string, unknown> | null;
+    aiImproveTextLevel?: "light" | "balanced" | "strong";
   }
 ): Promise<WorkshopSettings> {
   const response = await fetch(`${API_BASE}/workshop-settings`, {

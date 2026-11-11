@@ -77,6 +77,7 @@ import {
 import { timeKindsToAutoPauseOnStageChange } from "./services/rdaIntelligence/workSessions/stageRules.js";
 import { recordServiceOrderStageEntry } from "./services/rdaIntelligence/patioIntelligence/recordStageEntry.js";
 import { assertHomologationSafeOrThrow } from "./utils/homologationGuard.js";
+import { normalizeAiImproveTextLevel } from "./utils/aiImproveTextLevel.js";
 import {
   insertIncidentRevision,
   registerQualityRadarPhase1Routes,
@@ -3151,6 +3152,7 @@ export function createApiApp() {
         labProductKinds: parseLabProductKindsValue(map.lab_product_kinds),
         labQuickServices: parseLabQuickServicesValue(map.lab_quick_services),
         labelTemplates: parseLabelTemplatesValue(map.label_templates),
+        aiImproveTextLevel: normalizeAiImproveTextLevel(map.ai_improve_text_level),
       });
     } catch (err: any) {
       console.error("[API] Erro em GET /api/workshop-settings:", err);
@@ -3334,6 +3336,7 @@ export function createApiApp() {
         labProductKinds,
         labQuickServices,
         labelTemplates,
+        aiImproveTextLevel,
       } = req.body || {};
 
       // Chaves sensíveis (senha de gerência, PIN do pátio, senha de exclusão, acessos e perfil
@@ -3418,6 +3421,13 @@ export function createApiApp() {
           updated_at: new Date().toISOString(),
         });
       }
+      if (aiImproveTextLevel !== undefined && aiImproveTextLevel !== null) {
+        updates.push({
+          key: "ai_improve_text_level",
+          value: normalizeAiImproveTextLevel(aiImproveTextLevel),
+          updated_at: new Date().toISOString(),
+        });
+      }
       if (updates.length === 0) {
         return res.status(400).json({ error: "Nada para atualizar." });
       }
@@ -3449,6 +3459,7 @@ export function createApiApp() {
           "lab_product_kinds",
           "lab_quick_services",
           "label_templates",
+          "ai_improve_text_level",
         ]);
       const map = (data || []).reduce((acc: Record<string, string>, r: { key: string; value: string | null }) => {
         acc[r.key] = r.value ?? "";
@@ -3477,6 +3488,7 @@ export function createApiApp() {
         labProductKinds: parseLabProductKindsValue(map.lab_product_kinds),
         labQuickServices: parseLabQuickServicesValue(map.lab_quick_services),
         labelTemplates: parseLabelTemplatesValue(map.label_templates),
+        aiImproveTextLevel: normalizeAiImproveTextLevel(map.ai_improve_text_level),
       });
     } catch (err: any) {
       console.error("[API] Erro em PUT /api/workshop-settings:", err);
@@ -4757,7 +4769,8 @@ export function createApiApp() {
 
   /**
    * Melhora texto curto com OpenAI (ex.: diagnóstico de orçamento).
-   * Body: { text: string, kind?: "budget_diagnosis" | "general" }
+   * Body: { text: string, kind?: "budget_diagnosis" | "general", level?: "light"|"balanced"|"strong" }
+   * Sem level no body, usa workshop_settings.ai_improve_text_level.
    */
   app.post("/api/ai/improve-text", async (req, res) => {
     try {
@@ -4774,8 +4787,23 @@ export function createApiApp() {
       const kindRaw = typeof req.body?.kind === "string" ? req.body.kind.trim() : "";
       const kind =
         kindRaw === "budget_diagnosis" || kindRaw === "general" ? kindRaw : "general";
-      const result = await improveTextWithOpenAi({ text, kind });
-      return res.json({ text: result.text, model: result.model });
+
+      let levelFromSettings: string | undefined;
+      if (supabaseAdmin && WORKSHOP_ID) {
+        const { data: levelRow } = await supabaseAdmin
+          .from("workshop_settings")
+          .select("value")
+          .eq("workshop_id", WORKSHOP_ID)
+          .eq("key", "ai_improve_text_level")
+          .maybeSingle();
+        if (typeof levelRow?.value === "string") levelFromSettings = levelRow.value;
+      }
+      const level = normalizeAiImproveTextLevel(
+        req.body?.level != null ? req.body.level : levelFromSettings
+      );
+
+      const result = await improveTextWithOpenAi({ text, kind, level });
+      return res.json({ text: result.text, model: result.model, level: result.level });
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : "Erro ao melhorar texto.";
       const status =

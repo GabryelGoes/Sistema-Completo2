@@ -3,26 +3,23 @@
  * Chave só no servidor: OPENAI_API_KEY.
  */
 
+import {
+  aiImproveMaxTokens,
+  aiImproveTemperature,
+  buildAiImproveSystemPrompt,
+  normalizeAiImproveTextLevel,
+  type AiImproveTextKind,
+  type AiImproveTextLevel,
+} from "../utils/aiImproveTextLevel.js";
+
 const OPENAI_CHAT_URL = "https://api.openai.com/v1/chat/completions";
 
-export type AiImproveTextKind = "budget_diagnosis" | "general";
-
-const KIND_PROMPTS: Record<AiImproveTextKind, string> = {
-  budget_diagnosis: `Você ajuda mecânicos a deixar o diagnóstico de um orçamento mais claro e fácil de entender.
-Reescreva o texto em português do Brasil: corrija erros, organize a ideia e deixe fluindo bem.
-Use tom natural de oficina — claro e direto, sem linguagem corporativa ou excessivamente formal.
-Preserve o sentido técnico e os fatos; não invente sintomas, peças ou conclusões.
-Se o texto já estiver bom, só faça ajustes leves.
-Responda APENAS com o texto melhorado, sem aspas, títulos ou explicações.`,
-  general: `Melhore o texto abaixo em português do Brasil para ficar mais claro e fácil de entender.
-Tom natural e direto, sem exagerar no formalismo.
-Preserve o sentido; não invente informações.
-Responda APENAS com o texto melhorado, sem aspas nem explicações.`,
-};
+export type { AiImproveTextKind, AiImproveTextLevel };
 
 export type AiImproveTextResult = {
   text: string;
   model: string;
+  level: AiImproveTextLevel;
 };
 
 function resolveModel(): string {
@@ -40,6 +37,7 @@ export function isAiImproveTextConfigured(): boolean {
 export async function improveTextWithOpenAi(params: {
   text: string;
   kind?: AiImproveTextKind;
+  level?: AiImproveTextLevel | string | null;
 }): Promise<AiImproveTextResult> {
   const apiKey = process.env.OPENAI_API_KEY?.trim();
   if (!apiKey) {
@@ -56,7 +54,9 @@ export async function improveTextWithOpenAi(params: {
 
   const kind: AiImproveTextKind =
     params.kind === "budget_diagnosis" ? "budget_diagnosis" : "general";
+  const level = normalizeAiImproveTextLevel(params.level);
   const model = resolveModel();
+  const system = buildAiImproveSystemPrompt(kind, level);
 
   let response: Response;
   try {
@@ -68,11 +68,17 @@ export async function improveTextWithOpenAi(params: {
       },
       body: JSON.stringify({
         model,
-        temperature: 0.45,
-        max_tokens: 1500,
+        temperature: aiImproveTemperature(level),
+        max_tokens: aiImproveMaxTokens(level),
         messages: [
-          { role: "system", content: KIND_PROMPTS[kind] },
-          { role: "user", content: original },
+          { role: "system", content: system },
+          {
+            role: "user",
+            content:
+              kind === "budget_diagnosis"
+                ? `Melhore este diagnóstico de orçamento (nível ${level}):\n\n${original}`
+                : `Melhore este texto (nível ${level}):\n\n${original}`,
+          },
         ],
       }),
     });
@@ -96,5 +102,5 @@ export async function improveTextWithOpenAi(params: {
     throw new Error("A IA não retornou texto. Tente de novo.");
   }
 
-  return { text: improved, model };
+  return { text: improved, model, level };
 }

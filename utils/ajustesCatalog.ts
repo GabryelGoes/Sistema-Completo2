@@ -220,7 +220,7 @@ export const AJUSTES_ITEMS: AjustesItemMeta[] = [
     id: 'orcamentos_prefs',
     categoryId: 'orcamentos',
     title: 'Ajustes de orçamentos',
-    subtitle: 'Embaçar orçamentos sem verificação',
+    subtitle: 'Embaçar sem verificação e nível da melhoria de texto',
     kind: 'action',
     iconSrc: '/icons/orcamentos-ios.png',
   },
