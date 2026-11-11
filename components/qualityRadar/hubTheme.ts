@@ -4,9 +4,9 @@ export const hub = {
   page: 'relative flex min-h-full flex-col bg-[#F5F5F7] text-zinc-900 dark:bg-zinc-950 dark:text-zinc-50',
   surface: 'rounded-2xl border border-zinc-200/90 bg-white dark:border-zinc-800 dark:bg-zinc-900',
   surfaceInset: 'rounded-xl border border-zinc-200 bg-[#FAFAFA] dark:border-zinc-800 dark:bg-zinc-950',
-  accent: 'bg-[#FFD60A] text-zinc-900',
-  accentSoft: 'bg-[#FFD60A]/25 text-zinc-900 dark:bg-[#FFD60A]/20 dark:text-[#FFD60A]',
-  accentBar: 'bg-[#FFD60A]',
+  accent: 'bg-[#F5D00B] text-zinc-900',
+  accentSoft: 'bg-[#F5D00B]/25 text-zinc-900 dark:bg-[#F5D00B]/20 dark:text-[#F5D00B]',
+  accentBar: 'bg-[#F5D00B]',
   ink: 'text-zinc-900 dark:text-zinc-50',
   muted: 'text-zinc-500 dark:text-zinc-400',
   hairline: 'border-zinc-200 dark:border-zinc-800',
@@ -17,9 +17,9 @@ export const hub = {
   btnGhost:
     'inline-flex items-center justify-center gap-2 rounded-xl px-3 py-2 text-[13px] font-semibold text-zinc-700 transition hover:bg-zinc-100 disabled:opacity-50 dark:text-zinc-200 dark:hover:bg-zinc-800',
   input:
-    'w-full rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-[14px] text-zinc-900 outline-none transition placeholder:text-zinc-400 focus:border-zinc-400 focus:ring-2 focus:ring-[#FFD60A]/40 dark:border-zinc-700 dark:bg-zinc-950 dark:text-white dark:focus:border-zinc-500',
+    'w-full rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-[14px] text-zinc-900 outline-none transition placeholder:text-zinc-400 focus:border-zinc-400 focus:ring-2 focus:ring-[#F5D00B]/40 dark:border-zinc-700 dark:bg-zinc-950 dark:text-white dark:focus:border-zinc-500',
   select:
-    'rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-[14px] text-zinc-900 outline-none focus:border-zinc-400 focus:ring-2 focus:ring-[#FFD60A]/40 dark:border-zinc-700 dark:bg-zinc-950 dark:text-white',
+    'rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-[14px] text-zinc-900 outline-none focus:border-zinc-400 focus:ring-2 focus:ring-[#F5D00B]/40 dark:border-zinc-700 dark:bg-zinc-950 dark:text-white',
   navItem: (active: boolean) =>
     `flex w-full items-center gap-2.5 rounded-xl px-3 py-2.5 text-left text-[13px] font-semibold transition ${
       active

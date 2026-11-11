@@ -1748,16 +1748,12 @@ export const ReceptionView: React.FC<ReceptionViewProps> = ({
       } bg-gradient-to-b from-zinc-100/95 via-white/85 to-zinc-100/70 dark:from-zinc-950 dark:via-zinc-950/98 dark:to-zinc-900/90`}
     >
     <div
-      className={`w-full max-w-full mx-auto animate-in fade-in duration-500 ${
+      className={`w-full max-w-full mx-auto apple-page-in ${
         hidePageChrome
           ? 'px-0 sm:px-1 pb-4 pt-0'
           : isSmartphone
-            ? 'px-1.5 pb-24 pt-2'
-            : 'px-3 sm:px-4 md:px-6 pb-24 md:pb-28 pt-3 md:pt-6'
-      }${
-        isSmartphone && !hidePageChrome
-          ? ' origin-top scale-[0.92] [width:calc(100%/0.92)] max-w-none -translate-x-[calc((100%/0.92-100%)/2)]'
-          : ''
+            ? 'px-1.5 pb-10 pt-2'
+            : 'px-3 sm:px-4 md:px-6 pb-10 md:pb-12 pt-3 md:pt-6'
       }`}
     >
 

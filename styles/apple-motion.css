@@ -1,0 +1,273 @@
+/**
+ * Vocabulário único de movimento (Apple Design).
+ * Sheet / página / popover — caminho simétrico, curva spring-like, reduced motion.
+ * Também materializa as classes Tailwind “mortas” animate-in / fade-in / zoom-in-95 / slide-in-from-*.
+ */
+
+:root {
+  --apple-ease-out: cubic-bezier(0.32, 0.72, 0, 1);
+  --apple-ease-in: cubic-bezier(0, 0, 0.68, 0.28);
+  --apple-sheet-ms: 360ms;
+  --apple-page-ms: 320ms;
+  --apple-popover-ms: 240ms;
+  --apple-fade-ms: 200ms;
+}
+
+/* ——— Sheets (modais principais) ——— */
+@keyframes apple-sheet-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes apple-sheet-out {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(16px) scale(0.98);
+  }
+}
+
+.apple-sheet-in,
+.animate-apple-sheet {
+  animation: apple-sheet-in var(--apple-sheet-ms) var(--apple-ease-out) both;
+  will-change: transform, opacity;
+}
+
+.apple-sheet-out,
+.animate-apple-sheet-out {
+  animation: apple-sheet-out var(--apple-sheet-ms) var(--apple-ease-in) both;
+  pointer-events: none;
+  will-change: transform, opacity;
+}
+
+/* ——— Páginas / overlays de módulo ——— */
+@keyframes apple-page-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes apple-page-out {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+
+.apple-page-in {
+  animation: apple-page-in var(--apple-page-ms) var(--apple-ease-out) both;
+}
+
+.apple-page-out {
+  animation: apple-page-out var(--apple-page-ms) var(--apple-ease-in) both;
+  pointer-events: none;
+}
+
+/* ——— Popovers / menus ——— */
+@keyframes apple-popover-in {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes apple-popover-out {
+  from {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0.96) translateY(4px);
+  }
+}
+
+.apple-popover-in {
+  animation: apple-popover-in var(--apple-popover-ms) var(--apple-ease-out) both;
+  transform-origin: var(--apple-origin, center top);
+}
+
+.apple-popover-out {
+  animation: apple-popover-out var(--apple-popover-ms) var(--apple-ease-in) both;
+  pointer-events: none;
+  transform-origin: var(--apple-origin, center top);
+}
+
+/* ——— Fade / scrim ——— */
+@keyframes apple-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes apple-fade-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+.apple-fade-in {
+  animation: apple-fade-in var(--apple-fade-ms) var(--apple-ease-out) both;
+}
+
+.apple-fade-out {
+  animation: apple-fade-out var(--apple-fade-ms) var(--apple-ease-in) both;
+  pointer-events: none;
+}
+
+/* Press feedback utilitário */
+.apple-press {
+  transition: transform 120ms var(--apple-ease-out), opacity 120ms ease, background-color 150ms ease;
+}
+.apple-press:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+/* Ghost do drag 1:1 nos quadros */
+.apple-board-drag-ghost {
+  position: fixed;
+  z-index: 99999;
+  pointer-events: none;
+  margin: 0;
+  box-shadow: 0 18px 48px -12px rgba(0, 0, 0, 0.35);
+  will-change: transform, left, top;
+  transition: box-shadow 150ms ease;
+}
+
+.apple-board-drag-ghost.is-settling {
+  transition:
+    left 320ms var(--apple-ease-out),
+    top 320ms var(--apple-ease-out),
+    opacity 280ms var(--apple-ease-in),
+    transform 320ms var(--apple-ease-out);
+}
+
+/* ——— Compat: classes Tailwind “mortas” passam a animar de verdade ——— */
+.animate-in.fade-in:not(.zoom-in-95):not(.zoom-in-50):not([class*='slide-in-from']) {
+  animation: apple-fade-in var(--apple-fade-ms) var(--apple-ease-out) both;
+}
+
+.animate-in.fade-in.duration-150 {
+  animation-duration: 150ms;
+}
+.animate-in.fade-in.duration-200 {
+  animation-duration: 200ms;
+}
+.animate-in.fade-in.duration-300 {
+  animation-duration: 300ms;
+}
+.animate-in.fade-in.duration-500 {
+  animation-duration: 320ms;
+}
+
+.animate-in.zoom-in-95,
+.animate-in.fade-in.zoom-in-95 {
+  animation: apple-popover-in var(--apple-popover-ms) var(--apple-ease-out) both;
+}
+
+.animate-in.zoom-in-50 {
+  animation: apple-popover-in 200ms var(--apple-ease-out) both;
+}
+
+.animate-in.slide-in-from-bottom-1,
+.animate-in.fade-in.slide-in-from-bottom-1 {
+  animation: apple-page-in var(--apple-page-ms) var(--apple-ease-out) both;
+}
+
+.animate-in.slide-in-from-bottom-2 {
+  animation: apple-sheet-in var(--apple-sheet-ms) var(--apple-ease-out) both;
+  transform-origin: bottom center;
+}
+
+.animate-in.slide-in-from-top-2 {
+  animation: apple-popover-in var(--apple-popover-ms) var(--apple-ease-out) both;
+  transform-origin: top center;
+}
+
+.animate-in.slide-in-from-left-1 {
+  animation: apple-page-in 220ms var(--apple-ease-out) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .apple-sheet-in,
+  .apple-sheet-out,
+  .apple-page-in,
+  .apple-page-out,
+  .apple-popover-in,
+  .apple-popover-out,
+  .animate-apple-sheet,
+  .animate-apple-sheet-out,
+  .animate-in.fade-in,
+  .animate-in.zoom-in-95,
+  .animate-in.zoom-in-50,
+  .animate-in.slide-in-from-bottom-1,
+  .animate-in.slide-in-from-bottom-2,
+  .animate-in.slide-in-from-top-2,
+  .animate-in.slide-in-from-left-1 {
+    animation: apple-fade-in 160ms ease both !important;
+    transform: none !important;
+    will-change: opacity;
+  }
+
+  .apple-sheet-out,
+  .apple-page-out,
+  .apple-popover-out,
+  .animate-apple-sheet-out {
+    animation: apple-fade-out 140ms ease both !important;
+  }
+
+  .apple-press:active:not(:disabled) {
+    transform: none;
+  }
+
+  .apple-board-drag-ghost.is-settling {
+    transition: opacity 140ms ease;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .backdrop-blur-\[20px\],
+  .backdrop-blur-xl,
+  .backdrop-blur-md,
+  .backdrop-blur-\[12px\],
+  .backdrop-blur-\[2px\] {
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+}
+
+@media (prefers-contrast: more) {
+  .apple-sheet-in,
+  .animate-apple-sheet,
+  .ios-modal-shell-contrast {
+    outline: 1px solid rgba(0, 0, 0, 0.35);
+  }
+}

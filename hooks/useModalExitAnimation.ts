@@ -12,14 +12,14 @@ export function getModalExitMs(): number {
 
 export function modalBackdropAnimClass(
   exiting: boolean,
-  enterClass = 'animate-in fade-in duration-200'
+  enterClass = 'apple-fade-in'
 ): string {
   return exiting ? 'animate-modal-backdrop-out pointer-events-none' : enterClass;
 }
 
 export function modalSheetAnimClass(
   exiting: boolean,
-  enterClass = 'animate-in zoom-in-95 duration-200'
+  enterClass = 'animate-modal-sheet'
 ): string {
   return exiting ? 'animate-modal-sheet-out pointer-events-none' : enterClass;
 }

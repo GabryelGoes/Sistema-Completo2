@@ -1242,7 +1242,7 @@ export const AgendaView: React.FC<AgendaViewProps> = ({
       <div className="fixed inset-0 -z-10 bg-gradient-to-b from-zinc-200/90 via-zinc-100 to-zinc-200/85 dark:from-zinc-950 dark:via-zinc-900 dark:to-zinc-950" />
       <div className="fixed inset-0 -z-10 pointer-events-none opacity-35 dark:opacity-25 bg-[radial-gradient(ellipse_80%_50%_at_50%_-20%,rgba(239,68,68,0.22),transparent),radial-gradient(ellipse_60%_40%_at_100%_0%,rgba(248,113,113,0.12),transparent),radial-gradient(ellipse_50%_35%_at_0%_100%,rgba(244,63,94,0.1),transparent)]" />
       <div className="fixed inset-0 -z-10 pointer-events-none backdrop-blur-[2px]" />
-    <div className="relative z-0 w-full max-w-none mx-auto pb-24 md:pb-28 pt-3 md:pt-6 px-3 sm:px-4 md:px-6 animate-in fade-in duration-500">
+    <div className="relative z-0 mx-auto w-full max-w-none px-3 pb-10 pt-3 apple-page-in sm:px-4 md:px-6 md:pb-12 md:pt-6">
       {renderHeader()}
       {renderDays()}
       {renderCells()}

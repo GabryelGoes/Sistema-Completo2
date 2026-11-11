@@ -190,6 +190,7 @@ import {
   useModalExitValue,
   withModalExitOverlayClass,
 } from '../../hooks/useModalExitAnimation';
+import { useAppleBoardPointerDrag } from '../../hooks/useAppleBoardPointerDrag';
 import { printBudgetMechanicWithDetail, printBudgetWithDetail } from '../../utils/budgetPrintWithDetail';
 import { printLabModuleFicha } from '../../utils/labModuleFichaPrint';
 import { LabOsLabelPrintModal } from '../LabOsLabelPrintModal';
@@ -2458,6 +2459,41 @@ export const PatioView: React.FC<PatioViewProps> = ({
   cardsRef.current = cards;
   /** Evita Realtime/poll sobrescrever etapa otimista no meio do PUT. */
   const stageChangingCardIdRef = useRef<string | null>(null);
+  const performStageChangeForCardRef = useRef<
+    (card: BoardCard, newListId: string) => void | Promise<void>
+  >(() => undefined);
+
+  const appleBoardDrag = useAppleBoardPointerDrag({
+    enabled: true,
+    columnSelector: '[data-stage-id]',
+    onHoverList: (listId) => {
+      setTrelloDragOverListId(listId);
+      if (listId) setTrelloDragCardId(trelloDragCardIdRef.current);
+    },
+    onDrop: (cardId, targetListId) => {
+      const c = cardsRef.current.find((x) => x.id === cardId);
+      trelloDragCardIdRef.current = null;
+      trelloDragOriginListIdRef.current = null;
+      setTrelloDragOverListId(null);
+      setTrelloDragCardId(null);
+      patioTrelloSkipClickRef.current = true;
+      window.setTimeout(() => {
+        patioTrelloSkipClickRef.current = false;
+      }, 120);
+      if (!c || c.idList === targetListId) return;
+      void performStageChangeForCardRef.current(c, targetListId);
+    },
+    onCancel: () => {
+      trelloDragCardIdRef.current = null;
+      trelloDragOriginListIdRef.current = null;
+      setTrelloDragOverListId(null);
+      setTrelloDragCardId(null);
+      patioTrelloSkipClickRef.current = true;
+      window.setTimeout(() => {
+        patioTrelloSkipClickRef.current = false;
+      }, 120);
+    },
+  });
 
   useLayoutEffect(() => {
     if (!isPatioHeaderToolsOpen) return;
@@ -4229,6 +4265,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
     options?: { skipServiceTechGate?: boolean; skipBudgetApprovalGate?: boolean }
   ) => {
     if (!newListId || card.idList === newListId) return;
+    // keep ref fresh for pointer-drag drops (hook montado acima)
 
     if (
       !options?.skipServiceTechGate &&
@@ -4346,6 +4383,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
       setStageChangingCardId(null);
     }
   };
+  performStageChangeForCardRef.current = performStageChangeForCard;
 
   const handleMoveCard = async (newListId: string) => {
     if (!cardInTransition || !newListId) return;
@@ -7863,54 +7901,39 @@ export const PatioView: React.FC<PatioViewProps> = ({
             <div
               key={card.id}
               data-no-drag-scroll
-              draggable={trelloDrag}
-              onDragStart={
+              data-apple-board-card={card.id}
+              onPointerDown={
                 trelloDrag
                   ? (e) => {
-                      const target = e.target as HTMLElement | null;
-                      if (
-                        target?.closest?.(
-                          'button, a, input, textarea, select, [role="button"], [contenteditable="true"]'
-                        )
-                      ) {
-                        e.preventDefault();
-                        return;
-                      }
-                      e.stopPropagation();
                       trelloDragCardIdRef.current = card.id;
                       trelloDragOriginListIdRef.current = card.idList;
-                      e.dataTransfer.effectAllowed = 'move';
-                      // text/plain: Safari/Firefox; MIME custom: Chrome.
-                      e.dataTransfer.setData('text/plain', card.id);
-                      e.dataTransfer.setData('application/x-patio-card-id', card.id);
                       setTrelloDragCardId(card.id);
                       patioTrelloSkipClickRef.current = false;
-                    }
-                  : undefined
-              }
-              onDragEnd={
-                trelloDrag
-                  ? () => {
-                      trelloDragCardIdRef.current = null;
-                      trelloDragOriginListIdRef.current = null;
-                      setTrelloDragCardId(null);
-                      setTrelloDragOverListId(null);
-                      patioTrelloSkipClickRef.current = true;
-                      window.setTimeout(() => {
-                        patioTrelloSkipClickRef.current = false;
-                      }, 120);
+                      appleBoardDrag.beginCardPointerDown(e, {
+                        cardId: card.id,
+                        originListId: card.idList,
+                      });
                     }
                   : undefined
               }
               className={`h-auto w-full self-start transition-opacity duration-200 ease-out ${
-                trelloDrag && trelloDragCardId === card.id ? 'opacity-50' : ''
-              } ${trelloDrag && trelloDragCardId && trelloDragCardId !== card.id ? 'pointer-events-none' : ''}`}
+                trelloDrag && (trelloDragCardId === card.id || appleBoardDrag.isDraggingCard(card.id))
+                  ? 'opacity-50'
+                  : ''
+              } ${
+                trelloDrag &&
+                trelloDragCardId &&
+                trelloDragCardId !== card.id &&
+                !appleBoardDrag.isDraggingCard(card.id)
+                  ? 'pointer-events-none'
+                  : ''
+              }`}
             >
               <div
                 onMouseEnter={() => prefetchVehicleComments(card.id)}
                 onPointerDown={() => prefetchVehicleComments(card.id)}
                 onClick={() => {
-                  if (patioTrelloSkipClickRef.current) {
+                  if (patioTrelloSkipClickRef.current || appleBoardDrag.drag) {
                     patioTrelloSkipClickRef.current = false;
                     return;
                   }
@@ -8287,42 +8310,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
         const layoutMotion =
           'motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-1 motion-safe:duration-300 motion-safe:ease-out';
 
-        const resolveTrelloDragCardId = (e: React.DragEvent): string => {
-          const fromMime = (e.dataTransfer.getData('application/x-patio-card-id') || '').trim();
-          const fromText = (e.dataTransfer.getData('text/plain') || '').trim();
-          const fromRef = (trelloDragCardIdRef.current || '').trim();
-          return fromMime || fromText || fromRef;
-        };
-
-        const handleTrelloColumnDragOver = (e: React.DragEvent, stageId: string) => {
-          e.preventDefault();
-          e.stopPropagation();
-          try {
-            e.dataTransfer.dropEffect = 'move';
-          } catch {
-            /* ignore */
-          }
-          setTrelloDragOverListId((prev) => (prev === stageId ? prev : stageId));
-        };
-
-        const handleTrelloColumnDrop = (e: React.DragEvent, stageId: string) => {
-          e.preventDefault();
-          e.stopPropagation();
-          const id = resolveTrelloDragCardId(e);
-          trelloDragCardIdRef.current = null;
-          trelloDragOriginListIdRef.current = null;
-          setTrelloDragOverListId(null);
-          setTrelloDragCardId(null);
-          patioTrelloSkipClickRef.current = true;
-          window.setTimeout(() => {
-            patioTrelloSkipClickRef.current = false;
-          }, 120);
-          if (!id) return;
-          const c = cardsRef.current.find((x) => x.id === id);
-          if (!c || c.idList === stageId) return;
-          void performStageChangeForCard(c, stageId);
-        };
-
         return (
           <div
             key={boardLayoutMode}
@@ -8384,8 +8371,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
                       <div
                         key={stage.id}
                         data-patio-kanban-column={stage.id}
+                        data-stage-id={stage.id}
                         className={`flex shrink-0 snap-start snap-always flex-col ${boardColumnShellClass} ${
-                          trelloDragOverListId === stage.id
+                          trelloDragOverListId === stage.id || appleBoardDrag.overListId === stage.id
                             ? 'scale-[1.01] ring-2 ring-[#007AFF]/55 ring-offset-2 ring-offset-zinc-100/80 dark:ring-[#64B5FF]/60 dark:ring-offset-zinc-950/90'
                             : ''
                         }`}
@@ -8393,17 +8381,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
                           width: `min(${patioTrelloColumnRem}rem, calc(100vw - 2.5rem))`,
                           minWidth: `min(${Math.max(11, patioTrelloColumnRem - 2)}rem, calc(92vw - 1.25rem))`,
                         }}
-                        onDragEnter={(e) => {
-                          e.preventDefault();
-                          setTrelloDragOverListId(stage.id);
-                        }}
-                        onDragOver={(e) => handleTrelloColumnDragOver(e, stage.id)}
-                        onDragLeave={(e) => {
-                          const rel = e.relatedTarget as Node | null;
-                          if (rel && e.currentTarget.contains(rel)) return;
-                          setTrelloDragOverListId((prev) => (prev === stage.id ? null : prev));
-                        }}
-                        onDrop={(e) => handleTrelloColumnDrop(e, stage.id)}
                       >
                         <div
                           className={`sticky top-0 z-[1] flex shrink-0 items-center justify-between gap-2 ${boardColumnHeaderTopClass} border-b border-zinc-200/60 px-3 py-2.5 dark:border-white/[0.08] sm:px-3.5 ${stage.style}`}
@@ -8431,11 +8408,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             </span>
                           </div>
                         </div>
-                        <div
-                          className="flex min-h-[min(12rem,40vh)] flex-1 flex-col gap-3 p-2.5 portrait:gap-2.5 portrait:p-2 sm:min-h-[14rem] sm:gap-3.5 sm:p-3"
-                          onDragOver={(e) => handleTrelloColumnDragOver(e, stage.id)}
-                          onDrop={(e) => handleTrelloColumnDrop(e, stage.id)}
-                        >
+                        <div className="flex min-h-[min(12rem,40vh)] flex-1 flex-col gap-3 p-2.5 portrait:gap-2.5 portrait:p-2 sm:min-h-[14rem] sm:gap-3.5 sm:p-3">
                           {cardsForStageColumn(stage.id).map((c) => renderPatioBoardCard(c, true))}
                         </div>
                       </div>
@@ -8493,6 +8466,23 @@ export const PatioView: React.FC<PatioViewProps> = ({
         );
       })()
       )}
+
+      {appleBoardDrag.drag?.ghost && typeof document !== 'undefined'
+        ? createPortal(
+            <div
+              className="apple-board-drag-ghost overflow-hidden rounded-2xl border border-zinc-200/80 bg-white dark:border-white/10 dark:bg-zinc-900"
+              style={{
+                left: appleBoardDrag.drag.ghost.left,
+                top: appleBoardDrag.drag.ghost.top,
+                width: appleBoardDrag.drag.ghost.width,
+                height: appleBoardDrag.drag.ghost.height,
+                transform: 'scale(1.02) rotate(0.5deg)',
+              }}
+              dangerouslySetInnerHTML={{ __html: appleBoardDrag.drag.ghost.html }}
+            />,
+            document.body
+          )
+        : null}
 
       {cards.length === 0 && !isBudgetOpen && (
           <div className={`${iosPageGlass} !border-0 !shadow-none ring-0 flex flex-col items-center justify-center py-16 text-center sm:py-20`}>

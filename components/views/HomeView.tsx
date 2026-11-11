@@ -944,12 +944,13 @@ export const HomeView: React.FC<HomeViewProps> = ({
       if (id === 'patio') warmPatioOrLaboratoryBoard('vehicle');
       else if (id === 'laboratorio') warmPatioOrLaboratoryBoard('module');
       if (launchTimerRef.current) clearTimeout(launchTimerRef.current);
+      // Feedback visual no pointer-down; abrir no mesmo frame (sem latência artificial).
       setLaunchingQuickId(id);
+      openHomeHubSafely(() => tile.onOpen());
       launchTimerRef.current = setTimeout(() => {
         launchTimerRef.current = null;
         setLaunchingQuickId(null);
-        openHomeHubSafely(() => tile.onOpen());
-      }, 180);
+      }, 220);
     },
     [operationalById]
   );

@@ -19,7 +19,7 @@ export function HubStatCard({
   const display = prepared ? '—' : value;
   return (
     <div
-      className={`${hub.surface} p-4 ${emphasize ? 'ring-2 ring-[#FFD60A]' : ''}`}
+      className={`${hub.surface} p-4 ${emphasize ? 'ring-2 ring-[#F5D00B]' : ''}`}
     >
       <div className="flex items-start justify-between gap-2">
         <p className={`text-[11px] font-semibold uppercase tracking-[0.14em] ${hub.muted}`}>{label}</p>

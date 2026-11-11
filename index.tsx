@@ -2,6 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import './styles/sf-pro-fonts.css';
 import './index.css';
+import './styles/apple-motion.css';
 import './lightModeContrast.css';
 import './styles/patio-vehicle-modal-desktop.css';
 import './styles/patio-vehicle-modal-desktop-pilot.css';

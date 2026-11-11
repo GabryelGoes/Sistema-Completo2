@@ -1,23 +1,40 @@
 /**
- * Modo claro (html.light): texto principal legível (preto / zinc-950).
- * Cinza apenas em placeholders de campos (exemplos).
- * Escopo: utilitários text-zinc-* usuais; não altera cores semânticas (red, green, blue, brand).
+ * Modo claro (html.light): contraste legível com hierarquia tipográfica.
+ * Metadado/label ficam em cinza médio; corpo em zinc-950.
+ * Escopo: utilitários text-zinc-*; não altera cores semânticas (red, green, blue, brand).
  */
 html.light {
   color: rgb(9 9 11);
 }
 
-html.light .text-zinc-400,
-html.light .text-zinc-500,
-html.light .text-zinc-600,
-html.light .text-zinc-700 {
+/* Corpo / ênfase */
+html.light .text-zinc-700,
+html.light .text-zinc-800,
+html.light .text-zinc-900,
+html.light .text-zinc-950 {
   color: rgb(9 9 11) !important;
 }
 
+/* Metadado — cinza legível (WCAG), distinto do corpo */
+html.light .text-zinc-400 {
+  color: rgb(82 82 91) !important; /* zinc-600 */
+}
+
+html.light .text-zinc-500 {
+  color: rgb(63 63 70) !important; /* zinc-700 */
+}
+
+html.light .text-zinc-600 {
+  color: rgb(39 39 42) !important; /* zinc-800 */
+}
+
 /* Variantes com opacidade (rótulos / metadados) */
-html.light .text-zinc-400\/75,
+html.light .text-zinc-400\/75 {
+  color: rgb(113 113 122 / 0.95) !important;
+}
+
 html.light .text-zinc-500\/90 {
-  color: rgb(9 9 11) !important;
+  color: rgb(82 82 91 / 0.95) !important;
 }
 
 /* Placeholders: cinza mais discreto (exemplos modestos) */
@@ -67,4 +84,27 @@ html.light [data-budget-banner-theme] .text-white\/75 {
 }
 html.light [data-budget-banner-theme] .text-white\/60 {
   color: rgb(255 255 255 / 0.6) !important;
+}
+
+/* Materiais: translucência reduzida / contraste alto */
+@media (prefers-reduced-transparency: reduce) {
+  html.light .bg-white\/85,
+  html.light .bg-white\/75,
+  html.light .bg-white\/90 {
+    background-color: #ffffff !important;
+  }
+
+  html.dark .bg-zinc-900\/80,
+  html.dark .bg-zinc-900\/70,
+  html.dark .bg-zinc-950\/60 {
+    background-color: #18181b !important;
+  }
+}
+
+@media (prefers-contrast: more) {
+  html.light .border-zinc-200\/90,
+  html.light .border-zinc-200\/80,
+  html.light .border-zinc-200\/75 {
+    border-color: rgb(113 113 122) !important;
+  }
 }
