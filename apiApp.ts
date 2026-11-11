@@ -14591,7 +14591,8 @@ export function createApiApp() {
         return res.status(400).json({ error: "Saída é exclusiva do laboratório." });
       }
       const prevStatus = String((order as { status?: string }).status ?? "");
-      if (prevStatus === CANCELLED_STATUS || prevStatus === "FINALIZADO") {
+      // Arquivada/entregue: não move. Finalizado ainda pode ir Oficina ↔ Laboratório.
+      if (prevStatus === CANCELLED_STATUS) {
         return res.status(400).json({ error: "Não é possível registrar saída nesta etapa." });
       }
 
@@ -14722,7 +14723,8 @@ export function createApiApp() {
       }
 
       const prevStatus = String((order as { status?: string }).status ?? "");
-      if (prevStatus === CANCELLED_STATUS || prevStatus === "FINALIZADO") {
+      // Arquivada/entregue: não move. Finalizado ainda pode ir Oficina ↔ Laboratório.
+      if (prevStatus === CANCELLED_STATUS) {
         return res.status(400).json({ error: "Não é possível registrar retorno nesta etapa." });
       }
 

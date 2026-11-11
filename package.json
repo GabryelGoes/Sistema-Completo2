@@ -36,6 +36,7 @@
     "test:patio-garantia-remove": "tsx scripts/patioGarantiaRemove.selftest.ts",
     "test:vehicle-modal-pdf-viewer": "tsx scripts/vehicleModalPdfViewer.selftest.ts",
     "test:budget-diagnosis-improve": "tsx scripts/budgetDiagnosisImprove.selftest.ts",
+    "test:lab-finalizado-location": "tsx scripts/labFinalizadoLocation.selftest.ts",
     "test:rda-panels-zindex": "tsx scripts/rdaPanelsZIndex.selftest.ts",
     "test:rda-header-alerts-banners": "tsx scripts/rdaHeaderAlertsBanners.selftest.ts",
     "test:remove-os-work-time-panel": "tsx scripts/removeOsWorkTimePanel.selftest.ts"
