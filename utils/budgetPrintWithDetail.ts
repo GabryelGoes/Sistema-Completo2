@@ -170,7 +170,7 @@ export function printBudgetWithDetail(
     .status.no { background: #fbe8e8; color: #9d1f1f; border: 1px solid #efb6b6; }
     .status.wait { background: #f3efe7; color: #6f665c; border: 1px solid #ded6c7; }
     .stock-tag { display: inline-block; margin-right: 4px; border-radius: 4px; padding: 0 5px; font-size: 9px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; background: #d1fae5; color: #047857; border: 1px solid #6ee7b7; vertical-align: middle; }
-    .outsourced-tag { display: inline-block; margin-right: 4px; border-radius: 4px; padding: 0 5px; font-size: 9px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; background: #ffedd5; color: #7c2d12; border: 1px solid #fdba74; vertical-align: middle; }
+    .outsourced-tag { display: inline-block; margin-right: 4px; border-radius: 4px; padding: 0 5px; font-size: 9px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; background: #9a3412; color: #ffffff; border: 1px solid #7c2d12; vertical-align: middle; }
     ul { list-style: disc; margin-left: 20px; }
     li { margin: 4px 0; padding-bottom: 4px; border-bottom: 1px dashed #cfc6b6; }
     li:last-child { border-bottom: 0; }
@@ -292,7 +292,7 @@ export function printBudgetMechanicWithDetail(
     .meta { color: #4b5563; font-size: 11px; margin-top: 4px; }
     .sec { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; color: #374151; margin: 14px 0 6px; border-top: 1px solid #e5e7eb; padding-top: 8px; }
     .block { white-space: pre-wrap; }
-    .outsourced-tag { display: inline-block; margin-right: 4px; border-radius: 4px; padding: 0 5px; font-size: 9px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; background: #ffedd5; color: #7c2d12; border: 1px solid #fdba74; vertical-align: middle; }
+    .outsourced-tag { display: inline-block; margin-right: 4px; border-radius: 4px; padding: 0 5px; font-size: 9px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; background: #9a3412; color: #ffffff; border: 1px solid #7c2d12; vertical-align: middle; }
     ul { list-style: disc; margin-left: 20px; }
     li { margin: 3px 0; padding-bottom: 4px; border-bottom: 1px dashed #cfc6b6; }
     li:last-child { border-bottom: 0; }

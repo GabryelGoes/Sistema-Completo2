@@ -35,12 +35,8 @@ export const BudgetOutsourcedTextReplaceHint: React.FC<BudgetOutsourcedTextRepla
       <span className="truncate text-[11px] font-medium text-slate-500 dark:text-zinc-400">
         “{matchedWord}” →
       </span>
-      <span className="inline-flex shrink-0 items-center gap-1 rounded-md bg-orange-500/22 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-orange-950 ring-1 ring-orange-700/40 dark:bg-orange-500/30 dark:text-orange-50 dark:ring-orange-300/55">
-        <Handshake
-          className="h-3 w-3 text-orange-950 dark:text-orange-50"
-          strokeWidth={2.2}
-          aria-hidden
-        />
+      <span className="inline-flex shrink-0 items-center gap-1 rounded-md bg-orange-800 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white shadow-sm ring-1 ring-orange-950/40 dark:bg-orange-700 dark:text-white dark:ring-orange-950/50">
+        <Handshake className="h-3 w-3 text-white" strokeWidth={2.2} aria-hidden />
         Terceirizado
       </span>
     </button>
