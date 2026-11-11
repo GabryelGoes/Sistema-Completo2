@@ -2261,6 +2261,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const patioVmInsetCard = patioVehicleVm.insetCard;
   const patioVmInputClass = patioVehicleVm.input;
   const patioHistoryVm = useMemo(() => getPatioHistoryModalLayout(isPatioPcModal), [isPatioPcModal]);
+  /** Piloto Apple Design: motion só no modal da OS em PC (não tablet/mobile/peek). */
+  const patioVmMotionPilotClass =
+    isPatioPcModal && !(isBudgetOpen && budgetOsPeekOpen) ? 'patio-vm-motion-pilot' : '';
   const patioVehicleModalOverlayClass = useMemo(() => {
     if (isBudgetOpen && budgetOsPeekOpen) {
       return 'fixed inset-0 z-[250] flex items-center justify-center bg-black/40 p-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-[max(0.75rem,env(safe-area-inset-bottom))] backdrop-blur-[2px] sm:p-5 animate-in fade-in duration-200';
@@ -2269,15 +2272,16 @@ export const PatioView: React.FC<PatioViewProps> = ({
       return patioVehicleVm.overlay.replace('z-[100]', 'z-[320]');
     }
     if (desktopShell) {
-      return `${desktopShellViewportOverlayClass(true)} patio-vehicle-modal patio-vehicle-modal--desktop flex min-h-0 flex-col overflow-hidden bg-[#F2F2F7] dark:bg-[#0a0a0a] animate-in fade-in duration-200`;
+      return `${desktopShellViewportOverlayClass(true)} patio-vehicle-modal patio-vehicle-modal--desktop ${patioVmMotionPilotClass} flex min-h-0 flex-col overflow-hidden bg-[#F2F2F7] dark:bg-[#0a0a0a] animate-in fade-in duration-200`;
     }
-    return patioVehicleVm.overlay;
+    return `${patioVehicleVm.overlay} ${patioVmMotionPilotClass}`.trim();
   }, [
     isBudgetOpen,
     budgetOsPeekOpen,
     benchFullscreenOpen,
     desktopShell,
     patioVehicleVm.overlay,
+    patioVmMotionPilotClass,
   ]);
   const patioVehicleModalShellClass = useMemo(() => {
     if (isBudgetOpen && budgetOsPeekOpen) {

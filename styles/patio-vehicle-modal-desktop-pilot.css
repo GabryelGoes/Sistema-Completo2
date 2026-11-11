@@ -1,0 +1,177 @@
+/**
+ * Piloto Apple Design — modal da OS de veículos no Pátio (somente PC).
+ *
+ * Escopo rígido:
+ * - Só `html[data-device='desktop']`
+ * - Só nós com `.patio-vm-motion-pilot` (modal da OS, não histórico/tablet/mobile)
+ *
+ * Não altera layout, cores finais, dimensões nem regras de negócio.
+ * Curva spring-like criticamente amortecida: cubic-bezier(0.32, 0.72, 0, 1).
+ */
+
+/* —— Abertura / fechamento espacialmente simétricos —— */
+
+@keyframes patio-vm-pilot-shell-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px) scale(0.985);
+    filter: saturate(0.96);
+    box-shadow: 0 22px 56px -24px rgba(0, 0, 0, 0.32);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: none;
+    box-shadow: none;
+  }
+}
+
+@keyframes patio-vm-pilot-shell-out {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: none;
+    box-shadow: none;
+  }
+
+  to {
+    opacity: 0;
+    transform: translateY(12px) scale(0.985);
+    filter: saturate(0.96);
+    box-shadow: 0 22px 56px -24px rgba(0, 0, 0, 0.32);
+  }
+}
+
+@keyframes patio-vm-pilot-overlay-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes patio-vm-pilot-overlay-out {
+  from {
+    opacity: 1;
+  }
+
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes patio-vm-pilot-tab-panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes patio-vm-pilot-fade-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+html[data-device='desktop'] .patio-vm-motion-pilot.patio-vehicle-modal--desktop {
+  animation: patio-vm-pilot-overlay-in 0.3s cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+
+html[data-device='desktop'] .patio-vm-motion-pilot.patio-vehicle-modal--desktop.animate-modal-backdrop-out {
+  animation: patio-vm-pilot-overlay-out 0.3s cubic-bezier(0.32, 0.72, 0, 1) both;
+  pointer-events: none;
+}
+
+html[data-device='desktop'] .patio-vm-motion-pilot .patio-vehicle-modal__shell {
+  /* Sobrescreve patio-vm-desktop-in e o genie 3D do wp-app só neste piloto */
+  animation: patio-vm-pilot-shell-in 0.34s cubic-bezier(0.32, 0.72, 0, 1) both;
+  transform-origin: center center;
+  will-change: transform, opacity, box-shadow;
+}
+
+html[data-device='desktop'] .patio-vm-motion-pilot .patio-vehicle-modal__shell.animate-modal-wp-app-out,
+html[data-device='desktop'] .patio-vm-motion-pilot.animate-modal-backdrop-out .patio-vehicle-modal__shell {
+  /* ≤ MODAL_EXIT_MS (340) para o unmount não cortar a saída */
+  animation: patio-vm-pilot-shell-out 0.34s cubic-bezier(0.32, 0.72, 0, 1) both;
+  pointer-events: none;
+}
+
+/* —— Feedback no pointer-down (substitui transform: none do CSS desktop compartilhado) —— */
+
+html[data-device='desktop'] .patio-vm-motion-pilot button:not(:disabled):active,
+html[data-device='desktop'] .patio-vm-motion-pilot a.patio-vm-card:active,
+html[data-device='desktop'] .patio-vm-motion-pilot [role='tab']:not(:disabled):active {
+  transform: scale(0.985);
+  transition: transform 100ms ease-out;
+}
+
+html[data-device='desktop'] .patio-vm-motion-pilot .patio-vehicle-modal__icon-btn {
+  transition:
+    background-color 0.15s ease,
+    transform 100ms ease-out;
+}
+
+html[data-device='desktop'] .patio-vm-motion-pilot .patio-vehicle-modal__icon-btn:active {
+  transform: scale(0.94);
+}
+
+html[data-device='desktop'] .patio-vm-motion-pilot button.patio-vm-card,
+html[data-device='desktop'] .patio-vm-motion-pilot a.patio-vm-card {
+  transition:
+    border-color 0.15s ease,
+    background-color 0.15s ease,
+    transform 100ms ease-out;
+}
+
+/* —— Abas: indicador e painel —— */
+
+html[data-device='desktop'] .patio-vm-motion-pilot .patio-vm-tabs [role='tab'] {
+  transition:
+    color 0.18s cubic-bezier(0.32, 0.72, 0, 1),
+    transform 100ms ease-out;
+}
+
+html[data-device='desktop'] .patio-vm-motion-pilot .patio-vm-tabs [role='tab'] .patio-vm-tab-indicator {
+  transform-origin: center bottom;
+  animation: patio-vm-pilot-fade-in 0.22s cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+
+html[data-device='desktop'] .patio-vm-motion-pilot .patio-vm-main-col > * {
+  animation: patio-vm-pilot-tab-panel-in 0.28s cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+
+/* —— Acessibilidade —— */
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-device='desktop'] .patio-vm-motion-pilot.patio-vehicle-modal--desktop,
+  html[data-device='desktop'] .patio-vm-motion-pilot.patio-vehicle-modal--desktop.animate-modal-backdrop-out,
+  html[data-device='desktop'] .patio-vm-motion-pilot .patio-vehicle-modal__shell,
+  html[data-device='desktop'] .patio-vm-motion-pilot .patio-vehicle-modal__shell.animate-modal-wp-app-out,
+  html[data-device='desktop'] .patio-vm-motion-pilot.animate-modal-backdrop-out .patio-vehicle-modal__shell,
+  html[data-device='desktop'] .patio-vm-motion-pilot .patio-vm-main-col > *,
+  html[data-device='desktop'] .patio-vm-motion-pilot .patio-vm-tabs [role='tab'] .patio-vm-tab-indicator {
+    animation: patio-vm-pilot-fade-in 0.18s ease both;
+    transform: none !important;
+    filter: none !important;
+    will-change: opacity;
+  }
+
+  html[data-device='desktop'] .patio-vm-motion-pilot button:not(:disabled):active,
+  html[data-device='desktop'] .patio-vm-motion-pilot a.patio-vm-card:active,
+  html[data-device='desktop'] .patio-vm-motion-pilot [role='tab']:not(:disabled):active,
+  html[data-device='desktop'] .patio-vm-motion-pilot .patio-vehicle-modal__icon-btn:active {
+    transform: none;
+  }
+}

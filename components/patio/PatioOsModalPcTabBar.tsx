@@ -71,7 +71,7 @@ export const PatioOsModalPcTabBar: React.FC<PatioOsModalPcTabBarProps> = ({
             </span>
             {selected ? (
               <span
-                className="absolute inset-x-3 bottom-0 h-[2px] rounded-full bg-[#007AFF] dark:bg-[#7ab8ff]"
+                className="patio-vm-tab-indicator absolute inset-x-3 bottom-0 h-[2px] rounded-full bg-[#007AFF] dark:bg-[#7ab8ff]"
                 aria-hidden
               />
             ) : null}
