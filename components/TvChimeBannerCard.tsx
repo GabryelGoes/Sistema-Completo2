@@ -124,7 +124,7 @@ export function TvChimeBannerCard({
 
     const outerFrame = embedded
       ? `flex h-full min-h-0 w-full flex-col overflow-hidden bg-black ${className}`
-      : `flex max-h-[min(88dvh,920px)] w-full max-w-[min(96rem,calc(100vw-1.5rem))] min-h-[min(52dvh,420px)] flex-col overflow-hidden rounded-[1.2rem] shadow-[0_32px_80px_-16px_rgba(0,0,0,0.65),0_0_0_1px_rgba(255,255,255,0.08)] ring-1 ring-white/10 animate-in zoom-in-95 duration-300 ${className}`;
+      : `tv-hub-banner-in flex max-h-[min(88dvh,920px)] w-full max-w-[min(96rem,calc(100vw-1.5rem))] min-h-[min(52dvh,420px)] flex-col overflow-hidden rounded-[1.2rem] shadow-[0_32px_80px_-16px_rgba(0,0,0,0.65),0_0_0_1px_rgba(255,255,255,0.08)] ring-1 ring-white/10 ${className}`;
 
     return (
       <div
@@ -136,7 +136,7 @@ export function TvChimeBannerCard({
           <button
             type="button"
             onClick={onDismiss}
-            className="absolute right-2 top-2 z-20 rounded-full bg-white/10 p-2.5 text-zinc-200 transition-colors hover:bg-white/20 hover:text-white sm:right-3 sm:top-3 sm:p-3"
+            className="absolute right-2 top-2 z-20 rounded-full bg-white/10 p-2.5 text-zinc-200 transition-[transform,background-color,color] duration-150 ease-out hover:bg-white/20 hover:text-white active:scale-[0.94] sm:right-3 sm:top-3 sm:p-3"
             aria-label={dismissAriaLabel}
           >
             <X className="h-5 w-5 sm:h-6 sm:w-6" />
@@ -158,11 +158,11 @@ export function TvChimeBannerCard({
 
   const eyebrow = phase === 'pre' ? 'Lembrete' : 'TV do pátio · Horário';
   const eyebrowCls = isPreview
-    ? 'text-[9px] font-black uppercase tracking-[0.2em] text-yellow-500/85'
-    : 'text-[11px] font-bold uppercase tracking-[0.12em] text-zinc-500';
+    ? 'text-[9px] font-black uppercase tracking-[0.06em] text-yellow-500/85'
+    : 'text-[11px] font-semibold uppercase tracking-[0.06em] text-zinc-500';
   const titleCls = isPreview
-    ? `text-[13px] font-black uppercase leading-tight tracking-tight sm:text-sm ${titleNoticeTone(phase, kind)}`
-    : 'text-[17px] font-semibold leading-snug tracking-tight';
+    ? `text-[13px] font-black uppercase leading-tight tracking-[-0.01em] sm:text-sm ${titleNoticeTone(phase, kind)}`
+    : 'text-[17px] font-semibold leading-snug tracking-[-0.01em]';
   const messageCls = isPreview
     ? 'mt-1.5 text-[11px] font-medium leading-snug text-zinc-300 sm:text-xs'
     : 'mt-1 text-[13px] leading-snug text-zinc-600';
@@ -171,8 +171,8 @@ export function TvChimeBannerCard({
     : 'mt-0.5 h-5 w-5 shrink-0 text-[#007AFF]';
   const iconStroke = 2.2;
   const closeCls = isPreview
-    ? 'pointer-events-auto shrink-0 rounded-full bg-white/10 p-1 text-zinc-300 hover:bg-white/20 hover:text-white'
-    : 'pointer-events-auto shrink-0 rounded-full p-1 text-zinc-500 hover:bg-black/5 hover:text-zinc-800';
+    ? 'pointer-events-auto shrink-0 rounded-full bg-white/10 p-1 text-zinc-300 transition-[transform,background-color,color] duration-150 ease-out hover:bg-white/20 hover:text-white active:scale-[0.94]'
+    : 'pointer-events-auto shrink-0 rounded-full p-1 text-zinc-500 transition-[transform,background-color,color] duration-150 ease-out hover:bg-black/5 hover:text-zinc-800 active:scale-[0.94]';
   const closeIconCls = isPreview ? 'h-3.5 w-3.5' : 'h-4 w-4';
   const boxPad = isPreview ? 'px-3 py-2.5' : 'px-4 py-3';
   const shadow = isPreview
@@ -183,7 +183,7 @@ export function TvChimeBannerCard({
 
   return (
     <div
-      className={`pointer-events-auto w-full max-w-lg rounded-2xl border backdrop-blur-xl animate-in slide-in-from-top-2 duration-300 ${previewPanel} ${boxPad} ${shadow} ${className}`}
+      className={`tv-hub-banner-in pointer-events-auto w-full max-w-lg rounded-2xl border backdrop-blur-xl ${previewPanel} ${boxPad} ${shadow} ${className}`}
       role="status"
       aria-live="polite"
     >

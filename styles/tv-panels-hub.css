@@ -1,0 +1,94 @@
+/**
+ * Painéis de TV (admin) — movimento Apple Design.
+ * Escopo: classes tv-hub-* usadas só no modal de gestão.
+ */
+
+@keyframes tv-hub-shell-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.985);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes tv-hub-panel-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes tv-hub-fade-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes tv-hub-banner-in {
+  from {
+    opacity: 0;
+    transform: translateY(-8px) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.tv-hub-shell-in {
+  animation: tv-hub-shell-in 0.36s cubic-bezier(0.32, 0.72, 0, 1) both;
+  will-change: transform, opacity;
+}
+
+.tv-hub-panel-in {
+  animation: tv-hub-panel-in 0.3s cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+
+.tv-hub-banner-in {
+  animation: tv-hub-banner-in 0.32s cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+
+.tv-hub-chrome {
+  background: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(18px) saturate(170%);
+  -webkit-backdrop-filter: blur(18px) saturate(170%);
+}
+
+html.dark .tv-hub-chrome {
+  background: rgba(24, 24, 27, 0.78);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tv-hub-shell-in,
+  .tv-hub-panel-in,
+  .tv-hub-banner-in {
+    animation: tv-hub-fade-in 0.18s ease both;
+    will-change: opacity;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .tv-hub-chrome {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    background: #ffffff;
+  }
+
+  html.dark .tv-hub-chrome {
+    background: #18181b;
+  }
+}
