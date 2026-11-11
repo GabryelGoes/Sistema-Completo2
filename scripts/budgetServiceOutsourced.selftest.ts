@@ -107,5 +107,29 @@ console.log("\n4) Sugestão de catálogo");
   );
 }
 
+console.log("\n5) Visualização e impressão");
+{
+  const { readFileSync } = await import("node:fs");
+  const { join } = await import("node:path");
+  const readBody = readFileSync(
+    join(process.cwd(), "components/budget/BudgetReadModalBody.tsx"),
+    "utf8"
+  );
+  const print = readFileSync(join(process.cwd(), "utils/budgetPrintWithDetail.ts"), "utf8");
+  const approval = readFileSync(
+    join(process.cwd(), "components/budget/BudgetApprovalModal.tsx"),
+    "utf8"
+  );
+  assert(
+    /\{s\.outsourced \? <BudgetServiceOutsourcedBadge/.test(readBody) ||
+      readBody.includes("{s.outsourced ? <BudgetServiceOutsourcedBadge"),
+    "modal de leitura mostra etiqueta sem exigir campos internos"
+  );
+  assert(!/showInternalFields && s\.outsourced/.test(readBody), "não esconde atrás de showInternalFields");
+  assert(print.includes("outsourced-tag"), "impressão tem tag Terceirizado");
+  assert(print.includes("s.outsourced"), "impressão lê outsourced");
+  assert(approval.includes("BudgetServiceOutsourcedBadge"), "aprovação mostra etiqueta");
+}
+
 console.log(`\nResultado: ${passed} ok, ${failed} fail`);
 if (failed > 0) process.exit(1);

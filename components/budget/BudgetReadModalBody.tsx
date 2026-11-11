@@ -91,9 +91,7 @@ export const BudgetReadModalBody: React.FC<BudgetReadModalBodyProps> = ({
                         Sugestão: {formatSuggestedValueBrl(Number(s.suggested_value))}
                       </span>
                     ) : null}
-                    {showInternalFields && s.outsourced ? (
-                      <BudgetServiceOutsourcedBadge />
-                    ) : null}
+                    {s.outsourced ? <BudgetServiceOutsourcedBadge /> : null}
                     {s.labor_hours != null && Number.isFinite(Number(s.labor_hours)) ? (
                       <span className="text-[13px] font-semibold tabular-nums text-slate-600">
                         ({formatLaborLabel(Number(s.labor_hours))})
