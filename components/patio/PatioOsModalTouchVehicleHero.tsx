@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { VehicleBrandLogo } from '../ui/VehicleBrandLogo';
 import { MercosulPlateMockup } from '../ui/MercosulPlateMockup';
+import { PatioGarantiaTagBadge } from './PatioGarantiaTagBadge';
 
 type SharedHeroProps = {
   vehicleTitle: string;
@@ -19,6 +20,10 @@ type SharedHeroProps = {
   plate: string;
   blurPlates?: boolean;
   garantiaTag?: boolean;
+  /** Permite clicar na etiqueta para pedir retirada. */
+  canRemoveGarantia?: boolean;
+  removingGarantia?: boolean;
+  onConfirmRemoveGarantia?: () => void | Promise<void>;
   agendaTag?: boolean;
   onClose: () => void;
   onOpenFicha: () => void;
@@ -71,6 +76,9 @@ export function PatioOsModalTouchVehicleStickyHeader({
   plate,
   blurPlates,
   garantiaTag,
+  canRemoveGarantia = false,
+  removingGarantia = false,
+  onConfirmRemoveGarantia,
   agendaTag,
   onClose,
   onOpenFicha,
@@ -142,9 +150,13 @@ export function PatioOsModalTouchVehicleStickyHeader({
                 {vehicleTitle || 'Veículo'}
               </h1>
               {garantiaTag ? (
-                <span className="inline-flex shrink-0 items-center rounded-md border border-red-500/80 bg-red-600 px-2 py-[0.2rem] text-[10px] font-semibold uppercase tracking-wide text-white">
-                  Garantia
-                </span>
+                <PatioGarantiaTagBadge
+                  size="modal"
+                  className="!px-2 !py-[0.2rem] !text-[10px]"
+                  canRemove={canRemoveGarantia}
+                  removing={removingGarantia}
+                  onConfirmRemove={onConfirmRemoveGarantia}
+                />
               ) : null}
               {agendaTag ? (
                 <span className="inline-flex shrink-0 items-center rounded-md border border-sky-500/30 bg-sky-500/[0.08] px-2 py-[0.2rem] text-[10px] font-semibold uppercase tracking-wide text-sky-700 dark:border-sky-400/35 dark:bg-sky-500/15 dark:text-sky-200">

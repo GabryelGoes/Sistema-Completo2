@@ -266,6 +266,7 @@ import {
   PatioOriginAttachmentsSection,
 } from '../patio/PatioOriginAttachmentsPicker';
 import { PatioBoardOriginIcon } from '../patio/PatioBoardOriginIcon';
+import { PatioGarantiaTagBadge } from '../patio/PatioGarantiaTagBadge';
 import { BudgetReadModalBody } from '../budget/BudgetReadModalBody';
 import { BudgetVerificationPanel } from '../budget/BudgetVerificationPanel';
 import { BudgetVerifiedSeal } from '../budget/BudgetVerifiedSeal';
@@ -4352,10 +4353,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
     setCardInTransition(null);
   };
 
-  const handleRemoveGarantia = async () => {
-    if (!selectedCard || !selectedCard.garantiaTag) return;
-    const cardId = selectedCard.id;
-    const wasGarantiaStage = selectedCard.idList === 'GARANTIA';
+  const handleRemoveGarantia = async (cardOverride?: TrelloCard | null) => {
+    const target = cardOverride || selectedCard;
+    if (!target || !target.garantiaTag) return;
+    const cardId = target.id;
+    const wasGarantiaStage = target.idList === 'GARANTIA';
     setRemovingGarantiaId(cardId);
     try {
       await updateServiceOrderGarantiaTag(cardId, false, actorOptions);
@@ -4365,7 +4367,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
       );
       if (wasGarantiaStage) {
         await performStageChangeForCard(
-          { ...selectedCard, garantiaTag: false },
+          { ...target, garantiaTag: false },
           'AGUARDANDO_AVALIACAO'
         );
       }
@@ -8090,16 +8092,12 @@ export const PatioView: React.FC<PatioViewProps> = ({
                       </span>
                     </button>
                     {isGarantia ? (
-                      <span
-                        className={`inline-flex shrink-0 items-center rounded-md border border-red-600 bg-red-600 font-semibold uppercase tracking-wide text-white shadow-none ${
-                          isModuleMode
-                            ? 'px-2 py-[0.2rem] text-[9px]'
-                            : 'px-[0.65rem] py-[0.26rem] text-[11.7px]'
-                        }`}
-                        title="Em garantia"
-                      >
-                        Garantia
-                      </span>
+                      <PatioGarantiaTagBadge
+                        size={isModuleMode || boardPanoramic ? 'cardCompact' : 'card'}
+                        canRemove={can('canEditFicha')}
+                        removing={removingGarantiaId === card.id}
+                        onConfirmRemove={() => handleRemoveGarantia(card)}
+                      />
                     ) : null}
                   </div>
                   <div className="flex justify-self-center">
@@ -9484,6 +9482,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 plate={selectedCardTitleParts?.plateOrModule || '---'}
                 blurPlates={blurPlates}
                 garantiaTag={!!selectedCard.garantiaTag}
+                canRemoveGarantia={can('canEditFicha')}
+                removingGarantia={removingGarantiaId === selectedCard.id}
+                onConfirmRemoveGarantia={() => handleRemoveGarantia(selectedCard)}
                 agendaTag={!!selectedCard.agendaTag}
                 onClose={closeVehicleOrBudgetPeek}
                 onOpenFicha={handleJumpToCustomerNameEdit}
@@ -10076,22 +10077,12 @@ export const PatioView: React.FC<PatioViewProps> = ({
                               }
                               titleTrailing={
                                 selectedCard.garantiaTag ? (
-                                  <button
-                                    type="button"
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      void handleRemoveGarantia();
-                                    }}
-                                    disabled={removingGarantiaId === selectedCard.id}
-                                    className="inline-flex shrink-0 items-center rounded-md border border-red-600 bg-red-600 px-2.5 py-[0.3rem] text-[11px] font-semibold uppercase tracking-wide text-white shadow-none transition hover:bg-red-700 disabled:opacity-50"
-                                    title="Remover etiqueta Garantia"
-                                  >
-                                    {removingGarantiaId === selectedCard.id ? (
-                                      <RefreshCw className="h-3 w-3 animate-spin" />
-                                    ) : (
-                                      'Garantia'
-                                    )}
-                                  </button>
+                                  <PatioGarantiaTagBadge
+                                    size="modal"
+                                    canRemove={can('canEditFicha')}
+                                    removing={removingGarantiaId === selectedCard.id}
+                                    onConfirmRemove={() => handleRemoveGarantia(selectedCard)}
+                                  />
                                 ) : null
                               }
                             />
@@ -10104,23 +10095,23 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             {selectedCardTitleParts?.vehicle}
                           </h1>
                           {selectedCard.garantiaTag ? (
-                            <span
-                              className="inline-flex shrink-0 items-center rounded-md border border-red-600 bg-red-600 px-2.5 py-[0.3rem] text-[11px] font-semibold uppercase tracking-wide text-white shadow-none"
-                              title="Veículo em garantia"
-                            >
-                              Garantia
-                            </span>
+                            <PatioGarantiaTagBadge
+                              size="modal"
+                              canRemove={can('canEditFicha')}
+                              removing={removingGarantiaId === selectedCard.id}
+                              onConfirmRemove={() => handleRemoveGarantia(selectedCard)}
+                            />
                           ) : null}
                           </div>
                           ) : (
                           <div className="flex min-w-0 flex-1 items-center gap-2">
                             {selectedCard.garantiaTag ? (
-                              <span
-                                className="inline-flex shrink-0 items-center rounded-md border border-red-600 bg-red-600 px-2.5 py-[0.3rem] text-[11px] font-semibold uppercase tracking-wide text-white shadow-none"
-                                title="Veículo em garantia"
-                              >
-                                Garantia
-                              </span>
+                              <PatioGarantiaTagBadge
+                                size="modal"
+                                canRemove={can('canEditFicha')}
+                                removing={removingGarantiaId === selectedCard.id}
+                                onConfirmRemove={() => handleRemoveGarantia(selectedCard)}
+                              />
                             ) : null}
                           </div>
                           )}
