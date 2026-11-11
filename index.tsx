@@ -8,6 +8,7 @@ import './styles/patio-vehicle-modal-desktop-pilot.css';
 import './styles/patio-vehicle-modal-touch.css';
 import './styles/desktop-onmotor-shell.css';
 import './styles/ios-switch.css';
+import './styles/tv-panels-hub.css';
 import App from './App';
 import { AppErrorBoundary } from './components/AppErrorBoundary';
 import { DeviceTypeProvider } from './components/ui/DeviceTypeContext';
