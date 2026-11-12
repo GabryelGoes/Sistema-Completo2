@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { StorageThumbImg } from '../ui/StorageThumbImg';
 import { ModalPortal } from '../ui/ModalPortal';
+import { patioOsSecModalPcClass, usePatioOsPcLayout } from './PatioOsPcLayoutContext';
 import {
   createServiceOrderPhotoFolder,
   deleteServiceOrderPhoto,
@@ -187,6 +188,7 @@ export function PatioPhotoAlbums({
   fallbackPhotos = [],
   dense = false,
 }: PatioPhotoAlbumsProps) {
+  const patioOsPcLayout = usePatioOsPcLayout();
   const [folders, setFolders] = useState<ServiceOrderPhotoFolder[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -876,7 +878,11 @@ export function PatioPhotoAlbums({
   const liveCameraOverlay = isLiveCameraOpen ? (
     <ModalPortal manageBackLayer={false} onRequestClose={stopLiveCamera}>
       <div
-        className="fixed inset-0 z-[220] flex flex-col bg-black"
+        className={patioOsSecModalPcClass(
+          patioOsPcLayout,
+          'fixed inset-0 z-[220] flex flex-col bg-black'
+        )}
+        data-patio-os-sec-role={patioOsPcLayout ? 'media' : undefined}
         role="dialog"
         aria-modal="true"
         aria-label="Câmera"

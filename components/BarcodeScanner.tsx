@@ -4,6 +4,7 @@ import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import { normalizeBarcodeInput } from '../utils/workshopPartBarcode';
 import { RegistrationPortal } from './ui/RegistrationPortal';
 import { resolveIosModalOverlayClass } from './ui/iosModalStyles';
+import { patioOsSecModalPcClass, usePatioOsPcLayout } from './patio/PatioOsPcLayoutContext';
 import { useDesktopShellLayout } from './ui/DesktopShellContext';
 
 const SCANNER_Z = 'z-[145]';
@@ -152,6 +153,7 @@ export function BarcodeScanner({
   onClose,
   title = 'Ler código de barras',
 }: BarcodeScannerProps) {
+  const patioOsPcLayout = usePatioOsPcLayout();
   const isDesktopShell = useDesktopShellLayout();
   const reactId = useId().replace(/:/g, '');
   const elementId = `barcode-scanner-${reactId}`;
@@ -382,7 +384,8 @@ export function BarcodeScanner({
 
   return (
     <RegistrationPortal>
-      <div className={overlayClass} role="dialog" aria-modal="true" aria-label={title}>
+      <div className={patioOsSecModalPcClass(patioOsPcLayout, `${overlayClass} patio-os-sec-overlay`)}
+      data-patio-os-sec-role={patioOsPcLayout ? 'media' : undefined} role="dialog" aria-modal="true" aria-label={title}>
         <div className="flex w-full max-w-lg flex-col overflow-hidden rounded-[1.75rem] border-0 bg-zinc-950 text-white shadow-none">
           <div className="flex items-center justify-between gap-3 border-b border-white/10 px-4 py-3">
             <div className="min-w-0">

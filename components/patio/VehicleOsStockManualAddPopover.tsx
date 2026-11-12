@@ -16,6 +16,7 @@ import {
   NESTED_STOCK_OVERLAY_Z,
   resolveIosModalOverlayClass,
 } from '../ui/iosModalStyles';
+import { patioOsSecModalPcClass, usePatioOsPcLayout } from './PatioOsPcLayoutContext';
 
 export type VehicleOsStockManualAddPopoverProps = {
   open: boolean;
@@ -35,6 +36,7 @@ export const VehicleOsStockManualAddPopover: React.FC<VehicleOsStockManualAddPop
   onAdd,
 }) => {
   const isDesktopShell = useDesktopShellLayout();
+  const patioOsPcLayout = usePatioOsPcLayout();
   const [catalog, setCatalog] = useState<WorkshopPart[]>([]);
   const [catalogLoading, setCatalogLoading] = useState(false);
   const [query, setQuery] = useState('');
@@ -145,7 +147,11 @@ export const VehicleOsStockManualAddPopover: React.FC<VehicleOsStockManualAddPop
   return (
     <ModalPortal onRequestClose={busy ? undefined : onClose} forceBody>
       <div
-        className={`${overlayClass} animate-in fade-in duration-150`}
+        className={patioOsSecModalPcClass(
+          patioOsPcLayout,
+          `${overlayClass} animate-in fade-in duration-150 patio-os-sec-overlay`
+        )}
+        data-patio-os-sec-role={patioOsPcLayout ? 'overlay' : undefined}
         onClick={() => {
           if (!busy) onClose();
         }}
@@ -155,14 +161,18 @@ export const VehicleOsStockManualAddPopover: React.FC<VehicleOsStockManualAddPop
           role="dialog"
           aria-modal="true"
           aria-labelledby="vehicle-os-stock-manual-add-title"
-          className={`${iosModalShell} flex max-h-[min(88dvh,560px)] w-full max-w-md flex-col`}
+          className={patioOsSecModalPcClass(
+            patioOsPcLayout,
+            `${iosModalShell} flex max-h-[min(88dvh,560px)] w-full max-w-md flex-col patio-os-sec-shell`
+          )}
+          data-patio-os-sec-role={patioOsPcLayout ? 'shell' : undefined}
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="flex items-center justify-between gap-2 border-b border-zinc-200/80 px-3 py-2.5 dark:border-white/10">
+          <div className="patio-os-sec-header flex items-center justify-between gap-2 border-b border-zinc-200/80 px-3 py-2.5 dark:border-white/10">
             <div className="min-w-0">
               <p
                 id="vehicle-os-stock-manual-add-title"
-                className="text-[14px] font-semibold text-zinc-900 dark:text-white"
+                className="patio-os-sec-title text-[14px] font-semibold text-zinc-900 dark:text-white"
               >
                 Adicionar do estoque
               </p>

@@ -4,6 +4,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkBreaks from 'remark-breaks';
 import type { BoardAction } from '../../types';
 import { ModalPortal } from '../ui/ModalPortal';
+import { patioOsSecModalPcClass, usePatioOsPcLayout } from './PatioOsPcLayoutContext';
 import {
   appendOsChatPhotosMarker,
   parseOsChatPhotosFromText,
@@ -67,6 +68,7 @@ export const OsCommentBubble: React.FC<OsCommentBubbleProps> = ({
   onCancelEdit,
   onOpenChatPhoto,
 }) => {
+  const patioOsPcLayout = usePatioOsPcLayout();
   const [menuOpen, setMenuOpen] = useState(false);
   const [sheet, setSheet] = useState<'menu' | 'views' | 'react' | null>(null);
   const [marking, setMarking] = useState(false);
@@ -362,19 +364,27 @@ export const OsCommentBubble: React.FC<OsCommentBubbleProps> = ({
       {menuOpen ? (
         <ModalPortal onRequestClose={closeMenu}>
           <div
-            className="fixed inset-0 z-[240] flex items-end justify-center bg-black/45 p-3 sm:items-center"
+            className={patioOsSecModalPcClass(
+              patioOsPcLayout,
+              'fixed inset-0 z-[240] flex items-end justify-center bg-black/45 p-3 sm:items-center patio-os-sec-overlay'
+            )}
+            data-patio-os-sec-role={patioOsPcLayout ? 'overlay' : undefined}
             onClick={closeMenu}
             role="presentation"
           >
             <div
-              className="w-full max-w-sm overflow-hidden rounded-2xl bg-white shadow-2xl dark:bg-zinc-900"
+              className={patioOsSecModalPcClass(
+                patioOsPcLayout,
+                'w-full max-w-sm overflow-hidden rounded-2xl bg-white shadow-2xl dark:bg-zinc-900 patio-os-sec-shell'
+              )}
+              data-patio-os-sec-role={patioOsPcLayout ? 'shell' : undefined}
               onClick={(e) => e.stopPropagation()}
               role="dialog"
               aria-modal="true"
               aria-label="Opções da mensagem"
             >
-              <div className="flex items-center justify-between border-b border-zinc-100 px-4 py-3 dark:border-white/[0.08]">
-                <p className="text-[14px] font-semibold text-zinc-900 dark:text-white">
+              <div className="patio-os-sec-header flex items-center justify-between border-b border-zinc-100 px-4 py-3 dark:border-white/[0.08]">
+                <p className="patio-os-sec-title text-[14px] font-semibold text-zinc-900 dark:text-white">
                   {sheet === 'views'
                     ? 'Visualizações'
                     : sheet === 'react'

@@ -11,6 +11,7 @@ import { uiOsModalCardSectionTitle, uiOsModalSectionAppIcon } from '../ui/appTyp
 import { IosNotificationBadge } from '../ui/IosNotificationBadge';
 import { ModalPortal } from '../ui/ModalPortal';
 import { iosModalClose, iosModalShell } from '../ui/iosModalStyles';
+import { patioOsSecModalPcClass, usePatioOsPcLayout } from './PatioOsPcLayoutContext';
 import {
   getLabQuickServices,
   LAB_QUICK_SERVICES_CHANGED_EVENT,
@@ -121,6 +122,7 @@ export const PatioOsModalLabServicesSection: React.FC<PatioOsModalLabServicesSec
   defaultExpanded = false,
   pcLayout = false,
 }) => {
+  const patioOsPcLayout = usePatioOsPcLayout() || pcLayout;
   const [expanded, setExpanded] = useState(defaultExpanded);
   const [manualProductName, setManualProductName] = useState(false);
   const [itemPickerOpen, setItemPickerOpen] = useState(false);
@@ -214,13 +216,21 @@ export const PatioOsModalLabServicesSection: React.FC<PatioOsModalLabServicesSec
     itemPickerOpen && typeof document !== 'undefined'
       ? createPortal(
           <div
-            className="fixed inset-0 z-[350] flex items-end justify-center bg-black/50 p-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] backdrop-blur-[12px] sm:items-center sm:p-6"
+            className={patioOsSecModalPcClass(
+              patioOsPcLayout,
+              'fixed inset-0 z-[350] flex items-end justify-center bg-black/50 p-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] backdrop-blur-[12px] sm:items-center sm:p-6 patio-os-sec-overlay'
+            )}
+            data-patio-os-sec-role={patioOsPcLayout ? 'overlay' : undefined}
             onClick={() => setItemPickerOpen(false)}
             role="presentation"
             data-lab-item-picker=""
           >
             <div
-              className={`relative mb-1 flex max-h-[min(70dvh,32rem)] w-full max-w-sm min-h-[16rem] flex-col overflow-hidden rounded-[1.5rem] border-0 bg-white shadow-none dark:bg-zinc-900 sm:mb-0 sm:rounded-[1.75rem]`}
+              className={patioOsSecModalPcClass(
+                patioOsPcLayout,
+                'relative mb-1 flex max-h-[min(70dvh,32rem)] w-full max-w-sm min-h-[16rem] flex-col overflow-hidden rounded-[1.5rem] border-0 bg-white shadow-none dark:bg-zinc-900 sm:mb-0 sm:rounded-[1.75rem] patio-os-sec-shell'
+              )}
+              data-patio-os-sec-role={patioOsPcLayout ? 'shell' : undefined}
               role="dialog"
               aria-modal="true"
               aria-labelledby="lab-item-picker-title"
@@ -784,12 +794,20 @@ export const PatioOsModalLabServicesSection: React.FC<PatioOsModalLabServicesSec
     {quickSendModalOpen && onQuickSendService ? (
       <ModalPortal manageBackLayer={false}>
         <div
-          className="fixed inset-0 z-[350] flex items-center justify-center bg-black/45 p-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] backdrop-blur-[20px] sm:p-6"
+          className={patioOsSecModalPcClass(
+            patioOsPcLayout,
+            'fixed inset-0 z-[350] flex items-center justify-center bg-black/45 p-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] backdrop-blur-[20px] sm:p-6 patio-os-sec-overlay'
+          )}
+          data-patio-os-sec-role={patioOsPcLayout ? 'overlay' : undefined}
           onClick={() => !busy && setQuickSendModalOpen(false)}
           role="presentation"
         >
           <div
-            className={`relative flex max-h-[min(88dvh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1.5rem))] w-full max-w-md min-h-0 flex-col overflow-hidden ${iosModalShell}`}
+            className={patioOsSecModalPcClass(
+              patioOsPcLayout,
+              `relative flex max-h-[min(88dvh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1.5rem))] w-full max-w-md min-h-0 flex-col overflow-hidden ${iosModalShell} patio-os-sec-shell`
+            )}
+            data-patio-os-sec-role={patioOsPcLayout ? 'shell' : undefined}
             role="dialog"
             aria-modal="true"
             aria-labelledby="lab-quick-send-title"
@@ -805,7 +823,7 @@ export const PatioOsModalLabServicesSection: React.FC<PatioOsModalLabServicesSec
               <X className="h-5 w-5" />
             </button>
 
-            <div className="shrink-0 border-b border-zinc-200/70 px-6 pb-5 pt-7 dark:border-white/[0.07] sm:px-8 sm:pt-8">
+            <div className="patio-os-sec-header shrink-0 border-b border-zinc-200/70 px-6 pb-5 pt-7 dark:border-white/[0.07] sm:px-8 sm:pt-8">
               <div className="flex items-start gap-3 pr-10">
                 <span className="h-11 w-11 shrink-0 overflow-hidden rounded-[0.7rem]">
                   <img src="/icons/envio-rapido-ios.png" alt="" className="h-full w-full object-cover" />
@@ -813,18 +831,18 @@ export const PatioOsModalLabServicesSection: React.FC<PatioOsModalLabServicesSec
                 <div className="min-w-0 flex-1">
                   <h2
                     id="lab-quick-send-title"
-                    className="text-[22px] font-semibold leading-tight tracking-tight text-zinc-900 dark:text-white"
+                    className="patio-os-sec-title text-[22px] font-semibold leading-tight tracking-tight text-zinc-900 dark:text-white"
                   >
                     Envios rápidos
                   </h2>
-                  <p className="mt-1 text-[13px] text-zinc-500 dark:text-zinc-400">
+                  <p className="patio-os-sec-subtitle mt-1 text-[13px] text-zinc-500 dark:text-zinc-400">
                     Toque em um serviço da lista para enviar ao laboratório.
                   </p>
                 </div>
               </div>
             </div>
 
-            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-[#F2F2F7] px-4 py-4 dark:bg-black/25 custom-scrollbar sm:px-6">
+            <div className="patio-os-sec-body min-h-0 flex-1 overflow-y-auto overscroll-contain bg-[#F2F2F7] px-4 py-4 dark:bg-black/25 custom-scrollbar sm:px-6">
               {quickServices.length === 0 ? (
                 <p className="rounded-xl border border-dashed border-zinc-300/90 bg-white/80 p-4 text-center text-[13px] text-zinc-500 dark:border-white/[0.12] dark:bg-zinc-900/50 dark:text-zinc-400">
                   Nenhum envio rápido configurado.
@@ -864,12 +882,20 @@ export const PatioOsModalLabServicesSection: React.FC<PatioOsModalLabServicesSec
     {attachToLabOrderId && onCopyPatioAttachmentsToLab ? (
       <ModalPortal manageBackLayer={false}>
         <div
-          className="fixed inset-0 z-[350] flex items-center justify-center bg-black/45 p-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] backdrop-blur-[20px] sm:p-6"
+          className={patioOsSecModalPcClass(
+            patioOsPcLayout,
+            'fixed inset-0 z-[350] flex items-center justify-center bg-black/45 p-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] backdrop-blur-[20px] sm:p-6 patio-os-sec-overlay'
+          )}
+          data-patio-os-sec-role={patioOsPcLayout ? 'overlay' : undefined}
           onClick={() => !copyingPatioAttachments && setAttachToLabOrderId(null)}
           role="presentation"
         >
           <div
-            className={`relative flex max-h-[min(88dvh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1.5rem))] w-full max-w-lg min-h-0 flex-col overflow-hidden ${iosModalShell}`}
+            className={patioOsSecModalPcClass(
+              patioOsPcLayout,
+              `relative flex max-h-[min(88dvh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1.5rem))] w-full max-w-lg min-h-0 flex-col overflow-hidden ${iosModalShell} patio-os-sec-shell`
+            )}
+            data-patio-os-sec-role={patioOsPcLayout ? 'shell' : undefined}
             role="dialog"
             aria-modal="true"
             aria-labelledby="lab-attach-patio-title"
@@ -884,18 +910,18 @@ export const PatioOsModalLabServicesSection: React.FC<PatioOsModalLabServicesSec
             >
               <X className="h-5 w-5" />
             </button>
-            <div className="shrink-0 border-b border-zinc-200/70 px-6 pb-5 pt-7 dark:border-white/[0.07] sm:px-8 sm:pt-8">
+            <div className="patio-os-sec-header shrink-0 border-b border-zinc-200/70 px-6 pb-5 pt-7 dark:border-white/[0.07] sm:px-8 sm:pt-8">
               <h2
                 id="lab-attach-patio-title"
-                className="pr-10 text-[22px] font-semibold leading-tight tracking-tight text-zinc-900 dark:text-white"
+                className="patio-os-sec-title pr-10 text-[22px] font-semibold leading-tight tracking-tight text-zinc-900 dark:text-white"
               >
                 Anexar da OS do pátio
               </h2>
-              <p className="mt-1 text-[13px] text-zinc-500 dark:text-zinc-400">
+              <p className="patio-os-sec-subtitle mt-1 text-[13px] text-zinc-500 dark:text-zinc-400">
                 Selecione fotos ou documentos desta OS para copiar ao produto no laboratório.
               </p>
             </div>
-            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-[#F2F2F7] px-4 py-4 dark:bg-black/25 custom-scrollbar sm:px-6">
+            <div className="patio-os-sec-body min-h-0 flex-1 overflow-y-auto overscroll-contain bg-[#F2F2F7] px-4 py-4 dark:bg-black/25 custom-scrollbar sm:px-6">
               <PatioOriginAttachmentsPicker
                 attachments={patioAttachments}
                 selectedPaths={attachToLabPaths}
@@ -903,7 +929,7 @@ export const PatioOsModalLabServicesSection: React.FC<PatioOsModalLabServicesSec
                 disabled={copyingPatioAttachments}
               />
             </div>
-            <div className="shrink-0 border-t border-zinc-200/70 bg-white px-4 py-3 dark:border-white/[0.07] dark:bg-zinc-900 sm:px-6">
+            <div className="patio-os-sec-footer shrink-0 border-t border-zinc-200/70 bg-white px-4 py-3 dark:border-white/[0.07] dark:bg-zinc-900 sm:px-6">
               <button
                 type="button"
                 disabled={copyingPatioAttachments || attachToLabPaths.length === 0}

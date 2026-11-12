@@ -4,6 +4,7 @@ import { ModalPortal } from './ui/ModalPortal';
 import { resolveIosModalOverlayClass, NESTED_STOCK_OVERLAY_Z } from './ui/iosModalStyles';
 import { useDesktopShellLayout } from './ui/DesktopShellContext';
 import { useBrowserBackLayer } from './ui/BackNavigationContext';
+import { patioOsSecModalPcClass, usePatioOsPcLayout } from './patio/PatioOsPcLayoutContext';
 
 export type StockGuardPasswordModalProps = {
   open: boolean;
@@ -28,6 +29,7 @@ export function StockGuardPasswordModal({
   onConfirm,
 }: StockGuardPasswordModalProps) {
   const isDesktopShell = useDesktopShellLayout();
+  const patioOsPcLayout = usePatioOsPcLayout();
   const [password, setPassword] = useState('');
   const [localError, setLocalError] = useState<string | null>(null);
 
@@ -45,16 +47,28 @@ export function StockGuardPasswordModal({
 
   return (
     <ModalPortal>
-      <div className={overlayClass} role="dialog" aria-modal="true" aria-label={title}>
-        <div className="w-full max-w-sm overflow-hidden rounded-[1.5rem] border-0 bg-white shadow-none dark:bg-zinc-950">
-          <div className="flex items-start justify-between gap-3 border-b border-zinc-200/70 px-5 py-4 dark:border-white/10">
+      <div
+        className={patioOsSecModalPcClass(patioOsPcLayout, `${overlayClass} patio-os-sec-overlay`)}
+        data-patio-os-sec-role={patioOsPcLayout ? 'overlay' : undefined}
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+      >
+        <div
+          className={patioOsSecModalPcClass(
+            patioOsPcLayout,
+            'w-full max-w-sm overflow-hidden rounded-[1.5rem] border-0 bg-white shadow-none dark:bg-zinc-950 patio-os-sec-shell'
+          )}
+          data-patio-os-sec-role={patioOsPcLayout ? 'shell' : undefined}
+        >
+          <div className="patio-os-sec-header flex items-start justify-between gap-3 border-b border-zinc-200/70 px-5 py-4 dark:border-white/10">
             <div className="flex min-w-0 items-start gap-3">
               <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900">
                 <KeyRound className="h-4 w-4" />
               </span>
               <div className="min-w-0">
-                <h2 className="text-[16px] font-bold text-zinc-900 dark:text-white">{title}</h2>
-                <p className="mt-0.5 text-[12px] leading-snug text-zinc-500 dark:text-zinc-400">
+                <h2 className="patio-os-sec-title text-[16px] font-bold text-zinc-900 dark:text-white">{title}</h2>
+                <p className="patio-os-sec-subtitle mt-0.5 text-[12px] leading-snug text-zinc-500 dark:text-zinc-400">
                   {subtitle}
                 </p>
               </div>
@@ -71,7 +85,7 @@ export function StockGuardPasswordModal({
           </div>
 
           <form
-            className="space-y-3 px-5 py-4"
+            className="patio-os-sec-body patio-os-sec-form space-y-3 px-5 py-4"
             onSubmit={(e) => {
               e.preventDefault();
               const pwd = password.trim();
@@ -105,7 +119,7 @@ export function StockGuardPasswordModal({
               </p>
             )}
 
-            <div className="flex justify-end gap-2 pt-1">
+            <div className="patio-os-sec-footer flex justify-end gap-2 pt-1 !px-0 !py-0">
               <button
                 type="button"
                 disabled={busy}

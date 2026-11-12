@@ -1,6 +1,7 @@
 import React, { useCallback } from "react";
 import { PenLine, Printer, X } from "lucide-react";
 import { ModalPortal } from "../ui/ModalPortal";
+import { patioOsSecModalPcClass, usePatioOsPcLayout } from "../patio/PatioOsPcLayoutContext";
 import { useTabletPhonePortraitFullscreen } from "../../hooks/useTabletPhonePortraitFullscreen";
 import {
   DIAGNOSTIC_AUTHORIZATION_SIGNATURE_LABEL,
@@ -60,6 +61,7 @@ export const DiagnosticAuthorizationSheetModal: React.FC<DiagnosticAuthorization
   }, [signatureImageSrc, signedAt, customerName, vehicleBrand, vehicleModel, plate, mileageKm]);
 
   const fullScreenPortrait = useTabletPhonePortraitFullscreen();
+  const patioOsPcLayout = usePatioOsPcLayout();
 
   if (!open) return null;
 
@@ -72,30 +74,34 @@ export const DiagnosticAuthorizationSheetModal: React.FC<DiagnosticAuthorization
   return (
     <ModalPortal>
       <div
-        className={
+        className={patioOsSecModalPcClass(
+          patioOsPcLayout && !fullScreenPortrait,
           fullScreenPortrait
             ? "diag-auth-sheet-backdrop fixed inset-0 z-[200] flex items-stretch justify-stretch bg-black/55 animate-modal-backdrop pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]"
-            : "diag-auth-sheet-backdrop fixed inset-0 z-[200] flex items-center justify-center bg-black/50 p-4 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] animate-modal-backdrop"
-        }
+            : "diag-auth-sheet-backdrop fixed inset-0 z-[200] flex items-center justify-center bg-black/50 p-4 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] animate-modal-backdrop patio-os-sec-overlay"
+        )}
+        data-patio-os-sec-role={patioOsPcLayout && !fullScreenPortrait ? "overlay" : undefined}
         role="dialog"
         aria-modal="true"
         aria-labelledby="diag-auth-sheet-title"
       >
         <div
-          className={
+          className={patioOsSecModalPcClass(
+            patioOsPcLayout && !fullScreenPortrait,
             fullScreenPortrait
               ? "diag-auth-sheet-paper relative flex h-full min-h-0 w-full max-w-none flex-1 flex-col overflow-hidden rounded-none border-0 bg-white animate-modal-sheet"
-              : "diag-auth-sheet-paper relative flex max-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-2rem)] w-full max-w-2xl min-h-0 flex-col overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-[0_24px_64px_-24px_rgba(0,0,0,0.35)] animate-modal-sheet"
-          }
+              : "diag-auth-sheet-paper relative flex max-h-[calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-2rem)] w-full max-w-2xl min-h-0 flex-col overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-[0_24px_64px_-24px_rgba(0,0,0,0.35)] animate-modal-sheet patio-os-sec-shell"
+          )}
+          data-patio-os-sec-role={patioOsPcLayout && !fullScreenPortrait ? "shell" : undefined}
         >
-          <div className="relative z-10 flex shrink-0 items-start justify-between gap-3 border-b border-zinc-200 px-6 py-4">
+          <div className="patio-os-sec-header relative z-10 flex shrink-0 items-start justify-between gap-3 border-b border-zinc-200 px-6 py-4">
             <div className="min-w-0">
               <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-500">
                 Documento
               </p>
               <h2
                 id="diag-auth-sheet-title"
-                className="mt-1 text-[17px] font-bold tracking-tight text-zinc-950 sm:text-lg"
+                className="patio-os-sec-title mt-1 text-[17px] font-bold tracking-tight text-zinc-950 sm:text-lg"
               >
                 {DIAGNOSTIC_AUTHORIZATION_TITLE}
               </h2>

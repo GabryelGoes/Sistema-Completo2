@@ -9,6 +9,7 @@ import {
 } from '../services/niimbotService';
 import { renderLabOsLabelDataUrl, type LabOsLabelInput } from '../utils/labOsLabelRender';
 import { ModalPortal } from './ui/ModalPortal';
+import { patioOsSecModalPcClass, usePatioOsPcLayout } from './patio/PatioOsPcLayoutContext';
 import { IosModalHeader } from './ui/IosModalHeader';
 import { iosModalClose, iosModalShell } from './ui/iosModalStyles';
 import { useBrowserBackLayer } from './ui/BackNavigationContext';
@@ -21,6 +22,7 @@ export type LabOsLabelPrintModalProps = {
 };
 
 export function LabOsLabelPrintModal({ open, label, onClose }: LabOsLabelPrintModalProps) {
+  const patioOsPcLayout = usePatioOsPcLayout();
   const [snap, setSnap] = useState<NiimbotServiceSnapshot>(() => niimbotService.snapshot());
   const [copies, setCopies] = useState(1);
   const [busy, setBusy] = useState(false);
@@ -82,12 +84,20 @@ export function LabOsLabelPrintModal({ open, label, onClose }: LabOsLabelPrintMo
   return (
     <ModalPortal>
       <div
-        className="fixed inset-0 z-[240] flex items-center justify-center bg-black/50 p-3 sm:p-4"
+        className={patioOsSecModalPcClass(
+          patioOsPcLayout,
+          'fixed inset-0 z-[240] flex items-center justify-center bg-black/50 p-3 sm:p-4 patio-os-sec-overlay'
+        )}
+        data-patio-os-sec-role={patioOsPcLayout ? 'overlay' : undefined}
         onClick={onClose}
         role="presentation"
       >
         <div
-          className={`${iosModalShell} relative flex max-h-[min(92dvh,720px)] w-full max-w-md flex-col overflow-hidden`}
+          className={patioOsSecModalPcClass(
+            patioOsPcLayout,
+            `${iosModalShell} relative flex max-h-[min(92dvh,720px)] w-full max-w-md flex-col overflow-hidden patio-os-sec-shell`
+          )}
+          data-patio-os-sec-role={patioOsPcLayout ? 'shell' : undefined}
           onClick={(e) => e.stopPropagation()}
           role="dialog"
           aria-modal="true"
@@ -97,7 +107,7 @@ export function LabOsLabelPrintModal({ open, label, onClose }: LabOsLabelPrintMo
             <X className="h-5 w-5" />
           </button>
 
-          <div className="shrink-0 border-b border-zinc-200/70 bg-white px-5 pb-4 pt-8 pr-24 dark:border-white/[0.06] dark:bg-transparent">
+          <div className="patio-os-sec-header shrink-0 border-b border-zinc-200/70 bg-white px-5 pb-4 pt-8 pr-24 dark:border-white/[0.06] dark:bg-transparent">
             <IosModalHeader
               icon={<Tag className="h-5 w-5 text-zinc-800" />}
               title="Etiqueta da OS"
@@ -105,7 +115,7 @@ export function LabOsLabelPrintModal({ open, label, onClose }: LabOsLabelPrintMo
             />
           </div>
 
-          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-4 custom-scrollbar">
+          <div className="patio-os-sec-body min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-4 custom-scrollbar">
             <div>
               <p className="text-[13px] font-semibold text-zinc-900 dark:text-zinc-100">
                 {label.customerName}

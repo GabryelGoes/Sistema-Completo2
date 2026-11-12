@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { FileText, Download, X, Loader2, ExternalLink, AlertCircle } from 'lucide-react';
 import { ModalPortal } from './ui/ModalPortal';
 import { mediaOverlayIconBtn } from './ui/iosModalStyles';
+import { patioOsSecModalPcClass, usePatioOsPcLayout } from './patio/PatioOsPcLayoutContext';
 
 function fileNameFromSrc(src: string, fallback = 'Documento PDF'): string {
   try {
@@ -27,6 +28,7 @@ export function PdfViewerModal({
   title?: string;
   onClose: () => void;
 }) {
+  const patioOsPcLayout = usePatioOsPcLayout();
   const displayTitle = (title || '').trim() || fileNameFromSrc(src);
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -93,15 +95,19 @@ export function PdfViewerModal({
     <ModalPortal>
       <div
         data-media-overlay
+        data-patio-os-sec-role={patioOsPcLayout ? 'media' : undefined}
         role="dialog"
         aria-modal="true"
         aria-label={displayTitle}
-        className="fixed inset-0 z-[300] flex flex-col bg-zinc-950/95 backdrop-blur-xl animate-modal-backdrop"
+        className={patioOsSecModalPcClass(
+          patioOsPcLayout,
+          'fixed inset-0 z-[300] flex flex-col bg-zinc-950/95 backdrop-blur-xl animate-modal-backdrop'
+        )}
         onClick={(e) => {
           if (e.target === e.currentTarget) onClose();
         }}
       >
-        <div className="flex shrink-0 items-center justify-between gap-3 border-b border-white/10 bg-zinc-950/80 px-4 py-3 backdrop-blur-md sm:px-5">
+        <div className="patio-os-sec-media-chrome flex shrink-0 items-center justify-between gap-3 border-b border-white/10 bg-zinc-950/80 px-4 py-3 backdrop-blur-md sm:px-5">
           <div className="flex min-w-0 items-center gap-3">
             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-red-500/15 text-red-400 ring-1 ring-red-400/25">
               <FileText className="h-4 w-4" strokeWidth={2.25} aria-hidden />

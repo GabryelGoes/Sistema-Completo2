@@ -1,5 +1,6 @@
 import React, { useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { patioOsSecModalPcClass, usePatioOsPcLayout } from './PatioOsPcLayoutContext';
 import { Loader2 } from 'lucide-react';
 
 type PatioGarantiaTagBadgeProps = {
@@ -28,6 +29,7 @@ export function PatioGarantiaTagBadge({
   size = 'modal',
   className = '',
 }: PatioGarantiaTagBadgeProps) {
+  const patioOsPcLayout = usePatioOsPcLayout();
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
   const btnRef = useRef<HTMLButtonElement | null>(null);
@@ -120,11 +122,16 @@ export function PatioGarantiaTagBadge({
               role="dialog"
               aria-modal="true"
               aria-labelledby={titleId}
-              className="fixed z-[520] w-[min(16.5rem,calc(100vw-1.5rem))] overflow-hidden rounded-2xl border border-zinc-200/90 bg-white p-3 text-zinc-900 shadow-[0_16px_40px_-12px_rgba(0,0,0,0.35)] dark:border-white/12 dark:bg-zinc-900 dark:text-zinc-100"
+              className={patioOsSecModalPcClass(
+                patioOsPcLayout,
+                'fixed z-[520] w-[min(16.5rem,calc(100vw-1.5rem))] overflow-hidden rounded-2xl border border-zinc-200/90 bg-white p-3 text-zinc-900 shadow-[0_16px_40px_-12px_rgba(0,0,0,0.35)] dark:border-white/12 dark:bg-zinc-900 dark:text-zinc-100 patio-os-sec-popover'
+              )}
+              data-patio-os-sec-role={patioOsPcLayout ? 'popover' : undefined}
+              data-patio-os-sec-danger={patioOsPcLayout ? 'true' : undefined}
               style={{ top: pos.top, left: pos.left }}
               onClick={(e) => e.stopPropagation()}
             >
-              <p id={titleId} className="text-[13px] font-semibold leading-snug">
+              <p id={titleId} className="patio-os-sec-title text-[13px] font-semibold leading-snug">
                 Retirar a etiqueta de garantia?
               </p>
               <p className="mt-1 text-[12px] leading-snug text-zinc-500 dark:text-zinc-400">
