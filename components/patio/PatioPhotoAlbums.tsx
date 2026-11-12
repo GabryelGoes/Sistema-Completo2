@@ -222,6 +222,9 @@ export function PatioPhotoAlbums({
   const [liveCameraCapturing, setLiveCameraCapturing] = useState(false);
   const [liveCameraFlash, setLiveCameraFlash] = useState(false);
   const [liveCameraUploadCount, setLiveCameraUploadCount] = useState(0);
+  /** PC (dense): pagina miniaturas para não renderizar álbuns muito grandes de uma vez. */
+  const DENSE_PHOTO_BATCH = 24;
+  const [denseVisibleCount, setDenseVisibleCount] = useState(DENSE_PHOTO_BATCH);
 
   const foldersRef = useRef(folders);
   foldersRef.current = folders;
@@ -449,8 +452,10 @@ export function PatioPhotoAlbums({
       setOpenFolder(null);
       setPhotos([]);
       setLoadingFolder(false);
+      setDenseVisibleCount(DENSE_PHOTO_BATCH);
       return;
     }
+    setDenseVisibleCount(DENSE_PHOTO_BATCH);
     void loadFolderDetailRef.current(openFolderId);
   }, [openFolderId, refreshKey, serviceOrderId]);
 
@@ -831,20 +836,36 @@ export function PatioPhotoAlbums({
 
   if (loading && folders.length === 0) {
     return (
-      <div className="flex items-center justify-center py-10">
-        <Loader2 className="h-5 w-5 animate-spin text-[#007AFF]" />
+      <div
+        className={`flex items-center justify-center gap-2 py-10 ${
+          dense ? 'rounded-xl bg-zinc-50/80 dark:bg-white/[0.03]' : ''
+        }`}
+        role="status"
+        aria-live="polite"
+      >
+        <Loader2 className="h-5 w-5 animate-spin text-[#007AFF]" aria-hidden />
+        {dense ? (
+          <span className="text-[12px] font-medium text-zinc-500 dark:text-zinc-400">
+            Carregando pastas…
+          </span>
+        ) : null}
       </div>
     );
   }
 
   if (error && folders.length === 0 && !openFolderId) {
     return (
-      <div className="rounded-2xl bg-zinc-50/80 px-4 py-6 text-center dark:bg-white/[0.03]">
+      <div
+        className={`rounded-2xl bg-zinc-50/80 px-4 py-6 text-center dark:bg-white/[0.03] ${
+          dense ? 'border border-dashed border-zinc-300/90 dark:border-white/[0.12]' : ''
+        }`}
+        role="alert"
+      >
         <p className="text-[13px] font-medium text-zinc-600 dark:text-zinc-300">{error}</p>
         <button
           type="button"
           onClick={() => void loadFolders()}
-          className="mt-3 text-[13px] font-semibold text-[#007AFF]"
+          className="mt-3 text-[13px] font-semibold text-[#007AFF] transition-opacity hover:opacity-90 active:opacity-80"
         >
           Tentar novamente
         </button>
@@ -911,14 +932,16 @@ export function PatioPhotoAlbums({
 
   /* —— Interior da pasta —— */
   if (openFolderId) {
+    const photosForGrid = dense ? photos.slice(0, denseVisibleCount) : photos;
+    const hasMorePhotos = dense && photos.length > denseVisibleCount;
     return (
       <>
-      <div className="space-y-4">
-        <div className="flex items-center gap-2">
+      <div className={`space-y-4${dense ? ' patio-vm-arq-albums' : ''}`}>
+        <div className={`flex items-center gap-2${dense ? ' patio-vm-arq-folder-chrome' : ''}`}>
           <button
             type="button"
             onClick={() => setOpenFolderId(null)}
-            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-zinc-100/90 text-[#007AFF] transition-colors hover:bg-zinc-200/90 dark:bg-white/[0.06] dark:hover:bg-white/[0.1]"
+            className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-zinc-100/90 text-[#007AFF] transition-colors hover:bg-zinc-200/90 active:scale-[0.97] dark:bg-white/[0.06] dark:hover:bg-white/[0.1]"
             aria-label="Voltar às pastas"
           >
             <ChevronLeft className="h-5 w-5" strokeWidth={2.25} />
@@ -971,7 +994,7 @@ export function PatioPhotoAlbums({
                 type="button"
                 disabled={uploading}
                 onClick={() => galleryRef.current?.click()}
-                className="inline-flex h-9 items-center gap-1.5 rounded-full bg-zinc-100/90 px-3 text-[13px] font-semibold text-zinc-800 transition-colors hover:bg-zinc-200/90 disabled:opacity-50 dark:bg-white/[0.08] dark:text-zinc-100 dark:hover:bg-white/[0.12]"
+                className="inline-flex h-9 items-center gap-1.5 rounded-full bg-zinc-100/90 px-3 text-[13px] font-semibold text-zinc-800 transition-colors hover:bg-zinc-200/90 active:scale-[0.98] disabled:opacity-50 dark:bg-white/[0.08] dark:text-zinc-100 dark:hover:bg-white/[0.12]"
               >
                 <Plus className="h-4 w-4" strokeWidth={2.5} />
                 Galeria
@@ -981,11 +1004,20 @@ export function PatioPhotoAlbums({
         </div>
 
         {loadingFolder ? (
-          <div className="flex justify-center py-12">
-            <Loader2 className="h-5 w-5 animate-spin text-[#007AFF]" />
+          <div className="flex items-center justify-center gap-2 py-12" role="status">
+            <Loader2 className="h-5 w-5 animate-spin text-[#007AFF]" aria-hidden />
+            {dense ? (
+              <span className="text-[12px] font-medium text-zinc-500 dark:text-zinc-400">
+                Carregando fotos…
+              </span>
+            ) : null}
           </div>
         ) : photos.length === 0 ? (
-          <div className="flex flex-col items-center justify-center rounded-3xl bg-gradient-to-b from-zinc-50 to-zinc-100/60 px-6 py-14 text-center dark:from-white/[0.04] dark:to-white/[0.02]">
+          <div
+            className={`flex flex-col items-center justify-center bg-gradient-to-b from-zinc-50 to-zinc-100/60 px-6 text-center dark:from-white/[0.04] dark:to-white/[0.02] ${
+              dense ? 'rounded-2xl py-12' : 'rounded-3xl py-14'
+            }`}
+          >
             <div className="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-white shadow-[0_8px_24px_-12px_rgba(0,0,0,0.2)] dark:bg-zinc-900 dark:shadow-none">
               <Images className="h-7 w-7 text-[#007AFF]" strokeWidth={1.75} />
             </div>
@@ -995,35 +1027,48 @@ export function PatioPhotoAlbums({
             </p>
           </div>
         ) : (
+          <>
           <div
             className={
               dense
-                ? 'grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 md:gap-2.5'
+                ? 'patio-vm-arq-photo-grid grid grid-cols-3 gap-2 sm:grid-cols-4 md:gap-2.5 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7'
                 : 'grid grid-cols-2 gap-2.5 sm:grid-cols-3 md:grid-cols-4 md:gap-3'
             }
           >
-            {photos.map((photo, photoIndex) => {
+            {photosForGrid.map((photo, photoIndex) => {
               const label = attachmentDisplayName(photo.name);
               const isDeleting = deletingPath === photo.path;
               const isEditingName = renamingPhotoPath === photo.path;
               const isRenamingThis = isEditingName && renamingPhotoBusy;
               return (
-                <div key={photo.path} className="group flex min-w-0 flex-col gap-1.5">
-                  <div className="relative aspect-square overflow-hidden rounded-2xl bg-zinc-100 dark:bg-zinc-900">
+                <div
+                  key={photo.path}
+                  className={`group flex min-w-0 flex-col gap-1.5${dense ? ' patio-vm-arq-photo-cell' : ''}`}
+                >
+                  <div
+                    className={`relative aspect-square overflow-hidden bg-zinc-100 dark:bg-zinc-900 ${
+                      dense ? 'rounded-xl' : 'rounded-2xl'
+                    }`}
+                  >
                     <button
                       type="button"
                       onClick={() => onPreviewPhoto?.(photos, photoIndex)}
-                      className="absolute inset-0 z-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#007AFF]/60"
+                      className="patio-vm-arq-thumb absolute inset-0 z-0 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#007AFF]/60"
                     >
                       <StorageThumbImg
                         src={photo.url}
                         alt={label}
                         className="h-full w-full object-cover transition-transform duration-300 ease-out group-hover:scale-[1.03]"
-                        sizes="(max-width: 640px) 45vw, 180px"
-                        thumbMaxWidth={220}
-                        thumbMaxHeight={220}
-                        thumbQuality={54}
-                        loading={photoIndex < 8 ? 'eager' : 'lazy'}
+                        sizes={
+                          dense
+                            ? '(min-width:1536px) 12vw, (min-width:1280px) 14vw, (min-width:1024px) 16vw, 22vw'
+                            : '(max-width: 640px) 45vw, 180px'
+                        }
+                        thumbMaxWidth={dense ? 260 : 220}
+                        thumbMaxHeight={dense ? 260 : 220}
+                        thumbQuality={dense ? 56 : 54}
+                        loading={photoIndex < (dense ? 12 : 8) ? 'eager' : 'lazy'}
+                        fetchPriority={photoIndex < 4 ? 'high' : 'low'}
                       />
                       <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/45 via-transparent to-transparent" />
                     </button>
@@ -1136,6 +1181,21 @@ export function PatioPhotoAlbums({
               );
             })}
           </div>
+          {hasMorePhotos ? (
+            <div className="flex justify-center pt-1">
+              <button
+                type="button"
+                onClick={() =>
+                  setDenseVisibleCount((n) => Math.min(photos.length, n + DENSE_PHOTO_BATCH))
+                }
+                className="inline-flex items-center rounded-full bg-zinc-100/90 px-4 py-2 text-[12px] font-semibold text-zinc-800 transition-colors hover:bg-zinc-200/90 active:scale-[0.98] dark:bg-white/[0.08] dark:text-zinc-100 dark:hover:bg-white/[0.12]"
+              >
+                Mostrar mais ({photos.length - denseVisibleCount} restante
+                {photos.length - denseVisibleCount === 1 ? '' : 's'})
+              </button>
+            </div>
+          ) : null}
+          </>
         )}
       </div>
       {liveCameraOverlay}
@@ -1145,7 +1205,7 @@ export function PatioPhotoAlbums({
 
   /* —— Grade de álbuns —— */
   return (
-    <div className="space-y-4">
+    <div className={`space-y-4${dense ? ' patio-vm-arq-albums' : ''}`}>
       <div className="flex items-end justify-between gap-3">
         <div className="min-w-0">
           <p className={sectionTitleClassName}>Fotos</p>
@@ -1169,10 +1229,26 @@ export function PatioPhotoAlbums({
         ) : null}
       </div>
 
+      {folders.length === 0 && !loading ? (
+        <div
+          className={`flex flex-col items-center justify-center px-6 text-center ${
+            dense
+              ? 'rounded-2xl border border-dashed border-zinc-300/95 bg-zinc-50/90 py-10 dark:border-white/[0.12] dark:bg-white/[0.04]'
+              : 'rounded-3xl bg-gradient-to-b from-zinc-50 to-zinc-100/60 py-12 dark:from-white/[0.04] dark:to-white/[0.02]'
+          }`}
+        >
+          <Images className="mb-2 h-7 w-7 text-[#007AFF]" strokeWidth={1.75} aria-hidden />
+          <p className="text-[14px] font-semibold text-zinc-900 dark:text-white">Nenhuma pasta ainda</p>
+          <p className="mt-1 max-w-sm text-[12px] font-medium text-zinc-500 dark:text-zinc-400">
+            Use + Adicionar acima ou crie uma pasta para organizar as fotos.
+          </p>
+        </div>
+      ) : null}
+
       <div
         className={
           dense
-            ? 'flex flex-wrap gap-x-3 gap-y-4'
+            ? 'patio-vm-arq-folder-grid grid grid-cols-3 gap-3 sm:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6'
             : 'grid grid-cols-2 gap-3 sm:grid-cols-3 md:gap-4'
         }
       >
@@ -1183,7 +1259,7 @@ export function PatioPhotoAlbums({
           return (
             <div
               key={folder.id}
-              className={`relative min-w-0 ${dense ? 'w-[136px] sm:w-[148px]' : ''}`}
+              className={`relative min-w-0${dense ? ' patio-vm-arq-folder-cell' : ''}`}
             >
               {isRenaming ? (
                 <div className="rounded-2xl bg-zinc-50 p-3 dark:bg-white/[0.04]">
@@ -1231,7 +1307,7 @@ export function PatioPhotoAlbums({
                   <button
                     type="button"
                     onClick={() => setOpenFolderId(folder.id)}
-                    className="group w-full text-left focus:outline-none"
+                    className="patio-vm-arq-folder-btn group w-full text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[#007AFF]/35 focus-visible:ring-offset-2"
                   >
                     <div
                       className={`overflow-hidden shadow-[0_12px_32px_-18px_rgba(0,0,0,0.35)] transition-transform duration-300 ease-out group-hover:scale-[1.015] group-active:scale-[0.985] dark:shadow-[0_16px_40px_-20px_rgba(0,0,0,0.65)] ${

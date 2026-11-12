@@ -501,6 +501,23 @@ function isPdfAttachment(mimeType: string | undefined, url: string): boolean {
   return /\.pdf(\?|#|$)/i.test(url);
 }
 
+/** Rótulo curto do tipo de documento (só UI; não altera mime/storage). */
+function attachmentDocKindLabel(
+  mimeType: string | null | undefined,
+  url: string,
+  name: string
+): string {
+  if (isPdfAttachment(mimeType ?? undefined, url) || /\.pdf$/i.test(name)) return 'PDF';
+  const ref = `${mimeType ?? ''} ${url} ${name}`.toLowerCase();
+  if (ref.includes('video/') || /\.(mp4|mov|webm|m4v)(\?|#|$)/i.test(ref)) return 'Vídeo';
+  if (ref.includes('sheet') || ref.includes('excel') || /\.(xlsx?|csv)(\?|#|$)/i.test(ref)) {
+    return 'Planilha';
+  }
+  if (ref.includes('word') || /\.(docx?|rtf)(\?|#|$)/i.test(ref)) return 'DOC';
+  if (ref.includes('text/plain') || /\.txt(\?|#|$)/i.test(ref)) return 'TXT';
+  return 'Arquivo';
+}
+
 /** Remove texto legado "Categoria do veículo: ..." do início da queixa (antes era salvo junto). */
 function stripLegacyVehicleCategoryFromComplaint(text: string | null | undefined): string {
   if (!text) return "";
@@ -11706,8 +11723,18 @@ export const PatioView: React.FC<PatioViewProps> = ({
                         {showPcOsTab('arquivos') ? (
                         <>
                          {/* Arquivos (fotos) + Documentos */}
-                         <div className={`${vi} flex flex-col overflow-hidden shadow-none`}>
-                            <div className="relative border-b border-zinc-200/70 bg-white/85 px-3 py-3 dark:border-white/[0.08] dark:bg-zinc-950/35 sm:px-4 sm:py-3.5">
+                         <div
+                           className={`${vi} flex flex-col overflow-hidden shadow-none${
+                             isPatioPcModal ? ' patio-vm-arq-v5' : ''
+                           }`}
+                         >
+                            <div
+                              className={`patio-vm-arq-section-head relative border-b border-zinc-200/70 bg-white/85 dark:border-white/[0.08] dark:bg-zinc-950/35 ${
+                                isPatioPcModal
+                                  ? 'px-3 py-2.5 sm:px-4 sm:py-2.5'
+                                  : 'px-3 py-3 sm:px-4 sm:py-3.5'
+                              }`}
+                            >
                             <div className="flex items-center justify-between gap-2 sm:gap-3">
                                 <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-2.5">
                                     <div className={uiOsModalSectionAppIcon}>
@@ -11748,7 +11775,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                         disabled={isUploading}
                                         aria-expanded={isAnexosAddMenuOpen}
                                         aria-haspopup="menu"
-                                        className="inline-flex shrink-0 items-center rounded-md bg-[#4FA8FF] px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-[0.06em] text-white shadow-sm shadow-blue-500/25 transition-[filter,transform] hover:bg-[#3397F8] active:scale-[0.98] disabled:opacity-50 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-100"
+                                        className="patio-vm-arq-cta inline-flex shrink-0 items-center rounded-md bg-[#4FA8FF] px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-[0.06em] text-white shadow-sm shadow-blue-500/25 transition-[filter,transform] hover:bg-[#3397F8] active:scale-[0.98] disabled:opacity-50 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-100"
                                     >
                                       + Adicionar
                                     </button>
@@ -11870,7 +11897,13 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             </div>
                             </div>
 
-                            <div className={`order-2 space-y-3 px-4 sm:px-5 ${isPatioPcModal ? 'pb-8 pt-3 sm:pb-10 sm:pt-3.5' : 'pb-8 pt-5 sm:pb-10 sm:pt-6'}`}>
+                            <div
+                              className={`patio-vm-arq-body order-2 px-4 sm:px-5 ${
+                                isPatioPcModal
+                                  ? 'space-y-4 pb-8 pt-3 sm:pb-10 sm:pt-3.5'
+                                  : 'space-y-3 pb-8 pt-5 sm:pb-10 sm:pt-6'
+                              }`}
+                            >
                                {serviceOrderDetail && (referenceLinksDraft.length > 0 || pendingReferenceLink) ? (
                                  <div
                                    className={
@@ -12000,8 +12033,19 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                ) : null}
 
                                {isUploading && (
-                                  <div className="flex justify-center p-4">
+                                  <div
+                                    className={`flex items-center justify-center gap-2 p-4 ${
+                                      isPatioPcModal ? 'rounded-xl bg-zinc-50/80 dark:bg-white/[0.03]' : ''
+                                    }`}
+                                    role="status"
+                                    aria-live="polite"
+                                  >
                                      <RefreshCw className="w-4 h-4 text-brand-yellow animate-spin" />
+                                     {isPatioPcModal ? (
+                                       <span className="text-[12px] font-medium text-zinc-500 dark:text-zinc-400">
+                                         Enviando anexo…
+                                       </span>
+                                     ) : null}
                                   </div>
                                )}
                                {selectedCard ? (
@@ -12049,21 +12093,52 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                      )
                                  );
                                  if (others.length === 0) {
+                                   if (loadingDetails && isPatioPcModal) {
+                                     return (
+                                       <div
+                                         className="flex items-center justify-center gap-2 pt-3 text-[12px] font-medium text-zinc-500 dark:text-zinc-400"
+                                         role="status"
+                                       >
+                                         <Loader2 className="h-4 w-4 animate-spin text-[#007AFF]" aria-hidden />
+                                         Carregando documentos…
+                                       </div>
+                                     );
+                                   }
                                    if (!loadingDetails && attachments.length === 0) {
                                      return (
-                                       <p className="pt-2 text-center text-[12px] font-medium text-zinc-500 dark:text-zinc-400">
-                                         Documentos PDF e outros arquivos aparecem aqui.
-                                       </p>
+                                       <div
+                                         className={
+                                           isPatioPcModal
+                                             ? 'rounded-xl border border-dashed border-zinc-300/95 bg-zinc-50/90 px-4 py-5 text-center dark:border-white/[0.12] dark:bg-white/[0.04]'
+                                             : 'pt-2 text-center'
+                                         }
+                                       >
+                                         <p className="text-[12px] font-medium text-zinc-500 dark:text-zinc-400">
+                                           Documentos PDF e outros arquivos aparecem aqui.
+                                         </p>
+                                       </div>
                                      );
                                    }
                                    return null;
                                  }
                                  return (
-                                   <div className="pt-2">
-                                     <div className="mb-2 flex min-w-0 items-center">
+                                   <div className={`patio-vm-arq-docs ${isPatioPcModal ? 'pt-1' : 'pt-2'}`}>
+                                     <div className="mb-2 flex min-w-0 items-center justify-between gap-2">
                                        <p className={uiOsModalCardSectionTitle}>Documentos</p>
+                                       {isPatioPcModal ? (
+                                         <span className="text-[11px] font-medium tabular-nums text-zinc-500 dark:text-zinc-400">
+                                           {others.length}{' '}
+                                           {others.length === 1 ? 'arquivo' : 'arquivos'}
+                                         </span>
+                                       ) : null}
                                      </div>
-                                     <div className="flex flex-wrap gap-2">
+                                     <div
+                                       className={
+                                         isPatioPcModal
+                                           ? 'grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3'
+                                           : 'flex flex-wrap gap-2'
+                                       }
+                                     >
                                        {others.map((att) => {
                                          const isDeletingThis = deletingAttachmentId === att.id;
                                          const isRenamingThis = renamingAttachmentId === att.id;
@@ -12071,10 +12146,17 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                          const attachmentPath = String(att.id || '');
                                          const canRename =
                                            !!attachmentPath && !/^\d+$/.test(attachmentPath) && can('canEditFicha');
+                                         const kindLabel = attachmentDocKindLabel(
+                                           att.mimeType,
+                                           att.url || '',
+                                           att.name || ''
+                                         );
                                          return (
                                            <div
                                              key={att.id}
-                                             className="inline-flex max-w-full min-w-0 items-center gap-2 rounded-xl border border-zinc-200/80 bg-white px-3 py-2 text-[13px] font-medium text-zinc-800 shadow-sm dark:border-white/[0.1] dark:bg-zinc-900 dark:text-zinc-100"
+                                             className={`patio-vm-arq-doc-row inline-flex max-w-full min-w-0 items-center gap-2 rounded-xl border border-zinc-200/80 bg-white px-3 py-2 text-[13px] font-medium text-zinc-800 shadow-sm dark:border-white/[0.1] dark:bg-zinc-900 dark:text-zinc-100${
+                                               isPatioPcModal ? ' w-full' : ''
+                                             }`}
                                            >
                                              {isEditingName ? (
                                                <>
@@ -12129,6 +12211,14 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                                </>
                                              ) : (
                                                <>
+                                                 {isPatioPcModal ? (
+                                                   <span
+                                                     className="inline-flex shrink-0 items-center rounded-md bg-zinc-100 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.06em] text-zinc-500 dark:bg-white/[0.08] dark:text-zinc-400"
+                                                     aria-hidden
+                                                   >
+                                                     {kindLabel}
+                                                   </span>
+                                                 ) : null}
                                                  <button
                                                    type="button"
                                                    onClick={() => {
@@ -12141,7 +12231,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                                      }
                                                      window.open(att.url, '_blank', 'noopener,noreferrer');
                                                    }}
-                                                   className="min-w-0 truncate text-left hover:text-[#007AFF]"
+                                                   className={`min-w-0 truncate text-left hover:text-[#007AFF]${
+                                                     isPatioPcModal ? ' flex-1' : ''
+                                                   }`}
                                                    title={
                                                      isPdfAttachment(att.mimeType, att.url)
                                                        ? 'Abrir no visualizador'
