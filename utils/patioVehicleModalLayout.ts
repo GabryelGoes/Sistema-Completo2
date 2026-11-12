@@ -322,8 +322,9 @@ export function getPatioVehicleModalLayout(
       'patio-vm-card overflow-hidden rounded-[10px] border border-zinc-200/90 bg-white shadow-none dark:border-white/[0.1] dark:bg-[#1a1d21]',
     input:
       'w-full rounded-md border-0 bg-zinc-100/90 px-3.5 py-2.5 text-[15px] leading-relaxed text-zinc-950 placeholder:text-zinc-500 focus:outline-none focus:ring-2 focus:ring-[#007AFF]/30 transition-shadow dark:bg-zinc-950/60 dark:text-white dark:placeholder:text-zinc-500',
+    // Botões de ferramenta chapados (sem transparência) no shell PC.
     closeBtn:
-      'patio-vehicle-modal__icon-btn flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-full bg-black/5 text-zinc-600 transition-colors hover:bg-black/10 dark:bg-white/10 dark:text-zinc-200 dark:hover:bg-white/15',
+      'patio-vehicle-modal__icon-btn flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-full bg-zinc-200 text-zinc-800 transition-colors hover:bg-zinc-300 dark:bg-zinc-700 dark:text-zinc-100 dark:hover:bg-zinc-600',
     assignHintLabel: 'Clique para atribuir',
     openHintLabel: 'Clique para abrir',
     sectionTitle:

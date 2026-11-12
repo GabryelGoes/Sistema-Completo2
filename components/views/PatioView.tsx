@@ -10294,6 +10294,37 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                 className="pointer-events-none absolute -right-10 top-1/2 h-24 w-24 -translate-y-1/2 rounded-full bg-gradient-to-br from-brand-yellow/18 to-transparent opacity-70 blur-2xl dark:from-brand-yellow/15"
                                 aria-hidden
                               />
+                              {isPatioPcModal ? (
+                              <div className={c.row}>
+                                <div className="min-w-0 flex-1">
+                                  <p className={c.titleText}>KM</p>
+                                  <div className="mt-0.5 flex min-w-0 items-center gap-1.5">
+                                    <input
+                                      type="text"
+                                      inputMode="numeric"
+                                      value={mileageEditValue}
+                                      onChange={(e) => setMileageEditValue(e.target.value)}
+                                      placeholder="Km"
+                                      className="patio-vm-meta-input patio-vm-meta-input--stack h-8 min-w-0 flex-1 rounded-md border border-zinc-300 bg-zinc-50 px-2 py-1 text-[13px] tabular-nums text-zinc-950 focus:border-[#007AFF] focus:outline-none focus:ring-2 focus:ring-[#007AFF]/25 dark:border-zinc-600 dark:bg-zinc-950 dark:text-white"
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={handleSaveMileage}
+                                      disabled={savingMileage || mileageEditValue.trim() === lastSavedMileage}
+                                      aria-label="Salvar quilometragem"
+                                      title="Salvar quilometragem"
+                                      className={`${c.saveBtn} ${
+                                        mileageEditValue.trim() !== lastSavedMileage
+                                          ? 'bg-[#007AFF] hover:bg-[#0066d6] active:scale-[0.98]'
+                                          : 'bg-zinc-500 dark:bg-zinc-600'
+                                      }`}
+                                    >
+                                      {savingMileage ? <RefreshCw className={`${c.saveIcon} animate-spin`} /> : <Save className={c.saveIcon} />}
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                              ) : (
                               <div className={c.splitRow}>
                                 <div className="flex min-w-0 shrink items-center gap-1.5">
                                   {isPatioTabletLikeModal && !isModuleMode ? (
@@ -10332,6 +10363,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                   ) : null}
                                 </div>
                               </div>
+                              )}
                             </div>
                           )}
                           {can('canEditDeliveryDate') && (
@@ -10352,16 +10384,40 @@ export const PatioView: React.FC<PatioViewProps> = ({
                               className="pointer-events-none absolute -right-10 top-1/2 h-24 w-24 -translate-y-1/2 rounded-full bg-gradient-to-br from-brand-yellow/18 to-transparent opacity-70 blur-2xl dark:from-brand-yellow/15"
                               aria-hidden
                             />
+                            {isPatioPcModal ? (
+                            <div className={c.row}>
+                              <div className="min-w-0 flex-1">
+                                <p className={c.titleText}>
+                                  {patioVehicleVm.deliveryDateMetaLabel}
+                                </p>
+                                <button
+                                  type="button"
+                                  className="group/presence relative mt-0.5 block w-full min-w-0 rounded-md text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-[#007AFF]/35"
+                                  title={formatServiceOrderPresence(serviceOrderDetail?.created_at ?? selectedCard.createdAt)}
+                                  aria-label={formatServiceOrderPresence(serviceOrderDetail?.created_at ?? selectedCard.createdAt)}
+                                >
+                                  <span className={`${c.bodyText} !mt-0 block w-full truncate tabular-nums`}>
+                                    {loadingDetails && !serviceOrderDetail?.created_at
+                                      ? 'Carregando…'
+                                      : formatServiceOrderCreatedAt(
+                                          serviceOrderDetail?.created_at ?? selectedCard.createdAt
+                                        )}
+                                  </span>
+                                  <span className="pointer-events-none absolute left-0 top-full z-20 mt-1 hidden min-w-[12rem] rounded-md border border-zinc-200 bg-white px-2.5 py-1.5 text-[12px] font-semibold text-zinc-700 shadow-lg group-hover/presence:block group-focus/presence:block dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200">
+                                    {formatServiceOrderPresence(serviceOrderDetail?.created_at ?? selectedCard.createdAt)}
+                                  </span>
+                                </button>
+                              </div>
+                            </div>
+                            ) : (
                             <div className={c.splitRow}>
                               <div
                                 className={`flex shrink-0 items-center gap-1.5${
-                                  isPatioPcModal
-                                    ? ' min-w-0 shrink-0'
-                                    : patioVehicleVm.mode === 'mobile'
-                                      ? ''
-                                      : isPatioTabletLikeModal
-                                        ? ' min-w-0 shrink-0'
-                                        : ' min-w-0'
+                                  patioVehicleVm.mode === 'mobile'
+                                    ? ''
+                                    : isPatioTabletLikeModal
+                                      ? ' min-w-0 shrink-0'
+                                      : ' min-w-0'
                                 }`}
                               >
                                 {isPatioTabletLikeModal && !isModuleMode ? (
@@ -10398,6 +10454,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                 </button>
                               </div>
                             </div>
+                            )}
                           </div>
                           )}
                           {can('canAssignTechnician') && (
@@ -11180,11 +11237,12 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                 </p>
                               </div>
                               <div className="relative z-[1] flex shrink-0 items-center gap-1.5">
-                                {!isModuleMode && selectedCard && !loadingDetails ? (
+                                {/* PC: etiqueta da chave ficou no menu ⋯ do aside. */}
+                                {!isPatioPcModal && !isModuleMode && selectedCard && !loadingDetails ? (
                                   <button
                                     type="button"
                                     onClick={handleOpenPatioKeyLabel}
-                                    className="inline-flex items-center gap-1 rounded-xl border border-emerald-500/55 bg-transparent px-2.5 py-1 text-[11px] font-semibold text-emerald-600 transition-colors hover:bg-emerald-500/10 dark:border-emerald-400/45 dark:text-emerald-400 dark:hover:bg-emerald-400/10"
+                                    className="inline-flex items-center gap-1 rounded-xl border border-emerald-600 bg-emerald-600 px-2.5 py-1 text-[11px] font-semibold text-white transition-colors hover:bg-emerald-700 dark:border-emerald-500 dark:bg-emerald-600 dark:hover:bg-emerald-500"
                                   >
                                     <Tag className="h-3 w-3" aria-hidden strokeWidth={2.5} />
                                     Imprimir etiqueta
@@ -11194,7 +11252,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                   <button
                                     type="button"
                                     onClick={() => setIsEditingDesc(true)}
-                                    className="inline-flex shrink-0 items-center gap-1 rounded-xl border border-[#007AFF]/25 bg-[#007AFF]/[0.09] px-2.5 py-1 text-[11px] font-semibold text-[#007AFF] shadow-[inset_0_1px_0_rgba(255,255,255,0.35)] transition-colors hover:border-[#007AFF]/40 hover:bg-[#007AFF]/15 dark:border-[#007AFF]/35 dark:bg-[#007AFF]/15 dark:text-[#b8d9ff] dark:hover:bg-[#007AFF]/22"
+                                    className={
+                                      isPatioPcModal
+                                        ? 'inline-flex shrink-0 items-center gap-1 rounded-xl bg-[#007AFF] px-2.5 py-1 text-[11px] font-semibold text-white transition-colors hover:bg-[#0066d6] dark:bg-[#0A84FF] dark:hover:bg-[#0070e0]'
+                                        : 'inline-flex shrink-0 items-center gap-1 rounded-xl border border-[#007AFF]/25 bg-[#007AFF]/[0.09] px-2.5 py-1 text-[11px] font-semibold text-[#007AFF] shadow-[inset_0_1px_0_rgba(255,255,255,0.35)] transition-colors hover:border-[#007AFF]/40 hover:bg-[#007AFF]/15 dark:border-[#007AFF]/35 dark:bg-[#007AFF]/15 dark:text-[#b8d9ff] dark:hover:bg-[#007AFF]/22'
+                                    }
                                   >
                                     Editar
                                   </button>
@@ -12121,10 +12183,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
                       <div className={patioVehicleVm.asideCol}>
                         {isPatioPcModal ? (
-                         <div className="patio-vm-aside-ops space-y-2.5">
-                            <div className="flex items-end justify-between gap-3">
+                         <div className="patio-vm-aside-ops">
+                            <div className="flex items-start justify-between gap-3">
                               <div className="min-w-0 flex-1">
-                                <p className={`${iosLabel} mb-1.5`}>Alterar status</p>
                                 <button
                                     type="button"
                                     onClick={(e) => {
@@ -12182,7 +12243,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                     />
                                 </button>
                               </div>
-                              <div className="patio-vm-aside-tools inline-flex shrink-0 items-center gap-2 pb-0.5">
+                              <div className="patio-vm-aside-tools inline-flex shrink-0 items-start gap-2">
                                 {isModuleMode ? (
                                   <div className="relative" ref={labOsToolsMenuRef}>
                                     <button
@@ -12206,7 +12267,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                             <button
                                               type="button"
                                               role="menuitem"
-                                              className="flex w-full items-center gap-3 px-3 py-2.5 text-left text-[14px] font-semibold transition-colors hover:bg-zinc-100/90 dark:hover:bg-white/[0.08]"
+                                              className="flex w-full items-center gap-3 px-3 py-2.5 text-left text-[14px] font-semibold transition-colors hover:bg-zinc-100 dark:hover:bg-zinc-800"
                                               onClick={() => {
                                                 setIsLabOsToolsOpen(false);
                                                 handleOpenLabOsLabel();
@@ -12218,7 +12279,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                             <button
                                               type="button"
                                               role="menuitem"
-                                              className="flex w-full items-center gap-3 px-3 py-2.5 text-left text-[14px] font-semibold transition-colors hover:bg-zinc-100/90 dark:hover:bg-white/[0.08]"
+                                              className="flex w-full items-center gap-3 px-3 py-2.5 text-left text-[14px] font-semibold transition-colors hover:bg-zinc-100 dark:hover:bg-zinc-800"
                                               onClick={() => {
                                                 setIsLabOsToolsOpen(false);
                                                 handlePrintLabModuleFicha();
@@ -12253,7 +12314,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                               type="button"
                                               role="menuitem"
                                               disabled={removingGarantiaId === selectedCard.id}
-                                              className="flex w-full items-center gap-3 px-3 py-2.5 text-left text-[14px] font-semibold transition-colors hover:bg-zinc-100/90 disabled:opacity-50 dark:hover:bg-white/[0.08]"
+                                              className="flex w-full items-center gap-3 px-3 py-2.5 text-left text-[14px] font-semibold transition-colors hover:bg-zinc-100 disabled:opacity-50 dark:hover:bg-zinc-800"
                                               onClick={() => {
                                                 setIsLabOsToolsOpen(false);
                                                 void handleAddGarantia();
@@ -12272,7 +12333,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                           <button
                                             type="button"
                                             role="menuitem"
-                                            className="flex w-full items-center gap-3 border-t border-zinc-100 px-3 py-2.5 text-left text-[14px] font-semibold text-red-600 transition-colors hover:bg-red-50 dark:border-white/[0.07] dark:text-red-300 dark:hover:bg-red-500/10"
+                                            className="flex w-full items-center gap-3 border-t border-zinc-200 px-3 py-2.5 text-left text-[14px] font-semibold text-red-600 transition-colors hover:bg-red-50 dark:border-zinc-700 dark:text-red-300 dark:hover:bg-red-500/10"
                                             onClick={() => {
                                               setIsLabOsToolsOpen(false);
                                               setDeleteVehicleError(null);
@@ -12288,16 +12349,57 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                       </div>
                                     ) : null}
                                   </div>
-                                ) : can('canDeleteCards') ? (
-                                  <button
-                                    type="button"
-                                    onClick={() => { setDeleteVehicleError(null); setDeleteVehiclePassword(''); setDeleteVehiclePasswordReadonly(true); setIsDeleteVehicleOpen(true); }}
-                                    className={`${patioVehicleVm.closeBtn} patio-vm-aside-icon-btn hover:bg-red-500/15 hover:text-red-600 dark:hover:bg-red-500/20`}
-                                    title="Excluir veículo do sistema"
-                                  >
-                                    <Trash2 className="h-5 w-5" />
-                                  </button>
-                                ) : null}
+                                ) : (
+                                  <div className="relative" ref={labOsToolsMenuRef}>
+                                    <button
+                                      type="button"
+                                      onClick={() => setIsLabOsToolsOpen((o) => !o)}
+                                      className={`${patioVehicleVm.closeBtn} patio-vm-aside-icon-btn`}
+                                      aria-expanded={isLabOsToolsOpen}
+                                      aria-haspopup="menu"
+                                      aria-label="Mais opções da OS"
+                                      title="Mais opções"
+                                    >
+                                      <MoreHorizontal className="h-5 w-5" strokeWidth={2.2} aria-hidden />
+                                    </button>
+                                    {isLabOsToolsOpen ? (
+                                      <div
+                                        role="menu"
+                                        className="absolute right-0 top-full z-30 mt-1.5 w-[min(17.5rem,calc(100vw-1.5rem))] overflow-hidden rounded-2xl border border-zinc-200 bg-white py-1.5 text-zinc-900 shadow-[0_12px_40px_-8px_rgba(0,0,0,0.25)] dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
+                                      >
+                                        <button
+                                          type="button"
+                                          role="menuitem"
+                                          className="flex w-full items-center gap-3 px-3 py-2.5 text-left text-[14px] font-semibold transition-colors hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                                          onClick={() => {
+                                            setIsLabOsToolsOpen(false);
+                                            handleOpenPatioKeyLabel();
+                                          }}
+                                        >
+                                          <Tag className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" strokeWidth={2.25} aria-hidden />
+                                          Imprimir etiqueta
+                                        </button>
+                                        {can('canDeleteCards') ? (
+                                          <button
+                                            type="button"
+                                            role="menuitem"
+                                            className="flex w-full items-center gap-3 border-t border-zinc-200 px-3 py-2.5 text-left text-[14px] font-semibold text-red-600 transition-colors hover:bg-red-50 dark:border-zinc-700 dark:text-red-300 dark:hover:bg-red-500/10"
+                                            onClick={() => {
+                                              setIsLabOsToolsOpen(false);
+                                              setDeleteVehicleError(null);
+                                              setDeleteVehiclePassword('');
+                                              setDeleteVehiclePasswordReadonly(true);
+                                              setIsDeleteVehicleOpen(true);
+                                            }}
+                                          >
+                                            <Trash2 className="h-4 w-4 shrink-0" strokeWidth={2.25} aria-hidden />
+                                            Excluir OS
+                                          </button>
+                                        ) : null}
+                                      </div>
+                                    ) : null}
+                                  </div>
+                                )}
                                 <button
                                   type="button"
                                   onClick={closeVehicleOrBudgetPeek}
@@ -12313,7 +12415,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
                         <div
                           ref={commentsSectionRef}
-                          className={`${vi} patio-vm-aside-section overflow-hidden shadow-none`}
+                          className={`${vi} patio-vm-aside-section patio-vm-aside-comments overflow-hidden shadow-none`}
                         >
                           <div className="patio-vm-aside-section-head relative flex items-center justify-between gap-2 border-b border-black/[0.06] bg-white/85 px-2.5 py-2 pl-3 backdrop-blur-[2px] dark:border-white/[0.08] dark:bg-zinc-950/35 sm:gap-3 sm:px-3 sm:py-2.5 sm:pl-4">
                             <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-2.5">
@@ -12405,12 +12507,18 @@ export const PatioView: React.FC<PatioViewProps> = ({
                              </div>
 
                              {can('canAddComments') && (
+                             <div className={isPatioPcModal ? 'patio-vm-aside-composer' : undefined}>
                              <OsCommentComposer
                                sending={sendingComment}
-                               inputClassName={vin}
+                               inputClassName={
+                                 isPatioPcModal
+                                   ? `${vin} !bg-zinc-100 !rounded-xl border border-zinc-200 dark:!bg-zinc-900 dark:border-zinc-700`
+                                   : vin
+                               }
                                draftRef={newCommentRef}
                                onSend={handleSendComment}
                              />
+                             </div>
                              )}
                         </div>
 
