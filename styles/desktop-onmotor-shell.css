@@ -534,6 +534,15 @@ html[data-desktop-shell='true'] [data-os-comments-scroll] {
   overflow-y: auto !important;
 }
 
+/* Estoque desktop (E0/E1): lista de peças deve rolar mesmo sob a regra
+ * .desktop-shell-content [class*='overflow-y-auto'].flex-1 { overflow: visible }. */
+html[data-desktop-shell='true'] .estoque-pc-scroll,
+html[data-desktop-shell='true'] [data-estoque-list-scroll] {
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  min-height: 0 !important;
+}
+
 html[data-desktop-shell='true'] .desktop-shell-content .p-4.md\:p-8,
 html[data-desktop-shell='true'] .desktop-shell-content .md\:px-8 {
   padding: 1rem 1.25rem !important;

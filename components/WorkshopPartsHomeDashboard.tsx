@@ -797,7 +797,8 @@ export function WorkshopPartsHomeDashboard({
     return (
       <div
         ref={listScrollRef}
-        className="estoque-pc-scroll min-h-0 flex-1 overflow-y-auto overscroll-y-auto touch-pan-y custom-scrollbar [scrollbar-gutter:stable]"
+        data-estoque-list-scroll=""
+        className="estoque-pc-scroll min-h-0 h-full flex-1 overflow-y-auto overscroll-y-auto touch-pan-y custom-scrollbar [scrollbar-gutter:stable]"
       >
         <div className="estoque-pc-chrome">
           <div className="estoque-pc-chrome-row">
