@@ -625,3 +625,69 @@ html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .pat
     transition: none;
   }
 }
+
+/*
+ * Fase 5 — aba Arquivos (patio-vm-arq-v5): galeria, documentos e feedback.
+ * Escopo desktop + shell-v1. Não altera cores, Storage, Lightbox compartilhado
+ * nem chrome/aside/dados/orçamentos das Fases 1–4.
+ */
+html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-vm-arq-v5 {
+  min-width: 0;
+}
+
+html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-vm-arq-v5 .patio-vm-arq-section-head {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  min-height: 2.75rem;
+  box-sizing: border-box;
+  backdrop-filter: blur(2px);
+}
+
+html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-vm-arq-v5 .patio-vm-arq-cta:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(79, 168, 255, 0.45);
+}
+
+html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-vm-arq-v5 .patio-vm-arq-cta:not(:disabled):active {
+  transform: scale(0.98);
+}
+
+html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-vm-arq-v5 .patio-vm-arq-doc-row {
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    transform 0.15s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-vm-arq-v5 .patio-vm-arq-doc-row:focus-within {
+  border-color: rgba(0, 122, 255, 0.28);
+  box-shadow: 0 0 0 2px rgba(0, 122, 255, 0.1);
+}
+
+html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-vm-arq-v5 .patio-vm-arq-photo-cell {
+  content-visibility: auto;
+  contain-intrinsic-size: 160px;
+}
+
+html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-vm-arq-v5 .patio-vm-arq-thumb:not(:disabled):active {
+  transform: scale(0.985);
+}
+
+html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-vm-arq-v5 .patio-vm-arq-folder-btn:not(:disabled):active {
+  transform: scale(0.985);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-vm-arq-v5 .patio-vm-arq-doc-row,
+  html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-vm-arq-v5 .patio-vm-arq-thumb,
+  html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-vm-arq-v5 .patio-vm-arq-folder-btn {
+    transition: none;
+  }
+
+  html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-vm-arq-v5 .patio-vm-arq-cta:not(:disabled):active,
+  html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-vm-arq-v5 .patio-vm-arq-thumb:not(:disabled):active,
+  html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-vm-arq-v5 .patio-vm-arq-folder-btn:not(:disabled):active {
+    transform: none;
+  }
+}
