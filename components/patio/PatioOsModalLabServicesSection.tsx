@@ -327,6 +327,11 @@ export const PatioOsModalLabServicesSection: React.FC<PatioOsModalLabServicesSec
         </div>
         <div className="relative min-w-0">
           <p className={uiOsModalCardSectionTitle}>Serviços Laboratório</p>
+          {pcLayout && linkedCount > 0 ? (
+            <p className="mt-0.5 text-[11px] font-medium tabular-nums text-zinc-500 dark:text-zinc-400">
+              {linkedCount} {linkedCount === 1 ? 'serviço enviado' : 'serviços enviados'}
+            </p>
+          ) : null}
           {/* No PC o badge fica só na barra de abas; aqui só tablet/mobile (collapsible). */}
           {collapsible ? (
             <IosNotificationBadge
@@ -376,10 +381,10 @@ export const PatioOsModalLabServicesSection: React.FC<PatioOsModalLabServicesSec
         {isOpen ? (
         <div
           className={`patio-vm-lab-body border-t border-zinc-200/60 bg-zinc-50/90 dark:border-white/[0.06] dark:bg-white/[0.02] ${
-            pcLayout ? 'space-y-4 px-3.5 py-3.5 sm:px-4 sm:py-4' : 'space-y-3 px-3 py-3 sm:px-4 sm:py-4'
+            pcLayout ? 'space-y-5 px-3.5 py-3.5 sm:px-4 sm:py-4' : 'space-y-3 px-3 py-3 sm:px-4 sm:py-4'
           }`}
         >
-          {/* 1. Serviços já enviados — logo abaixo do título (sem empty state) */}
+          {/* 1. Serviços já enviados — logo abaixo do título */}
           {sentLinksNewestFirst.length > 0 ? (
           <div className={`space-y-2${pcLayout ? ' patio-vm-lab-sent' : ''}`}>
             {pcLayout ? (
@@ -412,33 +417,15 @@ export const PatioOsModalLabServicesSection: React.FC<PatioOsModalLabServicesSec
                     statusLower.includes('pronto pra entrega') ||
                     statusLower.includes('pronto pra retirada'));
                 const receiving = receivingLabOrderId === link.laboratoryOrderId;
-                return (
-                  <div
-                    key={link.id}
-                    className={`patio-vm-lab-link-row flex flex-col gap-2 rounded-xl border border-zinc-200/70 bg-white/95 p-3 dark:border-white/[0.1] dark:bg-zinc-950/60 sm:flex-row sm:items-center sm:justify-between${
-                      pcLayout ? ' sm:gap-3' : ''
-                    }`}
+                const statusBadge = (
+                  <span
+                    className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.1em] ${statusStyle}`}
                   >
-                    <div className="min-w-0">
-                      <p className="truncate text-[14px] font-semibold text-zinc-900 dark:text-zinc-100">
-                        {link.serviceLabel}
-                      </p>
-                      {link.serviceDetails?.trim() ? (
-                        <p className="mt-1.5 whitespace-pre-wrap text-[12px] leading-relaxed text-zinc-600 dark:text-zinc-300">
-                          {link.serviceDetails.trim()}
-                        </p>
-                      ) : null}
-                      <p className="mt-1 text-[11px] text-zinc-500 dark:text-zinc-400">
-                        {link.source === 'budget' ? 'Origem: orçamento' : 'Origem: manual'} · OS lab{' '}
-                        {link.laboratoryOrderId.slice(0, 8)}
-                      </p>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span
-                        className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.1em] ${statusStyle}`}
-                      >
-                        {statusLabel}
-                      </span>
+                    {statusLabel}
+                  </span>
+                );
+                const actionButtons = (
+                  <>
                       {canReceive ? (
                         <button
                           type="button"
@@ -446,7 +433,7 @@ export const PatioOsModalLabServicesSection: React.FC<PatioOsModalLabServicesSec
                           disabled={busy || receiving}
                           title="Confirmar recebimento e arquivar a OS do laboratório"
                           aria-label={`Recebido — arquivar OS de ${link.serviceLabel}`}
-                          className="inline-flex items-center gap-1 rounded-lg border border-emerald-500/50 bg-emerald-600 px-2.5 py-1.5 text-[12px] font-semibold text-white shadow-sm shadow-emerald-500/20 transition-colors hover:bg-emerald-500 disabled:opacity-60"
+                          className="inline-flex items-center gap-1 rounded-lg border border-emerald-500/50 bg-emerald-600 px-2.5 py-1.5 text-[12px] font-semibold text-white shadow-sm shadow-emerald-500/20 transition-[transform,filter] hover:bg-emerald-500 active:scale-[0.98] disabled:opacity-60"
                         >
                           {receiving ? (
                             <RefreshCw className="h-3.5 w-3.5 animate-spin" aria-hidden />
@@ -463,10 +450,10 @@ export const PatioOsModalLabServicesSection: React.FC<PatioOsModalLabServicesSec
                           disabled={busy}
                           title="Imprimir etiqueta da OS do laboratório"
                           aria-label={`Imprimir etiqueta de ${link.serviceLabel}`}
-                          className="inline-flex items-center gap-1 rounded-lg border border-emerald-500/35 bg-emerald-600 px-2.5 py-1.5 text-[12px] font-semibold text-white shadow-sm shadow-emerald-500/20 transition-colors hover:bg-emerald-500 disabled:opacity-60"
+                          className="inline-flex items-center gap-1 rounded-lg border border-emerald-500/35 bg-emerald-600 px-2.5 py-1.5 text-[12px] font-semibold text-white shadow-sm shadow-emerald-500/20 transition-[transform,filter] hover:bg-emerald-500 active:scale-[0.98] disabled:opacity-60"
                         >
                           <Tag className="h-3.5 w-3.5" strokeWidth={2.5} aria-hidden />
-                          Imprimir etiqueta
+                          {pcLayout ? 'Etiqueta' : 'Imprimir etiqueta'}
                         </button>
                       ) : null}
                       {onCopyPatioAttachmentsToLab && patioAttachments.length > 0 ? (
@@ -478,10 +465,10 @@ export const PatioOsModalLabServicesSection: React.FC<PatioOsModalLabServicesSec
                           }}
                           disabled={busy || copyingPatioAttachments}
                           title="Anexar fotos ou documentos desta OS do pátio"
-                          className="inline-flex items-center gap-1 rounded-lg border border-zinc-200/90 bg-white px-2.5 py-1.5 text-[12px] font-semibold text-zinc-700 dark:border-white/[0.12] dark:bg-zinc-950/70 dark:text-zinc-200 disabled:opacity-60"
+                          className="inline-flex items-center gap-1 rounded-lg border border-zinc-200/90 bg-white px-2.5 py-1.5 text-[12px] font-semibold text-zinc-700 transition-[transform,background-color] hover:bg-zinc-50 active:scale-[0.98] dark:border-white/[0.12] dark:bg-zinc-950/70 dark:text-zinc-200 dark:hover:bg-zinc-900 disabled:opacity-60"
                         >
                           <Paperclip className="h-3.5 w-3.5" />
-                          Anexar da OS
+                          {pcLayout ? 'Anexar' : 'Anexar da OS'}
                         </button>
                       ) : null}
                       <button
@@ -501,11 +488,76 @@ export const PatioOsModalLabServicesSection: React.FC<PatioOsModalLabServicesSec
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
+                  </>
+                );
+                return (
+                  <div
+                    key={link.id}
+                    className={`patio-vm-lab-link-row flex flex-col gap-2 rounded-xl border border-zinc-200/70 bg-white/95 p-3 dark:border-white/[0.1] dark:bg-zinc-950/60${
+                      pcLayout
+                        ? ' sm:gap-2.5'
+                        : ' sm:flex-row sm:items-center sm:justify-between'
+                    }`}
+                  >
+                    <div className={`min-w-0${pcLayout ? ' flex flex-wrap items-start justify-between gap-2' : ''}`}>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-[14px] font-semibold text-zinc-900 dark:text-zinc-100">
+                          {link.serviceLabel}
+                        </p>
+                        {link.serviceDetails?.trim() ? (
+                          <p className="mt-1.5 whitespace-pre-wrap text-[12px] leading-relaxed text-zinc-600 dark:text-zinc-300">
+                            {link.serviceDetails.trim()}
+                          </p>
+                        ) : null}
+                        <p className="mt-1 text-[11px] text-zinc-500 dark:text-zinc-400">
+                          {link.source === 'budget' ? 'Origem: orçamento' : 'Origem: manual'} · OS lab{' '}
+                          {link.laboratoryOrderId.slice(0, 8)}
+                        </p>
+                      </div>
+                      {pcLayout ? <div className="shrink-0 pt-0.5">{statusBadge}</div> : null}
+                    </div>
+                    <div
+                      className={`flex flex-wrap items-center gap-2${
+                        pcLayout ? ' border-t border-zinc-100 pt-2.5 dark:border-white/[0.06]' : ''
+                      }`}
+                    >
+                      {!pcLayout ? statusBadge : null}
+                      {actionButtons}
                     </div>
                   </div>
                 );
               })}
           </div>
+          ) : pcLayout ? (
+            <div className="rounded-xl border border-dashed border-zinc-300/90 bg-white/80 px-3.5 py-4 text-center dark:border-white/[0.12] dark:bg-zinc-950/40">
+              <p className="text-[13px] font-semibold text-zinc-800 dark:text-zinc-100">
+                Nenhum serviço enviado ainda
+              </p>
+              <p className="mt-1 text-[12px] font-medium text-zinc-500 dark:text-zinc-400">
+                Escolha o item e o serviço abaixo para enviar ao laboratório.
+              </p>
+            </div>
+          ) : null}
+
+          <div
+            className={
+              pcLayout
+                ? 'patio-vm-lab-new space-y-3 rounded-xl border border-zinc-200/80 bg-white/95 p-3.5 dark:border-white/[0.1] dark:bg-zinc-950/55 sm:p-4'
+                : 'contents'
+            }
+          >
+          {pcLayout ? (
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-[12px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                Novo envio
+              </p>
+              {busy ? (
+                <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-zinc-500 dark:text-zinc-400">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin text-[#007AFF]" aria-hidden />
+                  Processando…
+                </span>
+              ) : null}
+            </div>
           ) : null}
 
           {/* 2+3. Item a enviar + Arquivos do pátio (PC: lado a lado e menores) */}
@@ -637,7 +689,9 @@ export const PatioOsModalLabServicesSection: React.FC<PatioOsModalLabServicesSec
               type="button"
               onClick={onCreateLabService}
               disabled={busy}
-              className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#007AFF] px-3 py-2 text-[13px] font-semibold text-white transition-[transform,filter] hover:brightness-105 active:scale-[0.98] disabled:opacity-55"
+              className={`inline-flex items-center justify-center gap-2 rounded-xl bg-[#007AFF] font-semibold text-white transition-[transform,filter] hover:brightness-105 active:scale-[0.98] disabled:opacity-55 ${
+                pcLayout ? 'h-11 px-4 text-[13px]' : 'px-3 py-2 text-[13px]'
+              }`}
             >
               {creatingLabService ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
               Enviar
@@ -660,15 +714,17 @@ export const PatioOsModalLabServicesSection: React.FC<PatioOsModalLabServicesSec
               value={newLabServiceDetails}
               onChange={(e) => onLabServiceDetailsChange(e.target.value)}
               placeholder="Observações"
-              rows={3}
+              rows={pcLayout ? 2 : 3}
               maxLength={2000}
               disabled={busy}
-              className={`${inputClass} min-h-[88px] resize-y text-[13px] leading-relaxed disabled:opacity-55`}
+              className={`${inputClass} resize-y text-[13px] leading-relaxed disabled:opacity-55 ${
+                pcLayout ? 'min-h-[72px]' : 'min-h-[88px]'
+              }`}
             />
           </div>
 
           {typeof onLabServiceGarantiaChange === 'function' ? (
-            <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-red-500/25 bg-red-500/[0.06] px-3.5 py-3 dark:border-red-400/20 dark:bg-red-500/10">
+            <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-red-500/25 bg-red-500/[0.06] px-3.5 py-3 transition-colors hover:bg-red-500/[0.08] dark:border-red-400/20 dark:bg-red-500/10 dark:hover:bg-red-500/[0.14]">
               <input
                 type="checkbox"
                 checked={newLabServiceGarantia}
@@ -686,6 +742,7 @@ export const PatioOsModalLabServicesSection: React.FC<PatioOsModalLabServicesSec
               </span>
             </label>
           ) : null}
+          </div>
 
           {/* 6. Envios rápidos → abre modal com lista */}
           {onQuickSendService && quickServices.length > 0 ? (
@@ -693,7 +750,11 @@ export const PatioOsModalLabServicesSection: React.FC<PatioOsModalLabServicesSec
               type="button"
               onClick={() => setQuickSendModalOpen(true)}
               disabled={busy}
-              className="patio-vm-lab-quick group flex w-full items-center gap-3 rounded-xl border-0 bg-white px-3.5 py-3 text-left shadow-none transition-[background-color,transform] hover:bg-zinc-50 active:scale-[0.995] dark:bg-zinc-950/55 dark:hover:bg-zinc-900 disabled:opacity-55"
+              className={`patio-vm-lab-quick group flex w-full items-center gap-3 rounded-xl border-0 px-3.5 py-3 text-left shadow-none transition-[background-color,transform] hover:bg-zinc-50 active:scale-[0.995] disabled:opacity-55 ${
+                pcLayout
+                  ? 'border border-zinc-200/80 bg-white dark:border-white/[0.1] dark:bg-zinc-950/55 dark:hover:bg-zinc-900'
+                  : 'bg-white dark:bg-zinc-950/55 dark:hover:bg-zinc-900'
+              }`}
             >
               <span className="h-10 w-10 shrink-0 overflow-hidden rounded-[0.65rem]">
                 <img src="/icons/envio-rapido-ios.png" alt="" className="h-full w-full object-cover" />
