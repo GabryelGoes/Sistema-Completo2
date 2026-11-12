@@ -11213,7 +11213,13 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   <div className={patioVehicleVm.body}>
                       <div className={patioVehicleVm.mainCol}>
                         {showPcOsTab('dados') ? (
-                        <div className={isPatioPcModal ? 'patio-vm-dados-v3 contents' : 'contents'}>
+                        <div
+                          className={
+                            isPatioPcModal
+                              ? 'patio-vm-dados-v3 flex min-w-0 flex-col gap-6'
+                              : 'contents'
+                          }
+                        >
                         <>
                         {/* Queixa: no tablet veículo fica no cabeçalho rolável; edição só na ficha. */}
                         {!(isPatioTabletLikeModal && !isModuleMode) ? (
