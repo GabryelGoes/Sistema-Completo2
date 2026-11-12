@@ -12121,10 +12121,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
                       <div className={patioVehicleVm.asideCol}>
                         {isPatioPcModal ? (
-                         <div className="space-y-3">
-                            <div className="flex items-start justify-between gap-3">
+                         <div className="patio-vm-aside-ops space-y-2.5">
+                            <div className="flex items-end justify-between gap-3">
                               <div className="min-w-0 flex-1">
-                                <p className={`${iosLabel} mb-2`}>Alterar status</p>
+                                <p className={`${iosLabel} mb-1.5`}>Alterar status</p>
                                 <button
                                     type="button"
                                     onClick={(e) => {
@@ -12132,7 +12132,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                       e.stopPropagation();
                                       handleOpenMoveModal(selectedCard, e);
                                     }}
-                                    className={`group flex w-full items-center justify-between gap-2 rounded-xl border-2 px-3.5 py-3.5 transition-all hover:brightness-110 hover:scale-[1.01] active:scale-[0.99] ${isExternalRepairStatus(modalStageStatus) ? '!text-white' : '!text-black dark:!text-black'} ${modalStatusConfig.style}`}
+                                    className={`patio-vm-aside-stage-btn group flex w-full items-center justify-between gap-2 rounded-xl border-2 px-3.5 py-3.5 transition-all hover:brightness-110 hover:scale-[1.01] active:scale-[0.99] ${isExternalRepairStatus(modalStageStatus) ? '!text-white' : '!text-black dark:!text-black'} ${modalStatusConfig.style}`}
                                   >
                                     <span className={`min-w-0 flex-1 text-left text-[15px] font-bold uppercase leading-snug xl:text-[16px] ${isExternalRepairStatus(modalStageStatus) ? '!text-white' : '!text-black dark:!text-black'}`}>
                                       {modalListName}
@@ -12182,13 +12182,13 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                     />
                                 </button>
                               </div>
-                              <div className="inline-flex shrink-0 items-center gap-2 pt-6">
+                              <div className="patio-vm-aside-tools inline-flex shrink-0 items-center gap-2 pb-0.5">
                                 {isModuleMode ? (
                                   <div className="relative" ref={labOsToolsMenuRef}>
                                     <button
                                       type="button"
                                       onClick={() => setIsLabOsToolsOpen((o) => !o)}
-                                      className={patioVehicleVm.closeBtn}
+                                      className={`${patioVehicleVm.closeBtn} patio-vm-aside-icon-btn`}
                                       aria-expanded={isLabOsToolsOpen}
                                       aria-haspopup="menu"
                                       aria-label="Mais opções da OS"
@@ -12292,7 +12292,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                   <button
                                     type="button"
                                     onClick={() => { setDeleteVehicleError(null); setDeleteVehiclePassword(''); setDeleteVehiclePasswordReadonly(true); setIsDeleteVehicleOpen(true); }}
-                                    className={`${patioVehicleVm.closeBtn} hover:bg-red-500/15 hover:text-red-600 dark:hover:bg-red-500/20`}
+                                    className={`${patioVehicleVm.closeBtn} patio-vm-aside-icon-btn hover:bg-red-500/15 hover:text-red-600 dark:hover:bg-red-500/20`}
                                     title="Excluir veículo do sistema"
                                   >
                                     <Trash2 className="h-5 w-5" />
@@ -12301,7 +12301,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                 <button
                                   type="button"
                                   onClick={closeVehicleOrBudgetPeek}
-                                  className={patioVehicleVm.closeBtn}
+                                  className={`${patioVehicleVm.closeBtn} patio-vm-aside-icon-btn`}
                                   aria-label="Fechar"
                                 >
                                   <X className="h-5 w-5" />
@@ -12311,8 +12311,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
                          </div>
                         ) : null}
 
-                        <div ref={commentsSectionRef} className={`${vi} overflow-hidden shadow-none`}>
-                          <div className="relative flex items-center justify-between gap-2 border-b border-black/[0.06] bg-white/85 px-2.5 py-2 pl-3 backdrop-blur-[2px] dark:border-white/[0.08] dark:bg-zinc-950/35 sm:gap-3 sm:px-3 sm:py-2.5 sm:pl-4">
+                        <div
+                          ref={commentsSectionRef}
+                          className={`${vi} patio-vm-aside-section overflow-hidden shadow-none`}
+                        >
+                          <div className="patio-vm-aside-section-head relative flex items-center justify-between gap-2 border-b border-black/[0.06] bg-white/85 px-2.5 py-2 pl-3 backdrop-blur-[2px] dark:border-white/[0.08] dark:bg-zinc-950/35 sm:gap-3 sm:px-3 sm:py-2.5 sm:pl-4">
                             <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-2.5">
                               <div className={uiOsModalSectionAppIcon}>
                                 <img src="/icons/comentarios-ios.png" alt="" className="h-full w-full object-cover" />
@@ -12342,9 +12345,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
                              <div
                                ref={commentsListRef}
-                               className={`${patioVehicleVm.commentsList} !bg-[#E5DDD5]/55 dark:!bg-zinc-950/80 ${
+                               className={`${patioVehicleVm.commentsList} patio-vm-aside-comments-list !bg-[#E5DDD5]/55 dark:!bg-zinc-950/80 ${
                                  openModalCommentActions.length >= 4
-                                   ? 'max-h-[15.5rem] overflow-y-auto overscroll-contain custom-scrollbar sm:max-h-[16.5rem]'
+                                   ? isPatioPcModal
+                                     ? 'max-h-[17.5rem] overflow-y-auto overscroll-contain custom-scrollbar xl:max-h-[19rem]'
+                                     : 'max-h-[15.5rem] overflow-y-auto overscroll-contain custom-scrollbar sm:max-h-[16.5rem]'
                                    : ''
                                }`}
                              >
@@ -12409,7 +12414,13 @@ export const PatioView: React.FC<PatioViewProps> = ({
                              )}
                         </div>
 
-                        <div className={isPatioPcModal ? 'mt-1' : 'mt-3'}>
+                        <div
+                          className={
+                            isPatioPcModal
+                              ? 'patio-vm-aside-section patio-vm-aside-stock'
+                              : 'mt-3'
+                          }
+                        >
                           <VehicleOsStockCheckoutSection
                             serviceOrderId={selectedCard.id}
                             osLabel={(() => {
@@ -12469,8 +12480,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
                         ) : null}
 
                         {isPatioPcModal ? (
-                         <div className={`${vi} min-w-0 overflow-hidden shadow-none`}>
-                             <div className="relative flex items-center justify-between gap-2 border-b border-black/[0.06] bg-white/85 px-2.5 py-2 pl-3 backdrop-blur-[2px] dark:border-white/[0.08] dark:bg-zinc-950/35 sm:gap-3 sm:px-3 sm:py-2.5 sm:pl-4">
+                         <div className={`${vi} patio-vm-aside-section patio-vm-aside-checklists min-w-0 overflow-hidden shadow-none`}>
+                             <div className="patio-vm-aside-section-head relative flex items-center justify-between gap-2 border-b border-black/[0.06] bg-white/85 px-2.5 py-2 pl-3 backdrop-blur-[2px] dark:border-white/[0.08] dark:bg-zinc-950/35 sm:gap-3 sm:px-3 sm:py-2.5 sm:pl-4">
                                <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-2.5">
                                  <div className={uiOsModalSectionAppIcon}>
                                    <img src="/icons/checklist-patio-ios.png" alt="" className="h-full w-full object-cover" />
@@ -12494,7 +12505,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                      key={tpl.id}
                                      type="button"
                                      onClick={() => { setActiveChecklistCardId(selectedCard.id); setActiveChecklistTemplateId(tpl.id); }}
-                                     className="group flex w-full items-center gap-3 px-3 py-3 text-left transition-colors hover:bg-[#007AFF]/[0.06] dark:hover:bg-white/[0.04] sm:px-4"
+                                     className="patio-vm-aside-checklist-row group flex w-full items-center gap-3 px-3 py-3.5 text-left transition-[background-color,transform] duration-150 ease-out hover:bg-[#007AFF]/[0.06] active:scale-[0.99] dark:hover:bg-white/[0.04] sm:px-4"
                                    >
                                      <Circle
                                        className="h-5 w-5 shrink-0 text-zinc-400 group-hover:text-[#007AFF] dark:text-zinc-500 dark:group-hover:text-[#7ab8ff]"

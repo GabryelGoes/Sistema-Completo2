@@ -315,8 +315,9 @@ export function getPatioVehicleModalLayout(
     plateMockupSize: 'modalPc',
     body: 'patio-vm-desktop-body',
     mainCol: 'patio-vm-main-col min-w-0 space-y-6 px-6 pb-8 pt-5 xl:px-8',
+    // Fase 2: ritmo do painel lateral (cores e tokens de superfície intactos).
     asideCol:
-      'patio-vm-aside-col custom-scrollbar min-w-0 space-y-4 border-zinc-300/70 bg-[#F2F2F7] px-5 py-4 dark:border-white/[0.08] dark:bg-[#0a0a0a] xl:px-6 xl:py-5',
+      'patio-vm-aside-col patio-vm-aside-v2 custom-scrollbar min-w-0 space-y-5 border-zinc-300/70 bg-[#F2F2F7] px-5 py-5 dark:border-white/[0.08] dark:bg-[#0a0a0a] xl:px-6 xl:py-6',
     insetCard:
       'patio-vm-card overflow-hidden rounded-[10px] border border-zinc-200/90 bg-white shadow-none dark:border-white/[0.1] dark:bg-[#1a1d21]',
     input:
