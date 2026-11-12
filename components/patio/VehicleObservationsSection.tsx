@@ -118,11 +118,7 @@ export const VehicleObservationsSection: React.FC<VehicleObservationsSectionProp
             <button
               type="button"
               onClick={openAdd}
-              className={
-                isEmpty
-                  ? 'inline-flex shrink-0 items-center gap-1 rounded-xl border-0 bg-[#007AFF] px-2.5 py-1 text-[11px] font-semibold text-white shadow-sm shadow-blue-500/20 transition-[filter] hover:brightness-110'
-                  : 'inline-flex shrink-0 items-center gap-1 rounded-xl border border-[#007AFF]/25 bg-[#007AFF]/[0.09] px-2.5 py-1 text-[11px] font-semibold text-[#007AFF] shadow-[inset_0_1px_0_rgba(255,255,255,0.35)] transition-colors hover:border-[#007AFF]/40 hover:bg-[#007AFF]/15 dark:border-[#007AFF]/35 dark:bg-[#007AFF]/15 dark:text-[#b8d9ff] dark:hover:bg-[#007AFF]/22'
-              }
+              className="inline-flex shrink-0 items-center gap-1 rounded-xl border-0 bg-[#007AFF] px-2.5 py-1 text-[11px] font-semibold text-white transition-colors hover:bg-[#0066d6] dark:bg-[#0A84FF] dark:hover:bg-[#0070e0]"
             >
               <Plus className="h-3.5 w-3.5" strokeWidth={2.5} aria-hidden />
               {isEmpty ? 'Adicionar' : 'Nova'}

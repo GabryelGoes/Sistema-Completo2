@@ -509,10 +509,10 @@ html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .pat
 /*
  * Fase 3 — aba Dados (patio-vm-dados-v3): ritmo e mídia recente.
  * Escopo desktop + shell-v1. Não altera cores nem chrome/aside das Fases 1–2.
+ * O stack usa flex + gap-6 no JSX (contents quebrava o space-y do mainCol).
  */
-html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-vm-main-col:has(.patio-vm-dados-v3) {
-  /* Um pouco mais de ar entre as seções da aba Dados no PC. */
-  row-gap: 0;
+html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-vm-dados-v3 {
+  gap: 1.5rem; /* 24px — mesmo ritmo do space-y-6 */
 }
 
 html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-vm-dados-section-head {
