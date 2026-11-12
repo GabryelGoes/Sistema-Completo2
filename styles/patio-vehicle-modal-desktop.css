@@ -505,3 +505,36 @@ html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .pat
   min-height: 3.75rem;
   align-items: stretch;
 }
+
+/*
+ * Fase 3 — aba Dados (patio-vm-dados-v3): ritmo e mídia recente.
+ * Escopo desktop + shell-v1. Não altera cores nem chrome/aside das Fases 1–2.
+ */
+html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-vm-main-col:has(.patio-vm-dados-v3) {
+  /* Um pouco mais de ar entre as seções da aba Dados no PC. */
+  row-gap: 0;
+}
+
+html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-vm-dados-section-head {
+  min-height: 2.75rem;
+  box-sizing: border-box;
+}
+
+html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-vm-dados-media-thumb:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(0, 122, 255, 0.35);
+}
+
+html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-vm-dados-media-thumb:not(:disabled):active {
+  transform: scale(0.97);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-vm-dados-media-thumb {
+    transition: none;
+  }
+
+  html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-vm-dados-media-thumb:not(:disabled):active {
+    transform: none;
+  }
+}

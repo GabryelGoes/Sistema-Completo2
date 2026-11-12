@@ -250,6 +250,7 @@ import { LabListaBoard, type LabListaUiLocation } from '../lab/LabListaBoard';
 import { LabBenchQueueModal } from '../lab/LabBenchQueueModal';
 import { LabExternalRepairModal } from '../lab/LabExternalRepairModal';
 import { PatioOsModalPcTabBar, type PatioOsModalPcTab } from '../patio/PatioOsModalPcTabBar';
+import { PatioOsModalDadosRecentMedia } from '../patio/PatioOsModalDadosRecentMedia';
 import { PatioOsModalLabServicesSection } from '../patio/PatioOsModalLabServicesSection';
 import { PatioOsModalHistoricoTab } from '../patio/PatioOsModalHistoricoTab';
 import { VehicleObservationsSection } from '../patio/VehicleObservationsSection';
@@ -11212,10 +11213,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   <div className={patioVehicleVm.body}>
                       <div className={patioVehicleVm.mainCol}>
                         {showPcOsTab('dados') ? (
+                        <div className={isPatioPcModal ? 'patio-vm-dados-v3 contents' : 'contents'}>
                         <>
                         {/* Queixa: no tablet veículo fica no cabeçalho rolável; edição só na ficha. */}
                         {!(isPatioTabletLikeModal && !isModuleMode) ? (
-                        <div ref={descriptionSectionRef}>
+                        <div ref={descriptionSectionRef} className={isPatioPcModal ? 'patio-vm-dados-section' : undefined}>
                           <div className={`${vi} min-w-0 overflow-hidden shadow-none`}>
                             <div className="relative min-w-0">
                             <div
@@ -11227,7 +11229,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                               aria-hidden
                             />
 
-                            <div className="relative flex items-center justify-between gap-2 border-b border-black/[0.06] bg-white/85 px-2.5 py-2 pl-3 backdrop-blur-[2px] dark:border-white/[0.08] dark:bg-zinc-950/35 sm:gap-3 sm:px-3 sm:py-2.5 sm:pl-4">
+                            <div className="patio-vm-dados-section-head relative flex items-center justify-between gap-2 border-b border-black/[0.06] bg-white/85 px-2.5 py-2 pl-3 backdrop-blur-[2px] dark:border-white/[0.08] dark:bg-zinc-950/35 sm:gap-3 sm:px-3 sm:py-2.5 sm:pl-4">
                               <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-2.5">
                                 <div className={uiOsModalSectionAppIcon}>
                                   <img src="/icons/queixa-ios.png" alt="" className="h-full w-full object-cover" />
@@ -11289,7 +11291,27 @@ export const PatioView: React.FC<PatioViewProps> = ({
                           <div ref={descriptionSectionRef} className="sr-only" aria-hidden />
                         )}
 
+                        {isPatioPcModal ? (
+                          <PatioOsModalDadosRecentMedia
+                            insetCardClass={vi}
+                            photos={albumFallbackPhotos}
+                            loading={loadingDetails}
+                            onPreview={(photos, index) => {
+                              setPreviewImages({
+                                items: photos.map((p) => ({
+                                  path: p.path,
+                                  url: p.url,
+                                  name: p.name,
+                                })),
+                                currentIndex: index,
+                              });
+                            }}
+                            onOpenArquivos={() => setPcOsModalTab('arquivos')}
+                          />
+                        ) : null}
+
                         {isModuleMode && serviceOrderDetail ? (
+                          <div className={isPatioPcModal ? 'patio-vm-dados-section' : undefined}>
                           <LabEvaluationSection
                             insetCardClass={vi}
                             inputClass={vin}
@@ -11303,10 +11325,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             onDeleteEvaluation={can('canEditFicha') ? handleLabEvaluationDelete : undefined}
                             onMarkUnrepairable={can('canEditFicha') ? handleLabMarkUnrepairable : undefined}
                           />
+                          </div>
                         ) : null}
 
                         {!isModuleMode ? (
-                          <div>
+                          <div className={isPatioPcModal ? 'patio-vm-dados-section' : undefined}>
                             <VehicleObservationsSection
                               insetCardClass={
                                 isPatioTabletLikeModal
@@ -11327,13 +11350,13 @@ export const PatioView: React.FC<PatioViewProps> = ({
                         selectedCard &&
                         !selectedHistoryCard &&
                         (diagnosticAuthSheetContext || canCollectDiagAuth) ? (
-                          <div className={`${vi} min-w-0 overflow-hidden shadow-none`}>
+                          <div className={`${vi} patio-vm-dados-section min-w-0 overflow-hidden shadow-none`}>
                             <div className="relative min-w-0">
                               <div
                                 className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.07),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.08),transparent_50%)] dark:bg-[radial-gradient(ellipse_120%_80%_at_100%_-20%,rgba(0,122,255,0.11),transparent_55%),radial-gradient(ellipse_90%_70%_at_-10%_120%,rgba(245,208,11,0.1),transparent_52%)]"
                                 aria-hidden
                               />
-                              <div className="relative flex items-center justify-between gap-2 border-b border-black/[0.06] bg-white/85 px-2.5 py-2 pl-3 backdrop-blur-[2px] dark:border-white/[0.08] dark:bg-zinc-950/35 sm:gap-3 sm:px-3 sm:py-2.5 sm:pl-4">
+                              <div className="patio-vm-dados-section-head relative flex items-center justify-between gap-2 border-b border-black/[0.06] bg-white/85 px-2.5 py-2 pl-3 backdrop-blur-[2px] dark:border-white/[0.08] dark:bg-zinc-950/35 sm:gap-3 sm:px-3 sm:py-2.5 sm:pl-4">
                                 <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-2.5">
                                   <div className={uiOsModalSectionAppIcon}>
                                     <img
@@ -11347,7 +11370,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                   </p>
                                 </div>
                               </div>
-                              <div className="relative border-t border-zinc-200/60 bg-zinc-50/90 px-3 py-3 dark:border-white/[0.06] dark:bg-white/[0.02] sm:px-4 sm:py-4">
+                              <div className="relative border-t border-zinc-200/60 bg-zinc-50/90 px-3 py-3.5 dark:border-white/[0.06] dark:bg-white/[0.02] sm:px-4 sm:py-4">
                                 {diagnosticAuthSheetContext ? (
                                   <div className="flex flex-col gap-2">
                                     <button
@@ -11401,6 +11424,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                         ) : null}
 
                         </>
+                        </div>
                         ) : null}
 
                         {(!budgetOsPeekOpen && (!isPatioPcModal || pcOsModalTab === 'orcamentos')) ? (
