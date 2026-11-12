@@ -691,3 +691,88 @@ html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .pat
     transform: none;
   }
 }
+
+/*
+ * Fase 6 — Manutenções (patio-vm-hist-v6) + Serviços Lab (patio-vm-lab-v6).
+ * Escopo desktop + shell-v1. Não altera cores nem Fases 1–5.
+ */
+html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-vm-hist-v6 {
+  min-width: 0;
+}
+
+html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-vm-hist-v6 .patio-vm-hist-section-head {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  min-height: 2.75rem;
+  box-sizing: border-box;
+}
+
+html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-vm-hist-v6 .patio-vm-hist-timeline {
+  position: relative;
+}
+
+html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-vm-hist-v6 .patio-vm-hist-timeline::before {
+  content: '';
+  position: absolute;
+  left: 0.2rem;
+  top: 0.75rem;
+  bottom: 0.75rem;
+  width: 2px;
+  background: rgba(0, 122, 255, 0.18);
+  border-radius: 999px;
+  pointer-events: none;
+}
+
+html.dark[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-vm-hist-v6 .patio-vm-hist-timeline::before {
+  background: rgba(122, 184, 255, 0.22);
+}
+
+html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-vm-hist-v6 .patio-vm-hist-visit {
+  content-visibility: auto;
+  contain-intrinsic-size: 180px;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-vm-hist-v6 .patio-vm-hist-filters button:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(0, 122, 255, 0.35);
+}
+
+html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-vm-lab-v6 {
+  min-width: 0;
+}
+
+html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-vm-lab-v6 .patio-vm-lab-section-head {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  min-height: 2.75rem;
+  box-sizing: border-box;
+}
+
+html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-vm-lab-v6 .patio-vm-lab-link-row {
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    transform 0.15s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-vm-lab-v6 .patio-vm-lab-link-row:focus-within {
+  border-color: rgba(0, 122, 255, 0.28);
+  box-shadow: 0 0 0 2px rgba(0, 122, 255, 0.1);
+}
+
+html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-vm-lab-v6 .patio-vm-lab-quick:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(0, 122, 255, 0.35);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-vm-hist-v6 .patio-vm-hist-visit,
+  html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-vm-lab-v6 .patio-vm-lab-link-row {
+    transition: none;
+  }
+}

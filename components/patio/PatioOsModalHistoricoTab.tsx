@@ -21,6 +21,8 @@ export type PatioOsModalHistoricoTabProps = {
   collapsible?: boolean;
   defaultExpanded?: boolean;
   wrapClassName?: string;
+  /** Layout PC (aba Manutenções): timeline + ritmo Fase 6 — não altera tablet/mobile. */
+  pcLayout?: boolean;
 };
 
 type ListFilter = 'todos' | 'servicos' | 'pecas';
@@ -51,6 +53,7 @@ export const PatioOsModalHistoricoTab: React.FC<PatioOsModalHistoricoTabProps> =
   collapsible = false,
   defaultExpanded = false,
   wrapClassName,
+  pcLayout = false,
 }) => {
   const [filter, setFilter] = useState<ListFilter>('todos');
   const [expanded, setExpanded] = useState(defaultExpanded);
@@ -107,20 +110,31 @@ export const PatioOsModalHistoricoTab: React.FC<PatioOsModalHistoricoTabProps> =
   );
 
   const body = (
-    <div className="relative space-y-3 border-t border-zinc-200/60 bg-zinc-50/90 px-3 py-3 dark:border-white/[0.06] dark:bg-white/[0.02] sm:px-4 sm:py-4">
+    <div
+      className={`patio-vm-hist-body relative border-t border-zinc-200/60 bg-zinc-50/90 dark:border-white/[0.06] dark:bg-white/[0.02] ${
+        pcLayout ? 'space-y-4 px-3.5 py-3.5 sm:px-4 sm:py-4' : 'space-y-3 px-3 py-3 sm:px-4 sm:py-4'
+      }`}
+    >
       {loading && !history ? (
-        <div className="flex items-center justify-center gap-2 py-12 text-[14px] font-medium text-zinc-500 dark:text-zinc-400">
-          <Loader2 className="h-5 w-5 animate-spin text-[#007AFF]" />
+        <div
+          className="flex items-center justify-center gap-2 py-12 text-[14px] font-medium text-zinc-500 dark:text-zinc-400"
+          role="status"
+          aria-live="polite"
+        >
+          <Loader2 className="h-5 w-5 animate-spin text-[#007AFF]" aria-hidden />
           Carregando histórico do veículo…
         </div>
       ) : error && !history ? (
-        <div className="rounded-2xl border border-red-200/80 bg-red-50/90 px-4 py-5 text-center dark:border-red-500/25 dark:bg-red-950/30">
+        <div
+          className="rounded-2xl border border-red-200/80 bg-red-50/90 px-4 py-5 text-center dark:border-red-500/25 dark:bg-red-950/30"
+          role="alert"
+        >
           <p className="text-[14px] font-semibold text-red-800 dark:text-red-200">{error}</p>
           {onRetry ? (
             <button
               type="button"
               onClick={onRetry}
-              className="mt-3 inline-flex items-center gap-1.5 rounded-xl bg-red-600 px-3 py-1.5 text-[12px] font-semibold text-white"
+              className="mt-3 inline-flex items-center gap-1.5 rounded-xl bg-red-600 px-3 py-1.5 text-[12px] font-semibold text-white transition-[transform,filter] hover:brightness-105 active:scale-[0.98]"
             >
               Tentar de novo
             </button>
@@ -140,7 +154,7 @@ export const PatioOsModalHistoricoTab: React.FC<PatioOsModalHistoricoTabProps> =
             </p>
           ) : null}
 
-          <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
+          <div className={`grid grid-cols-3 ${pcLayout ? 'gap-2' : 'gap-1.5 sm:gap-2'}`}>
             {[
               {
                 label: 'Passagens',
@@ -183,7 +197,13 @@ export const PatioOsModalHistoricoTab: React.FC<PatioOsModalHistoricoTabProps> =
             ))}
           </div>
 
-          <div className="flex flex-wrap gap-1.5 rounded-2xl bg-white p-1 dark:bg-zinc-950/70">
+          <div
+            className={`flex flex-wrap gap-1.5 rounded-2xl bg-white p-1 dark:bg-zinc-950/70${
+              pcLayout ? ' patio-vm-hist-filters' : ''
+            }`}
+            role="tablist"
+            aria-label="Filtrar histórico"
+          >
             {(
               [
                 { id: 'todos', label: 'Tudo' },
@@ -196,8 +216,10 @@ export const PatioOsModalHistoricoTab: React.FC<PatioOsModalHistoricoTabProps> =
                 <button
                   key={opt.id}
                   type="button"
+                  role="tab"
+                  aria-selected={active}
                   onClick={() => setFilter(opt.id)}
-                  className={`rounded-xl px-3 py-1.5 text-[12px] font-semibold transition ${
+                  className={`rounded-xl px-3 py-1.5 text-[12px] font-semibold transition-[color,background-color,transform] active:scale-[0.98] ${
                     active
                       ? 'bg-[#007AFF] text-white shadow-sm shadow-blue-500/25'
                       : 'text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-white/[0.06]'
@@ -225,7 +247,13 @@ export const PatioOsModalHistoricoTab: React.FC<PatioOsModalHistoricoTabProps> =
               Nada neste filtro.
             </p>
           ) : (
-            <ul className="space-y-3">
+            <ul
+              className={
+                pcLayout
+                  ? 'patio-vm-hist-timeline relative space-y-3 pl-1'
+                  : 'space-y-3'
+              }
+            >
               {filteredVisits.map((visit) => {
                 const showServices = filter !== 'pecas' && visit.services.length > 0;
                 const showParts = filter !== 'servicos' && visit.parts.length > 0;
@@ -237,13 +265,29 @@ export const PatioOsModalHistoricoTab: React.FC<PatioOsModalHistoricoTabProps> =
                 return (
                   <li
                     key={visit.serviceOrderId}
-                    className={`overflow-hidden rounded-2xl border bg-white shadow-sm dark:bg-zinc-950/70 ${
+                    className={`patio-vm-hist-visit overflow-hidden rounded-2xl border bg-white shadow-sm dark:bg-zinc-950/70 ${
+                      pcLayout ? 'relative ml-4' : ''
+                    } ${
                       visit.isCurrent
                         ? 'border-[#007AFF]/35 ring-1 ring-[#007AFF]/15 dark:border-[#007AFF]/40'
                         : 'border-zinc-200/80 dark:border-white/[0.08]'
                     }`}
                   >
-                    <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-100 bg-zinc-50/80 px-3.5 py-2.5 dark:border-white/[0.06] dark:bg-white/[0.03]">
+                    {pcLayout ? (
+                      <span
+                        className={`patio-vm-hist-dot absolute -left-[1.15rem] top-5 h-2.5 w-2.5 rounded-full border-2 border-white dark:border-zinc-950 ${
+                          visit.isCurrent
+                            ? 'bg-[#007AFF]'
+                            : 'bg-zinc-300 dark:bg-zinc-600'
+                        }`}
+                        aria-hidden
+                      />
+                    ) : null}
+                    <div
+                      className={`flex flex-wrap items-center justify-between gap-2 border-b border-zinc-100 bg-zinc-50/80 dark:border-white/[0.06] dark:bg-white/[0.03] ${
+                        pcLayout ? 'px-3.5 py-2.5 sm:px-4' : 'px-3.5 py-2.5'
+                      }`}
+                    >
                       <div className="min-w-0">
                         <p className="text-[14px] font-semibold text-zinc-900 dark:text-white">
                           {visit.osNumber != null ? `OS ${visit.osNumber}` : 'Ordem de serviço'}
@@ -255,7 +299,7 @@ export const PatioOsModalHistoricoTab: React.FC<PatioOsModalHistoricoTabProps> =
                         </p>
                         <p className="mt-0.5 text-[12px] text-zinc-500 dark:text-zinc-400">
                           {visit.customerName ? `${visit.customerName} · ` : ''}
-                          {formatWhen(visit.createdAt)}
+                          <time dateTime={visit.createdAt ?? undefined}>{formatWhen(visit.createdAt)}</time>
                           {visit.mileageKm ? ` · ${visit.mileageKm} km` : ''}
                         </p>
                       </div>
@@ -357,7 +401,9 @@ export const PatioOsModalHistoricoTab: React.FC<PatioOsModalHistoricoTabProps> =
 
   const card = (
     <div
-      className={`${insetCardClass} min-w-0 overflow-hidden ${
+      className={`${insetCardClass} min-w-0 overflow-hidden${
+        pcLayout ? ' patio-vm-hist-v6' : ''
+      } ${
         collapsible
           ? 'shadow-[0_8px_30px_-8px_rgba(0,0,0,0.12),0_2px_12px_-6px_rgba(0,0,0,0.06)] dark:shadow-[0_14px_38px_-12px_rgba(0,0,0,0.5),0_4px_14px_-8px_rgba(0,0,0,0.28)]'
           : 'shadow-none'
@@ -381,7 +427,7 @@ export const PatioOsModalHistoricoTab: React.FC<PatioOsModalHistoricoTabProps> =
             {headerInner}
           </button>
         ) : (
-          <div className="relative flex items-center gap-2 border-b border-black/[0.06] bg-white/85 px-2.5 py-2 pl-3 backdrop-blur-[2px] dark:border-white/[0.08] dark:bg-zinc-950/35 sm:gap-3 sm:px-3 sm:py-2.5 sm:pl-4">
+          <div className="patio-vm-hist-section-head relative flex items-center gap-2 border-b border-black/[0.06] bg-white/85 px-2.5 py-2 pl-3 backdrop-blur-[2px] dark:border-white/[0.08] dark:bg-zinc-950/35 sm:gap-3 sm:px-3 sm:py-2.5 sm:pl-4">
             {headerInner}
           </div>
         )}

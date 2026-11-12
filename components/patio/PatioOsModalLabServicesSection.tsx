@@ -72,6 +72,8 @@ export type PatioOsModalLabServicesSectionProps = {
   /** Em tablet/mobile: cabeçalho clicável, conteúdo recolhido por padrão. */
   collapsible?: boolean;
   defaultExpanded?: boolean;
+  /** Layout PC (aba Serviços Laboratório): ritmo Fase 6 — não altera tablet/mobile. */
+  pcLayout?: boolean;
 };
 
 export const PatioOsModalLabServicesSection: React.FC<PatioOsModalLabServicesSectionProps> = ({
@@ -117,6 +119,7 @@ export const PatioOsModalLabServicesSection: React.FC<PatioOsModalLabServicesSec
   onLabServiceGarantiaChange,
   collapsible = false,
   defaultExpanded = false,
+  pcLayout = false,
 }) => {
   const [expanded, setExpanded] = useState(defaultExpanded);
   const [manualProductName, setManualProductName] = useState(false);
@@ -346,7 +349,13 @@ export const PatioOsModalLabServicesSection: React.FC<PatioOsModalLabServicesSec
   return (
   <div className={wrapClassName}>
     <div
-      className={`${insetCardClass} min-w-0 overflow-hidden shadow-[0_8px_30px_-8px_rgba(0,0,0,0.12),0_2px_12px_-6px_rgba(0,0,0,0.06)] dark:shadow-[0_14px_38px_-12px_rgba(0,0,0,0.5),0_4px_14px_-8px_rgba(0,0,0,0.28)]`}
+      className={`${insetCardClass} min-w-0 overflow-hidden${
+        pcLayout ? ' patio-vm-lab-v6 shadow-none' : ''
+      } ${
+        pcLayout
+          ? ''
+          : 'shadow-[0_8px_30px_-8px_rgba(0,0,0,0.12),0_2px_12px_-6px_rgba(0,0,0,0.06)] dark:shadow-[0_14px_38px_-12px_rgba(0,0,0,0.5),0_4px_14px_-8px_rgba(0,0,0,0.28)]'
+      }`}
     >
       <div className="relative min-w-0">
         {collapsible ? (
@@ -359,16 +368,31 @@ export const PatioOsModalLabServicesSection: React.FC<PatioOsModalLabServicesSec
             {headerInner}
           </button>
         ) : (
-          <div className="relative flex items-center gap-2 border-b border-black/[0.06] bg-white/85 px-2.5 py-2 pl-3 backdrop-blur-[2px] dark:border-white/[0.08] dark:bg-zinc-950/35 sm:gap-3 sm:px-3 sm:py-2.5 sm:pl-4">
+          <div className="patio-vm-lab-section-head relative flex items-center gap-2 border-b border-black/[0.06] bg-white/85 px-2.5 py-2 pl-3 backdrop-blur-[2px] dark:border-white/[0.08] dark:bg-zinc-950/35 sm:gap-3 sm:px-3 sm:py-2.5 sm:pl-4">
             {headerInner}
           </div>
         )}
 
         {isOpen ? (
-        <div className="space-y-3 border-t border-zinc-200/60 bg-zinc-50/90 px-3 py-3 dark:border-white/[0.06] dark:bg-white/[0.02] sm:px-4 sm:py-4">
+        <div
+          className={`patio-vm-lab-body border-t border-zinc-200/60 bg-zinc-50/90 dark:border-white/[0.06] dark:bg-white/[0.02] ${
+            pcLayout ? 'space-y-4 px-3.5 py-3.5 sm:px-4 sm:py-4' : 'space-y-3 px-3 py-3 sm:px-4 sm:py-4'
+          }`}
+        >
           {/* 1. Serviços já enviados — logo abaixo do título (sem empty state) */}
           {sentLinksNewestFirst.length > 0 ? (
-          <div className="space-y-2">
+          <div className={`space-y-2${pcLayout ? ' patio-vm-lab-sent' : ''}`}>
+            {pcLayout ? (
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-[12px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
+                  Enviados
+                </p>
+                <span className="text-[11px] font-medium tabular-nums text-zinc-500 dark:text-zinc-400">
+                  {sentLinksNewestFirst.length}{' '}
+                  {sentLinksNewestFirst.length === 1 ? 'serviço' : 'serviços'}
+                </span>
+              </div>
+            ) : null}
             {sentLinksNewestFirst.map((link) => {
                 const linkedOrder = labOrdersLookup[link.laboratoryOrderId];
                 const linkedStatus = String(
@@ -391,7 +415,9 @@ export const PatioOsModalLabServicesSection: React.FC<PatioOsModalLabServicesSec
                 return (
                   <div
                     key={link.id}
-                    className="flex flex-col gap-2 rounded-xl border border-zinc-200/70 bg-white/95 p-3 dark:border-white/[0.1] dark:bg-zinc-950/60 sm:flex-row sm:items-center sm:justify-between"
+                    className={`patio-vm-lab-link-row flex flex-col gap-2 rounded-xl border border-zinc-200/70 bg-white/95 p-3 dark:border-white/[0.1] dark:bg-zinc-950/60 sm:flex-row sm:items-center sm:justify-between${
+                      pcLayout ? ' sm:gap-3' : ''
+                    }`}
                   >
                     <div className="min-w-0">
                       <p className="truncate text-[14px] font-semibold text-zinc-900 dark:text-zinc-100">
@@ -461,7 +487,7 @@ export const PatioOsModalLabServicesSection: React.FC<PatioOsModalLabServicesSec
                       <button
                         type="button"
                         onClick={() => onOpenLaboratoryOrder?.(link.laboratoryOrderId)}
-                        className="inline-flex items-center gap-1 rounded-lg border border-[#007AFF]/25 bg-[#007AFF]/10 px-2.5 py-1.5 text-[12px] font-semibold text-[#007AFF]"
+                        className="inline-flex items-center gap-1 rounded-lg border border-[#007AFF]/25 bg-[#007AFF]/10 px-2.5 py-1.5 text-[12px] font-semibold text-[#007AFF] transition-[transform,background-color] hover:bg-[#007AFF]/15 active:scale-[0.98]"
                       >
                         Abrir <ArrowRight className="h-3.5 w-3.5" />
                       </button>
@@ -471,7 +497,7 @@ export const PatioOsModalLabServicesSection: React.FC<PatioOsModalLabServicesSec
                         disabled={labServiceLinksSaving}
                         title="Remover vínculo e excluir OS do laboratório"
                         aria-label={`Excluir serviço ${link.serviceLabel} e a OS do laboratório`}
-                        className="inline-flex items-center gap-1 rounded-lg border border-red-300/70 bg-red-50 px-2.5 py-1.5 text-[12px] font-semibold text-red-700 dark:border-red-500/35 dark:bg-red-500/10 dark:text-red-300 disabled:opacity-60"
+                        className="inline-flex items-center gap-1 rounded-lg border border-red-300/70 bg-red-50 px-2.5 py-1.5 text-[12px] font-semibold text-red-700 transition-[transform,opacity] active:scale-[0.98] dark:border-red-500/35 dark:bg-red-500/10 dark:text-red-300 disabled:opacity-60"
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </button>
@@ -571,7 +597,13 @@ export const PatioOsModalLabServicesSection: React.FC<PatioOsModalLabServicesSec
           </div>
 
           {/* 4. Serviço (orçamento / manual) + Enviar */}
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-[180px_minmax(0,1fr)_auto]">
+          <div
+            className={`patio-vm-lab-compose grid grid-cols-1 gap-2 ${
+              pcLayout
+                ? 'sm:grid-cols-[160px_minmax(0,1fr)_auto]'
+                : 'sm:grid-cols-[180px_minmax(0,1fr)_auto]'
+            }`}
+          >
             <select
               value={newLabServiceMode}
               onChange={(e) => onLabServiceModeChange(e.target.value === 'manual' ? 'manual' : 'budget')}
@@ -605,7 +637,7 @@ export const PatioOsModalLabServicesSection: React.FC<PatioOsModalLabServicesSec
               type="button"
               onClick={onCreateLabService}
               disabled={busy}
-              className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#007AFF] px-3 py-2 text-[13px] font-semibold text-white disabled:opacity-55"
+              className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#007AFF] px-3 py-2 text-[13px] font-semibold text-white transition-[transform,filter] hover:brightness-105 active:scale-[0.98] disabled:opacity-55"
             >
               {creatingLabService ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
               Enviar
@@ -661,7 +693,7 @@ export const PatioOsModalLabServicesSection: React.FC<PatioOsModalLabServicesSec
               type="button"
               onClick={() => setQuickSendModalOpen(true)}
               disabled={busy}
-              className="group flex w-full items-center gap-3 rounded-xl border-0 bg-white px-3.5 py-3 text-left shadow-none transition-colors hover:bg-zinc-50 dark:bg-zinc-950/55 dark:hover:bg-zinc-900 disabled:opacity-55"
+              className="patio-vm-lab-quick group flex w-full items-center gap-3 rounded-xl border-0 bg-white px-3.5 py-3 text-left shadow-none transition-[background-color,transform] hover:bg-zinc-50 active:scale-[0.995] dark:bg-zinc-950/55 dark:hover:bg-zinc-900 disabled:opacity-55"
             >
               <span className="h-10 w-10 shrink-0 overflow-hidden rounded-[0.65rem]">
                 <img src="/icons/envio-rapido-ios.png" alt="" className="h-full w-full object-cover" />
