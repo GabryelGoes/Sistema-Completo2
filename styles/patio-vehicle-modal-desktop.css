@@ -368,3 +368,95 @@ html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .pat
     animation: none;
   }
 }
+
+/*
+ * Fase 2 — painel lateral / ações operacionais (patio-vm-aside-v2).
+ * Escopo: desktop + shell-v1 + aside-v2. Não altera cores nem o chrome da Fase 1.
+ */
+html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-vm-aside-v2 {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  /* space-y do token continua; gap reforça ritmo uniforme entre seções. */
+}
+
+html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-vm-aside-v2.patio-vm-aside-col {
+  /* Evita double-spacing agressivo: o flex gap manda no stack. */
+  row-gap: 1.25rem;
+}
+
+html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-vm-aside-v2 > * + * {
+  /* Neutraliza margin do space-y-* do Tailwind no aside PC. */
+  margin-top: 0;
+}
+
+html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-vm-aside-ops {
+  position: sticky;
+  top: 0;
+  z-index: 12;
+  /* Mesmo paper do aside — não introduz cor nova. */
+  background-color: #f2f2f7;
+  padding-bottom: 0.35rem;
+  margin-bottom: 0.1rem;
+}
+
+html.dark[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-vm-aside-ops {
+  background-color: #0a0a0a;
+}
+
+html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-vm-aside-section-head {
+  min-height: 2.75rem;
+  box-sizing: border-box;
+}
+
+html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-vm-aside-stock .patio-vm-card > div:first-child {
+  min-height: 2.75rem;
+  box-sizing: border-box;
+}
+
+html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-vm-aside-icon-btn {
+  transition:
+    background-color 0.15s ease,
+    color 0.15s ease,
+    transform 0.12s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-vm-aside-icon-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(0, 122, 255, 0.35);
+}
+
+html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-vm-aside-icon-btn:not(:disabled):active {
+  transform: scale(0.96);
+}
+
+html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-vm-aside-checklist-row:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px rgba(0, 122, 255, 0.28);
+}
+
+html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-vm-aside-checklist-row:not(:disabled):active {
+  transform: scale(0.99);
+}
+
+html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-vm-aside-stage-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(0, 122, 255, 0.35);
+}
+
+html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-vm-aside-comments-list {
+  padding-top: 0.75rem;
+  padding-bottom: 0.75rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-vm-aside-icon-btn,
+  html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-vm-aside-checklist-row {
+    transition: none;
+  }
+
+  html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-vm-aside-icon-btn:not(:disabled):active,
+  html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-vm-aside-checklist-row:not(:disabled):active {
+    transform: none;
+  }
+}
