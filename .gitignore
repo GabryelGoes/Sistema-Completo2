@@ -36,3 +36,7 @@ supabase/.temp/
 # Clones locais dos painéis de TV (deploy separado no GitHub/Vercel)
 Patio-View/
 Laboratorio-View/
+
+# Python bytecode from skill scripts
+**/__pycache__/
+*.py[cod]
