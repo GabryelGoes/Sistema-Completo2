@@ -1222,7 +1222,7 @@ export function PatioPhotoAlbums({
               setNewFolderName('');
               setImportPhotoPaths([]);
             }}
-            className="inline-flex shrink-0 items-center rounded-full bg-[#007AFF] px-3 py-1.5 text-[12px] font-semibold text-white transition-[filter,transform] hover:brightness-110 active:scale-[0.98]"
+            className="inline-flex shrink-0 items-center rounded-full bg-[#4FA8FF] px-2.5 py-1 text-[10px] font-semibold text-white shadow-sm shadow-blue-500/25 transition-[filter,transform] hover:bg-[#3397F8] active:scale-[0.98]"
           >
             Nova pasta
           </button>
