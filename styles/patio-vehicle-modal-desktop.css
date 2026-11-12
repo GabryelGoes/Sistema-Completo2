@@ -770,6 +770,29 @@ html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .pat
   box-shadow: 0 0 0 2px rgba(0, 122, 255, 0.35);
 }
 
+html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-vm-lab-v6 .patio-vm-lab-new {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.65);
+}
+
+html.dark[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-vm-lab-v6 .patio-vm-lab-new {
+  box-shadow: none;
+}
+
+html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-vm-lab-v6 .patio-vm-lab-compose select:focus-visible,
+html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-vm-lab-v6 .patio-vm-lab-compose input:focus-visible,
+html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-vm-lab-v6 .patio-vm-lab-new textarea:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(0, 122, 255, 0.28);
+}
+
+html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-vm-lab-v6 .patio-vm-lab-sent {
+  max-height: min(22rem, 40vh);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-right: 0.15rem;
+  scroll-padding-block: 0.5rem;
+}
+
 @media (prefers-reduced-motion: reduce) {
   html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-vm-hist-v6 .patio-vm-hist-visit,
   html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-vm-lab-v6 .patio-vm-lab-link-row {
