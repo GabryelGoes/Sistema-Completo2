@@ -31,6 +31,8 @@ import { PartPhotoImg } from './ui/PartPhotoImg';
 import { WorkshopPartStockBadge } from './ui/WorkshopPartStockBadge';
 
 export type WorkshopPartsHomeDashboardProps = {
+  /** Layout desktop/PC (E0/E1). Tablet/mobile mantém o markup legado. */
+  pcLayout?: boolean;
   loading: boolean;
   error: string | null;
   parts: WorkshopPart[];
@@ -102,15 +104,29 @@ const KPI_ICON_SRC = {
   valorTotal: '/icons/estoque-kpi-valor-total.png',
 } as const;
 
-function EstoqueKpiIcon({ src, alt }: { src: string; alt: string }) {
+function EstoqueKpiIcon({
+  src,
+  alt,
+  className,
+}: {
+  src: string;
+  alt: string;
+  className?: string;
+}) {
   return (
-    <span className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-transparent">
+    <span
+      className={
+        className ??
+        'flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-transparent'
+      }
+    >
       <img src={src} alt={alt} className="h-11 w-11 object-contain drop-shadow-sm" draggable={false} />
     </span>
   );
 }
 
 export function WorkshopPartsHomeDashboard({
+  pcLayout = false,
   loading,
   error,
   parts,
@@ -188,6 +204,641 @@ export function WorkshopPartsHomeDashboard({
   const gridCols =
     'lg:grid-cols-[minmax(14rem,2.2fr)_minmax(7rem,0.9fr)_minmax(7rem,0.9fr)_minmax(5.5rem,0.7fr)_minmax(5.5rem,0.7fr)_minmax(4.5rem,0.55fr)_minmax(7.5rem,0.9fr)_5.5rem]';
 
+  const kpiEmEstoqueActive =
+    categoryFilter === 'all' && stockAlertFilter === 'all' && !partsSearchQuery.trim();
+
+  const actionButtons = (
+    <>
+      <button
+        type="button"
+        onClick={onToggleBalanceMode}
+        aria-pressed={balanceModeActive}
+        className={
+          balanceModeActive
+            ? 'inline-flex items-center justify-center gap-2 rounded-2xl border-0 bg-amber-500 px-4 py-3 text-[14px] font-semibold text-white shadow-none transition-colors hover:bg-amber-600'
+            : actionBtnSecondary
+        }
+      >
+        <Scale className="h-4 w-4" aria-hidden />
+        {balanceModeActive ? 'Balanço ativo' : 'Balanço'}
+      </button>
+      <button type="button" onClick={onOpenScan} className={actionBtnGreen}>
+        <ScanLine className="h-4 w-4" aria-hidden />
+        Escanear código
+      </button>
+      <button type="button" onClick={onOpenAnalytics} className={actionBtnGreen}>
+        <BarChart3 className="h-4 w-4" aria-hidden />
+        Gráficos
+      </button>
+      <button type="button" onClick={onOpenHistory} className={actionBtnSecondary}>
+        <History className="h-4 w-4" aria-hidden />
+        Histórico de compras
+      </button>
+      {onOpenAbsModules ? (
+        <button type="button" onClick={onOpenAbsModules} className={actionBtnSecondary}>
+          <QrCode className="h-4 w-4" aria-hidden />
+          Módulos ABS
+        </button>
+      ) : null}
+      <button type="button" onClick={onAddPart} className={actionBtnPrimary}>
+        <Plus className="h-4 w-4" aria-hidden />
+        Adicionar peça
+      </button>
+    </>
+  );
+
+  const reservationsPanel = !loading ? (
+    <div className="min-w-0 w-full overflow-hidden rounded-2xl border-0 bg-amber-50/95 shadow-none dark:bg-amber-950/35 sm:max-w-md estoque-pc-reservations">
+      <button
+        type="button"
+        onClick={onToggleReservations}
+        className="flex w-full items-center justify-between gap-3 px-4 py-3.5 text-left"
+        aria-expanded={reservationsExpanded}
+      >
+        <span className="min-w-0 flex items-center gap-2.5">
+          <span className="text-[15px] font-semibold text-amber-950 dark:text-amber-100">
+            Em Orçamentos
+          </span>
+          <span className="rounded-lg bg-amber-500/25 px-2 py-0.5 text-[12px] font-bold tabular-nums text-amber-950 dark:bg-amber-400/20 dark:text-amber-100">
+            {pendingReservations.length}
+          </span>
+        </span>
+        <ChevronDown
+          className={`h-5 w-5 shrink-0 text-amber-800 transition-transform dark:text-amber-200 ${
+            reservationsExpanded ? 'rotate-180' : ''
+          }`}
+          aria-hidden
+        />
+      </button>
+      {reservationsExpanded ? (
+        pendingReservations.length > 0 ? (
+          <ul className="max-h-[min(280px,40vh)] space-y-1.5 overflow-y-auto border-t border-amber-200/70 px-3 py-3 dark:border-amber-500/20 custom-scrollbar">
+            {pendingReservations.map((row) => {
+              const vehicleBits = [
+                row.osNumber != null ? `OS #${row.osNumber}` : null,
+                row.plate,
+                row.vehicleModel,
+              ].filter(Boolean);
+              return (
+                <li
+                  key={`${row.budgetId}-${row.workshopPartId ?? row.partName}-${row.serviceOrderId}`}
+                  className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-white/80 px-3 py-2.5 text-[13px] dark:bg-black/25"
+                >
+                  <span className="min-w-0">
+                    <span className="block font-semibold text-zinc-900 dark:text-white">
+                      {row.partName}
+                    </span>
+                    <span className="block text-[12px] text-zinc-500 dark:text-zinc-400">
+                      {vehicleBits.length > 0 ? vehicleBits.join(' · ') : 'Veículo'}
+                      {row.budgetCardName ? ` · ${row.budgetCardName}` : ''}
+                    </span>
+                  </span>
+                  <span className="shrink-0 rounded-lg bg-amber-500/15 px-2.5 py-1 text-[13px] font-bold tabular-nums text-amber-950 dark:text-amber-100">
+                    {row.quantityLabel} un.
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        ) : (
+          <p className="border-t border-amber-200/70 px-4 py-3 text-[13px] text-amber-900/80 dark:border-amber-500/20 dark:text-amber-200/80">
+            Nenhum produto em orçamento aguardando baixa.
+          </p>
+        )
+      ) : null}
+    </div>
+  ) : (
+    <div className="min-w-0 w-full sm:max-w-md" />
+  );
+
+  const kpiBlock = !loading && parts.length > 0 ? (
+    <>
+      <button
+        type="button"
+        onClick={showAllParts}
+        className={`flex items-center gap-3 rounded-2xl border-0 px-4 py-3.5 text-left shadow-none transition-colors ${
+          kpiEmEstoqueActive
+            ? 'bg-emerald-50 ring-2 ring-emerald-500/35 dark:bg-emerald-950/40'
+            : 'bg-white hover:bg-zinc-50 dark:bg-zinc-900 dark:hover:bg-zinc-800/80'
+        }`}
+      >
+        <EstoqueKpiIcon
+          src={KPI_ICON_SRC.emEstoque}
+          alt=""
+          className="estoque-pc-kpi-icon flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-transparent"
+        />
+        <span className="min-w-0 flex-1 text-[14px] font-semibold leading-snug text-zinc-900 dark:text-white">
+          <span className="tabular-nums">{categoryCounts.total}</span>{' '}
+          {categoryCounts.total === 1 ? 'peça em estoque' : 'peças em estoque'}
+        </span>
+        <ChevronRight className="h-4 w-4 shrink-0 text-zinc-400" aria-hidden />
+      </button>
+
+      <button
+        type="button"
+        onClick={() => onStockAlertFilterChange(stockAlertFilter === 'zero' ? 'all' : 'zero')}
+        className={`flex items-center gap-3 rounded-2xl border-0 px-4 py-3.5 text-left shadow-none transition-colors ${
+          stockAlertFilter === 'zero'
+            ? 'bg-red-50 ring-2 ring-red-400/45 dark:bg-red-950/40'
+            : 'bg-white hover:bg-zinc-50 dark:bg-zinc-900 dark:hover:bg-zinc-800/80'
+        }`}
+      >
+        <EstoqueKpiIcon
+          src={KPI_ICON_SRC.semEstoque}
+          alt=""
+          className="estoque-pc-kpi-icon flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-transparent"
+        />
+        <span className="min-w-0 flex-1 text-[14px] font-semibold text-zinc-900 dark:text-white">
+          <span className="tabular-nums">{stockAlerts.zero}</span> sem estoque
+        </span>
+        <ChevronRight className="h-4 w-4 shrink-0 text-zinc-400" aria-hidden />
+      </button>
+
+      <button
+        type="button"
+        onClick={() => onStockAlertFilterChange(stockAlertFilter === 'low' ? 'all' : 'low')}
+        className={`flex items-center gap-3 rounded-2xl border-0 px-4 py-3.5 text-left shadow-none transition-colors ${
+          stockAlertFilter === 'low'
+            ? 'bg-amber-100 ring-2 ring-amber-400/50 dark:bg-amber-950/50'
+            : 'bg-white hover:bg-zinc-50 dark:bg-zinc-900 dark:hover:bg-zinc-800/80'
+        }`}
+      >
+        <EstoqueKpiIcon
+          src={KPI_ICON_SRC.acabando}
+          alt=""
+          className="estoque-pc-kpi-icon flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-transparent"
+        />
+        <span className="min-w-0 flex-1 text-[14px] font-semibold text-zinc-900 dark:text-white">
+          <span className="tabular-nums">{stockAlerts.low}</span> acabando
+        </span>
+        <ChevronRight className="h-4 w-4 shrink-0 text-zinc-400" aria-hidden />
+      </button>
+
+      <div className="flex items-center gap-3 rounded-2xl border-0 bg-white px-4 py-3.5 shadow-none dark:bg-zinc-900">
+        <EstoqueKpiIcon
+          src={KPI_ICON_SRC.valorTotal}
+          alt=""
+          className="estoque-pc-kpi-icon flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-transparent"
+        />
+        <div className="min-w-0 flex flex-col gap-0.5">
+          <p className="text-[15px] font-bold tabular-nums leading-tight text-zinc-900 dark:text-white">
+            {formatWorkshopPartsCurrency(inventoryValue)}
+          </p>
+          <p className="text-[12px] font-medium leading-snug text-zinc-500 dark:text-zinc-400">
+            valor total em estoque
+          </p>
+        </div>
+      </div>
+    </>
+  ) : null;
+
+  const searchField = (
+    <div className={`relative min-w-0 flex-1 ${pcLayout ? 'estoque-pc-search' : ''}`}>
+      <label htmlFor="workshop-parts-search" className="sr-only">
+        Pesquisar peças
+      </label>
+      <Search
+        className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400"
+        aria-hidden
+      />
+      <input
+        ref={searchInputRef}
+        id="workshop-parts-search"
+        type="search"
+        value={partsSearchQuery}
+        onChange={(e) => onPartsSearchQueryChange(e.target.value)}
+        placeholder="Pesquisar peça, código, marca, categoria..."
+        autoComplete="off"
+        className="w-full rounded-2xl border-0 bg-white py-3 pl-11 pr-20 text-[15px] text-zinc-900 shadow-none placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/35 dark:bg-zinc-900 dark:text-white dark:placeholder:text-zinc-500"
+      />
+      <span className="pointer-events-none absolute right-3 top-1/2 hidden -translate-y-1/2 items-center gap-0.5 rounded-md border border-zinc-200 bg-zinc-50 px-1.5 py-0.5 text-[11px] font-semibold text-zinc-500 sm:inline-flex dark:border-white/10 dark:bg-white/5 dark:text-zinc-400">
+        <Command className="h-3 w-3" aria-hidden />
+        K
+      </span>
+      {partsSearchQuery ? (
+        <button
+          type="button"
+          onClick={() => onPartsSearchQueryChange('')}
+          className="absolute right-14 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-zinc-500 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-white/10 sm:right-16"
+          aria-label="Limpar pesquisa"
+        >
+          <X className="h-4 w-4" />
+        </button>
+      ) : null}
+    </div>
+  );
+
+  const categoryFilterControl = (
+    <div
+      ref={categoryFilterDropdownRef}
+      className={`relative z-40 w-full shrink-0 lg:w-[min(100%,240px)] ${pcLayout ? 'estoque-pc-category' : ''}`}
+    >
+      <button
+        type="button"
+        id="workshop-parts-category-filter"
+        aria-haspopup="listbox"
+        aria-expanded={categoryFilterMenuOpen}
+        aria-controls="workshop-parts-category-listbox"
+        onClick={() => setCategoryFilterMenuOpen((open) => !open)}
+        className="flex w-full min-h-[48px] items-center justify-between gap-2 rounded-2xl border-0 bg-white py-3 pl-4 pr-3 text-left text-[14px] font-semibold text-zinc-900 shadow-none focus:outline-none focus:ring-2 focus:ring-emerald-500/40 dark:bg-zinc-900 dark:text-white"
+      >
+        <span className="min-w-0 truncate">{categoryFilterLabel}</span>
+        <ChevronDown
+          className={`h-4 w-4 shrink-0 text-zinc-500 transition-transform duration-200 ${
+            categoryFilterMenuOpen ? 'rotate-180' : ''
+          }`}
+          aria-hidden
+        />
+      </button>
+      {categoryFilterMenuOpen ? (
+        <ul
+          id="workshop-parts-category-listbox"
+          role="listbox"
+          aria-label="Opções de filtro por categoria"
+          className="absolute left-0 right-0 top-full z-[60] mt-1.5 max-h-[min(280px,45vh)] overflow-y-auto rounded-2xl border-0 bg-white py-1.5 shadow-[0_12px_40px_-12px_rgba(0,0,0,0.25)] dark:bg-zinc-900"
+        >
+          {categoryFilterOptions.map((opt) => {
+            const selected = categoryFilter === opt.value;
+            return (
+              <li key={opt.value} role="none">
+                <button
+                  type="button"
+                  role="option"
+                  aria-selected={selected}
+                  onClick={() => {
+                    onCategoryFilterChange(opt.value);
+                    setCategoryFilterMenuOpen(false);
+                  }}
+                  className={`flex w-full items-center justify-between gap-3 px-4 py-3 text-left text-[14px] transition-colors ${
+                    selected
+                      ? 'bg-emerald-500/14 font-semibold text-emerald-950 dark:bg-emerald-400/18 dark:text-emerald-50'
+                      : 'font-medium text-zinc-900 hover:bg-zinc-100 dark:text-zinc-100 dark:hover:bg-white/[0.08]'
+                  }`}
+                >
+                  <span className="min-w-0 truncate">{opt.countLabel}</span>
+                  {selected ? (
+                    <Check className="h-4 w-4 shrink-0 text-emerald-600" strokeWidth={2.5} aria-hidden />
+                  ) : null}
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      ) : null}
+    </div>
+  );
+
+  const sortControl = (
+    <div
+      role="group"
+      aria-label="Ordenar lista"
+      className="inline-flex w-full shrink-0 rounded-2xl border-0 bg-white p-1 shadow-none dark:bg-zinc-900 lg:w-auto"
+    >
+      <button
+        type="button"
+        onClick={() => onSortModeChange('recent')}
+        aria-pressed={sortMode === 'recent'}
+        className={`inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl px-3.5 py-2.5 text-[13px] font-semibold transition-colors lg:flex-initial ${
+          sortMode === 'recent'
+            ? 'bg-[#0F7A4B] text-white shadow-none'
+            : 'text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-white/[0.08]'
+        }`}
+      >
+        <Clock className="h-4 w-4 shrink-0" aria-hidden />
+        Recentes
+      </button>
+      <button
+        type="button"
+        onClick={() => onSortModeChange('oldest')}
+        aria-pressed={sortMode === 'oldest'}
+        className={`inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl px-3.5 py-2.5 text-[13px] font-semibold transition-colors lg:flex-initial ${
+          sortMode === 'oldest'
+            ? 'bg-[#0F7A4B] text-white shadow-none'
+            : 'text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-white/[0.08]'
+        }`}
+      >
+        <History className="h-4 w-4 shrink-0" aria-hidden />
+        Antigo
+      </button>
+    </div>
+  );
+
+  const listBody = (
+    <div className={`rounded-[22px] border-0 bg-white shadow-none dark:bg-zinc-900 ${pcLayout ? 'estoque-pc-list' : ''}`}>
+      <div
+        className={`hidden border-b border-zinc-100 px-4 py-3 text-[11px] font-bold uppercase tracking-[0.12em] text-zinc-400 dark:border-white/[0.06] dark:text-zinc-500 lg:grid lg:gap-3 ${gridCols} ${pcLayout ? 'estoque-pc-list-header' : ''}`}
+      >
+        <span>Peça</span>
+        <span>Código / Marca</span>
+        <span>Categoria</span>
+        <span>Localização</span>
+        <span className="text-right">Preço</span>
+        <span className="text-right">Qtd.</span>
+        <span>Status</span>
+        <span className="text-center">Ações</span>
+      </div>
+
+      {loading ? (
+        <div className="flex items-center justify-center py-16 text-zinc-500 dark:text-zinc-400">
+          <Loader2 className="h-8 w-8 animate-spin" />
+        </div>
+      ) : parts.length === 0 ? (
+        <div className="px-4 py-12 text-center">
+          <p className="text-[15px] text-zinc-500 dark:text-zinc-400">Nenhuma peça cadastrada.</p>
+          <p className="mt-1 text-[13px] text-zinc-400 dark:text-zinc-500">
+            Toque em <span className="font-medium text-zinc-600 dark:text-zinc-300">Adicionar peça</span> para
+            incluir a primeira peça.
+          </p>
+        </div>
+      ) : partsInCategoryScopeCount === 0 ? (
+        <div className="px-4 py-12 text-center">
+          <p className="text-[15px] text-zinc-500 dark:text-zinc-400">Nenhum produto nesta seleção.</p>
+          <button
+            type="button"
+            className="mt-3 text-[14px] font-semibold text-emerald-600 underline hover:brightness-110 dark:text-emerald-400"
+            onClick={() => {
+              onCategoryFilterChange('all');
+              onPartsSearchQueryChange('');
+              setCategoryFilterMenuOpen(false);
+            }}
+          >
+            Ver todas as peças
+          </button>
+        </div>
+      ) : partsAfterStockFilterEmpty ? (
+        <div className="px-4 py-12 text-center">
+          <p className="text-[15px] text-zinc-500 dark:text-zinc-400">
+            Nenhum produto com este alerta nesta seleção.
+          </p>
+          <button
+            type="button"
+            className="mt-3 text-[14px] font-semibold text-emerald-600 underline hover:brightness-110 dark:text-emerald-400"
+            onClick={() => onStockAlertFilterChange('all')}
+          >
+            Mostrar todas as peças
+          </button>
+        </div>
+      ) : filteredParts.length === 0 ? (
+        <div className="px-4 py-12 text-center">
+          <p className="text-[15px] text-zinc-500 dark:text-zinc-400">
+            Nenhum resultado para a pesquisa nesta seleção.
+          </p>
+          <button
+            type="button"
+            className="mt-3 text-[14px] font-semibold text-emerald-600 underline dark:text-emerald-400"
+            onClick={() => onPartsSearchQueryChange('')}
+          >
+            Limpar a busca
+          </button>
+        </div>
+      ) : (
+        <div className="divide-y divide-zinc-100 dark:divide-white/[0.06]">
+          {filteredParts.map((p) => {
+            const catNames = categoryNamesForPart(p);
+            const originalCode = (p.original_code ?? '').trim() || null;
+            const partNum = partNumberById.get(p.id);
+            const stockStatus = getWorkshopPartStockStatus(p);
+            const location = (p.location ?? '').trim() || '—';
+            const brand = (p.brand ?? '').trim() || '—';
+            const rowAlertCls =
+              stockStatus === 'zero'
+                ? 'bg-red-50/70 dark:bg-red-950/20'
+                : stockStatus === 'low'
+                  ? 'bg-[#FFF9E6] dark:bg-amber-950/20'
+                  : 'bg-transparent';
+
+            return (
+              <div
+                key={p.id}
+                className={`min-h-[64px] px-4 py-3 transition-colors hover:bg-zinc-50/80 dark:hover:bg-white/[0.03] lg:grid lg:items-center lg:gap-3 ${gridCols} ${rowAlertCls} ${pcLayout ? 'estoque-pc-row' : ''}`}
+              >
+                {editingId === p.id ? (
+                  <div className="col-span-full flex flex-col gap-2 lg:flex-row lg:items-center">
+                    <input
+                      type="text"
+                      value={editingName}
+                      onChange={(e) => onEditingNameChange(e.target.value)}
+                      className="min-w-0 flex-1 rounded-xl border-0 bg-zinc-100 px-3 py-2 text-[15px] text-zinc-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 dark:bg-white/5 dark:text-white"
+                      autoFocus
+                    />
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={editingPrice}
+                      onChange={(e) => onEditingPriceChange(e.target.value)}
+                      className="w-full rounded-xl border-0 bg-zinc-100 px-3 py-2 text-right text-[14px] tabular-nums text-zinc-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 dark:bg-white/5 dark:text-white lg:w-28"
+                    />
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.001"
+                      value={editingStock}
+                      onChange={(e) => onEditingStockChange(e.target.value)}
+                      className="w-full rounded-xl border-0 bg-zinc-100 px-3 py-2 text-right text-[14px] tabular-nums text-zinc-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 dark:bg-white/5 dark:text-white lg:w-24"
+                    />
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={onSaveEdit}
+                        className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-600 text-white hover:bg-emerald-500"
+                        aria-label="Salvar"
+                      >
+                        <Check className="h-4 w-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={onCancelEdit}
+                        className="flex h-9 w-9 items-center justify-center rounded-lg bg-zinc-200 text-zinc-600 hover:bg-zinc-300 dark:bg-white/10"
+                        aria-label="Cancelar"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => onOpenPart(p)}
+                      className="flex min-w-0 w-full items-center gap-3 rounded-xl text-left transition hover:bg-zinc-100/70 dark:hover:bg-white/[0.05] lg:w-auto"
+                      title="Ver detalhes do produto"
+                    >
+                      <div className="isolate h-12 w-12 shrink-0 overflow-hidden rounded-xl border-0 bg-zinc-100 dark:bg-white/5">
+                        {p.photo_url ? (
+                          <PartPhotoImg
+                            src={p.photo_url}
+                            alt=""
+                            className="h-full w-full object-cover [transform:translateZ(0)]"
+                          />
+                        ) : (
+                          <span className="flex h-full w-full items-center justify-center text-zinc-300 dark:text-zinc-600">
+                            <Package className="h-5 w-5" aria-hidden />
+                          </span>
+                        )}
+                      </div>
+                      <span className="min-w-0 flex flex-col gap-0.5">
+                        <span className={`truncate text-[15px] font-bold leading-snug text-zinc-900 dark:text-white ${pcLayout ? 'estoque-pc-part-name' : ''}`}>
+                          {p.name}
+                        </span>
+                        {pcLayout ? (
+                          <span className="estoque-pc-part-meta truncate text-[12px] font-medium text-zinc-500 dark:text-zinc-400 lg:hidden">
+                            {partNum != null ? `#${partNum}` : ''}
+                            {originalCode ? ` · ${originalCode}` : ''}
+                          </span>
+                        ) : null}
+                        <span className="lg:hidden">
+                          <WorkshopPartStockBadge status={stockStatus} showOk className="mt-1" />
+                        </span>
+                      </span>
+                    </button>
+
+                    <div className="mt-2 flex min-w-0 flex-col gap-0.5 lg:mt-0">
+                      <span className="text-[13px] font-bold tabular-nums text-emerald-700 dark:text-emerald-400">
+                        {partNum != null ? `#${partNum}` : '—'}
+                        {originalCode ? (
+                          <span className="ml-1 font-medium text-zinc-500 dark:text-zinc-400">
+                            · {originalCode}
+                          </span>
+                        ) : null}
+                      </span>
+                      <span className="truncate text-[12px] font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-400">
+                        {brand}
+                      </span>
+                    </div>
+
+                    <div className="mt-2 min-w-0 lg:mt-0">
+                      {catNames.length > 0 ? (
+                        <div className="flex flex-wrap gap-1">
+                          {catNames.slice(0, 2).map((name) => (
+                            <span
+                              key={name}
+                              className="inline-flex max-w-full truncate rounded-full bg-zinc-100 px-2.5 py-1 text-[11px] font-semibold text-zinc-700 dark:bg-white/10 dark:text-zinc-300"
+                            >
+                              {name}
+                            </span>
+                          ))}
+                          {catNames.length > 2 ? (
+                            <span className="text-[11px] font-semibold text-zinc-400">
+                              +{catNames.length - 2}
+                            </span>
+                          ) : null}
+                        </div>
+                      ) : (
+                        <span className="text-[12px] text-zinc-400">—</span>
+                      )}
+                    </div>
+
+                    <span className="mt-2 flex min-w-0 flex-col gap-0.5 lg:mt-0">
+                      <span className="truncate text-[12px] font-medium leading-snug text-zinc-500 dark:text-zinc-400">
+                        {storageSiteLabel(p.storage_site)}
+                      </span>
+                      <span className="truncate text-[13px] font-semibold tabular-nums leading-snug text-zinc-800 dark:text-zinc-200">
+                        {location}
+                      </span>
+                    </span>
+
+                    <span className="mt-2 block text-[13px] font-medium tabular-nums text-zinc-800 dark:text-zinc-200 lg:mt-0 lg:text-right">
+                      {formatWorkshopPartsCurrency(Number(p.unit_price ?? 0))}
+                    </span>
+
+                    <div className="mt-2 flex flex-col items-start gap-0.5 lg:mt-0 lg:items-end">
+                      <span
+                        className={`text-[14px] font-bold tabular-nums ${
+                          stockStatus === 'zero'
+                            ? 'text-red-700 dark:text-red-300'
+                            : stockStatus === 'low'
+                              ? 'text-amber-800 dark:text-amber-300'
+                              : 'text-zinc-900 dark:text-white'
+                        }`}
+                      >
+                        {formatWorkshopPartQty(p.stock_qty)}
+                      </span>
+                      {(reservedQtyByPartId[p.id] ?? 0) > 0 ? (
+                        <span className="text-[11px] font-medium text-amber-700 dark:text-amber-300">
+                          {formatWorkshopPartQty(reservedQtyByPartId[p.id])} em orçamento
+                        </span>
+                      ) : null}
+                    </div>
+
+                    <div className="mt-2 hidden lg:mt-0 lg:block">
+                      <WorkshopPartStockBadge status={stockStatus} showOk />
+                    </div>
+
+                    <div className="mt-2 flex items-center justify-end gap-1 lg:mt-0 lg:justify-center">
+                      <button
+                        type="button"
+                        onClick={() => onEditPart(p)}
+                        className="flex h-9 w-9 items-center justify-center rounded-lg text-zinc-500 transition-colors hover:bg-emerald-500/10 hover:text-emerald-700 dark:hover:text-emerald-400"
+                        aria-label="Editar cadastro completo"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => onDeletePart(p.id)}
+                        className="flex h-9 w-9 items-center justify-center rounded-lg text-zinc-500 transition-colors hover:bg-red-500/10 hover:text-red-600"
+                        aria-label="Excluir"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+
+  if (pcLayout) {
+    return (
+      <div
+        ref={listScrollRef}
+        className="estoque-pc-scroll min-h-0 flex-1 overflow-y-auto overscroll-y-auto touch-pan-y custom-scrollbar [scrollbar-gutter:stable]"
+      >
+        <div className="estoque-pc-chrome">
+          <div className="estoque-pc-chrome-row">
+            <div className="estoque-pc-scope" aria-label="Escopo Estoque de Peças">
+              <span className="estoque-pc-scope-label">Peças</span>
+            </div>
+            {searchField}
+            <div className="estoque-pc-actions">{actionButtons}</div>
+          </div>
+
+          {kpiBlock ? <div className="estoque-pc-kpi-strip">{kpiBlock}</div> : null}
+
+          {!loading && parts.length > 0 ? (
+            <div className="estoque-pc-filters">
+              {categoryFilterControl}
+              {sortControl}
+            </div>
+          ) : null}
+        </div>
+
+        <div className="estoque-pc-banners">
+          {reservationsPanel}
+          {balanceModeActive ? (
+            <div className="rounded-xl border-0 bg-amber-50 px-4 py-3 text-sm text-amber-950 shadow-none dark:bg-amber-950/35 dark:text-amber-100">
+              <span className="font-semibold">Modo Balanço ativo.</span>{' '}
+              Alterações no estoque não pedem senha até você sair desta página. Ao sair, o modo será
+              desativado.
+            </div>
+          ) : null}
+          {error ? (
+            <div className="rounded-xl border-0 bg-red-50 px-4 py-3 text-sm text-red-700 shadow-none dark:bg-red-950/30 dark:text-red-300">
+              {error}
+            </div>
+          ) : null}
+        </div>
+
+        {listBody}
+      </div>
+    );
+  }
+
   return (
     <div
       ref={listScrollRef}
@@ -195,107 +846,8 @@ export function WorkshopPartsHomeDashboard({
     >
       {/* Barra de ações — sobe e some ao rolar */}
       <div className="mb-5 flex flex-col gap-3 pt-1 sm:mb-6 sm:flex-row sm:items-start sm:justify-between">
-        {!loading ? (
-          <div className="min-w-0 w-full overflow-hidden rounded-2xl border-0 bg-amber-50/95 shadow-none dark:bg-amber-950/35 sm:max-w-md">
-            <button
-              type="button"
-              onClick={onToggleReservations}
-              className="flex w-full items-center justify-between gap-3 px-4 py-3.5 text-left"
-              aria-expanded={reservationsExpanded}
-            >
-              <span className="min-w-0 flex items-center gap-2.5">
-                <span className="text-[15px] font-semibold text-amber-950 dark:text-amber-100">
-                  Em Orçamentos
-                </span>
-                <span className="rounded-lg bg-amber-500/25 px-2 py-0.5 text-[12px] font-bold tabular-nums text-amber-950 dark:bg-amber-400/20 dark:text-amber-100">
-                  {pendingReservations.length}
-                </span>
-              </span>
-              <ChevronDown
-                className={`h-5 w-5 shrink-0 text-amber-800 transition-transform dark:text-amber-200 ${
-                  reservationsExpanded ? 'rotate-180' : ''
-                }`}
-                aria-hidden
-              />
-            </button>
-            {reservationsExpanded ? (
-              pendingReservations.length > 0 ? (
-                <ul className="max-h-[min(280px,40vh)] space-y-1.5 overflow-y-auto border-t border-amber-200/70 px-3 py-3 dark:border-amber-500/20 custom-scrollbar">
-                  {pendingReservations.map((row) => {
-                    const vehicleBits = [
-                      row.osNumber != null ? `OS #${row.osNumber}` : null,
-                      row.plate,
-                      row.vehicleModel,
-                    ].filter(Boolean);
-                    return (
-                      <li
-                        key={`${row.budgetId}-${row.workshopPartId ?? row.partName}-${row.serviceOrderId}`}
-                        className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-white/80 px-3 py-2.5 text-[13px] dark:bg-black/25"
-                      >
-                        <span className="min-w-0">
-                          <span className="block font-semibold text-zinc-900 dark:text-white">
-                            {row.partName}
-                          </span>
-                          <span className="block text-[12px] text-zinc-500 dark:text-zinc-400">
-                            {vehicleBits.length > 0 ? vehicleBits.join(' · ') : 'Veículo'}
-                            {row.budgetCardName ? ` · ${row.budgetCardName}` : ''}
-                          </span>
-                        </span>
-                        <span className="shrink-0 rounded-lg bg-amber-500/15 px-2.5 py-1 text-[13px] font-bold tabular-nums text-amber-950 dark:text-amber-100">
-                          {row.quantityLabel} un.
-                        </span>
-                      </li>
-                    );
-                  })}
-                </ul>
-              ) : (
-                <p className="border-t border-amber-200/70 px-4 py-3 text-[13px] text-amber-900/80 dark:border-amber-500/20 dark:text-amber-200/80">
-                  Nenhum produto em orçamento aguardando baixa.
-                </p>
-              )
-            ) : null}
-          </div>
-        ) : (
-          <div className="min-w-0 w-full sm:max-w-md" />
-        )}
-
-        <div className="flex flex-wrap gap-2 justify-end shrink-0">
-          <button
-            type="button"
-            onClick={onToggleBalanceMode}
-            aria-pressed={balanceModeActive}
-            className={
-              balanceModeActive
-                ? 'inline-flex items-center justify-center gap-2 rounded-2xl border-0 bg-amber-500 px-4 py-3 text-[14px] font-semibold text-white shadow-none transition-colors hover:bg-amber-600'
-                : actionBtnSecondary
-            }
-          >
-            <Scale className="h-4 w-4" aria-hidden />
-            {balanceModeActive ? 'Balanço ativo' : 'Balanço'}
-          </button>
-          <button type="button" onClick={onOpenScan} className={actionBtnGreen}>
-            <ScanLine className="h-4 w-4" aria-hidden />
-            Escanear código
-          </button>
-          <button type="button" onClick={onOpenAnalytics} className={actionBtnGreen}>
-            <BarChart3 className="h-4 w-4" aria-hidden />
-            Gráficos
-          </button>
-          <button type="button" onClick={onOpenHistory} className={actionBtnSecondary}>
-            <History className="h-4 w-4" aria-hidden />
-            Histórico de compras
-          </button>
-          {onOpenAbsModules ? (
-            <button type="button" onClick={onOpenAbsModules} className={actionBtnSecondary}>
-              <QrCode className="h-4 w-4" aria-hidden />
-              Módulos ABS
-            </button>
-          ) : null}
-          <button type="button" onClick={onAddPart} className={actionBtnPrimary}>
-            <Plus className="h-4 w-4" aria-hidden />
-            Adicionar peça
-          </button>
-        </div>
+        {reservationsPanel}
+        <div className="flex flex-wrap gap-2 justify-end shrink-0">{actionButtons}</div>
       </div>
 
       {balanceModeActive ? (
@@ -313,462 +865,20 @@ export function WorkshopPartsHomeDashboard({
       ) : null}
 
       {/* KPIs — sobem e somem ao rolar */}
-      {!loading && parts.length > 0 ? (
-        <div className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <button
-            type="button"
-            onClick={showAllParts}
-            className={`flex items-center gap-3 rounded-2xl border-0 px-4 py-3.5 text-left shadow-none transition-colors ${
-              categoryFilter === 'all' && stockAlertFilter === 'all' && !partsSearchQuery.trim()
-                ? 'bg-emerald-50 ring-2 ring-emerald-500/35 dark:bg-emerald-950/40'
-                : 'bg-white hover:bg-zinc-50 dark:bg-zinc-900 dark:hover:bg-zinc-800/80'
-            }`}
-          >
-            <EstoqueKpiIcon src={KPI_ICON_SRC.emEstoque} alt="" />
-            <span className="min-w-0 flex-1 text-[14px] font-semibold leading-snug text-zinc-900 dark:text-white">
-              <span className="tabular-nums">{categoryCounts.total}</span>{' '}
-              {categoryCounts.total === 1 ? 'peça em estoque' : 'peças em estoque'}
-            </span>
-            <ChevronRight className="h-4 w-4 shrink-0 text-zinc-400" aria-hidden />
-          </button>
-
-          <button
-            type="button"
-            onClick={() => onStockAlertFilterChange(stockAlertFilter === 'zero' ? 'all' : 'zero')}
-            className={`flex items-center gap-3 rounded-2xl border-0 px-4 py-3.5 text-left shadow-none transition-colors ${
-              stockAlertFilter === 'zero'
-                ? 'bg-red-50 ring-2 ring-red-400/45 dark:bg-red-950/40'
-                : 'bg-white hover:bg-zinc-50 dark:bg-zinc-900 dark:hover:bg-zinc-800/80'
-            }`}
-          >
-            <EstoqueKpiIcon src={KPI_ICON_SRC.semEstoque} alt="" />
-            <span className="min-w-0 flex-1 text-[14px] font-semibold text-zinc-900 dark:text-white">
-              <span className="tabular-nums">{stockAlerts.zero}</span> sem estoque
-            </span>
-            <ChevronRight className="h-4 w-4 shrink-0 text-zinc-400" aria-hidden />
-          </button>
-
-          <button
-            type="button"
-            onClick={() => onStockAlertFilterChange(stockAlertFilter === 'low' ? 'all' : 'low')}
-            className={`flex items-center gap-3 rounded-2xl border-0 px-4 py-3.5 text-left shadow-none transition-colors ${
-              stockAlertFilter === 'low'
-                ? 'bg-amber-100 ring-2 ring-amber-400/50 dark:bg-amber-950/50'
-                : 'bg-white hover:bg-zinc-50 dark:bg-zinc-900 dark:hover:bg-zinc-800/80'
-            }`}
-          >
-            <EstoqueKpiIcon src={KPI_ICON_SRC.acabando} alt="" />
-            <span className="min-w-0 flex-1 text-[14px] font-semibold text-zinc-900 dark:text-white">
-              <span className="tabular-nums">{stockAlerts.low}</span> acabando
-            </span>
-            <ChevronRight className="h-4 w-4 shrink-0 text-zinc-400" aria-hidden />
-          </button>
-
-          <div className="flex items-center gap-3 rounded-2xl border-0 bg-white px-4 py-3.5 shadow-none dark:bg-zinc-900">
-            <EstoqueKpiIcon src={KPI_ICON_SRC.valorTotal} alt="" />
-            <div className="min-w-0 flex flex-col gap-0.5">
-              <p className="text-[15px] font-bold tabular-nums leading-tight text-zinc-900 dark:text-white">
-                {formatWorkshopPartsCurrency(inventoryValue)}
-              </p>
-              <p className="text-[12px] font-medium leading-snug text-zinc-500 dark:text-zinc-400">
-                valor total em estoque
-              </p>
-            </div>
-          </div>
-        </div>
-      ) : null}
+      {kpiBlock ? <div className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">{kpiBlock}</div> : null}
 
       {/* Busca + filtro: sticky — trava aqui; abaixo só a lista rola */}
       {!loading && parts.length > 0 ? (
         <div className="sticky top-0 z-30 -mx-4 mb-4 border-b border-zinc-200/60 bg-[#F4F5F7] px-4 pb-2.5 pt-1 dark:border-white/[0.06] dark:bg-zinc-950 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-stretch">
-            <div className="relative min-w-0 flex-1">
-              <label htmlFor="workshop-parts-search" className="sr-only">
-                Pesquisar peças
-              </label>
-              <Search
-                className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400"
-                aria-hidden
-              />
-              <input
-                ref={searchInputRef}
-                id="workshop-parts-search"
-                type="search"
-                value={partsSearchQuery}
-                onChange={(e) => onPartsSearchQueryChange(e.target.value)}
-                placeholder="Pesquisar peça, código, marca, categoria..."
-                autoComplete="off"
-                className="w-full rounded-2xl border-0 bg-white py-3 pl-11 pr-20 text-[15px] text-zinc-900 shadow-none placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/35 dark:bg-zinc-900 dark:text-white dark:placeholder:text-zinc-500"
-              />
-              <span className="pointer-events-none absolute right-3 top-1/2 hidden -translate-y-1/2 items-center gap-0.5 rounded-md border border-zinc-200 bg-zinc-50 px-1.5 py-0.5 text-[11px] font-semibold text-zinc-500 sm:inline-flex dark:border-white/10 dark:bg-white/5 dark:text-zinc-400">
-                <Command className="h-3 w-3" aria-hidden />
-                K
-              </span>
-              {partsSearchQuery ? (
-                <button
-                  type="button"
-                  onClick={() => onPartsSearchQueryChange('')}
-                  className="absolute right-14 top-1/2 -translate-y-1/2 rounded-lg p-1.5 text-zinc-500 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:bg-white/10 sm:right-16"
-                  aria-label="Limpar pesquisa"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              ) : null}
-            </div>
-
-            <div ref={categoryFilterDropdownRef} className="relative z-40 w-full shrink-0 lg:w-[min(100%,240px)]">
-              <button
-                type="button"
-                id="workshop-parts-category-filter"
-                aria-haspopup="listbox"
-                aria-expanded={categoryFilterMenuOpen}
-                aria-controls="workshop-parts-category-listbox"
-                onClick={() => setCategoryFilterMenuOpen((open) => !open)}
-                className="flex w-full min-h-[48px] items-center justify-between gap-2 rounded-2xl border-0 bg-white py-3 pl-4 pr-3 text-left text-[14px] font-semibold text-zinc-900 shadow-none focus:outline-none focus:ring-2 focus:ring-emerald-500/40 dark:bg-zinc-900 dark:text-white"
-              >
-                <span className="min-w-0 truncate">{categoryFilterLabel}</span>
-                <ChevronDown
-                  className={`h-4 w-4 shrink-0 text-zinc-500 transition-transform duration-200 ${
-                    categoryFilterMenuOpen ? 'rotate-180' : ''
-                  }`}
-                  aria-hidden
-                />
-              </button>
-              {categoryFilterMenuOpen ? (
-                <ul
-                  id="workshop-parts-category-listbox"
-                  role="listbox"
-                  aria-label="Opções de filtro por categoria"
-                  className="absolute left-0 right-0 top-full z-[60] mt-1.5 max-h-[min(280px,45vh)] overflow-y-auto rounded-2xl border-0 bg-white py-1.5 shadow-[0_12px_40px_-12px_rgba(0,0,0,0.25)] dark:bg-zinc-900"
-                >
-                  {categoryFilterOptions.map((opt) => {
-                    const selected = categoryFilter === opt.value;
-                    return (
-                      <li key={opt.value} role="none">
-                        <button
-                          type="button"
-                          role="option"
-                          aria-selected={selected}
-                          onClick={() => {
-                            onCategoryFilterChange(opt.value);
-                            setCategoryFilterMenuOpen(false);
-                          }}
-                          className={`flex w-full items-center justify-between gap-3 px-4 py-3 text-left text-[14px] transition-colors ${
-                            selected
-                              ? 'bg-emerald-500/14 font-semibold text-emerald-950 dark:bg-emerald-400/18 dark:text-emerald-50'
-                              : 'font-medium text-zinc-900 hover:bg-zinc-100 dark:text-zinc-100 dark:hover:bg-white/[0.08]'
-                          }`}
-                        >
-                          <span className="min-w-0 truncate">{opt.countLabel}</span>
-                          {selected ? (
-                            <Check className="h-4 w-4 shrink-0 text-emerald-600" strokeWidth={2.5} aria-hidden />
-                          ) : null}
-                        </button>
-                      </li>
-                    );
-                  })}
-                </ul>
-              ) : null}
-            </div>
-
-            <div
-              role="group"
-              aria-label="Ordenar lista"
-              className="inline-flex w-full shrink-0 rounded-2xl border-0 bg-white p-1 shadow-none dark:bg-zinc-900 lg:w-auto"
-            >
-              <button
-                type="button"
-                onClick={() => onSortModeChange('recent')}
-                aria-pressed={sortMode === 'recent'}
-                className={`inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl px-3.5 py-2.5 text-[13px] font-semibold transition-colors lg:flex-initial ${
-                  sortMode === 'recent'
-                    ? 'bg-[#0F7A4B] text-white shadow-none'
-                    : 'text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-white/[0.08]'
-                }`}
-              >
-                <Clock className="h-4 w-4 shrink-0" aria-hidden />
-                Recentes
-              </button>
-              <button
-                type="button"
-                onClick={() => onSortModeChange('oldest')}
-                aria-pressed={sortMode === 'oldest'}
-                className={`inline-flex flex-1 items-center justify-center gap-1.5 rounded-xl px-3.5 py-2.5 text-[13px] font-semibold transition-colors lg:flex-initial ${
-                  sortMode === 'oldest'
-                    ? 'bg-[#0F7A4B] text-white shadow-none'
-                    : 'text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-white/[0.08]'
-                }`}
-              >
-                <History className="h-4 w-4 shrink-0" aria-hidden />
-                Antigo
-              </button>
-            </div>
+            {searchField}
+            {categoryFilterControl}
+            {sortControl}
           </div>
         </div>
       ) : null}
 
-      {/* Tabela de produtos — continua rolando sob o cabeçalho sticky */}
-      <div className="rounded-[22px] border-0 bg-white shadow-none dark:bg-zinc-900">
-        <div
-          className={`hidden border-b border-zinc-100 px-4 py-3 text-[11px] font-bold uppercase tracking-[0.12em] text-zinc-400 dark:border-white/[0.06] dark:text-zinc-500 lg:grid lg:gap-3 ${gridCols}`}
-        >
-          <span>Peça</span>
-          <span>Código / Marca</span>
-          <span>Categoria</span>
-          <span>Localização</span>
-          <span className="text-right">Preço</span>
-          <span className="text-right">Qtd.</span>
-          <span>Status</span>
-          <span className="text-center">Ações</span>
-        </div>
-
-        {loading ? (
-          <div className="flex items-center justify-center py-16 text-zinc-500 dark:text-zinc-400">
-            <Loader2 className="h-8 w-8 animate-spin" />
-          </div>
-        ) : parts.length === 0 ? (
-          <div className="px-4 py-12 text-center">
-            <p className="text-[15px] text-zinc-500 dark:text-zinc-400">Nenhuma peça cadastrada.</p>
-            <p className="mt-1 text-[13px] text-zinc-400 dark:text-zinc-500">
-              Toque em <span className="font-medium text-zinc-600 dark:text-zinc-300">Adicionar peça</span> para
-              incluir a primeira peça.
-            </p>
-          </div>
-        ) : partsInCategoryScopeCount === 0 ? (
-          <div className="px-4 py-12 text-center">
-            <p className="text-[15px] text-zinc-500 dark:text-zinc-400">Nenhum produto nesta seleção.</p>
-            <button
-              type="button"
-              className="mt-3 text-[14px] font-semibold text-emerald-600 underline hover:brightness-110 dark:text-emerald-400"
-              onClick={() => {
-                onCategoryFilterChange('all');
-                onPartsSearchQueryChange('');
-                setCategoryFilterMenuOpen(false);
-              }}
-            >
-              Ver todas as peças
-            </button>
-          </div>
-        ) : partsAfterStockFilterEmpty ? (
-          <div className="px-4 py-12 text-center">
-            <p className="text-[15px] text-zinc-500 dark:text-zinc-400">
-              Nenhum produto com este alerta nesta seleção.
-            </p>
-            <button
-              type="button"
-              className="mt-3 text-[14px] font-semibold text-emerald-600 underline hover:brightness-110 dark:text-emerald-400"
-              onClick={() => onStockAlertFilterChange('all')}
-            >
-              Mostrar todas as peças
-            </button>
-          </div>
-        ) : filteredParts.length === 0 ? (
-          <div className="px-4 py-12 text-center">
-            <p className="text-[15px] text-zinc-500 dark:text-zinc-400">
-              Nenhum resultado para a pesquisa nesta seleção.
-            </p>
-            <button
-              type="button"
-              className="mt-3 text-[14px] font-semibold text-emerald-600 underline dark:text-emerald-400"
-              onClick={() => onPartsSearchQueryChange('')}
-            >
-              Limpar a busca
-            </button>
-          </div>
-        ) : (
-          <div className="divide-y divide-zinc-100 dark:divide-white/[0.06]">
-            {filteredParts.map((p) => {
-              const catNames = categoryNamesForPart(p);
-              const originalCode = (p.original_code ?? '').trim() || null;
-              const partNum = partNumberById.get(p.id);
-              const stockStatus = getWorkshopPartStockStatus(p);
-              const location = (p.location ?? '').trim() || '—';
-              const brand = (p.brand ?? '').trim() || '—';
-              const rowAlertCls =
-                stockStatus === 'zero'
-                  ? 'bg-red-50/70 dark:bg-red-950/20'
-                  : stockStatus === 'low'
-                    ? 'bg-[#FFF9E6] dark:bg-amber-950/20'
-                    : 'bg-transparent';
-
-              return (
-                <div
-                  key={p.id}
-                  className={`min-h-[64px] px-4 py-3 transition-colors hover:bg-zinc-50/80 dark:hover:bg-white/[0.03] lg:grid lg:items-center lg:gap-3 ${gridCols} ${rowAlertCls}`}
-                >
-                  {editingId === p.id ? (
-                    <div className="col-span-full flex flex-col gap-2 lg:flex-row lg:items-center">
-                      <input
-                        type="text"
-                        value={editingName}
-                        onChange={(e) => onEditingNameChange(e.target.value)}
-                        className="min-w-0 flex-1 rounded-xl border-0 bg-zinc-100 px-3 py-2 text-[15px] text-zinc-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 dark:bg-white/5 dark:text-white"
-                        autoFocus
-                      />
-                      <input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={editingPrice}
-                        onChange={(e) => onEditingPriceChange(e.target.value)}
-                        className="w-full rounded-xl border-0 bg-zinc-100 px-3 py-2 text-right text-[14px] tabular-nums text-zinc-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 dark:bg-white/5 dark:text-white lg:w-28"
-                      />
-                      <input
-                        type="number"
-                        min="0"
-                        step="0.001"
-                        value={editingStock}
-                        onChange={(e) => onEditingStockChange(e.target.value)}
-                        className="w-full rounded-xl border-0 bg-zinc-100 px-3 py-2 text-right text-[14px] tabular-nums text-zinc-900 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 dark:bg-white/5 dark:text-white lg:w-24"
-                      />
-                      <div className="flex gap-2">
-                        <button
-                          type="button"
-                          onClick={onSaveEdit}
-                          className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-600 text-white hover:bg-emerald-500"
-                          aria-label="Salvar"
-                        >
-                          <Check className="h-4 w-4" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={onCancelEdit}
-                          className="flex h-9 w-9 items-center justify-center rounded-lg bg-zinc-200 text-zinc-600 hover:bg-zinc-300 dark:bg-white/10"
-                          aria-label="Cancelar"
-                        >
-                          <X className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => onOpenPart(p)}
-                        className="flex min-w-0 w-full items-center gap-3 rounded-xl text-left transition hover:bg-zinc-100/70 dark:hover:bg-white/[0.05] lg:w-auto"
-                        title="Ver detalhes do produto"
-                      >
-                        <div className="isolate h-12 w-12 shrink-0 overflow-hidden rounded-xl border-0 bg-zinc-100 dark:bg-white/5">
-                          {p.photo_url ? (
-                            <PartPhotoImg
-                              src={p.photo_url}
-                              alt=""
-                              className="h-full w-full object-cover [transform:translateZ(0)]"
-                            />
-                          ) : (
-                            <span className="flex h-full w-full items-center justify-center text-zinc-300 dark:text-zinc-600">
-                              <Package className="h-5 w-5" aria-hidden />
-                            </span>
-                          )}
-                        </div>
-                        <span className="min-w-0 flex flex-col gap-0.5">
-                          <span className="truncate text-[15px] font-bold leading-snug text-zinc-900 dark:text-white">
-                            {p.name}
-                          </span>
-                          <span className="lg:hidden">
-                            <WorkshopPartStockBadge status={stockStatus} showOk className="mt-1" />
-                          </span>
-                        </span>
-                      </button>
-
-                      <div className="mt-2 flex min-w-0 flex-col gap-0.5 lg:mt-0">
-                        <span className="text-[13px] font-bold tabular-nums text-emerald-700 dark:text-emerald-400">
-                          {partNum != null ? `#${partNum}` : '—'}
-                          {originalCode ? (
-                            <span className="ml-1 font-medium text-zinc-500 dark:text-zinc-400">
-                              · {originalCode}
-                            </span>
-                          ) : null}
-                        </span>
-                        <span className="truncate text-[12px] font-semibold uppercase tracking-wide text-zinc-600 dark:text-zinc-400">
-                          {brand}
-                        </span>
-                      </div>
-
-                      <div className="mt-2 min-w-0 lg:mt-0">
-                        {catNames.length > 0 ? (
-                          <div className="flex flex-wrap gap-1">
-                            {catNames.slice(0, 2).map((name) => (
-                              <span
-                                key={name}
-                                className="inline-flex max-w-full truncate rounded-full bg-zinc-100 px-2.5 py-1 text-[11px] font-semibold text-zinc-700 dark:bg-white/10 dark:text-zinc-300"
-                              >
-                                {name}
-                              </span>
-                            ))}
-                            {catNames.length > 2 ? (
-                              <span className="text-[11px] font-semibold text-zinc-400">
-                                +{catNames.length - 2}
-                              </span>
-                            ) : null}
-                          </div>
-                        ) : (
-                          <span className="text-[12px] text-zinc-400">—</span>
-                        )}
-                      </div>
-
-                      <span className="mt-2 flex min-w-0 flex-col gap-0.5 lg:mt-0">
-                        <span className="truncate text-[12px] font-medium leading-snug text-zinc-500 dark:text-zinc-400">
-                          {storageSiteLabel(p.storage_site)}
-                        </span>
-                        <span className="truncate text-[13px] font-semibold tabular-nums leading-snug text-zinc-800 dark:text-zinc-200">
-                          {location}
-                        </span>
-                      </span>
-
-                      <span className="mt-2 block text-[13px] font-medium tabular-nums text-zinc-800 dark:text-zinc-200 lg:mt-0 lg:text-right">
-                        {formatWorkshopPartsCurrency(Number(p.unit_price ?? 0))}
-                      </span>
-
-                      <div className="mt-2 flex flex-col items-start gap-0.5 lg:mt-0 lg:items-end">
-                        <span
-                          className={`text-[14px] font-bold tabular-nums ${
-                            stockStatus === 'zero'
-                              ? 'text-red-700 dark:text-red-300'
-                              : stockStatus === 'low'
-                                ? 'text-amber-800 dark:text-amber-300'
-                                : 'text-zinc-900 dark:text-white'
-                          }`}
-                        >
-                          {formatWorkshopPartQty(p.stock_qty)}
-                        </span>
-                        {(reservedQtyByPartId[p.id] ?? 0) > 0 ? (
-                          <span className="text-[11px] font-medium text-amber-700 dark:text-amber-300">
-                            {formatWorkshopPartQty(reservedQtyByPartId[p.id])} em orçamento
-                          </span>
-                        ) : null}
-                      </div>
-
-                      <div className="mt-2 hidden lg:mt-0 lg:block">
-                        <WorkshopPartStockBadge status={stockStatus} showOk />
-                      </div>
-
-                      <div className="mt-2 flex items-center justify-end gap-1 lg:mt-0 lg:justify-center">
-                        <button
-                          type="button"
-                          onClick={() => onEditPart(p)}
-                          className="flex h-9 w-9 items-center justify-center rounded-lg text-zinc-500 transition-colors hover:bg-emerald-500/10 hover:text-emerald-700 dark:hover:text-emerald-400"
-                          aria-label="Editar cadastro completo"
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => onDeletePart(p.id)}
-                          className="flex h-9 w-9 items-center justify-center rounded-lg text-zinc-500 transition-colors hover:bg-red-500/10 hover:text-red-600"
-                          aria-label="Excluir"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
+      {listBody}
     </div>
   );
 }
