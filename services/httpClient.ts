@@ -13,6 +13,7 @@
  */
 import { API_BASE } from "./apiConfig";
 import { getOrCreateDeviceId } from "../utils/deviceSessionId";
+import { shouldClearSession } from "../utils/shouldClearSession";
 
 const AUTH_STORAGE_KEY = "rei_do_abs_auth";
 
@@ -97,20 +98,15 @@ export function installHttpInterceptor(): void {
     const response = await originalFetch(input as RequestInfo, nextInit);
 
     if ((response.status === 401 || response.status === 403) && !isLoginUrl(url)) {
-      // 403 de aparelho bloqueado também encerra a sessão local.
-      if (response.status === 403) {
-        try {
-          const clone = response.clone();
-          const body = (await clone.json().catch(() => null)) as { error?: string } | null;
-          const msg = typeof body?.error === "string" ? body.error : "";
-          if (!/bloqueado/i.test(msg)) {
-            return response;
-          }
-        } catch {
-          return response;
-        }
+      let body: { code?: string; error?: string } | null = null;
+      try {
+        body = (await response.clone().json().catch(() => null)) as { code?: string; error?: string } | null;
+      } catch {
+        body = null;
       }
-      handleUnauthorized();
+      if (shouldClearSession(response.status, body)) {
+        handleUnauthorized();
+      }
     }
 
     return response;

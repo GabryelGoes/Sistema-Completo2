@@ -7,6 +7,7 @@ import { IosModalHeader } from './ui/IosModalHeader';
 import { getWorkshopSettings, updateWorkshopSettings, uploadWorkshopAdminPhoto } from '../services/apiService';
 import { TechnicianPhotoEditorModal } from './TechnicianPhotoEditorModal';
 import { useRegisterModalOpen } from './ui/ModalLayerContext';
+import { LOGIN_PASSWORD_MIN_LENGTH } from '../utils/loginPasswordPolicy';
 
 interface AdminProfileModalProps {
   isOpen: boolean;
@@ -91,8 +92,8 @@ export const AdminProfileModal: React.FC<AdminProfileModalProps> = ({ isOpen, on
     e.stopPropagation();
     setAdminPasswordMessage(null);
     const next = adminNewPassword.trim();
-    if (next.length < 4) {
-      setAdminPasswordMessage({ type: 'err', text: 'A senha deve ter pelo menos 4 caracteres.' });
+    if (next.length < LOGIN_PASSWORD_MIN_LENGTH) {
+      setAdminPasswordMessage({ type: 'err', text: `A senha deve ter no mínimo ${LOGIN_PASSWORD_MIN_LENGTH} caracteres.` });
       return;
     }
     if (adminNewPassword !== adminConfirm) {
@@ -101,7 +102,11 @@ export const AdminProfileModal: React.FC<AdminProfileModalProps> = ({ isOpen, on
     }
     setSavingAdmin(true);
     try {
-      await updateWorkshopSettings({ adminPassword: next });
+      const saved = await updateWorkshopSettings({ adminPassword: next });
+      if (!saved.adminPasswordUpdated) {
+        setAdminPasswordMessage({ type: 'err', text: 'A senha da Gerência não foi alterada.' });
+        return;
+      }
       setAdminPasswordMessage({
         type: 'ok',
         text: 'Senha da Gerência alterada! Use-a no próximo login.',
@@ -119,6 +124,16 @@ export const AdminProfileModal: React.FC<AdminProfileModalProps> = ({ isOpen, on
   };
 
   useRegisterModalOpen(isOpen);
+
+  const adminPasswordBlockReason = savingAdmin
+    ? null
+    : !adminNewPassword.trim()
+      ? 'Informe a nova senha.'
+      : adminNewPassword.trim().length < LOGIN_PASSWORD_MIN_LENGTH
+        ? `A senha deve ter no mínimo ${LOGIN_PASSWORD_MIN_LENGTH} caracteres.`
+        : adminNewPassword !== adminConfirm
+          ? 'A confirmação da nova senha não confere.'
+          : null;
 
   if (!isOpen) return null;
 
@@ -271,13 +286,12 @@ export const AdminProfileModal: React.FC<AdminProfileModalProps> = ({ isOpen, on
                         placeholder="Confirmar nova senha"
                         className={iosInput}
                       />
+                      {adminPasswordBlockReason ? (
+                        <p className="text-[12px] text-zinc-500 dark:text-zinc-400">{adminPasswordBlockReason}</p>
+                      ) : null}
                       <button
                         type="submit"
-                        disabled={
-                          savingAdmin ||
-                          !adminNewPassword.trim() ||
-                          adminNewPassword !== adminConfirm
-                        }
+                        disabled={savingAdmin || adminPasswordBlockReason !== null}
                         className="w-full py-3 rounded-xl bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white font-semibold text-[15px] flex items-center justify-center gap-2"
                       >
                         {savingAdmin ? (
