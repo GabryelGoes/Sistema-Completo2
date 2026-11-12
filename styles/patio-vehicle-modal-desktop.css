@@ -538,3 +538,90 @@ html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .pat
     transform: none;
   }
 }
+
+/*
+ * Fase 4 — aba Orçamentos (patio-vm-orc-v4): hierarquia, grade e feedback.
+ * Escopo desktop + shell-v1. Não altera cores, cálculos nem chrome/aside/dados.
+ */
+html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-vm-orc-v4 {
+  min-width: 0;
+}
+
+html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-vm-orc-v4 .patio-vm-orc-section-head {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  min-height: 2.75rem;
+  box-sizing: border-box;
+}
+
+html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-vm-orc-v4 .patio-vm-orc-list {
+  scroll-padding-block: 0.5rem;
+}
+
+html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-vm-orc-v4 .patio-vm-orc-card {
+  transition:
+    transform 0.18s cubic-bezier(0.32, 0.72, 0, 1),
+    box-shadow 0.18s ease;
+}
+
+html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-vm-orc-v4 .patio-vm-orc-card-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(0, 122, 255, 0.35);
+}
+
+html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-vm-orc-v4 .patio-vm-orc-card-btn:not(:disabled):active {
+  transform: scale(0.985);
+}
+
+html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-vm-orc-v4 .patio-vm-orc-cta:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(79, 168, 255, 0.45);
+}
+
+html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-vm-orc-v4 .patio-vm-orc-cta:not(:disabled):active {
+  transform: scale(0.98);
+}
+
+html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-vm-orc-v4 .patio-vm-orc-verify {
+  margin-top: 0.125rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-vm-orc-v4 .patio-vm-orc-card {
+    transition: none;
+  }
+
+  html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-vm-orc-v4 .patio-vm-orc-card-btn:not(:disabled):active,
+  html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-vm-orc-v4 .patio-vm-orc-cta:not(:disabled):active {
+    transform: none;
+  }
+}
+
+/*
+ * Formulário de orçamento PC (variant=pc) — sticky dos CTAs de linha.
+ * Isolado em .patio-vm-orc-form-pc; não altera tablet/mobile.
+ */
+.patio-vm-orc-form-pc .patio-vm-orc-add-row-sticky {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  margin-inline: -0.15rem;
+  padding: 0.5rem 0.15rem 0.15rem;
+  background: linear-gradient(180deg, rgba(242, 244, 247, 0) 0%, #f2f4f7 28%, #f2f4f7 100%);
+}
+
+.patio-vm-orc-form-pc .patio-vm-orc-form-list > .flex {
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.patio-vm-orc-form-pc .patio-vm-orc-form-list > .flex:focus-within {
+  border-color: rgba(0, 122, 255, 0.35);
+  box-shadow: 0 0 0 2px rgba(0, 122, 255, 0.12);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .patio-vm-orc-form-pc .patio-vm-orc-form-list > .flex {
+    transition: none;
+  }
+}
