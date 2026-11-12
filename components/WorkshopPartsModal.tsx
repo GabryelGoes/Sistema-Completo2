@@ -21,6 +21,10 @@ import { RegistrationPortal } from './ui/RegistrationPortal';
 import { useBrowserBackLayer } from './ui/BackNavigationContext';
 import { useDesktopShellLayout } from './ui/DesktopShellContext';
 import {
+  EstoquePcLayoutProvider,
+  estoquePcShellClass,
+} from './estoque/EstoquePcLayoutContext';
+import {
   desktopShellPortaledChildOverlayClass,
   desktopShellViewportOverlayClass,
 } from '../utils/desktopShellOverlay';
@@ -1304,7 +1308,10 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
 
   if (!isOpen) return null;
 
+  const isEstoquePcLayout = isDesktopShell;
+
   return (
+    <EstoquePcLayoutProvider value={isEstoquePcLayout}>
     <>
     <TechnicianPhotoEditorModal
       isOpen={!!photoEditorFile}
@@ -1318,7 +1325,10 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
 
     <ModalPortal manageBackLayer onRequestClose={requestClose}>
     <div
-      className={`${desktopShellViewportOverlayClass(isDesktopShell, SHELL_MODULE_OVERLAY_Z)} flex min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden bg-[#F4F5F7] dark:bg-zinc-950 p-0${isDesktopShell ? '' : ' h-[100dvh] max-h-[100dvh]'}`}
+      className={estoquePcShellClass(
+        isEstoquePcLayout,
+        `${desktopShellViewportOverlayClass(isDesktopShell, SHELL_MODULE_OVERLAY_Z)} flex min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden bg-[#F4F5F7] dark:bg-zinc-950 p-0${isDesktopShell ? '' : ' h-[100dvh] max-h-[100dvh]'}`
+      )}
     >
       <div className="relative flex h-full min-h-0 w-full max-w-none flex-1 flex-col overflow-hidden bg-[#F4F5F7] dark:bg-zinc-950">
         {!isDesktopShell ? (
@@ -1342,9 +1352,18 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
               gradientClass="from-emerald-600 to-teal-800"
             />
           </div>
-          ) : (
-          <div className="shrink-0 pt-3" aria-hidden />
-          )}
+          ) : null}
+
+          {isEstoquePcLayout && absModulesOpen ? (
+            <div className="shrink-0 border-b border-zinc-200/70 bg-[#F4F5F7] px-6 py-2 dark:border-white/[0.06] dark:bg-zinc-950">
+              <p className="text-[12px] font-extrabold uppercase tracking-[0.06em] text-[#0F7A4B] dark:text-emerald-400">
+                Módulos ABS
+              </p>
+              <p className="text-[12px] font-medium text-zinc-500 dark:text-zinc-400">
+                Estoque de módulos e componentes ABS — separado do catálogo de peças
+              </p>
+            </div>
+          ) : null}
 
         {isAnalyticsOpen ? (
           <WorkshopPartsAnalyticsView onBack={() => setIsAnalyticsOpen(false)} />
@@ -1359,6 +1378,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
           />
         ) : (
           <WorkshopPartsHomeDashboard
+            pcLayout={isEstoquePcLayout}
             loading={loading}
             error={error}
             parts={parts}
@@ -1851,6 +1871,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
     />
     </ModalPortal>
     </>
+    </EstoquePcLayoutProvider>
   );
 };
 
