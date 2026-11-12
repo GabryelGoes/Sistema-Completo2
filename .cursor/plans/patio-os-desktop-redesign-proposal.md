@@ -47,8 +47,9 @@ Gate: `isPatioPcModal` · layout `getPatioVehicleModalLayout` (desktop) · tab b
 | **Dados** | Veículo, cliente, KM, entrada, técnico; Queixa; Observações; Autorização de diagnóstico (auth) | Diagnóstico/Serviços/Peças também aparecem no fluxo de orçamento |
 | **Orçamentos** | Lista + criar/editar/visualizar orçamento; linhas de serviços/peças; aprovação | Modais secundários densos |
 | **Arquivos** | Fotos, PDFs, anexos, câmera, lightbox | Hoje pouco “galeria”; proposta: mídia recente no Dados + Arquivos reforçado |
-| **Manutenções** (histórico) | Histórico de manutenções / OS | Somente leitura + navegação |
-| **Serviços Lab** | Serviços de laboratório; pickers; envio rápido | Condicional; `conserto_externo` esconde certos fluxos |
+| **Manutenções** (`historico`) | Histórico de manutenções / OS | Somente leitura + navegação |
+| **Conserto externo** (`conserto_externo`) | Fluxo de conserto externo | Pode ser omitida via `hiddenTabs` |
+| **Serviços Laboratório** (`laboratorio`) | Pickers; envio rápido; badge iOS de peças | Condicional (ex. omitida em modo módulo) |
 
 **Aside (persistente no desktop):** alterar status/etapa, comentários, peças do estoque, checklists / ações de fechamento conforme permissão.
 
