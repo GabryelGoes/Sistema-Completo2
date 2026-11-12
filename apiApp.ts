@@ -79,6 +79,12 @@ import { recordServiceOrderStageEntry } from "./services/rdaIntelligence/patioIn
 import { assertHomologationSafeOrThrow } from "./utils/homologationGuard.js";
 import { normalizeAiImproveTextLevel } from "./utils/aiImproveTextLevel.js";
 import {
+  pickWorkshopSettingsWrite,
+  plannedSecretWrites,
+  rejectCredentialChange,
+  withWorkshopSecretFlags,
+} from "./utils/workshopSettingsSecrets.js";
+import {
   insertIncidentRevision,
   registerQualityRadarPhase1Routes,
 } from "./services/qualityRadar/registerQualityRadarPhase1Routes.js";
@@ -3138,22 +3144,24 @@ export function createApiApp() {
           appAppearance = null;
         }
       }
-      return res.json({
-        patioLoginEnabled: map.patio_login_enabled !== "false",
-        patioPin: map.patio_pin ?? "",
-        technicianAccessReception: map.technician_access_reception === "true",
-        technicianAccessAgenda: map.technician_access_agenda === "true",
-        technicianAccessPatio: map.technician_access_patio !== "false",
-        adminDisplayName: map.admin_display_name || "Rei do ABS",
-        adminPhotoUrl: map.admin_photo_url || null,
-        vehicleDeletePassword: map.vehicle_delete_password || "",
-        stockGuardPasswordConfigured: Boolean(String(map.stock_guard_password || "").trim()),
-        appAppearance,
-        labProductKinds: parseLabProductKindsValue(map.lab_product_kinds),
-        labQuickServices: parseLabQuickServicesValue(map.lab_quick_services),
-        labelTemplates: parseLabelTemplatesValue(map.label_templates),
-        aiImproveTextLevel: normalizeAiImproveTextLevel(map.ai_improve_text_level),
-      });
+      return res.json(
+        withWorkshopSecretFlags(
+          {
+            patioLoginEnabled: map.patio_login_enabled !== "false",
+            technicianAccessReception: map.technician_access_reception === "true",
+            technicianAccessAgenda: map.technician_access_agenda === "true",
+            technicianAccessPatio: map.technician_access_patio !== "false",
+            adminDisplayName: map.admin_display_name || "Rei do ABS",
+            adminPhotoUrl: map.admin_photo_url || null,
+            appAppearance,
+            labProductKinds: parseLabProductKindsValue(map.lab_product_kinds),
+            labQuickServices: parseLabQuickServicesValue(map.lab_quick_services),
+            labelTemplates: parseLabelTemplatesValue(map.label_templates),
+            aiImproveTextLevel: normalizeAiImproveTextLevel(map.ai_improve_text_level),
+          },
+          map
+        )
+      );
     } catch (err: any) {
       console.error("[API] Erro em GET /api/workshop-settings:", err);
       return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
@@ -3321,32 +3329,29 @@ export function createApiApp() {
       if (!supabaseAdmin || !WORKSHOP_ID) {
         return res.status(500).json({ error: "Servidor não configurado." });
       }
+      const writeBody = pickWorkshopSettingsWrite(req.body || {});
       const {
         patioLoginEnabled,
-        patioPin,
-        adminPassword,
         adminDisplayName,
         adminPhotoUrl,
         technicianAccessReception,
         technicianAccessAgenda,
         technicianAccessPatio,
-        vehicleDeletePassword,
-        stockGuardPassword,
         appAppearance,
         labProductKinds,
         labQuickServices,
         labelTemplates,
         aiImproveTextLevel,
-      } = req.body || {};
+      } = writeBody;
 
-      // Chaves sensíveis (senha de gerência, PIN do pátio, senha de exclusão, acessos e perfil
-      // do admin) só podem ser alteradas pela Gerência. labProductKinds/appAppearance/labelTemplates
-      // ficam liberados para usuários autenticados (ex.: laboratório configurando tipos/etiquetas).
+      // Credencial efetiva (PIN, senhas) só pela Gerência. Campo ausente, vazio ou
+      // só com espaços não conta e não regrava o valor já salvo.
+      // Acessos e perfil do admin continuam restritos à Gerência.
+      // labProductKinds/appAppearance/labelTemplates seguem para usuários autenticados.
+      if (rejectCredentialChange(isAdminRequest(req), writeBody)) {
+        return res.status(403).json({ error: "Apenas a Gerência pode alterar estas configurações." });
+      }
       const touchesSensitive =
-        (typeof adminPassword === "string" && adminPassword.trim()) ||
-        typeof patioPin === "string" ||
-        typeof vehicleDeletePassword === "string" ||
-        typeof stockGuardPassword === "string" ||
         typeof adminDisplayName === "string" ||
         typeof adminPhotoUrl === "string" ||
         typeof patioLoginEnabled === "boolean" ||
@@ -3358,15 +3363,16 @@ export function createApiApp() {
       }
 
       const updates: { key: string; value: string; updated_at: string }[] = [];
+      const nowIso = new Date().toISOString();
       if (typeof patioLoginEnabled === "boolean") {
-        updates.push({ key: "patio_login_enabled", value: String(patioLoginEnabled), updated_at: new Date().toISOString() });
+        updates.push({ key: "patio_login_enabled", value: String(patioLoginEnabled), updated_at: nowIso });
       }
-      if (typeof patioPin === "string") {
-        updates.push({ key: "patio_pin", value: patioPin.trim(), updated_at: new Date().toISOString() });
-      }
-      if (typeof adminPassword === "string" && adminPassword.trim()) {
-        // Armazena com hash salgado (PBKDF2), nunca em texto puro.
-        updates.push({ key: "admin_password", value: hashPassword(adminPassword.trim()), updated_at: new Date().toISOString() });
+      for (const secret of plannedSecretWrites(writeBody)) {
+        updates.push({
+          key: secret.key,
+          value: secret.key === "admin_password" ? hashPassword(secret.value) : secret.value,
+          updated_at: nowIso,
+        });
       }
       if (typeof adminDisplayName === "string") {
         updates.push({ key: "admin_display_name", value: adminDisplayName.trim() || "Rei do ABS", updated_at: new Date().toISOString() });
@@ -3382,16 +3388,6 @@ export function createApiApp() {
       }
       if (typeof technicianAccessPatio === "boolean") {
         updates.push({ key: "technician_access_patio", value: String(technicianAccessPatio), updated_at: new Date().toISOString() });
-      }
-      if (typeof vehicleDeletePassword === "string") {
-        updates.push({ key: "vehicle_delete_password", value: vehicleDeletePassword.trim(), updated_at: new Date().toISOString() });
-      }
-      if (typeof stockGuardPassword === "string") {
-        updates.push({
-          key: "stock_guard_password",
-          value: stockGuardPassword.trim(),
-          updated_at: new Date().toISOString(),
-        });
       }
       if (appAppearance !== undefined && appAppearance !== null && typeof appAppearance === "object") {
         updates.push({
@@ -3474,22 +3470,24 @@ export function createApiApp() {
           appAppearanceOut = null;
         }
       }
-      return res.json({
-        patioLoginEnabled: map.patio_login_enabled !== "false",
-        patioPin: map.patio_pin || "",
-        technicianAccessReception: map.technician_access_reception === "true",
-        technicianAccessAgenda: map.technician_access_agenda === "true",
-        technicianAccessPatio: map.technician_access_patio !== "false",
-        adminDisplayName: map.admin_display_name || "Rei do ABS",
-        adminPhotoUrl: map.admin_photo_url || null,
-        vehicleDeletePassword: map.vehicle_delete_password || "",
-        stockGuardPasswordConfigured: Boolean(String(map.stock_guard_password || "").trim()),
-        appAppearance: appAppearanceOut,
-        labProductKinds: parseLabProductKindsValue(map.lab_product_kinds),
-        labQuickServices: parseLabQuickServicesValue(map.lab_quick_services),
-        labelTemplates: parseLabelTemplatesValue(map.label_templates),
-        aiImproveTextLevel: normalizeAiImproveTextLevel(map.ai_improve_text_level),
-      });
+      return res.json(
+        withWorkshopSecretFlags(
+          {
+            patioLoginEnabled: map.patio_login_enabled !== "false",
+            technicianAccessReception: map.technician_access_reception === "true",
+            technicianAccessAgenda: map.technician_access_agenda === "true",
+            technicianAccessPatio: map.technician_access_patio !== "false",
+            adminDisplayName: map.admin_display_name || "Rei do ABS",
+            adminPhotoUrl: map.admin_photo_url || null,
+            appAppearance: appAppearanceOut,
+            labProductKinds: parseLabProductKindsValue(map.lab_product_kinds),
+            labQuickServices: parseLabQuickServicesValue(map.lab_quick_services),
+            labelTemplates: parseLabelTemplatesValue(map.label_templates),
+            aiImproveTextLevel: normalizeAiImproveTextLevel(map.ai_improve_text_level),
+          },
+          map
+        )
+      );
     } catch (err: any) {
       console.error("[API] Erro em PUT /api/workshop-settings:", err);
       return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });

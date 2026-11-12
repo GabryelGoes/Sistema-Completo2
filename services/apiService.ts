@@ -6067,13 +6067,15 @@ export type WorkshopAppAppearance = Record<string, unknown>;
 
 export interface WorkshopSettings {
   patioLoginEnabled: boolean;
-  patioPin: string;
+  /** Indica se há PIN salvo. O valor nunca volta na API. */
+  patioPinConfigured: boolean;
   technicianAccessReception: boolean;
   technicianAccessAgenda: boolean;
   technicianAccessPatio: boolean;
   adminDisplayName?: string;
   adminPhotoUrl?: string | null;
-  vehicleDeletePassword?: string;
+  /** Indica se há senha de exclusão salva. O valor nunca volta na API. */
+  vehicleDeletePasswordConfigured: boolean;
   /** True se existe senha dedicada de proteção do estoque (além da Gerência). */
   stockGuardPasswordConfigured?: boolean;
   /** Configuração visual da oficina (cor de destaque, wallpapers); null se nunca salvo. */
@@ -6110,6 +6112,7 @@ export async function getWorkshopSettings(): Promise<WorkshopSettings> {
 export async function updateWorkshopSettings(
   updates: Partial<WorkshopSettings> & {
     adminPassword?: string;
+    patioPin?: string;
     adminDisplayName?: string;
     adminPhotoUrl?: string | null;
     vehicleDeletePassword?: string;
