@@ -460,3 +460,48 @@ html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .pat
     transform: none;
   }
 }
+
+/* Ajustes: composer de comentários sem invasão da borda do card */
+html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-vm-aside-comments {
+  display: flex;
+  flex-direction: column;
+}
+
+html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-vm-aside-comments-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  border-bottom: 0;
+}
+
+html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-vm-aside-composer {
+  position: relative;
+  z-index: 2;
+  flex-shrink: 0;
+  margin: 0;
+  background-color: #ffffff;
+  border-top: 1px solid rgba(24, 24, 27, 0.12);
+  border-radius: 0 0 9px 9px;
+  overflow: hidden;
+}
+
+html.dark[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-vm-aside-composer {
+  background-color: #1a1d21;
+  border-top-color: rgba(255, 255, 255, 0.12);
+}
+
+html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-vm-aside-composer > div {
+  border-top: 0;
+  background-color: transparent;
+}
+
+/* Meta KM/Entrada empilhados: input sem largura fixa do modo split */
+html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-vm-meta-input--stack {
+  width: auto;
+  max-width: none;
+  flex: 1 1 auto;
+}
+
+html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-vm-header-meta--pc > .patio-vm-meta-card {
+  min-height: 3.75rem;
+  align-items: stretch;
+}
