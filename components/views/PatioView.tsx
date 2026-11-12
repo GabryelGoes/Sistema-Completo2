@@ -9180,6 +9180,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
               inputClass={vin}
               wrapClassName={wrapClassName}
               collapsible={!isPatioPcModal}
+              pcLayout={isPatioPcModal}
               defaultExpanded={false}
               newLabServiceMode={newLabServiceMode}
               onLabServiceModeChange={setNewLabServiceMode}
@@ -12311,6 +12312,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                 : undefined
                             }
                             insetCardClass={vi}
+                            pcLayout
                           />
                         ) : null}
 
