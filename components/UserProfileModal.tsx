@@ -11,6 +11,7 @@ import {
 } from '../services/apiService';
 import { TechnicianPhotoEditorModal } from './TechnicianPhotoEditorModal';
 import { useRegisterModalOpen } from './ui/ModalLayerContext';
+import { LOGIN_PASSWORD_MIN_LENGTH } from '../utils/loginPasswordPolicy';
 
 const ACCENT_COLORS = [
   { id: 'blue', label: 'Azul', bg: 'bg-blue-500', ring: 'ring-blue-500' },
@@ -160,8 +161,8 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
       setError('Informe a senha atual.');
       return;
     }
-    if (newPassword.length < 4) {
-      setError('A nova senha deve ter no mínimo 4 caracteres.');
+    if (newPassword.trim().length < LOGIN_PASSWORD_MIN_LENGTH) {
+      setError(`A nova senha deve ter no mínimo ${LOGIN_PASSWORD_MIN_LENGTH} caracteres.`);
       return;
     }
     if (newPassword !== confirmPassword) {
@@ -170,7 +171,8 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
     }
     setChangingPassword(true);
     try {
-      await changeMyPassword(username, currentPassword, newPassword);
+      await changeMyPassword(username, currentPassword, newPassword.trim());
+      setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
       setMessage('Senha alterada com sucesso.');
@@ -182,6 +184,16 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
   };
 
   useRegisterModalOpen(isOpen);
+
+  const passwordChangeBlockReason = changingPassword
+    ? null
+    : !currentPassword.trim()
+      ? 'Informe a senha atual.'
+      : newPassword.trim().length < LOGIN_PASSWORD_MIN_LENGTH
+        ? `A nova senha deve ter no mínimo ${LOGIN_PASSWORD_MIN_LENGTH} caracteres.`
+        : newPassword !== confirmPassword
+          ? 'A confirmação da nova senha não confere.'
+          : null;
 
   if (!isOpen) return null;
 
@@ -323,7 +335,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
                 className={iosInput}
-                placeholder="Mínimo 4 caracteres"
+                placeholder={`Mínimo ${LOGIN_PASSWORD_MIN_LENGTH} caracteres`}
                 autoComplete="new-password"
               />
             </div>
@@ -338,7 +350,10 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
                 autoComplete="new-password"
               />
             </div>
-            <button type="submit" disabled={changingPassword || !currentPassword.trim() || newPassword.length < 4 || newPassword !== confirmPassword} className="w-full py-3 rounded-xl bg-zinc-700 hover:bg-zinc-600 disabled:opacity-50 text-white font-medium flex items-center justify-center gap-2">
+            {passwordChangeBlockReason ? (
+              <p className="text-[12px] text-zinc-500 dark:text-zinc-400">{passwordChangeBlockReason}</p>
+            ) : null}
+            <button type="submit" disabled={changingPassword || passwordChangeBlockReason !== null} className="w-full py-3 rounded-xl bg-zinc-700 hover:bg-zinc-600 disabled:opacity-50 text-white font-medium flex items-center justify-center gap-2">
               {changingPassword ? <Loader2 className="w-5 h-5 animate-spin" /> : <Lock className="w-5 h-5" />}
               Alterar senha
             </button>

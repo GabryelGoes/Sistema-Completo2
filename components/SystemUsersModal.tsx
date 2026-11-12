@@ -38,6 +38,7 @@ import {
   effectivePatioApproveBudgetItems,
 } from '../services/apiService';
 import { useRegisterModalOpen } from './ui/ModalLayerContext';
+import { LOGIN_PASSWORD_MIN_LENGTH } from '../utils/loginPasswordPolicy';
 
 /** Switch reutilizável para permissões */
 function PermSwitch({
@@ -355,14 +356,14 @@ export const SystemUsersModal: React.FC<SystemUsersModalProps> = ({ isOpen, onCl
           setSaving(false);
           return;
         }
-        if (!formPassword || formPassword.length < 4) {
-          setError('Senha deve ter no mínimo 4 caracteres.');
+        if (formPassword.trim().length < LOGIN_PASSWORD_MIN_LENGTH) {
+          setError(`Senha deve ter no mínimo ${LOGIN_PASSWORD_MIN_LENGTH} caracteres.`);
           setSaving(false);
           return;
         }
         const created = await createSystemUser(adminPassword, {
           username: formUsername.trim(),
-          password: formPassword,
+          password: formPassword.trim(),
           displayName: formDisplayName.trim() || undefined,
           permissions: formPermissions,
           isTechnician: formIsTechnician,
@@ -370,13 +371,24 @@ export const SystemUsersModal: React.FC<SystemUsersModalProps> = ({ isOpen, onCl
         });
         setUsers((prev) => [...prev, created]);
       } else {
+        const nextPassword = formPassword.trim();
+        if (nextPassword && nextPassword.length < LOGIN_PASSWORD_MIN_LENGTH) {
+          setError(`A nova senha deve ter no mínimo ${LOGIN_PASSWORD_MIN_LENGTH} caracteres.`);
+          setSaving(false);
+          return;
+        }
         const updated = await updateSystemUser(editingId, adminPassword, {
-          password: formPassword.length >= 4 ? formPassword : undefined,
+          password: nextPassword || undefined,
           displayName: formDisplayName.trim() || undefined,
           permissions: formPermissions,
           isTechnician: formIsTechnician,
           jobTitle: formJobTitle.trim() || null,
         });
+        if (nextPassword && updated.passwordUpdated !== true) {
+          setError('A senha não foi alterada.');
+          setSaving(false);
+          return;
+        }
         setUsers((prev) => prev.map((u) => (u.id === updated.id ? updated : u)));
       }
       cancelEdit();
@@ -521,7 +533,9 @@ export const SystemUsersModal: React.FC<SystemUsersModalProps> = ({ isOpen, onCl
                     </div>
                     <div>
                       <label className="mb-1 block text-xs font-medium text-zinc-500 dark:text-zinc-400">
-                        {editingId === 'new' ? 'Senha (mín. 4 caracteres)' : 'Nova senha (opcional)'}
+                        {editingId === 'new'
+                          ? `Senha (mín. ${LOGIN_PASSWORD_MIN_LENGTH} caracteres)`
+                          : `Nova senha (opcional, mín. ${LOGIN_PASSWORD_MIN_LENGTH})`}
                       </label>
                       <input
                         type="password"

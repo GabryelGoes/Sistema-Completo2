@@ -77,6 +77,7 @@ import {
 import { timeKindsToAutoPauseOnStageChange } from "./services/rdaIntelligence/workSessions/stageRules.js";
 import { recordServiceOrderStageEntry } from "./services/rdaIntelligence/patioIntelligence/recordStageEntry.js";
 import { assertHomologationSafeOrThrow } from "./utils/homologationGuard.js";
+import { classifyNewLoginPassword } from "./utils/loginPasswordPolicy.js";
 import { normalizeAiImproveTextLevel } from "./utils/aiImproveTextLevel.js";
 import {
   pickWorkshopSettingsWrite,
@@ -1608,7 +1609,10 @@ export function createApiApp() {
     if (auth) {
       const gate = await enforceDeviceSession(req, auth);
       if (gate === "revoked") {
-        return res.status(401).json({ error: "Sessão encerrada remotamente. Faça login novamente." });
+        return res.status(401).json({
+          error: "Sessão encerrada remotamente. Faça login novamente.",
+          code: "session_revoked",
+        });
       }
       if (gate === "blocked") {
         return res.status(403).json({
@@ -1627,7 +1631,10 @@ export function createApiApp() {
       return res.status(401).json({ error: "Token de TV inválido." });
     }
 
-    return res.status(401).json({ error: "Sessão inválida ou expirada. Faça login novamente." });
+    return res.status(401).json({
+      error: "Sessão inválida ou expirada. Faça login novamente.",
+      code: "session_invalid",
+    });
   });
 
   /** True se a requisição vem de uma sessão de Gerência (token admin). */
@@ -2684,22 +2691,52 @@ export function createApiApp() {
 
   app.post("/api/auth/change-my-password", async (req, res) => {
     try {
-      const { username, currentPassword, newPassword } = req.body || {};
-      const user = await verifySystemUser(username, currentPassword);
-      if (!user) {
-        return res.status(401).json({ error: "Usuário ou senha atual incorretos." });
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({ error: "Servidor não configurado." });
       }
-      const np = typeof newPassword === "string" ? newPassword : "";
-      if (!np || np.length < 6) {
-        return res.status(400).json({ error: "A nova senha deve ter no mínimo 6 caracteres." });
+      const auth = (req as unknown as { auth?: SessionPayload }).auth;
+      if (!auth || auth.r !== "user" || !auth.u) {
+        return res.status(403).json({
+          error: "A senha da Gerência é alterada nas configurações da oficina.",
+          code: "not_system_user",
+        });
+      }
+      const bodyUsername = typeof req.body?.username === "string" ? req.body.username.trim() : "";
+      const sessionUsername = typeof auth.n === "string" ? auth.n.trim() : "";
+      if (bodyUsername && sessionUsername && bodyUsername.toLowerCase() !== sessionUsername.toLowerCase()) {
+        return res.status(403).json({
+          error: "Não é possível alterar a senha de outra conta.",
+          code: "password_target_mismatch",
+        });
+      }
+      const currentPassword = typeof req.body?.currentPassword === "string" ? req.body.currentPassword : "";
+      if (!currentPassword.trim()) {
+        return res.status(400).json({ error: "Informe a senha atual.", code: "current_password_required" });
+      }
+      const nextPassword = classifyNewLoginPassword(req.body?.newPassword);
+      if (nextPassword.status === "absent") {
+        return res.status(400).json({ error: "Informe a nova senha.", code: "invalid_new_password" });
+      }
+      if (nextPassword.status === "invalid") {
+        return res.status(400).json({ error: nextPassword.message, code: "invalid_new_password" });
+      }
+      const { data: user, error: readErr } = await supabaseAdmin
+        .from("workshop_system_users")
+        .select("id, username, password_hash")
+        .eq("workshop_id", WORKSHOP_ID)
+        .eq("id", auth.u)
+        .maybeSingle();
+      if (readErr) return res.status(500).json({ error: "Falha ao conferir a senha atual." });
+      if (!user || !verifyPassword(currentPassword, String(user.password_hash || ""))) {
+        return res.status(401).json({ error: "Senha atual incorreta.", code: "invalid_credentials" });
       }
       const { error } = await supabaseAdmin
         .from("workshop_system_users")
-        .update({ password_hash: hashPassword(np), updated_at: new Date().toISOString() })
+        .update({ password_hash: hashPassword(nextPassword.value), updated_at: new Date().toISOString() })
         .eq("id", user.id)
         .eq("workshop_id", WORKSHOP_ID);
-      if (error) return res.status(500).json({ error: error.message });
-      return res.json({ ok: true });
+      if (error) return res.status(500).json({ error: "Falha ao alterar senha." });
+      return res.json({ ok: true, passwordUpdated: true });
     } catch (err: any) {
       console.error("[API] Erro em POST /api/auth/change-my-password:", err);
       return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
@@ -2864,9 +2901,14 @@ export function createApiApp() {
         return res.status(403).json({ error: "Acesso negado." });
       }
       const u = typeof username === "string" ? username.trim() : "";
-      const p = typeof password === "string" ? password : "";
+      const nextPassword = classifyNewLoginPassword(password);
       if (!u) return res.status(400).json({ error: "Nome de usuário é obrigatório." });
-      if (!p || p.length < 6) return res.status(400).json({ error: "Senha deve ter no mínimo 6 caracteres." });
+      if (nextPassword.status !== "ready") {
+        return res.status(400).json({
+          error: nextPassword.status === "invalid" ? nextPassword.message : "Senha deve ter no mínimo 6 caracteres.",
+          code: "invalid_new_password",
+        });
+      }
       const perms = typeof permissions === "object" && permissions !== null ? permissions : {};
       const isTech = isTechnician === true || isTechnician === "true";
       const job = typeof jobTitle === "string" ? jobTitle.trim() || null : null;
@@ -2875,7 +2917,7 @@ export function createApiApp() {
         .insert({
           workshop_id: WORKSHOP_ID,
           username: u,
-          password_hash: hashPassword(p),
+          password_hash: hashPassword(nextPassword.value),
           display_name: typeof displayName === "string" ? displayName.trim() || null : null,
           permissions: perms,
           is_technician: isTech,
@@ -2902,10 +2944,14 @@ export function createApiApp() {
         return res.status(403).json({ error: "Acesso negado." });
       }
       const id = req.params.id;
+      const nextPassword = classifyNewLoginPassword(password);
+      if (nextPassword.status === "invalid") {
+        return res.status(400).json({ error: nextPassword.message, code: "invalid_new_password" });
+      }
       const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
       if (typeof permissions === "object" && permissions !== null) updates.permissions = permissions;
       if (typeof displayName === "string") updates.display_name = displayName.trim() || null;
-      if (typeof password === "string" && password.length >= 6) updates.password_hash = hashPassword(password);
+      if (nextPassword.status === "ready") updates.password_hash = hashPassword(nextPassword.value);
       if (isTechnician !== undefined) updates.is_technician = isTechnician === true || isTechnician === "true";
       if (jobTitle !== undefined) updates.job_title = typeof jobTitle === "string" ? jobTitle.trim() || null : null;
       const { data, error } = await supabaseAdmin
@@ -2917,7 +2963,7 @@ export function createApiApp() {
         .single();
       if (error) return res.status(500).json({ error: error.message });
       if (!data) return res.status(404).json({ error: "Usuário não encontrado." });
-      return res.json(data);
+      return res.json({ ...data, passwordUpdated: nextPassword.status === "ready" });
     } catch (err: any) {
       console.error("[API] Erro em PUT /api/system-users/:id:", err);
       return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
@@ -3361,6 +3407,10 @@ export function createApiApp() {
       if (touchesSensitive && !isAdminRequest(req)) {
         return res.status(403).json({ error: "Apenas a Gerência pode alterar estas configurações." });
       }
+      const nextAdminPassword = classifyNewLoginPassword(writeBody.adminPassword);
+      if (nextAdminPassword.status === "invalid") {
+        return res.status(400).json({ error: nextAdminPassword.message, code: "invalid_new_password" });
+      }
 
       const updates: { key: string; value: string; updated_at: string }[] = [];
       const nowIso = new Date().toISOString();
@@ -3484,6 +3534,7 @@ export function createApiApp() {
             labQuickServices: parseLabQuickServicesValue(map.lab_quick_services),
             labelTemplates: parseLabelTemplatesValue(map.label_templates),
             aiImproveTextLevel: normalizeAiImproveTextLevel(map.ai_improve_text_level),
+            adminPasswordUpdated: nextAdminPassword.status === "ready",
           },
           map
         )

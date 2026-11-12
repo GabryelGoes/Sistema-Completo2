@@ -40,7 +40,8 @@
     "test:rda-panels-zindex": "tsx scripts/rdaPanelsZIndex.selftest.ts",
     "test:rda-header-alerts-banners": "tsx scripts/rdaHeaderAlertsBanners.selftest.ts",
     "test:remove-os-work-time-panel": "tsx scripts/removeOsWorkTimePanel.selftest.ts",
-    "test:workshop-settings-secrets": "tsx scripts/workshopSettingsSecrets.selftest.ts"
+    "test:workshop-settings-secrets": "tsx scripts/workshopSettingsSecrets.selftest.ts",
+    "test:login-password-change": "tsx scripts/loginPasswordChange.selftest.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.48.0",

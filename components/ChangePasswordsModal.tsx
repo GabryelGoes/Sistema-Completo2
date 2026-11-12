@@ -6,6 +6,7 @@ import { useDesktopShellLayout } from './ui/DesktopShellContext';
 import { IosModalHeader } from './ui/IosModalHeader';
 import { getWorkshopSettings, updateWorkshopSettings } from '../services/apiService';
 import { useRegisterModalOpen } from './ui/ModalLayerContext';
+import { LOGIN_PASSWORD_MIN_LENGTH } from '../utils/loginPasswordPolicy';
 
 interface ChangePasswordsModalProps {
   isOpen: boolean;
@@ -67,8 +68,8 @@ export const ChangePasswordsModal: React.FC<ChangePasswordsModalProps> = ({ isOp
     e.preventDefault();
     setMessage(null);
     const next = adminPassword.trim();
-    if (next.length < 4) {
-      setMessage({ type: 'err', text: 'A senha da Gerência deve ter pelo menos 4 caracteres.' });
+    if (next.length < LOGIN_PASSWORD_MIN_LENGTH) {
+      setMessage({ type: 'err', text: `A senha da Gerência deve ter no mínimo ${LOGIN_PASSWORD_MIN_LENGTH} caracteres.` });
       return;
     }
     if (adminPassword !== adminConfirm) {
@@ -77,7 +78,11 @@ export const ChangePasswordsModal: React.FC<ChangePasswordsModalProps> = ({ isOp
     }
     setSavingAdmin(true);
     try {
-      await updateWorkshopSettings({ adminPassword: next });
+      const saved = await updateWorkshopSettings({ adminPassword: next });
+      if (!saved.adminPasswordUpdated) {
+        setMessage({ type: 'err', text: 'A senha da Gerência não foi alterada.' });
+        return;
+      }
       setMessage({ type: 'ok', text: 'Senha do login Gerência alterada! Use-a no próximo login.' });
       setAdminPassword('');
       setAdminConfirm('');
@@ -158,6 +163,16 @@ export const ChangePasswordsModal: React.FC<ChangePasswordsModalProps> = ({ isOp
     }
   };
 
+  const adminPasswordBlockReason = savingAdmin
+    ? null
+    : !adminPassword.trim()
+      ? 'Informe a nova senha.'
+      : adminPassword.trim().length < LOGIN_PASSWORD_MIN_LENGTH
+        ? `A senha da Gerência deve ter no mínimo ${LOGIN_PASSWORD_MIN_LENGTH} caracteres.`
+        : adminPassword !== adminConfirm
+          ? 'A confirmação da nova senha não confere.'
+          : null;
+
   if (!isOpen) return null;
 
   return (
@@ -220,11 +235,12 @@ export const ChangePasswordsModal: React.FC<ChangePasswordsModalProps> = ({ isOp
                 placeholder="Confirmar senha"
                 className={iosInput}
               />
+              {adminPasswordBlockReason ? (
+                <p className="text-[12px] text-zinc-500 dark:text-zinc-400">{adminPasswordBlockReason}</p>
+              ) : null}
               <button
                 type="submit"
-                disabled={
-                  savingAdmin || !adminPassword.trim() || adminPassword !== adminConfirm
-                }
+                disabled={savingAdmin || adminPasswordBlockReason !== null}
                 className="w-full py-3 rounded-xl bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white font-semibold text-[15px] flex items-center justify-center gap-2"
               >
                 {savingAdmin ? <Loader2 className="w-5 h-5 animate-spin" /> : <Check className="w-5 h-5" />}

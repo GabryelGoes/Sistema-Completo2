@@ -5930,7 +5930,7 @@ export async function updateSystemUser(
     isTechnician?: boolean;
     jobTitle?: string | null;
   }
-): Promise<SystemUser> {
+): Promise<SystemUser & { passwordUpdated?: boolean }> {
   const response = await fetch(`${API_BASE}/system-users/${id}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
@@ -6031,9 +6031,12 @@ export async function changeMyPassword(
       newPassword,
     }),
   });
+  const data = await response.json().catch(() => ({}));
   if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    throw new Error(err.error || "Falha ao alterar senha.");
+    throw new Error(data.error || "Falha ao alterar senha.");
+  }
+  if (data.passwordUpdated !== true) {
+    throw new Error("A senha não foi alterada.");
   }
 }
 
@@ -6098,6 +6101,8 @@ export interface WorkshopSettings {
   labelTemplates?: Record<string, unknown> | null;
   /** Nível de correção do botão Melhorar (diagnóstico etc.): light | balanced | strong. */
   aiImproveTextLevel?: "light" | "balanced" | "strong";
+  /** Presente só na resposta do PUT que gravou a senha da Gerência. O valor não volta. */
+  adminPasswordUpdated?: boolean;
 }
 
 export async function getWorkshopSettings(): Promise<WorkshopSettings> {
