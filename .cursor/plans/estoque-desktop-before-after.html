@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Estoque desktop — before / after (cores preservadas)</title>
+<style>
+  :root {
+    --accent: #0F7A4B;
+    --accent-hover: #0c6a41;
+    --surface: #F4F5F7;
+    --ink: #18181b;
+    --muted: #71717a;
+    --line: #e4e4e7;
+    --ok: #059669;
+    --warn: #d97706;
+    --bad: #dc2626;
+    --white: #fff;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: "SF Pro Text", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: #e8eaed;
+    color: var(--ink);
+  }
+  header.page {
+    padding: 20px 28px 8px;
+    max-width: 1280px;
+    margin: 0 auto;
+  }
+  header.page h1 { font-size: 20px; margin: 0 0 6px; font-weight: 700; }
+  header.page p { margin: 0; color: var(--muted); font-size: 13px; max-width: 72ch; }
+  .lock {
+    display: inline-flex; gap: 8px; flex-wrap: wrap; margin-top: 10px;
+  }
+  .swatch {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 11px; color: var(--muted);
+    background: var(--white); border: 1px solid var(--line);
+    border-radius: 999px; padding: 4px 10px;
+  }
+  .swatch i {
+    width: 12px; height: 12px; border-radius: 50%; display: inline-block;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    max-width: 1280px;
+    margin: 16px auto 40px;
+    padding: 0 20px;
+  }
+  @media (max-width: 980px) { .grid { grid-template-columns: 1fr; } }
+  .panel {
+    background: var(--white);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: 0 1px 2px rgba(0,0,0,.04);
+  }
+  .panel > .label {
+    padding: 10px 14px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    border-bottom: 1px solid var(--line);
+    background: #fafafa;
+  }
+  .panel.before > .label { color: #a16207; }
+  .panel.after > .label { color: var(--accent); }
+  .frame {
+    height: 560px;
+    background: var(--surface);
+    position: relative;
+    overflow: hidden;
+  }
+  /* ——— BEFORE ——— */
+  .b-top {
+    background: var(--white);
+    border-bottom: 1px solid var(--line);
+    padding: 10px 12px;
+    display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  }
+  .b-title { font-weight: 800; font-size: 13px; margin-right: auto; }
+  .btn {
+    border: 0; border-radius: 8px; padding: 7px 10px; font-size: 11px; font-weight: 600;
+    cursor: default;
+  }
+  .btn-green { background: var(--accent); color: #fff; }
+  .btn-ghost { background: #f4f4f5; color: #3f3f46; }
+  .kpi-row {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;
+    padding: 10px 12px;
+  }
+  .kpi {
+    background: var(--white);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 10px;
+  }
+  .kpi .n { font-size: 18px; font-weight: 800; }
+  .kpi .t { font-size: 10px; color: var(--muted); margin-top: 2px; }
+  .search {
+    margin: 0 12px 8px;
+    background: var(--white);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 8px 10px;
+    font-size: 12px; color: var(--muted);
+  }
+  table.dense {
+    width: calc(100% - 24px);
+    margin: 0 12px;
+    border-collapse: collapse;
+    background: var(--white);
+    font-size: 10px;
+  }
+  table.dense th, table.dense td {
+    border-bottom: 1px solid var(--line);
+    padding: 7px 6px;
+    text-align: left;
+    white-space: nowrap;
+  }
+  table.dense th { color: var(--muted); font-weight: 600; background: #fafafa; }
+  .badge {
+    display: inline-block; padding: 2px 6px; border-radius: 999px;
+    font-size: 9px; font-weight: 700;
+  }
+  .badge-ok { background: #d1fae5; color: #047857; }
+  .badge-warn { background: #fef3c7; color: #b45309; }
+  .badge-bad { background: #fee2e2; color: #b91c1c; }
+  .note {
+    position: absolute; left: 12px; right: 12px; bottom: 10px;
+    font-size: 10px; color: var(--muted);
+    background: rgba(255,255,255,.92);
+    border: 1px dashed var(--line);
+    border-radius: 8px;
+    padding: 8px 10px;
+  }
+
+  /* ——— AFTER ——— */
+  .a-chrome {
+    background: rgba(255,255,255,.92);
+    backdrop-filter: blur(8px);
+    border-bottom: 1px solid var(--line);
+    padding: 12px 14px 10px;
+  }
+  .a-row1 {
+    display: flex; align-items: center; gap: 10px;
+  }
+  .a-brand {
+    font-size: 15px; font-weight: 800; letter-spacing: -.01em;
+    color: var(--accent);
+  }
+  .a-search {
+    flex: 1;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    padding: 9px 12px;
+    font-size: 12px; color: var(--muted);
+  }
+  .a-actions { display: flex; gap: 6px; }
+  .a-kpis {
+    display: flex; gap: 0;
+    margin-top: 10px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    overflow: hidden;
+    background: var(--white);
+  }
+  .a-kpi {
+    flex: 1;
+    padding: 8px 10px;
+    border-right: 1px solid var(--line);
+  }
+  .a-kpi:last-child { border-right: 0; }
+  .a-kpi.active { background: #ecfdf5; box-shadow: inset 0 -2px 0 var(--accent); }
+  .a-kpi .n { font-size: 16px; font-weight: 800; }
+  .a-kpi .t { font-size: 10px; color: var(--muted); }
+  .a-filters {
+    display: flex; gap: 6px; padding: 8px 14px; align-items: center;
+    font-size: 11px; color: var(--muted);
+  }
+  .chip {
+    border: 1px solid var(--line); background: var(--white);
+    border-radius: 8px; padding: 4px 8px; font-size: 11px;
+  }
+  .chip.on { border-color: var(--accent); color: var(--accent); background: #ecfdf5; }
+  .list {
+    margin: 0 14px;
+    background: var(--white);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  .row {
+    display: grid;
+    grid-template-columns: 36px 1fr 70px 64px 72px 56px;
+    gap: 8px;
+    align-items: center;
+    padding: 9px 10px;
+    border-bottom: 1px solid var(--line);
+    font-size: 11px;
+  }
+  .row:last-child { border-bottom: 0; }
+  .row:hover { background: #fafafa; }
+  .thumb {
+    width: 36px; height: 36px; border-radius: 8px;
+    background: linear-gradient(135deg, #d1fae5, #a7f3d0);
+  }
+  .name { font-weight: 700; font-size: 12px; }
+  .meta { color: var(--muted); font-size: 10px; margin-top: 1px; }
+  .price { font-weight: 700; text-align: right; }
+  .qty { font-variant-numeric: tabular-nums; font-weight: 700; text-align: right; }
+  footer.compare {
+    max-width: 1280px; margin: 0 auto 48px; padding: 0 28px;
+    font-size: 12px; color: var(--muted);
+  }
+  footer.compare ul { margin: 8px 0 0; padding-left: 18px; }
+</style>
+</head>
+<body>
+  <header class="page">
+    <h1>Estoque desktop — comparação visual (protótipo estático)</h1>
+    <p>
+      Antes = densidade atual aproximada (tabela 8 colunas + KPIs em cards). Depois = chrome sticky,
+      busca dominante, KPIs em faixa e lista com hierarquia — <strong>mesmas cores</strong>.
+      Sem alteração de funcionalidade.
+    </p>
+    <div class="lock">
+      <span class="swatch"><i style="background:#0F7A4B"></i> #0F7A4B accent</span>
+      <span class="swatch"><i style="background:#F4F5F7"></i> #F4F5F7 surface</span>
+      <span class="swatch"><i style="background:#059669"></i> emerald OK</span>
+      <span class="swatch"><i style="background:#d97706"></i> amber baixo</span>
+      <span class="swatch"><i style="background:#dc2626"></i> red zerado</span>
+    </div>
+  </header>
+
+  <div class="grid">
+    <section class="panel before">
+      <div class="label">Antes — layout atual (aproximação)</div>
+      <div class="frame">
+        <div class="b-top">
+          <div class="b-title">ESTOQUE</div>
+          <button class="btn btn-ghost">Histórico</button>
+          <button class="btn btn-ghost">Módulos ABS</button>
+          <button class="btn btn-ghost">Ler código</button>
+          <button class="btn btn-green">+ Adicionar</button>
+        </div>
+        <div class="kpi-row">
+          <div class="kpi"><div class="n">128</div><div class="t">Em estoque</div></div>
+          <div class="kpi"><div class="n">7</div><div class="t">Zerados</div></div>
+          <div class="kpi"><div class="n">14</div><div class="t">Baixos</div></div>
+          <div class="kpi"><div class="n">R$ 42k</div><div class="t">Valor</div></div>
+        </div>
+        <div class="search">Buscar peça, código, fabricante…</div>
+        <table class="dense">
+          <thead>
+            <tr>
+              <th>Foto</th><th>Nome</th><th>Cód.</th><th>Cat.</th>
+              <th>Qtd</th><th>Mín</th><th>Preço</th><th>Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>■</td><td>Pastilha freio dianteira</td><td>PÇ-00421</td><td>Freios</td>
+              <td>12</td><td>4</td><td>89,90</td><td><span class="badge badge-ok">OK</span></td>
+            </tr>
+            <tr>
+              <td>■</td><td>Filtro óleo OEM</td><td>PÇ-00118</td><td>Motor</td>
+              <td>2</td><td>5</td><td>34,50</td><td><span class="badge badge-warn">Baixo</span></td>
+            </tr>
+            <tr>
+              <td>■</td><td>Sensor ABS traseiro</td><td>PÇ-00802</td><td>ABS</td>
+              <td>0</td><td>1</td><td>210,00</td><td><span class="badge badge-bad">Zerado</span></td>
+            </tr>
+            <tr>
+              <td>■</td><td>Kit correia dentada</td><td>PÇ-00255</td><td>Motor</td>
+              <td>6</td><td>2</td><td>189,00</td><td><span class="badge badge-ok">OK</span></td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="note">
+          Problemas: KPIs como cards competem com a lista; 8 colunas forçam scroll horizontal;
+          ações espalhadas; ABS parece “outro app”.
+        </div>
+      </div>
+    </section>
+
+    <section class="panel after">
+      <div class="label">Depois — proposta desktop (cores iguais)</div>
+      <div class="frame" style="background:#eef0f3">
+        <div class="a-chrome">
+          <div class="a-row1">
+            <div class="a-brand">ESTOQUE</div>
+            <div class="a-search">Buscar peça, código, fabricante…</div>
+            <div class="a-actions">
+              <button class="btn btn-ghost">Histórico</button>
+              <button class="btn btn-ghost">ABS</button>
+              <button class="btn btn-ghost">Ler</button>
+              <button class="btn btn-green">Adicionar</button>
+            </div>
+          </div>
+          <div class="a-kpis">
+            <div class="a-kpi active"><div class="n">128</div><div class="t">Em estoque</div></div>
+            <div class="a-kpi"><div class="n" style="color:var(--bad)">7</div><div class="t">Zerados</div></div>
+            <div class="a-kpi"><div class="n" style="color:var(--warn)">14</div><div class="t">Baixos</div></div>
+            <div class="a-kpi"><div class="n">R$ 42k</div><div class="t">Valor</div></div>
+          </div>
+        </div>
+        <div class="a-filters">
+          <span class="chip on">Todas</span>
+          <span class="chip">Baixos</span>
+          <span class="chip">Zerados</span>
+          <span class="chip">Categoria ▾</span>
+          <span style="margin-left:auto">Ordenar: nome ▾</span>
+        </div>
+        <div class="list">
+          <div class="row">
+            <div class="thumb"></div>
+            <div>
+              <div class="name">Pastilha freio dianteira</div>
+              <div class="meta">PÇ-00421 · Freios · OEM</div>
+            </div>
+            <div class="qty">12</div>
+            <div><span class="badge badge-ok">OK</span></div>
+            <div class="price">89,90</div>
+            <div style="text-align:right;color:var(--muted)">⋯</div>
+          </div>
+          <div class="row">
+            <div class="thumb" style="background:linear-gradient(135deg,#fef3c7,#fde68a)"></div>
+            <div>
+              <div class="name">Filtro óleo OEM</div>
+              <div class="meta">PÇ-00118 · Motor</div>
+            </div>
+            <div class="qty" style="color:var(--warn)">2</div>
+            <div><span class="badge badge-warn">Baixo</span></div>
+            <div class="price">34,50</div>
+            <div style="text-align:right;color:var(--muted)">⋯</div>
+          </div>
+          <div class="row">
+            <div class="thumb" style="background:linear-gradient(135deg,#fee2e2,#fecaca)"></div>
+            <div>
+              <div class="name">Sensor ABS traseiro</div>
+              <div class="meta">PÇ-00802 · ABS</div>
+            </div>
+            <div class="qty" style="color:var(--bad)">0</div>
+            <div><span class="badge badge-bad">Zerado</span></div>
+            <div class="price">210,00</div>
+            <div style="text-align:right;color:var(--muted)">⋯</div>
+          </div>
+          <div class="row">
+            <div class="thumb"></div>
+            <div>
+              <div class="name">Kit correia dentada</div>
+              <div class="meta">PÇ-00255 · Motor</div>
+            </div>
+            <div class="qty">6</div>
+            <div><span class="badge badge-ok">OK</span></div>
+            <div class="price">189,00</div>
+            <div style="text-align:right;color:var(--muted)">⋯</div>
+          </div>
+        </div>
+        <div class="note">
+          Melhorias: busca no chrome; KPIs como filtros (faixa); linha com hierarquia foto→nome→código;
+          menos colunas; ABS no mesmo shell. Cores e botões operacionais preservados.
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <footer class="compare">
+    Este HTML é protótipo estático para revisão — não é o app. Plano completo:
+    <code>.cursor/plans/estoque-desktop-redesign-proposal.md</code>
+    <ul>
+      <li>Não altera APIs, impressão, senha ou regras de baixa.</li>
+      <li>Implementação só após aprovação, em fases E0–E7.</li>
+      <li>Tablet/mobile fora do escopo da primeira implementação.</li>
+    </ul>
+  </footer>
+</body>
+</html>
