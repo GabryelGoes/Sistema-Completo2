@@ -799,3 +799,207 @@ html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .pat
     transition: none;
   }
 }
+
+/*
+ * Fase 7 — Modais secundários da OS desktop (patio-os-sec-v7).
+ * Isolado: só com .patio-os-sec-modal--pc + html[data-device=desktop].
+ * NÃO altera cores de fundo, botões, status ou indicadores — só layout,
+ * hierarquia, foco, rolagem, elevação e motion.
+ */
+html[data-device='desktop'] .patio-os-sec-modal--pc.patio-os-sec-v7 {
+  --patio-os-sec-radius: 1.15rem;
+  --patio-os-sec-header-pad-x: 1.5rem;
+  --patio-os-sec-header-pad-y: 1.15rem;
+  --patio-os-sec-body-pad-x: 1.5rem;
+  --patio-os-sec-body-pad-y: 1.15rem;
+  --patio-os-sec-footer-pad-x: 1.5rem;
+  --patio-os-sec-footer-pad-y: 1rem;
+}
+
+/* Overlay: padding confortável em monitores menores; scroll se o sheet for alto */
+html[data-device='desktop'] .patio-os-sec-modal--pc.patio-os-sec-v7.patio-os-sec-overlay,
+html[data-device='desktop'] .patio-os-sec-modal--pc.patio-os-sec-v7[data-patio-os-sec-role='overlay'] {
+  align-items: center;
+  justify-content: center;
+  padding: max(1rem, env(safe-area-inset-top)) max(1rem, env(safe-area-inset-right))
+    max(1rem, env(safe-area-inset-bottom)) max(1rem, env(safe-area-inset-left));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* Sheet / painel principal */
+html[data-device='desktop'] .patio-os-sec-modal--pc.patio-os-sec-v7.patio-os-sec-shell,
+html[data-device='desktop'] .patio-os-sec-modal--pc.patio-os-sec-v7[data-patio-os-sec-role='shell'] {
+  border-radius: var(--patio-os-sec-radius);
+  max-height: min(92dvh, calc(100dvh - 2rem));
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: patio-os-sec-in 0.28s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+html[data-device='desktop'] .patio-os-sec-modal--pc.patio-os-sec-v7.patio-os-sec-shell-out,
+html[data-device='desktop'] .patio-os-sec-modal--pc.patio-os-sec-v7[data-patio-os-sec-exiting='true'] {
+  animation: patio-os-sec-out 0.22s ease-in forwards;
+}
+
+@keyframes patio-os-sec-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes patio-os-sec-out {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(6px) scale(0.985);
+  }
+}
+
+/* Cabeçalho / corpo / rodapé — hierarquia e sticky footer */
+html[data-device='desktop'] .patio-os-sec-modal--pc.patio-os-sec-v7 .patio-os-sec-header {
+  flex-shrink: 0;
+  padding: var(--patio-os-sec-header-pad-y) var(--patio-os-sec-header-pad-x);
+  box-sizing: border-box;
+}
+
+html[data-device='desktop'] .patio-os-sec-modal--pc.patio-os-sec-v7 .patio-os-sec-title {
+  letter-spacing: -0.02em;
+  line-height: 1.2;
+}
+
+html[data-device='desktop'] .patio-os-sec-modal--pc.patio-os-sec-v7 .patio-os-sec-subtitle {
+  margin-top: 0.25rem;
+  line-height: 1.4;
+}
+
+html[data-device='desktop'] .patio-os-sec-modal--pc.patio-os-sec-v7 .patio-os-sec-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: var(--patio-os-sec-body-pad-y) var(--patio-os-sec-body-pad-x);
+  scroll-padding-block: 0.75rem;
+}
+
+html[data-device='desktop'] .patio-os-sec-modal--pc.patio-os-sec-v7 .patio-os-sec-footer {
+  flex-shrink: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  padding: var(--patio-os-sec-footer-pad-y) var(--patio-os-sec-footer-pad-x);
+  box-sizing: border-box;
+}
+
+/* Formulários: espaçamento consistente entre campos */
+html[data-device='desktop'] .patio-os-sec-modal--pc.patio-os-sec-v7 .patio-os-sec-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+html[data-device='desktop'] .patio-os-sec-modal--pc.patio-os-sec-v7 .patio-os-sec-field label,
+html[data-device='desktop'] .patio-os-sec-modal--pc.patio-os-sec-v7 label.patio-os-sec-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+/* Foco visível (acessibilidade) — usa o azul já presente no produto */
+html[data-device='desktop'] .patio-os-sec-modal--pc.patio-os-sec-v7 button:focus-visible,
+html[data-device='desktop'] .patio-os-sec-modal--pc.patio-os-sec-v7 a:focus-visible,
+html[data-device='desktop'] .patio-os-sec-modal--pc.patio-os-sec-v7 input:focus-visible,
+html[data-device='desktop'] .patio-os-sec-modal--pc.patio-os-sec-v7 textarea:focus-visible,
+html[data-device='desktop'] .patio-os-sec-modal--pc.patio-os-sec-v7 select:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(0, 122, 255, 0.35);
+}
+
+/* Press feedback (Apple) — sem mudar cor */
+html[data-device='desktop'] .patio-os-sec-modal--pc.patio-os-sec-v7 button:not(:disabled):active {
+  transform: scale(0.98);
+}
+
+/* Popovers / menus ancorados */
+html[data-device='desktop'] .patio-os-sec-modal--pc.patio-os-sec-v7.patio-os-sec-popover,
+html[data-device='desktop'] .patio-os-sec-modal--pc.patio-os-sec-v7[data-patio-os-sec-role='popover'] {
+  border-radius: 0.9rem;
+  padding: 0.85rem;
+  animation: patio-os-sec-in 0.2s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+/* Media overlays (lightbox / PDF): chrome mais compacto no desktop */
+html[data-device='desktop'] .patio-os-sec-modal--pc.patio-os-sec-v7[data-patio-os-sec-role='media'] {
+  animation: patio-os-sec-fade-in 0.2s ease-out;
+}
+
+html[data-device='desktop'] .patio-os-sec-modal--pc.patio-os-sec-v7[data-patio-os-sec-role='media'] .patio-os-sec-media-chrome {
+  padding-inline: 1.25rem;
+  min-height: 3.25rem;
+}
+
+@keyframes patio-os-sec-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Nested picker: elevação visual sem mudar backdrop color */
+html[data-device='desktop'] .patio-os-sec-modal--pc.patio-os-sec-v7[data-patio-os-sec-role='nested'] {
+  animation: patio-os-sec-in 0.22s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+/* Confirmações destrutivas: hierarquia clara; botões permanecem com as cores originais */
+html[data-device='desktop'] .patio-os-sec-modal--pc.patio-os-sec-v7[data-patio-os-sec-role='danger'] .patio-os-sec-title {
+  font-weight: 600;
+  letter-spacing: -0.015em;
+}
+
+html[data-device='desktop'] .patio-os-sec-modal--pc.patio-os-sec-v7[data-patio-os-sec-role='danger'] .patio-os-sec-footer {
+  gap: 0.65rem;
+}
+
+/* Overlays inline no shell da OS (ex.: excluir veículo) */
+html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-os-sec-modal--pc.patio-os-sec-v7.patio-os-sec-inline-danger {
+  animation: patio-os-sec-fade-in 0.18s ease-out;
+}
+
+html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-os-sec-modal--pc.patio-os-sec-v7.patio-os-sec-inline-danger > .patio-os-sec-shell {
+  border-radius: var(--patio-os-sec-radius);
+  padding: 1.35rem 1.4rem 1.25rem;
+  max-width: 24rem;
+  width: 100%;
+  animation: patio-os-sec-in 0.24s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-device='desktop'] .patio-os-sec-modal--pc.patio-os-sec-v7.patio-os-sec-shell,
+  html[data-device='desktop'] .patio-os-sec-modal--pc.patio-os-sec-v7[data-patio-os-sec-role='shell'],
+  html[data-device='desktop'] .patio-os-sec-modal--pc.patio-os-sec-v7.patio-os-sec-popover,
+  html[data-device='desktop'] .patio-os-sec-modal--pc.patio-os-sec-v7[data-patio-os-sec-role='popover'],
+  html[data-device='desktop'] .patio-os-sec-modal--pc.patio-os-sec-v7[data-patio-os-sec-role='media'],
+  html[data-device='desktop'] .patio-os-sec-modal--pc.patio-os-sec-v7[data-patio-os-sec-role='nested'],
+  html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-os-sec-modal--pc.patio-os-sec-v7.patio-os-sec-inline-danger,
+  html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-os-sec-modal--pc.patio-os-sec-v7.patio-os-sec-inline-danger > .patio-os-sec-shell {
+    animation: none;
+  }
+
+  html[data-device='desktop'] .patio-os-sec-modal--pc.patio-os-sec-v7 button:not(:disabled):active {
+    transform: none;
+  }
+}

@@ -22,6 +22,7 @@ import {
 } from '../../services/apiService';
 import { validateServiceTechnicianLines, mergeServiceTechnicianDraftLines } from '../../utils/serviceOrderServiceTechnicians';
 import { capitalizeFirst } from '../../utils/personNameFormat';
+import { patioOsSecModalPcClass, usePatioOsPcLayout } from './PatioOsPcLayoutContext';
 
 export type ServiceTechnicianClosingModalProps = {
   open: boolean;
@@ -156,9 +157,15 @@ const TechnicianSelectMiniModal: React.FC<TechnicianSelectMiniModalProps> = ({
   isDesktopShell,
   onSelect,
   onClose,
-}) => (
+}) => {
+  const patioOsPcLayout = usePatioOsPcLayout();
+  return (
   <div
-    className={`${desktopShellPortaledChildOverlayClass(isDesktopShell, NESTED_IOS_MODAL_PICKER_Z)} ${technicianSelectOverlayAppearance}`}
+    className={patioOsSecModalPcClass(
+      patioOsPcLayout,
+      `${desktopShellPortaledChildOverlayClass(isDesktopShell, NESTED_IOS_MODAL_PICKER_Z)} ${technicianSelectOverlayAppearance} patio-os-sec-overlay`
+    )}
+    data-patio-os-sec-role={patioOsPcLayout ? 'nested' : undefined}
     role="presentation"
     onClick={onClose}
     onKeyDown={(e) => {
@@ -169,17 +176,18 @@ const TechnicianSelectMiniModal: React.FC<TechnicianSelectMiniModalProps> = ({
       role="dialog"
       aria-modal="true"
       aria-labelledby="technician-select-title"
-      className={technicianSelectShellClass}
+      className={patioOsSecModalPcClass(patioOsPcLayout, `${technicianSelectShellClass} patio-os-sec-shell`)}
+      data-patio-os-sec-role={patioOsPcLayout ? 'shell' : undefined}
       onClick={(e) => e.stopPropagation()}
     >
-      <div className="flex shrink-0 items-start justify-between gap-3 border-b border-zinc-200/70 px-4 py-3.5 dark:border-white/[0.08]">
+      <div className="patio-os-sec-header flex shrink-0 items-start justify-between gap-3 border-b border-zinc-200/70 px-4 py-3.5 dark:border-white/[0.08]">
         <div className="min-w-0">
           <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500 dark:text-zinc-400">
             Técnico do serviço
           </p>
           <h3
             id="technician-select-title"
-            className="mt-0.5 truncate text-[16px] font-semibold text-zinc-900 dark:text-white"
+            className="patio-os-sec-title mt-0.5 truncate text-[16px] font-semibold text-zinc-900 dark:text-white"
             title={serviceLabel}
           >
             {serviceLabel.trim() || 'Serviço'}
@@ -195,7 +203,7 @@ const TechnicianSelectMiniModal: React.FC<TechnicianSelectMiniModalProps> = ({
         </button>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-2 custom-scrollbar">
+      <div className="patio-os-sec-body min-h-0 flex-1 overflow-y-auto overscroll-contain p-2 custom-scrollbar">
         {options.length === 0 ? (
           <p className="px-3 py-6 text-center text-[13px] text-zinc-500 dark:text-zinc-400">
             Nenhum técnico cadastrado.
@@ -232,7 +240,8 @@ const TechnicianSelectMiniModal: React.FC<TechnicianSelectMiniModalProps> = ({
       </div>
     </div>
   </div>
-);
+  );
+};
 
 export const ServiceTechnicianClosingModal: React.FC<ServiceTechnicianClosingModalProps> = ({
   open,
@@ -244,6 +253,7 @@ export const ServiceTechnicianClosingModal: React.FC<ServiceTechnicianClosingMod
   onConfirmed,
 }) => {
   const isDesktopShell = useDesktopShellLayout();
+  const patioOsPcLayout = usePatioOsPcLayout();
   const techOptions = useMemo(() => mapTechnicians(technicians), [technicians]);
 
   const [lines, setLines] = useState<DraftLine[]>([]);
@@ -335,10 +345,18 @@ export const ServiceTechnicianClosingModal: React.FC<ServiceTechnicianClosingMod
   return (
     <ModalPortal>
       <div
-        className={`${resolveIosModalOverlayClass(isDesktopShell)} animate-in fade-in duration-200 p-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] sm:p-6`}
+        className={patioOsSecModalPcClass(
+          patioOsPcLayout,
+          `${resolveIosModalOverlayClass(isDesktopShell)} animate-in fade-in duration-200 p-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] sm:p-6 patio-os-sec-overlay`
+        )}
+        data-patio-os-sec-role={patioOsPcLayout ? 'overlay' : undefined}
       >
         <div
-          className={`relative flex max-h-[min(92vh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1rem))] w-full ${modalWidthClass} min-h-0 flex-col overflow-hidden ${iosModalShell} animate-in zoom-in-95 duration-200`}
+          className={patioOsSecModalPcClass(
+            patioOsPcLayout,
+            `relative flex max-h-[min(92vh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1rem))] w-full ${modalWidthClass} min-h-0 flex-col overflow-hidden ${iosModalShell} animate-in zoom-in-95 duration-200 patio-os-sec-shell`
+          )}
+          data-patio-os-sec-role={patioOsPcLayout ? 'shell' : undefined}
           role="dialog"
           aria-modal="true"
           aria-labelledby="service-tech-closing-title"
@@ -354,7 +372,7 @@ export const ServiceTechnicianClosingModal: React.FC<ServiceTechnicianClosingMod
           </button>
 
           <div
-            className={`shrink-0 border-b border-zinc-200/60 px-6 pb-5 pt-7 dark:border-white/[0.07] sm:px-8 sm:pt-8 ${modalHeaderFooterClass}`}
+            className={`patio-os-sec-header shrink-0 border-b border-zinc-200/60 px-6 pb-5 pt-7 dark:border-white/[0.07] sm:px-8 sm:pt-8 ${modalHeaderFooterClass}`}
           >
             <div className="flex items-start gap-3 pr-10">
               <IosAccentIconSquircle variant="modal" strokeWidth={2.2}>
@@ -366,18 +384,18 @@ export const ServiceTechnicianClosingModal: React.FC<ServiceTechnicianClosingMod
                 </p>
                 <h2
                   id="service-tech-closing-title"
-                  className="text-[22px] font-semibold leading-tight tracking-tight text-zinc-900 dark:text-white sm:text-[24px]"
+                  className="patio-os-sec-title text-[22px] font-semibold leading-tight tracking-tight text-zinc-900 dark:text-white sm:text-[24px]"
                 >
                   Técnicos por serviço
                 </h2>
-                <p className="mt-1 truncate text-[13px] text-zinc-500 dark:text-zinc-400" title={vehicleLabel}>
+                <p className="patio-os-sec-subtitle mt-1 truncate text-[13px] text-zinc-500 dark:text-zinc-400" title={vehicleLabel}>
                   {vehicleLabel}
                 </p>
               </div>
             </div>
           </div>
 
-          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-[#F2F2F7] px-6 py-5 dark:bg-black/25 custom-scrollbar sm:px-8">
+          <div className="patio-os-sec-body min-h-0 flex-1 overflow-y-auto overscroll-contain bg-[#F2F2F7] px-6 py-5 dark:bg-black/25 custom-scrollbar sm:px-8">
             <p className="mb-4 text-[13px] leading-relaxed text-zinc-600 dark:text-zinc-400">
               Para mover o veículo para <strong className="font-semibold text-zinc-800 dark:text-zinc-200">Finalizado</strong>,
               confirme os técnicos dos serviços aprovados. Serviços e peças adicionados aqui entram no orçamento do
@@ -450,7 +468,7 @@ export const ServiceTechnicianClosingModal: React.FC<ServiceTechnicianClosingMod
           </div>
 
           <div
-            className={`shrink-0 border-t border-zinc-200/60 px-6 py-4 dark:border-white/[0.07] dark:bg-zinc-950 sm:px-8 ${modalHeaderFooterClass} dark:bg-zinc-950`}
+            className={`patio-os-sec-footer shrink-0 border-t border-zinc-200/60 px-6 py-4 dark:border-white/[0.07] dark:bg-zinc-950 sm:px-8 ${modalHeaderFooterClass} dark:bg-zinc-950`}
           >
             <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
               <button

@@ -19,6 +19,7 @@ import { PartPhotoImg } from '../ui/PartPhotoImg';
 import { BarcodeScanner } from '../BarcodeScanner';
 import { ModalPortal } from '../ui/ModalPortal';
 import { iosModalShell, resolveIosModalOverlayClass, NESTED_STOCK_OVERLAY_Z } from '../ui/iosModalStyles';
+import { patioOsSecModalPcClass, usePatioOsPcLayout } from './PatioOsPcLayoutContext';
 import { useDesktopShellLayout } from '../ui/DesktopShellContext';
 import { uiOsModalCardSectionTitle, uiOsModalSectionAppIcon } from '../ui/appTypography';
 
@@ -115,6 +116,7 @@ export const VehicleOsBudgetPartsScanModal: React.FC<VehicleOsBudgetPartsScanMod
   showCameraButton,
   onMovementCreated,
 }) => {
+  const patioOsPcLayout = usePatioOsPcLayout();
   const isDesktopShell = useDesktopShellLayout();
   const [loading, setLoading] = useState(true);
   const [allLines, setAllLines] = useState<BudgetScanLine[]>([]);
@@ -439,9 +441,18 @@ export const VehicleOsBudgetPartsScanModal: React.FC<VehicleOsBudgetPartsScanMod
           animation: budget-scan-bar 0.45s ease-out;
         }
       `}</style>
-      <div className={overlayClass} onClick={onClose} role="presentation">
+      <div
+        className={patioOsSecModalPcClass(patioOsPcLayout, `${overlayClass} patio-os-sec-overlay`)}
+        data-patio-os-sec-role={patioOsPcLayout ? 'overlay' : undefined}
+        onClick={onClose}
+        role="presentation"
+      >
         <div
-          className={`${iosModalShell} flex max-h-[min(92dvh,860px)] w-full max-w-lg flex-col`}
+          className={patioOsSecModalPcClass(
+            patioOsPcLayout,
+            `${iosModalShell} flex max-h-[min(92dvh,860px)] w-full max-w-lg flex-col patio-os-sec-shell`
+          )}
+          data-patio-os-sec-role={patioOsPcLayout ? 'shell' : undefined}
           role="dialog"
           aria-modal="true"
           aria-labelledby="budget-parts-scan-title"

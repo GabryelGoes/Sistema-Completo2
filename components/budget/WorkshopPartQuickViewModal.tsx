@@ -11,6 +11,7 @@ import {
 import { WorkshopPartDetailView } from '../WorkshopPartDetailView';
 import { IosModalHeader } from '../ui/IosModalHeader';
 import { ModalPortal } from '../ui/ModalPortal';
+import { patioOsSecModalPcClass, usePatioOsPcLayout } from '../patio/PatioOsPcLayoutContext';
 import { iosModalClose, iosModalShell } from '../ui/iosModalStyles';
 import type { PartPhotoSlot } from '../WorkshopPartRegistrationForm';
 import { workshopPartPhotosToSlots, workshopPartToPhotoSlots } from '../../utils/workshopPartPhotoSlots';
@@ -29,6 +30,7 @@ export const WorkshopPartQuickViewModal: React.FC<WorkshopPartQuickViewModalProp
   onClose,
   onUseInBudget,
 }) => {
+  const patioOsPcLayout = usePatioOsPcLayout();
   const [photos, setPhotos] = useState<PartPhotoSlot[]>([]);
   const [purchases, setPurchases] = useState<WorkshopPartPurchase[]>([]);
   const [categories, setCategories] = useState<WorkshopPartCategory[]>([]);
@@ -88,12 +90,20 @@ export const WorkshopPartQuickViewModal: React.FC<WorkshopPartQuickViewModalProp
   return (
     <ModalPortal>
       <div
-        className="fixed inset-0 z-[235] flex items-center justify-center bg-black/50 p-2 sm:p-4"
+        className={patioOsSecModalPcClass(
+          patioOsPcLayout,
+          'fixed inset-0 z-[235] flex items-center justify-center bg-black/50 p-2 sm:p-4 patio-os-sec-overlay'
+        )}
+        data-patio-os-sec-role={patioOsPcLayout ? 'overlay' : undefined}
         onClick={onClose}
         role="presentation"
       >
         <div
-          className={`${iosModalShell} relative flex max-h-[min(94dvh,calc(100dvh-2rem))] w-full max-w-[min(98vw,1280px)] flex-col overflow-hidden`}
+          className={patioOsSecModalPcClass(
+            patioOsPcLayout,
+            `${iosModalShell} relative flex max-h-[min(94dvh,calc(100dvh-2rem))] w-full max-w-[min(98vw,1280px)] flex-col overflow-hidden patio-os-sec-shell`
+          )}
+          data-patio-os-sec-role={patioOsPcLayout ? 'shell' : undefined}
           onClick={(e) => e.stopPropagation()}
           role="dialog"
           aria-modal="true"
@@ -103,7 +113,7 @@ export const WorkshopPartQuickViewModal: React.FC<WorkshopPartQuickViewModalProp
             <X className="h-5 w-5" />
           </button>
 
-          <div className="shrink-0 border-b border-zinc-200/70 bg-white px-6 pb-4 pt-8 pr-28 dark:border-white/[0.06] dark:bg-transparent">
+          <div className="patio-os-sec-header shrink-0 border-b border-zinc-200/70 bg-white px-6 pb-4 pt-8 pr-28 dark:border-white/[0.06] dark:bg-transparent">
             <IosModalHeader
               icon={<img src="/icons/estoque-ios.png" alt="" className="h-full w-full min-h-0 object-cover" />}
               title="Produto do estoque"
@@ -111,7 +121,7 @@ export const WorkshopPartQuickViewModal: React.FC<WorkshopPartQuickViewModalProp
             />
           </div>
 
-          <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-auto bg-white px-6 py-6 sm:px-8 custom-scrollbar dark:bg-transparent">
+          <div className="patio-os-sec-body min-h-0 flex-1 overflow-y-auto overscroll-y-auto bg-white px-6 py-6 sm:px-8 custom-scrollbar dark:bg-transparent">
             <WorkshopPartDetailView
               part={part}
               catalogNumber={catalogNumber}

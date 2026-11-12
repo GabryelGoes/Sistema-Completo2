@@ -24,6 +24,7 @@ import {
 } from '../../utils/workshopLaborFormat';
 import { moveItemInList } from '../../utils/moveItemInList';
 import { ModalPortal } from '../ui/ModalPortal';
+import { patioOsSecModalPcClass } from '../patio/PatioOsPcLayoutContext';
 import { useBrowserBackLayer } from '../ui/BackNavigationContext';
 import { VehicleBrandLogo } from '../ui/VehicleBrandLogo';
 import { getVehicleBrandLogoUrl } from '../../utils/vehicleBrandLogo';
@@ -1687,7 +1688,11 @@ export function PatioBudgetRequestTouchForm({
 
         {leaveConfirmOpen ? (
           <div
-            className="absolute inset-0 z-[80] flex items-center justify-center bg-slate-900/45 p-4 backdrop-blur-[2px] animate-modal-backdrop"
+            className={patioOsSecModalPcClass(
+              isPc,
+              'absolute inset-0 z-[80] flex items-center justify-center bg-slate-900/45 p-4 backdrop-blur-[2px] animate-modal-backdrop patio-os-sec-overlay'
+            )}
+            data-patio-os-sec-role={isPc ? 'overlay' : undefined}
             role="presentation"
             onClick={dismissLeaveConfirm}
           >
@@ -1696,25 +1701,30 @@ export function PatioBudgetRequestTouchForm({
               aria-modal="true"
               aria-labelledby="budget-leave-title"
               aria-describedby="budget-leave-desc"
-              className="w-full max-w-[22rem] overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-[0_24px_64px_-16px_rgba(15,23,42,0.45)] animate-modal-sheet"
+              className={patioOsSecModalPcClass(
+                isPc,
+                'w-full max-w-[22rem] overflow-hidden rounded-2xl border border-slate-200/90 bg-white shadow-[0_24px_64px_-16px_rgba(15,23,42,0.45)] animate-modal-sheet patio-os-sec-shell'
+              )}
+              data-patio-os-sec-role={isPc ? 'shell' : undefined}
+              data-patio-os-sec-danger={isPc ? 'true' : undefined}
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="px-5 pb-2 pt-5">
+              <div className="patio-os-sec-header px-5 pb-2 pt-5">
                 <p
                   id="budget-leave-title"
-                  className="text-[17px] font-semibold tracking-[-0.02em] text-slate-900"
+                  className="patio-os-sec-title text-[17px] font-semibold tracking-[-0.02em] text-slate-900"
                 >
                   Alterações não salvas
                 </p>
                 <p
                   id="budget-leave-desc"
-                  className="mt-2 text-[13.5px] leading-relaxed text-slate-600"
+                  className="patio-os-sec-subtitle mt-2 text-[13.5px] leading-relaxed text-slate-600"
                 >
                   Este orçamento tem edições que ainda não foram salvas. Salve para
                   manter o progresso ou feche para descartá-las.
                 </p>
               </div>
-              <div className="flex flex-col gap-2 px-5 pb-5 pt-3">
+              <div className="patio-os-sec-footer !justify-stretch flex flex-col gap-2 px-5 pb-5 pt-3">
                 <button
                   type="button"
                   onClick={confirmSaveAndLeave}

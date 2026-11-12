@@ -34,6 +34,7 @@ import {
 import { loadLabelTemplate } from '../utils/labelTemplates';
 import { NIIMBOT_LABEL_H_PX, NIIMBOT_LABEL_W_PX } from '../utils/niimbotLabelRender';
 import { ModalPortal } from './ui/ModalPortal';
+import { patioOsSecModalPcClass, usePatioOsPcLayout } from './patio/PatioOsPcLayoutContext';
 import { IosModalHeader } from './ui/IosModalHeader';
 import { iosModalClose, iosModalShell } from './ui/iosModalStyles';
 import { useBrowserBackLayer } from './ui/BackNavigationContext';
@@ -132,6 +133,7 @@ function Segmented<T extends string>({
 }
 
 export function PatioKeyLabelPrintModal({ open, label, onClose }: PatioKeyLabelPrintModalProps) {
+  const patioOsPcLayout = usePatioOsPcLayout();
   const [snap, setSnap] = useState<NiimbotServiceSnapshot>(() => niimbotService.snapshot());
   const [copies, setCopies] = useState(1);
   const [busy, setBusy] = useState(false);
@@ -199,12 +201,20 @@ export function PatioKeyLabelPrintModal({ open, label, onClose }: PatioKeyLabelP
   return (
     <ModalPortal>
       <div
-        className="fixed inset-0 z-[240] flex items-center justify-center bg-black/50 p-2 sm:p-4"
+        className={patioOsSecModalPcClass(
+          patioOsPcLayout,
+          'fixed inset-0 z-[240] flex items-center justify-center bg-black/50 p-2 sm:p-4 patio-os-sec-overlay'
+        )}
+        data-patio-os-sec-role={patioOsPcLayout ? 'overlay' : undefined}
         onClick={onClose}
         role="presentation"
       >
         <div
-          className={`${iosModalShell} relative flex h-[min(98dvh,980px)] w-full max-w-5xl flex-col overflow-hidden`}
+          className={patioOsSecModalPcClass(
+            patioOsPcLayout,
+            `${iosModalShell} relative flex h-[min(98dvh,980px)] w-full max-w-5xl flex-col overflow-hidden patio-os-sec-shell`
+          )}
+          data-patio-os-sec-role={patioOsPcLayout ? 'shell' : undefined}
           onClick={(e) => e.stopPropagation()}
           role="dialog"
           aria-modal="true"
@@ -214,7 +224,7 @@ export function PatioKeyLabelPrintModal({ open, label, onClose }: PatioKeyLabelP
             <X className="h-5 w-5" />
           </button>
 
-          <div className="shrink-0 border-b border-zinc-200/70 bg-white px-5 pb-3 pt-8 pr-24 dark:border-white/[0.06] dark:bg-transparent sm:px-6">
+          <div className="patio-os-sec-header shrink-0 border-b border-zinc-200/70 bg-white px-5 pb-3 pt-8 pr-24 dark:border-white/[0.06] dark:bg-transparent sm:px-6">
             <IosModalHeader
               icon={<Tag className="h-5 w-5 text-zinc-800" />}
               title="Imprimir etiqueta"

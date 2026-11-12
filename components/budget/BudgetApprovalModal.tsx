@@ -10,6 +10,7 @@ import {
   type SavedBudgetFromApi,
   type ServiceOrderUpdateActor,
 } from '../../services/apiService';
+import { patioOsSecModalPcClass, usePatioOsPcLayout } from '../patio/PatioOsPcLayoutContext';
 
 export type BudgetApprovalModalBudget = {
   id: string;
@@ -99,6 +100,7 @@ export const BudgetApprovalModal: React.FC<BudgetApprovalModalProps> = ({
   gateHint,
   orderType = null,
 }) => {
+  const patioOsPcLayout = usePatioOsPcLayout();
   const [approvalServices, setApprovalServices] = useState<boolean[]>([]);
   const [approvalParts, setApprovalParts] = useState<boolean[]>([]);
   const [saving, setSaving] = useState(false);
@@ -194,8 +196,17 @@ export const BudgetApprovalModal: React.FC<BudgetApprovalModalProps> = ({
 
   return (
     <ModalPortal>
-      <div className="fixed inset-0 z-[240] flex items-center justify-center overflow-hidden bg-slate-900/55 p-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] backdrop-blur-sm sm:p-5 lg:p-8 animate-modal-backdrop dark:bg-black/65">
-        <div className={approvalShell}>
+      <div
+        className={patioOsSecModalPcClass(
+          patioOsPcLayout,
+          'fixed inset-0 z-[240] flex items-center justify-center overflow-hidden bg-slate-900/55 p-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] backdrop-blur-sm sm:p-5 lg:p-8 animate-modal-backdrop dark:bg-black/65 patio-os-sec-overlay'
+        )}
+        data-patio-os-sec-role={patioOsPcLayout ? 'overlay' : undefined}
+      >
+        <div
+          className={patioOsSecModalPcClass(patioOsPcLayout, `${approvalShell} patio-os-sec-shell`)}
+          data-patio-os-sec-role={patioOsPcLayout ? 'shell' : undefined}
+        >
           <button
             type="button"
             onClick={onClose}
@@ -205,7 +216,7 @@ export const BudgetApprovalModal: React.FC<BudgetApprovalModalProps> = ({
             <X className="h-5 w-5" />
           </button>
 
-          <div className="shrink-0 border-b border-sky-100/90 bg-gradient-to-b from-white to-[#f5fbff] px-5 pb-4 pt-6 sm:px-7 sm:pb-5 sm:pt-7 lg:px-9 dark:border-sky-500/20 dark:from-zinc-900 dark:to-zinc-950">
+          <div className="patio-os-sec-header shrink-0 border-b border-sky-100/90 bg-gradient-to-b from-white to-[#f5fbff] px-5 pb-4 pt-6 sm:px-7 sm:pb-5 sm:pt-7 lg:px-9 dark:border-sky-500/20 dark:from-zinc-900 dark:to-zinc-950">
             <div className="flex items-start gap-3 pr-10">
               <div
                 className={
@@ -220,7 +231,7 @@ export const BudgetApprovalModal: React.FC<BudgetApprovalModalProps> = ({
                 <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-sky-700/85 dark:text-sky-400/90">
                   Orçamento
                 </p>
-                <h2 className="text-[21px] font-semibold leading-tight tracking-tight text-slate-900 sm:text-[22px] dark:text-white">
+                <h2 className="patio-os-sec-title text-[21px] font-semibold leading-tight tracking-tight text-slate-900 sm:text-[22px] dark:text-white">
                   Aprovar orçamento
                 </h2>
                 <p className="mt-1.5 flex items-start gap-1.5 text-[13px] leading-snug text-sky-900/70 dark:text-sky-200/70">
@@ -259,7 +270,7 @@ export const BudgetApprovalModal: React.FC<BudgetApprovalModalProps> = ({
             ) : null}
           </div>
 
-          <div className="budget-approval-modal-scroll space-y-5 bg-[#f8fcfe] px-5 py-5 custom-scrollbar sm:px-7 lg:px-9 dark:bg-zinc-950/90">
+          <div className="patio-os-sec-body budget-approval-modal-scroll space-y-5 bg-[#f8fcfe] px-5 py-5 custom-scrollbar sm:px-7 lg:px-9 dark:bg-zinc-950/90">
             {budget.services.length > 0 ? (
               <section>
                 <div className="mb-2.5 flex items-center gap-2">
