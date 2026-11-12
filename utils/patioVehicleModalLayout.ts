@@ -103,12 +103,12 @@ const COMPACT_MOBILE: PatioVehicleModalCompact = {
   dateFieldRow: '',
 };
 
-/** PC: faixa meta simétrica — mesma altura, inputs compactos. */
+/** PC: faixa meta simétrica — mesma altura, inputs compactos (Fase 1: ritmo/espaçamento). */
 const COMPACT_DESKTOP: PatioVehicleModalCompact = {
-  grid: 'gap-2',
-  row: 'patio-vm-meta-inner relative flex min-h-[3.25rem] items-center gap-2 px-2.5 py-2',
+  grid: 'gap-2.5',
+  row: 'patio-vm-meta-inner relative flex min-h-[3.5rem] items-center gap-2.5 px-3 py-2.5',
   splitRow:
-    'patio-vm-meta-inner relative flex min-h-[3.25rem] w-full min-w-0 flex-row flex-nowrap items-center gap-1.5 px-2.5 py-2',
+    'patio-vm-meta-inner relative flex min-h-[3.5rem] w-full min-w-0 flex-row flex-nowrap items-center gap-2 px-3 py-2.5',
   deliveryDateStack: '',
   deliveryDateControlRow: '',
   deliveryDateBar: '',
@@ -294,26 +294,27 @@ export function getPatioVehicleModalLayout(
   return {
     mode: 'desktop',
     overlay:
-      'patio-vehicle-modal patio-vehicle-modal--desktop fixed inset-0 z-[100] flex flex-col overflow-hidden bg-[#F2F2F7] dark:bg-[#0a0a0a] animate-in fade-in duration-200',
+      'patio-vehicle-modal patio-vehicle-modal--desktop patio-vm-shell-v1 fixed inset-0 z-[100] flex flex-col overflow-hidden bg-[#F2F2F7] dark:bg-[#0a0a0a] animate-in fade-in duration-200',
     shell:
       'patio-vehicle-modal__shell relative flex h-[100dvh] max-h-[100dvh] w-full min-h-0 flex-col overflow-hidden rounded-none border-0 bg-[#F2F2F7] shadow-none dark:bg-[#0a0a0a] dark:shadow-none',
     // Grid 2 colunas do topo: header+abas+conteúdo à esquerda; sidebar (status/ações) à direita.
     scroll:
       'patio-vm-scroll patio-vm-desktop-scroll min-h-0 flex-1 overflow-y-auto overscroll-y-auto custom-scrollbar',
+    // Fase 1: mais respiro vertical e hierarquia no chrome (cores intactas).
     header:
-      'patio-vm-desktop-header shrink-0 border-b border-zinc-300/80 bg-white/95 px-6 py-3 dark:border-white/[0.08] dark:bg-zinc-900/95 xl:px-8 xl:py-3.5',
-    headerInner: 'flex w-full min-w-0 flex-col gap-1',
-    headerTitlePad: 'min-w-0',
+      'patio-vm-desktop-header shrink-0 border-b border-zinc-300/80 bg-white/95 px-6 py-4 dark:border-white/[0.08] dark:bg-zinc-900/95 xl:px-8 xl:py-5',
+    headerInner: 'flex w-full min-w-0 flex-col gap-2.5',
+    headerTitlePad: 'min-w-0 pb-0.5',
     headerMeta:
-      'patio-vm-header-meta patio-vm-header-meta--pc mt-2 grid w-full min-w-0 grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4',
+      'patio-vm-header-meta patio-vm-header-meta--pc mt-3.5 grid w-full min-w-0 grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-4',
     title:
-      'patio-vehicle-modal__title font-vehicle min-w-0 flex-1 truncate text-[2rem] font-bold uppercase leading-none tracking-tight text-zinc-900 dark:text-white xl:text-[2.35rem]',
-    titlePlateRow: 'mt-0 flex min-w-0 items-center gap-3',
+      'patio-vehicle-modal__title font-vehicle min-w-0 flex-1 truncate text-[1.875rem] font-bold uppercase leading-[1.05] tracking-[-0.02em] text-zinc-900 dark:text-white xl:text-[2.125rem]',
+    titlePlateRow: 'mt-0 flex min-w-0 items-center gap-3.5',
     stagePill: `${STAGE_PILL_BASE} rounded-[16px] px-4 py-2 text-[15px] tracking-widest`,
     brandLogoSize: 'modalPc',
     plateMockupSize: 'modalPc',
     body: 'patio-vm-desktop-body',
-    mainCol: 'patio-vm-main-col min-w-0 space-y-5 px-6 pb-6 pt-4 xl:px-8',
+    mainCol: 'patio-vm-main-col min-w-0 space-y-6 px-6 pb-8 pt-5 xl:px-8',
     asideCol:
       'patio-vm-aside-col custom-scrollbar min-w-0 space-y-4 border-zinc-300/70 bg-[#F2F2F7] px-5 py-4 dark:border-white/[0.08] dark:bg-[#0a0a0a] xl:px-6 xl:py-5',
     insetCard:
@@ -325,7 +326,7 @@ export function getPatioVehicleModalLayout(
     assignHintLabel: 'Clique para atribuir',
     openHintLabel: 'Clique para abrir',
     sectionTitle:
-      'text-[12px] font-bold uppercase tracking-[0.12em] text-zinc-500 dark:text-zinc-400 mb-2 flex items-center gap-1.5',
+      'text-[12px] font-bold uppercase tracking-[0.12em] text-zinc-500 dark:text-zinc-400 mb-2.5 flex items-center gap-1.5',
     commentsList:
       'custom-scrollbar space-y-2.5 bg-[#F2F2F7]/80 p-3 dark:bg-black/25',
     customerMetaLabel: 'Cliente',

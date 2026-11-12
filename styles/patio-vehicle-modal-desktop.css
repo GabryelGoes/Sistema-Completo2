@@ -88,6 +88,11 @@ html[data-device='tablet'] .patio-vehicle-modal--desktop button:not(:disabled):a
   transform: none;
 }
 
+/* Fase 1: press nas abas PC (Apple feedback) — não anular transform. */
+html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-vm-tab-btn:not(:disabled):active {
+  transform: scale(0.98);
+}
+
 /* Dentro do shell PC: modal ocupa só a área de conteúdo (sidebar + topbar visíveis) */
 html[data-desktop-shell='true'] .desktop-shell-viewport-overlay.patio-vehicle-modal--desktop {
   display: flex;
@@ -283,4 +288,83 @@ html[data-device='desktop'] .patio-vehicle-modal--desktop .patio-vm-meta-card[ar
 html[data-device='tablet'] .patio-vehicle-modal--desktop .patio-vm-meta-card[aria-expanded='true'] {
   background-color: rgba(0, 122, 255, 0.12);
   border-color: rgba(0, 122, 255, 0.28);
+}
+
+/*
+ * Fase 1 — shell desktop (patio-vm-shell-v1): hierarquia, sticky chrome e feedback.
+ * Escopo: somente html[data-device='desktop'] + .patio-vm-shell-v1.
+ * Cores, fills e bordas coloridas NÃO mudam aqui.
+ */
+html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-vm-desktop-scroll {
+  /* Conteúdo um pouco mais largo no PC; sidebar estável. */
+  grid-template-columns: minmax(0, 1.7fr) minmax(17.5rem, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-vm-desktop-chrome {
+  grid-column: 1;
+  grid-row: 1;
+  position: sticky;
+  top: 0;
+  z-index: 16;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-vm-desktop-header,
+html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-vm-tabs {
+  grid-column: unset;
+  grid-row: unset;
+  position: static;
+  top: auto;
+  z-index: auto;
+}
+
+html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-vm-main-col {
+  grid-column: 1;
+  grid-row: 2;
+}
+
+html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-vm-aside-col {
+  grid-column: 2;
+  grid-row: 1 / -1;
+}
+
+html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-vm-header-meta--pc > .patio-vm-meta-card {
+  min-height: 3.5rem;
+}
+
+html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-vm-tab-btn {
+  min-height: 2.75rem;
+}
+
+html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-vm-tab-indicator {
+  transform-origin: center bottom;
+  animation: patio-vm-shell-v1-tab-indicator-in 0.22s cubic-bezier(0.32, 0.72, 0, 1) both;
+}
+
+@keyframes patio-vm-shell-v1-tab-indicator-in {
+  from {
+    opacity: 0;
+    transform: scaleX(0.55);
+  }
+  to {
+    opacity: 1;
+    transform: scaleX(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-vm-tab-btn {
+    transition: none;
+  }
+
+  html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-vm-tab-btn:active {
+    transform: none;
+  }
+
+  html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-vm-tab-indicator {
+    animation: none;
+  }
 }

@@ -2274,7 +2274,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
       return patioVehicleVm.overlay.replace('z-[100]', 'z-[320]');
     }
     if (desktopShell) {
-      return `${desktopShellViewportOverlayClass(true)} patio-vehicle-modal patio-vehicle-modal--desktop ${patioVmMotionPilotClass} flex min-h-0 flex-col overflow-hidden bg-[#F2F2F7] dark:bg-[#0a0a0a] animate-in fade-in duration-200`;
+      return `${desktopShellViewportOverlayClass(true)} patio-vehicle-modal patio-vehicle-modal--desktop patio-vm-shell-v1 ${patioVmMotionPilotClass} flex min-h-0 flex-col overflow-hidden bg-[#F2F2F7] dark:bg-[#0a0a0a] animate-in fade-in duration-200`;
     }
     return `${patioVehicleVm.overlay} ${patioVmMotionPilotClass}`.trim();
   }, [
@@ -9929,6 +9929,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                       </div>
                     </>
                   ) : null}
+                  <div className={isPatioPcModal ? 'patio-vm-desktop-chrome' : 'contents'}>
                   <div
                     className={
                       isPatioTabletLikeModal && !isModuleMode
@@ -10160,13 +10161,15 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             selectedCard.vehicleColor ||
                             ''
                           ).trim();
-                          const metaLineClass =
-                            'text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-500/90 dark:text-zinc-400';
+                          // PC Fase 1: tracking alinhado às section titles (0.12em); cores intactas.
+                          const metaLineClass = isPatioPcModal
+                            ? 'text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500/90 dark:text-zinc-400'
+                            : 'text-[11px] font-semibold uppercase tracking-[0.16em] text-zinc-500/90 dark:text-zinc-400';
 
                           if (isPatioPcModal) {
                             if (!brandText && !colorText && !yearText) return null;
                             return (
-                              <div className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1">
+                              <div className="mt-2 flex flex-wrap items-center gap-x-5 gap-y-1">
                                 {brandText ? <p className={metaLineClass}>{brandText}</p> : null}
                                 {colorText ? <p className={metaLineClass}>Cor: {colorText}</p> : null}
                                 {yearText ? <p className={metaLineClass}>Ano: {yearText}</p> : null}
@@ -11147,6 +11150,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                       }}
                     />
                   ) : null}
+                  </div>
 
                   <div className={patioVehicleVm.body}>
                       <div className={patioVehicleVm.mainCol}>
