@@ -354,7 +354,9 @@ export const ServiceTechnicianClosingModal: React.FC<ServiceTechnicianClosingMod
         <div
           className={patioOsSecModalPcClass(
             patioOsPcLayout,
-            `relative flex max-h-[min(92vh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1rem))] w-full ${modalWidthClass} min-h-0 flex-col overflow-hidden ${iosModalShell} animate-in zoom-in-95 duration-200 patio-os-sec-shell`
+            `relative flex max-h-[min(92vh,calc(100dvh-env(safe-area-inset-top)-env(safe-area-inset-bottom)-1rem))] w-full ${modalWidthClass} min-h-0 flex-col overflow-hidden ${iosModalShell} patio-os-sec-shell ${
+              patioOsPcLayout ? '' : 'animate-in zoom-in-95 duration-200'
+            }`
           )}
           data-patio-os-sec-role={patioOsPcLayout ? 'shell' : undefined}
           role="dialog"
