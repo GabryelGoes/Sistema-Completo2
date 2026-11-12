@@ -444,11 +444,6 @@ html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .pat
   box-shadow: 0 0 0 2px rgba(0, 122, 255, 0.35);
 }
 
-html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-vm-aside-comments-list {
-  padding-top: 0.75rem;
-  padding-bottom: 0.75rem;
-}
-
 @media (prefers-reduced-motion: reduce) {
   html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-vm-aside-icon-btn,
   html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-vm-aside-checklist-row {
@@ -461,16 +456,40 @@ html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .pat
   }
 }
 
-/* Ajustes: composer de comentários sem invasão da borda do card */
+/* Chat de comentários: área rolável com mouse/trackpad (PC). */
 html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-vm-aside-comments {
   display: flex;
   flex-direction: column;
+  min-height: 14rem;
 }
 
 html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-vm-aside-comments-list {
   flex: 1 1 auto;
   min-height: 0;
+  max-height: min(42vh, 22rem);
+  padding-top: 0.75rem;
+  padding-bottom: 0.75rem;
   border-bottom: 0;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+}
+
+html[data-device='desktop'] .patio-vehicle-modal--desktop .os-comments-scroll,
+html[data-device='tablet'] .patio-vehicle-modal--desktop .os-comments-scroll {
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+}
+
+@media (min-width: 1280px) {
+  html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-vm-aside-comments-list {
+    max-height: min(46vh, 24rem);
+  }
 }
 
 html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-vm-aside-composer {

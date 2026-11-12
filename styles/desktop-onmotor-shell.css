@@ -525,6 +525,15 @@ html[data-desktop-shell='true'] .desktop-shell-content [class*='overflow-y-auto'
   max-height: none !important;
 }
 
+/* Chat de comentários da OS: nunca anular overflow (mouse/trackpad). */
+html[data-desktop-shell='true'] .desktop-shell-content .os-comments-scroll,
+html[data-desktop-shell='true'] .desktop-shell-content [data-os-comments-scroll],
+html[data-desktop-shell='true'] .os-comments-scroll,
+html[data-desktop-shell='true'] [data-os-comments-scroll] {
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+}
+
 html[data-desktop-shell='true'] .desktop-shell-content .p-4.md\:p-8,
 html[data-desktop-shell='true'] .desktop-shell-content .md\:px-8 {
   padding: 1rem 1.25rem !important;

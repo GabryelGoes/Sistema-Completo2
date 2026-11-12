@@ -303,6 +303,16 @@ html[data-desktop-shell='true'] .desktop-shell-content .budgets-hub-col-scroll {
   min-height: 0;
 }
 
+/** Chat de comentários da OS — rolagem com mouse/trackpad. */
+.os-comments-scroll {
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  min-height: 0;
+}
+
 /** Rolagem vertical minimalista — modal de veículo (mobile). */
 .patio-vm-scroll--minimal {
   scrollbar-width: thin;

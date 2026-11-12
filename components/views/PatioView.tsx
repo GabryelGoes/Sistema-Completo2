@@ -3778,6 +3778,27 @@ export const PatioView: React.FC<PatioViewProps> = ({
     requestAnimationFrame(() => requestAnimationFrame(scrollToBottom));
   }, [selectedCard?.id, openModalCommentsReady, openModalCommentActions.length]);
 
+  // Roda/trackpad no chat: captura não-passiva para o aside não engolir o gesto.
+  useEffect(() => {
+    const el = commentsListRef.current;
+    if (!el) return;
+    const onWheel = (e: WheelEvent) => {
+      const maxScroll = el.scrollHeight - el.clientHeight;
+      if (maxScroll <= 1) return;
+      const next = Math.min(maxScroll, Math.max(0, el.scrollTop + e.deltaY));
+      const canMove =
+        next !== el.scrollTop ||
+        (e.deltaY < 0 && el.scrollTop > 0) ||
+        (e.deltaY > 0 && el.scrollTop < maxScroll - 0.5);
+      if (!canMove) return;
+      e.preventDefault();
+      e.stopPropagation();
+      el.scrollTop = next;
+    };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, [selectedCard?.id, openModalCommentsReady]);
+
   /** Pré-aquece cache de comentários ao passar o mouse no card (abertura mais rápida). */
   const prefetchVehicleComments = useCallback((orderId: string) => {
     if (!orderId) return;
@@ -8851,11 +8872,13 @@ export const PatioView: React.FC<PatioViewProps> = ({
                           </p>
                           <div className={`${iosVehicleModalInsetCard} overflow-hidden shadow-none`}>
                              <div
-                               className={`space-y-2.5 bg-[#F2F2F7]/80 p-3 dark:bg-black/25 custom-scrollbar sm:p-3.5 ${
-                                 (historyCardDetails?.actions?.length ?? 0) >= 4
-                                   ? 'max-h-[15.5rem] overflow-y-auto overscroll-contain sm:max-h-[16.5rem]'
-                                   : ''
-                               }`}
+                               data-os-comments-scroll=""
+                               onWheel={(e) => {
+                                 const el = e.currentTarget;
+                                 if (el.scrollHeight <= el.clientHeight + 1) return;
+                                 e.stopPropagation();
+                               }}
+                               className="os-comments-scroll max-h-[min(40vh,18rem)] space-y-2.5 overflow-y-auto overscroll-contain bg-[#F2F2F7]/80 p-3 custom-scrollbar dark:bg-black/25 sm:max-h-[min(42vh,19rem)] sm:p-3.5"
                              >
                                 {historyCardDetails?.actions && historyCardDetails.actions.length > 0 ? (
                                    historyCardDetails.actions.map(action => {
@@ -12608,12 +12631,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
                              <div
                                ref={commentsListRef}
-                               className={`${patioVehicleVm.commentsList} patio-vm-aside-comments-list !bg-[#E5DDD5]/55 dark:!bg-zinc-950/80 ${
-                                 openModalCommentActions.length >= 4
-                                   ? isPatioPcModal
-                                     ? 'max-h-[17.5rem] overflow-y-auto overscroll-contain custom-scrollbar xl:max-h-[19rem]'
-                                     : 'max-h-[15.5rem] overflow-y-auto overscroll-contain custom-scrollbar sm:max-h-[16.5rem]'
-                                   : ''
+                               data-os-comments-scroll=""
+                               className={`${patioVehicleVm.commentsList} patio-vm-aside-comments-list os-comments-scroll !bg-[#E5DDD5]/55 dark:!bg-zinc-950/80 ${
+                                 isPatioPcModal
+                                   ? 'max-h-[min(42vh,22rem)] overflow-y-auto overscroll-contain custom-scrollbar xl:max-h-[min(46vh,24rem)]'
+                                   : 'max-h-[min(40vh,18rem)] overflow-y-auto overscroll-contain custom-scrollbar sm:max-h-[min(42vh,19rem)]'
                                }`}
                              >
                                 {openModalCommentActions.length > 0 ? (
