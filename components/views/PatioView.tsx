@@ -11442,7 +11442,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
                          {/* Orçamentos: cabeçalho iOS; lista com aro em gradiente nos itens.
                              Oculto no Ver OS (peek) para não redundar com Solicitar Orçamento. */}
                          {can('canEditBudgets') && (
-                         <div ref={budgetsSectionRef}>
+                         <div
+                           ref={budgetsSectionRef}
+                           className={isPatioPcModal ? 'patio-vm-orc-v4' : undefined}
+                         >
                           {(() => {
                             const cardBudgetCount = savedBudgets.filter(
                               (b) => b.serviceOrderId === selectedCard.id
@@ -11470,7 +11473,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                               ) : null}
 
                               <div
-                                className={`relative flex items-center justify-between gap-2 border-b border-black/[0.06] bg-white/85 backdrop-blur-[2px] dark:border-white/[0.08] dark:bg-zinc-950/35 ${
+                                className={`patio-vm-orc-section-head relative flex items-center justify-between gap-2 border-b border-black/[0.06] bg-white/85 backdrop-blur-[2px] dark:border-white/[0.08] dark:bg-zinc-950/35 ${
                                   touchEmptyBudgets
                                     ? 'px-2.5 py-1.5 pl-3 sm:gap-2 sm:px-3 sm:py-1.5 sm:pl-3.5'
                                     : 'px-2.5 py-2 pl-3 sm:gap-3 sm:px-3 sm:py-2.5 sm:pl-4'
@@ -11487,28 +11490,32 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                 <button
                                     type="button"
                                     onClick={() => openBudgetModal()}
-                                    className="inline-flex shrink-0 items-center rounded-md bg-[#4FA8FF] px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-[0.06em] text-white shadow-sm shadow-blue-500/25 transition-[filter,transform] hover:bg-[#3397F8] active:scale-[0.98] dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-100"
+                                    className="patio-vm-orc-cta inline-flex shrink-0 items-center rounded-md bg-[#4FA8FF] px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-[0.06em] text-white shadow-sm shadow-blue-500/25 transition-[filter,transform] hover:bg-[#3397F8] active:scale-[0.98] dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-100"
                                   >
                                     + Criar orçamento
                                   </button>
                               </div>
 
                               <div
-                                className={`relative border-t border-zinc-200/60 bg-zinc-50/90 dark:border-white/[0.06] dark:bg-white/[0.02] ${
+                                className={`patio-vm-orc-body relative border-t border-zinc-200/60 bg-zinc-50/90 dark:border-white/[0.06] dark:bg-white/[0.02] ${
                                   touchEmptyBudgets
                                     ? 'space-y-0 px-2.5 py-1.5 sm:px-3 sm:py-2'
-                                    : 'space-y-3 px-3 py-3 sm:px-4 sm:py-4'
+                                    : isPatioPcModal
+                                      ? 'space-y-4 px-3.5 py-3.5 sm:px-4 sm:py-4'
+                                      : 'space-y-3 px-3 py-3 sm:px-4 sm:py-4'
                                 }`}
                               >
 
 
                                 <div
-                                  className={`overflow-x-hidden overflow-y-auto rounded-xl border border-zinc-200/75 bg-white/95 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)] dark:border-white/[0.08] dark:bg-zinc-950/50 ${
+                                  className={`patio-vm-orc-list overflow-x-hidden overflow-y-auto rounded-xl border border-zinc-200/75 bg-white/95 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)] dark:border-white/[0.08] dark:bg-zinc-950/50 ${
                                     touchEmptyBudgets
                                       ? 'max-h-none p-0'
-                                      : isPatioPcModal || isPatioTabletLikeModal
-                                        ? 'grid max-h-[380px] grid-cols-2 gap-2.5 p-3'
-                                        : 'max-h-[380px] space-y-2.5 p-2.5'
+                                      : isPatioPcModal
+                                        ? 'grid max-h-[min(28rem,48vh)] grid-cols-2 gap-3 p-3.5 xl:grid-cols-3'
+                                        : isPatioTabletLikeModal
+                                          ? 'grid max-h-[380px] grid-cols-2 gap-2.5 p-3'
+                                          : 'max-h-[380px] space-y-2.5 p-2.5'
                                   }`}
                                 >
                               {savedBudgets
@@ -11533,12 +11540,12 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                   return (
                                     <div
                                       key={budget.id}
-                                      className={`min-w-0 overflow-hidden bg-gradient-to-r from-[#007AFF] via-brand-yellow to-[#007AFF] p-[2px] shadow-[0_6px_16px_-8px_rgba(0,122,255,0.33)] dark:shadow-[0_10px_24px_-12px_rgba(59,130,246,0.32)] ${ringRadius}`}
+                                      className={`patio-vm-orc-card min-w-0 overflow-hidden bg-gradient-to-r from-[#007AFF] via-brand-yellow to-[#007AFF] p-[2px] shadow-[0_6px_16px_-8px_rgba(0,122,255,0.33)] dark:shadow-[0_10px_24px_-12px_rgba(59,130,246,0.32)] ${ringRadius}`}
                                     >
                                     <button
                                       type="button"
                                       onClick={() => openBudgetForView(budget)}
-                                      className={`group relative w-full border border-white/85 bg-white/95 text-left shadow-[0_6px_16px_-8px_rgba(0,0,0,0.22)] ring-1 ring-transparent transition-[border-color,box-shadow,ring-color] duration-200 hover:border-white hover:shadow-[0_10px_22px_-8px_rgba(0,122,255,0.33)] hover:ring-[#007AFF]/20 dark:border-white/[0.08] dark:bg-zinc-950/85 dark:shadow-[0_8px_20px_-10px_rgba(0,0,0,0.6)] dark:hover:border-[#93c5fd]/35 dark:hover:shadow-[0_12px_26px_-10px_rgba(59,130,246,0.28)] dark:hover:ring-[#7ab8ff]/20 ${innerRadius} ${
+                                      className={`patio-vm-orc-card-btn group relative w-full border border-white/85 bg-white/95 text-left shadow-[0_6px_16px_-8px_rgba(0,0,0,0.22)] ring-1 ring-transparent transition-[border-color,box-shadow,ring-color,transform] duration-200 hover:border-white hover:shadow-[0_10px_22px_-8px_rgba(0,122,255,0.33)] hover:ring-[#007AFF]/20 dark:border-white/[0.08] dark:bg-zinc-950/85 dark:shadow-[0_8px_20px_-10px_rgba(0,0,0,0.6)] dark:hover:border-[#93c5fd]/35 dark:hover:shadow-[0_12px_26px_-10px_rgba(59,130,246,0.28)] dark:hover:ring-[#7ab8ff]/20 ${innerRadius} ${
                                         isPatioPcModal || isPatioTabletLikeModal ? 'p-2.5' : 'p-3.5'
                                       }`}
                                     >
@@ -11580,7 +11587,15 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                     </p>
                                   </div>
                                 ) : (
-                                <div className={`rounded-xl border border-dashed border-zinc-300/95 bg-zinc-50/90 p-5 text-center dark:border-white/[0.12] dark:bg-white/[0.04]${isPatioPcModal || isPatioTabletLikeModal ? ' col-span-2' : ''}`}>
+                                <div
+                                  className={`rounded-xl border border-dashed border-zinc-300/95 bg-zinc-50/90 p-5 text-center dark:border-white/[0.12] dark:bg-white/[0.04]${
+                                    isPatioPcModal
+                                      ? ' col-span-2 xl:col-span-3'
+                                      : isPatioTabletLikeModal
+                                        ? ' col-span-2'
+                                        : ''
+                                  }`}
+                                >
                                   <img src="/icons/novo-orcamento-ios.png" alt="" className="mx-auto mb-2 h-9 w-9 rounded-[0.65rem] object-cover" />
                                   <p className="mt-0.5 text-sm font-semibold text-zinc-900 dark:text-zinc-100">Nenhum orçamento</p>
                                   <p className="mt-0.5 text-xs text-zinc-600 dark:text-zinc-400">Crie um orçamento pelo botão acima</p>
@@ -11602,7 +11617,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                 const conferenceBudget = cardBudgets.find((b) => b.id === activeConferenceId);
                                 if (!conferenceBudget) return null;
                                 return (
-                                  <div className="space-y-1.5">
+                                  <div
+                                    className={`space-y-1.5${
+                                      isPatioPcModal ? ' patio-vm-orc-verify' : ''
+                                    }`}
+                                  >
                                     {(() => {
                                       const selectionButtons =
                                         cardBudgets.length > 1

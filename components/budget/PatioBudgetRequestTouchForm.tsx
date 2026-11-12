@@ -1063,7 +1063,9 @@ export function PatioBudgetRequestTouchForm({
       onRequestClose={requestClose}
     >
       <div
-        className={`fixed inset-0 z-[200] flex h-[100dvh] max-h-[100dvh] w-full min-w-0 flex-col overflow-hidden bg-[#F2F4F7] text-slate-900 ${backdropAnimClass}`}
+        className={`fixed inset-0 z-[200] flex h-[100dvh] max-h-[100dvh] w-full min-w-0 flex-col overflow-hidden bg-[#F2F4F7] text-slate-900 ${backdropAnimClass}${
+          isPc ? ' patio-vm-orc-form-pc' : ''
+        }`}
         style={{ colorScheme: 'light' }}
       >
         <div
@@ -1133,7 +1135,7 @@ export function PatioBudgetRequestTouchForm({
           >
             <div
               className={`mx-auto flex w-full flex-col ${
-                isPc ? 'max-w-5xl gap-4' : 'max-w-3xl gap-3 sm:gap-3.5'
+                isPc ? 'max-w-6xl gap-5' : 'max-w-3xl gap-3 sm:gap-3.5'
               }`}
             >
               {/* Veículo e Cliente — sem ícone/título de seção */}
@@ -1267,7 +1269,7 @@ export function PatioBudgetRequestTouchForm({
                 }
                 title="Serviços"
               >
-                <div className="space-y-1.5">
+                <div className={`space-y-1.5${isPc ? ' patio-vm-orc-form-list' : ''}`}>
                   {budgetServices.map((item, serviceIndex) => {
                     const isFocused =
                       suggestionsForServiceId === item.id || laborEditorServiceId === item.id;
@@ -1487,10 +1489,12 @@ export function PatioBudgetRequestTouchForm({
                       </div>
                     );
                   })}
-                  <button type="button" onClick={addServiceRow} className={ADD_ROW_BTN}>
-                    <Plus className="h-4 w-4" strokeWidth={2.4} />
-                    Adicionar serviço
-                  </button>
+                  <div className={isPc ? 'patio-vm-orc-add-row-sticky' : undefined}>
+                    <button type="button" onClick={addServiceRow} className={ADD_ROW_BTN}>
+                      <Plus className="h-4 w-4" strokeWidth={2.4} />
+                      Adicionar serviço
+                    </button>
+                  </div>
                 </div>
               </SectionCard>
 
@@ -1506,7 +1510,7 @@ export function PatioBudgetRequestTouchForm({
                 }
                 title="Peças"
               >
-                <div className="space-y-1.5">
+                <div className={`space-y-1.5${isPc ? ' patio-vm-orc-form-list' : ''}`}>
                   {budgetParts.map((item, partIndex) => {
                     const isFocusedPart = suggestionsForPartId === item.id;
                     return (
@@ -1597,10 +1601,12 @@ export function PatioBudgetRequestTouchForm({
                       </div>
                     );
                   })}
-                  <button type="button" onClick={addPartRow} className={ADD_ROW_BTN}>
-                    <Plus className="h-4 w-4" strokeWidth={2.4} />
-                    Adicionar peça
-                  </button>
+                  <div className={isPc ? 'patio-vm-orc-add-row-sticky' : undefined}>
+                    <button type="button" onClick={addPartRow} className={ADD_ROW_BTN}>
+                      <Plus className="h-4 w-4" strokeWidth={2.4} />
+                      Adicionar peça
+                    </button>
+                  </div>
                 </div>
               </SectionCard>
 
