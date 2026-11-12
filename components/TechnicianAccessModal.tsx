@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Loader2, Save, ClipboardList, Calendar, Eye, EyeOff } from 'lucide-react';
+import { X, Loader2, Save, ClipboardList, Calendar } from 'lucide-react';
 import { PatioCarIcon } from './ui/PatioCarIcon';
 import { getWorkshopSettings, updateWorkshopSettings } from '../services/apiService';
 import { useRegisterModalOpen } from './ui/ModalLayerContext';
@@ -17,8 +17,6 @@ export const TechnicianAccessModal: React.FC<TechnicianAccessModalProps> = ({ is
   const [agenda, setAgenda] = useState(false);
   const [patio, setPatio] = useState(true);
   const [patioLoginEnabled, setPatioLoginEnabled] = useState(true);
-  const [patioPin, setPatioPin] = useState('');
-  const [showPatioPin, setShowPatioPin] = useState(false);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -30,7 +28,6 @@ export const TechnicianAccessModal: React.FC<TechnicianAccessModalProps> = ({ is
         setAgenda(s.technicianAccessAgenda ?? false);
         setPatio(s.technicianAccessPatio !== false);
         setPatioLoginEnabled(s.patioLoginEnabled);
-        setPatioPin(s.patioPin || '');
       })
       .catch((e) => setError(e instanceof Error ? e.message : 'Erro ao carregar'))
       .finally(() => setLoading(false));
@@ -45,7 +42,6 @@ export const TechnicianAccessModal: React.FC<TechnicianAccessModalProps> = ({ is
         technicianAccessAgenda: agenda,
         technicianAccessPatio: patio,
         patioLoginEnabled,
-        patioPin: patioPin.trim(),
       });
       onClose();
     } catch (e) {
@@ -144,7 +140,7 @@ export const TechnicianAccessModal: React.FC<TechnicianAccessModalProps> = ({ is
               <p className="text-[13px] text-zinc-600 dark:text-zinc-400 mb-4">
                 Controle o login dos mecânicos nos tablets. Se desativar, ninguém conseguirá entrar como &quot;Técnicos&quot; até ativar de novo.
               </p>
-              <div className="flex items-center justify-between gap-4 mb-4">
+              <div className="flex items-center justify-between gap-4">
                 <span className="text-[15px] font-medium text-zinc-900 dark:text-white">Permitir login dos técnicos</span>
                 <button
                   type="button"
@@ -155,28 +151,6 @@ export const TechnicianAccessModal: React.FC<TechnicianAccessModalProps> = ({ is
                 >
                   <span className={`absolute top-1 w-5 h-5 rounded-full bg-white shadow-md transition-transform duration-200 ease-out ${patioLoginEnabled ? 'translate-x-6 left-0.5' : 'translate-x-0 left-0.5'}`} />
                 </button>
-              </div>
-              <div>
-                <label className="block text-[13px] font-medium text-zinc-600 dark:text-zinc-400 mb-1.5">PIN do pátio</label>
-                <div className="relative">
-                  <input
-                    type={showPatioPin ? 'text' : 'password'}
-                    inputMode="numeric"
-                    value={patioPin}
-                    onChange={(e) => setPatioPin(e.target.value.replace(/\D/g, '').slice(0, 8))}
-                    placeholder="1234"
-                    className="w-full px-4 py-2.5 pr-12 rounded-xl bg-white dark:bg-zinc-800/50 border border-zinc-200 dark:border-white/10 text-zinc-900 dark:text-white placeholder:text-zinc-400 focus:outline-none focus:ring-2 focus:ring-emerald-500/40 text-[15px]"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPatioPin((v) => !v)}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-lg text-zinc-500 dark:text-zinc-400 hover:text-zinc-700 dark:hover:text-zinc-200 hover:bg-zinc-200/60 dark:hover:bg-white/10 transition-colors"
-                    aria-label={showPatioPin ? 'Ocultar PIN' : 'Mostrar PIN'}
-                  >
-                    {showPatioPin ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                  </button>
-                </div>
-                <p className="text-[11px] text-zinc-500 dark:text-zinc-500 mt-1">Os mecânicos usam esse PIN ao entrar como &quot;Técnicos&quot;.</p>
               </div>
             </div>
           )}

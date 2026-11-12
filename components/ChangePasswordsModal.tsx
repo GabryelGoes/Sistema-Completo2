@@ -15,6 +15,8 @@ interface ChangePasswordsModalProps {
 export const ChangePasswordsModal: React.FC<ChangePasswordsModalProps> = ({ isOpen, onClose }) => {
   const isDesktopShell = useDesktopShellLayout();
   const [patioPin, setPatioPin] = useState('');
+  const [patioPinConfigured, setPatioPinConfigured] = useState(false);
+  const [vehicleDeleteConfigured, setVehicleDeleteConfigured] = useState(false);
   const [loadingSettings, setLoadingSettings] = useState(false);
   const [savingPin, setSavingPin] = useState(false);
   const [adminPassword, setAdminPassword] = useState('');
@@ -40,13 +42,21 @@ export const ChangePasswordsModal: React.FC<ChangePasswordsModalProps> = ({ isOp
       setStockGuardConfirm('');
       setVehicleDeletePassword('');
       setVehicleDeleteConfirm('');
+      setPatioPin('');
       setLoadingSettings(true);
       getWorkshopSettings()
         .then((s) => {
-          setPatioPin(s.patioPin || '4366');
+          setPatioPin('');
+          setPatioPinConfigured(Boolean(s.patioPinConfigured));
+          setVehicleDeleteConfigured(Boolean(s.vehicleDeletePasswordConfigured));
           setStockGuardConfigured(Boolean(s.stockGuardPasswordConfigured));
         })
-        .catch(() => setPatioPin('4366'))
+        .catch(() => {
+          setPatioPin('');
+          setPatioPinConfigured(false);
+          setVehicleDeleteConfigured(false);
+          setMessage({ type: 'err', text: 'Não foi possível ler o estado das credenciais.' });
+        })
         .finally(() => setLoadingSettings(false));
     }
   }, [isOpen]);
@@ -87,7 +97,9 @@ export const ChangePasswordsModal: React.FC<ChangePasswordsModalProps> = ({ isOp
     }
     setSavingPin(true);
     try {
-      await updateWorkshopSettings({ patioPin: patioPin.trim() });
+      const saved = await updateWorkshopSettings({ patioPin: patioPin.trim() });
+      setPatioPinConfigured(Boolean(saved.patioPinConfigured));
+      setPatioPin('');
       setMessage({ type: 'ok', text: 'PIN dos técnicos alterado!' });
     } catch (err) {
       setMessage({ type: 'err', text: err instanceof Error ? err.message : 'Erro ao salvar.' });
@@ -109,7 +121,8 @@ export const ChangePasswordsModal: React.FC<ChangePasswordsModalProps> = ({ isOp
     }
     setSavingVehicleDelete(true);
     try {
-      await updateWorkshopSettings({ vehicleDeletePassword: vehicleDeletePassword.trim() });
+      const saved = await updateWorkshopSettings({ vehicleDeletePassword: vehicleDeletePassword.trim() });
+      setVehicleDeleteConfigured(Boolean(saved.vehicleDeletePasswordConfigured));
       setMessage({ type: 'ok', text: 'Senha para excluir veículos salva!' });
       setVehicleDeletePassword('');
       setVehicleDeleteConfirm('');
@@ -230,6 +243,10 @@ export const ChangePasswordsModal: React.FC<ChangePasswordsModalProps> = ({ isOp
             </div>
             <p className="text-[13px] text-zinc-600 dark:text-zinc-400 mb-4">
               PIN usado pelos mecânicos no login &quot;Pátio&quot;. De 4 a 8 dígitos.
+              {' '}
+              {patioPinConfigured
+                ? 'Já existe um PIN configurado. Informe um novo para substituir.'
+                : 'Nenhum PIN configurado.'}
             </p>
             {loadingSettings ? (
               <div className="flex items-center gap-2 text-zinc-500 text-sm py-4">
@@ -244,7 +261,7 @@ export const ChangePasswordsModal: React.FC<ChangePasswordsModalProps> = ({ isOp
                     autoComplete="off"
                     value={patioPin}
                     onChange={(e) => setPatioPin(e.target.value.replace(/\D/g, '').slice(0, 8))}
-                    placeholder="4366"
+                    placeholder="Novo PIN"
                     className={`${iosInput} pr-12`}
                     aria-label="PIN dos técnicos"
                   />
@@ -279,6 +296,10 @@ export const ChangePasswordsModal: React.FC<ChangePasswordsModalProps> = ({ isOp
             </div>
             <p className="text-[13px] text-zinc-600 dark:text-zinc-400 mb-4">
               Exigida no modal do veículo (Pátio) ao excluir um carro do sistema (arquiva a OS como cancelada).
+              {' '}
+              {vehicleDeleteConfigured
+                ? 'Já existe uma senha configurada. Informe uma nova para substituir.'
+                : 'Nenhuma senha de exclusão configurada.'}
             </p>
             <form onSubmit={handleSaveVehicleDelete} className="space-y-3">
               <input
