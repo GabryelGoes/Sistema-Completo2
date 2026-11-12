@@ -98,7 +98,6 @@ html[data-device='desktop'] .patio-vm-motion-pilot .patio-vehicle-modal__shell {
   /* Sobrescreve patio-vm-desktop-in e o genie 3D do wp-app só neste piloto */
   animation: patio-vm-pilot-shell-in 0.34s cubic-bezier(0.32, 0.72, 0, 1) both;
   transform-origin: center center;
-  will-change: transform, opacity, box-shadow;
 }
 
 html[data-device='desktop'] .patio-vm-motion-pilot .patio-vehicle-modal__shell.animate-modal-wp-app-out,
@@ -155,17 +154,24 @@ html[data-device='desktop'] .patio-vm-motion-pilot .patio-vm-main-col > * {
 /* —— Acessibilidade —— */
 
 @media (prefers-reduced-motion: reduce) {
+  /* Abertura: fade curto sem deslocamento */
   html[data-device='desktop'] .patio-vm-motion-pilot.patio-vehicle-modal--desktop,
-  html[data-device='desktop'] .patio-vm-motion-pilot.patio-vehicle-modal--desktop.animate-modal-backdrop-out,
   html[data-device='desktop'] .patio-vm-motion-pilot .patio-vehicle-modal__shell,
-  html[data-device='desktop'] .patio-vm-motion-pilot .patio-vehicle-modal__shell.animate-modal-wp-app-out,
-  html[data-device='desktop'] .patio-vm-motion-pilot.animate-modal-backdrop-out .patio-vehicle-modal__shell,
   html[data-device='desktop'] .patio-vm-motion-pilot .patio-vm-main-col > *,
   html[data-device='desktop'] .patio-vm-motion-pilot .patio-vm-tabs [role='tab'] .patio-vm-tab-indicator {
     animation: patio-vm-pilot-fade-in 0.18s ease both;
     transform: none !important;
     filter: none !important;
-    will-change: opacity;
+  }
+
+  /* Fechamento: sem reaplicar fade-in */
+  html[data-device='desktop'] .patio-vm-motion-pilot.patio-vehicle-modal--desktop.animate-modal-backdrop-out,
+  html[data-device='desktop'] .patio-vm-motion-pilot .patio-vehicle-modal__shell.animate-modal-wp-app-out,
+  html[data-device='desktop'] .patio-vm-motion-pilot.animate-modal-backdrop-out .patio-vehicle-modal__shell {
+    animation: none;
+    opacity: 0;
+    transform: none !important;
+    filter: none !important;
   }
 
   html[data-device='desktop'] .patio-vm-motion-pilot button:not(:disabled):active,

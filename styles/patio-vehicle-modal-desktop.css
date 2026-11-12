@@ -1022,3 +1022,77 @@ html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .pat
     transform: none;
   }
 }
+
+/*
+ * Fase 8 — Auditoria final (a11y, motion, scroll, desempenho).
+ * Somente desktop + shell-v1 / sec-v7. Sem mudança de cores ou layout tablet/mobile.
+ */
+
+/* Abas PC: foco de teclado alinhado às demais seções */
+html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-vm-tab-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(0, 122, 255, 0.35);
+}
+
+/* Ícones do chrome (fechar / ferramentas) */
+html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-vehicle-modal__icon-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(0, 122, 255, 0.35);
+}
+
+/* Composer de comentários — controles com foco visível */
+html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-vm-aside-composer button:focus-visible,
+html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-vm-aside-composer textarea:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(0, 122, 255, 0.35);
+}
+
+/* Aside: conter overscroll do painel lateral */
+html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-vm-aside-col {
+  overscroll-behavior: contain;
+}
+
+/* Orçamentos: lista aninhada com contain + CV nas cards longas */
+html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-vm-orc-v4 .patio-vm-orc-list {
+  overscroll-behavior: contain;
+}
+
+html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-vm-orc-v4 .patio-vm-orc-card {
+  content-visibility: auto;
+  contain-intrinsic-size: 140px;
+}
+
+/* Lab enviados: CV nas linhas para listas longas */
+html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-vm-lab-v6 .patio-vm-lab-link-row {
+  content-visibility: auto;
+  contain-intrinsic-size: 96px;
+}
+
+/* Shell base: respeitar reduced-motion (quando piloto não cobre) */
+@media (prefers-reduced-motion: reduce) {
+  html[data-device='desktop'] .patio-vehicle-modal--desktop .patio-vehicle-modal__shell {
+    animation: none;
+  }
+
+  html[data-device='desktop'] .patio-vehicle-modal--desktop .patio-vehicle-modal__shell.animate-modal-wp-app-out,
+  html[data-device='desktop'] .patio-vehicle-modal--desktop.animate-modal-backdrop-out .patio-vehicle-modal__shell {
+    animation: none;
+  }
+}
+
+/* Fase 7: saída e overlays também respeitam reduced-motion */
+@media (prefers-reduced-motion: reduce) {
+  html[data-device='desktop'] .patio-os-sec-modal--pc.patio-os-sec-v7.patio-os-sec-shell-out,
+  html[data-device='desktop'] .patio-os-sec-modal--pc.patio-os-sec-v7[data-patio-os-sec-exiting='true'],
+  html[data-device='desktop'] .patio-os-sec-modal--pc.patio-os-sec-v7.patio-os-sec-overlay,
+  html[data-device='desktop'] .patio-os-sec-modal--pc.patio-os-sec-v7[data-patio-os-sec-role='overlay'],
+  html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-os-sec-modal--pc.patio-os-sec-v7.patio-os-sec-inline-danger,
+  html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-os-sec-modal--pc.patio-os-sec-v7.patio-os-sec-inline-danger > .patio-os-sec-shell {
+    animation: none;
+  }
+}
+
+/* Main scroll: scroll-padding para foco não ficar sob chrome sticky */
+html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-vm-desktop-scroll {
+  scroll-padding-block: 0.75rem;
+}
