@@ -576,7 +576,7 @@ html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .pat
 
 html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-vm-orc-v4 .patio-vm-orc-cta:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 2px rgba(79, 168, 255, 0.45);
+  box-shadow: 0 0 0 2px rgba(0, 122, 255, 0.35);
 }
 
 html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-vm-orc-v4 .patio-vm-orc-cta:not(:disabled):active {
