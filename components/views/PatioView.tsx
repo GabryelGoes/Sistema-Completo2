@@ -11775,7 +11775,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                         disabled={isUploading}
                                         aria-expanded={isAnexosAddMenuOpen}
                                         aria-haspopup="menu"
-                                        className="patio-vm-arq-cta inline-flex shrink-0 items-center rounded-md bg-[#4FA8FF] px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-[0.06em] text-white shadow-sm shadow-blue-500/25 transition-[filter,transform] hover:bg-[#3397F8] active:scale-[0.98] disabled:opacity-50 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-100"
+                                        className="patio-vm-arq-cta inline-flex shrink-0 items-center rounded-md bg-[#007AFF] px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-[0.06em] text-white shadow-sm shadow-blue-500/25 transition-[filter,transform] hover:bg-[#0066d6] active:scale-[0.98] disabled:opacity-50 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-100"
                                     >
                                       + Adicionar
                                     </button>
