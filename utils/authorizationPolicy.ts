@@ -158,6 +158,27 @@ const COMMENT_READ = [
   "access_orcamentos",
 ] as const satisfies readonly PermissionKey[];
 
+const TECH_READ = [
+  "access_technicians",
+  "patio_assign_technician",
+  "access_patio",
+  "access_laboratorio",
+  "access_radar_qualidade",
+] as const satisfies readonly PermissionKey[];
+
+const SERVICE_READ = [
+  "access_servicos_oficina",
+  "access_patio",
+  "access_laboratorio",
+  "access_orcamentos",
+] as const satisfies readonly PermissionKey[];
+
+const CHECKLIST_READ = [
+  "access_checklists_patio",
+  "access_patio",
+  "access_laboratorio",
+] as const satisfies readonly PermissionKey[];
+
 function rule(init: {
   id: string;
   family: AuthorizationFamilyId;
@@ -205,9 +226,10 @@ function crud(
 
 function family(
   id: AuthorizationFamilyId,
-  prefixes: readonly string[]
+  prefixes: readonly string[],
+  mode: "off" | "shadow" = "off"
 ): AuthorizationFamily {
-  return { id, mode: "off", unmatched: "ignore", prefixes };
+  return { id, mode, unmatched: "ignore", prefixes };
 }
 
 const FAMILIES: readonly AuthorizationFamily[] = [
@@ -219,9 +241,10 @@ const FAMILIES: readonly AuthorizationFamily[] = [
   family("photos", ["/api/service-orders"]),
   family("parts_stock", ["/api/workshop-parts", "/api/workshop-suppliers", "/api/workshop-part-categories", "/api/estoque"]),
   family("abs_stock", ["/api/abs-modules", "/api/abs-module-models"]),
-  family("technicians", ["/api/workshop-technicians"]),
-  family("workshop_catalogs", ["/api/workshop-services", "/api/workshop/checklist-templates"]),
-  family("tv_admin", ["/api/tv"]),
+  // SEC-03.1: só observação. Leitura operacional não usa a chave de edição.
+  family("technicians", ["/api/workshop-technicians"], "shadow"),
+  family("workshop_catalogs", ["/api/workshop-services", "/api/workshop/checklist-templates"], "shadow"),
+  family("tv_admin", ["/api/tv"], "shadow"),
   family("bulletins", ["/api/error-bulletins"]),
   family("reports", ["/api/reports"]),
   family("notifications", ["/api/notifications"]),
@@ -591,7 +614,7 @@ const RULES: readonly AuthorizationRule[] = [
     action: "read",
     methods: ["GET"],
     path: "^/api/workshop-technicians(?:/[^/]+)?$",
-    anyOf: ["access_technicians", "patio_assign_technician"],
+    anyOf: TECH_READ,
     priority: 40,
   }),
   rule({
@@ -621,23 +644,106 @@ const RULES: readonly AuthorizationRule[] = [
     anyOf: ["access_technicians"],
     priority: 40,
   }),
+  rule({
+    id: "technicians_photo",
+    family: "technicians",
+    action: "update",
+    methods: ["POST"],
+    path: "^/api/workshop-technicians/[^/]+/photo$",
+    anyOf: ["access_technicians"],
+    priority: 80,
+  }),
 
-  ...crud("workshop_catalogs", "services", "^/api/workshop-services$", ["access_servicos_oficina"], 40),
-  ...crud("workshop_catalogs", "service", "^/api/workshop-services/[^/]+$", ["access_servicos_oficina"], 40),
-  ...crud(
-    "workshop_catalogs",
-    "checklists",
-    "^/api/workshop/checklist-templates$",
-    ["access_checklists_patio"],
-    40
-  ),
-  ...crud(
-    "workshop_catalogs",
-    "checklist",
-    "^/api/workshop/checklist-templates/[^/]+$",
-    ["access_checklists_patio"],
-    40
-  ),
+  rule({
+    id: "services_read",
+    family: "workshop_catalogs",
+    action: "read",
+    methods: ["GET"],
+    path: "^/api/workshop-services$",
+    anyOf: SERVICE_READ,
+    priority: 50,
+  }),
+  rule({
+    id: "service_read",
+    family: "workshop_catalogs",
+    action: "read",
+    methods: ["GET"],
+    path: "^/api/workshop-services/[^/]+$",
+    anyOf: SERVICE_READ,
+    priority: 50,
+  }),
+  rule({
+    id: "services_create",
+    family: "workshop_catalogs",
+    action: "create",
+    methods: ["POST"],
+    path: "^/api/workshop-services$",
+    anyOf: ["access_servicos_oficina"],
+    priority: 40,
+  }),
+  rule({
+    id: "service_update",
+    family: "workshop_catalogs",
+    action: "update",
+    methods: ["PUT", "PATCH"],
+    path: "^/api/workshop-services/[^/]+$",
+    anyOf: ["access_servicos_oficina"],
+    priority: 40,
+  }),
+  rule({
+    id: "service_delete",
+    family: "workshop_catalogs",
+    action: "delete",
+    methods: ["DELETE"],
+    path: "^/api/workshop-services/[^/]+$",
+    anyOf: ["access_servicos_oficina"],
+    priority: 40,
+  }),
+  rule({
+    id: "checklists_read",
+    family: "workshop_catalogs",
+    action: "read",
+    methods: ["GET"],
+    path: "^/api/workshop/checklist-templates$",
+    anyOf: CHECKLIST_READ,
+    priority: 50,
+  }),
+  rule({
+    id: "checklist_read",
+    family: "workshop_catalogs",
+    action: "read",
+    methods: ["GET"],
+    path: "^/api/workshop/checklist-templates/[^/]+$",
+    anyOf: CHECKLIST_READ,
+    priority: 50,
+  }),
+  rule({
+    id: "checklists_create",
+    family: "workshop_catalogs",
+    action: "create",
+    methods: ["POST"],
+    path: "^/api/workshop/checklist-templates$",
+    anyOf: ["access_checklists_patio"],
+    priority: 40,
+  }),
+  rule({
+    id: "checklist_update",
+    family: "workshop_catalogs",
+    action: "update",
+    methods: ["PUT", "PATCH"],
+    path: "^/api/workshop/checklist-templates/[^/]+$",
+    anyOf: ["access_checklists_patio"],
+    priority: 40,
+  }),
+  rule({
+    id: "checklist_delete",
+    family: "workshop_catalogs",
+    action: "delete",
+    methods: ["DELETE"],
+    path: "^/api/workshop/checklist-templates/[^/]+$",
+    anyOf: ["access_checklists_patio"],
+    priority: 40,
+  }),
 
   ...crud("tv_admin", "tv_goal", "^/api/tv/weekly-goal$", ["access_tv_patio"], 40),
   ...crud("tv_admin", "tv_video", "^/api/tv/video-settings$", ["access_tv_patio"], 40),

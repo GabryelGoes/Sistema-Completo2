@@ -207,9 +207,14 @@ async function main() {
   const production = productionAuthorizationPolicy();
   record(
     "produção nasce sem bloqueio",
-    production.families.every((family) => family.mode === "off" && family.unmatched === "ignore") &&
+    production.families.every((family) => family.unmatched === "ignore" && family.mode !== "enforce") &&
+      production.families
+        .filter((family) => family.mode === "shadow")
+        .map((family) => family.id)
+        .sort()
+        .join(",") === "technicians,tv_admin,workshop_catalogs" &&
       authorizationHasEnforce(production, {}) === false,
-    `${production.families.length} famílias desligadas`
+    "sombra só nas famílias administrativas"
   );
 
   const inactive = await decide({
@@ -819,21 +824,18 @@ async function main() {
       if (entry.isDirectory()) walk(full);
       else if (entry.name.endsWith(".ts")) {
         const text = fs.readFileSync(full, "utf8");
-        const re = /app\.(get|post|put|patch|delete)\(\s*(['"`])([^'"`]+)\2/g;
         const lines = text.split("\n");
         for (let index = 0; index < lines.length; index += 1) {
-          re.lastIndex = 0;
-          let match: RegExpExecArray | null;
-          const line = lines[index];
-          while ((match = re.exec(line))) {
-            if (!match[3].startsWith("/api/")) continue;
-            scanned.push({
-              method: match[1].toUpperCase(),
-              path: match[3],
-              file: path.relative(root, full),
-              line: index + 1,
-            });
-          }
+          if (!/app\.(get|post|put|patch|delete)\(/.test(lines[index])) continue;
+          const window = `${lines[index]}\n${lines[index + 1] ?? ""}`;
+          const match = /app\.(get|post|put|patch|delete)\(\s*(['"`])([^'"`]+)\2/.exec(window);
+          if (!match || !match[3].startsWith("/api/")) continue;
+          scanned.push({
+            method: match[1].toUpperCase(),
+            path: match[3],
+            file: path.relative(root, full),
+            line: index + 1,
+          });
         }
       }
     }
@@ -893,8 +895,168 @@ async function main() {
       coverage.overlaps.length > 0 &&
       coverage.overlaps.every((route) => route.conflict === false) &&
       uncoveredStaysOpen &&
-      production.families.every((family) => family.mode === "off"),
+      authorizationHasEnforce(production, {}) === false,
     `rotas ${scanned.length}; protegidas ${coverage.protectedRoutes.length}; públicas ${coverage.publicRoutes.length}; sem regra ${coverage.uncoveredRoutes.length}; sobrepostas ${coverage.overlaps.length}`
+  );
+
+  resetShadowLogLimiter();
+  const shadowLogs: string[] = [];
+  const shadowLog = (entry: ShadowRecord) => {
+    shadowLogs.push(`${entry.family}|${entry.rule}|${entry.decision}`);
+  };
+  const patio = { role: "user" as const, userId: USER };
+  const patioRow = {
+    id: USER,
+    workshopId: WORKSHOP,
+    permissions: { access_patio: true, access_laboratorio: true },
+  };
+  const serviceRead = await decide({
+    method: "GET",
+    path: "/api/workshop-services",
+    actor: patio,
+    rows: [patioRow],
+    log: shadowLog,
+  });
+  const checklistRead = await decide({
+    method: "GET",
+    path: "/api/workshop/checklist-templates",
+    actor: patio,
+    rows: [patioRow],
+    log: shadowLog,
+  });
+  const serviceWrite = await decide({
+    method: "POST",
+    path: "/api/workshop-services",
+    actor: patio,
+    rows: [patioRow],
+    log: shadowLog,
+  });
+  const checklistWrite = await decide({
+    method: "DELETE",
+    path: "/api/workshop/checklist-templates/modelo-1",
+    actor: patio,
+    rows: [patioRow],
+    log: shadowLog,
+  });
+  const techRead = await decide({
+    method: "GET",
+    path: "/api/workshop-technicians",
+    actor: patio,
+    rows: [patioRow],
+    log: shadowLog,
+  });
+  const techWrite = await decide({
+    method: "DELETE",
+    path: "/api/workshop-technicians/tecnico-1",
+    actor: patio,
+    rows: [patioRow],
+    log: shadowLog,
+  });
+  const techPhoto = await decide({
+    method: "POST",
+    path: "/api/workshop-technicians/tecnico-1/photo",
+    actor: patio,
+    rows: [patioRow],
+    log: shadowLog,
+  });
+  const catalogAdmin = await decide({
+    method: "POST",
+    path: "/api/workshop-services",
+    actor: patio,
+    rows: [{ id: USER, workshopId: WORKSHOP, permissions: { access_servicos_oficina: true } }],
+    log: shadowLog,
+  });
+  const checklistAdmin = await decide({
+    method: "DELETE",
+    path: "/api/workshop/checklist-templates/modelo-1",
+    actor: patio,
+    rows: [{ id: USER, workshopId: WORKSHOP, permissions: { access_checklists_patio: true } }],
+    log: shadowLog,
+  });
+  const tvAdmin = await decide({
+    method: "PUT",
+    path: "/api/tv/weekly-goal",
+    actor: patio,
+    rows: [{ id: USER, workshopId: WORKSHOP, permissions: { access_tv_patio: true } }],
+    log: shadowLog,
+  });
+  const tvDenied = await decide({
+    method: "POST",
+    path: "/api/tv/slides",
+    actor: patio,
+    rows: [patioRow],
+    log: shadowLog,
+  });
+  const tvPublic = await decide({
+    method: "GET",
+    path: "/api/tv/display",
+    actor: null,
+    log: shadowLog,
+  });
+  const tvPlaylist = await decide({
+    method: "GET",
+    path: "/api/tv/playlist",
+    actor: null,
+    log: shadowLog,
+  });
+  const osMove = await decide({
+    method: "PUT",
+    path: "/api/service-orders/os-1",
+    actor: patio,
+    rows: [patioRow],
+    log: shadowLog,
+  });
+  const lookup = await decide({
+    method: "POST",
+    path: "/api/tv/slides",
+    actor: patio,
+    fail: "error",
+    log: shadowLog,
+  });
+  const manager = await decide({
+    method: "DELETE",
+    path: "/api/workshop-technicians/tecnico-1",
+    actor: { role: "admin" },
+    log: shadowLog,
+  });
+  const fullAccess = await decide({
+    method: "POST",
+    path: "/api/workshop/checklist-templates",
+    actor: patio,
+    rows: [{ id: USER, workshopId: WORKSHOP, permissions: { full_access: true } }],
+    log: shadowLog,
+  });
+  record(
+    "sombra administrativa não bloqueia e separa leitura de escrita",
+    serviceRead.verdict.effect === "allow" &&
+      serviceRead.verdict.block === false &&
+      checklistRead.verdict.effect === "allow" &&
+      serviceWrite.verdict.effect === "deny" &&
+      serviceWrite.verdict.block === false &&
+      checklistWrite.verdict.effect === "deny" &&
+      checklistWrite.verdict.block === false &&
+      techRead.verdict.effect === "allow" &&
+      techWrite.verdict.effect === "deny" &&
+      techWrite.verdict.block === false &&
+      techPhoto.verdict.effect === "deny" &&
+      catalogAdmin.verdict.effect === "allow" &&
+      checklistAdmin.verdict.effect === "allow" &&
+      tvAdmin.verdict.effect === "allow" &&
+      tvDenied.verdict.effect === "deny" &&
+      tvDenied.verdict.block === false &&
+      tvPublic.verdict.effect === "exempt" &&
+      tvPublic.calls === 0 &&
+      tvPlaylist.verdict.effect === "exempt" &&
+      osMove.verdict.effect === "skipped" &&
+      osMove.calls === 0 &&
+      lookup.verdict.effect === "lookup_failed" &&
+      lookup.verdict.block === false &&
+      manager.verdict.effect === "allow" &&
+      manager.calls === 0 &&
+      fullAccess.verdict.effect === "allow" &&
+      shadowLogs.every((line) => line.endsWith("|deny") || line.endsWith("|lookup_failed")) &&
+      !shadowLogs.some((line) => line.includes(SECRET) || line.includes(USER)),
+    `serviço ${serviceRead.verdict.effect}/${serviceWrite.verdict.effect}; tv ${tvDenied.verdict.block}`
   );
 
   const mock = await startMock({
@@ -985,6 +1147,14 @@ async function main() {
     const expiredJson = await expired.json().catch(() => ({}));
     const display = await fetch(`${base}/api/tv/display`);
     const boardOpen = await fetch(`${base}/api/service-orders`);
+    const slide = token
+      ? await fetch(`${base}/api/tv/slides`, {
+          method: "POST",
+          headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
+          body: JSON.stringify({ title: "aviso", password: PASS_USER, patioPin: SECRET }),
+        })
+      : null;
+    const slideJson = slide ? await slide.json().catch(() => ({})) : {};
     record(
       "HTTP real não ganha bloqueio e a TV pública permanece",
       login.status === 200 &&
@@ -997,8 +1167,10 @@ async function main() {
         expiredJson?.code === "session_invalid" &&
         display.status === 200 &&
         boardOpen.status !== 401 &&
-        boardOpen.status !== 403,
-      `login ${login.status}; cliente ${created?.status}; tv ${display.status}; quadro ${boardOpen.status}`
+        boardOpen.status !== 403 &&
+        slide?.status !== 403 &&
+        slideJson?.code !== "permission_denied",
+      `login ${login.status}; cliente ${created?.status}; tv ${display.status}; quadro ${boardOpen.status}; slide ${slide?.status}`
     );
   } finally {
     server.close();
