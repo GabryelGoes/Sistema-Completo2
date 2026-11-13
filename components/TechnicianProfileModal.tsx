@@ -7,6 +7,7 @@ import { IosModalHeader } from './ui/IosModalHeader';
 import { getWorkshopTechnicians, updateWorkshopTechnician, uploadWorkshopTechnicianPhoto } from '../services/apiService';
 import { TechnicianPhotoEditorModal } from './TechnicianPhotoEditorModal';
 import { useRegisterModalOpen } from './ui/ModalLayerContext';
+import { isSelectableProfilePhoto } from '../utils/profilePhotoFile';
 
 function capitalizeFirst(str: string): string {
   if (!str || !str.trim()) return str;
@@ -78,8 +79,12 @@ export const TechnicianProfileModal: React.FC<TechnicianProfileModalProps> = ({
 
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file || !file.type.startsWith('image/')) return;
     e.target.value = '';
+    if (!isSelectableProfilePhoto(file)) {
+      setError('Selecione uma imagem (JPG ou PNG).');
+      return;
+    }
+    setError(null);
     setPhotoEditorFile(file);
   };
 
@@ -87,11 +92,18 @@ export const TechnicianProfileModal: React.FC<TechnicianProfileModalProps> = ({
     setPhotoEditorFile(null);
     setSaving(true);
     setError(null);
+    const previewUrl = URL.createObjectURL(blob);
+    setPhotoUrl(previewUrl);
     try {
       const file = new File([blob], 'foto.jpg', { type: 'image/jpeg' });
       const updated = await uploadWorkshopTechnicianPhoto(technicianId, file, file.name);
-      setPhotoUrl(updated.photo_url ?? null);
+      const nextUrl = typeof updated.photo_url === 'string' ? updated.photo_url.trim() : '';
+      if (!nextUrl) throw new Error('O servidor não devolveu a URL da foto.');
+      URL.revokeObjectURL(previewUrl);
+      setPhotoUrl(nextUrl);
     } catch (e) {
+      URL.revokeObjectURL(previewUrl);
+      setPhotoUrl(initialPhotoUrl);
       setError(e instanceof Error ? e.message : 'Erro ao enviar foto.');
     } finally {
       setSaving(false);

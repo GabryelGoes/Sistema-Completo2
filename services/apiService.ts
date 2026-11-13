@@ -6046,8 +6046,12 @@ export async function uploadMyProfilePhoto(
     const err = await response.json().catch(() => ({}));
     throw new Error(err.error || "Falha ao enviar foto.");
   }
-  const data = await response.json();
-  return { photoUrl: data.photoUrl };
+  const data = await response.json().catch(() => ({}));
+  const photoUrl = typeof data.photoUrl === "string" ? data.photoUrl.trim() : "";
+  if (!photoUrl) {
+    throw new Error("O servidor não devolveu a URL da foto.");
+  }
+  return { photoUrl };
 }
 
 // ---------- Configurações da oficina (acesso pátio) ----------

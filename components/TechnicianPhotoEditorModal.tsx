@@ -47,6 +47,7 @@ export const TechnicianPhotoEditorModal: React.FC<TechnicianPhotoEditorModalProp
   const [posY, setPosY] = useState(0);
   const [saving, setSaving] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
   const [naturalSize, setNaturalSize] = useState<{ w: number; h: number } | null>(null);
   const imageRef = useRef<HTMLImageElement>(null);
   const previewRef = useRef<HTMLDivElement>(null);
@@ -77,6 +78,7 @@ export const TechnicianPhotoEditorModal: React.FC<TechnicianPhotoEditorModalProp
     setPosX(0);
     setPosY(0);
     setImageLoaded(false);
+    setExportError(null);
     setNaturalSize(null);
     return () => URL.revokeObjectURL(url);
   }, [isOpen, imageFile]);
@@ -213,6 +215,7 @@ export const TechnicianPhotoEditorModal: React.FC<TechnicianPhotoEditorModalProp
     const img = imageRef.current;
     if (!img?.naturalWidth || !img?.naturalHeight) return;
     setSaving(true);
+    setExportError(null);
     try {
       const canvas = document.createElement('canvas');
       canvas.width = EXPORT_SIZE;
@@ -229,6 +232,10 @@ export const TechnicianPhotoEditorModal: React.FC<TechnicianPhotoEditorModalProp
       const posScale = EXPORT_SIZE / PREVIEW_SIZE;
       const tx = posX * posScale;
       const ty = posY * posScale;
+
+      // JPEG não tem transparência — fundo branco evita “foto vazia”.
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, EXPORT_SIZE, EXPORT_SIZE);
 
       ctx.save();
       if (!isSquare) {
@@ -249,10 +256,12 @@ export const TechnicianPhotoEditorModal: React.FC<TechnicianPhotoEditorModalProp
       await new Promise<void>((resolve, reject) => {
         canvas.toBlob(
           (blob) => {
-            if (blob) {
+            if (blob && blob.size > 0) {
               onSave(blob);
               resolve();
-            } else reject(new Error('Falha ao gerar imagem'));
+            } else {
+              reject(new Error('Não foi possível gerar a foto. Tente outro arquivo (JPG ou PNG).'));
+            }
             setSaving(false);
           },
           'image/jpeg',
@@ -261,7 +270,7 @@ export const TechnicianPhotoEditorModal: React.FC<TechnicianPhotoEditorModalProp
       });
     } catch (e) {
       setSaving(false);
-      throw e;
+      setExportError(e instanceof Error ? e.message : 'Não foi possível aplicar a foto.');
     }
   };
 
@@ -347,13 +356,25 @@ export const TechnicianPhotoEditorModal: React.FC<TechnicianPhotoEditorModalProp
                         transform: `translate(${posX}px, ${posY}px) scale(${scale}) rotate(${rotation}deg)`,
                       };
                     })()}
-                    crossOrigin="anonymous"
+                    // blob:/data: com crossOrigin taint o canvas e toBlob falha (foto some).
+                    crossOrigin={
+                      imageSrc.startsWith('blob:') || imageSrc.startsWith('data:')
+                        ? undefined
+                        : 'anonymous'
+                    }
                     onLoad={() => {
                       const img = imageRef.current;
                       if (img?.naturalWidth && img?.naturalHeight) {
                         setNaturalSize({ w: img.naturalWidth, h: img.naturalHeight });
+                        setImageLoaded(true);
+                        setExportError(null);
+                      } else {
+                        setExportError('Não foi possível ler esta imagem. Use JPG ou PNG.');
                       }
-                      setImageLoaded(true);
+                    }}
+                    onError={() => {
+                      setImageLoaded(false);
+                      setExportError('Não foi possível abrir esta imagem. Use JPG ou PNG.');
                     }}
                   />
                 </div>
@@ -399,6 +420,12 @@ export const TechnicianPhotoEditorModal: React.FC<TechnicianPhotoEditorModalProp
             </div>
           </div>
 
+          {exportError ? (
+            <div className="mb-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-[12px] text-red-700 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-300">
+              {exportError}
+            </div>
+          ) : null}
+
           <div className="flex gap-3 shrink-0">
             <button
               type="button"
@@ -409,7 +436,7 @@ export const TechnicianPhotoEditorModal: React.FC<TechnicianPhotoEditorModalProp
             </button>
             <button
               type="button"
-              onClick={handleApply}
+              onClick={() => void handleApply()}
               disabled={saving || !imageLoaded}
               className="flex-1 py-3 rounded-xl bg-violet-500 hover:bg-violet-600 disabled:opacity-50 text-white font-semibold flex items-center justify-center gap-2"
             >

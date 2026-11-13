@@ -12,6 +12,7 @@ import {
 import { TechnicianPhotoEditorModal } from './TechnicianPhotoEditorModal';
 import { useRegisterModalOpen } from './ui/ModalLayerContext';
 import { LOGIN_PASSWORD_MIN_LENGTH } from '../utils/loginPasswordPolicy';
+import { isSelectableProfilePhoto } from '../utils/profilePhotoFile';
 
 const ACCENT_COLORS = [
   { id: 'blue', label: 'Azul', bg: 'bg-blue-500', ring: 'ring-blue-500' },
@@ -60,13 +61,24 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [photoEditorFile, setPhotoEditorFile] = useState<File | null>(null);
+  const [photoBroken, setPhotoBroken] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const localPhotoOverrideRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (isOpen) {
       setDisplayName(initialDisplayName);
-      setPhotoUrl(initialPhotoUrl);
       setAccentColor(initialAccentColor ?? null);
+      // Não sobrescreve preview local recém-enviado se o pai ainda não propagou a URL.
+      if (localPhotoOverrideRef.current && initialPhotoUrl !== localPhotoOverrideRef.current) {
+        setPhotoUrl(localPhotoOverrideRef.current);
+      } else {
+        localPhotoOverrideRef.current = null;
+        setPhotoUrl(initialPhotoUrl);
+      }
+      setPhotoBroken(false);
+    } else {
+      localPhotoOverrideRef.current = null;
     }
   }, [isOpen, initialDisplayName, initialPhotoUrl, initialAccentColor]);
 
@@ -91,22 +103,40 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
 
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file || !file.type.startsWith('image/')) return;
     e.target.value = '';
+    if (!isSelectableProfilePhoto(file)) {
+      setError('Selecione uma imagem (JPG ou PNG).');
+      return;
+    }
+    setError(null);
     setPhotoEditorFile(file);
   };
 
   const handlePhotoEditorSave = async (blob: Blob) => {
     setPhotoEditorFile(null);
     setError(null);
+    setMessage(null);
     setSavingPhoto(true);
+    const previewUrl = URL.createObjectURL(blob);
+    localPhotoOverrideRef.current = previewUrl;
+    setPhotoUrl(previewUrl);
+    setPhotoBroken(false);
     try {
       const file = new File([blob], 'foto.jpg', { type: 'image/jpeg' });
       const res = await uploadMyProfilePhoto(file, file.name);
-      setPhotoUrl(res.photoUrl);
-      onProfileUpdated?.({ photoUrl: res.photoUrl });
+      const nextUrl = typeof res.photoUrl === 'string' ? res.photoUrl.trim() : '';
+      if (!nextUrl) {
+        throw new Error('O servidor não devolveu a URL da foto.');
+      }
+      URL.revokeObjectURL(previewUrl);
+      localPhotoOverrideRef.current = nextUrl;
+      setPhotoUrl(nextUrl);
+      onProfileUpdated?.({ photoUrl: nextUrl });
       setMessage('Foto atualizada.');
     } catch (e) {
+      URL.revokeObjectURL(previewUrl);
+      localPhotoOverrideRef.current = null;
+      setPhotoUrl(initialPhotoUrl);
       setError(e instanceof Error ? e.message : 'Erro ao enviar foto.');
     } finally {
       setSavingPhoto(false);
@@ -219,19 +249,28 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
             <button
               type="button"
               onClick={handlePhotoSelect}
-              className="relative w-24 h-24 rounded-full overflow-hidden bg-zinc-200 dark:bg-zinc-800 border-2 border-zinc-300 dark:border-zinc-600 flex items-center justify-center hover:opacity-90 transition-opacity"
+              disabled={savingPhoto}
+              className="relative w-24 h-24 rounded-full overflow-hidden bg-zinc-200 dark:bg-zinc-800 border-2 border-zinc-300 dark:border-zinc-600 flex items-center justify-center hover:opacity-90 transition-opacity disabled:opacity-60"
             >
-              {photoUrl ? (
+              {photoUrl && !photoBroken ? (
                 <img
                   src={photoUrl}
                   alt=""
                   className="absolute inset-0 size-full min-h-0 min-w-0 object-cover object-center"
+                  onError={() => setPhotoBroken(true)}
                 />
               ) : (
                 <Camera className="relative z-[1] w-10 h-10 text-zinc-500 dark:text-zinc-400" />
               )}
+              {savingPhoto ? (
+                <span className="absolute inset-0 z-[2] flex items-center justify-center bg-black/40">
+                  <Loader2 className="h-7 w-7 animate-spin text-white" />
+                </span>
+              ) : null}
             </button>
-            <span className="text-[12px] text-zinc-500 dark:text-zinc-400">Toque para alterar a foto</span>
+            <span className="text-[12px] text-zinc-500 dark:text-zinc-400">
+              {savingPhoto ? 'Enviando foto…' : 'Toque para alterar a foto'}
+            </span>
           </div>
 
           {/* Cor de destaque (técnicos) — exibida em todo o sistema */}

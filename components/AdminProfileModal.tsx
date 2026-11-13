@@ -8,6 +8,7 @@ import { getWorkshopSettings, updateWorkshopSettings, uploadWorkshopAdminPhoto }
 import { TechnicianPhotoEditorModal } from './TechnicianPhotoEditorModal';
 import { useRegisterModalOpen } from './ui/ModalLayerContext';
 import { LOGIN_PASSWORD_MIN_LENGTH } from '../utils/loginPasswordPolicy';
+import { isSelectableProfilePhoto } from '../utils/profilePhotoFile';
 
 interface AdminProfileModalProps {
   isOpen: boolean;
@@ -66,8 +67,12 @@ export const AdminProfileModal: React.FC<AdminProfileModalProps> = ({ isOpen, on
 
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file || !file.type.startsWith('image/')) return;
     e.target.value = '';
+    if (!isSelectableProfilePhoto(file)) {
+      setError('Selecione uma imagem (JPG ou PNG).');
+      return;
+    }
+    setError(null);
     setPhotoEditorFile(file);
   };
 
@@ -75,12 +80,18 @@ export const AdminProfileModal: React.FC<AdminProfileModalProps> = ({ isOpen, on
     setPhotoEditorFile(null);
     setSaving(true);
     setError(null);
+    const previewUrl = URL.createObjectURL(blob);
+    setPhotoUrl(previewUrl);
     try {
       const file = new File([blob], 'foto.jpg', { type: 'image/jpeg' });
       const res = await uploadWorkshopAdminPhoto(file, file.name);
-      setPhotoUrl(res.adminPhotoUrl);
+      const nextUrl = typeof res.adminPhotoUrl === 'string' ? res.adminPhotoUrl.trim() : '';
+      if (!nextUrl) throw new Error('O servidor não devolveu a URL da foto.');
+      URL.revokeObjectURL(previewUrl);
+      setPhotoUrl(nextUrl);
       onSaved?.();
     } catch (err) {
+      URL.revokeObjectURL(previewUrl);
       setError(err instanceof Error ? err.message : 'Erro ao enviar foto.');
     } finally {
       setSaving(false);

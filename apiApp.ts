@@ -2840,31 +2840,51 @@ export function createApiApp() {
           });
         }
         const file = req.file;
-        if (!file) {
+        if (!file || !file.buffer?.length) {
           return res.status(400).json({ error: "Arquivo de imagem não enviado." });
         }
         const bucket = VEHICLE_PHOTOS_BUCKET;
-        const ext = (file.mimetype === "image/jpeg" || file.mimetype === "image/jpg") ? "jpg" : file.mimetype === "image/png" ? "png" : "webp";
+        const mime = (file.mimetype || "").toLowerCase();
+        const ext =
+          mime === "image/png"
+            ? "png"
+            : mime === "image/webp"
+              ? "webp"
+              : "jpg";
+        const contentType =
+          mime === "image/png" || mime === "image/webp" || mime === "image/jpeg" || mime === "image/jpg"
+            ? mime === "image/jpg"
+              ? "image/jpeg"
+              : mime
+            : "image/jpeg";
         const pathInBucket = `${WORKSHOP_ID}/system-users/${userId}/photo.${ext}`;
         const { error: uploadError } = await supabaseAdmin.storage
           .from(bucket)
-          .upload(pathInBucket, file.buffer, { contentType: file.mimetype, upsert: true });
+          .upload(pathInBucket, file.buffer, { contentType, upsert: true });
         if (uploadError) {
           console.error("[API] Erro ao enviar foto do usuário:", uploadError);
           return res.status(500).json({ error: uploadError.message });
         }
         const { data: { publicUrl } } = supabaseAdmin.storage.from(bucket).getPublicUrl(pathInBucket);
+        if (!publicUrl) {
+          return res.status(500).json({ error: "Não foi possível obter a URL pública da foto." });
+        }
         const photoUrlWithCacheBust = `${publicUrl}${publicUrl.includes("?") ? "&" : "?"}v=${Date.now()}`;
-        const { error: updateErr } = await supabaseAdmin
+        const { data: updatedRow, error: updateErr } = await supabaseAdmin
           .from("workshop_system_users")
           .update({ photo_url: photoUrlWithCacheBust, updated_at: new Date().toISOString() })
           .eq("id", userId)
-          .eq("workshop_id", WORKSHOP_ID);
+          .eq("workshop_id", WORKSHOP_ID)
+          .select("photo_url")
+          .maybeSingle();
         if (updateErr) {
           console.error("[API] Erro ao atualizar photo_url do usuário:", updateErr);
           return res.status(500).json({ error: updateErr.message });
         }
-        return res.json({ photoUrl: photoUrlWithCacheBust });
+        if (!updatedRow) {
+          return res.status(404).json({ error: "Usuário não encontrado ao salvar a foto." });
+        }
+        return res.json({ photoUrl: updatedRow.photo_url || photoUrlWithCacheBust });
       } catch (err: any) {
         console.error("[API] Erro em POST /api/auth/my-profile/photo:", err);
         return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
@@ -13565,16 +13585,28 @@ export function createApiApp() {
           });
         }
         const file = req.file;
-        if (!file) {
+        if (!file || !file.buffer?.length) {
           return res.status(400).json({ error: "Arquivo de imagem não enviado." });
         }
         const bucket = VEHICLE_PHOTOS_BUCKET;
-        const ext = (file.mimetype === "image/jpeg" || file.mimetype === "image/jpg") ? "jpg" : file.mimetype === "image/png" ? "png" : "webp";
+        const mime = (file.mimetype || "").toLowerCase();
+        const ext =
+          mime === "image/png"
+            ? "png"
+            : mime === "image/webp"
+              ? "webp"
+              : "jpg";
+        const contentType =
+          mime === "image/png" || mime === "image/webp" || mime === "image/jpeg" || mime === "image/jpg"
+            ? mime === "image/jpg"
+              ? "image/jpeg"
+              : mime
+            : "image/jpeg";
         const pathInBucket = `${WORKSHOP_ID}/admin/photo.${ext}`;
         const { error: uploadError } = await supabaseAdmin.storage
           .from(bucket)
           .upload(pathInBucket, file.buffer, {
-            contentType: file.mimetype,
+            contentType,
             upsert: true,
           });
         if (uploadError) {
@@ -13582,6 +13614,9 @@ export function createApiApp() {
           return res.status(500).json({ error: uploadError.message });
         }
         const { data: { publicUrl } } = supabaseAdmin.storage.from(bucket).getPublicUrl(pathInBucket);
+        if (!publicUrl) {
+          return res.status(500).json({ error: "Não foi possível obter a URL pública da foto." });
+        }
         const photoUrlWithCacheBust = `${publicUrl}${publicUrl.includes("?") ? "&" : "?"}v=${Date.now()}`;
         const { error: updateErr } = await supabaseAdmin.from("workshop_settings").upsert(
           { workshop_id: WORKSHOP_ID, key: "admin_photo_url", value: photoUrlWithCacheBust, updated_at: new Date().toISOString() },
