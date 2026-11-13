@@ -37,6 +37,9 @@ export const ESTOQUE_PC_SECONDARY_CLASS = 'estoque-pc-secondary estoque-pc-secon
 /** Estoque ABS — home, ficha, fluxos e históricos (E5). */
 export const ESTOQUE_PC_ABS_CLASS = 'estoque-pc-abs estoque-pc-abs-v5';
 
+/** Etiquetas / Niimbot (E6) — apenas UI desktop do Estoque. */
+export const ESTOQUE_PC_PRINT_CLASS = 'estoque-pc-print estoque-pc-print-v6';
+
 export function estoquePcShellClass(pcLayout: boolean, extra = ''): string {
   if (!pcLayout) return extra;
   return extra ? `${ESTOQUE_PC_SHELL_CLASS} ${extra}` : ESTOQUE_PC_SHELL_CLASS;
@@ -73,5 +76,16 @@ export function estoquePcAbsClass(
   if (!pcLayout) return extra;
   const kindClass = `estoque-pc-abs-${kind}`;
   const joined = `${ESTOQUE_PC_ABS_CLASS} ${kindClass}`;
+  return extra ? `${joined} ${extra}` : joined;
+}
+
+export function estoquePcPrintClass(
+  pcLayout: boolean,
+  kind: 'part' | 'abs',
+  extra = ''
+): string {
+  if (!pcLayout) return extra;
+  const kindClass = `estoque-pc-print-${kind}`;
+  const joined = `${ESTOQUE_PC_PRINT_CLASS} ${kindClass}`;
   return extra ? `${joined} ${extra}` : joined;
 }

@@ -1106,3 +1106,113 @@ html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-abs-banner {
     transform: none;
   }
 }
+
+/*
+ * Fase E6 — Etiquetas / Niimbot (somente desktop shell + hub Estoque).
+ * Classes via useEstoquePcLayout() + estoquePcPrintClass — não altera cores
+ * nem o layout raster da etiqueta impressa (prévia permanece pixelated).
+ */
+
+html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-print {
+  cursor: default;
+}
+
+html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-print .estoque-pc-print-shell {
+  max-width: min(52rem, calc(100vw - 2rem));
+  max-height: min(88vh, 820px);
+}
+
+html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-print .estoque-pc-print-header {
+  padding-top: 1.75rem;
+  padding-bottom: 1rem;
+  background-color: rgba(255, 255, 255, 0.96);
+}
+
+html.dark[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-print .estoque-pc-print-header {
+  background-color: rgba(9, 9, 11, 0.94);
+}
+
+html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-print .estoque-pc-print-eyebrow {
+  font-size: 0.6875rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #0f7a4b;
+}
+
+html.dark[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-print .estoque-pc-print-eyebrow {
+  color: #34d399;
+}
+
+html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-print .estoque-pc-print-section-title {
+  margin: 0;
+  font-size: 0.6875rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #71717a;
+}
+
+html.dark[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-print .estoque-pc-print-section-title {
+  color: #a1a1aa;
+}
+
+html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-print .estoque-pc-print-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+  gap: 1.25rem 1.5rem;
+  align-items: start;
+}
+
+html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-print .estoque-pc-print-preview {
+  position: sticky;
+  top: 0;
+}
+
+html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-print .estoque-pc-print-body,
+html[data-device='desktop'][data-desktop-shell='true'] [data-estoque-print-scroll] {
+  min-height: 0 !important;
+  flex: 1 1 0% !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+}
+
+html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-print .estoque-pc-print-field input:focus-visible,
+html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-print button:focus-visible {
+  outline: 2px solid #0f7a4b;
+  outline-offset: 2px;
+}
+
+html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-print button:not(:disabled):active {
+  transform: scale(0.98);
+  transition: transform 100ms ease-out;
+}
+
+html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-print .estoque-pc-print-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+@media (max-width: 900px) {
+  html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-print .estoque-pc-print-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-print .estoque-pc-print-preview {
+    position: static;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-print button {
+    transition: none;
+  }
+
+  html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-print button:not(:disabled):active {
+    transform: none;
+  }
+}
