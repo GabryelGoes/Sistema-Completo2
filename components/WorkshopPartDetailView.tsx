@@ -260,68 +260,46 @@ export function WorkshopPartDetailView({
           <div className={pcLayout ? 'estoque-pc-detail-layout' : 'contents'}>
             {photosBlock}
             <div className={pcLayout ? 'estoque-pc-detail-main' : 'contents'}>
-          {/* Quantidade em destaque — primeiro olhar na ficha */}
-          <div
-            className={`estoque-pc-detail-stock-hero overflow-hidden rounded-2xl border-0 shadow-none ${
-              stockStatus === 'zero'
-                ? 'bg-gradient-to-br from-red-50 to-rose-100/80 dark:from-red-950/55 dark:to-rose-950/35'
-                : stockStatus === 'low'
-                  ? 'bg-gradient-to-br from-amber-50 to-orange-100/70 dark:from-amber-950/50 dark:to-orange-950/30'
-                  : 'bg-gradient-to-br from-emerald-50 to-teal-100/70 dark:from-emerald-950/45 dark:to-teal-950/30'
-            }`}
-          >
-            <div className="flex flex-wrap items-stretch gap-0">
-              <div
-                className={`flex min-w-[11rem] flex-1 flex-col justify-center px-5 py-5 sm:min-w-[14rem] sm:px-6 ${
-                  stockStatus === 'zero'
-                    ? 'bg-red-600 text-white dark:bg-red-700'
-                    : stockStatus === 'low'
-                      ? 'bg-amber-500 text-amber-950 dark:bg-amber-600 dark:text-amber-50'
-                      : 'bg-emerald-600 text-white dark:bg-emerald-700'
-                }`}
-              >
-                <p className="text-[11px] font-bold uppercase tracking-[0.14em] opacity-90">
-                  Quantidade em estoque
-                </p>
-                <p className="mt-1.5 text-[2.6rem] font-black leading-none tracking-tight tabular-nums sm:text-[3rem]">
-                  {formatWorkshopPartQty(part.stock_qty)}
-                </p>
-                <p className="mt-1.5 text-[14px] font-semibold opacity-95">{unit}</p>
-              </div>
-              <div className="flex min-w-0 flex-[1.4] flex-col justify-center gap-3 px-5 py-4 sm:px-6">
-                <div className="flex flex-wrap items-center gap-2">
-                  <WorkshopPartStockBadge status={stockStatus} />
-                  <span className="text-[13px] font-medium text-zinc-700 dark:text-zinc-200">
-                    {stockStatus === 'zero'
-                      ? 'Sem saldo — reposição necessária'
+          {/* Estoque — hierarquia Apple: rótulo secundário + número contido + badge */}
+          <div className={`${cardCls} estoque-pc-detail-stock-summary`}>
+            <div className="flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <p className={labelCls}>Em estoque</p>
+                <p
+                  className={`mt-1 text-[22px] font-semibold tracking-[-0.02em] tabular-nums leading-none ${
+                    stockStatus === 'zero'
+                      ? 'text-red-600 dark:text-red-400'
                       : stockStatus === 'low'
-                        ? 'Abaixo ou no mínimo'
-                        : 'Saldo ok'}
-                  </span>
-                </div>
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-                  <div>
-                    <p className={labelCls}>Mínimo</p>
-                    <p className="text-[16px] font-bold tabular-nums text-zinc-900 dark:text-white">
-                      {fmtQty(part.min_stock_qty ?? 0, unit)}
-                    </p>
-                  </div>
-                  <div>
-                    <p className={labelCls}>Máximo</p>
-                    <p className="text-[16px] font-bold tabular-nums text-zinc-900 dark:text-white">
-                      {part.max_stock_qty != null ? fmtQty(part.max_stock_qty, unit) : '—'}
-                    </p>
-                  </div>
-                  <div className="col-span-2 sm:col-span-1">
-                    <p className={labelCls}>Local</p>
-                    <p className="truncate text-[15px] font-semibold text-zinc-900 dark:text-white">
-                      {[storageSiteLabel(part.storage_site), part.location?.trim()]
-                        .filter(Boolean)
-                        .join(' · ') || '—'}
-                    </p>
-                  </div>
-                </div>
+                        ? 'text-amber-700 dark:text-amber-300'
+                        : 'text-zinc-900 dark:text-white'
+                  }`}
+                >
+                  {fmtQty(part.stock_qty, unit)}
+                </p>
               </div>
+              <WorkshopPartStockBadge status={stockStatus} showOk />
+            </div>
+            {stockStatus !== 'ok' ? (
+              <p className="mt-2.5 text-[13px] leading-snug text-zinc-500 dark:text-zinc-400">
+                {stockStatus === 'zero'
+                  ? 'Sem saldo. Reposição necessária.'
+                  : `Na ou abaixo do mínimo (${fmtQty(part.min_stock_qty ?? 0, unit)}).`}
+              </p>
+            ) : null}
+            <div className="mt-3 grid gap-3 border-t border-zinc-200/70 pt-3 sm:grid-cols-3 dark:border-white/[0.08]">
+              <DetailRow label="Mínimo" value={fmtQty(part.min_stock_qty ?? 0, unit)} />
+              <DetailRow
+                label="Máximo"
+                value={part.max_stock_qty != null ? fmtQty(part.max_stock_qty, unit) : '—'}
+              />
+              <DetailRow
+                label="Local"
+                value={
+                  [storageSiteLabel(part.storage_site), part.location?.trim()]
+                    .filter(Boolean)
+                    .join(' · ') || '—'
+                }
+              />
             </div>
           </div>
 
@@ -336,7 +314,7 @@ export function WorkshopPartDetailView({
               <DetailRow
                 label="Peça"
                 value={
-                  <span className="text-[18px] font-extrabold leading-tight text-zinc-900 dark:text-white">
+                  <span className="text-[17px] font-semibold leading-snug tracking-[-0.01em] text-zinc-900 dark:text-white">
                     {displayText(part.name)}
                   </span>
                 }
@@ -423,7 +401,7 @@ export function WorkshopPartDetailView({
               <DetailRow
                 label="Preço venda"
                 value={
-                  <span className="text-[18px] font-extrabold tabular-nums text-zinc-900 dark:text-white">
+                  <span className="text-[15px] font-semibold tabular-nums text-zinc-900 dark:text-white">
                     {fmtMoney(part.unit_price)}
                   </span>
                 }
