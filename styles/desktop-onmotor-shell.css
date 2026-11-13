@@ -540,7 +540,8 @@ html[data-desktop-shell='true'] .estoque-pc-scroll,
 html[data-desktop-shell='true'] [data-estoque-list-scroll],
 html[data-desktop-shell='true'] [data-estoque-form-scroll],
 html[data-desktop-shell='true'] [data-estoque-detail-scroll],
-html[data-desktop-shell='true'] [data-estoque-flow-scroll] {
+html[data-desktop-shell='true'] [data-estoque-flow-scroll],
+html[data-desktop-shell='true'] [data-estoque-secondary-scroll] {
   overflow-x: hidden !important;
   overflow-y: auto !important;
   min-height: 0 !important;
