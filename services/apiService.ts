@@ -5970,12 +5970,11 @@ export interface MyProfile {
   accentColor?: string | null;
 }
 
-export async function getMyProfile(username: string, password: string): Promise<MyProfile> {
-  const url = `${API_BASE}/auth/my-profile?username=${encodeURIComponent(username.trim())}&password=${encodeURIComponent(password)}`;
-  const response = await fetch(url);
+export async function getMyProfile(): Promise<MyProfile> {
+  const response = await fetch(`${API_BASE}/auth/my-profile`);
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
-    throw new Error(err.error || "Usuário ou senha incorretos.");
+    throw new Error(err.error || "Não foi possível ler o perfil.");
   }
   const data = await response.json();
   return {
@@ -5987,18 +5986,11 @@ export async function getMyProfile(username: string, password: string): Promise<
 }
 
 export async function updateMyProfile(
-  username: string,
-  password: string,
-  data: { displayName?: string; accentColor?: string | null },
-  options?: { profileToken?: string }
+  data: { displayName?: string; accentColor?: string | null }
 ): Promise<MyProfile> {
-  const body: Record<string, unknown> = {
-    username: username.trim(),
-    displayName: data.displayName?.trim(),
-    accentColor: data.accentColor !== undefined ? (data.accentColor?.trim() || null) : undefined,
-  };
-  if (options?.profileToken) body.profileToken = options.profileToken;
-  else body.password = password;
+  const body: Record<string, unknown> = {};
+  if (data.displayName !== undefined) body.displayName = data.displayName.trim();
+  if (data.accentColor !== undefined) body.accentColor = data.accentColor?.trim() || null;
   const response = await fetch(`${API_BASE}/auth/my-profile`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
@@ -6041,16 +6033,11 @@ export async function changeMyPassword(
 }
 
 export async function uploadMyProfilePhoto(
-  username: string,
   file: Blob,
-  fileName?: string,
-  auth?: { password?: string; profileToken?: string }
+  fileName?: string
 ): Promise<{ photoUrl: string }> {
   const form = new FormData();
   form.append("file", file, fileName || "photo.jpg");
-  form.append("username", username.trim());
-  if (auth?.profileToken) form.append("profileToken", auth.profileToken);
-  else if (auth?.password) form.append("password", auth.password);
   const response = await fetch(`${API_BASE}/auth/my-profile/photo`, {
     method: "POST",
     body: form,

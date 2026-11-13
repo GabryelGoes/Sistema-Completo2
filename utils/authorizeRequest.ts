@@ -90,6 +90,7 @@ const REASON_CODES = new Set([
   "permission",
   "self",
   "not_self",
+  "field_forbidden",
   "family_off",
   "no_rule",
   "exempt",
@@ -416,6 +417,7 @@ export async function decideAuthorization(input: {
   cache?: Map<string, CachedLookup>;
   log?: (record: ShadowRecord) => void;
   env?: NodeJS.ProcessEnv;
+  fields?: readonly string[];
 }): Promise<AuthorizationVerdict> {
   const policy = input.policy ?? productionAuthorizationPolicy();
   const env = input.env ?? process.env;
@@ -509,11 +511,26 @@ export async function decideAuthorization(input: {
       link = { ok: false };
     }
     if (!link.ok) return finish("lookup_failed", "lookup_failed");
-    if (link.linked) return finish("allow", "self");
-    return finish("deny", "not_self");
+    if (!link.linked) return finish("deny", "not_self");
+    if (matched.selfFields && !selfFieldsAllowed(matched.selfFields, input.fields)) {
+      return finish("deny", "field_forbidden");
+    }
+    return finish("allow", "self");
   }
 
   return finish("deny", "missing_permission");
+}
+
+function selfFieldsAllowed(allowed: readonly string[], present: readonly string[] | undefined): boolean {
+  if (!present) return false;
+  const accepted = new Set(allowed);
+  return present.every((field) => accepted.has(field));
+}
+
+/** Nomes dos campos presentes no corpo. Não devolve valores. */
+export function listedBodyFields(body: unknown): string[] {
+  if (!body || typeof body !== "object" || Array.isArray(body)) return [];
+  return Object.keys(body as Record<string, unknown>).filter((key) => key !== "__proto__" && key !== "constructor");
 }
 
 function technicianIdFromPath(path: string): string | null {
@@ -527,6 +544,7 @@ type ObservableRequest = {
   method?: string;
   path?: string;
   url?: string;
+  body?: unknown;
   auth?: { r?: string; u?: string };
 };
 
@@ -600,5 +618,6 @@ export async function observeHttpAuthorization(
     cache,
     log: deps.log,
     env: deps.env,
+    fields: listedBodyFields(req.body),
   });
 }

@@ -42,7 +42,6 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
   initialDisplayName,
   initialPhotoUrl,
   initialAccentColor = null,
-  profileToken,
   isTechnician = false,
   onClose,
   onProfileUpdated,
@@ -73,20 +72,11 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
 
   const handleSaveName = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!profileToken) {
-      setError('Faça login novamente para salvar o nome.');
-      return;
-    }
     setError(null);
     setMessage(null);
     setSavingName(true);
     try {
-      const updated = await updateMyProfile(
-        username,
-        '',
-        { displayName: displayName.trim() || username },
-        { profileToken }
-      );
+      const updated = await updateMyProfile({ displayName: displayName.trim() || username });
       setDisplayName(updated.displayName);
       onProfileUpdated?.({ displayName: updated.displayName });
       setMessage('Nome salvo.');
@@ -108,15 +98,11 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
 
   const handlePhotoEditorSave = async (blob: Blob) => {
     setPhotoEditorFile(null);
-    if (!profileToken) {
-      setError('Faça login novamente para alterar a foto.');
-      return;
-    }
     setError(null);
     setSavingPhoto(true);
     try {
       const file = new File([blob], 'foto.jpg', { type: 'image/jpeg' });
-      const res = await uploadMyProfilePhoto(username, file, file.name, { profileToken });
+      const res = await uploadMyProfilePhoto(file, file.name);
       setPhotoUrl(res.photoUrl);
       onProfileUpdated?.({ photoUrl: res.photoUrl });
       setMessage('Foto atualizada.');
@@ -129,20 +115,11 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
 
   const handleSaveColor = async (colorId: string | null) => {
     setAccentColor(colorId);
-    if (!profileToken) {
-      setError('Faça login novamente para salvar a cor.');
-      return;
-    }
     setError(null);
     setMessage(null);
     setSavingColor(true);
     try {
-      const updated = await updateMyProfile(
-        username,
-        '',
-        { accentColor: colorId },
-        { profileToken }
-      );
+      const updated = await updateMyProfile({ accentColor: colorId });
       setAccentColor(updated.accentColor ?? null);
       onProfileUpdated?.({ accentColor: updated.accentColor ?? null });
       setMessage('Cor salva.');
@@ -237,7 +214,7 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
             </div>
           )}
 
-          {/* Foto de perfil — sem exigência de senha quando há profileToken */}
+          {/* Foto, nome e cor usam a sessão. A senha continua no fluxo próprio. */}
           <div className="flex flex-col items-center gap-2">
             <button
               type="button"

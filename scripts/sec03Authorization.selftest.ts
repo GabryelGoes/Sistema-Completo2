@@ -19,6 +19,7 @@ import {
   authorizationHasEnforce,
   decideAuthorization,
   guardHttpAuthorization,
+  listedBodyFields,
   permissionSourceFromSupabase,
   resetShadowLogLimiter,
   SHADOW_LOG_WINDOW_MS,
@@ -135,6 +136,7 @@ async function decide(input: {
   workshopId?: string;
   links?: MemoryLink[];
   linkFail?: "no" | "error" | "throw";
+  fields?: readonly string[];
 }) {
   const memory = memorySource(input.rows ?? [], input.fail ?? "no", input.links ?? [], input.linkFail ?? "no");
   const verdict = await decideAuthorization({
@@ -147,6 +149,7 @@ async function decide(input: {
     cache: input.cache,
     log: input.log,
     env: input.env,
+    fields: input.fields,
   });
   return { verdict, calls: memory.calls(), linkCalls: memory.linkCalls() };
 }
@@ -1119,6 +1122,7 @@ async function main() {
     actor: { role: "user", userId: USER },
     rows: [ownRow],
     links: ownLink,
+    fields: ["name"],
   });
   const otherName = await decide({
     method: "PUT",
@@ -1252,6 +1256,92 @@ async function main() {
     `própria ${ownPhoto.verdict.reason}; outra ${otherPhoto.verdict.reason}; perfil ${selfProfile.verdict.block}`
   );
 
+  const ownSlug = await decide({
+    method: "PUT",
+    path: "/api/workshop-technicians/tecnico-1",
+    actor: { role: "user", userId: USER },
+    rows: [ownRow],
+    links: ownLink,
+    fields: ["slug"],
+  });
+  const ownSlugEnforce = await decide({
+    method: "PUT",
+    path: "/api/workshop-technicians/tecnico-1",
+    actor: { role: "user", userId: USER },
+    rows: [ownRow],
+    links: ownLink,
+    fields: ["slug"],
+    policy: enforceTechnicians,
+  });
+  const otherSlug = await decide({
+    method: "PUT",
+    path: "/api/workshop-technicians/tecnico-2",
+    actor: { role: "user", userId: USER },
+    rows: [ownRow],
+    links: ownLink,
+    fields: ["slug"],
+    policy: enforceTechnicians,
+  });
+  const mixedFields = await decide({
+    method: "PUT",
+    path: "/api/workshop-technicians/tecnico-1",
+    actor: { role: "user", userId: USER },
+    rows: [ownRow],
+    links: ownLink,
+    fields: ["name", "slug"],
+    policy: enforceTechnicians,
+  });
+  const ownColor = await decide({
+    method: "PUT",
+    path: "/api/workshop-technicians/tecnico-1",
+    actor: { role: "user", userId: USER },
+    rows: [ownRow],
+    links: ownLink,
+    fields: ["color_style"],
+    policy: enforceTechnicians,
+  });
+  const managerSlug = await decide({
+    method: "PUT",
+    path: "/api/workshop-technicians/tecnico-2",
+    actor: { role: "admin" },
+    fields: ["slug", "name", "color_style"],
+    policy: enforceTechnicians,
+  });
+  const unclassified = await decide({
+    method: "PUT",
+    path: "/api/workshop-technicians/tecnico-1",
+    actor: { role: "user", userId: USER },
+    rows: [ownRow],
+    links: ownLink,
+    policy: enforceTechnicians,
+  });
+  const bodyFields = listedBodyFields({ name: "Ana", slug: "ana", color_style: "zinc" });
+  record(
+    "vínculo próprio edita o nome e não o slug nem a cor do card",
+    ownName.verdict.effect === "allow" &&
+      ownName.verdict.block === false &&
+      ownSlug.verdict.effect === "deny" &&
+      ownSlug.verdict.reason === "field_forbidden" &&
+      ownSlug.verdict.block === false &&
+      ownSlugEnforce.verdict.block === true &&
+      otherSlug.verdict.effect === "deny" &&
+      otherSlug.verdict.reason === "not_self" &&
+      otherSlug.verdict.block === true &&
+      mixedFields.verdict.effect === "deny" &&
+      mixedFields.verdict.reason === "field_forbidden" &&
+      mixedFields.verdict.block === true &&
+      ownColor.verdict.reason === "field_forbidden" &&
+      managerSlug.verdict.effect === "allow" &&
+      managerSlug.verdict.reason === "admin" &&
+      managerSlug.linkCalls === 0 &&
+      unclassified.verdict.reason === "field_forbidden" &&
+      bodyFields.includes("name") &&
+      bodyFields.includes("slug") &&
+      !bodyFields.some((field) => field.includes("Ana")) &&
+      authorizationHasEnforce() === false,
+    `slug ${ownSlug.verdict.reason}; misto ${mixedFields.verdict.effect}; gerência ${managerSlug.verdict.reason}`
+  );
+
   const tables: Record<string, Row[]> = {
     workshop_settings: [
       ["admin_password", hashPassword(PASS_ADMIN)],
@@ -1349,6 +1439,12 @@ async function main() {
         })
       : null;
     const slideJson = slide ? await slide.json().catch(() => ({})) : {};
+    const profileRead = token
+      ? await fetch(`${base}/api/auth/my-profile`, {
+          headers: { authorization: `Bearer ${token}` },
+        })
+      : null;
+    const profileReadUrl = profileRead?.url || "";
     const profile = token
       ? await fetch(`${base}/api/auth/my-profile`, {
           method: "PATCH",
@@ -1368,6 +1464,9 @@ async function main() {
       login.status === 200 &&
         !!token &&
         created?.status === 201 &&
+        profileRead?.status === 200 &&
+        !profileReadUrl.includes("password=") &&
+        !profileReadUrl.includes(PASS_USER) &&
         profile?.status === 200 &&
         profileJson?.code !== "permission_denied" &&
         profileJson?.displayName === "Nova" &&

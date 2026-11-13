@@ -81,6 +81,11 @@ export type AuthorizationRule = {
    * workshop_quality_person_links. Nome parecido não cria vínculo.
    */
   ownership?: "session_user" | "linked_technician";
+  /**
+   * Campos que o vínculo próprio pode gravar. Qualquer outro campo na mesma
+   * requisição nega o pedido inteiro. Gerência e a chave administrativa não usam esta lista.
+   */
+  selfFields?: readonly string[];
 };
 
 export type AuthorizationFamily = {
@@ -195,6 +200,7 @@ function rule(init: {
   priority?: number;
   inherit?: "approve_budget_items";
   ownership?: "session_user" | "linked_technician";
+  selfFields?: readonly string[];
 }): AuthorizationRule {
   return {
     id: init.id,
@@ -206,6 +212,7 @@ function rule(init: {
     priority: init.priority ?? 50,
     inherit: init.inherit,
     ownership: init.ownership,
+    selfFields: init.selfFields,
   };
 }
 
@@ -642,6 +649,8 @@ const RULES: readonly AuthorizationRule[] = [
     path: "^/api/workshop-technicians/[^/]+$",
     anyOf: ["access_technicians"],
     ownership: "linked_technician",
+    // color_style é a cor do card no cadastro administrativo, não a cor pessoal.
+    selfFields: ["name"],
     priority: 40,
   }),
   rule({
