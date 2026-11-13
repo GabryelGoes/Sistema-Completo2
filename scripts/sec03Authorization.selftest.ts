@@ -18,14 +18,24 @@ import {
 import {
   authorizationHasEnforce,
   decideAuthorization,
-  observeHttpAuthorization,
+  guardHttpAuthorization,
   permissionSourceFromSupabase,
+  resetShadowLogLimiter,
+  SHADOW_LOG_WINDOW_MS,
+  shadowLogIdentity,
+  shouldEmitShadowLog,
   toShadowRecord,
+  unexpectedFailureDenies,
   type CachedLookup,
   type PermissionSource,
   type SessionActor,
   type ShadowRecord,
+  type AuthorizationVerdict,
 } from "../utils/authorizeRequest.js";
+import { auditAuthorizationCoverage, type ScannedRoute } from "../utils/authorizationCoverage.js";
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 const WORKSHOP = "11111111-1111-4111-8111-111111111111";
 const OTHER_WORKSHOP = "99999999-9999-4999-8999-999999999999";
@@ -386,6 +396,7 @@ async function main() {
     policy: enforcedParts,
   });
   const lookupShadowLogs: ShadowRecord[] = [];
+  resetShadowLogLimiter();
   const lookupShadow = await decide({
     method: "DELETE",
     path: "/api/workshop-parts/peca-1",
@@ -478,6 +489,7 @@ async function main() {
   );
 
   const logs: ShadowRecord[] = [];
+  resetShadowLogLimiter();
   await decide({
     method: "DELETE",
     path: `/api/workshop-parts/peca-1?pin=${SECRET}`,
@@ -683,6 +695,206 @@ async function main() {
       shouldClearSession(403, { error: "Sem permissão para esta operação.", code: "permission_denied" }) === false &&
       shouldClearSession(403, { error: "Este dispositivo foi bloqueado e não pode acessar o sistema." }) === true,
     "senha, segredo e sessão"
+  );
+
+  const mixed = {
+    rules: production.rules,
+    families: production.families.map((family) => {
+      if (family.id === "parts_stock") return { ...family, mode: "enforce" as const };
+      if (family.id === "budgets") return { ...family, mode: "shadow" as const };
+      if (family.id === "customers") return { ...family, mode: "off" as const };
+      return family;
+    }),
+  };
+  const actor = { role: "user" as const, userId: USER };
+  const emptyDeps = { workshopId: WORKSHOP, supabase: null, policy: mixed };
+  async function boom(): Promise<AuthorizationVerdict> {
+    throw new Error("falha inesperada");
+  }
+  const partsBoom = await guardHttpAuthorization(
+    { method: "DELETE", path: "/api/workshop-parts/peca-1", auth: { r: "user", u: USER } },
+    emptyDeps,
+    boom
+  );
+  const budgetBoom = await guardHttpAuthorization(
+    { method: "PUT", path: "/api/service-orders/os-1/budgets/orc-1", auth: { r: "user", u: USER } },
+    emptyDeps,
+    boom
+  );
+  const customerBoom = await guardHttpAuthorization(
+    { method: "POST", path: "/api/customers", auth: { r: "user", u: USER } },
+    emptyDeps,
+    boom
+  );
+  const tvBoom = await guardHttpAuthorization(
+    { method: "GET", path: "/api/tv/display" },
+    emptyDeps,
+    boom
+  );
+  const openBoom = await guardHttpAuthorization(
+    { method: "PUT", path: "/api/service-orders/os-1", auth: { r: "user", u: USER } },
+    emptyDeps,
+    boom
+  );
+  record(
+    "exceção só nega a família em enforce",
+    partsBoom.block === true &&
+      budgetBoom.block === false &&
+      customerBoom.block === false &&
+      tvBoom.block === false &&
+      openBoom.block === false &&
+      unexpectedFailureDenies({ method: "DELETE", path: "/api/workshop-parts/peca-1", actor, policy: mixed }) === true &&
+      unexpectedFailureDenies({ method: "PUT", path: "/api/service-orders/os-1/budgets/orc-1", actor, policy: mixed }) === false &&
+      unexpectedFailureDenies({ method: "POST", path: "/api/customers", actor, policy: mixed }) === false &&
+      unexpectedFailureDenies({ method: "GET", path: "/api/tv/display", actor: null, policy: mixed }) === false &&
+      unexpectedFailureDenies({ method: "POST", path: "/api/rda/proactive/scan/cron", actor: null, policy: mixed }) === false,
+    `peças ${partsBoom.block}; orçamento ${budgetBoom.block}; cliente ${customerBoom.block}`
+  );
+
+  resetShadowLogLimiter();
+  const repeated: string[] = [];
+  const shadowPolicy = withFamily("parts_stock", "shadow");
+  const shadowInput = {
+    method: "DELETE",
+    path: "/api/workshop-parts/peca-1",
+    actor,
+    rows: [{ id: USER, workshopId: WORKSHOP, permissions: {} }],
+    policy: shadowPolicy,
+    log(entry: ShadowRecord) {
+      repeated.push(shadowLogIdentity(entry));
+    },
+  };
+  await decide(shadowInput);
+  await decide(shadowInput);
+  const otherReason = shouldEmitShadowLog(
+    toShadowRecord({
+      family: "parts_stock",
+      rule: "part_delete",
+      action: "delete",
+      method: "DELETE",
+      decision: "deny",
+      reason: "not_in_workshop",
+    }),
+    1
+  );
+  const againLater = shouldEmitShadowLog(
+    toShadowRecord({
+      family: "parts_stock",
+      rule: "part_delete",
+      action: "delete",
+      method: "DELETE",
+      decision: "deny",
+      reason: "not_in_workshop",
+    }),
+    1 + SHADOW_LOG_WINDOW_MS
+  );
+  const poisoned = shadowLogIdentity({
+    kind: "sec03",
+    family: SECRET,
+    rule: TOKEN,
+    action: "delete",
+    method: "DELETE",
+    decision: "deny",
+    reason: CPF,
+  });
+  record(
+    "log repetido da mesma família, regra e motivo é limitado",
+    repeated.length === 1 &&
+      repeated[0] === "parts_stock|part_delete|missing_permission" &&
+      otherReason === true &&
+      againLater === true &&
+      !poisoned.includes(SECRET) &&
+      !poisoned.includes(TOKEN) &&
+      !poisoned.includes(CPF),
+    repeated[0] || "sem registro"
+  );
+
+  const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+  const scanned: ScannedRoute[] = [];
+  const skipDirs = new Set(["node_modules", "dist", "scripts", ".git"]);
+  const walk = (dir: string) => {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      if (skipDirs.has(entry.name)) continue;
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) walk(full);
+      else if (entry.name.endsWith(".ts")) {
+        const text = fs.readFileSync(full, "utf8");
+        const re = /app\.(get|post|put|patch|delete)\(\s*(['"`])([^'"`]+)\2/g;
+        const lines = text.split("\n");
+        for (let index = 0; index < lines.length; index += 1) {
+          re.lastIndex = 0;
+          let match: RegExpExecArray | null;
+          const line = lines[index];
+          while ((match = re.exec(line))) {
+            if (!match[3].startsWith("/api/")) continue;
+            scanned.push({
+              method: match[1].toUpperCase(),
+              path: match[3],
+              file: path.relative(root, full),
+              line: index + 1,
+            });
+          }
+        }
+      }
+    }
+  };
+  walk(root);
+  const coverage = auditAuthorizationCoverage(scanned, production);
+  const has = (kind: "public" | "protected" | "uncovered", method: string, routePath: string) =>
+    coverage.routes.some((route) => route.kind === kind && route.method === method && route.path === routePath);
+  const uncoveredStaysOpen = coverage.uncoveredRoutes.every((route) => {
+    return unexpectedFailureDenies({
+      method: route.method,
+      path: route.samplePath,
+      actor,
+      policy: production,
+    }) === false;
+  });
+  const syntheticConflict = auditAuthorizationCoverage(
+    [{ method: "GET", path: "/api/exemplo", file: "exemplo.ts", line: 1 }],
+    {
+      families: [{ id: "customers", mode: "off", unmatched: "ignore", prefixes: ["/api/exemplo"] }],
+      rules: [
+        {
+          id: "exemplo_a",
+          family: "customers",
+          action: "read",
+          methods: ["GET"],
+          path: /^\/api\/exemplo$/,
+          anyOf: [],
+          priority: 10,
+        },
+        {
+          id: "exemplo_b",
+          family: "customers",
+          action: "read",
+          methods: ["GET"],
+          path: /^\/api\/exemplo$/,
+          anyOf: [],
+          priority: 10,
+        },
+      ],
+    }
+  );
+  record(
+    "cobertura separa rota protegida, pública e sem regra",
+    scanned.length > 100 &&
+      coverage.conflicts.length === 0 &&
+      syntheticConflict.conflicts.length === 1 &&
+      has("public", "GET", "/api/health") &&
+      has("public", "POST", "/api/auth/login") &&
+      has("public", "GET", "/api/tv/display") &&
+      has("public", "GET", "/api/tv/playlist") &&
+      has("public", "GET", "/api/service-orders") &&
+      has("public", "POST", "/api/rda/proactive/scan/cron") &&
+      has("protected", "POST", "/api/customers") &&
+      has("protected", "DELETE", "/api/workshop-parts/:id") &&
+      has("uncovered", "PUT", "/api/service-orders/:id") &&
+      coverage.overlaps.length > 0 &&
+      coverage.overlaps.every((route) => route.conflict === false) &&
+      uncoveredStaysOpen &&
+      production.families.every((family) => family.mode === "off"),
+    `rotas ${scanned.length}; protegidas ${coverage.protectedRoutes.length}; públicas ${coverage.publicRoutes.length}; sem regra ${coverage.uncoveredRoutes.length}; sobrepostas ${coverage.overlaps.length}`
   );
 
   const mock = await startMock({

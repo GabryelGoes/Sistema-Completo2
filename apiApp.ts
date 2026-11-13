@@ -78,7 +78,7 @@ import { timeKindsToAutoPauseOnStageChange } from "./services/rdaIntelligence/wo
 import { recordServiceOrderStageEntry } from "./services/rdaIntelligence/patioIntelligence/recordStageEntry.js";
 import { assertHomologationSafeOrThrow } from "./utils/homologationGuard.js";
 import { classifyNewLoginPassword } from "./utils/loginPasswordPolicy.js";
-import { authorizationHasEnforce, observeHttpAuthorization } from "./utils/authorizeRequest.js";
+import { guardHttpAuthorization } from "./utils/authorizeRequest.js";
 import { normalizeAiImproveTextLevel } from "./utils/aiImproveTextLevel.js";
 import {
   pickWorkshopSettingsWrite,
@@ -1621,25 +1621,16 @@ export function createApiApp() {
         });
       }
       (req as unknown as { auth: SessionPayload }).auth = auth;
-      // SEC-03.0: famílias nascem desligadas. Só responde 403 se uma família estiver em enforce.
-      try {
-        const verdict = await observeHttpAuthorization(req, {
-          workshopId: WORKSHOP_ID,
-          supabase: supabaseAdmin,
+      // SEC-03.0: famílias nascem desligadas. 403 só na rota cuja família está em enforce.
+      const verdict = await guardHttpAuthorization(req, {
+        workshopId: WORKSHOP_ID,
+        supabase: supabaseAdmin,
+      });
+      if (verdict.block) {
+        return res.status(403).json({
+          error: "Sem permissão para esta operação.",
+          code: "permission_denied",
         });
-        if (verdict.block) {
-          return res.status(403).json({
-            error: "Sem permissão para esta operação.",
-            code: "permission_denied",
-          });
-        }
-      } catch {
-        if (authorizationHasEnforce()) {
-          return res.status(403).json({
-            error: "Sem permissão para esta operação.",
-            code: "permission_denied",
-          });
-        }
       }
       return next();
     }

@@ -9,6 +9,7 @@
  * mode enforce: nega (403 no chamador) quando a regra falha ou a consulta falha.
  * Falha de consulta nunca conta como autorização no modo de bloqueio.
  * Falha da telemetria não derruba a operação.
+ * Uma exceção inesperada só nega a rota cuja família está em enforce.
  */
 
 import {
@@ -162,13 +163,50 @@ function familyById(policy: AuthorizationPolicy, id: string): AuthorizationFamil
   return policy.families.find((family) => family.id === id);
 }
 
+export function findMatchingRules(policy: AuthorizationPolicy, method: string, path: string): AuthorizationRule[] {
+  const normalized = normalizeRequestPath(method, path);
+  return policy.rules.filter((rule) => rule.methods.includes(normalized.method) && rule.path.test(normalized.path));
+}
+
 function matchRule(policy: AuthorizationPolicy, method: string, path: string): AuthorizationRule | null {
   let found: AuthorizationRule | null = null;
-  for (const rule of policy.rules) {
-    if (!rule.methods.includes(method) || !rule.path.test(path)) continue;
+  for (const rule of findMatchingRules(policy, method, path)) {
     if (!found || rule.priority > found.priority) found = rule;
   }
   return found;
+}
+
+/**
+ * Negar no catch só quando a rota desta requisição está em enforce.
+ * Outra família em enforce não alcança esta rota. Rota pública, cron ou sem regra segue.
+ * Se a classificação falhar, não estende o bloqueio.
+ */
+export function unexpectedFailureDenies(input: {
+  method: string;
+  path: string;
+  actor: SessionActor | null;
+  policy?: AuthorizationPolicy;
+  env?: NodeJS.ProcessEnv;
+}): boolean {
+  try {
+    const policy = input.policy ?? productionAuthorizationPolicy();
+    const env = input.env ?? process.env;
+    const { method, path } = normalizeRequestPath(input.method, input.path);
+    if (isPublicOrAutomatedRoute(method, path, input.actor)) return false;
+    const matches = findMatchingRules(policy, method, path);
+    if (matches.length > 0) {
+      const top = matches.reduce((max, rule) => Math.max(max, rule.priority), 0);
+      return matches.some((rule) => {
+        if (rule.priority !== top) return false;
+        const family = familyById(policy, rule.family);
+        return !!family && effectiveFamilyMode(family, env) === "enforce";
+      });
+    }
+    const unmatched = matchUnmatchedFamily(policy, path);
+    return !!unmatched && effectiveFamilyMode(unmatched, env) === "enforce";
+  } catch {
+    return false;
+  }
 }
 
 function matchUnmatchedFamily(policy: AuthorizationPolicy, path: string): AuthorizationFamily | null {
@@ -238,8 +276,50 @@ export function toShadowRecord(input: {
   };
 }
 
+/**
+ * Volume do modo sombra.
+ * O mapa guarda só família, regra, motivo e o instante do último registro.
+ * Não guarda senha, token, cliente, corpo nem caminho.
+ *
+ * Em serverless (Vercel) cada instância tem a própria memória, e um cold start
+ * zera o mapa. O limite não se coordena entre instâncias: a mesma combinação
+ * pode aparecer uma vez por instância dentro da janela.
+ */
+export const SHADOW_LOG_WINDOW_MS = 15 * 60 * 1000;
+const SHADOW_LOG_MAX_KEYS = 200;
+const shadowLogSeen = new Map<string, number>();
+
+export function resetShadowLogLimiter(): void {
+  shadowLogSeen.clear();
+}
+
+export function shadowLogIdentity(record: ShadowRecord): string {
+  const safe = toShadowRecord(record);
+  return `${safe.family}|${safe.rule}|${safe.reason}`;
+}
+
+export function shouldEmitShadowLog(record: ShadowRecord, now = Date.now()): boolean {
+  const key = shadowLogIdentity(record);
+  const previous = shadowLogSeen.get(key);
+  if (previous !== undefined && now - previous < SHADOW_LOG_WINDOW_MS) return false;
+  shadowLogSeen.set(key, now);
+  if (shadowLogSeen.size > SHADOW_LOG_MAX_KEYS) {
+    const cutoff = now - SHADOW_LOG_WINDOW_MS;
+    for (const [entry, at] of shadowLogSeen) {
+      if (at < cutoff) shadowLogSeen.delete(entry);
+    }
+    while (shadowLogSeen.size > SHADOW_LOG_MAX_KEYS) {
+      const oldest = shadowLogSeen.keys().next().value;
+      if (oldest === undefined) break;
+      shadowLogSeen.delete(oldest);
+    }
+  }
+  return true;
+}
+
 function emitShadow(log: ((record: ShadowRecord) => void) | undefined, record: ShadowRecord): void {
   try {
+    if (!shouldEmitShadowLog(record)) return;
     (log ?? defaultShadowLog)(record);
   } catch {
     /* Telemetria não pode derrubar a operação. */
@@ -380,6 +460,46 @@ function actorFromRequest(req: ObservableRequest): SessionActor | null {
   if (role !== "admin" && role !== "user") return null;
   const userId = typeof req.auth?.u === "string" ? req.auth.u : undefined;
   return { role, userId };
+}
+
+export async function guardHttpAuthorization(
+  req: ObservableRequest,
+  deps: {
+    workshopId: string | undefined;
+    supabase: SupabasePermissionClient | null;
+    policy?: AuthorizationPolicy;
+    log?: (record: ShadowRecord) => void;
+    env?: NodeJS.ProcessEnv;
+  },
+  run: (
+    req: ObservableRequest,
+    deps: {
+      workshopId: string | undefined;
+      supabase: SupabasePermissionClient | null;
+      policy?: AuthorizationPolicy;
+      log?: (record: ShadowRecord) => void;
+      env?: NodeJS.ProcessEnv;
+    }
+  ) => Promise<AuthorizationVerdict> = observeHttpAuthorization
+): Promise<AuthorizationVerdict> {
+  try {
+    return await run(req, deps);
+  } catch {
+    return verdict({
+      effect: "lookup_failed",
+      block: unexpectedFailureDenies({
+        method: req.method || "GET",
+        path: req.path || req.url || "",
+        actor: actorFromRequest(req),
+        policy: deps.policy,
+        env: deps.env,
+      }),
+      family: null,
+      rule: null,
+      action: null,
+      reason: "lookup_failed",
+    });
+  }
 }
 
 export async function observeHttpAuthorization(
