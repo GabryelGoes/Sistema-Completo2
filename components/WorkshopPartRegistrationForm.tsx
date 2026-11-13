@@ -17,6 +17,7 @@ import {
 import { PartPhotoImg } from './ui/PartPhotoImg';
 import { CurrencyMaskInput } from './ui/CurrencyMaskInput';
 import { BarcodeScanner } from './BarcodeScanner';
+import { useEstoquePcLayout } from './estoque/EstoquePcLayoutContext';
 import type { WorkshopPart, WorkshopPartCategory, WorkshopPartFiscalExtra } from '../services/apiService';
 import { WORKSHOP_PART_PHOTOS_MAX } from '../services/apiService';
 import { normalizeBarcodeInput } from '../utils/workshopPartBarcode';
@@ -383,6 +384,7 @@ export function WorkshopPartRegistrationForm({
   onSubmit,
   onCancel,
 }: WorkshopPartRegistrationFormProps) {
+  const pcLayout = useEstoquePcLayout();
   const [values, setValues] = useState<WorkshopPartFormValues>(() =>
     initialPart ? partToFormValues(initialPart) : emptyPartFormValues()
   );
@@ -427,16 +429,19 @@ export function WorkshopPartRegistrationForm({
   };
 
   return (
-    <div className="space-y-6">
+    <div className={pcLayout ? 'estoque-pc-form' : 'space-y-6'}>
       {error ? (
         <p
+          role="alert"
           className={`rounded-xl border-0 bg-red-50 px-4 py-3 text-[14px] text-red-800 shadow-none dark:bg-red-950/40 dark:text-red-200 ${lightCardShadow}`}
         >
           {error}
         </p>
       ) : null}
 
-      <div className="space-y-3">
+      <section className={pcLayout ? 'estoque-pc-form-section' : 'space-y-3'}>
+        {pcLayout ? <h3 className="estoque-pc-form-section-title">Fotos</h3> : null}
+        <div className={pcLayout ? 'space-y-3' : 'contents'}>
         <div className="flex flex-wrap items-center justify-between gap-2">
           <FieldLabel
             hint={`A primeira foto é a capa na lista do estoque. Até ${maxPhotos} imagens.`}
@@ -447,7 +452,13 @@ export function WorkshopPartRegistrationForm({
             {photos.length}/{maxPhotos}
           </span>
         </div>
-        <div className="grid max-w-[min(100%,520px)] grid-cols-3 gap-3 sm:grid-cols-4">
+        <div
+          className={
+            pcLayout
+              ? 'estoque-pc-form-photos-grid grid grid-cols-3 gap-3 sm:grid-cols-4'
+              : 'grid max-w-[min(100%,520px)] grid-cols-3 gap-3 sm:grid-cols-4'
+          }
+        >
           {Array.from(
             {
               length:
@@ -543,10 +554,19 @@ export function WorkshopPartRegistrationForm({
             </button>
           </div>
         ) : null}
-      </div>
+        </div>
+      </section>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <div className="space-y-1.5 sm:col-span-2 lg:col-span-3">
+      <section className={pcLayout ? 'estoque-pc-form-section' : undefined}>
+        {pcLayout ? <h3 className="estoque-pc-form-section-title">Identificação e localização</h3> : null}
+      <div
+        className={
+          pcLayout
+            ? 'estoque-pc-form-identity-grid'
+            : 'grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3'
+        }
+      >
+          <div className={`space-y-1.5 ${pcLayout ? 'estoque-pc-span-all' : 'sm:col-span-2 lg:col-span-3'}`}>
             <FieldLabel>Nome da peça</FieldLabel>
             <input
               type="text"
@@ -653,7 +673,7 @@ export function WorkshopPartRegistrationForm({
               className={inputCls}
             />
           </div>
-          <div className="space-y-1.5 sm:col-span-2">
+          <div className={`space-y-1.5 ${pcLayout ? 'estoque-pc-span-2' : 'sm:col-span-2'}`}>
             <FieldLabel hint="Quantidade líquida da embalagem (ex.: 500 ml, 1 L)">Conteúdo</FieldLabel>
             <div className="flex gap-2">
               <input
@@ -680,7 +700,7 @@ export function WorkshopPartRegistrationForm({
               </select>
             </div>
           </div>
-          <div className="space-y-1.5 sm:col-span-2 lg:col-span-3">
+          <div className={`space-y-1.5 ${pcLayout ? 'estoque-pc-span-all' : 'sm:col-span-2 lg:col-span-3'}`}>
             <FieldLabel>Descrição</FieldLabel>
             <textarea
               value={values.description}
@@ -690,7 +710,7 @@ export function WorkshopPartRegistrationForm({
               rows={3}
             />
           </div>
-          <div className="space-y-1.5 sm:col-span-2 lg:col-span-3">
+          <div className={`space-y-1.5 ${pcLayout ? 'estoque-pc-span-all' : 'sm:col-span-2 lg:col-span-3'}`}>
             <FieldLabel>Características</FieldLabel>
             <textarea
               value={values.characteristics}
@@ -700,7 +720,7 @@ export function WorkshopPartRegistrationForm({
               rows={3}
             />
           </div>
-          <div className="space-y-1.5 sm:col-span-2 lg:col-span-3">
+          <div className={`space-y-1.5 ${pcLayout ? 'estoque-pc-span-all' : 'sm:col-span-2 lg:col-span-3'}`}>
             <FieldLabel hint="Pode escolher mais de uma; a primeira é a família principal">
               Categorias
             </FieldLabel>
@@ -713,8 +733,11 @@ export function WorkshopPartRegistrationForm({
             />
           </div>
         </div>
+      </section>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+      <section className={pcLayout ? 'estoque-pc-form-section' : undefined}>
+        {pcLayout ? <h3 className="estoque-pc-form-section-title">Aplicação e observações</h3> : null}
+      <div className={pcLayout ? 'estoque-pc-form-two-col' : 'grid grid-cols-1 gap-4 lg:grid-cols-2'}>
         <div className="space-y-1.5">
           <FieldLabel hint="Veículos, aplicações e códigos similares">Aplicação e similares</FieldLabel>
           <textarea
@@ -734,9 +757,18 @@ export function WorkshopPartRegistrationForm({
           />
         </div>
       </div>
+      </section>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <div className="space-y-1.5 sm:col-span-2">
+      <section className={pcLayout ? 'estoque-pc-form-section' : undefined}>
+        {pcLayout ? <h3 className="estoque-pc-form-section-title">Preços e fiscal</h3> : null}
+      <div
+        className={
+          pcLayout
+            ? 'estoque-pc-form-pricing-grid'
+            : 'grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4'
+        }
+      >
+        <div className={`space-y-1.5 ${pcLayout ? 'estoque-pc-span-2' : 'sm:col-span-2'}`}>
           <FieldLabel hint="Nomenclatura Comum do Mercosul">NCM</FieldLabel>
           <input
             type="text"
@@ -761,7 +793,7 @@ export function WorkshopPartRegistrationForm({
             onChange={(code) => patch({ unit_of_measure: code })}
           />
         </div>
-        <div className="space-y-1.5 sm:col-span-2">
+        <div className={`space-y-1.5 ${pcLayout ? 'estoque-pc-span-2' : 'sm:col-span-2'}`}>
           <FieldLabel>Origem da peça</FieldLabel>
           <select
             value={values.fiscal_origin}
@@ -857,7 +889,9 @@ export function WorkshopPartRegistrationForm({
           />
         </div>
       </div>
+      </section>
 
+      <section className={pcLayout ? 'estoque-pc-form-section' : undefined}>
       <div
         className={`rounded-xl border-0 bg-emerald-50/70 p-4 dark:bg-emerald-950/25 ${lightCardShadow}`}
       >
@@ -895,6 +929,7 @@ export function WorkshopPartRegistrationForm({
           </div>
         </div>
       </div>
+      </section>
 
       <button
         type="button"
@@ -908,6 +943,8 @@ export function WorkshopPartRegistrationForm({
         Mais configurações fiscais
       </button>
 
+      <section className={pcLayout ? 'estoque-pc-form-section' : undefined}>
+        {pcLayout ? <h3 className="estoque-pc-form-section-title">Lista de compras</h3> : null}
       <div
         className={`overflow-hidden rounded-xl border-0 bg-zinc-50/50 dark:bg-transparent ${lightCardShadow}`}
       >
@@ -1040,8 +1077,15 @@ export function WorkshopPartRegistrationForm({
           </ul>
         )}
       </div>
+      </section>
 
-      <div className="flex flex-col-reverse gap-3 border-t border-zinc-200/50 dark:border-white/[0.06] pt-6 sm:flex-row sm:items-center sm:justify-between">
+      <div
+        className={
+          pcLayout
+            ? 'estoque-pc-form-actions'
+            : 'flex flex-col-reverse gap-3 border-t border-zinc-200/50 dark:border-white/[0.06] pt-6 sm:flex-row sm:items-center sm:justify-between'
+        }
+      >
         <button
           type="button"
           onClick={onCancel}

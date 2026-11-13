@@ -15,6 +15,7 @@ import {
 } from '../utils/workshopPartFields';
 import { formatWorkshopPartQty, getWorkshopPartStockStatus } from '../utils/workshopPartStock';
 import { WorkshopPartStockBadge } from './ui/WorkshopPartStockBadge';
+import { useEstoquePcLayout } from './estoque/EstoquePcLayoutContext';
 import type { PartPhotoSlot } from './WorkshopPartRegistrationForm';
 
 const labelCls =
@@ -95,6 +96,7 @@ export function WorkshopPartDetailView({
   footerExtra,
   onPartUpdated,
 }: WorkshopPartDetailViewProps) {
+  const pcLayout = useEstoquePcLayout();
   const unit = part.unit_of_measure ?? 'UN';
   const stockStatus = getWorkshopPartStockStatus(part);
   const categoryNames = (part.category_ids ?? [])
@@ -133,8 +135,75 @@ export function WorkshopPartDetailView({
   const osNum = labContext?.os_number;
   const complaint = (labContext?.issue_description ?? '').trim();
 
+  const photosBlock = (
+          <div className={pcLayout ? 'estoque-pc-detail-photos space-y-2' : 'space-y-2'}>
+            <p className={pcLayout ? 'estoque-pc-detail-section-title' : labelCls}>Fotos</p>
+            {photos.length > 0 ? (
+              <>
+                <p className="text-[12px] text-zinc-500 dark:text-zinc-400">
+                  Toque em uma foto para ampliar · pinça ou toque duplo para zoom
+                </p>
+                <div
+                  className={
+                    pcLayout
+                      ? 'estoque-pc-detail-photos-grid grid grid-cols-2 gap-3'
+                      : 'grid max-w-[min(100%,520px)] grid-cols-3 gap-3 sm:grid-cols-4'
+                  }
+                >
+                {photos.map((slot, index) => {
+                  const url = (slot.remoteUrl ?? slot.previewUrl)?.trim();
+                  const canPreview = !!url;
+                  return (
+                  <div
+                    key={slot.id}
+                    className="group relative aspect-square overflow-hidden rounded-xl border-0 bg-zinc-100 dark:bg-white/[0.03]"
+                  >
+                    {canPreview ? (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setPreviewImages({
+                            urls: photoUrls,
+                            currentIndex: index,
+                          })
+                        }
+                        className="absolute inset-0 h-full w-full focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
+                        aria-label={`Ampliar foto ${index + 1} de ${photos.length}`}
+                      >
+                        <PartPhotoImg
+                          src={url}
+                          alt=""
+                          className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-105"
+                        />
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/0 transition-colors group-hover:bg-black/25 group-active:bg-black/35">
+                          <ZoomIn className="h-7 w-7 text-white opacity-0 drop-shadow-lg transition-opacity group-hover:opacity-100" />
+                        </div>
+                      </button>
+                    ) : (
+                      <PartPhotoImg
+                        src={url}
+                        alt=""
+                        className="h-full w-full object-cover"
+                      />
+                    )}
+                    {index === 0 ? (
+                      <span className="pointer-events-none absolute left-1 top-1 z-[1] rounded-md bg-emerald-600 px-1.5 py-0.5 text-[9px] font-bold uppercase text-white">
+                        Capa
+                      </span>
+                    ) : null}
+                  </div>
+                  );
+                })}
+                </div>
+              </>
+            ) : (
+              <p className={`${valueCls} text-zinc-500 dark:text-zinc-400`}>Sem fotos cadastradas.</p>
+            )}
+          </div>
+  );
+
   return (
-    <div className="space-y-5">
+    <div className={pcLayout ? 'estoque-pc-detail' : 'space-y-5'}>
       {loading ? (
         <div className="flex justify-center py-12">
           <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
@@ -188,67 +257,11 @@ export function WorkshopPartDetailView({
             </div>
           ) : null}
 
-          <div className="space-y-2">
-            <p className={labelCls}>Fotos</p>
-            {photos.length > 0 ? (
-              <>
-                <p className="text-[12px] text-zinc-500 dark:text-zinc-400">
-                  Toque em uma foto para ampliar · pinça ou toque duplo para zoom
-                </p>
-                <div className="grid max-w-[min(100%,520px)] grid-cols-3 gap-3 sm:grid-cols-4">
-                {photos.map((slot, index) => {
-                  const url = (slot.remoteUrl ?? slot.previewUrl)?.trim();
-                  const canPreview = !!url;
-                  return (
-                  <div
-                    key={slot.id}
-                    className="group relative aspect-square overflow-hidden rounded-xl border-0 bg-zinc-100 dark:bg-white/[0.03]"
-                  >
-                    {canPreview ? (
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setPreviewImages({
-                            urls: photoUrls,
-                            currentIndex: index,
-                          })
-                        }
-                        className="absolute inset-0 h-full w-full focus:outline-none focus:ring-2 focus:ring-emerald-500/50"
-                        aria-label={`Ampliar foto ${index + 1} de ${photos.length}`}
-                      >
-                        <PartPhotoImg
-                          src={url}
-                          alt=""
-                          className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-105"
-                        />
-                        <div className="absolute inset-0 flex items-center justify-center bg-black/0 transition-colors group-hover:bg-black/25 group-active:bg-black/35">
-                          <ZoomIn className="h-7 w-7 text-white opacity-0 drop-shadow-lg transition-opacity group-hover:opacity-100" />
-                        </div>
-                      </button>
-                    ) : (
-                      <PartPhotoImg
-                        src={url}
-                        alt=""
-                        className="h-full w-full object-cover"
-                      />
-                    )}
-                    {index === 0 ? (
-                      <span className="pointer-events-none absolute left-1 top-1 z-[1] rounded-md bg-emerald-600 px-1.5 py-0.5 text-[9px] font-bold uppercase text-white">
-                        Capa
-                      </span>
-                    ) : null}
-                  </div>
-                  );
-                })}
-                </div>
-              </>
-            ) : (
-              <p className={`${valueCls} text-zinc-500 dark:text-zinc-400`}>Sem fotos cadastradas.</p>
-            )}
-          </div>
-
+          <div className={pcLayout ? 'estoque-pc-detail-layout' : 'contents'}>
+            {photosBlock}
+            <div className={pcLayout ? 'estoque-pc-detail-main' : 'contents'}>
           <div className={cardCls}>
-            <h3 className="mb-3 text-[13px] font-bold text-zinc-800 dark:text-zinc-200">Identificação</h3>
+            <h3 className={pcLayout ? 'estoque-pc-detail-section-title mb-3' : 'mb-3 text-[13px] font-bold text-zinc-800 dark:text-zinc-200'}>Identificação</h3>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {catalogNumber != null ? (
                 <DetailRow label="Nº no estoque" value={`#${catalogNumber}`} />
@@ -418,7 +431,7 @@ export function WorkshopPartDetailView({
           ) : null}
 
           <div className={cardCls}>
-            <h3 className="mb-3 text-[13px] font-bold text-zinc-800 dark:text-zinc-200">Lista de compras</h3>
+            <h3 className={pcLayout ? 'estoque-pc-detail-section-title mb-3' : 'mb-3 text-[13px] font-bold text-zinc-800 dark:text-zinc-200'}>Lista de compras</h3>
             {purchases.length === 0 ? (
               <p className="text-[14px] text-zinc-500 dark:text-zinc-400">Nenhuma compra planejada.</p>
             ) : (
@@ -447,10 +460,18 @@ export function WorkshopPartDetailView({
               </ul>
             )}
           </div>
+            </div>
+          </div>
         </>
       )}
 
-      <div className="flex flex-col gap-3 border-t border-zinc-200/50 pt-5 dark:border-white/[0.06]">
+      <div
+        className={
+          pcLayout
+            ? 'estoque-pc-detail-actions'
+            : 'flex flex-col gap-3 border-t border-zinc-200/50 pt-5 dark:border-white/[0.06]'
+        }
+      >
         <button
           type="button"
           onClick={() => setLabelPrintOpen(true)}
@@ -469,9 +490,15 @@ export function WorkshopPartDetailView({
           <Printer className="h-5 w-5" />
           Imprimir ficha
         </button>
-        {footerExtra ? <div>{footerExtra}</div> : null}
+        {footerExtra ? <div className={pcLayout ? 'col-span-2' : undefined}>{footerExtra}</div> : null}
         {!readOnly ? (
-        <div className="flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div
+          className={
+            pcLayout
+              ? 'estoque-pc-detail-actions-primary'
+              : 'flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between'
+          }
+        >
           <button
             type="button"
             onClick={onDelete}

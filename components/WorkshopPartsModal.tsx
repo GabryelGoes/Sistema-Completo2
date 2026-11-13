@@ -22,6 +22,7 @@ import { useBrowserBackLayer } from './ui/BackNavigationContext';
 import { useDesktopShellLayout } from './ui/DesktopShellContext';
 import {
   EstoquePcLayoutProvider,
+  estoquePcNestedClass,
   estoquePcShellClass,
 } from './estoque/EstoquePcLayoutContext';
 import {
@@ -1438,11 +1439,12 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
     {registrationMode ? (
       <RegistrationPortal>
       <div
-        className={
+        className={estoquePcNestedClass(
+          isEstoquePcLayout,
           isDesktopShell
             ? `${desktopShellPortaledChildOverlayClass(isDesktopShell, NESTED_STOCK_OVERLAY_Z)} flex min-h-0 w-full flex-col overflow-hidden bg-white dark:bg-zinc-950`
             : `${desktopShellPortaledChildOverlayClass(false, NESTED_STOCK_OVERLAY_Z)} flex items-center justify-center bg-black/50 p-2 sm:p-4`
-        }
+        )}
         onClick={isDesktopShell ? undefined : handleRegistrationBackdropClick}
         role="presentation"
       >
@@ -1489,9 +1491,11 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
           </button>
           <div
             className={
-              isDesktopShell
-                ? 'shrink-0 border-b border-zinc-200/70 bg-white px-6 pb-4 pt-[max(2rem,env(safe-area-inset-top)+0.75rem)] pr-14 dark:border-white/[0.06] dark:bg-transparent sm:px-8'
-                : 'shrink-0 border-b border-zinc-200/70 bg-white px-6 pb-4 pt-8 pr-14 dark:border-white/[0.06] dark:bg-transparent'
+              isEstoquePcLayout
+                ? 'estoque-pc-nested-header shrink-0 border-b border-zinc-200/70 bg-white px-6 pb-3 pt-3 pr-14 dark:border-white/[0.06] dark:bg-transparent sm:px-8'
+                : isDesktopShell
+                  ? 'shrink-0 border-b border-zinc-200/70 bg-white px-6 pb-4 pt-[max(2rem,env(safe-area-inset-top)+0.75rem)] pr-14 dark:border-white/[0.06] dark:bg-transparent sm:px-8'
+                  : 'shrink-0 border-b border-zinc-200/70 bg-white px-6 pb-4 pt-8 pr-14 dark:border-white/[0.06] dark:bg-transparent'
             }
           >
             <IosModalHeader
@@ -1501,7 +1505,14 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
               gradientClass="from-emerald-500 to-teal-700"
             />
           </div>
-          <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-auto touch-pan-y bg-white px-6 py-6 sm:px-8 custom-scrollbar [scrollbar-gutter:stable] dark:bg-transparent">
+          <div
+            data-estoque-form-scroll={isEstoquePcLayout ? '' : undefined}
+            className={
+              isEstoquePcLayout
+                ? 'estoque-pc-nested-scroll min-h-0 flex-1 overflow-y-auto overscroll-y-auto touch-pan-y bg-white custom-scrollbar [scrollbar-gutter:stable] dark:bg-transparent'
+                : 'min-h-0 flex-1 overflow-y-auto overscroll-y-auto touch-pan-y bg-white px-6 py-6 sm:px-8 custom-scrollbar [scrollbar-gutter:stable] dark:bg-transparent'
+            }
+          >
             {loadingRegistrationPurchases ? (
               <div className="flex justify-center py-16">
                 <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
@@ -1537,11 +1548,12 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
     {viewPart ? (
       <RegistrationPortal>
         <div
-          className={
+          className={estoquePcNestedClass(
+            isEstoquePcLayout,
             isDesktopShell
               ? `${desktopShellPortaledChildOverlayClass(isDesktopShell, NESTED_STOCK_OVERLAY_Z)} flex min-h-0 w-full flex-col overflow-hidden bg-white dark:bg-zinc-950`
               : `${desktopShellPortaledChildOverlayClass(false, NESTED_STOCK_OVERLAY_Z)} flex items-center justify-center bg-black/50 p-2 sm:p-4`
-          }
+          )}
           onClick={isDesktopShell ? undefined : handleViewBackdropClick}
           role="presentation"
         >
@@ -1569,9 +1581,11 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
             </button>
             <div
               className={
-                isDesktopShell
-                  ? 'shrink-0 border-b border-zinc-200/70 bg-white px-6 pb-4 pt-[max(2rem,env(safe-area-inset-top)+0.75rem)] pr-28 dark:border-white/[0.06] dark:bg-transparent sm:px-8'
-                  : 'shrink-0 border-b border-zinc-200/70 bg-white px-6 pb-4 pt-8 pr-28 dark:border-white/[0.06] dark:bg-transparent'
+                isEstoquePcLayout
+                  ? 'estoque-pc-nested-header shrink-0 border-b border-zinc-200/70 bg-white px-6 pb-3 pt-3 pr-28 dark:border-white/[0.06] dark:bg-transparent sm:px-8'
+                  : isDesktopShell
+                    ? 'shrink-0 border-b border-zinc-200/70 bg-white px-6 pb-4 pt-[max(2rem,env(safe-area-inset-top)+0.75rem)] pr-28 dark:border-white/[0.06] dark:bg-transparent sm:px-8'
+                    : 'shrink-0 border-b border-zinc-200/70 bg-white px-6 pb-4 pt-8 pr-28 dark:border-white/[0.06] dark:bg-transparent'
               }
             >
               <IosModalHeader
@@ -1612,7 +1626,14 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
             >
               <Printer className="w-5 h-5" />
             </button>
-            <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-auto touch-pan-y bg-white px-6 py-6 sm:px-8 custom-scrollbar [scrollbar-gutter:stable] dark:bg-transparent">
+            <div
+              data-estoque-detail-scroll={isEstoquePcLayout ? '' : undefined}
+              className={
+                isEstoquePcLayout
+                  ? 'estoque-pc-nested-scroll min-h-0 flex-1 overflow-y-auto overscroll-y-auto touch-pan-y bg-white custom-scrollbar [scrollbar-gutter:stable] dark:bg-transparent'
+                  : 'min-h-0 flex-1 overflow-y-auto overscroll-y-auto touch-pan-y bg-white px-6 py-6 sm:px-8 custom-scrollbar [scrollbar-gutter:stable] dark:bg-transparent'
+              }
+            >
               <WorkshopPartDetailView
                 part={parts.find((p) => p.id === viewPart.id) ?? viewPart}
                 catalogNumber={partNumberById.get(viewPart.id)}
