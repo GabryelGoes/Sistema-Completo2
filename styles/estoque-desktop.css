@@ -965,3 +965,144 @@ html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-suppliers .es
     transform: none;
   }
 }
+
+/*
+ * Fase E5 — Estoque ABS (somente desktop shell + hub Estoque).
+ * Classes via useEstoquePcLayout() + estoquePcAbsClass — não altera cores.
+ */
+
+html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-abs {
+  cursor: default;
+}
+
+html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-abs .estoque-pc-abs-eyebrow {
+  font-size: 0.6875rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #0f7a4b;
+}
+
+html.dark[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-abs .estoque-pc-abs-eyebrow {
+  color: #34d399;
+}
+
+html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-abs .estoque-pc-abs-section-title {
+  margin: 0 0 0.55rem;
+  font-size: 0.6875rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #71717a;
+}
+
+html.dark[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-abs .estoque-pc-abs-section-title {
+  color: #a1a1aa;
+}
+
+html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-abs-home,
+html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-abs-detail {
+  min-height: 0;
+}
+
+html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-abs .estoque-pc-abs-scroll,
+html[data-device='desktop'][data-desktop-shell='true'] [data-estoque-abs-scroll] {
+  min-height: 0 !important;
+  flex: 1 1 0% !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+}
+
+html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-abs-home .estoque-pc-abs-header {
+  padding-top: 0.35rem;
+}
+
+html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-abs-home .estoque-pc-abs-kpis {
+  gap: 0.75rem;
+}
+
+html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-abs-home .estoque-pc-abs-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  background-color: #f4f5f7;
+}
+
+html.dark[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-abs-home .estoque-pc-abs-toolbar {
+  background-color: #09090b;
+}
+
+html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-abs-home .estoque-pc-abs-table {
+  border-radius: 1.25rem;
+}
+
+html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-abs-home .estoque-pc-abs-row {
+  transition: background-color 140ms ease;
+}
+
+html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-abs-home button:not(:disabled):active,
+html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-abs-detail button:not(:disabled):active,
+html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-abs-flow button:not(:disabled):active,
+html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-abs-movements button:not(:disabled):active,
+html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-abs-sales button:not(:disabled):active,
+html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-abs-disassembly button:not(:disabled):active {
+  transform: scale(0.98);
+  transition: transform 100ms ease-out;
+}
+
+html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-abs button:focus-visible,
+html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-abs input:focus-visible,
+html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-abs select:focus-visible,
+html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-abs textarea:focus-visible {
+  outline: 2px solid rgba(16, 185, 129, 0.5);
+  outline-offset: 1px;
+}
+
+html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-abs-detail .estoque-pc-abs-detail-header {
+  background-color: rgba(255, 255, 255, 0.92);
+}
+
+html.dark[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-abs-detail .estoque-pc-abs-detail-header {
+  background-color: rgba(9, 9, 11, 0.92);
+}
+
+html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-abs-detail .estoque-pc-abs-detail-grid {
+  gap: 1.15rem;
+}
+
+html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-abs-flow .estoque-pc-abs-flow-shell {
+  max-width: min(64rem, calc(100vw - 2rem));
+}
+
+html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-abs-flow .estoque-pc-abs-flow-header {
+  padding: 0.85rem 1.25rem;
+  background-color: rgba(255, 255, 255, 0.96);
+}
+
+html.dark[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-abs-flow .estoque-pc-abs-flow-header {
+  background-color: rgba(9, 9, 11, 0.94);
+}
+
+html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-abs-movements .estoque-pc-abs-modal-shell,
+html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-abs-sales .estoque-pc-abs-modal-shell,
+html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-abs-disassembly .estoque-pc-abs-modal-shell {
+  max-width: min(42rem, calc(100vw - 2rem));
+  max-height: min(86vh, 880px);
+}
+
+html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-abs-banner {
+  padding: 0.55rem 1.5rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-abs button {
+    transition: none;
+  }
+
+  html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-abs button:not(:disabled):active {
+    transform: none;
+  }
+}

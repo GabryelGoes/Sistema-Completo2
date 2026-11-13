@@ -34,6 +34,9 @@ export const ESTOQUE_PC_FLOW_CLASS = 'estoque-pc-flow estoque-pc-flow-v3';
 /** Histórico (ledger) e fornecedores (E4). */
 export const ESTOQUE_PC_SECONDARY_CLASS = 'estoque-pc-secondary estoque-pc-secondary-v4';
 
+/** Estoque ABS — home, ficha, fluxos e históricos (E5). */
+export const ESTOQUE_PC_ABS_CLASS = 'estoque-pc-abs estoque-pc-abs-v5';
+
 export function estoquePcShellClass(pcLayout: boolean, extra = ''): string {
   if (!pcLayout) return extra;
   return extra ? `${ESTOQUE_PC_SHELL_CLASS} ${extra}` : ESTOQUE_PC_SHELL_CLASS;
@@ -59,5 +62,16 @@ export function estoquePcSecondaryClass(
   if (!pcLayout) return extra;
   const kindClass = `estoque-pc-${kind}`;
   const joined = `${ESTOQUE_PC_SECONDARY_CLASS} ${kindClass}`;
+  return extra ? `${joined} ${extra}` : joined;
+}
+
+export function estoquePcAbsClass(
+  pcLayout: boolean,
+  kind: 'home' | 'detail' | 'flow' | 'movements' | 'sales' | 'disassembly',
+  extra = ''
+): string {
+  if (!pcLayout) return extra;
+  const kindClass = `estoque-pc-abs-${kind}`;
+  const joined = `${ESTOQUE_PC_ABS_CLASS} ${kindClass}`;
   return extra ? `${joined} ${extra}` : joined;
 }
