@@ -119,7 +119,7 @@ export const VehicleOsStockCheckoutSection: React.FC<VehicleOsStockCheckoutSecti
       const list = await getWorkshopPartStockMovements({
         type: 'consumable',
         serviceOrderId,
-        limit: 80,
+        limit: 200,
       });
       // Só esta OS — evita misturar baixas de outros veículos se a API falhar o filtro.
       const marker = `OS_ID:${serviceOrderId}`;
@@ -167,31 +167,44 @@ export const VehicleOsStockCheckoutSection: React.FC<VehicleOsStockCheckoutSecti
         notes: `OS_ID:${serviceOrderId}`,
       });
 
-      const result = await createWorkshopPartStockMovement({
-        movement_type: 'consumable',
-        part_id: part.id,
-        quantity: qty,
-        notes,
-        barcode_scanned: opts?.barcodeScanned ?? null,
-        recorded_by_name: recordedByName || null,
-        service_order_id: serviceOrderId,
-      });
+      // Sempre 1 movimento = 1 unidade na lista (nunca agrega quantidade numa linha).
+      const created: WorkshopPartStockMovement[] = [];
+      let lastStock = Number(part.stock_qty ?? 0);
+      for (let i = 0; i < qty; i++) {
+        const result = await createWorkshopPartStockMovement({
+          movement_type: 'consumable',
+          part_id: part.id,
+          quantity: 1,
+          notes,
+          barcode_scanned: opts?.barcodeScanned ?? null,
+          recorded_by_name: recordedByName || null,
+          service_order_id: serviceOrderId,
+        });
+        lastStock = Number(result.part.stock_qty ?? lastStock);
+        created.push({
+          ...result.movement,
+          quantity: 1,
+          part_name: result.part.name,
+          part_unit_of_measure: result.part.unit_of_measure,
+          part_photo_url: result.part.photo_url ?? null,
+          service_order_id: serviceOrderId,
+        });
+      }
 
-      const movement: WorkshopPartStockMovement = {
-        ...result.movement,
-        part_name: result.part.name,
-        part_unit_of_measure: result.part.unit_of_measure,
-        part_photo_url: result.part.photo_url ?? null,
-        service_order_id: serviceOrderId,
-      };
-      setItems((prev) => [movement, ...prev.filter((m) => m.id !== movement.id)]);
-      setFlashId(movement.id);
+      const createdIds = new Set(created.map((m) => m.id));
+      setItems((prev) => [...created, ...prev.filter((m) => !createdIds.has(m.id))]);
+      const flashTarget = created[0]?.id ?? null;
+      setFlashId(flashTarget);
       setLastOk(
-        `${result.part.name}${qty > 1 ? ` ×${qty}` : ''} · estoque ${formatWorkshopPartQty(result.part.stock_qty)}`
+        qty === 1
+          ? `${part.name} · estoque ${formatWorkshopPartQty(lastStock)}`
+          : `${part.name}: ${qty} unidades · estoque ${formatWorkshopPartQty(lastStock)}`
       );
       playCheckoutBeep(true);
       scrollToRegisteredProducts();
-      window.setTimeout(() => setFlashId((id) => (id === movement.id ? null : id)), 1200);
+      if (flashTarget) {
+        window.setTimeout(() => setFlashId((id) => (id === flashTarget ? null : id)), 1200);
+      }
       return true;
     },
     [osLabel, osScope, recordedByName, scrollToRegisteredProducts, serviceOrderId]
@@ -277,7 +290,28 @@ export const VehicleOsStockCheckoutSection: React.FC<VehicleOsStockCheckoutSecti
     }
   };
 
-  const totalUnits = items.reduce((acc, m) => acc + Number(m.quantity || 0), 0);
+  /** Uma linha por unidade — movimentos antigos com qty>1 são expandídos na tela. */
+  const displayRows = (() => {
+    const rows: {
+      key: string;
+      movement: WorkshopPartStockMovement;
+      unitIndex: number;
+      unitCount: number;
+    }[] = [];
+    for (const m of items) {
+      const unitCount = Math.max(1, Math.floor(Number(m.quantity) || 1));
+      for (let i = 0; i < unitCount; i++) {
+        rows.push({
+          key: unitCount === 1 ? m.id : `${m.id}#${i}`,
+          movement: m,
+          unitIndex: i,
+          unitCount,
+        });
+      }
+    }
+    return rows;
+  })();
+  const totalUnits = displayRows.length;
 
   return (
     <div
@@ -371,18 +405,20 @@ export const VehicleOsStockCheckoutSection: React.FC<VehicleOsStockCheckoutSecti
             <Loader2 className="h-4 w-4 animate-spin" />
             Carregando…
           </div>
-        ) : items.length === 0 ? (
+        ) : displayRows.length === 0 ? (
           <p className="rounded-xl border border-dashed border-zinc-300/90 bg-white/70 px-3 py-4 text-center text-[12px] text-zinc-500 dark:border-white/10 dark:bg-white/[0.03] dark:text-zinc-400">
             Nenhuma peça retirada ainda. Use Adicionar, o leitor USB
             {showCameraButton ? ' ou a câmera' : ''}.
           </p>
         ) : (
           <ul className="max-h-[min(320px,40vh)] space-y-2 overflow-y-auto overscroll-contain pr-0.5 custom-scrollbar">
-            {items.map((m) => {
+            {displayRows.map((row) => {
+              const m = row.movement;
               const flashing = flashId === m.id;
+              const unitLabel = m.part_unit_of_measure?.trim() || 'un';
               return (
                 <li
-                  key={m.id}
+                  key={row.key}
                   className={`flex items-center gap-2.5 rounded-xl border px-2.5 py-2 transition-colors ${
                     flashing
                       ? 'border-emerald-400/50 bg-emerald-50/90 dark:border-emerald-400/35 dark:bg-emerald-500/15'
@@ -401,8 +437,7 @@ export const VehicleOsStockCheckoutSection: React.FC<VehicleOsStockCheckoutSecti
                       {m.part_name || 'Peça'}
                     </p>
                     <p className="mt-0.5 text-[11px] tabular-nums text-zinc-500 dark:text-zinc-400">
-                      −{formatWorkshopPartQty(m.quantity)}
-                      {m.part_unit_of_measure ? ` ${m.part_unit_of_measure}` : ''}
+                      1 {unitLabel}
                       {' · '}
                       estoque {formatWorkshopPartQty(m.stock_after)}
                       {' · '}
@@ -416,8 +451,8 @@ export const VehicleOsStockCheckoutSection: React.FC<VehicleOsStockCheckoutSecti
                       setCancelTarget(m);
                     }}
                     className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-red-200/70 bg-red-50/50 text-red-500/90 transition-colors hover:bg-red-100/80 dark:border-red-400/25 dark:bg-red-500/10"
-                    aria-label="Cancelar retirada"
-                    title="Cancelar e devolver ao estoque"
+                    aria-label="Cancelar esta unidade"
+                    title="Cancelar e devolver 1 unidade ao estoque"
                   >
                     <Trash2 className="h-4 w-4" />
                   </button>
@@ -472,7 +507,11 @@ export const VehicleOsStockCheckoutSection: React.FC<VehicleOsStockCheckoutSecti
       <StockGuardPasswordModal
         open={!!cancelTarget}
         title="Cancelar retirada"
-        subtitle="A quantidade volta ao estoque. Informe a senha da Gerência ou a de proteção do estoque."
+        subtitle={
+          cancelTarget && Math.floor(Number(cancelTarget.quantity) || 1) > 1
+            ? `Esta linha antiga agrupa ${formatWorkshopPartQty(cancelTarget.quantity)} un. — todas voltam ao estoque. Informe a senha da Gerência ou a de proteção do estoque.`
+            : '1 unidade volta ao estoque. Informe a senha da Gerência ou a de proteção do estoque.'
+        }
         confirmLabel="Cancelar retirada"
         error={cancelError}
         busy={cancelBusy}

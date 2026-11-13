@@ -27,7 +27,7 @@ export type VehicleOsStockManualAddPopoverProps = {
 
 /**
  * Janelinha para retirar peça do estoque digitando código ou nome (com sugestões).
- * Permite quantidade > 1 do mesmo produto.
+ * Quantidade > 1 gera várias retiradas de 1 un. (lista um a um na OS).
  */
 export const VehicleOsStockManualAddPopover: React.FC<VehicleOsStockManualAddPopoverProps> = ({
   open,
@@ -345,6 +345,7 @@ export const VehicleOsStockManualAddPopover: React.FC<VehicleOsStockManualAddPop
                   <p className="mt-1.5 text-[11px] font-medium text-zinc-500 dark:text-zinc-400">
                     Disponível: {formatWorkshopPartQty(maxQty)}
                     {selected.unit_of_measure ? ` ${selected.unit_of_measure}` : ''}
+                    {qty > 1 ? ` · entra como ${qty} linhas na lista` : ''}
                   </p>
                 )}
               </div>
