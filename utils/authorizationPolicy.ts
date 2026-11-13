@@ -75,6 +75,12 @@ export type AuthorizationRule = {
   priority: number;
   /** Herança de chave de ação. Não herda aba visual. */
   inherit?: "approve_budget_items";
+  /**
+   * session_user: a rota é o próprio usuário da sessão, depois de confirmá-lo na oficina.
+   * linked_technician: o id da URL é o técnico ligado a essa sessão em
+   * workshop_quality_person_links. Nome parecido não cria vínculo.
+   */
+  ownership?: "session_user" | "linked_technician";
 };
 
 export type AuthorizationFamily = {
@@ -188,6 +194,7 @@ function rule(init: {
   anyOf?: readonly PermissionKey[];
   priority?: number;
   inherit?: "approve_budget_items";
+  ownership?: "session_user" | "linked_technician";
 }): AuthorizationRule {
   return {
     id: init.id,
@@ -198,6 +205,7 @@ function rule(init: {
     anyOf: init.anyOf ?? [],
     priority: init.priority ?? 50,
     inherit: init.inherit,
+    ownership: init.ownership,
   };
 }
 
@@ -633,6 +641,7 @@ const RULES: readonly AuthorizationRule[] = [
     methods: ["PUT", "PATCH"],
     path: "^/api/workshop-technicians/[^/]+$",
     anyOf: ["access_technicians"],
+    ownership: "linked_technician",
     priority: 40,
   }),
   rule({
@@ -651,6 +660,44 @@ const RULES: readonly AuthorizationRule[] = [
     methods: ["POST"],
     path: "^/api/workshop-technicians/[^/]+/photo$",
     anyOf: ["access_technicians"],
+    ownership: "linked_technician",
+    priority: 80,
+  }),
+  // Perfil do usuário da sessão. Não usa o id enviado pelo navegador.
+  rule({
+    id: "self_profile_read",
+    family: "technicians",
+    action: "read",
+    methods: ["GET"],
+    path: "^/api/auth/my-profile$",
+    ownership: "session_user",
+    priority: 80,
+  }),
+  rule({
+    id: "self_profile_update",
+    family: "technicians",
+    action: "update",
+    methods: ["PATCH"],
+    path: "^/api/auth/my-profile$",
+    ownership: "session_user",
+    priority: 80,
+  }),
+  rule({
+    id: "self_profile_photo",
+    family: "technicians",
+    action: "update",
+    methods: ["POST"],
+    path: "^/api/auth/my-profile/photo$",
+    ownership: "session_user",
+    priority: 80,
+  }),
+  rule({
+    id: "self_password_update",
+    family: "technicians",
+    action: "update",
+    methods: ["POST"],
+    path: "^/api/auth/change-my-password$",
+    ownership: "session_user",
     priority: 80,
   }),
 

@@ -79,6 +79,7 @@ import { recordServiceOrderStageEntry } from "./services/rdaIntelligence/patioIn
 import { assertHomologationSafeOrThrow } from "./utils/homologationGuard.js";
 import { classifyNewLoginPassword } from "./utils/loginPasswordPolicy.js";
 import { guardHttpAuthorization } from "./utils/authorizeRequest.js";
+import { ownProfilePatch, sessionProfileUserId } from "./utils/ownProfile.js";
 import { normalizeAiImproveTextLevel } from "./utils/aiImproveTextLevel.js";
 import {
   pickWorkshopSettingsWrite,
@@ -2757,23 +2758,27 @@ export function createApiApp() {
 
   app.get("/api/auth/my-profile", async (req, res) => {
     try {
-      const username = (typeof req.query.username === "string" ? req.query.username : "").trim();
-      const password = typeof req.query.password === "string" ? req.query.password : "";
-      const user = await verifySystemUser(username, password);
-      if (!user) {
-        return res.status(401).json({ error: "Usuário ou senha incorretos." });
+      const auth = (req as unknown as { auth?: SessionPayload }).auth;
+      const userId = sessionProfileUserId(auth?.r === "user" ? auth.u : undefined);
+      if (!userId) {
+        return res.status(403).json({
+          error: "O perfil da Gerência usa outro cadastro.",
+          code: "not_system_user",
+        });
       }
-      const { data: row } = await supabaseAdmin
+      const { data: row, error } = await supabaseAdmin
         .from("workshop_system_users")
-        .select("display_name, photo_url, accent_color")
-        .eq("id", user.id)
+        .select("username, display_name, photo_url, accent_color")
+        .eq("id", userId)
         .eq("workshop_id", WORKSHOP_ID)
-        .single();
+        .maybeSingle();
+      if (error) return res.status(500).json({ error: "Falha ao ler o perfil." });
+      if (!row) return res.status(404).json({ error: "Usuário não encontrado." });
       return res.json({
-        username: user.username,
-        displayName: (row?.display_name ?? user.display_name ?? user.username) || user.username,
-        photoUrl: row?.photo_url ?? user.photo_url,
-        accentColor: row?.accent_color ?? null,
+        username: row.username,
+        displayName: row.display_name || row.username,
+        photoUrl: row.photo_url ?? null,
+        accentColor: row.accent_color ?? null,
       });
     } catch (err: any) {
       console.error("[API] Erro em GET /api/auth/my-profile:", err);
@@ -2783,47 +2788,34 @@ export function createApiApp() {
 
   app.patch("/api/auth/my-profile", async (req, res) => {
     try {
-      const { username, password, profileToken, displayName, accentColor } = req.body || {};
-      const usernameTrim = (typeof username === "string" ? username : "").trim();
-      let user: { id: string; username: string; display_name?: string | null; photo_url?: string | null } | null = null;
-      if (typeof profileToken === "string" && profileToken.trim()) {
-        const byToken = await verifySystemUserByToken(usernameTrim, profileToken.trim());
-        if (byToken) {
-          const { data: full } = await supabaseAdmin
-            .from("workshop_system_users")
-            .select("id, username, display_name, photo_url")
-            .eq("id", byToken.id)
-            .eq("workshop_id", WORKSHOP_ID)
-            .single();
-          user = full ?? byToken;
-        }
+      const auth = (req as unknown as { auth?: SessionPayload }).auth;
+      const userId = sessionProfileUserId(auth?.r === "user" ? auth.u : undefined);
+      if (!userId) {
+        return res.status(403).json({
+          error: "O perfil da Gerência usa outro cadastro.",
+          code: "not_system_user",
+        });
       }
-      if (!user && typeof password === "string") {
-        user = await verifySystemUser(usernameTrim, password);
-      }
-      if (!user) {
-        return res.status(401).json({ error: "Usuário ou senha incorretos." });
-      }
-      const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
-      if (typeof displayName === "string") updates.display_name = displayName.trim() || null;
-      if (accentColor !== undefined) updates.accent_color = typeof accentColor === "string" && accentColor.trim() ? accentColor.trim() : null;
+      const patch = ownProfilePatch(req.body);
+      const updates: Record<string, unknown> = { updated_at: new Date().toISOString(), ...patch };
       const { error } = await supabaseAdmin
         .from("workshop_system_users")
         .update(updates)
-        .eq("id", user.id)
+        .eq("id", userId)
         .eq("workshop_id", WORKSHOP_ID);
       if (error) return res.status(500).json({ error: error.message });
       const { data: row } = await supabaseAdmin
         .from("workshop_system_users")
-        .select("display_name, photo_url, accent_color")
-        .eq("id", user.id)
+        .select("username, display_name, photo_url, accent_color")
+        .eq("id", userId)
         .eq("workshop_id", WORKSHOP_ID)
-        .single();
+        .maybeSingle();
+      if (!row) return res.status(404).json({ error: "Usuário não encontrado." });
       return res.json({
-        username: user.username,
-        displayName: row?.display_name ?? user.display_name ?? user.username,
-        photoUrl: row?.photo_url ?? user.photo_url,
-        accentColor: row?.accent_color ?? null,
+        username: row.username,
+        displayName: row.display_name || row.username,
+        photoUrl: row.photo_url ?? null,
+        accentColor: row.accent_color ?? null,
       });
     } catch (err: any) {
       console.error("[API] Erro em PATCH /api/auth/my-profile:", err);
@@ -2839,18 +2831,13 @@ export function createApiApp() {
         if (!supabaseAdmin || !WORKSHOP_ID) {
           return res.status(500).json({ error: "Servidor não configurado." });
         }
-        const username = (req.body?.username && String(req.body.username).trim()) || "";
-        const password = typeof req.body?.password === "string" ? req.body.password : "";
-        const profileToken = typeof req.body?.profileToken === "string" ? req.body.profileToken.trim() : "";
-        let user: { id: string; username: string } | null = null;
-        if (profileToken) {
-          user = await verifySystemUserByToken(username, profileToken);
-        }
-        if (!user && password) {
-          user = await verifySystemUser(username, password);
-        }
-        if (!user) {
-          return res.status(401).json({ error: "Use a senha atual ou faça login novamente para alterar a foto." });
+        const auth = (req as unknown as { auth?: SessionPayload }).auth;
+        const userId = sessionProfileUserId(auth?.r === "user" ? auth.u : undefined);
+        if (!userId) {
+          return res.status(403).json({
+            error: "O perfil da Gerência usa outro cadastro.",
+            code: "not_system_user",
+          });
         }
         const file = req.file;
         if (!file) {
@@ -2858,7 +2845,7 @@ export function createApiApp() {
         }
         const bucket = VEHICLE_PHOTOS_BUCKET;
         const ext = (file.mimetype === "image/jpeg" || file.mimetype === "image/jpg") ? "jpg" : file.mimetype === "image/png" ? "png" : "webp";
-        const pathInBucket = `${WORKSHOP_ID}/system-users/${user.id}/photo.${ext}`;
+        const pathInBucket = `${WORKSHOP_ID}/system-users/${userId}/photo.${ext}`;
         const { error: uploadError } = await supabaseAdmin.storage
           .from(bucket)
           .upload(pathInBucket, file.buffer, { contentType: file.mimetype, upsert: true });
@@ -2871,7 +2858,7 @@ export function createApiApp() {
         const { error: updateErr } = await supabaseAdmin
           .from("workshop_system_users")
           .update({ photo_url: photoUrlWithCacheBust, updated_at: new Date().toISOString() })
-          .eq("id", user.id)
+          .eq("id", userId)
           .eq("workshop_id", WORKSHOP_ID);
         if (updateErr) {
           console.error("[API] Erro ao atualizar photo_url do usuário:", updateErr);

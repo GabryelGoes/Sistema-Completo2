@@ -36,8 +36,21 @@ export type PermissionLoad =
   | { ok: true; row: PermissionRow }
   | { ok: false };
 
+export type TechnicianLinkLoad =
+  | { ok: true; linked: boolean }
+  | { ok: false };
+
 export type PermissionSource = {
   loadUser(workshopId: string, userId: string): Promise<PermissionLoad>;
+  /**
+   * Vínculo confirmado em workshop_quality_person_links.
+   * Ausência da função conta como falha de consulta, nunca como vínculo.
+   */
+  loadTechnicianLink?(
+    workshopId: string,
+    systemUserId: string,
+    technicianId: string
+  ): Promise<TechnicianLinkLoad>;
 };
 
 export type AuthorizationEffect = "exempt" | "skipped" | "allow" | "deny" | "lookup_failed";
@@ -75,6 +88,8 @@ const REASON_CODES = new Set([
   "admin",
   "full_access",
   "permission",
+  "self",
+  "not_self",
   "family_off",
   "no_rule",
   "exempt",
@@ -101,6 +116,18 @@ type PermissionQuery = {
   };
 };
 
+type LinkQuery = {
+  select(columns: string): {
+    eq(column: string, value: string): {
+      eq(column: string, value: string): {
+        eq(column: string, value: string): {
+          maybeSingle(): Promise<{ data: { id?: string } | null; error: { message?: string } | null }>;
+        };
+      };
+    };
+  };
+};
+
 export function permissionSourceFromSupabase(client: SupabasePermissionClient | null): PermissionSource {
   return {
     async loadUser(workshopId: string, userId: string): Promise<PermissionLoad> {
@@ -113,6 +140,21 @@ export function permissionSourceFromSupabase(client: SupabasePermissionClient | 
           .maybeSingle();
         if (error) return { ok: false };
         return { ok: true, row: data ?? null };
+      } catch {
+        return { ok: false };
+      }
+    },
+    async loadTechnicianLink(workshopId, systemUserId, technicianId) {
+      if (!client || !workshopId || !systemUserId || !technicianId) return { ok: false };
+      try {
+        const { data, error } = await (client.from("workshop_quality_person_links") as LinkQuery)
+          .select("id")
+          .eq("workshop_id", workshopId)
+          .eq("system_user_id", systemUserId)
+          .eq("workshop_technician_id", technicianId)
+          .maybeSingle();
+        if (error) return { ok: false };
+        return { ok: true, linked: Boolean(data?.id) };
       } catch {
         return { ok: false };
       }
@@ -444,8 +486,41 @@ export async function decideAuthorization(input: {
   if (loaded.permissions.full_access === true) return finish("allow", "full_access");
 
   const allowed = matched.anyOf.some((key) => permissionGranted(loaded.permissions, key, matched.inherit));
-  if (!allowed) return finish("deny", "missing_permission");
-  return finish("allow", "permission");
+  if (allowed) return finish("allow", "permission");
+
+  if (matched.ownership === "session_user") {
+    return finish("allow", "self");
+  }
+
+  if (matched.ownership === "linked_technician") {
+    const technicianId = technicianIdFromPath(path);
+    if (!technicianId) return finish("deny", "not_self");
+    let link: TechnicianLinkLoad;
+    try {
+      if (!input.source.loadTechnicianLink) link = { ok: false };
+      else {
+        link = await input.source.loadTechnicianLink(
+          input.workshopId,
+          input.actor.userId.trim(),
+          technicianId
+        );
+      }
+    } catch {
+      link = { ok: false };
+    }
+    if (!link.ok) return finish("lookup_failed", "lookup_failed");
+    if (link.linked) return finish("allow", "self");
+    return finish("deny", "not_self");
+  }
+
+  return finish("deny", "missing_permission");
+}
+
+function technicianIdFromPath(path: string): string | null {
+  const photo = /^\/api\/workshop-technicians\/([^/]+)\/photo$/.exec(path);
+  if (photo?.[1] && photo[1] !== "photo") return photo[1];
+  const item = /^\/api\/workshop-technicians\/([^/]+)$/.exec(path);
+  return item?.[1] ?? null;
 }
 
 type ObservableRequest = {

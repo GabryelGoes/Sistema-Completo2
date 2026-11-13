@@ -33,6 +33,7 @@ import {
   type AuthorizationVerdict,
 } from "../utils/authorizeRequest.js";
 import { auditAuthorizationCoverage, type ScannedRoute } from "../utils/authorizationCoverage.js";
+import { ownProfilePatch, sessionProfileUserId } from "../utils/ownProfile.js";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -83,8 +84,16 @@ type MemoryRow = {
   isTechnician?: boolean;
 };
 
-function memorySource(rows: MemoryRow[], fail: "no" | "error" | "throw" = "no") {
+type MemoryLink = { workshopId: string; systemUserId: string; technicianId: string };
+
+function memorySource(
+  rows: MemoryRow[],
+  fail: "no" | "error" | "throw" = "no",
+  links: MemoryLink[] = [],
+  linkFail: "no" | "error" | "throw" = "no"
+) {
   let calls = 0;
+  let linkCalls = 0;
   const source: PermissionSource = {
     async loadUser(workshopId: string, userId: string) {
       calls += 1;
@@ -97,8 +106,20 @@ function memorySource(rows: MemoryRow[], fail: "no" | "error" | "throw" = "no") 
         row: { permissions: row.permissions, is_technician: row.isTechnician === true },
       };
     },
+    async loadTechnicianLink(workshopId, systemUserId, technicianId) {
+      linkCalls += 1;
+      if (linkFail === "throw") throw new Error("vinculo indisponivel");
+      if (linkFail === "error") return { ok: false };
+      const linked = links.some(
+        (link) =>
+          link.workshopId === workshopId &&
+          link.systemUserId === systemUserId &&
+          link.technicianId === technicianId
+      );
+      return { ok: true, linked };
+    },
   };
-  return { source, calls: () => calls };
+  return { source, calls: () => calls, linkCalls: () => linkCalls };
 }
 
 async function decide(input: {
@@ -112,8 +133,10 @@ async function decide(input: {
   log?: (record: ShadowRecord) => void;
   env?: NodeJS.ProcessEnv;
   workshopId?: string;
+  links?: MemoryLink[];
+  linkFail?: "no" | "error" | "throw";
 }) {
-  const memory = memorySource(input.rows ?? [], input.fail ?? "no");
+  const memory = memorySource(input.rows ?? [], input.fail ?? "no", input.links ?? [], input.linkFail ?? "no");
   const verdict = await decideAuthorization({
     method: input.method,
     path: input.path,
@@ -125,7 +148,7 @@ async function decide(input: {
     log: input.log,
     env: input.env,
   });
-  return { verdict, calls: memory.calls() };
+  return { verdict, calls: memory.calls(), linkCalls: memory.linkCalls() };
 }
 
 function hashPassword(password: string): string {
@@ -188,7 +211,15 @@ async function startMock(tables: Record<string, Row[]>): Promise<{ server: http.
         res.end(JSON.stringify(wantsObject ? stored[0] ?? {} : stored));
         return;
       }
-      if (req.method === "PATCH" || req.method === "DELETE") {
+      if (req.method === "PATCH") {
+        const updated = tables[table].filter(matches);
+        for (const row of updated) Object.assign(row, body);
+        const projected = updated.map(project);
+        res.writeHead(200, { "content-type": "application/json" });
+        res.end(JSON.stringify(wantsObject ? projected[0] ?? {} : projected));
+        return;
+      }
+      if (req.method === "DELETE") {
         res.writeHead(200, { "content-type": "application/json" });
         res.end(JSON.stringify(wantsObject ? {} : []));
         return;
@@ -1059,7 +1090,169 @@ async function main() {
     `serviço ${serviceRead.verdict.effect}/${serviceWrite.verdict.effect}; tv ${tvDenied.verdict.block}`
   );
 
-  const mock = await startMock({
+  const OTHER = "22222222-2222-4222-8222-222222222202";
+  const ownLink = [{ workshopId: WORKSHOP, systemUserId: USER, technicianId: "tecnico-1" }];
+  const ownRow = {
+    id: USER,
+    workshopId: WORKSHOP,
+    permissions: { access_patio: true, is_technician: true },
+    isTechnician: true,
+  };
+  const enforceTechnicians = withFamily("technicians", "enforce");
+  const ownPhoto = await decide({
+    method: "POST",
+    path: "/api/workshop-technicians/tecnico-1/photo",
+    actor: { role: "user", userId: USER },
+    rows: [ownRow],
+    links: ownLink,
+  });
+  const otherPhoto = await decide({
+    method: "POST",
+    path: "/api/workshop-technicians/tecnico-2/photo",
+    actor: { role: "user", userId: USER },
+    rows: [ownRow],
+    links: ownLink,
+  });
+  const ownName = await decide({
+    method: "PUT",
+    path: "/api/workshop-technicians/tecnico-1",
+    actor: { role: "user", userId: USER },
+    rows: [ownRow],
+    links: ownLink,
+  });
+  const otherName = await decide({
+    method: "PUT",
+    path: "/api/workshop-technicians/tecnico-2",
+    actor: { role: "user", userId: USER },
+    rows: [ownRow],
+    links: ownLink,
+    policy: enforceTechnicians,
+  });
+  const managerPhoto = await decide({
+    method: "POST",
+    path: "/api/workshop-technicians/tecnico-2/photo",
+    actor: { role: "admin" },
+    links: ownLink,
+  });
+  const techAdmin = await decide({
+    method: "POST",
+    path: "/api/workshop-technicians/tecnico-2/photo",
+    actor: { role: "user", userId: USER },
+    rows: [{ id: USER, workshopId: WORKSHOP, permissions: { access_technicians: true } }],
+  });
+  const fullPhoto = await decide({
+    method: "POST",
+    path: "/api/workshop-technicians/tecnico-2/photo",
+    actor: { role: "user", userId: USER },
+    rows: [{ id: USER, workshopId: WORKSHOP, permissions: { full_access: true } }],
+  });
+  const noLink = await decide({
+    method: "POST",
+    path: "/api/workshop-technicians/tecnico-1/photo",
+    actor: { role: "user", userId: USER },
+    rows: [ownRow],
+    policy: enforceTechnicians,
+  });
+  const otherWorkshop = await decide({
+    method: "POST",
+    path: "/api/workshop-technicians/tecnico-1/photo",
+    actor: { role: "user", userId: OTHER },
+    rows: [{ id: OTHER, workshopId: OTHER_WORKSHOP, permissions: { access_patio: true } }],
+    links: [{ workshopId: OTHER_WORKSHOP, systemUserId: OTHER, technicianId: "tecnico-1" }],
+  });
+  const linkDown = await decide({
+    method: "POST",
+    path: "/api/workshop-technicians/tecnico-1/photo",
+    actor: { role: "user", userId: USER },
+    rows: [ownRow],
+    linkFail: "error",
+  });
+  const linkDownEnforce = await decide({
+    method: "POST",
+    path: "/api/workshop-technicians/tecnico-1/photo",
+    actor: { role: "user", userId: USER },
+    rows: [ownRow],
+    linkFail: "error",
+    policy: enforceTechnicians,
+  });
+  const selfProfile = await decide({
+    method: "PATCH",
+    path: "/api/auth/my-profile",
+    actor: { role: "user", userId: USER },
+    rows: [ownRow],
+    policy: enforceTechnicians,
+  });
+  const selfPhotoProfile = await decide({
+    method: "POST",
+    path: "/api/auth/my-profile/photo",
+    actor: { role: "user", userId: USER },
+    rows: [ownRow],
+  });
+  const selfPassword = await decide({
+    method: "POST",
+    path: "/api/auth/change-my-password",
+    actor: { role: "user", userId: USER },
+    rows: [ownRow],
+    policy: enforceTechnicians,
+  });
+  const createTech = await decide({
+    method: "POST",
+    path: "/api/workshop-technicians",
+    actor: { role: "user", userId: USER },
+    rows: [ownRow],
+    links: ownLink,
+    policy: enforceTechnicians,
+  });
+  const profilePatch = ownProfilePatch({
+    displayName: "Ana",
+    username: "outra",
+    permissions: { full_access: true },
+    isTechnician: false,
+    password: PASS_USER,
+  });
+  record(
+    "perfil próprio não exige chave administrativa e não herda nome",
+    ownPhoto.verdict.effect === "allow" &&
+      ownPhoto.verdict.reason === "self" &&
+      ownPhoto.verdict.block === false &&
+      ownName.verdict.effect === "allow" &&
+      otherPhoto.verdict.effect === "deny" &&
+      otherPhoto.verdict.reason === "not_self" &&
+      otherPhoto.verdict.block === false &&
+      otherName.verdict.block === true &&
+      otherName.verdict.reason === "not_self" &&
+      managerPhoto.verdict.effect === "allow" &&
+      managerPhoto.linkCalls === 0 &&
+      techAdmin.verdict.effect === "allow" &&
+      techAdmin.linkCalls === 0 &&
+      fullPhoto.verdict.effect === "allow" &&
+      fullPhoto.linkCalls === 0 &&
+      noLink.verdict.effect === "deny" &&
+      noLink.verdict.reason === "not_self" &&
+      noLink.verdict.block === true &&
+      otherWorkshop.verdict.reason === "not_in_workshop" &&
+      linkDown.verdict.effect === "lookup_failed" &&
+      linkDown.verdict.block === false &&
+      linkDownEnforce.verdict.block === true &&
+      selfProfile.verdict.effect === "allow" &&
+      selfProfile.verdict.reason === "self" &&
+      selfProfile.verdict.block === false &&
+      selfPhotoProfile.verdict.effect === "allow" &&
+      selfPhotoProfile.verdict.block === false &&
+      selfPassword.verdict.effect === "allow" &&
+      selfPassword.verdict.block === false &&
+      createTech.verdict.effect === "deny" &&
+      createTech.verdict.block === true &&
+      sessionProfileUserId(USER) === USER &&
+      sessionProfileUserId("  ") === null &&
+      profilePatch.display_name === "Ana" &&
+      !("permissions" in profilePatch) &&
+      !("full_access" in profilePatch) &&
+      authorizationHasEnforce() === false,
+    `própria ${ownPhoto.verdict.reason}; outra ${otherPhoto.verdict.reason}; perfil ${selfProfile.verdict.block}`
+  );
+
+  const tables: Record<string, Row[]> = {
     workshop_settings: [
       ["admin_password", hashPassword(PASS_ADMIN)],
       ["patio_pin", SECRET],
@@ -1089,7 +1282,8 @@ async function main() {
     workshop_device_sessions: [],
     workshop_blocked_devices: [],
     service_orders: [],
-  });
+  };
+  const mock = await startMock(tables);
 
   process.env.SUPABASE_URL = mock.url;
   process.env.SUPABASE_SERVICE_ROLE_KEY = "homolog-service-role-ficticio";
@@ -1155,11 +1349,31 @@ async function main() {
         })
       : null;
     const slideJson = slide ? await slide.json().catch(() => ({})) : {};
+    const profile = token
+      ? await fetch(`${base}/api/auth/my-profile`, {
+          method: "PATCH",
+          headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
+          body: JSON.stringify({
+            username: "outra-pessoa",
+            displayName: "Nova",
+            permissions: { full_access: true },
+            password: PASS_USER,
+          }),
+        })
+      : null;
+    const profileJson = profile ? await profile.json().catch(() => ({})) : {};
+    const storedUser = tables.workshop_system_users?.[0];
     record(
       "HTTP real não ganha bloqueio e a TV pública permanece",
       login.status === 200 &&
         !!token &&
         created?.status === 201 &&
+        profile?.status === 200 &&
+        profileJson?.code !== "permission_denied" &&
+        profileJson?.displayName === "Nova" &&
+        profileJson?.username === "ana" &&
+        storedUser?.display_name === "Nova" &&
+        !(storedUser?.permissions as { full_access?: boolean } | undefined)?.full_access &&
         createdJson?.code !== "permission_denied" &&
         noSession.status === 401 &&
         noSessionJson?.code === "session_invalid" &&
