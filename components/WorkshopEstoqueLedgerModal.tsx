@@ -23,6 +23,10 @@ import {
 } from './ui/iosModalStyles';
 import { useDesktopShellLayout } from './ui/DesktopShellContext';
 import { useBrowserBackLayer } from './ui/BackNavigationContext';
+import {
+  estoquePcSecondaryClass,
+  useEstoquePcLayout,
+} from './estoque/EstoquePcLayoutContext';
 
 export type WorkshopEstoqueLedgerModalProps = {
   isOpen: boolean;
@@ -38,6 +42,7 @@ export function WorkshopEstoqueLedgerModal({
   onOpenSuppliers,
 }: WorkshopEstoqueLedgerModalProps) {
   const isDesktopShell = useDesktopShellLayout();
+  const pcLayout = useEstoquePcLayout();
   const [items, setItems] = useState<EstoqueLedgerEntry[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -108,9 +113,13 @@ export function WorkshopEstoqueLedgerModal({
 
   return (
     <RegistrationPortal>
-      <div className={overlayClass} onClick={onClose} role="presentation">
+      <div
+        className={estoquePcSecondaryClass(pcLayout, 'ledger', overlayClass)}
+        onClick={onClose}
+        role="presentation"
+      >
         <div
-          className={`${iosModalShell} flex h-[min(78vh,680px)] w-full max-w-6xl flex-col overflow-hidden`}
+          className={`${iosModalShell} estoque-pc-secondary-shell flex h-[min(78vh,680px)] w-full max-w-6xl flex-col overflow-hidden`}
           onClick={(e) => e.stopPropagation()}
           role="dialog"
           aria-modal="true"
@@ -120,14 +129,21 @@ export function WorkshopEstoqueLedgerModal({
             <X className="h-5 w-5" />
           </button>
 
-          <div className="shrink-0 border-b border-zinc-200/60 px-5 pb-3 pt-7 pr-20 dark:border-white/[0.06] sm:px-6">
+          <div
+            className={`estoque-pc-secondary-header shrink-0 border-b border-zinc-200/60 px-5 pb-3 pt-7 pr-20 dark:border-white/[0.06] sm:px-6`}
+          >
             <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-              <IosModalHeader
-                icon={<History className="h-5 w-5 text-zinc-800" />}
-                title="Histórico de compras"
-                subtitle="Entradas e saídas de peças e módulos ABS"
-                gradientClass="from-emerald-500 to-teal-700"
-              />
+              <div className="min-w-0">
+                {pcLayout ? (
+                  <p className="estoque-pc-secondary-eyebrow mb-1">Estoque · Histórico</p>
+                ) : null}
+                <IosModalHeader
+                  icon={<History className="h-5 w-5 text-zinc-800" />}
+                  title="Histórico de compras"
+                  subtitle="Entradas e saídas de peças e módulos ABS"
+                  gradientClass="from-emerald-500 to-teal-700"
+                />
+              </div>
               <div className="flex flex-wrap items-center gap-2 lg:pb-0.5">
                 <button
                   type="button"
@@ -151,37 +167,48 @@ export function WorkshopEstoqueLedgerModal({
               </div>
             </div>
 
-            <div className="mt-3 flex flex-col gap-2.5 sm:flex-row sm:items-center">
-              <div className="relative min-w-0 flex-1">
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
-                <input
-                  type="search"
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Buscar produto, NF-e, fornecedor, usuário, OS…"
-                  className="w-full rounded-xl border-0 bg-zinc-100 py-2.5 pl-9 pr-3 text-[14px] outline-none dark:bg-white/5 dark:text-white"
-                />
+            <div className={`mt-3 ${pcLayout ? 'estoque-pc-secondary-toolbar' : ''}`}>
+              <div className="flex flex-col gap-2.5 sm:flex-row sm:items-center">
+                <div className="relative min-w-0 flex-1">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
+                  <input
+                    type="search"
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                    placeholder="Buscar produto, NF-e, fornecedor, usuário, OS…"
+                    className="w-full rounded-xl border-0 bg-zinc-100 py-2.5 pl-9 pr-3 text-[14px] outline-none dark:bg-white/5 dark:text-white"
+                  />
+                </div>
+                <div className="flex shrink-0 flex-wrap gap-1.5">
+                  {chips.map((c) => (
+                    <button
+                      key={c.id}
+                      type="button"
+                      onClick={() => setFilter(c.id)}
+                      className={`rounded-full px-3 py-1.5 text-[12px] font-semibold ${
+                        filter === c.id
+                          ? 'bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900'
+                          : 'bg-zinc-100 text-zinc-600 dark:bg-white/10 dark:text-zinc-300'
+                      }`}
+                    >
+                      {c.label}
+                    </button>
+                  ))}
+                </div>
               </div>
-              <div className="flex shrink-0 flex-wrap gap-1.5">
-                {chips.map((c) => (
-                  <button
-                    key={c.id}
-                    type="button"
-                    onClick={() => setFilter(c.id)}
-                    className={`rounded-full px-3 py-1.5 text-[12px] font-semibold ${
-                      filter === c.id
-                        ? 'bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900'
-                        : 'bg-zinc-100 text-zinc-600 dark:bg-white/10 dark:text-zinc-300'
-                    }`}
-                  >
-                    {c.label}
-                  </button>
-                ))}
-              </div>
+              {pcLayout && !loading ? (
+                <p className="text-[12px] text-zinc-500">
+                  {filtered.length} de {items.length} movimentações
+                  {filter !== 'all' ? ` · filtro: ${chips.find((c) => c.id === filter)?.label}` : ''}
+                </p>
+              ) : null}
             </div>
           </div>
 
-          <div className="min-h-0 flex-1 overflow-y-auto px-5 py-3.5 custom-scrollbar sm:px-6">
+          <div
+            data-estoque-secondary-scroll={pcLayout ? '' : undefined}
+            className="min-h-0 flex-1 overflow-y-auto px-5 py-3.5 custom-scrollbar sm:px-6"
+          >
             {error ? (
               <p className="mb-3 rounded-xl bg-red-50 px-3 py-2 text-[13px] text-red-800 dark:bg-red-950/40 dark:text-red-200">
                 {error}
@@ -194,11 +221,22 @@ export function WorkshopEstoqueLedgerModal({
                 Carregando histórico…
               </div>
             ) : filtered.length === 0 ? (
-              <p className="py-12 text-center text-[13px] text-zinc-500">
-                Nenhuma movimentação encontrada.
-              </p>
+              <div className={pcLayout ? 'estoque-pc-ledger-empty' : undefined}>
+                <p className="py-12 text-center text-[13px] text-zinc-500">
+                  Nenhuma movimentação encontrada.
+                </p>
+                {pcLayout ? (
+                  <p className="text-center text-[12px] text-zinc-400">
+                    Ajuste a busca ou o filtro, ou atualize o histórico.
+                  </p>
+                ) : null}
+              </div>
             ) : (
-              <ul className="grid gap-2.5 md:grid-cols-2">
+              <ul
+                className={
+                  pcLayout ? 'estoque-pc-ledger-list' : 'grid gap-2.5 md:grid-cols-2'
+                }
+              >
                 {filtered.map((row) => {
                   const { date, time } = formatLedgerDateTime(row.created_at);
                   const Icon =
@@ -213,6 +251,110 @@ export function WorkshopEstoqueLedgerModal({
                       : row.direction === 'transfer'
                         ? 'bg-sky-100 text-sky-800 dark:bg-sky-950/50 dark:text-sky-200'
                         : 'bg-amber-100 text-amber-900 dark:bg-amber-950/50 dark:text-amber-100';
+                  const qtyLabel =
+                    row.quantity != null
+                      ? `${row.direction === 'out' ? '−' : row.direction === 'in' ? '+' : ''}${formatWorkshopPartQty(row.quantity)}${
+                          row.unit_label ? ` ${row.unit_label}` : ''
+                        }`
+                      : null;
+
+                  if (pcLayout) {
+                    return (
+                      <li
+                        key={row.id}
+                        className="estoque-pc-ledger-row bg-white dark:bg-white/[0.04]"
+                      >
+                        <span
+                          className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${tone}`}
+                          title={row.type_label}
+                        >
+                          <Icon className="h-4 w-4" />
+                        </span>
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                            <p className="truncate text-[14px] font-semibold text-zinc-900 dark:text-white">
+                              {row.item_name}
+                            </p>
+                            <p className="text-[12px] font-semibold text-zinc-600 dark:text-zinc-300">
+                              {row.type_label}
+                              {row.source === 'abs' ? ' · ABS' : ''}
+                            </p>
+                          </div>
+                          <p className="mt-0.5 text-[11px] font-medium tabular-nums text-zinc-500">
+                            {date}
+                            {time ? ` · ${time}` : ''}
+                            {row.recorded_by_name ? ` · ${row.recorded_by_name}` : ''}
+                          </p>
+                          <div className="estoque-pc-ledger-meta mt-1.5 text-[11px] text-zinc-500">
+                            {row.nfe_number ? (
+                              <span>
+                                <span className="font-semibold text-zinc-600 dark:text-zinc-300">
+                                  NF-e:
+                                </span>{' '}
+                                {row.nfe_number}
+                              </span>
+                            ) : null}
+                            {row.supplier_name ? (
+                              <span>
+                                <span className="font-semibold text-zinc-600 dark:text-zinc-300">
+                                  Forn.:
+                                </span>{' '}
+                                {row.supplier_name}
+                              </span>
+                            ) : null}
+                            {row.service_order_label || row.service_order_id ? (
+                              <span>
+                                <span className="font-semibold text-zinc-600 dark:text-zinc-300">
+                                  OS:
+                                </span>{' '}
+                                {row.service_order_label || row.service_order_id}
+                              </span>
+                            ) : null}
+                            {row.item_code ? (
+                              <span>
+                                <span className="font-semibold text-zinc-600 dark:text-zinc-300">
+                                  Cód.:
+                                </span>{' '}
+                                {row.item_code}
+                              </span>
+                            ) : null}
+                            {row.stock_before != null && row.stock_after != null ? (
+                              <span>
+                                Estoque {formatWorkshopPartQty(row.stock_before)} →{' '}
+                                {formatWorkshopPartQty(row.stock_after)}
+                              </span>
+                            ) : null}
+                          </div>
+                          {row.notes ? (
+                            <p className="mt-1 line-clamp-2 text-[11px] leading-snug text-zinc-500 dark:text-zinc-400">
+                              {row.notes}
+                            </p>
+                          ) : null}
+                        </div>
+                        <div className="estoque-pc-ledger-qty">
+                          {qtyLabel ? (
+                            <p
+                              className={`text-[15px] font-bold ${
+                                row.direction === 'in'
+                                  ? 'text-emerald-700 dark:text-emerald-300'
+                                  : row.direction === 'out'
+                                    ? 'text-amber-800 dark:text-amber-200'
+                                    : 'text-zinc-800 dark:text-zinc-100'
+                              }`}
+                            >
+                              {qtyLabel}
+                            </p>
+                          ) : null}
+                          {row.money_label ? (
+                            <p className="mt-0.5 text-[12px] font-semibold text-zinc-600 dark:text-zinc-300">
+                              {row.money_label}
+                            </p>
+                          ) : null}
+                        </div>
+                      </li>
+                    );
+                  }
+
                   return (
                     <li
                       key={row.id}

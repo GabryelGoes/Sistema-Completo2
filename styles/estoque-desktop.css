@@ -786,3 +786,182 @@ html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-inbound .esto
     transform: none;
   }
 }
+
+/*
+ * Fase E4 — Histórico (ledger) e Fornecedores (somente desktop shell + hub Estoque).
+ * Classes via useEstoquePcLayout() + estoquePcSecondaryClass — não altera cores.
+ */
+
+html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-secondary {
+  cursor: default;
+}
+
+html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-secondary .estoque-pc-secondary-shell {
+  max-width: min(72rem, calc(100vw - 2rem));
+}
+
+html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-ledger .estoque-pc-secondary-shell {
+  height: min(82vh, 720px);
+  max-width: min(72rem, calc(100vw - 2rem));
+}
+
+html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-suppliers .estoque-pc-secondary-shell {
+  height: min(90vh, 880px);
+  max-width: min(68rem, calc(100vw - 2rem));
+}
+
+html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-secondary .estoque-pc-secondary-header {
+  padding: 0.85rem 1.5rem 0.95rem;
+  background-color: rgba(255, 255, 255, 0.96);
+}
+
+html.dark[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-secondary .estoque-pc-secondary-header {
+  background-color: rgba(9, 9, 11, 0.94);
+}
+
+html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-secondary .estoque-pc-secondary-eyebrow {
+  font-size: 0.6875rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #0f7a4b;
+}
+
+html.dark[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-secondary .estoque-pc-secondary-eyebrow {
+  color: #34d399;
+}
+
+html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-secondary .estoque-pc-secondary-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 8;
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  padding-bottom: 0.75rem;
+  background-color: #fafafa;
+}
+
+html.dark[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-secondary .estoque-pc-secondary-toolbar {
+  background-color: #09090b;
+}
+
+html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-secondary .estoque-pc-secondary-scroll,
+html[data-device='desktop'][data-desktop-shell='true'] [data-estoque-secondary-scroll] {
+  min-height: 0 !important;
+  flex: 1 1 0% !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+}
+
+html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-secondary .estoque-pc-secondary-section-title {
+  margin: 0 0 0.55rem;
+  font-size: 0.6875rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #71717a;
+}
+
+html.dark[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-secondary .estoque-pc-secondary-section-title {
+  color: #a1a1aa;
+}
+
+html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-secondary button:not(:disabled):active {
+  transform: scale(0.98);
+  transition: transform 100ms ease-out;
+}
+
+html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-secondary button:focus-visible,
+html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-secondary input:focus-visible,
+html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-secondary textarea:focus-visible {
+  outline: 2px solid rgba(16, 185, 129, 0.5);
+  outline-offset: 1px;
+}
+
+/* Ledger: lista densa em coluna única no PC (melhor leitura cronológica) */
+html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-ledger .estoque-pc-ledger-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-ledger .estoque-pc-ledger-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 0.75rem 1rem;
+  align-items: start;
+  padding: 0.85rem 1rem;
+  border-radius: 1rem;
+  transition: background-color 140ms ease;
+}
+
+html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-ledger .estoque-pc-ledger-qty {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-ledger .estoque-pc-ledger-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.85rem;
+}
+
+html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-ledger .estoque-pc-ledger-empty,
+html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-suppliers .estoque-pc-suppliers-empty {
+  padding: 3rem 1rem;
+  text-align: center;
+}
+
+/* Suppliers: painéis e sticky save */
+html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-suppliers .estoque-pc-suppliers-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.15fr);
+  min-height: 0;
+  flex: 1 1 0%;
+}
+
+html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-suppliers .estoque-pc-suppliers-list-pane,
+html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-suppliers .estoque-pc-suppliers-form-pane {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-suppliers .estoque-pc-suppliers-form-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  flex-shrink: 0;
+  margin-top: auto;
+  padding: 0.85rem 0 0;
+  border-top: 1px solid rgba(228, 228, 231, 0.85);
+  background-color: transparent;
+}
+
+html.dark[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-suppliers .estoque-pc-suppliers-form-actions {
+  border-top-color: rgba(255, 255, 255, 0.08);
+}
+
+html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-suppliers .estoque-pc-suppliers-form-actions > button {
+  transition: transform 100ms ease-out, background-color 150ms ease;
+}
+
+html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-suppliers .estoque-pc-suppliers-form-actions > button:not(:disabled):active {
+  transform: scale(0.97);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-secondary button {
+    transition: none;
+  }
+
+  html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-secondary button:not(:disabled):active {
+    transform: none;
+  }
+}

@@ -31,6 +31,10 @@ import {
 } from './ui/iosModalStyles';
 import { useDesktopShellLayout } from './ui/DesktopShellContext';
 import { useBrowserBackLayer } from './ui/BackNavigationContext';
+import {
+  estoquePcSecondaryClass,
+  useEstoquePcLayout,
+} from './estoque/EstoquePcLayoutContext';
 
 export type WorkshopSuppliersModalProps = {
   isOpen: boolean;
@@ -78,6 +82,7 @@ const inputClass =
 
 export function WorkshopSuppliersModal({ isOpen, onClose }: WorkshopSuppliersModalProps) {
   const isDesktopShell = useDesktopShellLayout();
+  const pcLayout = useEstoquePcLayout();
   const [items, setItems] = useState<WorkshopSupplier[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -212,9 +217,13 @@ export function WorkshopSuppliersModal({ isOpen, onClose }: WorkshopSuppliersMod
 
   return (
     <RegistrationPortal>
-      <div className={overlayClass} onClick={onClose} role="presentation">
+      <div
+        className={estoquePcSecondaryClass(pcLayout, 'suppliers', overlayClass)}
+        onClick={onClose}
+        role="presentation"
+      >
         <div
-          className={`${iosModalShell} flex h-[min(96dvh,920px)] w-full max-w-5xl flex-col overflow-hidden`}
+          className={`${iosModalShell} estoque-pc-secondary-shell flex h-[min(96dvh,920px)] w-full max-w-5xl flex-col overflow-hidden`}
           onClick={(e) => e.stopPropagation()}
           role="dialog"
           aria-modal="true"
@@ -224,7 +233,10 @@ export function WorkshopSuppliersModal({ isOpen, onClose }: WorkshopSuppliersMod
             <X className="h-5 w-5" />
           </button>
 
-          <div className="shrink-0 border-b border-zinc-200/60 px-5 pb-3 pt-8 pr-24 dark:border-white/[0.06] sm:px-6">
+          <div className="estoque-pc-secondary-header shrink-0 border-b border-zinc-200/60 px-5 pb-3 pt-8 pr-24 dark:border-white/[0.06] sm:px-6">
+            {pcLayout ? (
+              <p className="estoque-pc-secondary-eyebrow mb-1">Estoque · Fornecedores</p>
+            ) : null}
             <IosModalHeader
               icon={<Building2 className="h-5 w-5 text-zinc-800" />}
               title="Fornecedores"
@@ -233,8 +245,24 @@ export function WorkshopSuppliersModal({ isOpen, onClose }: WorkshopSuppliersMod
             />
           </div>
 
-          <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
-            <div className="min-h-0 flex-1 space-y-3 overflow-y-auto border-b border-zinc-200/60 px-5 py-4 custom-scrollbar dark:border-white/[0.06] lg:border-b-0 lg:border-r">
+          <div
+            className={
+              pcLayout
+                ? 'estoque-pc-suppliers-layout'
+                : 'flex min-h-0 flex-1 flex-col lg:flex-row'
+            }
+          >
+            <div
+              data-estoque-secondary-scroll={pcLayout ? '' : undefined}
+              className={
+                pcLayout
+                  ? 'estoque-pc-suppliers-list-pane space-y-3 overflow-y-auto border-r border-zinc-200/60 px-5 py-4 custom-scrollbar dark:border-white/[0.06]'
+                  : 'min-h-0 flex-1 space-y-3 overflow-y-auto border-b border-zinc-200/60 px-5 py-4 custom-scrollbar dark:border-white/[0.06] lg:border-b-0 lg:border-r'
+              }
+            >
+              {pcLayout ? (
+                <p className="estoque-pc-secondary-section-title mb-0">Lista</p>
+              ) : null}
               <div className="flex flex-wrap items-center gap-2">
                 <div className="relative min-w-0 flex-1">
                   <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
@@ -266,15 +294,28 @@ export function WorkshopSuppliersModal({ isOpen, onClose }: WorkshopSuppliersMod
                 Incluir desativados
               </label>
 
+              {pcLayout && !loading ? (
+                <p className="text-[12px] text-zinc-500">
+                  {filtered.length} fornecedor{filtered.length === 1 ? '' : 'es'}
+                </p>
+              ) : null}
+
               {loading ? (
                 <div className="flex items-center justify-center gap-2 py-10 text-zinc-500">
                   <Loader2 className="h-5 w-5 animate-spin" />
                   Carregando…
                 </div>
               ) : filtered.length === 0 ? (
-                <p className="py-8 text-center text-[13px] text-zinc-500">
-                  Nenhum fornecedor encontrado.
-                </p>
+                <div className={pcLayout ? 'estoque-pc-suppliers-empty' : undefined}>
+                  <p className="py-8 text-center text-[13px] text-zinc-500">
+                    Nenhum fornecedor encontrado.
+                  </p>
+                  {pcLayout ? (
+                    <p className="text-center text-[12px] text-zinc-400">
+                      Cadastre um novo fornecedor no painel ao lado.
+                    </p>
+                  ) : null}
+                </div>
               ) : (
                 <ul className="space-y-2">
                   {filtered.map((s) => {
@@ -343,164 +384,212 @@ export function WorkshopSuppliersModal({ isOpen, onClose }: WorkshopSuppliersMod
               )}
             </div>
 
-            <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-5 py-4 custom-scrollbar sm:px-6">
-              <div className="flex items-center justify-between gap-2">
-                <p className="text-[13px] font-bold uppercase tracking-wide text-zinc-500">
-                  {editingId ? 'Editar fornecedor' : 'Novo fornecedor'}
-                </p>
+            <div
+              className={
+                pcLayout
+                  ? 'estoque-pc-suppliers-form-pane px-5 py-4 sm:px-6'
+                  : 'min-h-0 flex-1 space-y-3 overflow-y-auto px-5 py-4 custom-scrollbar sm:px-6'
+              }
+            >
+              <div
+                data-estoque-secondary-scroll={pcLayout ? '' : undefined}
+                className={pcLayout ? 'min-h-0 flex-1 space-y-3 overflow-y-auto custom-scrollbar' : 'space-y-3'}
+              >
+                <div className="flex items-center justify-between gap-2">
+                  <p
+                    className={
+                      pcLayout
+                        ? 'estoque-pc-secondary-section-title mb-0'
+                        : 'text-[13px] font-bold uppercase tracking-wide text-zinc-500'
+                    }
+                  >
+                    {editingId ? 'Editar fornecedor' : 'Novo fornecedor'}
+                  </p>
+                  {editingId ? (
+                    <button
+                      type="button"
+                      onClick={startCreate}
+                      className="inline-flex items-center gap-1 text-[12px] font-semibold text-zinc-500 hover:text-zinc-800"
+                    >
+                      <ArrowLeft className="h-3.5 w-3.5" />
+                      Novo
+                    </button>
+                  ) : null}
+                </div>
+
+                {pcLayout ? (
+                  <p className="estoque-pc-secondary-section-title">Identificação</p>
+                ) : null}
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <Field label="Razão social / nome" className="sm:col-span-2">
+                    <input
+                      className={inputClass}
+                      value={form.name || ''}
+                      onChange={(e) => patchForm({ name: e.target.value })}
+                      placeholder="Obrigatório"
+                    />
+                  </Field>
+                  <Field label="Nome fantasia">
+                    <input
+                      className={inputClass}
+                      value={form.trade_name || ''}
+                      onChange={(e) => patchForm({ trade_name: e.target.value })}
+                    />
+                  </Field>
+                  <Field label="CNPJ / CPF">
+                    <input
+                      className={inputClass}
+                      value={form.document || ''}
+                      onChange={(e) => patchForm({ document: e.target.value })}
+                      placeholder="00.000.000/0000-00"
+                    />
+                  </Field>
+                </div>
+
+                {pcLayout ? (
+                  <p className="estoque-pc-secondary-section-title mt-1">Contato</p>
+                ) : null}
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <Field label="Contato">
+                    <input
+                      className={inputClass}
+                      value={form.contact_name || ''}
+                      onChange={(e) => patchForm({ contact_name: e.target.value })}
+                    />
+                  </Field>
+                  <Field label="E-mail">
+                    <input
+                      type="email"
+                      className={inputClass}
+                      value={form.email || ''}
+                      onChange={(e) => patchForm({ email: e.target.value })}
+                    />
+                  </Field>
+                  <Field label="Telefone">
+                    <input
+                      className={inputClass}
+                      value={form.phone || ''}
+                      onChange={(e) => patchForm({ phone: e.target.value })}
+                    />
+                  </Field>
+                  <Field label="WhatsApp">
+                    <input
+                      className={inputClass}
+                      value={form.whatsapp || ''}
+                      onChange={(e) => patchForm({ whatsapp: e.target.value })}
+                    />
+                  </Field>
+                </div>
+
+                {pcLayout ? (
+                  <p className="estoque-pc-secondary-section-title mt-1">Endereço</p>
+                ) : null}
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <Field label="CEP">
+                    <input
+                      className={inputClass}
+                      value={form.address_zip || ''}
+                      onChange={(e) => patchForm({ address_zip: e.target.value })}
+                    />
+                  </Field>
+                  <Field label="Rua / logradouro" className="sm:col-span-2">
+                    <input
+                      className={inputClass}
+                      value={form.address_street || ''}
+                      onChange={(e) => patchForm({ address_street: e.target.value })}
+                    />
+                  </Field>
+                  <Field label="Número">
+                    <input
+                      className={inputClass}
+                      value={form.address_number || ''}
+                      onChange={(e) => patchForm({ address_number: e.target.value })}
+                    />
+                  </Field>
+                  <Field label="Complemento">
+                    <input
+                      className={inputClass}
+                      value={form.address_complement || ''}
+                      onChange={(e) => patchForm({ address_complement: e.target.value })}
+                    />
+                  </Field>
+                  <Field label="Bairro">
+                    <input
+                      className={inputClass}
+                      value={form.address_neighborhood || ''}
+                      onChange={(e) => patchForm({ address_neighborhood: e.target.value })}
+                    />
+                  </Field>
+                  <Field label="Cidade">
+                    <input
+                      className={inputClass}
+                      value={form.address_city || ''}
+                      onChange={(e) => patchForm({ address_city: e.target.value })}
+                    />
+                  </Field>
+                  <Field label="UF">
+                    <input
+                      className={inputClass}
+                      value={form.address_state || ''}
+                      maxLength={2}
+                      onChange={(e) => patchForm({ address_state: e.target.value.toUpperCase() })}
+                      placeholder="SP"
+                    />
+                  </Field>
+                  <Field label="Observações" className="sm:col-span-2">
+                    <textarea
+                      rows={3}
+                      className={`${inputClass} resize-none`}
+                      value={form.notes || ''}
+                      onChange={(e) => patchForm({ notes: e.target.value })}
+                    />
+                  </Field>
+                </div>
+
                 {editingId ? (
+                  <label className="flex items-center gap-2 text-[13px] text-zinc-700 dark:text-zinc-200">
+                    <input
+                      type="checkbox"
+                      checked={form.active !== false}
+                      onChange={(e) => patchForm({ active: e.target.checked })}
+                      className="h-4 w-4 accent-emerald-600"
+                    />
+                    Fornecedor ativo
+                  </label>
+                ) : null}
+
+                {error ? (
+                  <p className="rounded-xl bg-red-50 px-3 py-2 text-[13px] text-red-800 dark:bg-red-950/40 dark:text-red-200">
+                    {error}
+                  </p>
+                ) : null}
+
+                {!pcLayout ? (
                   <button
                     type="button"
-                    onClick={startCreate}
-                    className="inline-flex items-center gap-1 text-[12px] font-semibold text-zinc-500 hover:text-zinc-800"
+                    disabled={saving}
+                    onClick={() => void handleSave()}
+                    className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 text-[15px] font-semibold text-white hover:bg-emerald-500 disabled:opacity-50"
                   >
-                    <ArrowLeft className="h-3.5 w-3.5" />
-                    Novo
+                    {saving ? <Loader2 className="h-5 w-5 animate-spin" /> : <Building2 className="h-5 w-5" />}
+                    {editingId ? 'Salvar alterações' : 'Cadastrar fornecedor'}
                   </button>
                 ) : null}
               </div>
 
-              <div className="grid gap-3 sm:grid-cols-2">
-                <Field label="Razão social / nome" className="sm:col-span-2">
-                  <input
-                    className={inputClass}
-                    value={form.name || ''}
-                    onChange={(e) => patchForm({ name: e.target.value })}
-                    placeholder="Obrigatório"
-                  />
-                </Field>
-                <Field label="Nome fantasia">
-                  <input
-                    className={inputClass}
-                    value={form.trade_name || ''}
-                    onChange={(e) => patchForm({ trade_name: e.target.value })}
-                  />
-                </Field>
-                <Field label="CNPJ / CPF">
-                  <input
-                    className={inputClass}
-                    value={form.document || ''}
-                    onChange={(e) => patchForm({ document: e.target.value })}
-                    placeholder="00.000.000/0000-00"
-                  />
-                </Field>
-                <Field label="Contato">
-                  <input
-                    className={inputClass}
-                    value={form.contact_name || ''}
-                    onChange={(e) => patchForm({ contact_name: e.target.value })}
-                  />
-                </Field>
-                <Field label="E-mail">
-                  <input
-                    type="email"
-                    className={inputClass}
-                    value={form.email || ''}
-                    onChange={(e) => patchForm({ email: e.target.value })}
-                  />
-                </Field>
-                <Field label="Telefone">
-                  <input
-                    className={inputClass}
-                    value={form.phone || ''}
-                    onChange={(e) => patchForm({ phone: e.target.value })}
-                  />
-                </Field>
-                <Field label="WhatsApp">
-                  <input
-                    className={inputClass}
-                    value={form.whatsapp || ''}
-                    onChange={(e) => patchForm({ whatsapp: e.target.value })}
-                  />
-                </Field>
-                <Field label="CEP">
-                  <input
-                    className={inputClass}
-                    value={form.address_zip || ''}
-                    onChange={(e) => patchForm({ address_zip: e.target.value })}
-                  />
-                </Field>
-                <Field label="Rua / logradouro" className="sm:col-span-2">
-                  <input
-                    className={inputClass}
-                    value={form.address_street || ''}
-                    onChange={(e) => patchForm({ address_street: e.target.value })}
-                  />
-                </Field>
-                <Field label="Número">
-                  <input
-                    className={inputClass}
-                    value={form.address_number || ''}
-                    onChange={(e) => patchForm({ address_number: e.target.value })}
-                  />
-                </Field>
-                <Field label="Complemento">
-                  <input
-                    className={inputClass}
-                    value={form.address_complement || ''}
-                    onChange={(e) => patchForm({ address_complement: e.target.value })}
-                  />
-                </Field>
-                <Field label="Bairro">
-                  <input
-                    className={inputClass}
-                    value={form.address_neighborhood || ''}
-                    onChange={(e) => patchForm({ address_neighborhood: e.target.value })}
-                  />
-                </Field>
-                <Field label="Cidade">
-                  <input
-                    className={inputClass}
-                    value={form.address_city || ''}
-                    onChange={(e) => patchForm({ address_city: e.target.value })}
-                  />
-                </Field>
-                <Field label="UF">
-                  <input
-                    className={inputClass}
-                    value={form.address_state || ''}
-                    maxLength={2}
-                    onChange={(e) => patchForm({ address_state: e.target.value.toUpperCase() })}
-                    placeholder="SP"
-                  />
-                </Field>
-                <Field label="Observações" className="sm:col-span-2">
-                  <textarea
-                    rows={3}
-                    className={`${inputClass} resize-none`}
-                    value={form.notes || ''}
-                    onChange={(e) => patchForm({ notes: e.target.value })}
-                  />
-                </Field>
-              </div>
-
-              {editingId ? (
-                <label className="flex items-center gap-2 text-[13px] text-zinc-700 dark:text-zinc-200">
-                  <input
-                    type="checkbox"
-                    checked={form.active !== false}
-                    onChange={(e) => patchForm({ active: e.target.checked })}
-                    className="h-4 w-4 accent-emerald-600"
-                  />
-                  Fornecedor ativo
-                </label>
+              {pcLayout ? (
+                <div className="estoque-pc-suppliers-form-actions">
+                  <button
+                    type="button"
+                    disabled={saving}
+                    onClick={() => void handleSave()}
+                    className="inline-flex min-w-[14rem] items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-[14px] font-semibold text-white hover:bg-emerald-500 disabled:opacity-50"
+                  >
+                    {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Building2 className="h-4 w-4" />}
+                    {editingId ? 'Salvar alterações' : 'Cadastrar fornecedor'}
+                  </button>
+                </div>
               ) : null}
-
-              {error ? (
-                <p className="rounded-xl bg-red-50 px-3 py-2 text-[13px] text-red-800 dark:bg-red-950/40 dark:text-red-200">
-                  {error}
-                </p>
-              ) : null}
-
-              <button
-                type="button"
-                disabled={saving}
-                onClick={() => void handleSave()}
-                className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 text-[15px] font-semibold text-white hover:bg-emerald-500 disabled:opacity-50"
-              >
-                {saving ? <Loader2 className="h-5 w-5 animate-spin" /> : <Building2 className="h-5 w-5" />}
-                {editingId ? 'Salvar alterações' : 'Cadastrar fornecedor'}
-              </button>
             </div>
           </div>
         </div>
