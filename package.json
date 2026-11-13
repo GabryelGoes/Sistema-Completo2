@@ -43,7 +43,8 @@
     "test:workshop-settings-secrets": "tsx scripts/workshopSettingsSecrets.selftest.ts",
     "test:login-password-change": "tsx scripts/loginPasswordChange.selftest.ts",
     "test:sec03-authorization": "tsx scripts/sec03Authorization.selftest.ts",
-    "test:workshop-part-reservations": "tsx scripts/workshopPartReservations.selftest.ts"
+    "test:workshop-part-reservations": "tsx scripts/workshopPartReservations.selftest.ts",
+    "test:vehicle-maintenance-parts": "tsx scripts/vehicleMaintenanceParts.selftest.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.48.0",

@@ -45,6 +45,7 @@ import {
 } from "./utils/serviceOrderServiceTechnicians.js";
 import { normalizeBudgetPartName } from "./utils/budgetPartStock.js";
 import { collectPendingStockReservations } from "./utils/workshopPartReservations.js";
+import { collectMaintenanceVisitParts } from "./utils/vehicleMaintenanceParts.js";
 import { normalizeBarcodeInput } from "./utils/workshopPartBarcode.js";
 import {
   deviceKindFromUserAgent,
@@ -6546,6 +6547,80 @@ export function createApiApp() {
         techByOrder.set(sid, list);
       }
 
+      /** Baixas confirmadas em “Peças do estoque” por OS (só estas validam peça de estoque no histórico). */
+      type StockDeliveryRow = {
+        serviceOrderId: string;
+        partId: string;
+        quantity: number;
+        partName: string | null;
+      };
+      let stockDeliveries: StockDeliveryRow[] = [];
+      if (orderIds.length > 0 && movementsHaveServiceOrderId !== false) {
+        let { data: movRows, error: movError } = await supabaseAdmin
+          .from("workshop_part_stock_movements")
+          .select("part_id, quantity, service_order_id, movement_type")
+          .eq("workshop_id", WORKSHOP_ID)
+          .in("service_order_id", orderIds)
+          .in("movement_type", ["consumable", "sale"])
+          .limit(8000);
+        if (movError && markMovementsServiceOrderMissingFromError(movError.message)) {
+          movRows = [];
+          movError = null;
+        }
+        if (movError) {
+          console.warn(
+            "[API] maintenance-history: baixas de estoque indisponíveis:",
+            movError.message
+          );
+        } else {
+          if (movementsHaveServiceOrderId == null) movementsHaveServiceOrderId = true;
+          const rawMovs = (movRows ?? []) as Array<{
+            part_id?: string;
+            quantity?: number;
+            service_order_id?: string | null;
+            part_name?: string | null;
+          }>;
+          const partIds = [
+            ...new Set(
+              rawMovs
+                .map((r) => String(r.part_id ?? "").trim())
+                .filter(Boolean)
+            ),
+          ];
+          const nameByPartId = new Map<string, string>();
+          if (partIds.length > 0) {
+            const { data: partNameRows } = await supabaseAdmin
+              .from("workshop_parts")
+              .select("id, name")
+              .eq("workshop_id", WORKSHOP_ID)
+              .in("id", partIds);
+            for (const row of partNameRows ?? []) {
+              const pid = String((row as { id?: string }).id ?? "").trim();
+              const pname = String((row as { name?: string }).name ?? "").trim();
+              if (pid && pname) nameByPartId.set(pid, pname);
+            }
+          }
+          stockDeliveries = rawMovs
+            .map((r) => {
+              const partId = String(r.part_id ?? "").trim();
+              const serviceOrderId = String(r.service_order_id ?? "").trim();
+              const quantity = Number(r.quantity ?? 0);
+              const partName =
+                (typeof r.part_name === "string" && r.part_name.trim()) ||
+                nameByPartId.get(partId) ||
+                null;
+              return { serviceOrderId, partId, quantity, partName };
+            })
+            .filter((d) => d.serviceOrderId && d.partId && d.quantity > 0);
+        }
+      }
+      const deliveriesByOrder = new Map<string, StockDeliveryRow[]>();
+      for (const d of stockDeliveries) {
+        const list = deliveriesByOrder.get(d.serviceOrderId) ?? [];
+        list.push(d);
+        deliveriesByOrder.set(d.serviceOrderId, list);
+      }
+
       const stageLabel = (status: string) => {
         if (status === CANCELLED_STATUS) return "Arquivado";
         return SERVICE_ORDER_STAGES.find((s) => s.id === status)?.name ?? status;
@@ -6611,33 +6686,29 @@ export function createApiApp() {
           }
         }
 
-        const parts: VisitPart[] = [];
-        const seenPart = new Set<string>();
+        const budgetPartsFlat: import("./utils/vehicleMaintenanceParts.js").MaintenanceBudgetPart[] =
+          [];
         for (const budget of orderBudgets) {
           for (const part of Array.isArray(budget.parts) ? budget.parts : []) {
-            if (part?.approved !== true) continue;
-            const description = String(part.description ?? "").trim();
-            if (!description) continue;
-            const workshopPartId =
-              typeof part.workshopPartId === "string" && part.workshopPartId.trim()
-                ? part.workshopPartId.trim()
-                : null;
-            const fromStock = part.fromStock === true || Boolean(workshopPartId);
-            const key = workshopPartId
-              ? `id:${workshopPartId}`
-              : `name:${normalizeBudgetPartName(description)}`;
-            if (seenPart.has(key)) continue;
-            seenPart.add(key);
-            const qtyRaw = String(part.quantity ?? "1").trim() || "1";
-            parts.push({
-              description,
-              quantity: qtyRaw,
-              fromStock,
-              workshopPartId,
+            budgetPartsFlat.push({
+              description: part?.description,
+              quantity: part?.quantity,
+              approved: part?.approved,
+              fromStock: part?.fromStock,
+              workshopPartId: part?.workshopPartId,
               budgetId: budget.id ?? null,
             });
           }
         }
+        const orderDeliveries = (deliveriesByOrder.get(sid) ?? []).map((d) => ({
+          partId: d.partId,
+          quantity: d.quantity,
+          partName: d.partName,
+        }));
+        const parts: VisitPart[] = collectMaintenanceVisitParts({
+          budgetParts: budgetPartsFlat,
+          deliveries: orderDeliveries,
+        });
 
         return {
           serviceOrderId: sid,

@@ -238,8 +238,8 @@ export const PatioOsModalHistoricoTab: React.FC<PatioOsModalHistoricoTabProps> =
                 Nenhuma manutenção registrada
               </p>
               <p className="mx-auto mt-1 max-w-sm text-[13px] leading-relaxed text-zinc-500 dark:text-zinc-400">
-                O histórico é reunido pela placa. Quando serviços e peças forem aprovados em
-                qualquer cadastro desta placa (mesmo com outro proprietário), eles aparecem aqui.
+                O histórico é reunido pela placa. Serviços e peças fora do estoque aparecem quando
+                aprovados; peças do estoque só depois da retirada confirmada em Peças do estoque.
               </p>
             </div>
           ) : filteredVisits.length === 0 ? (
@@ -358,13 +358,13 @@ export const PatioOsModalHistoricoTab: React.FC<PatioOsModalHistoricoTabProps> =
                         <div>
                           <p className="mb-1.5 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.12em] text-emerald-700 dark:text-emerald-300">
                             <Package className="h-3.5 w-3.5" strokeWidth={2.4} aria-hidden />
-                            Peças aprovadas
-                            {visit.finalized ? ' · trocadas' : ''}
+                            Peças
+                            {visit.finalized ? ' · usadas' : ''}
                           </p>
                           <ul className="space-y-1.5">
                             {visit.parts.map((part) => (
                               <li
-                                key={`${visit.serviceOrderId}-part-${part.description}`}
+                                key={`${visit.serviceOrderId}-part-${part.workshopPartId ?? part.description}-${part.quantity}`}
                                 className="flex items-start gap-2 rounded-xl bg-emerald-50 px-2.5 py-2 dark:bg-emerald-500/15"
                               >
                                 <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" />
@@ -374,7 +374,9 @@ export const PatioOsModalHistoricoTab: React.FC<PatioOsModalHistoricoTabProps> =
                                   </p>
                                   <p className="mt-0.5 text-[11px] text-zinc-500 dark:text-zinc-400">
                                     Qtd. {part.quantity}
-                                    {part.fromStock ? ' · Estoque' : ''}
+                                    {part.fromStock
+                                      ? ' · Retirada do estoque'
+                                      : ' · Aprovada no orçamento'}
                                   </p>
                                 </div>
                               </li>
