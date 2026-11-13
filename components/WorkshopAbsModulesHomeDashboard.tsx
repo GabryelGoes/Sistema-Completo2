@@ -49,6 +49,10 @@ import { PartPhotoImg } from './ui/PartPhotoImg';
 import { useBrowserBackLayer } from './ui/BackNavigationContext';
 import { WorkshopAbsModuleDetailView } from './WorkshopAbsModuleDetailView';
 import { WorkshopAbsModulesModal } from './WorkshopAbsModulesModal';
+import {
+  estoquePcAbsClass,
+  useEstoquePcLayout,
+} from './estoque/EstoquePcLayoutContext';
 
 export type WorkshopAbsModulesHomeDashboardProps = {
   onBack: () => void;
@@ -99,6 +103,7 @@ export function WorkshopAbsModulesHomeDashboard({
   initialPublicId,
   onInitialPublicIdConsumed,
 }: WorkshopAbsModulesHomeDashboardProps) {
+  const pcLayout = useEstoquePcLayout();
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -394,8 +399,15 @@ export function WorkshopAbsModulesHomeDashboard({
           }}
         />
       ) : (
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-auto touch-pan-y px-4 pb-[max(2rem,env(safe-area-inset-bottom))] custom-scrollbar [scrollbar-gutter:stable] sm:px-6 lg:px-8">
-        <div className="mb-5 flex flex-col gap-3 pt-1 sm:mb-6 sm:flex-row sm:items-start sm:justify-between">
+      <div
+        className={estoquePcAbsClass(
+          pcLayout,
+          'home',
+          'min-h-0 flex-1 overflow-y-auto overscroll-y-auto touch-pan-y px-4 pb-[max(2rem,env(safe-area-inset-bottom))] custom-scrollbar [scrollbar-gutter:stable] sm:px-6 lg:px-8'
+        )}
+        data-estoque-abs-scroll={pcLayout ? '' : undefined}
+      >
+        <div className="estoque-pc-abs-header mb-5 flex flex-col gap-3 pt-1 sm:mb-6 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0">
             <button
               type="button"
@@ -405,9 +417,17 @@ export function WorkshopAbsModulesHomeDashboard({
               <ArrowLeft className="h-4 w-4" />
               Voltar ao Estoque
             </button>
+            {pcLayout ? (
+              <p className="estoque-pc-abs-eyebrow mb-1">Estoque · Módulos ABS</p>
+            ) : null}
             <h2 className="text-[22px] font-bold tracking-tight text-zinc-900 dark:text-white">
               Módulos ABS
             </h2>
+            {pcLayout ? (
+              <p className="mt-0.5 text-[13px] text-zinc-500 dark:text-zinc-400">
+                Modelos técnicos, unidades, desmembramento e movimentações
+              </p>
+            ) : null}
           </div>
 
           <div className="flex flex-wrap gap-2 justify-end shrink-0">
@@ -445,7 +465,7 @@ export function WorkshopAbsModulesHomeDashboard({
         ) : null}
 
         {!loading && models.length > 0 ? (
-          <div className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="estoque-pc-abs-kpis mb-5 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <button
               type="button"
               onClick={() => {
@@ -503,7 +523,10 @@ export function WorkshopAbsModulesHomeDashboard({
           </div>
         ) : null}
 
-        <div className="sticky top-0 z-30 -mx-4 mb-4 border-b border-zinc-200/60 bg-[#F4F5F7] px-4 pb-2.5 pt-1 dark:border-white/[0.06] dark:bg-zinc-950 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
+        <div className="estoque-pc-abs-toolbar sticky top-0 z-30 -mx-4 mb-4 border-b border-zinc-200/60 bg-[#F4F5F7] px-4 pb-2.5 pt-1 dark:border-white/[0.06] dark:bg-zinc-950 sm:-mx-6 sm:px-6 lg:-mx-8 lg:px-8">
+          {pcLayout ? (
+            <p className="estoque-pc-abs-section-title">Pesquisa e filtros</p>
+          ) : null}
           <div className="flex flex-col gap-3 lg:flex-row lg:items-stretch">
             <div className="relative min-w-0 flex-1">
               <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-400" />
@@ -574,7 +597,15 @@ export function WorkshopAbsModulesHomeDashboard({
           </div>
         </div>
 
-        <div className="rounded-[22px] border-0 bg-white shadow-none dark:bg-zinc-900">
+        <div className="estoque-pc-abs-table rounded-[22px] border-0 bg-white shadow-none dark:bg-zinc-900">
+          {pcLayout ? (
+            <div className="flex items-center justify-between gap-2 border-b border-zinc-100 px-4 py-2.5 dark:border-white/[0.06]">
+              <p className="estoque-pc-abs-section-title mb-0">Modelos técnicos</p>
+              <p className="text-[12px] tabular-nums text-zinc-500">
+                {models.length} resultado{models.length === 1 ? '' : 's'}
+              </p>
+            </div>
+          ) : null}
           <div
             className={`hidden border-b border-zinc-100 px-3 py-3 text-[11px] font-bold uppercase tracking-[0.12em] text-zinc-400 dark:border-white/[0.06] dark:text-zinc-500 lg:grid lg:gap-x-2.5 lg:gap-y-0 ${gridCols}`}
           >
@@ -617,7 +648,7 @@ export function WorkshopAbsModulesHomeDashboard({
                 return (
                   <div
                     key={m.id}
-                    className={`min-h-[64px] px-3 py-3 transition-colors hover:bg-zinc-50/80 dark:hover:bg-white/[0.03] lg:grid lg:items-center lg:gap-x-2.5 lg:gap-y-0 ${gridCols}`}
+                    className={`estoque-pc-abs-row min-h-[64px] px-3 py-3 transition-colors hover:bg-zinc-50/80 dark:hover:bg-white/[0.03] lg:grid lg:items-center lg:gap-x-2.5 lg:gap-y-0 ${gridCols}`}
                   >
                     <button
                       type="button"

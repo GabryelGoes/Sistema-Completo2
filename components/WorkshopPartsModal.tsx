@@ -1356,9 +1356,9 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
           ) : null}
 
           {isEstoquePcLayout && absModulesOpen ? (
-            <div className="shrink-0 border-b border-zinc-200/70 bg-[#F4F5F7] px-6 py-2 dark:border-white/[0.06] dark:bg-zinc-950">
+            <div className="estoque-pc-abs-banner shrink-0 border-b border-zinc-200/70 bg-[#F4F5F7] px-6 py-2 dark:border-white/[0.06] dark:bg-zinc-950">
               <p className="text-[12px] font-extrabold uppercase tracking-[0.06em] text-[#0F7A4B] dark:text-emerald-400">
-                Módulos ABS
+                Estoque · Módulos ABS
               </p>
               <p className="text-[12px] font-medium text-zinc-500 dark:text-zinc-400">
                 Estoque de módulos e componentes ABS — separado do catálogo de peças
