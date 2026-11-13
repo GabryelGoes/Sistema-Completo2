@@ -28,6 +28,13 @@ export type ServiceOrderForReservation = {
   finalize_stock_applied_at?: string | null;
 };
 
+/** Baixa já feita na OS (produtos do estoque / leitor / manual). */
+export type DeliveredStockForReservation = {
+  serviceOrderId: string;
+  partId: string;
+  quantity: number;
+};
+
 export type WorkshopPartStockReservation = {
   workshopPartId: string | null;
   partName: string;
@@ -50,19 +57,51 @@ function isStockLinkedPart(part: BudgetPartForReservation): boolean {
   return part.fromStock === true || Boolean(workshopPartId);
 }
 
+function deliveryKey(serviceOrderId: string, partId: string): string {
+  return `${serviceOrderId}::${partId}`;
+}
+
+function roundQty(n: number): number {
+  return Math.round(n * 1000) / 1000;
+}
+
+/**
+ * Soma baixas por OS + produto (sale/consumable).
+ * Quantidades extras além do orçamento ficam no mapa e não criam reserva negativa.
+ */
+export function buildDeliveredQtyByOsAndPart(
+  deliveries: DeliveredStockForReservation[]
+): Map<string, number> {
+  const map = new Map<string, number>();
+  for (const row of deliveries) {
+    const soId = String(row.serviceOrderId ?? '').trim();
+    const partId = String(row.partId ?? '').trim();
+    if (!soId || !partId) continue;
+    const qty = roundQty(Number(row.quantity));
+    if (!Number.isFinite(qty) || qty <= 0) continue;
+    const key = deliveryKey(soId, partId);
+    map.set(key, roundQty((map.get(key) ?? 0) + qty));
+  }
+  return map;
+}
+
 /**
  * Extrai reservas de estoque em orçamentos de OS ainda abertas.
- * Inclui peças do estoque mesmo sem aprovação — o produto continua no catálogo.
- * A baixa do estoque não ocorre no fechamento; só via leitor ou baixa manual.
+ * Inclui peças do estoque mesmo sem aprovação — é referência do que ainda
+ * deve sair do estoque. O que já foi entregue na OS via “produtos do estoque”
+ * (baixa vinculada à OS) deixa de contar.
  */
 export function collectPendingStockReservations(input: {
   budgets: BudgetForReservation[];
   serviceOrders: ServiceOrderForReservation[];
+  /** Baixas já feitas na OS (consumable/sale com service_order_id). */
+  deliveries?: DeliveredStockForReservation[];
 }): {
   items: WorkshopPartStockReservation[];
   reservedQtyByPartId: Record<string, number>;
 } {
   const soById = new Map(input.serviceOrders.map((so) => [so.id, so]));
+  const deliveredLeft = buildDeliveredQtyByOsAndPart(input.deliveries ?? []);
   const items: WorkshopPartStockReservation[] = [];
   const reservedQtyByPartId: Record<string, number> = {};
 
@@ -82,7 +121,21 @@ export function collectPendingStockReservations(input: {
         typeof part.workshopPartId === 'string' && part.workshopPartId.trim()
           ? part.workshopPartId.trim()
           : null;
-      const quantity = parseFinalizePartQuantity(part.quantity);
+      let quantity = roundQty(parseFinalizePartQuantity(part.quantity));
+      if (!Number.isFinite(quantity) || quantity <= 0) continue;
+
+      // Já entregue na OS → abate; zera a linha se a quantidade já saiu.
+      if (workshopPartId) {
+        const key = deliveryKey(so.id, workshopPartId);
+        const delivered = deliveredLeft.get(key) ?? 0;
+        if (delivered > 0) {
+          const used = Math.min(delivered, quantity);
+          quantity = roundQty(quantity - used);
+          deliveredLeft.set(key, roundQty(delivered - used));
+        }
+      }
+      if (quantity <= 0) continue;
+
       items.push({
         workshopPartId,
         partName,
@@ -97,8 +150,9 @@ export function collectPendingStockReservations(input: {
         status: so.status ? String(so.status) : null,
       });
       if (workshopPartId) {
-        reservedQtyByPartId[workshopPartId] =
-          (reservedQtyByPartId[workshopPartId] ?? 0) + quantity;
+        reservedQtyByPartId[workshopPartId] = roundQty(
+          (reservedQtyByPartId[workshopPartId] ?? 0) + quantity
+        );
       }
     }
   }

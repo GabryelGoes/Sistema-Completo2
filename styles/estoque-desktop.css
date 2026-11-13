@@ -575,6 +575,14 @@ html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-detail .estoq
   min-width: 0;
 }
 
+html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-detail .estoque-pc-detail-stock-hero {
+  border: 1px solid rgba(16, 185, 129, 0.18);
+}
+
+html.dark[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-detail .estoque-pc-detail-stock-hero {
+  border-color: rgba(16, 185, 129, 0.22);
+}
+
 html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-detail .estoque-pc-detail-section-title {
   margin: 0 0 0.55rem;
   font-size: 0.6875rem;

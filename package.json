@@ -42,7 +42,8 @@
     "test:remove-os-work-time-panel": "tsx scripts/removeOsWorkTimePanel.selftest.ts",
     "test:workshop-settings-secrets": "tsx scripts/workshopSettingsSecrets.selftest.ts",
     "test:login-password-change": "tsx scripts/loginPasswordChange.selftest.ts",
-    "test:sec03-authorization": "tsx scripts/sec03Authorization.selftest.ts"
+    "test:sec03-authorization": "tsx scripts/sec03Authorization.selftest.ts",
+    "test:workshop-part-reservations": "tsx scripts/workshopPartReservations.selftest.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.48.0",

@@ -260,6 +260,71 @@ export function WorkshopPartDetailView({
           <div className={pcLayout ? 'estoque-pc-detail-layout' : 'contents'}>
             {photosBlock}
             <div className={pcLayout ? 'estoque-pc-detail-main' : 'contents'}>
+          {/* Quantidade em destaque — primeiro olhar na ficha */}
+          <div
+            className={`estoque-pc-detail-stock-hero overflow-hidden rounded-2xl border-0 shadow-none ${
+              stockStatus === 'zero'
+                ? 'bg-gradient-to-br from-red-50 to-rose-100/80 dark:from-red-950/55 dark:to-rose-950/35'
+                : stockStatus === 'low'
+                  ? 'bg-gradient-to-br from-amber-50 to-orange-100/70 dark:from-amber-950/50 dark:to-orange-950/30'
+                  : 'bg-gradient-to-br from-emerald-50 to-teal-100/70 dark:from-emerald-950/45 dark:to-teal-950/30'
+            }`}
+          >
+            <div className="flex flex-wrap items-stretch gap-0">
+              <div
+                className={`flex min-w-[11rem] flex-1 flex-col justify-center px-5 py-5 sm:min-w-[14rem] sm:px-6 ${
+                  stockStatus === 'zero'
+                    ? 'bg-red-600 text-white dark:bg-red-700'
+                    : stockStatus === 'low'
+                      ? 'bg-amber-500 text-amber-950 dark:bg-amber-600 dark:text-amber-50'
+                      : 'bg-emerald-600 text-white dark:bg-emerald-700'
+                }`}
+              >
+                <p className="text-[11px] font-bold uppercase tracking-[0.14em] opacity-90">
+                  Quantidade em estoque
+                </p>
+                <p className="mt-1.5 text-[2.6rem] font-black leading-none tracking-tight tabular-nums sm:text-[3rem]">
+                  {formatWorkshopPartQty(part.stock_qty)}
+                </p>
+                <p className="mt-1.5 text-[14px] font-semibold opacity-95">{unit}</p>
+              </div>
+              <div className="flex min-w-0 flex-[1.4] flex-col justify-center gap-3 px-5 py-4 sm:px-6">
+                <div className="flex flex-wrap items-center gap-2">
+                  <WorkshopPartStockBadge status={stockStatus} />
+                  <span className="text-[13px] font-medium text-zinc-700 dark:text-zinc-200">
+                    {stockStatus === 'zero'
+                      ? 'Sem saldo — reposição necessária'
+                      : stockStatus === 'low'
+                        ? 'Abaixo ou no mínimo'
+                        : 'Saldo ok'}
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                  <div>
+                    <p className={labelCls}>Mínimo</p>
+                    <p className="text-[16px] font-bold tabular-nums text-zinc-900 dark:text-white">
+                      {fmtQty(part.min_stock_qty ?? 0, unit)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className={labelCls}>Máximo</p>
+                    <p className="text-[16px] font-bold tabular-nums text-zinc-900 dark:text-white">
+                      {part.max_stock_qty != null ? fmtQty(part.max_stock_qty, unit) : '—'}
+                    </p>
+                  </div>
+                  <div className="col-span-2 sm:col-span-1">
+                    <p className={labelCls}>Local</p>
+                    <p className="truncate text-[15px] font-semibold text-zinc-900 dark:text-white">
+                      {[storageSiteLabel(part.storage_site), part.location?.trim()]
+                        .filter(Boolean)
+                        .join(' · ') || '—'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <div className={cardCls}>
             <h3 className={pcLayout ? 'estoque-pc-detail-section-title mb-3' : 'mb-3 text-[13px] font-bold text-zinc-800 dark:text-zinc-200'}>Identificação</h3>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -351,47 +416,19 @@ export function WorkshopPartDetailView({
           ) : null}
 
           <div className={cardCls}>
-            <div className="mb-3 flex flex-wrap items-center gap-2">
-              <h3 className="text-[13px] font-bold text-zinc-800 dark:text-zinc-200">Estoque e preços</h3>
-              <WorkshopPartStockBadge status={stockStatus} />
-            </div>
-            {stockStatus !== 'ok' ? (
-              <p
-                className={`mb-3 rounded-lg px-3 py-2 text-[13px] font-medium ${
-                  stockStatus === 'zero'
-                    ? 'bg-red-100 text-red-900 dark:bg-red-950/40 dark:text-red-200'
-                    : 'bg-amber-100 text-amber-950 dark:bg-amber-950/40 dark:text-amber-200'
-                }`}
-              >
-                {stockStatus === 'zero'
-                  ? 'Esta peça está sem estoque. Reposição necessária.'
-                  : `Estoque na ou abaixo do mínimo (${fmtQty(part.min_stock_qty ?? 0, unit)}). Considere repor.`}
-              </p>
-            ) : null}
+            <h3 className={pcLayout ? 'estoque-pc-detail-section-title mb-3' : 'mb-3 text-[13px] font-bold text-zinc-800 dark:text-zinc-200'}>
+              Preços e comercial
+            </h3>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              <DetailRow label="Preço venda" value={fmtMoney(part.unit_price)} />
-              <DetailRow label="Custo unitário" value={fmtMoney(part.unit_cost)} />
               <DetailRow
-                label="Quantidade em estoque"
+                label="Preço venda"
                 value={
-                  <span
-                    className={
-                      stockStatus === 'zero'
-                        ? 'font-semibold text-red-700 dark:text-red-300'
-                        : stockStatus === 'low'
-                          ? 'font-semibold text-amber-800 dark:text-amber-300'
-                          : undefined
-                    }
-                  >
-                    {fmtQty(part.stock_qty, unit)}
+                  <span className="text-[18px] font-extrabold tabular-nums text-zinc-900 dark:text-white">
+                    {fmtMoney(part.unit_price)}
                   </span>
                 }
               />
-              <DetailRow label="Quantidade mínima" value={fmtQty(part.min_stock_qty ?? 0, unit)} />
-              <DetailRow
-                label="Quantidade máxima"
-                value={part.max_stock_qty != null ? fmtQty(part.max_stock_qty, unit) : '—'}
-              />
+              <DetailRow label="Custo unitário" value={fmtMoney(part.unit_cost)} />
               <DetailRow label="Prêmio" value={fmtMoney(part.premium_amount ?? 0)} />
               <DetailRow label="Comissão" value={`${Number(part.commission_pct ?? 0).toFixed(2)} %`} />
               <DetailRow

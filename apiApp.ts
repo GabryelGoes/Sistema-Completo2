@@ -11131,9 +11131,59 @@ export function createApiApp() {
         return res.status(500).json({ error: budgetError.message });
       }
 
+      // Baixas já feitas na OS (produtos do estoque) deixam de contar como “em orçamento”.
+      type DeliveryRow = { serviceOrderId: string; partId: string; quantity: number };
+      let deliveries: DeliveryRow[] = [];
+      if (movementsHaveServiceOrderId !== false) {
+        let movQuery = supabaseAdmin
+          .from("workshop_part_stock_movements")
+          .select("part_id, quantity, service_order_id, movement_type")
+          .eq("workshop_id", WORKSHOP_ID)
+          .in("service_order_id", orderIds)
+          .in("movement_type", ["consumable", "sale"])
+          .limit(5000);
+        let { data: movRows, error: movError } = await movQuery;
+        if (movError && markMovementsServiceOrderMissingFromError(movError.message)) {
+          movRows = [];
+          movError = null;
+        }
+        if (movError && markMovementsPurchaseMetaMissingFromError(movError.message)) {
+          ({ data: movRows, error: movError } = await supabaseAdmin
+            .from("workshop_part_stock_movements")
+            .select("part_id, quantity, service_order_id, movement_type")
+            .eq("workshop_id", WORKSHOP_ID)
+            .in("service_order_id", orderIds)
+            .in("movement_type", ["consumable", "sale"])
+            .limit(5000));
+        }
+        if (movError) {
+          console.warn(
+            "[API] Reservas: não foi possível ler baixas da OS; mantém orçamento bruto:",
+            movError.message
+          );
+        } else {
+          if (movementsHaveServiceOrderId == null) movementsHaveServiceOrderId = true;
+          deliveries = (movRows ?? [])
+            .map((row) => {
+              const r = row as {
+                part_id?: string;
+                quantity?: number;
+                service_order_id?: string | null;
+              };
+              return {
+                serviceOrderId: String(r.service_order_id ?? "").trim(),
+                partId: String(r.part_id ?? "").trim(),
+                quantity: Number(r.quantity ?? 0),
+              };
+            })
+            .filter((d) => d.serviceOrderId && d.partId && d.quantity > 0);
+        }
+      }
+
       const result = collectPendingStockReservations({
         budgets: (budgets ?? []) as unknown as import("./utils/workshopPartReservations.js").BudgetForReservation[],
         serviceOrders: orders,
+        deliveries,
       });
 
       return res.json(result);

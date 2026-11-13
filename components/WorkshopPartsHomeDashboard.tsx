@@ -256,8 +256,13 @@ export function WorkshopPartsHomeDashboard({
         aria-expanded={reservationsExpanded}
       >
         <span className="min-w-0 flex items-center gap-2.5">
-          <span className="text-[15px] font-semibold text-amber-950 dark:text-amber-100">
-            Em Orçamentos
+          <span className="min-w-0">
+            <span className="block text-[15px] font-semibold text-amber-950 dark:text-amber-100">
+              Em Orçamentos
+            </span>
+            <span className="mt-0.5 block text-[11px] font-medium text-amber-900/75 dark:text-amber-200/75">
+              Ainda não retirados na OS
+            </span>
           </span>
           <span className="rounded-lg bg-amber-500/25 px-2 py-0.5 text-[12px] font-bold tabular-nums text-amber-950 dark:bg-amber-400/20 dark:text-amber-100">
             {pendingReservations.length}
@@ -302,7 +307,7 @@ export function WorkshopPartsHomeDashboard({
           </ul>
         ) : (
           <p className="border-t border-amber-200/70 px-4 py-3 text-[13px] text-amber-900/80 dark:border-amber-500/20 dark:text-amber-200/80">
-            Nenhum produto em orçamento aguardando baixa.
+            Nenhum produto em orçamento aguardando retirada na OS.
           </p>
         )
       ) : null}

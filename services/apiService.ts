@@ -4300,7 +4300,10 @@ export type WorkshopPartPendingReservationsResponse = {
   reservedQtyByPartId: Record<string, number>;
 };
 
-/** Peças do estoque em orçamentos de veículos ainda sem baixa (antes de Finalizado). */
+/**
+ * Peças do estoque em orçamentos de veículos ainda abertos.
+ * Já desconta o que foi entregue na OS via “produtos do estoque”.
+ */
 export async function getWorkshopPartPendingReservations(): Promise<WorkshopPartPendingReservationsResponse> {
   const response = await fetch(`${API_BASE}/workshop-parts/pending-reservations`);
   if (!response.ok) {
