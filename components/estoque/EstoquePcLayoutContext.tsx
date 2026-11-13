@@ -28,6 +28,9 @@ export const ESTOQUE_PC_SHELL_CLASS = 'estoque-modal estoque-modal--desktop esto
 /** Nested cadastro/ficha (E2) — portais filhos do hub Estoque. */
 export const ESTOQUE_PC_NESTED_CLASS = 'estoque-pc-nested estoque-pc-form-v2';
 
+/** Fluxos scan / entrada / saída (E3). */
+export const ESTOQUE_PC_FLOW_CLASS = 'estoque-pc-flow estoque-pc-flow-v3';
+
 export function estoquePcShellClass(pcLayout: boolean, extra = ''): string {
   if (!pcLayout) return extra;
   return extra ? `${ESTOQUE_PC_SHELL_CLASS} ${extra}` : ESTOQUE_PC_SHELL_CLASS;
@@ -36,4 +39,11 @@ export function estoquePcShellClass(pcLayout: boolean, extra = ''): string {
 export function estoquePcNestedClass(pcLayout: boolean, extra = ''): string {
   if (!pcLayout) return extra;
   return extra ? `${ESTOQUE_PC_NESTED_CLASS} ${extra}` : ESTOQUE_PC_NESTED_CLASS;
+}
+
+export function estoquePcFlowClass(pcLayout: boolean, kind: 'scan' | 'inbound' | 'outbound', extra = ''): string {
+  if (!pcLayout) return extra;
+  const kindClass = `estoque-pc-${kind}`;
+  const joined = `${ESTOQUE_PC_FLOW_CLASS} ${kindClass}`;
+  return extra ? `${joined} ${extra}` : joined;
 }

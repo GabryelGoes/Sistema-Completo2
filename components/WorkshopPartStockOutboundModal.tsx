@@ -28,6 +28,10 @@ import { resolveIosModalOverlayClass, NESTED_STOCK_OVERLAY_Z } from './ui/iosMod
 import { useDesktopShellLayout } from './ui/DesktopShellContext';
 import { useBrowserBackLayer } from './ui/BackNavigationContext';
 import { StockGuardPasswordModal } from './StockGuardPasswordModal';
+import {
+  estoquePcFlowClass,
+  useEstoquePcLayout,
+} from './estoque/EstoquePcLayoutContext';
 
 export type WorkshopPartStockOutboundModalProps = {
   isOpen: boolean;
@@ -80,6 +84,7 @@ export function WorkshopPartStockOutboundModal({
   stockGuardBypassPassword = null,
 }: WorkshopPartStockOutboundModalProps) {
   const isDesktopShell = useDesktopShellLayout();
+  const pcLayout = useEstoquePcLayout();
   const isSale = mode === 'sale';
   const title = stockMovementTypeLabel(mode);
 
@@ -411,15 +416,34 @@ export function WorkshopPartStockOutboundModal({
     }
   };
 
+  const confirmButton = (
+    <button
+      type="button"
+      disabled={saving}
+      onClick={() => void handleConfirm()}
+      className={`inline-flex w-auto items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-[13px] font-semibold text-white shadow-none disabled:opacity-60 ${
+        isSale ? 'bg-violet-600 hover:bg-violet-500' : 'bg-sky-600 hover:bg-sky-500'
+      }`}
+    >
+      {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+      {isSale ? 'Confirmar venda' : 'Confirmar consumo'}
+    </button>
+  );
+
   return (
     <RegistrationPortal>
-      <div className={overlayClass} role="dialog" aria-modal="true" aria-label={title}>
+      <div
+        className={estoquePcFlowClass(pcLayout, 'outbound', overlayClass)}
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+      >
         <div
-          className={`flex max-h-[min(940px,96vh)] w-full flex-col overflow-hidden rounded-[1.75rem] border-0 bg-zinc-50 shadow-none dark:bg-zinc-950 ${
-            isDesktopShell ? 'max-w-4xl' : 'max-w-lg'
+          className={`estoque-pc-flow-shell flex max-h-[min(940px,96vh)] w-full flex-col overflow-hidden rounded-[1.75rem] border-0 bg-zinc-50 shadow-none dark:bg-zinc-950 ${
+            isDesktopShell ? (pcLayout ? 'max-w-5xl' : 'max-w-4xl') : 'max-w-lg'
           }`}
         >
-          <div className="flex items-start justify-between gap-3 border-b border-zinc-200/80 px-5 py-4 dark:border-white/10">
+          <div className="estoque-pc-flow-header flex items-start justify-between gap-3 border-b border-zinc-200/80 px-5 py-4 dark:border-white/10">
             <div className="flex min-w-0 items-start gap-3">
               <button
                 type="button"
@@ -430,6 +454,11 @@ export function WorkshopPartStockOutboundModal({
                 <ArrowLeft className="h-5 w-5" />
               </button>
               <div className="min-w-0">
+                {pcLayout ? (
+                  <p className="estoque-pc-flow-eyebrow mb-0.5">
+                    {isSale ? 'Estoque · Saída · Venda' : 'Estoque · Saída · Consumo'}
+                  </p>
+                ) : null}
                 <div className="flex items-center gap-2">
                   <span
                     className={`inline-flex h-9 w-9 items-center justify-center rounded-xl ${
@@ -457,11 +486,20 @@ export function WorkshopPartStockOutboundModal({
             </button>
           </div>
 
-          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-4 custom-scrollbar">
+          <div
+            data-estoque-flow-scroll={pcLayout ? '' : undefined}
+            className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-4 custom-scrollbar"
+          >
             {!initialPart ? (
               <>
                 <section className="space-y-2">
-                  <h3 className="text-[13px] font-bold uppercase tracking-wide text-zinc-500">
+                  <h3
+                    className={
+                      pcLayout
+                        ? 'estoque-pc-flow-section-title'
+                        : 'text-[13px] font-bold uppercase tracking-wide text-zinc-500'
+                    }
+                  >
                     Por código de barras
                   </h3>
                   <BarcodeScanField
@@ -500,7 +538,13 @@ export function WorkshopPartStockOutboundModal({
                 </section>
 
                 <section className="space-y-2">
-                  <h3 className="text-[13px] font-bold uppercase tracking-wide text-zinc-500">
+                  <h3
+                    className={
+                      pcLayout
+                        ? 'estoque-pc-flow-section-title'
+                        : 'text-[13px] font-bold uppercase tracking-wide text-zinc-500'
+                    }
+                  >
                     Por nome da peça
                   </h3>
                   <div className="relative">
@@ -571,7 +615,23 @@ export function WorkshopPartStockOutboundModal({
             ) : null}
 
             {part ? (
-              <section className="rounded-2xl border-0 bg-white p-4 dark:bg-white/5">
+              <div
+                className={
+                  pcLayout
+                    ? 'estoque-pc-outbound-grid'
+                    : 'rounded-2xl border-0 bg-white p-4 dark:bg-white/5'
+                }
+              >
+              <section
+                className={
+                  pcLayout
+                    ? 'estoque-pc-flow-panel rounded-2xl border-0 bg-white p-4 dark:bg-white/5'
+                    : undefined
+                }
+              >
+                {pcLayout ? (
+                  <h3 className="estoque-pc-flow-section-title">Peça e quantidade</h3>
+                ) : null}
                 <div className="flex gap-3">
                   <div className="h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-zinc-100 dark:bg-zinc-800">
                     {part.photo_url ? (
@@ -648,6 +708,20 @@ export function WorkshopPartStockOutboundModal({
                   <p className="mt-2 text-[14px] font-semibold text-zinc-800 dark:text-zinc-100">
                     Total: {moneyBRL(totalPreview)}
                   </p>
+                ) : null}
+              </section>
+
+              <section
+                className={
+                  pcLayout
+                    ? 'estoque-pc-flow-panel rounded-2xl border-0 bg-white p-4 dark:bg-white/5'
+                    : undefined
+                }
+              >
+                {pcLayout ? (
+                  <h3 className="estoque-pc-flow-section-title">
+                    {isSale ? 'Dados da venda' : 'Dados do consumo'}
+                  </h3>
                 ) : null}
 
                 {isSale ? (
@@ -824,29 +898,26 @@ export function WorkshopPartStockOutboundModal({
                   </p>
                 ) : null}
 
-                <div className="mt-4 flex justify-end">
-                  <button
-                    type="button"
-                    disabled={saving}
-                    onClick={() => void handleConfirm()}
-                    className={`inline-flex w-auto items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-[13px] font-semibold text-white shadow-none disabled:opacity-60 ${
-                      isSale ? 'bg-violet-600 hover:bg-violet-500' : 'bg-sky-600 hover:bg-sky-500'
-                    }`}
-                  >
-                    {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
-                    {isSale ? 'Confirmar venda' : 'Confirmar consumo'}
-                  </button>
-                </div>
+                {!pcLayout ? <div className="mt-4 flex justify-end">{confirmButton}</div> : null}
               </section>
+              </div>
             ) : (
               <p className="rounded-2xl border-0 bg-zinc-100 px-4 py-8 text-center text-[14px] text-zinc-500 shadow-none dark:bg-white/5 dark:text-zinc-400">
                 Use o código de barras, digite o nome da peça ou escolha na lista de sugestões.
               </p>
             )}
 
-            <section className="space-y-2 pb-2">
+            <section
+              className={`space-y-2 pb-2 ${pcLayout ? 'estoque-pc-outbound-history' : ''}`}
+            >
               <div className="flex items-center justify-between gap-2">
-                <h3 className="text-[13px] font-bold uppercase tracking-wide text-zinc-500">
+                <h3
+                  className={
+                    pcLayout
+                      ? 'estoque-pc-flow-section-title mb-0'
+                      : 'text-[13px] font-bold uppercase tracking-wide text-zinc-500'
+                  }
+                >
                   Últimas {isSale ? 'vendas' : 'consumos'}
                 </h3>
                 {loadingHistory ? <Loader2 className="h-4 w-4 animate-spin text-zinc-400" /> : null}
@@ -913,6 +984,19 @@ export function WorkshopPartStockOutboundModal({
               )}
             </section>
           </div>
+
+          {pcLayout && part ? (
+            <div className="estoque-pc-flow-actions">
+              <button
+                type="button"
+                onClick={onClose}
+                className="rounded-xl px-4 py-2.5 text-[14px] font-semibold text-zinc-600 hover:bg-zinc-200/70 dark:text-zinc-300 dark:hover:bg-white/10"
+              >
+                Cancelar
+              </button>
+              {confirmButton}
+            </div>
+          ) : null}
         </div>
       </div>
 

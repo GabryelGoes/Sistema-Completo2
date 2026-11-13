@@ -639,3 +639,150 @@ html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-detail .estoq
     transform: none;
   }
 }
+
+/*
+ * Fase E3 — Scan / Entrada / Saída (somente desktop shell + hub Estoque).
+ * Classes via useEstoquePcLayout() + estoquePcFlowClass — não altera cores.
+ */
+
+html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-flow {
+  cursor: default;
+}
+
+html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-flow .estoque-pc-flow-shell {
+  max-width: min(72rem, calc(100vw - 2rem));
+}
+
+html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-scan .estoque-pc-flow-shell {
+  max-width: min(64rem, calc(100vw - 2rem));
+}
+
+html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-flow .estoque-pc-flow-header {
+  padding: 0.85rem 1.5rem;
+  background-color: rgba(255, 255, 255, 0.96);
+}
+
+html.dark[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-flow .estoque-pc-flow-header {
+  background-color: rgba(9, 9, 11, 0.94);
+}
+
+html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-flow .estoque-pc-flow-eyebrow {
+  font-size: 0.6875rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #0f7a4b;
+}
+
+html.dark[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-flow .estoque-pc-flow-eyebrow {
+  color: #34d399;
+}
+
+html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-flow .estoque-pc-flow-scroll,
+html[data-device='desktop'][data-desktop-shell='true'] [data-estoque-flow-scroll] {
+  min-height: 0 !important;
+  flex: 1 1 0% !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+  padding: 1rem 1.5rem 1.25rem;
+}
+
+html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-flow .estoque-pc-flow-section-title {
+  margin: 0 0 0.55rem;
+  font-size: 0.6875rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #71717a;
+}
+
+html.dark[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-flow .estoque-pc-flow-section-title {
+  color: #a1a1aa;
+}
+
+html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-flow .estoque-pc-flow-panel {
+  border-radius: 1rem;
+}
+
+html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-flow .estoque-pc-flow-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  flex-shrink: 0;
+  padding: 0.85rem 1.5rem;
+  border-top: 1px solid rgba(228, 228, 231, 0.85);
+  background-color: rgba(255, 255, 255, 0.96);
+}
+
+html.dark[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-flow .estoque-pc-flow-actions {
+  border-top-color: rgba(255, 255, 255, 0.08);
+  background-color: rgba(9, 9, 11, 0.94);
+}
+
+html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-flow .estoque-pc-flow-actions > button {
+  transition: transform 100ms ease-out, background-color 150ms ease, filter 150ms ease;
+}
+
+html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-flow .estoque-pc-flow-actions > button:not(:disabled):active {
+  transform: scale(0.97);
+}
+
+html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-flow .estoque-pc-flow-actions > button:focus-visible,
+html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-flow button:focus-visible,
+html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-flow input:focus-visible,
+html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-flow textarea:focus-visible,
+html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-flow select:focus-visible {
+  outline: 2px solid rgba(16, 185, 129, 0.5);
+  outline-offset: 1px;
+}
+
+html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-flow button:not(:disabled):active {
+  transform: scale(0.98);
+  transition: transform 100ms ease-out;
+}
+
+/* Scan: campo de leitura sticky no topo do corpo */
+html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-scan .estoque-pc-scan-field {
+  position: sticky;
+  top: 0;
+  z-index: 12;
+  padding-bottom: 0.65rem;
+  background-color: #fafafa;
+}
+
+html.dark[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-scan .estoque-pc-scan-field {
+  background-color: #09090b;
+}
+
+/* Outbound: duas colunas quando peça selecionada */
+html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-outbound .estoque-pc-outbound-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+  gap: 1rem 1.25rem;
+  align-items: start;
+}
+
+html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-outbound .estoque-pc-outbound-history {
+  grid-column: 1 / -1;
+}
+
+html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-inbound .estoque-pc-inbound-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.25fr);
+  gap: 1rem 1.25rem;
+  align-items: start;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-flow button {
+    transition: none;
+  }
+
+  html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-flow button:not(:disabled):active {
+    transform: none;
+  }
+}

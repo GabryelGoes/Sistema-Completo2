@@ -30,6 +30,10 @@ import { RegistrationPortal } from './ui/RegistrationPortal';
 import { resolveIosModalOverlayClass, NESTED_STOCK_OVERLAY_Z } from './ui/iosModalStyles';
 import { useDesktopShellLayout } from './ui/DesktopShellContext';
 import { useBrowserBackLayer } from './ui/BackNavigationContext';
+import {
+  estoquePcFlowClass,
+  useEstoquePcLayout,
+} from './estoque/EstoquePcLayoutContext';
 
 export type WorkshopPartScanHubModalProps = {
   isOpen: boolean;
@@ -77,6 +81,7 @@ export function WorkshopPartScanHubModal({
   overlayZClass = NESTED_STOCK_OVERLAY_Z,
 }: WorkshopPartScanHubModalProps) {
   const isDesktopShell = useDesktopShellLayout();
+  const pcLayout = useEstoquePcLayout();
   const [code, setCode] = useState('');
   const [lookingUp, setLookingUp] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -189,14 +194,14 @@ export function WorkshopPartScanHubModal({
   return (
     <RegistrationPortal>
       <div
-        className={overlayClass}
+        className={estoquePcFlowClass(pcLayout, 'scan', overlayClass)}
         role="dialog"
         aria-modal="true"
         aria-label="Peça identificada"
         onClick={onClose}
       >
         <div
-          className={`flex w-full flex-col overflow-hidden rounded-[1.75rem] border-0 bg-zinc-50 shadow-none dark:bg-zinc-950 ${
+          className={`estoque-pc-flow-shell flex w-full flex-col overflow-hidden rounded-[1.75rem] border-0 bg-zinc-50 shadow-none dark:bg-zinc-950 ${
             isDesktopShell
               ? showingPart
                 ? 'max-h-[min(720px,92vh)] max-w-5xl'
@@ -206,13 +211,19 @@ export function WorkshopPartScanHubModal({
           onClick={(e) => e.stopPropagation()}
         >
           <header
-            className={`flex shrink-0 items-start justify-between gap-3 border-b border-zinc-200/60 dark:border-white/[0.08] ${
+            className={`estoque-pc-flow-header flex shrink-0 items-start justify-between gap-3 border-b border-zinc-200/60 dark:border-white/[0.08] ${
               isDesktopShell ? 'px-6 py-3.5' : 'px-5 py-4'
             }`}
           >
             <div className="min-w-0">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-700 dark:text-emerald-400">
-                Estoque
+              <p
+                className={
+                  pcLayout
+                    ? 'estoque-pc-flow-eyebrow'
+                    : 'text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-700 dark:text-emerald-400'
+                }
+              >
+                {pcLayout ? 'Estoque · Leitura' : 'Estoque'}
               </p>
               <h2
                 className={`font-bold text-zinc-900 dark:text-white ${
@@ -238,21 +249,24 @@ export function WorkshopPartScanHubModal({
           </header>
 
           <div
+            data-estoque-flow-scroll={pcLayout ? '' : undefined}
             className={`min-h-0 flex-1 ${
               isDesktopShell && showingPart
                 ? 'overflow-hidden px-6 py-4'
                 : `overflow-y-auto ${isDesktopShell ? 'px-6 py-4' : 'px-5 py-4'}`
             } ${isDesktopShell && showingPart ? 'flex flex-col gap-3' : 'space-y-4'}`}
           >
-            <BarcodeScanField
-              value={code}
-              onChange={setCode}
-              onSubmitCode={handleSubmitCode}
-              disabled={lookingUp}
-              autoFocus
-              placeholder="Código de barras ou numérico…"
-              className={isDesktopShell ? 'shrink-0' : undefined}
-            />
+            <div className={pcLayout ? 'estoque-pc-scan-field' : undefined}>
+              <BarcodeScanField
+                value={code}
+                onChange={setCode}
+                onSubmitCode={handleSubmitCode}
+                disabled={lookingUp}
+                autoFocus
+                placeholder="Código de barras ou numérico…"
+                className={isDesktopShell ? 'shrink-0' : undefined}
+              />
+            </div>
 
             {lookingUp ? (
               <div className="flex items-center justify-center gap-2 py-4 text-[14px] text-zinc-500">

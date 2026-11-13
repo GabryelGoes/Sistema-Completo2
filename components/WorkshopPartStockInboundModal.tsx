@@ -25,6 +25,10 @@ import { RegistrationPortal } from './ui/RegistrationPortal';
 import { resolveIosModalOverlayClass, NESTED_STOCK_OVERLAY_Z } from './ui/iosModalStyles';
 import { useDesktopShellLayout } from './ui/DesktopShellContext';
 import { useBrowserBackLayer } from './ui/BackNavigationContext';
+import {
+  estoquePcFlowClass,
+  useEstoquePcLayout,
+} from './estoque/EstoquePcLayoutContext';
 
 export type WorkshopPartStockInboundModalProps = {
   isOpen: boolean;
@@ -117,6 +121,7 @@ export function WorkshopPartStockInboundModal({
   onOpenSuppliers,
 }: WorkshopPartStockInboundModalProps) {
   const isDesktopShell = useDesktopShellLayout();
+  const pcLayout = useEstoquePcLayout();
   const [part, setPart] = useState<WorkshopPart>(initialPart);
   const [receiveQty, setReceiveQty] = useState(1);
   const [nfeNumber, setNfeNumber] = useState('');
@@ -317,15 +322,22 @@ export function WorkshopPartStockInboundModal({
 
   return (
     <RegistrationPortal>
-      <div className={overlayClass} role="dialog" aria-modal="true" aria-label="Registrar recebimento">
+      <div
+        className={estoquePcFlowClass(pcLayout, 'inbound', overlayClass)}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Registrar recebimento"
+      >
         <div
-          className={`flex w-full flex-col overflow-hidden rounded-[1.75rem] border-0 bg-zinc-50 shadow-none dark:bg-zinc-950 ${
+          className={`estoque-pc-flow-shell flex w-full flex-col overflow-hidden rounded-[1.75rem] border-0 bg-zinc-50 shadow-none dark:bg-zinc-950 ${
             isDesktopShell
               ? 'h-[min(78vh,640px)] max-w-6xl'
               : 'max-h-[min(92vh,720px)] max-w-5xl'
           }`}
         >
-          <div className="flex shrink-0 items-center justify-between gap-3 border-b border-zinc-200/80 px-5 py-3.5 dark:border-white/10 sm:px-6">
+          <div
+            className={`estoque-pc-flow-header flex shrink-0 items-center justify-between gap-3 border-b border-zinc-200/80 px-5 py-3.5 dark:border-white/10 sm:px-6`}
+          >
             <div className="flex min-w-0 items-center gap-3">
               <button
                 type="button"
@@ -339,6 +351,9 @@ export function WorkshopPartStockInboundModal({
                 <PackagePlus className="h-5 w-5" />
               </span>
               <div className="min-w-0">
+                {pcLayout ? (
+                  <p className="estoque-pc-flow-eyebrow mb-0.5">Estoque · Entrada</p>
+                ) : null}
                 <h2 className="text-[17px] font-bold text-zinc-900 dark:text-white">
                   Registrar recebimento
                 </h2>
@@ -357,11 +372,23 @@ export function WorkshopPartStockInboundModal({
             </button>
           </div>
 
-          <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4 custom-scrollbar sm:px-6">
-            <div className="grid gap-4 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.25fr)] lg:items-start">
+          <div
+            data-estoque-flow-scroll={pcLayout ? '' : undefined}
+            className="min-h-0 flex-1 overflow-y-auto px-5 py-4 custom-scrollbar sm:px-6"
+          >
+            <div
+              className={
+                pcLayout
+                  ? 'estoque-pc-inbound-grid'
+                  : 'grid gap-4 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.25fr)] lg:items-start'
+              }
+            >
               {/* Coluna esquerda: produto + quantidade */}
               <div className="space-y-4">
-                <section className="rounded-2xl border-0 bg-white p-4 dark:bg-white/5">
+                <section className="estoque-pc-flow-panel rounded-2xl border-0 bg-white p-4 dark:bg-white/5">
+                  {pcLayout ? (
+                    <h3 className="estoque-pc-flow-section-title">Produto</h3>
+                  ) : null}
                   <div className="flex gap-3">
                     <div className="h-16 w-16 shrink-0 overflow-hidden rounded-xl bg-zinc-100 dark:bg-zinc-800">
                       {part.photo_url ? (
@@ -413,8 +440,14 @@ export function WorkshopPartStockInboundModal({
                   </div>
                 </section>
 
-                <section className="space-y-3 rounded-2xl border-0 bg-white p-4 dark:bg-white/5">
-                  <h3 className="text-[13px] font-bold uppercase tracking-wide text-zinc-500">
+                <section className="estoque-pc-flow-panel space-y-3 rounded-2xl border-0 bg-white p-4 dark:bg-white/5">
+                  <h3
+                    className={
+                      pcLayout
+                        ? 'estoque-pc-flow-section-title'
+                        : 'text-[13px] font-bold uppercase tracking-wide text-zinc-500'
+                    }
+                  >
                     Quantidade recebida
                   </h3>
                   <IntStepper
@@ -435,9 +468,15 @@ export function WorkshopPartStockInboundModal({
               </div>
 
               {/* Coluna direita: NF-e / fornecedor / valores */}
-              <section className="space-y-3 rounded-2xl border-0 bg-white p-4 dark:bg-white/5">
+              <section className="estoque-pc-flow-panel space-y-3 rounded-2xl border-0 bg-white p-4 dark:bg-white/5">
                 <div className="flex items-center justify-between gap-2">
-                  <h3 className="text-[13px] font-bold uppercase tracking-wide text-zinc-500">
+                  <h3
+                    className={
+                      pcLayout
+                        ? 'estoque-pc-flow-section-title mb-0'
+                        : 'text-[13px] font-bold uppercase tracking-wide text-zinc-500'
+                    }
+                  >
                     Dados da compra / NF-e
                   </h3>
                   {onOpenSuppliers ? (
@@ -632,7 +671,13 @@ export function WorkshopPartStockInboundModal({
             )}
           </div>
 
-          <div className="flex shrink-0 items-center justify-end gap-3 border-t border-zinc-200/70 px-5 py-3.5 dark:border-white/10 sm:px-6">
+          <div
+            className={
+              pcLayout
+                ? 'estoque-pc-flow-actions'
+                : 'flex shrink-0 items-center justify-end gap-3 border-t border-zinc-200/70 px-5 py-3.5 dark:border-white/10 sm:px-6'
+            }
+          >
             <button
               type="button"
               onClick={onClose}
