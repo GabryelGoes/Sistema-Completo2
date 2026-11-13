@@ -104,6 +104,10 @@ import { resolveIosModalOverlayClass, NESTED_STOCK_OVERLAY_Z } from './ui/iosMod
 import { useDesktopShellLayout } from './ui/DesktopShellContext';
 import { useBrowserBackLayer } from './ui/BackNavigationContext';
 import { desktopShellPortaledChildOverlayClass } from '../utils/desktopShellOverlay';
+import {
+  estoquePcAbsClass,
+  useEstoquePcLayout,
+} from './estoque/EstoquePcLayoutContext';
 
 export type WorkshopAbsModulesModalProps = {
   isOpen: boolean;
@@ -814,6 +818,7 @@ export function WorkshopAbsModulesModal({
   onExpandDetail,
 }: WorkshopAbsModulesModalProps) {
   const isDesktopShell = useDesktopShellLayout();
+  const pcLayout = useEstoquePcLayout();
   const [view, setView] = useState<View>(() =>
     initialEditPublicId || initialShowForm ? { kind: 'form' } : { kind: 'models' }
   );
@@ -1775,11 +1780,13 @@ export function WorkshopAbsModulesModal({
     <>
     <RegistrationPortal>
       <div
-        className={
+        className={estoquePcAbsClass(
+          pcLayout,
+          'flow',
           isFullscreenShell
             ? `${desktopShellPortaledChildOverlayClass(true, NESTED_STOCK_OVERLAY_Z)} flex min-h-0 w-full flex-col overflow-hidden bg-white dark:bg-zinc-950`
             : resolveIosModalOverlayClass(isDesktopShell, NESTED_STOCK_OVERLAY_Z)
-        }
+        )}
         role="dialog"
         aria-modal="true"
         aria-label="Módulos ABS"
@@ -1787,15 +1794,15 @@ export function WorkshopAbsModulesModal({
         <div
           className={
             isFullscreenShell
-              ? 'relative flex h-full min-h-0 w-full max-w-none flex-1 flex-col overflow-hidden bg-white dark:bg-zinc-950'
-              : `flex w-full flex-col overflow-hidden rounded-[1.75rem] border-0 bg-zinc-50 shadow-none dark:bg-zinc-950 sm:rounded-[28px] ${
+              ? 'estoque-pc-abs-flow-shell relative flex h-full min-h-0 w-full max-w-none flex-1 flex-col overflow-hidden bg-white dark:bg-zinc-950'
+              : `estoque-pc-abs-flow-shell flex w-full flex-col overflow-hidden rounded-[1.75rem] border-0 bg-zinc-50 shadow-none dark:bg-zinc-950 sm:rounded-[28px] ${
                   isDesktopShell
                     ? 'max-h-[min(860px,94vh)] max-w-5xl'
                     : 'max-h-[min(920px,94dvh)] max-w-3xl'
                 }`
           }
         >
-          <header className="flex shrink-0 items-center gap-3 border-b border-zinc-200/80 px-4 py-4 dark:border-white/10">
+          <header className="estoque-pc-abs-flow-header flex shrink-0 items-center gap-3 border-b border-zinc-200/80 px-4 py-4 dark:border-white/10">
             {view.kind !== 'models' ? (
               <button
                 type="button"
@@ -1811,8 +1818,24 @@ export function WorkshopAbsModulesModal({
               </div>
             )}
             <div className="min-w-0 flex-1">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-700 dark:text-emerald-400">
-                Estoque · ABS
+              <p
+                className={
+                  pcLayout
+                    ? 'estoque-pc-abs-eyebrow'
+                    : 'text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-700 dark:text-emerald-400'
+                }
+              >
+                {pcLayout
+                  ? view.kind === 'disassemble'
+                    ? 'Estoque ABS · Desmembrar'
+                    : view.kind === 'form'
+                      ? editingModule
+                        ? 'Estoque ABS · Edição'
+                        : 'Estoque ABS · Cadastro'
+                      : view.kind === 'detail'
+                        ? 'Estoque ABS · Unidade'
+                        : 'Estoque · ABS'
+                  : 'Estoque · ABS'}
               </p>
               <h2 className="text-[18px] font-bold text-zinc-900 dark:text-white">Módulos ABS</h2>
               {view.kind !== 'models' ? (
@@ -1852,6 +1875,7 @@ export function WorkshopAbsModulesModal({
 
           <div
             data-abs-modules-scroll
+            data-estoque-abs-scroll={pcLayout ? '' : undefined}
             className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-y-contain touch-pan-y px-4 py-4 pb-[max(2rem,env(safe-area-inset-bottom))] custom-scrollbar [-webkit-overflow-scrolling:touch]"
           >
             {error ? (

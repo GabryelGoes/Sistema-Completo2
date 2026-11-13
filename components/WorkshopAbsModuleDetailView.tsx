@@ -54,6 +54,10 @@ import { NiimbotAbsModuleLabelPrintModal } from './NiimbotAbsModuleLabelPrintMod
 import { StockGuardPasswordModal } from './StockGuardPasswordModal';
 import { PartPhotoImg } from './ui/PartPhotoImg';
 import { useBrowserBackLayer } from './ui/BackNavigationContext';
+import {
+  estoquePcAbsClass,
+  useEstoquePcLayout,
+} from './estoque/EstoquePcLayoutContext';
 
 const labelCls =
   'text-[11px] font-bold uppercase tracking-wide text-zinc-500 dark:text-zinc-400';
@@ -464,6 +468,7 @@ export function WorkshopAbsModuleDetailView({
   onOpenUnit,
   onDeleted,
 }: WorkshopAbsModuleDetailViewProps) {
+  const pcLayout = useEstoquePcLayout();
   const [module, setModule] = useState<WorkshopAbsModule | null>(null);
   const [catalogModel, setCatalogModel] = useState<WorkshopAbsModuleModel | null>(null);
   const [movements, setMovements] = useState<WorkshopAbsModuleMovement[]>([]);
@@ -638,8 +643,14 @@ export function WorkshopAbsModuleDetailView({
   };
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-gradient-to-b from-emerald-50/40 via-white to-zinc-50 dark:from-zinc-950 dark:via-zinc-950 dark:to-zinc-950">
-      <div className="shrink-0 border-b border-zinc-200/60 bg-white/80 px-4 py-3 backdrop-blur-md dark:border-white/[0.06] dark:bg-zinc-950/80 sm:px-6 lg:px-8">
+    <div
+      className={estoquePcAbsClass(
+        pcLayout,
+        'detail',
+        'flex min-h-0 flex-1 flex-col overflow-hidden bg-gradient-to-b from-emerald-50/40 via-white to-zinc-50 dark:from-zinc-950 dark:via-zinc-950 dark:to-zinc-950'
+      )}
+    >
+      <div className="estoque-pc-abs-detail-header shrink-0 border-b border-zinc-200/60 bg-white/80 px-4 py-3 backdrop-blur-md dark:border-white/[0.06] dark:bg-zinc-950/80 sm:px-6 lg:px-8">
         <div className="flex flex-wrap items-center gap-3">
           <button
             type="button"
@@ -650,6 +661,9 @@ export function WorkshopAbsModuleDetailView({
             Voltar
           </button>
           <div className="min-w-0 flex-1">
+            {pcLayout ? (
+              <p className="estoque-pc-abs-eyebrow mb-0.5">Estoque ABS · Ficha</p>
+            ) : null}
             <h2 className="truncate text-[17px] font-bold text-zinc-900 dark:text-white sm:text-[19px]">
               {module?.manufacturer || 'Módulo ABS'}
               {module ? (
@@ -680,7 +694,10 @@ export function WorkshopAbsModuleDetailView({
         </div>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-auto px-4 py-4 sm:px-6 sm:py-5 lg:px-8 custom-scrollbar">
+      <div
+        data-estoque-abs-scroll={pcLayout ? '' : undefined}
+        className="min-h-0 flex-1 overflow-y-auto overscroll-y-auto px-4 py-4 sm:px-6 sm:py-5 lg:px-8 custom-scrollbar"
+      >
         {error ? (
           <div className="mb-4 rounded-xl border-0 bg-red-50 px-4 py-3 text-[14px] text-red-800 shadow-none dark:bg-red-950/40 dark:text-red-200">
             {error}
@@ -711,10 +728,14 @@ export function WorkshopAbsModuleDetailView({
 
         {!loading && module ? (
           <div className="w-full max-w-none space-y-5 pb-10">
-            <div className="grid gap-5 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
+            <div className="estoque-pc-abs-detail-grid grid gap-5 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
               <div className="space-y-5">
                 <div className="space-y-2">
-                  <p className={labelCls}>Fotos</p>
+                  {pcLayout ? (
+                    <p className="estoque-pc-abs-section-title">Fotos</p>
+                  ) : (
+                    <p className={labelCls}>Fotos</p>
+                  )}
                   {photos.length > 0 ? (
                     <>
                       <p className="text-[12px] text-zinc-500 dark:text-zinc-400">
@@ -730,7 +751,13 @@ export function WorkshopAbsModuleDetailView({
                 </div>
 
                 <div className={cardCls}>
-                  <h3 className="mb-3 text-[13px] font-bold text-zinc-800 dark:text-zinc-200">
+                  <h3
+                    className={
+                      pcLayout
+                        ? 'estoque-pc-abs-section-title'
+                        : 'mb-3 text-[13px] font-bold text-zinc-800 dark:text-zinc-200'
+                    }
+                  >
                     Identificação
                   </h3>
                   <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

@@ -18,6 +18,10 @@ import {
 } from '../utils/workshopAbsModules';
 import { ModalPortal } from './ui/ModalPortal';
 import { useBrowserBackLayer } from './ui/BackNavigationContext';
+import {
+  estoquePcAbsClass,
+  useEstoquePcLayout,
+} from './estoque/EstoquePcLayoutContext';
 
 export type AbsDisassemblyDetailModalProps = {
   open: boolean;
@@ -176,6 +180,7 @@ export function AbsDisassemblyDetailModal({
   onOpenUnitDetail,
   onExpandFiche,
 }: AbsDisassemblyDetailModalProps) {
+  const pcLayout = useEstoquePcLayout();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [detail, setDetail] = useState<WorkshopAbsDisassemblyDetail | null>(null);
@@ -220,7 +225,11 @@ export function AbsDisassemblyDetailModal({
   return (
     <ModalPortal>
       <div
-        className="fixed inset-0 z-[220] flex items-end justify-center bg-black/45 p-0 sm:items-center sm:p-4"
+        className={estoquePcAbsClass(
+          pcLayout,
+          'disassembly',
+          'fixed inset-0 z-[220] flex items-end justify-center bg-black/45 p-0 sm:items-center sm:p-4'
+        )}
         onClick={onClose}
         role="presentation"
       >
@@ -228,7 +237,7 @@ export function AbsDisassemblyDetailModal({
           role="dialog"
           aria-modal="true"
           aria-label="Detalhes do desmembramento"
-          className="flex max-h-[min(920px,94dvh)] w-full max-w-2xl flex-col overflow-hidden rounded-t-3xl bg-white shadow-xl dark:bg-zinc-950 sm:rounded-3xl"
+          className="estoque-pc-abs-modal-shell flex max-h-[min(920px,94dvh)] w-full max-w-2xl flex-col overflow-hidden rounded-t-3xl bg-white shadow-xl dark:bg-zinc-950 sm:rounded-3xl"
           onClick={(e) => e.stopPropagation()}
         >
           <header className="flex shrink-0 items-start gap-3 border-b border-zinc-100 px-4 py-4 dark:border-white/[0.06] sm:px-5">
@@ -236,8 +245,14 @@ export function AbsDisassemblyDetailModal({
               <Scissors className="h-5 w-5" />
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-amber-700 dark:text-amber-300">
-                Desmembramento
+              <p
+                className={
+                  pcLayout
+                    ? 'estoque-pc-abs-eyebrow'
+                    : 'text-[11px] font-semibold uppercase tracking-[0.14em] text-amber-700 dark:text-amber-300'
+                }
+              >
+                {pcLayout ? 'Estoque ABS · Desmembramento' : 'Desmembramento'}
               </p>
               <h2 className="text-[18px] font-bold text-zinc-900 dark:text-white">
                 Detalhes da divisão do módulo
@@ -261,7 +276,10 @@ export function AbsDisassemblyDetailModal({
             </button>
           </header>
 
-          <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 sm:px-5 custom-scrollbar">
+          <div
+            data-estoque-abs-scroll={pcLayout ? '' : undefined}
+            className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4 sm:px-5 custom-scrollbar"
+          >
             {loading ? (
               <div className="flex justify-center py-16">
                 <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
