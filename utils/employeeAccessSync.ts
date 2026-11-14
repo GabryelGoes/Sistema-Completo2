@@ -225,4 +225,79 @@ export function applyAccessSyncToSession(
   };
 }
 
+/**
+ * Aplica resultado do sync só se a sessão atual ainda for a esperada.
+ * Usado pelo App e pelos testes (logout / troca de usuário / StrictMode).
+ */
+export function commitAccessSyncIfSessionMatches(input: {
+  expectedUserId: string | undefined;
+  expectedToken: string | undefined;
+  expectedGeneration: number;
+  currentGeneration: number;
+  currentSession: {
+    role?: string;
+    userId?: string;
+    token?: string;
+    permissions?: EmployeePermissions;
+    isTechnician?: boolean;
+  } | null;
+  trust: AccessTrustState;
+  result: AccessSyncResult;
+  nowMs?: number;
+}):
+  | { applied: false; reason: "cancelled_or_stale" }
+  | { applied: true; kind: "session_invalid" }
+  | {
+      applied: true;
+      kind: "ok";
+      nextTrust: AccessTrustState;
+      nextSession: {
+        permissions: EmployeePermissions;
+        isTechnician: boolean;
+      } | null;
+      shouldPersistSession: boolean;
+    } {
+  if (input.currentGeneration !== input.expectedGeneration) {
+    return { applied: false, reason: "cancelled_or_stale" };
+  }
+  if (input.result.outcome === "superseded") {
+    return { applied: false, reason: "cancelled_or_stale" };
+  }
+  const current = input.currentSession;
+  if (
+    !current ||
+    current.role !== "user" ||
+    current.userId !== input.expectedUserId ||
+    current.token !== input.expectedToken
+  ) {
+    return { applied: false, reason: "cancelled_or_stale" };
+  }
+
+  if (input.result.outcome === "denied" && input.result.status === 401) {
+    return { applied: true, kind: "session_invalid" };
+  }
+
+  const applied = applyAccessSyncToSession(
+    {
+      role: "user",
+      permissions: current.permissions,
+      isTechnician: current.isTechnician,
+    },
+    input.trust,
+    input.result,
+    input.nowMs
+  );
+
+  const shouldPersistSession = input.result.outcome === "ok" || applied.changed;
+  return {
+    applied: true,
+    kind: "ok",
+    nextTrust: applied.trust,
+    nextSession: shouldPersistSession
+      ? { permissions: applied.permissions, isTechnician: applied.isTechnician }
+      : null,
+    shouldPersistSession,
+  };
+}
+
 export { initialAccessTrustState };

@@ -24,8 +24,14 @@ import {
 import {
   applyAccessSyncToSession,
   applySyncResultToTrust,
+  commitAccessSyncIfSessionMatches,
   createAccessSyncController,
 } from "../utils/employeeAccessSync.js";
+import {
+  interpretOptimisticPermissionsWrite,
+  interpretPermissionsLoad,
+  planSystemUserPermissionsUpdate,
+} from "../utils/systemUserPermissionsMerge.js";
 import { productionAuthorizationPolicy } from "../utils/authorizationPolicy.js";
 import { authorizationHasEnforce } from "../utils/authorizeRequest.js";
 
@@ -289,6 +295,190 @@ console.log("\n12) Cadastro: replace grava booleanos; merge preserva ausentes");
   assert(merged.access_home === undefined || merged.access_home === false, "merge sem forçar home false se ausente");
   // merge mode: access_home not in src → should not be set to false
   assert(!Object.prototype.hasOwnProperty.call(merged, "access_home"), "merge omite access_home ausente");
+}
+
+console.log("\n13) Merge admin: falha de leitura Supabase / usuário inexistente");
+{
+  const readFail = interpretPermissionsLoad({
+    data: null,
+    error: { message: "simulated supabase outage" },
+  });
+  assert(readFail.ok === false && readFail.reason === "read_error", "erro de leitura ≠ not_found");
+  const planFail = planSystemUserPermissionsUpdate({
+    mode: "merge",
+    patch: { patio_approve_budget_items: true },
+    load: readFail,
+  });
+  assert(planFail.ok === false && planFail.reason === "read_error", "merge aborta sem sobrescrever com {}");
+
+  const missing = interpretPermissionsLoad({ data: null, error: null });
+  assert(missing.ok === false && missing.reason === "not_found", "sem linha → not_found");
+  const planMissing = planSystemUserPermissionsUpdate({
+    mode: "merge",
+    patch: { patio_approve_budget_items: false },
+    load: missing,
+  });
+  assert(planMissing.ok === false && planMissing.reason === "not_found", "merge não atualiza usuário inexistente");
+}
+
+console.log("\n14) Aprovação rápida preserva demais chaves + CAS concorrente");
+{
+  const load = interpretPermissionsLoad({
+    data: {
+      permissions: {
+        access_home: true,
+        access_patio: true,
+        access_estoque_pecas: true,
+        patio_edit_budgets: true,
+      },
+      updated_at: "2026-01-01T00:00:00.000Z",
+    },
+    error: null,
+  });
+  assert(load.ok, "load ok");
+  const plan = planSystemUserPermissionsUpdate({
+    mode: "merge",
+    patch: { patio_approve_budget_items: false },
+    load,
+  });
+  assert(plan.ok === true, "plan merge ok");
+  if (plan.ok) {
+    assert(plan.nextPermissions.access_estoque_pecas === true, "aprovar rápido preserva estoque");
+    assert(plan.nextPermissions.access_patio === true, "preserva pátio");
+    assert(plan.nextPermissions.patio_approve_budget_items === false, "grava false explícito");
+    assert(plan.expectedUpdatedAt === "2026-01-01T00:00:00.000Z", "CAS usa updated_at lido");
+  }
+
+  const conflict = interpretOptimisticPermissionsWrite({
+    data: null,
+    error: null,
+    userWasFound: true,
+  });
+  assert(conflict.ok === false && conflict.reason === "conflict", "0 rows após achar usuário → conflict");
+
+  const writeErr = interpretOptimisticPermissionsWrite({
+    data: null,
+    error: { message: "write failed" },
+    userWasFound: true,
+  });
+  assert(writeErr.ok === false && writeErr.reason === "write_error", "erro de write não vira {}");
+
+  // Duas alterações: B lê o mesmo updated_at; só uma “ganha” o CAS.
+  const firstWrite = interpretOptimisticPermissionsWrite({
+    data: { id: "u1", permissions: { access_patio: true }, updated_at: "2026-01-01T00:00:01.000Z" },
+    error: null,
+    userWasFound: true,
+  });
+  const secondWrite = interpretOptimisticPermissionsWrite({
+    data: null,
+    error: null,
+    userWasFound: true,
+  });
+  assert(firstWrite.ok && secondWrite.ok === false && secondWrite.reason === "conflict", "2ª admin perde no CAS");
+}
+
+console.log("\n15) Sync + logout / login outro usuário / StrictMode");
+{
+  const ctrl = createAccessSyncController();
+  const gen = ctrl.bumpGeneration();
+  const sessionA = {
+    role: "user" as const,
+    userId: "user-a",
+    token: "tok-a",
+    permissions: { access_home: true, access_estoque_pecas: true },
+    isTechnician: false,
+  };
+  const resultOk = {
+    outcome: "ok" as const,
+    snapshot: {
+      permissions: { access_home: true, access_estoque_pecas: false },
+      isTechnician: false,
+    },
+    sequence: 1,
+    generation: gen,
+  };
+
+  const afterLogout = commitAccessSyncIfSessionMatches({
+    expectedUserId: "user-a",
+    expectedToken: "tok-a",
+    expectedGeneration: gen,
+    currentGeneration: gen,
+    currentSession: null,
+    trust: { status: "verified", verifiedAt: Date.now() },
+    result: resultOk,
+  });
+  assert(afterLogout.applied === false, "logout durante sync → não aplica");
+
+  const genB = ctrl.bumpGeneration();
+  const switchUser = commitAccessSyncIfSessionMatches({
+    expectedUserId: "user-a",
+    expectedToken: "tok-a",
+    expectedGeneration: gen,
+    currentGeneration: genB,
+    currentSession: {
+      role: "user",
+      userId: "user-b",
+      token: "tok-b",
+      permissions: { access_home: true },
+    },
+    trust: initialAccessTrustState(),
+    result: resultOk,
+  });
+  assert(switchUser.applied === false, "login de outro usuário → resposta antiga descartada");
+
+  // StrictMode: dois “effects” com gerações diferentes; só a geração atual aplica.
+  const gen1 = ctrl.bumpGeneration();
+  const gen2 = ctrl.bumpGeneration();
+  const dup1 = commitAccessSyncIfSessionMatches({
+    expectedUserId: "user-a",
+    expectedToken: "tok-a",
+    expectedGeneration: gen1,
+    currentGeneration: gen2,
+    currentSession: sessionA,
+    trust: initialAccessTrustState(),
+    result: { ...resultOk, generation: gen1 },
+  });
+  const dup2 = commitAccessSyncIfSessionMatches({
+    expectedUserId: "user-a",
+    expectedToken: "tok-a",
+    expectedGeneration: gen2,
+    currentGeneration: gen2,
+    currentSession: sessionA,
+    trust: initialAccessTrustState(),
+    result: {
+      outcome: "ok",
+      snapshot: { permissions: { access_home: true, access_patio: true }, isTechnician: false },
+      sequence: 9,
+      generation: gen2,
+    },
+  });
+  assert(dup1.applied === false, "StrictMode: effect antigo não aplica");
+  assert(dup2.applied === true && dup2.kind === "ok", "StrictMode: effect atual aplica");
+  if (dup2.applied === true && dup2.kind === "ok") {
+    assert(dup2.nextSession?.permissions.access_patio === true, "effect atual atualiza permissões");
+  }
+}
+
+console.log("\n16) Graça de 10 minutos preservada no meio do intervalo");
+{
+  const t0 = 1_700_000_000_000;
+  const verified = applySyncResultToTrust({
+    trust: initialAccessTrustState(),
+    result: { outcome: "ok", snapshot: { permissions: {}, isTechnician: false }, sequence: 1, generation: 0 },
+    nowMs: t0,
+  });
+  const grace = applySyncResultToTrust({
+    trust: verified,
+    result: { outcome: "network_error", sequence: 2, generation: 0 },
+    nowMs: t0 + 60_000,
+  });
+  assert(grace.status === "grace", "entra em grace");
+  const mid = refreshAccessTrust(grace, t0 + EMPLOYEE_ACCESS_GRACE_MS - 1);
+  assert(mid.status === "grace", "ainda dentro dos 10 min");
+  const ui = resolveUiPermissions({ access_estoque_pecas: true }, mid, t0 + EMPLOYEE_ACCESS_GRACE_MS - 1);
+  assert(ui.access_estoque_pecas === true, "sensível mantido até o fim da graça");
+  const end = refreshAccessTrust(grace, t0 + EMPLOYEE_ACCESS_GRACE_MS + 1);
+  assert(end.status === "expired", "expirou após 10 min");
 }
 
 console.log(`\nResultado: ${passed} ok, ${failed} fail`);

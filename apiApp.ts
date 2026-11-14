@@ -82,6 +82,11 @@ import { classifyNewLoginPassword } from "./utils/loginPasswordPolicy.js";
 import { guardHttpAuthorization } from "./utils/authorizeRequest.js";
 import { ownProfilePatch, sessionProfileUserId } from "./utils/ownProfile.js";
 import { normalizePermissionsForAdminSave } from "./utils/employeeAccess.js";
+import {
+  interpretOptimisticPermissionsWrite,
+  interpretPermissionsLoad,
+  planSystemUserPermissionsUpdate,
+} from "./utils/systemUserPermissionsMerge.js";
 import { normalizeAiImproveTextLevel } from "./utils/aiImproveTextLevel.js";
 import {
   pickWorkshopSettingsWrite,
@@ -3012,46 +3017,107 @@ export function createApiApp() {
       if (nextPassword.status === "invalid") {
         return res.status(400).json({ error: nextPassword.message, code: "invalid_new_password" });
       }
-      const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
+      const nextUpdatedAt = new Date().toISOString();
+      const updates: Record<string, unknown> = { updated_at: nextUpdatedAt };
+      let expectedUpdatedAt: string | null | undefined;
+      let userWasFound = false;
+
       if (typeof permissions === "object" && permissions !== null) {
         const mode = permissionsMode === "merge" ? "merge" : "replace";
-        if (mode === "merge") {
-          const { data: existingRow } = await supabaseAdmin
-            .from("workshop_system_users")
-            .select("permissions")
-            .eq("id", id)
-            .eq("workshop_id", WORKSHOP_ID)
-            .maybeSingle();
-          const existingPerms =
-            existingRow?.permissions &&
-            typeof existingRow.permissions === "object" &&
-            !Array.isArray(existingRow.permissions)
-              ? (existingRow.permissions as Record<string, boolean>)
-              : {};
-          updates.permissions = normalizePermissionsForAdminSave(
-            { ...existingPerms, ...(permissions as Record<string, boolean>) },
-            { mode: "merge" }
-          );
-        } else {
-          updates.permissions = normalizePermissionsForAdminSave(permissions as Record<string, boolean>, {
-            mode: "replace",
+        const { data: existingRow, error: loadError } = await supabaseAdmin
+          .from("workshop_system_users")
+          .select("permissions, updated_at")
+          .eq("id", id)
+          .eq("workshop_id", WORKSHOP_ID)
+          .maybeSingle();
+        const load = interpretPermissionsLoad({
+          data: existingRow
+            ? {
+                permissions: existingRow.permissions,
+                updated_at: (existingRow as { updated_at?: string | null }).updated_at ?? null,
+              }
+            : null,
+          error: loadError,
+        });
+        if (load.ok === false) {
+          if (load.reason === "read_error") {
+            return res.status(500).json({
+              error: load.message,
+              code: "permissions_read_failed",
+            });
+          }
+          return res.status(404).json({ error: "Usuário não encontrado." });
+        }
+        userWasFound = true;
+        const plan = planSystemUserPermissionsUpdate({
+          mode,
+          patch: permissions as Record<string, boolean>,
+          load,
+        });
+        if (plan.ok === false) {
+          if (plan.reason === "read_error") {
+            return res.status(500).json({ error: plan.message, code: "permissions_read_failed" });
+          }
+          return res.status(404).json({ error: "Usuário não encontrado." });
+        }
+        updates.permissions = plan.nextPermissions;
+        expectedUpdatedAt = plan.expectedUpdatedAt;
+      } else {
+        // Sem patch de permissions: ainda assim carrega updated_at para CAS quando possível.
+        const { data: existingRow, error: loadError } = await supabaseAdmin
+          .from("workshop_system_users")
+          .select("updated_at")
+          .eq("id", id)
+          .eq("workshop_id", WORKSHOP_ID)
+          .maybeSingle();
+        if (loadError) {
+          return res.status(500).json({
+            error: loadError.message || "Falha ao ler o usuário.",
+            code: "permissions_read_failed",
           });
         }
+        if (!existingRow) {
+          return res.status(404).json({ error: "Usuário não encontrado." });
+        }
+        userWasFound = true;
+        expectedUpdatedAt = (existingRow as { updated_at?: string | null }).updated_at ?? null;
       }
+
       if (typeof displayName === "string") updates.display_name = displayName.trim() || null;
       if (nextPassword.status === "ready") updates.password_hash = hashPassword(nextPassword.value);
       if (isTechnician !== undefined) updates.is_technician = isTechnician === true || isTechnician === "true";
       if (jobTitle !== undefined) updates.job_title = typeof jobTitle === "string" ? jobTitle.trim() || null : null;
-      const { data, error } = await supabaseAdmin
+
+      let updateQuery = supabaseAdmin
         .from("workshop_system_users")
         .update(updates)
         .eq("id", id)
-        .eq("workshop_id", WORKSHOP_ID)
+        .eq("workshop_id", WORKSHOP_ID);
+      // Compare-and-swap otimista em updated_at (sem migration). Evita sobrescrita silenciosa.
+      if (expectedUpdatedAt != null && expectedUpdatedAt !== "") {
+        updateQuery = updateQuery.eq("updated_at", expectedUpdatedAt);
+      }
+      const { data, error } = await updateQuery
         .select("id, username, display_name, permissions, is_technician, job_title, created_at, updated_at")
-        .single();
-      if (error) return res.status(500).json({ error: error.message });
-      if (!data) return res.status(404).json({ error: "Usuário não encontrado." });
-      return res.json({ ...data, passwordUpdated: nextPassword.status === "ready" });
+        .maybeSingle();
+      const write = interpretOptimisticPermissionsWrite({
+        data: data as Record<string, unknown> | null,
+        error,
+        userWasFound,
+      });
+      if (write.ok === false) {
+        if (write.reason === "write_error") {
+          return res.status(500).json({ error: write.message });
+        }
+        if (write.reason === "not_found") {
+          return res.status(404).json({ error: "Usuário não encontrado." });
+        }
+        return res.status(409).json({
+          error: "O cadastro foi alterado por outra sessão. Recarregue e tente de novo.",
+          code: "permissions_conflict",
+        });
+      }
+      return res.json({ ...write.row, passwordUpdated: nextPassword.status === "ready" });
     } catch (err: any) {
       console.error("[API] Erro em PUT /api/system-users/:id:", err);
       return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });

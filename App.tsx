@@ -54,7 +54,7 @@ import {
   type AccessTrustState,
 } from './utils/employeeAccess';
 import {
-  applyAccessSyncToSession,
+  commitAccessSyncIfSessionMatches,
   createAccessSyncController,
 } from './utils/employeeAccessSync';
 import type { ServiceOrderStatus } from './constants/serviceOrderStages';
@@ -134,6 +134,8 @@ export default function App() {
       return null;
     }
   });
+  const authSessionRef = useRef(authSession);
+  authSessionRef.current = authSession;
   /** Snapshot do localStorage começa não verificado até o primeiro sync (ou login fresco). */
   const [accessTrust, setAccessTrust] = useState<AccessTrustState>(() => initialAccessTrustState());
   const accessTrustRef = useRef(accessTrust);
@@ -1876,58 +1878,75 @@ export default function App() {
     return () => window.clearInterval(id);
   }, [authSession?.token]);
 
-  // Troca de identidade invalida syncs em voo.
-  useEffect(() => {
-    accessSyncRef.current.bumpGeneration();
-  }, [authSession?.userId]);
-
   /**
    * SEC-03.3 — sincroniza permissões do banco.
    * Coalescing + geração: evita corrida e resposta antiga.
-   * Falha de rede: graça após sync válido; sem sync → sem módulos sensíveis.
-   * 401/403/404: revoga grants elevados (401 limpa sessão).
+   * Sem side-effects dentro de setState (StrictMode-safe).
+   * Falha de rede: graça após sync válido; 401 limpa sessão.
    */
   useEffect(() => {
     if (!authSession?.token || authSession.role !== 'user') return;
+    const expectedUserId = authSession.userId;
+    const expectedToken = authSession.token;
+    // Invalida respostas da sessão/usuário anterior (também no remount StrictMode).
+    const effectGeneration = accessSyncRef.current.bumpGeneration();
     let cancelled = false;
     const controller = accessSyncRef.current;
 
     const syncAccess = async () => {
       const result = await controller.run(() => fetchMyAccess());
-      if (cancelled || result.outcome === 'superseded') return;
+      if (cancelled) return;
 
-      if (result.outcome === 'denied' && result.status === 401) {
+      const commit = commitAccessSyncIfSessionMatches({
+        expectedUserId,
+        expectedToken,
+        expectedGeneration: effectGeneration,
+        currentGeneration: controller.getGeneration(),
+        currentSession: authSessionRef.current,
+        trust: accessTrustRef.current,
+        result,
+      });
+      if (commit.applied === false) return;
+
+      if (commit.kind === 'session_invalid') {
         accessSyncRef.current.bumpGeneration();
         try {
           clearStoredAuth();
         } catch (_) {}
-        accessTrustRef.current = initialAccessTrustState();
-        setAccessTrust(accessTrustRef.current);
+        const cleared = initialAccessTrustState();
+        accessTrustRef.current = cleared;
+        authSessionRef.current = null;
+        setAccessTrust(cleared);
         setAuthSession(null);
         return;
       }
 
-      setAuthSession((prev) => {
-        if (!prev || prev.role !== 'user') return prev;
-        const userSession = { ...prev, role: 'user' as const };
-        const applied = applyAccessSyncToSession(userSession, accessTrustRef.current, result);
-        accessTrustRef.current = applied.trust;
-        setAccessTrust(applied.trust);
+      const { nextTrust, nextSession, shouldPersistSession } = commit;
+      accessTrustRef.current = nextTrust;
+      setAccessTrust(nextTrust);
 
-        if (result.outcome === 'ok' || applied.changed) {
-          const updated: AuthSession = {
-            ...prev,
-            role: 'user',
-            permissions: applied.permissions,
-            isTechnician: applied.isTechnician,
-          };
-          try {
-            setStoredAuth(updated);
-          } catch (_) {}
-          return updated;
+      if (shouldPersistSession && nextSession) {
+        const still = authSessionRef.current;
+        if (
+          !still ||
+          still.role !== 'user' ||
+          still.userId !== expectedUserId ||
+          still.token !== expectedToken
+        ) {
+          return;
         }
-        return prev;
-      });
+        const updated: AuthSession = {
+          ...still,
+          role: 'user',
+          permissions: nextSession.permissions,
+          isTechnician: nextSession.isTechnician,
+        };
+        try {
+          setStoredAuth(updated);
+        } catch (_) {}
+        authSessionRef.current = updated;
+        setAuthSession(updated);
+      }
     };
 
     void syncAccess();
@@ -1993,7 +2012,10 @@ export default function App() {
     } catch (_) {}
     setVisitedTabs(new Set(['home']));
     setVisitedUserTabs(new Set(['home']));
-    setAccessTrust(initialAccessTrustState());
+    const cleared = initialAccessTrustState();
+    accessTrustRef.current = cleared;
+    setAccessTrust(cleared);
+    authSessionRef.current = null;
     setAuthSession(null);
   };
 
@@ -2114,6 +2136,7 @@ export default function App() {
     return (
       <LoginView
         onLogin={(session) => {
+          accessSyncRef.current.bumpGeneration();
           try {
             setStoredAuth(session);
           } catch (_) {}
@@ -2126,6 +2149,7 @@ export default function App() {
             accessTrustRef.current = initialAccessTrustState();
             setAccessTrust(accessTrustRef.current);
           }
+          authSessionRef.current = session;
           setAuthSession(session);
         }}
       />
