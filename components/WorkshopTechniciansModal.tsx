@@ -10,6 +10,8 @@ import {
 } from '../services/apiService';
 import { TechnicianPhotoEditorModal } from './TechnicianPhotoEditorModal';
 import { useRegisterModalOpen } from './ui/ModalLayerContext';
+import { PROFILE_PHOTO_EDITOR_Z } from './ui/iosModalStyles';
+
 
 function capitalizeFirst(str: string): string {
   if (!str || !str.trim()) return str;
@@ -211,6 +213,7 @@ export const WorkshopTechniciansModal: React.FC<WorkshopTechniciansModalProps> =
           technicianName={photoEditorTechName}
           onSave={handlePhotoEditorSave}
           onCancel={handlePhotoEditorCancel}
+          overlayZIndexClass={PROFILE_PHOTO_EDITOR_Z}
         />
 
         <div className="flex-1 overflow-y-auto p-6">

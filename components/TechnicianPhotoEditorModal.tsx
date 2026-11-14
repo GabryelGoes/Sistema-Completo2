@@ -3,6 +3,9 @@ import { createPortal } from 'react-dom';
 import { X, RotateCw, Loader2, Check } from 'lucide-react';
 import { useBrowserBackLayer } from './ui/BackNavigationContext';
 import { useRegisterModalOpen } from './ui/ModalLayerContext';
+import { useDesktopShellLayout } from './ui/DesktopShellContext';
+import { PROFILE_PHOTO_EDITOR_Z } from './ui/iosModalStyles';
+import { desktopShellPortaledChildOverlayClass } from '../utils/desktopShellOverlay';
 
 const PREVIEW_SIZE = 240;
 const EXPORT_SIZE = 400;
@@ -24,7 +27,7 @@ interface TechnicianPhotoEditorModalProps {
   technicianName: string;
   onSave: (blob: Blob) => void;
   onCancel: () => void;
-  /** z-index da sobreposição (portal no body; use z-[140]+ sobre cadastros em portal). */
+  /** z-index da sobreposição (portal no body; perfil usa PROFILE_PHOTO_EDITOR_Z). */
   overlayZIndexClass?: string;
   /** `circle` = perfis; `square` = produtos/peças no estoque. */
   cropShape?: 'circle' | 'square';
@@ -36,9 +39,10 @@ export const TechnicianPhotoEditorModal: React.FC<TechnicianPhotoEditorModalProp
   technicianName,
   onSave,
   onCancel,
-  overlayZIndexClass = 'z-[140]',
+  overlayZIndexClass = PROFILE_PHOTO_EDITOR_Z,
   cropShape = 'circle',
 }) => {
+  const isDesktopShell = useDesktopShellLayout();
   const isSquare = cropShape === 'square';
   const [imageSrc, setImageSrc] = useState<string | null>(null);
   const [scale, setScale] = useState(1);
@@ -281,7 +285,7 @@ export const TechnicianPhotoEditorModal: React.FC<TechnicianPhotoEditorModalProp
 
   const overlay = (
     <div
-      className={`fixed inset-0 ${overlayZIndexClass} flex items-center justify-center bg-black/90 backdrop-blur-sm p-3 sm:p-4 safe-area-inset`}
+      className={`${desktopShellPortaledChildOverlayClass(isDesktopShell, overlayZIndexClass)} flex items-center justify-center bg-black/90 backdrop-blur-sm p-3 sm:p-4 safe-area-inset`}
       role="dialog"
       aria-modal="true"
       aria-label={`Ajustar foto — ${technicianName}`}

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X, Camera, Loader2, Check, Lock } from 'lucide-react';
-import { iosModalShell, iosModalClose, iosModalInsetCard, iosInput, resolveIosModalOverlayClass } from './ui/iosModalStyles';
+import { iosModalShell, iosModalClose, iosModalInsetCard, iosInput, resolveIosModalOverlayClass, PROFILE_PHOTO_EDITOR_Z } from './ui/iosModalStyles';
 import { ModalPortal } from './ui/ModalPortal';
 import { useDesktopShellLayout } from './ui/DesktopShellContext';
 import { IosModalHeader } from './ui/IosModalHeader';
@@ -182,6 +182,7 @@ export const AdminProfileModal: React.FC<AdminProfileModalProps> = ({ isOpen, on
               technicianName={displayName}
               onSave={handlePhotoEditorSave}
               onCancel={() => setPhotoEditorFile(null)}
+              overlayZIndexClass={PROFILE_PHOTO_EDITOR_Z}
             />
 
             <div className="flex-1 min-h-0 overflow-y-auto px-6 sm:px-8 pb-8 space-y-6">

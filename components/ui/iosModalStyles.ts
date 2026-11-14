@@ -30,6 +30,12 @@ export const SETTINGS_CHILD_MODAL_Z = 'z-[160]';
  */
 export const NESTED_IOS_MODAL_PICKER_Z = 'z-[170]';
 
+/**
+ * Editor de foto de perfil (portal no body). Acima do modal de perfil / hub Ajustes
+ * (`SETTINGS_CHILD_MODAL_Z` = z-[160] e pickers z-[170]).
+ */
+export const PROFILE_PHOTO_EDITOR_Z = 'z-[180]';
+
 /** Cadastro/visualização do estoque (portal no body) — acima do modal principal do estoque. */
 export const NESTED_STOCK_OVERLAY_Z = 'z-[135]';
 
