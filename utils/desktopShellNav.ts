@@ -1,5 +1,6 @@
 import type { TabId } from '../components/TabBar';
 import type { SystemUserPermissions } from '../services/apiService';
+import { canOpenSettingsHub } from './employeeAccess';
 
 export type DesktopNavItem = {
   id: TabId;
@@ -105,11 +106,7 @@ export function resolveDesktopSidebarAccess(
   return {
     estoquePecas: !!perms.access_estoque_pecas,
     tvsOficina: !!perms.access_tv_patio,
-    configuracoes: !!(
-      perms.access_settings ||
-      perms.access_change_passwords ||
-      perms.access_technicians
-    ),
+    configuracoes: canOpenSettingsHub('user', perms),
   };
 }
 

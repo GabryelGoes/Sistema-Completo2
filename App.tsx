@@ -29,10 +29,9 @@ import { useOrientation } from './components/views/useOrientation';
 import {
   type AuthSession,
   type Notification,
-  type SystemUserPermissions,
   type ServiceOrderType,
   effectivePatioApproveBudgetItems,
-  effectiveAccessOrcamentos,
+  fetchMyAccess,
   getWorkshopSettings,
   deleteAppointment,
   getAppointments,
@@ -44,6 +43,13 @@ import {
   sendDeviceHeartbeat,
   logoutCurrentSession,
 } from './services/apiService';
+import {
+  applyServerAccessSnapshot,
+  canOpenSettingsHub,
+  EMPLOYEE_ACCESS_POLL_MS,
+  homeModuleAllowed,
+  permissionsToTabs as employeePermissionsToTabs,
+} from './utils/employeeAccess';
 import type { ServiceOrderStatus } from './constants/serviceOrderStages';
 import { KeepAliveTabPanel } from './components/KeepAliveTabPanel';
 import { applyAccentToRoot, DEFAULT_ACCENT, moduleAccentColor } from './utils/appAppearance';
@@ -227,7 +233,10 @@ export default function App() {
 
   const handleDesktopSidebarAction = useCallback(
     (action: DesktopSidebarActionId) => {
+      const role = authSession?.role === 'admin' ? 'admin' : authSession?.role === 'user' ? 'user' : undefined;
+      const perms = authSession?.role === 'user' ? authSession.permissions : undefined;
       if (action === 'estoque_pecas') {
+        if (!homeModuleAllowed('parts_stock', role, perms)) return;
         setIsTvPatioModalOpen(false);
         setIsSettingsOpen(false);
         setSettingsHubOpen(false);
@@ -236,6 +245,7 @@ export default function App() {
         return;
       }
       if (action === 'tvs_oficina') {
+        if (!homeModuleAllowed('tv_patio', role, perms)) return;
         requestClosePartsModal(() => {
           setIsSettingsOpen(false);
           setSettingsHubOpen(false);
@@ -245,11 +255,12 @@ export default function App() {
         return;
       }
       if (action === 'configuracoes') {
+        if (!canOpenSettingsHub(role, perms)) return;
         openSettingsHubOverlay();
         return;
       }
     },
-    [openSettingsHubOverlay, requestClosePartsModal]
+    [authSession, openSettingsHubOverlay, requestClosePartsModal]
   );
 
   const handleDesktopTabChange = useCallback(
@@ -362,24 +373,8 @@ export default function App() {
   // Dispara refresh da lista em "Usuários do sistema" quando o admin salva o perfil
   const [systemUsersRefreshTrigger, setSystemUsersRefreshTrigger] = useState(0);
 
-  // Usuário limitado: abas conforme permissões (full_access = todas as abas)
-  function permissionsToTabs(perms: SystemUserPermissions | undefined): TabId[] {
-    if (!perms) return ['home'];
-    if (perms.full_access)
-      return ['home', 'reception', 'agenda', 'patio', 'orcamentos', 'relatorios', 'laboratorio', 'boletim_erros', 'radar_qualidade'];
-    const t: TabId[] = [];
-    if (perms.access_home) t.push('home');
-    if (perms.access_reception) t.push('reception');
-    if (perms.access_agenda) t.push('agenda');
-    if (perms.access_patio) t.push('patio');
-    if (effectiveAccessOrcamentos(perms)) t.push('orcamentos');
-    if (perms.access_relatorios) t.push('relatorios');
-    if (perms.access_boletim_erros) t.push('boletim_erros');
-    if (perms.access_radar_qualidade) t.push('radar_qualidade');
-    if (perms.access_laboratorio) t.push('laboratorio');
-    return t.length ? t : ['home'];
-  }
-  const userAllowedTabs = authSession?.role === 'user' ? permissionsToTabs(authSession.permissions) : [];
+  const userAllowedTabs =
+    authSession?.role === 'user' ? (employeePermissionsToTabs(authSession.permissions) as TabId[]) : [];
   const hasFullAccess = authSession?.role === 'user' && !!authSession?.permissions?.full_access;
   const isLimitedSystemUser = authSession?.role === 'user' && !hasFullAccess;
   const canVerifyBudgetsApp = authSession?.role === 'admin' || hasFullAccess;
@@ -1864,6 +1859,85 @@ export default function App() {
     return () => window.clearInterval(id);
   }, [authSession?.token]);
 
+  /**
+   * SEC-03.3 — sincroniza permissões do banco (não do localStorage).
+   * Montagem, foco do app e poll leve. Falha de rede não altera o snapshot.
+   */
+  useEffect(() => {
+    if (!authSession?.token || authSession.role !== 'user') return;
+    let cancelled = false;
+
+    const syncAccess = async () => {
+      try {
+        const server = await fetchMyAccess();
+        if (cancelled) return;
+        setAuthSession((prev) => {
+          if (!prev || prev.role !== 'user') return prev;
+          const { next, changed } = applyServerAccessSnapshot(prev, server);
+          if (!changed) return prev;
+          const updated: AuthSession = {
+            ...prev,
+            permissions: next.permissions,
+            isTechnician: next.isTechnician,
+          };
+          try {
+            setStoredAuth(updated);
+          } catch (_) {}
+          return updated;
+        });
+      } catch {
+        /* rede/API: mantém último snapshot; não inventa privilégios */
+      }
+    };
+
+    void syncAccess();
+    const intervalId = window.setInterval(() => {
+      void syncAccess();
+    }, EMPLOYEE_ACCESS_POLL_MS);
+
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') void syncAccess();
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    window.addEventListener('focus', onVisibility);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+      document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener('focus', onVisibility);
+    };
+  }, [authSession?.token, authSession?.role]);
+
+  // Fecha módulos / preferências quando a permissão correspondente some na sessão.
+  useEffect(() => {
+    if (authSession?.role !== 'user') return;
+    const perms = authSession.permissions;
+    const role = 'user' as const;
+    if (!homeModuleAllowed('parts_stock', role, perms) && isPartsModalOpen) {
+      requestClosePartsModal();
+    }
+    if (!homeModuleAllowed('tv_patio', role, perms) && isTvPatioModalOpen) {
+      setIsTvPatioModalOpen(false);
+    }
+    if (!perms?.access_settings && !perms?.full_access) {
+      setIsSettingsOpen(false);
+      setIsUserChangePasswordsOpen((open) =>
+        perms?.access_change_passwords ? open : false
+      );
+    }
+    if (!canOpenSettingsHub(role, perms) && settingsHubOpen) {
+      setSettingsHubOpen(false);
+    }
+  }, [
+    authSession?.role,
+    authSession?.permissions,
+    isPartsModalOpen,
+    isTvPatioModalOpen,
+    settingsHubOpen,
+    requestClosePartsModal,
+  ]);
+
   const handleLogout = () => {
     if (
       !window.confirm(
@@ -2037,7 +2111,9 @@ export default function App() {
         onDesktopSidebarAction={handleDesktopSidebarAction}
         displayName={userDisplayName}
         photoUrl={authSession.photoUrl ?? null}
-        onOpenSettings={openSettingsHubOverlay}
+        onOpenSettings={
+          canOpenSettingsHub('user', authSession.permissions) ? openSettingsHubOverlay : undefined
+        }
         onOpenProfileEditor={openShellProfileEditor}
         onLogout={handleLogout}
         onOpenSupport={() => setIsSupportChatOpen(true)}
@@ -2119,10 +2195,22 @@ export default function App() {
                 } catch (_) {}
               }}
               systemUserPermissions={authSession.permissions}
-              onOpenSettings={() => setIsSettingsOpen(true)}
-              onOpenChangePasswords={() => setIsUserChangePasswordsOpen(true)}
+              onOpenSettings={
+                authSession.permissions?.access_settings || authSession.permissions?.full_access
+                  ? () => setIsSettingsOpen(true)
+                  : undefined
+              }
+              onOpenChangePasswords={
+                authSession.permissions?.access_change_passwords || authSession.permissions?.full_access
+                  ? () => setIsUserChangePasswordsOpen(true)
+                  : undefined
+              }
               blurUnverifiedBudgets={blurUnverifiedBudgets}
-              onBlurUnverifiedBudgetsChange={setBlurUnverifiedBudgets}
+              onBlurUnverifiedBudgetsChange={
+                authSession.permissions?.access_settings || authSession.permissions?.full_access
+                  ? setBlurUnverifiedBudgets
+                  : undefined
+              }
               budgetBannerNotifications={budgetBannerNotifications}
               onBudgetBannerNotificationsChange={setBudgetBannerNotifications}
               commentBannerNotifications={commentBannerNotifications}
@@ -2456,7 +2544,7 @@ export default function App() {
         : null;
   const adminAllowedTabs =
     authSession?.role === 'user' && authSession.permissions
-      ? permissionsToTabs(authSession.permissions)
+      ? (employeePermissionsToTabs(authSession.permissions) as TabId[])
       : undefined;
 
   return (
@@ -2476,10 +2564,7 @@ export default function App() {
       photoUrl={adminPhotoResolved}
       onOpenSettings={
         authSession?.role === 'admin' ||
-        hasFullAccess ||
-        authSession?.permissions?.access_settings ||
-        authSession?.permissions?.access_change_passwords ||
-        authSession?.permissions?.access_technicians
+        (authSession?.role === 'user' && canOpenSettingsHub('user', authSession.permissions))
           ? openSettingsHubOverlay
           : undefined
       }

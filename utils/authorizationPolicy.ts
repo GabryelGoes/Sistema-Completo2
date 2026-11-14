@@ -674,6 +674,15 @@ const RULES: readonly AuthorizationRule[] = [
   }),
   // Perfil do usuário da sessão. Não usa o id enviado pelo navegador.
   rule({
+    id: "self_access_read",
+    family: "technicians",
+    action: "read",
+    methods: ["GET"],
+    path: "^/api/auth/my-access$",
+    ownership: "session_user",
+    priority: 80,
+  }),
+  rule({
     id: "self_profile_read",
     family: "technicians",
     action: "read",

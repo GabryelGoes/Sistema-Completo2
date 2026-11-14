@@ -30,6 +30,7 @@ import { SYSTEM_NOTIFICATIONS_ICON } from '../constants/systemNotificationsIcon'
 import { QUALITY_RADAR_ICON } from '../constants/qualityRadar';
 import { ERROR_BULLETIN_ICON, TECHNICAL_BULLETINS_MODULE_LABEL } from '../constants/errorBulletinIcon';
 import type { SystemUserPermissions, SystemUser } from '../services/apiService';
+import { materializePermissionsForEdit, normalizePermissionsForAdminSave } from '../utils/employeeAccess';
 import {
   getSystemUsers,
   createSystemUser,
@@ -331,7 +332,10 @@ export const SystemUsersModal: React.FC<SystemUsersModalProps> = ({ isOpen, onCl
     setFormDisplayName(u.display_name || '');
     setFormJobTitle(u.job_title ?? '');
     setFormIsTechnician(u.is_technician ?? false);
-    setFormPermissions({ ...DEFAULT_PERMISSIONS, ...u.permissions });
+    setFormPermissions({
+      ...DEFAULT_PERMISSIONS,
+      ...materializePermissionsForEdit(u.permissions),
+    });
     setError(null);
   };
 
@@ -361,11 +365,12 @@ export const SystemUsersModal: React.FC<SystemUsersModalProps> = ({ isOpen, onCl
           setSaving(false);
           return;
         }
+        const permissionsToSave = normalizePermissionsForAdminSave(formPermissions);
         const created = await createSystemUser(adminPassword, {
           username: formUsername.trim(),
           password: formPassword.trim(),
           displayName: formDisplayName.trim() || undefined,
-          permissions: formPermissions,
+          permissions: permissionsToSave,
           isTechnician: formIsTechnician,
           jobTitle: formJobTitle.trim() || null,
         });
@@ -377,10 +382,11 @@ export const SystemUsersModal: React.FC<SystemUsersModalProps> = ({ isOpen, onCl
           setSaving(false);
           return;
         }
+        const permissionsToSave = normalizePermissionsForAdminSave(formPermissions);
         const updated = await updateSystemUser(editingId, adminPassword, {
           password: nextPassword || undefined,
           displayName: formDisplayName.trim() || undefined,
-          permissions: formPermissions,
+          permissions: permissionsToSave,
           isTechnician: formIsTechnician,
           jobTitle: formJobTitle.trim() || null,
         });
@@ -405,7 +411,10 @@ export const SystemUsersModal: React.FC<SystemUsersModalProps> = ({ isOpen, onCl
     setTogglingApproveUserId(u.id);
     setError(null);
     try {
-      const nextPerms: SystemUserPermissions = { ...(u.permissions || {}), patio_approve_budget_items: enabled };
+      const nextPerms = normalizePermissionsForAdminSave({
+        ...(u.permissions || {}),
+        patio_approve_budget_items: enabled,
+      });
       const updated = await updateSystemUser(u.id, adminPassword, {
         permissions: nextPerms,
         displayName: u.display_name?.trim() || undefined,

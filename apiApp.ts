@@ -81,6 +81,7 @@ import { assertHomologationSafeOrThrow } from "./utils/homologationGuard.js";
 import { classifyNewLoginPassword } from "./utils/loginPasswordPolicy.js";
 import { guardHttpAuthorization } from "./utils/authorizeRequest.js";
 import { ownProfilePatch, sessionProfileUserId } from "./utils/ownProfile.js";
+import { normalizePermissionsForAdminSave } from "./utils/employeeAccess.js";
 import { normalizeAiImproveTextLevel } from "./utils/aiImproveTextLevel.js";
 import {
   pickWorkshopSettingsWrite,
@@ -2757,6 +2758,46 @@ export function createApiApp() {
     }
   });
 
+  /**
+   * SEC-03.3 — permissões atuais do funcionário da sessão (fonte: banco).
+   * Id só da sessão validada; corpo/query não concedem privilégios.
+   */
+  app.get("/api/auth/my-access", async (req, res) => {
+    try {
+      const auth = (req as unknown as { auth?: SessionPayload }).auth;
+      const userId = sessionProfileUserId(auth?.r === "user" ? auth.u : undefined);
+      if (!userId) {
+        return res.status(403).json({
+          error: "A Gerência não usa permissões de funcionário.",
+          code: "not_system_user",
+        });
+      }
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({ error: "Servidor não configurado." });
+      }
+      const { data: row, error } = await supabaseAdmin
+        .from("workshop_system_users")
+        .select("permissions, is_technician, updated_at")
+        .eq("id", userId)
+        .eq("workshop_id", WORKSHOP_ID)
+        .maybeSingle();
+      if (error) return res.status(500).json({ error: "Falha ao ler permissões." });
+      if (!row) return res.status(404).json({ error: "Usuário não encontrado." });
+      const permissions =
+        row.permissions && typeof row.permissions === "object" && !Array.isArray(row.permissions)
+          ? row.permissions
+          : {};
+      return res.json({
+        permissions,
+        isTechnician: !!(row as { is_technician?: boolean }).is_technician,
+        updatedAt: (row as { updated_at?: string | null }).updated_at ?? null,
+      });
+    } catch (err: any) {
+      console.error("[API] Erro em GET /api/auth/my-access:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+    }
+  });
+
   app.get("/api/auth/my-profile", async (req, res) => {
     try {
       const auth = (req as unknown as { auth?: SessionPayload }).auth;
@@ -2929,7 +2970,9 @@ export function createApiApp() {
           code: "invalid_new_password",
         });
       }
-      const perms = typeof permissions === "object" && permissions !== null ? permissions : {};
+      const perms = normalizePermissionsForAdminSave(
+        typeof permissions === "object" && permissions !== null ? (permissions as Record<string, boolean>) : {}
+      );
       const isTech = isTechnician === true || isTechnician === "true";
       const job = typeof jobTitle === "string" ? jobTitle.trim() || null : null;
       const { data, error } = await supabaseAdmin
@@ -2969,7 +3012,9 @@ export function createApiApp() {
         return res.status(400).json({ error: nextPassword.message, code: "invalid_new_password" });
       }
       const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
-      if (typeof permissions === "object" && permissions !== null) updates.permissions = permissions;
+      if (typeof permissions === "object" && permissions !== null) {
+        updates.permissions = normalizePermissionsForAdminSave(permissions as Record<string, boolean>);
+      }
       if (typeof displayName === "string") updates.display_name = displayName.trim() || null;
       if (nextPassword.status === "ready") updates.password_hash = hashPassword(nextPassword.value);
       if (isTechnician !== undefined) updates.is_technician = isTechnician === true || isTechnician === "true";
