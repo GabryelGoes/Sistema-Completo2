@@ -123,23 +123,58 @@ export function materializePermissionsForEdit(perms: EmployeePermissions | undef
   };
 }
 
+export type NormalizePermissionsMode = "replace" | "merge";
+
 /**
- * Persistência admin: boolean explícito nas chaves de navegação.
- * Desmarcar Orçamentos grava `access_orcamentos: false` mesmo com Pátio ligado.
- * Registros antigos sem a chave continuam lidos via `effectiveAccessOrcamentos` até um save.
+ * Persistência admin.
+ * - `replace` (formulário completo): boolean explícito em todas as chaves de navegação
+ *   (`access_orcamentos: false` quando desmarcado, mesmo com Pátio).
+ * - `merge` (patch / atalho): não inventa `false` para chaves ausentes.
+ * `patio_approve_budget_items` ausente **não** vira `false` (legado = herda patio_edit_budgets).
+ * `false` explícito do admin é preservado.
  */
-export function normalizePermissionsForAdminSave(perms: EmployeePermissions | undefined): EmployeePermissions {
+export function normalizePermissionsForAdminSave(
+  perms: EmployeePermissions | undefined,
+  options?: { mode?: NormalizePermissionsMode }
+): EmployeePermissions {
   const src = perms || {};
+  const mode = options?.mode ?? "replace";
   const out: EmployeePermissions = { ...src };
-  for (const key of EMPLOYEE_NAV_PERMISSION_KEYS) {
-    (out as Record<string, boolean>)[key] = src[key] === true;
+
+  if (mode === "replace") {
+    for (const key of EMPLOYEE_NAV_PERMISSION_KEYS) {
+      (out as Record<string, boolean>)[key] = src[key] === true;
+    }
+  } else {
+    for (const key of EMPLOYEE_NAV_PERMISSION_KEYS) {
+      if (!Object.prototype.hasOwnProperty.call(src, key)) continue;
+      (out as Record<string, boolean>)[key] = src[key] === true;
+    }
   }
+
   if (src.full_access === true) out.full_access = true;
   else if (src.full_access === false) out.full_access = false;
   else delete out.full_access;
 
-  out.patio_approve_budget_items = src.patio_approve_budget_items === true;
+  if (src.patio_approve_budget_items === true) out.patio_approve_budget_items = true;
+  else if (src.patio_approve_budget_items === false) out.patio_approve_budget_items = false;
+  else delete out.patio_approve_budget_items;
+
   return out;
+}
+
+/**
+ * Patch mínimo (ex.: toggle rápido de aprovação): só altera a chave pedida.
+ * Não zera navegação nem materializa heranças.
+ */
+export function patchEmployeePermission(
+  existing: EmployeePermissions | undefined,
+  patch: Partial<EmployeePermissions>
+): EmployeePermissions {
+  return normalizePermissionsForAdminSave(
+    { ...(existing || {}), ...patch },
+    { mode: "merge" }
+  );
 }
 
 export function permissionsToTabs(perms: EmployeePermissions | undefined): NavigationTabId[] {
@@ -347,3 +382,96 @@ export function applyServerAccessSnapshot(
 
 /** Intervalo sugerido de poll leve (ms). */
 export const EMPLOYEE_ACCESS_POLL_MS = 90_000;
+
+/**
+ * Após sync válido, falha temporária de rede ainda usa o snapshot por este prazo.
+ * Depois restringe módulos sensíveis até nova validação.
+ */
+export const EMPLOYEE_ACCESS_GRACE_MS = 10 * 60 * 1000;
+
+/**
+ * Chaves sensíveis / administrativas: sem sync válido (ou após expirar a graça)
+ * o snapshot do localStorage não as libera.
+ * Operacional (home/recepção/agenda/pátio/lab/orçamentos) pode seguir o snapshot
+ * durante a graça — a API ainda está em shadow/off (ver limitações abaixo).
+ */
+export const SENSITIVE_PERMISSION_KEYS = [
+  "full_access",
+  "access_settings",
+  "access_change_passwords",
+  "access_technicians",
+  "access_estoque_pecas",
+  "access_tv_patio",
+  "access_relatorios",
+  "access_boletim_erros",
+  "access_radar_qualidade",
+  "access_servicos_oficina",
+  "access_checklists_patio",
+  "access_notificacoes_sistema",
+] as const satisfies readonly (keyof EmployeePermissions)[];
+
+export type AccessTrustStatus = "unverified" | "verified" | "grace" | "expired" | "denied";
+
+export type AccessTrustState = {
+  status: AccessTrustStatus;
+  /** Epoch ms da última sync bem-sucedida (se houver). */
+  verifiedAt: number | null;
+  /** Motivo quando status === denied. */
+  deniedReason?: "unauthorized" | "forbidden" | "not_found";
+};
+
+export function initialAccessTrustState(): AccessTrustState {
+  return { status: "unverified", verifiedAt: null };
+}
+
+/** Remove grants sensíveis do snapshot para UI. */
+export function stripSensitivePermissions(perms: EmployeePermissions | undefined): EmployeePermissions {
+  const out: EmployeePermissions = { ...(perms || {}) };
+  for (const key of SENSITIVE_PERMISSION_KEYS) {
+    if (out[key] === true) (out as Record<string, boolean>)[key] = false;
+  }
+  return out;
+}
+
+/**
+ * Permissões efetivas na UI conforme confiança do sync.
+ * - unverified / expired / denied → sem módulos sensíveis
+ * - verified / grace → snapshot completo (dentro da validade)
+ */
+export function resolveUiPermissions(
+  stored: EmployeePermissions | undefined,
+  trust: AccessTrustState,
+  nowMs = Date.now()
+): EmployeePermissions {
+  const base = stored || {};
+  if (trust.status === "denied" || trust.status === "unverified" || trust.status === "expired") {
+    return stripSensitivePermissions(base);
+  }
+  if (trust.status === "grace") {
+    const verifiedAt = trust.verifiedAt ?? 0;
+    if (nowMs - verifiedAt > EMPLOYEE_ACCESS_GRACE_MS) {
+      return stripSensitivePermissions(base);
+    }
+    return base;
+  }
+  // verified
+  return base;
+}
+
+/** Atualiza trust após o tempo passar (grace → expired). */
+export function refreshAccessTrust(trust: AccessTrustState, nowMs = Date.now()): AccessTrustState {
+  if (trust.status === "grace" || trust.status === "verified") {
+    const verifiedAt = trust.verifiedAt ?? 0;
+    if (trust.status === "grace" && nowMs - verifiedAt > EMPLOYEE_ACCESS_GRACE_MS) {
+      return { status: "expired", verifiedAt: trust.verifiedAt };
+    }
+  }
+  return trust;
+}
+
+/*
+ * LIMITAÇÕES (SEC-03.3 / famílias shadow|off):
+ * A UI restringe módulos sensíveis sem sync válido, mas a maioria das rotas API
+ * ainda não está em `enforce`. Um cliente com token válido pode chamar endpoints
+ * de estoque/OS/etc. até as famílias entrarem em enforce. Este PR não ativa enforce.
+ */

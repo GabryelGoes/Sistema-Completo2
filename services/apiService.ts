@@ -5636,6 +5636,7 @@ export {
   effectivePatioApproveBudgetItems,
   normalizePermissionsForAdminSave,
   materializePermissionsForEdit,
+  patchEmployeePermission,
   asPermissionRecord,
 } from "../utils/employeeAccess";
 
@@ -5687,12 +5688,25 @@ export async function login(username: string, password: string): Promise<AuthSes
  * SEC-03.3 — permissões atuais do funcionário autenticado (fonte: banco).
  * Não aceita corpo; id vem só da sessão. Falha de rede deve ser tratada pelo
  * chamador sem “restaurar” privilégios inventados.
+ * Erros HTTP lançam `{ kind: "http", status, message }`; rede `{ kind: "network", message }`.
  */
 export async function fetchMyAccess(): Promise<ServerAccessSnapshot> {
-  const response = await fetch(`${API_BASE}/auth/my-access`);
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE}/auth/my-access`);
+  } catch (err) {
+    throw {
+      kind: "network" as const,
+      message: err instanceof Error ? err.message : "Falha de rede ao sincronizar permissões.",
+    };
+  }
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
-    throw new Error(err.error || `Falha ao sincronizar permissões (${response.status})`);
+    throw {
+      kind: "http" as const,
+      status: response.status,
+      message: (err as { error?: string }).error || `Falha ao sincronizar permissões (${response.status})`,
+    };
   }
   const data = await response.json();
   return {
@@ -5900,10 +5914,13 @@ export async function updateSystemUser(
     password?: string;
     displayName?: string;
     permissions: SystemUserPermissions;
+    /** `merge` = patch (atalho aprovação); padrão `replace` = formulário completo. */
+    permissionsMode?: "replace" | "merge";
     isTechnician?: boolean;
     jobTitle?: string | null;
   }
 ): Promise<SystemUser & { passwordUpdated?: boolean }> {
+  const mode = data.permissionsMode ?? "replace";
   const response = await fetch(`${API_BASE}/system-users/${id}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
@@ -5911,7 +5928,8 @@ export async function updateSystemUser(
       adminPassword,
       password: data.password,
       displayName: data.displayName?.trim() ?? null,
-      permissions: normalizePermissionsForAdminSave(data.permissions),
+      permissions: normalizePermissionsForAdminSave(data.permissions, { mode }),
+      permissionsMode: mode,
       isTechnician: data.isTechnician,
       jobTitle: data.jobTitle?.trim() || null,
     }),

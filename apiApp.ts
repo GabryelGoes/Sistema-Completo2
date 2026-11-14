@@ -3002,7 +3002,8 @@ export function createApiApp() {
 
   app.put("/api/system-users/:id", async (req, res) => {
     try {
-      const { adminPassword, password, displayName, permissions, isTechnician, jobTitle } = req.body || {};
+      const { adminPassword, password, displayName, permissions, permissionsMode, isTechnician, jobTitle } =
+        req.body || {};
       if (!WORKSHOP_ID || !(await verifyAdmin(ADMIN_USERNAME, adminPassword))) {
         return res.status(403).json({ error: "Acesso negado." });
       }
@@ -3013,7 +3014,29 @@ export function createApiApp() {
       }
       const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
       if (typeof permissions === "object" && permissions !== null) {
-        updates.permissions = normalizePermissionsForAdminSave(permissions as Record<string, boolean>);
+        const mode = permissionsMode === "merge" ? "merge" : "replace";
+        if (mode === "merge") {
+          const { data: existingRow } = await supabaseAdmin
+            .from("workshop_system_users")
+            .select("permissions")
+            .eq("id", id)
+            .eq("workshop_id", WORKSHOP_ID)
+            .maybeSingle();
+          const existingPerms =
+            existingRow?.permissions &&
+            typeof existingRow.permissions === "object" &&
+            !Array.isArray(existingRow.permissions)
+              ? (existingRow.permissions as Record<string, boolean>)
+              : {};
+          updates.permissions = normalizePermissionsForAdminSave(
+            { ...existingPerms, ...(permissions as Record<string, boolean>) },
+            { mode: "merge" }
+          );
+        } else {
+          updates.permissions = normalizePermissionsForAdminSave(permissions as Record<string, boolean>, {
+            mode: "replace",
+          });
+        }
       }
       if (typeof displayName === "string") updates.display_name = displayName.trim() || null;
       if (nextPassword.status === "ready") updates.password_hash = hashPassword(nextPassword.value);

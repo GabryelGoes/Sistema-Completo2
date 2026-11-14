@@ -30,7 +30,11 @@ import { SYSTEM_NOTIFICATIONS_ICON } from '../constants/systemNotificationsIcon'
 import { QUALITY_RADAR_ICON } from '../constants/qualityRadar';
 import { ERROR_BULLETIN_ICON, TECHNICAL_BULLETINS_MODULE_LABEL } from '../constants/errorBulletinIcon';
 import type { SystemUserPermissions, SystemUser } from '../services/apiService';
-import { materializePermissionsForEdit, normalizePermissionsForAdminSave } from '../utils/employeeAccess';
+import {
+  materializePermissionsForEdit,
+  normalizePermissionsForAdminSave,
+  patchEmployeePermission,
+} from '../utils/employeeAccess';
 import {
   getSystemUsers,
   createSystemUser,
@@ -411,12 +415,13 @@ export const SystemUsersModal: React.FC<SystemUsersModalProps> = ({ isOpen, onCl
     setTogglingApproveUserId(u.id);
     setError(null);
     try {
-      const nextPerms = normalizePermissionsForAdminSave({
-        ...(u.permissions || {}),
+      // Patch só da chave de aprovação — não regrava navegação inteira (legado preservado).
+      const nextPerms = patchEmployeePermission(u.permissions, {
         patio_approve_budget_items: enabled,
       });
       const updated = await updateSystemUser(u.id, adminPassword, {
         permissions: nextPerms,
+        permissionsMode: 'merge',
         displayName: u.display_name?.trim() || undefined,
         isTechnician: u.is_technician ?? false,
         jobTitle: u.job_title ?? null,
