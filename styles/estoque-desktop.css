@@ -1186,8 +1186,8 @@ html[data-device='desktop'][data-desktop-shell='true'] [data-estoque-print-scrol
 
 html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-print .estoque-pc-print-field input:focus-visible,
 html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-print button:focus-visible {
-  outline: 2px solid #0f7a4b;
-  outline-offset: 2px;
+  outline: 2px solid rgba(16, 185, 129, 0.5);
+  outline-offset: 1px;
 }
 
 html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-print button:not(:disabled):active {
@@ -1218,5 +1218,153 @@ html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-print .estoqu
 
   html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-print button:not(:disabled):active {
     transform: none;
+  }
+}
+
+/*
+ * Fase E7 — Auditoria final (somente desktop shell + hub Estoque).
+ * Correções pequenas: foco unificado, scroll-padding vs sticky, grids estreitos,
+ * borda de scroll ABS, selects no E4, content-visibility em listas longas,
+ * prefers-reduced-transparency no chrome. Sem redesign nem mudança de cores.
+ */
+
+/* Scroll-padding: foco não fica sob sticky chrome / ações / toolbar */
+html[data-device='desktop'][data-desktop-shell='true']
+  .estoque-modal--desktop.estoque-pc-shell-v1
+  .estoque-pc-scroll,
+html[data-device='desktop'][data-desktop-shell='true']
+  .estoque-modal--desktop.estoque-pc-shell-v1
+  [data-estoque-list-scroll] {
+  scroll-padding-top: 6.5rem;
+  scroll-padding-bottom: 1.25rem;
+}
+
+html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-nested .estoque-pc-nested-scroll,
+html[data-device='desktop'][data-desktop-shell='true'] [data-estoque-form-scroll],
+html[data-device='desktop'][data-desktop-shell='true'] [data-estoque-detail-scroll] {
+  scroll-padding-top: 0.75rem;
+  scroll-padding-bottom: 5.5rem;
+}
+
+html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-flow .estoque-pc-flow-scroll,
+html[data-device='desktop'][data-desktop-shell='true'] [data-estoque-flow-scroll] {
+  scroll-padding-top: 4.5rem;
+  scroll-padding-bottom: 1.25rem;
+}
+
+html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-secondary .estoque-pc-secondary-scroll,
+html[data-device='desktop'][data-desktop-shell='true'] [data-estoque-secondary-scroll] {
+  scroll-padding-top: 4.25rem;
+  scroll-padding-bottom: 1rem;
+}
+
+html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-abs .estoque-pc-abs-scroll,
+html[data-device='desktop'][data-desktop-shell='true'] [data-estoque-abs-scroll] {
+  scroll-padding-top: 4.5rem;
+  scroll-padding-bottom: 1.25rem;
+}
+
+html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-print .estoque-pc-print-body,
+html[data-device='desktop'][data-desktop-shell='true'] [data-estoque-print-scroll] {
+  scroll-padding-top: 0.5rem;
+  scroll-padding-bottom: 1rem;
+}
+
+/* ABS toolbar: aresta de scroll (mesmo tom de borda já usado no shell) */
+html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-abs-home .estoque-pc-abs-toolbar {
+  border-bottom: 1px solid rgba(228, 228, 231, 0.7);
+  padding-bottom: 0.75rem;
+  margin-bottom: 0.15rem;
+}
+
+html.dark[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-abs-home .estoque-pc-abs-toolbar {
+  border-bottom-color: rgba(255, 255, 255, 0.06);
+}
+
+/* E4: select também com foco visível (paridade com input/button) */
+html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-secondary select:focus-visible {
+  outline: 2px solid rgba(16, 185, 129, 0.5);
+  outline-offset: 1px;
+}
+
+/* Listas longas: reduzir custo de paint fora da viewport (sem mudar layout) */
+html[data-device='desktop'][data-desktop-shell='true']
+  .estoque-modal--desktop.estoque-pc-shell-v1
+  .estoque-pc-row,
+html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-abs-home .estoque-pc-abs-row,
+html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-ledger .estoque-pc-ledger-row {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 3.75rem;
+}
+
+/* Grids densos: colapsar em janelas desktop estreitas (evita crush) */
+@media (max-width: 1100px) {
+  html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-form .estoque-pc-form-identity-grid,
+  html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-form .estoque-pc-form-pricing-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-form .estoque-pc-form-photos-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 900px) {
+  html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-outbound .estoque-pc-outbound-grid,
+  html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-inbound .estoque-pc-inbound-grid,
+  html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-suppliers .estoque-pc-suppliers-layout,
+  html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-detail .estoque-pc-detail-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-detail .estoque-pc-detail-photos {
+    position: static;
+  }
+
+  html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-form .estoque-pc-form-identity-grid,
+  html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-form .estoque-pc-form-pricing-grid,
+  html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-form .estoque-pc-form-two-col {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-form .estoque-pc-form-photos-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+/* Transparência reduzida: chrome sólido (sem blur) */
+@media (prefers-reduced-transparency: reduce) {
+  html[data-device='desktop'][data-desktop-shell='true']
+    .estoque-modal--desktop.estoque-pc-shell-v1
+    .estoque-pc-chrome {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    background-color: #f4f5f7;
+  }
+
+  html.dark[data-device='desktop'][data-desktop-shell='true']
+    .estoque-modal--desktop.estoque-pc-shell-v1
+    .estoque-pc-chrome {
+    background-color: #09090b;
+  }
+
+  html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-nested .estoque-pc-nested-header,
+  html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-flow .estoque-pc-flow-header,
+  html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-secondary .estoque-pc-secondary-header,
+  html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-abs-flow .estoque-pc-abs-flow-header,
+  html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-print .estoque-pc-print-header,
+  html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-form .estoque-pc-form-actions,
+  html[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-detail .estoque-pc-detail-actions {
+    background-color: #ffffff;
+  }
+
+  html.dark[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-nested .estoque-pc-nested-header,
+  html.dark[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-flow .estoque-pc-flow-header,
+  html.dark[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-secondary .estoque-pc-secondary-header,
+  html.dark[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-abs-flow .estoque-pc-abs-flow-header,
+  html.dark[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-print .estoque-pc-print-header,
+  html.dark[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-form .estoque-pc-form-actions,
+  html.dark[data-device='desktop'][data-desktop-shell='true'] .estoque-pc-detail .estoque-pc-detail-actions {
+    background-color: #09090b;
   }
 }
