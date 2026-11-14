@@ -40,9 +40,13 @@ export const ESTOQUE_PC_ABS_CLASS = 'estoque-pc-abs estoque-pc-abs-v5';
 /** Etiquetas / Niimbot (E6) — apenas UI desktop do Estoque. */
 export const ESTOQUE_PC_PRINT_CLASS = 'estoque-pc-print estoque-pc-print-v6';
 
+/** Auditoria / polish final (E7) — token de versão do shell desktop. */
+export const ESTOQUE_PC_AUDIT_CLASS = 'estoque-pc-audit-v7';
+
 export function estoquePcShellClass(pcLayout: boolean, extra = ''): string {
   if (!pcLayout) return extra;
-  return extra ? `${ESTOQUE_PC_SHELL_CLASS} ${extra}` : ESTOQUE_PC_SHELL_CLASS;
+  const base = `${ESTOQUE_PC_SHELL_CLASS} ${ESTOQUE_PC_AUDIT_CLASS}`;
+  return extra ? `${base} ${extra}` : base;
 }
 
 export function estoquePcNestedClass(pcLayout: boolean, extra = ''): string {
