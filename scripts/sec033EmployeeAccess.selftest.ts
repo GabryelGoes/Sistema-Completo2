@@ -28,6 +28,7 @@ import {
   createAccessSyncController,
 } from "../utils/employeeAccessSync.js";
 import {
+  casTokenFromUpdatedAt,
   interpretOptimisticPermissionsWrite,
   interpretPermissionsLoad,
   planSystemUserPermissionsUpdate,
@@ -479,6 +480,127 @@ console.log("\n16) Graça de 10 minutos preservada no meio do intervalo");
   assert(ui.access_estoque_pecas === true, "sensível mantido até o fim da graça");
   const end = refreshAccessTrust(grace, t0 + EMPLOYEE_ACCESS_GRACE_MS + 1);
   assert(end.status === "expired", "expirou após 10 min");
+}
+
+console.log("\n17) Atalho aprovação: patch mínimo vs snapshot antigo do browser");
+{
+  // Navegador A carregou permissões antigas (ainda com Estoque).
+  const staleBrowser: Record<string, boolean> = {
+    access_home: true,
+    access_patio: true,
+    access_estoque_pecas: true,
+    patio_edit_budgets: true,
+    patio_approve_budget_items: true,
+  };
+  // Admin B removeu Estoque no banco.
+  const dbAfterAdminB = {
+    access_home: true,
+    access_patio: true,
+    access_estoque_pecas: false,
+    patio_edit_budgets: true,
+    patio_approve_budget_items: true,
+  };
+  const loadDb = interpretPermissionsLoad({
+    data: { permissions: dbAfterAdminB, updated_at: "2026-02-01T12:00:00.000Z" },
+    error: null,
+  });
+
+  // Bug antigo: patchEmployeePermission(stale, …) reenviava Estoque=true no merge.
+  const staleFullPatch = patchEmployeePermission(staleBrowser, {
+    patio_approve_budget_items: false,
+  });
+  assert(staleFullPatch.access_estoque_pecas === true, "snapshot antigo ainda carrega Estoque");
+  const badPlan = planSystemUserPermissionsUpdate({
+    mode: "merge",
+    patch: staleFullPatch,
+    load: loadDb,
+  });
+  assert(badPlan.ok === true, "plano com patch cheio ainda planeja");
+  if (badPlan.ok) {
+    assert(
+      badPlan.nextPermissions.access_estoque_pecas === true,
+      "patch cheio reescreveria Estoque removido por B (regressão a evitar)"
+    );
+  }
+
+  // Correção: atalho envia só a chave de aprovação.
+  const minimalClient = normalizePermissionsForAdminSave(
+    { patio_approve_budget_items: false },
+    { mode: "merge" }
+  );
+  assert(
+    Object.keys(minimalClient).length === 1 && minimalClient.patio_approve_budget_items === false,
+    "cliente envia somente patio_approve_budget_items"
+  );
+  const goodPlan = planSystemUserPermissionsUpdate({
+    mode: "merge",
+    patch: minimalClient,
+    load: loadDb,
+  });
+  assert(goodPlan.ok === true, "merge mínimo planeja ok");
+  if (goodPlan.ok) {
+    assert(goodPlan.nextPermissions.access_estoque_pecas === false, "Estoque removido por B permanece");
+    assert(goodPlan.nextPermissions.access_patio === true, "Pátio intacto");
+    assert(goodPlan.nextPermissions.access_home === true, "home intacta");
+    assert(goodPlan.nextPermissions.patio_edit_budgets === true, "edit budgets intacto");
+    assert(goodPlan.nextPermissions.patio_approve_budget_items === false, "aprovação alterada");
+    const keys = Object.keys(goodPlan.nextPermissions).sort();
+    assert(
+      keys.join(",") ===
+        ["access_estoque_pecas", "access_home", "access_patio", "patio_approve_budget_items", "patio_edit_budgets"]
+          .sort()
+          .join(","),
+      "nenhuma outra permissão inventada"
+    );
+  }
+
+  // updated_at nulo/ausente: sem CAS → recusa.
+  assert(casTokenFromUpdatedAt(null) === null, "null sem token CAS");
+  assert(casTokenFromUpdatedAt("") === null, "vazio sem token CAS");
+  assert(casTokenFromUpdatedAt("   ") === null, "whitespace sem token CAS");
+  const nullCas = planSystemUserPermissionsUpdate({
+    mode: "merge",
+    patch: { patio_approve_budget_items: true },
+    load: interpretPermissionsLoad({
+      data: { permissions: dbAfterAdminB, updated_at: null },
+      error: null,
+    }),
+  });
+  assert(
+    nullCas.ok === false && nullCas.reason === "cas_unavailable",
+    "updated_at nulo → cas_unavailable (não atualiza desprotegido)"
+  );
+
+  // Concorrência: dois merges no mesmo token; o 2º write perde.
+  const raceLoad = interpretPermissionsLoad({
+    data: { permissions: dbAfterAdminB, updated_at: "2026-02-01T12:00:00.000Z" },
+    error: null,
+  });
+  const racePlanA = planSystemUserPermissionsUpdate({
+    mode: "merge",
+    patch: { patio_approve_budget_items: false },
+    load: raceLoad,
+  });
+  const racePlanB = planSystemUserPermissionsUpdate({
+    mode: "merge",
+    patch: { access_estoque_pecas: true },
+    load: raceLoad,
+  });
+  assert(racePlanA.ok && racePlanB.ok, "ambos planejam com o mesmo token");
+  if (racePlanA.ok && racePlanB.ok) {
+    assert(racePlanA.expectedUpdatedAt === racePlanB.expectedUpdatedAt, "mesmo expectedUpdatedAt");
+    const winner = interpretOptimisticPermissionsWrite({
+      data: { id: "u1", updated_at: "2026-02-01T12:00:01.000Z" },
+      error: null,
+      userWasFound: true,
+    });
+    const loser = interpretOptimisticPermissionsWrite({
+      data: null,
+      error: null,
+      userWasFound: true,
+    });
+    assert(winner.ok && loser.ok === false && loser.reason === "conflict", "2ª alteração simultânea → conflict");
+  }
 }
 
 console.log(`\nResultado: ${passed} ok, ${failed} fail`);

@@ -24,10 +24,24 @@ export type MergePermissionsPlan =
       ok: true;
       nextPermissions: EmployeePermissions;
       /** updated_at lido antes do write — usar no WHERE para CAS otimista. */
-      expectedUpdatedAt: string | null;
+      expectedUpdatedAt: string;
     }
   | { ok: false; reason: "read_error"; message: string }
-  | { ok: false; reason: "not_found" };
+  | { ok: false; reason: "not_found" }
+  | {
+      ok: false;
+      reason: "cas_unavailable";
+      message: string;
+    };
+
+/** Token CAS utilizável: string não vazia. Null/ausente = sem proteção de concorrência. */
+export function casTokenFromUpdatedAt(
+  updatedAt: string | null | undefined
+): string | null {
+  if (typeof updatedAt !== "string") return null;
+  const trimmed = updatedAt.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
 
 export function permissionsRecordFromRow(value: unknown): EmployeePermissions {
   if (!value || typeof value !== "object" || Array.isArray(value)) return {};
@@ -77,11 +91,21 @@ export function planSystemUserPermissionsUpdate(input: {
     return { ok: false, reason: "not_found" };
   }
 
+  const casToken = casTokenFromUpdatedAt(load.row.updated_at);
+  if (!casToken) {
+    return {
+      ok: false,
+      reason: "cas_unavailable",
+      message:
+        "Não é possível atualizar com segurança: registro sem updated_at para controle de concorrência.",
+    };
+  }
+
   if (input.mode === "replace") {
     return {
       ok: true,
       nextPermissions: normalizePermissionsForAdminSave(input.patch, { mode: "replace" }),
-      expectedUpdatedAt: load.row.updated_at,
+      expectedUpdatedAt: casToken,
     };
   }
 
@@ -92,7 +116,7 @@ export function planSystemUserPermissionsUpdate(input: {
       { ...existing, ...input.patch },
       { mode: "merge" }
     ),
-    expectedUpdatedAt: load.row.updated_at,
+    expectedUpdatedAt: casToken,
   };
 }
 

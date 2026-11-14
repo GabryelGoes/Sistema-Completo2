@@ -33,7 +33,6 @@ import type { SystemUserPermissions, SystemUser } from '../services/apiService';
 import {
   materializePermissionsForEdit,
   normalizePermissionsForAdminSave,
-  patchEmployeePermission,
 } from '../utils/employeeAccess';
 import {
   getSystemUsers,
@@ -415,16 +414,11 @@ export const SystemUsersModal: React.FC<SystemUsersModalProps> = ({ isOpen, onCl
     setTogglingApproveUserId(u.id);
     setError(null);
     try {
-      // Patch só da chave de aprovação — não regrava navegação inteira (legado preservado).
-      const nextPerms = patchEmployeePermission(u.permissions, {
-        patio_approve_budget_items: enabled,
-      });
+      // Patch mínimo: só a chave de aprovação. O backend faz merge com o banco
+      // (evita sobrescrever Estoque/etc. removidos por outro admin com snapshot antigo do browser).
       const updated = await updateSystemUser(u.id, adminPassword, {
-        permissions: nextPerms,
+        permissions: { patio_approve_budget_items: enabled },
         permissionsMode: 'merge',
-        displayName: u.display_name?.trim() || undefined,
-        isTechnician: u.is_technician ?? false,
-        jobTitle: u.job_title ?? null,
       });
       setUsers((prev) => prev.map((x) => (x.id === updated.id ? updated : x)));
     } catch (err) {

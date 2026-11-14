@@ -83,6 +83,7 @@ import { guardHttpAuthorization } from "./utils/authorizeRequest.js";
 import { ownProfilePatch, sessionProfileUserId } from "./utils/ownProfile.js";
 import { normalizePermissionsForAdminSave } from "./utils/employeeAccess.js";
 import {
+  casTokenFromUpdatedAt,
   interpretOptimisticPermissionsWrite,
   interpretPermissionsLoad,
   planSystemUserPermissionsUpdate,
@@ -3019,7 +3020,7 @@ export function createApiApp() {
       }
       const nextUpdatedAt = new Date().toISOString();
       const updates: Record<string, unknown> = { updated_at: nextUpdatedAt };
-      let expectedUpdatedAt: string | null | undefined;
+      let expectedUpdatedAt: string | undefined;
       let userWasFound = false;
 
       if (typeof permissions === "object" && permissions !== null) {
@@ -3058,12 +3059,18 @@ export function createApiApp() {
           if (plan.reason === "read_error") {
             return res.status(500).json({ error: plan.message, code: "permissions_read_failed" });
           }
+          if (plan.reason === "cas_unavailable") {
+            return res.status(409).json({
+              error: plan.message,
+              code: "permissions_cas_unavailable",
+            });
+          }
           return res.status(404).json({ error: "Usuário não encontrado." });
         }
         updates.permissions = plan.nextPermissions;
         expectedUpdatedAt = plan.expectedUpdatedAt;
       } else {
-        // Sem patch de permissions: ainda assim carrega updated_at para CAS quando possível.
+        // Sem patch de permissions: ainda assim carrega updated_at para CAS obrigatório.
         const { data: existingRow, error: loadError } = await supabaseAdmin
           .from("workshop_system_users")
           .select("updated_at")
@@ -3080,23 +3087,40 @@ export function createApiApp() {
           return res.status(404).json({ error: "Usuário não encontrado." });
         }
         userWasFound = true;
-        expectedUpdatedAt = (existingRow as { updated_at?: string | null }).updated_at ?? null;
+        const casToken = casTokenFromUpdatedAt(
+          (existingRow as { updated_at?: string | null }).updated_at ?? null
+        );
+        if (!casToken) {
+          return res.status(409).json({
+            error:
+              "Não é possível atualizar com segurança: registro sem updated_at para controle de concorrência.",
+            code: "permissions_cas_unavailable",
+          });
+        }
+        expectedUpdatedAt = casToken;
       }
 
+      // Só grava campos explicitamente enviados (atalho de aprovação não mexe em nome/função).
       if (typeof displayName === "string") updates.display_name = displayName.trim() || null;
       if (nextPassword.status === "ready") updates.password_hash = hashPassword(nextPassword.value);
       if (isTechnician !== undefined) updates.is_technician = isTechnician === true || isTechnician === "true";
       if (jobTitle !== undefined) updates.job_title = typeof jobTitle === "string" ? jobTitle.trim() || null : null;
 
+      if (typeof expectedUpdatedAt !== "string" || !expectedUpdatedAt.trim()) {
+        return res.status(409).json({
+          error:
+            "Não é possível atualizar com segurança: registro sem updated_at para controle de concorrência.",
+          code: "permissions_cas_unavailable",
+        });
+      }
+
+      // Compare-and-swap otimista em updated_at (sem migration). Sempre obrigatório.
       let updateQuery = supabaseAdmin
         .from("workshop_system_users")
         .update(updates)
         .eq("id", id)
-        .eq("workshop_id", WORKSHOP_ID);
-      // Compare-and-swap otimista em updated_at (sem migration). Evita sobrescrita silenciosa.
-      if (expectedUpdatedAt != null && expectedUpdatedAt !== "") {
-        updateQuery = updateQuery.eq("updated_at", expectedUpdatedAt);
-      }
+        .eq("workshop_id", WORKSHOP_ID)
+        .eq("updated_at", expectedUpdatedAt);
       const { data, error } = await updateQuery
         .select("id, username, display_name, permissions, is_technician, job_title, created_at, updated_at")
         .maybeSingle();

@@ -5921,18 +5921,20 @@ export async function updateSystemUser(
   }
 ): Promise<SystemUser & { passwordUpdated?: boolean }> {
   const mode = data.permissionsMode ?? "replace";
+  // Só envia campos explicitamente informados — atalho de aprovação não regrava nome/função.
+  const body: Record<string, unknown> = {
+    adminPassword,
+    permissions: normalizePermissionsForAdminSave(data.permissions, { mode }),
+    permissionsMode: mode,
+  };
+  if (data.password !== undefined) body.password = data.password;
+  if (data.displayName !== undefined) body.displayName = data.displayName.trim() || null;
+  if (data.isTechnician !== undefined) body.isTechnician = data.isTechnician;
+  if (data.jobTitle !== undefined) body.jobTitle = data.jobTitle?.trim() || null;
   const response = await fetch(`${API_BASE}/system-users/${id}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      adminPassword,
-      password: data.password,
-      displayName: data.displayName?.trim() ?? null,
-      permissions: normalizePermissionsForAdminSave(data.permissions, { mode }),
-      permissionsMode: mode,
-      isTechnician: data.isTechnician,
-      jobTitle: data.jobTitle?.trim() || null,
-    }),
+    body: JSON.stringify(body),
   });
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));
