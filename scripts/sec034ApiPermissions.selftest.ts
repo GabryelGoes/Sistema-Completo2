@@ -88,9 +88,9 @@ async function main() {
   const production = productionAuthorizationPolicy();
   const modeOf = (id: string) => production.families.find((family) => family.id === id)?.mode;
   record(
-    "produção observa estoque, relatórios e boletins; TV e catálogos bloqueiam",
+    "produção observa estoque e boletins; TV, catálogos, técnicos e relatórios bloqueiam",
     modeOf("parts_stock") === "shadow" &&
-      modeOf("reports") === "shadow" &&
+      modeOf("reports") === "enforce" &&
       modeOf("bulletins") === "shadow" &&
       modeOf("technicians") === "enforce" &&
       modeOf("tv_admin") === "enforce" &&
@@ -101,13 +101,14 @@ async function main() {
           (family.id === "tv_admin" ||
             family.id === "workshop_catalogs" ||
             family.id === "technicians" ||
+            family.id === "reports" ||
             family.mode !== "enforce")
       ) &&
       authorizationHasEnforce(production, {}) === true &&
-      authorizationHasEnforce(production, { SEC03_DISABLE_FAMILIES: "technicians" }) === true &&
-      authorizationHasEnforce(production, { SEC03_DISABLE_FAMILIES: "technicians,workshop_catalogs,tv_admin" }) === false &&
+      authorizationHasEnforce(production, { SEC03_DISABLE_FAMILIES: "reports" }) === true &&
+      authorizationHasEnforce(production, { SEC03_DISABLE_FAMILIES: "technicians,workshop_catalogs,tv_admin,reports" }) === false &&
       production.families.filter((family) => family.mode === "shadow").map((family) => family.id).sort().join(",") ===
-        "bulletins,parts_stock,reports",
+        "bulletins,parts_stock",
     `estoque ${modeOf("parts_stock")}; relatório ${modeOf("reports")}; boletim ${modeOf("bulletins")}; catálogo ${modeOf("workshop_catalogs")}`
   );
 
@@ -418,7 +419,7 @@ async function main() {
   record(
     "sombra registra a negação e a operação continua",
     reportDenied.effect === "deny" &&
-      reportDenied.block === false &&
+      reportDenied.block === true &&
       reportDenied.reason === "missing_permission" &&
       reportAllowed.effect === "allow" &&
       reportAllowed.block === false &&

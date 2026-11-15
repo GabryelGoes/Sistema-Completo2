@@ -188,8 +188,8 @@ async function main() {
   const shadow = production.families.filter((family) => family.mode === "shadow").map((family) => family.id).sort();
   record(
     "política mantém a TV e passa a incluir os catálogos",
-    enforced.join(",") === "technicians,workshop_catalogs,tv_admin" &&
-      shadow.join(",") === "bulletins,parts_stock,reports" &&
+    enforced.join(",") === "technicians,workshop_catalogs,tv_admin,reports" &&
+      shadow.join(",") === "bulletins,parts_stock" &&
       authorizationHasEnforce(production, {}) === true,
     enforced.join(",")
   );
@@ -329,8 +329,9 @@ async function main() {
 
     denied("dora com falha de leitura", await hit(base, "/api/tv/slides", "POST", dora, SLIDE));
 
+    denied("relatório sem a chave", await hit(base, "/api/reports/technician-services", "GET", ana));
     const others = await Promise.all([
-      hit(base, "/api/reports/technician-services", "GET", ana),
+      hit(base, "/api/error-bulletins", "GET", ana),
       hit(base, "/api/error-bulletins", "POST", ana, { title: "Boletim ficticio" }),
       hit(base, "/api/error-bulletins/boletim-1", "DELETE", ana),
       hit(base, "/api/workshop-parts/peca-1", "DELETE", ana),
@@ -355,7 +356,8 @@ async function main() {
       rolled.status === 201 &&
         rolled.code !== "permission_denied" &&
         publicStill.status === 200 &&
-        reportsStill.status !== 403 &&
+        reportsStill.status === 403 &&
+        reportsStill.code === "permission_denied" &&
         restored.status === 403 &&
         restored.code === "permission_denied",
       `reversão ${rolled.status}; público ${publicStill.status}; relatório ${reportsStill.status}; restaurado ${restored.status}`

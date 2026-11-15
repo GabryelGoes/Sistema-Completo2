@@ -230,11 +230,11 @@ async function main() {
     .sort();
   record(
     "política bloqueia TV e catálogos",
-    enforced.join(",") === "technicians,workshop_catalogs,tv_admin" &&
-      shadow.join(",") === "bulletins,parts_stock,reports" &&
+    enforced.join(",") === "technicians,workshop_catalogs,tv_admin,reports" &&
+      shadow.join(",") === "bulletins,parts_stock" &&
       authorizationHasEnforce(production, {}) === true &&
-      authorizationHasEnforce(production, { SEC03_DISABLE_FAMILIES: "technicians" }) === true &&
-      authorizationHasEnforce(production, { SEC03_DISABLE_FAMILIES: "technicians,workshop_catalogs,tv_admin" }) === false,
+      authorizationHasEnforce(production, { SEC03_DISABLE_FAMILIES: "reports" }) === true &&
+      authorizationHasEnforce(production, { SEC03_DISABLE_FAMILIES: "technicians,workshop_catalogs,tv_admin,reports" }) === false,
     enforced.join(",")
   );
 
@@ -382,14 +382,15 @@ async function main() {
     denied("TV administrativa sem a chave", tvDenied);
     allowed("TV administrativa com a chave", tvAllowed, 201);
 
+    denied("relatório sem a chave", await hit(base, "/api/reports/technician-services", "GET", patio));
     const others = await Promise.all([
-      hit(base, "/api/reports/technician-services", "GET", patio),
+      hit(base, "/api/error-bulletins", "GET", patio),
       hit(base, "/api/error-bulletins", "POST", patio, { title: "Boletim ficticio" }),
       hit(base, "/api/workshop-parts/peca-1", "DELETE", patio),
       hit(base, "/api/workshop-technicians", "GET", patio),
     ]);
     record(
-      "relatórios, boletins, peças e técnicos não ganham 403",
+      "boletins, peças e técnicos não ganham 403",
       others.every((item) => item.status !== 403 && item.code !== "permission_denied"),
       others.map((item) => item.status).join(",")
     );
