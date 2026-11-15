@@ -31,6 +31,10 @@ import { QUALITY_RADAR_ICON } from '../constants/qualityRadar';
 import { ERROR_BULLETIN_ICON, TECHNICAL_BULLETINS_MODULE_LABEL } from '../constants/errorBulletinIcon';
 import type { SystemUserPermissions, SystemUser } from '../services/apiService';
 import {
+  materializePermissionsForEdit,
+  normalizePermissionsForAdminSave,
+} from '../utils/employeeAccess';
+import {
   getSystemUsers,
   createSystemUser,
   updateSystemUser,
@@ -331,7 +335,10 @@ export const SystemUsersModal: React.FC<SystemUsersModalProps> = ({ isOpen, onCl
     setFormDisplayName(u.display_name || '');
     setFormJobTitle(u.job_title ?? '');
     setFormIsTechnician(u.is_technician ?? false);
-    setFormPermissions({ ...DEFAULT_PERMISSIONS, ...u.permissions });
+    setFormPermissions({
+      ...DEFAULT_PERMISSIONS,
+      ...materializePermissionsForEdit(u.permissions),
+    });
     setError(null);
   };
 
@@ -361,11 +368,12 @@ export const SystemUsersModal: React.FC<SystemUsersModalProps> = ({ isOpen, onCl
           setSaving(false);
           return;
         }
+        const permissionsToSave = normalizePermissionsForAdminSave(formPermissions);
         const created = await createSystemUser(adminPassword, {
           username: formUsername.trim(),
           password: formPassword.trim(),
           displayName: formDisplayName.trim() || undefined,
-          permissions: formPermissions,
+          permissions: permissionsToSave,
           isTechnician: formIsTechnician,
           jobTitle: formJobTitle.trim() || null,
         });
@@ -377,10 +385,11 @@ export const SystemUsersModal: React.FC<SystemUsersModalProps> = ({ isOpen, onCl
           setSaving(false);
           return;
         }
+        const permissionsToSave = normalizePermissionsForAdminSave(formPermissions);
         const updated = await updateSystemUser(editingId, adminPassword, {
           password: nextPassword || undefined,
           displayName: formDisplayName.trim() || undefined,
-          permissions: formPermissions,
+          permissions: permissionsToSave,
           isTechnician: formIsTechnician,
           jobTitle: formJobTitle.trim() || null,
         });
@@ -405,12 +414,11 @@ export const SystemUsersModal: React.FC<SystemUsersModalProps> = ({ isOpen, onCl
     setTogglingApproveUserId(u.id);
     setError(null);
     try {
-      const nextPerms: SystemUserPermissions = { ...(u.permissions || {}), patio_approve_budget_items: enabled };
+      // Patch mínimo: só a chave de aprovação. O backend faz merge com o banco
+      // (evita sobrescrever Estoque/etc. removidos por outro admin com snapshot antigo do browser).
       const updated = await updateSystemUser(u.id, adminPassword, {
-        permissions: nextPerms,
-        displayName: u.display_name?.trim() || undefined,
-        isTechnician: u.is_technician ?? false,
-        jobTitle: u.job_title ?? null,
+        permissions: { patio_approve_budget_items: enabled },
+        permissionsMode: 'merge',
       });
       setUsers((prev) => prev.map((x) => (x.id === updated.id ? updated : x)));
     } catch (err) {

@@ -38,6 +38,9 @@ import type {
 } from "../utils/workshopPartStockOutbound";
 import type { WorkshopSupplier, WorkshopSupplierWriteInput } from "../utils/workshopSuppliers";
 import type { EstoqueLedgerEntry } from "../utils/estoqueLedger";
+import type { EmployeePermissions, ServerAccessSnapshot } from "../utils/employeeAccess";
+import { asPermissionRecord, normalizePermissionsForAdminSave } from "../utils/employeeAccess";
+type SystemUserPermissions = EmployeePermissions;
 
 export type { TvChimeAlert, TvChimeKind, TvChimeSoundPreset } from "@/utils/tvChimeSchedule";
 export type {
@@ -5627,66 +5630,15 @@ export async function uploadLabProductKindPhoto(
 
 // ---------- Autenticação ----------
 
-/** Permissões de um usuário do sistema (não-admin). */
-export interface SystemUserPermissions {
-  /** Acesso completo igual ao administrador (todas as telas, Administração e ações no Pátio). */
-  full_access?: boolean;
-  access_home?: boolean;
-  access_reception?: boolean;
-  access_agenda?: boolean;
-  access_patio?: boolean;
-  access_laboratorio?: boolean;
-  /** Hub de orçamentos (aba). Se omitido, segue o mesmo que `access_patio` (compatibilidade). */
-  access_orcamentos?: boolean;
-  /** Tile e modal TV do Pátio; link externo do painel no hub de configurações. */
-  access_tv_patio?: boolean;
-  /** Tile «Estoque de peças» e catálogo de peças. */
-  access_estoque_pecas?: boolean;
-  /** Centro de relatórios (módulo na página inicial). */
-  access_relatorios?: boolean;
-  /** Boletim de Erros — base de conhecimento DTC/sintomas/soluções. */
-  access_boletim_erros?: boolean;
-  /** Radar de Qualidade — ocorrências e relatório por mecânico. */
-  access_radar_qualidade?: boolean;
-  /** Modal «Serviços da oficina» (hub Configurações). */
-  access_servicos_oficina?: boolean;
-  /** Modal «Checklists do Pátio». */
-  access_checklists_patio?: boolean;
-  /** Modal «Notificações do sistema». */
-  access_notificacoes_sistema?: boolean;
-  access_settings?: boolean;
-  access_change_passwords?: boolean;
-  access_technicians?: boolean;
-  patio_delete_cards?: boolean;
-  patio_assign_technician?: boolean;
-  patio_edit_ficha?: boolean;
-  patio_edit_queixa?: boolean;
-  patio_edit_delivery_date?: boolean;
-  patio_edit_mileage?: boolean;
-  patio_edit_budgets?: boolean;
-  /** Aprovar/reprovar itens (serviços e peças) no orçamento. Se omitido, vale o mesmo que patio_edit_budgets (compatibilidade). */
-  patio_approve_budget_items?: boolean;
-  patio_add_comments?: boolean;
-  patio_archive_card?: boolean;
-}
-
-/** Se o usuário pode aprovar/reprovar itens do orçamento no módulo Orçamentos (respeita legado quando a chave não existe no JSON). */
-export function effectivePatioApproveBudgetItems(perms: SystemUserPermissions | undefined): boolean {
-  if (!perms) return true;
-  if (perms.full_access) return true;
-  if (perms.patio_approve_budget_items === true) return true;
-  if (perms.patio_approve_budget_items === false) return false;
-  return !!perms.patio_edit_budgets;
-}
-
-/** Aba «Orçamentos»: se a chave não existir no JSON, mantém o comportamento antigo (ligado ao Pátio). */
-export function effectiveAccessOrcamentos(perms: SystemUserPermissions | undefined): boolean {
-  if (!perms) return false;
-  if (perms.full_access) return true;
-  if (perms.access_orcamentos === true) return true;
-  if (perms.access_orcamentos === false) return false;
-  return !!perms.access_patio;
-}
+export type { EmployeePermissions as SystemUserPermissions, ServerAccessSnapshot } from "../utils/employeeAccess";
+export {
+  effectiveAccessOrcamentos,
+  effectivePatioApproveBudgetItems,
+  normalizePermissionsForAdminSave,
+  materializePermissionsForEdit,
+  patchEmployeePermission,
+  asPermissionRecord,
+} from "../utils/employeeAccess";
 
 export type AuthRole = "admin" | "user";
 
@@ -5728,7 +5680,39 @@ export async function login(username: string, password: string): Promise<AuthSes
     token: data.token,
     isTechnician: data.isTechnician ?? false,
     accentColor: data.accentColor ?? null,
-    permissions: data.permissions || {},
+    permissions: asPermissionRecord(data.permissions),
+  };
+}
+
+/**
+ * SEC-03.3 — permissões atuais do funcionário autenticado (fonte: banco).
+ * Não aceita corpo; id vem só da sessão. Falha de rede deve ser tratada pelo
+ * chamador sem “restaurar” privilégios inventados.
+ * Erros HTTP lançam `{ kind: "http", status, message }`; rede `{ kind: "network", message }`.
+ */
+export async function fetchMyAccess(): Promise<ServerAccessSnapshot> {
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE}/auth/my-access`);
+  } catch (err) {
+    throw {
+      kind: "network" as const,
+      message: err instanceof Error ? err.message : "Falha de rede ao sincronizar permissões.",
+    };
+  }
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw {
+      kind: "http" as const,
+      status: response.status,
+      message: (err as { error?: string }).error || `Falha ao sincronizar permissões (${response.status})`,
+    };
+  }
+  const data = await response.json();
+  return {
+    permissions: asPermissionRecord(data.permissions),
+    isTechnician: data.isTechnician === true,
+    updatedAt: typeof data.updatedAt === "string" ? data.updatedAt : null,
   };
 }
 
@@ -5911,7 +5895,7 @@ export async function createSystemUser(
       username: data.username.trim(),
       password: data.password,
       displayName: data.displayName?.trim() || null,
-      permissions: data.permissions,
+      permissions: normalizePermissionsForAdminSave(data.permissions),
       isTechnician: data.isTechnician ?? false,
       jobTitle: data.jobTitle?.trim() || null,
     }),
@@ -5930,21 +5914,27 @@ export async function updateSystemUser(
     password?: string;
     displayName?: string;
     permissions: SystemUserPermissions;
+    /** `merge` = patch (atalho aprovação); padrão `replace` = formulário completo. */
+    permissionsMode?: "replace" | "merge";
     isTechnician?: boolean;
     jobTitle?: string | null;
   }
 ): Promise<SystemUser & { passwordUpdated?: boolean }> {
+  const mode = data.permissionsMode ?? "replace";
+  // Só envia campos explicitamente informados — atalho de aprovação não regrava nome/função.
+  const body: Record<string, unknown> = {
+    adminPassword,
+    permissions: normalizePermissionsForAdminSave(data.permissions, { mode }),
+    permissionsMode: mode,
+  };
+  if (data.password !== undefined) body.password = data.password;
+  if (data.displayName !== undefined) body.displayName = data.displayName.trim() || null;
+  if (data.isTechnician !== undefined) body.isTechnician = data.isTechnician;
+  if (data.jobTitle !== undefined) body.jobTitle = data.jobTitle?.trim() || null;
   const response = await fetch(`${API_BASE}/system-users/${id}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      adminPassword,
-      password: data.password,
-      displayName: data.displayName?.trim() ?? null,
-      permissions: data.permissions,
-      isTechnician: data.isTechnician,
-      jobTitle: data.jobTitle?.trim() || null,
-    }),
+    body: JSON.stringify(body),
   });
   if (!response.ok) {
     const err = await response.json().catch(() => ({}));

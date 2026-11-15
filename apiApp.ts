@@ -81,6 +81,13 @@ import { assertHomologationSafeOrThrow } from "./utils/homologationGuard.js";
 import { classifyNewLoginPassword } from "./utils/loginPasswordPolicy.js";
 import { guardHttpAuthorization } from "./utils/authorizeRequest.js";
 import { ownProfilePatch, sessionProfileUserId } from "./utils/ownProfile.js";
+import { normalizePermissionsForAdminSave } from "./utils/employeeAccess.js";
+import {
+  casTokenFromUpdatedAt,
+  interpretOptimisticPermissionsWrite,
+  interpretPermissionsLoad,
+  planSystemUserPermissionsUpdate,
+} from "./utils/systemUserPermissionsMerge.js";
 import { normalizeAiImproveTextLevel } from "./utils/aiImproveTextLevel.js";
 import {
   pickWorkshopSettingsWrite,
@@ -2757,6 +2764,46 @@ export function createApiApp() {
     }
   });
 
+  /**
+   * SEC-03.3 — permissões atuais do funcionário da sessão (fonte: banco).
+   * Id só da sessão validada; corpo/query não concedem privilégios.
+   */
+  app.get("/api/auth/my-access", async (req, res) => {
+    try {
+      const auth = (req as unknown as { auth?: SessionPayload }).auth;
+      const userId = sessionProfileUserId(auth?.r === "user" ? auth.u : undefined);
+      if (!userId) {
+        return res.status(403).json({
+          error: "A Gerência não usa permissões de funcionário.",
+          code: "not_system_user",
+        });
+      }
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({ error: "Servidor não configurado." });
+      }
+      const { data: row, error } = await supabaseAdmin
+        .from("workshop_system_users")
+        .select("permissions, is_technician, updated_at")
+        .eq("id", userId)
+        .eq("workshop_id", WORKSHOP_ID)
+        .maybeSingle();
+      if (error) return res.status(500).json({ error: "Falha ao ler permissões." });
+      if (!row) return res.status(404).json({ error: "Usuário não encontrado." });
+      const permissions =
+        row.permissions && typeof row.permissions === "object" && !Array.isArray(row.permissions)
+          ? row.permissions
+          : {};
+      return res.json({
+        permissions,
+        isTechnician: !!(row as { is_technician?: boolean }).is_technician,
+        updatedAt: (row as { updated_at?: string | null }).updated_at ?? null,
+      });
+    } catch (err: any) {
+      console.error("[API] Erro em GET /api/auth/my-access:", err);
+      return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+    }
+  });
+
   app.get("/api/auth/my-profile", async (req, res) => {
     try {
       const auth = (req as unknown as { auth?: SessionPayload }).auth;
@@ -2929,7 +2976,9 @@ export function createApiApp() {
           code: "invalid_new_password",
         });
       }
-      const perms = typeof permissions === "object" && permissions !== null ? permissions : {};
+      const perms = normalizePermissionsForAdminSave(
+        typeof permissions === "object" && permissions !== null ? (permissions as Record<string, boolean>) : {}
+      );
       const isTech = isTechnician === true || isTechnician === "true";
       const job = typeof jobTitle === "string" ? jobTitle.trim() || null : null;
       const { data, error } = await supabaseAdmin
@@ -2959,7 +3008,8 @@ export function createApiApp() {
 
   app.put("/api/system-users/:id", async (req, res) => {
     try {
-      const { adminPassword, password, displayName, permissions, isTechnician, jobTitle } = req.body || {};
+      const { adminPassword, password, displayName, permissions, permissionsMode, isTechnician, jobTitle } =
+        req.body || {};
       if (!WORKSHOP_ID || !(await verifyAdmin(ADMIN_USERNAME, adminPassword))) {
         return res.status(403).json({ error: "Acesso negado." });
       }
@@ -2968,22 +3018,130 @@ export function createApiApp() {
       if (nextPassword.status === "invalid") {
         return res.status(400).json({ error: nextPassword.message, code: "invalid_new_password" });
       }
-      const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
-      if (typeof permissions === "object" && permissions !== null) updates.permissions = permissions;
+      const nextUpdatedAt = new Date().toISOString();
+      const updates: Record<string, unknown> = { updated_at: nextUpdatedAt };
+      let expectedUpdatedAt: string | undefined;
+      let userWasFound = false;
+
+      if (typeof permissions === "object" && permissions !== null) {
+        const mode = permissionsMode === "merge" ? "merge" : "replace";
+        const { data: existingRow, error: loadError } = await supabaseAdmin
+          .from("workshop_system_users")
+          .select("permissions, updated_at")
+          .eq("id", id)
+          .eq("workshop_id", WORKSHOP_ID)
+          .maybeSingle();
+        const load = interpretPermissionsLoad({
+          data: existingRow
+            ? {
+                permissions: existingRow.permissions,
+                updated_at: (existingRow as { updated_at?: string | null }).updated_at ?? null,
+              }
+            : null,
+          error: loadError,
+        });
+        if (load.ok === false) {
+          if (load.reason === "read_error") {
+            return res.status(500).json({
+              error: load.message,
+              code: "permissions_read_failed",
+            });
+          }
+          return res.status(404).json({ error: "Usuário não encontrado." });
+        }
+        userWasFound = true;
+        const plan = planSystemUserPermissionsUpdate({
+          mode,
+          patch: permissions as Record<string, boolean>,
+          load,
+        });
+        if (plan.ok === false) {
+          if (plan.reason === "read_error") {
+            return res.status(500).json({ error: plan.message, code: "permissions_read_failed" });
+          }
+          if (plan.reason === "cas_unavailable") {
+            return res.status(409).json({
+              error: plan.message,
+              code: "permissions_cas_unavailable",
+            });
+          }
+          return res.status(404).json({ error: "Usuário não encontrado." });
+        }
+        updates.permissions = plan.nextPermissions;
+        expectedUpdatedAt = plan.expectedUpdatedAt;
+      } else {
+        // Sem patch de permissions: ainda assim carrega updated_at para CAS obrigatório.
+        const { data: existingRow, error: loadError } = await supabaseAdmin
+          .from("workshop_system_users")
+          .select("updated_at")
+          .eq("id", id)
+          .eq("workshop_id", WORKSHOP_ID)
+          .maybeSingle();
+        if (loadError) {
+          return res.status(500).json({
+            error: loadError.message || "Falha ao ler o usuário.",
+            code: "permissions_read_failed",
+          });
+        }
+        if (!existingRow) {
+          return res.status(404).json({ error: "Usuário não encontrado." });
+        }
+        userWasFound = true;
+        const casToken = casTokenFromUpdatedAt(
+          (existingRow as { updated_at?: string | null }).updated_at ?? null
+        );
+        if (!casToken) {
+          return res.status(409).json({
+            error:
+              "Não é possível atualizar com segurança: registro sem updated_at para controle de concorrência.",
+            code: "permissions_cas_unavailable",
+          });
+        }
+        expectedUpdatedAt = casToken;
+      }
+
+      // Só grava campos explicitamente enviados (atalho de aprovação não mexe em nome/função).
       if (typeof displayName === "string") updates.display_name = displayName.trim() || null;
       if (nextPassword.status === "ready") updates.password_hash = hashPassword(nextPassword.value);
       if (isTechnician !== undefined) updates.is_technician = isTechnician === true || isTechnician === "true";
       if (jobTitle !== undefined) updates.job_title = typeof jobTitle === "string" ? jobTitle.trim() || null : null;
-      const { data, error } = await supabaseAdmin
+
+      if (typeof expectedUpdatedAt !== "string" || !expectedUpdatedAt.trim()) {
+        return res.status(409).json({
+          error:
+            "Não é possível atualizar com segurança: registro sem updated_at para controle de concorrência.",
+          code: "permissions_cas_unavailable",
+        });
+      }
+
+      // Compare-and-swap otimista em updated_at (sem migration). Sempre obrigatório.
+      let updateQuery = supabaseAdmin
         .from("workshop_system_users")
         .update(updates)
         .eq("id", id)
         .eq("workshop_id", WORKSHOP_ID)
+        .eq("updated_at", expectedUpdatedAt);
+      const { data, error } = await updateQuery
         .select("id, username, display_name, permissions, is_technician, job_title, created_at, updated_at")
-        .single();
-      if (error) return res.status(500).json({ error: error.message });
-      if (!data) return res.status(404).json({ error: "Usuário não encontrado." });
-      return res.json({ ...data, passwordUpdated: nextPassword.status === "ready" });
+        .maybeSingle();
+      const write = interpretOptimisticPermissionsWrite({
+        data: data as Record<string, unknown> | null,
+        error,
+        userWasFound,
+      });
+      if (write.ok === false) {
+        if (write.reason === "write_error") {
+          return res.status(500).json({ error: write.message });
+        }
+        if (write.reason === "not_found") {
+          return res.status(404).json({ error: "Usuário não encontrado." });
+        }
+        return res.status(409).json({
+          error: "O cadastro foi alterado por outra sessão. Recarregue e tente de novo.",
+          code: "permissions_conflict",
+        });
+      }
+      return res.json({ ...write.row, passwordUpdated: nextPassword.status === "ready" });
     } catch (err: any) {
       console.error("[API] Erro em PUT /api/system-users/:id:", err);
       return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });

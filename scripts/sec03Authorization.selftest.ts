@@ -1179,6 +1179,13 @@ async function main() {
     linkFail: "error",
     policy: enforceTechnicians,
   });
+  const selfAccess = await decide({
+    method: "GET",
+    path: "/api/auth/my-access",
+    actor: { role: "user", userId: USER },
+    rows: [ownRow],
+    policy: enforceTechnicians,
+  });
   const selfProfile = await decide({
     method: "PATCH",
     path: "/api/auth/my-profile",
@@ -1238,6 +1245,9 @@ async function main() {
       linkDown.verdict.effect === "lookup_failed" &&
       linkDown.verdict.block === false &&
       linkDownEnforce.verdict.block === true &&
+      selfAccess.verdict.effect === "allow" &&
+      selfAccess.verdict.reason === "self" &&
+      selfAccess.verdict.block === false &&
       selfProfile.verdict.effect === "allow" &&
       selfProfile.verdict.reason === "self" &&
       selfProfile.verdict.block === false &&

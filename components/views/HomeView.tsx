@@ -35,7 +35,8 @@ import { RdaProactiveIntelligencePanel } from '../rda/RdaProactiveIntelligencePa
 import { RdaProductivityPanel } from '../rda/RdaProductivityPanel';
 import { QUALITY_RADAR_ICON } from '../../constants/qualityRadar';
 import { ERROR_BULLETIN_ICON, TECHNICAL_BULLETINS_MODULE_LABEL } from '../../constants/errorBulletinIcon';
-import { effectiveAccessOrcamentos, type SystemUserPermissions } from '../../services/apiService';
+import type { SystemUserPermissions } from '../../services/apiService';
+import { homeModuleAllowed, resolveAjustesVisibility } from '../../utils/employeeAccess';
 import { warmPatioOrLaboratoryBoard } from '../../services/boardWarmup';
 import { useRegisterModalOpen } from '../ui/ModalLayerContext';
 import { useBrowserBackLayer } from '../ui/BackNavigationContext';
@@ -316,7 +317,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
     [onSettingsHubOpenChange, closeAllSettingsChildModals]
   );
 
-  /** Abre só o hub de Ajustes (sem itens filhos). */
+  /** Abre só o hub de Ajustes (sem itens filhos). Itens internos respeitam permissões. */
   const openSettingsHubOnly = useCallback(() => {
     closeAllSettingsChildModals();
     onSettingsHubOpenChange?.(true);
@@ -380,97 +381,24 @@ export const HomeView: React.FC<HomeViewProps> = ({
   const isLimitedSystem = isSystemUser && !perms.full_access;
   const isWorkshopAdmin = !isSystemUser && !isTechnician;
   const showFullAdminHub = isWorkshopAdmin || (isSystemUser && !!perms.full_access);
-  const canManageLabProductTypes =
-    showFullAdminHub || !!perms.access_servicos_oficina || !!perms.access_laboratorio;
+  const employeeRole = isSystemUser ? 'user' : isWorkshopAdmin ? 'admin' : undefined;
   const hasRichQuickGrid =
     showFullAdminHub ||
     !!perms.access_tv_patio ||
     !!perms.access_estoque_pecas ||
     !!perms.access_relatorios;
 
-  const canOpenTheme =
-    showFullAdminHub || (!!perms.access_settings && isSystemUser) || !!onOpenSettings;
-  const canOpenPasswords =
-    showFullAdminHub ||
-    (!!perms.access_change_passwords && isSystemUser) ||
-    (!!perms.access_change_passwords && !!onOpenChangePasswords);
-
   const ajustesVisibility: AjustesVisibility = useMemo(
-    () => ({
-      perfil: isSystemUser || ((!isTechnician || Boolean(technicianId)) && !isSystemUser),
-      usuarios: isWorkshopAdmin || (isSystemUser && !!perms.full_access),
-      sair: Boolean(onLogout),
-      senhas: canOpenPasswords,
-      servicos_oficina: showFullAdminHub || !!perms.access_servicos_oficina,
-      checklists_patio: showFullAdminHub || !!perms.access_checklists_patio,
-      painel_tv: showFullAdminHub || !!perms.access_tv_patio,
-      lab_tipos: canManageLabProductTypes,
-      lab_rapidos: canManageLabProductTypes,
-      orcamentos_prefs:
-        showFullAdminHub || !!perms.full_access || typeof onBlurUnverifiedBudgetsChange === 'function',
-      notificacoes_sistema: showFullAdminHub || !!perms.access_notificacoes_sistema,
-      tema: canOpenTheme,
-      dispositivos_conectados: isWorkshopAdmin || (isSystemUser && !!perms.full_access),
-      dispositivo: true,
-      etiquetas: showFullAdminHub || !!perms.access_settings || !!perms.full_access,
-      memoria_rda: isWorkshopAdmin || (isSystemUser && !!perms.full_access),
-      inteligencia_operacional:
-        isWorkshopAdmin ||
-        (isSystemUser && (!!perms.full_access || !!perms.access_radar_qualidade)),
-      gestao_patio_rda:
-        isWorkshopAdmin ||
-        (isSystemUser &&
-          (!!perms.full_access ||
-            !!perms.access_radar_qualidade ||
-            !!perms.access_patio)),
-      lab_estoque_rda:
-        isWorkshopAdmin ||
-        (isSystemUser &&
-          (!!perms.full_access ||
-            !!perms.access_radar_qualidade ||
-            !!perms.access_laboratorio ||
-            !!perms.access_estoque_pecas)),
-      monitoramento_proativo_rda:
-        isWorkshopAdmin ||
-        (isSystemUser &&
-          (!!perms.full_access ||
-            !!perms.access_radar_qualidade ||
-            !!perms.access_patio ||
-            !!perms.access_laboratorio ||
-            !!perms.access_estoque_pecas)),
-      produtividade_rda:
-        isWorkshopAdmin ||
-        (isSystemUser &&
-          (!!perms.full_access ||
-            !!perms.access_radar_qualidade ||
-            !!perms.access_home ||
-            !!perms.access_patio ||
-            !!perms.access_laboratorio ||
-            !!perms.access_estoque_pecas)),
-    }),
-    [
-      isSystemUser,
-      isTechnician,
-      technicianId,
-      isWorkshopAdmin,
-      perms.full_access,
-      perms.access_radar_qualidade,
-      perms.access_patio,
-      perms.access_laboratorio,
-      perms.access_estoque_pecas,
-      perms.access_home,
-      perms.access_servicos_oficina,
-      perms.access_checklists_patio,
-      perms.access_tv_patio,
-      perms.access_notificacoes_sistema,
-      perms.access_settings,
-      onLogout,
-      canOpenPasswords,
-      showFullAdminHub,
-      canManageLabProductTypes,
-      onBlurUnverifiedBudgetsChange,
-      canOpenTheme,
-    ]
+    () =>
+      resolveAjustesVisibility({
+        role: isSystemUser ? 'user' : isWorkshopAdmin ? 'admin' : undefined,
+        permissions: perms,
+        isSystemUser,
+        isTechnician,
+        hasTechnicianProfile: Boolean(technicianId),
+        hasLogout: Boolean(onLogout),
+      }),
+    [isSystemUser, isWorkshopAdmin, isTechnician, technicianId, onLogout, perms]
   );
 
   const openAjustesItem = useCallback(
@@ -489,6 +417,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
           onLogout?.();
           break;
         case 'senhas':
+          if (!ajustesVisibility.senhas) break;
           if (onOpenChangePasswords && isLimitedSystem) onOpenChangePasswords();
           else setIsChangePasswordsOpen(true);
           break;
@@ -507,12 +436,14 @@ export const HomeView: React.FC<HomeViewProps> = ({
           setIsLabQuickServicesOpen(true);
           break;
         case 'orcamentos_prefs':
+          if (!ajustesVisibility.orcamentos_prefs) break;
           setIsBudgetPrefsOpen(true);
           break;
         case 'notificacoes_sistema':
           setIsSystemNotificationsOpen(true);
           break;
         case 'tema':
+          if (!ajustesVisibility.tema) break;
           if (onOpenSettings) onOpenSettings();
           else onOpenApp('settings');
           break;
@@ -589,6 +520,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
       isSystemUser,
       isTechnician,
       isLimitedSystem,
+      ajustesVisibility.senhas,
+      ajustesVisibility.orcamentos_prefs,
+      ajustesVisibility.tema,
       onLogout,
       onOpenChangePasswords,
       onOpenSettings,
@@ -821,19 +755,14 @@ export const HomeView: React.FC<HomeViewProps> = ({
   useBrowserBackLayer(isRdaProductivityOpen, () => setIsRdaProductivityOpen(false));
   useBrowserBackLayer(isHeaderProfileMenuOpen, () => setIsHeaderProfileMenuOpen(false));
 
+  const moduleRole = showFullAdminHub ? 'admin' : isSystemUser ? 'user' : employeeRole;
+
   const operationalForView = useMemo(() => {
-    if (isTechnician) return OPERATIONAL_APPS.filter((a) => allowedTabs.includes(a.id));
-    if (isLimitedSystem) {
-      return OPERATIONAL_APPS.filter((a) => {
-        if (a.id === 'agenda') return !!perms.access_agenda;
-        if (a.id === 'patio') return !!perms.access_patio;
-        if (a.id === 'orcamentos') return effectiveAccessOrcamentos(perms);
-        if (a.id === 'laboratorio') return !!perms.access_laboratorio;
-        return false;
-      });
-    }
-    return OPERATIONAL_APPS;
-  }, [allowedTabs, isLimitedSystem, isTechnician, perms]);
+    if (showFullAdminHub) return OPERATIONAL_APPS;
+    return OPERATIONAL_APPS.filter((a) =>
+      homeModuleAllowed(a.id as 'agenda' | 'patio' | 'orcamentos' | 'laboratorio', 'user', perms)
+    );
+  }, [showFullAdminHub, perms]);
   const quickTilesForView = useMemo(() => {
     const baseTiles = operationalForView.map((app) => ({
       id: app.id as QuickTileId,
@@ -847,7 +776,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
       icon: React.ReactElement;
       onOpen: () => void;
     }[] = [];
-    if (showFullAdminHub || !!perms.access_tv_patio) {
+    if (homeModuleAllowed('tv_patio', moduleRole, perms)) {
       extraTiles.push({
         id: 'tv_patio',
         label: 'Painéis de TV',
@@ -861,7 +790,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
         onOpen: () => (onOpenTvPatio ? onOpenTvPatio() : setIsTvPatioOpen(true)),
       });
     }
-    if (showFullAdminHub || !!perms.access_estoque_pecas) {
+    if (homeModuleAllowed('parts_stock', moduleRole, perms)) {
       extraTiles.push({
         id: 'parts_stock',
         label: 'Estoque',
@@ -869,7 +798,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
         onOpen: () => (onOpenPartsStock ? onOpenPartsStock() : setIsPartsModalOpen(true)),
       });
     }
-    if (showFullAdminHub || !!perms.access_relatorios) {
+    if (homeModuleAllowed('relatorios', moduleRole, perms)) {
       extraTiles.push({
         id: 'relatorios',
         label: 'Relatórios',
@@ -877,7 +806,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
         onOpen: () => onOpenApp('relatorios'),
       });
     }
-    if (showFullAdminHub || !!perms.access_boletim_erros) {
+    if (homeModuleAllowed('boletim_erros', moduleRole, perms)) {
       extraTiles.push({
         id: 'boletim_erros',
         label: TECHNICAL_BULLETINS_MODULE_LABEL,
@@ -891,7 +820,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
         onOpen: () => onOpenApp('boletim_erros'),
       });
     }
-    if (showFullAdminHub || !!perms.access_radar_qualidade) {
+    if (homeModuleAllowed('radar_qualidade', moduleRole, perms)) {
       extraTiles.push({
         id: 'radar_qualidade',
         label: 'Radar de Qualidade',
@@ -906,9 +835,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
     onOpenTvPatio,
     operationalForView,
     perms,
-    showFullAdminHub,
-  ]);
-  const operationalById = useMemo(
+    moduleRole,
+  ]);  const operationalById = useMemo(
     () =>
       Object.fromEntries(quickTilesForView.map((tile) => [tile.id, tile])) as Record<
         QuickTileId,

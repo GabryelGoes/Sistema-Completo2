@@ -29,10 +29,9 @@ import { useOrientation } from './components/views/useOrientation';
 import {
   type AuthSession,
   type Notification,
-  type SystemUserPermissions,
   type ServiceOrderType,
   effectivePatioApproveBudgetItems,
-  effectiveAccessOrcamentos,
+  fetchMyAccess,
   getWorkshopSettings,
   deleteAppointment,
   getAppointments,
@@ -44,6 +43,20 @@ import {
   sendDeviceHeartbeat,
   logoutCurrentSession,
 } from './services/apiService';
+import {
+  canOpenSettingsHub,
+  EMPLOYEE_ACCESS_POLL_MS,
+  homeModuleAllowed,
+  initialAccessTrustState,
+  permissionsToTabs as employeePermissionsToTabs,
+  refreshAccessTrust,
+  resolveUiPermissions,
+  type AccessTrustState,
+} from './utils/employeeAccess';
+import {
+  commitAccessSyncIfSessionMatches,
+  createAccessSyncController,
+} from './utils/employeeAccessSync';
 import type { ServiceOrderStatus } from './constants/serviceOrderStages';
 import { KeepAliveTabPanel } from './components/KeepAliveTabPanel';
 import { applyAccentToRoot, DEFAULT_ACCENT, moduleAccentColor } from './utils/appAppearance';
@@ -121,6 +134,18 @@ export default function App() {
       return null;
     }
   });
+  const authSessionRef = useRef(authSession);
+  authSessionRef.current = authSession;
+  /** Snapshot do localStorage começa não verificado até o primeiro sync (ou login fresco). */
+  const [accessTrust, setAccessTrust] = useState<AccessTrustState>(() => initialAccessTrustState());
+  const accessTrustRef = useRef(accessTrust);
+  accessTrustRef.current = accessTrust;
+  const accessSyncRef = useRef(createAccessSyncController());
+  const accessTrustNow = refreshAccessTrust(accessTrust);
+  const uiUserPermissions =
+    authSession?.role === 'user'
+      ? resolveUiPermissions(authSession.permissions, accessTrustNow)
+      : undefined;
   const [currentTab, setCurrentTab] = useState<TabId>('home');
   /** Abas já visitadas (admin / full access): mantém views montadas para preservar estado. */
   const [visitedTabs, setVisitedTabs] = useState<Set<TabId>>(() => new Set(['home']));
@@ -209,9 +234,9 @@ export default function App() {
     () =>
       resolveDesktopSidebarAccess(
         authSession?.role === 'admin' ? 'admin' : authSession?.role === 'user' ? 'user' : undefined,
-        authSession?.role === 'user' ? authSession.permissions : undefined
+        authSession?.role === 'user' ? uiUserPermissions : undefined
       ),
-    [authSession]
+    [authSession?.role, uiUserPermissions]
   );
 
   /**
@@ -227,7 +252,10 @@ export default function App() {
 
   const handleDesktopSidebarAction = useCallback(
     (action: DesktopSidebarActionId) => {
+      const role = authSession?.role === 'admin' ? 'admin' : authSession?.role === 'user' ? 'user' : undefined;
+      const perms = authSession?.role === 'user' ? uiUserPermissions : undefined;
       if (action === 'estoque_pecas') {
+        if (!homeModuleAllowed('parts_stock', role, perms)) return;
         setIsTvPatioModalOpen(false);
         setIsSettingsOpen(false);
         setSettingsHubOpen(false);
@@ -236,6 +264,7 @@ export default function App() {
         return;
       }
       if (action === 'tvs_oficina') {
+        if (!homeModuleAllowed('tv_patio', role, perms)) return;
         requestClosePartsModal(() => {
           setIsSettingsOpen(false);
           setSettingsHubOpen(false);
@@ -245,11 +274,12 @@ export default function App() {
         return;
       }
       if (action === 'configuracoes') {
+        if (!canOpenSettingsHub(role, perms)) return;
         openSettingsHubOverlay();
         return;
       }
     },
-    [openSettingsHubOverlay, requestClosePartsModal]
+    [authSession?.role, uiUserPermissions, openSettingsHubOverlay, requestClosePartsModal]
   );
 
   const handleDesktopTabChange = useCallback(
@@ -362,30 +392,14 @@ export default function App() {
   // Dispara refresh da lista em "Usuários do sistema" quando o admin salva o perfil
   const [systemUsersRefreshTrigger, setSystemUsersRefreshTrigger] = useState(0);
 
-  // Usuário limitado: abas conforme permissões (full_access = todas as abas)
-  function permissionsToTabs(perms: SystemUserPermissions | undefined): TabId[] {
-    if (!perms) return ['home'];
-    if (perms.full_access)
-      return ['home', 'reception', 'agenda', 'patio', 'orcamentos', 'relatorios', 'laboratorio', 'boletim_erros', 'radar_qualidade'];
-    const t: TabId[] = [];
-    if (perms.access_home) t.push('home');
-    if (perms.access_reception) t.push('reception');
-    if (perms.access_agenda) t.push('agenda');
-    if (perms.access_patio) t.push('patio');
-    if (effectiveAccessOrcamentos(perms)) t.push('orcamentos');
-    if (perms.access_relatorios) t.push('relatorios');
-    if (perms.access_boletim_erros) t.push('boletim_erros');
-    if (perms.access_radar_qualidade) t.push('radar_qualidade');
-    if (perms.access_laboratorio) t.push('laboratorio');
-    return t.length ? t : ['home'];
-  }
-  const userAllowedTabs = authSession?.role === 'user' ? permissionsToTabs(authSession.permissions) : [];
-  const hasFullAccess = authSession?.role === 'user' && !!authSession?.permissions?.full_access;
+  const userAllowedTabs =
+    authSession?.role === 'user' ? (employeePermissionsToTabs(uiUserPermissions) as TabId[]) : [];
+  const hasFullAccess = authSession?.role === 'user' && !!uiUserPermissions?.full_access;
   const isLimitedSystemUser = authSession?.role === 'user' && !hasFullAccess;
   const canVerifyBudgetsApp = authSession?.role === 'admin' || hasFullAccess;
   const canApproveBudgetItemsApp =
     authSession?.role === 'admin' ||
-    (authSession?.role === 'user' && effectivePatioApproveBudgetItems(authSession.permissions));
+    (authSession?.role === 'user' && effectivePatioApproveBudgetItems(uiUserPermissions));
   const budgetHubActorOptions =
     authSession?.role === 'admin'
       ? { actor: 'admin' as const, actorDisplayName: adminDisplayName }
@@ -405,11 +419,11 @@ export default function App() {
         role: authSession?.role,
         isTechnician: authSession?.role === 'user' ? Boolean(authSession.isTechnician) : false,
         permissions:
-          authSession?.role === 'user' && authSession.permissions
-            ? (authSession.permissions as unknown as Record<string, boolean>)
+          authSession?.role === 'user' && uiUserPermissions
+            ? (uiUserPermissions as unknown as Record<string, boolean>)
             : null,
       }),
-    [authSession]
+    [authSession?.role, authSession?.isTechnician, uiUserPermissions]
   );
 
   const openRdaProactivePanel = useCallback((focusAlertId?: string | null) => {
@@ -1864,6 +1878,125 @@ export default function App() {
     return () => window.clearInterval(id);
   }, [authSession?.token]);
 
+  /**
+   * SEC-03.3 — sincroniza permissões do banco.
+   * Coalescing + geração: evita corrida e resposta antiga.
+   * Sem side-effects dentro de setState (StrictMode-safe).
+   * Falha de rede: graça após sync válido; 401 limpa sessão.
+   */
+  useEffect(() => {
+    if (!authSession?.token || authSession.role !== 'user') return;
+    const expectedUserId = authSession.userId;
+    const expectedToken = authSession.token;
+    // Invalida respostas da sessão/usuário anterior (também no remount StrictMode).
+    const effectGeneration = accessSyncRef.current.bumpGeneration();
+    let cancelled = false;
+    const controller = accessSyncRef.current;
+
+    const syncAccess = async () => {
+      const result = await controller.run(() => fetchMyAccess());
+      if (cancelled) return;
+
+      const commit = commitAccessSyncIfSessionMatches({
+        expectedUserId,
+        expectedToken,
+        expectedGeneration: effectGeneration,
+        currentGeneration: controller.getGeneration(),
+        currentSession: authSessionRef.current,
+        trust: accessTrustRef.current,
+        result,
+      });
+      if (commit.applied === false) return;
+
+      if (commit.kind === 'session_invalid') {
+        accessSyncRef.current.bumpGeneration();
+        try {
+          clearStoredAuth();
+        } catch (_) {}
+        const cleared = initialAccessTrustState();
+        accessTrustRef.current = cleared;
+        authSessionRef.current = null;
+        setAccessTrust(cleared);
+        setAuthSession(null);
+        return;
+      }
+
+      const { nextTrust, nextSession, shouldPersistSession } = commit;
+      accessTrustRef.current = nextTrust;
+      setAccessTrust(nextTrust);
+
+      if (shouldPersistSession && nextSession) {
+        const still = authSessionRef.current;
+        if (
+          !still ||
+          still.role !== 'user' ||
+          still.userId !== expectedUserId ||
+          still.token !== expectedToken
+        ) {
+          return;
+        }
+        const updated: AuthSession = {
+          ...still,
+          role: 'user',
+          permissions: nextSession.permissions,
+          isTechnician: nextSession.isTechnician,
+        };
+        try {
+          setStoredAuth(updated);
+        } catch (_) {}
+        authSessionRef.current = updated;
+        setAuthSession(updated);
+      }
+    };
+
+    void syncAccess();
+    const intervalId = window.setInterval(() => {
+      void syncAccess();
+    }, EMPLOYEE_ACCESS_POLL_MS);
+
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') void syncAccess();
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    window.addEventListener('focus', onVisibility);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(intervalId);
+      document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener('focus', onVisibility);
+    };
+  }, [authSession?.token, authSession?.role, authSession?.userId]);
+
+  // Fecha módulos / preferências quando a UI efetiva perde a permissão.
+  useEffect(() => {
+    if (authSession?.role !== 'user') return;
+    const perms = uiUserPermissions;
+    const role = 'user' as const;
+    if (!homeModuleAllowed('parts_stock', role, perms) && isPartsModalOpen) {
+      requestClosePartsModal();
+    }
+    if (!homeModuleAllowed('tv_patio', role, perms) && isTvPatioModalOpen) {
+      setIsTvPatioModalOpen(false);
+    }
+    if (!perms?.access_settings && !perms?.full_access) {
+      setIsSettingsOpen(false);
+      setIsUserChangePasswordsOpen((open) =>
+        perms?.access_change_passwords ? open : false
+      );
+    }
+    if (!canOpenSettingsHub(role, perms) && settingsHubOpen) {
+      setSettingsHubOpen(false);
+    }
+  }, [
+    authSession?.role,
+    uiUserPermissions,
+    isPartsModalOpen,
+    isTvPatioModalOpen,
+    settingsHubOpen,
+    requestClosePartsModal,
+  ]);
+
   const handleLogout = () => {
     if (
       !window.confirm(
@@ -1872,12 +2005,17 @@ export default function App() {
     ) {
       return;
     }
+    accessSyncRef.current.bumpGeneration();
     void logoutCurrentSession();
     try {
       clearStoredAuth();
     } catch (_) {}
     setVisitedTabs(new Set(['home']));
     setVisitedUserTabs(new Set(['home']));
+    const cleared = initialAccessTrustState();
+    accessTrustRef.current = cleared;
+    setAccessTrust(cleared);
+    authSessionRef.current = null;
     setAuthSession(null);
   };
 
@@ -1998,9 +2136,20 @@ export default function App() {
     return (
       <LoginView
         onLogin={(session) => {
+          accessSyncRef.current.bumpGeneration();
           try {
             setStoredAuth(session);
           } catch (_) {}
+          // Login fresco = permissões já vindas do banco nesta resposta.
+          if (session.role === 'user') {
+            const verified = { status: 'verified' as const, verifiedAt: Date.now() };
+            accessTrustRef.current = verified;
+            setAccessTrust(verified);
+          } else {
+            accessTrustRef.current = initialAccessTrustState();
+            setAccessTrust(accessTrustRef.current);
+          }
+          authSessionRef.current = session;
           setAuthSession(session);
         }}
       />
@@ -2009,7 +2158,7 @@ export default function App() {
 
   // Usuário limitado (logins criados pelo admin): abas e ações conforme permissões (full_access usa o app completo abaixo)
   if (authSession.role === 'user' && !hasFullAccess) {
-    const perms = authSession.permissions || {};
+    const perms = uiUserPermissions || {};
     const patioPerms = {
       canDeleteCards: perms.patio_delete_cards,
       canAssignTechnician: perms.patio_assign_technician,
@@ -2037,7 +2186,9 @@ export default function App() {
         onDesktopSidebarAction={handleDesktopSidebarAction}
         displayName={userDisplayName}
         photoUrl={authSession.photoUrl ?? null}
-        onOpenSettings={openSettingsHubOverlay}
+        onOpenSettings={
+          canOpenSettingsHub('user', uiUserPermissions) ? openSettingsHubOverlay : undefined
+        }
         onOpenProfileEditor={openShellProfileEditor}
         onLogout={handleLogout}
         onOpenSupport={() => setIsSupportChatOpen(true)}
@@ -2118,11 +2269,23 @@ export default function App() {
                   setStoredAuth(next);
                 } catch (_) {}
               }}
-              systemUserPermissions={authSession.permissions}
-              onOpenSettings={() => setIsSettingsOpen(true)}
-              onOpenChangePasswords={() => setIsUserChangePasswordsOpen(true)}
+              systemUserPermissions={uiUserPermissions}
+              onOpenSettings={
+                uiUserPermissions?.access_settings || uiUserPermissions?.full_access
+                  ? () => setIsSettingsOpen(true)
+                  : undefined
+              }
+              onOpenChangePasswords={
+                uiUserPermissions?.access_change_passwords || uiUserPermissions?.full_access
+                  ? () => setIsUserChangePasswordsOpen(true)
+                  : undefined
+              }
               blurUnverifiedBudgets={blurUnverifiedBudgets}
-              onBlurUnverifiedBudgetsChange={setBlurUnverifiedBudgets}
+              onBlurUnverifiedBudgetsChange={
+                uiUserPermissions?.access_settings || uiUserPermissions?.full_access
+                  ? setBlurUnverifiedBudgets
+                  : undefined
+              }
               budgetBannerNotifications={budgetBannerNotifications}
               onBudgetBannerNotificationsChange={setBudgetBannerNotifications}
               commentBannerNotifications={commentBannerNotifications}
@@ -2455,8 +2618,8 @@ export default function App() {
         ? authSession.photoUrl ?? null
         : null;
   const adminAllowedTabs =
-    authSession?.role === 'user' && authSession.permissions
-      ? permissionsToTabs(authSession.permissions)
+    authSession?.role === 'user' && uiUserPermissions
+      ? (employeePermissionsToTabs(uiUserPermissions) as TabId[])
       : undefined;
 
   return (
@@ -2476,10 +2639,7 @@ export default function App() {
       photoUrl={adminPhotoResolved}
       onOpenSettings={
         authSession?.role === 'admin' ||
-        hasFullAccess ||
-        authSession?.permissions?.access_settings ||
-        authSession?.permissions?.access_change_passwords ||
-        authSession?.permissions?.access_technicians
+        (authSession?.role === 'user' && canOpenSettingsHub('user', uiUserPermissions))
           ? openSettingsHubOverlay
           : undefined
       }
@@ -2529,7 +2689,7 @@ export default function App() {
             systemUserAccentColor={authSession?.role === 'user' ? authSession.accentColor ?? null : null}
             systemUserProfileToken={authSession?.role === 'user' ? authSession.profileToken : undefined}
             systemUserIsTechnician={authSession?.role === 'user' ? (authSession.isTechnician ?? false) : false}
-            systemUserPermissions={authSession?.role === 'user' ? authSession.permissions : undefined}
+            systemUserPermissions={authSession?.role === 'user' ? uiUserPermissions : undefined}
             onSystemUserProfileUpdated={authSession?.role === 'user' ? (data) => {
               if (authSession?.role !== 'user') return;
               const next = { ...authSession, ...(data.displayName !== undefined && { displayName: data.displayName }), ...(data.photoUrl !== undefined && { photoUrl: data.photoUrl }), ...(data.accentColor !== undefined && { accentColor: data.accentColor }) };
