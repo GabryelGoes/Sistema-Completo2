@@ -196,8 +196,8 @@ async function main() {
   const off = production.families.filter((family) => family.mode === "off").map((family) => family.id);
   record(
     "as oito famílias em enforce permanecem e a política não ganhou chave nova",
-    enforced.join(",") === "customers,appointments,budgets,comments,photos,parts_stock,abs_stock,technicians,workshop_catalogs,tv_admin,bulletins,reports,notifications" &&
-      off.join(",") === "service_orders,quality_radar,rda" &&
+    enforced.join(",") === "customers,appointments,service_orders,budgets,comments,photos,parts_stock,abs_stock,technicians,workshop_catalogs,tv_admin,bulletins,reports,notifications" &&
+      off.join(",") === "quality_radar,rda" &&
       !production.rules.some((rule) => rule.id === "appointments_read"),
     `enforce=${enforced.join(",")}`
   );

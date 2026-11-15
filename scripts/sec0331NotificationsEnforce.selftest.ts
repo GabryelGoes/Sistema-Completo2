@@ -21,7 +21,7 @@ const ORC = "22222222-2222-4222-8222-222222222336";
 const PASS_USER = "senha-ficticia-sec0331";
 const PASS_ADMIN = "gerencia-ficticia-sec0331";
 const ENFORCED =
-  "customers,appointments,budgets,comments,photos,parts_stock,abs_stock,technicians,workshop_catalogs,tv_admin,bulletins,reports,notifications";
+  "customers,appointments,service_orders,budgets,comments,photos,parts_stock,abs_stock,technicians,workshop_catalogs,tv_admin,bulletins,reports,notifications";
 
 const ADMIN_NOTE = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1";
 const LEGACY_NOTE = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa2";
@@ -309,9 +309,9 @@ async function main() {
   ];
   const rules = production.rules.filter((rule) => rule.family === "notifications");
   record(
-    "notifications entra em enforce e as outras doze permanecem",
+    "notifications entra em enforce e as outras treze permanecem",
     enforced.join(",") === ENFORCED &&
-      off.join(",") === "service_orders,quality_radar,rda" &&
+      off.join(",") === "quality_radar,rda" &&
       samples.every(([method, path, id]) => winner(method, path).length === 1 && winner(method, path)[0].id === id) &&
       rules.every((rule) => !rule.anyOf.includes("access_notificacoes_sistema")) &&
       winner("POST", "/api/notifications")[0].ownership === undefined &&
@@ -326,7 +326,7 @@ async function main() {
   record(
     "desligar notifications não abre as outras famílias",
     authorizationHasEnforce(production, { SEC03_DISABLE_FAMILIES: "notifications" }) === true &&
-      production.families.filter((family) => family.mode === "enforce" && family.id !== "notifications").length === 12,
+      production.families.filter((family) => family.mode === "enforce" && family.id !== "notifications").length === 13,
     "reversão"
   );
   const self = notificationScope({

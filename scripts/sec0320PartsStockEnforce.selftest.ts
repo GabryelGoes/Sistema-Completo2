@@ -233,11 +233,11 @@ async function main() {
   const stockTools = RDA_PRODUCTION_TOOLS.filter((tool) => tool.requiredPermission === "access_estoque_pecas");
   record(
     "política bloqueia o estoque e não deixa família em sombra",
-    enforced.join(",") === "customers,appointments,budgets,comments,photos,parts_stock,abs_stock,technicians,workshop_catalogs,tv_admin,bulletins,reports,notifications" &&
+    enforced.join(",") === "customers,appointments,service_orders,budgets,comments,photos,parts_stock,abs_stock,technicians,workshop_catalogs,tv_admin,bulletins,reports,notifications" &&
       shadow.length === 0 &&
       authorizationHasEnforce(production, {}) === true &&
       authorizationHasEnforce(production, { SEC03_DISABLE_FAMILIES: "parts_stock" }) === true &&
-      authorizationHasEnforce(production, { SEC03_DISABLE_FAMILIES: "customers,appointments,budgets,comments,photos,parts_stock,abs_stock,technicians,workshop_catalogs,tv_admin,bulletins,reports,notifications" }) === false,
+      authorizationHasEnforce(production, { SEC03_DISABLE_FAMILIES: "customers,appointments,service_orders,budgets,comments,photos,parts_stock,abs_stock,technicians,workshop_catalogs,tv_admin,bulletins,reports,notifications" }) === false,
     enforced.join(",")
   );
   record(

@@ -245,7 +245,7 @@ async function main() {
       production.families
         .filter((family) => family.mode === "enforce")
         .map((family) => family.id)
-        .join(",") === "customers,appointments,budgets,comments,photos,parts_stock,abs_stock,technicians,workshop_catalogs,tv_admin,bulletins,reports,notifications" &&
+        .join(",") === "customers,appointments,service_orders,budgets,comments,photos,parts_stock,abs_stock,technicians,workshop_catalogs,tv_admin,bulletins,reports,notifications" &&
       production.families
         .filter((family) => family.mode === "shadow")
         .map((family) => family.id)
@@ -253,7 +253,7 @@ async function main() {
         .join(",") === "" &&
       authorizationHasEnforce(production, {}) === true &&
       authorizationHasEnforce(production, { SEC03_DISABLE_FAMILIES: "reports" }) === true &&
-      authorizationHasEnforce(production, { SEC03_DISABLE_FAMILIES: "customers,appointments,budgets,comments,photos,parts_stock,abs_stock,technicians,workshop_catalogs,tv_admin,bulletins,reports,notifications" }) === false,
+      authorizationHasEnforce(production, { SEC03_DISABLE_FAMILIES: "customers,appointments,service_orders,budgets,comments,photos,parts_stock,abs_stock,technicians,workshop_catalogs,tv_admin,bulletins,reports,notifications" }) === false,
     "enforce na TV, nos catálogos, nos técnicos, nos relatórios, nos boletins e no estoque"
   );
 
@@ -262,6 +262,7 @@ async function main() {
     path: "/api/service-orders/os-1/lab-evaluation",
     actor: { role: "user", userId: USER },
     rows: [{ id: USER, workshopId: WORKSHOP, permissions: {} }],
+    policy: withFamily("service_orders", "off"),
   });
   record(
     "família desligada não consulta o banco nem bloqueia",
@@ -655,18 +656,18 @@ async function main() {
   );
 
   const openPut = await decide({
-    method: "PUT",
-    path: "/api/service-orders/os-1",
+    method: "GET",
+    path: "/api/quality-radar/weekly",
     actor: { role: "user", userId: USER },
     rows: [{ id: USER, workshopId: WORKSHOP, permissions: {} }],
-    policy: withFamily("service_orders", "enforce"),
+    policy: withFamily("quality_radar", "enforce"),
   });
   const closedPut = await decide({
-    method: "PUT",
-    path: "/api/service-orders/os-1",
+    method: "GET",
+    path: "/api/quality-radar/weekly",
     actor: { role: "user", userId: USER },
     rows: [{ id: USER, workshopId: WORKSHOP, permissions: {} }],
-    policy: withFamily("service_orders", "enforce", { unmatched: "deny" }),
+    policy: withFamily("quality_radar", "enforce", { unmatched: "deny" }),
   });
   record(
     "rota ainda sem regra não bloqueia até a família pedir negação",
@@ -779,7 +780,7 @@ async function main() {
     boom
   );
   const openBoom = await guardHttpAuthorization(
-    { method: "PUT", path: "/api/service-orders/os-1", auth: { r: "user", u: USER } },
+    { method: "GET", path: "/api/quality-radar/weekly", auth: { r: "user", u: USER } },
     emptyDeps,
     boom
   );
@@ -933,7 +934,7 @@ async function main() {
       has("public", "POST", "/api/rda/proactive/scan/cron") &&
       has("protected", "POST", "/api/customers") &&
       has("protected", "DELETE", "/api/workshop-parts/:id") &&
-      has("uncovered", "PUT", "/api/service-orders/:id") &&
+      has("protected", "PUT", "/api/service-orders/:id") &&
       coverage.overlaps.length > 0 &&
       coverage.routes.filter((route) => route.path.startsWith("/api/reports") || route.path.startsWith("/api/error-bulletins")).length === 10 &&
       coverage.routes
@@ -948,7 +949,7 @@ async function main() {
       uncoveredStaysOpen &&
       authorizationHasEnforce(production, {}) === true &&
       authorizationHasEnforce(production, { SEC03_DISABLE_FAMILIES: "reports" }) === true &&
-      authorizationHasEnforce(production, { SEC03_DISABLE_FAMILIES: "customers,appointments,budgets,comments,photos,parts_stock,abs_stock,technicians,workshop_catalogs,tv_admin,bulletins,reports,notifications" }) === false,
+      authorizationHasEnforce(production, { SEC03_DISABLE_FAMILIES: "customers,appointments,service_orders,budgets,comments,photos,parts_stock,abs_stock,technicians,workshop_catalogs,tv_admin,bulletins,reports,notifications" }) === false,
     `rotas ${scanned.length}; protegidas ${coverage.protectedRoutes.length}; públicas ${coverage.publicRoutes.length}; sem regra ${coverage.uncoveredRoutes.length}; sobrepostas ${coverage.overlaps.length}`
   );
 
@@ -1101,8 +1102,9 @@ async function main() {
       tvPublic.verdict.effect === "exempt" &&
       tvPublic.calls === 0 &&
       tvPlaylist.verdict.effect === "exempt" &&
-      osMove.verdict.effect === "skipped" &&
-      osMove.calls === 0 &&
+      osMove.verdict.effect === "allow" &&
+      osMove.verdict.block === false &&
+      osMove.calls === 1 &&
       lookup.verdict.effect === "lookup_failed" &&
       lookup.verdict.block === true &&
       manager.verdict.effect === "allow" &&

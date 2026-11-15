@@ -281,14 +281,14 @@ console.log("\n11) SEC-03: TV, catálogos, técnicos e relatórios em enforce; r
   const policy = productionAuthorizationPolicy();
   assert(
     policy.families.filter((family) => family.mode === "enforce").map((family) => family.id).join(",") ===
-      "customers,appointments,budgets,comments,photos,parts_stock,abs_stock,technicians,workshop_catalogs,tv_admin,bulletins,reports,notifications",
+      "customers,appointments,service_orders,budgets,comments,photos,parts_stock,abs_stock,technicians,workshop_catalogs,tv_admin,bulletins,reports,notifications",
     "tv_admin, workshop_catalogs, technicians, reports, bulletins e parts_stock em enforce"
   );
   assert(authorizationHasEnforce(policy, {}) === true, "há enforce");
   assert(authorizationHasEnforce(policy, { SEC03_DISABLE_FAMILIES: "bulletins" }) === true, "as outras famílias em enforce permanecem");
   assert(
-    authorizationHasEnforce(policy, { SEC03_DISABLE_FAMILIES: "customers,appointments,budgets,comments,photos,parts_stock,abs_stock,technicians,workshop_catalogs,tv_admin,bulletins,reports,notifications" }) === false,
-    "os treze interruptores desligam o enforce"
+    authorizationHasEnforce(policy, { SEC03_DISABLE_FAMILIES: "customers,appointments,service_orders,budgets,comments,photos,parts_stock,abs_stock,technicians,workshop_catalogs,tv_admin,bulletins,reports,notifications" }) === false,
+    "os quatorze interruptores desligam o enforce"
   );
   const rule = policy.rules.find((r) => r.id === "self_access_read");
   assert(!!rule && rule.path.test("/api/auth/my-access"), "regra self_access_read");
