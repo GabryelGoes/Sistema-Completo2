@@ -240,20 +240,21 @@ async function startMock(tables: Record<string, Row[]>): Promise<{ server: http.
 async function main() {
   const production = productionAuthorizationPolicy();
   record(
-    "produção bloqueia só a administração da TV",
+    "produção bloqueia a TV e os catálogos da oficina",
     production.families.every((family) => family.unmatched === "ignore") &&
       production.families
         .filter((family) => family.mode === "enforce")
         .map((family) => family.id)
-        .join(",") === "tv_admin" &&
+        .join(",") === "workshop_catalogs,tv_admin" &&
       production.families
         .filter((family) => family.mode === "shadow")
         .map((family) => family.id)
         .sort()
-        .join(",") === "bulletins,parts_stock,reports,technicians,workshop_catalogs" &&
+        .join(",") === "bulletins,parts_stock,reports,technicians" &&
       authorizationHasEnforce(production, {}) === true &&
-      authorizationHasEnforce(production, { SEC03_DISABLE_FAMILIES: "tv_admin" }) === false,
-    "enforce só na TV; sombra em técnicos, catálogos, relatórios, boletins e estoque"
+      authorizationHasEnforce(production, { SEC03_DISABLE_FAMILIES: "tv_admin" }) === true &&
+      authorizationHasEnforce(production, { SEC03_DISABLE_FAMILIES: "tv_admin,workshop_catalogs" }) === false,
+    "enforce na TV e nos catálogos; sombra em técnicos, relatórios, boletins e estoque"
   );
 
   const inactive = await decide({
@@ -944,7 +945,8 @@ async function main() {
       coverage.overlaps.every((route) => route.conflict === false) &&
       uncoveredStaysOpen &&
       authorizationHasEnforce(production, {}) === true &&
-      authorizationHasEnforce(production, { SEC03_DISABLE_FAMILIES: "tv_admin" }) === false,
+      authorizationHasEnforce(production, { SEC03_DISABLE_FAMILIES: "workshop_catalogs" }) === true &&
+      authorizationHasEnforce(production, { SEC03_DISABLE_FAMILIES: "tv_admin,workshop_catalogs" }) === false,
     `rotas ${scanned.length}; protegidas ${coverage.protectedRoutes.length}; públicas ${coverage.publicRoutes.length}; sem regra ${coverage.uncoveredRoutes.length}; sobrepostas ${coverage.overlaps.length}`
   );
 
@@ -1076,14 +1078,14 @@ async function main() {
     log: shadowLog,
   });
   record(
-    "sombra administrativa não bloqueia; a TV já bloqueia",
+    "catálogos e TV bloqueiam a escrita; técnicos continuam em sombra",
     serviceRead.verdict.effect === "allow" &&
       serviceRead.verdict.block === false &&
       checklistRead.verdict.effect === "allow" &&
       serviceWrite.verdict.effect === "deny" &&
-      serviceWrite.verdict.block === false &&
+      serviceWrite.verdict.block === true &&
       checklistWrite.verdict.effect === "deny" &&
-      checklistWrite.verdict.block === false &&
+      checklistWrite.verdict.block === true &&
       techRead.verdict.effect === "allow" &&
       techWrite.verdict.effect === "deny" &&
       techWrite.verdict.block === false &&

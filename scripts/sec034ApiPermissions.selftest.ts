@@ -88,17 +88,24 @@ async function main() {
   const production = productionAuthorizationPolicy();
   const modeOf = (id: string) => production.families.find((family) => family.id === id)?.mode;
   record(
-    "produção observa estoque, relatórios e boletins; só a TV bloqueia",
+    "produção observa estoque, relatórios e boletins; TV e catálogos bloqueiam",
     modeOf("parts_stock") === "shadow" &&
       modeOf("reports") === "shadow" &&
       modeOf("bulletins") === "shadow" &&
+      modeOf("technicians") === "shadow" &&
       modeOf("tv_admin") === "enforce" &&
-      production.families.every((family) => family.unmatched === "ignore" && (family.id === "tv_admin" || family.mode !== "enforce")) &&
+      modeOf("workshop_catalogs") === "enforce" &&
+      production.families.every(
+        (family) =>
+          family.unmatched === "ignore" &&
+          (family.id === "tv_admin" || family.id === "workshop_catalogs" || family.mode !== "enforce")
+      ) &&
       authorizationHasEnforce(production, {}) === true &&
-      authorizationHasEnforce(production, { SEC03_DISABLE_FAMILIES: "tv_admin" }) === false &&
+      authorizationHasEnforce(production, { SEC03_DISABLE_FAMILIES: "workshop_catalogs" }) === true &&
+      authorizationHasEnforce(production, { SEC03_DISABLE_FAMILIES: "tv_admin,workshop_catalogs" }) === false &&
       production.families.filter((family) => family.mode === "shadow").map((family) => family.id).sort().join(",") ===
-        "bulletins,parts_stock,reports,technicians,workshop_catalogs",
-    `estoque ${modeOf("parts_stock")}; relatório ${modeOf("reports")}; boletim ${modeOf("bulletins")}; tv ${modeOf("tv_admin")}`
+        "bulletins,parts_stock,reports,technicians",
+    `estoque ${modeOf("parts_stock")}; relatório ${modeOf("reports")}; boletim ${modeOf("bulletins")}; catálogo ${modeOf("workshop_catalogs")}`
   );
 
   const stockDelete = await decide({
