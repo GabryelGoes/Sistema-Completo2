@@ -88,10 +88,10 @@ async function main() {
   const production = productionAuthorizationPolicy();
   const modeOf = (id: string) => production.families.find((family) => family.id === id)?.mode;
   record(
-    "produção observa estoque e boletins; TV, catálogos, técnicos e relatórios bloqueiam",
+    "produção observa estoque; TV, catálogos, técnicos, relatórios e boletins bloqueiam",
     modeOf("parts_stock") === "shadow" &&
       modeOf("reports") === "enforce" &&
-      modeOf("bulletins") === "shadow" &&
+      modeOf("bulletins") === "enforce" &&
       modeOf("technicians") === "enforce" &&
       modeOf("tv_admin") === "enforce" &&
       modeOf("workshop_catalogs") === "enforce" &&
@@ -102,13 +102,14 @@ async function main() {
             family.id === "workshop_catalogs" ||
             family.id === "technicians" ||
             family.id === "reports" ||
+            family.id === "bulletins" ||
             family.mode !== "enforce")
       ) &&
       authorizationHasEnforce(production, {}) === true &&
       authorizationHasEnforce(production, { SEC03_DISABLE_FAMILIES: "reports" }) === true &&
-      authorizationHasEnforce(production, { SEC03_DISABLE_FAMILIES: "technicians,workshop_catalogs,tv_admin,reports" }) === false &&
+      authorizationHasEnforce(production, { SEC03_DISABLE_FAMILIES: "technicians,workshop_catalogs,tv_admin,bulletins,reports" }) === false &&
       production.families.filter((family) => family.mode === "shadow").map((family) => family.id).sort().join(",") ===
-        "bulletins,parts_stock",
+        "parts_stock",
     `estoque ${modeOf("parts_stock")}; relatório ${modeOf("reports")}; boletim ${modeOf("bulletins")}; catálogo ${modeOf("workshop_catalogs")}`
   );
 
@@ -424,14 +425,14 @@ async function main() {
       reportAllowed.effect === "allow" &&
       reportAllowed.block === false &&
       bulletinDenied.effect === "deny" &&
-      bulletinDenied.block === false &&
+      bulletinDenied.block === true &&
       bulletinAllowed.effect === "allow" &&
       reportManager.effect === "allow" &&
       reportManager.reason === "admin" &&
       bulletinFull.effect === "allow" &&
       bulletinFull.reason === "full_access" &&
       bulletinLookup.effect === "lookup_failed" &&
-      bulletinLookup.block === false &&
+      bulletinLookup.block === true &&
       emergencyOff.effect === "skipped" &&
       emergencyOff.reason === "family_off" &&
       emergencyOff.block === false &&

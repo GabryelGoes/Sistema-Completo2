@@ -200,12 +200,12 @@ async function main() {
   const enforced = production.families.filter((family) => family.mode === "enforce").map((family) => family.id);
   const shadow = production.families.filter((family) => family.mode === "shadow").map((family) => family.id).sort();
   record(
-    "política bloqueia relatórios e mantém boletins em sombra",
-    enforced.join(",") === "technicians,workshop_catalogs,tv_admin,reports" &&
-      shadow.join(",") === "bulletins,parts_stock" &&
+    "política bloqueia relatórios e boletins",
+    enforced.join(",") === "technicians,workshop_catalogs,tv_admin,bulletins,reports" &&
+      shadow.join(",") === "parts_stock" &&
       authorizationHasEnforce(production, {}) === true &&
       authorizationHasEnforce(production, { SEC03_DISABLE_FAMILIES: "reports" }) === true &&
-      authorizationHasEnforce(production, { SEC03_DISABLE_FAMILIES: "technicians,workshop_catalogs,tv_admin,reports" }) === false,
+      authorizationHasEnforce(production, { SEC03_DISABLE_FAMILIES: "technicians,workshop_catalogs,tv_admin,bulletins,reports" }) === false,
     enforced.join(",")
   );
 
@@ -382,8 +382,8 @@ async function main() {
       201
     );
     allowed("boletim remove anexo", await hit(base, "/api/error-bulletins/boletim-1/attachments/anexo-1", "DELETE", boletim), 204);
-    open("pátio ainda passa do guard de boletins", await hit(base, "/api/error-bulletins", "POST", patio, { title: "Sem chave" }));
-    open("falha de leitura ainda não bloqueia boletim", await hit(base, "/api/error-bulletins", "GET", fail));
+    denied("pátio não cria boletim", await hit(base, "/api/error-bulletins", "POST", patio, { title: "Sem chave" }));
+    denied("falha de leitura bloqueia boletim", await hit(base, "/api/error-bulletins", "GET", fail));
 
     open(
       "fechamento da OS não usa a família de relatórios",
