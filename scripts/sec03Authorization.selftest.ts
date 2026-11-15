@@ -245,7 +245,7 @@ async function main() {
       production.families
         .filter((family) => family.mode === "enforce")
         .map((family) => family.id)
-        .join(",") === "customers,appointments,budgets,comments,photos,parts_stock,abs_stock,technicians,workshop_catalogs,tv_admin,bulletins,reports" &&
+        .join(",") === "customers,appointments,budgets,comments,photos,parts_stock,abs_stock,technicians,workshop_catalogs,tv_admin,bulletins,reports,notifications" &&
       production.families
         .filter((family) => family.mode === "shadow")
         .map((family) => family.id)
@@ -253,13 +253,13 @@ async function main() {
         .join(",") === "" &&
       authorizationHasEnforce(production, {}) === true &&
       authorizationHasEnforce(production, { SEC03_DISABLE_FAMILIES: "reports" }) === true &&
-      authorizationHasEnforce(production, { SEC03_DISABLE_FAMILIES: "customers,appointments,budgets,comments,photos,parts_stock,abs_stock,technicians,workshop_catalogs,tv_admin,bulletins,reports" }) === false,
+      authorizationHasEnforce(production, { SEC03_DISABLE_FAMILIES: "customers,appointments,budgets,comments,photos,parts_stock,abs_stock,technicians,workshop_catalogs,tv_admin,bulletins,reports,notifications" }) === false,
     "enforce na TV, nos catálogos, nos técnicos, nos relatórios, nos boletins e no estoque"
   );
 
   const inactive = await decide({
-    method: "DELETE",
-    path: "/api/notifications",
+    method: "POST",
+    path: "/api/service-orders/os-1/lab-evaluation",
     actor: { role: "user", userId: USER },
     rows: [{ id: USER, workshopId: WORKSHOP, permissions: {} }],
   });
@@ -646,7 +646,9 @@ async function main() {
     "desligamento individual e global só desativam",
     disabled.verdict.effect === "skipped" &&
       disabled.calls === 0 &&
-      stillOn.verdict.effect === "deny" &&
+      stillOn.verdict.effect === "allow" &&
+      stillOn.verdict.reason === "self" &&
+      stillOn.verdict.block === false &&
       globalOff.verdict.effect === "skipped" &&
       globalOff.verdict.block === false,
     `peças ${disabled.verdict.reason}; avisos ${stillOn.verdict.effect}`
@@ -946,7 +948,7 @@ async function main() {
       uncoveredStaysOpen &&
       authorizationHasEnforce(production, {}) === true &&
       authorizationHasEnforce(production, { SEC03_DISABLE_FAMILIES: "reports" }) === true &&
-      authorizationHasEnforce(production, { SEC03_DISABLE_FAMILIES: "customers,appointments,budgets,comments,photos,parts_stock,abs_stock,technicians,workshop_catalogs,tv_admin,bulletins,reports" }) === false,
+      authorizationHasEnforce(production, { SEC03_DISABLE_FAMILIES: "customers,appointments,budgets,comments,photos,parts_stock,abs_stock,technicians,workshop_catalogs,tv_admin,bulletins,reports,notifications" }) === false,
     `rotas ${scanned.length}; protegidas ${coverage.protectedRoutes.length}; públicas ${coverage.publicRoutes.length}; sem regra ${coverage.uncoveredRoutes.length}; sobrepostas ${coverage.overlaps.length}`
   );
 

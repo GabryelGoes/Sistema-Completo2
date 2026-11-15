@@ -3,7 +3,7 @@
  *
  * O bloqueio real começa em uma família por vez. `customers`, `appointments`,
  * `budgets`, `comments`, `photos`, `parts_stock`, `abs_stock`, `technicians`,
- * `workshop_catalogs`, `tv_admin`, `bulletins` e `reports` já bloqueiam.
+ * `workshop_catalogs`, `tv_admin`, `bulletins`, `reports` e `notifications` já bloqueiam.
  *
  * A chave de aba não libera outra ação: cada regra lista as chaves daquela
  * ação. `anyOf` vazio significa só Gerência ou full_access.
@@ -315,7 +315,11 @@ const FAMILIES: readonly AuthorizationFamily[] = [
   family("bulletins", ["/api/error-bulletins"], "enforce"),
   // SEC-03.16: bloqueia leitura e exclusão do relatório de serviços por técnico.
   family("reports", ["/api/reports"], "enforce"),
-  family("notifications", ["/api/notifications"]),
+  // SEC-03.31: bloqueia a caixa de avisos. A sessão define o destinatário.
+  // Gerência e full_access leem a caixa administrativa. O funcionário lê só a própria.
+  // Criar aviso para outra pessoa fica na Gerência ou em full_access.
+  // Ajustes em /api/workshop/system-notifications continuam no SEC-04.3.
+  family("notifications", ["/api/notifications"], "enforce"),
   family("quality_radar", ["/api/quality-"]),
   family("rda", ["/api/rda"]),
 ];
@@ -1282,12 +1286,62 @@ const RULES: readonly AuthorizationRule[] = [
   ...crud("reports", "reports", "^/api/reports(?:/.*)?$", ["access_relatorios"], 40),
 
   rule({
+    id: "notifications_list_read",
+    family: "notifications",
+    action: "read",
+    methods: ["GET"],
+    path: "^/api/notifications$",
+    anyOf: [],
+    ownership: "session_user",
+    priority: 40,
+  }),
+  rule({
+    id: "notifications_unread_read",
+    family: "notifications",
+    action: "read",
+    methods: ["GET"],
+    path: "^/api/notifications/unread-count$",
+    anyOf: [],
+    ownership: "session_user",
+    priority: 80,
+  }),
+  rule({
+    id: "notifications_mark_read",
+    family: "notifications",
+    action: "update",
+    methods: ["PATCH"],
+    path: "^/api/notifications/[^/]+/read$",
+    anyOf: [],
+    ownership: "session_user",
+    priority: 80,
+  }),
+  rule({
+    id: "notifications_mark_all_read",
+    family: "notifications",
+    action: "update",
+    methods: ["POST"],
+    path: "^/api/notifications/read-all$",
+    anyOf: [],
+    ownership: "session_user",
+    priority: 80,
+  }),
+  rule({
+    id: "notifications_create",
+    family: "notifications",
+    action: "create",
+    methods: ["POST"],
+    path: "^/api/notifications$",
+    anyOf: [],
+    priority: 40,
+  }),
+  rule({
     id: "notifications_purge",
     family: "notifications",
     action: "delete",
     methods: ["DELETE"],
     path: "^/api/notifications$",
     anyOf: [],
+    ownership: "session_user",
     priority: 80,
   }),
 ];

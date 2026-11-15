@@ -423,7 +423,7 @@ ok("A9 workshop_catalogs enforce", familyMode("workshop_catalogs") === "enforce"
 ok("A9 tv_admin enforce", familyMode("tv_admin") === "enforce");
 ok("A9 bulletins enforce", familyMode("bulletins") === "enforce");
 ok("A9 reports enforce", familyMode("reports") === "enforce");
-ok("A9 notifications off", familyMode("notifications") === "off");
+ok("A9 notifications enforce", familyMode("notifications") === "enforce");
 ok(
   "A9 sem família workshop_admin_settings",
   !policy.families.some((f) => f.id === ("workshop_admin_settings" as never)) &&
