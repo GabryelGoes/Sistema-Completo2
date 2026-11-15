@@ -18,6 +18,14 @@ import {
   sec044VisibilityForProfile,
 } from "../utils/sec044FrontendAlignment.js";
 import { resolveAjustesVisibility } from "../utils/employeeAccess.js";
+import {
+  computeLabelTemplatesSyncAuthKey,
+  getLabelTemplatesAutoUploadGateState,
+  markLabelAutoUploadDeniedForTests,
+  resetLabelTemplatesSyncStateForTests,
+  setLabelTemplatesSyncAuthContext,
+  shouldSkipLabelAutoUpload,
+} from "../utils/labelTemplatesSyncAuth.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = join(__dirname, "..");
@@ -156,11 +164,22 @@ console.log("\n5) Source: senhas / etiquetas / apiService");
   assert(labels.includes("local_only_forbidden") || labels.includes("Sem permissão para publicar"), "editor diferencia 403");
   assert(labels.includes("cache local") || labels.includes("Servidor indisponível"), "editor diferencia rede");
   assert(labels.includes("remoteSaved"), "não afirma sync remoto sem remoteSaved");
+  assert(labels.includes("uiEpochRef"), "epoch invalida sucesso remoto após fechar/reabrir");
 
   const sync = readSrc("utils/labelTemplatesSync.ts");
-  assert(sync.includes("autoUploadDenied"), "403 auto-upload não entra em loop");
+  assert(sync.includes("shouldSkipLabelAutoUpload"), "sync consulta skip keyed por auth");
+  assert(sync.includes("markLabelAutoUploadDenied"), "403 marca deny no authKey atual");
   assert(sync.includes("local_only_forbidden"), "status forbidden tipado");
   assert(sync.includes("local_only_network"), "status network tipado");
+
+  const syncAuth = readSrc("utils/labelTemplatesSyncAuth.ts");
+  assert(syncAuth.includes("autoUploadDeniedForKey"), "deny keyed por auth (não global cego)");
+  assert(syncAuth.includes("setLabelTemplatesSyncAuthContext"), "contexto de auth exportado");
+  assert(syncAuth.includes("canWriteLabelTemplates"), "chave inclui bit G3");
+
+  const app = readSrc("App.tsx");
+  assert(app.includes("setLabelTemplatesSyncAuthContext"), "App liga sync ao contexto de sessão");
+  assert(app.includes("access_settings"), "App reavalia G3 via access_settings");
 
   const api = readSrc("services/apiService.ts");
   assert(api.includes("throwIfNotOk"), "apiService usa throwIfNotOk em settings/notif");
@@ -176,6 +195,144 @@ console.log("\n6) full_access ≠ Gerência para secrets (UI)");
     canWriteOperationalSecrets({ role: undefined, isSystemUser: false, isTechnician: true }) === false,
     "técnico ≠ admin secrets"
   );
+}
+
+console.log("\n7) Auto-upload 403 keyed por auth (troca usuário / grant / revoke)");
+{
+  const keyNoG3 = computeLabelTemplatesSyncAuthKey({
+    role: "user",
+    userId: "tec-a",
+    canWriteLabelTemplates: false,
+  });
+  const keyWithG3 = computeLabelTemplatesSyncAuthKey({
+    role: "user",
+    userId: "tec-a",
+    canWriteLabelTemplates: true,
+  });
+  const keyOther = computeLabelTemplatesSyncAuthKey({
+    role: "user",
+    userId: "tec-b",
+    canWriteLabelTemplates: false,
+  });
+  assert(keyNoG3 !== keyWithG3, "grant access_settings muda a chave");
+  assert(keyNoG3 !== keyOther, "troca de usuário muda a chave");
+  assert(computeLabelTemplatesSyncAuthKey(null) === "", "logout → chave vazia");
+  assert(shouldSkipLabelAutoUpload(keyNoG3, keyNoG3) === true, "mesmo contexto: skip após deny");
+  assert(
+    shouldSkipLabelAutoUpload(keyWithG3, keyNoG3) === false,
+    "grant G3: não herda deny do contexto antigo"
+  );
+  assert(
+    shouldSkipLabelAutoUpload(keyOther, keyNoG3) === false,
+    "outro usuário: não herda deny"
+  );
+  assert(
+    shouldSkipLabelAutoUpload("", keyNoG3) === false,
+    "logout: não skipa por chave vazia ≠ deny"
+  );
+
+  resetLabelTemplatesSyncStateForTests();
+  setLabelTemplatesSyncAuthContext({
+    role: "user",
+    userId: "tec-a",
+    canWriteLabelTemplates: false,
+  });
+  markLabelAutoUploadDeniedForTests();
+  {
+    const gate = getLabelTemplatesAutoUploadGateState();
+    assert(gate.deniedForKey === gate.authKey, "deny marcado para o authKey atual");
+    assert(
+      shouldSkipLabelAutoUpload(gate.authKey, gate.deniedForKey),
+      "mesmo contexto: skip ativo (sem loop)"
+    );
+  }
+
+  // Concessão de access_settings na mesma aba
+  const changedGrant = setLabelTemplatesSyncAuthContext({
+    role: "user",
+    userId: "tec-a",
+    canWriteLabelTemplates: true,
+  });
+  assert(changedGrant === true, "grant G3 muda contexto");
+  {
+    const gate = getLabelTemplatesAutoUploadGateState();
+    assert(
+      !shouldSkipLabelAutoUpload(gate.authKey, gate.deniedForKey),
+      "após grant: skip desativado (chave nova ≠ deniedForKey)"
+    );
+  }
+
+  // Troca de usuário na mesma aba
+  markLabelAutoUploadDeniedForTests();
+  const changedUser = setLabelTemplatesSyncAuthContext({
+    role: "user",
+    userId: "tec-b",
+    canWriteLabelTemplates: false,
+  });
+  assert(changedUser === true, "troca de usuário muda contexto");
+  {
+    const gate = getLabelTemplatesAutoUploadGateState();
+    assert(
+      !shouldSkipLabelAutoUpload(gate.authKey, gate.deniedForKey),
+      "novo usuário: não herda deny"
+    );
+  }
+
+  // Revogação G3 na mesma aba
+  setLabelTemplatesSyncAuthContext({
+    role: "user",
+    userId: "tec-b",
+    canWriteLabelTemplates: true,
+  });
+  markLabelAutoUploadDeniedForTests();
+  const changedRevoke = setLabelTemplatesSyncAuthContext({
+    role: "user",
+    userId: "tec-b",
+    canWriteLabelTemplates: false,
+  });
+  assert(changedRevoke === true, "revoke G3 muda contexto");
+  {
+    const gate = getLabelTemplatesAutoUploadGateState();
+    assert(
+      !shouldSkipLabelAutoUpload(gate.authKey, gate.deniedForKey),
+      "após revoke: chave nova permite nova tentativa controlada"
+    );
+  }
+  markLabelAutoUploadDeniedForTests();
+  {
+    const gate = getLabelTemplatesAutoUploadGateState();
+    assert(
+      shouldSkipLabelAutoUpload(gate.authKey, gate.deniedForKey),
+      "mesmo key após novo 403: skip (sem loop)"
+    );
+  }
+
+  // Logout
+  const loggedOut = setLabelTemplatesSyncAuthContext(null);
+  assert(loggedOut === true, "logout muda contexto");
+  assert(getLabelTemplatesAutoUploadGateState().authKey === "", "logout zera authKey");
+  assert(
+    !shouldSkipLabelAutoUpload(
+      getLabelTemplatesAutoUploadGateState().authKey,
+      getLabelTemplatesAutoUploadGateState().deniedForKey
+    ),
+    "logout: skip inativo"
+  );
+
+  // Mesmo contexto de novo: set idêntico não “muda” (evita sync em loop)
+  setLabelTemplatesSyncAuthContext({
+    role: "user",
+    userId: "tec-a",
+    canWriteLabelTemplates: false,
+  });
+  const sameAgain = setLabelTemplatesSyncAuthContext({
+    role: "user",
+    userId: "tec-a",
+    canWriteLabelTemplates: false,
+  });
+  assert(sameAgain === false, "mesmo contexto: setAuth não reporta mudança (sem loop de sync)");
+
+  resetLabelTemplatesSyncStateForTests();
 }
 
 console.log(`\nSEC-04.4 resultado: ${passed} ok, ${failed} fail`);

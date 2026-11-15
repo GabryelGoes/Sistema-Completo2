@@ -5,7 +5,9 @@
  * Primeira vez após o deploy: se o servidor ainda não tem templates e este
  * dispositivo tem edições locais, faz upload automático — preserva o que você
  * já configurou no PC. Upload automático só ocorre com autorização (G3);
- * 403 não entra em loop de retries.
+ * 403 não entra em loop de retries **no mesmo contexto de auth**.
+ * Troca de usuário / logout / concessão de `access_settings` (ou full_access)
+ * muda a chave de contexto e libera nova tentativa controlada.
  */
 import { getWorkshopSettings, updateWorkshopSettings } from '../services/apiService';
 import {
@@ -16,11 +18,27 @@ import {
   type LabelTemplatesStore,
 } from './labelTemplates';
 import { isApiHttpError, isNetworkFetchError } from './apiHttpError';
+import {
+  clearLabelAutoUploadDeniedIfCurrent,
+  getLabelTemplatesAutoUploadDeniedForKey,
+  getLabelTemplatesLastSyncedAt,
+  getLabelTemplatesSyncAuthKey,
+  markLabelAutoUploadDenied,
+  shouldSkipLabelAutoUpload,
+  touchLabelTemplatesLastSyncedAt,
+} from './labelTemplatesSyncAuth';
+
+export {
+  computeLabelTemplatesSyncAuthKey,
+  getLabelTemplatesAutoUploadGateState,
+  markLabelAutoUploadDeniedForTests,
+  resetLabelTemplatesSyncStateForTests,
+  setLabelTemplatesSyncAuthContext,
+  shouldSkipLabelAutoUpload,
+  type LabelTemplatesSyncAuthInput,
+} from './labelTemplatesSyncAuth';
 
 let syncInFlight: Promise<LabelTemplatesSyncResult> | null = null;
-let lastSyncedAt = 0;
-/** Evita re-tentar upload automático após 403 na mesma sessão. */
-let autoUploadDenied = false;
 
 export type LabelTemplatesSyncStatus =
   | 'remote'
@@ -46,16 +64,19 @@ function storeHasAnyTemplate(
  * - Servidor vazio + local com dados → sobe o local (migração), se autorizado.
  * - Servidor com dados → baixa e atualiza o cache local.
  * - Falha de rede → mantém o local.
- * - 403 no upload → mantém o local, sem loop.
+ * - 403 no upload → mantém o local, sem loop no mesmo authKey.
  */
 export async function syncLabelTemplatesFromServer(opts?: {
   force?: boolean;
 }): Promise<LabelTemplatesSyncResult> {
   if (syncInFlight) return syncInFlight;
   const now = Date.now();
+  const lastSyncedAt = getLabelTemplatesLastSyncedAt();
   if (!opts?.force && lastSyncedAt && now - lastSyncedAt < 8_000) {
     return { store: loadAllLabelTemplates(), status: 'local_cache' };
   }
+
+  const authKeyAtStart = getLabelTemplatesSyncAuthKey();
 
   syncInFlight = (async (): Promise<LabelTemplatesSyncResult> => {
     const local = loadAllLabelTemplates();
@@ -65,36 +86,47 @@ export async function syncLabelTemplatesFromServer(opts?: {
       if (storeHasAnyTemplate(remoteRaw)) {
         const remote = normalizeLabelTemplatesStore(remoteRaw);
         saveAllLabelTemplates(remote);
-        lastSyncedAt = Date.now();
+        touchLabelTemplatesLastSyncedAt();
         return { store: remote, status: 'remote' };
       }
       // Servidor ainda sem templates: tenta publicar o local (SEC-04.2: exige G3).
-      if (hasLocalLabelTemplates() && !autoUploadDenied) {
+      const skipUpload = shouldSkipLabelAutoUpload(
+        authKeyAtStart,
+        getLabelTemplatesAutoUploadDeniedForKey()
+      );
+      if (hasLocalLabelTemplates() && !skipUpload) {
         try {
           await updateWorkshopSettings({ labelTemplates: local });
-          lastSyncedAt = Date.now();
+          // Sucesso limpa bloqueio deste contexto (se ainda for o mesmo).
+          if (getLabelTemplatesSyncAuthKey() === authKeyAtStart) {
+            clearLabelAutoUploadDeniedIfCurrent();
+          }
+          touchLabelTemplatesLastSyncedAt();
           return { store: local, status: 'uploaded_local' };
         } catch (e) {
           if (isApiHttpError(e) && e.kind === 'forbidden') {
-            autoUploadDenied = true;
-            lastSyncedAt = Date.now();
+            // Só marca deny se o contexto não mudou durante o request.
+            if (getLabelTemplatesSyncAuthKey() === authKeyAtStart) {
+              markLabelAutoUploadDenied(authKeyAtStart);
+            }
+            touchLabelTemplatesLastSyncedAt();
             return { store: local, status: 'local_only_forbidden' };
           }
           if (isNetworkFetchError(e) || (isApiHttpError(e) && e.kind === 'server')) {
-            lastSyncedAt = Date.now();
+            touchLabelTemplatesLastSyncedAt();
             return { store: local, status: 'local_only_network' };
           }
-          lastSyncedAt = Date.now();
+          touchLabelTemplatesLastSyncedAt();
           return { store: local, status: 'local_only_network' };
         }
       }
-      lastSyncedAt = Date.now();
+      touchLabelTemplatesLastSyncedAt();
       return {
         store: local,
-        status: autoUploadDenied ? 'local_only_forbidden' : 'local_cache',
+        status: skipUpload ? 'local_only_forbidden' : 'local_cache',
       };
     } catch (e) {
-      lastSyncedAt = Date.now();
+      touchLabelTemplatesLastSyncedAt();
       if (isApiHttpError(e) && e.kind === 'forbidden') {
         return { store: local, status: 'local_only_forbidden' };
       }
@@ -120,7 +152,8 @@ export async function persistLabelTemplatesToServer(
   saveAllLabelTemplates(next);
   try {
     await updateWorkshopSettings({ labelTemplates: next });
-    lastSyncedAt = Date.now();
+    touchLabelTemplatesLastSyncedAt();
+    clearLabelAutoUploadDeniedIfCurrent();
     return { store: next, remoteSaved: true };
   } catch (e) {
     // Mantém local — não mascara 403/rede como sucesso remoto.

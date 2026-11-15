@@ -16,7 +16,7 @@ Corrige inconsistências de **interface** entre o hub de Ajustes e as regras de 
 - Ao **perder a permissão**, o modal correspondente é fechado e desmontado.
 - Senhas operacionais (G0/G1): formulários editáveis **somente Gerência**; `full_access` / `access_change_passwords` veem estado read-only. Troca da própria senha (perfil) permanece intacta.
 - Erros HTTP tipados (`ApiHttpError`): 401 sessão, 403 sem permissão (sem logout), rede, 5xx.
-- Sync de etiquetas: diferencia 403 vs rede; preserva cache local; não loopa upload automático após 403; não declara sync remoto quando só salvou local.
+- Sync de etiquetas: diferencia 403 vs rede; preserva cache local; não loopa upload automático após 403 **no mesmo contexto de auth**; troca de usuário / logout / grant|revoke de `access_settings`|`full_access` libera nova tentativa controlada; não declara sync remoto quando só salvou local ou quando o editor já fechou.
 
 **Não** alterou: auth/sessões, guards de servidor, permissões concedidas, DB/RLS, SEC-03, inbox `/api/notifications`, RDA, design visual.
 
@@ -47,6 +47,7 @@ Frontend **não** trata F como Gerência para secrets.
 4. Erros de `workshop-settings` / system-notifications sem `status` tipado (difícil distinguir 403 vs rede).
 5. Sync de etiquetas: catch genérico; upload automático podia “parecer” ok; fechamento engolia erro de persist.
 6. Mensagem de subtítulo do editor afirmava sync multi-dispositivo após só cache local.
+7. `autoUploadDenied` global persistia após logout / troca de usuário / concessão de `access_settings` (corrigido: deny keyed por `authKey`).
 
 ---
 
@@ -58,7 +59,9 @@ Frontend **não** trata F como Gerência para secrets.
 | `components/ChangePasswordsModal.tsx` | `allowSecretWrites`; read-only; `formatApiFailureMessage` |
 | `App.tsx` | `ChangePasswordsModal` limited → `allowSecretWrites={false}` |
 | `components/LabelTemplatesEditorModal.tsx` | status de sync; erros 403/rede; `remoteSaved` |
-| `utils/labelTemplatesSync.ts` | status tipado; `autoUploadDenied`; persist result |
+| `utils/labelTemplatesSyncAuth.ts` | **novo** — authKey + deny keyed; grant/revoke/logout |
+| `utils/labelTemplatesSync.ts` | status tipado; usa gate por authKey; persist result |
+| `App.tsx` | liga contexto de sync à sessão / G3; senhas limited read-only |
 | `utils/apiHttpError.ts` | **novo** — `ApiHttpError` + formatters |
 | `services/apiService.ts` | `throwIfNotOk` em settings + system-notifications |
 | `components/SystemNotificationsModal.tsx` | mensagens HTTP padronizadas |

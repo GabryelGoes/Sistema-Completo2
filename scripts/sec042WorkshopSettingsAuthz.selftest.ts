@@ -224,7 +224,10 @@ ok("lab photo auth antes de multer", (() => {
 })());
 ok(
   "label sync engole falha de upload sem loop",
-  sync.includes("SEC-04.2") && sync.includes("lastSyncedAt = Date.now()")
+  sync.includes("SEC-04.2") &&
+    (sync.includes("lastSyncedAt = Date.now()") ||
+      sync.includes("shouldSkipLabelAutoUpload") ||
+      sync.includes("markLabelAutoUploadDenied"))
 );
 
 // SEC-03 modes intactos
