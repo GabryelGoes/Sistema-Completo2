@@ -111,6 +111,12 @@ const CUSTOMER_KEYS = [
   "access_laboratorio",
 ] as const satisfies readonly PermissionKey[];
 
+/** Só a listagem. A Agenda não cadastra, não edita e não consulta placa. */
+const CUSTOMER_LIST_KEYS = [
+  ...CUSTOMER_KEYS,
+  "access_agenda",
+] as const satisfies readonly PermissionKey[];
+
 const AGENDA_KEYS = ["access_agenda", "access_reception"] as const satisfies readonly PermissionKey[];
 
 const OS_READ_KEYS = [
@@ -248,7 +254,8 @@ function family(
 }
 
 const FAMILIES: readonly AuthorizationFamily[] = [
-  family("customers", ["/api/customers", "/api/consulta-placa"]),
+  // SEC-03.23.1: bloqueia clientes. A Agenda só lista; cadastro, edição e placa ficam nas quatro chaves.
+  family("customers", ["/api/customers", "/api/consulta-placa"], "enforce"),
   family("appointments", ["/api/appointments"]),
   family("service_orders", ["/api/service-orders"]),
   family("budgets", ["/api/service-orders", "/api/patio-budgets-hub", "/api/patio-vehicle-budgets-aggregate"]),
@@ -279,7 +286,42 @@ const FAMILIES: readonly AuthorizationFamily[] = [
  * O PUT genérico da OS também fica de fora: a mesma rota mistura etapa e ficha.
  */
 const RULES: readonly AuthorizationRule[] = [
-  ...crud("customers", "customers", "^/api/customers$", CUSTOMER_KEYS, 40),
+  rule({
+    id: "customers_read",
+    family: "customers",
+    action: "read",
+    methods: ["GET"],
+    path: "^/api/customers$",
+    anyOf: CUSTOMER_LIST_KEYS,
+    priority: 40,
+  }),
+  rule({
+    id: "customers_create",
+    family: "customers",
+    action: "create",
+    methods: ["POST"],
+    path: "^/api/customers$",
+    anyOf: CUSTOMER_KEYS,
+    priority: 40,
+  }),
+  rule({
+    id: "customers_update",
+    family: "customers",
+    action: "update",
+    methods: ["PUT", "PATCH"],
+    path: "^/api/customers$",
+    anyOf: CUSTOMER_KEYS,
+    priority: 40,
+  }),
+  rule({
+    id: "customers_delete",
+    family: "customers",
+    action: "delete",
+    methods: ["DELETE"],
+    path: "^/api/customers$",
+    anyOf: CUSTOMER_KEYS,
+    priority: 40,
+  }),
   ...crud("customers", "customer", "^/api/customers/[^/]+$", CUSTOMER_KEYS, 40),
   rule({
     id: "consulta_placa_read",

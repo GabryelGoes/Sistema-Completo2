@@ -245,7 +245,7 @@ async function main() {
       production.families
         .filter((family) => family.mode === "enforce")
         .map((family) => family.id)
-        .join(",") === "parts_stock,technicians,workshop_catalogs,tv_admin,bulletins,reports" &&
+        .join(",") === "customers,parts_stock,technicians,workshop_catalogs,tv_admin,bulletins,reports" &&
       production.families
         .filter((family) => family.mode === "shadow")
         .map((family) => family.id)
@@ -253,13 +253,13 @@ async function main() {
         .join(",") === "" &&
       authorizationHasEnforce(production, {}) === true &&
       authorizationHasEnforce(production, { SEC03_DISABLE_FAMILIES: "reports" }) === true &&
-      authorizationHasEnforce(production, { SEC03_DISABLE_FAMILIES: "parts_stock,technicians,workshop_catalogs,tv_admin,bulletins,reports" }) === false,
+      authorizationHasEnforce(production, { SEC03_DISABLE_FAMILIES: "customers,parts_stock,technicians,workshop_catalogs,tv_admin,bulletins,reports" }) === false,
     "enforce na TV, nos catálogos, nos técnicos, nos relatórios, nos boletins e no estoque"
   );
 
   const inactive = await decide({
     method: "DELETE",
-    path: "/api/customers/cliente-1",
+    path: "/api/appointments/agenda-1",
     actor: { role: "user", userId: USER },
     rows: [{ id: USER, workshopId: WORKSHOP, permissions: {} }],
   });
@@ -946,7 +946,7 @@ async function main() {
       uncoveredStaysOpen &&
       authorizationHasEnforce(production, {}) === true &&
       authorizationHasEnforce(production, { SEC03_DISABLE_FAMILIES: "reports" }) === true &&
-      authorizationHasEnforce(production, { SEC03_DISABLE_FAMILIES: "parts_stock,technicians,workshop_catalogs,tv_admin,bulletins,reports" }) === false,
+      authorizationHasEnforce(production, { SEC03_DISABLE_FAMILIES: "customers,parts_stock,technicians,workshop_catalogs,tv_admin,bulletins,reports" }) === false,
     `rotas ${scanned.length}; protegidas ${coverage.protectedRoutes.length}; públicas ${coverage.publicRoutes.length}; sem regra ${coverage.uncoveredRoutes.length}; sobrepostas ${coverage.overlaps.length}`
   );
 
@@ -1526,7 +1526,7 @@ async function main() {
       "HTTP real bloqueia o slide sem a chave e preserva o restante",
       login.status === 200 &&
         !!token &&
-        created?.status === 201 &&
+        created?.status === 403 &&
         profileRead?.status === 200 &&
         !profileReadUrl.includes("password=") &&
         !profileReadUrl.includes(PASS_USER) &&
@@ -1536,7 +1536,8 @@ async function main() {
         profileJson?.username === "ana" &&
         storedUser?.display_name === "Nova" &&
         !(storedUser?.permissions as { full_access?: boolean } | undefined)?.full_access &&
-        createdJson?.code !== "permission_denied" &&
+        createdJson?.code === "permission_denied" &&
+        tables.customers.length === 0 &&
         noSession.status === 401 &&
         noSessionJson?.code === "session_invalid" &&
         expired.status === 401 &&

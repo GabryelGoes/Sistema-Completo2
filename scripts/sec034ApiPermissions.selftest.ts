@@ -89,7 +89,8 @@ async function main() {
   const modeOf = (id: string) => production.families.find((family) => family.id === id)?.mode;
   record(
     "produção bloqueia estoque, TV, catálogos, técnicos, relatórios e boletins",
-    modeOf("parts_stock") === "enforce" &&
+    modeOf("customers") === "enforce" &&
+      modeOf("parts_stock") === "enforce" &&
       modeOf("reports") === "enforce" &&
       modeOf("bulletins") === "enforce" &&
       modeOf("technicians") === "enforce" &&
@@ -98,7 +99,8 @@ async function main() {
       production.families.every(
         (family) =>
           family.unmatched === "ignore" &&
-          (family.id === "tv_admin" ||
+          (family.id === "customers" ||
+            family.id === "tv_admin" ||
             family.id === "workshop_catalogs" ||
             family.id === "technicians" ||
             family.id === "reports" ||
@@ -108,7 +110,7 @@ async function main() {
       ) &&
       authorizationHasEnforce(production, {}) === true &&
       authorizationHasEnforce(production, { SEC03_DISABLE_FAMILIES: "reports" }) === true &&
-      authorizationHasEnforce(production, { SEC03_DISABLE_FAMILIES: "parts_stock,technicians,workshop_catalogs,tv_admin,bulletins,reports" }) === false &&
+      authorizationHasEnforce(production, { SEC03_DISABLE_FAMILIES: "customers,parts_stock,technicians,workshop_catalogs,tv_admin,bulletins,reports" }) === false &&
       production.families.filter((family) => family.mode === "shadow").map((family) => family.id).sort().join(",") ===
         "",
     `estoque ${modeOf("parts_stock")}; relatório ${modeOf("reports")}; boletim ${modeOf("bulletins")}; catálogo ${modeOf("workshop_catalogs")}`
