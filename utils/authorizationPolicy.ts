@@ -351,12 +351,16 @@ const FAMILIES: readonly AuthorizationFamily[] = [
   // Criar aviso para outra pessoa fica na Gerência ou em full_access.
   // Ajustes em /api/workshop/system-notifications continuam no SEC-04.3.
   family("notifications", ["/api/notifications"], "enforce"),
+  // SEC-03.33: permanecem off de propósito. O prefixo mistura gestão, técnico,
+  // laboratório, estoque, cron e o próprio funcionário. Uma regra única
+  // ou liberaria o Radar inteiro ou bloquearia o cronômetro e o assistente.
+  // A autorização fica nos handlers e nas ferramentas, testada na SEC-03.33.
   family("quality_radar", ["/api/quality-"]),
   family("rda", ["/api/rda"]),
 ];
 
 /**
- * Radar e RDA ficam sem regra nova: já conferem permissão nos handlers.
+ * Radar e RDA não entram em enforce: a proteção equivalente está nos handlers.
  * O PUT da OS entra na família e o handler separa etapa, ficha, queixa, arquivo e técnico.
  */
 const RULES: readonly AuthorizationRule[] = [
