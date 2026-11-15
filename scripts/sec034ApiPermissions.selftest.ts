@@ -88,8 +88,8 @@ async function main() {
   const production = productionAuthorizationPolicy();
   const modeOf = (id: string) => production.families.find((family) => family.id === id)?.mode;
   record(
-    "produção observa estoque; TV, catálogos, técnicos, relatórios e boletins bloqueiam",
-    modeOf("parts_stock") === "shadow" &&
+    "produção bloqueia estoque, TV, catálogos, técnicos, relatórios e boletins",
+    modeOf("parts_stock") === "enforce" &&
       modeOf("reports") === "enforce" &&
       modeOf("bulletins") === "enforce" &&
       modeOf("technicians") === "enforce" &&
@@ -103,13 +103,14 @@ async function main() {
             family.id === "technicians" ||
             family.id === "reports" ||
             family.id === "bulletins" ||
+            family.id === "parts_stock" ||
             family.mode !== "enforce")
       ) &&
       authorizationHasEnforce(production, {}) === true &&
       authorizationHasEnforce(production, { SEC03_DISABLE_FAMILIES: "reports" }) === true &&
-      authorizationHasEnforce(production, { SEC03_DISABLE_FAMILIES: "technicians,workshop_catalogs,tv_admin,bulletins,reports" }) === false &&
+      authorizationHasEnforce(production, { SEC03_DISABLE_FAMILIES: "parts_stock,technicians,workshop_catalogs,tv_admin,bulletins,reports" }) === false &&
       production.families.filter((family) => family.mode === "shadow").map((family) => family.id).sort().join(",") ===
-        "parts_stock",
+        "",
     `estoque ${modeOf("parts_stock")}; relatório ${modeOf("reports")}; boletim ${modeOf("bulletins")}; catálogo ${modeOf("workshop_catalogs")}`
   );
 
@@ -350,7 +351,7 @@ async function main() {
       direct.effect === "deny" &&
       direct.block === true &&
       offStillOpen.effect === "deny" &&
-      offStillOpen.block === false &&
+      offStillOpen.block === true &&
       offStillOpen.reason === "missing_permission",
     `falha ${lookupFail.block}; produção ${offStillOpen.reason}`
   );
@@ -496,7 +497,7 @@ async function main() {
   const stockFull = await decide({ method: "GET", path: "/api/estoque/ledger", actor: patio, permissions: { full_access: true }, log: stockLog });
   const stockLookup = await decide({ method: "GET", path: "/api/workshop-parts", actor: patio, permissions: stockUser, fail: true, log: stockLog });
   record(
-    "sombra do estoque preserva baixa e ficha e não bloqueia",
+    "enforce do estoque preserva baixa e ficha e bloqueia administração",
     matrixOk &&
       patioCatalog.effect === "allow" && patioCatalog.block === false &&
       patioPhotoShadow.effect === "allow" &&
@@ -507,12 +508,12 @@ async function main() {
       patioMoveShadow.effect === "allow" && patioMoveShadow.action === "move" &&
       patioCancelShadow.effect === "allow" &&
       labMoveShadow.effect === "allow" &&
-      patioAdmin.effect === "deny" && patioAdmin.block === false && patioAdmin.reason === "missing_permission" &&
-      noKey.effect === "deny" && noKey.block === false &&
+      patioAdmin.effect === "deny" && patioAdmin.block === true && patioAdmin.reason === "missing_permission" &&
+      noKey.effect === "deny" && noKey.block === true &&
       stockAdmin.effect === "allow" &&
       stockManager.effect === "allow" && stockManager.reason === "admin" &&
       stockFull.effect === "allow" && stockFull.reason === "full_access" &&
-      stockLookup.effect === "lookup_failed" && stockLookup.block === false &&
+      stockLookup.effect === "lookup_failed" && stockLookup.block === true &&
       stockLogs.some((entry) => entry.family === "parts_stock" && entry.decision === "deny") &&
       stockLogs.some((entry) => entry.decision === "lookup_failed") &&
       !JSON.stringify(stockLogs).includes(USER),
