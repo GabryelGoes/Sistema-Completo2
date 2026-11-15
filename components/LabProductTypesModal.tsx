@@ -26,6 +26,7 @@ import {
   slugifyModuleKindId,
 } from '../utils/moduleMetadata';
 import { storageThumbnailUrl } from '../utils/storageThumbnailUrl';
+import { formatApiFailureMessage } from '../utils/apiHttpError';
 
 interface LabProductTypesModalProps {
   isOpen: boolean;
@@ -72,7 +73,7 @@ export const LabProductTypesModal: React.FC<LabProductTypesModalProps> = ({ isOp
       })
       .catch((e) => {
         if (cancelled) return;
-        setError(e?.message ?? 'Falha ao carregar os tipos de produto.');
+        setError(formatApiFailureMessage(e, 'Falha ao carregar os tipos de produto.'));
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -136,8 +137,8 @@ export const LabProductTypesModal: React.FC<LabProductTypesModalProps> = ({ isOp
         )
       );
       dispatchKindsChanged();
-    } catch (e: any) {
-      setError(e?.message ?? 'Falha ao enviar a foto.');
+    } catch (e: unknown) {
+      setError(formatApiFailureMessage(e, 'Falha ao enviar a foto.'));
     } finally {
       setUploadingKey(null);
     }
@@ -162,8 +163,8 @@ export const LabProductTypesModal: React.FC<LabProductTypesModalProps> = ({ isOp
       setLabProductKinds(saved.labProductKinds ?? cleaned);
       dispatchKindsChanged();
       onClose();
-    } catch (e: any) {
-      setError(e?.message ?? 'Falha ao salvar. Tente novamente.');
+    } catch (e: unknown) {
+      setError(formatApiFailureMessage(e, 'Falha ao salvar. Tente novamente.'));
     } finally {
       setSaving(false);
     }

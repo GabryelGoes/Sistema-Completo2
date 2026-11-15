@@ -15,6 +15,7 @@ import { useDesktopShellLayout } from './ui/DesktopShellContext';
 import { ajustesPcOpsClass } from './ajustes/AjustesPcLayoutContext';
 import { AjustesPcOpsEyebrow } from './ajustes/AjustesPcOpsEyebrow';
 import { getWorkshopSettings, updateWorkshopSettings } from '../services/apiService';
+import { formatApiFailureMessage } from '../utils/apiHttpError';
 import {
   LAB_QUICK_SERVICES_CHANGED_EVENT,
   LAB_QUICK_SERVICE_COLOR_OPTIONS,
@@ -75,7 +76,7 @@ export const LabQuickServicesModal: React.FC<LabQuickServicesModalProps> = ({ is
       })
       .catch((e) => {
         if (cancelled) return;
-        setError(e?.message ?? 'Falha ao carregar os serviços.');
+        setError(formatApiFailureMessage(e, 'Falha ao carregar os serviços.'));
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -137,7 +138,7 @@ export const LabQuickServicesModal: React.FC<LabQuickServicesModalProps> = ({ is
       }
       onClose();
     } catch (e: unknown) {
-      setError((e as Error)?.message ?? 'Falha ao salvar. Tente novamente.');
+      setError(formatApiFailureMessage(e, 'Falha ao salvar. Tente novamente.'));
     } finally {
       setSaving(false);
     }

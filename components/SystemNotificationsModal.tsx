@@ -28,6 +28,7 @@ import { IosModalHeader } from "./ui/IosModalHeader";
 import { useRegisterModalOpen } from "./ui/ModalLayerContext";
 import { ajustesPcOpsClass } from "./ajustes/AjustesPcLayoutContext";
 import { AjustesPcOpsEyebrow } from "./ajustes/AjustesPcOpsEyebrow";
+import { formatApiFailureMessage } from "../utils/apiHttpError";
 
 type UserDraft = { systemUserId: string; displayName: string };
 type SystemUserDraft = UserDraft & { notificationTypes: string[] };
@@ -163,7 +164,12 @@ export const SystemNotificationsModal: React.FC<SystemNotificationsModalProps> =
           }))
         );
       })
-      .catch((e) => setMessage({ type: "err", text: e instanceof Error ? e.message : "Erro ao carregar." }))
+      .catch((e) =>
+        setMessage({
+          type: "err",
+          text: formatApiFailureMessage(e, "Erro ao carregar."),
+        })
+      )
       .finally(() => setLoading(false));
   }, [isOpen]);
 
@@ -193,7 +199,7 @@ export const SystemNotificationsModal: React.FC<SystemNotificationsModalProps> =
       setMessage({ type: "ok", text: "Configuração de notificações salva." });
       setAdminPassword("");
     } catch (err) {
-      setMessage({ type: "err", text: err instanceof Error ? err.message : "Erro ao salvar." });
+      setMessage({ type: "err", text: formatApiFailureMessage(err, "Erro ao salvar.") });
     } finally {
       setSaving(false);
     }

@@ -37,6 +37,7 @@ import {
   persistLabelTemplatesToServer,
   syncLabelTemplatesFromServer,
 } from '../utils/labelTemplatesSync';
+import { formatApiFailureMessage, isApiHttpError } from '../utils/apiHttpError';
 import { renderLabOsLabelDataUrl } from '../utils/labOsLabelRender';
 import {
   NIIMBOT_LABEL_H_PX,
@@ -174,6 +175,8 @@ export function LabelTemplatesEditorModal({
   const [building, setBuilding] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
+  const [syncStatusNote, setSyncStatusNote] = useState<string | null>(null);
+  const [remoteSaved, setRemoteSaved] = useState(false);
   const [drag, setDrag] = useState<{
     elId: string;
     startX: number;
@@ -185,17 +188,45 @@ export function LabelTemplatesEditorModal({
   const [printMsg, setPrintMsg] = useState<string | null>(null);
   const previewWrapRef = useRef<HTMLDivElement | null>(null);
   const persistTimerRef = useRef<number | null>(null);
+  const openRef = useRef(open);
+  openRef.current = open;
+  /** Invalida resultados de persist/sync ao reabrir ou fechar (evita sucesso remoto fantasma). */
+  const uiEpochRef = useRef(0);
 
   const flushPersist = useCallback(() => {
     if (persistTimerRef.current == null) return;
     window.clearTimeout(persistTimerRef.current);
     persistTimerRef.current = null;
-    void persistLabelTemplatesToServer(store).catch(() => {
-      /* já está no localStorage */
-    });
+    const epochAtStart = uiEpochRef.current;
+    void persistLabelTemplatesToServer(store)
+      .then((result) => {
+        // Fechado ou nova abertura: cache já foi gravado; não pintar sucesso remoto na UI.
+        if (epochAtStart !== uiEpochRef.current || !openRef.current) return;
+        setRemoteSaved(result.remoteSaved);
+        if (result.remoteSaved) {
+          setSyncError(null);
+          setSyncStatusNote(null);
+        }
+      })
+      .catch((e) => {
+        if (epochAtStart !== uiEpochRef.current) return;
+        // Mesmo fechado: se o editor ainda estiver montado aberto=false, não afirmamos sync ok.
+        if (!openRef.current) {
+          setRemoteSaved(false);
+          return;
+        }
+        setRemoteSaved(false);
+        setSyncError(
+          formatApiFailureMessage(
+            e,
+            'Não foi possível salvar no servidor. As alterações ficaram só neste dispositivo.'
+          )
+        );
+      });
   }, [store]);
 
   const handleClose = useCallback(() => {
+    uiEpochRef.current += 1;
     flushPersist();
     onClose();
   }, [flushPersist, onClose]);
@@ -205,28 +236,50 @@ export function LabelTemplatesEditorModal({
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
+    uiEpochRef.current += 1;
+    const epochAtOpen = uiEpochRef.current;
     // Mostra cache local imediatamente; depois sincroniza com o servidor.
     const local = loadAllLabelTemplates();
     setStore(local);
     setActiveId(initialTemplateId);
     setSelectedId(local[initialTemplateId]?.elements[0]?.id ?? null);
     setSyncError(null);
+    setSyncStatusNote(null);
+    setRemoteSaved(false);
     setSyncing(true);
     void syncLabelTemplatesFromServer({ force: true })
-      .then((remote) => {
-        if (cancelled) return;
-        setStore(remote);
+      .then((result) => {
+        if (cancelled || epochAtOpen !== uiEpochRef.current) return;
+        setStore(result.store);
         setSelectedId((prev) => {
-          const still = remote[initialTemplateId]?.elements.some((e) => e.id === prev);
-          return still ? prev : remote[initialTemplateId]?.elements[0]?.id ?? null;
+          const still = result.store[initialTemplateId]?.elements.some((e) => e.id === prev);
+          return still ? prev : result.store[initialTemplateId]?.elements[0]?.id ?? null;
         });
+        if (result.status === 'remote' || result.status === 'uploaded_local') {
+          setRemoteSaved(true);
+          setSyncStatusNote(null);
+        } else if (result.status === 'local_only_forbidden') {
+          setRemoteSaved(false);
+          setSyncStatusNote(
+            'Sem permissão para publicar no servidor. Usando cache local neste dispositivo.'
+          );
+        } else if (result.status === 'local_only_network') {
+          setRemoteSaved(false);
+          setSyncStatusNote(
+            'Servidor indisponível. Usando cache local neste dispositivo.'
+          );
+        } else {
+          setRemoteSaved(false);
+          setSyncStatusNote(null);
+        }
       })
       .catch((e) => {
-        if (cancelled) return;
-        setSyncError(e instanceof Error ? e.message : 'Falha ao sincronizar etiquetas.');
+        if (cancelled || epochAtOpen !== uiEpochRef.current) return;
+        setRemoteSaved(false);
+        setSyncError(formatApiFailureMessage(e, 'Falha ao sincronizar etiquetas.'));
       })
       .finally(() => {
-        if (!cancelled) setSyncing(false);
+        if (!cancelled && epochAtOpen === uiEpochRef.current) setSyncing(false);
       });
     return () => {
       cancelled = true;
@@ -240,6 +293,7 @@ export function LabelTemplatesEditorModal({
 
   useEffect(() => {
     return () => {
+      uiEpochRef.current += 1;
       if (persistTimerRef.current != null) {
         window.clearTimeout(persistTimerRef.current);
         persistTimerRef.current = null;
@@ -264,15 +318,42 @@ export function LabelTemplatesEditorModal({
     setSyncError(null);
     // Debounce: grava no servidor após pausa na edição (e já no cache local).
     if (persistTimerRef.current != null) window.clearTimeout(persistTimerRef.current);
+    const epochAtSchedule = uiEpochRef.current;
     persistTimerRef.current = window.setTimeout(() => {
       persistTimerRef.current = null;
-      void persistLabelTemplatesToServer(normalized).catch((e) => {
-        setSyncError(
-          e instanceof Error
-            ? e.message
-            : 'Não foi possível salvar no servidor. As alterações ficaram só neste dispositivo.'
-        );
-      });
+      if (epochAtSchedule !== uiEpochRef.current || !openRef.current) {
+        // Fechou/reabriu: ainda grava local+servidor sem pintar sucesso na UI antiga.
+        void persistLabelTemplatesToServer(normalized).catch(() => {
+          /* cache local já salvo dentro de persistLabelTemplatesToServer */
+        });
+        return;
+      }
+      const epochAtStart = uiEpochRef.current;
+      void persistLabelTemplatesToServer(normalized)
+        .then((result) => {
+          if (epochAtStart !== uiEpochRef.current || !openRef.current) return;
+          setRemoteSaved(result.remoteSaved);
+          if (result.remoteSaved) {
+            setSyncError(null);
+            setSyncStatusNote(null);
+          }
+        })
+        .catch((e) => {
+          if (epochAtStart !== uiEpochRef.current || !openRef.current) return;
+          setRemoteSaved(false);
+          if (isApiHttpError(e) && e.kind === 'forbidden') {
+            setSyncError(
+              'Sem permissão para gravar no servidor. Alterações ficaram só neste dispositivo.'
+            );
+            return;
+          }
+          setSyncError(
+            formatApiFailureMessage(
+              e,
+              'Não foi possível salvar no servidor. As alterações ficaram só neste dispositivo.'
+            )
+          );
+        });
     }, 450);
   }, []);
 
@@ -442,10 +523,14 @@ export function LabelTemplatesEditorModal({
               titleId="label-templates-editor-title"
               subtitle={
                 syncing
-                  ? 'Sincronizando com todos os dispositivos…'
+                  ? 'Sincronizando com o servidor…'
                   : syncError
                     ? syncError
-                    : 'Laboratório, estoque, chave · 50 × 30 mm · sincronizado em todos os dispositivos'
+                    : syncStatusNote
+                      ? syncStatusNote
+                      : remoteSaved
+                        ? 'Laboratório, estoque, chave · 50 × 30 mm · sincronizado em todos os dispositivos'
+                        : 'Laboratório, estoque, chave · 50 × 30 mm · cache local neste dispositivo'
               }
             />
             <div className="mt-3 flex flex-wrap gap-1.5">
