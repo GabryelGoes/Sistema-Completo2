@@ -35,7 +35,7 @@ export const RdaSettingsChildShell: React.FC<Props> = ({
   const pcRda = Boolean(ajustesHubChrome && desktopShell);
 
   return (
-    <ModalPortal manageBackLayer={false} onRequestClose={onClose}>
+    <ModalPortal manageBackLayer onRequestClose={onClose}>
       <div
         className={`${desktopShellViewportOverlayClass(
           Boolean(desktopShell),

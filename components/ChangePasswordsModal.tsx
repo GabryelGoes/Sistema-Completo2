@@ -69,6 +69,7 @@ export const ChangePasswordsModal: React.FC<ChangePasswordsModalProps> = ({ isOp
           setPatioPin('');
           setPatioPinConfigured(false);
           setVehicleDeleteConfigured(false);
+          setStockGuardConfigured(false);
           setMessage({ type: 'err', text: 'Não foi possível ler o estado das credenciais.' });
         })
         .finally(() => setLoadingSettings(false));

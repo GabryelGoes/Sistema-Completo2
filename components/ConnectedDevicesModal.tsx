@@ -203,7 +203,7 @@ export const ConnectedDevicesModal: React.FC<ConnectedDevicesModalProps> = ({
                 isDesktopShell ? 'ajustes-pc-ops-header' : ''
               }`}
             >
-              <AjustesPcOpsEyebrow desktop={isDesktopShell}>Ajustes · Operação · Dispositivos</AjustesPcOpsEyebrow>
+              <AjustesPcOpsEyebrow desktop={isDesktopShell}>Ajustes · Segurança · Dispositivos</AjustesPcOpsEyebrow>
               <IosModalHeader
                 icon={
                   <span className="flex h-full w-full items-center justify-center text-zinc-700 dark:text-zinc-200">

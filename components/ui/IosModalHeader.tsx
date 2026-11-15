@@ -6,11 +6,13 @@ export interface IosModalHeaderProps {
   icon: React.ReactNode;
   title: string;
   subtitle?: string;
+  /** Opcional — para `aria-labelledby` no dialog pai. */
+  titleId?: string;
   /** @deprecated Ignorado — o ícone usa a cor de destaque da oficina (mesmo material dos títulos das páginas). */
   gradientClass?: string;
 }
 
-export const IosModalHeader: React.FC<IosModalHeaderProps> = ({ icon, title, subtitle }) => (
+export const IosModalHeader: React.FC<IosModalHeaderProps> = ({ icon, title, subtitle, titleId }) => (
   <div className="flex items-center gap-3 mb-1 pr-2">
     <div className={iosAccentIconShellModal}>
       <span className={iosPageTitleIconGlass} aria-hidden />
@@ -19,7 +21,10 @@ export const IosModalHeader: React.FC<IosModalHeaderProps> = ({ icon, title, sub
       </div>
     </div>
     <div className="min-w-0">
-      <h2 className="font-display text-[22px] sm:text-[26px] font-semibold tracking-tight text-zinc-900 dark:text-white leading-tight">
+      <h2
+        id={titleId}
+        className="font-display text-[22px] sm:text-[26px] font-semibold tracking-tight text-zinc-900 dark:text-white leading-tight"
+      >
         {title}
       </h2>
       {subtitle ? (

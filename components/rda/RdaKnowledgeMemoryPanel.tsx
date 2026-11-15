@@ -12,7 +12,7 @@ import {
   retireRdaKnowledge,
   type RdaKnowledgeListItem,
 } from '../../services/apiService';
-import { NESTED_IOS_MODAL_PICKER_Z } from '../ui/iosModalStyles';
+import { NESTED_IOS_MODAL_PICKER_Z, resolveIosModalOverlayClass } from '../ui/iosModalStyles';
 import { AjustesPcOpsEyebrow } from '../ajustes/AjustesPcOpsEyebrow';
 import { RdaSettingsChildShell } from './RdaSettingsChildShell';
 
@@ -164,7 +164,7 @@ export const RdaKnowledgeMemoryPanel: React.FC<Props> = ({
 
       <div
         className={`mx-auto flex w-full max-w-5xl min-h-0 flex-1 flex-col gap-3 overflow-hidden px-4 py-3 lg:flex-row ${
-          pcChrome ? 'ajustes-pc-rda-scroll ajustes-pc-rda-inner' : ''
+          pcChrome ? 'ajustes-pc-rda-inner' : ''
         }`}
       >
         <section className="flex min-h-0 w-full flex-col lg:w-[42%]">
@@ -423,9 +423,21 @@ export const RdaKnowledgeMemoryPanel: React.FC<Props> = ({
 
       {composeOpen ? (
         <div
-          className={`fixed inset-0 ${NESTED_IOS_MODAL_PICKER_Z} flex items-end justify-center bg-black/40 p-4 sm:items-center`}
+          className={
+            desktopShell
+              ? resolveIosModalOverlayClass(true, NESTED_IOS_MODAL_PICKER_Z)
+              : `fixed inset-0 ${NESTED_IOS_MODAL_PICKER_Z} flex items-end justify-center bg-black/40 p-4 sm:items-center`
+          }
+          role="presentation"
+          onClick={() => setComposeOpen(false)}
         >
-          <div className="w-full max-w-lg rounded-2xl bg-white p-4 shadow-xl dark:bg-zinc-900">
+          <div
+            className="w-full max-w-lg rounded-2xl bg-white p-4 shadow-xl dark:bg-zinc-900"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Nova proposta"
+            onClick={(e) => e.stopPropagation()}
+          >
             <div className="mb-3 flex items-center justify-between">
               <h3 className="text-[16px] font-semibold">Nova proposta</h3>
               <button type="button" onClick={() => setComposeOpen(false)} aria-label="Fechar">

@@ -219,7 +219,7 @@ export const SystemNotificationsModal: React.FC<SystemNotificationsModalProps> =
           }`}
         >
           <div className={`p-5 sm:p-6 pt-14 shrink-0 ${isDesktopShell ? 'ajustes-pc-ops-header pb-4' : ''}`}>
-            <AjustesPcOpsEyebrow desktop={isDesktopShell}>Ajustes · Operação · Notificações</AjustesPcOpsEyebrow>
+            <AjustesPcOpsEyebrow desktop={isDesktopShell}>Ajustes · Notificações</AjustesPcOpsEyebrow>
             <IosModalHeader
               icon={<img src={SYSTEM_NOTIFICATIONS_ICON} alt="" className="h-full w-full min-h-0 object-cover" />}
               title="Notificações do sistema"

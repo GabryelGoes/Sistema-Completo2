@@ -230,7 +230,7 @@ export const RdaProductivityPanel: React.FC<Props> = ({
 
       <div
         className={`relative mx-auto flex w-full max-w-5xl min-h-0 flex-1 flex-col gap-3 overflow-hidden px-4 py-4 ${
-          pcChrome ? 'ajustes-pc-rda-scroll ajustes-pc-rda-inner' : ''
+          pcChrome ? 'ajustes-pc-rda-inner' : ''
         }`}
       >
         <div className="flex flex-wrap items-center gap-2">
