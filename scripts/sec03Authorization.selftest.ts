@@ -240,15 +240,20 @@ async function startMock(tables: Record<string, Row[]>): Promise<{ server: http.
 async function main() {
   const production = productionAuthorizationPolicy();
   record(
-    "produção nasce sem bloqueio",
-    production.families.every((family) => family.unmatched === "ignore" && family.mode !== "enforce") &&
+    "produção bloqueia só a administração da TV",
+    production.families.every((family) => family.unmatched === "ignore") &&
+      production.families
+        .filter((family) => family.mode === "enforce")
+        .map((family) => family.id)
+        .join(",") === "tv_admin" &&
       production.families
         .filter((family) => family.mode === "shadow")
         .map((family) => family.id)
         .sort()
-        .join(",") === "bulletins,parts_stock,reports,technicians,tv_admin,workshop_catalogs" &&
-      authorizationHasEnforce(production, {}) === false,
-    "sombra em técnicos, catálogos, TV, relatórios, boletins e estoque"
+        .join(",") === "bulletins,parts_stock,reports,technicians,workshop_catalogs" &&
+      authorizationHasEnforce(production, {}) === true &&
+      authorizationHasEnforce(production, { SEC03_DISABLE_FAMILIES: "tv_admin" }) === false,
+    "enforce só na TV; sombra em técnicos, catálogos, relatórios, boletins e estoque"
   );
 
   const inactive = await decide({
@@ -938,7 +943,8 @@ async function main() {
         ) &&
       coverage.overlaps.every((route) => route.conflict === false) &&
       uncoveredStaysOpen &&
-      authorizationHasEnforce(production, {}) === false,
+      authorizationHasEnforce(production, {}) === true &&
+      authorizationHasEnforce(production, { SEC03_DISABLE_FAMILIES: "tv_admin" }) === false,
     `rotas ${scanned.length}; protegidas ${coverage.protectedRoutes.length}; públicas ${coverage.publicRoutes.length}; sem regra ${coverage.uncoveredRoutes.length}; sobrepostas ${coverage.overlaps.length}`
   );
 
@@ -1070,7 +1076,7 @@ async function main() {
     log: shadowLog,
   });
   record(
-    "sombra administrativa não bloqueia e separa leitura de escrita",
+    "sombra administrativa não bloqueia; a TV já bloqueia",
     serviceRead.verdict.effect === "allow" &&
       serviceRead.verdict.block === false &&
       checklistRead.verdict.effect === "allow" &&
@@ -1086,14 +1092,14 @@ async function main() {
       checklistAdmin.verdict.effect === "allow" &&
       tvAdmin.verdict.effect === "allow" &&
       tvDenied.verdict.effect === "deny" &&
-      tvDenied.verdict.block === false &&
+      tvDenied.verdict.block === true &&
       tvPublic.verdict.effect === "exempt" &&
       tvPublic.calls === 0 &&
       tvPlaylist.verdict.effect === "exempt" &&
       osMove.verdict.effect === "skipped" &&
       osMove.calls === 0 &&
       lookup.verdict.effect === "lookup_failed" &&
-      lookup.verdict.block === false &&
+      lookup.verdict.block === true &&
       manager.verdict.effect === "allow" &&
       manager.calls === 0 &&
       fullAccess.verdict.effect === "allow" &&
@@ -1271,7 +1277,7 @@ async function main() {
       profilePatch.display_name === "Ana" &&
       !("permissions" in profilePatch) &&
       !("full_access" in profilePatch) &&
-      authorizationHasEnforce() === false,
+      production.families.find((family) => family.id === "technicians")?.mode === "shadow",
     `própria ${ownPhoto.verdict.reason}; outra ${otherPhoto.verdict.reason}; perfil ${selfProfile.verdict.block}`
   );
 
@@ -1357,7 +1363,7 @@ async function main() {
       bodyFields.includes("name") &&
       bodyFields.includes("slug") &&
       !bodyFields.some((field) => field.includes("Ana")) &&
-      authorizationHasEnforce() === false,
+      production.families.find((family) => family.id === "technicians")?.mode === "shadow",
     `slug ${ownSlug.verdict.reason}; misto ${mixedFields.verdict.effect}; gerência ${managerSlug.verdict.reason}`
   );
 
@@ -1513,7 +1519,7 @@ async function main() {
       : [];
     const stockBodies = await Promise.all(stockCalls.map(async (response) => response.json().catch(() => ({}))));
     record(
-      "HTTP real não ganha bloqueio e a TV pública permanece",
+      "HTTP real bloqueia o slide sem a chave e preserva o restante",
       login.status === 200 &&
         !!token &&
         created?.status === 201 &&
@@ -1534,8 +1540,8 @@ async function main() {
         display.status === 200 &&
         boardOpen.status !== 401 &&
         boardOpen.status !== 403 &&
-        slide?.status !== 403 &&
-        slideJson?.code !== "permission_denied" &&
+        slide?.status === 403 &&
+        slideJson?.code === "permission_denied" &&
         moduleCalls.length === 6 &&
         moduleCalls.every((response) => response.status !== 403) &&
         moduleBodies.every((body) => body?.code !== "permission_denied") &&
