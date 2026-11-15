@@ -2,7 +2,7 @@
  * SEC-03.0 — catálogo declarativo de autorização.
  *
  * O bloqueio real começa em uma família por vez. `tv_admin`, `workshop_catalogs`,
- * `technicians`, `reports` e `bulletins` já bloqueiam. A família em `shadow` continua apenas observando.
+ * `technicians`, `reports`, `bulletins` e `parts_stock` já bloqueiam.
  *
  * A chave de aba não libera outra ação: cada regra lista as chaves daquela
  * ação. `anyOf` vazio significa só Gerência ou full_access.
@@ -254,8 +254,8 @@ const FAMILIES: readonly AuthorizationFamily[] = [
   family("budgets", ["/api/service-orders", "/api/patio-budgets-hub", "/api/patio-vehicle-budgets-aggregate"]),
   family("comments", ["/api/service-orders"]),
   family("photos", ["/api/service-orders"]),
-  // SEC-03.7: só observação. Baixa, cancelamento e leitura compartilhada seguem iguais.
-  family("parts_stock", ["/api/workshop-parts", "/api/workshop-suppliers", "/api/workshop-part-categories", "/api/estoque"], "shadow"),
+  // SEC-03.20: bloqueia o estoque. A baixa da OS e a leitura do catálogo continuam nas chaves de cada fluxo.
+  family("parts_stock", ["/api/workshop-parts", "/api/workshop-suppliers", "/api/workshop-part-categories", "/api/estoque"], "enforce"),
   family("abs_stock", ["/api/abs-modules", "/api/abs-module-models"]),
   // SEC-03.14: bloqueia a administração. Consulta operacional e perfil próprio permanecem.
   family("technicians", ["/api/workshop-technicians"], "enforce"),

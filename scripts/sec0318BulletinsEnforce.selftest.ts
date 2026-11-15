@@ -203,12 +203,12 @@ async function main() {
   const shadow = production.families.filter((family) => family.mode === "shadow").map((family) => family.id).sort();
   const bulletinTool = RDA_PRODUCTION_TOOLS.find((tool) => tool.id === "rda_search_error_bulletins");
   record(
-    "política bloqueia boletins e mantém o estoque em sombra",
-    enforced.join(",") === "technicians,workshop_catalogs,tv_admin,bulletins,reports" &&
-      shadow.join(",") === "parts_stock" &&
+    "política bloqueia boletins e estoque",
+    enforced.join(",") === "parts_stock,technicians,workshop_catalogs,tv_admin,bulletins,reports" &&
+      shadow.join(",") === "" &&
       authorizationHasEnforce(production, {}) === true &&
       authorizationHasEnforce(production, { SEC03_DISABLE_FAMILIES: "bulletins" }) === true &&
-      authorizationHasEnforce(production, { SEC03_DISABLE_FAMILIES: "technicians,workshop_catalogs,tv_admin,bulletins,reports" }) === false,
+      authorizationHasEnforce(production, { SEC03_DISABLE_FAMILIES: "parts_stock,technicians,workshop_catalogs,tv_admin,bulletins,reports" }) === false,
     enforced.join(",")
   );
   record(

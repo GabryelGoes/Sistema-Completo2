@@ -240,21 +240,21 @@ async function startMock(tables: Record<string, Row[]>): Promise<{ server: http.
 async function main() {
   const production = productionAuthorizationPolicy();
   record(
-    "produção bloqueia TV, catálogos, técnicos, relatórios e boletins",
+    "produção bloqueia TV, catálogos, técnicos, relatórios, boletins e estoque",
     production.families.every((family) => family.unmatched === "ignore") &&
       production.families
         .filter((family) => family.mode === "enforce")
         .map((family) => family.id)
-        .join(",") === "technicians,workshop_catalogs,tv_admin,bulletins,reports" &&
+        .join(",") === "parts_stock,technicians,workshop_catalogs,tv_admin,bulletins,reports" &&
       production.families
         .filter((family) => family.mode === "shadow")
         .map((family) => family.id)
         .sort()
-        .join(",") === "parts_stock" &&
+        .join(",") === "" &&
       authorizationHasEnforce(production, {}) === true &&
       authorizationHasEnforce(production, { SEC03_DISABLE_FAMILIES: "reports" }) === true &&
-      authorizationHasEnforce(production, { SEC03_DISABLE_FAMILIES: "technicians,workshop_catalogs,tv_admin,bulletins,reports" }) === false,
-    "enforce na TV, nos catálogos, nos técnicos, nos relatórios e nos boletins; sombra no estoque"
+      authorizationHasEnforce(production, { SEC03_DISABLE_FAMILIES: "parts_stock,technicians,workshop_catalogs,tv_admin,bulletins,reports" }) === false,
+    "enforce na TV, nos catálogos, nos técnicos, nos relatórios, nos boletins e no estoque"
   );
 
   const inactive = await decide({
@@ -946,7 +946,7 @@ async function main() {
       uncoveredStaysOpen &&
       authorizationHasEnforce(production, {}) === true &&
       authorizationHasEnforce(production, { SEC03_DISABLE_FAMILIES: "reports" }) === true &&
-      authorizationHasEnforce(production, { SEC03_DISABLE_FAMILIES: "technicians,workshop_catalogs,tv_admin,bulletins,reports" }) === false,
+      authorizationHasEnforce(production, { SEC03_DISABLE_FAMILIES: "parts_stock,technicians,workshop_catalogs,tv_admin,bulletins,reports" }) === false,
     `rotas ${scanned.length}; protegidas ${coverage.protectedRoutes.length}; públicas ${coverage.publicRoutes.length}; sem regra ${coverage.uncoveredRoutes.length}; sobrepostas ${coverage.overlaps.length}`
   );
 
@@ -1366,7 +1366,8 @@ async function main() {
       bodyFields.includes("name") &&
       bodyFields.includes("slug") &&
       !bodyFields.some((field) => field.includes("Ana")) &&
-      production.families.find((family) => family.id === "parts_stock")?.mode === "shadow",
+      production.families.find((family) => family.id === "parts_stock")?.mode === "enforce" &&
+      production.families.every((family) => family.mode !== "shadow"),
     `slug ${ownSlug.verdict.reason}; misto ${mixedFields.verdict.effect}; gerência ${managerSlug.verdict.reason}`
   );
 
@@ -1549,8 +1550,8 @@ async function main() {
         moduleCalls.every((response) => response.status === 403) &&
         moduleBodies.every((body) => body?.code === "permission_denied") &&
         stockCalls.length === 6 &&
-        stockCalls.every((response) => response.status !== 403) &&
-        stockBodies.every((body) => body?.code !== "permission_denied"),
+        stockCalls.every((response) => response.status === 403) &&
+        stockBodies.every((body) => body?.code === "permission_denied"),
       `login ${login.status}; cliente ${created?.status}; tv ${display.status}; quadro ${boardOpen.status}; slide ${slide?.status}; módulos ${moduleCalls.map((response) => response.status).join(",")}; estoque ${stockCalls.map((response) => response.status).join(",")}`
     );
   } finally {

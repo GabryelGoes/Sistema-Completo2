@@ -188,8 +188,8 @@ async function main() {
   const shadow = production.families.filter((family) => family.mode === "shadow").map((family) => family.id).sort();
   record(
     "política mantém a TV e passa a incluir os catálogos",
-    enforced.join(",") === "technicians,workshop_catalogs,tv_admin,bulletins,reports" &&
-      shadow.join(",") === "parts_stock" &&
+    enforced.join(",") === "parts_stock,technicians,workshop_catalogs,tv_admin,bulletins,reports" &&
+      shadow.join(",") === "" &&
       authorizationHasEnforce(production, {}) === true,
     enforced.join(",")
   );
@@ -331,8 +331,8 @@ async function main() {
 
     denied("relatório sem a chave", await hit(base, "/api/reports/technician-services", "GET", ana));
     denied("boletim sem a chave", await hit(base, "/api/error-bulletins", "GET", ana));
+    denied("exclusão de peça sem a chave", await hit(base, "/api/workshop-parts/peca-1", "DELETE", ana));
     const others = await Promise.all([
-      hit(base, "/api/workshop-parts/peca-1", "DELETE", ana),
       hit(base, "/api/workshop-technicians", "GET", ana),
       hit(base, "/api/workshop-services", "GET", ana),
       hit(base, "/api/customers", "POST", ana, { name: "Cliente ficticio", phone: "11999990000" }),
