@@ -4,7 +4,8 @@
  *
  * Primeira vez após o deploy: se o servidor ainda não tem templates e este
  * dispositivo tem edições locais, faz upload automático — preserva o que você
- * já configurou no PC.
+ * já configurou no PC. Upload automático só ocorre com autorização (G3);
+ * 403 não entra em loop de retries.
  */
 import { getWorkshopSettings, updateWorkshopSettings } from '../services/apiService';
 import {
@@ -14,9 +15,24 @@ import {
   saveAllLabelTemplates,
   type LabelTemplatesStore,
 } from './labelTemplates';
+import { isApiHttpError, isNetworkFetchError } from './apiHttpError';
 
-let syncInFlight: Promise<LabelTemplatesStore> | null = null;
+let syncInFlight: Promise<LabelTemplatesSyncResult> | null = null;
 let lastSyncedAt = 0;
+/** Evita re-tentar upload automático após 403 na mesma sessão. */
+let autoUploadDenied = false;
+
+export type LabelTemplatesSyncStatus =
+  | 'remote'
+  | 'local_cache'
+  | 'local_only_network'
+  | 'local_only_forbidden'
+  | 'uploaded_local';
+
+export type LabelTemplatesSyncResult = {
+  store: LabelTemplatesStore;
+  status: LabelTemplatesSyncStatus;
+};
 
 function storeHasAnyTemplate(
   store: Partial<Record<string, unknown>> | null | undefined
@@ -27,20 +43,21 @@ function storeHasAnyTemplate(
 
 /**
  * Busca o store canônico no servidor.
- * - Servidor vazio + local com dados → sobe o local (migração).
+ * - Servidor vazio + local com dados → sobe o local (migração), se autorizado.
  * - Servidor com dados → baixa e atualiza o cache local.
  * - Falha de rede → mantém o local.
+ * - 403 no upload → mantém o local, sem loop.
  */
 export async function syncLabelTemplatesFromServer(opts?: {
   force?: boolean;
-}): Promise<LabelTemplatesStore> {
+}): Promise<LabelTemplatesSyncResult> {
   if (syncInFlight) return syncInFlight;
   const now = Date.now();
   if (!opts?.force && lastSyncedAt && now - lastSyncedAt < 8_000) {
-    return loadAllLabelTemplates();
+    return { store: loadAllLabelTemplates(), status: 'local_cache' };
   }
 
-  syncInFlight = (async () => {
+  syncInFlight = (async (): Promise<LabelTemplatesSyncResult> => {
     const local = loadAllLabelTemplates();
     try {
       const settings = await getWorkshopSettings();
@@ -49,25 +66,39 @@ export async function syncLabelTemplatesFromServer(opts?: {
         const remote = normalizeLabelTemplatesStore(remoteRaw);
         saveAllLabelTemplates(remote);
         lastSyncedAt = Date.now();
-        return remote;
+        return { store: remote, status: 'remote' };
       }
       // Servidor ainda sem templates: tenta publicar o local (SEC-04.2: exige G3).
-      // Sem permissão → 403: mantém cache local e não entra em loop de retries.
-      if (hasLocalLabelTemplates()) {
+      if (hasLocalLabelTemplates() && !autoUploadDenied) {
         try {
           await updateWorkshopSettings({ labelTemplates: local });
-        } catch {
           lastSyncedAt = Date.now();
-          return local;
+          return { store: local, status: 'uploaded_local' };
+        } catch (e) {
+          if (isApiHttpError(e) && e.kind === 'forbidden') {
+            autoUploadDenied = true;
+            lastSyncedAt = Date.now();
+            return { store: local, status: 'local_only_forbidden' };
+          }
+          if (isNetworkFetchError(e) || (isApiHttpError(e) && e.kind === 'server')) {
+            lastSyncedAt = Date.now();
+            return { store: local, status: 'local_only_network' };
+          }
+          lastSyncedAt = Date.now();
+          return { store: local, status: 'local_only_network' };
         }
-        lastSyncedAt = Date.now();
-        return local;
       }
       lastSyncedAt = Date.now();
-      return local;
-    } catch {
+      return {
+        store: local,
+        status: autoUploadDenied ? 'local_only_forbidden' : 'local_cache',
+      };
+    } catch (e) {
       lastSyncedAt = Date.now();
-      return local;
+      if (isApiHttpError(e) && e.kind === 'forbidden') {
+        return { store: local, status: 'local_only_forbidden' };
+      }
+      return { store: local, status: 'local_only_network' };
     } finally {
       syncInFlight = null;
     }
@@ -76,18 +107,23 @@ export async function syncLabelTemplatesFromServer(opts?: {
   return syncInFlight;
 }
 
-/** Salva no cache local e no servidor (fonte da verdade entre dispositivos). */
+export type LabelTemplatesPersistResult = {
+  store: LabelTemplatesStore;
+  remoteSaved: boolean;
+};
+
+/** Salva no cache local e, se autorizado, no servidor. */
 export async function persistLabelTemplatesToServer(
   store: LabelTemplatesStore
-): Promise<LabelTemplatesStore> {
+): Promise<LabelTemplatesPersistResult> {
   const next = normalizeLabelTemplatesStore(store);
   saveAllLabelTemplates(next);
   try {
     await updateWorkshopSettings({ labelTemplates: next });
     lastSyncedAt = Date.now();
+    return { store: next, remoteSaved: true };
   } catch (e) {
-    // Mantém local mesmo se a rede falhar — próxima sync tenta de novo.
+    // Mantém local — não mascara 403/rede como sucesso remoto.
     throw e instanceof Error ? e : new Error('Falha ao salvar etiquetas no servidor.');
   }
-  return next;
 }

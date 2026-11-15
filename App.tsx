@@ -2509,7 +2509,11 @@ export default function App() {
           onCinematographicModeChange={setCinematographicMode}
           ajustesPcChrome={isDesktopShell && settingsHubOpen}
         />
-        <ChangePasswordsModal isOpen={isUserChangePasswordsOpen} onClose={() => setIsUserChangePasswordsOpen(false)} />
+        <ChangePasswordsModal
+          isOpen={isUserChangePasswordsOpen}
+          onClose={() => setIsUserChangePasswordsOpen(false)}
+          allowSecretWrites={false}
+        />
         {hubBudgetViewer ? (
           <BudgetHubViewerModal
             key={`${hubBudgetViewer.serviceOrderId}-${hubBudgetViewer.budgetId}`}

@@ -8,10 +8,16 @@ import { getWorkshopSettings, updateWorkshopSettings } from '../services/apiServ
 import { useRegisterModalOpen } from './ui/ModalLayerContext';
 import { LOGIN_PASSWORD_MIN_LENGTH } from '../utils/loginPasswordPolicy';
 import { ajustesPcChildClass } from './ajustes/AjustesPcLayoutContext';
+import { formatApiFailureMessage } from '../utils/apiHttpError';
 
 interface ChangePasswordsModalProps {
   isOpen: boolean;
   onClose: () => void;
+  /**
+   * SEC-04.4: apenas a Gerência (`auth.r === "admin"`) pode gravar G0/G1.
+   * `full_access` / `access_change_passwords` podem ver o estado, sem formulários editáveis.
+   */
+  allowSecretWrites?: boolean;
 }
 
 function StatusPill({ configured }: { configured: boolean }) {
@@ -26,7 +32,11 @@ function StatusPill({ configured }: { configured: boolean }) {
   );
 }
 
-export const ChangePasswordsModal: React.FC<ChangePasswordsModalProps> = ({ isOpen, onClose }) => {
+export const ChangePasswordsModal: React.FC<ChangePasswordsModalProps> = ({
+  isOpen,
+  onClose,
+  allowSecretWrites = false,
+}) => {
   const isDesktopShell = useDesktopShellLayout();
   const [patioPin, setPatioPin] = useState('');
   const [patioPinConfigured, setPatioPinConfigured] = useState(false);
@@ -65,12 +75,15 @@ export const ChangePasswordsModal: React.FC<ChangePasswordsModalProps> = ({ isOp
           setVehicleDeleteConfigured(Boolean(s.vehicleDeletePasswordConfigured));
           setStockGuardConfigured(Boolean(s.stockGuardPasswordConfigured));
         })
-        .catch(() => {
+        .catch((err) => {
           setPatioPin('');
           setPatioPinConfigured(false);
           setVehicleDeleteConfigured(false);
           setStockGuardConfigured(false);
-          setMessage({ type: 'err', text: 'Não foi possível ler o estado das credenciais.' });
+          setMessage({
+            type: 'err',
+            text: formatApiFailureMessage(err, 'Não foi possível ler o estado das credenciais.'),
+          });
         })
         .finally(() => setLoadingSettings(false));
     }
@@ -80,6 +93,10 @@ export const ChangePasswordsModal: React.FC<ChangePasswordsModalProps> = ({ isOp
 
   const handleSaveAdminPassword = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!allowSecretWrites) {
+      setMessage({ type: 'err', text: 'Somente a Gerência pode alterar estas senhas.' });
+      return;
+    }
     setMessage(null);
     const next = adminPassword.trim();
     if (next.length < LOGIN_PASSWORD_MIN_LENGTH) {
@@ -101,7 +118,7 @@ export const ChangePasswordsModal: React.FC<ChangePasswordsModalProps> = ({ isOp
       setAdminPassword('');
       setAdminConfirm('');
     } catch (err) {
-      setMessage({ type: 'err', text: err instanceof Error ? err.message : 'Erro ao salvar.' });
+      setMessage({ type: 'err', text: formatApiFailureMessage(err, 'Erro ao salvar.') });
     } finally {
       setSavingAdmin(false);
     }
@@ -109,6 +126,10 @@ export const ChangePasswordsModal: React.FC<ChangePasswordsModalProps> = ({ isOp
 
   const handleSavePin = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!allowSecretWrites) {
+      setMessage({ type: 'err', text: 'Somente a Gerência pode alterar estas senhas.' });
+      return;
+    }
     setMessage(null);
     if (!/^\d{4,8}$/.test(patioPin)) {
       setMessage({ type: 'err', text: 'O PIN deve ter de 4 a 8 dígitos.' });
@@ -121,7 +142,7 @@ export const ChangePasswordsModal: React.FC<ChangePasswordsModalProps> = ({ isOp
       setPatioPin('');
       setMessage({ type: 'ok', text: 'PIN dos técnicos alterado!' });
     } catch (err) {
-      setMessage({ type: 'err', text: err instanceof Error ? err.message : 'Erro ao salvar.' });
+      setMessage({ type: 'err', text: formatApiFailureMessage(err, 'Erro ao salvar.') });
     } finally {
       setSavingPin(false);
     }
@@ -129,6 +150,10 @@ export const ChangePasswordsModal: React.FC<ChangePasswordsModalProps> = ({ isOp
 
   const handleSaveVehicleDelete = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!allowSecretWrites) {
+      setMessage({ type: 'err', text: 'Somente a Gerência pode alterar estas senhas.' });
+      return;
+    }
     setMessage(null);
     if (vehicleDeletePassword.trim().length < 4) {
       setMessage({ type: 'err', text: 'A senha deve ter pelo menos 4 caracteres.' });
@@ -146,7 +171,7 @@ export const ChangePasswordsModal: React.FC<ChangePasswordsModalProps> = ({ isOp
       setVehicleDeletePassword('');
       setVehicleDeleteConfirm('');
     } catch (e) {
-      setMessage({ type: 'err', text: e instanceof Error ? e.message : 'Erro ao salvar.' });
+      setMessage({ type: 'err', text: formatApiFailureMessage(e, 'Erro ao salvar.') });
     } finally {
       setSavingVehicleDelete(false);
     }
@@ -154,6 +179,10 @@ export const ChangePasswordsModal: React.FC<ChangePasswordsModalProps> = ({ isOp
 
   const handleSaveStockGuard = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!allowSecretWrites) {
+      setMessage({ type: 'err', text: 'Somente a Gerência pode alterar estas senhas.' });
+      return;
+    }
     setMessage(null);
     if (stockGuardPassword.trim().length < 4) {
       setMessage({ type: 'err', text: 'A senha deve ter pelo menos 4 caracteres.' });
@@ -171,7 +200,7 @@ export const ChangePasswordsModal: React.FC<ChangePasswordsModalProps> = ({ isOp
       setStockGuardPassword('');
       setStockGuardConfirm('');
     } catch (e) {
-      setMessage({ type: 'err', text: e instanceof Error ? e.message : 'Erro ao salvar.' });
+      setMessage({ type: 'err', text: formatApiFailureMessage(e, 'Erro ao salvar.') });
     } finally {
       setSavingStockGuard(false);
     }
@@ -209,7 +238,11 @@ export const ChangePasswordsModal: React.FC<ChangePasswordsModalProps> = ({ isOp
             <IosModalHeader
               icon={<img src="/icons/senhas-ios.png" alt="" className="h-full w-full min-h-0 object-cover" />}
               title="Senhas operacionais"
-              subtitle="Quatro credenciais distintas — valores nunca exibidos"
+              subtitle={
+                allowSecretWrites
+                  ? 'Quatro credenciais distintas — valores nunca exibidos'
+                  : 'Somente a Gerência pode alterar estas credenciais'
+              }
               gradientClass="from-slate-600 to-zinc-800"
             />
           </div>
@@ -227,6 +260,14 @@ export const ChangePasswordsModal: React.FC<ChangePasswordsModalProps> = ({ isOp
             </div>
           )}
 
+          {!allowSecretWrites ? (
+            <div className="rounded-xl border border-amber-300/50 bg-amber-50/80 px-4 py-3 text-[13px] text-amber-900 dark:border-amber-700/40 dark:bg-amber-950/30 dark:text-amber-200">
+              Você pode consultar se as senhas operacionais estão configuradas. A gravação de PIN,
+              senha da Gerência e demais credenciais administrativas permanece exclusiva da Gerência.
+              Para trocar a senha da sua conta, use o perfil do usuário.
+            </div>
+          ) : null}
+
           <div className={isDesktopShell ? 'ajustes-pc-cred-grid' : 'space-y-6'}>
           {/* Senha do login Gerência */}
           <section className={`${iosModalInsetCard} border border-amber-300/50 p-4 sm:p-5 dark:border-amber-700/40`}>
@@ -240,6 +281,7 @@ export const ChangePasswordsModal: React.FC<ChangePasswordsModalProps> = ({ isOp
               Usuário de login: <strong className="font-semibold text-zinc-800 dark:text-zinc-200">Gerência</strong>.
               Acesso total do sistema. A mesma credencial também pode ser alterada no perfil do administrador.
             </p>
+            {allowSecretWrites ? (
             <form onSubmit={handleSaveAdminPassword} className="space-y-3">
               <input
                 type="password"
@@ -269,6 +311,9 @@ export const ChangePasswordsModal: React.FC<ChangePasswordsModalProps> = ({ isOp
                 Salvar senha da Gerência
               </button>
             </form>
+            ) : (
+              <p className="text-[13px] text-zinc-500 dark:text-zinc-400">Edição bloqueada para este perfil.</p>
+            )}
           </section>
 
           {/* PIN dos técnicos */}
@@ -291,7 +336,7 @@ export const ChangePasswordsModal: React.FC<ChangePasswordsModalProps> = ({ isOp
               <div className="flex items-center gap-2 text-zinc-500 text-sm py-4">
                 <Loader2 className="w-4 h-4 animate-spin" /> Carregando...
               </div>
-            ) : (
+            ) : allowSecretWrites ? (
               <form onSubmit={handleSavePin} className="space-y-3">
                 <div className="relative">
                   <input
@@ -322,6 +367,8 @@ export const ChangePasswordsModal: React.FC<ChangePasswordsModalProps> = ({ isOp
                   Salvar PIN
                 </button>
               </form>
+            ) : (
+              <p className="text-[13px] text-zinc-500 dark:text-zinc-400">Edição bloqueada para este perfil.</p>
             )}
           </section>
 
@@ -341,6 +388,7 @@ export const ChangePasswordsModal: React.FC<ChangePasswordsModalProps> = ({ isOp
                 ? 'Já existe uma senha. Informe uma nova para substituir.'
                 : 'Nenhuma senha de exclusão configurada.'}
             </p>
+            {allowSecretWrites ? (
             <form onSubmit={handleSaveVehicleDelete} className="space-y-3">
               <input
                 type="password"
@@ -365,6 +413,9 @@ export const ChangePasswordsModal: React.FC<ChangePasswordsModalProps> = ({ isOp
                 Salvar senha de exclusão
               </button>
             </form>
+            ) : (
+              <p className="text-[13px] text-zinc-500 dark:text-zinc-400">Edição bloqueada para este perfil.</p>
+            )}
           </section>
 
           {/* Senha de proteção do estoque */}
@@ -383,6 +434,7 @@ export const ChangePasswordsModal: React.FC<ChangePasswordsModalProps> = ({ isOp
                 ? '; já existe senha dedicada.'
                 : ' — opcional definir senha dedicada.'}
             </p>
+            {allowSecretWrites ? (
             <form onSubmit={handleSaveStockGuard} className="space-y-3">
               <input
                 type="password"
@@ -411,6 +463,9 @@ export const ChangePasswordsModal: React.FC<ChangePasswordsModalProps> = ({ isOp
                 Salvar proteção do estoque
               </button>
             </form>
+            ) : (
+              <p className="text-[13px] text-zinc-500 dark:text-zinc-400">Edição bloqueada para este perfil.</p>
+            )}
           </section>
           </div>
         </div>

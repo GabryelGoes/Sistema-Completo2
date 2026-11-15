@@ -40,6 +40,7 @@ import type { WorkshopSupplier, WorkshopSupplierWriteInput } from "../utils/work
 import type { EstoqueLedgerEntry } from "../utils/estoqueLedger";
 import type { EmployeePermissions, ServerAccessSnapshot } from "../utils/employeeAccess";
 import { asPermissionRecord, normalizePermissionsForAdminSave } from "../utils/employeeAccess";
+import { throwIfNotOk } from "../utils/apiHttpError";
 type SystemUserPermissions = EmployeePermissions;
 
 export type { TvChimeAlert, TvChimeKind, TvChimeSoundPreset } from "@/utils/tvChimeSchedule";
@@ -6091,10 +6092,7 @@ export interface WorkshopSettings {
 
 export async function getWorkshopSettings(): Promise<WorkshopSettings> {
   const response = await fetch(`${API_BASE}/workshop-settings`);
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    throw new Error(err.error || "Falha ao carregar configurações.");
-  }
+  await throwIfNotOk(response, "Falha ao carregar configurações");
   return response.json();
 }
 
@@ -6125,10 +6123,7 @@ export async function updateWorkshopSettings(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(updates),
   });
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    throw new Error(err.error || "Falha ao salvar configurações.");
-  }
+  await throwIfNotOk(response, "Falha ao salvar configurações");
   return response.json();
 }
 
@@ -6157,10 +6152,7 @@ export interface SystemNotificationsConfig {
 
 export async function getSystemNotificationsConfig(): Promise<SystemNotificationsConfig> {
   const response = await fetch(`${API_BASE}/workshop/system-notifications`);
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    throw new Error(err.error || "Falha ao carregar notificações do sistema.");
-  }
+  await throwIfNotOk(response, "Falha ao carregar notificações do sistema");
   const data = (await response.json()) as SystemNotificationsConfig;
   return {
     adminNotificationTypes: data.adminNotificationTypes ?? [],
@@ -6182,10 +6174,7 @@ export async function saveSystemNotificationsConfig(body: {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
-  if (!response.ok) {
-    const err = await response.json().catch(() => ({}));
-    throw new Error(err.error || "Falha ao salvar notificações do sistema.");
-  }
+  await throwIfNotOk(response, "Falha ao salvar notificações do sistema");
 }
 
 /**

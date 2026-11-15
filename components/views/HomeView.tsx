@@ -422,17 +422,21 @@ export const HomeView: React.FC<HomeViewProps> = ({
           else setIsChangePasswordsOpen(true);
           break;
         case 'servicos_oficina':
+          if (!ajustesVisibility.servicos_oficina) break;
           setIsServicesModalOpen(true);
           break;
         case 'checklists_patio':
+          if (!ajustesVisibility.checklists_patio) break;
           setIsPatioChecklistsOpen(true);
           break;
         case 'painel_tv':
           break;
         case 'lab_tipos':
+          if (!ajustesVisibility.lab_tipos) break;
           setIsLabProductTypesOpen(true);
           break;
         case 'lab_rapidos':
+          if (!ajustesVisibility.lab_rapidos) break;
           setIsLabQuickServicesOpen(true);
           break;
         case 'orcamentos_prefs':
@@ -440,6 +444,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
           setIsBudgetPrefsOpen(true);
           break;
         case 'notificacoes_sistema':
+          if (!ajustesVisibility.notificacoes_sistema) break;
           setIsSystemNotificationsOpen(true);
           break;
         case 'tema':
@@ -455,6 +460,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
           setIsDeviceLayoutOpen(true);
           break;
         case 'etiquetas':
+          if (!ajustesVisibility.etiquetas) break;
           setIsLabelEditorOpen(true);
           break;
         case 'memoria_rda':
@@ -522,8 +528,14 @@ export const HomeView: React.FC<HomeViewProps> = ({
       isTechnician,
       isLimitedSystem,
       ajustesVisibility.senhas,
+      ajustesVisibility.servicos_oficina,
+      ajustesVisibility.checklists_patio,
+      ajustesVisibility.lab_tipos,
+      ajustesVisibility.lab_rapidos,
       ajustesVisibility.orcamentos_prefs,
+      ajustesVisibility.notificacoes_sistema,
       ajustesVisibility.tema,
+      ajustesVisibility.etiquetas,
       onLogout,
       onOpenChangePasswords,
       onOpenSettings,
@@ -533,6 +545,27 @@ export const HomeView: React.FC<HomeViewProps> = ({
       setSettingsHubOpen,
     ]
   );
+
+  // SEC-04.4: ao perder permissão, fecha modais administrativos ainda abertos.
+  useEffect(() => {
+    if (!ajustesVisibility.lab_tipos) setIsLabProductTypesOpen(false);
+    if (!ajustesVisibility.lab_rapidos) setIsLabQuickServicesOpen(false);
+    if (!ajustesVisibility.etiquetas) setIsLabelEditorOpen(false);
+    if (!ajustesVisibility.notificacoes_sistema) setIsSystemNotificationsOpen(false);
+    if (!ajustesVisibility.senhas) setIsChangePasswordsOpen(false);
+    if (!ajustesVisibility.servicos_oficina) setIsServicesModalOpen(false);
+    if (!ajustesVisibility.checklists_patio) setIsPatioChecklistsOpen(false);
+    if (!ajustesVisibility.orcamentos_prefs) setIsBudgetPrefsOpen(false);
+  }, [
+    ajustesVisibility.lab_tipos,
+    ajustesVisibility.lab_rapidos,
+    ajustesVisibility.etiquetas,
+    ajustesVisibility.notificacoes_sistema,
+    ajustesVisibility.senhas,
+    ajustesVisibility.servicos_oficina,
+    ajustesVisibility.checklists_patio,
+    ajustesVisibility.orcamentos_prefs,
+  ]);
 
   const ajustesPerfilTitle = isSystemUser
     ? 'Configurações de perfil'
@@ -1333,7 +1366,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
         </SettingsHubShell>
       ) : null}
 
-      {/* Notificações do sistema (inclui switches de banners RDA) — fora do gate isTechnician. */}
+      {/* SEC-04.4: modais autorizados montados por visibility — fora do gate genérico isTechnician. */}
       {ajustesVisibility.notificacoes_sistema ? (
         <SystemNotificationsModal
           isOpen={isSystemNotificationsOpen}
@@ -1358,6 +1391,41 @@ export const HomeView: React.FC<HomeViewProps> = ({
         />
       ) : null}
 
+      {ajustesVisibility.lab_tipos ? (
+        <LabProductTypesModal isOpen={isLabProductTypesOpen} onClose={() => setIsLabProductTypesOpen(false)} />
+      ) : null}
+      {ajustesVisibility.lab_rapidos ? (
+        <LabQuickServicesModal isOpen={isLabQuickServicesOpen} onClose={() => setIsLabQuickServicesOpen(false)} />
+      ) : null}
+      {ajustesVisibility.etiquetas ? (
+        <LabelTemplatesEditorModal
+          open={isLabelEditorOpen}
+          onClose={() => setIsLabelEditorOpen(false)}
+        />
+      ) : null}
+      {ajustesVisibility.senhas ? (
+        <ChangePasswordsModal
+          isOpen={isChangePasswordsOpen}
+          onClose={() => setIsChangePasswordsOpen(false)}
+          allowSecretWrites={isWorkshopAdmin}
+        />
+      ) : null}
+      {ajustesVisibility.servicos_oficina ? (
+        <WorkshopServicesModal isOpen={isServicesModalOpen} onClose={() => setIsServicesModalOpen(false)} />
+      ) : null}
+      {ajustesVisibility.checklists_patio ? (
+        <PatioChecklistsModal isOpen={isPatioChecklistsOpen} onClose={() => setIsPatioChecklistsOpen(false)} />
+      ) : null}
+      {ajustesVisibility.orcamentos_prefs && typeof onBlurUnverifiedBudgetsChange === 'function' ? (
+        <BudgetPreferencesModal
+          isOpen={isBudgetPrefsOpen}
+          onClose={() => setIsBudgetPrefsOpen(false)}
+          blurUnverifiedBudgets={blurUnverifiedBudgets}
+          onBlurUnverifiedBudgetsChange={onBlurUnverifiedBudgetsChange}
+        />
+      ) : null}
+
+      {/* RDA, usuários e inventário privilegiado: preservam gate !isTechnician. */}
       {!isTechnician && (
         <>
           <RdaKnowledgeMemoryPanel
@@ -1401,26 +1469,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
             />
           ) : null}
           <SystemUsersModal isOpen={isSystemUsersOpen} onClose={() => setIsSystemUsersOpen(false)} refreshTrigger={systemUsersRefreshTrigger} />
-          {typeof onBlurUnverifiedBudgetsChange === 'function' ? (
-            <BudgetPreferencesModal
-              isOpen={isBudgetPrefsOpen}
-              onClose={() => setIsBudgetPrefsOpen(false)}
-              blurUnverifiedBudgets={blurUnverifiedBudgets}
-              onBlurUnverifiedBudgetsChange={onBlurUnverifiedBudgetsChange}
-            />
-          ) : null}
-          <LabelTemplatesEditorModal
-            open={isLabelEditorOpen}
-            onClose={() => setIsLabelEditorOpen(false)}
-          />
-          <WorkshopServicesModal isOpen={isServicesModalOpen} onClose={() => setIsServicesModalOpen(false)} />
-          <LabProductTypesModal isOpen={isLabProductTypesOpen} onClose={() => setIsLabProductTypesOpen(false)} />
-          <LabQuickServicesModal isOpen={isLabQuickServicesOpen} onClose={() => setIsLabQuickServicesOpen(false)} />
           {!onOpenPartsStock ? (
             <WorkshopPartsModal isOpen={isPartsModalOpen} onClose={() => setIsPartsModalOpen(false)} />
           ) : null}
-          <PatioChecklistsModal isOpen={isPatioChecklistsOpen} onClose={() => setIsPatioChecklistsOpen(false)} />
-          <ChangePasswordsModal isOpen={isChangePasswordsOpen} onClose={() => setIsChangePasswordsOpen(false)} />
         </>
       )}
       <ConnectedDevicesModal

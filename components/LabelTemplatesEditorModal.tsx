@@ -37,6 +37,7 @@ import {
   persistLabelTemplatesToServer,
   syncLabelTemplatesFromServer,
 } from '../utils/labelTemplatesSync';
+import { formatApiFailureMessage, isApiHttpError } from '../utils/apiHttpError';
 import { renderLabOsLabelDataUrl } from '../utils/labOsLabelRender';
 import {
   NIIMBOT_LABEL_H_PX,
@@ -174,6 +175,8 @@ export function LabelTemplatesEditorModal({
   const [building, setBuilding] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
+  const [syncStatusNote, setSyncStatusNote] = useState<string | null>(null);
+  const [remoteSaved, setRemoteSaved] = useState(false);
   const [drag, setDrag] = useState<{
     elId: string;
     startX: number;
@@ -190,9 +193,23 @@ export function LabelTemplatesEditorModal({
     if (persistTimerRef.current == null) return;
     window.clearTimeout(persistTimerRef.current);
     persistTimerRef.current = null;
-    void persistLabelTemplatesToServer(store).catch(() => {
-      /* já está no localStorage */
-    });
+    void persistLabelTemplatesToServer(store)
+      .then((result) => {
+        setRemoteSaved(result.remoteSaved);
+        if (result.remoteSaved) {
+          setSyncError(null);
+          setSyncStatusNote(null);
+        }
+      })
+      .catch((e) => {
+        setRemoteSaved(false);
+        setSyncError(
+          formatApiFailureMessage(
+            e,
+            'Não foi possível salvar no servidor. As alterações ficaram só neste dispositivo.'
+          )
+        );
+      });
   }, [store]);
 
   const handleClose = useCallback(() => {
@@ -211,19 +228,37 @@ export function LabelTemplatesEditorModal({
     setActiveId(initialTemplateId);
     setSelectedId(local[initialTemplateId]?.elements[0]?.id ?? null);
     setSyncError(null);
+    setSyncStatusNote(null);
+    setRemoteSaved(false);
     setSyncing(true);
     void syncLabelTemplatesFromServer({ force: true })
-      .then((remote) => {
+      .then((result) => {
         if (cancelled) return;
-        setStore(remote);
+        setStore(result.store);
         setSelectedId((prev) => {
-          const still = remote[initialTemplateId]?.elements.some((e) => e.id === prev);
-          return still ? prev : remote[initialTemplateId]?.elements[0]?.id ?? null;
+          const still = result.store[initialTemplateId]?.elements.some((e) => e.id === prev);
+          return still ? prev : result.store[initialTemplateId]?.elements[0]?.id ?? null;
         });
+        if (result.status === 'remote' || result.status === 'uploaded_local') {
+          setRemoteSaved(true);
+          setSyncStatusNote(null);
+        } else if (result.status === 'local_only_forbidden') {
+          setRemoteSaved(false);
+          setSyncStatusNote(
+            'Sem permissão para publicar no servidor. Usando cache local neste dispositivo.'
+          );
+        } else if (result.status === 'local_only_network') {
+          setRemoteSaved(false);
+          setSyncStatusNote(
+            'Servidor indisponível. Usando cache local neste dispositivo.'
+          );
+        } else {
+          setSyncStatusNote(null);
+        }
       })
       .catch((e) => {
         if (cancelled) return;
-        setSyncError(e instanceof Error ? e.message : 'Falha ao sincronizar etiquetas.');
+        setSyncError(formatApiFailureMessage(e, 'Falha ao sincronizar etiquetas.'));
       })
       .finally(() => {
         if (!cancelled) setSyncing(false);
@@ -266,13 +301,29 @@ export function LabelTemplatesEditorModal({
     if (persistTimerRef.current != null) window.clearTimeout(persistTimerRef.current);
     persistTimerRef.current = window.setTimeout(() => {
       persistTimerRef.current = null;
-      void persistLabelTemplatesToServer(normalized).catch((e) => {
-        setSyncError(
-          e instanceof Error
-            ? e.message
-            : 'Não foi possível salvar no servidor. As alterações ficaram só neste dispositivo.'
-        );
-      });
+      void persistLabelTemplatesToServer(normalized)
+        .then((result) => {
+          setRemoteSaved(result.remoteSaved);
+          if (result.remoteSaved) {
+            setSyncError(null);
+            setSyncStatusNote(null);
+          }
+        })
+        .catch((e) => {
+          setRemoteSaved(false);
+          if (isApiHttpError(e) && e.kind === 'forbidden') {
+            setSyncError(
+              'Sem permissão para gravar no servidor. Alterações ficaram só neste dispositivo.'
+            );
+            return;
+          }
+          setSyncError(
+            formatApiFailureMessage(
+              e,
+              'Não foi possível salvar no servidor. As alterações ficaram só neste dispositivo.'
+            )
+          );
+        });
     }, 450);
   }, []);
 
@@ -442,10 +493,14 @@ export function LabelTemplatesEditorModal({
               titleId="label-templates-editor-title"
               subtitle={
                 syncing
-                  ? 'Sincronizando com todos os dispositivos…'
+                  ? 'Sincronizando com o servidor…'
                   : syncError
                     ? syncError
-                    : 'Laboratório, estoque, chave · 50 × 30 mm · sincronizado em todos os dispositivos'
+                    : syncStatusNote
+                      ? syncStatusNote
+                      : remoteSaved
+                        ? 'Laboratório, estoque, chave · 50 × 30 mm · sincronizado em todos os dispositivos'
+                        : 'Laboratório, estoque, chave · 50 × 30 mm · cache local neste dispositivo'
               }
             />
             <div className="mt-3 flex flex-wrap gap-1.5">
