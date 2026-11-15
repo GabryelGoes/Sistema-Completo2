@@ -96,7 +96,7 @@ function ok(name: string, cond: boolean, detail = "") {
   }
 }
 
-function pendingCase(name: string, phase: "04.2" | "04.2+" | "04.3" | "04.4", note: string) {
+function pendingCase(name: string, phase: "04.2" | "04.2+" | "04.3" | "04.3+" | "04.4", note: string) {
   pending += 1;
   console.log(`PENDING  [${phase}] ${name} — ${note}`);
 }
@@ -124,7 +124,7 @@ function currentWorkshopSettingsPut(actor: StaffActor | null, rawBody: unknown):
 }
 
 /**
- * Contrato ATUAL do PUT /api/workshop/system-notifications.
+ * Contrato vigente PUT system-notifications após SEC-04.3.
  * `passwordElevates` simula verifyAdmin bem-sucedido (sem senha real).
  */
 function currentSystemNotificationsPut(
@@ -134,8 +134,12 @@ function currentSystemNotificationsPut(
   if (!actor) return "401";
   let allowed = false;
   if (actor.role === "admin") allowed = true;
-  else if (actor.role === "user" && actor.permissions?.full_access) allowed = true;
-  // access_notificacoes_sistema NÃO entra no cálculo atual
+  else if (
+    actor.role === "user" &&
+    (actor.permissions?.full_access || actor.permissions?.access_notificacoes_sistema)
+  ) {
+    allowed = true;
+  }
   if (!allowed) {
     return opts.passwordElevates ? "allow" : "403";
   }
@@ -350,34 +354,30 @@ ok(
 ok("A7 notif admin allow", currentSystemNotificationsPut(ACTORS.admin) === "allow");
 ok("A7 notif full_access allow", currentSystemNotificationsPut(ACTORS.full) === "allow");
 ok(
-  "A7 notif access_notificacoes_sistema sozinho 403 — atual",
-  currentSystemNotificationsPut(ACTORS.notif) === "403"
+  "A7 notif access_notificacoes_sistema allow (SEC-04.3)",
+  currentSystemNotificationsPut(ACTORS.notif) === "allow"
 );
 ok(
-  "A7 notif N + senha eleva — atual",
-  currentSystemNotificationsPut(ACTORS.notif, { passwordElevates: true }) === "allow"
-);
-ok(
-  "A7 notif P0 + senha eleva — atual",
+  "A7 notif P0 + senha eleva — legado",
   currentSystemNotificationsPut(ACTORS.nonePerms, { passwordElevates: true }) === "allow"
 );
 ok(
-  "A7 notif full + senha inválida 403 — atual",
+  "A7 notif full + senha inválida 403",
   currentSystemNotificationsPut(ACTORS.full, {
     passwordProvidedWhenAllowed: true,
     passwordValidWhenProvided: false,
   }) === "403"
 );
 ok(
-  "A7 handler não referencia access_notificacoes_sistema",
+  "A7 handler usa authorizeSystemNotificationsPut + verifyAdmin",
   (() => {
     const start = apiApp.indexOf('app.put("/api/workshop/system-notifications"');
     const end = apiApp.indexOf('app.put("/api/workshop-settings"', start);
     const slice = apiApp.slice(start, end);
     return (
-      slice.includes("full_access") &&
+      slice.includes("authorizeSystemNotificationsPut") &&
       slice.includes("verifyAdmin") &&
-      !slice.includes("access_notificacoes_sistema")
+      apiApp.includes("authorizeSystemNotificationsGet")
     );
   })()
 );
@@ -564,13 +564,15 @@ ok(
 ok("B→A lab photo P0 403", currentLabPhoto(ACTORS.nonePerms) === "403");
 ok("B→A lab photo L allow", currentLabPhoto(ACTORS.lab) === "allow");
 
-pendingCase("GET system-notifications exige N|F|G", "04.3", "hoje qualquer auth lista availableUsers");
-pendingCase(
-  "PUT system-notifications honra access_notificacoes_sistema",
-  "04.3",
-  `proposta N=${proposedNotifWrite(ACTORS.notif)} atual=403 sem senha`
+ok(
+  "B→A GET/PUT notif N alinhado",
+  currentSystemNotificationsPut(ACTORS.notif) === proposedNotifWrite(ACTORS.notif)
 );
-pendingCase("Decisão N3: senha Gerência como break-glass", "04.3", "não remover elevação sem aprovação");
+pendingCase(
+  "Decisão N3 futura: remover elevação por senha no PUT notif",
+  "04.3+",
+  "legado ainda preservado nesta fase"
+);
 pendingCase(
   "Atomicidade de persistência (transação DB)",
   "04.2+",
