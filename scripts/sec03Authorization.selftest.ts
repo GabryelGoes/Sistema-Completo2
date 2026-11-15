@@ -240,21 +240,21 @@ async function startMock(tables: Record<string, Row[]>): Promise<{ server: http.
 async function main() {
   const production = productionAuthorizationPolicy();
   record(
-    "produção bloqueia a TV e os catálogos da oficina",
+    "produção bloqueia TV, catálogos e técnicos",
     production.families.every((family) => family.unmatched === "ignore") &&
       production.families
         .filter((family) => family.mode === "enforce")
         .map((family) => family.id)
-        .join(",") === "workshop_catalogs,tv_admin" &&
+        .join(",") === "technicians,workshop_catalogs,tv_admin" &&
       production.families
         .filter((family) => family.mode === "shadow")
         .map((family) => family.id)
         .sort()
-        .join(",") === "bulletins,parts_stock,reports,technicians" &&
+        .join(",") === "bulletins,parts_stock,reports" &&
       authorizationHasEnforce(production, {}) === true &&
-      authorizationHasEnforce(production, { SEC03_DISABLE_FAMILIES: "tv_admin" }) === true &&
-      authorizationHasEnforce(production, { SEC03_DISABLE_FAMILIES: "tv_admin,workshop_catalogs" }) === false,
-    "enforce na TV e nos catálogos; sombra em técnicos, relatórios, boletins e estoque"
+      authorizationHasEnforce(production, { SEC03_DISABLE_FAMILIES: "technicians" }) === true &&
+      authorizationHasEnforce(production, { SEC03_DISABLE_FAMILIES: "technicians,workshop_catalogs,tv_admin" }) === false,
+    "enforce na TV, nos catálogos e nos técnicos; sombra em relatórios, boletins e estoque"
   );
 
   const inactive = await decide({
@@ -945,8 +945,8 @@ async function main() {
       coverage.overlaps.every((route) => route.conflict === false) &&
       uncoveredStaysOpen &&
       authorizationHasEnforce(production, {}) === true &&
-      authorizationHasEnforce(production, { SEC03_DISABLE_FAMILIES: "workshop_catalogs" }) === true &&
-      authorizationHasEnforce(production, { SEC03_DISABLE_FAMILIES: "tv_admin,workshop_catalogs" }) === false,
+      authorizationHasEnforce(production, { SEC03_DISABLE_FAMILIES: "technicians" }) === true &&
+      authorizationHasEnforce(production, { SEC03_DISABLE_FAMILIES: "technicians,workshop_catalogs,tv_admin" }) === false,
     `rotas ${scanned.length}; protegidas ${coverage.protectedRoutes.length}; públicas ${coverage.publicRoutes.length}; sem regra ${coverage.uncoveredRoutes.length}; sobrepostas ${coverage.overlaps.length}`
   );
 
@@ -1078,7 +1078,7 @@ async function main() {
     log: shadowLog,
   });
   record(
-    "catálogos e TV bloqueiam a escrita; técnicos continuam em sombra",
+    "catálogos, TV e técnicos bloqueiam a escrita administrativa",
     serviceRead.verdict.effect === "allow" &&
       serviceRead.verdict.block === false &&
       checklistRead.verdict.effect === "allow" &&
@@ -1088,8 +1088,9 @@ async function main() {
       checklistWrite.verdict.block === true &&
       techRead.verdict.effect === "allow" &&
       techWrite.verdict.effect === "deny" &&
-      techWrite.verdict.block === false &&
+      techWrite.verdict.block === true &&
       techPhoto.verdict.effect === "deny" &&
+      techPhoto.verdict.block === true &&
       catalogAdmin.verdict.effect === "allow" &&
       checklistAdmin.verdict.effect === "allow" &&
       tvAdmin.verdict.effect === "allow" &&
@@ -1246,7 +1247,7 @@ async function main() {
       ownName.verdict.effect === "allow" &&
       otherPhoto.verdict.effect === "deny" &&
       otherPhoto.verdict.reason === "not_self" &&
-      otherPhoto.verdict.block === false &&
+      otherPhoto.verdict.block === true &&
       otherName.verdict.block === true &&
       otherName.verdict.reason === "not_self" &&
       managerPhoto.verdict.effect === "allow" &&
@@ -1260,7 +1261,7 @@ async function main() {
       noLink.verdict.block === true &&
       otherWorkshop.verdict.reason === "not_in_workshop" &&
       linkDown.verdict.effect === "lookup_failed" &&
-      linkDown.verdict.block === false &&
+      linkDown.verdict.block === true &&
       linkDownEnforce.verdict.block === true &&
       selfAccess.verdict.effect === "allow" &&
       selfAccess.verdict.reason === "self" &&
@@ -1279,7 +1280,7 @@ async function main() {
       profilePatch.display_name === "Ana" &&
       !("permissions" in profilePatch) &&
       !("full_access" in profilePatch) &&
-      production.families.find((family) => family.id === "technicians")?.mode === "shadow",
+      production.families.find((family) => family.id === "technicians")?.mode === "enforce",
     `própria ${ownPhoto.verdict.reason}; outra ${otherPhoto.verdict.reason}; perfil ${selfProfile.verdict.block}`
   );
 
@@ -1349,7 +1350,7 @@ async function main() {
       ownName.verdict.block === false &&
       ownSlug.verdict.effect === "deny" &&
       ownSlug.verdict.reason === "field_forbidden" &&
-      ownSlug.verdict.block === false &&
+      ownSlug.verdict.block === true &&
       ownSlugEnforce.verdict.block === true &&
       otherSlug.verdict.effect === "deny" &&
       otherSlug.verdict.reason === "not_self" &&
@@ -1365,7 +1366,7 @@ async function main() {
       bodyFields.includes("name") &&
       bodyFields.includes("slug") &&
       !bodyFields.some((field) => field.includes("Ana")) &&
-      production.families.find((family) => family.id === "technicians")?.mode === "shadow",
+      production.families.find((family) => family.id === "reports")?.mode === "shadow",
     `slug ${ownSlug.verdict.reason}; misto ${mixedFields.verdict.effect}; gerência ${managerSlug.verdict.reason}`
   );
 
