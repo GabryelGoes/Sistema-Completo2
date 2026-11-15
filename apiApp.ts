@@ -79,7 +79,10 @@ import { timeKindsToAutoPauseOnStageChange } from "./services/rdaIntelligence/wo
 import { recordServiceOrderStageEntry } from "./services/rdaIntelligence/patioIntelligence/recordStageEntry.js";
 import { assertHomologationSafeOrThrow } from "./utils/homologationGuard.js";
 import { classifyNewLoginPassword } from "./utils/loginPasswordPolicy.js";
-import { guardHttpAuthorization, permissionSourceFromSupabase } from "./utils/authorizeRequest.js";
+import { effectiveFamilyMode, guardHttpAuthorization, permissionSourceFromSupabase } from "./utils/authorizeRequest.js";
+import { productionAuthorizationPolicy } from "./utils/authorizationPolicy.js";
+import { assessBudgetApprovalPut } from "./utils/budgetApprovalGuard.js";
+import { projectBudgetAggregateItem } from "./utils/budgetAggregateView.js";
 import {
   APPOINTMENT_LIST_PUBLIC_FIELDS,
   appointmentListSeesPrivateFields,
@@ -5679,7 +5682,7 @@ export function createApiApp() {
   });
 
   /** Orçamentos de OS ativas no Pátio e Laboratório (exclui arquivadas) — hub + badge. */
-  app.get("/api/patio-vehicle-budgets-aggregate", async (_req, res) => {
+  app.get("/api/patio-vehicle-budgets-aggregate", async (req, res) => {
     try {
       if (!supabaseAdmin || !WORKSHOP_ID) {
         return res.status(500).json({
@@ -5880,7 +5883,16 @@ export function createApiApp() {
           Math.max(new Date(b.createdAt).getTime(), new Date(b.updatedAt).getTime()) -
           Math.max(new Date(a.createdAt).getTime(), new Date(a.updatedAt).getTime())
       );
-      return res.json({ items });
+      let detailed = true;
+      if (budgetsFamilyEnforced()) {
+        const caps = await budgetActorCaps(req);
+        detailed = !caps.lookupFailed && (caps.read || caps.write || caps.approve);
+      }
+      return res.json({
+        items: detailed
+          ? items
+          : items.map((item) => projectBudgetAggregateItem(item as unknown as Record<string, unknown>, false)),
+      });
     } catch (err: any) {
       console.error("[API] Erro em GET /api/patio-vehicle-budgets-aggregate:", err);
       return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
@@ -9004,6 +9016,46 @@ export function createApiApp() {
     }
   });
 
+  function budgetsFamilyEnforced(): boolean {
+    const family = productionAuthorizationPolicy().families.find((item) => item.id === "budgets");
+    return !!family && effectiveFamilyMode(family) === "enforce";
+  }
+
+  async function budgetActorCaps(req: express.Request): Promise<{
+    write: boolean;
+    approve: boolean;
+    read: boolean;
+    lookupFailed: boolean;
+  }> {
+    const auth = (req as unknown as { auth?: SessionPayload }).auth;
+    if (!auth) return { write: false, approve: false, read: false, lookupFailed: false };
+    if (auth.r === "admin") return { write: true, approve: true, read: true, lookupFailed: false };
+    const userId = typeof auth.u === "string" ? auth.u.trim() : "";
+    if (!userId || !supabaseAdmin || !WORKSHOP_ID) {
+      return { write: false, approve: false, read: false, lookupFailed: true };
+    }
+    const loaded = await permissionSourceFromSupabase(supabaseAdmin).loadUser(WORKSHOP_ID, userId);
+    if (!loaded.ok) return { write: false, approve: false, read: false, lookupFailed: true };
+    if (!loaded.row) return { write: false, approve: false, read: false, lookupFailed: false };
+    const perms =
+      loaded.row.permissions && typeof loaded.row.permissions === "object" && !Array.isArray(loaded.row.permissions)
+        ? (loaded.row.permissions as Record<string, unknown>)
+        : {};
+    const write =
+      perms.full_access === true || perms.patio_edit_budgets === true || perms.access_orcamentos === true;
+    const approve =
+      perms.full_access === true ||
+      perms.patio_approve_budget_items === true ||
+      (perms.patio_approve_budget_items !== false && perms.patio_edit_budgets === true);
+    const read =
+      write ||
+      approve ||
+      perms.access_patio === true ||
+      perms.access_laboratorio === true ||
+      perms.access_reception === true;
+    return { write, approve, read, lookupFailed: false };
+  }
+
   // Atualizar orçamento
   app.put("/api/service-orders/:id/budgets/:budgetId", async (req, res) => {
     try {
@@ -9034,7 +9086,7 @@ export function createApiApp() {
 
       const { data: prevBudgetRow } = await supabaseAdmin
         .from("budgets")
-        .select("services, parts, diagnosis, observations, card_name, verified_at, verified_by_name")
+        .select("services, parts, diagnosis, observations, card_name, verified_at, verified_by_name, updated_at")
         .eq("id", budgetId)
         .eq("service_order_id", serviceOrderId)
         .eq("workshop_id", WORKSHOP_ID)
@@ -9056,6 +9108,99 @@ export function createApiApp() {
       const nextApprovalFp = budgetApprovalFingerprint(services, parts);
       const approvalsChanged = prevApprovalFp !== nextApprovalFp;
       const approvalOnlyUpdate = !shouldInvalidateVerification && approvalsChanged;
+
+      if (budgetsFamilyEnforced()) {
+        const caps = await budgetActorCaps(req);
+        if (caps.lookupFailed || (!caps.write && !caps.approve)) {
+          return res.status(403).json({
+            error: "Sem permissão para esta operação.",
+            code: "permission_denied",
+          });
+        }
+        if (!caps.write) {
+          const assessed = assessBudgetApprovalPut(prevBudgetRow, req.body);
+          if (!prevBudgetRow || assessed.kind !== "approval") {
+            return res.status(409).json({
+              error: "O orçamento mudou ou o corpo altera conteúdo protegido.",
+              code: "budget_conflict",
+            });
+          }
+          const stamp = new Date().toISOString();
+          const seenUpdatedAt = (prevBudgetRow as { updated_at?: string | null }).updated_at;
+          let approvalQuery = supabaseAdmin
+            .from("budgets")
+            .update({
+              services: assessed.services,
+              parts: assessed.parts,
+              updated_at: stamp,
+            })
+            .eq("id", budgetId)
+            .eq("service_order_id", serviceOrderId)
+            .eq("workshop_id", WORKSHOP_ID);
+          approvalQuery =
+            seenUpdatedAt != null && String(seenUpdatedAt).trim() !== ""
+              ? approvalQuery.eq("updated_at", seenUpdatedAt)
+              : approvalQuery.is("updated_at", null);
+          const saved = await approvalQuery.select(await budgetRowSelect()).maybeSingle();
+          if (saved.error || !saved.data) {
+            return res.status(409).json({
+              error: "O orçamento mudou ou o corpo altera conteúdo protegido.",
+              code: "budget_conflict",
+            });
+          }
+          const updatedApproval = saved.data;
+          const actorMetaApproval = await resolveBudgetActorMeta({
+            actor,
+            actorTechnicianSlug,
+            actorTechnicianName,
+            actorDisplayName: (req.body as { actorDisplayName?: unknown })?.actorDisplayName,
+          });
+          const approvalNotify = await buildBudgetNotifyPayload({
+            serviceOrderId,
+            budgetId,
+            vehiclePlate: so?.plate ?? null,
+            vehicleModel: so?.vehicle_model ?? null,
+            customerName: customerNameBudgetEdit || null,
+            authorDisplayName: actorMetaApproval.name,
+            authorPhotoUrl: actorMetaApproval.photoUrl,
+            orderType:
+              String((so as { order_type?: string | null }).order_type ?? "vehicle") === "module"
+                ? "module"
+                : "vehicle",
+          });
+          if (approvalsChanged) {
+            const decisions = countBudgetApprovalDecisions(assessed.services, assessed.parts);
+            const approvalPayload = {
+              ...approvalNotify,
+              approved_items_count: decisions.approvedItemsCount,
+              rejected_items_count: decisions.rejectedItemsCount,
+              pending_items_count: decisions.pendingItemsCount,
+            };
+            const notifType = "budget_items_approved";
+            const shouldAdmin = await shouldNotifyAdminForSystemType(notifType);
+            if (shouldAdmin) {
+              await supabaseAdmin.from("notifications").insert({
+                workshop_id: WORKSHOP_ID,
+                type: notifType,
+                payload: approvalPayload,
+                target_type: "admin",
+                target_slug: null,
+              }).then(({ error: e }) => { if (e) console.error("[API] Notificação budget_items_approved:", e); });
+            }
+            const technicianIds = await getTechnicianRecipientIdsForSystemType(notifType);
+            for (const techId of technicianIds) {
+              await supabaseAdmin.from("notifications").insert({
+                workshop_id: WORKSHOP_ID,
+                type: notifType,
+                payload: approvalPayload,
+                target_type: "technician",
+                target_slug: techId,
+              }).then(({ error: e }) => { if (e) console.error("[API] Notificação budget_items_approved (técnico):", e); });
+            }
+          }
+          return res.json(withBudgetVerifyDefaults(updatedApproval as unknown as Record<string, unknown>));
+        }
+      }
 
       const updatePayload: Record<string, unknown> = {
         card_name: cardName ?? null,
