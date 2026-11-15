@@ -3,12 +3,12 @@
  * Gerações e sequência impedem resposta antiga de sobrescrever a mais recente.
  */
 
-import type { EmployeePermissions, ServerAccessSnapshot, AccessTrustState } from "./employeeAccess";
+import type { EmployeePermissions, ServerAccessSnapshot, AccessTrustState } from "./employeeAccess.js";
 import {
   applyServerAccessSnapshot,
   initialAccessTrustState,
   refreshAccessTrust,
-} from "./employeeAccess";
+} from "./employeeAccess.js";
 
 export type MyAccessHttpError = {
   kind: "http";
