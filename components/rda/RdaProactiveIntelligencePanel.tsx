@@ -1,11 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  Activity,
   AlertTriangle,
   ArrowLeft,
   Bell,
   CheckCircle2,
-  Clock3,
+  ChevronDown,
   History,
   Info,
   Lightbulb,
@@ -52,29 +51,6 @@ const SEVERITY_LABEL: Record<RdaProactiveAlert['severity'], string> = {
   warning: 'Atenção',
   critical: 'Crítico',
 };
-
-const STATUS_LABEL: Record<RdaProactiveAlert['status'], string> = {
-  active: 'Ativo',
-  acknowledged: 'Reconhecido',
-  resolved: 'Resolvido',
-  dismissed: 'Descartado',
-};
-
-function formatWhen(iso: string | null | undefined): string {
-  if (!iso) return '—';
-  try {
-    const d = new Date(iso);
-    if (Number.isNaN(d.getTime())) return iso;
-    return d.toLocaleString('pt-BR', {
-      day: '2-digit',
-      month: '2-digit',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
-  } catch {
-    return iso;
-  }
-}
 
 function relativeWhen(iso: string | null | undefined, nowMs: number): string {
   if (!iso) return '';
@@ -308,39 +284,49 @@ export const RdaProactiveIntelligencePanel: React.FC<Props> = ({
           </button>
           <div className="min-w-0 flex-1">
             <AjustesPcOpsEyebrow desktop={pcChrome}>Ajustes · RDA · Proativo</AjustesPcOpsEyebrow>
-            <div className="flex flex-wrap items-center gap-2">
-              <h1 className="text-[17px] font-semibold tracking-tight">Monitoramento Proativo</h1>
-              {data ? (
-                <span
-                  className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${
-                    data.config.enabled
-                      ? 'bg-emerald-500/12 text-emerald-700 dark:text-emerald-300'
-                      : 'bg-zinc-500/10 text-zinc-500'
-                  }`}
-                >
-                  <span
-                    className={`h-1.5 w-1.5 rounded-full ${
-                      data.config.enabled
-                        ? 'animate-pulse bg-emerald-500'
-                        : 'bg-zinc-400'
-                    }`}
-                  />
-                  {data.config.enabled ? 'Monitor ligado' : 'Monitor pausado'}
-                </span>
-              ) : null}
-            </div>
-            <p className="text-[12px] text-zinc-500">
-              Alertas com evidência — o RDA observa; a operação só muda com você
-            </p>
+            <h1 className="text-[17px] font-semibold tracking-tight">Monitoramento Proativo</h1>
           </div>
-          <button
-            type="button"
-            onClick={() => void load()}
-            className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-zinc-200 transition-colors hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-800"
-            aria-label="Atualizar"
-          >
-            <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-          </button>
+          <div className="flex shrink-0 items-center gap-2">
+            {data?.canConfigure ? (
+              <button
+                type="button"
+                disabled={busyId === 'run-scan'}
+                onClick={() => {
+                  setBusyId('run-scan');
+                  setMsg(null);
+                  void runRdaProactiveScan()
+                    .then((r) => {
+                      setMsg(
+                        r.skipped
+                          ? `Varredura ignorada (${r.skipReason || 'skip'}).`
+                          : `Varredura: ${r.alertsCreated} novo(s), ${r.alertsUpdated || 0} atualizado(s).`
+                      );
+                      return load();
+                    })
+                    .catch((e: unknown) => {
+                      setError(e instanceof Error ? e.message : 'Falha na varredura.');
+                    })
+                    .finally(() => setBusyId(null));
+                }}
+                className="inline-flex h-9 items-center gap-1.5 rounded-full border border-zinc-200 bg-white px-3 text-[12px] font-semibold transition-colors hover:bg-zinc-50 disabled:opacity-60 dark:border-zinc-700 dark:bg-zinc-900 dark:hover:bg-zinc-800"
+              >
+                {busyId === 'run-scan' ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Radar className="h-3.5 w-3.5" />
+                )}
+                Varrer
+              </button>
+            ) : null}
+            <button
+              type="button"
+              onClick={() => void load()}
+              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-zinc-200 transition-colors hover:bg-zinc-50 dark:border-zinc-700 dark:hover:bg-zinc-800"
+              aria-label="Atualizar"
+            >
+              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+            </button>
+          </div>
         </div>
       </header>
 
@@ -361,105 +347,14 @@ export const RdaProactiveIntelligencePanel: React.FC<Props> = ({
         ) : null}
 
         {loading && !data ? (
-          <div className="space-y-3" aria-busy="true">
-            <div className="h-24 animate-pulse rounded-2xl bg-zinc-200/70 dark:bg-white/5" />
-            <div className="grid grid-cols-3 gap-2">
-              <div className="h-20 animate-pulse rounded-2xl bg-zinc-200/70 dark:bg-white/5" />
-              <div className="h-20 animate-pulse rounded-2xl bg-zinc-200/70 dark:bg-white/5" />
-              <div className="h-20 animate-pulse rounded-2xl bg-zinc-200/70 dark:bg-white/5" />
-            </div>
-            <div className="h-40 animate-pulse rounded-2xl bg-zinc-200/70 dark:bg-white/5" />
-            <p className="text-center text-[12px] text-zinc-500">Carregando monitoramento…</p>
+          <div className="space-y-2" aria-busy="true">
+            <div className="h-10 animate-pulse rounded-xl bg-zinc-200/70 dark:bg-white/5" />
+            <div className="h-16 animate-pulse rounded-xl bg-zinc-200/70 dark:bg-white/5" />
+            <div className="h-16 animate-pulse rounded-xl bg-zinc-200/70 dark:bg-white/5" />
+            <p className="text-center text-[12px] text-zinc-500">Carregando…</p>
           </div>
         ) : data ? (
-          <div className="space-y-5">
-            <div className="grid gap-3 xl:grid-cols-[minmax(0,1.4fr)_minmax(18rem,0.85fr)] xl:items-stretch">
-              <section className="relative overflow-hidden rounded-2xl border border-zinc-200/80 bg-gradient-to-br from-zinc-900 via-zinc-900 to-zinc-800 p-4 text-white shadow-sm sm:p-5 dark:border-white/10 dark:from-zinc-950 dark:via-zinc-900 dark:to-zinc-900">
-                <div className="pointer-events-none absolute -right-8 -top-10 h-40 w-40 rounded-full bg-emerald-400/15 blur-2xl" />
-                <div className="pointer-events-none absolute -bottom-12 left-1/3 h-36 w-36 rounded-full bg-sky-400/10 blur-2xl" />
-                <div className="relative flex h-full flex-wrap items-start justify-between gap-3">
-                  <div className="min-w-0 flex-1">
-                    <div className="mb-1 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-400">
-                      <Radar className="h-3.5 w-3.5 text-emerald-400" />
-                      Radar operacional
-                    </div>
-                    <p className="max-w-3xl text-[13px] leading-relaxed text-zinc-300 sm:text-[14px]">
-                      {data.disclaimer}
-                    </p>
-                    <div className="mt-3 flex flex-wrap gap-2 text-[11px] text-zinc-400">
-                      <span className="inline-flex items-center gap-1 rounded-full bg-white/5 px-2.5 py-1">
-                        <Clock3 className="h-3 w-3" />
-                        Ciclo {data.config.intervalMinutes} min
-                      </span>
-                      <span className="inline-flex items-center gap-1 rounded-full bg-white/5 px-2.5 py-1">
-                        <Activity className="h-3 w-3" />
-                        Reabre após {data.config.reopenAfterHours}h
-                      </span>
-                      {data.config.notifyOnCreate ? (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-white/5 px-2.5 py-1">
-                          <Sparkles className="h-3 w-3" />
-                          Notifica novos
-                        </span>
-                      ) : null}
-                    </div>
-                  </div>
-                  {data.canConfigure ? (
-                    <button
-                      type="button"
-                      disabled={busyId === 'run-scan'}
-                      onClick={() => {
-                        setBusyId('run-scan');
-                        setMsg(null);
-                        void runRdaProactiveScan()
-                          .then((r) => {
-                            setMsg(
-                              r.skipped
-                                ? `Varredura ignorada (${r.skipReason || 'skip'}).`
-                                : `Varredura: ${r.alertsCreated} novo(s), ${r.alertsUpdated || 0} atualizado(s).`
-                            );
-                            return load();
-                          })
-                          .catch((e: unknown) => {
-                            setError(e instanceof Error ? e.message : 'Falha na varredura.');
-                          })
-                          .finally(() => setBusyId(null));
-                      }}
-                      className="inline-flex items-center gap-1.5 rounded-xl bg-white px-3 py-2 text-[12px] font-semibold text-zinc-900 transition hover:bg-zinc-100 disabled:opacity-60"
-                    >
-                      {busyId === 'run-scan' ? (
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      ) : (
-                        <Radar className="h-3.5 w-3.5" />
-                      )}
-                      Varrer agora
-                    </button>
-                  ) : null}
-                </div>
-              </section>
-
-              <section className="grid grid-cols-3 gap-2 xl:grid-cols-1 xl:gap-2.5">
-                <MetricCard
-                  label="Ativos"
-                  value={data.summary.active}
-                  accent="text-zinc-900 dark:text-white"
-                  hint="exigem atenção"
-                />
-                <MetricCard
-                  label="Críticos"
-                  value={data.summary.critical}
-                  accent="text-rose-600 dark:text-rose-400"
-                  hint="prioridade máxima"
-                  pulse={data.summary.critical > 0}
-                />
-                <MetricCard
-                  label="Reconhecidos"
-                  value={data.summary.acknowledged}
-                  accent="text-amber-700 dark:text-amber-300"
-                  hint="em acompanhamento"
-                />
-              </section>
-            </div>
-
+          <div className="space-y-4">
             {categoryBreakdown.length > 0 ? (
               <section className="flex flex-wrap gap-2">
                 {categoryBreakdown.map(([key, count]) => (
@@ -584,38 +479,43 @@ export const RdaProactiveIntelligencePanel: React.FC<Props> = ({
             ) : null}
 
             {tab === 'recomendacoes' ? (
-              <section className="space-y-3">
+              <section>
                 {filteredRecommendations.length === 0 ? (
                   <EmptyState text="Sem recomendações no momento." />
                 ) : (
-                  <div className="grid grid-cols-1 gap-3 xl:grid-cols-2 2xl:grid-cols-3">
-                  {filteredRecommendations.map((r) => {
-                    const tone = severityTone(r.severity);
-                    return (
-                      <article
-                        key={r.alertId}
-                        className="overflow-hidden rounded-2xl border border-zinc-200/80 bg-white dark:border-white/10 dark:bg-zinc-950"
-                      >
-                        <div className={`h-1 w-full ${tone.rail}`} />
-                        <div className="p-3.5">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ${tone.chip}`}>
-                              <SeverityIcon severity={r.severity} />
-                              {SEVERITY_LABEL[r.severity]}
-                            </span>
-                            <span className="text-[11px] text-zinc-500">
-                              {CATEGORY_LABEL[r.category]}
-                            </span>
-                          </div>
-                          <h3 className="mt-2 text-[14px] font-semibold tracking-tight">{r.title}</h3>
-                          <p className="mt-1.5 text-[13px] leading-relaxed text-zinc-600 dark:text-zinc-300">
-                            {r.recommendation}
-                          </p>
-                        </div>
-                      </article>
-                    );
-                  })}
-                  </div>
+                  <ul className="grid grid-cols-1 gap-2 xl:grid-cols-2 2xl:grid-cols-3">
+                    {filteredRecommendations.map((r) => {
+                      const tone = severityTone(r.severity);
+                      return (
+                        <li key={r.alertId}>
+                          <article className="relative overflow-hidden rounded-xl border border-zinc-200/80 bg-white dark:border-white/10 dark:bg-zinc-950">
+                            <div className={`absolute inset-y-0 left-0 w-1 ${tone.rail}`} />
+                            <div className={`bg-gradient-to-r ${tone.soft} px-3 py-2.5 pl-3.5`}>
+                              <div className="flex items-center gap-2">
+                                <span className={`inline-flex shrink-0 items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-bold ${tone.chip}`}>
+                                  <span className={tone.icon}>
+                                    <SeverityIcon severity={r.severity} />
+                                  </span>
+                                  {SEVERITY_LABEL[r.severity]}
+                                </span>
+                                <span className="truncate text-[11px] text-zinc-500">
+                                  {CATEGORY_LABEL[r.category]}
+                                </span>
+                              </div>
+                              <p className="mt-1 truncate text-[13px] font-semibold text-zinc-900 dark:text-white">
+                                {r.title}
+                              </p>
+                              {r.recommendation ? (
+                                <p className="mt-0.5 line-clamp-2 text-[12px] text-zinc-600 dark:text-zinc-300">
+                                  {r.recommendation}
+                                </p>
+                              ) : null}
+                            </div>
+                          </article>
+                        </li>
+                      );
+                    })}
+                  </ul>
                 )}
               </section>
             ) : null}
@@ -716,27 +616,6 @@ export const RdaProactiveIntelligencePanel: React.FC<Props> = ({
   );
 };
 
-function MetricCard(props: {
-  label: string;
-  value: number;
-  accent: string;
-  hint: string;
-  pulse?: boolean;
-}) {
-  return (
-    <div className="relative flex h-full min-h-[4.5rem] flex-col justify-center overflow-hidden rounded-2xl border border-zinc-200/80 bg-zinc-50 px-3 py-3 xl:min-h-[5.25rem] xl:px-4 dark:border-white/10 dark:bg-white/[0.04]">
-      {props.pulse ? (
-        <span className="absolute right-2.5 top-2.5 h-2 w-2 animate-pulse rounded-full bg-rose-500" />
-      ) : null}
-      <p className="text-[11px] font-medium text-zinc-500">{props.label}</p>
-      <p className={`mt-0.5 text-[22px] font-semibold tabular-nums tracking-tight xl:text-[26px] ${props.accent}`}>
-        {props.value}
-      </p>
-      <p className="mt-0.5 text-[10px] text-zinc-400">{props.hint}</p>
-    </div>
-  );
-}
-
 function FilterSelect(props: {
   label: string;
   value: string;
@@ -781,111 +660,132 @@ function AlertList(props: {
   onResolve?: (id: string) => void;
   onDismiss?: (id: string) => void;
 }) {
+  const [expandedId, setExpandedId] = useState<string | null>(props.highlightId || null);
+
+  useEffect(() => {
+    if (props.highlightId) setExpandedId(props.highlightId);
+  }, [props.highlightId]);
+
   if (props.items.length === 0) {
     return <EmptyState text={props.empty} />;
   }
   return (
-    <ul className="grid grid-cols-1 gap-3 xl:grid-cols-2 2xl:grid-cols-3">
+    <ul className="grid grid-cols-1 gap-2 xl:grid-cols-2 2xl:grid-cols-3">
       {props.items.map((a) => {
         const tone = severityTone(a.severity);
         const highlighted = props.highlightId === a.id;
+        const expanded = expandedId === a.id;
+        const when = relativeWhen(a.lastSeenAt || a.updatedAt, props.nowMs);
         return (
           <li key={a.id} id={`rda-proactive-alert-${a.id}`}>
             <article
-              className={`relative overflow-hidden rounded-2xl border bg-white transition dark:bg-zinc-950 ${
+              className={`relative overflow-hidden rounded-xl border bg-white transition dark:bg-zinc-950 ${
                 highlighted
                   ? 'border-sky-400/60 ring-2 ring-sky-400/30'
                   : 'border-zinc-200/80 dark:border-white/10'
               }`}
             >
               <div className={`absolute inset-y-0 left-0 w-1 ${tone.rail}`} />
-              <div className={`bg-gradient-to-r ${tone.soft} p-3.5 pl-4`}>
-                <div className="flex flex-wrap items-start justify-between gap-2">
+              <div className={`bg-gradient-to-r ${tone.soft} pl-3.5`}>
+                <button
+                  type="button"
+                  onClick={() => setExpandedId(expanded ? null : a.id)}
+                  className="flex w-full items-start gap-2 px-3 py-2.5 text-left"
+                >
+                  <span className={`mt-0.5 inline-flex shrink-0 items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-bold ${tone.chip}`}>
+                    <span className={tone.icon}>
+                      <SeverityIcon severity={a.severity} />
+                    </span>
+                    {SEVERITY_LABEL[a.severity]}
+                  </span>
                   <div className="min-w-0 flex-1">
-                    <div className="mb-1.5 flex flex-wrap items-center gap-1.5">
-                      <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold ${tone.chip}`}>
-                        <span className={tone.icon}>
-                          <SeverityIcon severity={a.severity} />
-                        </span>
-                        {SEVERITY_LABEL[a.severity]}
-                      </span>
-                      <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-medium text-zinc-600 dark:bg-white/10 dark:text-zinc-300">
-                        {CATEGORY_LABEL[a.category]}
-                      </span>
-                      <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[10px] font-medium text-zinc-500 dark:bg-white/10">
-                        {STATUS_LABEL[a.status]}
-                      </span>
-                    </div>
-                    <h3 className="text-[14px] font-semibold tracking-tight text-zinc-900 dark:text-white">
+                    <p className="truncate text-[13px] font-semibold leading-snug text-zinc-900 dark:text-white">
                       {a.title}
-                    </h3>
-                  </div>
-                  <div className="text-right text-[11px] text-zinc-400">
-                    <p>{relativeWhen(a.lastSeenAt || a.updatedAt, props.nowMs)}</p>
-                    <p className="mt-0.5 tabular-nums">{formatWhen(a.lastSeenAt || a.updatedAt)}</p>
-                  </div>
-                </div>
-
-                <p className="mt-2 text-[13px] leading-relaxed text-zinc-700 dark:text-zinc-300">{a.body}</p>
-
-                {a.evidence ? (
-                  <div className="mt-3 rounded-xl border border-zinc-200/80 bg-zinc-50/80 px-3 py-2 dark:border-white/10 dark:bg-white/[0.03]">
-                    <p className="text-[10px] font-semibold uppercase tracking-wide text-zinc-400">Evidência</p>
-                    <p className="mt-0.5 text-[12px] leading-relaxed text-zinc-600 dark:text-zinc-300">
-                      {a.evidence}
+                    </p>
+                    <p className="mt-0.5 truncate text-[11px] text-zinc-500">
+                      {CATEGORY_LABEL[a.category]}
+                      {when ? ` · ${when}` : ''}
+                      {a.status === 'acknowledged' ? ' · reconhecido' : ''}
                     </p>
                   </div>
-                ) : null}
+                  <ChevronDown
+                    className={`mt-0.5 h-4 w-4 shrink-0 text-zinc-400 transition-transform ${
+                      expanded ? 'rotate-180' : ''
+                    }`}
+                  />
+                </button>
 
-                {a.recommendation ? (
-                  <div className="mt-2 flex gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/5 px-3 py-2">
-                    <Lightbulb className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
-                    <div>
-                      <p className="text-[10px] font-semibold uppercase tracking-wide text-emerald-700/80 dark:text-emerald-300/80">
-                        Recomendação
-                      </p>
-                      <p className="mt-0.5 text-[12px] leading-relaxed text-zinc-700 dark:text-zinc-200">
+                {expanded ? (
+                  <div className="space-y-2 border-t border-zinc-200/70 px-3 pb-3 pt-2 dark:border-white/10">
+                    {a.body ? (
+                      <p className="text-[12px] leading-snug text-zinc-600 dark:text-zinc-300">{a.body}</p>
+                    ) : null}
+                    {a.recommendation ? (
+                      <p className="text-[12px] leading-snug text-zinc-700 dark:text-zinc-200">
+                        <span className="font-semibold text-emerald-700 dark:text-emerald-300">Ação: </span>
                         {a.recommendation}
                       </p>
-                    </div>
-                  </div>
-                ) : null}
+                    ) : null}
+                    {a.evidence ? (
+                      <p className="text-[11px] leading-snug text-zinc-500">
+                        <span className="font-medium">Evidência: </span>
+                        {a.evidence}
+                      </p>
+                    ) : null}
 
-                {!props.readOnly && a.status === 'active' ? (
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    <ActionButton
-                      primary
-                      disabled={props.busyId === a.id}
-                      onClick={() => props.onAcknowledge?.(a.id)}
-                      label="Reconhecer"
-                    />
+                    {!props.readOnly && a.status === 'active' ? (
+                      <div className="flex flex-wrap gap-1.5 pt-1">
+                        <ActionButton
+                          primary
+                          disabled={props.busyId === a.id}
+                          onClick={() => props.onAcknowledge?.(a.id)}
+                          label="Reconhecer"
+                        />
+                        <ActionButton
+                          disabled={props.busyId === a.id}
+                          onClick={() => props.onResolve?.(a.id)}
+                          label="Resolver"
+                        />
+                        <ActionButton
+                          quiet
+                          disabled={props.busyId === a.id}
+                          onClick={() => props.onDismiss?.(a.id)}
+                          label="Descartar"
+                        />
+                      </div>
+                    ) : null}
+
+                    {!props.readOnly && a.status === 'acknowledged' ? (
+                      <div className="flex flex-wrap gap-1.5 pt-1">
+                        <ActionButton
+                          primary
+                          disabled={props.busyId === a.id}
+                          onClick={() => props.onResolve?.(a.id)}
+                          label="Resolver"
+                        />
+                        <ActionButton
+                          quiet
+                          disabled={props.busyId === a.id}
+                          onClick={() => props.onDismiss?.(a.id)}
+                          label="Descartar"
+                        />
+                      </div>
+                    ) : null}
+                  </div>
+                ) : !props.readOnly && (a.status === 'active' || a.status === 'acknowledged') ? (
+                  <div className="flex flex-wrap gap-1.5 px-3 pb-2.5">
+                    {a.status === 'active' ? (
+                      <ActionButton
+                        primary
+                        disabled={props.busyId === a.id}
+                        onClick={() => props.onAcknowledge?.(a.id)}
+                        label="Reconhecer"
+                      />
+                    ) : null}
                     <ActionButton
                       disabled={props.busyId === a.id}
                       onClick={() => props.onResolve?.(a.id)}
                       label="Resolver"
-                    />
-                    <ActionButton
-                      quiet
-                      disabled={props.busyId === a.id}
-                      onClick={() => props.onDismiss?.(a.id)}
-                      label="Descartar"
-                    />
-                  </div>
-                ) : null}
-
-                {!props.readOnly && a.status === 'acknowledged' ? (
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    <ActionButton
-                      primary
-                      disabled={props.busyId === a.id}
-                      onClick={() => props.onResolve?.(a.id)}
-                      label="Resolver"
-                    />
-                    <ActionButton
-                      quiet
-                      disabled={props.busyId === a.id}
-                      onClick={() => props.onDismiss?.(a.id)}
-                      label="Descartar"
                     />
                   </div>
                 ) : null}
@@ -906,7 +806,7 @@ function ActionButton(props: {
   quiet?: boolean;
 }) {
   const base =
-    'rounded-xl px-3 py-1.5 text-[12px] font-semibold transition disabled:opacity-50';
+    'rounded-lg px-2.5 py-1 text-[11px] font-semibold transition disabled:opacity-50';
   if (props.primary) {
     return (
       <button
