@@ -276,19 +276,19 @@ console.log("\n10) Sync aplica ganho/perda; strip sensível");
   assert(forged.full_access !== true, "browser não concede full_access com string");
 }
 
-console.log("\n11) SEC-03: TV e catálogos em enforce; rota my-access");
+console.log("\n11) SEC-03: TV, catálogos e técnicos em enforce; rota my-access");
 {
   const policy = productionAuthorizationPolicy();
   assert(
     policy.families.filter((family) => family.mode === "enforce").map((family) => family.id).join(",") ===
-      "workshop_catalogs,tv_admin",
-    "tv_admin e workshop_catalogs em enforce"
+      "technicians,workshop_catalogs,tv_admin",
+    "tv_admin, workshop_catalogs e technicians em enforce"
   );
   assert(authorizationHasEnforce(policy, {}) === true, "há enforce");
-  assert(authorizationHasEnforce(policy, { SEC03_DISABLE_FAMILIES: "workshop_catalogs" }) === true, "a TV permanece");
+  assert(authorizationHasEnforce(policy, { SEC03_DISABLE_FAMILIES: "technicians" }) === true, "TV e catálogos permanecem");
   assert(
-    authorizationHasEnforce(policy, { SEC03_DISABLE_FAMILIES: "tv_admin,workshop_catalogs" }) === false,
-    "os dois interruptores desligam o enforce"
+    authorizationHasEnforce(policy, { SEC03_DISABLE_FAMILIES: "technicians,workshop_catalogs,tv_admin" }) === false,
+    "os três interruptores desligam o enforce"
   );
   const rule = policy.rules.find((r) => r.id === "self_access_read");
   assert(!!rule && rule.path.test("/api/auth/my-access"), "regra self_access_read");

@@ -188,8 +188,8 @@ async function main() {
   const shadow = production.families.filter((family) => family.mode === "shadow").map((family) => family.id).sort();
   record(
     "política mantém a TV e passa a incluir os catálogos",
-    enforced.join(",") === "workshop_catalogs,tv_admin" &&
-      shadow.join(",") === "bulletins,parts_stock,reports,technicians" &&
+    enforced.join(",") === "technicians,workshop_catalogs,tv_admin" &&
+      shadow.join(",") === "bulletins,parts_stock,reports" &&
       authorizationHasEnforce(production, {}) === true,
     enforced.join(",")
   );
@@ -334,7 +334,7 @@ async function main() {
       hit(base, "/api/error-bulletins", "POST", ana, { title: "Boletim ficticio" }),
       hit(base, "/api/error-bulletins/boletim-1", "DELETE", ana),
       hit(base, "/api/workshop-parts/peca-1", "DELETE", ana),
-      hit(base, "/api/workshop-technicians/tecnico-1", "DELETE", ana),
+      hit(base, "/api/workshop-technicians", "GET", ana),
       hit(base, "/api/workshop-services", "GET", ana),
       hit(base, "/api/customers", "POST", ana, { name: "Cliente ficticio", phone: "11999990000" }),
     ]);

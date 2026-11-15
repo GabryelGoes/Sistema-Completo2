@@ -230,11 +230,11 @@ async function main() {
     .sort();
   record(
     "política bloqueia TV e catálogos",
-    enforced.join(",") === "workshop_catalogs,tv_admin" &&
-      shadow.join(",") === "bulletins,parts_stock,reports,technicians" &&
+    enforced.join(",") === "technicians,workshop_catalogs,tv_admin" &&
+      shadow.join(",") === "bulletins,parts_stock,reports" &&
       authorizationHasEnforce(production, {}) === true &&
-      authorizationHasEnforce(production, { SEC03_DISABLE_FAMILIES: "workshop_catalogs" }) === true &&
-      authorizationHasEnforce(production, { SEC03_DISABLE_FAMILIES: "tv_admin,workshop_catalogs" }) === false,
+      authorizationHasEnforce(production, { SEC03_DISABLE_FAMILIES: "technicians" }) === true &&
+      authorizationHasEnforce(production, { SEC03_DISABLE_FAMILIES: "technicians,workshop_catalogs,tv_admin" }) === false,
     enforced.join(",")
   );
 
@@ -386,7 +386,7 @@ async function main() {
       hit(base, "/api/reports/technician-services", "GET", patio),
       hit(base, "/api/error-bulletins", "POST", patio, { title: "Boletim ficticio" }),
       hit(base, "/api/workshop-parts/peca-1", "DELETE", patio),
-      hit(base, "/api/workshop-technicians/tecnico-1", "DELETE", patio),
+      hit(base, "/api/workshop-technicians", "GET", patio),
     ]);
     record(
       "relatórios, boletins, peças e técnicos não ganham 403",
