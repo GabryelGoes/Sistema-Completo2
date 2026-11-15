@@ -188,8 +188,8 @@ async function main() {
   const shadow = production.families.filter((family) => family.mode === "shadow").map((family) => family.id).sort();
   record(
     "política mantém a TV e passa a incluir os catálogos",
-    enforced.join(",") === "technicians,workshop_catalogs,tv_admin,reports" &&
-      shadow.join(",") === "bulletins,parts_stock" &&
+    enforced.join(",") === "technicians,workshop_catalogs,tv_admin,bulletins,reports" &&
+      shadow.join(",") === "parts_stock" &&
       authorizationHasEnforce(production, {}) === true,
     enforced.join(",")
   );
@@ -330,10 +330,8 @@ async function main() {
     denied("dora com falha de leitura", await hit(base, "/api/tv/slides", "POST", dora, SLIDE));
 
     denied("relatório sem a chave", await hit(base, "/api/reports/technician-services", "GET", ana));
+    denied("boletim sem a chave", await hit(base, "/api/error-bulletins", "GET", ana));
     const others = await Promise.all([
-      hit(base, "/api/error-bulletins", "GET", ana),
-      hit(base, "/api/error-bulletins", "POST", ana, { title: "Boletim ficticio" }),
-      hit(base, "/api/error-bulletins/boletim-1", "DELETE", ana),
       hit(base, "/api/workshop-parts/peca-1", "DELETE", ana),
       hit(base, "/api/workshop-technicians", "GET", ana),
       hit(base, "/api/workshop-services", "GET", ana),

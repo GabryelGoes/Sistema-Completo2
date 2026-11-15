@@ -281,14 +281,14 @@ console.log("\n11) SEC-03: TV, catálogos, técnicos e relatórios em enforce; r
   const policy = productionAuthorizationPolicy();
   assert(
     policy.families.filter((family) => family.mode === "enforce").map((family) => family.id).join(",") ===
-      "technicians,workshop_catalogs,tv_admin,reports",
-    "tv_admin, workshop_catalogs, technicians e reports em enforce"
+      "technicians,workshop_catalogs,tv_admin,bulletins,reports",
+    "tv_admin, workshop_catalogs, technicians, reports e bulletins em enforce"
   );
   assert(authorizationHasEnforce(policy, {}) === true, "há enforce");
-  assert(authorizationHasEnforce(policy, { SEC03_DISABLE_FAMILIES: "reports" }) === true, "as outras famílias em enforce permanecem");
+  assert(authorizationHasEnforce(policy, { SEC03_DISABLE_FAMILIES: "bulletins" }) === true, "as outras famílias em enforce permanecem");
   assert(
-    authorizationHasEnforce(policy, { SEC03_DISABLE_FAMILIES: "technicians,workshop_catalogs,tv_admin,reports" }) === false,
-    "os quatro interruptores desligam o enforce"
+    authorizationHasEnforce(policy, { SEC03_DISABLE_FAMILIES: "technicians,workshop_catalogs,tv_admin,bulletins,reports" }) === false,
+    "os cinco interruptores desligam o enforce"
   );
   const rule = policy.rules.find((r) => r.id === "self_access_read");
   assert(!!rule && rule.path.test("/api/auth/my-access"), "regra self_access_read");
