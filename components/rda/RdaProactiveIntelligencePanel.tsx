@@ -46,11 +46,61 @@ const CATEGORY_LABEL: Record<RdaProactiveAlert['category'], string> = {
   produtividade: 'Produtividade',
 };
 
+/** Ícones dos módulos (mesmos PNGs da home) — leitura rápida por área. */
+const CATEGORY_ICON: Record<RdaProactiveAlert['category'], string> = {
+  patio: '/icons/patio-ios.png',
+  laboratorio: '/icons/laboratorio-ios.png',
+  estoque: '/icons/estoque-ios.png',
+  produtividade: '/icons/checklist-patio-ios.png',
+};
+
 const SEVERITY_LABEL: Record<RdaProactiveAlert['severity'], string> = {
   info: 'Informativo',
   warning: 'Atenção',
   critical: 'Crítico',
 };
+
+const CATEGORY_SORT: Record<RdaProactiveAlert['category'], number> = {
+  patio: 0,
+  laboratorio: 1,
+  estoque: 2,
+  produtividade: 3,
+};
+
+const SEVERITY_SORT: Record<RdaProactiveAlert['severity'], number> = {
+  critical: 0,
+  warning: 1,
+  info: 2,
+};
+
+function sortAlertsForScan(items: RdaProactiveAlert[]): RdaProactiveAlert[] {
+  return [...items].sort((a, b) => {
+    const byCat = CATEGORY_SORT[a.category] - CATEGORY_SORT[b.category];
+    if (byCat !== 0) return byCat;
+    return SEVERITY_SORT[a.severity] - SEVERITY_SORT[b.severity];
+  });
+}
+
+function CategoryModuleIcon(props: {
+  category: RdaProactiveAlert['category'];
+  size?: 'sm' | 'md';
+}) {
+  const px = props.size === 'sm' ? 'h-7 w-7' : 'h-9 w-9';
+  return (
+    <span
+      className={`inline-flex ${px} shrink-0 items-center justify-center overflow-hidden rounded-[10px] bg-zinc-100 shadow-sm ring-1 ring-black/5 dark:bg-zinc-800 dark:ring-white/10`}
+      title={CATEGORY_LABEL[props.category]}
+      aria-hidden
+    >
+      <img
+        src={CATEGORY_ICON[props.category]}
+        alt=""
+        className="h-full w-full object-fill"
+        draggable={false}
+      />
+    </span>
+  );
+}
 
 function relativeWhen(iso: string | null | undefined, nowMs: number): string {
   if (!iso) return '';
@@ -161,37 +211,49 @@ export const RdaProactiveIntelligencePanel: React.FC<Props> = ({
 
   const filteredActive = useMemo(() => {
     if (!data) return [];
-    return data.activeAlerts.filter((a) => {
-      if (category !== 'all' && a.category !== category) return false;
-      if (severity !== 'all' && a.severity !== severity) return false;
-      return true;
-    });
+    return sortAlertsForScan(
+      data.activeAlerts.filter((a) => {
+        if (category !== 'all' && a.category !== category) return false;
+        if (severity !== 'all' && a.severity !== severity) return false;
+        return true;
+      })
+    );
   }, [data, category, severity]);
 
   const filteredCritical = useMemo(() => {
     if (!data) return [];
-    return data.criticalAlerts.filter((a) => {
-      if (category !== 'all' && a.category !== category) return false;
-      return true;
-    });
+    return sortAlertsForScan(
+      data.criticalAlerts.filter((a) => {
+        if (category !== 'all' && a.category !== category) return false;
+        return true;
+      })
+    );
   }, [data, category]);
 
   const filteredHistory = useMemo(() => {
     if (!data) return [];
-    return data.history.filter((a) => {
-      if (category !== 'all' && a.category !== category) return false;
-      if (severity !== 'all' && a.severity !== severity) return false;
-      return true;
-    });
+    return sortAlertsForScan(
+      data.history.filter((a) => {
+        if (category !== 'all' && a.category !== category) return false;
+        if (severity !== 'all' && a.severity !== severity) return false;
+        return true;
+      })
+    );
   }, [data, category, severity]);
 
   const filteredRecommendations = useMemo(() => {
     if (!data) return [];
-    return data.recommendations.filter((r) => {
-      if (category !== 'all' && r.category !== category) return false;
-      if (severity !== 'all' && r.severity !== severity) return false;
-      return true;
-    });
+    return [...data.recommendations]
+      .filter((r) => {
+        if (category !== 'all' && r.category !== category) return false;
+        if (severity !== 'all' && r.severity !== severity) return false;
+        return true;
+      })
+      .sort((a, b) => {
+        const byCat = CATEGORY_SORT[a.category] - CATEGORY_SORT[b.category];
+        if (byCat !== 0) return byCat;
+        return SEVERITY_SORT[a.severity] - SEVERITY_SORT[b.severity];
+      });
   }, [data, category, severity]);
 
   const categoryBreakdown = useMemo(() => {
@@ -357,24 +419,29 @@ export const RdaProactiveIntelligencePanel: React.FC<Props> = ({
           <div className="space-y-4">
             {categoryBreakdown.length > 0 ? (
               <section className="flex flex-wrap gap-2">
-                {categoryBreakdown.map(([key, count]) => (
-                  <button
-                    key={key}
-                    type="button"
-                    onClick={() => {
-                      setCategory(key);
-                      setTab('ativos');
-                    }}
-                    className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium transition ${
-                      category === key
-                        ? 'border-zinc-900 bg-zinc-900 text-white dark:border-white dark:bg-white dark:text-zinc-900'
-                        : 'border-zinc-200 bg-white text-zinc-600 hover:border-zinc-300 dark:border-white/10 dark:bg-zinc-950 dark:text-zinc-300'
-                    }`}
-                  >
-                    {CATEGORY_LABEL[key as RdaProactiveAlert['category']] || key}
-                    <span className="tabular-nums opacity-80">{count}</span>
-                  </button>
-                ))}
+                {categoryBreakdown.map(([key, count]) => {
+                  const cat = key as RdaProactiveAlert['category'];
+                  const active = category === key;
+                  return (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => {
+                        setCategory(key);
+                        setTab('ativos');
+                      }}
+                      className={`inline-flex items-center gap-2 rounded-full border py-1 pl-1 pr-2.5 text-[11px] font-medium transition ${
+                        active
+                          ? 'border-zinc-900 bg-zinc-900 text-white dark:border-white dark:bg-white dark:text-zinc-900'
+                          : 'border-zinc-200 bg-white text-zinc-600 hover:border-zinc-300 dark:border-white/10 dark:bg-zinc-950 dark:text-zinc-300'
+                      }`}
+                    >
+                      <CategoryModuleIcon category={cat} size="sm" />
+                      {CATEGORY_LABEL[cat] || key}
+                      <span className="tabular-nums opacity-80">{count}</span>
+                    </button>
+                  );
+                })}
                 {category !== 'all' ? (
                   <button
                     type="button"
@@ -490,26 +557,29 @@ export const RdaProactiveIntelligencePanel: React.FC<Props> = ({
                         <li key={r.alertId}>
                           <article className="relative overflow-hidden rounded-xl border border-zinc-200/80 bg-white dark:border-white/10 dark:bg-zinc-950">
                             <div className={`absolute inset-y-0 left-0 w-1 ${tone.rail}`} />
-                            <div className={`bg-gradient-to-r ${tone.soft} px-3 py-2.5 pl-3.5`}>
-                              <div className="flex items-center gap-2">
-                                <span className={`inline-flex shrink-0 items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-bold ${tone.chip}`}>
-                                  <span className={tone.icon}>
-                                    <SeverityIcon severity={r.severity} />
+                            <div className={`flex items-start gap-2.5 bg-gradient-to-r ${tone.soft} px-3 py-2.5 pl-3.5`}>
+                              <CategoryModuleIcon category={r.category} />
+                              <div className="min-w-0 flex-1">
+                                <div className="flex flex-wrap items-center gap-1.5">
+                                  <span className={`inline-flex shrink-0 items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-bold ${tone.chip}`}>
+                                    <span className={tone.icon}>
+                                      <SeverityIcon severity={r.severity} />
+                                    </span>
+                                    {SEVERITY_LABEL[r.severity]}
                                   </span>
-                                  {SEVERITY_LABEL[r.severity]}
-                                </span>
-                                <span className="truncate text-[11px] text-zinc-500">
-                                  {CATEGORY_LABEL[r.category]}
-                                </span>
-                              </div>
-                              <p className="mt-1 truncate text-[13px] font-semibold text-zinc-900 dark:text-white">
-                                {r.title}
-                              </p>
-                              {r.recommendation ? (
-                                <p className="mt-0.5 line-clamp-2 text-[12px] text-zinc-600 dark:text-zinc-300">
-                                  {r.recommendation}
+                                  <span className="truncate text-[11px] font-medium text-zinc-500">
+                                    {CATEGORY_LABEL[r.category]}
+                                  </span>
+                                </div>
+                                <p className="mt-1 truncate text-[13px] font-semibold text-zinc-900 dark:text-white">
+                                  {r.title}
                                 </p>
-                              ) : null}
+                                {r.recommendation ? (
+                                  <p className="mt-0.5 line-clamp-2 text-[12px] text-zinc-600 dark:text-zinc-300">
+                                    {r.recommendation}
+                                  </p>
+                                ) : null}
+                              </div>
                             </div>
                           </article>
                         </li>
@@ -690,26 +760,29 @@ function AlertList(props: {
                 <button
                   type="button"
                   onClick={() => setExpandedId(expanded ? null : a.id)}
-                  className="flex w-full items-start gap-2 px-3 py-2.5 text-left"
+                  className="flex w-full items-start gap-2.5 px-3 py-2.5 text-left"
                 >
-                  <span className={`mt-0.5 inline-flex shrink-0 items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-bold ${tone.chip}`}>
-                    <span className={tone.icon}>
-                      <SeverityIcon severity={a.severity} />
-                    </span>
-                    {SEVERITY_LABEL[a.severity]}
-                  </span>
+                  <CategoryModuleIcon category={a.category} />
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-[13px] font-semibold leading-snug text-zinc-900 dark:text-white">
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <span className={`inline-flex shrink-0 items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-bold ${tone.chip}`}>
+                        <span className={tone.icon}>
+                          <SeverityIcon severity={a.severity} />
+                        </span>
+                        {SEVERITY_LABEL[a.severity]}
+                      </span>
+                      <span className="truncate text-[11px] font-medium text-zinc-500">
+                        {CATEGORY_LABEL[a.category]}
+                        {when ? ` · ${when}` : ''}
+                        {a.status === 'acknowledged' ? ' · reconhecido' : ''}
+                      </span>
+                    </div>
+                    <p className="mt-1 truncate text-[13px] font-semibold leading-snug text-zinc-900 dark:text-white">
                       {a.title}
-                    </p>
-                    <p className="mt-0.5 truncate text-[11px] text-zinc-500">
-                      {CATEGORY_LABEL[a.category]}
-                      {when ? ` · ${when}` : ''}
-                      {a.status === 'acknowledged' ? ' · reconhecido' : ''}
                     </p>
                   </div>
                   <ChevronDown
-                    className={`mt-0.5 h-4 w-4 shrink-0 text-zinc-400 transition-transform ${
+                    className={`mt-1 h-4 w-4 shrink-0 text-zinc-400 transition-transform ${
                       expanded ? 'rotate-180' : ''
                     }`}
                   />
