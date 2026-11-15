@@ -51,15 +51,22 @@ export async function syncLabelTemplatesFromServer(opts?: {
         lastSyncedAt = Date.now();
         return remote;
       }
-      // Servidor ainda sem templates: publica o que este dispositivo já tem.
+      // Servidor ainda sem templates: tenta publicar o local (SEC-04.2: exige G3).
+      // Sem permissão → 403: mantém cache local e não entra em loop de retries.
       if (hasLocalLabelTemplates()) {
-        await updateWorkshopSettings({ labelTemplates: local });
+        try {
+          await updateWorkshopSettings({ labelTemplates: local });
+        } catch {
+          lastSyncedAt = Date.now();
+          return local;
+        }
         lastSyncedAt = Date.now();
         return local;
       }
       lastSyncedAt = Date.now();
       return local;
     } catch {
+      lastSyncedAt = Date.now();
       return local;
     } finally {
       syncInFlight = null;

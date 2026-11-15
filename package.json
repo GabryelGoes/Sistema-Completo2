@@ -42,6 +42,7 @@
     "test:remove-os-work-time-panel": "tsx scripts/removeOsWorkTimePanel.selftest.ts",
     "test:workshop-settings-secrets": "tsx scripts/workshopSettingsSecrets.selftest.ts",
     "test:sec041-workshop-admin-settings": "tsx scripts/sec041WorkshopAdminSettings.selftest.ts",
+    "test:sec042-workshop-settings-authz": "tsx scripts/sec042WorkshopSettingsAuthz.selftest.ts",
     "test:login-password-change": "tsx scripts/loginPasswordChange.selftest.ts",
     "test:sec03-authorization": "tsx scripts/sec03Authorization.selftest.ts",
     "test:sec033-employee-access": "tsx scripts/sec033EmployeeAccess.selftest.ts",
