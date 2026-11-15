@@ -98,9 +98,16 @@ import { normalizeAiImproveTextLevel } from "./utils/aiImproveTextLevel.js";
 import {
   pickWorkshopSettingsWrite,
   plannedSecretWrites,
-  rejectCredentialChange,
   withWorkshopSecretFlags,
 } from "./utils/workshopSettingsSecrets.js";
+import {
+  authorizeAdminPhotoUpload,
+  authorizeLabProductKindPhoto,
+  authorizeWorkshopSettingsWrite,
+  workshopSettingsAuthzErrorMessage,
+  workshopSettingsAuthzLogFields,
+  type WorkshopSettingsActor,
+} from "./utils/workshopSettingsAuthz.js";
 import {
   insertIncidentRevision,
   registerQualityRadarPhase1Routes,
@@ -1668,6 +1675,44 @@ export function createApiApp() {
   function isAdminRequest(req: express.Request): boolean {
     const auth = (req as unknown as { auth?: SessionPayload }).auth;
     return auth?.r === "admin";
+  }
+
+  /**
+   * SEC-04.2: carrega permissões do system user na oficina atual.
+   * Falha de consulta → load "failed" (deny). Ausente na oficina → "missing".
+   */
+  async function loadWorkshopSettingsActor(req: express.Request): Promise<WorkshopSettingsActor> {
+    const auth = (req as unknown as { auth?: SessionPayload }).auth;
+    if (!auth?.r) {
+      return { role: null, load: "unauthenticated" };
+    }
+    if (auth.r === "admin") {
+      return { role: "admin", load: "ok" };
+    }
+    if (auth.r !== "user" || !auth.u) {
+      return { role: null, load: "unauthenticated" };
+    }
+    if (!supabaseAdmin || !WORKSHOP_ID) {
+      return { role: "user", userId: auth.u, load: "failed" };
+    }
+    try {
+      const { data: me, error } = await supabaseAdmin
+        .from("workshop_system_users")
+        .select("permissions")
+        .eq("id", auth.u)
+        .eq("workshop_id", WORKSHOP_ID)
+        .maybeSingle();
+      if (error) {
+        return { role: "user", userId: auth.u, load: "failed" };
+      }
+      if (!me) {
+        return { role: "user", userId: auth.u, load: "missing" };
+      }
+      const permissions = (me.permissions as Record<string, boolean> | null) || {};
+      return { role: "user", userId: auth.u, permissions, load: "ok" };
+    } catch {
+      return { role: "user", userId: auth.u, load: "failed" };
+    }
   }
 
   /** Lê a senha da Gerência do header (preferido), body ou query (legado), sem expor na URL. */
@@ -3574,22 +3619,25 @@ export function createApiApp() {
         aiImproveTextLevel,
       } = writeBody;
 
-      // Credencial efetiva (PIN, senhas) só pela Gerência. Campo ausente, vazio ou
-      // só com espaços não conta e não regrava o valor já salvo.
-      // Acessos e perfil do admin continuam restritos à Gerência.
-      // labProductKinds/appAppearance/labelTemplates seguem para usuários autenticados.
-      if (rejectCredentialChange(isAdminRequest(req), writeBody)) {
-        return res.status(403).json({ error: "Apenas a Gerência pode alterar estas configurações." });
-      }
-      const touchesSensitive =
-        typeof adminDisplayName === "string" ||
-        typeof adminPhotoUrl === "string" ||
-        typeof patioLoginEnabled === "boolean" ||
-        typeof technicianAccessReception === "boolean" ||
-        typeof technicianAccessAgenda === "boolean" ||
-        typeof technicianAccessPatio === "boolean";
-      if (touchesSensitive && !isAdminRequest(req)) {
-        return res.status(403).json({ error: "Apenas a Gerência pode alterar estas configurações." });
+      // SEC-04.2: autorização atômica por grupo (G0–G3) antes de qualquer upsert.
+      // Secrets vazios não contam; campos desconhecidos já foram filtrados.
+      // full_access ≠ Gerência para G0/G1. Falha de lookup → 403.
+      const settingsActor = await loadWorkshopSettingsActor(req);
+      const authz = authorizeWorkshopSettingsWrite(settingsActor, writeBody);
+      if (!authz.ok) {
+        console.warn(
+          "[API] workshop-settings authz deny",
+          JSON.stringify(
+            workshopSettingsAuthzLogFields(authz, {
+              route: "PUT /api/workshop-settings",
+              role: settingsActor.role,
+            })
+          )
+        );
+        return res.status(403).json({
+          error: workshopSettingsAuthzErrorMessage(authz),
+          code: "permission_denied",
+        });
       }
       const nextAdminPassword = classifyNewLoginPassword(writeBody.adminPassword);
       if (nextAdminPassword.status === "invalid") {
@@ -13879,9 +13927,29 @@ export function createApiApp() {
     }
   );
 
-  // Upload da foto do perfil do administrador
+  // Upload da foto do perfil do administrador (SEC-04.2: só Gerência, antes do Storage)
   app.post(
     "/api/workshop-admin/photo",
+    async (req, res, next) => {
+      const actor = await loadWorkshopSettingsActor(req);
+      const authz = authorizeAdminPhotoUpload(actor);
+      if (!authz.ok) {
+        console.warn(
+          "[API] workshop-admin photo authz deny",
+          JSON.stringify(
+            workshopSettingsAuthzLogFields(authz, {
+              route: "POST /api/workshop-admin/photo",
+              role: actor.role,
+            })
+          )
+        );
+        return res.status(403).json({
+          error: workshopSettingsAuthzErrorMessage(authz),
+          code: "permission_denied",
+        });
+      }
+      return next();
+    },
     upload.single("file"),
     async (req, res) => {
       try {
@@ -13941,9 +14009,29 @@ export function createApiApp() {
     }
   );
 
-  /** Foto ilustrativa de um tipo de peça do laboratório (atualiza lab_product_kinds). */
+  /** Foto ilustrativa de um tipo de peça do laboratório (atualiza lab_product_kinds). SEC-04.2: política G2 antes do Storage. */
   app.post(
     "/api/lab-product-kinds/:kindId/photo",
+    async (req, res, next) => {
+      const actor = await loadWorkshopSettingsActor(req);
+      const authz = authorizeLabProductKindPhoto(actor);
+      if (!authz.ok) {
+        console.warn(
+          "[API] lab-product-kinds photo authz deny",
+          JSON.stringify(
+            workshopSettingsAuthzLogFields(authz, {
+              route: "POST /api/lab-product-kinds/:kindId/photo",
+              role: actor.role,
+            })
+          )
+        );
+        return res.status(403).json({
+          error: workshopSettingsAuthzErrorMessage(authz),
+          code: "permission_denied",
+        });
+      }
+      return next();
+    },
     upload.single("file"),
     async (req, res) => {
       try {

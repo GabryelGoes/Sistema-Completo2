@@ -13,13 +13,17 @@ import { join } from "node:path";
 import {
   pickWorkshopSettingsWrite,
   plannedSecretWrites,
-  rejectCredentialChange,
   requestsEffectiveCredentialChange,
   responseExposesSecrets,
   WORKSHOP_SETTINGS_WRITE_KEYS,
   withWorkshopSecretFlags,
-  type WorkshopSettingsWriteBody,
 } from "../utils/workshopSettingsSecrets.js";
+import {
+  authorizeAdminPhotoUpload,
+  authorizeLabProductKindPhoto,
+  authorizeWorkshopSettingsWrite,
+  type WorkshopSettingsActor,
+} from "../utils/workshopSettingsAuthz.js";
 import { productionAuthorizationPolicy } from "../utils/authorizationPolicy.js";
 import { decideAuthorization, type SessionActor } from "../utils/authorizeRequest.js";
 
@@ -92,51 +96,31 @@ function ok(name: string, cond: boolean, detail = "") {
   }
 }
 
-function pendingCase(name: string, phase: "04.2" | "04.3" | "04.4", note: string) {
+function pendingCase(name: string, phase: "04.2" | "04.2+" | "04.3" | "04.4", note: string) {
   pending += 1;
   console.log(`PENDING  [${phase}] ${name} — ${note}`);
 }
 
-function isAdmin(actor: StaffActor): boolean {
-  return actor.role === "admin";
-}
-
-/** Espelho do toque G1 em apiApp PUT (comportamento ATUAL). */
-function touchesSensitiveG1(body: WorkshopSettingsWriteBody): boolean {
-  return (
-    typeof body.adminDisplayName === "string" ||
-    typeof body.adminPhotoUrl === "string" ||
-    typeof body.patioLoginEnabled === "boolean" ||
-    typeof body.technicianAccessReception === "boolean" ||
-    typeof body.technicianAccessAgenda === "boolean" ||
-    typeof body.technicianAccessPatio === "boolean"
-  );
-}
-
 type Decision = "401" | "403" | "allow";
 
+function toAuthzActor(actor: StaffActor | null): WorkshopSettingsActor {
+  if (!actor) return { role: null, load: "unauthenticated" };
+  if (actor.role === "admin") return { role: "admin", load: "ok" };
+  return {
+    role: "user",
+    userId: actor.userId,
+    permissions: actor.permissions || {},
+    load: "ok",
+  };
+}
+
 /**
- * Contrato ATUAL documentado do PUT /api/workshop-settings (após AuthN).
- * Não inventa proteções G2/G3 — qualquer sessão autenticada segue para esses campos.
+ * Contrato vigente PUT /api/workshop-settings após SEC-04.2 (authz G0–G3).
  */
 function currentWorkshopSettingsPut(actor: StaffActor | null, rawBody: unknown): Decision {
   if (!actor) return "401";
-  const body = pickWorkshopSettingsWrite(rawBody);
-  if (rejectCredentialChange(isAdmin(actor), body)) return "403";
-  if (touchesSensitiveG1(body) && !isAdmin(actor)) return "403";
-  const hasWrite =
-    requestsEffectiveCredentialChange(body) ||
-    touchesSensitiveG1(body) ||
-    (body.appAppearance !== undefined && body.appAppearance !== null && typeof body.appAppearance === "object") ||
-    Array.isArray(body.labProductKinds) ||
-    Array.isArray(body.labQuickServices) ||
-    (body.labelTemplates !== undefined && body.labelTemplates !== null && typeof body.labelTemplates === "object") ||
-    (body.aiImproveTextLevel !== undefined && body.aiImproveTextLevel !== null);
-  if (!hasWrite && Object.keys(body).length === 0) {
-    // body só com desconhecidos → handler atual responde 400; tratamos como não-autorização
-    return "allow";
-  }
-  return "allow";
+  const decision = authorizeWorkshopSettingsWrite(toAuthzActor(actor), rawBody);
+  return decision.ok ? "allow" : "403";
 }
 
 /**
@@ -159,10 +143,15 @@ function currentSystemNotificationsPut(
   return "allow";
 }
 
-/** Contrato ATUAL dos uploads equivalentes — só AuthN. */
-function currentUpload(actor: StaffActor | null): Decision {
+/** Uploads após SEC-04.2: admin photo = G1; lab photo = G2. */
+function currentAdminPhoto(actor: StaffActor | null): Decision {
   if (!actor) return "401";
-  return "allow";
+  return authorizeAdminPhotoUpload(toAuthzActor(actor)).ok ? "allow" : "403";
+}
+
+function currentLabPhoto(actor: StaffActor | null): Decision {
+  if (!actor) return "401";
+  return authorizeLabProductKindPhoto(toAuthzActor(actor)).ok ? "allow" : "403";
 }
 
 /** Proposta futura (não usada em asserts A). */
@@ -225,7 +214,7 @@ ok("A1 guardHttpAuthorization após sessão", apiApp.includes("guardHttpAuthoriz
 
 ok("A1 sem sessão PUT settings → 401 (contrato)", currentWorkshopSettingsPut(ACTORS.none, { labProductKinds: [] }) === "401");
 ok("A1 sem sessão PUT notif → 401 (contrato)", currentSystemNotificationsPut(ACTORS.none) === "401");
-ok("A1 sem sessão upload admin → 401 (contrato)", currentUpload(ACTORS.none) === "401");
+ok("A1 sem sessão upload admin → 401 (contrato)", currentAdminPhoto(ACTORS.none) === "401");
 
 // ---------- A2 G0 secrets ----------
 ok(
@@ -242,7 +231,7 @@ ok(
 ok(
   "A2 G0 vazio não é alteração efetiva",
   requestsEffectiveCredentialChange(pickWorkshopSettingsWrite({ patioPin: "   ", adminPassword: "" })) === false &&
-    rejectCredentialChange(false, { patioPin: "  " }) === false
+    currentWorkshopSettingsPut(ACTORS.full, { patioPin: "  " }) === "allow"
 );
 ok(
   "A2 G0 resposta sem plaintext",
@@ -252,8 +241,8 @@ ok(
   )
 );
 ok(
-  "A2 handler chama rejectCredentialChange + isAdminRequest",
-  apiApp.includes("rejectCredentialChange(isAdminRequest(req), writeBody)")
+  "A2 handler autoriza via workshopSettingsAuthz (G0 incluso)",
+  apiApp.includes("authorizeWorkshopSettingsWrite(settingsActor")
 );
 
 // ---------- A3 G1 ----------
@@ -271,44 +260,50 @@ ok(
   }) === "allow"
 );
 ok(
-  "A3 apiApp touchesSensitive espelhado",
-  apiApp.includes("touchesSensitive") &&
-    apiApp.includes("typeof adminDisplayName === \"string\"") &&
-    apiApp.includes("touchesSensitive && !isAdminRequest(req)")
+  "A3 apiApp authz G1 via authorizeWorkshopSettingsWrite",
+  apiApp.includes("authorizeWorkshopSettingsWrite") && apiApp.includes("loadWorkshopSettingsActor")
 );
 
-// ---------- A4 G2/G3 atuais (abertos) ----------
+// ---------- A4 G2/G3 após SEC-04.2 ----------
 ok(
-  "A4 G2 qualquer auth (full) allow — atual",
+  "A4 G2 full allow",
   currentWorkshopSettingsPut(ACTORS.full, { labProductKinds: [] }) === "allow"
 );
 ok(
-  "A4 G2 qualquer auth (P0) allow — atual",
-  currentWorkshopSettingsPut(ACTORS.nonePerms, { labQuickServices: [] }) === "allow"
+  "A4 G2 P0 403",
+  currentWorkshopSettingsPut(ACTORS.nonePerms, { labQuickServices: [] }) === "403"
 );
 ok(
-  "A4 G3 settings key allow — atual",
+  "A4 G2 lab allow",
+  currentWorkshopSettingsPut(ACTORS.lab, { labProductKinds: [] }) === "allow"
+);
+ok(
+  "A4 G2 services allow",
+  currentWorkshopSettingsPut(ACTORS.services, { labQuickServices: [] }) === "allow"
+);
+ok(
+  "A4 G3 settings key allow",
   currentWorkshopSettingsPut(ACTORS.settings, {
     labelTemplates: { lab_os: {} },
     aiImproveTextLevel: "balanced",
   }) === "allow"
 );
 ok(
-  "A4 G3 P0 allow — atual (gap documentado)",
-  currentWorkshopSettingsPut(ACTORS.nonePerms, { appAppearance: { accent: "#000" } }) === "allow"
+  "A4 G3 P0 403",
+  currentWorkshopSettingsPut(ACTORS.nonePerms, { appAppearance: { accent: "#000" } }) === "403"
 );
 ok(
-  "A4 G3 tech+settings allow — atual",
+  "A4 G3 tech+settings allow",
   currentWorkshopSettingsPut(ACTORS.techLinked, { labelTemplates: { estoque: {} } }) === "allow"
 );
 ok(
-  "A4 apiApp documenta lab/appearance para autenticados",
-  apiApp.includes("labProductKinds/appAppearance/labelTemplates seguem para usuários autenticados")
+  "A4 apiApp usa authorizeWorkshopSettingsWrite",
+  apiApp.includes("authorizeWorkshopSettingsWrite")
 );
 
-// ---------- A5 mistos atuais ----------
+// ---------- A5 mistos atômicos ----------
 ok(
-  "A5 misto secret+G3: non-admin 403 (secret vence)",
+  "A5 misto secret+G3: non-admin 403",
   currentWorkshopSettingsPut(ACTORS.settings, {
     labelTemplates: { lab_os: {} },
     patioPin: SAMPLE_SECRET,
@@ -322,11 +317,11 @@ ok(
   }) === "403"
 );
 ok(
-  "A5 misto G2+G3: non-admin ALLOW ambos — atual (não atômico por chave)",
+  "A5 misto G2+G3: P0 403 atômico",
   currentWorkshopSettingsPut(ACTORS.nonePerms, {
     labProductKinds: [],
     labelTemplates: { chave: {} },
-  }) === "allow"
+  }) === "403"
 );
 
 // ---------- A6 whitelist / falsy / desconhecidos ----------
@@ -348,7 +343,7 @@ ok(
 );
 ok(
   "A6 false boolean G1 ainda é toque sensível",
-  touchesSensitiveG1(pickWorkshopSettingsWrite({ patioLoginEnabled: false })) === true
+  currentWorkshopSettingsPut(ACTORS.full, { patioLoginEnabled: false }) === "403"
 );
 
 // ---------- A7 notificações ----------
@@ -393,33 +388,28 @@ ok(
     apiApp.includes("commentPopupRecipientIds")
 );
 
-// ---------- A8 uploads ----------
-ok("A8 upload admin: P0 allow — atual (gap)", currentUpload(ACTORS.nonePerms) === "allow");
-ok("A8 upload lab: L allow — atual", currentUpload(ACTORS.lab) === "allow");
+// ---------- A8 uploads (SEC-04.2) ----------
+ok("A8 upload admin: P0 403", currentAdminPhoto(ACTORS.nonePerms) === "403");
+ok("A8 upload admin: full 403", currentAdminPhoto(ACTORS.full) === "403");
+ok("A8 upload admin: Gerência allow", currentAdminPhoto(ACTORS.admin) === "allow");
+ok("A8 upload lab: L allow", currentLabPhoto(ACTORS.lab) === "allow");
+ok("A8 upload lab: P0 403", currentLabPhoto(ACTORS.nonePerms) === "403");
 ok(
-  "A8 admin photo grava admin_photo_url sem isAdminRequest no handler",
+  "A8 admin photo authz antes do multer",
   (() => {
     const start = apiApp.indexOf('"/api/workshop-admin/photo"');
-    const end = apiApp.indexOf('"/api/lab-product-kinds/:kindId/photo"', start);
-    const slice = apiApp.slice(start, end);
-    return (
-      slice.includes('key: "admin_photo_url"') &&
-      !slice.includes("isAdminRequest") &&
-      !slice.includes("requestHasFullAccess")
-    );
+    const multerAt = apiApp.indexOf('upload.single("file")', start);
+    const authzAt = apiApp.indexOf("authorizeAdminPhotoUpload", start);
+    return authzAt > start && authzAt < multerAt && apiApp.includes('key: "admin_photo_url"');
   })()
 );
 ok(
-  "A8 lab photo grava lab_product_kinds sem access_* no handler",
+  "A8 lab photo authz G2 antes do multer",
   (() => {
     const start = apiApp.indexOf('"/api/lab-product-kinds/:kindId/photo"');
-    const end = apiApp.indexOf("app.put(\"/api/service-orders/:id\"", start);
-    const slice = apiApp.slice(start, end > start ? end : start + 2500);
-    return (
-      slice.includes('key: "lab_product_kinds"') &&
-      !slice.includes("access_laboratorio") &&
-      !slice.includes("isAdminRequest")
-    );
+    const multerAt = apiApp.indexOf('upload.single("file")', start);
+    const authzAt = apiApp.indexOf("authorizeLabProductKindPhoto", start);
+    return authzAt > start && authzAt < multerAt && apiApp.includes('key: "lab_product_kinds"');
   })()
 );
 
@@ -514,11 +504,11 @@ ok(
   apiApp.includes("for (const u of updates)") && apiApp.includes("Falha ao salvar configuração")
 );
 
-// ---------- A11 permissão removida / lookup — comportamento ATUAL settings ----------
+// ---------- A11 permissão removida / lookup ----------
 ok(
-  "A11 remover access_settings não muda PUT G3 atual (P0 ainda allow)",
+  "A11 remover access_settings → PUT G3 403",
   currentWorkshopSettingsPut({ ...ACTORS.settings, permissions: {} }, { labelTemplates: { lab_os: {} } }) ===
-    "allow"
+    "403"
 );
 ok(
   "A11 notif: remover full_access faz PUT 403 sem senha",
@@ -556,36 +546,24 @@ for (const [label, actor, want] of matrixG1) {
 // ---------- Parte B — PENDING futuros ----------
 console.log("\n--- Parte B: casos futuros (não falham) ---\n");
 
-pendingCase(
-  "G2 PUT exige L|V|F|G — P0 403",
-  "04.2",
-  `proposta=${proposedG2Write(ACTORS.nonePerms)} atual=${currentWorkshopSettingsPut(ACTORS.nonePerms, {
-    labProductKinds: [],
-  })}`
+ok(
+  "B→A G2 P0 403 implementado",
+  currentWorkshopSettingsPut(ACTORS.nonePerms, { labProductKinds: [] }) === proposedG2Write(ACTORS.nonePerms)
 );
-pendingCase("G2 PUT lab key allow", "04.2", `proposta=${proposedG2Write(ACTORS.lab)}`);
-pendingCase(
-  "G3 PUT exige S|F|G — P0 403",
-  "04.2",
-  `proposta=${proposedG3Write(ACTORS.nonePerms)} atual=allow`
+ok("B→A G2 lab allow", currentWorkshopSettingsPut(ACTORS.lab, { labProductKinds: [] }) === "allow");
+ok(
+  "B→A G3 P0 403",
+  currentWorkshopSettingsPut(ACTORS.nonePerms, { labelTemplates: { lab_os: {} } }) ===
+    proposedG3Write(ACTORS.nonePerms)
 );
-pendingCase("G3 PUT settings key allow", "04.2", `proposta=${proposedG3Write(ACTORS.settings)}`);
-pendingCase(
-  "Payload misto G2+G3 sem chave: 403 atômico antes de upsert",
-  "04.2",
-  "hoje ambos gravam se autenticado"
+ok("B→A G3 settings allow", currentWorkshopSettingsPut(ACTORS.settings, { aiImproveTextLevel: "light" }) === "allow");
+ok(
+  "B→A admin photo full 403",
+  currentAdminPhoto(ACTORS.full) === proposedAdminPhoto(ACTORS.full)
 );
-pendingCase(
-  "POST workshop-admin/photo só Gerência",
-  "04.2",
-  `proposta=${proposedAdminPhoto(ACTORS.full)} atual=${currentUpload(ACTORS.full)}`
-);
-pendingCase(
-  "POST lab-product-kinds photo = G2",
-  "04.2",
-  `proposta P0=${proposedG2Write(ACTORS.nonePerms)} L=${proposedG2Write(ACTORS.lab)}`
-);
-pendingCase("Auto-upload labelTemplatesSync exige G3", "04.2", "utils/labelTemplatesSync.ts");
+ok("B→A lab photo P0 403", currentLabPhoto(ACTORS.nonePerms) === "403");
+ok("B→A lab photo L allow", currentLabPhoto(ACTORS.lab) === "allow");
+
 pendingCase("GET system-notifications exige N|F|G", "04.3", "hoje qualquer auth lista availableUsers");
 pendingCase(
   "PUT system-notifications honra access_notificacoes_sistema",
@@ -593,12 +571,10 @@ pendingCase(
   `proposta N=${proposedNotifWrite(ACTORS.notif)} atual=403 sem senha`
 );
 pendingCase("Decisão N3: senha Gerência como break-glass", "04.3", "não remover elevação sem aprovação");
-pendingCase("Permissão removida após login → 403 no PUT G3", "04.2", "hoje G3 ignora permissions");
-pendingCase("Falha lookup permissions → deny em enforce", "04.2", "padrão SEC-03; settings ainda sem regras");
 pendingCase(
-  "Atomicidade de persistência (transação/única escrita)",
-  "04.2",
-  "RISK-PARTIAL separado da authz atômica"
+  "Atomicidade de persistência (transação DB)",
+  "04.2+",
+  "RISK-PARTIAL: upserts por chave permanecem; authz já é atômica"
 );
 pendingCase("Alinhamento FE !isTechnician / copy", "04.4", "fora do selftest de API");
 
