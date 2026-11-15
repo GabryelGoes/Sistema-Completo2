@@ -12,6 +12,8 @@ import { ModalPortal } from './ui/ModalPortal';
 import { IosModalHeader } from './ui/IosModalHeader';
 import { useRegisterModalOpen } from './ui/ModalLayerContext';
 import { useDesktopShellLayout } from './ui/DesktopShellContext';
+import { ajustesPcOpsClass } from './ajustes/AjustesPcLayoutContext';
+import { AjustesPcOpsEyebrow } from './ajustes/AjustesPcOpsEyebrow';
 import { getWorkshopSettings, updateWorkshopSettings } from '../services/apiService';
 import {
   LAB_QUICK_SERVICES_CHANGED_EVENT,
@@ -144,15 +146,22 @@ export const LabQuickServicesModal: React.FC<LabQuickServicesModalProps> = ({ is
   return (
     <ModalPortal>
       <div className={resolveIosModalOverlayClass(isDesktopShell)}>
-        <div className={`${iosModalShell} max-h-[94vh] max-w-xl`}>
-          {!isDesktopShell ? (
-            <button type="button" onClick={onClose} className={iosModalClose} aria-label="Fechar">
-              <X className="w-5 h-5" />
-            </button>
-          ) : null}
+        <div
+          className={`${iosModalShell} ${ajustesPcOpsClass(isDesktopShell)} max-h-[94vh] ${
+            isDesktopShell ? 'max-w-2xl' : 'max-w-xl'
+          }`}
+        >
+          <button type="button" onClick={onClose} className={iosModalClose} aria-label="Fechar">
+            <X className="w-5 h-5" />
+          </button>
 
           <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-            <div className={`shrink-0 px-6 pb-4 pt-8 sm:px-8 ${isDesktopShell ? 'pr-6 sm:pr-8' : 'pr-14'}`}>
+            <div
+              className={`shrink-0 px-6 pb-4 pt-8 pr-14 sm:px-8 ${
+                isDesktopShell ? 'ajustes-pc-ops-header' : ''
+              }`}
+            >
+              <AjustesPcOpsEyebrow desktop={isDesktopShell}>Ajustes · Operação · Laboratório</AjustesPcOpsEyebrow>
               <IosModalHeader
                 icon={<Wrench className="h-6 w-6" strokeWidth={2.1} />}
                 title="Serviços rápidos do laboratório"
@@ -160,7 +169,11 @@ export const LabQuickServicesModal: React.FC<LabQuickServicesModalProps> = ({ is
               />
             </div>
 
-            <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-6 pb-4 sm:px-8">
+            <div
+              className={`min-h-0 flex-1 space-y-4 overflow-y-auto px-6 pb-4 sm:px-8 ${
+                isDesktopShell ? 'ajustes-pc-ops-scroll' : ''
+              }`}
+            >
               <div className="flex items-start gap-2 rounded-2xl border border-violet-500/20 bg-violet-500/[0.06] px-3.5 py-3 text-[12.5px] leading-relaxed text-zinc-600 dark:border-violet-400/25 dark:bg-violet-500/10 dark:text-zinc-300">
                 <Info className="mt-0.5 h-4 w-4 shrink-0 text-violet-600 dark:text-violet-300" aria-hidden />
                 <span>
@@ -244,8 +257,12 @@ export const LabQuickServicesModal: React.FC<LabQuickServicesModalProps> = ({ is
               ) : null}
             </div>
 
-            <div className="shrink-0 border-t border-zinc-200/70 px-6 py-4 dark:border-white/[0.07] sm:px-8">
-              <div className="flex justify-end gap-2">
+            <div
+              className={`shrink-0 border-t border-zinc-200/70 px-6 py-4 dark:border-white/[0.07] sm:px-8 ${
+                isDesktopShell ? 'ajustes-pc-child-footer !mt-0 !border-t-0' : ''
+              }`}
+            >
+              <div className={`flex justify-end gap-2 ${isDesktopShell ? 'w-full' : ''}`}>
                 <button
                   type="button"
                   onClick={onClose}

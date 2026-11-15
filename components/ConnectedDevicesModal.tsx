@@ -20,6 +20,8 @@ import { ModalPortal } from './ui/ModalPortal';
 import { IosModalHeader } from './ui/IosModalHeader';
 import { useRegisterModalOpen } from './ui/ModalLayerContext';
 import { useDesktopShellLayout } from './ui/DesktopShellContext';
+import { ajustesPcOpsClass } from './ajustes/AjustesPcLayoutContext';
+import { AjustesPcOpsEyebrow } from './ajustes/AjustesPcOpsEyebrow';
 import {
   blockDevice,
   getConnectedDevices,
@@ -181,7 +183,11 @@ export const ConnectedDevicesModal: React.FC<ConnectedDevicesModalProps> = ({
   return (
     <ModalPortal>
       <div className={resolveIosModalOverlayClass(isDesktopShell)}>
-        <div className={`${iosModalShell} max-h-[94vh] max-w-2xl`}>
+        <div
+          className={`${iosModalShell} ${ajustesPcOpsClass(isDesktopShell)} max-h-[94vh] ${
+            isDesktopShell ? 'max-w-3xl' : 'max-w-2xl'
+          }`}
+        >
           <button
             type="button"
             onClick={onClose}
@@ -192,7 +198,12 @@ export const ConnectedDevicesModal: React.FC<ConnectedDevicesModalProps> = ({
           </button>
 
           <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-            <div className="shrink-0 px-6 pb-3 pt-8 pr-14 sm:px-8">
+            <div
+              className={`shrink-0 px-6 pb-3 pt-8 pr-14 sm:px-8 ${
+                isDesktopShell ? 'ajustes-pc-ops-header' : ''
+              }`}
+            >
+              <AjustesPcOpsEyebrow desktop={isDesktopShell}>Ajustes · Operação · Dispositivos</AjustesPcOpsEyebrow>
               <IosModalHeader
                 icon={
                   <span className="flex h-full w-full items-center justify-center text-zinc-700 dark:text-zinc-200">
@@ -221,7 +232,11 @@ export const ConnectedDevicesModal: React.FC<ConnectedDevicesModalProps> = ({
               </div>
             </div>
 
-            <div className="min-h-0 flex-1 overflow-y-auto px-6 pb-8 sm:px-8">
+            <div
+              className={`min-h-0 flex-1 overflow-y-auto px-6 pb-8 sm:px-8 ${
+                isDesktopShell ? 'ajustes-pc-ops-scroll' : ''
+              }`}
+            >
               {error ? (
                 <p className="mb-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-[13px] text-red-700 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-300">
                   {error}

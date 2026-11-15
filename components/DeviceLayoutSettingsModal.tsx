@@ -6,6 +6,8 @@ import { IosModalHeader } from './ui/IosModalHeader';
 import { useRegisterModalOpen } from './ui/ModalLayerContext';
 import { useDeviceTypeContext } from './ui/DeviceTypeContext';
 import { useDesktopShellLayout } from './ui/DesktopShellContext';
+import { ajustesPcOpsClass } from './ajustes/AjustesPcLayoutContext';
+import { AjustesPcOpsEyebrow } from './ajustes/AjustesPcOpsEyebrow';
 import {
   DEVICE_TYPE_LABELS,
   type DeviceTypeOverride,
@@ -50,7 +52,11 @@ export const DeviceLayoutSettingsModal: React.FC<DeviceLayoutSettingsModalProps>
   return (
     <ModalPortal>
       <div className={resolveIosModalOverlayClass(isDesktopShell)}>
-        <div className={`${iosModalShell} max-h-[94vh] max-w-xl`}>
+        <div
+          className={`${iosModalShell} ${ajustesPcOpsClass(isDesktopShell)} max-h-[94vh] ${
+            isDesktopShell ? 'max-w-2xl' : 'max-w-xl'
+          }`}
+        >
           <button
             type="button"
             onClick={onClose}
@@ -61,7 +67,12 @@ export const DeviceLayoutSettingsModal: React.FC<DeviceLayoutSettingsModalProps>
           </button>
 
           <div className="flex flex-col min-h-0 flex-1 overflow-hidden">
-            <div className="px-6 sm:px-8 pt-8 pb-4 shrink-0 pr-14">
+            <div
+              className={`px-6 sm:px-8 pt-8 pb-4 shrink-0 pr-14 ${
+                isDesktopShell ? 'ajustes-pc-ops-header' : ''
+              }`}
+            >
+              <AjustesPcOpsEyebrow desktop={isDesktopShell}>Ajustes · Operação · Layout</AjustesPcOpsEyebrow>
               <IosModalHeader
                 icon={
                   <img
@@ -75,7 +86,11 @@ export const DeviceLayoutSettingsModal: React.FC<DeviceLayoutSettingsModalProps>
               />
             </div>
 
-            <div className="flex-1 min-h-0 overflow-y-auto px-6 sm:px-8 pb-8">
+            <div
+              className={`flex-1 min-h-0 overflow-y-auto px-6 sm:px-8 pb-8 ${
+                isDesktopShell ? 'ajustes-pc-ops-scroll' : ''
+              }`}
+            >
               <div className={`${iosModalInsetCard} p-4 sm:p-5`}>
                 <label className="block text-[13px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider mb-2">
                   Dispositivo atual

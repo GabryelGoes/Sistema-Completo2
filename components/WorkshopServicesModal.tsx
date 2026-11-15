@@ -13,6 +13,8 @@ import {
 } from '../services/apiService';
 import { downloadWorkshopServicesPdf, downloadWorkshopServicesText } from '../utils/workshopServicesExport';
 import { useRegisterModalOpen } from './ui/ModalLayerContext';
+import { ajustesPcOpsClass } from './ajustes/AjustesPcLayoutContext';
+import { AjustesPcOpsEyebrow } from './ajustes/AjustesPcOpsEyebrow';
 
 interface WorkshopServicesModalProps {
   isOpen: boolean;
@@ -385,13 +387,18 @@ export const WorkshopServicesModal: React.FC<WorkshopServicesModalProps> = ({ is
   return (
     <ModalPortal>
     <div className={resolveIosModalOverlayClass(isDesktopShell)}>
-      <div className={`${iosModalShell} w-full max-w-[95vw] h-[94vh] max-h-[94vh]`}>
+      <div
+        className={`${iosModalShell} ${ajustesPcOpsClass(isDesktopShell)} w-full ${
+          isDesktopShell ? 'max-w-6xl' : 'max-w-[95vw]'
+        } h-[94vh] max-h-[94vh]`}
+      >
         <button type="button" onClick={onClose} className={iosModalClose} aria-label="Fechar">
           <X className="w-5 h-5" />
         </button>
 
         <div className="flex flex-col min-h-0 flex-1 overflow-hidden">
-          <div className="px-6 sm:px-8 pt-8 pb-4 pr-14 shrink-0">
+          <div className={`px-6 sm:px-8 pt-8 pb-4 pr-14 shrink-0 ${isDesktopShell ? 'ajustes-pc-ops-header' : ''}`}>
+            <AjustesPcOpsEyebrow desktop={isDesktopShell}>Ajustes · Operação · Oficina</AjustesPcOpsEyebrow>
             <IosModalHeader
               icon={<img src="/icons/servicos-oficina-ios.png" alt="" className="h-full w-full min-h-0 object-cover" />}
               title="Serviços da oficina"
@@ -400,7 +407,7 @@ export const WorkshopServicesModal: React.FC<WorkshopServicesModalProps> = ({ is
             />
           </div>
 
-        <div className="flex-1 min-h-0 overflow-y-auto px-6 sm:px-8 pb-8">
+        <div className={`flex-1 min-h-0 overflow-y-auto px-6 sm:px-8 pb-8 ${isDesktopShell ? 'ajustes-pc-ops-scroll' : ''}`}>
           <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between mb-4">
             <p className="text-[13px] text-zinc-500 dark:text-zinc-400 sm:flex-1 sm:min-w-0">
               Organize serviços por categoria e informe a duração em horas e minutos separados (ex.: 1 hora e 30 minutos). Cada hora tem 60 minutos — use o campo “Min” para o restante, em vez de números decimais no campo de horas.
