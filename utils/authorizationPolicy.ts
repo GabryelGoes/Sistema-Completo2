@@ -1,8 +1,9 @@
 /**
  * SEC-03.0 — catálogo declarativo de autorização.
  *
- * O bloqueio real começa em uma família por vez. `tv_admin`, `workshop_catalogs`,
- * `technicians`, `reports`, `bulletins` e `parts_stock` já bloqueiam.
+ * O bloqueio real começa em uma família por vez. `customers`, `appointments`,
+ * `budgets`, `parts_stock`, `technicians`, `workshop_catalogs`, `tv_admin`,
+ * `bulletins` e `reports` já bloqueiam.
  *
  * A chave de aba não libera outra ação: cada regra lista as chaves daquela
  * ação. `anyOf` vazio significa só Gerência ou full_access.
@@ -260,7 +261,9 @@ const FAMILIES: readonly AuthorizationFamily[] = [
   // a sessão e o filtro da oficina bastam, porque a Home e os lembretes leem essa rota.
   family("appointments", ["/api/appointments"], "enforce"),
   family("service_orders", ["/api/service-orders"]),
-  family("budgets", ["/api/service-orders", "/api/patio-budgets-hub", "/api/patio-vehicle-budgets-aggregate"]),
+  // SEC-03.27.1: bloqueia orçamentos. O agregado da Home não tem chave:
+  // a sessão e o filtro da oficina bastam. Aprovar itens no PUT só grava flags.
+  family("budgets", ["/api/service-orders", "/api/patio-budgets-hub", "/api/patio-vehicle-budgets-aggregate"], "enforce"),
   family("comments", ["/api/service-orders"]),
   family("photos", ["/api/service-orders"]),
   // SEC-03.20: bloqueia o estoque. A baixa da OS e a leitura do catálogo continuam nas chaves de cada fluxo.
@@ -501,14 +504,17 @@ const RULES: readonly AuthorizationRule[] = [
     anyOf: BUDGET_READ,
     priority: 70,
   }),
+  // Quem só aprova entra no PUT. O handler recusa o corpo que muda conteúdo
+  // e grava as flags com a versão lida da linha, para não cobrir outra edição.
   rule({
     id: "budget_update",
     family: "budgets",
     action: "update",
     methods: ["PUT", "PATCH"],
     path: "^/api/service-orders/[^/]+/budgets/[^/]+$",
-    anyOf: BUDGET_WRITE,
+    anyOf: [...BUDGET_WRITE, "patio_approve_budget_items"],
     priority: 70,
+    inherit: "approve_budget_items",
   }),
   rule({
     id: "budget_delete",
@@ -538,15 +544,9 @@ const RULES: readonly AuthorizationRule[] = [
     anyOf: BUDGET_READ,
     priority: 40,
   }),
-  rule({
-    id: "budget_aggregate_read",
-    family: "budgets",
-    action: "read",
-    methods: ["GET"],
-    path: "^/api/patio-vehicle-budgets-aggregate$",
-    anyOf: BUDGET_READ,
-    priority: 40,
-  }),
+  // GET /api/patio-vehicle-budgets-aggregate fica sem regra de chave.
+  // A Home consulta essa lista em toda sessão. O handler filtra a oficina
+  // e esconde diagnóstico e nome de quem não lê orçamentos.
 
   rule({
     id: "comment_create",
