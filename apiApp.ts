@@ -109,6 +109,12 @@ import {
   type WorkshopSettingsActor,
 } from "./utils/workshopSettingsAuthz.js";
 import {
+  authorizeSystemNotificationsGet,
+  authorizeSystemNotificationsPut,
+  systemNotificationsAuthzErrorMessage,
+  systemNotificationsAuthzLogFields,
+} from "./utils/systemNotificationsAuthz.js";
+import {
   insertIncidentRevision,
   registerQualityRadarPhase1Routes,
 } from "./services/qualityRadar/registerQualityRadarPhase1Routes.js";
@@ -3444,10 +3450,28 @@ export function createApiApp() {
   });
 
   /** Notificações do sistema (central): tipos para gerência e usuários selecionados */
-  app.get("/api/workshop/system-notifications", async (_req, res) => {
+  app.get("/api/workshop/system-notifications", async (req, res) => {
     try {
       if (!supabaseAdmin || !WORKSHOP_ID) {
         return res.status(500).json({ error: "Servidor não configurado." });
+      }
+      // SEC-04.3: GET exige Gerência | full_access | access_notificacoes_sistema (sem elevação por senha).
+      const notifActor = await loadWorkshopSettingsActor(req);
+      const notifAuthz = authorizeSystemNotificationsGet(notifActor);
+      if (!notifAuthz.ok) {
+        console.warn(
+          "[API] system-notifications GET authz deny",
+          JSON.stringify(
+            systemNotificationsAuthzLogFields(notifAuthz, {
+              route: "GET /api/workshop/system-notifications",
+              role: notifActor.role,
+            })
+          )
+        );
+        return res.status(notifAuthz.httpStatus).json({
+          error: systemNotificationsAuthzErrorMessage(notifAuthz),
+          code: notifAuthz.httpStatus === 401 ? "session_invalid" : "permission_denied",
+        });
       }
       const cfg = await getSystemNotificationConfig();
       const { data: users } = await supabaseAdmin
@@ -3518,28 +3542,35 @@ export function createApiApp() {
         return res.status(500).json({ error: "Servidor não configurado." });
       }
 
-      const auth = (req as unknown as { auth?: SessionPayload }).auth;
-      let allowed = false;
-      if (auth?.r === "admin") {
-        allowed = true;
-      } else if (auth?.r === "user" && auth.u) {
-        const { data: me } = await supabaseAdmin
-          .from("workshop_system_users")
-          .select("permissions")
-          .eq("id", auth.u)
-          .eq("workshop_id", WORKSHOP_ID)
-          .maybeSingle();
-        allowed = !!(me?.permissions as Record<string, boolean> | null)?.full_access;
+      // SEC-04.3: privilegio (admin | full_access | access_notificacoes_sistema)
+      // ou elevação legada por senha Gerência (exige sessão autenticada).
+      // Authz completa antes de normalizar / upsert.
+      const notifActor = await loadWorkshopSettingsActor(req);
+      const passwordProvided =
+        typeof adminPassword === "string" && adminPassword.trim().length > 0;
+      let passwordValid: boolean | null = null;
+      if (passwordProvided) {
+        passwordValid = await verifyAdmin(ADMIN_USERNAME, adminPassword);
       }
-      if (!allowed) {
-        if (!(await verifyAdmin(ADMIN_USERNAME, adminPassword))) {
-          return res.status(403).json({ error: "Acesso negado." });
-        }
-      } else if (typeof adminPassword === "string" && adminPassword.trim()) {
-        // Senha informada: valida mesmo com sessão (evita salvar com senha errada por engano).
-        if (!(await verifyAdmin(ADMIN_USERNAME, adminPassword))) {
-          return res.status(403).json({ error: "Senha da gerência incorreta." });
-        }
+      const notifAuthz = authorizeSystemNotificationsPut(notifActor, {
+        passwordProvided,
+        passwordValid,
+      });
+      if (!notifAuthz.ok) {
+        console.warn(
+          "[API] system-notifications PUT authz deny",
+          JSON.stringify(
+            systemNotificationsAuthzLogFields(notifAuthz, {
+              route: "PUT /api/workshop/system-notifications",
+              role: notifActor.role,
+              passwordProvided,
+            })
+          )
+        );
+        return res.status(notifAuthz.httpStatus).json({
+          error: systemNotificationsAuthzErrorMessage(notifAuthz),
+          code: notifAuthz.httpStatus === 401 ? "session_invalid" : "permission_denied",
+        });
       }
 
       const normalizedAdmin = Array.isArray(adminNotificationTypes)
