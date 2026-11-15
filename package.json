@@ -44,6 +44,7 @@
     "test:sec041-workshop-admin-settings": "tsx scripts/sec041WorkshopAdminSettings.selftest.ts",
     "test:sec042-workshop-settings-authz": "tsx scripts/sec042WorkshopSettingsAuthz.selftest.ts",
     "test:sec043-system-notifications-authz": "tsx scripts/sec043SystemNotificationsAuthz.selftest.ts",
+    "test:sec044-frontend-alignment": "tsx scripts/sec044FrontendAlignment.selftest.ts",
     "test:login-password-change": "tsx scripts/loginPasswordChange.selftest.ts",
     "test:sec03-authorization": "tsx scripts/sec03Authorization.selftest.ts",
     "test:sec033-employee-access": "tsx scripts/sec033EmployeeAccess.selftest.ts",

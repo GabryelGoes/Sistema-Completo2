@@ -91,7 +91,10 @@ import {
   saveLabScanMode,
   type LabScanMode,
 } from './utils/labScanMode';
-import { syncLabelTemplatesFromServer } from './utils/labelTemplatesSync';
+import {
+  setLabelTemplatesSyncAuthContext,
+  syncLabelTemplatesFromServer,
+} from './utils/labelTemplatesSync';
 import { useAgendaReminders } from './hooks/useAgendaReminders';
 import {
   appointmentLocalDateKey,
@@ -1752,6 +1755,40 @@ export default function App() {
     }
   }, [isDesktopShell]);
 
+  // SEC-04.4: contexto de sync de etiquetas acompanha sessão e capacidade G3
+  // (troca de usuário / logout / grant|revoke de access_settings|full_access).
+  useEffect(() => {
+    let authChanged = false;
+    if (!authSession) {
+      authChanged = setLabelTemplatesSyncAuthContext(null);
+    } else if (authSession.role === 'admin') {
+      authChanged = setLabelTemplatesSyncAuthContext({
+        role: 'admin',
+        canWriteLabelTemplates: true,
+      });
+    } else if (authSession.role === 'user') {
+      const canWrite =
+        !!uiUserPermissions?.full_access || !!uiUserPermissions?.access_settings;
+      authChanged = setLabelTemplatesSyncAuthContext({
+        role: 'user',
+        userId: authSession.userId,
+        canWriteLabelTemplates: canWrite,
+      });
+    } else {
+      authChanged = setLabelTemplatesSyncAuthContext(null);
+    }
+    // Nova tentativa controlada só quando o contexto muda (não em loop).
+    if (authChanged && authSession) {
+      void syncLabelTemplatesFromServer({ force: true }).catch(() => {});
+    }
+  }, [
+    authSession,
+    authSession?.role,
+    authSession?.userId,
+    uiUserPermissions?.full_access,
+    uiUserPermissions?.access_settings,
+  ]);
+
   // Configurações da oficina (nome do admin + aparência global) após login
   useEffect(() => {
     if (!authSession) return;
@@ -1767,8 +1804,6 @@ export default function App() {
         }
       })
       .catch(() => {});
-    // Templates de etiquetas: baixa do servidor (ou sobe o local se o servidor estiver vazio).
-    void syncLabelTemplatesFromServer({ force: true }).catch(() => {});
     return () => {
       cancelled = true;
     };
@@ -2509,7 +2544,11 @@ export default function App() {
           onCinematographicModeChange={setCinematographicMode}
           ajustesPcChrome={isDesktopShell && settingsHubOpen}
         />
-        <ChangePasswordsModal isOpen={isUserChangePasswordsOpen} onClose={() => setIsUserChangePasswordsOpen(false)} />
+        <ChangePasswordsModal
+          isOpen={isUserChangePasswordsOpen}
+          onClose={() => setIsUserChangePasswordsOpen(false)}
+          allowSecretWrites={false}
+        />
         {hubBudgetViewer ? (
           <BudgetHubViewerModal
             key={`${hubBudgetViewer.serviceOrderId}-${hubBudgetViewer.budgetId}`}
