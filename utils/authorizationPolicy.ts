@@ -2,8 +2,8 @@
  * SEC-03.0 — catálogo declarativo de autorização.
  *
  * O bloqueio real começa em uma família por vez. `customers`, `appointments`,
- * `budgets`, `comments`, `parts_stock`, `technicians`, `workshop_catalogs`,
- * `tv_admin`, `bulletins` e `reports` já bloqueiam.
+ * `budgets`, `comments`, `photos`, `parts_stock`, `technicians`,
+ * `workshop_catalogs`, `tv_admin`, `bulletins` e `reports` já bloqueiam.
  *
  * A chave de aba não libera outra ação: cada regra lista as chaves daquela
  * ação. `anyOf` vazio significa só Gerência ou full_access.
@@ -176,6 +176,29 @@ const COMMENT_READ = [
   "access_orcamentos",
 ] as const satisfies readonly PermissionKey[];
 
+/** Quem abre a OS, o histórico ou o orçamento. Relatórios só leem. */
+const PHOTO_READ = [
+  "access_patio",
+  "access_laboratorio",
+  "access_reception",
+  "access_orcamentos",
+  "access_relatorios",
+  "patio_edit_ficha",
+  "patio_add_comments",
+] as const satisfies readonly PermissionKey[];
+
+/** Envio na OS, na recepção, no laboratório e nas fotos do comentário. */
+const PHOTO_UPLOAD = [
+  "access_patio",
+  "access_laboratorio",
+  "access_reception",
+  "patio_edit_ficha",
+  "patio_add_comments",
+] as const satisfies readonly PermissionKey[];
+
+/** Excluir, renomear, girar e organizar pastas. Enviar arquivo não basta. */
+const PHOTO_MANAGE = ["patio_edit_ficha"] as const satisfies readonly PermissionKey[];
+
 const TECH_READ = [
   "access_technicians",
   "patio_assign_technician",
@@ -267,7 +290,9 @@ const FAMILIES: readonly AuthorizationFamily[] = [
   // SEC-03.28: bloqueia comentários. Ler, reagir e marcar lido usa a leitura.
   // Criar usa a escrita. Editar e excluir exigem o autor, a Gerência ou full_access.
   family("comments", ["/api/service-orders"], "enforce"),
-  family("photos", ["/api/service-orders"]),
+  // SEC-03.29: bloqueia fotos e anexos da OS. Ler é a consulta.
+  // Enviar não autoriza excluir. Organizar e apagar usam patio_edit_ficha.
+  family("photos", ["/api/service-orders"], "enforce"),
   // SEC-03.20: bloqueia o estoque. A baixa da OS e a leitura do catálogo continuam nas chaves de cada fluxo.
   family("parts_stock", ["/api/workshop-parts", "/api/workshop-suppliers", "/api/workshop-part-categories", "/api/estoque"], "enforce"),
   family("abs_stock", ["/api/abs-modules", "/api/abs-module-models"]),
@@ -605,6 +630,88 @@ const RULES: readonly AuthorizationRule[] = [
     path: "^/api/service-orders/[^/]+/comments/(?:read|[^/]+/(?:view|reactions))$",
     anyOf: COMMENT_READ,
     priority: 90,
+  }),
+
+  rule({
+    id: "photo_list_read",
+    family: "photos",
+    action: "read",
+    methods: ["GET"],
+    path: "^/api/service-orders/[^/]+/(?:photos|photo-folders(?:/[^/]+)?|source-patio)$",
+    anyOf: PHOTO_READ,
+    priority: 80,
+  }),
+  rule({
+    id: "photo_upload",
+    family: "photos",
+    action: "create",
+    methods: ["POST"],
+    path: "^/api/service-orders/[^/]+/photos(?:/(?:upload-init|upload-complete|copy-from))?$",
+    anyOf: PHOTO_UPLOAD,
+    priority: 90,
+  }),
+  rule({
+    id: "photo_rotate",
+    family: "photos",
+    action: "update",
+    methods: ["POST", "PATCH"],
+    path: "^/api/service-orders/[^/]+/photos/rotate$",
+    anyOf: PHOTO_MANAGE,
+    priority: 100,
+  }),
+  rule({
+    id: "photo_rename",
+    family: "photos",
+    action: "update",
+    methods: ["PATCH"],
+    path: "^/api/service-orders/[^/]+/photos/rename$",
+    anyOf: PHOTO_MANAGE,
+    priority: 90,
+  }),
+  rule({
+    id: "photo_delete",
+    family: "photos",
+    action: "delete",
+    methods: ["DELETE"],
+    path: "^/api/service-orders/[^/]+/photos$",
+    anyOf: PHOTO_MANAGE,
+    priority: 90,
+  }),
+  rule({
+    id: "photo_folder_create",
+    family: "photos",
+    action: "create",
+    methods: ["POST"],
+    path: "^/api/service-orders/[^/]+/photo-folders$",
+    anyOf: PHOTO_MANAGE,
+    priority: 80,
+  }),
+  rule({
+    id: "photo_folder_update",
+    family: "photos",
+    action: "update",
+    methods: ["PATCH"],
+    path: "^/api/service-orders/[^/]+/photo-folders/[^/]+$",
+    anyOf: PHOTO_MANAGE,
+    priority: 80,
+  }),
+  rule({
+    id: "photo_folder_delete",
+    family: "photos",
+    action: "delete",
+    methods: ["DELETE"],
+    path: "^/api/service-orders/[^/]+/photo-folders/[^/]+$",
+    anyOf: PHOTO_MANAGE,
+    priority: 80,
+  }),
+  rule({
+    id: "photo_item_move",
+    family: "photos",
+    action: "move",
+    methods: ["PATCH"],
+    path: "^/api/service-orders/[^/]+/photo-items/move$",
+    anyOf: PHOTO_MANAGE,
+    priority: 80,
   }),
 
   rule({
