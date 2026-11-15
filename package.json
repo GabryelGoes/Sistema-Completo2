@@ -46,6 +46,7 @@
     "test:sec033-employee-access": "tsx scripts/sec033EmployeeAccess.selftest.ts",
     "test:sec034-api-permissions": "tsx scripts/sec034ApiPermissions.selftest.ts",
     "test:sec0310-tv-admin-enforce": "tsx scripts/sec0310TvAdminEnforce.selftest.ts",
+    "test:sec0312-workshop-catalogs-enforce": "tsx scripts/sec0312WorkshopCatalogsEnforce.selftest.ts",
     "test:workshop-part-reservations": "tsx scripts/workshopPartReservations.selftest.ts",
     "test:vehicle-maintenance-parts": "tsx scripts/vehicleMaintenanceParts.selftest.ts"
   },
