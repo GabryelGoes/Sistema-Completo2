@@ -83,6 +83,10 @@ import { effectiveFamilyMode, guardHttpAuthorization, permissionSourceFromSupaba
 import { productionAuthorizationPolicy } from "./utils/authorizationPolicy.js";
 import { assessBudgetApprovalPut } from "./utils/budgetApprovalGuard.js";
 import { acceptedCommentAuthorName, isOwnServiceOrderComment } from "./utils/commentAuthorship.js";
+import {
+  acceptedServiceOrderPhotoContentType,
+  isSafeServiceOrderPhotoPath,
+} from "./utils/serviceOrderPhotoGuard.js";
 import { projectBudgetAggregateItem } from "./utils/budgetAggregateView.js";
 import {
   APPOINTMENT_LIST_PUBLIC_FIELDS,
@@ -736,26 +740,8 @@ export function createApiApp() {
 
   const SERVICE_ORDER_PHOTO_MAX_BYTES = 20 * 1024 * 1024;
 
-  function resolveServiceOrderPhotoContentType(fileName: string, rawType?: unknown): string {
-    const type = String(rawType ?? "").trim().toLowerCase();
-    if (type && type !== "application/octet-stream") return type;
-    const n = fileName.toLowerCase();
-    if (n.endsWith(".pdf")) return "application/pdf";
-    if (n.endsWith(".png")) return "image/png";
-    if (/\.jpe?g$/.test(n)) return "image/jpeg";
-    if (n.endsWith(".webp")) return "image/webp";
-    if (n.endsWith(".gif")) return "image/gif";
-    if (n.endsWith(".heic") || n.endsWith(".heif")) return "image/heic";
-    if (n.endsWith(".doc")) return "application/msword";
-    if (n.endsWith(".docx")) {
-      return "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
-    }
-    if (n.endsWith(".xls")) return "application/vnd.ms-excel";
-    if (n.endsWith(".xlsx")) {
-      return "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
-    }
-    if (n.endsWith(".txt")) return "text/plain";
-    return "application/octet-stream";
+  function resolveServiceOrderPhotoContentType(fileName: string, rawType?: unknown): string | null {
+    return acceptedServiceOrderPhotoContentType(fileName, rawType);
   }
 
   async function assertServiceOrderInWorkshop(serviceOrderId: string): Promise<boolean> {
@@ -796,7 +782,7 @@ export function createApiApp() {
   }
 
   function assertServiceOrderPhotoPath(serviceOrderId: string, objectPath: string): boolean {
-    return objectPath.startsWith(`${serviceOrderPhotoFolderPath(serviceOrderId)}/`);
+    return isSafeServiceOrderPhotoPath(WORKSHOP_ID || "", serviceOrderId, objectPath);
   }
 
   type ServiceOrderPhotoListItem = { url: string; name: string; path: string };
@@ -6239,6 +6225,9 @@ export function createApiApp() {
         replacePath ? replacePath.split("/").pop() || safeName : safeName,
         body.contentType
       );
+      if (!contentType) {
+        return res.status(400).json({ error: "Tipo de arquivo não permitido." });
+      }
 
       const { data, error } = await supabaseAdmin.storage
         .from(bucket)
@@ -6303,8 +6292,7 @@ export function createApiApp() {
         return res.status(404).json({ error: "Ordem de serviço não encontrada." });
       }
 
-      const folderPath = serviceOrderPhotoFolderPath(serviceOrderId);
-      if (!objectPath.startsWith(`${folderPath}/`)) {
+      if (!assertServiceOrderPhotoPath(serviceOrderId, objectPath)) {
         return res.status(403).json({ error: "Arquivo não pertence a esta ordem de serviço." });
       }
 
@@ -6431,11 +6419,10 @@ export function createApiApp() {
         const bucket = VEHICLE_PHOTOS_BUCKET;
         const safeName = sanitizeVehiclePhotoFileName(file.originalname);
         const pathInBucket = `${WORKSHOP_ID}/${serviceOrderId}/${Date.now()}_${safeName}`;
-        const contentType = /\.pdf$/i.test(safeName)
-          ? "application/pdf"
-          : file.mimetype?.startsWith("image/")
-            ? file.mimetype
-            : file.mimetype || "application/octet-stream";
+        const contentType = resolveServiceOrderPhotoContentType(safeName, file.mimetype);
+        if (!contentType) {
+          return res.status(400).json({ error: "Tipo de arquivo não permitido." });
+        }
 
         const { error: uploadError } = await supabaseAdmin.storage
           .from(bucket)
@@ -7675,7 +7662,7 @@ export function createApiApp() {
       }
 
       const folderPath = `${WORKSHOP_ID}/${serviceOrderId}`;
-      if (!currentPath.startsWith(folderPath + "/")) {
+      if (!assertServiceOrderPhotoPath(serviceOrderId, currentPath)) {
         return res.status(403).json({ error: "Arquivo não pertence a esta ordem de serviço." });
       }
 
@@ -7792,8 +7779,7 @@ export function createApiApp() {
         return res.status(404).json({ error: "Ordem de serviço não encontrada." });
       }
 
-      const folderPath = serviceOrderPhotoFolderPath(serviceOrderId);
-      if (!objectPath.startsWith(`${folderPath}/`)) {
+      if (!assertServiceOrderPhotoPath(serviceOrderId, objectPath)) {
         return res.status(403).json({ error: "Arquivo não pertence a esta ordem de serviço." });
       }
 
@@ -7875,8 +7861,7 @@ export function createApiApp() {
         return res.status(404).json({ error: "Ordem de serviço não encontrada." });
       }
 
-      const folderPath = `${WORKSHOP_ID}/${serviceOrderId}`;
-      if (!objectPath.startsWith(folderPath + "/")) {
+      if (!assertServiceOrderPhotoPath(serviceOrderId, objectPath)) {
         return res.status(403).json({ error: "Arquivo não pertence a esta ordem de serviço." });
       }
 
@@ -16354,7 +16339,9 @@ export function createApiApp() {
 
       const safeName = sanitizeVehiclePhotoFileName(file.originalname);
       const pathInBucket = `${WORKSHOP_ID}/bulletins/${bulletinId}/${Date.now()}_${safeName}`;
-      const contentType = resolveServiceOrderPhotoContentType(safeName, file.mimetype);
+      const contentType =
+        resolveServiceOrderPhotoContentType(safeName, file.mimetype) ??
+        (file.mimetype || "application/octet-stream");
       const isPhoto = contentType.startsWith("image/");
 
       const { error: uploadError } = await supabaseAdmin.storage

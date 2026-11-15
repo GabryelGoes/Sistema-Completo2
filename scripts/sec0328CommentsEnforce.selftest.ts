@@ -224,8 +224,8 @@ async function main() {
   const liveRules = findMatchingRules(production, "GET", `/api/service-orders/${OS}/live`);
   record(
     "comments entra em enforce e as outras nove permanecem",
-    enforced.join(",") === "customers,appointments,budgets,comments,parts_stock,technicians,workshop_catalogs,tv_admin,bulletins,reports" &&
-      off.join(",") === "service_orders,photos,abs_stock,notifications,quality_radar,rda" &&
+    enforced.join(",") === "customers,appointments,budgets,comments,photos,parts_stock,technicians,workshop_catalogs,tv_admin,bulletins,reports" &&
+      off.join(",") === "service_orders,abs_stock,notifications,quality_radar,rda" &&
       production.rules.some((rule) => rule.id === "comment_list_read") &&
       production.rules.some((rule) => rule.id === "comment_unread_read") &&
       liveRules.every((rule) => rule.family !== "comments"),
