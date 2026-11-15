@@ -19,6 +19,7 @@ import {
   updateDevAbsModule,
   updateDevAbsModuleModel,
 } from './workshopAbsModuleDevMemory.js';
+import { absModulePhotoExtension, acceptedAbsModulePhotoContentType } from './absModulePhotoGuard.js';
 import {
   ABS_MODULE_CONDITIONS,
   ABS_MODULE_ITEM_CONDITIONS,
@@ -2198,9 +2199,9 @@ export function registerAbsModuleRoutes(app: Express, deps: AbsRouteDeps) {
         const file = (req as { file?: { buffer: Buffer; mimetype?: string; originalname?: string } })
           .file;
         if (!file) return res.status(400).json({ error: 'Arquivo não enviado.' });
-        const mime = file.mimetype || 'application/octet-stream';
-        if (!mime.startsWith('image/')) {
-          return res.status(400).json({ error: 'Envie apenas imagem.' });
+        const mime = acceptedAbsModulePhotoContentType(file.originalname || '', file.mimetype);
+        if (!mime) {
+          return res.status(400).json({ error: 'Envie apenas imagem JPEG, PNG, WebP, GIF, HEIC ou BMP.' });
         }
 
         if (isDevMemoryActive(deps)) {
@@ -2238,8 +2239,7 @@ export function registerAbsModuleRoutes(app: Express, deps: AbsRouteDeps) {
             .json({ error: `Máximo de ${ABS_MODULE_PHOTOS_MAX} fotos por módulo.` });
         }
 
-        const ext = (file.originalname?.split('.').pop() || 'jpg').toLowerCase();
-        const safeExt = /^[a-z0-9]+$/.test(ext) ? ext : 'jpg';
+        const safeExt = absModulePhotoExtension(mime);
         const pathInBucket = `${WORKSHOP_ID}/abs-modules/${mod.id}/${Date.now()}.${safeExt}`;
 
         const { error: uploadErr } = await supabaseAdmin!.storage
