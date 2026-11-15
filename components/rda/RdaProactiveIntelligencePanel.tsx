@@ -293,7 +293,11 @@ export const RdaProactiveIntelligencePanel: React.FC<Props> = ({
           pcChrome ? 'ajustes-pc-rda-header' : ''
         }`}
       >
-        <div className={`mx-auto flex max-w-5xl items-center gap-3 ${pcChrome ? 'ajustes-pc-rda-inner' : ''}`}>
+        <div
+          className={`mx-auto flex w-full max-w-[100rem] items-center gap-3 px-1 sm:px-2 ${
+            pcChrome ? 'ajustes-pc-rda-inner ajustes-pc-rda-proactive-inner' : ''
+          }`}
+        >
           <button
             type="button"
             onClick={onClose}
@@ -341,8 +345,8 @@ export const RdaProactiveIntelligencePanel: React.FC<Props> = ({
       </header>
 
       <div
-        className={`mx-auto w-full max-w-5xl flex-1 overflow-y-auto px-4 py-4 ${
-          pcChrome ? 'ajustes-pc-rda-scroll ajustes-pc-rda-inner' : ''
+        className={`mx-auto w-full max-w-[100rem] min-h-0 flex-1 overflow-y-auto px-4 py-4 sm:px-6 lg:px-8 ${
+          pcChrome ? 'ajustes-pc-rda-scroll ajustes-pc-rda-inner ajustes-pc-rda-proactive-inner' : ''
         }`}
       >
         {error ? (
@@ -369,88 +373,92 @@ export const RdaProactiveIntelligencePanel: React.FC<Props> = ({
           </div>
         ) : data ? (
           <div className="space-y-5">
-            <section className="relative overflow-hidden rounded-2xl border border-zinc-200/80 bg-gradient-to-br from-zinc-900 via-zinc-900 to-zinc-800 p-4 text-white shadow-sm dark:border-white/10 dark:from-zinc-950 dark:via-zinc-900 dark:to-zinc-900">
-              <div className="pointer-events-none absolute -right-8 -top-10 h-40 w-40 rounded-full bg-emerald-400/15 blur-2xl" />
-              <div className="pointer-events-none absolute -bottom-12 left-1/3 h-36 w-36 rounded-full bg-sky-400/10 blur-2xl" />
-              <div className="relative flex flex-wrap items-start justify-between gap-3">
-                <div className="min-w-0 flex-1">
-                  <div className="mb-1 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-400">
-                    <Radar className="h-3.5 w-3.5 text-emerald-400" />
-                    Radar operacional
-                  </div>
-                  <p className="max-w-2xl text-[13px] leading-relaxed text-zinc-300">{data.disclaimer}</p>
-                  <div className="mt-3 flex flex-wrap gap-2 text-[11px] text-zinc-400">
-                    <span className="inline-flex items-center gap-1 rounded-full bg-white/5 px-2.5 py-1">
-                      <Clock3 className="h-3 w-3" />
-                      Ciclo {data.config.intervalMinutes} min
-                    </span>
-                    <span className="inline-flex items-center gap-1 rounded-full bg-white/5 px-2.5 py-1">
-                      <Activity className="h-3 w-3" />
-                      Reabre após {data.config.reopenAfterHours}h
-                    </span>
-                    {data.config.notifyOnCreate ? (
+            <div className="grid gap-3 xl:grid-cols-[minmax(0,1.4fr)_minmax(18rem,0.85fr)] xl:items-stretch">
+              <section className="relative overflow-hidden rounded-2xl border border-zinc-200/80 bg-gradient-to-br from-zinc-900 via-zinc-900 to-zinc-800 p-4 text-white shadow-sm sm:p-5 dark:border-white/10 dark:from-zinc-950 dark:via-zinc-900 dark:to-zinc-900">
+                <div className="pointer-events-none absolute -right-8 -top-10 h-40 w-40 rounded-full bg-emerald-400/15 blur-2xl" />
+                <div className="pointer-events-none absolute -bottom-12 left-1/3 h-36 w-36 rounded-full bg-sky-400/10 blur-2xl" />
+                <div className="relative flex h-full flex-wrap items-start justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="mb-1 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-zinc-400">
+                      <Radar className="h-3.5 w-3.5 text-emerald-400" />
+                      Radar operacional
+                    </div>
+                    <p className="max-w-3xl text-[13px] leading-relaxed text-zinc-300 sm:text-[14px]">
+                      {data.disclaimer}
+                    </p>
+                    <div className="mt-3 flex flex-wrap gap-2 text-[11px] text-zinc-400">
                       <span className="inline-flex items-center gap-1 rounded-full bg-white/5 px-2.5 py-1">
-                        <Sparkles className="h-3 w-3" />
-                        Notifica novos
+                        <Clock3 className="h-3 w-3" />
+                        Ciclo {data.config.intervalMinutes} min
                       </span>
-                    ) : null}
+                      <span className="inline-flex items-center gap-1 rounded-full bg-white/5 px-2.5 py-1">
+                        <Activity className="h-3 w-3" />
+                        Reabre após {data.config.reopenAfterHours}h
+                      </span>
+                      {data.config.notifyOnCreate ? (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-white/5 px-2.5 py-1">
+                          <Sparkles className="h-3 w-3" />
+                          Notifica novos
+                        </span>
+                      ) : null}
+                    </div>
                   </div>
+                  {data.canConfigure ? (
+                    <button
+                      type="button"
+                      disabled={busyId === 'run-scan'}
+                      onClick={() => {
+                        setBusyId('run-scan');
+                        setMsg(null);
+                        void runRdaProactiveScan()
+                          .then((r) => {
+                            setMsg(
+                              r.skipped
+                                ? `Varredura ignorada (${r.skipReason || 'skip'}).`
+                                : `Varredura: ${r.alertsCreated} novo(s), ${r.alertsUpdated || 0} atualizado(s).`
+                            );
+                            return load();
+                          })
+                          .catch((e: unknown) => {
+                            setError(e instanceof Error ? e.message : 'Falha na varredura.');
+                          })
+                          .finally(() => setBusyId(null));
+                      }}
+                      className="inline-flex items-center gap-1.5 rounded-xl bg-white px-3 py-2 text-[12px] font-semibold text-zinc-900 transition hover:bg-zinc-100 disabled:opacity-60"
+                    >
+                      {busyId === 'run-scan' ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <Radar className="h-3.5 w-3.5" />
+                      )}
+                      Varrer agora
+                    </button>
+                  ) : null}
                 </div>
-                {data.canConfigure ? (
-                  <button
-                    type="button"
-                    disabled={busyId === 'run-scan'}
-                    onClick={() => {
-                      setBusyId('run-scan');
-                      setMsg(null);
-                      void runRdaProactiveScan()
-                        .then((r) => {
-                          setMsg(
-                            r.skipped
-                              ? `Varredura ignorada (${r.skipReason || 'skip'}).`
-                              : `Varredura: ${r.alertsCreated} novo(s), ${r.alertsUpdated || 0} atualizado(s).`
-                          );
-                          return load();
-                        })
-                        .catch((e: unknown) => {
-                          setError(e instanceof Error ? e.message : 'Falha na varredura.');
-                        })
-                        .finally(() => setBusyId(null));
-                    }}
-                    className="inline-flex items-center gap-1.5 rounded-xl bg-white px-3 py-2 text-[12px] font-semibold text-zinc-900 transition hover:bg-zinc-100 disabled:opacity-60"
-                  >
-                    {busyId === 'run-scan' ? (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    ) : (
-                      <Radar className="h-3.5 w-3.5" />
-                    )}
-                    Varrer agora
-                  </button>
-                ) : null}
-              </div>
-            </section>
+              </section>
 
-            <section className="grid grid-cols-3 gap-2">
-              <MetricCard
-                label="Ativos"
-                value={data.summary.active}
-                accent="text-zinc-900 dark:text-white"
-                hint="exigem atenção"
-              />
-              <MetricCard
-                label="Críticos"
-                value={data.summary.critical}
-                accent="text-rose-600 dark:text-rose-400"
-                hint="prioridade máxima"
-                pulse={data.summary.critical > 0}
-              />
-              <MetricCard
-                label="Reconhecidos"
-                value={data.summary.acknowledged}
-                accent="text-amber-700 dark:text-amber-300"
-                hint="em acompanhamento"
-              />
-            </section>
+              <section className="grid grid-cols-3 gap-2 xl:grid-cols-1 xl:gap-2.5">
+                <MetricCard
+                  label="Ativos"
+                  value={data.summary.active}
+                  accent="text-zinc-900 dark:text-white"
+                  hint="exigem atenção"
+                />
+                <MetricCard
+                  label="Críticos"
+                  value={data.summary.critical}
+                  accent="text-rose-600 dark:text-rose-400"
+                  hint="prioridade máxima"
+                  pulse={data.summary.critical > 0}
+                />
+                <MetricCard
+                  label="Reconhecidos"
+                  value={data.summary.acknowledged}
+                  accent="text-amber-700 dark:text-amber-300"
+                  hint="em acompanhamento"
+                />
+              </section>
+            </div>
 
             {categoryBreakdown.length > 0 ? (
               <section className="flex flex-wrap gap-2">
@@ -580,7 +588,8 @@ export const RdaProactiveIntelligencePanel: React.FC<Props> = ({
                 {filteredRecommendations.length === 0 ? (
                   <EmptyState text="Sem recomendações no momento." />
                 ) : (
-                  filteredRecommendations.map((r) => {
+                  <div className="grid grid-cols-1 gap-3 xl:grid-cols-2 2xl:grid-cols-3">
+                  {filteredRecommendations.map((r) => {
                     const tone = severityTone(r.severity);
                     return (
                       <article
@@ -605,7 +614,8 @@ export const RdaProactiveIntelligencePanel: React.FC<Props> = ({
                         </div>
                       </article>
                     );
-                  })
+                  })}
+                  </div>
                 )}
               </section>
             ) : null}
@@ -714,12 +724,12 @@ function MetricCard(props: {
   pulse?: boolean;
 }) {
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-zinc-200/80 bg-zinc-50 px-3 py-3 dark:border-white/10 dark:bg-white/[0.04]">
+    <div className="relative flex h-full min-h-[4.5rem] flex-col justify-center overflow-hidden rounded-2xl border border-zinc-200/80 bg-zinc-50 px-3 py-3 xl:min-h-[5.25rem] xl:px-4 dark:border-white/10 dark:bg-white/[0.04]">
       {props.pulse ? (
         <span className="absolute right-2.5 top-2.5 h-2 w-2 animate-pulse rounded-full bg-rose-500" />
       ) : null}
       <p className="text-[11px] font-medium text-zinc-500">{props.label}</p>
-      <p className={`mt-0.5 text-[22px] font-semibold tabular-nums tracking-tight ${props.accent}`}>
+      <p className={`mt-0.5 text-[22px] font-semibold tabular-nums tracking-tight xl:text-[26px] ${props.accent}`}>
         {props.value}
       </p>
       <p className="mt-0.5 text-[10px] text-zinc-400">{props.hint}</p>
@@ -775,7 +785,7 @@ function AlertList(props: {
     return <EmptyState text={props.empty} />;
   }
   return (
-    <ul className="space-y-3">
+    <ul className="grid grid-cols-1 gap-3 xl:grid-cols-2 2xl:grid-cols-3">
       {props.items.map((a) => {
         const tone = severityTone(a.severity);
         const highlighted = props.highlightId === a.id;

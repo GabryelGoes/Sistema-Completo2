@@ -468,6 +468,14 @@ html[data-device='desktop'][data-desktop-shell='true']
   max-width: 72rem; /* ~max-w-6xl — aproveita desktop sem mudar mobile */
 }
 
+/* Monitoramento Proativo: usa quase toda a área útil do hub no PC */
+html[data-device='desktop'][data-desktop-shell='true']
+  .ajustes-pc-child.ajustes-pc-rda-v4
+  .ajustes-pc-rda-proactive-inner {
+  max-width: min(100%, 100rem) !important;
+  width: 100%;
+}
+
 html[data-device='desktop'][data-desktop-shell='true']
   .ajustes-pc-child.ajustes-pc-rda-v4
   .ajustes-pc-rda-section {
