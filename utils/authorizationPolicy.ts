@@ -2,8 +2,8 @@
  * SEC-03.0 — catálogo declarativo de autorização.
  *
  * O bloqueio real começa em uma família por vez. `customers`, `appointments`,
- * `budgets`, `parts_stock`, `technicians`, `workshop_catalogs`, `tv_admin`,
- * `bulletins` e `reports` já bloqueiam.
+ * `budgets`, `comments`, `parts_stock`, `technicians`, `workshop_catalogs`,
+ * `tv_admin`, `bulletins` e `reports` já bloqueiam.
  *
  * A chave de aba não libera outra ação: cada regra lista as chaves daquela
  * ação. `anyOf` vazio significa só Gerência ou full_access.
@@ -264,7 +264,9 @@ const FAMILIES: readonly AuthorizationFamily[] = [
   // SEC-03.27.1: bloqueia orçamentos. O agregado da Home não tem chave:
   // a sessão e o filtro da oficina bastam. Aprovar itens no PUT só grava flags.
   family("budgets", ["/api/service-orders", "/api/patio-budgets-hub", "/api/patio-vehicle-budgets-aggregate"], "enforce"),
-  family("comments", ["/api/service-orders"]),
+  // SEC-03.28: bloqueia comentários. Ler, reagir e marcar lido usa a leitura.
+  // Criar usa a escrita. Editar e excluir exigem o autor, a Gerência ou full_access.
+  family("comments", ["/api/service-orders"], "enforce"),
   family("photos", ["/api/service-orders"]),
   // SEC-03.20: bloqueia o estoque. A baixa da OS e a leitura do catálogo continuam nas chaves de cada fluxo.
   family("parts_stock", ["/api/workshop-parts", "/api/workshop-suppliers", "/api/workshop-part-categories", "/api/estoque"], "enforce"),
@@ -549,6 +551,24 @@ const RULES: readonly AuthorizationRule[] = [
   // e esconde diagnóstico e nome de quem não lê orçamentos.
 
   rule({
+    id: "comment_list_read",
+    family: "comments",
+    action: "read",
+    methods: ["GET"],
+    path: "^/api/service-orders/[^/]+/comments$",
+    anyOf: COMMENT_READ,
+    priority: 80,
+  }),
+  rule({
+    id: "comment_unread_read",
+    family: "comments",
+    action: "read",
+    methods: ["GET"],
+    path: "^/api/service-orders/comment-unread-counts$",
+    anyOf: COMMENT_READ,
+    priority: 80,
+  }),
+  rule({
     id: "comment_create",
     family: "comments",
     action: "create",
@@ -557,6 +577,8 @@ const RULES: readonly AuthorizationRule[] = [
     anyOf: COMMENT_WRITE,
     priority: 80,
   }),
+  // A escrita deixa entrar no PATCH e no DELETE. O handler recusa o comentário
+  // de outra pessoa. Gerência e full_access continuam podendo administrar.
   rule({
     id: "comment_update",
     family: "comments",

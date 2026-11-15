@@ -59,6 +59,7 @@
     "test:sec03251-appointments-enforce": "tsx scripts/sec03251AppointmentsEnforce.selftest.ts",
     "test:sec0326-appointments-privacy": "tsx scripts/sec0326AppointmentsPrivacy.selftest.ts",
     "test:sec03271-budgets-enforce": "tsx scripts/sec03271BudgetsEnforce.selftest.ts",
+    "test:sec0328-comments-enforce": "tsx scripts/sec0328CommentsEnforce.selftest.ts",
     "test:workshop-part-reservations": "tsx scripts/workshopPartReservations.selftest.ts",
     "test:vehicle-maintenance-parts": "tsx scripts/vehicleMaintenanceParts.selftest.ts"
   },

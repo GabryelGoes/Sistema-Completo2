@@ -82,6 +82,7 @@ import { classifyNewLoginPassword } from "./utils/loginPasswordPolicy.js";
 import { effectiveFamilyMode, guardHttpAuthorization, permissionSourceFromSupabase } from "./utils/authorizeRequest.js";
 import { productionAuthorizationPolicy } from "./utils/authorizationPolicy.js";
 import { assessBudgetApprovalPut } from "./utils/budgetApprovalGuard.js";
+import { acceptedCommentAuthorName, isOwnServiceOrderComment } from "./utils/commentAuthorship.js";
 import { projectBudgetAggregateItem } from "./utils/budgetAggregateView.js";
 import {
   APPOINTMENT_LIST_PUBLIC_FIELDS,
@@ -9460,6 +9461,75 @@ export function createApiApp() {
     }
   });
 
+  function commentsFamilyEnforced(): boolean {
+    const family = productionAuthorizationPolicy().families.find((item) => item.id === "comments");
+    return !!family && effectiveFamilyMode(family) === "enforce";
+  }
+
+  async function commentSession(req: express.Request): Promise<
+    | {
+        ok: true;
+        admin: boolean;
+        fullAccess: boolean;
+        readerKey: string;
+        name: string;
+        username: string;
+        photoUrl: string | null;
+      }
+    | { ok: false; status: 403 }
+  > {
+    const auth = (req as unknown as { auth?: SessionPayload }).auth;
+    if (!auth) return { ok: false, status: 403 };
+    if (auth.r === "admin") {
+      return {
+        ok: true,
+        admin: true,
+        fullAccess: false,
+        readerKey: "admin",
+        name: "Gerência",
+        username: "Gerência",
+        photoUrl: null,
+      };
+    }
+    const userId = typeof auth.u === "string" ? auth.u.trim() : "";
+    if (!userId || !supabaseAdmin || !WORKSHOP_ID) return { ok: false, status: 403 };
+    const { data, error } = await supabaseAdmin
+      .from("workshop_system_users")
+      .select("id, username, display_name, photo_url, permissions")
+      .eq("id", userId)
+      .eq("workshop_id", WORKSHOP_ID)
+      .maybeSingle();
+    if (error || !data) return { ok: false, status: 403 };
+    const perms =
+      data.permissions && typeof data.permissions === "object" && !Array.isArray(data.permissions)
+        ? (data.permissions as Record<string, unknown>)
+        : {};
+    const name = String(data.display_name || data.username || "Usuário").trim() || "Usuário";
+    return {
+      ok: true,
+      admin: false,
+      fullAccess: perms.full_access === true,
+      readerKey: data.id,
+      name,
+      username: String(data.username || "").trim(),
+      photoUrl: typeof data.photo_url === "string" && data.photo_url.trim() ? data.photo_url.trim() : null,
+    };
+  }
+
+  function commentBelongsToSession(
+    session: { admin: boolean; fullAccess: boolean; readerKey: string; name: string; username: string },
+    comment: { author_key?: string | null; author_display_name?: string | null }
+  ): boolean {
+    if (session.admin || session.fullAccess) return true;
+    return isOwnServiceOrderComment({
+      authorKey: comment.author_key ?? null,
+      authorName: String(comment.author_display_name || ""),
+      readerKey: session.readerKey,
+      sessionNames: [session.name, session.username],
+      admin: session.admin,
+    });
+  }
+
   // Comentários do modal do veículo (autor = "Rei do ABS" ou nome do técnico)
   app.get("/api/service-orders/:id/comments", async (req, res) => {
     try {
@@ -9471,7 +9541,15 @@ export function createApiApp() {
       }
 
       const { id: serviceOrderId } = req.params;
-      // Sem pré-check da OS: 1 RTT a menos. Comentários já filtrados por service_order_id.
+      const { data: commentOrder, error: commentOrderError } = await supabaseAdmin
+        .from("service_orders")
+        .select("id")
+        .eq("id", serviceOrderId)
+        .eq("workshop_id", WORKSHOP_ID)
+        .maybeSingle();
+      if (commentOrderError || !commentOrder) {
+        return res.status(404).json({ error: "Ordem de serviço não encontrada." });
+      }
       const { data, error } = await supabaseAdmin
         .from("service_order_comments")
         .select("id, author_display_name, text, created_at, author_photo_url, updated_at, author_key")
@@ -9626,12 +9704,12 @@ export function createApiApp() {
         return res.status(404).json({ error: "Ordem de serviço não encontrada." });
       }
 
-      const author = typeof authorDisplayName === "string" && authorDisplayName.trim()
+      let author = typeof authorDisplayName === "string" && authorDisplayName.trim()
         ? authorDisplayName.trim()
         : "Usuário";
 
       // actor explícito evita bug: admin com nome diferente de "Rei do ABS" não receber notificação do próprio comentário
-      const isAdminComment =
+      let isAdminComment =
         actor === "admin" ? true : actor === "technician" ? false : /rei\s*do\s*abs/i.test(author);
 
       // Chave estável do autor (mesma de reader_key) para recibos/badges.
@@ -9647,26 +9725,56 @@ export function createApiApp() {
       }
 
       let authorPhotoUrl: string | null = null;
-      if (isAdminComment) {
-        const { data: setting } = await supabaseAdmin
-          .from("workshop_settings")
-          .select("value")
-          .eq("workshop_id", WORKSHOP_ID)
-          .eq("key", "admin_photo_url")
-          .maybeSingle();
-        authorPhotoUrl = setting?.value?.trim() || null;
-      } else {
-        const authorTrim = author.trim().toLowerCase();
-        const { data: systemUsers } = await supabaseAdmin
-          .from("workshop_system_users")
-          .select("photo_url, display_name, username")
-          .eq("workshop_id", WORKSHOP_ID);
-        const u = (systemUsers ?? []).find(
-          (t) =>
-            (t.display_name && String(t.display_name).trim().toLowerCase() === authorTrim) ||
-            (String(t.username).trim().toLowerCase() === authorTrim)
-        );
-        authorPhotoUrl = u?.photo_url?.trim() || null;
+      if (commentsFamilyEnforced()) {
+        const session = await commentSession(req);
+        if (!session.ok) {
+          return res.status(403).json({
+            error: "Sem permissão para esta operação.",
+            code: "permission_denied",
+          });
+        }
+        authorKey = session.readerKey;
+        isAdminComment = session.admin;
+        author = acceptedCommentAuthorName({
+          requested: authorDisplayName,
+          sessionNames: [session.name, session.username],
+          fallback: session.name,
+          admin: session.admin,
+        });
+        if (session.admin) {
+          const { data: setting } = await supabaseAdmin
+            .from("workshop_settings")
+            .select("value")
+            .eq("workshop_id", WORKSHOP_ID)
+            .eq("key", "admin_photo_url")
+            .maybeSingle();
+          authorPhotoUrl = setting?.value?.trim() || null;
+        } else {
+          authorPhotoUrl = session.photoUrl;
+        }
+      }
+      if (!commentsFamilyEnforced()) {
+        if (isAdminComment) {
+          const { data: setting } = await supabaseAdmin
+            .from("workshop_settings")
+            .select("value")
+            .eq("workshop_id", WORKSHOP_ID)
+            .eq("key", "admin_photo_url")
+            .maybeSingle();
+          authorPhotoUrl = setting?.value?.trim() || null;
+        } else {
+          const authorTrim = author.trim().toLowerCase();
+          const { data: systemUsers } = await supabaseAdmin
+            .from("workshop_system_users")
+            .select("photo_url, display_name, username")
+            .eq("workshop_id", WORKSHOP_ID);
+          const u = (systemUsers ?? []).find(
+            (t) =>
+              (t.display_name && String(t.display_name).trim().toLowerCase() === authorTrim) ||
+              (String(t.username).trim().toLowerCase() === authorTrim)
+          );
+          authorPhotoUrl = u?.photo_url?.trim() || null;
+        }
       }
 
       const insertPayload: Record<string, unknown> = {
@@ -10120,6 +10228,30 @@ export function createApiApp() {
       if (!so) {
         return res.status(404).json({ error: "Ordem de serviço não encontrada." });
       }
+      if (commentsFamilyEnforced()) {
+        const session = await commentSession(req);
+        if (!session.ok) {
+          return res.status(403).json({
+            error: "Sem permissão para esta operação.",
+            code: "permission_denied",
+          });
+        }
+        const { data: existing } = await supabaseAdmin
+          .from("service_order_comments")
+          .select("id, author_key, author_display_name")
+          .eq("id", commentId)
+          .eq("service_order_id", serviceOrderId)
+          .maybeSingle();
+        if (!existing) {
+          return res.status(404).json({ error: "Comentário não encontrado." });
+        }
+        if (!commentBelongsToSession(session, existing)) {
+          return res.status(403).json({
+            error: "Sem permissão para esta operação.",
+            code: "permission_denied",
+          });
+        }
+      }
       const { error } = await supabaseAdmin
         .from("service_order_comments")
         .delete()
@@ -10160,6 +10292,30 @@ export function createApiApp() {
         .single();
       if (!so) {
         return res.status(404).json({ error: "Ordem de serviço não encontrada." });
+      }
+      if (commentsFamilyEnforced()) {
+        const session = await commentSession(req);
+        if (!session.ok) {
+          return res.status(403).json({
+            error: "Sem permissão para esta operação.",
+            code: "permission_denied",
+          });
+        }
+        const { data: existing } = await supabaseAdmin
+          .from("service_order_comments")
+          .select("id, author_key, author_display_name")
+          .eq("id", commentId)
+          .eq("service_order_id", serviceOrderId)
+          .maybeSingle();
+        if (!existing) {
+          return res.status(404).json({ error: "Comentário não encontrado." });
+        }
+        if (!commentBelongsToSession(session, existing)) {
+          return res.status(403).json({
+            error: "Sem permissão para esta operação.",
+            code: "permission_denied",
+          });
+        }
       }
       const { data, error } = await supabaseAdmin
         .from("service_order_comments")
