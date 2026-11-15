@@ -8,6 +8,7 @@ import { getWorkshopTechnicians, updateWorkshopTechnician, uploadWorkshopTechnic
 import { TechnicianPhotoEditorModal } from './TechnicianPhotoEditorModal';
 import { useRegisterModalOpen } from './ui/ModalLayerContext';
 import { isSelectableProfilePhoto } from '../utils/profilePhotoFile';
+import { ajustesPcChildClass } from './ajustes/AjustesPcLayoutContext';
 
 function capitalizeFirst(str: string): string {
   if (!str || !str.trim()) return str;
@@ -117,17 +118,20 @@ export const TechnicianProfileModal: React.FC<TechnicianProfileModalProps> = ({
   return (
     <ModalPortal>
     <div className={resolveIosModalOverlayClass(isDesktopShell)}>
-      <div className={`${iosModalShell} max-w-md max-h-[94vh]`}>
+      <div className={`${iosModalShell} ${ajustesPcChildClass(isDesktopShell)} max-w-md max-h-[94vh]`}>
         <button type="button" onClick={onClose} className={iosModalClose} aria-label="Fechar">
           <X className="w-5 h-5" />
         </button>
 
         <div className="flex flex-col min-h-0 flex-1 overflow-hidden">
           <div className="px-6 sm:px-8 pt-8 pb-4 pr-14 shrink-0">
+            {isDesktopShell ? (
+              <p className="ajustes-pc-child-eyebrow">Ajustes · Conta e equipe</p>
+            ) : null}
             <IosModalHeader
               icon={<img src="/icons/perfil-ios.png" alt="" className="h-full w-full min-h-0 object-cover" />}
               title="Meu perfil"
-              subtitle="Nome e foto no pátio e comentários"
+              subtitle="Nome e foto — sem senha/PIN neste perfil"
               gradientClass="from-cyan-500 to-blue-600"
             />
           </div>
@@ -180,7 +184,7 @@ export const TechnicianProfileModal: React.FC<TechnicianProfileModalProps> = ({
             />
           </div>
 
-          <div className="flex gap-3">
+          <div className={`flex gap-3 ${isDesktopShell ? 'ajustes-pc-child-footer' : ''}`}>
             <button type="button" onClick={onClose} className="flex-1 py-3 rounded-xl bg-zinc-200 dark:bg-white/10 text-zinc-700 dark:text-zinc-300 font-medium">
               Cancelar
             </button>
@@ -189,6 +193,11 @@ export const TechnicianProfileModal: React.FC<TechnicianProfileModalProps> = ({
               {saving ? 'Salvando...' : 'Salvar'}
             </button>
           </div>
+          {isDesktopShell ? (
+            <p className="text-[12px] leading-snug text-zinc-500 dark:text-zinc-400">
+              PIN do Pátio fica em Segurança · Senhas operacionais, não neste perfil.
+            </p>
+          ) : null}
         </form>
         </div>
       </div>

@@ -7,10 +7,23 @@ import { IosModalHeader } from './ui/IosModalHeader';
 import { getWorkshopSettings, updateWorkshopSettings } from '../services/apiService';
 import { useRegisterModalOpen } from './ui/ModalLayerContext';
 import { LOGIN_PASSWORD_MIN_LENGTH } from '../utils/loginPasswordPolicy';
+import { ajustesPcChildClass } from './ajustes/AjustesPcLayoutContext';
 
 interface ChangePasswordsModalProps {
   isOpen: boolean;
   onClose: () => void;
+}
+
+function StatusPill({ configured }: { configured: boolean }) {
+  return (
+    <span className={`ajustes-pc-status-pill ${configured ? '' : 'is-off'} inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-bold ${
+      configured
+        ? 'bg-green-50 text-green-700 dark:bg-emerald-500/15 dark:text-emerald-300'
+        : 'bg-zinc-100 text-zinc-500 dark:bg-white/[0.06] dark:text-zinc-400'
+    }`}>
+      {configured ? 'Configurado' : 'Não configurado'}
+    </span>
+  );
 }
 
 export const ChangePasswordsModal: React.FC<ChangePasswordsModalProps> = ({ isOpen, onClose }) => {
@@ -178,17 +191,24 @@ export const ChangePasswordsModal: React.FC<ChangePasswordsModalProps> = ({ isOp
   return (
     <ModalPortal>
     <div className={resolveIosModalOverlayClass(isDesktopShell)}>
-      <div className={`${iosModalShell} max-w-md max-h-[90vh]`}>
+      <div
+        className={`${iosModalShell} ${ajustesPcChildClass(isDesktopShell)} ${
+          isDesktopShell ? 'max-w-3xl' : 'max-w-md'
+        } max-h-[90vh]`}
+      >
         <button type="button" onClick={onClose} className={iosModalClose} aria-label="Fechar">
           <X className="w-5 h-5" />
         </button>
 
         <div className="flex flex-col min-h-0 flex-1 overflow-hidden">
           <div className="px-6 sm:px-8 pt-8 pb-4 pr-14 shrink-0">
+            {isDesktopShell ? (
+              <p className="ajustes-pc-child-eyebrow">Ajustes · Segurança e sessão</p>
+            ) : null}
             <IosModalHeader
               icon={<img src="/icons/senhas-ios.png" alt="" className="h-full w-full min-h-0 object-cover" />}
-              title="Alterar senhas"
-              subtitle="Gerência, PIN do pátio, exclusão de veículos e estoque"
+              title="Senhas operacionais"
+              subtitle="Quatro credenciais distintas — valores nunca exibidos"
               gradientClass="from-slate-600 to-zinc-800"
             />
           </div>
@@ -206,9 +226,10 @@ export const ChangePasswordsModal: React.FC<ChangePasswordsModalProps> = ({ isOp
             </div>
           )}
 
+          <div className={isDesktopShell ? 'ajustes-pc-cred-grid' : 'space-y-6'}>
           {/* Senha do login Gerência */}
-          <section className={`${iosModalInsetCard} p-4 sm:p-5`}>
-            <div className="flex items-center gap-2 mb-3">
+          <section className={`${iosModalInsetCard} border border-amber-300/50 p-4 sm:p-5 dark:border-amber-700/40`}>
+            <div className="mb-3 flex flex-wrap items-center gap-2">
               <Lock className="w-5 h-5 text-amber-500" />
               <h3 className="text-[13px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
                 Senha do login Gerência
@@ -216,7 +237,7 @@ export const ChangePasswordsModal: React.FC<ChangePasswordsModalProps> = ({ isOp
             </div>
             <p className="text-[13px] text-zinc-600 dark:text-zinc-400 mb-4">
               Usuário de login: <strong className="font-semibold text-zinc-800 dark:text-zinc-200">Gerência</strong>.
-              Esta é a senha de acesso total do sistema.
+              Acesso total do sistema. A mesma credencial também pode ser alterada no perfil do administrador.
             </p>
             <form onSubmit={handleSaveAdminPassword} className="space-y-3">
               <input
@@ -250,18 +271,19 @@ export const ChangePasswordsModal: React.FC<ChangePasswordsModalProps> = ({ isOp
           </section>
 
           {/* PIN dos técnicos */}
-          <section className={`${iosModalInsetCard} p-4 sm:p-5`}>
-            <div className="flex items-center gap-2 mb-3">
+          <section className={`${iosModalInsetCard} border border-emerald-300/50 p-4 sm:p-5 dark:border-emerald-700/40`}>
+            <div className="mb-3 flex flex-wrap items-center gap-2">
               <KeyRound className="w-5 h-5 text-emerald-500" />
               <h3 className="text-[13px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
-                PIN dos técnicos
+                PIN dos técnicos (Pátio)
               </h3>
+              <StatusPill configured={patioPinConfigured} />
             </div>
             <p className="text-[13px] text-zinc-600 dark:text-zinc-400 mb-4">
-              PIN usado pelos mecânicos no login &quot;Pátio&quot;. De 4 a 8 dígitos.
+              PIN de 4 a 8 dígitos usado no login &quot;Pátio&quot;.
               {' '}
               {patioPinConfigured
-                ? 'Já existe um PIN configurado. Informe um novo para substituir.'
+                ? 'Já existe um PIN. Informe um novo para substituir.'
                 : 'Nenhum PIN configurado.'}
             </p>
             {loadingSettings ? (
@@ -303,18 +325,19 @@ export const ChangePasswordsModal: React.FC<ChangePasswordsModalProps> = ({ isOp
           </section>
 
           {/* Senha para excluir veículos */}
-          <section className={`${iosModalInsetCard} p-4 sm:p-5`}>
-            <div className="flex items-center gap-2 mb-3">
+          <section className={`${iosModalInsetCard} border border-red-300/50 p-4 sm:p-5 dark:border-red-700/40`}>
+            <div className="mb-3 flex flex-wrap items-center gap-2">
               <Trash2 className="w-5 h-5 text-red-500" />
               <h3 className="text-[13px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
                 Senha para excluir veículos
               </h3>
+              <StatusPill configured={vehicleDeleteConfigured} />
             </div>
             <p className="text-[13px] text-zinc-600 dark:text-zinc-400 mb-4">
-              Exigida no modal do veículo (Pátio) ao excluir um carro do sistema (arquiva a OS como cancelada).
+              Exigida em exclusões destrutivas no Pátio (arquiva a OS como cancelada).
               {' '}
               {vehicleDeleteConfigured
-                ? 'Já existe uma senha configurada. Informe uma nova para substituir.'
+                ? 'Já existe uma senha. Informe uma nova para substituir.'
                 : 'Nenhuma senha de exclusão configurada.'}
             </p>
             <form onSubmit={handleSaveVehicleDelete} className="space-y-3">
@@ -338,25 +361,26 @@ export const ChangePasswordsModal: React.FC<ChangePasswordsModalProps> = ({ isOp
                 className="w-full py-3 rounded-xl bg-red-500 hover:bg-red-600 disabled:opacity-50 text-white font-semibold text-[15px] flex items-center justify-center gap-2"
               >
                 {savingVehicleDelete ? <Loader2 className="w-5 h-5 animate-spin" /> : <Check className="w-5 h-5" />}
-                Salvar senha para excluir veículos
+                Salvar senha de exclusão
               </button>
             </form>
           </section>
 
           {/* Senha de proteção do estoque */}
-          <section className={`${iosModalInsetCard} p-4 sm:p-5`}>
-            <div className="flex items-center gap-2 mb-3">
+          <section className={`${iosModalInsetCard} border border-amber-300/50 p-4 sm:p-5 dark:border-amber-700/40`}>
+            <div className="mb-3 flex flex-wrap items-center gap-2">
               <Package className="w-5 h-5 text-amber-500" />
               <h3 className="text-[13px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
-                Senha de proteção do estoque
+                Proteção do estoque
               </h3>
+              <StatusPill configured={stockGuardConfigured} />
             </div>
             <p className="text-[13px] text-zinc-600 dark:text-zinc-400 mb-4">
-              Exigida ao editar um produto já cadastrado e ao cancelar baixas de consumo. Por padrão vale a
+              Guarda operacional do estoque (editar produto / cancelar baixas). Por padrão vale a
               senha da Gerência
               {stockGuardConfigured
-                ? '; já existe uma senha dedicada configurada.'
-                : ' — você pode definir uma senha dedicada aqui.'}
+                ? '; já existe senha dedicada.'
+                : ' — opcional definir senha dedicada.'}
             </p>
             <form onSubmit={handleSaveStockGuard} className="space-y-3">
               <input
@@ -383,10 +407,11 @@ export const ChangePasswordsModal: React.FC<ChangePasswordsModalProps> = ({ isOp
                 className="w-full py-3 rounded-xl bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white font-semibold text-[15px] flex items-center justify-center gap-2"
               >
                 {savingStockGuard ? <Loader2 className="w-5 h-5 animate-spin" /> : <Check className="w-5 h-5" />}
-                Salvar senha de proteção do estoque
+                Salvar proteção do estoque
               </button>
             </form>
           </section>
+          </div>
         </div>
         </div>
       </div>

@@ -13,6 +13,7 @@ import { TechnicianPhotoEditorModal } from './TechnicianPhotoEditorModal';
 import { useRegisterModalOpen } from './ui/ModalLayerContext';
 import { LOGIN_PASSWORD_MIN_LENGTH } from '../utils/loginPasswordPolicy';
 import { isSelectableProfilePhoto } from '../utils/profilePhotoFile';
+import { ajustesPcChildClass } from './ajustes/AjustesPcLayoutContext';
 
 const ACCENT_COLORS = [
   { id: 'blue', label: 'Azul', bg: 'bg-blue-500', ring: 'ring-blue-500' },
@@ -207,16 +208,19 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
   return (
     <ModalPortal>
     <div className={resolveIosModalOverlayClass(isDesktopShell)}>
-      <div className={`${iosModalShell} max-w-md max-h-[90vh]`}>
+      <div className={`${iosModalShell} ${ajustesPcChildClass(isDesktopShell)} max-w-md max-h-[90vh]`}>
         <button type="button" onClick={onClose} className={iosModalClose} aria-label="Fechar">
           <X className="w-5 h-5" />
         </button>
 
         <div className="flex flex-col min-h-0 flex-1 overflow-hidden">
           <div className="px-6 sm:px-8 pt-8 pb-4 pr-14 shrink-0">
+            {isDesktopShell ? (
+              <p className="ajustes-pc-child-eyebrow">Ajustes · Conta e equipe</p>
+            ) : null}
             <IosModalHeader
               icon={<img src="/icons/perfil-ios.png" alt="" className="h-full w-full min-h-0 object-cover" />}
-              title="Configurações de perfil"
+              title="Meu perfil"
               subtitle="Foto, nome, cor e senha de acesso"
               gradientClass="from-violet-500 to-fuchsia-700"
             />
@@ -342,9 +346,12 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({
             </div>
           </div>
 
-          {/* Alterar senha */}
+          {/* Alterar senha — senha própria do usuário (não confundir com Senhas operacionais). */}
           <form onSubmit={handleChangePassword} className="space-y-3 pt-2 border-t border-zinc-200 dark:border-white/10">
             <h3 className="text-[13px] font-semibold text-zinc-700 dark:text-zinc-300">Alterar senha de acesso</h3>
+            <p className="text-[12px] text-zinc-500 dark:text-zinc-400">
+              Senha deste login. PIN do Pátio e senhas da oficina ficam em Segurança · Senhas operacionais.
+            </p>
             <div>
               <label className="block text-[12px] font-medium text-zinc-500 dark:text-zinc-400 mb-1">Nova senha</label>
               <input
