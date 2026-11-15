@@ -5,19 +5,23 @@ import {
   proposeRdaKnowledge,
   type RdaLabEstoqueIntelDashboard,
 } from '../../services/apiService';
+import { AjustesPcOpsEyebrow } from '../ajustes/AjustesPcOpsEyebrow';
 import { RdaSettingsChildShell } from './RdaSettingsChildShell';
 
 type Props = {
   isOpen: boolean;
   onClose: () => void;
   desktopShell?: boolean;
+  ajustesHubChrome?: boolean;
 };
 
 export const RdaLabEstoqueIntelligencePanel: React.FC<Props> = ({
   isOpen,
   onClose,
   desktopShell,
+  ajustesHubChrome = false,
 }) => {
+  const pcChrome = Boolean(ajustesHubChrome && desktopShell);
   const [data, setData] = useState<RdaLabEstoqueIntelDashboard | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -48,10 +52,15 @@ export const RdaLabEstoqueIntelligencePanel: React.FC<Props> = ({
       isOpen={isOpen}
       onClose={onClose}
       desktopShell={desktopShell}
+      ajustesHubChrome={ajustesHubChrome}
       ariaLabel="Inteligência do Laboratório e Estoque"
     >
-      <header className="shrink-0 border-b border-zinc-200 bg-white px-4 py-3 dark:border-zinc-800 dark:bg-zinc-900">
-        <div className="mx-auto flex max-w-5xl items-center gap-3">
+      <header
+        className={`shrink-0 border-b border-zinc-200 bg-white px-4 py-3 dark:border-zinc-800 dark:bg-zinc-900 ${
+          pcChrome ? 'ajustes-pc-rda-header' : ''
+        }`}
+      >
+        <div className={`mx-auto flex max-w-5xl items-center gap-3 ${pcChrome ? 'ajustes-pc-rda-inner' : ''}`}>
           <button
             type="button"
             onClick={onClose}
@@ -61,6 +70,7 @@ export const RdaLabEstoqueIntelligencePanel: React.FC<Props> = ({
             <ArrowLeft className="h-4 w-4" />
           </button>
           <div className="min-w-0 flex-1">
+            <AjustesPcOpsEyebrow desktop={pcChrome}>Ajustes · RDA · Lab e Estoque</AjustesPcOpsEyebrow>
             <h1 className="text-[17px] font-semibold tracking-tight">
               Inteligência do Laboratório e Estoque
             </h1>
@@ -79,7 +89,11 @@ export const RdaLabEstoqueIntelligencePanel: React.FC<Props> = ({
         </div>
       </header>
 
-      <div className="mx-auto w-full max-w-5xl flex-1 overflow-y-auto px-4 py-4">
+      <div
+        className={`mx-auto w-full max-w-5xl flex-1 overflow-y-auto px-4 py-4 ${
+          pcChrome ? 'ajustes-pc-rda-scroll ajustes-pc-rda-inner' : ''
+        }`}
+      >
         {error ? <p className="mb-3 text-[13px] text-red-600">{error}</p> : null}
         {msg ? <p className="mb-3 text-[13px] text-emerald-700 dark:text-emerald-400">{msg}</p> : null}
 
@@ -87,7 +101,7 @@ export const RdaLabEstoqueIntelligencePanel: React.FC<Props> = ({
           <p className="text-[13px] text-zinc-500">Carregando…</p>
         ) : data ? (
           <div className="space-y-8">
-            <section>
+            <section className={pcChrome ? 'ajustes-pc-rda-section' : undefined}>
               <h2 className="mb-1 text-[14px] font-semibold">Resumo</h2>
               <p className="mb-2 text-[12px] text-zinc-500">{data.disclaimer}</p>
               <p className="mb-3 text-[12px] text-zinc-500">{data.summary.note}</p>

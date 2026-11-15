@@ -430,3 +430,102 @@ html[data-device='desktop'][data-desktop-shell='true']
     background-color: #09090b;
   }
 }
+
+/* ——— A4: painéis RDA do hub ——— */
+html[data-device='desktop'][data-desktop-shell='true']
+  .ajustes-pc-child.ajustes-pc-rda-v4
+  .ajustes-pc-rda-header {
+  position: sticky;
+  top: 0;
+  z-index: 12;
+  background-color: rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+html.dark[data-device='desktop'][data-desktop-shell='true']
+  .ajustes-pc-child.ajustes-pc-rda-v4
+  .ajustes-pc-rda-header {
+  background-color: rgba(24, 24, 27, 0.94);
+}
+
+html[data-device='desktop'][data-desktop-shell='true']
+  .ajustes-pc-child.ajustes-pc-rda-v4
+  .ajustes-pc-rda-scroll {
+  min-height: 0 !important;
+  flex: 1 1 0% !important;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  overscroll-behavior-y: contain;
+  scroll-padding-top: 0.75rem;
+  scroll-padding-bottom: 1.25rem;
+  scrollbar-gutter: stable;
+}
+
+html[data-device='desktop'][data-desktop-shell='true']
+  .ajustes-pc-child.ajustes-pc-rda-v4
+  .ajustes-pc-rda-inner {
+  max-width: 72rem; /* ~max-w-6xl — aproveita desktop sem mudar mobile */
+}
+
+html[data-device='desktop'][data-desktop-shell='true']
+  .ajustes-pc-child.ajustes-pc-rda-v4
+  .ajustes-pc-rda-section {
+  margin-bottom: 0.25rem;
+}
+
+html[data-device='desktop'][data-desktop-shell='true']
+  .ajustes-pc-child.ajustes-pc-rda-v4
+  .ajustes-pc-rda-section > h2 {
+  letter-spacing: -0.01em;
+}
+
+html[data-device='desktop'][data-desktop-shell='true']
+  .ajustes-pc-child.ajustes-pc-rda-v4
+  button:focus-visible,
+html[data-device='desktop'][data-desktop-shell='true']
+  .ajustes-pc-child.ajustes-pc-rda-v4
+  input:focus-visible,
+html[data-device='desktop'][data-desktop-shell='true']
+  .ajustes-pc-child.ajustes-pc-rda-v4
+  textarea:focus-visible,
+html[data-device='desktop'][data-desktop-shell='true']
+  .ajustes-pc-child.ajustes-pc-rda-v4
+  select:focus-visible,
+html[data-device='desktop'][data-desktop-shell='true']
+  .ajustes-pc-child.ajustes-pc-rda-v4
+  [role='switch']:focus-visible {
+  outline: 2px solid rgba(16, 185, 129, 0.55);
+  outline-offset: 2px;
+}
+
+html[data-device='desktop'][data-desktop-shell='true']
+  .ajustes-pc-child.ajustes-pc-rda-v4
+  button:not(:disabled):active {
+  transform: scale(0.985);
+  transition: transform 100ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-device='desktop'][data-desktop-shell='true']
+    .ajustes-pc-child.ajustes-pc-rda-v4
+    button:not(:disabled):active {
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  html[data-device='desktop'][data-desktop-shell='true']
+    .ajustes-pc-child.ajustes-pc-rda-v4
+    .ajustes-pc-rda-header {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    background-color: #ffffff;
+  }
+
+  html.dark[data-device='desktop'][data-desktop-shell='true']
+    .ajustes-pc-child.ajustes-pc-rda-v4
+    .ajustes-pc-rda-header {
+    background-color: #18181b;
+  }
+}

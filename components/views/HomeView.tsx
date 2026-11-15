@@ -1354,27 +1354,32 @@ export const HomeView: React.FC<HomeViewProps> = ({
             isOpen={isRdaMemoryOpen}
             onClose={() => setIsRdaMemoryOpen(false)}
             desktopShell={Boolean(desktopShell)}
+            ajustesHubChrome={Boolean(desktopShell)}
           />
           <RdaOperationalIntelligencePanel
             isOpen={isRdaOpsOpen}
             onClose={() => setIsRdaOpsOpen(false)}
             desktopShell={Boolean(desktopShell)}
+            ajustesHubChrome={Boolean(desktopShell)}
           />
           <RdaPatioIntelligencePanel
             isOpen={isRdaPatioIntelOpen}
             onClose={() => setIsRdaPatioIntelOpen(false)}
             desktopShell={Boolean(desktopShell)}
+            ajustesHubChrome={Boolean(desktopShell)}
           />
           <RdaLabEstoqueIntelligencePanel
             isOpen={isRdaLabEstoqueIntelOpen}
             onClose={() => setIsRdaLabEstoqueIntelOpen(false)}
             desktopShell={Boolean(desktopShell)}
+            ajustesHubChrome={Boolean(desktopShell)}
           />
           {typeof onOpenRdaProactive !== 'function' ? (
             <RdaProactiveIntelligencePanel
               isOpen={isRdaProactiveOpen}
               onClose={() => setIsRdaProactiveOpen(false)}
               desktopShell={Boolean(desktopShell)}
+              ajustesHubChrome={Boolean(desktopShell)}
             />
           ) : null}
           {typeof onOpenRdaProductivity !== 'function' ? (
@@ -1382,6 +1387,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
               isOpen={isRdaProductivityOpen}
               onClose={() => setIsRdaProductivityOpen(false)}
               desktopShell={Boolean(desktopShell)}
+              ajustesHubChrome={Boolean(desktopShell)}
             />
           ) : null}
           <SystemUsersModal isOpen={isSystemUsersOpen} onClose={() => setIsSystemUsersOpen(false)} refreshTrigger={systemUsersRefreshTrigger} />

@@ -2536,6 +2536,7 @@ export default function App() {
             isOpen={isRdaProactiveOpen}
             onClose={closeRdaProactivePanel}
             desktopShell={isDesktopShell}
+            ajustesHubChrome={isDesktopShell && settingsHubOpen}
             focusAlertId={rdaProactiveFocusAlertId}
           />
         ) : null}
@@ -2543,6 +2544,7 @@ export default function App() {
           isOpen={isRdaProductivityOpen}
           onClose={closeRdaProductivityPanel}
           desktopShell={isDesktopShell}
+          ajustesHubChrome={isDesktopShell && settingsHubOpen}
           focusTaskId={rdaProductivityFocusTaskId}
         />
         <LabOsScanQuickModal
@@ -2949,6 +2951,7 @@ export default function App() {
           isOpen={isRdaProactiveOpen}
           onClose={closeRdaProactivePanel}
           desktopShell={isDesktopShell}
+          ajustesHubChrome={isDesktopShell && settingsHubOpen}
           focusAlertId={rdaProactiveFocusAlertId}
         />
       ) : null}
@@ -2956,6 +2959,7 @@ export default function App() {
         isOpen={isRdaProductivityOpen}
         onClose={closeRdaProductivityPanel}
         desktopShell={isDesktopShell}
+        ajustesHubChrome={isDesktopShell && settingsHubOpen}
         focusTaskId={rdaProductivityFocusTaskId}
       />
       <LabOsScanQuickModal
