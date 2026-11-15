@@ -12,6 +12,7 @@ import {
 import {
   authorizationHasEnforce,
   decideAuthorization,
+  findMatchingRules,
   resetShadowLogLimiter,
   type PermissionSource,
   type SessionActor,
@@ -87,14 +88,14 @@ async function main() {
   const production = productionAuthorizationPolicy();
   const modeOf = (id: string) => production.families.find((family) => family.id === id)?.mode;
   record(
-    "produção observa relatórios e boletins e mantém o estoque desligado",
-    modeOf("parts_stock") === "off" &&
+    "produção observa estoque, relatórios e boletins sem enforce",
+    modeOf("parts_stock") === "shadow" &&
       modeOf("reports") === "shadow" &&
       modeOf("bulletins") === "shadow" &&
       production.families.every((family) => family.unmatched === "ignore" && family.mode !== "enforce") &&
       authorizationHasEnforce(production, {}) === false &&
       production.families.filter((family) => family.mode === "shadow").map((family) => family.id).sort().join(",") ===
-        "bulletins,reports,technicians,tv_admin,workshop_catalogs",
+        "bulletins,parts_stock,reports,technicians,tv_admin,workshop_catalogs",
     `estoque ${modeOf("parts_stock")}; relatório ${modeOf("reports")}; boletim ${modeOf("bulletins")}`
   );
 
@@ -334,8 +335,9 @@ async function main() {
       lookupFail.block === true &&
       direct.effect === "deny" &&
       direct.block === true &&
-      offStillOpen.effect === "skipped" &&
-      offStillOpen.block === false,
+      offStillOpen.effect === "deny" &&
+      offStillOpen.block === false &&
+      offStillOpen.reason === "missing_permission",
     `falha ${lookupFail.block}; produção ${offStillOpen.reason}`
   );
 
@@ -428,6 +430,79 @@ async function main() {
       !dumped.includes("boletim") &&
       !dumped.includes("senha"),
     `bloqueio ${reportDenied.block}; falha ${bulletinLookup.block}; registros ${observed.length}`
+  );
+
+  const topRule = (method: string, path: string) => {
+    const matches = findMatchingRules(production, method, path);
+    return matches.reduce((best, rule) => (!best || rule.priority > best.priority ? rule : best));
+  };
+  const sharedReads = [
+    ["GET", "/api/workshop-parts", "parts_collection_read_shared"],
+    ["GET", "/api/workshop-parts/peca-1", "part_item_read_shared"],
+    ["GET", "/api/workshop-parts/lookup", "parts_lookup_read"],
+    ["GET", "/api/workshop-parts/peca-1/photos", "part_photos_read_shared"],
+    ["GET", "/api/workshop-parts/peca-1/purchases", "part_purchases_read_shared"],
+    ["GET", "/api/workshop-parts/peca-1/lab-context", "part_lab_context_read"],
+    ["GET", "/api/workshop-part-categories", "part_categories_read_shared"],
+  ] as const;
+  const sharedMoves = [
+    ["GET", "/api/workshop-parts/movements", "parts_move_read"],
+    ["POST", "/api/workshop-parts/movements", "parts_move"],
+    ["DELETE", "/api/workshop-parts/movements/mov-1", "parts_move_delete"],
+  ] as const;
+  const adminOnly = [
+    ["POST", "/api/workshop-parts", "parts_create"],
+    ["DELETE", "/api/workshop-parts/peca-1", "part_delete"],
+    ["GET", "/api/workshop-parts/pending-reservations", "parts_pending_reservations_read"],
+    ["POST", "/api/workshop-parts/verify-stock-guard", "parts_guard_check"],
+    ["GET", "/api/estoque/ledger", "estoque_ledger_read"],
+    ["POST", "/api/workshop-parts/peca-1/receive", "part_receive"],
+    ["PUT", "/api/workshop-parts/peca-1/categories", "part_categories_set"],
+  ] as const;
+  const matrixOk =
+    sharedReads.every(([method, path, id]) => topRule(method, path).id === id && topRule(method, path).anyOf.includes("access_patio")) &&
+    sharedMoves.every(([method, path, id]) => topRule(method, path).id === id && topRule(method, path).anyOf.includes("access_patio") && topRule(method, path).anyOf.includes("access_laboratorio")) &&
+    adminOnly.every(([method, path, id]) => topRule(method, path).id === id && topRule(method, path).anyOf.length === 1 && topRule(method, path).anyOf[0] === "access_estoque_pecas");
+  resetShadowLogLimiter();
+  const stockLogs: ShadowRecord[] = [];
+  const stockLog = (record: ShadowRecord) => stockLogs.push(record);
+  const patioCatalog = await decide({ method: "GET", path: "/api/workshop-parts", actor: patio, permissions: patioUser, log: stockLog });
+  const patioPhotoShadow = await decide({ method: "GET", path: "/api/workshop-parts/peca-1/photos", actor: patio, permissions: patioUser, log: stockLog });
+  const budgetPurchase = await decide({ method: "GET", path: "/api/workshop-parts/peca-1/purchases", actor: patio, permissions: budgetUser, log: stockLog });
+  const budgetCategory = await decide({ method: "GET", path: "/api/workshop-part-categories", actor: patio, permissions: budgetUser, log: stockLog });
+  const labContext = await decide({ method: "GET", path: "/api/workshop-parts/peca-1/lab-context", actor: patio, permissions: labUser, log: stockLog });
+  const receptionLookup = await decide({ method: "GET", path: "/api/workshop-parts/lookup", actor: patio, permissions: receptionUser, log: stockLog });
+  const patioMoveShadow = await decide({ method: "POST", path: "/api/workshop-parts/movements", actor: patio, permissions: patioUser, log: stockLog });
+  const patioCancelShadow = await decide({ method: "DELETE", path: "/api/workshop-parts/movements/mov-1", actor: patio, permissions: patioUser, log: stockLog });
+  const labMoveShadow = await decide({ method: "POST", path: "/api/workshop-parts/movements", actor: patio, permissions: labUser, log: stockLog });
+  const patioAdmin = await decide({ method: "DELETE", path: "/api/workshop-parts/peca-1", actor: patio, permissions: patioUser, log: stockLog });
+  const noKey = await decide({ method: "GET", path: "/api/workshop-parts", actor: patio, permissions: {}, log: stockLog });
+  const stockAdmin = await decide({ method: "POST", path: "/api/workshop-parts", actor: patio, permissions: stockUser, log: stockLog });
+  const stockManager = await decide({ method: "DELETE", path: "/api/workshop-suppliers/fornecedor-1", actor: { role: "admin" }, log: stockLog });
+  const stockFull = await decide({ method: "GET", path: "/api/estoque/ledger", actor: patio, permissions: { full_access: true }, log: stockLog });
+  const stockLookup = await decide({ method: "GET", path: "/api/workshop-parts", actor: patio, permissions: stockUser, fail: true, log: stockLog });
+  record(
+    "sombra do estoque preserva baixa e ficha e não bloqueia",
+    matrixOk &&
+      patioCatalog.effect === "allow" && patioCatalog.block === false &&
+      patioPhotoShadow.effect === "allow" &&
+      budgetPurchase.effect === "allow" &&
+      budgetCategory.effect === "allow" &&
+      labContext.effect === "allow" &&
+      receptionLookup.effect === "allow" &&
+      patioMoveShadow.effect === "allow" && patioMoveShadow.action === "move" &&
+      patioCancelShadow.effect === "allow" &&
+      labMoveShadow.effect === "allow" &&
+      patioAdmin.effect === "deny" && patioAdmin.block === false && patioAdmin.reason === "missing_permission" &&
+      noKey.effect === "deny" && noKey.block === false &&
+      stockAdmin.effect === "allow" &&
+      stockManager.effect === "allow" && stockManager.reason === "admin" &&
+      stockFull.effect === "allow" && stockFull.reason === "full_access" &&
+      stockLookup.effect === "lookup_failed" && stockLookup.block === false &&
+      stockLogs.some((entry) => entry.family === "parts_stock" && entry.decision === "deny") &&
+      stockLogs.some((entry) => entry.decision === "lookup_failed") &&
+      !JSON.stringify(stockLogs).includes(USER),
+    `baixa ${patioMoveShadow.effect}; exclusão ${patioAdmin.block}; falha ${stockLookup.block}`
   );
 
   console.log(`\n${passed} ok, ${failed} falha(s)`);

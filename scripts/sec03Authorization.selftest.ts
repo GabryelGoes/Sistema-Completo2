@@ -246,14 +246,14 @@ async function main() {
         .filter((family) => family.mode === "shadow")
         .map((family) => family.id)
         .sort()
-        .join(",") === "bulletins,reports,technicians,tv_admin,workshop_catalogs" &&
+        .join(",") === "bulletins,parts_stock,reports,technicians,tv_admin,workshop_catalogs" &&
       authorizationHasEnforce(production, {}) === false,
-    "sombra em técnicos, catálogos, TV, relatórios e boletins"
+    "sombra em técnicos, catálogos, TV, relatórios, boletins e estoque"
   );
 
   const inactive = await decide({
     method: "DELETE",
-    path: "/api/workshop-parts/peca-1",
+    path: "/api/customers/cliente-1",
     actor: { role: "user", userId: USER },
     rows: [{ id: USER, workshopId: WORKSHOP, permissions: {} }],
   });
@@ -1497,6 +1497,21 @@ async function main() {
         ])
       : [];
     const moduleBodies = await Promise.all(moduleCalls.map(async (response) => response.json().catch(() => ({}))));
+    const stockCalls = token
+      ? await Promise.all([
+          fetch(`${base}/api/workshop-parts`, { headers: { authorization: `Bearer ${token}` } }),
+          fetch(`${base}/api/workshop-parts/lookup?code=ABC`, { headers: { authorization: `Bearer ${token}` } }),
+          fetch(`${base}/api/workshop-parts/movements`, {
+            method: "POST",
+            headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
+            body: JSON.stringify({ password: PASS_USER, quantity: 1 }),
+          }),
+          fetch(`${base}/api/workshop-parts/movements/mov-1`, { method: "DELETE", headers: { authorization: `Bearer ${token}` } }),
+          fetch(`${base}/api/workshop-parts/peca-1/photos`, { headers: { authorization: `Bearer ${token}` } }),
+          fetch(`${base}/api/workshop-part-categories`, { headers: { authorization: `Bearer ${token}` } }),
+        ])
+      : [];
+    const stockBodies = await Promise.all(stockCalls.map(async (response) => response.json().catch(() => ({}))));
     record(
       "HTTP real não ganha bloqueio e a TV pública permanece",
       login.status === 200 &&
@@ -1523,8 +1538,11 @@ async function main() {
         slideJson?.code !== "permission_denied" &&
         moduleCalls.length === 6 &&
         moduleCalls.every((response) => response.status !== 403) &&
-        moduleBodies.every((body) => body?.code !== "permission_denied"),
-      `login ${login.status}; cliente ${created?.status}; tv ${display.status}; quadro ${boardOpen.status}; slide ${slide?.status}; módulos ${moduleCalls.map((response) => response.status).join(",")}`
+        moduleBodies.every((body) => body?.code !== "permission_denied") &&
+        stockCalls.length === 6 &&
+        stockCalls.every((response) => response.status !== 403) &&
+        stockBodies.every((body) => body?.code !== "permission_denied"),
+      `login ${login.status}; cliente ${created?.status}; tv ${display.status}; quadro ${boardOpen.status}; slide ${slide?.status}; módulos ${moduleCalls.map((response) => response.status).join(",")}; estoque ${stockCalls.map((response) => response.status).join(",")}`
     );
   } finally {
     server.close();
