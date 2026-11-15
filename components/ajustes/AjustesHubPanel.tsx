@@ -17,11 +17,14 @@ import { IosAccentIconSquircle } from '../ui/IosAccentIconSquircle';
 import { SYSTEM_NOTIFICATIONS_ICON } from '../../constants/systemNotificationsIcon';
 import {
   AJUSTES_CATEGORIES,
+  AJUSTES_ITEMS,
   ajustesItemsForCategory,
+  groupAjustesItemsBySection,
   type AjustesCategoryId,
   type AjustesItemId,
   type AjustesItemMeta,
 } from '../../utils/ajustesCatalog';
+import { AjustesPcLayoutProvider, ajustesPcShellClass } from './AjustesPcLayoutContext';
 
 export type AjustesVisibility = {
   perfil: boolean;
@@ -159,7 +162,7 @@ function AjustesRow({
     </>
   );
 
-  const className = `group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors ${
+  const className = `ajustes-pc-row group flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left transition-colors ${
     item.danger
       ? 'hover:bg-red-500/10'
       : 'hover:bg-zinc-100/90 dark:hover:bg-white/[0.05]'
@@ -202,6 +205,7 @@ export function AjustesHubPanel({
   const [activeCategoryId, setActiveCategoryId] = useState<AjustesCategoryId | null>(null);
   /** Mobile: lista de categorias vs. detalhe da categoria. */
   const [mobileShowDetail, setMobileShowDetail] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     if (visibleCategories.length === 0) {
@@ -217,38 +221,68 @@ export function AjustesHubPanel({
   const activeCategory =
     visibleCategories.find((c) => c.id === activeCategoryId) ?? visibleCategories[0] ?? null;
 
-  const activeItems = useMemo(() => {
-    if (!activeCategory) return [];
-    return ajustesItemsForCategory(activeCategory.id).filter((item) => visibility[item.id]);
-  }, [activeCategory, visibility]);
-
   const resolveTitle = (item: AjustesItemMeta) =>
     item.id === 'perfil' ? perfilTitle : item.title;
   const resolveSubtitle = (item: AjustesItemMeta) =>
     item.id === 'perfil' ? perfilSubtitle : item.subtitle;
 
   const useSplitLayout = desktopShell;
+  const q = searchQuery.trim().toLowerCase();
+
+  const filteredItems = useMemo(() => {
+    const source = q
+      ? AJUSTES_ITEMS.filter((item) => visibility[item.id])
+      : activeCategory
+        ? ajustesItemsForCategory(activeCategory.id).filter((item) => visibility[item.id])
+        : [];
+
+    if (!q) return source;
+    return source.filter((item) => {
+      const title = item.id === 'perfil' ? perfilTitle : item.title;
+      const subtitle = item.id === 'perfil' ? perfilSubtitle : item.subtitle;
+      const hay = `${title} ${subtitle} ${item.section ?? ''} ${item.id}`.toLowerCase();
+      return hay.includes(q);
+    });
+  }, [q, activeCategory, visibility, perfilTitle, perfilSubtitle]);
+
+  const itemGroups = useMemo(() => {
+    if (q) {
+      return filteredItems.length
+        ? [{ section: 'Resultados' as string | null, items: filteredItems }]
+        : [];
+    }
+    if (!activeCategory) return [];
+    const groups = groupAjustesItemsBySection(filteredItems);
+    if (groups.length === 1 && groups[0].section === null) {
+      return [{ section: activeCategory.label, items: groups[0].items }];
+    }
+    return groups.map((g) => ({
+      section: g.section ?? activeCategory.label,
+      items: g.items,
+    }));
+  }, [filteredItems, q, activeCategory]);
 
   const categoryNav = (
     <nav
       className={
         useSplitLayout
-          ? 'flex w-[220px] shrink-0 flex-col gap-0.5 border-r border-zinc-200/80 bg-zinc-50/90 p-2 dark:border-white/[0.08] dark:bg-zinc-950/80'
+          ? 'ajustes-pc-nav flex w-[220px] shrink-0 flex-col gap-0.5 border-r border-zinc-200/80 bg-zinc-50/90 p-2 dark:border-white/[0.08] dark:bg-zinc-950/80'
           : 'flex flex-col gap-0.5 p-2'
       }
       aria-label="Categorias de ajustes"
     >
       {visibleCategories.map((cat) => {
-        const selected = activeCategory?.id === cat.id;
+        const selected = !q && activeCategory?.id === cat.id;
         return (
           <button
             key={cat.id}
             type="button"
             onClick={() => {
               setActiveCategoryId(cat.id);
+              setSearchQuery('');
               if (!useSplitLayout) setMobileShowDetail(true);
             }}
-            className={`flex items-center gap-2.5 rounded-xl px-2.5 py-2 text-left transition-colors ${
+            className={`ajustes-pc-nav-item flex items-center gap-2.5 rounded-xl px-2.5 py-2 text-left transition-colors ${
               selected && useSplitLayout
                 ? 'bg-zinc-200/90 text-zinc-900 dark:bg-white/[0.1] dark:text-white'
                 : 'text-zinc-700 hover:bg-zinc-200/60 dark:text-zinc-300 dark:hover:bg-white/[0.06]'
@@ -272,9 +306,57 @@ export function AjustesHubPanel({
     </nav>
   );
 
-  const detailPane = activeCategory ? (
+  const renderItemList = (items: AjustesItemMeta[]) => (
+    <div className="divide-y divide-zinc-200/70 overflow-hidden rounded-2xl border border-zinc-200/80 bg-white dark:divide-white/[0.06] dark:border-white/[0.08] dark:bg-zinc-900/60">
+      {items.map((item) => (
+        <AjustesRow
+          key={item.id}
+          item={item}
+          title={resolveTitle(item)}
+          subtitle={resolveSubtitle(item)}
+          perfilIconSrc={perfilIconSrc}
+          onActivate={() => onOpenItem(item.id)}
+        />
+      ))}
+    </div>
+  );
+
+  const detailPane = activeCategory || q ? (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-      {!useSplitLayout ? (
+      {useSplitLayout ? (
+        <div className="ajustes-pc-chrome">
+          <p className="ajustes-pc-eyebrow">Rei do ABS · Administração</p>
+          <div className="flex items-start gap-3">
+            {!q && activeCategory ? (
+              <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-[11px] border border-zinc-200/80 bg-white dark:border-white/[0.1] dark:bg-zinc-900">
+                <img src={activeCategory.iconSrc} alt="" className="h-full w-full object-cover" />
+              </span>
+            ) : null}
+            <div className="min-w-0 flex-1">
+              <p className="text-[15px] font-semibold text-zinc-900 dark:text-white">
+                {q ? 'Busca' : activeCategory?.label}
+              </p>
+              <p className="mt-0.5 text-[12px] text-zinc-500 dark:text-zinc-400">
+                {q
+                  ? `Resultados para “${searchQuery.trim()}”`
+                  : activeCategory?.hint}
+              </p>
+            </div>
+          </div>
+          <label className="sr-only" htmlFor="ajustes-pc-search">
+            Buscar configuração
+          </label>
+          <input
+            id="ajustes-pc-search"
+            type="search"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Buscar configuração…"
+            className="ajustes-pc-search"
+            autoComplete="off"
+          />
+        </div>
+      ) : (
         <div className="flex items-center gap-2 border-b border-zinc-200/80 px-3 py-2 dark:border-white/[0.08]">
           <button
             type="button"
@@ -284,64 +366,85 @@ export function AjustesHubPanel({
           >
             <ChevronLeft className="h-5 w-5" />
           </button>
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-[10px] border border-zinc-200/80 bg-white dark:border-white/[0.1] dark:bg-zinc-900">
-            <img src={activeCategory.iconSrc} alt="" className="h-full w-full object-cover" />
-          </span>
-          <div className="min-w-0">
-            <p className="truncate text-[15px] font-semibold text-zinc-900 dark:text-white">
-              {activeCategory.label}
-            </p>
-            <p className="truncate text-[11px] text-zinc-500 dark:text-zinc-400">
-              {activeCategory.hint}
-            </p>
-          </div>
-        </div>
-      ) : (
-        <div className="flex items-center gap-3 border-b border-zinc-200/80 px-5 py-3 dark:border-white/[0.08]">
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-[11px] border border-zinc-200/80 bg-white dark:border-white/[0.1] dark:bg-zinc-900">
-            <img src={activeCategory.iconSrc} alt="" className="h-full w-full object-cover" />
-          </span>
-          <div className="min-w-0">
-            <p className="text-[15px] font-semibold text-zinc-900 dark:text-white">
-              {activeCategory.label}
-            </p>
-            <p className="mt-0.5 text-[12px] text-zinc-500 dark:text-zinc-400">{activeCategory.hint}</p>
-          </div>
+          {activeCategory ? (
+            <>
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-[10px] border border-zinc-200/80 bg-white dark:border-white/[0.1] dark:bg-zinc-900">
+                <img src={activeCategory.iconSrc} alt="" className="h-full w-full object-cover" />
+              </span>
+              <div className="min-w-0">
+                <p className="truncate text-[15px] font-semibold text-zinc-900 dark:text-white">
+                  {activeCategory.label}
+                </p>
+                <p className="truncate text-[11px] text-zinc-500 dark:text-zinc-400">
+                  {activeCategory.hint}
+                </p>
+              </div>
+            </>
+          ) : null}
         </div>
       )}
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-3 sm:p-4">
-        <div className="divide-y divide-zinc-200/70 overflow-hidden rounded-2xl border border-zinc-200/80 bg-white dark:divide-white/[0.06] dark:border-white/[0.08] dark:bg-zinc-900/60">
-          {activeItems.map((item) => (
-            <AjustesRow
-              key={item.id}
-              item={item}
-              title={resolveTitle(item)}
-              subtitle={resolveSubtitle(item)}
-              perfilIconSrc={perfilIconSrc}
-              onActivate={() => onOpenItem(item.id)}
-            />
-          ))}
-        </div>
+
+      <div
+        className={
+          useSplitLayout
+            ? 'ajustes-pc-scroll'
+            : 'min-h-0 flex-1 overflow-y-auto overscroll-contain p-3 sm:p-4'
+        }
+      >
+        {itemGroups.length === 0 ? (
+          <div className="ajustes-pc-empty">
+            {q
+              ? `Nenhuma configuração encontrada para “${searchQuery.trim()}”.`
+              : 'Nenhum item disponível nesta categoria.'}
+          </div>
+        ) : (
+          itemGroups.map((group) => (
+            <section
+              key={group.section ?? 'default'}
+              className={`ajustes-pc-section ${useSplitLayout ? '' : 'mb-4 last:mb-0'}`}
+            >
+              {group.section ? (
+                <p className="ajustes-pc-section-title mb-1.5 px-0.5 text-[11px] font-extrabold uppercase tracking-[0.08em] text-zinc-500 dark:text-zinc-400">
+                  {group.section}
+                </p>
+              ) : null}
+              {!q &&
+              group.section &&
+              activeCategory &&
+              group.section === activeCategory.label ? (
+                <p className="ajustes-pc-section-hint mb-2 px-0.5 text-[12px] text-zinc-500 dark:text-zinc-400">
+                  {activeCategory.hint}
+                </p>
+              ) : null}
+              {renderItemList(group.items)}
+            </section>
+          ))
+        )}
       </div>
     </div>
   ) : (
-    <div className="flex flex-1 items-center justify-center p-8 text-[13px] text-zinc-500">
+    <div className="ajustes-pc-empty flex flex-1 items-center justify-center p-8 text-[13px] text-zinc-500">
       Nenhuma categoria disponível para o seu perfil.
     </div>
   );
 
-  if (useSplitLayout) {
-    return (
-      <div className="mx-auto flex h-full min-h-0 w-full max-w-5xl overflow-hidden rounded-2xl border border-zinc-200/80 bg-white shadow-sm dark:border-white/[0.08] dark:bg-zinc-950">
-        {categoryNav}
-        {detailPane}
-      </div>
-    );
-  }
-
-  return (
+  const frame = useSplitLayout ? (
+    <div
+      className={ajustesPcShellClass(
+        true,
+        'ajustes-pc-frame mx-auto flex h-full min-h-0 w-full max-w-5xl overflow-hidden rounded-2xl border border-zinc-200/80 bg-white shadow-sm dark:border-white/[0.08] dark:bg-zinc-950'
+      )}
+    >
+      {categoryNav}
+      {detailPane}
+    </div>
+  ) : (
     <div className="mx-auto flex h-full min-h-0 w-full max-w-xl flex-col overflow-hidden rounded-2xl border border-zinc-200/80 bg-white dark:border-white/[0.08] dark:bg-zinc-950">
       {!mobileShowDetail ? categoryNav : detailPane}
     </div>
+  );
+
+  return (
+    <AjustesPcLayoutProvider value={useSplitLayout}>{frame}</AjustesPcLayoutProvider>
   );
 }
