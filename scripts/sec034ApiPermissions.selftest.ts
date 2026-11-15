@@ -90,6 +90,7 @@ async function main() {
   record(
     "produção bloqueia estoque, TV, catálogos, técnicos, relatórios e boletins",
     modeOf("customers") === "enforce" &&
+      modeOf("appointments") === "enforce" &&
       modeOf("parts_stock") === "enforce" &&
       modeOf("reports") === "enforce" &&
       modeOf("bulletins") === "enforce" &&
@@ -100,6 +101,7 @@ async function main() {
         (family) =>
           family.unmatched === "ignore" &&
           (family.id === "customers" ||
+            family.id === "appointments" ||
             family.id === "tv_admin" ||
             family.id === "workshop_catalogs" ||
             family.id === "technicians" ||
@@ -110,7 +112,7 @@ async function main() {
       ) &&
       authorizationHasEnforce(production, {}) === true &&
       authorizationHasEnforce(production, { SEC03_DISABLE_FAMILIES: "reports" }) === true &&
-      authorizationHasEnforce(production, { SEC03_DISABLE_FAMILIES: "customers,parts_stock,technicians,workshop_catalogs,tv_admin,bulletins,reports" }) === false &&
+      authorizationHasEnforce(production, { SEC03_DISABLE_FAMILIES: "customers,appointments,parts_stock,technicians,workshop_catalogs,tv_admin,bulletins,reports" }) === false &&
       production.families.filter((family) => family.mode === "shadow").map((family) => family.id).sort().join(",") ===
         "",
     `estoque ${modeOf("parts_stock")}; relatório ${modeOf("reports")}; boletim ${modeOf("bulletins")}; catálogo ${modeOf("workshop_catalogs")}`

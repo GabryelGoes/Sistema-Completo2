@@ -256,7 +256,9 @@ function family(
 const FAMILIES: readonly AuthorizationFamily[] = [
   // SEC-03.23.1: bloqueia clientes. A Agenda só lista; cadastro, edição e placa ficam nas quatro chaves.
   family("customers", ["/api/customers", "/api/consulta-placa"], "enforce"),
-  family("appointments", ["/api/appointments"]),
+  // SEC-03.25.1: bloqueia criar, editar e excluir. O GET da lista não tem chave:
+  // a sessão e o filtro da oficina bastam, porque a Home e os lembretes leem essa rota.
+  family("appointments", ["/api/appointments"], "enforce"),
   family("service_orders", ["/api/service-orders"]),
   family("budgets", ["/api/service-orders", "/api/patio-budgets-hub", "/api/patio-vehicle-budgets-aggregate"]),
   family("comments", ["/api/service-orders"]),
@@ -332,7 +334,35 @@ const RULES: readonly AuthorizationRule[] = [
     anyOf: CUSTOMER_KEYS,
   }),
 
-  ...crud("appointments", "appointments", "^/api/appointments$", AGENDA_KEYS, 40),
+  // GET /api/appointments fica sem regra de chave. A rota continua exigindo sessão HMAC
+  // e devolve só workshop_appointments desta oficina. Home e lembretes dependem dessa lista.
+  rule({
+    id: "appointments_create",
+    family: "appointments",
+    action: "create",
+    methods: ["POST"],
+    path: "^/api/appointments$",
+    anyOf: AGENDA_KEYS,
+    priority: 40,
+  }),
+  rule({
+    id: "appointments_update",
+    family: "appointments",
+    action: "update",
+    methods: ["PUT", "PATCH"],
+    path: "^/api/appointments$",
+    anyOf: AGENDA_KEYS,
+    priority: 40,
+  }),
+  rule({
+    id: "appointments_delete",
+    family: "appointments",
+    action: "delete",
+    methods: ["DELETE"],
+    path: "^/api/appointments$",
+    anyOf: AGENDA_KEYS,
+    priority: 40,
+  }),
   ...crud("appointments", "appointment", "^/api/appointments/[^/]+$", AGENDA_KEYS, 40),
 
   rule({

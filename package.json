@@ -52,6 +52,7 @@
     "test:sec0318-bulletins-enforce": "tsx scripts/sec0318BulletinsEnforce.selftest.ts",
     "test:sec0320-parts-stock-enforce": "tsx scripts/sec0320PartsStockEnforce.selftest.ts",
     "test:sec03231-customers-enforce": "tsx scripts/sec03231CustomersEnforce.selftest.ts",
+    "test:sec03251-appointments-enforce": "tsx scripts/sec03251AppointmentsEnforce.selftest.ts",
     "test:workshop-part-reservations": "tsx scripts/workshopPartReservations.selftest.ts",
     "test:vehicle-maintenance-parts": "tsx scripts/vehicleMaintenanceParts.selftest.ts"
   },

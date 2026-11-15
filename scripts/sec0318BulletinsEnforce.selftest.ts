@@ -204,11 +204,11 @@ async function main() {
   const bulletinTool = RDA_PRODUCTION_TOOLS.find((tool) => tool.id === "rda_search_error_bulletins");
   record(
     "política bloqueia boletins e estoque",
-    enforced.join(",") === "customers,parts_stock,technicians,workshop_catalogs,tv_admin,bulletins,reports" &&
+    enforced.join(",") === "customers,appointments,parts_stock,technicians,workshop_catalogs,tv_admin,bulletins,reports" &&
       shadow.join(",") === "" &&
       authorizationHasEnforce(production, {}) === true &&
       authorizationHasEnforce(production, { SEC03_DISABLE_FAMILIES: "bulletins" }) === true &&
-      authorizationHasEnforce(production, { SEC03_DISABLE_FAMILIES: "customers,parts_stock,technicians,workshop_catalogs,tv_admin,bulletins,reports" }) === false,
+      authorizationHasEnforce(production, { SEC03_DISABLE_FAMILIES: "customers,appointments,parts_stock,technicians,workshop_catalogs,tv_admin,bulletins,reports" }) === false,
     enforced.join(",")
   );
   record(
