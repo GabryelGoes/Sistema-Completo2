@@ -2,7 +2,7 @@
  * SEC-03.0 — catálogo declarativo de autorização.
  *
  * O bloqueio real começa em uma família por vez. `customers`, `appointments`,
- * `budgets`, `comments`, `photos`, `parts_stock`, `technicians`,
+ * `budgets`, `comments`, `photos`, `parts_stock`, `abs_stock`, `technicians`,
  * `workshop_catalogs`, `tv_admin`, `bulletins` e `reports` já bloqueiam.
  *
  * A chave de aba não libera outra ação: cada regra lista as chaves daquela
@@ -136,6 +136,13 @@ const OS_CREATE_KEYS = [
 const LAB_KEYS = ["access_laboratorio"] as const satisfies readonly PermissionKey[];
 
 const STOCK_WRITE = ["access_estoque_pecas"] as const satisfies readonly PermissionKey[];
+
+/**
+ * Estoque ABS fica no hub Estoque, não no Laboratório.
+ * A mesma chave consulta, cadastra, movimenta e organiza. A exclusão ainda pede
+ * a senha da Gerência ou a senha de proteção do estoque no handler.
+ */
+const ABS_STOCK_KEYS = ["access_estoque_pecas"] as const satisfies readonly PermissionKey[];
 
 const STOCK_MOVE = [
   "access_estoque_pecas",
@@ -295,7 +302,9 @@ const FAMILIES: readonly AuthorizationFamily[] = [
   family("photos", ["/api/service-orders"], "enforce"),
   // SEC-03.20: bloqueia o estoque. A baixa da OS e a leitura do catálogo continuam nas chaves de cada fluxo.
   family("parts_stock", ["/api/workshop-parts", "/api/workshop-suppliers", "/api/workshop-part-categories", "/api/estoque"], "enforce"),
-  family("abs_stock", ["/api/abs-modules", "/api/abs-module-models"]),
+  // SEC-03.30: bloqueia o Estoque ABS. A chave é a do hub Estoque.
+  // Laboratório, Pátio, Recepção e Orçamentos não consultam estas rotas.
+  family("abs_stock", ["/api/abs-modules", "/api/abs-module-models"], "enforce"),
   // SEC-03.14: bloqueia a administração. Consulta operacional e perfil próprio permanecem.
   family("technicians", ["/api/workshop-technicians"], "enforce"),
   // SEC-03.12: bloqueia a administração. A leitura do Pátio, Laboratório e Orçamentos permanece.
@@ -870,10 +879,198 @@ const RULES: readonly AuthorizationRule[] = [
     priority: 40,
   }),
 
-  ...crud("abs_stock", "abs_modules", "^/api/abs-modules$", LAB_KEYS, 40),
-  ...crud("abs_stock", "abs_module", "^/api/abs-modules/.+$", LAB_KEYS, 30),
-  ...crud("abs_stock", "abs_models", "^/api/abs-module-models$", LAB_KEYS, 40),
-  ...crud("abs_stock", "abs_model", "^/api/abs-module-models/.+$", LAB_KEYS, 30),
+  rule({
+    id: "abs_modules_read",
+    family: "abs_stock",
+    action: "read",
+    methods: ["GET"],
+    path: "^/api/abs-modules$",
+    anyOf: ABS_STOCK_KEYS,
+    priority: 40,
+  }),
+  rule({
+    id: "abs_modules_lookup_read",
+    family: "abs_stock",
+    action: "read",
+    methods: ["GET"],
+    path: "^/api/abs-modules/lookup$",
+    anyOf: ABS_STOCK_KEYS,
+    priority: 100,
+  }),
+  rule({
+    id: "abs_modules_search_read",
+    family: "abs_stock",
+    action: "read",
+    methods: ["GET"],
+    path: "^/api/abs-modules/search$",
+    anyOf: ABS_STOCK_KEYS,
+    priority: 100,
+  }),
+  rule({
+    id: "abs_modules_movements_read",
+    family: "abs_stock",
+    action: "read",
+    methods: ["GET"],
+    path: "^/api/abs-modules/movements$",
+    anyOf: ABS_STOCK_KEYS,
+    priority: 100,
+  }),
+  rule({
+    id: "abs_modules_sales_read",
+    family: "abs_stock",
+    action: "read",
+    methods: ["GET"],
+    path: "^/api/abs-modules/sales$",
+    anyOf: ABS_STOCK_KEYS,
+    priority: 100,
+  }),
+  rule({
+    id: "abs_modules_analytics_read",
+    family: "abs_stock",
+    action: "read",
+    methods: ["GET"],
+    path: "^/api/abs-modules/analytics$",
+    anyOf: ABS_STOCK_KEYS,
+    priority: 100,
+  }),
+  rule({
+    id: "abs_modules_create",
+    family: "abs_stock",
+    action: "create",
+    methods: ["POST"],
+    path: "^/api/abs-modules$",
+    anyOf: ABS_STOCK_KEYS,
+    priority: 40,
+  }),
+  rule({
+    id: "abs_module_read",
+    family: "abs_stock",
+    action: "read",
+    methods: ["GET"],
+    path: "^/api/abs-modules/[^/]+$",
+    anyOf: ABS_STOCK_KEYS,
+    priority: 80,
+  }),
+  rule({
+    id: "abs_module_update",
+    family: "abs_stock",
+    action: "update",
+    methods: ["PUT", "PATCH"],
+    path: "^/api/abs-modules/[^/]+$",
+    anyOf: ABS_STOCK_KEYS,
+    priority: 90,
+  }),
+  rule({
+    id: "abs_module_delete",
+    family: "abs_stock",
+    action: "delete",
+    methods: ["DELETE"],
+    path: "^/api/abs-modules/[^/]+$",
+    anyOf: ABS_STOCK_KEYS,
+    priority: 90,
+  }),
+  rule({
+    id: "abs_module_movements_read",
+    family: "abs_stock",
+    action: "read",
+    methods: ["GET"],
+    path: "^/api/abs-modules/[^/]+/movements$",
+    anyOf: ABS_STOCK_KEYS,
+    priority: 80,
+  }),
+  rule({
+    id: "abs_module_move",
+    family: "abs_stock",
+    action: "move",
+    methods: ["POST"],
+    path: "^/api/abs-modules/[^/]+/movements$",
+    anyOf: ABS_STOCK_KEYS,
+    priority: 100,
+  }),
+  rule({
+    id: "abs_module_disassembly_read",
+    family: "abs_stock",
+    action: "read",
+    methods: ["GET"],
+    path: "^/api/abs-modules/[^/]+/disassembly$",
+    anyOf: ABS_STOCK_KEYS,
+    priority: 80,
+  }),
+  rule({
+    id: "abs_module_disassemble",
+    family: "abs_stock",
+    action: "move",
+    methods: ["POST"],
+    path: "^/api/abs-modules/[^/]+/disassemble$",
+    anyOf: ABS_STOCK_KEYS,
+    priority: 100,
+  }),
+  rule({
+    id: "abs_module_photo_create",
+    family: "abs_stock",
+    action: "create",
+    methods: ["POST"],
+    path: "^/api/abs-modules/[^/]+/photo$",
+    anyOf: ABS_STOCK_KEYS,
+    priority: 100,
+  }),
+  rule({
+    id: "abs_module_photo_delete",
+    family: "abs_stock",
+    action: "delete",
+    methods: ["DELETE"],
+    path: "^/api/abs-modules/[^/]+/photos/[^/]+$",
+    anyOf: ABS_STOCK_KEYS,
+    priority: 100,
+  }),
+  rule({
+    id: "abs_models_read",
+    family: "abs_stock",
+    action: "read",
+    methods: ["GET"],
+    path: "^/api/abs-module-models$",
+    anyOf: ABS_STOCK_KEYS,
+    priority: 40,
+  }),
+  rule({
+    id: "abs_models_create",
+    family: "abs_stock",
+    action: "create",
+    methods: ["POST"],
+    path: "^/api/abs-module-models$",
+    anyOf: ABS_STOCK_KEYS,
+    priority: 40,
+  }),
+  rule({
+    id: "abs_model_read",
+    family: "abs_stock",
+    action: "read",
+    methods: ["GET"],
+    path: "^/api/abs-module-models/[^/]+$",
+    anyOf: ABS_STOCK_KEYS,
+    priority: 80,
+  }),
+  rule({
+    id: "abs_model_update",
+    family: "abs_stock",
+    action: "update",
+    methods: ["PUT", "PATCH"],
+    path: "^/api/abs-module-models/[^/]+$",
+    anyOf: ABS_STOCK_KEYS,
+    priority: 90,
+  }),
+  rule({
+    id: "abs_model_delete",
+    family: "abs_stock",
+    action: "delete",
+    methods: ["DELETE"],
+    path: "^/api/abs-module-models/[^/]+$",
+    anyOf: ABS_STOCK_KEYS,
+    priority: 90,
+  }),
+  // Rede de segurança: uma sub-rota nova continua exigindo a chave do Estoque.
+  ...crud("abs_stock", "abs_module_fallback", "^/api/abs-modules/.+$", ABS_STOCK_KEYS, 10),
+  ...crud("abs_stock", "abs_model_fallback", "^/api/abs-module-models/.+$", ABS_STOCK_KEYS, 10),
 
   rule({
     id: "technicians_read",

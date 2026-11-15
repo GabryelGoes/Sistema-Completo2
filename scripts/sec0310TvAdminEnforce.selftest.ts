@@ -188,7 +188,7 @@ async function main() {
   const shadow = production.families.filter((family) => family.mode === "shadow").map((family) => family.id).sort();
   record(
     "política mantém a TV e passa a incluir os catálogos",
-    enforced.join(",") === "customers,appointments,budgets,comments,photos,parts_stock,technicians,workshop_catalogs,tv_admin,bulletins,reports" &&
+    enforced.join(",") === "customers,appointments,budgets,comments,photos,parts_stock,abs_stock,technicians,workshop_catalogs,tv_admin,bulletins,reports" &&
       shadow.join(",") === "" &&
       authorizationHasEnforce(production, {}) === true,
     enforced.join(",")

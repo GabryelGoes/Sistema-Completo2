@@ -233,11 +233,11 @@ async function main() {
   const stockTools = RDA_PRODUCTION_TOOLS.filter((tool) => tool.requiredPermission === "access_estoque_pecas");
   record(
     "política bloqueia o estoque e não deixa família em sombra",
-    enforced.join(",") === "customers,appointments,budgets,comments,photos,parts_stock,technicians,workshop_catalogs,tv_admin,bulletins,reports" &&
+    enforced.join(",") === "customers,appointments,budgets,comments,photos,parts_stock,abs_stock,technicians,workshop_catalogs,tv_admin,bulletins,reports" &&
       shadow.length === 0 &&
       authorizationHasEnforce(production, {}) === true &&
       authorizationHasEnforce(production, { SEC03_DISABLE_FAMILIES: "parts_stock" }) === true &&
-      authorizationHasEnforce(production, { SEC03_DISABLE_FAMILIES: "customers,appointments,budgets,comments,photos,parts_stock,technicians,workshop_catalogs,tv_admin,bulletins,reports" }) === false,
+      authorizationHasEnforce(production, { SEC03_DISABLE_FAMILIES: "customers,appointments,budgets,comments,photos,parts_stock,abs_stock,technicians,workshop_catalogs,tv_admin,bulletins,reports" }) === false,
     enforced.join(",")
   );
   record(
@@ -504,7 +504,7 @@ async function main() {
     allowed("gerência lista peças", await hit(base, "/api/workshop-parts", "GET", manager), 200);
 
     open("rota do RDA não entra na família de estoque", await hit(base, "/api/rda/proactive/summary", "GET", patio));
-    open("estoque ABS continua fora desta família", await hit(base, "/api/abs-modules", "GET", lab));
+    denied("laboratório não abre o estoque ABS", await hit(base, "/api/abs-modules", "GET", lab));
     allowed("painel público da TV", await hit(base, "/api/tv/display", "GET"), 200);
     denied("TV administrativa sem a chave", await hit(base, "/api/tv/slides", "POST", patio, SLIDE));
     allowed("pátio consulta serviços", await hit(base, "/api/workshop-services", "GET", patio), 200);

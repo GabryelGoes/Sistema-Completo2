@@ -223,11 +223,11 @@ async function main() {
   const listRule = production.rules.find((item) => item.id === "appointments_read");
   record(
     "política bloqueia a agenda e preserva as outras famílias",
-    enforced.join(",") === "customers,appointments,budgets,comments,photos,parts_stock,technicians,workshop_catalogs,tv_admin,bulletins,reports" &&
-      off.join(",") === "service_orders,abs_stock,notifications,quality_radar,rda" &&
+    enforced.join(",") === "customers,appointments,budgets,comments,photos,parts_stock,abs_stock,technicians,workshop_catalogs,tv_admin,bulletins,reports" &&
+      off.join(",") === "service_orders,notifications,quality_radar,rda" &&
       authorizationHasEnforce(production, { SEC03_DISABLE_FAMILIES: "appointments" }) === true &&
       authorizationHasEnforce(production, {
-        SEC03_DISABLE_FAMILIES: "customers,appointments,budgets,comments,photos,parts_stock,technicians,workshop_catalogs,tv_admin,bulletins,reports",
+        SEC03_DISABLE_FAMILIES: "customers,appointments,budgets,comments,photos,parts_stock,abs_stock,technicians,workshop_catalogs,tv_admin,bulletins,reports",
       }) === false,
     `enforce=${enforced.join(",")}`
   );

@@ -95,6 +95,7 @@ async function main() {
       modeOf("comments") === "enforce" &&
       modeOf("photos") === "enforce" &&
       modeOf("parts_stock") === "enforce" &&
+      modeOf("abs_stock") === "enforce" &&
       modeOf("reports") === "enforce" &&
       modeOf("bulletins") === "enforce" &&
       modeOf("technicians") === "enforce" &&
@@ -114,11 +115,12 @@ async function main() {
             family.id === "reports" ||
             family.id === "bulletins" ||
             family.id === "parts_stock" ||
+            family.id === "abs_stock" ||
             family.mode !== "enforce")
       ) &&
       authorizationHasEnforce(production, {}) === true &&
       authorizationHasEnforce(production, { SEC03_DISABLE_FAMILIES: "reports" }) === true &&
-      authorizationHasEnforce(production, { SEC03_DISABLE_FAMILIES: "customers,appointments,budgets,comments,photos,parts_stock,technicians,workshop_catalogs,tv_admin,bulletins,reports" }) === false &&
+      authorizationHasEnforce(production, { SEC03_DISABLE_FAMILIES: "customers,appointments,budgets,comments,photos,parts_stock,abs_stock,technicians,workshop_catalogs,tv_admin,bulletins,reports" }) === false &&
       production.families.filter((family) => family.mode === "shadow").map((family) => family.id).sort().join(",") ===
         "",
     `estoque ${modeOf("parts_stock")}; relatório ${modeOf("reports")}; boletim ${modeOf("bulletins")}; catálogo ${modeOf("workshop_catalogs")}`
