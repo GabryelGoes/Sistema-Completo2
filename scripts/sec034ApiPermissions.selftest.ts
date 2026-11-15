@@ -88,15 +88,17 @@ async function main() {
   const production = productionAuthorizationPolicy();
   const modeOf = (id: string) => production.families.find((family) => family.id === id)?.mode;
   record(
-    "produção observa estoque, relatórios e boletins sem enforce",
+    "produção observa estoque, relatórios e boletins; só a TV bloqueia",
     modeOf("parts_stock") === "shadow" &&
       modeOf("reports") === "shadow" &&
       modeOf("bulletins") === "shadow" &&
-      production.families.every((family) => family.unmatched === "ignore" && family.mode !== "enforce") &&
-      authorizationHasEnforce(production, {}) === false &&
+      modeOf("tv_admin") === "enforce" &&
+      production.families.every((family) => family.unmatched === "ignore" && (family.id === "tv_admin" || family.mode !== "enforce")) &&
+      authorizationHasEnforce(production, {}) === true &&
+      authorizationHasEnforce(production, { SEC03_DISABLE_FAMILIES: "tv_admin" }) === false &&
       production.families.filter((family) => family.mode === "shadow").map((family) => family.id).sort().join(",") ===
-        "bulletins,parts_stock,reports,technicians,tv_admin,workshop_catalogs",
-    `estoque ${modeOf("parts_stock")}; relatório ${modeOf("reports")}; boletim ${modeOf("bulletins")}`
+        "bulletins,parts_stock,reports,technicians,workshop_catalogs",
+    `estoque ${modeOf("parts_stock")}; relatório ${modeOf("reports")}; boletim ${modeOf("bulletins")}; tv ${modeOf("tv_admin")}`
   );
 
   const stockDelete = await decide({

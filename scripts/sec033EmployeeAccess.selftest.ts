@@ -276,10 +276,15 @@ console.log("\n10) Sync aplica ganho/perda; strip sensível");
   assert(forged.full_access !== true, "browser não concede full_access com string");
 }
 
-console.log("\n11) SEC-03: sem enforce; rota my-access");
+console.log("\n11) SEC-03: só a TV em enforce; rota my-access");
 {
   const policy = productionAuthorizationPolicy();
-  assert(authorizationHasEnforce(policy, {}) === false, "nenhuma família em enforce");
+  assert(
+    policy.families.filter((family) => family.mode === "enforce").map((family) => family.id).join(",") === "tv_admin",
+    "só tv_admin em enforce"
+  );
+  assert(authorizationHasEnforce(policy, {}) === true, "tv_admin em enforce");
+  assert(authorizationHasEnforce(policy, { SEC03_DISABLE_FAMILIES: "tv_admin" }) === false, "interruptor desliga a TV");
   const rule = policy.rules.find((r) => r.id === "self_access_read");
   assert(!!rule && rule.path.test("/api/auth/my-access"), "regra self_access_read");
 }
