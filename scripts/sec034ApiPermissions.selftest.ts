@@ -12,8 +12,10 @@ import {
 import {
   authorizationHasEnforce,
   decideAuthorization,
+  resetShadowLogLimiter,
   type PermissionSource,
   type SessionActor,
+  type ShadowRecord,
 } from "../utils/authorizeRequest.js";
 
 const WORKSHOP = "11111111-1111-4111-8111-111111111111";
@@ -56,6 +58,8 @@ async function decide(input: {
   permissions?: Record<string, boolean> | null;
   fail?: boolean;
   policy?: AuthorizationPolicy;
+  log?: (record: ShadowRecord) => void;
+  env?: NodeJS.ProcessEnv;
 }) {
   return decideAuthorization({
     method: input.method,
@@ -64,6 +68,8 @@ async function decide(input: {
     workshopId: WORKSHOP,
     source: source(input.permissions === undefined ? {} : input.permissions, input.fail),
     policy: input.policy,
+    log: input.log,
+    env: input.env,
   });
 }
 
@@ -79,16 +85,17 @@ const budgetUser = { access_orcamentos: true };
 
 async function main() {
   const production = productionAuthorizationPolicy();
-  const modes = production.families.filter((family) =>
-    family.id === "parts_stock" || family.id === "reports" || family.id === "bulletins"
-  );
+  const modeOf = (id: string) => production.families.find((family) => family.id === id)?.mode;
   record(
-    "produção não bloqueia estas famílias",
-    modes.every((family) => family.mode === "off" && family.unmatched === "ignore") &&
+    "produção observa relatórios e boletins e mantém o estoque desligado",
+    modeOf("parts_stock") === "off" &&
+      modeOf("reports") === "shadow" &&
+      modeOf("bulletins") === "shadow" &&
+      production.families.every((family) => family.unmatched === "ignore" && family.mode !== "enforce") &&
       authorizationHasEnforce(production, {}) === false &&
       production.families.filter((family) => family.mode === "shadow").map((family) => family.id).sort().join(",") ===
-        "technicians,tv_admin,workshop_catalogs",
-    modes.map((family) => family.mode).join(",")
+        "bulletins,reports,technicians,tv_admin,workshop_catalogs",
+    `estoque ${modeOf("parts_stock")}; relatório ${modeOf("reports")}; boletim ${modeOf("bulletins")}`
   );
 
   const stockDelete = await decide({
@@ -330,6 +337,97 @@ async function main() {
       offStillOpen.effect === "skipped" &&
       offStillOpen.block === false,
     `falha ${lookupFail.block}; produção ${offStillOpen.reason}`
+  );
+
+  resetShadowLogLimiter();
+  const observed: ShadowRecord[] = [];
+  const observe = (record: ShadowRecord) => observed.push(record);
+  const reportDenied = await decide({
+    method: "GET",
+    path: "/api/reports/technician-services",
+    actor: patio,
+    permissions: {},
+    log: observe,
+  });
+  const reportAllowed = await decide({
+    method: "DELETE",
+    path: "/api/reports/technician-services/linha-1",
+    actor: patio,
+    permissions: { access_relatorios: true },
+    log: observe,
+  });
+  const bulletinDenied = await decide({
+    method: "POST",
+    path: "/api/error-bulletins",
+    actor: patio,
+    permissions: { access_patio: true },
+    log: observe,
+  });
+  const bulletinAllowed = await decide({
+    method: "PATCH",
+    path: "/api/error-bulletins/boletim-1",
+    actor: patio,
+    permissions: { access_boletim_erros: true },
+    log: observe,
+  });
+  const reportManager = await decide({
+    method: "GET",
+    path: "/api/reports/technician-services",
+    actor: { role: "admin" },
+    log: observe,
+  });
+  const bulletinFull = await decide({
+    method: "DELETE",
+    path: "/api/error-bulletins/boletim-1",
+    actor: patio,
+    permissions: { full_access: true },
+    log: observe,
+  });
+  const bulletinLookup = await decide({
+    method: "GET",
+    path: "/api/error-bulletins",
+    actor: patio,
+    permissions: { access_boletim_erros: true },
+    fail: true,
+    log: observe,
+  });
+  const emergencyOff = await decide({
+    method: "DELETE",
+    path: "/api/reports/technician-services/linha-1",
+    actor: patio,
+    permissions: {},
+    env: { SEC03_DISABLE_FAMILIES: "reports,bulletins" },
+    log: observe,
+  });
+  const dumped = JSON.stringify(observed);
+  const safeKeys = new Set(["kind", "family", "rule", "action", "method", "decision", "reason"]);
+  record(
+    "sombra registra a negação e a operação continua",
+    reportDenied.effect === "deny" &&
+      reportDenied.block === false &&
+      reportDenied.reason === "missing_permission" &&
+      reportAllowed.effect === "allow" &&
+      reportAllowed.block === false &&
+      bulletinDenied.effect === "deny" &&
+      bulletinDenied.block === false &&
+      bulletinAllowed.effect === "allow" &&
+      reportManager.effect === "allow" &&
+      reportManager.reason === "admin" &&
+      bulletinFull.effect === "allow" &&
+      bulletinFull.reason === "full_access" &&
+      bulletinLookup.effect === "lookup_failed" &&
+      bulletinLookup.block === false &&
+      emergencyOff.effect === "skipped" &&
+      emergencyOff.reason === "family_off" &&
+      emergencyOff.block === false &&
+      observed.some((entry) => entry.family === "reports" && entry.decision === "deny") &&
+      observed.some((entry) => entry.family === "bulletins" && entry.decision === "lookup_failed") &&
+      observed.every((entry) => Object.keys(entry).every((key) => safeKeys.has(key))) &&
+      !dumped.includes(USER) &&
+      !dumped.includes("linha-1") &&
+      !dumped.includes("boletim") &&
+      !dumped.includes("senha"),
+    `bloqueio ${reportDenied.block}; falha ${bulletinLookup.block}; registros ${observed.length}`
   );
 
   console.log(`\n${passed} ok, ${failed} falha(s)`);

@@ -260,8 +260,9 @@ const FAMILIES: readonly AuthorizationFamily[] = [
   family("technicians", ["/api/workshop-technicians"], "shadow"),
   family("workshop_catalogs", ["/api/workshop-services", "/api/workshop/checklist-templates"], "shadow"),
   family("tv_admin", ["/api/tv"], "shadow"),
-  family("bulletins", ["/api/error-bulletins"]),
-  family("reports", ["/api/reports"]),
+  // SEC-03.5: só observação. Leitura, criação, edição e exclusão seguem iguais.
+  family("bulletins", ["/api/error-bulletins"], "shadow"),
+  family("reports", ["/api/reports"], "shadow"),
   family("notifications", ["/api/notifications"]),
   family("quality_radar", ["/api/quality-"]),
   family("rda", ["/api/rda"]),

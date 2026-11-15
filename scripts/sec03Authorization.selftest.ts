@@ -246,9 +246,9 @@ async function main() {
         .filter((family) => family.mode === "shadow")
         .map((family) => family.id)
         .sort()
-        .join(",") === "technicians,tv_admin,workshop_catalogs" &&
+        .join(",") === "bulletins,reports,technicians,tv_admin,workshop_catalogs" &&
       authorizationHasEnforce(production, {}) === false,
-    "sombra só nas famílias administrativas"
+    "sombra em técnicos, catálogos, TV, relatórios e boletins"
   );
 
   const inactive = await decide({
@@ -927,6 +927,15 @@ async function main() {
       has("protected", "DELETE", "/api/workshop-parts/:id") &&
       has("uncovered", "PUT", "/api/service-orders/:id") &&
       coverage.overlaps.length > 0 &&
+      coverage.routes.filter((route) => route.path.startsWith("/api/reports") || route.path.startsWith("/api/error-bulletins")).length === 10 &&
+      coverage.routes
+        .filter((route) => route.path.startsWith("/api/reports") || route.path.startsWith("/api/error-bulletins"))
+        .every(
+          (route) =>
+            route.kind === "protected" &&
+            !route.conflict &&
+            route.matches[0]?.family === (route.path.startsWith("/api/reports") ? "reports" : "bulletins")
+        ) &&
       coverage.overlaps.every((route) => route.conflict === false) &&
       uncoveredStaysOpen &&
       authorizationHasEnforce(production, {}) === false,
@@ -1469,6 +1478,25 @@ async function main() {
       : null;
     const profileJson = profile ? await profile.json().catch(() => ({})) : {};
     const storedUser = tables.workshop_system_users?.[0];
+    const moduleCalls = token
+      ? await Promise.all([
+          fetch(`${base}/api/reports/technician-services`, { headers: { authorization: `Bearer ${token}` } }),
+          fetch(`${base}/api/reports/technician-services/linha-1`, { method: "DELETE", headers: { authorization: `Bearer ${token}` } }),
+          fetch(`${base}/api/error-bulletins`, { headers: { authorization: `Bearer ${token}` } }),
+          fetch(`${base}/api/error-bulletins`, {
+            method: "POST",
+            headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
+            body: JSON.stringify({ title: "Boletim ficticio", password: PASS_USER }),
+          }),
+          fetch(`${base}/api/error-bulletins/boletim-1`, {
+            method: "PATCH",
+            headers: { "content-type": "application/json", authorization: `Bearer ${token}` },
+            body: JSON.stringify({ title: "Boletim ficticio", password: PASS_USER }),
+          }),
+          fetch(`${base}/api/error-bulletins/boletim-1`, { method: "DELETE", headers: { authorization: `Bearer ${token}` } }),
+        ])
+      : [];
+    const moduleBodies = await Promise.all(moduleCalls.map(async (response) => response.json().catch(() => ({}))));
     record(
       "HTTP real não ganha bloqueio e a TV pública permanece",
       login.status === 200 &&
@@ -1492,8 +1520,11 @@ async function main() {
         boardOpen.status !== 401 &&
         boardOpen.status !== 403 &&
         slide?.status !== 403 &&
-        slideJson?.code !== "permission_denied",
-      `login ${login.status}; cliente ${created?.status}; tv ${display.status}; quadro ${boardOpen.status}; slide ${slide?.status}`
+        slideJson?.code !== "permission_denied" &&
+        moduleCalls.length === 6 &&
+        moduleCalls.every((response) => response.status !== 403) &&
+        moduleBodies.every((body) => body?.code !== "permission_denied"),
+      `login ${login.status}; cliente ${created?.status}; tv ${display.status}; quadro ${boardOpen.status}; slide ${slide?.status}; módulos ${moduleCalls.map((response) => response.status).join(",")}`
     );
   } finally {
     server.close();
