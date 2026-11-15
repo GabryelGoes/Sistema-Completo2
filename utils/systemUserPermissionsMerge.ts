@@ -7,7 +7,7 @@ import {
   normalizePermissionsForAdminSave,
   type EmployeePermissions,
   type NormalizePermissionsMode,
-} from "./employeeAccess";
+} from "./employeeAccess.js";
 
 export type PermissionsRow = {
   permissions: unknown;
