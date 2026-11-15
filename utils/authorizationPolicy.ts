@@ -3,7 +3,8 @@
  *
  * O bloqueio real começa em uma família por vez. `customers`, `appointments`,
  * `budgets`, `comments`, `photos`, `parts_stock`, `abs_stock`, `technicians`,
- * `workshop_catalogs`, `tv_admin`, `bulletins`, `reports` e `notifications` já bloqueiam.
+ * `workshop_catalogs`, `tv_admin`, `bulletins`, `reports`, `notifications`
+ * e `service_orders` já bloqueiam.
  *
  * A chave de aba não libera outra ação: cada regra lista as chaves daquela
  * ação. `anyOf` vazio significa só Gerência ou full_access.
@@ -125,6 +126,34 @@ const OS_READ_KEYS = [
   "access_laboratorio",
   "access_reception",
   "access_orcamentos",
+  "access_agenda",
+  "access_relatorios",
+  "access_estoque_pecas",
+  "access_boletim_erros",
+  "access_tv_patio",
+  "access_radar_qualidade",
+] as const satisfies readonly PermissionKey[];
+
+/** Quem marca o checklist no cartão. Não inclui quem só consulta a lista. */
+const OS_CHECKLIST_KEYS = [
+  "access_patio",
+  "access_laboratorio",
+  "access_reception",
+  "access_orcamentos",
+] as const satisfies readonly PermissionKey[];
+
+/** Quem pode chegar no PUT. O handler ainda separa etapa, ficha, arquivo e técnico. */
+const OS_UPDATE_KEYS = [
+  "access_patio",
+  "access_laboratorio",
+  "access_reception",
+  "patio_approve_budget_items",
+  "patio_archive_card",
+  "patio_edit_ficha",
+  "patio_edit_queixa",
+  "patio_edit_mileage",
+  "patio_edit_delivery_date",
+  "patio_assign_technician",
 ] as const satisfies readonly PermissionKey[];
 
 const OS_CREATE_KEYS = [
@@ -290,7 +319,9 @@ const FAMILIES: readonly AuthorizationFamily[] = [
   // SEC-03.25.1: bloqueia criar, editar e excluir. O GET da lista não tem chave:
   // a sessão e o filtro da oficina bastam, porque a Home e os lembretes leem essa rota.
   family("appointments", ["/api/appointments"], "enforce"),
-  family("service_orders", ["/api/service-orders"]),
+  // SEC-03.32: bloqueia a OS. A lista sem sessão continua na TV.
+  // O PUT genérico separa etapa, ficha, queixa, arquivo e técnico no handler.
+  family("service_orders", ["/api/service-orders"], "enforce"),
   // SEC-03.27.1: bloqueia orçamentos. O agregado da Home não tem chave:
   // a sessão e o filtro da oficina bastam. Aprovar itens no PUT só grava flags.
   family("budgets", ["/api/service-orders", "/api/patio-budgets-hub", "/api/patio-vehicle-budgets-aggregate"], "enforce"),
@@ -325,10 +356,8 @@ const FAMILIES: readonly AuthorizationFamily[] = [
 ];
 
 /**
- * Regras prontas para um PR futuro ligar a família.
- * Fotos, Radar e RDA ficam sem regra nova: foto não tem chave de ação,
- * e Radar/RDA já conferem permissão nos handlers atuais.
- * O PUT genérico da OS também fica de fora: a mesma rota mistura etapa e ficha.
+ * Radar e RDA ficam sem regra nova: já conferem permissão nos handlers.
+ * O PUT da OS entra na família e o handler separa etapa, ficha, queixa, arquivo e técnico.
  */
 const RULES: readonly AuthorizationRule[] = [
   rule({
@@ -515,6 +544,70 @@ const RULES: readonly AuthorizationRule[] = [
     path: "^/api/service-orders/[^/]+/lab-evaluation$",
     anyOf: LAB_KEYS,
     priority: 80,
+  }),
+  rule({
+    id: "os_live_read",
+    family: "service_orders",
+    action: "read",
+    methods: ["GET"],
+    path: "^/api/service-orders/[^/]+/live$",
+    anyOf: OS_READ_KEYS,
+    priority: 80,
+  }),
+  rule({
+    id: "os_history_read",
+    family: "service_orders",
+    action: "read",
+    methods: ["GET"],
+    path: "^/api/service-orders/[^/]+/maintenance-history$",
+    anyOf: OS_READ_KEYS,
+    priority: 80,
+  }),
+  rule({
+    id: "os_location_moves_read",
+    family: "service_orders",
+    action: "read",
+    methods: ["GET"],
+    path: "^/api/service-orders/[^/]+/location-moves$",
+    anyOf: OS_READ_KEYS,
+    priority: 80,
+  }),
+  rule({
+    id: "os_technicians_read",
+    family: "service_orders",
+    action: "read",
+    methods: ["GET"],
+    path: "^/api/service-orders/[^/]+/service-technicians$",
+    anyOf: OS_READ_KEYS,
+    priority: 70,
+  }),
+  rule({
+    id: "os_checklist_read",
+    family: "service_orders",
+    action: "read",
+    methods: ["GET"],
+    path: "^/api/service-orders/[^/]+/checklist-state$",
+    anyOf: OS_CHECKLIST_KEYS,
+    priority: 80,
+  }),
+  rule({
+    id: "os_checklist_update",
+    family: "service_orders",
+    action: "update",
+    methods: ["PATCH"],
+    path: "^/api/service-orders/[^/]+/checklist-state$",
+    anyOf: OS_CHECKLIST_KEYS,
+    priority: 80,
+  }),
+  rule({
+    id: "os_update",
+    family: "service_orders",
+    action: "update",
+    methods: ["PUT", "PATCH"],
+    path: "^/api/service-orders/[^/]+$",
+    anyOf: OS_UPDATE_KEYS,
+    inherit: "approve_budget_items",
+    priority: 40,
   }),
 
   rule({

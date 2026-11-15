@@ -269,8 +269,8 @@ async function main() {
   const off = production.families.filter((family) => family.mode === "off").map((family) => family.id);
   record(
     "budgets entra em enforce e as outras oito permanecem",
-    enforced.join(",") === "customers,appointments,budgets,comments,photos,parts_stock,abs_stock,technicians,workshop_catalogs,tv_admin,bulletins,reports,notifications" &&
-      off.join(",") === "service_orders,quality_radar,rda" &&
+    enforced.join(",") === "customers,appointments,service_orders,budgets,comments,photos,parts_stock,abs_stock,technicians,workshop_catalogs,tv_admin,bulletins,reports,notifications" &&
+      off.join(",") === "quality_radar,rda" &&
       !production.rules.some((rule) => rule.id === "budget_aggregate_read") &&
       production.rules.some((rule) => rule.id === "budget_update" && rule.anyOf.includes("patio_approve_budget_items")),
     `enforce=${enforced.join(",")} off=${off.join(",")}`

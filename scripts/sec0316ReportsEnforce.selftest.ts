@@ -201,11 +201,11 @@ async function main() {
   const shadow = production.families.filter((family) => family.mode === "shadow").map((family) => family.id).sort();
   record(
     "política bloqueia relatórios e boletins",
-    enforced.join(",") === "customers,appointments,budgets,comments,photos,parts_stock,abs_stock,technicians,workshop_catalogs,tv_admin,bulletins,reports,notifications" &&
+    enforced.join(",") === "customers,appointments,service_orders,budgets,comments,photos,parts_stock,abs_stock,technicians,workshop_catalogs,tv_admin,bulletins,reports,notifications" &&
       shadow.join(",") === "" &&
       authorizationHasEnforce(production, {}) === true &&
       authorizationHasEnforce(production, { SEC03_DISABLE_FAMILIES: "reports" }) === true &&
-      authorizationHasEnforce(production, { SEC03_DISABLE_FAMILIES: "customers,appointments,budgets,comments,photos,parts_stock,abs_stock,technicians,workshop_catalogs,tv_admin,bulletins,reports,notifications" }) === false,
+      authorizationHasEnforce(production, { SEC03_DISABLE_FAMILIES: "customers,appointments,service_orders,budgets,comments,photos,parts_stock,abs_stock,technicians,workshop_catalogs,tv_admin,bulletins,reports,notifications" }) === false,
     enforced.join(",")
   );
 
@@ -385,8 +385,8 @@ async function main() {
     denied("pátio não cria boletim", await hit(base, "/api/error-bulletins", "POST", patio, { title: "Sem chave" }));
     denied("falha de leitura bloqueia boletim", await hit(base, "/api/error-bulletins", "GET", fail));
 
-    open(
-      "fechamento da OS não usa a família de relatórios",
+    denied(
+      "fechamento da OS exige atribuir técnico e não usa a família de relatórios",
       await hit(base, "/api/service-orders/os-1/service-technicians", "PUT", patio, { lines: [] })
     );
     open("rota do RDA não usa a família de relatórios", await hit(base, "/api/rda/proactive/summary", "GET", patio));

@@ -263,8 +263,8 @@ async function main() {
   const tv = findMatchingRules(production, "POST", "/api/tv/media/upload-init");
   record(
     "photos entra em enforce e as outras dez permanecem",
-    enforced.join(",") === "customers,appointments,budgets,comments,photos,parts_stock,abs_stock,technicians,workshop_catalogs,tv_admin,bulletins,reports,notifications" &&
-      off.join(",") === "service_orders,quality_radar,rda" &&
+    enforced.join(",") === "customers,appointments,service_orders,budgets,comments,photos,parts_stock,abs_stock,technicians,workshop_catalogs,tv_admin,bulletins,reports,notifications" &&
+      off.join(",") === "quality_radar,rda" &&
       production.rules.some((rule) => rule.id === "photo_upload") &&
       production.rules.some((rule) => rule.id === "photo_delete") &&
       live.every((rule) => rule.family !== "photos") &&

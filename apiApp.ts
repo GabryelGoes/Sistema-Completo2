@@ -81,6 +81,7 @@ import { assertHomologationSafeOrThrow } from "./utils/homologationGuard.js";
 import { classifyNewLoginPassword } from "./utils/loginPasswordPolicy.js";
 import { effectiveFamilyMode, guardHttpAuthorization, permissionSourceFromSupabase } from "./utils/authorizeRequest.js";
 import { notificationScope, type NotificationScope } from "./utils/notificationAudience.js";
+import { assessServiceOrderPut } from "./utils/serviceOrderPutGuard.js";
 import { productionAuthorizationPolicy } from "./utils/authorizationPolicy.js";
 import { assessBudgetApprovalPut } from "./utils/budgetApprovalGuard.js";
 import { acceptedCommentAuthorName, isOwnServiceOrderComment } from "./utils/commentAuthorship.js";
@@ -6014,6 +6015,19 @@ export function createApiApp() {
 
       if (!customerId) {
         return res.status(400).json({ error: "customerId é obrigatório." });
+      }
+      const { data: customerInWorkshop, error: customerLookupError } = await supabaseAdmin
+        .from("customers")
+        .select("id")
+        .eq("id", customerId)
+        .eq("workshop_id", WORKSHOP_ID)
+        .maybeSingle();
+      if (customerLookupError) {
+        console.error("[API] Erro ao validar cliente da OS:", customerLookupError);
+        return res.status(500).json({ error: customerLookupError.message });
+      }
+      if (!customerInWorkshop) {
+        return res.status(400).json({ error: "Cliente não encontrado nesta oficina." });
       }
       if (orderType === "vehicle" && (!vehicleModel || !plate)) {
         return res.status(400).json({
@@ -14442,6 +14456,25 @@ export function createApiApp() {
         diagnosticAuthorizationSignaturePath,
       } = req.body;
       const isAdminActor = actor !== "technician";
+      const putActor = await loadWorkshopSettingsActor(req);
+      if (putActor.load !== "ok" || (putActor.role !== "admin" && putActor.role !== "user")) {
+        return res.status(403).json({
+          error: "Sem permissão para esta operação.",
+          code: "permission_denied",
+        });
+      }
+      const putDecision = assessServiceOrderPut({
+        body: req.body,
+        role: putActor.role,
+        fullAccess: putActor.permissions?.full_access === true,
+        permissions: putActor.permissions || {},
+      });
+      if (!putDecision.ok) {
+        return res.status(403).json({
+          error: "Sem permissão para esta operação.",
+          code: "permission_denied",
+        });
+      }
 
       const updatePayload: any = {};
       /** Links normalizados quando o body manda `labServiceLinks` (para cascatear exclusão das OS lab removidas). */
@@ -14707,6 +14740,22 @@ export function createApiApp() {
         .eq("id", id)
         .eq("workshop_id", WORKSHOP_ID)
         .single();
+
+      if (status !== undefined) {
+        const reopen = assessServiceOrderPut({
+          body: { status },
+          role: putActor.role,
+          fullAccess: putActor.permissions?.full_access === true,
+          permissions: putActor.permissions || {},
+          previousStatus: previous ? String((previous as { status?: string }).status ?? "") : null,
+        });
+        if (!reopen.ok) {
+          return res.status(403).json({
+            error: "Sem permissão para esta operação.",
+            code: "permission_denied",
+          });
+        }
+      }
 
       // Bancada do laboratório: endereço físico (oficina/depósito) NÃO muda com a etapa —
       // só via Saída/Retorno, editores manuais ou arquivamento.
