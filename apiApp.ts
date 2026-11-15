@@ -79,7 +79,13 @@ import { timeKindsToAutoPauseOnStageChange } from "./services/rdaIntelligence/wo
 import { recordServiceOrderStageEntry } from "./services/rdaIntelligence/patioIntelligence/recordStageEntry.js";
 import { assertHomologationSafeOrThrow } from "./utils/homologationGuard.js";
 import { classifyNewLoginPassword } from "./utils/loginPasswordPolicy.js";
-import { guardHttpAuthorization } from "./utils/authorizeRequest.js";
+import { guardHttpAuthorization, permissionSourceFromSupabase } from "./utils/authorizeRequest.js";
+import {
+  APPOINTMENT_LIST_PUBLIC_FIELDS,
+  appointmentListSeesPrivateFields,
+  permissionFlags,
+  projectAppointmentListRow,
+} from "./utils/appointmentListPrivacy.js";
 import { ownProfilePatch, sessionProfileUserId } from "./utils/ownProfile.js";
 import { normalizePermissionsForAdminSave } from "./utils/employeeAccess.js";
 import {
@@ -3839,16 +3845,35 @@ export function createApiApp() {
   });
 
   // ----------------- AGENDA (workshop_appointments) -----------------
-  app.get("/api/appointments", async (_req, res) => {
+  /**
+   * SEC-03.26: a Home e os lembretes precisam da lista para qualquer sessão.
+   * A ficha completa fica com Gerência, acesso total, Agenda ou Recepção.
+   * Consulta de permissão que falha, ou usuário fora da oficina, recebe só
+   * os campos da Home. O filtro de workshop_id permanece nos dois casos.
+   */
+  async function appointmentListSeesPrivate(req: express.Request): Promise<boolean> {
+    const auth = (req as unknown as { auth?: SessionPayload }).auth;
+    if (!auth) return false;
+    if (auth.r === "admin") return true;
+    const userId = typeof auth.u === "string" ? auth.u.trim() : "";
+    if (!userId || !supabaseAdmin || !WORKSHOP_ID) return false;
+    const loaded = await permissionSourceFromSupabase(supabaseAdmin).loadUser(WORKSHOP_ID, userId);
+    if (!loaded.ok || !loaded.row) return false;
+    return appointmentListSeesPrivateFields("user", permissionFlags(loaded.row.permissions));
+  }
+
+  app.get("/api/appointments", async (req, res) => {
     try {
       if (!supabaseAdmin || !WORKSHOP_ID) {
         return res.status(500).json({
           error: "Supabase ou WORKSHOP_ID não configurados. Verifique variáveis de ambiente.",
         });
       }
+      const seesPrivate = await appointmentListSeesPrivate(req);
+      const columns = seesPrivate ? "*" : APPOINTMENT_LIST_PUBLIC_FIELDS.join(",");
       const { data, error } = await supabaseAdmin
         .from("workshop_appointments")
-        .select("*")
+        .select(columns)
         .eq("workshop_id", WORKSHOP_ID)
         .order("scheduled_date", { ascending: true })
         .order("scheduled_time", { ascending: true });
@@ -3857,7 +3882,10 @@ export function createApiApp() {
         console.error("[API] Erro ao listar agendamentos:", error);
         return res.status(500).json({ error: error.message });
       }
-      return res.json(data ?? []);
+      const rows = ((data ?? []) as unknown as Record<string, unknown>[]).map((row) =>
+        projectAppointmentListRow(row, seesPrivate)
+      );
+      return res.json(rows);
     } catch (err: any) {
       console.error("[API] Erro inesperado em GET /api/appointments:", err);
       return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });

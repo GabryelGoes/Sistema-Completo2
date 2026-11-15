@@ -359,12 +359,14 @@ async function main() {
           listed.body.slice(0, 180)
         );
         record(
-          "a lista ainda devolve CPF, telefone, e-mail e observação",
-          listed.body.includes("12345678901") &&
-            listed.body.includes("11911110000") &&
-            listed.body.includes("cliente@exemplo.test") &&
-            listed.body.includes("Observação interna"),
-          "campos extras"
+          "a lista do pátio omite CPF, telefone, e-mail e observação",
+          !listed.body.includes("12345678901") &&
+            !listed.body.includes("11911110000") &&
+            !listed.body.includes("cliente@exemplo.test") &&
+            !listed.body.includes("Observação interna") &&
+            listed.body.includes("Freio") &&
+            listed.body.includes("ABC1D23"),
+          "campos da home"
         );
       }
     }
