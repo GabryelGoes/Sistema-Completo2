@@ -254,7 +254,8 @@ const FAMILIES: readonly AuthorizationFamily[] = [
   family("budgets", ["/api/service-orders", "/api/patio-budgets-hub", "/api/patio-vehicle-budgets-aggregate"]),
   family("comments", ["/api/service-orders"]),
   family("photos", ["/api/service-orders"]),
-  family("parts_stock", ["/api/workshop-parts", "/api/workshop-suppliers", "/api/workshop-part-categories", "/api/estoque"]),
+  // SEC-03.7: só observação. Baixa, cancelamento e leitura compartilhada seguem iguais.
+  family("parts_stock", ["/api/workshop-parts", "/api/workshop-suppliers", "/api/workshop-part-categories", "/api/estoque"], "shadow"),
   family("abs_stock", ["/api/abs-modules", "/api/abs-module-models"]),
   // SEC-03.1: só observação. Leitura operacional não usa a chave de edição.
   family("technicians", ["/api/workshop-technicians"], "shadow"),
