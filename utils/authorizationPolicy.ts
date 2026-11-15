@@ -1,8 +1,8 @@
 /**
  * SEC-03.0 — catálogo declarativo de autorização.
  *
- * O bloqueio real começa em uma família por vez. `tv_admin`, `workshop_catalogs`
- * e `technicians` já bloqueiam. As outras famílias em `shadow` continuam apenas observando.
+ * O bloqueio real começa em uma família por vez. `tv_admin`, `workshop_catalogs`,
+ * `technicians` e `reports` já bloqueiam. As outras famílias em `shadow` continuam apenas observando.
  *
  * A chave de aba não libera outra ação: cada regra lista as chaves daquela
  * ação. `anyOf` vazio significa só Gerência ou full_access.
@@ -263,9 +263,10 @@ const FAMILIES: readonly AuthorizationFamily[] = [
   family("workshop_catalogs", ["/api/workshop-services", "/api/workshop/checklist-templates"], "enforce"),
   // SEC-03.10: primeiro bloqueio. Painel e playlist públicos continuam isentos.
   family("tv_admin", ["/api/tv"], "enforce"),
-  // SEC-03.5: só observação. Leitura, criação, edição e exclusão seguem iguais.
+  // SEC-03.5: só observação. Leitura, criação, edição, anexos e vínculos seguem iguais.
   family("bulletins", ["/api/error-bulletins"], "shadow"),
-  family("reports", ["/api/reports"], "shadow"),
+  // SEC-03.16: bloqueia leitura e exclusão do relatório de serviços por técnico.
+  family("reports", ["/api/reports"], "enforce"),
   family("notifications", ["/api/notifications"]),
   family("quality_radar", ["/api/quality-"]),
   family("rda", ["/api/rda"]),
