@@ -9,6 +9,7 @@ import { TechnicianPhotoEditorModal } from './TechnicianPhotoEditorModal';
 import { useRegisterModalOpen } from './ui/ModalLayerContext';
 import { LOGIN_PASSWORD_MIN_LENGTH } from '../utils/loginPasswordPolicy';
 import { isSelectableProfilePhoto } from '../utils/profilePhotoFile';
+import { ajustesPcChildClass } from './ajustes/AjustesPcLayoutContext';
 
 interface AdminProfileModalProps {
   isOpen: boolean;
@@ -151,19 +152,22 @@ export const AdminProfileModal: React.FC<AdminProfileModalProps> = ({ isOpen, on
   return (
     <ModalPortal>
       <div className={resolveIosModalOverlayClass(isDesktopShell)}>
-        <div className={`${iosModalShell} max-w-md max-h-[94vh]`}>
+        <div className={`${iosModalShell} ${ajustesPcChildClass(isDesktopShell)} max-w-md max-h-[94vh]`}>
           <button type="button" onClick={onClose} className={iosModalClose} aria-label="Fechar">
             <X className="w-5 h-5" />
           </button>
 
           <div className="flex flex-col min-h-0 flex-1 overflow-hidden">
             <div className="px-6 sm:px-8 pt-8 pb-4 pr-14 shrink-0">
+              {isDesktopShell ? (
+                <p className="ajustes-pc-child-eyebrow">Ajustes · Conta e equipe</p>
+              ) : null}
               <IosModalHeader
                 icon={
                   <img src="/icons/admin-perfil-ios.png" alt="" className="h-full w-full min-h-0 object-cover" />
                 }
                 title="Perfil do administrador"
-                subtitle="Nome, foto e senha do login Gerência"
+                subtitle="Nome e foto — senha da Gerência também em Segurança"
                 gradientClass="from-blue-500 to-indigo-700"
               />
             </div>
@@ -239,7 +243,7 @@ export const AdminProfileModal: React.FC<AdminProfileModalProps> = ({ isOpen, on
                       />
                     </div>
 
-                    <div className="flex gap-3">
+                    <div className={`flex gap-3 ${isDesktopShell ? 'ajustes-pc-child-footer' : ''}`}>
                       <button
                         type="button"
                         onClick={onClose}
@@ -259,16 +263,17 @@ export const AdminProfileModal: React.FC<AdminProfileModalProps> = ({ isOpen, on
                   </form>
 
                   {/* Formulário irmão — nunca aninhado no de perfil (HTML inválido quebrava o save). */}
-                  <section className={`${iosModalInsetCard} p-4 sm:p-5`}>
-                    <div className="flex items-center gap-2 mb-3">
+                  <section className={`${iosModalInsetCard} border border-amber-300/50 p-4 sm:p-5 dark:border-amber-700/40`}>
+                    <div className="mb-3 flex items-center gap-2">
                       <Lock className="w-5 h-5 text-amber-500" />
                       <h3 className="text-[13px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
                         Senha do login Gerência
                       </h3>
                     </div>
                     <p className="text-[13px] text-zinc-600 dark:text-zinc-400 mb-4">
-                      Usuário de login: <strong className="font-semibold text-zinc-800 dark:text-zinc-200">Gerência</strong>.
-                      Altere a senha aqui e confirme com o botão abaixo (não use &quot;Salvar perfil&quot;).
+                      Mesma credencial de <strong className="font-semibold text-zinc-800 dark:text-zinc-200">Segurança → Senhas operacionais</strong>.
+                      Usuário: <strong className="font-semibold text-zinc-800 dark:text-zinc-200">Gerência</strong>.
+                      Confirme com o botão deste bloco (não use &quot;Salvar perfil&quot;).
                     </p>
                     {adminPasswordMessage && (
                       <div

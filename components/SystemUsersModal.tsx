@@ -43,6 +43,7 @@ import {
 } from '../services/apiService';
 import { useRegisterModalOpen } from './ui/ModalLayerContext';
 import { LOGIN_PASSWORD_MIN_LENGTH } from '../utils/loginPasswordPolicy';
+import { ajustesPcChildClass } from './ajustes/AjustesPcLayoutContext';
 
 /** Switch reutilizável para permissões */
 function PermSwitch({
@@ -189,7 +190,13 @@ const HOME_MODULE_ACCESS: {
     icon: '/icons/configuracoes-ios.png',
     iconAlt: 'Preferências',
   },
-  { key: 'access_change_passwords', label: 'Alterar senhas', description: 'Senha de gerência e exclusão de veículos', icon: '/icons/senhas-ios.png', iconAlt: 'Senhas' },
+  {
+    key: 'access_change_passwords',
+    label: 'Senhas operacionais',
+    description: 'Abre o modal; gravação de secrets exige Gerência',
+    icon: '/icons/senhas-ios.png',
+    iconAlt: 'Senhas',
+  },
   { key: 'access_technicians', label: 'Técnicos', description: 'Lista para atribuição nos cards do Pátio', icon: '/icons/usuarios-ios.png', iconAlt: 'Técnicos' },
   { key: 'access_servicos_oficina', label: 'Serviços da oficina', description: 'Catálogo no hub de configurações', icon: '/icons/servicos-oficina-ios.png', iconAlt: 'Serviços' },
   { key: 'access_checklists_patio', label: 'Checklists do Pátio', description: 'Modelos por etapa', icon: '/icons/checklist-patio-ios.png', iconAlt: 'Checklists' },
@@ -450,17 +457,20 @@ export const SystemUsersModal: React.FC<SystemUsersModalProps> = ({ isOpen, onCl
   return (
     <ModalPortal>
     <div className={resolveIosModalOverlayClass(isDesktopShell)}>
-      <div className={`${iosModalShell} max-w-3xl w-full max-h-[min(92vh,860px)]`}>
+      <div className={`${iosModalShell} ${ajustesPcChildClass(isDesktopShell)} max-w-3xl w-full max-h-[min(92vh,860px)]`}>
         <button type="button" onClick={onClose} className={iosModalClose} aria-label="Fechar">
           <X className="w-5 h-5" />
         </button>
 
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
           <div className="shrink-0 border-b border-zinc-200/70 bg-gradient-to-b from-white/90 to-white/40 px-5 pb-4 pt-7 pr-14 dark:border-white/[0.06] dark:from-zinc-900/80 dark:to-zinc-950/40">
+            {isDesktopShell ? (
+              <p className="ajustes-pc-child-eyebrow">Ajustes · Conta e equipe</p>
+            ) : null}
             <IosModalHeader
               icon={<img src="/icons/usuarios-ios.png" alt="" className="h-full w-full min-h-0 object-cover" />}
               title="Usuários do sistema"
-              subtitle="Logins da oficina, permissões por módulo e aprovação de orçamentos"
+              subtitle="Acessos e permissões por módulo — estados ativo/inativo + Acesso total"
               gradientClass="from-violet-500 to-indigo-700"
             />
           </div>
@@ -585,16 +595,19 @@ export const SystemUsersModal: React.FC<SystemUsersModalProps> = ({ isOpen, onCl
                 </section>
 
                 <div className="rounded-2xl border-2 border-amber-300/80 bg-gradient-to-br from-amber-50 to-orange-50/80 p-4 dark:border-amber-700/50 dark:from-amber-950/40 dark:to-orange-950/20">
+                  <p className="mb-2 text-[11px] font-extrabold uppercase tracking-[0.08em] text-amber-700 dark:text-amber-300">
+                    Acesso total
+                  </p>
                   <PermSwitch
-                    label="Acesso completo ao sistema"
-                    description="Igual ao administrador: todas as telas, Administração e todas as ações no Pátio/Laboratório."
+                    label="Acesso total"
+                    description="Igual ao administrador: ignora permissões granulares abaixo."
                     checked={!!formPermissions.full_access}
                     onChange={(v) => setPerm('full_access', v)}
                   />
                   {formPermissions.full_access ? (
                     <p className="mt-3 flex items-start gap-2 rounded-xl bg-amber-500/10 px-3 py-2 text-xs leading-snug text-amber-900 dark:text-amber-200">
                       <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                      As permissões detalhadas abaixo são ignoradas quando o acesso completo está ativo.
+                      Switches detalhados ficam desabilitados com acesso total ativo.
                     </p>
                   ) : null}
                 </div>
@@ -652,12 +665,12 @@ export const SystemUsersModal: React.FC<SystemUsersModalProps> = ({ isOpen, onCl
                     ))}
                     {formPermissions.full_access ? (
                       <p className="mt-2 border-t border-zinc-200/80 pt-2 text-xs text-zinc-500 dark:border-zinc-600/60 dark:text-zinc-400">
-                        Com acesso completo, aprovar itens do orçamento fica sempre permitido.
+                        Com acesso total, aprovar itens do orçamento fica sempre permitido.
                       </p>
                     ) : (
                       <PermSwitch
                         label="Aprovar itens do orçamento"
-                        description="Aprovar ou reprovar serviços e peças na página Orçamentos. Se nunca foi salvo, segue a regra de «Criar e editar orçamentos»."
+                        description="Se omitido, segue «Criar e editar orçamentos». Também há atalho na lista de usuários."
                         checked={effectivePatioApproveBudgetItems(formPermissions)}
                         onChange={(v) => setPerm('patio_approve_budget_items', v)}
                         disabled={!!formPermissions.full_access}
@@ -716,10 +729,13 @@ export const SystemUsersModal: React.FC<SystemUsersModalProps> = ({ isOpen, onCl
                           <img src="/icons/orcamentos-ios.png" alt="" className="h-full w-full object-cover" />
                         </IosAccentIconSquircle>
                         <div className="min-w-0">
-                          <h3 className="text-[15px] font-semibold text-zinc-900 dark:text-white">Aprovação de orçamento</h3>
+                          <h3 className="text-[15px] font-semibold text-zinc-900 dark:text-white">
+                            Atalho · Aprovação de orçamento
+                          </h3>
                           <p className="mt-0.5 text-[12px] leading-snug text-zinc-600 dark:text-zinc-400">
-                            Quem pode aprovar ou reprovar itens no Pátio e no Laboratório. Quem tem{' '}
-                            <strong className="text-zinc-800 dark:text-zinc-200">acesso completo</strong> já dispensa esta opção.
+                            Mesma permissão do formulário de edição. Quem tem{' '}
+                            <strong className="text-zinc-800 dark:text-zinc-200">acesso total</strong> já dispensa esta opção;
+                            se omitida, segue «Criar e editar orçamentos».
                           </p>
                         </div>
                       </div>
@@ -795,9 +811,13 @@ export const SystemUsersModal: React.FC<SystemUsersModalProps> = ({ isOpen, onCl
                               <span className="rounded-md bg-amber-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-800 dark:text-amber-200">
                                 Acesso total
                               </span>
-                            ) : null}
+                            ) : (
+                              <span className="rounded-md bg-emerald-500/12 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">
+                                Permissões por módulo
+                              </span>
+                            )}
                             {u.is_technician ? (
-                              <span className="rounded-md bg-emerald-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">
+                              <span className="rounded-md bg-zinc-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-zinc-700 dark:text-zinc-300">
                                 Técnico
                               </span>
                             ) : null}

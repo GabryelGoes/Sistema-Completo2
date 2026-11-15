@@ -25,7 +25,15 @@ export function useAjustesPcLayout(): boolean {
 /** Marcadores A1 — estilos em `styles/ajustes-desktop.css`. */
 export const AJUSTES_PC_SHELL_CLASS = 'ajustes-hub ajustes-hub--desktop ajustes-pc-shell-v1';
 
+/** Filhos A2 (perfis, usuários, senhas) — só chrome visual desktop. */
+export const AJUSTES_PC_CHILD_CLASS = 'ajustes-pc-child ajustes-pc-people-v2';
+
 export function ajustesPcShellClass(pcLayout: boolean, extra = ''): string {
   if (!pcLayout) return extra;
   return extra ? `${AJUSTES_PC_SHELL_CLASS} ${extra}` : AJUSTES_PC_SHELL_CLASS;
+}
+
+export function ajustesPcChildClass(pcLayout: boolean, extra = ''): string {
+  if (!pcLayout) return extra;
+  return extra ? `${AJUSTES_PC_CHILD_CLASS} ${extra}` : AJUSTES_PC_CHILD_CLASS;
 }
