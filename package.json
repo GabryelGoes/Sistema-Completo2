@@ -64,6 +64,7 @@
     "test:sec0330-abs-stock-enforce": "tsx scripts/sec0330AbsStockEnforce.selftest.ts",
     "test:sec0331-notifications-enforce": "tsx scripts/sec0331NotificationsEnforce.selftest.ts",
     "test:sec0332-service-orders-enforce": "tsx scripts/sec0332ServiceOrdersEnforce.selftest.ts",
+    "test:sec03321-service-order-actor": "tsx scripts/sec03321ServiceOrderActor.selftest.ts",
     "test:workshop-part-reservations": "tsx scripts/workshopPartReservations.selftest.ts",
     "test:vehicle-maintenance-parts": "tsx scripts/vehicleMaintenanceParts.selftest.ts"
   },

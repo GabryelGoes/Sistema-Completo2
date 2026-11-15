@@ -82,6 +82,7 @@ import { classifyNewLoginPassword } from "./utils/loginPasswordPolicy.js";
 import { effectiveFamilyMode, guardHttpAuthorization, permissionSourceFromSupabase } from "./utils/authorizeRequest.js";
 import { notificationScope, type NotificationScope } from "./utils/notificationAudience.js";
 import { assessServiceOrderPut } from "./utils/serviceOrderPutGuard.js";
+import { resolveServiceOrderNotificationActor, type ServiceOrderNotificationActor } from "./utils/serviceOrderActor.js";
 import { productionAuthorizationPolicy } from "./utils/authorizationPolicy.js";
 import { assessBudgetApprovalPut } from "./utils/budgetApprovalGuard.js";
 import { acceptedCommentAuthorName, isOwnServiceOrderComment } from "./utils/commentAuthorship.js";
@@ -1711,6 +1712,42 @@ export function createApiApp() {
     } catch {
       return { role: "user", userId: auth.u, load: "failed" };
     }
+  }
+
+  /**
+   * SEC-03.32.1: nome e destinatário do aviso saem da sessão, nunca do body.
+   * Falha ou nome vazio impede o efeito privilegiado.
+   */
+  async function resolvePutNotificationActor(
+    actor: WorkshopSettingsActor
+  ): Promise<ServiceOrderNotificationActor> {
+    if (actor.role === "admin") {
+      const admin = await getAdminDisplayMeta();
+      return resolveServiceOrderNotificationActor({
+        role: "admin",
+        adminDisplayName: admin.name,
+      });
+    }
+    if (actor.role !== "user" || !actor.userId || !supabaseAdmin || !WORKSHOP_ID) {
+      return { ok: false, reason: "unresolved" };
+    }
+    const { data, error } = await supabaseAdmin
+      .from("workshop_system_users")
+      .select("id, display_name, username, is_technician, permissions")
+      .eq("id", actor.userId)
+      .eq("workshop_id", WORKSHOP_ID)
+      .maybeSingle();
+    if (error || !data) return { ok: false, reason: "unresolved" };
+    const permissions = (data.permissions as Record<string, boolean> | null) || actor.permissions || {};
+    return resolveServiceOrderNotificationActor({
+      role: "user",
+      userId: actor.userId,
+      displayName: typeof data.display_name === "string" ? data.display_name : null,
+      username: typeof data.username === "string" ? data.username : null,
+      fullAccess: permissions.full_access === true,
+      isTechnician: data.is_technician === true,
+      permissions,
+    });
   }
 
   /** Lê a senha da Gerência do header (preferido), body ou query (legado), sem expor na URL. */
@@ -14450,12 +14487,8 @@ export function createApiApp() {
         moduleKind: bodyModuleKindPut,
         moduleVehicleKind: bodyModuleVehicleKindPut,
         moduleProductOther: bodyModuleProductOtherPut,
-        actor,
-        actorTechnicianSlug,
-        actorTechnicianName,
         diagnosticAuthorizationSignaturePath,
       } = req.body;
-      const isAdminActor = actor !== "technician";
       const putActor = await loadWorkshopSettingsActor(req);
       if (putActor.load !== "ok" || (putActor.role !== "admin" && putActor.role !== "user")) {
         return res.status(403).json({
@@ -14470,6 +14503,13 @@ export function createApiApp() {
         permissions: putActor.permissions || {},
       });
       if (!putDecision.ok) {
+        return res.status(403).json({
+          error: "Sem permissão para esta operação.",
+          code: "permission_denied",
+        });
+      }
+      const sessionActor = await resolvePutNotificationActor(putActor);
+      if (!sessionActor.ok) {
         return res.status(403).json({
           error: "Sem permissão para esta operação.",
           code: "permission_denied",
@@ -15111,8 +15151,8 @@ export function createApiApp() {
           statusChanged &&
           effectiveOrderType === "module" &&
           String(data?.status ?? "") === "SEM_CONSERTO";
-        if (isAdminActor) {
-          // Ações do admin: notificar todos os técnicos
+        if (sessionActor.audience === "technicians") {
+          // Gerência: avisa os técnicos inscritos. O body não escolhe o destinatário.
           const stageTechIds = await getTechnicianRecipientIdsForSystemType("stage_change");
           const labSemConsertoTechIds = enteredLabSemConserto
             ? await getTechnicianRecipientIdsForSystemType("lab_sem_conserto")
@@ -15164,9 +15204,10 @@ export function createApiApp() {
               }).then(({ error: e }) => { if (e) console.error("[API] Notificação delivery_date_changed:", e); });
             }
           }
-        } else if (!isAdminActor && (typeof actorTechnicianSlug === "string" || typeof actorTechnicianName === "string")) {
-          // Ações do técnico: notificar apenas o admin (Rei do ABS)
-          const technicianLabel = typeof actorTechnicianName === "string" && actorTechnicianName.trim() ? actorTechnicianName.trim() : (actorTechnicianSlug || "Técnico");
+        } else {
+          // Funcionário: avisa a Gerência com o nome gravado na sessão, não o nome enviado.
+          const technicianLabel = sessionActor.displayName;
+          const technicianUserId = sessionActor.userId;
           const shouldAdminStage = await shouldNotifyAdminForSystemType("stage_change");
           const shouldAdminLabSemConserto = enteredLabSemConserto
             ? await shouldNotifyAdminForSystemType("lab_sem_conserto")
@@ -15179,7 +15220,7 @@ export function createApiApp() {
                 await supabaseAdmin.from("notifications").insert({
                   workshop_id: WORKSHOP_ID,
                   type: "lab_sem_conserto",
-                  payload: { ...payloadBase, new_status: data?.status, technician_name: technicianLabel },
+                  payload: { ...payloadBase, new_status: data?.status, technician_name: technicianLabel, technician_user_id: technicianUserId },
                   target_type: "admin",
                   target_slug: null,
                 }).then(({ error: e }) => { if (e) console.error("[API] Notificação lab_sem_conserto (admin):", e); });
@@ -15188,7 +15229,7 @@ export function createApiApp() {
               await supabaseAdmin.from("notifications").insert({
                 workshop_id: WORKSHOP_ID,
                 type: "stage_change",
-                payload: { ...payloadBase, new_status: data?.status, technician_name: technicianLabel },
+                payload: { ...payloadBase, new_status: data?.status, technician_name: technicianLabel, technician_user_id: technicianUserId },
                 target_type: "admin",
                 target_slug: null,
               }).then(({ error: e }) => { if (e) console.error("[API] Notificação stage_change (admin):", e); });
@@ -15199,7 +15240,7 @@ export function createApiApp() {
             await supabaseAdmin.from("notifications").insert({
               workshop_id: WORKSHOP_ID,
               type: "complaint_edited",
-              payload: { ...payloadBase, technician_name: technicianLabel },
+              payload: { ...payloadBase, technician_name: technicianLabel, technician_user_id: technicianUserId },
               target_type: "admin",
               target_slug: null,
             }).then(({ error: e }) => { if (e) console.error("[API] Notificação complaint_edited (admin):", e); });
@@ -15210,7 +15251,7 @@ export function createApiApp() {
             await supabaseAdmin.from("notifications").insert({
               workshop_id: WORKSHOP_ID,
               type: "delivery_date_changed",
-              payload: { ...payloadBase, delivery_date: data?.delivery_date ?? null, technician_name: technicianLabel },
+              payload: { ...payloadBase, delivery_date: data?.delivery_date ?? null, technician_name: technicianLabel, technician_user_id: technicianUserId },
               target_type: "admin",
               target_slug: null,
             }).then(({ error: e }) => { if (e) console.error("[API] Notificação delivery_date_changed (admin):", e); });
