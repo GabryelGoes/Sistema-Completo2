@@ -92,6 +92,7 @@ async function main() {
     modeOf("customers") === "enforce" &&
       modeOf("appointments") === "enforce" &&
       modeOf("budgets") === "enforce" &&
+      modeOf("comments") === "enforce" &&
       modeOf("parts_stock") === "enforce" &&
       modeOf("reports") === "enforce" &&
       modeOf("bulletins") === "enforce" &&
@@ -104,6 +105,7 @@ async function main() {
           (            family.id === "customers" ||
             family.id === "appointments" ||
             family.id === "budgets" ||
+            family.id === "comments" ||
             family.id === "tv_admin" ||
             family.id === "workshop_catalogs" ||
             family.id === "technicians" ||
@@ -114,7 +116,7 @@ async function main() {
       ) &&
       authorizationHasEnforce(production, {}) === true &&
       authorizationHasEnforce(production, { SEC03_DISABLE_FAMILIES: "reports" }) === true &&
-      authorizationHasEnforce(production, { SEC03_DISABLE_FAMILIES: "customers,appointments,budgets,parts_stock,technicians,workshop_catalogs,tv_admin,bulletins,reports" }) === false &&
+      authorizationHasEnforce(production, { SEC03_DISABLE_FAMILIES: "customers,appointments,budgets,comments,parts_stock,technicians,workshop_catalogs,tv_admin,bulletins,reports" }) === false &&
       production.families.filter((family) => family.mode === "shadow").map((family) => family.id).sort().join(",") ===
         "",
     `estoque ${modeOf("parts_stock")}; relatório ${modeOf("reports")}; boletim ${modeOf("bulletins")}; catálogo ${modeOf("workshop_catalogs")}`
