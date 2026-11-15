@@ -193,11 +193,11 @@ async function main() {
   const shadow = production.families.filter((family) => family.mode === "shadow").map((family) => family.id).sort();
   record(
     "política bloqueia TV, catálogos e técnicos",
-    enforced.join(",") === "parts_stock,technicians,workshop_catalogs,tv_admin,bulletins,reports" &&
+    enforced.join(",") === "customers,parts_stock,technicians,workshop_catalogs,tv_admin,bulletins,reports" &&
       shadow.join(",") === "" &&
       authorizationHasEnforce(production, {}) === true &&
       authorizationHasEnforce(production, { SEC03_DISABLE_FAMILIES: "reports" }) === true &&
-      authorizationHasEnforce(production, { SEC03_DISABLE_FAMILIES: "parts_stock,technicians,workshop_catalogs,tv_admin,bulletins,reports" }) === false,
+      authorizationHasEnforce(production, { SEC03_DISABLE_FAMILIES: "customers,parts_stock,technicians,workshop_catalogs,tv_admin,bulletins,reports" }) === false,
     enforced.join(",")
   );
 
