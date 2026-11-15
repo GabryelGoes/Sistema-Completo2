@@ -72,7 +72,7 @@ export const DeviceLayoutSettingsModal: React.FC<DeviceLayoutSettingsModalProps>
                 isDesktopShell ? 'ajustes-pc-ops-header' : ''
               }`}
             >
-              <AjustesPcOpsEyebrow desktop={isDesktopShell}>Ajustes · Operação · Layout</AjustesPcOpsEyebrow>
+              <AjustesPcOpsEyebrow desktop={isDesktopShell}>Ajustes · Dispositivos · Layout</AjustesPcOpsEyebrow>
               <IosModalHeader
                 icon={
                   <img

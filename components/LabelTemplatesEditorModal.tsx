@@ -429,14 +429,17 @@ export function LabelTemplatesEditorModal({
           </button>
 
           <div
-            className={`shrink-0 border-b border-zinc-200/70 bg-white px-5 pb-3 pt-8 pr-24 dark:border-white/[0.06] dark:bg-transparent sm:px-6 ${
-              isDesktopShell ? 'ajustes-pc-ops-header' : ''
+            className={`shrink-0 bg-white px-5 pb-3 pt-8 pr-24 dark:bg-transparent sm:px-6 ${
+              isDesktopShell
+                ? 'ajustes-pc-ops-header'
+                : 'border-b border-zinc-200/70 dark:border-white/[0.06]'
             }`}
           >
-            <AjustesPcOpsEyebrow desktop={isDesktopShell}>Ajustes · Operação · Etiquetas</AjustesPcOpsEyebrow>
+            <AjustesPcOpsEyebrow desktop={isDesktopShell}>Ajustes · Dispositivos · Etiquetas</AjustesPcOpsEyebrow>
             <IosModalHeader
               icon={<Tag className="h-5 w-5 text-zinc-800" />}
               title="Editor de etiquetas"
+              titleId="label-templates-editor-title"
               subtitle={
                 syncing
                   ? 'Sincronizando com todos os dispositivos…'
@@ -469,11 +472,7 @@ export function LabelTemplatesEditorModal({
             </div>
           </div>
 
-          <div
-            className={`flex min-h-0 flex-1 flex-col lg:flex-row ${
-              isDesktopShell ? 'ajustes-pc-ops-scroll' : ''
-            }`}
-          >
+          <div className="flex min-h-0 flex-1 flex-col overflow-hidden lg:flex-row">
             {/* Prévia + overlays de arraste */}
             <div className="shrink-0 space-y-3 border-b border-zinc-200/60 bg-white px-5 py-4 dark:border-white/[0.06] dark:bg-transparent sm:px-6 lg:w-[min(48%,520px)] lg:border-b-0 lg:border-r">
               <div className="flex items-center justify-between gap-2">

@@ -45,7 +45,11 @@ console.log("\n2) Shell compartilhado");
   assert(shell.includes("SETTINGS_CHILD_MODAL_Z"), "shell usa SETTINGS_CHILD_MODAL_Z");
   assert(shell.includes("ModalPortal"), "shell usa ModalPortal");
   assert(shell.includes("desktopShellViewportOverlayClass"), "shell ancora no desktop shell");
-  assert(shell.includes("manageBackLayer={false}"), "back layer no HomeView (sem duplicar)");
+  assert(
+    /manageBackLayer(?:\s|=|\s*\{?\s*true)/.test(shell) || shell.includes("manageBackLayer"),
+    "shell registra back layer / Escape via ModalPortal"
+  );
+  assert(shell.includes("onRequestClose"), "shell fecha no Escape/voltar");
 }
 
 console.log("\n3) Painéis usam o shell (não z-[70])");

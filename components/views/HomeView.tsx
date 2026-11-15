@@ -451,6 +451,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
           setIsConnectedDevicesOpen(true);
           break;
         case 'dispositivo':
+          if (!ajustesVisibility.dispositivo) break;
           setIsDeviceLayoutOpen(true);
           break;
         case 'etiquetas':
@@ -1348,6 +1349,15 @@ export const HomeView: React.FC<HomeViewProps> = ({
         />
       ) : null}
 
+      {/* Layout do dispositivo — sempre visível no hub (`dispositivo: true`); fora do gate isTechnician. */}
+      {ajustesVisibility.dispositivo ? (
+        <DeviceLayoutSettingsModal
+          isOpen={isDeviceLayoutOpen}
+          onClose={() => setIsDeviceLayoutOpen(false)}
+          orientation={orientation}
+        />
+      ) : null}
+
       {!isTechnician && (
         <>
           <RdaKnowledgeMemoryPanel
@@ -1391,11 +1401,6 @@ export const HomeView: React.FC<HomeViewProps> = ({
             />
           ) : null}
           <SystemUsersModal isOpen={isSystemUsersOpen} onClose={() => setIsSystemUsersOpen(false)} refreshTrigger={systemUsersRefreshTrigger} />
-          <DeviceLayoutSettingsModal
-            isOpen={isDeviceLayoutOpen}
-            onClose={() => setIsDeviceLayoutOpen(false)}
-            orientation={orientation}
-          />
           {typeof onBlurUnverifiedBudgetsChange === 'function' ? (
             <BudgetPreferencesModal
               isOpen={isBudgetPrefsOpen}
