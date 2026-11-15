@@ -38,6 +38,8 @@ type Props = {
 };
 
 type TabId = 'ativos' | 'criticos' | 'recomendacoes' | 'historico' | 'config';
+/** Como a lista é organizada — sempre visível na UI. */
+type OrganizeBy = 'priority' | 'module' | 'recent';
 
 const CATEGORY_LABEL: Record<RdaProactiveAlert['category'], string> = {
   patio: 'Pátio',
@@ -60,25 +62,99 @@ const SEVERITY_LABEL: Record<RdaProactiveAlert['severity'], string> = {
   critical: 'Crítico',
 };
 
-const CATEGORY_SORT: Record<RdaProactiveAlert['category'], number> = {
-  patio: 0,
-  laboratorio: 1,
-  estoque: 2,
-  produtividade: 3,
+const CATEGORY_ORDER: RdaProactiveAlert['category'][] = [
+  'patio',
+  'laboratorio',
+  'estoque',
+  'produtividade',
+];
+
+const SEVERITY_ORDER: RdaProactiveAlert['severity'][] = ['critical', 'warning', 'info'];
+
+const ORGANIZE_HINT: Record<OrganizeBy, string> = {
+  priority: 'Prioridade: Crítico → Atenção → Info · dentro de cada grupo, mais recentes primeiro',
+  module: 'Módulo: Pátio → Lab → Estoque → Produtividade · dentro, prioridade e depois tempo',
+  recent: 'Tempo: mais recentes primeiro · a cor do card mostra a prioridade',
 };
 
-const SEVERITY_SORT: Record<RdaProactiveAlert['severity'], number> = {
-  critical: 0,
-  warning: 1,
-  info: 2,
+type AlertSection = {
+  key: string;
+  title: string;
+  count: number;
+  kind: 'severity' | 'module' | 'flat';
+  severity?: RdaProactiveAlert['severity'];
+  category?: RdaProactiveAlert['category'];
+  items: RdaProactiveAlert[];
 };
 
-function sortAlertsForScan(items: RdaProactiveAlert[]): RdaProactiveAlert[] {
+function alertTimeMs(a: Pick<RdaProactiveAlert, 'lastSeenAt' | 'updatedAt' | 'createdAt'>): number {
+  const raw = a.lastSeenAt || a.updatedAt || a.createdAt;
+  const t = new Date(raw).getTime();
+  return Number.isFinite(t) ? t : 0;
+}
+
+function sortByRecent<T extends Pick<RdaProactiveAlert, 'lastSeenAt' | 'updatedAt' | 'createdAt'>>(
+  items: T[]
+): T[] {
+  return [...items].sort((a, b) => alertTimeMs(b) - alertTimeMs(a));
+}
+
+function sortBySeverityThenRecent(items: RdaProactiveAlert[]): RdaProactiveAlert[] {
   return [...items].sort((a, b) => {
-    const byCat = CATEGORY_SORT[a.category] - CATEGORY_SORT[b.category];
-    if (byCat !== 0) return byCat;
-    return SEVERITY_SORT[a.severity] - SEVERITY_SORT[b.severity];
+    const bySev =
+      SEVERITY_ORDER.indexOf(a.severity) - SEVERITY_ORDER.indexOf(b.severity);
+    if (bySev !== 0) return bySev;
+    return alertTimeMs(b) - alertTimeMs(a);
   });
+}
+
+function groupAlerts(items: RdaProactiveAlert[], organizeBy: OrganizeBy): AlertSection[] {
+  if (items.length === 0) return [];
+
+  if (organizeBy === 'recent') {
+    return [
+      {
+        key: 'recent',
+        title: 'Mais recentes',
+        count: items.length,
+        kind: 'flat',
+        items: sortByRecent(items),
+      },
+    ];
+  }
+
+  if (organizeBy === 'module') {
+    const out: AlertSection[] = [];
+    for (const cat of CATEGORY_ORDER) {
+      const group = sortBySeverityThenRecent(items.filter((a) => a.category === cat));
+      if (group.length === 0) continue;
+      out.push({
+        key: `mod-${cat}`,
+        title: CATEGORY_LABEL[cat],
+        count: group.length,
+        kind: 'module',
+        category: cat,
+        items: group,
+      });
+    }
+    return out;
+  }
+
+  // priority (padrão)
+  const out: AlertSection[] = [];
+  for (const sev of SEVERITY_ORDER) {
+    const group = sortByRecent(items.filter((a) => a.severity === sev));
+    if (group.length === 0) continue;
+    out.push({
+      key: `sev-${sev}`,
+      title: SEVERITY_LABEL[sev],
+      count: group.length,
+      kind: 'severity',
+      severity: sev,
+      items: group,
+    });
+  }
+  return out;
 }
 
 function CategoryModuleIcon(props: {
@@ -167,6 +243,7 @@ export const RdaProactiveIntelligencePanel: React.FC<Props> = ({
   const [busyId, setBusyId] = useState<string | null>(null);
   const [category, setCategory] = useState<string>('all');
   const [severity, setSeverity] = useState<string>('all');
+  const [organizeBy, setOrganizeBy] = useState<OrganizeBy>('priority');
   const [tab, setTab] = useState<TabId>('ativos');
   const [highlightId, setHighlightId] = useState<string | null>(null);
   const [nowMs, setNowMs] = useState(() => Date.now());
@@ -211,50 +288,52 @@ export const RdaProactiveIntelligencePanel: React.FC<Props> = ({
 
   const filteredActive = useMemo(() => {
     if (!data) return [];
-    return sortAlertsForScan(
-      data.activeAlerts.filter((a) => {
-        if (category !== 'all' && a.category !== category) return false;
-        if (severity !== 'all' && a.severity !== severity) return false;
-        return true;
-      })
-    );
+    return data.activeAlerts.filter((a) => {
+      if (category !== 'all' && a.category !== category) return false;
+      if (severity !== 'all' && a.severity !== severity) return false;
+      return true;
+    });
   }, [data, category, severity]);
 
   const filteredCritical = useMemo(() => {
     if (!data) return [];
-    return sortAlertsForScan(
-      data.criticalAlerts.filter((a) => {
-        if (category !== 'all' && a.category !== category) return false;
-        return true;
-      })
-    );
+    return data.criticalAlerts.filter((a) => {
+      if (category !== 'all' && a.category !== category) return false;
+      return true;
+    });
   }, [data, category]);
 
   const filteredHistory = useMemo(() => {
     if (!data) return [];
-    return sortAlertsForScan(
-      data.history.filter((a) => {
-        if (category !== 'all' && a.category !== category) return false;
-        if (severity !== 'all' && a.severity !== severity) return false;
-        return true;
-      })
-    );
+    return data.history.filter((a) => {
+      if (category !== 'all' && a.category !== category) return false;
+      if (severity !== 'all' && a.severity !== severity) return false;
+      return true;
+    });
   }, [data, category, severity]);
 
   const filteredRecommendations = useMemo(() => {
     if (!data) return [];
-    return [...data.recommendations]
-      .filter((r) => {
-        if (category !== 'all' && r.category !== category) return false;
-        if (severity !== 'all' && r.severity !== severity) return false;
-        return true;
-      })
-      .sort((a, b) => {
-        const byCat = CATEGORY_SORT[a.category] - CATEGORY_SORT[b.category];
-        if (byCat !== 0) return byCat;
-        return SEVERITY_SORT[a.severity] - SEVERITY_SORT[b.severity];
-      });
+    return data.recommendations.filter((r) => {
+      if (category !== 'all' && r.category !== category) return false;
+      if (severity !== 'all' && r.severity !== severity) return false;
+      return true;
+    });
   }, [data, category, severity]);
+
+  const activeSections = useMemo(
+    () => groupAlerts(filteredActive, organizeBy),
+    [filteredActive, organizeBy]
+  );
+  const criticalSections = useMemo(
+    // Na aba Críticos todos têm a mesma prioridade — usa tempo/módulo conforme o controle.
+    () => groupAlerts(filteredCritical, organizeBy === 'priority' ? 'recent' : organizeBy),
+    [filteredCritical, organizeBy]
+  );
+  const historySections = useMemo(
+    () => groupAlerts(filteredHistory, organizeBy),
+    [filteredHistory, organizeBy]
+  );
 
   const categoryBreakdown = useMemo(() => {
     if (!data?.summary.byCategory) return [];
@@ -490,38 +569,70 @@ export const RdaProactiveIntelligencePanel: React.FC<Props> = ({
             </div>
 
             {tab !== 'config' ? (
-              <div className="flex flex-wrap items-center gap-2">
-                <FilterSelect
-                  label="Categoria"
-                  value={category}
-                  onChange={setCategory}
-                  options={[
-                    { value: 'all', label: 'Todas' },
-                    { value: 'patio', label: 'Pátio' },
-                    { value: 'laboratorio', label: 'Laboratório' },
-                    { value: 'estoque', label: 'Estoque' },
-                    { value: 'produtividade', label: 'Produtividade' },
-                  ]}
-                />
-                {tab !== 'criticos' ? (
+              <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
+                <div
+                  className="inline-flex w-fit gap-0.5 rounded-xl border border-zinc-200/80 bg-zinc-50 p-0.5 dark:border-white/10 dark:bg-white/[0.03]"
+                  role="group"
+                  aria-label="Organizar lista"
+                >
+                  {(
+                    [
+                      ['priority', 'Prioridade'],
+                      ['module', 'Módulo'],
+                      ['recent', 'Recentes'],
+                    ] as const
+                  ).map(([id, label]) => (
+                    <button
+                      key={id}
+                      type="button"
+                      onClick={() => setOrganizeBy(id)}
+                      className={`rounded-lg px-2.5 py-1.5 text-[11px] font-semibold transition ${
+                        organizeBy === id
+                          ? 'bg-white text-zinc-900 shadow-sm dark:bg-zinc-800 dark:text-white'
+                          : 'text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
                   <FilterSelect
-                    label="Severidade"
-                    value={severity}
-                    onChange={setSeverity}
+                    label="Categoria"
+                    value={category}
+                    onChange={setCategory}
                     options={[
                       { value: 'all', label: 'Todas' },
-                      { value: 'critical', label: 'Crítico' },
-                      { value: 'warning', label: 'Atenção' },
-                      { value: 'info', label: 'Informativo' },
+                      { value: 'patio', label: 'Pátio' },
+                      { value: 'laboratorio', label: 'Laboratório' },
+                      { value: 'estoque', label: 'Estoque' },
+                      { value: 'produtividade', label: 'Produtividade' },
                     ]}
                   />
-                ) : null}
+                  {tab !== 'criticos' ? (
+                    <FilterSelect
+                      label="Severidade"
+                      value={severity}
+                      onChange={setSeverity}
+                      options={[
+                        { value: 'all', label: 'Todas' },
+                        { value: 'critical', label: 'Crítico' },
+                        { value: 'warning', label: 'Atenção' },
+                        { value: 'info', label: 'Informativo' },
+                      ]}
+                    />
+                  ) : null}
+                </div>
               </div>
+            ) : null}
+
+            {tab !== 'config' ? (
+              <p className="text-[11px] leading-snug text-zinc-500">{ORGANIZE_HINT[organizeBy]}</p>
             ) : null}
 
             {tab === 'ativos' ? (
               <AlertList
-                items={filteredActive}
+                sections={activeSections}
                 busyId={busyId}
                 highlightId={highlightId}
                 nowMs={nowMs}
@@ -534,7 +645,7 @@ export const RdaProactiveIntelligencePanel: React.FC<Props> = ({
 
             {tab === 'criticos' ? (
               <AlertList
-                items={filteredCritical}
+                sections={criticalSections}
                 busyId={busyId}
                 highlightId={highlightId}
                 nowMs={nowMs}
@@ -546,53 +657,16 @@ export const RdaProactiveIntelligencePanel: React.FC<Props> = ({
             ) : null}
 
             {tab === 'recomendacoes' ? (
-              <section>
-                {filteredRecommendations.length === 0 ? (
-                  <EmptyState text="Sem recomendações no momento." />
-                ) : (
-                  <ul className="grid grid-cols-1 gap-2 xl:grid-cols-2 2xl:grid-cols-3">
-                    {filteredRecommendations.map((r) => {
-                      const tone = severityTone(r.severity);
-                      return (
-                        <li key={r.alertId}>
-                          <article className="relative overflow-hidden rounded-xl border border-zinc-200/80 bg-white dark:border-white/10 dark:bg-zinc-950">
-                            <div className={`absolute inset-y-0 left-0 w-1 ${tone.rail}`} />
-                            <div className={`flex items-start gap-2.5 bg-gradient-to-r ${tone.soft} px-3 py-2.5 pl-3.5`}>
-                              <CategoryModuleIcon category={r.category} />
-                              <div className="min-w-0 flex-1">
-                                <div className="flex flex-wrap items-center gap-1.5">
-                                  <span className={`inline-flex shrink-0 items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-bold ${tone.chip}`}>
-                                    <span className={tone.icon}>
-                                      <SeverityIcon severity={r.severity} />
-                                    </span>
-                                    {SEVERITY_LABEL[r.severity]}
-                                  </span>
-                                  <span className="truncate text-[11px] font-medium text-zinc-500">
-                                    {CATEGORY_LABEL[r.category]}
-                                  </span>
-                                </div>
-                                <p className="mt-1 truncate text-[13px] font-semibold text-zinc-900 dark:text-white">
-                                  {r.title}
-                                </p>
-                                {r.recommendation ? (
-                                  <p className="mt-0.5 line-clamp-2 text-[12px] text-zinc-600 dark:text-zinc-300">
-                                    {r.recommendation}
-                                  </p>
-                                ) : null}
-                              </div>
-                            </div>
-                          </article>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                )}
-              </section>
+              <RecommendationList
+                items={filteredRecommendations}
+                organizeBy={organizeBy}
+                empty="Sem recomendações no momento."
+              />
             ) : null}
 
             {tab === 'historico' ? (
               <AlertList
-                items={filteredHistory}
+                sections={historySections}
                 busyId={busyId}
                 nowMs={nowMs}
                 empty="Sem histórico recente."
@@ -719,8 +793,181 @@ function EmptyState({ text }: { text: string }) {
   );
 }
 
+function SectionHeader(props: { section: AlertSection }) {
+  const { section } = props;
+  if (section.kind === 'severity' && section.severity) {
+    const tone = severityTone(section.severity);
+    return (
+      <div className="mb-2 flex items-center gap-2">
+        <span className={`inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-[11px] font-bold ${tone.chip}`}>
+          <span className={tone.icon}>
+            <SeverityIcon severity={section.severity} />
+          </span>
+          {section.title}
+        </span>
+        <span className="text-[11px] tabular-nums text-zinc-400">{section.count}</span>
+        <div className="h-px flex-1 bg-zinc-200/80 dark:bg-white/10" />
+      </div>
+    );
+  }
+  if (section.kind === 'module' && section.category) {
+    return (
+      <div className="mb-2 flex items-center gap-2">
+        <CategoryModuleIcon category={section.category} size="sm" />
+        <span className="text-[12px] font-semibold text-zinc-800 dark:text-zinc-100">{section.title}</span>
+        <span className="text-[11px] tabular-nums text-zinc-400">{section.count}</span>
+        <div className="h-px flex-1 bg-zinc-200/80 dark:bg-white/10" />
+      </div>
+    );
+  }
+  return (
+    <div className="mb-2 flex items-center gap-2">
+      <span className="text-[12px] font-semibold text-zinc-700 dark:text-zinc-200">{section.title}</span>
+      <span className="text-[11px] tabular-nums text-zinc-400">{section.count}</span>
+      <div className="h-px flex-1 bg-zinc-200/80 dark:bg-white/10" />
+    </div>
+  );
+}
+
+function AlertCard(props: {
+  alert: RdaProactiveAlert;
+  busyId: string | null;
+  readOnly?: boolean;
+  highlightId?: string | null;
+  nowMs: number;
+  expanded: boolean;
+  onToggle: () => void;
+  onAcknowledge?: (id: string) => void;
+  onResolve?: (id: string) => void;
+  onDismiss?: (id: string) => void;
+}) {
+  const a = props.alert;
+  const tone = severityTone(a.severity);
+  const highlighted = props.highlightId === a.id;
+  const when = relativeWhen(a.lastSeenAt || a.updatedAt, props.nowMs);
+  return (
+    <article
+      id={`rda-proactive-alert-${a.id}`}
+      className={`relative overflow-hidden rounded-xl border bg-white transition dark:bg-zinc-950 ${
+        highlighted
+          ? 'border-sky-400/60 ring-2 ring-sky-400/30'
+          : 'border-zinc-200/80 dark:border-white/10'
+      }`}
+    >
+      <div className={`absolute inset-y-0 left-0 w-1 ${tone.rail}`} />
+      <div className={`bg-gradient-to-r ${tone.soft} pl-3.5`}>
+        <button
+          type="button"
+          onClick={props.onToggle}
+          className="flex w-full items-start gap-2.5 px-3 py-2.5 text-left"
+        >
+          <CategoryModuleIcon category={a.category} />
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className={`inline-flex shrink-0 items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-bold ${tone.chip}`}>
+                <span className={tone.icon}>
+                  <SeverityIcon severity={a.severity} />
+                </span>
+                {SEVERITY_LABEL[a.severity]}
+              </span>
+              <span className="truncate text-[11px] font-medium text-zinc-500">
+                {CATEGORY_LABEL[a.category]}
+                {when ? ` · ${when}` : ''}
+                {a.status === 'acknowledged' ? ' · reconhecido' : ''}
+              </span>
+            </div>
+            <p className="mt-1 truncate text-[13px] font-semibold leading-snug text-zinc-900 dark:text-white">
+              {a.title}
+            </p>
+          </div>
+          <ChevronDown
+            className={`mt-1 h-4 w-4 shrink-0 text-zinc-400 transition-transform ${
+              props.expanded ? 'rotate-180' : ''
+            }`}
+          />
+        </button>
+
+        {props.expanded ? (
+          <div className="space-y-2 border-t border-zinc-200/70 px-3 pb-3 pt-2 dark:border-white/10">
+            {a.body ? (
+              <p className="text-[12px] leading-snug text-zinc-600 dark:text-zinc-300">{a.body}</p>
+            ) : null}
+            {a.recommendation ? (
+              <p className="text-[12px] leading-snug text-zinc-700 dark:text-zinc-200">
+                <span className="font-semibold text-emerald-700 dark:text-emerald-300">Ação: </span>
+                {a.recommendation}
+              </p>
+            ) : null}
+            {a.evidence ? (
+              <p className="text-[11px] leading-snug text-zinc-500">
+                <span className="font-medium">Evidência: </span>
+                {a.evidence}
+              </p>
+            ) : null}
+
+            {!props.readOnly && a.status === 'active' ? (
+              <div className="flex flex-wrap gap-1.5 pt-1">
+                <ActionButton
+                  primary
+                  disabled={props.busyId === a.id}
+                  onClick={() => props.onAcknowledge?.(a.id)}
+                  label="Reconhecer"
+                />
+                <ActionButton
+                  disabled={props.busyId === a.id}
+                  onClick={() => props.onResolve?.(a.id)}
+                  label="Resolver"
+                />
+                <ActionButton
+                  quiet
+                  disabled={props.busyId === a.id}
+                  onClick={() => props.onDismiss?.(a.id)}
+                  label="Descartar"
+                />
+              </div>
+            ) : null}
+
+            {!props.readOnly && a.status === 'acknowledged' ? (
+              <div className="flex flex-wrap gap-1.5 pt-1">
+                <ActionButton
+                  primary
+                  disabled={props.busyId === a.id}
+                  onClick={() => props.onResolve?.(a.id)}
+                  label="Resolver"
+                />
+                <ActionButton
+                  quiet
+                  disabled={props.busyId === a.id}
+                  onClick={() => props.onDismiss?.(a.id)}
+                  label="Descartar"
+                />
+              </div>
+            ) : null}
+          </div>
+        ) : !props.readOnly && (a.status === 'active' || a.status === 'acknowledged') ? (
+          <div className="flex flex-wrap gap-1.5 px-3 pb-2.5">
+            {a.status === 'active' ? (
+              <ActionButton
+                primary
+                disabled={props.busyId === a.id}
+                onClick={() => props.onAcknowledge?.(a.id)}
+                label="Reconhecer"
+              />
+            ) : null}
+            <ActionButton
+              disabled={props.busyId === a.id}
+              onClick={() => props.onResolve?.(a.id)}
+              label="Resolver"
+            />
+          </div>
+        ) : null}
+      </div>
+    </article>
+  );
+}
+
 function AlertList(props: {
-  items: RdaProactiveAlert[];
+  sections: AlertSection[];
   busyId: string | null;
   empty: string;
   readOnly?: boolean;
@@ -736,138 +983,157 @@ function AlertList(props: {
     if (props.highlightId) setExpandedId(props.highlightId);
   }, [props.highlightId]);
 
-  if (props.items.length === 0) {
+  if (props.sections.length === 0) {
     return <EmptyState text={props.empty} />;
   }
+
   return (
-    <ul className="grid grid-cols-1 gap-2 xl:grid-cols-2 2xl:grid-cols-3">
-      {props.items.map((a) => {
-        const tone = severityTone(a.severity);
-        const highlighted = props.highlightId === a.id;
-        const expanded = expandedId === a.id;
-        const when = relativeWhen(a.lastSeenAt || a.updatedAt, props.nowMs);
-        return (
-          <li key={a.id} id={`rda-proactive-alert-${a.id}`}>
-            <article
-              className={`relative overflow-hidden rounded-xl border bg-white transition dark:bg-zinc-950 ${
-                highlighted
-                  ? 'border-sky-400/60 ring-2 ring-sky-400/30'
-                  : 'border-zinc-200/80 dark:border-white/10'
-              }`}
-            >
-              <div className={`absolute inset-y-0 left-0 w-1 ${tone.rail}`} />
-              <div className={`bg-gradient-to-r ${tone.soft} pl-3.5`}>
-                <button
-                  type="button"
-                  onClick={() => setExpandedId(expanded ? null : a.id)}
-                  className="flex w-full items-start gap-2.5 px-3 py-2.5 text-left"
-                >
-                  <CategoryModuleIcon category={a.category} />
-                  <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      <span className={`inline-flex shrink-0 items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-bold ${tone.chip}`}>
-                        <span className={tone.icon}>
-                          <SeverityIcon severity={a.severity} />
-                        </span>
-                        {SEVERITY_LABEL[a.severity]}
-                      </span>
-                      <span className="truncate text-[11px] font-medium text-zinc-500">
-                        {CATEGORY_LABEL[a.category]}
-                        {when ? ` · ${when}` : ''}
-                        {a.status === 'acknowledged' ? ' · reconhecido' : ''}
-                      </span>
+    <div className="space-y-5">
+      {props.sections.map((section) => (
+        <section key={section.key} aria-label={section.title}>
+          <SectionHeader section={section} />
+          <ul className="grid grid-cols-1 gap-2 xl:grid-cols-2 2xl:grid-cols-3">
+            {section.items.map((a) => (
+              <li key={a.id}>
+                <AlertCard
+                  alert={a}
+                  busyId={props.busyId}
+                  readOnly={props.readOnly}
+                  highlightId={props.highlightId}
+                  nowMs={props.nowMs}
+                  expanded={expandedId === a.id}
+                  onToggle={() => setExpandedId(expandedId === a.id ? null : a.id)}
+                  onAcknowledge={props.onAcknowledge}
+                  onResolve={props.onResolve}
+                  onDismiss={props.onDismiss}
+                />
+              </li>
+            ))}
+          </ul>
+        </section>
+      ))}
+    </div>
+  );
+}
+
+type RecItem = RdaProactiveDashboard['recommendations'][number];
+
+function RecommendationList(props: {
+  items: RecItem[];
+  organizeBy: OrganizeBy;
+  empty: string;
+}) {
+  const sections = useMemo(() => {
+    if (props.items.length === 0) return [] as Array<{
+      key: string;
+      title: string;
+      kind: 'severity' | 'module' | 'flat';
+      severity?: RdaProactiveAlert['severity'];
+      category?: RdaProactiveAlert['category'];
+      items: RecItem[];
+    }>;
+
+    if (props.organizeBy === 'module') {
+      return CATEGORY_ORDER.map((cat) => {
+        const group = props.items
+          .filter((r) => r.category === cat)
+          .sort(
+            (a, b) =>
+              SEVERITY_ORDER.indexOf(a.severity) - SEVERITY_ORDER.indexOf(b.severity)
+          );
+        if (!group.length) return null;
+        return {
+          key: `rec-mod-${cat}`,
+          title: CATEGORY_LABEL[cat],
+          kind: 'module' as const,
+          category: cat,
+          items: group,
+        };
+      }).filter((s): s is NonNullable<typeof s> => s != null);
+    }
+
+    if (props.organizeBy === 'recent') {
+      return [
+        {
+          key: 'rec-recent',
+          title: 'Recomendações',
+          kind: 'flat' as const,
+          items: props.items,
+        },
+      ];
+    }
+
+    return SEVERITY_ORDER.map((sev) => {
+      const group = props.items.filter((r) => r.severity === sev);
+      if (!group.length) return null;
+      return {
+        key: `rec-sev-${sev}`,
+        title: SEVERITY_LABEL[sev],
+        kind: 'severity' as const,
+        severity: sev,
+        items: group,
+      };
+    }).filter((s): s is NonNullable<typeof s> => s != null);
+  }, [props.items, props.organizeBy]);
+
+  if (sections.length === 0) {
+    return <EmptyState text={props.empty} />;
+  }
+
+  return (
+    <div className="space-y-5">
+      {sections.map((section) => (
+        <section key={section.key} aria-label={section.title}>
+          <SectionHeader
+            section={{
+              key: section.key,
+              title: section.title,
+              count: section.items.length,
+              kind: section.kind,
+              severity: section.severity,
+              category: section.category,
+              items: [],
+            }}
+          />
+          <ul className="grid grid-cols-1 gap-2 xl:grid-cols-2 2xl:grid-cols-3">
+            {section.items.map((r) => {
+              const tone = severityTone(r.severity);
+              return (
+                <li key={r.alertId}>
+                  <article className="relative overflow-hidden rounded-xl border border-zinc-200/80 bg-white dark:border-white/10 dark:bg-zinc-950">
+                    <div className={`absolute inset-y-0 left-0 w-1 ${tone.rail}`} />
+                    <div className={`flex items-start gap-2.5 bg-gradient-to-r ${tone.soft} px-3 py-2.5 pl-3.5`}>
+                      <CategoryModuleIcon category={r.category} />
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <span className={`inline-flex shrink-0 items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-bold ${tone.chip}`}>
+                            <span className={tone.icon}>
+                              <SeverityIcon severity={r.severity} />
+                            </span>
+                            {SEVERITY_LABEL[r.severity]}
+                          </span>
+                          <span className="truncate text-[11px] font-medium text-zinc-500">
+                            {CATEGORY_LABEL[r.category]}
+                          </span>
+                        </div>
+                        <p className="mt-1 truncate text-[13px] font-semibold text-zinc-900 dark:text-white">
+                          {r.title}
+                        </p>
+                        {r.recommendation ? (
+                          <p className="mt-0.5 line-clamp-2 text-[12px] text-zinc-600 dark:text-zinc-300">
+                            {r.recommendation}
+                          </p>
+                        ) : null}
+                      </div>
                     </div>
-                    <p className="mt-1 truncate text-[13px] font-semibold leading-snug text-zinc-900 dark:text-white">
-                      {a.title}
-                    </p>
-                  </div>
-                  <ChevronDown
-                    className={`mt-1 h-4 w-4 shrink-0 text-zinc-400 transition-transform ${
-                      expanded ? 'rotate-180' : ''
-                    }`}
-                  />
-                </button>
-
-                {expanded ? (
-                  <div className="space-y-2 border-t border-zinc-200/70 px-3 pb-3 pt-2 dark:border-white/10">
-                    {a.body ? (
-                      <p className="text-[12px] leading-snug text-zinc-600 dark:text-zinc-300">{a.body}</p>
-                    ) : null}
-                    {a.recommendation ? (
-                      <p className="text-[12px] leading-snug text-zinc-700 dark:text-zinc-200">
-                        <span className="font-semibold text-emerald-700 dark:text-emerald-300">Ação: </span>
-                        {a.recommendation}
-                      </p>
-                    ) : null}
-                    {a.evidence ? (
-                      <p className="text-[11px] leading-snug text-zinc-500">
-                        <span className="font-medium">Evidência: </span>
-                        {a.evidence}
-                      </p>
-                    ) : null}
-
-                    {!props.readOnly && a.status === 'active' ? (
-                      <div className="flex flex-wrap gap-1.5 pt-1">
-                        <ActionButton
-                          primary
-                          disabled={props.busyId === a.id}
-                          onClick={() => props.onAcknowledge?.(a.id)}
-                          label="Reconhecer"
-                        />
-                        <ActionButton
-                          disabled={props.busyId === a.id}
-                          onClick={() => props.onResolve?.(a.id)}
-                          label="Resolver"
-                        />
-                        <ActionButton
-                          quiet
-                          disabled={props.busyId === a.id}
-                          onClick={() => props.onDismiss?.(a.id)}
-                          label="Descartar"
-                        />
-                      </div>
-                    ) : null}
-
-                    {!props.readOnly && a.status === 'acknowledged' ? (
-                      <div className="flex flex-wrap gap-1.5 pt-1">
-                        <ActionButton
-                          primary
-                          disabled={props.busyId === a.id}
-                          onClick={() => props.onResolve?.(a.id)}
-                          label="Resolver"
-                        />
-                        <ActionButton
-                          quiet
-                          disabled={props.busyId === a.id}
-                          onClick={() => props.onDismiss?.(a.id)}
-                          label="Descartar"
-                        />
-                      </div>
-                    ) : null}
-                  </div>
-                ) : !props.readOnly && (a.status === 'active' || a.status === 'acknowledged') ? (
-                  <div className="flex flex-wrap gap-1.5 px-3 pb-2.5">
-                    {a.status === 'active' ? (
-                      <ActionButton
-                        primary
-                        disabled={props.busyId === a.id}
-                        onClick={() => props.onAcknowledge?.(a.id)}
-                        label="Reconhecer"
-                      />
-                    ) : null}
-                    <ActionButton
-                      disabled={props.busyId === a.id}
-                      onClick={() => props.onResolve?.(a.id)}
-                      label="Resolver"
-                    />
-                  </div>
-                ) : null}
-              </div>
-            </article>
-          </li>
-        );
-      })}
-    </ul>
+                  </article>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      ))}
+    </div>
   );
 }
 
