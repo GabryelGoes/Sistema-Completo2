@@ -31,6 +31,9 @@ export const AJUSTES_PC_CHILD_CLASS = 'ajustes-pc-child ajustes-pc-people-v2';
 /** Filhos A3 (modais operacionais do hub) — só chrome visual desktop. */
 export const AJUSTES_PC_OPS_CLASS = 'ajustes-pc-child ajustes-pc-ops-v3';
 
+/** Filhos A4 (painéis RDA do hub) — só chrome visual desktop. */
+export const AJUSTES_PC_RDA_CLASS = 'ajustes-pc-child ajustes-pc-rda-v4';
+
 export function ajustesPcShellClass(pcLayout: boolean, extra = ''): string {
   if (!pcLayout) return extra;
   return extra ? `${AJUSTES_PC_SHELL_CLASS} ${extra}` : AJUSTES_PC_SHELL_CLASS;
@@ -44,4 +47,9 @@ export function ajustesPcChildClass(pcLayout: boolean, extra = ''): string {
 export function ajustesPcOpsClass(pcLayout: boolean, extra = ''): string {
   if (!pcLayout) return extra;
   return extra ? `${AJUSTES_PC_OPS_CLASS} ${extra}` : AJUSTES_PC_OPS_CLASS;
+}
+
+export function ajustesPcRdaClass(pcLayout: boolean, extra = ''): string {
+  if (!pcLayout) return extra;
+  return extra ? `${AJUSTES_PC_RDA_CLASS} ${extra}` : AJUSTES_PC_RDA_CLASS;
 }

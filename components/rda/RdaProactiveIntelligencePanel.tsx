@@ -9,12 +9,15 @@ import {
   type RdaProactiveAlert,
   type RdaProactiveDashboard,
 } from '../../services/apiService';
+import { AjustesPcOpsEyebrow } from '../ajustes/AjustesPcOpsEyebrow';
 import { RdaSettingsChildShell } from './RdaSettingsChildShell';
 
 type Props = {
   isOpen: boolean;
   onClose: () => void;
   desktopShell?: boolean;
+  /** Chrome A4 — só Hub de Ajustes desktop (não header/atalhos). */
+  ajustesHubChrome?: boolean;
   /** Destaca/abre o alerta ao abrir (banner / painel rápido). */
   focusAlertId?: string | null;
 };
@@ -36,8 +39,10 @@ export const RdaProactiveIntelligencePanel: React.FC<Props> = ({
   isOpen,
   onClose,
   desktopShell,
+  ajustesHubChrome = false,
   focusAlertId = null,
 }) => {
+  const pcChrome = Boolean(ajustesHubChrome && desktopShell);
   const [data, setData] = useState<RdaProactiveDashboard | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -135,10 +140,15 @@ export const RdaProactiveIntelligencePanel: React.FC<Props> = ({
       isOpen={isOpen}
       onClose={onClose}
       desktopShell={desktopShell}
+      ajustesHubChrome={ajustesHubChrome}
       ariaLabel="Monitoramento Proativo"
     >
-      <header className="shrink-0 border-b border-zinc-200 bg-white px-4 py-3 dark:border-zinc-800 dark:bg-zinc-900">
-        <div className="mx-auto flex max-w-5xl items-center gap-3">
+      <header
+        className={`shrink-0 border-b border-zinc-200 bg-white px-4 py-3 dark:border-zinc-800 dark:bg-zinc-900 ${
+          pcChrome ? 'ajustes-pc-rda-header' : ''
+        }`}
+      >
+        <div className={`mx-auto flex max-w-5xl items-center gap-3 ${pcChrome ? 'ajustes-pc-rda-inner' : ''}`}>
           <button
             type="button"
             onClick={onClose}
@@ -148,6 +158,7 @@ export const RdaProactiveIntelligencePanel: React.FC<Props> = ({
             <ArrowLeft className="h-4 w-4" />
           </button>
           <div className="min-w-0 flex-1">
+            <AjustesPcOpsEyebrow desktop={pcChrome}>Ajustes · RDA · Proativo</AjustesPcOpsEyebrow>
             <h1 className="text-[17px] font-semibold tracking-tight">Monitoramento Proativo</h1>
             <p className="text-[12px] text-zinc-500">
               Alertas confiáveis com evidência — sem alterar operação automaticamente
@@ -164,7 +175,11 @@ export const RdaProactiveIntelligencePanel: React.FC<Props> = ({
         </div>
       </header>
 
-      <div className="mx-auto w-full max-w-5xl flex-1 overflow-y-auto px-4 py-4">
+      <div
+        className={`mx-auto w-full max-w-5xl flex-1 overflow-y-auto px-4 py-4 ${
+          pcChrome ? 'ajustes-pc-rda-scroll ajustes-pc-rda-inner' : ''
+        }`}
+      >
         {error ? <p className="mb-3 text-[13px] text-red-600">{error}</p> : null}
         {msg ? <p className="mb-3 text-[13px] text-emerald-700 dark:text-emerald-400">{msg}</p> : null}
 

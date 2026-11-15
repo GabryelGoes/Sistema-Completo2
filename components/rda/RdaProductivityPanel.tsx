@@ -13,12 +13,15 @@ import {
   type RdaProductivityTaskPriority,
   type RdaProductivityTaskStatus,
 } from '../../services/apiService';
+import { AjustesPcOpsEyebrow } from '../ajustes/AjustesPcOpsEyebrow';
 import { RdaSettingsChildShell } from './RdaSettingsChildShell';
 
 type Props = {
   isOpen: boolean;
   onClose: () => void;
   desktopShell?: boolean;
+  /** Chrome A4 — só Hub de Ajustes desktop (não atalhos fora do hub). */
+  ajustesHubChrome?: boolean;
   focusTaskId?: string | null;
 };
 
@@ -54,8 +57,10 @@ export const RdaProductivityPanel: React.FC<Props> = ({
   isOpen,
   onClose,
   desktopShell,
+  ajustesHubChrome = false,
   focusTaskId = null,
 }) => {
+  const pcChrome = Boolean(ajustesHubChrome && desktopShell);
   const [summary, setSummary] = useState<RdaProductivitySummary | null>(null);
   const [canManage, setCanManage] = useState(false);
   const [tasks, setTasks] = useState<RdaProductivityTask[]>([]);
@@ -188,10 +193,15 @@ export const RdaProductivityPanel: React.FC<Props> = ({
       isOpen={isOpen}
       onClose={onClose}
       desktopShell={desktopShell}
+      ajustesHubChrome={ajustesHubChrome}
       ariaLabel="Assistente de Produtividade"
     >
-      <header className="shrink-0 border-b border-zinc-200 bg-white px-4 py-3 dark:border-zinc-800 dark:bg-zinc-900">
-        <div className="mx-auto flex max-w-5xl items-center gap-3">
+      <header
+        className={`shrink-0 border-b border-zinc-200 bg-white px-4 py-3 dark:border-zinc-800 dark:bg-zinc-900 ${
+          pcChrome ? 'ajustes-pc-rda-header' : ''
+        }`}
+      >
+        <div className={`mx-auto flex max-w-5xl items-center gap-3 ${pcChrome ? 'ajustes-pc-rda-inner' : ''}`}>
           <button
             type="button"
             onClick={onClose}
@@ -201,6 +211,7 @@ export const RdaProductivityPanel: React.FC<Props> = ({
             <ArrowLeft className="h-4 w-4" />
           </button>
           <div className="min-w-0 flex-1">
+            <AjustesPcOpsEyebrow desktop={pcChrome}>Ajustes · RDA · Produtividade</AjustesPcOpsEyebrow>
             <h1 className="text-[17px] font-semibold tracking-tight">Assistente de Produtividade</h1>
             <p className="text-[12px] text-zinc-500">
               Tarefas, prazos e delegação — sem alterar OS, estoque ou financeiro
@@ -217,7 +228,11 @@ export const RdaProductivityPanel: React.FC<Props> = ({
         </div>
       </header>
 
-      <div className="relative mx-auto flex w-full max-w-5xl min-h-0 flex-1 flex-col gap-3 overflow-hidden px-4 py-4">
+      <div
+        className={`relative mx-auto flex w-full max-w-5xl min-h-0 flex-1 flex-col gap-3 overflow-hidden px-4 py-4 ${
+          pcChrome ? 'ajustes-pc-rda-scroll ajustes-pc-rda-inner' : ''
+        }`}
+      >
         <div className="flex flex-wrap items-center gap-2">
           {canManage ? (
             <button

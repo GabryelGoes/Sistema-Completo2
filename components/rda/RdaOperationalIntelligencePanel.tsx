@@ -5,12 +5,14 @@ import {
   proposeRdaKnowledge,
   type RdaOperationalDashboard,
 } from '../../services/apiService';
+import { AjustesPcOpsEyebrow } from '../ajustes/AjustesPcOpsEyebrow';
 import { RdaSettingsChildShell } from './RdaSettingsChildShell';
 
 type Props = {
   isOpen: boolean;
   onClose: () => void;
   desktopShell?: boolean;
+  ajustesHubChrome?: boolean;
 };
 
 function fmtMs(ms: number | null | undefined): string {
@@ -33,7 +35,9 @@ export const RdaOperationalIntelligencePanel: React.FC<Props> = ({
   isOpen,
   onClose,
   desktopShell,
+  ajustesHubChrome = false,
 }) => {
+  const pcChrome = Boolean(ajustesHubChrome && desktopShell);
   const [days, setDays] = useState(30);
   const [service, setService] = useState('');
   const [technicianUserId, setTechnicianUserId] = useState('');
@@ -71,10 +75,15 @@ export const RdaOperationalIntelligencePanel: React.FC<Props> = ({
       isOpen={isOpen}
       onClose={onClose}
       desktopShell={desktopShell}
+      ajustesHubChrome={ajustesHubChrome}
       ariaLabel="Inteligência Operacional"
     >
-      <header className="shrink-0 border-b border-zinc-200 bg-white px-4 py-3 dark:border-zinc-800 dark:bg-zinc-900">
-        <div className="mx-auto flex max-w-5xl items-center gap-3">
+      <header
+        className={`shrink-0 border-b border-zinc-200 bg-white px-4 py-3 dark:border-zinc-800 dark:bg-zinc-900 ${
+          pcChrome ? 'ajustes-pc-rda-header' : ''
+        }`}
+      >
+        <div className={`mx-auto flex max-w-5xl items-center gap-3 ${pcChrome ? 'ajustes-pc-rda-inner' : ''}`}>
           <button
             type="button"
             onClick={onClose}
@@ -84,6 +93,7 @@ export const RdaOperationalIntelligencePanel: React.FC<Props> = ({
             <ArrowLeft className="h-4 w-4" />
           </button>
           <div className="min-w-0 flex-1">
+            <AjustesPcOpsEyebrow desktop={pcChrome}>Ajustes · RDA · Operacional</AjustesPcOpsEyebrow>
             <h1 className="text-[17px] font-semibold tracking-tight">Inteligência Operacional</h1>
             <p className="text-[12px] text-zinc-500">
               Tempos apontados reais — diagnóstico, execução e pausas (não é tempo desde a entrada)
@@ -100,7 +110,11 @@ export const RdaOperationalIntelligencePanel: React.FC<Props> = ({
         </div>
       </header>
 
-      <div className="mx-auto w-full max-w-5xl flex-1 overflow-y-auto px-4 py-4">
+      <div
+        className={`mx-auto w-full max-w-5xl flex-1 overflow-y-auto px-4 py-4 ${
+          pcChrome ? 'ajustes-pc-rda-scroll ajustes-pc-rda-inner' : ''
+        }`}
+      >
         <div className="mb-4 flex flex-wrap items-end gap-3 border-b border-zinc-200 pb-4 dark:border-zinc-800">
           <label className="text-[12px] text-zinc-500">
             Período

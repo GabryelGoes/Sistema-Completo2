@@ -13,6 +13,7 @@ import {
   type RdaKnowledgeListItem,
 } from '../../services/apiService';
 import { NESTED_IOS_MODAL_PICKER_Z } from '../ui/iosModalStyles';
+import { AjustesPcOpsEyebrow } from '../ajustes/AjustesPcOpsEyebrow';
 import { RdaSettingsChildShell } from './RdaSettingsChildShell';
 
 type TabId = 'approved' | 'pending_approval' | 'draft' | 'retired';
@@ -28,6 +29,8 @@ type Props = {
   isOpen: boolean;
   onClose: () => void;
   desktopShell?: boolean;
+  /** Chrome A4 — só quando aberto pelo Hub de Ajustes desktop. */
+  ajustesHubChrome?: boolean;
 };
 
 function lifecycleQuery(tab: TabId): string {
@@ -38,7 +41,9 @@ export const RdaKnowledgeMemoryPanel: React.FC<Props> = ({
   isOpen,
   onClose,
   desktopShell,
+  ajustesHubChrome = false,
 }) => {
+  const pcChrome = Boolean(ajustesHubChrome && desktopShell);
   const [tab, setTab] = useState<TabId>('approved');
   const [q, setQ] = useState('');
   const [items, setItems] = useState<RdaKnowledgeListItem[]>([]);
@@ -123,10 +128,15 @@ export const RdaKnowledgeMemoryPanel: React.FC<Props> = ({
       isOpen={isOpen}
       onClose={onClose}
       desktopShell={desktopShell}
+      ajustesHubChrome={ajustesHubChrome}
       ariaLabel="Memória do RDA"
     >
-      <header className="shrink-0 border-b border-zinc-200 bg-white px-4 py-3 dark:border-zinc-800 dark:bg-zinc-900">
-        <div className="mx-auto flex max-w-5xl items-center gap-3">
+      <header
+        className={`shrink-0 border-b border-zinc-200 bg-white px-4 py-3 dark:border-zinc-800 dark:bg-zinc-900 ${
+          pcChrome ? 'ajustes-pc-rda-header' : ''
+        }`}
+      >
+        <div className={`mx-auto flex max-w-5xl items-center gap-3 ${pcChrome ? 'ajustes-pc-rda-inner' : ''}`}>
           <button
             type="button"
             onClick={onClose}
@@ -136,6 +146,7 @@ export const RdaKnowledgeMemoryPanel: React.FC<Props> = ({
             <ArrowLeft className="h-4 w-4" />
           </button>
           <div className="min-w-0 flex-1">
+            <AjustesPcOpsEyebrow desktop={pcChrome}>Ajustes · RDA · Memória</AjustesPcOpsEyebrow>
             <h1 className="text-[17px] font-semibold tracking-tight">Memória do RDA</h1>
             <p className="text-[12px] text-zinc-500">
               Conhecimentos versionados — só o aprovado vale como regra oficial
@@ -151,7 +162,11 @@ export const RdaKnowledgeMemoryPanel: React.FC<Props> = ({
         </div>
       </header>
 
-      <div className="mx-auto flex w-full max-w-5xl min-h-0 flex-1 flex-col gap-3 overflow-hidden px-4 py-3 lg:flex-row">
+      <div
+        className={`mx-auto flex w-full max-w-5xl min-h-0 flex-1 flex-col gap-3 overflow-hidden px-4 py-3 lg:flex-row ${
+          pcChrome ? 'ajustes-pc-rda-scroll ajustes-pc-rda-inner' : ''
+        }`}
+      >
         <section className="flex min-h-0 w-full flex-col lg:w-[42%]">
           <div className="mb-2 flex gap-1 overflow-x-auto">
             {TABS.map((t) => (
