@@ -234,7 +234,7 @@ ok(
 const policy = productionAuthorizationPolicy();
 ok("SEC-03 customers ainda enforce", policy.families.find((f) => f.id === "customers")?.mode === "enforce");
 ok("SEC-03 parts_stock ainda enforce", policy.families.find((f) => f.id === "parts_stock")?.mode === "enforce");
-ok("SEC-03 notifications ainda off", policy.families.find((f) => f.id === "notifications")?.mode === "off");
+ok("SEC-03 notifications em enforce", policy.families.find((f) => f.id === "notifications")?.mode === "enforce");
 ok(
   "sem família workshop_admin_settings",
   !policy.families.some((f) => (f.id as string) === "workshop_admin_settings")

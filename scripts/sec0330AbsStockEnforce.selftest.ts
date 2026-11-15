@@ -31,7 +31,7 @@ const PASS_ADMIN = "gerencia-ficticia-sec0330";
 const STAMP = "2026-11-15T12:00:00.000Z";
 const BUCKET = "vehicle-photos";
 const ENFORCED =
-  "customers,appointments,budgets,comments,photos,parts_stock,abs_stock,technicians,workshop_catalogs,tv_admin,bulletins,reports";
+  "customers,appointments,budgets,comments,photos,parts_stock,abs_stock,technicians,workshop_catalogs,tv_admin,bulletins,reports,notifications";
 
 let passed = 0;
 let failed = 0;
@@ -512,7 +512,7 @@ async function main() {
   record(
     "abs_stock entra em enforce e as outras onze permanecem",
     enforced.join(",") === ENFORCED &&
-      off.join(",") === "service_orders,notifications,quality_radar,rda" &&
+      off.join(",") === "service_orders,quality_radar,rda" &&
       samples.every(([method, path, id]) => winner(method, path).length === 1 && winner(method, path)[0].id === id) &&
       absRules.every((rule) => rule.anyOf.length === 1 && rule.anyOf[0] === "access_estoque_pecas") &&
       !absRules.some((rule) => rule.anyOf.includes("access_laboratorio")) &&

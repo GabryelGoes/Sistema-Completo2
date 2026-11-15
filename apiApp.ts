@@ -80,6 +80,7 @@ import { recordServiceOrderStageEntry } from "./services/rdaIntelligence/patioIn
 import { assertHomologationSafeOrThrow } from "./utils/homologationGuard.js";
 import { classifyNewLoginPassword } from "./utils/loginPasswordPolicy.js";
 import { effectiveFamilyMode, guardHttpAuthorization, permissionSourceFromSupabase } from "./utils/authorizeRequest.js";
+import { notificationScope, type NotificationScope } from "./utils/notificationAudience.js";
 import { productionAuthorizationPolicy } from "./utils/authorizationPolicy.js";
 import { assessBudgetApprovalPut } from "./utils/budgetApprovalGuard.js";
 import { acceptedCommentAuthorName, isOwnServiceOrderComment } from "./utils/commentAuthorship.js";
@@ -10320,12 +10321,46 @@ export function createApiApp() {
     }
   });
 
-  // ----------------- CENTRAL DE NOTIFICAÇÕES (admin) -----------------
+  // ----------------- CENTRAL DE NOTIFICAÇÕES -----------------
+  // O destinatário sai da sessão. for/slug do cliente não escolhem outra pessoa.
+  function denyNotification(res: express.Response) {
+    return res.status(403).json({
+      error: "Sem permissão para esta operação.",
+      code: "permission_denied",
+    });
+  }
+
+  function applyNotificationScope(query: any, scope: NotificationScope): any {
+    if (scope.kind === "workshop") return query;
+    if (scope.kind === "admin") return query.or("target_type.eq.admin,target_type.is.null");
+    return query.in("target_type", ["technician", "user"]).eq("target_slug", scope.userId);
+  }
+
+  async function resolveNotificationScope(
+    req: express.Request,
+    requestedFor: unknown,
+    requestedSlug: unknown
+  ): Promise<NotificationScope | null> {
+    const actor = await loadWorkshopSettingsActor(req);
+    if (actor.load !== "ok" || (actor.role !== "admin" && actor.role !== "user")) return null;
+    return notificationScope({
+      role: actor.role,
+      userId: actor.userId,
+      fullAccess: actor.permissions?.full_access === true,
+      requestedFor,
+      requestedSlug,
+    });
+  }
+
   app.post("/api/notifications", async (req, res) => {
     try {
       if (!supabaseAdmin || !WORKSHOP_ID) {
         return res.status(500).json({ error: "Servidor não configurado." });
       }
+      const actor = await loadWorkshopSettingsActor(req);
+      const privileged =
+        actor.load === "ok" && (actor.role === "admin" || actor.permissions?.full_access === true);
+      if (!privileged) return denyNotification(res);
       const { type, payload, targetType, targetSlug } = req.body || {};
       if (typeof type !== "string" || !type.trim()) {
         return res.status(400).json({ error: "Campo type é obrigatório." });
@@ -10359,8 +10394,8 @@ export function createApiApp() {
       if (!supabaseAdmin || !WORKSHOP_ID) {
         return res.status(500).json({ error: "Servidor não configurado." });
       }
-      const forWho = (req.query.for as string) || "admin";
-      const technicianSlug = typeof req.query.slug === "string" ? req.query.slug.trim() : "";
+      const scope = await resolveNotificationScope(req, req.query.for, req.query.slug);
+      if (!scope) return denyNotification(res);
       const limit = Math.min(Number(req.query.limit) || 50, 100);
       const since = req.query.since as string | undefined;
 
@@ -10370,13 +10405,7 @@ export function createApiApp() {
         .eq("workshop_id", WORKSHOP_ID)
         .order("created_at", { ascending: false })
         .limit(limit);
-      if (forWho === "all") {
-        /* todas as notificações da oficina (admin + técnicos) */
-      } else if (forWho === "technician" && technicianSlug) {
-        query = query.eq("target_type", "technician").eq("target_slug", technicianSlug);
-      } else {
-        query = query.or("target_type.eq.admin,target_type.is.null");
-      }
+      query = applyNotificationScope(query, scope);
       if (since) {
         query = query.gt("created_at", since);
       }
@@ -10397,20 +10426,14 @@ export function createApiApp() {
       if (!supabaseAdmin || !WORKSHOP_ID) {
         return res.status(500).json({ error: "Servidor não configurado." });
       }
-      const forWho = (req.query.for as string) || "admin";
-      const technicianSlug = typeof req.query.slug === "string" ? req.query.slug.trim() : "";
+      const scope = await resolveNotificationScope(req, req.query.for, req.query.slug);
+      if (!scope) return denyNotification(res);
       let query = supabaseAdmin
         .from("notifications")
         .select("*", { count: "exact", head: true })
         .eq("workshop_id", WORKSHOP_ID)
         .is("read_at", null);
-      if (forWho === "all") {
-        /* contagem global da oficina */
-      } else if (forWho === "technician" && technicianSlug) {
-        query = query.eq("target_type", "technician").eq("target_slug", technicianSlug);
-      } else {
-        query = query.or("target_type.eq.admin,target_type.is.null");
-      }
+      query = applyNotificationScope(query, scope);
       const { count, error } = await query;
       if (error) {
         console.error("[API] Erro em GET /api/notifications/unread-count:", error);
@@ -10428,24 +10451,21 @@ export function createApiApp() {
       if (!supabaseAdmin || !WORKSHOP_ID) {
         return res.status(500).json({ error: "Servidor não configurado." });
       }
+      const scope = await resolveNotificationScope(req, req.query.for, req.query.slug);
+      if (!scope) return denyNotification(res);
       const { id } = req.params;
-      const forWho = (req.query.for as string) || "admin";
-      const technicianSlug = typeof req.query.slug === "string" ? req.query.slug.trim() : "";
       let updateQuery = supabaseAdmin
         .from("notifications")
         .update({ read_at: new Date().toISOString() })
         .eq("id", id)
         .eq("workshop_id", WORKSHOP_ID);
-      if (forWho === "all") {
-        /* qualquer notificação da oficina por id */
-      } else if (forWho === "technician" && technicianSlug) {
-        updateQuery = updateQuery.eq("target_type", "technician").eq("target_slug", technicianSlug);
-      } else {
-        updateQuery = updateQuery.or("target_type.eq.admin,target_type.is.null");
-      }
-      const { error } = await updateQuery;
+      updateQuery = applyNotificationScope(updateQuery, scope);
+      const { data, error } = await updateQuery.select("id");
       if (error) {
         return res.status(500).json({ error: error.message });
+      }
+      if (!data || data.length === 0) {
+        return res.status(404).json({ error: "Notificação não encontrada." });
       }
       return res.status(204).send();
     } catch (err: any) {
@@ -10460,21 +10480,15 @@ export function createApiApp() {
         return res.status(500).json({ error: "Servidor não configurado." });
       }
       const rawFor = req.body?.for ?? req.query.for;
-      const forWho =
-        rawFor === "all" ? "all" : rawFor === "technician" ? "technician" : "admin";
-      const technicianSlug = typeof (req.body?.slug ?? req.query.slug) === "string" ? String(req.body?.slug ?? req.query.slug).trim() : "";
+      const rawSlug = req.body?.slug ?? req.query.slug;
+      const scope = await resolveNotificationScope(req, rawFor, rawSlug);
+      if (!scope) return denyNotification(res);
       let updateQuery = supabaseAdmin
         .from("notifications")
         .update({ read_at: new Date().toISOString() })
         .eq("workshop_id", WORKSHOP_ID)
         .is("read_at", null);
-      if (forWho === "all") {
-        /* marcar todas como lidas na oficina */
-      } else if (forWho === "technician" && technicianSlug) {
-        updateQuery = updateQuery.eq("target_type", "technician").eq("target_slug", technicianSlug);
-      } else {
-        updateQuery = updateQuery.or("target_type.eq.admin,target_type.is.null");
-      }
+      updateQuery = applyNotificationScope(updateQuery, scope);
       const { error } = await updateQuery;
       if (error) {
         return res.status(500).json({ error: error.message });
@@ -10491,52 +10505,14 @@ export function createApiApp() {
       if (!supabaseAdmin || !WORKSHOP_ID) {
         return res.status(500).json({ error: "Servidor não configurado." });
       }
-      const forWho = (req.query.for as string) || "admin";
-      const technicianSlug = typeof req.query.slug === "string" ? req.query.slug.trim() : "";
-
-      if (forWho === "all") {
-        const { error } = await supabaseAdmin
-          .from("notifications")
-          .delete()
-          .eq("workshop_id", WORKSHOP_ID);
-        if (error) {
-          console.error("[API] Erro em DELETE /api/notifications (all):", error);
-          return res.status(500).json({ error: error.message });
-        }
-        return res.status(204).send();
-      }
-
-      if (forWho === "technician" && technicianSlug) {
-        const { error } = await supabaseAdmin
-          .from("notifications")
-          .delete()
-          .eq("workshop_id", WORKSHOP_ID)
-          .eq("target_type", "technician")
-          .eq("target_slug", technicianSlug);
-        if (error) {
-          console.error("[API] Erro em DELETE /api/notifications (technician):", error);
-          return res.status(500).json({ error: error.message });
-        }
-        return res.status(204).send();
-      }
-
-      const { error: errAdmin } = await supabaseAdmin
-        .from("notifications")
-        .delete()
-        .eq("workshop_id", WORKSHOP_ID)
-        .eq("target_type", "admin");
-      if (errAdmin) {
-        console.error("[API] Erro em DELETE /api/notifications (admin):", errAdmin);
-        return res.status(500).json({ error: errAdmin.message });
-      }
-      const { error: errNull } = await supabaseAdmin
-        .from("notifications")
-        .delete()
-        .eq("workshop_id", WORKSHOP_ID)
-        .is("target_type", null);
-      if (errNull) {
-        console.error("[API] Erro em DELETE /api/notifications (null):", errNull);
-        return res.status(500).json({ error: errNull.message });
+      const scope = await resolveNotificationScope(req, req.query.for, req.query.slug);
+      if (!scope) return denyNotification(res);
+      let query = supabaseAdmin.from("notifications").delete().eq("workshop_id", WORKSHOP_ID);
+      query = applyNotificationScope(query, scope);
+      const { error } = await query;
+      if (error) {
+        console.error("[API] Erro em DELETE /api/notifications:", error);
+        return res.status(500).json({ error: error.message });
       }
       return res.status(204).send();
     } catch (err: any) {

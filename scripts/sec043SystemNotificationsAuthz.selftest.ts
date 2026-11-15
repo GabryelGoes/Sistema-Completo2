@@ -250,11 +250,10 @@ ok(
   })()
 );
 
-// SEC-03 family notifications mode unchanged
 const policy = productionAuthorizationPolicy();
 ok(
-  "SEC-03 notifications mode off",
-  policy.families.find((f) => f.id === "notifications")?.mode === "off"
+  "SEC-03 notifications em enforce",
+  policy.families.find((f) => f.id === "notifications")?.mode === "enforce"
 );
 ok(
   "system-notifications fora do prefixo /api/notifications",
