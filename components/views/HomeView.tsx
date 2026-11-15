@@ -1305,6 +1305,11 @@ export const HomeView: React.FC<HomeViewProps> = ({
                   <h1 className="text-[17px] font-semibold tracking-tight text-zinc-900 dark:text-white">
                     Ajustes
                   </h1>
+                  {desktopShell ? (
+                    <p className="mt-0.5 text-[12px] font-medium text-zinc-500 dark:text-zinc-400">
+                      Conta, segurança, operação e dispositivos
+                    </p>
+                  ) : null}
                 </div>
               </div>
             </header>

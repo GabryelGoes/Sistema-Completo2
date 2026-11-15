@@ -112,7 +112,7 @@ export const ConnectedDevicesModal: React.FC<ConnectedDevicesModalProps> = ({
   const handleRevoke = async (session: ConnectedDeviceSession) => {
     if (!canManage) return;
     if (session.isCurrent) {
-      window.alert('Esta é a sessão atual. Use Sair em Conta e usuários para encerrar aqui.');
+      window.alert('Esta é a sessão atual. Use Sair em Conta e equipe para encerrar aqui.');
       return;
     }
     if (

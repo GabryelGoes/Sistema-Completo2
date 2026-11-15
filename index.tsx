@@ -9,6 +9,7 @@ import './styles/patio-vehicle-modal-desktop-pilot.css';
 import './styles/patio-vehicle-modal-touch.css';
 import './styles/desktop-onmotor-shell.css';
 import './styles/estoque-desktop.css';
+import './styles/ajustes-desktop.css';
 import './styles/ios-switch.css';
 import './styles/tv-panels-hub.css';
 import App from './App';
