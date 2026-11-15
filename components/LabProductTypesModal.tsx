@@ -12,6 +12,8 @@ import { ModalPortal } from './ui/ModalPortal';
 import { IosModalHeader } from './ui/IosModalHeader';
 import { useRegisterModalOpen } from './ui/ModalLayerContext';
 import { useDesktopShellLayout } from './ui/DesktopShellContext';
+import { ajustesPcOpsClass } from './ajustes/AjustesPcLayoutContext';
+import { AjustesPcOpsEyebrow } from './ajustes/AjustesPcOpsEyebrow';
 import {
   getWorkshopSettings,
   updateWorkshopSettings,
@@ -170,15 +172,22 @@ export const LabProductTypesModal: React.FC<LabProductTypesModalProps> = ({ isOp
   return (
     <ModalPortal>
       <div className={resolveIosModalOverlayClass(isDesktopShell)}>
-        <div className={`${iosModalShell} max-h-[94vh] max-w-xl`}>
-          {!isDesktopShell ? (
-            <button type="button" onClick={onClose} className={iosModalClose} aria-label="Fechar">
-              <X className="w-5 h-5" />
-            </button>
-          ) : null}
+        <div
+          className={`${iosModalShell} ${ajustesPcOpsClass(isDesktopShell)} max-h-[94vh] ${
+            isDesktopShell ? 'max-w-2xl' : 'max-w-xl'
+          }`}
+        >
+          <button type="button" onClick={onClose} className={iosModalClose} aria-label="Fechar">
+            <X className="w-5 h-5" />
+          </button>
 
           <div className="flex flex-col min-h-0 flex-1 overflow-hidden">
-            <div className={`px-6 sm:px-8 pt-8 pb-4 shrink-0 ${isDesktopShell ? 'pr-6 sm:pr-8' : 'pr-14'}`}>
+            <div
+              className={`px-6 sm:px-8 pt-8 pb-4 shrink-0 pr-14 ${
+                isDesktopShell ? 'ajustes-pc-ops-header' : ''
+              }`}
+            >
+              <AjustesPcOpsEyebrow desktop={isDesktopShell}>Ajustes · Operação · Laboratório</AjustesPcOpsEyebrow>
               <IosModalHeader
                 icon={<Package className="h-6 w-6" strokeWidth={2.1} />}
                 title="Tipos de peça do laboratório"
@@ -186,7 +195,11 @@ export const LabProductTypesModal: React.FC<LabProductTypesModalProps> = ({ isOp
               />
             </div>
 
-            <div className="flex-1 min-h-0 overflow-y-auto px-6 sm:px-8 pb-4 space-y-4">
+            <div
+              className={`flex-1 min-h-0 overflow-y-auto px-6 sm:px-8 pb-4 space-y-4 ${
+                isDesktopShell ? 'ajustes-pc-ops-scroll' : ''
+              }`}
+            >
               <div className="flex items-start gap-2 rounded-2xl border border-[#007AFF]/20 bg-[#007AFF]/[0.06] px-3.5 py-3 text-[12.5px] leading-relaxed text-zinc-600 dark:border-[#64B5FF]/25 dark:bg-[#64B5FF]/10 dark:text-zinc-300">
                 <Info className="mt-0.5 h-4 w-4 shrink-0 text-[#007AFF] dark:text-[#7ab8ff]" aria-hidden />
                 <span>
@@ -300,8 +313,12 @@ export const LabProductTypesModal: React.FC<LabProductTypesModalProps> = ({ isOp
               ) : null}
             </div>
 
-            <div className="shrink-0 border-t border-zinc-200/70 px-6 sm:px-8 py-4 dark:border-white/[0.07]">
-              <div className="flex justify-end gap-2">
+            <div
+              className={`shrink-0 border-t border-zinc-200/70 px-6 sm:px-8 py-4 dark:border-white/[0.07] ${
+                isDesktopShell ? 'ajustes-pc-child-footer !mt-0 !border-t-0' : ''
+              }`}
+            >
+              <div className={`flex justify-end gap-2 ${isDesktopShell ? 'w-full' : ''}`}>
                 <button
                   type="button"
                   onClick={onClose}

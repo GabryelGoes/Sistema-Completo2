@@ -49,8 +49,11 @@ import { KEY_LABEL_ICON_PRESETS } from '../utils/keyLabelIcons';
 import { niimbotService } from '../services/niimbotService';
 import { ModalPortal } from './ui/ModalPortal';
 import { IosModalHeader } from './ui/IosModalHeader';
-import { iosModalClose, iosModalShell } from './ui/iosModalStyles';
+import { iosModalClose, iosModalShell, resolveIosModalOverlayClass } from './ui/iosModalStyles';
 import { useBrowserBackLayer } from './ui/BackNavigationContext';
+import { useDesktopShellLayout } from './ui/DesktopShellContext';
+import { ajustesPcOpsClass } from './ajustes/AjustesPcLayoutContext';
+import { AjustesPcOpsEyebrow } from './ajustes/AjustesPcOpsEyebrow';
 
 export type LabelTemplatesEditorModalProps = {
   open: boolean;
@@ -163,6 +166,7 @@ export function LabelTemplatesEditorModal({
   onClose,
   initialTemplateId = 'lab_os',
 }: LabelTemplatesEditorModalProps) {
+  const isDesktopShell = useDesktopShellLayout();
   const [store, setStore] = useState<LabelTemplatesStore>(() => loadAllLabelTemplates());
   const [activeId, setActiveId] = useState<LabelTemplateId>(initialTemplateId);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -407,12 +411,14 @@ export function LabelTemplatesEditorModal({
   return (
     <ModalPortal>
       <div
-        className="fixed inset-0 z-[250] flex items-center justify-center bg-black/55 p-2 sm:p-4"
+        className={`${resolveIosModalOverlayClass(isDesktopShell)} ${
+          isDesktopShell ? '' : 'bg-black/55'
+        } p-2 sm:p-4`}
         onClick={handleClose}
         role="presentation"
       >
         <div
-          className={`${iosModalShell} relative flex h-[min(98dvh,1040px)] w-full max-w-6xl flex-col overflow-hidden`}
+          className={`${iosModalShell} ${ajustesPcOpsClass(isDesktopShell)} relative flex h-[min(98dvh,1040px)] w-full max-w-6xl flex-col overflow-hidden`}
           onClick={(e) => e.stopPropagation()}
           role="dialog"
           aria-modal="true"
@@ -422,7 +428,12 @@ export function LabelTemplatesEditorModal({
             <X className="h-5 w-5" />
           </button>
 
-          <div className="shrink-0 border-b border-zinc-200/70 bg-white px-5 pb-3 pt-8 pr-24 dark:border-white/[0.06] dark:bg-transparent sm:px-6">
+          <div
+            className={`shrink-0 border-b border-zinc-200/70 bg-white px-5 pb-3 pt-8 pr-24 dark:border-white/[0.06] dark:bg-transparent sm:px-6 ${
+              isDesktopShell ? 'ajustes-pc-ops-header' : ''
+            }`}
+          >
+            <AjustesPcOpsEyebrow desktop={isDesktopShell}>Ajustes · Operação · Etiquetas</AjustesPcOpsEyebrow>
             <IosModalHeader
               icon={<Tag className="h-5 w-5 text-zinc-800" />}
               title="Editor de etiquetas"
@@ -458,7 +469,11 @@ export function LabelTemplatesEditorModal({
             </div>
           </div>
 
-          <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
+          <div
+            className={`flex min-h-0 flex-1 flex-col lg:flex-row ${
+              isDesktopShell ? 'ajustes-pc-ops-scroll' : ''
+            }`}
+          >
             {/* Prévia + overlays de arraste */}
             <div className="shrink-0 space-y-3 border-b border-zinc-200/60 bg-white px-5 py-4 dark:border-white/[0.06] dark:bg-transparent sm:px-6 lg:w-[min(48%,520px)] lg:border-b-0 lg:border-r">
               <div className="flex items-center justify-between gap-2">

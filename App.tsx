@@ -2507,6 +2507,7 @@ export default function App() {
           onThemeChange={setTheme}
           cinematographicMode={cinematographicMode}
           onCinematographicModeChange={setCinematographicMode}
+          ajustesPcChrome={isDesktopShell && settingsHubOpen}
         />
         <ChangePasswordsModal isOpen={isUserChangePasswordsOpen} onClose={() => setIsUserChangePasswordsOpen(false)} />
         {hubBudgetViewer ? (
@@ -2920,6 +2921,7 @@ export default function App() {
         onThemeChange={setTheme}
         cinematographicMode={cinematographicMode}
         onCinematographicModeChange={setCinematographicMode}
+        ajustesPcChrome={isDesktopShell && settingsHubOpen}
       />
       {hubBudgetViewer ? (
         <BudgetHubViewerModal

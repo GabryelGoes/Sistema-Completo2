@@ -26,6 +26,8 @@ import { ModalPortal } from "./ui/ModalPortal";
 import { useDesktopShellLayout } from "./ui/DesktopShellContext";
 import { IosModalHeader } from "./ui/IosModalHeader";
 import { useRegisterModalOpen } from "./ui/ModalLayerContext";
+import { ajustesPcOpsClass } from "./ajustes/AjustesPcLayoutContext";
+import { AjustesPcOpsEyebrow } from "./ajustes/AjustesPcOpsEyebrow";
 
 type UserDraft = { systemUserId: string; displayName: string };
 type SystemUserDraft = UserDraft & { notificationTypes: string[] };
@@ -203,17 +205,33 @@ export const SystemNotificationsModal: React.FC<SystemNotificationsModalProps> =
   return (
     <ModalPortal>
     <div className={resolveIosModalOverlayClass(isDesktopShell)}>
-      <div className={`${iosModalShell} w-full max-w-lg sm:max-w-2xl lg:max-w-4xl max-h-[92vh] overflow-y-auto`}>
+      <div
+        className={`${iosModalShell} ${ajustesPcOpsClass(isDesktopShell)} w-full max-w-lg sm:max-w-2xl lg:max-w-4xl max-h-[92vh] ${
+          isDesktopShell ? 'overflow-hidden' : 'overflow-y-auto'
+        }`}
+      >
         <button type="button" onClick={onClose} className={iosModalClose} aria-label="Fechar">
           <X className="w-5 h-5" />
         </button>
-        <div className="p-5 sm:p-6 pt-14">
-          <IosModalHeader
-            icon={<img src={SYSTEM_NOTIFICATIONS_ICON} alt="" className="h-full w-full min-h-0 object-cover" />}
-            title="Notificações do sistema"
-            subtitle="Controle central de todos os tipos de notificações da oficina"
-          />
+        <div
+          className={`flex min-h-0 flex-1 flex-col ${
+            isDesktopShell ? 'overflow-hidden' : ''
+          }`}
+        >
+          <div className={`p-5 sm:p-6 pt-14 shrink-0 ${isDesktopShell ? 'ajustes-pc-ops-header pb-4' : ''}`}>
+            <AjustesPcOpsEyebrow desktop={isDesktopShell}>Ajustes · Operação · Notificações</AjustesPcOpsEyebrow>
+            <IosModalHeader
+              icon={<img src={SYSTEM_NOTIFICATIONS_ICON} alt="" className="h-full w-full min-h-0 object-cover" />}
+              title="Notificações do sistema"
+              subtitle="Controle central de todos os tipos de notificações da oficina"
+            />
+          </div>
 
+          <div
+            className={`px-5 sm:px-6 pb-6 ${
+              isDesktopShell ? 'ajustes-pc-ops-scroll min-h-0 flex-1 overflow-y-auto' : ''
+            }`}
+          >
           {loading ? (
             <div className="flex justify-center py-16">
               <Loader2 className="w-8 h-8 animate-spin text-sky-500" />
@@ -625,6 +643,7 @@ export const SystemNotificationsModal: React.FC<SystemNotificationsModalProps> =
               </button>
             </form>
           )}
+          </div>
         </div>
       </div>
     </div>

@@ -13,6 +13,8 @@ import {
   normalizeAiImproveTextLevel,
   type AiImproveTextLevel,
 } from '../utils/aiImproveTextLevel';
+import { ajustesPcOpsClass } from './ajustes/AjustesPcLayoutContext';
+import { AjustesPcOpsEyebrow } from './ajustes/AjustesPcOpsEyebrow';
 
 interface BudgetPreferencesModalProps {
   isOpen: boolean;
@@ -79,7 +81,11 @@ export const BudgetPreferencesModal: React.FC<BudgetPreferencesModalProps> = ({
   return (
     <ModalPortal>
       <div className={resolveIosModalOverlayClass(isDesktopShell)}>
-        <div className={`${iosModalShell} max-h-[94vh] max-w-xl`}>
+        <div
+          className={`${iosModalShell} ${ajustesPcOpsClass(isDesktopShell)} max-h-[94vh] ${
+            isDesktopShell ? 'max-w-2xl' : 'max-w-xl'
+          }`}
+        >
           <button
             type="button"
             onClick={onClose}
@@ -90,7 +96,8 @@ export const BudgetPreferencesModal: React.FC<BudgetPreferencesModalProps> = ({
           </button>
 
           <div className="flex flex-col min-h-0 flex-1 overflow-hidden">
-            <div className="px-6 sm:px-8 pt-8 pb-4 shrink-0 pr-14">
+            <div className={`px-6 sm:px-8 pt-8 pb-4 shrink-0 pr-14 ${isDesktopShell ? 'ajustes-pc-ops-header' : ''}`}>
+              <AjustesPcOpsEyebrow desktop={isDesktopShell}>Ajustes · Operação · Orçamentos</AjustesPcOpsEyebrow>
               <IosModalHeader
                 icon={
                   <img
@@ -104,7 +111,11 @@ export const BudgetPreferencesModal: React.FC<BudgetPreferencesModalProps> = ({
               />
             </div>
 
-            <div className="flex-1 min-h-0 overflow-y-auto px-6 sm:px-8 pb-8 space-y-4">
+            <div
+              className={`flex-1 min-h-0 overflow-y-auto px-6 sm:px-8 pb-8 space-y-4 ${
+                isDesktopShell ? 'ajustes-pc-ops-scroll' : ''
+              }`}
+            >
               <div className={`${iosModalInsetCard} p-4 sm:p-5`}>
                 <div className="flex items-center justify-between gap-4">
                   <div>
