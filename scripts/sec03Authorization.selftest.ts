@@ -245,7 +245,7 @@ async function main() {
       production.families
         .filter((family) => family.mode === "enforce")
         .map((family) => family.id)
-        .join(",") === "customers,parts_stock,technicians,workshop_catalogs,tv_admin,bulletins,reports" &&
+        .join(",") === "customers,appointments,parts_stock,technicians,workshop_catalogs,tv_admin,bulletins,reports" &&
       production.families
         .filter((family) => family.mode === "shadow")
         .map((family) => family.id)
@@ -253,13 +253,13 @@ async function main() {
         .join(",") === "" &&
       authorizationHasEnforce(production, {}) === true &&
       authorizationHasEnforce(production, { SEC03_DISABLE_FAMILIES: "reports" }) === true &&
-      authorizationHasEnforce(production, { SEC03_DISABLE_FAMILIES: "customers,parts_stock,technicians,workshop_catalogs,tv_admin,bulletins,reports" }) === false,
+      authorizationHasEnforce(production, { SEC03_DISABLE_FAMILIES: "customers,appointments,parts_stock,technicians,workshop_catalogs,tv_admin,bulletins,reports" }) === false,
     "enforce na TV, nos catálogos, nos técnicos, nos relatórios, nos boletins e no estoque"
   );
 
   const inactive = await decide({
     method: "DELETE",
-    path: "/api/appointments/agenda-1",
+    path: "/api/abs-modules/mod-1",
     actor: { role: "user", userId: USER },
     rows: [{ id: USER, workshopId: WORKSHOP, permissions: {} }],
   });
@@ -946,7 +946,7 @@ async function main() {
       uncoveredStaysOpen &&
       authorizationHasEnforce(production, {}) === true &&
       authorizationHasEnforce(production, { SEC03_DISABLE_FAMILIES: "reports" }) === true &&
-      authorizationHasEnforce(production, { SEC03_DISABLE_FAMILIES: "customers,parts_stock,technicians,workshop_catalogs,tv_admin,bulletins,reports" }) === false,
+      authorizationHasEnforce(production, { SEC03_DISABLE_FAMILIES: "customers,appointments,parts_stock,technicians,workshop_catalogs,tv_admin,bulletins,reports" }) === false,
     `rotas ${scanned.length}; protegidas ${coverage.protectedRoutes.length}; públicas ${coverage.publicRoutes.length}; sem regra ${coverage.uncoveredRoutes.length}; sobrepostas ${coverage.overlaps.length}`
   );
 
