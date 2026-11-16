@@ -1,16 +1,24 @@
 /**
- * Limite de tentativas por janela, só nesta instância.
- * Não é proteção distribuída: duas funções serverless não compartilham a contagem.
- * Persistir a contagem continua pendente e exigiria tabela nova, ainda não aprovada.
+ * Limite de tentativas por janela.
+ * memory: só nesta instância. É o padrão e o rollback (AUTH_RATE_LIMIT_STORE=memory).
+ * postgres: contador compartilhado, implementado em postgresAuthRateLimit.ts.
+ * O relógio `now` vale apenas para a memória. O Postgres usa now() do banco.
  */
 
 export type RateHit = { count: number; resetAt: number; limited: boolean };
 
 export type AuthRateLimitStore = {
-  hit(key: string, now: number, windowMs: number, max: number): RateHit;
-  peek(key: string, now: number, max: number): boolean;
-  reset(key: string): void;
+  hit(key: string, now: number, windowMs: number, max: number): Promise<RateHit>;
+  peek(key: string, now: number, max: number): Promise<boolean>;
+  reset(key: string): Promise<void>;
 };
+
+export class AuthRateLimitUnavailable extends Error {
+  constructor() {
+    super("Contador de tentativas indisponível.");
+    this.name = "AuthRateLimitUnavailable";
+  }
+}
 
 type Bucket = { count: number; resetAt: number };
 
@@ -19,7 +27,7 @@ export class MemoryAuthRateLimitStore implements AuthRateLimitStore {
 
   constructor(private readonly maxKeys = 5000) {}
 
-  hit(key: string, now: number, windowMs: number, max: number): RateHit {
+  async hit(key: string, now: number, windowMs: number, max: number): Promise<RateHit> {
     this.evict(now, key);
     const current = this.buckets.get(key);
     if (!current || current.resetAt <= now) {
@@ -31,13 +39,13 @@ export class MemoryAuthRateLimitStore implements AuthRateLimitStore {
     return { count: current.count, resetAt: current.resetAt, limited: current.count > max };
   }
 
-  peek(key: string, now: number, max: number): boolean {
+  async peek(key: string, now: number, max: number): Promise<boolean> {
     const current = this.buckets.get(key);
     if (!current || current.resetAt <= now) return false;
     return current.count >= max;
   }
 
-  reset(key: string): void {
+  async reset(key: string): Promise<void> {
     this.buckets.delete(key);
   }
 

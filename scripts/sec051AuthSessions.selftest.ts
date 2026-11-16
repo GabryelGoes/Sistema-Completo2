@@ -304,23 +304,25 @@ async function main() {
   const shared = new MemoryAuthRateLimitStore();
   const now = 1_000_000;
   let sharedBlocked = false;
-  for (let i = 0; i < 3; i += 1) sharedBlocked = shared.hit("login:ip:a", now, 1000, 2).limited || sharedBlocked;
-  const stillLimited = shared.peek("login:ip:a", now, 2);
+  for (let i = 0; i < 3; i += 1) {
+    sharedBlocked = (await shared.hit("login:ip:a", now, 1000, 2)).limited || sharedBlocked;
+  }
+  const stillLimited = await shared.peek("login:ip:a", now, 2);
   const other = new MemoryAuthRateLimitStore();
-  const independent = other.hit("login:ip:a", now, 1000, 2);
-  const expired = shared.hit("login:ip:a", now + 1000, 1000, 2);
+  const independent = await other.hit("login:ip:a", now, 1000, 2);
+  const expired = await shared.hit("login:ip:a", now + 1000, 1000, 2);
   const capped = new MemoryAuthRateLimitStore(2);
-  capped.hit("a", now, 5000, 10);
-  capped.hit("b", now, 5000, 10);
-  capped.hit("c", now, 5000, 10);
+  await capped.hit("a", now, 5000, 10);
+  await capped.hit("b", now, 5000, 10);
+  await capped.hit("c", now, 5000, 10);
   record(
     "instâncias independentes e janela que expira",
     sharedBlocked &&
       stillLimited &&
       independent.limited === false &&
       expired.limited === false &&
-      capped.peek("a", now, 1) === false &&
-      capped.peek("c", now, 1) === true,
+      (await capped.peek("a", now, 1)) === false &&
+      (await capped.peek("c", now, 1)) === true,
     "memória"
   );
   const forgedHeaders = {
@@ -371,6 +373,7 @@ async function main() {
   delete process.env.ADMIN_PASSWORD;
   process.env.NODE_ENV = "development";
   process.env.VERCEL = "1";
+  process.env.AUTH_RATE_LIMIT_STORE = "memory";
 
   const { createApiApp } = await import("../apiApp.ts");
   const first = await listen(createApiApp());
