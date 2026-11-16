@@ -298,6 +298,7 @@ export function resolveAjustesVisibility(input: ResolveAjustesVisibilityInput): 
     usuarios: isWorkshopAdmin || (isSystemUser && !!p.full_access),
     sair: hasLogout,
     senhas: canPasswords,
+    central_seguranca: isWorkshopAdmin || (isSystemUser && !!p.full_access),
     servicos_oficina: full || !!p.access_servicos_oficina,
     checklists_patio: full || !!p.access_checklists_patio,
     painel_tv: full || !!p.access_tv_patio,

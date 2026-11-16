@@ -21,6 +21,7 @@ import { SystemUsersModal } from '../SystemUsersModal';
 import { SystemNotificationsModal } from '../SystemNotificationsModal';
 import { DeviceLayoutSettingsModal } from '../DeviceLayoutSettingsModal';
 import { ConnectedDevicesModal } from '../ConnectedDevicesModal';
+import { SecurityCenterModal } from '../SecurityCenterModal';
 import { BudgetPreferencesModal } from '../BudgetPreferencesModal';
 import { LabelTemplatesEditorModal } from '../LabelTemplatesEditorModal';
 import { TvPatioModal } from '../TvPatioModal';
@@ -275,6 +276,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
   const [isSystemNotificationsOpen, setIsSystemNotificationsOpen] = useState(false);
   const [isDeviceLayoutOpen, setIsDeviceLayoutOpen] = useState(false);
   const [isConnectedDevicesOpen, setIsConnectedDevicesOpen] = useState(false);
+  const [isSecurityCenterOpen, setIsSecurityCenterOpen] = useState(false);
   const [isBudgetPrefsOpen, setIsBudgetPrefsOpen] = useState(false);
   const [isLabelEditorOpen, setIsLabelEditorOpen] = useState(false);
   const [isRdaMemoryOpen, setIsRdaMemoryOpen] = useState(false);
@@ -297,6 +299,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
     setIsSystemNotificationsOpen(false);
     setIsDeviceLayoutOpen(false);
     setIsConnectedDevicesOpen(false);
+    setIsSecurityCenterOpen(false);
     setIsBudgetPrefsOpen(false);
     setIsLabelEditorOpen(false);
     setIsRdaMemoryOpen(false);
@@ -451,6 +454,10 @@ export const HomeView: React.FC<HomeViewProps> = ({
           if (!ajustesVisibility.tema) break;
           if (onOpenSettings) onOpenSettings();
           else onOpenApp('settings');
+          break;
+        case 'central_seguranca':
+          if (!ajustesVisibility.central_seguranca) break;
+          setIsSecurityCenterOpen(true);
           break;
         case 'dispositivos_conectados':
           setIsConnectedDevicesOpen(true);
@@ -721,6 +728,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
       isChangePasswordsOpen ||
       isDeviceLayoutOpen ||
       isConnectedDevicesOpen ||
+      isSecurityCenterOpen ||
       isBudgetPrefsOpen ||
       isLabelEditorOpen ||
       isRdaMemoryOpen ||
@@ -745,6 +753,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
       isChangePasswordsOpen,
       isDeviceLayoutOpen,
       isConnectedDevicesOpen,
+      isSecurityCenterOpen,
       isBudgetPrefsOpen,
       isLabelEditorOpen,
       isRdaMemoryOpen,
@@ -779,6 +788,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
   useBrowserBackLayer(isSystemNotificationsOpen, () => setIsSystemNotificationsOpen(false));
   useBrowserBackLayer(isDeviceLayoutOpen, () => setIsDeviceLayoutOpen(false));
   useBrowserBackLayer(isConnectedDevicesOpen, () => setIsConnectedDevicesOpen(false));
+  useBrowserBackLayer(isSecurityCenterOpen, () => setIsSecurityCenterOpen(false));
   useBrowserBackLayer(isBudgetPrefsOpen, () => setIsBudgetPrefsOpen(false));
   useBrowserBackLayer(isLabelEditorOpen, () => setIsLabelEditorOpen(false));
   useBrowserBackLayer(isRdaMemoryOpen, () => setIsRdaMemoryOpen(false));
@@ -1477,6 +1487,10 @@ export const HomeView: React.FC<HomeViewProps> = ({
       <ConnectedDevicesModal
         isOpen={isConnectedDevicesOpen}
         onClose={() => setIsConnectedDevicesOpen(false)}
+      />
+      <SecurityCenterModal
+        isOpen={isSecurityCenterOpen}
+        onClose={() => setIsSecurityCenterOpen(false)}
       />
       {!onOpenTvPatio ? (
         <TvPatioModal isOpen={isTvPatioOpen} onClose={() => setIsTvPatioOpen(false)} />

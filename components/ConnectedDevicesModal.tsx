@@ -35,6 +35,8 @@ import { formatDeviceIdentityLine } from '../utils/deviceIdentity';
 interface ConnectedDevicesModalProps {
   isOpen: boolean;
   onClose: () => void;
+  /** Dentro da Central de Segurança, sem um segundo modal. */
+  embedded?: boolean;
 }
 
 function platformIcon(platform: string | null | undefined) {
@@ -77,8 +79,9 @@ function shortDeviceId(id: string): string {
 export const ConnectedDevicesModal: React.FC<ConnectedDevicesModalProps> = ({
   isOpen,
   onClose,
+  embedded = false,
 }) => {
-  useRegisterModalOpen(isOpen);
+  useRegisterModalOpen(isOpen && !embedded);
   const isDesktopShell = useDesktopShellLayout();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -179,8 +182,7 @@ export const ConnectedDevicesModal: React.FC<ConnectedDevicesModalProps> = ({
   if (!isOpen) return null;
 
   const onlineCount = sessions.filter((s) => s.online).length;
-
-  return (
+  const body = (
     <ModalPortal>
       <div className={resolveIosModalOverlayClass(isDesktopShell)}>
         <div
@@ -411,4 +413,116 @@ export const ConnectedDevicesModal: React.FC<ConnectedDevicesModalProps> = ({
       </div>
     </ModalPortal>
   );
+
+  if (embedded) {
+    return (
+      <div>
+        <div className="mb-3 flex flex-wrap items-center gap-2">
+          <span className="rounded-full bg-emerald-500/15 px-2.5 py-1 text-[11px] font-semibold text-emerald-700 dark:text-emerald-300">
+            {onlineCount} online
+          </span>
+          <span className="rounded-full bg-zinc-500/10 px-2.5 py-1 text-[11px] font-medium text-zinc-600 dark:text-zinc-300">
+            {sessions.length} sessão{sessions.length === 1 ? "" : "ões"}
+          </span>
+          <button
+            type="button"
+            onClick={() => void load()}
+            disabled={loading}
+            className="ml-auto inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-[12px] font-medium text-zinc-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-white/[0.06]"
+          >
+            <RefreshCw className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`} />
+            Atualizar
+          </button>
+        </div>
+        {error ? (
+          <p className="mb-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-[13px] text-red-700 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-300">
+            {error}
+          </p>
+        ) : null}
+        {loading && sessions.length === 0 ? (
+          <div className="flex items-center justify-center gap-2 py-10 text-zinc-500">
+            <Loader2 className="h-5 w-5 animate-spin" />
+            <span className="text-[13px]">Carregando dispositivos…</span>
+          </div>
+        ) : sessions.length === 0 ? (
+          <div className={`${iosModalInsetCard} px-4 py-8 text-center text-[13px] text-zinc-500`}>
+            Nenhuma sessão ativa no momento.
+          </div>
+        ) : (
+          <ul className="space-y-2.5">
+            {sessions.map((session) => {
+              const revoking = busyId === session.id;
+              const blocking = busyId === `block-${session.id}`;
+              return (
+                <li key={session.id} className={`${iosModalInsetCard} flex flex-col gap-3 p-3.5`}>
+                  <div className="min-w-0">
+                    <p className="truncate text-[15px] font-semibold text-zinc-900 dark:text-white">{session.displayName}</p>
+                    <p className="mt-0.5 text-[12px] text-zinc-500 dark:text-zinc-400">
+                      {formatDeviceIdentityLine({
+                        deviceModel: session.deviceModel,
+                        osName: session.osName,
+                        platform: session.platform,
+                      })}
+                      {session.online ? " · Online" : " · Offline"}
+                      {session.isCurrent ? " · Este aparelho" : ""}
+                    </p>
+                    <p className="mt-1 text-[12px] text-zinc-500">Última atividade {formatDateTime(session.lastSeenAt)}</p>
+                  </div>
+                  {canManage && !session.isCurrent ? (
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        disabled={!!busyId}
+                        onClick={() => void handleRevoke(session)}
+                        className="inline-flex items-center gap-1.5 rounded-xl border border-zinc-200 bg-white px-3 py-2 text-[12px] font-semibold text-zinc-800 disabled:opacity-50 dark:border-white/[0.1] dark:bg-zinc-900 dark:text-zinc-100"
+                      >
+                        {revoking ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <LogOut className="h-3.5 w-3.5" />}
+                        Deslogar
+                      </button>
+                      <button
+                        type="button"
+                        disabled={!!busyId}
+                        onClick={() => void handleBlock(session)}
+                        className="inline-flex items-center gap-1.5 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-[12px] font-semibold text-red-700 disabled:opacity-50 dark:border-red-900/50 dark:bg-red-950/40 dark:text-red-300"
+                      >
+                        {blocking ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Ban className="h-3.5 w-3.5" />}
+                        Bloquear aparelho
+                      </button>
+                    </div>
+                  ) : null}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+        {canManage && blocked.length > 0 ? (
+          <div className="mt-5">
+            <h3 className="mb-2 text-[12px] font-semibold uppercase tracking-wider text-zinc-500">Aparelhos bloqueados</h3>
+            <ul className="space-y-2">
+              {blocked.map((device) => (
+                <li key={device.id} className={`${iosModalInsetCard} flex items-center gap-3 p-3.5`}>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-[14px] font-semibold text-zinc-900 dark:text-white">
+                      {device.label || shortDeviceId(device.deviceId)}
+                    </p>
+                    <p className="text-[12px] text-zinc-500">Bloqueado em {formatDateTime(device.blockedAt)}</p>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={!!busyId}
+                    onClick={() => void handleUnblock(device)}
+                    className="shrink-0 rounded-xl border border-zinc-200 px-3 py-2 text-[12px] font-semibold text-zinc-800 disabled:opacity-50 dark:border-white/[0.1] dark:text-zinc-100"
+                  >
+                    {busyId === `unblock-${device.deviceId}` ? "…" : "Desbloquear"}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+      </div>
+    );
+  }
+
+  return body;
 };
