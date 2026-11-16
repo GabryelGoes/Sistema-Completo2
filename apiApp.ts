@@ -80,6 +80,7 @@ import { recordServiceOrderStageEntry } from "./services/rdaIntelligence/patioIn
 import { assertHomologationSafeOrThrow } from "./utils/homologationGuard.js";
 import { classifyNewLoginPassword } from "./utils/loginPasswordPolicy.js";
 import { MemoryAuthRateLimitStore } from "./utils/authRateLimit.js";
+import { clientIp } from "./utils/clientIp.js";
 import { resolveSessionKeyRing } from "./utils/sessionKeys.js";
 import { effectiveFamilyMode, guardHttpAuthorization, permissionSourceFromSupabase } from "./utils/authorizeRequest.js";
 import { notificationScope, type NotificationScope } from "./utils/notificationAudience.js";
@@ -208,13 +209,6 @@ const deviceSessionOkCache = new Map<
   { until: number; revoked: boolean; deviceId: string; blocked: boolean }
 >();
 const blockedDeviceCache = new Map<string, { until: number; blocked: boolean }>();
-
-function clientIp(req: { ip?: string; headers: { [key: string]: unknown } }): string {
-  const forwarded = req.headers["x-forwarded-for"];
-  const raw = typeof forwarded === "string" ? forwarded : Array.isArray(forwarded) ? String(forwarded[0] || "") : "";
-  const first = raw.split(",")[0].trim();
-  return (first || req.ip || "unknown").slice(0, 128);
-}
 
 function loginAccountKey(username: string): string {
   return username.trim().toLowerCase().slice(0, 120);
@@ -1436,8 +1430,11 @@ export function createApiApp() {
 
   /**
    * Valida sid (não revogada) e device_id (não bloqueado).
-   * Tokens legados sem sid seguem válidos até novo login.
+   * Tokens legados sem sid seguem válidos até expirar e não têm linha para revogar.
    * Falha de consulta não libera a sessão e não grava revoked_at.
+   * Um acerto fica em cache por DEVICE_SESSION_CACHE_MS. Revogação feita fora
+   * deste processo passa a valer na leitura seguinte, depois dessa janela.
+   * A revogação feita aqui substitui o cache na hora.
    */
   async function enforceDeviceSession(
     req: express.Request,
@@ -3285,6 +3282,18 @@ export function createApiApp() {
           code: "rate_limited",
         });
       }
+      // Sem transação entre as duas tabelas (isso exigiria função no banco).
+      // A revogação vem antes: se ela falha, a senha não muda. Se a senha falha
+      // depois, as sessões desse funcionário já estão encerradas e a senha antiga permanece.
+      if (nextPassword.status === "ready") {
+        const revoked = await revokeOtherDeviceSessions({ role: "user", userId: id, keepSessionId: null });
+        if (!revoked) {
+          return res.status(503).json({
+            error: "Não foi possível encerrar as sessões antigas. A senha não foi alterada.",
+            code: "sessions_not_revoked",
+          });
+        }
+      }
 
       // Compare-and-swap otimista em updated_at (sem migration). Sempre obrigatório.
       let updateQuery = supabaseAdmin
@@ -3312,16 +3321,6 @@ export function createApiApp() {
           error: "O cadastro foi alterado por outra sessão. Recarregue e tente de novo.",
           code: "permissions_conflict",
         });
-      }
-      if (nextPassword.status === "ready") {
-        const revoked = await revokeOtherDeviceSessions({ role: "user", userId: id, keepSessionId: null });
-        if (!revoked) {
-          return res.status(500).json({
-            error: "A senha foi alterada, mas as sessões antigas não puderam ser encerradas. Tente novamente.",
-            code: "sessions_not_revoked",
-            passwordUpdated: true,
-          });
-        }
       }
       return res.json({ ...write.row, passwordUpdated: nextPassword.status === "ready" });
     } catch (err: any) {

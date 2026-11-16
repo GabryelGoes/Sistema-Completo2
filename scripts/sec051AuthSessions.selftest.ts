@@ -8,6 +8,7 @@ import crypto from "node:crypto";
 import type { AddressInfo } from "node:net";
 import { MemoryAuthRateLimitStore } from "../utils/authRateLimit.js";
 import { productionAuthorizationPolicy } from "../utils/authorizationPolicy.js";
+import { clientIp } from "../utils/clientIp.js";
 import { resolveSessionKeyRing } from "../utils/sessionKeys.js";
 import { shouldClearSession } from "../utils/shouldClearSession.js";
 
@@ -66,6 +67,8 @@ const tables: Record<string, Row[]> = {
 };
 
 let failDeviceReads = false;
+let failSessionRevoke = false;
+let failPasswordWrite = false;
 let passed = 0;
 let failed = 0;
 
@@ -182,6 +185,16 @@ async function startMock(): Promise<{ server: http.Server; url: string }> {
         return;
       }
       if (req.method === "PATCH") {
+        if (failSessionRevoke && table === "workshop_device_sessions") {
+          res.writeHead(500, { "content-type": "application/json" });
+          res.end(JSON.stringify({ message: "falha ficticia de revogacao" }));
+          return;
+        }
+        if (failPasswordWrite && table === "workshop_system_users" && Object.prototype.hasOwnProperty.call(body, "password_hash")) {
+          res.writeHead(500, { "content-type": "application/json" });
+          res.end(JSON.stringify({ message: "falha ficticia de gravacao" }));
+          return;
+        }
         const matched = tables[table].filter((row) => matches(row, filters));
         for (const row of matched) Object.assign(row, body);
         const projected = matched.map((row) => project(row, select));
@@ -232,7 +245,9 @@ async function login(
   deviceId: string = `aparelho-${crypto.randomUUID()}`
 ): Promise<{ status: number; json: any; deviceId: string }> {
   const result = await call(base, null, "POST", "/api/auth/login", { username, password, deviceId }, {
-    "x-forwarded-for": ip,
+    "x-vercel-forwarded-for": ip,
+    "x-forwarded-for": "192.0.2.254",
+    "x-real-ip": "192.0.2.253",
     "x-device-id": deviceId,
   });
   return { ...result, deviceId };
@@ -308,6 +323,24 @@ async function main() {
       capped.peek("c", now, 1) === true,
     "memória"
   );
+  const forgedHeaders = {
+    ip: "127.0.0.1",
+    headers: {
+      "x-forwarded-for": "203.0.113.99, 198.51.100.8",
+      "x-real-ip": "203.0.113.77",
+      "x-vercel-forwarded-for": "198.51.100.10",
+    },
+  };
+  record(
+    "cabeçalho forjado não escolhe a chave do limite",
+    clientIp(forgedHeaders, { VERCEL: "1" }) === "198.51.100.10" &&
+      clientIp(
+        { ...forgedHeaders, headers: { "x-forwarded-for": "203.0.113.99", "x-real-ip": "203.0.113.77" } },
+        { VERCEL: "1" }
+      ) === "127.0.0.1" &&
+      clientIp(forgedHeaders, {}) === "127.0.0.1",
+    "ip confiável"
+  );
 
   record(
     "503 não encerra a sessão no navegador",
@@ -337,6 +370,7 @@ async function main() {
   delete process.env.OPENAI_API_KEY;
   delete process.env.ADMIN_PASSWORD;
   process.env.NODE_ENV = "development";
+  process.env.VERCEL = "1";
 
   const { createApiApp } = await import("../apiApp.ts");
   const first = await listen(createApiApp());
@@ -435,12 +469,12 @@ async function main() {
     const wrongChange = await call(base, anaA.json?.token, "POST", "/api/auth/change-my-password", {
       currentPassword: PASS_WRONG,
       newPassword: PASS_ANA_NOVA,
-    }, { "x-forwarded-for": "troca-ana" });
+    }, { "x-vercel-forwarded-for": "troca-ana", "x-forwarded-for": "192.0.2.254" });
     const hashAfterWrong = String(userRow(USER_ANA)?.password_hash);
     const changed = await call(base, anaA.json?.token, "POST", "/api/auth/change-my-password", {
       currentPassword: PASS_ANA,
       newPassword: PASS_ANA_NOVA,
-    }, { "x-forwarded-for": "troca-ana" });
+    }, { "x-vercel-forwarded-for": "troca-ana", "x-forwarded-for": "192.0.2.254" });
     const otherAna = await call(base, anaB.json?.token, "GET", "/api/auth/my-access");
     const sameAna = await call(base, anaA.json?.token, "GET", "/api/auth/my-access");
     const oldAna = await login(base, "ana", PASS_ANA);
@@ -506,6 +540,106 @@ async function main() {
       `reset ${reset.status}, sessão ${biaAfter.status}`
     );
 
+    const semSession = await login(base, "sem", PASS_ANA);
+    const anaControl = await login(base, "ana", PASS_ANA_NOVA);
+    const semHash = String(userRow(USER_SEM)?.password_hash);
+    const semRow = sessionRow(String(semSession.json?.sessionId || ""));
+    const profileOnly = await call(base, adminA.json?.token, "PUT", `/api/system-users/${USER_SEM}`, {
+      adminPassword: PASS_ADMIN_NOVA,
+      displayName: "Sem Dois",
+    });
+    const semAfterProfile = await call(base, semSession.json?.token, "GET", "/api/auth/my-access");
+    const anaAfterProfile = await call(base, anaControl.json?.token, "GET", "/api/auth/my-access");
+    record(
+      "cadastro sem senha não revoga sessões",
+      profileOnly.status === 200 &&
+        profileOnly.json?.passwordUpdated === false &&
+        String(userRow(USER_SEM)?.password_hash) === semHash &&
+        semRow?.revoked_at == null &&
+        semAfterProfile.status === 200 &&
+        anaAfterProfile.status === 200,
+      `status ${profileOnly.status}`
+    );
+
+    failSessionRevoke = true;
+    const revokeFail = await call(base, adminA.json?.token, "PUT", `/api/system-users/${USER_SEM}`, {
+      adminPassword: PASS_ADMIN_NOVA,
+      password: "senha-sem-nova",
+    });
+    const semAfterRevokeFail = await call(base, semSession.json?.token, "GET", "/api/auth/my-access");
+    const anaAfterRevokeFail = await call(base, anaControl.json?.token, "GET", "/api/auth/my-access");
+    failSessionRevoke = false;
+    record(
+      "falha ao revogar não grava a senha nova",
+      revokeFail.status === 503 &&
+        revokeFail.json?.code === "sessions_not_revoked" &&
+        revokeFail.json?.passwordUpdated !== true &&
+        String(userRow(USER_SEM)?.password_hash) === semHash &&
+        semRow?.revoked_at == null &&
+        semAfterRevokeFail.status === 200 &&
+        anaAfterRevokeFail.status === 200 &&
+        sessionRow(String(anaControl.json?.sessionId || ""))?.revoked_at == null,
+      `status ${revokeFail.status}`
+    );
+
+    await call(base, semSession.json?.token, "GET", "/api/auth/my-access");
+    failPasswordWrite = true;
+    const writeFail = await call(base, adminA.json?.token, "PUT", `/api/system-users/${USER_SEM}`, {
+      adminPassword: PASS_ADMIN_NOVA,
+      password: "senha-sem-nova",
+    });
+    const semAfterWriteFail = await call(base, semSession.json?.token, "GET", "/api/auth/my-access");
+    const anaAfterWriteFail = await call(base, anaControl.json?.token, "GET", "/api/auth/my-access");
+    const semOldLogin = await login(base, "sem", PASS_ANA);
+    failPasswordWrite = false;
+    record(
+      "falha ao gravar a senha deixa a senha antiga e encerra só aquele funcionário",
+      writeFail.status === 500 &&
+        writeFail.json?.passwordUpdated !== true &&
+        String(userRow(USER_SEM)?.password_hash) === semHash &&
+        semRow?.revoked_at != null &&
+        semAfterWriteFail.status === 401 &&
+        anaAfterWriteFail.status === 200 &&
+        sessionRow(String(anaControl.json?.sessionId || ""))?.revoked_at == null &&
+        semOldLogin.status === 200,
+      `status ${writeFail.status}, sessão ${semAfterWriteFail.status}`
+    );
+
+    const contaSession = await login(base, "conta", PASS_CONTA);
+    const legacy = signToken({ r: "user", u: USER_CONTA, n: "conta", exp: Date.now() + 60_000 }, SESSION_SECRET);
+    const legacyBefore = await call(base, legacy, "GET", "/api/auth/my-access");
+    const contaChanged = await call(base, contaSession.json?.token, "POST", "/api/auth/change-my-password", {
+      currentPassword: PASS_CONTA,
+      newPassword: "senha-conta-nova",
+    }, { "x-vercel-forwarded-for": "troca-conta", "x-forwarded-for": "192.0.2.254" });
+    const legacyAfter = await call(base, legacy, "GET", "/api/auth/my-access");
+    const contaStill = await call(base, contaSession.json?.token, "GET", "/api/auth/my-access");
+    record(
+      "token legado sem sid continua válido depois da troca de senha",
+      legacyBefore.status === 200 &&
+        contaChanged.status === 200 &&
+        contaStill.status === 200 &&
+        legacyAfter.status === 200 &&
+        sessionRow(String(contaSession.json?.sessionId || ""))?.revoked_at == null,
+      `legado ${legacyAfter.status}`
+    );
+
+    const cached = await login(base, "ana", PASS_ANA_NOVA);
+    const cachedOk = await call(base, cached.json?.token, "GET", "/api/auth/my-access");
+    const cachedRow = sessionRow(String(cached.json?.sessionId || ""));
+    if (cachedRow) cachedRow.revoked_at = new Date().toISOString();
+    const duringWindow = await call(base, cached.json?.token, "GET", "/api/auth/my-access");
+    await new Promise((resolve) => setTimeout(resolve, 21_000));
+    const afterWindow = await call(base, cached.json?.token, "GET", "/api/auth/my-access");
+    record(
+      "revogação fora do processo passa a valer depois da janela de 20s",
+      cachedOk.status === 200 &&
+        duringWindow.status === 200 &&
+        afterWindow.status === 401 &&
+        afterWindow.json?.code === "session_revoked",
+      `durante ${duringWindow.status}, depois ${afterWindow.status}`
+    );
+
     const floodIp = "203.0.113.10";
     const flood: number[] = [];
     for (let i = 0; i < 11; i += 1) flood.push((await login(base, "ninguem", PASS_WRONG, floodIp)).status);
@@ -523,6 +657,34 @@ async function main() {
         accountStatuses.filter((status) => status === 429).length === 1 &&
         anaAfterAccount.status === 200,
       `ip 429=${flood.filter((status) => status === 429).length}, conta 429=${accountStatuses.filter((status) => status === 429).length}`
+    );
+    const spoofed: number[] = [];
+    for (let i = 0; i < 11; i += 1) {
+      spoofed.push(
+        (
+          await call(
+            base,
+            null,
+            "POST",
+            "/api/auth/login",
+            { username: "ninguem", password: PASS_WRONG, deviceId: `spoof-${i}` },
+            {
+              "x-vercel-forwarded-for": "203.0.113.60",
+              "x-forwarded-for": `198.51.100.${i}`,
+              "x-real-ip": `192.0.2.${i}`,
+              "x-device-id": `spoof-${i}`,
+            }
+          )
+        ).status
+      );
+    }
+    const freshPlatform = await login(base, "ninguem", PASS_WRONG, "203.0.113.61");
+    record(
+      "rodar x-forwarded-for não abre outro limite",
+      spoofed.filter((status) => status === 429).length === 1 &&
+        spoofed.filter((status) => status === 401).length === 10 &&
+        freshPlatform.status === 401,
+      spoofed.join(",")
     );
 
     const parallelIp = "203.0.113.50";
@@ -570,7 +732,7 @@ async function main() {
           await call(base, holder.json?.token, "POST", "/api/auth/change-my-password", {
             currentPassword: PASS_WRONG,
             newPassword: "senha-nova-sem",
-          }, { "x-forwarded-for": passwordIp })
+          }, { "x-vercel-forwarded-for": passwordIp, "x-forwarded-for": "192.0.2.254" })
         ).status
       );
     }
@@ -580,6 +742,32 @@ async function main() {
         attempts.filter((status) => status === 429).length === 1 &&
         String(userRow(USER_SEM)?.password_hash) === hashSem,
       attempts.join(",")
+    );
+
+    const socketHits: number[] = [];
+    for (let i = 0; i < 12; i += 1) {
+      socketHits.push(
+        (
+          await call(
+            base,
+            null,
+            "POST",
+            "/api/auth/login",
+            { username: "ninguem", password: PASS_WRONG, deviceId: `socket-${i}` },
+            {
+              "x-forwarded-for": `203.0.113.${i}`,
+              "x-real-ip": `192.0.2.${i}`,
+              "x-vercel-forwarded-for": "",
+              "x-device-id": `socket-${i}`,
+            }
+          )
+        ).status
+      );
+    }
+    record(
+      "sem o cabeçalho da plataforma o limite usa o socket",
+      socketHits.slice(0, 10).every((status) => status === 401) && socketHits[10] === 429 && socketHits[11] === 429,
+      socketHits.join(",")
     );
   } finally {
     first.server.close();

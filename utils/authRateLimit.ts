@@ -1,8 +1,7 @@
 /**
- * Limite de tentativas por janela.
- * O armazenamento em memória vale para uma instância. Duas instâncias só compartilham
- * contagem se usarem o mesmo store. Persistência distribuída fica fora desta etapa:
- * exigiria tabela nova e não foi aprovada.
+ * Limite de tentativas por janela, só nesta instância.
+ * Não é proteção distribuída: duas funções serverless não compartilham a contagem.
+ * Persistir a contagem continua pendente e exigiria tabela nova, ainda não aprovada.
  */
 
 export type RateHit = { count: number; resetAt: number; limited: boolean };
