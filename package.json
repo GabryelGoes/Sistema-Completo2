@@ -70,6 +70,7 @@
     "test:sec0511a-auth-rate-limit": "tsx scripts/sec0511aAuthRateLimit.selftest.ts",
     "test:sec0511a-rpc-postgres": "tsx scripts/sec0511aRpcPostgres.selftest.ts",
     "test:sec0511b-client-ip": "tsx scripts/sec0511bClientIp.selftest.ts",
+    "test:sec0512a-security-audit": "tsx scripts/sec0512aSecurityAudit.selftest.ts",
     "test:workshop-part-reservations": "tsx scripts/workshopPartReservations.selftest.ts",
     "test:vehicle-maintenance-parts": "tsx scripts/vehicleMaintenanceParts.selftest.ts"
   },

@@ -82,6 +82,19 @@ import { classifyNewLoginPassword } from "./utils/loginPasswordPolicy.js";
 import { AuthRateLimitUnavailable } from "./utils/authRateLimit.js";
 import { resolveAuthRateLimitStore } from "./utils/postgresAuthRateLimit.js";
 import { clientIp } from "./utils/clientIp.js";
+import {
+  changedPermissionKeys,
+  createSecurityAudit,
+  pageSecurityEvents,
+  parseSecurityEventQuery,
+  publicSecurityEvent,
+  securitySettingKeys,
+  summarizeSecurityEvents,
+  SECURITY_AUDIT_FETCH_CAP,
+  SECURITY_AUDIT_SUMMARY_CAP,
+  type SecurityEventDraft,
+  type SecurityEventRow,
+} from "./utils/securityAudit.js";
 import { resolveSessionKeyRing } from "./utils/sessionKeys.js";
 import { effectiveFamilyMode, guardHttpAuthorization, permissionSourceFromSupabase } from "./utils/authorizeRequest.js";
 import { notificationScope, type NotificationScope } from "./utils/notificationAudience.js";
@@ -1657,24 +1670,59 @@ export function createApiApp() {
     const auth = verifySessionToken(bearer);
     if (auth) {
       const gate = await enforceDeviceSession(req, auth);
+      const auditActor = auth.r === "user" ? auth.u || null : null;
+      const auditSession = auth.sid || null;
+      const auditDevice = auth.did || deviceIdFromReq(req) || null;
       if (gate === "invalid") {
+        await auditFromReq(req, {
+          eventType: "session_invalid",
+          outcome: "denied",
+          actorUserId: auditActor,
+          sessionId: auditSession,
+          deviceId: auditDevice,
+          metadata: { area: "login" },
+        });
         return res.status(401).json({
           error: "Sessão inválida ou expirada. Faça login novamente.",
           code: "session_invalid",
         });
       }
       if (gate === "revoked") {
+        await auditFromReq(req, {
+          eventType: "session_revoked",
+          outcome: "denied",
+          actorUserId: auditActor,
+          sessionId: auditSession,
+          deviceId: auditDevice,
+          metadata: { area: "login" },
+        });
         return res.status(401).json({
           error: "Sessão encerrada remotamente. Faça login novamente.",
           code: "session_revoked",
         });
       }
       if (gate === "blocked") {
+        await auditFromReq(req, {
+          eventType: "device_blocked",
+          outcome: "denied",
+          actorUserId: auditActor,
+          sessionId: auditSession,
+          deviceId: auditDevice,
+          metadata: { area: "devices" },
+        });
         return res.status(403).json({
           error: "Este dispositivo foi bloqueado e não pode acessar o sistema.",
         });
       }
       if (gate === "unavailable") {
+        await auditFromReq(req, {
+          eventType: "session_check_unavailable",
+          outcome: "error",
+          actorUserId: auditActor,
+          sessionId: auditSession,
+          deviceId: auditDevice,
+          metadata: { area: "login" },
+        });
         return res.status(503).json({
           error: "Não foi possível confirmar a sessão. Tente novamente.",
           code: "session_check_unavailable",
@@ -1703,6 +1751,15 @@ export function createApiApp() {
       return res.status(401).json({ error: "Token de TV inválido." });
     }
 
+    if (bearer) {
+      await auditFromReq(req, {
+        eventType: "session_invalid",
+        outcome: "denied",
+        actorUserId: null,
+        sessionId: null,
+        metadata: { area: "login" },
+      });
+    }
     return res.status(401).json({
       error: "Sessão inválida ou expirada. Faça login novamente.",
       code: "session_invalid",
@@ -2262,9 +2319,41 @@ export function createApiApp() {
 
   // memory por padrão. postgres só com AUTH_RATE_LIMIT_STORE=postgres, depois da migration.
   const authLimits = resolveAuthRateLimitStore(process.env, supabaseAdmin);
+  const securityAudit = createSecurityAudit({
+    workshopId: () => WORKSHOP_ID,
+    secret: () => resolveSessionKeyRing()?.current || "",
+    env: process.env,
+    insert: async (row) => {
+      if (!supabaseAdmin) return { ok: false };
+      const { error } = await supabaseAdmin.from("workshop_security_events").insert(row);
+      return { ok: !error };
+    },
+    logCritical: () => console.error("[audit] Não foi possível registrar o evento."),
+  });
 
-  function rateLimitUnavailable(res: express.Response, kind: "login" | "password") {
+  async function auditFromReq(
+    req: express.Request,
+    draft: Omit<SecurityEventDraft, "ip" | "deviceId" | "actorUserId" | "sessionId"> & Partial<SecurityEventDraft>
+  ) {
+    const auth = (req as unknown as { auth?: SessionPayload }).auth;
+    await securityAudit.record({
+      eventType: draft.eventType,
+      outcome: draft.outcome,
+      metadata: draft.metadata,
+      ip: draft.ip === undefined ? clientIp(req) : draft.ip,
+      deviceId: draft.deviceId === undefined ? auth?.did || deviceIdFromReq(req) || null : draft.deviceId,
+      actorUserId: draft.actorUserId === undefined ? (auth?.r === "user" ? auth.u || null : null) : draft.actorUserId,
+      sessionId: draft.sessionId === undefined ? auth?.sid || null : draft.sessionId,
+    });
+  }
+
+  async function rateLimitUnavailable(req: express.Request, res: express.Response, kind: "login" | "password") {
     console.error("[auth] Contador de tentativas indisponível.");
+    await auditFromReq(req, {
+      eventType: "rate_limit_unavailable",
+      outcome: "error",
+      metadata: { area: kind === "login" ? "login" : "password" },
+    });
     return res.status(503).json({
       error:
         kind === "login"
@@ -2307,10 +2396,11 @@ export function createApiApp() {
       try {
         ipHit = await authLimits.hit(`login:ip:${ip}`, now, LOGIN_IP_WINDOW_MS, LOGIN_IP_MAX);
       } catch (err) {
-        if (err instanceof AuthRateLimitUnavailable) return rateLimitUnavailable(res, "login");
+        if (err instanceof AuthRateLimitUnavailable) return rateLimitUnavailable(req, res, "login");
         throw err;
       }
       if (ipHit.limited) {
+        await auditFromReq(req, { eventType: "rate_limited", outcome: "denied", metadata: { area: "login" } });
         return res.status(429).json({
           error: "Muitas tentativas de login. Aguarde alguns minutos e tente novamente.",
           code: "rate_limited",
@@ -2327,10 +2417,11 @@ export function createApiApp() {
       try {
         accountLimited = await authLimits.peek(accountBucket, now, LOGIN_ACCOUNT_MAX);
       } catch (err) {
-        if (err instanceof AuthRateLimitUnavailable) return rateLimitUnavailable(res, "login");
+        if (err instanceof AuthRateLimitUnavailable) return rateLimitUnavailable(req, res, "login");
         throw err;
       }
       if (accountLimited) {
+        await auditFromReq(req, { eventType: "rate_limited", outcome: "denied", metadata: { area: "login" } });
         return res.status(429).json({
           error: "Muitas tentativas de login. Aguarde alguns minutos e tente novamente.",
           code: "rate_limited",
@@ -2341,12 +2432,14 @@ export function createApiApp() {
       if (deviceId) {
         const block = await isDeviceBlocked(deviceId);
         if (block === "unavailable") {
+          await auditFromReq(req, { eventType: "session_check_unavailable", outcome: "error", metadata: { area: "login" } });
           return res.status(503).json({
             error: "Não foi possível confirmar a sessão. Tente novamente.",
             code: "session_check_unavailable",
           });
         }
         if (block === "blocked") {
+          await auditFromReq(req, { eventType: "device_blocked", outcome: "denied", metadata: { area: "login" } });
           return res.status(403).json({
             error: "Este dispositivo foi bloqueado e não pode acessar o sistema.",
           });
@@ -2360,7 +2453,7 @@ export function createApiApp() {
       );
       const sessionId = crypto.randomUUID();
       const adminName = u.toLowerCase() === ADMIN_USERNAME.toLowerCase();
-      const rejectKnownAccount = async () => {
+      const rejectKnownAccount = async (actorUserId?: string) => {
         try {
           const accountHit = await authLimits.hit(
             accountBucket,
@@ -2369,15 +2462,27 @@ export function createApiApp() {
             LOGIN_ACCOUNT_MAX
           );
           if (accountHit.limited) {
+            await auditFromReq(req, {
+              eventType: "rate_limited",
+              outcome: "denied",
+              actorUserId: actorUserId || null,
+              metadata: { area: "login" },
+            });
             return res.status(429).json({
               error: "Muitas tentativas de login. Aguarde alguns minutos e tente novamente.",
               code: "rate_limited",
             });
           }
         } catch (err) {
-          if (err instanceof AuthRateLimitUnavailable) return rateLimitUnavailable(res, "login");
+          if (err instanceof AuthRateLimitUnavailable) return rateLimitUnavailable(req, res, "login");
           throw err;
         }
+        await auditFromReq(req, {
+          eventType: "login_denied",
+          outcome: "denied",
+          actorUserId: actorUserId || null,
+          metadata: { area: "login" },
+        });
         return res.status(401).json({ error: "Usuário ou senha incorretos." });
       };
 
@@ -2385,7 +2490,7 @@ export function createApiApp() {
         try {
           await resetLoginBuckets(ip, u);
         } catch (err) {
-          if (err instanceof AuthRateLimitUnavailable) return rateLimitUnavailable(res, "login");
+          if (err instanceof AuthRateLimitUnavailable) return rateLimitUnavailable(req, res, "login");
           throw err;
         }
         const token = signSessionToken({
@@ -2413,10 +2518,20 @@ export function createApiApp() {
             osName: deviceInfo.osName,
             deviceModel: deviceInfo.deviceModel,
           });
+          await auditFromReq(req, {
+            eventType: "login_succeeded",
+            outcome: "success",
+            sessionId,
+            actorUserId: null,
+            metadata: { area: "login" },
+          });
         }
         return res.json({ role: "admin", token, sessionId, deviceId: deviceId || null });
       }
       if (!supabaseAdmin || !WORKSHOP_ID) {
+        if (!adminName) {
+          await auditFromReq(req, { eventType: "login_unavailable", outcome: "error", metadata: { area: "login" } });
+        }
         return adminName ? rejectKnownAccount() : res.status(401).json({ error: "Usuário ou senha incorretos." });
       }
       const { data: users, error } = await supabaseAdmin
@@ -2424,20 +2539,24 @@ export function createApiApp() {
         .select("id, username, display_name, permissions, password_hash, photo_url, is_technician, accent_color")
         .eq("workshop_id", WORKSHOP_ID);
       if (error) {
+        await auditFromReq(req, { eventType: "login_unavailable", outcome: "error", metadata: { area: "login" } });
         return res.status(401).json({ error: "Usuário ou senha incorretos." });
       }
       const uLower = u.toLowerCase();
       const user = (users || []).find((r) => String(r.username).trim().toLowerCase() === uLower);
       if (!user) {
+        if (!adminName) {
+          await auditFromReq(req, { eventType: "login_denied", outcome: "denied", actorUserId: null, metadata: { area: "login" } });
+        }
         return adminName ? rejectKnownAccount() : res.status(401).json({ error: "Usuário ou senha incorretos." });
       }
       if (!verifyPassword(p, user.password_hash)) {
-        return rejectKnownAccount();
+        return rejectKnownAccount(user.id);
       }
       try {
         await resetLoginBuckets(ip, u);
       } catch (err) {
-        if (err instanceof AuthRateLimitUnavailable) return rateLimitUnavailable(res, "login");
+        if (err instanceof AuthRateLimitUnavailable) return rateLimitUnavailable(req, res, "login");
         throw err;
       }
       const permissions = (user.permissions as Record<string, boolean>) || {};
@@ -2468,6 +2587,13 @@ export function createApiApp() {
           osName: deviceInfo.osName,
           deviceModel: deviceInfo.deviceModel,
         });
+        await auditFromReq(req, {
+          eventType: "login_succeeded",
+          outcome: "success",
+          actorUserId: user.id,
+          sessionId,
+          metadata: { area: "login" },
+        });
       }
       return res.json({
         role: "user",
@@ -2483,7 +2609,7 @@ export function createApiApp() {
         permissions,
       });
     } catch (err: any) {
-      if (err instanceof AuthRateLimitUnavailable) return rateLimitUnavailable(res, "login");
+      if (err instanceof AuthRateLimitUnavailable) return rateLimitUnavailable(req, res, "login");
       console.error("[API] Erro em POST /api/auth/login:", err);
       return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
     }
@@ -2661,6 +2787,7 @@ export function createApiApp() {
         return res.status(500).json({ error: "Servidor não configurado." });
       }
       if (!(await requestHasFullAccess(req))) {
+        await auditFromReq(req, { eventType: "admin_access_denied", outcome: "denied", metadata: { area: "devices" } });
         return res.status(403).json({ error: "Apenas usuários com acesso total podem deslogar dispositivos." });
       }
       const sessionId = typeof req.params.sessionId === "string" ? req.params.sessionId.trim() : "";
@@ -2683,6 +2810,13 @@ export function createApiApp() {
         return res.status(404).json({ error: "Sessão não encontrada ou já encerrada." });
       }
       rememberRevokedSession(sessionId);
+      await auditFromReq(req, {
+        eventType: "session_revoked_admin",
+        outcome: "success",
+        sessionId,
+        deviceId: typeof data.device_id === "string" ? data.device_id : null,
+        metadata: { area: "devices" },
+      });
       return res.json({ ok: true, sessionId });
     } catch (err: any) {
       console.error("[API] Erro em POST /api/auth/devices/:sessionId/revoke:", err);
@@ -2697,6 +2831,7 @@ export function createApiApp() {
         return res.status(500).json({ error: "Servidor não configurado." });
       }
       if (!(await requestHasFullAccess(req))) {
+        await auditFromReq(req, { eventType: "admin_access_denied", outcome: "denied", metadata: { area: "devices" } });
         return res.status(403).json({ error: "Apenas usuários com acesso total podem bloquear dispositivos." });
       }
       const auth = (req as unknown as { auth?: SessionPayload }).auth;
@@ -2794,6 +2929,12 @@ export function createApiApp() {
       for (const row of revokedRows || []) {
         rememberRevokedSession(String(row.id));
       }
+      await auditFromReq(req, {
+        eventType: "device_blocked_admin",
+        outcome: "success",
+        deviceId,
+        metadata: { area: "devices", revokedCount: (revokedRows || []).length },
+      });
       return res.json({
         ok: true,
         blocked: blocked || { deviceId },
@@ -2812,19 +2953,29 @@ export function createApiApp() {
         return res.status(500).json({ error: "Servidor não configurado." });
       }
       if (!(await requestHasFullAccess(req))) {
+        await auditFromReq(req, { eventType: "admin_access_denied", outcome: "denied", metadata: { area: "devices" } });
         return res.status(403).json({ error: "Apenas usuários com acesso total podem desbloquear dispositivos." });
       }
       const deviceId = typeof req.params.deviceId === "string" ? decodeURIComponent(req.params.deviceId).trim() : "";
       if (!deviceId) {
         return res.status(400).json({ error: "Dispositivo inválido." });
       }
-      const { error } = await supabaseAdmin
+      const { data: unblocked, error } = await supabaseAdmin
         .from("workshop_blocked_devices")
         .delete()
         .eq("workshop_id", WORKSHOP_ID)
-        .eq("device_id", deviceId);
+        .eq("device_id", deviceId)
+        .select("device_id");
       if (error) {
         return res.status(500).json({ error: error.message || "Falha ao desbloquear." });
+      }
+      if ((unblocked || []).length > 0) {
+        await auditFromReq(req, {
+          eventType: "device_unblocked",
+          outcome: "success",
+          deviceId,
+          metadata: { area: "devices" },
+        });
       }
       return res.json({ ok: true, deviceId });
     } catch (err: any) {
@@ -2839,13 +2990,16 @@ export function createApiApp() {
       const auth = (req as unknown as { auth?: SessionPayload }).auth;
       if (auth?.sid && supabaseAdmin && WORKSHOP_ID) {
         const nowIso = new Date().toISOString();
-        await supabaseAdmin
+        const { error: logoutError } = await supabaseAdmin
           .from("workshop_device_sessions")
           .update({ revoked_at: nowIso })
           .eq("id", auth.sid)
           .eq("workshop_id", WORKSHOP_ID)
           .is("revoked_at", null);
         rememberRevokedSession(auth.sid);
+        if (!logoutError) {
+          await auditFromReq(req, { eventType: "logout", outcome: "success", metadata: { area: "login" } });
+        }
       }
       return res.json({ ok: true });
     } catch (err: any) {
@@ -2908,8 +3062,9 @@ export function createApiApp() {
         return res.status(400).json({ error: nextPassword.message, code: "invalid_new_password" });
       }
       const ownPasswordLimit = await passwordChangeLimited(clientIp(req), `user:${auth.u}`);
-      if (ownPasswordLimit === "unavailable") return rateLimitUnavailable(res, "password");
+      if (ownPasswordLimit === "unavailable") return rateLimitUnavailable(req, res, "password");
       if (ownPasswordLimit === "limited") {
+        await auditFromReq(req, { eventType: "rate_limited", outcome: "denied", metadata: { area: "password" } });
         return res.status(429).json({
           error: "Muitas tentativas de troca de senha. Aguarde alguns minutos e tente novamente.",
           code: "rate_limited",
@@ -2942,9 +3097,10 @@ export function createApiApp() {
         .eq("id", user.id)
         .eq("workshop_id", WORKSHOP_ID);
       if (error) return res.status(500).json({ error: "Falha ao alterar senha." });
+      await auditFromReq(req, { eventType: "password_changed", outcome: "success", metadata: { area: "password" } });
       return res.json({ ok: true, passwordUpdated: true });
     } catch (err: any) {
-      if (err instanceof AuthRateLimitUnavailable) return rateLimitUnavailable(res, "password");
+      if (err instanceof AuthRateLimitUnavailable) return rateLimitUnavailable(req, res, "password");
       console.error("[API] Erro em POST /api/auth/change-my-password:", err);
       return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
     }
@@ -3130,6 +3286,7 @@ export function createApiApp() {
     try {
       const adminPassword = adminPasswordFromReq(req);
       if (!WORKSHOP_ID || !(isAdminRequest(req) || (await verifyAdmin(ADMIN_USERNAME, adminPassword)))) {
+        await auditFromReq(req, { eventType: "admin_access_denied", outcome: "denied", metadata: { area: "users" } });
         return res.status(403).json({ error: "Acesso negado." });
       }
       const { data, error } = await supabaseAdmin
@@ -3151,6 +3308,7 @@ export function createApiApp() {
     try {
       const { adminPassword, username, password, displayName, permissions, isTechnician, jobTitle } = req.body || {};
       if (!WORKSHOP_ID || !(await verifyAdmin(ADMIN_USERNAME, adminPassword))) {
+        await auditFromReq(req, { eventType: "admin_access_denied", outcome: "denied", metadata: { area: "users" } });
         return res.status(403).json({ error: "Acesso negado." });
       }
       const u = typeof username === "string" ? username.trim() : "";
@@ -3185,6 +3343,12 @@ export function createApiApp() {
         if (error.code === "23505") return res.status(400).json({ error: "Este nome de usuário já existe." });
         return res.status(500).json({ error: error.message });
       }
+      await auditFromReq(req, {
+        eventType: "employee_created",
+        outcome: "success",
+        actorUserId: null,
+        metadata: { area: "users", targetUserId: data.id },
+      });
       return res.status(201).json(data);
     } catch (err: any) {
       console.error("[API] Erro em POST /api/system-users:", err);
@@ -3197,9 +3361,12 @@ export function createApiApp() {
       const { adminPassword, password, displayName, permissions, permissionsMode, isTechnician, jobTitle } =
         req.body || {};
       if (!WORKSHOP_ID || !(await verifyAdmin(ADMIN_USERNAME, adminPassword))) {
+        await auditFromReq(req, { eventType: "admin_access_denied", outcome: "denied", metadata: { area: "users" } });
         return res.status(403).json({ error: "Acesso negado." });
       }
       const id = req.params.id;
+      let permissionBefore: Record<string, boolean> | null = null;
+      let permissionAfter: Record<string, boolean> | null = null;
       const nextPassword = classifyNewLoginPassword(password);
       if (nextPassword.status === "invalid") {
         return res.status(400).json({ error: nextPassword.message, code: "invalid_new_password" });
@@ -3255,6 +3422,11 @@ export function createApiApp() {
         }
         updates.permissions = plan.nextPermissions;
         expectedUpdatedAt = plan.expectedUpdatedAt;
+        permissionBefore =
+          existingRow?.permissions && typeof existingRow.permissions === "object" && !Array.isArray(existingRow.permissions)
+            ? (existingRow.permissions as Record<string, boolean>)
+            : {};
+        permissionAfter = plan.nextPermissions as Record<string, boolean>;
       } else {
         // Sem patch de permissions: ainda assim carrega updated_at para CAS obrigatório.
         const { data: existingRow, error: loadError } = await supabaseAdmin
@@ -3301,8 +3473,9 @@ export function createApiApp() {
       }
       if (nextPassword.status === "ready") {
         const resetLimit = await passwordChangeLimited(clientIp(req), `reset:${id}`);
-        if (resetLimit === "unavailable") return rateLimitUnavailable(res, "password");
+        if (resetLimit === "unavailable") return rateLimitUnavailable(req, res, "password");
         if (resetLimit === "limited") {
+          await auditFromReq(req, { eventType: "rate_limited", outcome: "denied", metadata: { area: "password" } });
           return res.status(429).json({
             error: "Muitas tentativas de troca de senha. Aguarde alguns minutos e tente novamente.",
             code: "rate_limited",
@@ -3349,9 +3522,28 @@ export function createApiApp() {
           code: "permissions_conflict",
         });
       }
+      if (permissionAfter) {
+        const permissionKeys = changedPermissionKeys(permissionBefore, permissionAfter);
+        if (permissionKeys.length > 0) {
+          await auditFromReq(req, {
+            eventType: "permissions_changed",
+            outcome: "success",
+            actorUserId: null,
+            metadata: { area: "users", permissionKeys, targetUserId: String(id) },
+          });
+        }
+      }
+      if (nextPassword.status === "ready") {
+        await auditFromReq(req, {
+          eventType: "password_changed",
+          outcome: "success",
+          actorUserId: null,
+          metadata: { area: "password", targetUserId: String(id) },
+        });
+      }
       return res.json({ ...write.row, passwordUpdated: nextPassword.status === "ready" });
     } catch (err: any) {
-      if (err instanceof AuthRateLimitUnavailable) return rateLimitUnavailable(res, "password");
+      if (err instanceof AuthRateLimitUnavailable) return rateLimitUnavailable(req, res, "password");
       console.error("[API] Erro em PUT /api/system-users/:id:", err);
       return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
     }
@@ -3361,14 +3553,24 @@ export function createApiApp() {
     try {
       const adminPassword = adminPasswordFromReq(req);
       if (!WORKSHOP_ID || !(isAdminRequest(req) || (await verifyAdmin(ADMIN_USERNAME, adminPassword)))) {
+        await auditFromReq(req, { eventType: "admin_access_denied", outcome: "denied", metadata: { area: "users" } });
         return res.status(403).json({ error: "Acesso negado." });
       }
-      const { error } = await supabaseAdmin
+      const { data: removed, error } = await supabaseAdmin
         .from("workshop_system_users")
         .delete()
         .eq("id", req.params.id)
-        .eq("workshop_id", WORKSHOP_ID);
+        .eq("workshop_id", WORKSHOP_ID)
+        .select("id");
       if (error) return res.status(500).json({ error: error.message });
+      if ((removed || []).length > 0) {
+        await auditFromReq(req, {
+          eventType: "employee_removed",
+          outcome: "success",
+          actorUserId: null,
+          metadata: { area: "users", targetUserId: String(req.params.id) },
+        });
+      }
       return res.status(204).send();
     } catch (err: any) {
       console.error("[API] Erro em DELETE /api/system-users/:id:", err);
@@ -3808,6 +4010,17 @@ export function createApiApp() {
       const settingsActor = await loadWorkshopSettingsActor(req);
       const authz = authorizeWorkshopSettingsWrite(settingsActor, writeBody);
       if (!authz.ok) {
+        const deniedKeys = securitySettingKeys([
+          typeof writeBody.patioLoginEnabled === "boolean" ? "patio_login_enabled" : "",
+          ...plannedSecretWrites(writeBody).map((secret) => secret.key),
+        ]);
+        if (deniedKeys.length > 0) {
+          await auditFromReq(req, {
+            eventType: "admin_access_denied",
+            outcome: "denied",
+            metadata: { area: "settings", changedKeys: deniedKeys },
+          });
+        }
         console.warn(
           "[API] workshop-settings authz deny",
           JSON.stringify(
@@ -3895,8 +4108,9 @@ export function createApiApp() {
       if (updates.some((item) => item.key === "admin_password")) {
         const auth = (req as unknown as { auth?: SessionPayload }).auth;
         const adminPasswordLimit = await passwordChangeLimited(clientIp(req), "gerência");
-        if (adminPasswordLimit === "unavailable") return rateLimitUnavailable(res, "password");
+        if (adminPasswordLimit === "unavailable") return rateLimitUnavailable(req, res, "password");
         if (adminPasswordLimit === "limited") {
+          await auditFromReq(req, { eventType: "rate_limited", outcome: "denied", metadata: { area: "password" } });
           return res.status(429).json({
             error: "Muitas tentativas de troca de senha. Aguarde alguns minutos e tente novamente.",
             code: "rate_limited",
@@ -3956,6 +4170,23 @@ export function createApiApp() {
           appAppearanceOut = null;
         }
       }
+      const changedKeys = securitySettingKeys(updates.map((item) => item.key));
+      if (changedKeys.length > 0) {
+        await auditFromReq(req, {
+          eventType: "security_settings_changed",
+          outcome: "success",
+          actorUserId: null,
+          metadata: { area: "settings", changedKeys },
+        });
+        if (changedKeys.includes("admin_password")) {
+          await auditFromReq(req, {
+            eventType: "password_changed",
+            outcome: "success",
+            actorUserId: null,
+            metadata: { area: "gerencia" },
+          });
+        }
+      }
       return res.json(
         withWorkshopSecretFlags(
           {
@@ -3976,9 +4207,94 @@ export function createApiApp() {
         )
       );
     } catch (err: any) {
-      if (err instanceof AuthRateLimitUnavailable) return rateLimitUnavailable(res, "password");
+      if (err instanceof AuthRateLimitUnavailable) return rateLimitUnavailable(req, res, "password");
       console.error("[API] Erro em PUT /api/workshop-settings:", err);
       return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
+    }
+  });
+
+  function securityEventSearch(req: express.Request): URLSearchParams {
+    const params = new URLSearchParams();
+    for (const [key, value] of Object.entries(req.query)) {
+      if (typeof value === "string") params.set(key, value);
+    }
+    return params;
+  }
+
+  async function loadSecurityEvents(query: {
+    from?: string | null;
+    to?: string | null;
+    eventType?: string | null;
+    outcome?: string | null;
+    actorUserId?: string | null;
+    cursor?: { occurredAt: string; id: string } | null;
+  }, cap: number): Promise<SecurityEventRow[] | null> {
+    if (!supabaseAdmin || !WORKSHOP_ID) return null;
+    let request = supabaseAdmin
+      .from("workshop_security_events")
+      .select("id, workshop_id, occurred_at, event_type, outcome, actor_user_id, session_id, device_id, origin, client_ref, metadata")
+      .eq("workshop_id", WORKSHOP_ID);
+    if (query.from) request = request.gte("occurred_at", new Date(query.from).toISOString());
+    if (query.to) request = request.lte("occurred_at", new Date(query.to).toISOString());
+    if (query.eventType) request = request.eq("event_type", query.eventType);
+    if (query.outcome) request = request.eq("outcome", query.outcome);
+    if (query.actorUserId) request = request.eq("actor_user_id", query.actorUserId);
+    if (query.cursor) request = request.lte("occurred_at", query.cursor.occurredAt);
+    const { data, error } = await request
+      .order("occurred_at", { ascending: false })
+      .order("id", { ascending: false })
+      .limit(cap);
+    if (error) return null;
+    return (data || []) as SecurityEventRow[];
+  }
+
+  app.get("/api/security-events/summary", async (req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({ error: "Servidor não configurado." });
+      }
+      if (!(await requestHasFullAccess(req))) {
+        await auditFromReq(req, { eventType: "admin_access_denied", outcome: "denied", metadata: { area: "audit" } });
+        return res.status(403).json({ error: "Acesso negado.", code: "permission_denied" });
+      }
+      const parsed = parseSecurityEventQuery(WORKSHOP_ID, securityEventSearch(req));
+      if (parsed.ok === false) return res.status(400).json({ error: parsed.error });
+      const rows = await loadSecurityEvents(parsed.query, SECURITY_AUDIT_SUMMARY_CAP + 1);
+      if (!rows) return res.status(500).json({ error: "Falha ao ler o histórico." });
+      const summary = summarizeSecurityEvents(
+        rows.slice(0, SECURITY_AUDIT_SUMMARY_CAP),
+        WORKSHOP_ID,
+        parsed.query.from,
+        parsed.query.to
+      );
+      return res.json({ ...summary, truncated: rows.length > SECURITY_AUDIT_SUMMARY_CAP });
+    } catch (err: any) {
+      console.error("[API] Erro em GET /api/security-events/summary:", err);
+      return res.status(500).json({ error: "Falha ao ler o histórico." });
+    }
+  });
+
+  app.get("/api/security-events", async (req, res) => {
+    try {
+      if (!supabaseAdmin || !WORKSHOP_ID) {
+        return res.status(500).json({ error: "Servidor não configurado." });
+      }
+      if (!(await requestHasFullAccess(req))) {
+        await auditFromReq(req, { eventType: "admin_access_denied", outcome: "denied", metadata: { area: "audit" } });
+        return res.status(403).json({ error: "Acesso negado.", code: "permission_denied" });
+      }
+      const parsed = parseSecurityEventQuery(WORKSHOP_ID, securityEventSearch(req));
+      if (parsed.ok === false) return res.status(400).json({ error: parsed.error });
+      const rows = await loadSecurityEvents(parsed.query, SECURITY_AUDIT_FETCH_CAP);
+      if (!rows) return res.status(500).json({ error: "Falha ao ler o histórico." });
+      const page = pageSecurityEvents(rows, parsed.query);
+      return res.json({
+        events: page.events.map(publicSecurityEvent),
+        nextCursor: page.nextCursor,
+      });
+    } catch (err: any) {
+      console.error("[API] Erro em GET /api/security-events:", err);
+      return res.status(500).json({ error: "Falha ao ler o histórico." });
     }
   });
 
