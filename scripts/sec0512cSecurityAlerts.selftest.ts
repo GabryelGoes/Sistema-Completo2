@@ -323,12 +323,120 @@ async function startMock(): Promise<{ url: string; close: () => Promise<void> }>
     hit_count: 9,
     reset_at: "2099-01-01T00:00:00.000Z",
   }];
-  let racedAlertInsert = false;
   const server = http.createServer(async (req, res) => {
     try {
       const url = new URL(req.url || "/", "http://127.0.0.1");
       const table = decodeURIComponent(url.pathname.replace(/^\/rest\/v1\//, "").replace(/\/$/, ""));
-      if (!table || table.startsWith("rpc/")) {
+      if (table.startsWith("rpc/")) {
+        const name = table.slice(4);
+        const raw = await new Promise<string>((resolve, reject) => {
+          const chunks: Buffer[] = [];
+          req.on("data", (chunk) => chunks.push(chunk));
+          req.on("end", () => resolve(Buffer.concat(chunks).toString("utf8")));
+          req.on("error", reject);
+        });
+        const args = raw ? JSON.parse(raw) as Record<string, unknown> : {};
+        const stamp = new Date().toISOString();
+        if (name === "apply_security_alert") {
+          const evidence = args.p_evidence && typeof args.p_evidence === "object" ? args.p_evidence as Record<string, unknown> : {};
+          if (evidence.bucket_key || evidence.password || String(evidence.source || "") === "") {
+            res.writeHead(400, { "content-type": "application/json" });
+            res.end(JSON.stringify({ code: "P0001", message: "invalid evidence" }));
+            return;
+          }
+          const open = tables.workshop_security_alerts.find((row) =>
+            row.workshop_id === args.p_workshop_id &&
+            row.dedupe_key === args.p_dedupe_key &&
+            row.status !== "resolved" &&
+            (!args.p_alert_id || row.id === args.p_alert_id)
+          );
+          if (args.p_alert_id && !open) {
+            const resolved = tables.workshop_security_alerts.find((row) => row.id === args.p_alert_id && row.workshop_id === args.p_workshop_id);
+            res.writeHead(200, { "content-type": "application/json" });
+            res.end(JSON.stringify(resolved ? resolved.id : null));
+            return;
+          }
+          if (open) {
+            Object.assign(open, {
+              severity: args.p_severity,
+              title: args.p_title,
+              explanation: args.p_explanation,
+              occurrence_count: args.p_occurrence_count,
+              condition_active: args.p_condition_active !== false,
+              last_seen_at: stamp,
+              evidence,
+            });
+            res.writeHead(200, { "content-type": "application/json" });
+            res.end(JSON.stringify(open.id));
+            return;
+          }
+          const created = {
+            id: crypto.randomUUID(),
+            workshop_id: args.p_workshop_id,
+            dedupe_key: args.p_dedupe_key,
+            rule_id: args.p_rule_id,
+            severity: args.p_severity,
+            status: "new",
+            title: args.p_title,
+            explanation: args.p_explanation,
+            occurrence_count: args.p_occurrence_count,
+            condition_active: args.p_condition_active !== false,
+            first_seen_at: stamp,
+            last_seen_at: stamp,
+            evidence,
+          };
+          tables.workshop_security_alerts.push(created);
+          tables.workshop_security_alert_updates.push({
+            id: crypto.randomUUID(),
+            workshop_id: args.p_workshop_id,
+            alert_id: created.id,
+            occurred_at: stamp,
+            from_status: null,
+            to_status: "new",
+            actor_user_id: null,
+            actor_role: "system",
+            note: "Regra registrada",
+          });
+          res.writeHead(200, { "content-type": "application/json" });
+          res.end(JSON.stringify(created.id));
+          return;
+        }
+        if (name === "transition_security_alert") {
+          const row = tables.workshop_security_alerts.find((item) => item.id === args.p_alert_id && item.workshop_id === args.p_workshop_id);
+          const allowed = (args.p_expected_status === "new" && (args.p_next_status === "seen" || args.p_next_status === "resolved"))
+            || (args.p_expected_status === "seen" && args.p_next_status === "resolved");
+          if (!row) {
+            res.writeHead(200, { "content-type": "application/json" });
+            res.end(JSON.stringify("missing"));
+            return;
+          }
+          if (!allowed || row.status !== args.p_expected_status) {
+            res.writeHead(200, { "content-type": "application/json" });
+            res.end(JSON.stringify("conflict"));
+            return;
+          }
+          row.status = args.p_next_status;
+          if (args.p_next_status === "resolved") row.resolved_at = stamp;
+          tables.workshop_security_alert_updates.push({
+            id: crypto.randomUUID(),
+            workshop_id: args.p_workshop_id,
+            alert_id: row.id,
+            occurred_at: stamp,
+            from_status: args.p_expected_status,
+            to_status: args.p_next_status,
+            actor_user_id: args.p_actor_user_id,
+            actor_role: args.p_actor_role,
+            note: "Estado alterado",
+          });
+          res.writeHead(200, { "content-type": "application/json" });
+          res.end(JSON.stringify("changed"));
+          return;
+        }
+        res.writeHead(200, { "content-type": "application/json" });
+        res.end("[]");
+        return;
+      }
+      if (!table) {
         res.writeHead(200, { "content-type": "application/json" });
         res.end("[]");
         return;
@@ -355,14 +463,6 @@ async function startMock(): Promise<{ url: string; close: () => Promise<void> }>
       const body = raw ? JSON.parse(raw) : {};
       if (req.method === "POST") {
         const incoming = (Array.isArray(body) ? body : [body]) as Row[];
-        if (table === "workshop_security_alerts" && !racedAlertInsert) {
-          racedAlertInsert = true;
-          const winner = { id: crypto.randomUUID(), ...incoming[0] };
-          tables[table].push(winner);
-          res.writeHead(409, { "content-type": "application/json" });
-          res.end(JSON.stringify({ code: "23505", message: "duplicate key value violates unique constraint" }));
-          return;
-        }
         const storedRows = incoming.map((row) => {
           const created = { id: crypto.randomUUID(), ...row };
           tables[table].push(created);
@@ -461,8 +561,10 @@ async function httpFlow() {
       !body.includes("Alerta falso") &&
       (evaluated.json?.limitations || []).includes(SECURITY_ALERT_VOLUME_UNAVAILABLE) &&
       Array.isArray(blocked?.updates) &&
-      blocked.updates.length === 0 &&
-      password?.updates?.some((update: { toStatus?: string; actorRole?: string }) => update.toStatus === "new" && update.actorRole === "system"),
+      blocked.updates.length === 1 &&
+      blocked.updates[0]?.toStatus === "new" &&
+      blocked.updates[0]?.actorRole === "system" &&
+      password?.updates?.filter((update: { toStatus?: string; actorRole?: string }) => update.toStatus === "new" && update.actorRole === "system").length === 1,
     "acesso"
   );
   const repeated = await call(base, token, "POST", "/api/security-alerts/evaluate", {});
