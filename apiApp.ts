@@ -105,7 +105,6 @@ import {
   nextSecurityAlertStatus,
   planSecurityAlerts,
   publicAlertEvidence,
-  type AlertStatus,
   type StoredSecurityAlert,
 } from "./utils/securityAlertRules.js";
 import { resolveSessionKeyRing } from "./utils/sessionKeys.js";
@@ -4419,17 +4418,10 @@ export function createApiApp() {
     return ((data || []) as Array<Record<string, unknown>>).map(mapStoredAlert).filter((row): row is StoredSecurityAlert => !!row);
   }
 
-  async function recordAlertUpdate(alertId: string, fromStatus: string | null, toStatus: string, actorUserId: string | null, actorRole: "admin" | "user" | "system") {
-    if (!supabaseAdmin || !WORKSHOP_ID) return;
-    await supabaseAdmin.from("workshop_security_alert_updates").insert({
-      workshop_id: WORKSHOP_ID,
-      alert_id: alertId,
-      from_status: fromStatus,
-      to_status: toStatus,
-      actor_user_id: actorUserId,
-      actor_role: actorRole,
-      note: fromStatus ? "Estado alterado" : "Regra registrada",
-    });
+  function securityAlertRpcText(data: unknown): string {
+    if (typeof data === "string") return data;
+    if (Array.isArray(data) && typeof data[0] === "string") return data[0];
+    return "";
   }
 
   async function denySecurityAlert(req: express.Request, res: express.Response): Promise<boolean> {
@@ -4516,62 +4508,20 @@ export function createApiApp() {
         securityAlertEvalAt.delete(WORKSHOP_ID);
         return res.status(500).json({ error: "Falha ao registrar o alerta." });
       };
-      const writeOpenAlert = async (id: string, title: string, explanation: string, plan: (typeof plans)[number]) => {
-        const updated = await supabaseAdmin!
-          .from("workshop_security_alerts")
-          .update({
-            severity: plan.severity,
-            title,
-            explanation,
-            occurrence_count: plan.occurrenceCount,
-            condition_active: plan.conditionActive,
-            last_seen_at: new Date(now).toISOString(),
-            evidence: plan.evidence,
-          })
-          .eq("id", id)
-          .eq("workshop_id", WORKSHOP_ID)
-          .neq("status", "resolved");
-        return !updated.error;
-      };
       for (const plan of plans) {
-        const explanation = plan.explanation.slice(0, 800);
-        const title = plan.title.slice(0, 160);
-        if (plan.action === "insert") {
-          const inserted = await supabaseAdmin
-            .from("workshop_security_alerts")
-            .insert({
-              workshop_id: WORKSHOP_ID,
-              dedupe_key: plan.dedupeKey,
-              rule_id: plan.ruleId,
-              severity: plan.severity,
-              status: "new",
-              title,
-              explanation,
-              occurrence_count: plan.occurrenceCount,
-              condition_active: plan.conditionActive,
-              evidence: plan.evidence,
-            })
-            .select("id")
-            .limit(1);
-          if (!inserted.error) {
-            const created = inserted.data?.[0] as { id?: string } | undefined;
-            if (!created?.id) return failEvaluation();
-            await recordAlertUpdate(created.id, null, "new", null, "system");
-            continue;
-          }
-          if (inserted.error.code !== "23505") return failEvaluation();
-          const open = await supabaseAdmin
-            .from("workshop_security_alerts")
-            .select("id")
-            .eq("workshop_id", WORKSHOP_ID)
-            .eq("dedupe_key", plan.dedupeKey)
-            .neq("status", "resolved")
-            .limit(1);
-          const existingId = !open.error && open.data?.[0] ? String((open.data[0] as { id?: string }).id || "") : "";
-          if (!existingId || !(await writeOpenAlert(existingId, title, explanation, plan))) return failEvaluation();
-        } else if (plan.id) {
-          if (!(await writeOpenAlert(plan.id, title, explanation, plan))) return failEvaluation();
-        }
+        const applied = await supabaseAdmin.rpc("apply_security_alert", {
+          p_workshop_id: WORKSHOP_ID,
+          p_alert_id: plan.action === "update" ? plan.id : null,
+          p_dedupe_key: plan.dedupeKey,
+          p_rule_id: plan.ruleId,
+          p_severity: plan.severity,
+          p_title: plan.title.slice(0, 160),
+          p_explanation: plan.explanation.slice(0, 800),
+          p_occurrence_count: plan.occurrenceCount,
+          p_condition_active: plan.conditionActive,
+          p_evidence: plan.evidence,
+        });
+        if (applied.error || !applied.data) return failEvaluation();
       }
       const listed = await listSecurityAlerts();
       if (!listed) return failEvaluation();
@@ -4603,16 +4553,18 @@ export function createApiApp() {
       const auth = (req as unknown as { auth?: SessionPayload }).auth;
       const actorUserId = auth?.r === "user" && auth.u ? auth.u : null;
       const actorRole = auth?.r === "admin" ? "admin" : "user";
-      const patch: { status: AlertStatus; resolved_at?: string | null } = { status: next };
-      if (next === "resolved") patch.resolved_at = new Date().toISOString();
-      const updated = await supabaseAdmin
-        .from("workshop_security_alerts")
-        .update(patch)
-        .eq("id", id)
-        .eq("workshop_id", WORKSHOP_ID)
-        .eq("status", data.status);
-      if (updated.error) return res.status(500).json({ error: "Falha ao atualizar o alerta." });
-      await recordAlertUpdate(id, String(data.status), next, actorUserId, actorRole);
+      const transition = await supabaseAdmin.rpc("transition_security_alert", {
+        p_workshop_id: WORKSHOP_ID,
+        p_alert_id: id,
+        p_expected_status: String(data.status),
+        p_next_status: next,
+        p_actor_user_id: actorUserId,
+        p_actor_role: actorRole,
+      });
+      if (transition.error) return res.status(500).json({ error: "Falha ao atualizar o alerta." });
+      const outcome = securityAlertRpcText(transition.data);
+      if (outcome === "missing") return res.status(404).json({ error: "Alerta não encontrado." });
+      if (outcome !== "changed") return res.status(409).json({ error: "Esta mudança de estado não é permitida." });
       const listed = await listSecurityAlerts();
       const alert = listed?.alerts.find((item) => item.id === id) || null;
       return res.json({ alert });
