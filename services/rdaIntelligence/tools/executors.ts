@@ -75,6 +75,7 @@ import type {
   ProductivityTaskRefType,
   ProductivityTaskStatus,
 } from "../productivity/types.js";
+import { fetchEntryInspectionForRda } from "../../vehicleEntryInspection/registerRoutes.js";
 
 function periodFromParams(params: Record<string, unknown>): { from: string; to: string } | undefined {
   const from = typeof params.from === "string" ? params.from.trim() : "";
@@ -632,6 +633,15 @@ export async function executeRdaTool(
             items: enriched,
           },
         };
+      }
+
+      case "rda_get_entry_inspection": {
+        const soId = String(params.serviceOrderId || "").trim();
+        if (!soId) return { ok: false, error: "Informe serviceOrderId." };
+        return fetchEntryInspectionForRda(
+          { WORKSHOP_ID: workshopId, supabaseAdmin: supabase },
+          soId
+        );
       }
 
       case "rda_propose_open_service_order": {
