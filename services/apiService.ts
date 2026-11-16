@@ -5756,6 +5756,71 @@ export type ConnectedDevicesResponse = {
   onlineThresholdMs: number;
 };
 
+export type SecurityEventRecord = {
+  id: string;
+  occurredAt: string;
+  eventType: string;
+  outcome: string;
+  actorUserId: string | null;
+  sessionId: string | null;
+  deviceId: string | null;
+  origin: string | null;
+  clientRef: string | null;
+  metadata?: {
+    area?: string;
+    changedKeys?: string[];
+    permissionKeys?: string[];
+    targetUserId?: string;
+    revokedCount?: number;
+  };
+};
+
+export type SecurityEventsPage = {
+  events: SecurityEventRecord[];
+  nextCursor: string | null;
+};
+
+export type SecurityEventsSummary = {
+  truncated: boolean;
+  totals: { success: number; denied: number; error: number };
+  byType: Array<{ eventType: string; outcome: string; count: number }>;
+};
+
+export type SecurityEventsQuery = {
+  from?: string;
+  to?: string;
+  eventType?: string;
+  outcome?: string;
+  actorUserId?: string;
+  limit?: number;
+  cursor?: string | null;
+};
+
+function securityEventsQuery(query: SecurityEventsQuery): string {
+  const params = new URLSearchParams();
+  if (query.from) params.set("from", query.from);
+  if (query.to) params.set("to", query.to);
+  if (query.eventType) params.set("eventType", query.eventType);
+  if (query.outcome) params.set("outcome", query.outcome);
+  if (query.actorUserId) params.set("actorUserId", query.actorUserId);
+  if (query.limit) params.set("limit", String(query.limit));
+  if (query.cursor) params.set("cursor", query.cursor);
+  const text = params.toString();
+  return text ? `?${text}` : "";
+}
+
+export async function getSecurityEvents(query: SecurityEventsQuery): Promise<SecurityEventsPage> {
+  const response = await fetch(`${API_BASE}/security-events${securityEventsQuery(query)}`);
+  await throwIfNotOk(response, "Falha ao ler o histórico de segurança");
+  return response.json();
+}
+
+export async function getSecurityEventsSummary(query: SecurityEventsQuery): Promise<SecurityEventsSummary> {
+  const response = await fetch(`${API_BASE}/security-events/summary${securityEventsQuery(query)}`);
+  await throwIfNotOk(response, "Falha ao ler o resumo de segurança");
+  return response.json();
+}
+
 export async function getConnectedDevices(): Promise<ConnectedDevicesResponse> {
   const response = await fetch(`${API_BASE}/auth/devices`);
   if (!response.ok) {

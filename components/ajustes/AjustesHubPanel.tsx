@@ -5,6 +5,7 @@ import {
   ExternalLink,
   KeyRound,
   LogOut,
+  Shield,
   MonitorSmartphone,
   Package,
   Smartphone,
@@ -31,6 +32,7 @@ export type AjustesVisibility = {
   usuarios: boolean;
   sair: boolean;
   senhas: boolean;
+  central_seguranca: boolean;
   servicos_oficina: boolean;
   checklists_patio: boolean;
   painel_tv: boolean;
@@ -104,6 +106,8 @@ function itemIcon(item: AjustesItemMeta, perfilIconSrc?: string | null) {
       <Users />
     ) : fallback === 'key' ? (
       <KeyRound />
+    ) : fallback === 'shield' ? (
+      <Shield />
     ) : fallback === 'wrench' ? (
       <Wrench />
     ) : fallback === 'package' ? (

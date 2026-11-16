@@ -20,6 +20,7 @@ export type AjustesItemId =
   | 'usuarios'
   | 'sair'
   | 'senhas'
+  | 'central_seguranca'
   | 'servicos_oficina'
   | 'checklists_patio'
   | 'painel_tv'
@@ -67,6 +68,7 @@ export type AjustesItemMeta = {
     | 'users'
     | 'logout'
     | 'key'
+    | 'shield'
     | 'wrench'
     | 'package'
     | 'monitor'
@@ -86,8 +88,8 @@ export const AJUSTES_CATEGORIES: AjustesCategoryMeta[] = [
   },
   {
     id: 'seguranca',
-    label: 'Segurança e sessão',
-    hint: 'Senhas, PIN e dispositivos conectados',
+    label: 'Segurança e acessos',
+    hint: 'Central, senhas e dispositivos',
     iconSrc: '/icons/senhas-ios.png',
   },
   {
@@ -158,6 +160,14 @@ export const AJUSTES_ITEMS: AjustesItemMeta[] = [
     kind: 'action',
     iconSrc: '/icons/senhas-ios.png',
     iconFallback: 'key',
+  },
+  {
+    id: 'central_seguranca',
+    categoryId: 'seguranca',
+    title: 'Central de Segurança',
+    subtitle: 'Acessos, auditoria e alertas registrados',
+    kind: 'action',
+    iconFallback: 'shield',
   },
   {
     id: 'dispositivos_conectados',
