@@ -14,9 +14,12 @@ import { ajustesPcOpsClass } from "./ajustes/AjustesPcLayoutContext";
 import { AjustesPcOpsEyebrow } from "./ajustes/AjustesPcOpsEyebrow";
 import { ConnectedDevicesModal } from "./ConnectedDevicesModal";
 import {
+  evaluateSecurityAlerts,
   getSecurityEvents,
   getSecurityEventsSummary,
   getSystemUsersDirectory,
+  setSecurityAlertStatus,
+  type SecurityAlertRecord,
   type SecurityEventRecord,
   type SecurityEventsSummary,
 } from "../services/apiService";
@@ -39,6 +42,12 @@ import {
   shortReference,
   type SecurityPeriodPreset,
 } from "../utils/securityCenterView";
+import {
+  SECURITY_ALERT_REFRESH_MS,
+  securityAlertSeverityLabel,
+  securityAlertSeverityRank,
+  securityAlertStatusLabel,
+} from "../utils/securityAlertView";
 
 type Area = "overview" | "history" | "sessions" | "audit" | "alerts";
 
@@ -115,6 +124,15 @@ export function SecurityCenterModal({ isOpen, onClose }: { isOpen: boolean; onCl
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [eventsError, setEventsError] = useState<string | null>(null);
   const [eventsLoading, setEventsLoading] = useState(false);
+  const [alerts, setAlerts] = useState<SecurityAlertRecord[]>([]);
+  const [alertPending, setAlertPending] = useState<number | null>(null);
+  const [alertsTruncated, setAlertsTruncated] = useState(false);
+  const [alertLimitations, setAlertLimitations] = useState<string[]>([]);
+  const [alertsError, setAlertsError] = useState<string | null>(null);
+  const [alertsLoading, setAlertsLoading] = useState(false);
+  const [alertStatus, setAlertStatus] = useState("");
+  const [alertSeverity, setAlertSeverity] = useState("");
+  const [alertActionId, setAlertActionId] = useState<string | null>(null);
 
   const bounds = useMemo(
     () => securityPeriodBounds(preset, customFrom, customTo, Date.now()),
@@ -224,13 +242,63 @@ export function SecurityCenterModal({ isOpen, onClose }: { isOpen: boolean; onCl
     void loadDirectory();
   }, [isOpen, loadDirectory]);
 
+  const refreshAlerts = useCallback(async () => {
+    setAlertsLoading(true);
+    try {
+      const page = await evaluateSecurityAlerts();
+      setAlerts(page.alerts);
+      setAlertPending(page.truncated && page.pending === 0 ? null : page.pending);
+      setAlertsTruncated(page.truncated === true);
+      setAlertLimitations(page.limitations || []);
+      setAlertsError(null);
+    } catch (err) {
+      setAlertsError(formatApiFailureMessage(err, "Não foi possível carregar os alertas."));
+      setAlertPending(null);
+    } finally {
+      setAlertsLoading(false);
+    }
+  }, []);
+
+  const changeAlertStatus = useCallback(
+    async (id: string, status: "seen" | "resolved") => {
+      if (status === "resolved" && !window.confirm("Marcar este alerta como resolvido?")) return;
+      setAlertActionId(id);
+      try {
+        await setSecurityAlertStatus(id, status);
+        await refreshAlerts();
+      } catch (err) {
+        setAlertsError(formatApiFailureMessage(err, "Não foi possível atualizar o alerta."));
+      } finally {
+        setAlertActionId(null);
+      }
+    },
+    [refreshAlerts]
+  );
+
   useEffect(() => {
-    if (!isOpen || area === "sessions") return;
+    if (!isOpen || area === "sessions" || area === "alerts") return;
     void loadSummary();
     void loadEvents(null, false);
   }, [isOpen, area, loadSummary, loadEvents]);
 
+  useEffect(() => {
+    if (!isOpen) return;
+    void refreshAlerts();
+    const timer = window.setInterval(() => {
+      void refreshAlerts();
+    }, SECURITY_ALERT_REFRESH_MS);
+    return () => window.clearInterval(timer);
+  }, [isOpen, refreshAlerts]);
+
   const visibleEvents = events.filter((event) => matchesEventGroup(event.eventType, eventType ? null : group));
+  const visibleAlerts = alerts
+    .filter((alert) => (alertStatus ? alert.status === alertStatus : true))
+    .filter((alert) => (alertSeverity ? alert.severity === alertSeverity : true))
+    .sort(
+      (a, b) =>
+        securityAlertSeverityRank(a.severity) - securityAlertSeverityRank(b.severity) ||
+        String(b.lastSeenAt).localeCompare(String(a.lastSeenAt))
+    );
 
   if (!isOpen) return null;
 
@@ -277,6 +345,7 @@ export function SecurityCenterModal({ isOpen, onClose }: { isOpen: boolean; onCl
                     aria-pressed={area === item.id}
                   >
                     {item.label}
+                    {item.id === "alerts" && alertPending ? ` ${alertPending}` : ""}
                   </button>
                 ))}
               </div>
@@ -288,6 +357,126 @@ export function SecurityCenterModal({ isOpen, onClose }: { isOpen: boolean; onCl
                     A mesma gestão de sessões e aparelhos. Deslogar e bloquear pedem confirmação.
                   </p>
                   <ConnectedDevicesModal isOpen embedded onClose={onClose} />
+                </div>
+              ) : area === "alerts" ? (
+                <div>
+                  <p className="mb-3 text-[13px] leading-relaxed text-zinc-500 dark:text-zinc-400">
+                    Alertas nascem de regras fixas sobre registros e contadores. A central não bloqueia ninguém por conta própria.
+                  </p>
+                  <div className="mb-4 grid gap-2 sm:grid-cols-2">
+                    <select
+                      value={alertStatus}
+                      onChange={(event) => setAlertStatus(event.target.value)}
+                      className="rounded-xl border border-zinc-200 bg-transparent px-2 py-2 text-[13px] dark:border-white/10"
+                      aria-label="Estado do alerta"
+                    >
+                      <option value="">Todos os estados</option>
+                      <option value="new">Novos</option>
+                      <option value="seen">Visualizados</option>
+                      <option value="resolved">Resolvidos</option>
+                    </select>
+                    <select
+                      value={alertSeverity}
+                      onChange={(event) => setAlertSeverity(event.target.value)}
+                      className="rounded-xl border border-zinc-200 bg-transparent px-2 py-2 text-[13px] dark:border-white/10"
+                      aria-label="Gravidade do alerta"
+                    >
+                      <option value="">Todas as gravidades</option>
+                      <option value="important">Importante</option>
+                      <option value="warning">Atenção</option>
+                      <option value="info">Informação</option>
+                    </select>
+                  </div>
+                  {alertLimitations.map((item) => (
+                    <p key={item} className="mb-2 text-[12px] leading-relaxed text-zinc-500">
+                      {item}
+                    </p>
+                  ))}
+                  {alertsTruncated ? (
+                    <p className="mb-2 text-[12px] leading-relaxed text-zinc-500">
+                      A lista passou de 100 alertas. A contagem de novos pode estar incompleta.
+                    </p>
+                  ) : null}
+                  {alertsError ? (
+                    <p className="rounded-xl bg-red-50 px-3 py-3 text-[13px] text-red-700 dark:bg-red-950/40 dark:text-red-300">
+                      {alertsError}
+                    </p>
+                  ) : alertsLoading && alerts.length === 0 ? (
+                    <p className="flex items-center gap-2 py-8 text-[13px] text-zinc-500">
+                      <Loader2 className="h-4 w-4 animate-spin" /> Carregando alertas…
+                    </p>
+                  ) : visibleAlerts.length === 0 ? (
+                    <p className={`${iosModalInsetCard} px-4 py-8 text-center text-[13px] text-zinc-500`}>
+                      Nenhum alerta neste filtro.
+                    </p>
+                  ) : (
+                    <ul className="space-y-2">
+                      {visibleAlerts.map((alert) => (
+                        <li key={alert.id} className={`${iosModalInsetCard} px-3.5 py-3`}>
+                          <div className="flex flex-wrap items-baseline justify-between gap-2">
+                            <p className="flex items-center gap-2 text-[14px] font-semibold text-zinc-900 dark:text-white">
+                              <span
+                                className={`h-1.5 w-1.5 rounded-full ${
+                                  alert.severity === "important" ? "bg-amber-400" : "bg-zinc-400"
+                                }`}
+                              />
+                              {alert.title}
+                            </p>
+                            <time className="text-[12px] text-zinc-500" dateTime={alert.lastSeenAt}>
+                              {formatWhen(alert.lastSeenAt)}
+                            </time>
+                          </div>
+                          <p className="mt-1 text-[12px] text-zinc-600 dark:text-zinc-300">
+                            {securityAlertSeverityLabel(alert.severity)} · {securityAlertStatusLabel(alert.status)} ·{" "}
+                            {alert.occurrenceCount} registro(s)
+                          </p>
+                          <p className="mt-2 text-[13px] leading-relaxed text-zinc-700 dark:text-zinc-200">{alert.explanation}</p>
+                          {alert.conditionActive === false ? (
+                            <p className="mt-1 text-[12px] text-zinc-500">A condição atual já não está nesse patamar.</p>
+                          ) : null}
+                          {alert.updates.length ? (
+                            <ul className="mt-2 space-y-1 text-[11px] text-zinc-500">
+                              {alert.updates.slice(0, 4).map((update) => (
+                                <li key={`${update.occurredAt}-${update.toStatus}`}>
+                                  {formatWhen(update.occurredAt)} · {securityAlertStatusLabel(update.toStatus)} ·{" "}
+                                  {update.actorRole === "admin"
+                                    ? "Gerência"
+                                    : update.actorUserId
+                                      ? actorLabel(
+                                          { eventType: "permissions_changed", actorUserId: update.actorUserId },
+                                          names
+                                        )
+                                      : "Sistema"}
+                                </li>
+                              ))}
+                            </ul>
+                          ) : null}
+                          {alert.status !== "resolved" ? (
+                            <div className="mt-3 flex gap-4">
+                              {alert.status === "new" ? (
+                                <button
+                                  type="button"
+                                  disabled={alertActionId === alert.id}
+                                  onClick={() => void changeAlertStatus(alert.id, "seen")}
+                                  className="text-[13px] font-semibold text-zinc-700 dark:text-zinc-200"
+                                >
+                                  Marcar como visto
+                                </button>
+                              ) : null}
+                              <button
+                                type="button"
+                                disabled={alertActionId === alert.id}
+                                onClick={() => void changeAlertStatus(alert.id, "resolved")}
+                                className="text-[13px] font-semibold text-zinc-700 dark:text-zinc-200"
+                              >
+                                Resolver
+                              </button>
+                            </div>
+                          ) : null}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </div>
               ) : (
                 <>
@@ -399,17 +588,24 @@ export function SecurityCenterModal({ isOpen, onClose }: { isOpen: boolean; onCl
                             </div>
                           ))}
                         </div>
+                        {alertsError ? (
+                          <p className="mb-2 mt-6 text-[12px] text-red-700 dark:text-red-300">{alertsError}</p>
+                        ) : alertPending === null ? null : alertPending > 0 ? (
+                          <button
+                            type="button"
+                            onClick={() => setArea("alerts")}
+                            className="mb-2 mt-6 text-[13px] font-semibold text-zinc-800 dark:text-zinc-100"
+                          >
+                            {alertsTruncated ? `Pelo menos ${alertPending} alertas novos` : `${alertPending} alertas novos`}
+                          </button>
+                        ) : (
+                          <p className="mb-2 mt-6 text-[12px] text-zinc-500">Nenhum alerta novo.</p>
+                        )}
                         <h3 className="mb-2 mt-6 text-[12px] font-semibold uppercase tracking-wider text-zinc-500">
                           Atividades recentes
                         </h3>
                       </>
                     ) : null
-                  ) : null}
-
-                  {area === "alerts" ? (
-                    <p className="mb-3 text-[13px] leading-relaxed text-zinc-500 dark:text-zinc-400">
-                      Alertas são eventos que o servidor já registrou. Não há detecção automática além disso.
-                    </p>
                   ) : null}
 
                   {eventsError && eventsError !== summaryError ? (

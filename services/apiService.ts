@@ -5821,6 +5821,58 @@ export async function getSecurityEventsSummary(query: SecurityEventsQuery): Prom
   return response.json();
 }
 
+export type SecurityAlertUpdate = {
+  occurredAt: string;
+  fromStatus: string | null;
+  toStatus: string;
+  actorUserId: string | null;
+  actorRole: string;
+};
+
+export type SecurityAlertRecord = {
+  id: string;
+  ruleId: string;
+  severity: string;
+  status: string;
+  title: string;
+  explanation: string;
+  occurrenceCount: number;
+  conditionActive: boolean;
+  firstSeenAt: string;
+  lastSeenAt: string;
+  resolvedAt: string | null;
+  evidence: Record<string, string | number | boolean>;
+  updates: SecurityAlertUpdate[];
+};
+
+export type SecurityAlertsPage = {
+  alerts: SecurityAlertRecord[];
+  pending: number;
+  truncated: boolean;
+  evaluated: boolean;
+  limitations: string[];
+};
+
+export async function evaluateSecurityAlerts(): Promise<SecurityAlertsPage> {
+  const response = await fetch(`${API_BASE}/security-alerts/evaluate`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: "{}",
+  });
+  await throwIfNotOk(response, "Falha ao ler os alertas de segurança");
+  return response.json();
+}
+
+export async function setSecurityAlertStatus(id: string, status: "seen" | "resolved"): Promise<{ alert: SecurityAlertRecord | null }> {
+  const response = await fetch(`${API_BASE}/security-alerts/${encodeURIComponent(id)}/state`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ status }),
+  });
+  await throwIfNotOk(response, "Falha ao atualizar o alerta");
+  return response.json();
+}
+
 export async function getConnectedDevices(): Promise<ConnectedDevicesResponse> {
   const response = await fetch(`${API_BASE}/auth/devices`);
   if (!response.ok) {
