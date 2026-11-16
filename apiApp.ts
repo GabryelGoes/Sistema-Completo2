@@ -79,6 +79,8 @@ import { timeKindsToAutoPauseOnStageChange } from "./services/rdaIntelligence/wo
 import { recordServiceOrderStageEntry } from "./services/rdaIntelligence/patioIntelligence/recordStageEntry.js";
 import { assertHomologationSafeOrThrow } from "./utils/homologationGuard.js";
 import { classifyNewLoginPassword } from "./utils/loginPasswordPolicy.js";
+import { MemoryAuthRateLimitStore } from "./utils/authRateLimit.js";
+import { resolveSessionKeyRing } from "./utils/sessionKeys.js";
 import { effectiveFamilyMode, guardHttpAuthorization, permissionSourceFromSupabase } from "./utils/authorizeRequest.js";
 import { notificationScope, type NotificationScope } from "./utils/notificationAudience.js";
 import { assessServiceOrderPut } from "./utils/serviceOrderPutGuard.js";
@@ -179,11 +181,14 @@ function normalizeCommentPersonName(value: string): string {
 }
 
 // ----------------- TOKENS DE SESSÃO (HMAC, sem estado) -----------------
-const SESSION_SECRET =
-  process.env.SESSION_SECRET ||
-  process.env.SUPABASE_SERVICE_ROLE_KEY ||
-  "dev-only-insecure-secret";
 const SESSION_TTL_MS = 12 * 60 * 60 * 1000; // 12h
+const LOGIN_IP_MAX = 10;
+const LOGIN_IP_WINDOW_MS = 5 * 60 * 1000;
+const LOGIN_ACCOUNT_MAX = 30;
+const LOGIN_ACCOUNT_WINDOW_MS = 15 * 60 * 1000;
+const PASSWORD_IP_MAX = 10;
+const PASSWORD_ACCOUNT_MAX = 8;
+const PASSWORD_WINDOW_MS = 15 * 60 * 1000;
 
 type SessionPayload = {
   r: "admin" | "user";
@@ -203,6 +208,17 @@ const deviceSessionOkCache = new Map<
   { until: number; revoked: boolean; deviceId: string; blocked: boolean }
 >();
 const blockedDeviceCache = new Map<string, { until: number; blocked: boolean }>();
+
+function clientIp(req: { ip?: string; headers: { [key: string]: unknown } }): string {
+  const forwarded = req.headers["x-forwarded-for"];
+  const raw = typeof forwarded === "string" ? forwarded : Array.isArray(forwarded) ? String(forwarded[0] || "") : "";
+  const first = raw.split(",")[0].trim();
+  return (first || req.ip || "unknown").slice(0, 128);
+}
+
+function loginAccountKey(username: string): string {
+  return username.trim().toLowerCase().slice(0, 120);
+}
 
 function deviceIdFromReq(req: { headers: Record<string, unknown>; body?: unknown }): string {
   const header = req.headers["x-device-id"];
@@ -264,20 +280,26 @@ function b64urlDecode(input: string): Buffer {
   return Buffer.from(input.replace(/-/g, "+").replace(/_/g, "/") + pad, "base64");
 }
 
-function signSessionToken(payload: Omit<SessionPayload, "exp">, ttlMs = SESSION_TTL_MS): string {
+function signSessionToken(payload: Omit<SessionPayload, "exp">, ttlMs = SESSION_TTL_MS): string | null {
+  const ring = resolveSessionKeyRing();
+  if (!ring) return null;
   const full: SessionPayload = { ...payload, exp: Date.now() + ttlMs };
   const body = b64url(JSON.stringify(full));
-  const sig = b64url(crypto.createHmac("sha256", SESSION_SECRET).update(body).digest());
+  const sig = b64url(crypto.createHmac("sha256", ring.current).update(body).digest());
   return `${body}.${sig}`;
 }
 
 function verifySessionToken(token: string | undefined | null): SessionPayload | null {
+  const ring = resolveSessionKeyRing();
+  if (!ring) return null;
   if (!token || typeof token !== "string") return null;
   const parts = token.split(".");
   if (parts.length !== 2) return null;
   const [body, sig] = parts;
-  const expected = b64url(crypto.createHmac("sha256", SESSION_SECRET).update(body).digest());
-  if (!safeStringEqual(sig, expected)) return null;
+  const matches = ring.verify.some((key) =>
+    safeStringEqual(sig, b64url(crypto.createHmac("sha256", key).update(body).digest()))
+  );
+  if (!matches) return null;
   try {
     const payload = JSON.parse(b64urlDecode(body).toString("utf8")) as SessionPayload;
     if (!payload || (payload.r !== "admin" && payload.r !== "user")) return null;
@@ -1391,10 +1413,11 @@ export function createApiApp() {
     );
   }
 
-  async function isDeviceBlocked(deviceId: string): Promise<boolean> {
-    if (!deviceId || !supabaseAdmin || !WORKSHOP_ID) return false;
+  async function isDeviceBlocked(deviceId: string): Promise<"clear" | "blocked" | "unavailable"> {
+    if (!deviceId) return "clear";
+    if (!supabaseAdmin || !WORKSHOP_ID) return "unavailable";
     const cached = blockedDeviceCache.get(deviceId);
-    if (cached && cached.until > Date.now()) return cached.blocked;
+    if (cached && cached.until > Date.now()) return cached.blocked ? "blocked" : "clear";
     try {
       const { data, error } = await supabaseAdmin
         .from("workshop_blocked_devices")
@@ -1402,33 +1425,35 @@ export function createApiApp() {
         .eq("workshop_id", WORKSHOP_ID)
         .eq("device_id", deviceId)
         .maybeSingle();
-      if (error) {
-        // Tabela ainda não migrada — não bloqueia.
-        blockedDeviceCache.set(deviceId, { until: Date.now() + DEVICE_SESSION_CACHE_MS, blocked: false });
-        return false;
-      }
+      if (error) return "unavailable";
       const blocked = !!data?.id;
       blockedDeviceCache.set(deviceId, { until: Date.now() + DEVICE_SESSION_CACHE_MS, blocked });
-      return blocked;
+      return blocked ? "blocked" : "clear";
     } catch {
-      return false;
+      return "unavailable";
     }
   }
 
   /**
    * Valida sid (não revogada) e device_id (não bloqueado).
    * Tokens legados sem sid seguem válidos até novo login.
+   * Falha de consulta não libera a sessão e não grava revoked_at.
    */
   async function enforceDeviceSession(
     req: express.Request,
     auth: SessionPayload
-  ): Promise<"ok" | "revoked" | "blocked"> {
+  ): Promise<"ok" | "revoked" | "blocked" | "unavailable"> {
     const headerDeviceId = deviceIdFromReq(req);
     const deviceId = (auth.did || headerDeviceId || "").trim();
-    if (deviceId && (await isDeviceBlocked(deviceId))) return "blocked";
+    if (deviceId) {
+      const block = await isDeviceBlocked(deviceId);
+      if (block === "blocked") return "blocked";
+      if (block === "unavailable") return "unavailable";
+    }
 
     const sid = typeof auth.sid === "string" ? auth.sid.trim() : "";
-    if (!sid || !supabaseAdmin || !WORKSHOP_ID) return "ok";
+    if (!sid) return "ok";
+    if (!supabaseAdmin || !WORKSHOP_ID) return "unavailable";
 
     const cached = deviceSessionOkCache.get(sid);
     if (cached && cached.until > Date.now()) {
@@ -1444,12 +1469,8 @@ export function createApiApp() {
         .eq("id", sid)
         .eq("workshop_id", WORKSHOP_ID)
         .maybeSingle();
-      if (error) {
-        // Sem tabela: não quebra o app.
-        return "ok";
-      }
+      if (error) return "unavailable";
       if (!data) {
-        // Sessão sumiu do banco — exige novo login.
         deviceSessionOkCache.set(sid, {
           until: Date.now() + DEVICE_SESSION_CACHE_MS,
           revoked: true,
@@ -1468,14 +1489,18 @@ export function createApiApp() {
         return "revoked";
       }
       const sessionDevice = String(data.device_id || "").trim();
-      if (sessionDevice && (await isDeviceBlocked(sessionDevice))) {
-        deviceSessionOkCache.set(sid, {
-          until: Date.now() + DEVICE_SESSION_CACHE_MS,
-          revoked: false,
-          deviceId: sessionDevice,
-          blocked: true,
-        });
-        return "blocked";
+      if (sessionDevice) {
+        const block = await isDeviceBlocked(sessionDevice);
+        if (block === "unavailable") return "unavailable";
+        if (block === "blocked") {
+          deviceSessionOkCache.set(sid, {
+            until: Date.now() + DEVICE_SESSION_CACHE_MS,
+            revoked: false,
+            deviceId: sessionDevice,
+            blocked: true,
+          });
+          return "blocked";
+        }
       }
       deviceSessionOkCache.set(sid, {
         until: Date.now() + DEVICE_SESSION_CACHE_MS,
@@ -1485,8 +1510,42 @@ export function createApiApp() {
       });
       return "ok";
     } catch {
-      return "ok";
+      return "unavailable";
     }
+  }
+
+  async function revokeOtherDeviceSessions(input: {
+    role: "admin" | "user";
+    userId?: string | null;
+    keepSessionId?: string | null;
+  }): Promise<boolean> {
+    if (!supabaseAdmin || !WORKSHOP_ID) return false;
+    if (input.role === "user" && !input.userId) return false;
+    const nowIso = new Date().toISOString();
+    let query = supabaseAdmin
+      .from("workshop_device_sessions")
+      .update({ revoked_at: nowIso })
+      .eq("workshop_id", WORKSHOP_ID)
+      .eq("role", input.role)
+      .is("revoked_at", null);
+    if (input.role === "user" && input.userId) query = query.eq("user_id", input.userId);
+    if (input.keepSessionId) query = query.neq("id", input.keepSessionId);
+    const { data, error } = await query.select("id");
+    if (error) {
+      console.error("[auth] Não foi possível revogar as outras sessões.");
+      return false;
+    }
+    for (const row of data || []) {
+      const id = String((row as { id?: string }).id || "");
+      if (!id) continue;
+      deviceSessionOkCache.set(id, {
+        until: Date.now() + DEVICE_SESSION_CACHE_MS * 10,
+        revoked: true,
+        deviceId: "",
+        blocked: false,
+      });
+    }
+    return true;
   }
 
   async function touchDeviceSession(
@@ -1639,6 +1698,12 @@ export function createApiApp() {
       if (gate === "blocked") {
         return res.status(403).json({
           error: "Este dispositivo foi bloqueado e não pode acessar o sistema.",
+        });
+      }
+      if (gate === "unavailable") {
+        return res.status(503).json({
+          error: "Não foi possível confirmar a sessão. Tente novamente.",
+          code: "session_check_unavailable",
         });
       }
       (req as unknown as { auth: SessionPayload }).auth = auth;
@@ -2221,36 +2286,30 @@ export function createApiApp() {
       .map((u: { id: string }) => u.id);
   }
 
-  // Rate limit simples por IP para o login (mitiga brute force). Em memória (por instância).
-  const loginAttempts = new Map<string, { count: number; resetAt: number }>();
-  const LOGIN_MAX_ATTEMPTS = 10;
-  const LOGIN_WINDOW_MS = 5 * 60 * 1000; // 5 min
+  // Limite por instância. Outra instância só compartilha a contagem se receber o mesmo store.
+  const authLimits = new MemoryAuthRateLimitStore();
 
-  function loginRateLimited(ip: string): boolean {
-    const now = Date.now();
-    const entry = loginAttempts.get(ip);
-    if (!entry || entry.resetAt < now) {
-      loginAttempts.set(ip, { count: 1, resetAt: now + LOGIN_WINDOW_MS });
-      return false;
-    }
-    entry.count += 1;
-    return entry.count > LOGIN_MAX_ATTEMPTS;
+  function resetLoginBuckets(ip: string, username: string): void {
+    authLimits.reset(`login:ip:${ip}`);
+    authLimits.reset(`login:account:${loginAccountKey(username)}`);
   }
 
-  function resetLoginAttempts(ip: string): void {
-    loginAttempts.delete(ip);
+  function passwordChangeLimited(ip: string, account: string): boolean {
+    const now = Date.now();
+    const byIp = authLimits.hit(`password:ip:${ip}`, now, PASSWORD_WINDOW_MS, PASSWORD_IP_MAX);
+    const byAccount = authLimits.hit(`password:account:${account}`, now, PASSWORD_WINDOW_MS, PASSWORD_ACCOUNT_MAX);
+    return byIp.limited || byAccount.limited;
   }
 
   app.post("/api/auth/login", async (req, res) => {
     try {
-      const ip =
-        (typeof req.headers["x-forwarded-for"] === "string"
-          ? req.headers["x-forwarded-for"].split(",")[0].trim()
-          : "") || req.ip || "unknown";
-      if (loginRateLimited(ip)) {
-        return res
-          .status(429)
-          .json({ error: "Muitas tentativas de login. Aguarde alguns minutos e tente novamente." });
+      const ip = clientIp(req);
+      const now = Date.now();
+      if (authLimits.hit(`login:ip:${ip}`, now, LOGIN_IP_WINDOW_MS, LOGIN_IP_MAX).limited) {
+        return res.status(429).json({
+          error: "Muitas tentativas de login. Aguarde alguns minutos e tente novamente.",
+          code: "rate_limited",
+        });
       }
       const { username, password } = req.body || {};
       const u = typeof username === "string" ? username.trim() : "";
@@ -2258,12 +2317,28 @@ export function createApiApp() {
       if (!u) {
         return res.status(400).json({ error: "Informe o usuário." });
       }
+      const accountBucket = `login:account:${loginAccountKey(u)}`;
+      if (authLimits.peek(accountBucket, now, LOGIN_ACCOUNT_MAX)) {
+        return res.status(429).json({
+          error: "Muitas tentativas de login. Aguarde alguns minutos e tente novamente.",
+          code: "rate_limited",
+        });
+      }
 
       const deviceId = deviceIdFromReq(req);
-      if (deviceId && (await isDeviceBlocked(deviceId))) {
-        return res.status(403).json({
-          error: "Este dispositivo foi bloqueado e não pode acessar o sistema.",
-        });
+      if (deviceId) {
+        const block = await isDeviceBlocked(deviceId);
+        if (block === "unavailable") {
+          return res.status(503).json({
+            error: "Não foi possível confirmar a sessão. Tente novamente.",
+            code: "session_check_unavailable",
+          });
+        }
+        if (block === "blocked") {
+          return res.status(403).json({
+            error: "Este dispositivo foi bloqueado e não pode acessar o sistema.",
+          });
+        }
       }
       const headerUa =
         typeof req.headers["user-agent"] === "string" ? req.headers["user-agent"] : "";
@@ -2272,15 +2347,31 @@ export function createApiApp() {
         headerUa
       );
       const sessionId = crypto.randomUUID();
+      const adminName = u.toLowerCase() === ADMIN_USERNAME.toLowerCase();
+      const rejectKnownAccount = () => {
+        if (authLimits.hit(accountBucket, Date.now(), LOGIN_ACCOUNT_WINDOW_MS, LOGIN_ACCOUNT_MAX).limited) {
+          return res.status(429).json({
+            error: "Muitas tentativas de login. Aguarde alguns minutos e tente novamente.",
+            code: "rate_limited",
+          });
+        }
+        return res.status(401).json({ error: "Usuário ou senha incorretos." });
+      };
 
       if (await verifyAdmin(u, p)) {
-        resetLoginAttempts(ip);
+        resetLoginBuckets(ip, u);
         const token = signSessionToken({
           r: "admin",
           n: ADMIN_USERNAME,
           sid: sessionId,
           did: deviceId || undefined,
         });
+        if (!token) {
+          return res.status(503).json({
+            error: "Servidor sem segredo de sessão.",
+            code: "auth_unavailable",
+          });
+        }
         if (deviceId) {
           await createDeviceSessionRow({
             sessionId,
@@ -2298,7 +2389,7 @@ export function createApiApp() {
         return res.json({ role: "admin", token, sessionId, deviceId: deviceId || null });
       }
       if (!supabaseAdmin || !WORKSHOP_ID) {
-        return res.status(401).json({ error: "Usuário ou senha incorretos." });
+        return adminName ? rejectKnownAccount() : res.status(401).json({ error: "Usuário ou senha incorretos." });
       }
       const { data: users, error } = await supabaseAdmin
         .from("workshop_system_users")
@@ -2310,19 +2401,12 @@ export function createApiApp() {
       const uLower = u.toLowerCase();
       const user = (users || []).find((r) => String(r.username).trim().toLowerCase() === uLower);
       if (!user) {
-        return res.status(401).json({ error: "Usuário ou senha incorretos." });
+        return adminName ? rejectKnownAccount() : res.status(401).json({ error: "Usuário ou senha incorretos." });
       }
       if (!verifyPassword(p, user.password_hash)) {
-        return res.status(401).json({ error: "Usuário ou senha incorretos." });
+        return rejectKnownAccount();
       }
-      resetLoginAttempts(ip);
-      const profileToken = crypto.randomBytes(32).toString("hex");
-      const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
-      await supabaseAdmin
-        .from("workshop_system_users")
-        .update({ profile_token: profileToken, profile_token_expires_at: expiresAt, updated_at: new Date().toISOString() })
-        .eq("id", user.id)
-        .eq("workshop_id", WORKSHOP_ID);
+      resetLoginBuckets(ip, u);
       const permissions = (user.permissions as Record<string, boolean>) || {};
       const token = signSessionToken({
         r: "user",
@@ -2331,6 +2415,12 @@ export function createApiApp() {
         sid: sessionId,
         did: deviceId || undefined,
       });
+      if (!token) {
+        return res.status(503).json({
+          error: "Servidor sem segredo de sessão.",
+          code: "auth_unavailable",
+        });
+      }
       if (deviceId) {
         await createDeviceSessionRow({
           sessionId,
@@ -2352,7 +2442,6 @@ export function createApiApp() {
         username: user.username,
         displayName: user.display_name || user.username,
         photoUrl: user.photo_url || null,
-        profileToken,
         token,
         sessionId,
         deviceId: deviceId || null,
@@ -2770,32 +2859,6 @@ export function createApiApp() {
     };
   }
 
-  // Verifica usuário por profileToken (para alterar foto sem senha).
-  async function verifySystemUserByToken(username: string, token: string): Promise<{ id: string; username: string } | null> {
-    if (!supabaseAdmin || !WORKSHOP_ID) return null;
-    const u = typeof username === "string" ? username.trim() : "";
-    const t = typeof token === "string" ? token.trim() : "";
-    if (!u || !t) return null;
-    const now = new Date().toISOString();
-    const { data: users, error } = await supabaseAdmin
-      .from("workshop_system_users")
-      .select("id, username, profile_token, profile_token_expires_at")
-      .eq("workshop_id", WORKSHOP_ID);
-    if (error) return null;
-    const uLower = u.toLowerCase();
-    const user = (users || []).find(
-      (r: { username: string; profile_token: string | null; profile_token_expires_at: string | null }) =>
-        String(r.username).trim().toLowerCase() === uLower &&
-        typeof r.profile_token === "string" &&
-        r.profile_token.length > 0 &&
-        safeStringEqual(r.profile_token, t) &&
-        r.profile_token_expires_at &&
-        r.profile_token_expires_at > now
-    );
-    if (!user) return null;
-    return { id: user.id, username: user.username };
-  }
-
   app.post("/api/auth/change-my-password", async (req, res) => {
     try {
       if (!supabaseAdmin || !WORKSHOP_ID) {
@@ -2827,6 +2890,12 @@ export function createApiApp() {
       if (nextPassword.status === "invalid") {
         return res.status(400).json({ error: nextPassword.message, code: "invalid_new_password" });
       }
+      if (passwordChangeLimited(clientIp(req), `user:${auth.u}`)) {
+        return res.status(429).json({
+          error: "Muitas tentativas de troca de senha. Aguarde alguns minutos e tente novamente.",
+          code: "rate_limited",
+        });
+      }
       const { data: user, error: readErr } = await supabaseAdmin
         .from("workshop_system_users")
         .select("id, username, password_hash")
@@ -2836,6 +2905,17 @@ export function createApiApp() {
       if (readErr) return res.status(500).json({ error: "Falha ao conferir a senha atual." });
       if (!user || !verifyPassword(currentPassword, String(user.password_hash || ""))) {
         return res.status(401).json({ error: "Senha atual incorreta.", code: "invalid_credentials" });
+      }
+      const revoked = await revokeOtherDeviceSessions({
+        role: "user",
+        userId: auth.u,
+        keepSessionId: auth.sid || null,
+      });
+      if (!revoked) {
+        return res.status(503).json({
+          error: "Não foi possível encerrar as outras sessões. A senha não foi alterada.",
+          code: "sessions_not_revoked",
+        });
       }
       const { error } = await supabaseAdmin
         .from("workshop_system_users")
@@ -3199,6 +3279,12 @@ export function createApiApp() {
           code: "permissions_cas_unavailable",
         });
       }
+      if (nextPassword.status === "ready" && passwordChangeLimited(clientIp(req), `reset:${id}`)) {
+        return res.status(429).json({
+          error: "Muitas tentativas de troca de senha. Aguarde alguns minutos e tente novamente.",
+          code: "rate_limited",
+        });
+      }
 
       // Compare-and-swap otimista em updated_at (sem migration). Sempre obrigatório.
       let updateQuery = supabaseAdmin
@@ -3226,6 +3312,16 @@ export function createApiApp() {
           error: "O cadastro foi alterado por outra sessão. Recarregue e tente de novo.",
           code: "permissions_conflict",
         });
+      }
+      if (nextPassword.status === "ready") {
+        const revoked = await revokeOtherDeviceSessions({ role: "user", userId: id, keepSessionId: null });
+        if (!revoked) {
+          return res.status(500).json({
+            error: "A senha foi alterada, mas as sessões antigas não puderam ser encerradas. Tente novamente.",
+            code: "sessions_not_revoked",
+            passwordUpdated: true,
+          });
+        }
       }
       return res.json({ ...write.row, passwordUpdated: nextPassword.status === "ready" });
     } catch (err: any) {
@@ -3768,6 +3864,25 @@ export function createApiApp() {
       }
       if (updates.length === 0) {
         return res.status(400).json({ error: "Nada para atualizar." });
+      }
+      if (updates.some((item) => item.key === "admin_password")) {
+        const auth = (req as unknown as { auth?: SessionPayload }).auth;
+        if (passwordChangeLimited(clientIp(req), "gerência")) {
+          return res.status(429).json({
+            error: "Muitas tentativas de troca de senha. Aguarde alguns minutos e tente novamente.",
+            code: "rate_limited",
+          });
+        }
+        const revoked = await revokeOtherDeviceSessions({
+          role: "admin",
+          keepSessionId: auth?.sid || null,
+        });
+        if (!revoked) {
+          return res.status(503).json({
+            error: "Não foi possível encerrar as outras sessões. A senha não foi alterada.",
+            code: "sessions_not_revoked",
+          });
+        }
       }
       for (const u of updates) {
         const { error: upsertErr } = await supabaseAdmin.from("workshop_settings").upsert(
