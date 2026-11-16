@@ -66,6 +66,7 @@
     "test:sec0332-service-orders-enforce": "tsx scripts/sec0332ServiceOrdersEnforce.selftest.ts",
     "test:sec03321-service-order-actor": "tsx scripts/sec03321ServiceOrderActor.selftest.ts",
     "test:sec0333-radar-rda-audit": "tsx scripts/sec0333RadarRdaAudit.selftest.ts",
+    "test:sec051-auth-sessions": "tsx scripts/sec051AuthSessions.selftest.ts",
     "test:workshop-part-reservations": "tsx scripts/workshopPartReservations.selftest.ts",
     "test:vehicle-maintenance-parts": "tsx scripts/vehicleMaintenanceParts.selftest.ts"
   },

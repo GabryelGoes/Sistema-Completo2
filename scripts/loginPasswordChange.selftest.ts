@@ -119,6 +119,8 @@ function parseFilters(url: URL): Array<[string, string]> {
 function matches(row: Row, filters: Array<[string, string]>): boolean {
   return filters.every(([key, raw]) => {
     if (raw.startsWith("eq.")) return String(row[key] ?? "") === raw.slice(3);
+    if (raw.startsWith("neq.")) return String(row[key] ?? "") !== raw.slice(4);
+    if (raw === "is.null") return row[key] == null;
     if (raw.startsWith("in.(") && raw.endsWith(")")) {
       const parts = raw.slice(4, -1).split(",").map((part) => part.trim().replace(/^"|"$/g, ""));
       return parts.includes(String(row[key] ?? ""));
