@@ -72,6 +72,7 @@
     "test:sec0511b-client-ip": "tsx scripts/sec0511bClientIp.selftest.ts",
     "test:sec0512a-security-audit": "tsx scripts/sec0512aSecurityAudit.selftest.ts",
     "test:sec0512b-security-center": "tsx scripts/sec0512bSecurityCenter.selftest.ts",
+    "test:sec0512c-security-alerts": "tsx scripts/sec0512cSecurityAlerts.selftest.ts",
     "test:workshop-part-reservations": "tsx scripts/workshopPartReservations.selftest.ts",
     "test:vehicle-maintenance-parts": "tsx scripts/vehicleMaintenanceParts.selftest.ts"
   },
