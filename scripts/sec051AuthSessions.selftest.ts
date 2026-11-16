@@ -67,6 +67,12 @@ const tables: Record<string, Row[]> = {
 };
 
 let failDeviceReads = false;
+const authReadCounts: Record<string, number> = {};
+
+function resetAuthReads(): void {
+  authReadCounts.workshop_device_sessions = 0;
+  authReadCounts.workshop_blocked_devices = 0;
+}
 let failSessionRevoke = false;
 let failPasswordWrite = false;
 let passed = 0;
@@ -132,6 +138,12 @@ async function startMock(): Promise<{ server: http.Server; url: string }> {
       const url = new URL(req.url || "/", "http://127.0.0.1");
       const table = decodeURIComponent(url.pathname.replace(/^\/rest\/v1\//, "").replace(/\/$/, ""));
       if (!tables[table]) tables[table] = [];
+      if (
+        req.method === "GET" &&
+        (table === "workshop_device_sessions" || table === "workshop_blocked_devices")
+      ) {
+        authReadCounts[table] = (authReadCounts[table] || 0) + 1;
+      }
       if (
         failDeviceReads &&
         req.method === "GET" &&
@@ -404,8 +416,25 @@ async function main() {
       `válido ${valid.status}, inválido ${invalid.status}, desconhecido ${unknown.status}`
     );
 
+    const previousSid = "33333333-3333-4333-8333-333333333301";
+    tables.workshop_device_sessions.push({
+      id: previousSid,
+      workshop_id: WORKSHOP_ID,
+      device_id: "aparelho-chave-anterior",
+      role: "user",
+      user_id: USER_ANA,
+      username: "ana",
+      revoked_at: null,
+    });
     const previous = signToken(
-      { r: "user", u: USER_ANA, n: "ana", exp: Date.now() + 60_000 },
+      {
+        r: "user",
+        u: USER_ANA,
+        n: "ana",
+        sid: previousSid,
+        did: "aparelho-chave-anterior",
+        exp: Date.now() + 60_000,
+      },
       SESSION_SECRET_PREVIOUS
     );
     const previousHit = await call(base, previous, "GET", "/api/auth/my-access");
@@ -413,10 +442,24 @@ async function main() {
     const forgedHit = await call(base, forged, "GET", "/api/auth/my-access");
     const expiredToken = signToken({ r: "user", u: USER_ANA, n: "ana", exp: Date.now() - 1000 }, SESSION_SECRET);
     const expiredHit = await call(base, expiredToken, "GET", "/api/auth/my-access");
+    const missingSid = signToken({ r: "user", u: USER_ANA, n: "ana", exp: Date.now() + 60_000 }, SESSION_SECRET);
+    const missingSidHit = await call(base, missingSid, "GET", "/api/auth/my-access");
+    const unknownSid = signToken(
+      { r: "user", u: USER_ANA, n: "ana", sid: "00000000-0000-4000-8000-000000000099", exp: Date.now() + 60_000 },
+      SESSION_SECRET
+    );
+    const unknownSidHit = await call(base, unknownSid, "GET", "/api/auth/my-access");
     record(
-      "chave anterior vale, chave alheia e token expirado não",
-      previousHit.status === 200 && forgedHit.status === 401 && expiredHit.status === 401 && expiredHit.json?.code === "session_invalid",
-      `anterior ${previousHit.status}, alheia ${forgedHit.status}, expirado ${expiredHit.status}`
+      "chave anterior com sid vale; token sem sid, sid inexistente ou expirado não",
+      previousHit.status === 200 &&
+        forgedHit.status === 401 &&
+        expiredHit.status === 401 &&
+        expiredHit.json?.code === "session_invalid" &&
+        missingSidHit.status === 401 &&
+        missingSidHit.json?.code === "session_invalid" &&
+        unknownSidHit.status === 401 &&
+        unknownSidHit.json?.code === "session_revoked",
+      `anterior ${previousHit.status}, alheia ${forgedHit.status}, expirado ${expiredHit.status}, sem sid ${missingSidHit.status}, sid ${unknownSidHit.status}`
     );
 
     const blockedId = `bloqueado-${crypto.randomUUID()}`;
@@ -433,6 +476,33 @@ async function main() {
         /bloqueado/i.test(String(blocked.json?.error || "")) &&
         tables.workshop_device_sessions.length === beforeBlocked,
       `status ${blocked.status}`
+    );
+
+    const trackedDevice = `vivo-${crypto.randomUUID()}`;
+    const tracked = await login(base, "bia", PASS_BIA, "203.0.113.71", trackedDevice);
+    resetAuthReads();
+    const trackedOk = await call(base, tracked.json?.token, "GET", "/api/auth/my-access", undefined, {
+      "x-device-id": trackedDevice,
+    });
+    const sessionReads = authReadCounts.workshop_device_sessions || 0;
+    const blockReads = authReadCounts.workshop_blocked_devices || 0;
+    tables.workshop_blocked_devices.push({
+      id: crypto.randomUUID(),
+      workshop_id: WORKSHOP_ID,
+      device_id: trackedDevice,
+    });
+    const trackedBlocked = await call(base, tracked.json?.token, "GET", "/api/auth/my-access", undefined, {
+      "x-device-id": trackedDevice,
+    });
+    record(
+      "dispositivo bloqueado é recusado na próxima requisição",
+      tracked.status === 200 &&
+        trackedOk.status === 200 &&
+        sessionReads === 1 &&
+        blockReads === 1 &&
+        trackedBlocked.status === 403 &&
+        /bloqueado/i.test(String(trackedBlocked.json?.error || "")),
+      `antes ${trackedOk.status}, depois ${trackedBlocked.status}, leituras ${sessionReads}/${blockReads}`
     );
 
     const live = await login(base, "bia", PASS_BIA);
@@ -625,13 +695,15 @@ async function main() {
     const legacyAfter = await call(base, legacy, "GET", "/api/auth/my-access");
     const contaStill = await call(base, contaSession.json?.token, "GET", "/api/auth/my-access");
     record(
-      "token legado sem sid continua válido depois da troca de senha",
-      legacyBefore.status === 200 &&
+      "token sem sid é recusado e a sessão com sid permanece após a troca",
+      legacyBefore.status === 401 &&
+        legacyBefore.json?.code === "session_invalid" &&
         contaChanged.status === 200 &&
         contaStill.status === 200 &&
-        legacyAfter.status === 200 &&
+        legacyAfter.status === 401 &&
+        legacyAfter.json?.code === "session_invalid" &&
         sessionRow(String(contaSession.json?.sessionId || ""))?.revoked_at == null,
-      `legado ${legacyAfter.status}`
+      `legado ${legacyBefore.status}/${legacyAfter.status}, atual ${contaStill.status}`
     );
 
     const cached = await login(base, "ana", PASS_ANA_NOVA);
@@ -639,15 +711,16 @@ async function main() {
     const cachedRow = sessionRow(String(cached.json?.sessionId || ""));
     if (cachedRow) cachedRow.revoked_at = new Date().toISOString();
     const duringWindow = await call(base, cached.json?.token, "GET", "/api/auth/my-access");
-    await new Promise((resolve) => setTimeout(resolve, 21_000));
-    const afterWindow = await call(base, cached.json?.token, "GET", "/api/auth/my-access");
+    const revokedBurst = await Promise.all(
+      Array.from({ length: 8 }, () => call(base, cached.json?.token, "GET", "/api/auth/my-access"))
+    );
     record(
-      "revogação fora do processo passa a valer depois da janela de 20s",
+      "revogação fora do processo vale na próxima requisição e na rajada",
       cachedOk.status === 200 &&
-        duringWindow.status === 200 &&
-        afterWindow.status === 401 &&
-        afterWindow.json?.code === "session_revoked",
-      `durante ${duringWindow.status}, depois ${afterWindow.status}`
+        duringWindow.status === 401 &&
+        duringWindow.json?.code === "session_revoked" &&
+        revokedBurst.every((item) => item.status === 401 && item.json?.code === "session_revoked"),
+      `seguinte ${duringWindow.status}, rajada ${revokedBurst.map((item) => item.status).join(",")}`
     );
 
     const floodIp = "203.0.113.10";
