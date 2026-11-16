@@ -237,11 +237,18 @@ async function call(
   return { status: res.status, json };
 }
 
+let loginIpSerial = 0;
+
+function nextLoginIp(): string {
+  loginIpSerial += 1;
+  return `192.0.2.${((loginIpSerial - 1) % 250) + 1}`;
+}
+
 async function login(
   base: string,
   username: string,
   password: string,
-  ip: string = crypto.randomUUID(),
+  ip: string = nextLoginIp(),
   deviceId: string = `aparelho-${crypto.randomUUID()}`
 ): Promise<{ status: number; json: any; deviceId: string }> {
   const result = await call(base, null, "POST", "/api/auth/login", { username, password, deviceId }, {
@@ -339,7 +346,7 @@ async function main() {
       clientIp(
         { ...forgedHeaders, headers: { "x-forwarded-for": "203.0.113.99", "x-real-ip": "203.0.113.77" } },
         { VERCEL: "1" }
-      ) === "127.0.0.1" &&
+      ) === "vercel-unknown" &&
       clientIp(forgedHeaders, {}) === "127.0.0.1",
     "ip confiável"
   );
@@ -419,7 +426,7 @@ async function main() {
       device_id: blockedId,
     });
     const beforeBlocked = tables.workshop_device_sessions.length;
-    const blocked = await login(base, "ana", PASS_ANA, crypto.randomUUID(), blockedId);
+    const blocked = await login(base, "ana", PASS_ANA, "203.0.113.70", blockedId);
     record(
       "dispositivo bloqueado não entra",
       blocked.status === 403 &&
@@ -472,12 +479,12 @@ async function main() {
     const wrongChange = await call(base, anaA.json?.token, "POST", "/api/auth/change-my-password", {
       currentPassword: PASS_WRONG,
       newPassword: PASS_ANA_NOVA,
-    }, { "x-vercel-forwarded-for": "troca-ana", "x-forwarded-for": "192.0.2.254" });
+    }, { "x-vercel-forwarded-for": "203.0.113.40", "x-forwarded-for": "192.0.2.254" });
     const hashAfterWrong = String(userRow(USER_ANA)?.password_hash);
     const changed = await call(base, anaA.json?.token, "POST", "/api/auth/change-my-password", {
       currentPassword: PASS_ANA,
       newPassword: PASS_ANA_NOVA,
-    }, { "x-vercel-forwarded-for": "troca-ana", "x-forwarded-for": "192.0.2.254" });
+    }, { "x-vercel-forwarded-for": "203.0.113.40", "x-forwarded-for": "192.0.2.254" });
     const otherAna = await call(base, anaB.json?.token, "GET", "/api/auth/my-access");
     const sameAna = await call(base, anaA.json?.token, "GET", "/api/auth/my-access");
     const oldAna = await login(base, "ana", PASS_ANA);
@@ -614,7 +621,7 @@ async function main() {
     const contaChanged = await call(base, contaSession.json?.token, "POST", "/api/auth/change-my-password", {
       currentPassword: PASS_CONTA,
       newPassword: "senha-conta-nova",
-    }, { "x-vercel-forwarded-for": "troca-conta", "x-forwarded-for": "192.0.2.254" });
+    }, { "x-vercel-forwarded-for": "203.0.113.41", "x-forwarded-for": "192.0.2.254" });
     const legacyAfter = await call(base, legacy, "GET", "/api/auth/my-access");
     const contaStill = await call(base, contaSession.json?.token, "GET", "/api/auth/my-access");
     record(
@@ -747,9 +754,10 @@ async function main() {
       attempts.join(",")
     );
 
-    const socketHits: number[] = [];
+    const missingHeader: number[] = [];
+    const badValues = ["", "   ", "nao-e-ip", "999.1.1.1", "08.8.8.8"];
     for (let i = 0; i < 12; i += 1) {
-      socketHits.push(
+      missingHeader.push(
         (
           await call(
             base,
@@ -760,17 +768,32 @@ async function main() {
             {
               "x-forwarded-for": `203.0.113.${i}`,
               "x-real-ip": `192.0.2.${i}`,
-              "x-vercel-forwarded-for": "",
+              "x-vercel-forwarded-for": badValues[i % badValues.length],
               "x-device-id": `socket-${i}`,
             }
           )
         ).status
       );
     }
+    const stillSeparate = await login(base, "ninguem", PASS_WRONG, "203.0.113.62");
+    const v6Hits: number[] = [];
+    for (let i = 0; i < 10; i += 1) {
+      v6Hits.push((await login(base, "ninguem", PASS_WRONG, "2001:0db8:0000:0000:0000:0000:0000:0010")).status);
+    }
+    const v6Same = await login(base, "ninguem", PASS_WRONG, "2001:db8::10");
+    const v6Other = await login(base, "ninguem", PASS_WRONG, "2001:db8::11");
     record(
-      "sem o cabeçalho da plataforma o limite usa o socket",
-      socketHits.slice(0, 10).every((status) => status === 401) && socketHits[10] === 429 && socketHits[11] === 429,
-      socketHits.join(",")
+      "sem o cabeçalho válido da plataforma o limite usa um identificador fixo",
+      missingHeader.slice(0, 10).every((status) => status === 401) &&
+        missingHeader[10] === 429 &&
+        missingHeader[11] === 429 &&
+        stillSeparate.status === 401,
+      `${missingHeader.join(",")}, outro ${stillSeparate.status}`
+    );
+    record(
+      "IPv6 normalizado compartilha o contador",
+      v6Hits.every((status) => status === 401) && v6Same.status === 429 && v6Other.status === 401,
+      `${v6Hits.join(",")}, igual ${v6Same.status}, outro ${v6Other.status}`
     );
   } finally {
     first.server.close();
