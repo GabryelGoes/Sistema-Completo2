@@ -204,12 +204,17 @@ type SessionPayload = {
 };
 
 const DEVICE_ONLINE_MS = 2 * 60 * 1000;
-const DEVICE_SESSION_CACHE_MS = 20 * 1000;
-const deviceSessionOkCache = new Map<
-  string,
-  { until: number; revoked: boolean; deviceId: string; blocked: boolean }
->();
-const blockedDeviceCache = new Map<string, { until: number; blocked: boolean }>();
+/**
+ * Só guarda recusa. Uma sessão revogada não volta a valer, e este conjunto
+ * impede que uma consulta já em andamento regrave autorização depois do logout.
+ * Não há cache de sessão ativa nem de aparelho liberado.
+ */
+const revokedSessionIds = new Set<string>();
+
+function rememberRevokedSession(sid: string): void {
+  const id = sid.trim();
+  if (id) revokedSessionIds.add(id);
+}
 
 function loginAccountKey(username: string): string {
   return username.trim().toLowerCase().slice(0, 120);
@@ -1411,8 +1416,6 @@ export function createApiApp() {
   async function isDeviceBlocked(deviceId: string): Promise<"clear" | "blocked" | "unavailable"> {
     if (!deviceId) return "clear";
     if (!supabaseAdmin || !WORKSHOP_ID) return "unavailable";
-    const cached = blockedDeviceCache.get(deviceId);
-    if (cached && cached.until > Date.now()) return cached.blocked ? "blocked" : "clear";
     try {
       const { data, error } = await supabaseAdmin
         .from("workshop_blocked_devices")
@@ -1421,44 +1424,44 @@ export function createApiApp() {
         .eq("device_id", deviceId)
         .maybeSingle();
       if (error) return "unavailable";
-      const blocked = !!data?.id;
-      blockedDeviceCache.set(deviceId, { until: Date.now() + DEVICE_SESSION_CACHE_MS, blocked });
-      return blocked ? "blocked" : "clear";
+      return data?.id ? "blocked" : "clear";
     } catch {
       return "unavailable";
     }
   }
 
   /**
-   * Valida sid (não revogada) e device_id (não bloqueado).
-   * Tokens legados sem sid seguem válidos até expirar e não têm linha para revogar.
+   * Cada requisição protegida relê a sessão e o bloqueio do aparelho.
+   * Token sem sid é recusado: quem ainda tiver um token antigo de até 12h faz login de novo.
    * Falha de consulta não libera a sessão e não grava revoked_at.
-   * Um acerto fica em cache por DEVICE_SESSION_CACHE_MS. Revogação feita fora
-   * deste processo passa a valer na leitura seguinte, depois dessa janela.
-   * A revogação feita aqui substitui o cache na hora.
+   * O mesmo aparelho não é consultado duas vezes nesta requisição.
+   * Não há janela em que uma sessão revogada continue autorizada.
    */
   async function enforceDeviceSession(
     req: express.Request,
     auth: SessionPayload
-  ): Promise<"ok" | "revoked" | "blocked" | "unavailable"> {
+  ): Promise<"ok" | "invalid" | "revoked" | "blocked" | "unavailable"> {
+    const blockMemo = new Map<string, "clear" | "blocked" | "unavailable">();
+    const blockStatus = async (id: string): Promise<"clear" | "blocked" | "unavailable"> => {
+      const known = blockMemo.get(id);
+      if (known) return known;
+      const status = await isDeviceBlocked(id);
+      blockMemo.set(id, status);
+      return status;
+    };
+
     const headerDeviceId = deviceIdFromReq(req);
     const deviceId = (auth.did || headerDeviceId || "").trim();
     if (deviceId) {
-      const block = await isDeviceBlocked(deviceId);
+      const block = await blockStatus(deviceId);
       if (block === "blocked") return "blocked";
       if (block === "unavailable") return "unavailable";
     }
 
     const sid = typeof auth.sid === "string" ? auth.sid.trim() : "";
-    if (!sid) return "ok";
+    if (!sid) return "invalid";
+    if (revokedSessionIds.has(sid)) return "revoked";
     if (!supabaseAdmin || !WORKSHOP_ID) return "unavailable";
-
-    const cached = deviceSessionOkCache.get(sid);
-    if (cached && cached.until > Date.now()) {
-      if (cached.revoked) return "revoked";
-      if (cached.blocked) return "blocked";
-      return "ok";
-    }
 
     try {
       const { data, error } = await supabaseAdmin
@@ -1468,44 +1471,18 @@ export function createApiApp() {
         .eq("workshop_id", WORKSHOP_ID)
         .maybeSingle();
       if (error) return "unavailable";
-      if (!data) {
-        deviceSessionOkCache.set(sid, {
-          until: Date.now() + DEVICE_SESSION_CACHE_MS,
-          revoked: true,
-          deviceId: deviceId || "",
-          blocked: false,
-        });
+      if (!data || data.revoked_at) {
+        rememberRevokedSession(sid);
         return "revoked";
       }
-      if (data.revoked_at) {
-        deviceSessionOkCache.set(sid, {
-          until: Date.now() + DEVICE_SESSION_CACHE_MS,
-          revoked: true,
-          deviceId: String(data.device_id || ""),
-          blocked: false,
-        });
-        return "revoked";
-      }
+      if (revokedSessionIds.has(sid)) return "revoked";
       const sessionDevice = String(data.device_id || "").trim();
       if (sessionDevice) {
-        const block = await isDeviceBlocked(sessionDevice);
+        const block = await blockStatus(sessionDevice);
         if (block === "unavailable") return "unavailable";
-        if (block === "blocked") {
-          deviceSessionOkCache.set(sid, {
-            until: Date.now() + DEVICE_SESSION_CACHE_MS,
-            revoked: false,
-            deviceId: sessionDevice,
-            blocked: true,
-          });
-          return "blocked";
-        }
+        if (block === "blocked") return "blocked";
       }
-      deviceSessionOkCache.set(sid, {
-        until: Date.now() + DEVICE_SESSION_CACHE_MS,
-        revoked: false,
-        deviceId: sessionDevice,
-        blocked: false,
-      });
+      if (revokedSessionIds.has(sid)) return "revoked";
       return "ok";
     } catch {
       return "unavailable";
@@ -1534,14 +1511,7 @@ export function createApiApp() {
       return false;
     }
     for (const row of data || []) {
-      const id = String((row as { id?: string }).id || "");
-      if (!id) continue;
-      deviceSessionOkCache.set(id, {
-        until: Date.now() + DEVICE_SESSION_CACHE_MS * 10,
-        revoked: true,
-        deviceId: "",
-        blocked: false,
-      });
+      rememberRevokedSession(String((row as { id?: string }).id || ""));
     }
     return true;
   }
@@ -1687,6 +1657,12 @@ export function createApiApp() {
     const auth = verifySessionToken(bearer);
     if (auth) {
       const gate = await enforceDeviceSession(req, auth);
+      if (gate === "invalid") {
+        return res.status(401).json({
+          error: "Sessão inválida ou expirada. Faça login novamente.",
+          code: "session_invalid",
+        });
+      }
       if (gate === "revoked") {
         return res.status(401).json({
           error: "Sessão encerrada remotamente. Faça login novamente.",
@@ -2706,12 +2682,7 @@ export function createApiApp() {
       if (!data) {
         return res.status(404).json({ error: "Sessão não encontrada ou já encerrada." });
       }
-      deviceSessionOkCache.set(sessionId, {
-        until: Date.now() + DEVICE_SESSION_CACHE_MS * 10,
-        revoked: true,
-        deviceId: String(data.device_id || ""),
-        blocked: false,
-      });
+      rememberRevokedSession(sessionId);
       return res.json({ ok: true, sessionId });
     } catch (err: any) {
       console.error("[API] Erro em POST /api/auth/devices/:sessionId/revoke:", err);
@@ -2821,14 +2792,8 @@ export function createApiApp() {
         .is("revoked_at", null)
         .select("id");
       for (const row of revokedRows || []) {
-        deviceSessionOkCache.set(String(row.id), {
-          until: Date.now() + DEVICE_SESSION_CACHE_MS * 10,
-          revoked: true,
-          deviceId,
-          blocked: true,
-        });
+        rememberRevokedSession(String(row.id));
       }
-      blockedDeviceCache.set(deviceId, { until: Date.now() + DEVICE_SESSION_CACHE_MS * 10, blocked: true });
       return res.json({
         ok: true,
         blocked: blocked || { deviceId },
@@ -2861,7 +2826,6 @@ export function createApiApp() {
       if (error) {
         return res.status(500).json({ error: error.message || "Falha ao desbloquear." });
       }
-      blockedDeviceCache.set(deviceId, { until: Date.now() + DEVICE_SESSION_CACHE_MS * 10, blocked: false });
       return res.json({ ok: true, deviceId });
     } catch (err: any) {
       console.error("[API] Erro em DELETE /api/auth/devices/block/:deviceId:", err);
@@ -2881,12 +2845,7 @@ export function createApiApp() {
           .eq("id", auth.sid)
           .eq("workshop_id", WORKSHOP_ID)
           .is("revoked_at", null);
-        deviceSessionOkCache.set(auth.sid, {
-          until: Date.now() + DEVICE_SESSION_CACHE_MS * 10,
-          revoked: true,
-          deviceId: auth.did || "",
-          blocked: false,
-        });
+        rememberRevokedSession(auth.sid);
       }
       return res.json({ ok: true });
     } catch (err: any) {
