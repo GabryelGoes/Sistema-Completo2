@@ -79,7 +79,8 @@ import { timeKindsToAutoPauseOnStageChange } from "./services/rdaIntelligence/wo
 import { recordServiceOrderStageEntry } from "./services/rdaIntelligence/patioIntelligence/recordStageEntry.js";
 import { assertHomologationSafeOrThrow } from "./utils/homologationGuard.js";
 import { classifyNewLoginPassword } from "./utils/loginPasswordPolicy.js";
-import { MemoryAuthRateLimitStore } from "./utils/authRateLimit.js";
+import { AuthRateLimitUnavailable } from "./utils/authRateLimit.js";
+import { resolveAuthRateLimitStore } from "./utils/postgresAuthRateLimit.js";
 import { clientIp } from "./utils/clientIp.js";
 import { resolveSessionKeyRing } from "./utils/sessionKeys.js";
 import { effectiveFamilyMode, guardHttpAuthorization, permissionSourceFromSupabase } from "./utils/authorizeRequest.js";
@@ -2283,26 +2284,57 @@ export function createApiApp() {
       .map((u: { id: string }) => u.id);
   }
 
-  // Limite por instância. Outra instância só compartilha a contagem se receber o mesmo store.
-  const authLimits = new MemoryAuthRateLimitStore();
+  // memory por padrão. postgres só com AUTH_RATE_LIMIT_STORE=postgres, depois da migration.
+  const authLimits = resolveAuthRateLimitStore(process.env, supabaseAdmin);
 
-  function resetLoginBuckets(ip: string, username: string): void {
-    authLimits.reset(`login:ip:${ip}`);
-    authLimits.reset(`login:account:${loginAccountKey(username)}`);
+  function rateLimitUnavailable(res: express.Response, kind: "login" | "password") {
+    console.error("[auth] Contador de tentativas indisponível.");
+    return res.status(503).json({
+      error:
+        kind === "login"
+          ? "Não foi possível concluir o login. Tente novamente."
+          : "Não foi possível alterar a senha. Tente novamente.",
+      code: "rate_limit_unavailable",
+    });
   }
 
-  function passwordChangeLimited(ip: string, account: string): boolean {
-    const now = Date.now();
-    const byIp = authLimits.hit(`password:ip:${ip}`, now, PASSWORD_WINDOW_MS, PASSWORD_IP_MAX);
-    const byAccount = authLimits.hit(`password:account:${account}`, now, PASSWORD_WINDOW_MS, PASSWORD_ACCOUNT_MAX);
-    return byIp.limited || byAccount.limited;
+  async function resetLoginBuckets(ip: string, username: string): Promise<void> {
+    await authLimits.reset(`login:ip:${ip}`);
+    await authLimits.reset(`login:account:${loginAccountKey(username)}`);
+  }
+
+  async function passwordChangeLimited(
+    ip: string,
+    account: string
+  ): Promise<"ok" | "limited" | "unavailable"> {
+    try {
+      const now = Date.now();
+      const byIp = await authLimits.hit(`password:ip:${ip}`, now, PASSWORD_WINDOW_MS, PASSWORD_IP_MAX);
+      const byAccount = await authLimits.hit(
+        `password:account:${account}`,
+        now,
+        PASSWORD_WINDOW_MS,
+        PASSWORD_ACCOUNT_MAX
+      );
+      return byIp.limited || byAccount.limited ? "limited" : "ok";
+    } catch (err) {
+      if (err instanceof AuthRateLimitUnavailable) return "unavailable";
+      throw err;
+    }
   }
 
   app.post("/api/auth/login", async (req, res) => {
     try {
       const ip = clientIp(req);
       const now = Date.now();
-      if (authLimits.hit(`login:ip:${ip}`, now, LOGIN_IP_WINDOW_MS, LOGIN_IP_MAX).limited) {
+      let ipHit: { limited: boolean };
+      try {
+        ipHit = await authLimits.hit(`login:ip:${ip}`, now, LOGIN_IP_WINDOW_MS, LOGIN_IP_MAX);
+      } catch (err) {
+        if (err instanceof AuthRateLimitUnavailable) return rateLimitUnavailable(res, "login");
+        throw err;
+      }
+      if (ipHit.limited) {
         return res.status(429).json({
           error: "Muitas tentativas de login. Aguarde alguns minutos e tente novamente.",
           code: "rate_limited",
@@ -2315,7 +2347,14 @@ export function createApiApp() {
         return res.status(400).json({ error: "Informe o usuário." });
       }
       const accountBucket = `login:account:${loginAccountKey(u)}`;
-      if (authLimits.peek(accountBucket, now, LOGIN_ACCOUNT_MAX)) {
+      let accountLimited = false;
+      try {
+        accountLimited = await authLimits.peek(accountBucket, now, LOGIN_ACCOUNT_MAX);
+      } catch (err) {
+        if (err instanceof AuthRateLimitUnavailable) return rateLimitUnavailable(res, "login");
+        throw err;
+      }
+      if (accountLimited) {
         return res.status(429).json({
           error: "Muitas tentativas de login. Aguarde alguns minutos e tente novamente.",
           code: "rate_limited",
@@ -2345,18 +2384,34 @@ export function createApiApp() {
       );
       const sessionId = crypto.randomUUID();
       const adminName = u.toLowerCase() === ADMIN_USERNAME.toLowerCase();
-      const rejectKnownAccount = () => {
-        if (authLimits.hit(accountBucket, Date.now(), LOGIN_ACCOUNT_WINDOW_MS, LOGIN_ACCOUNT_MAX).limited) {
-          return res.status(429).json({
-            error: "Muitas tentativas de login. Aguarde alguns minutos e tente novamente.",
-            code: "rate_limited",
-          });
+      const rejectKnownAccount = async () => {
+        try {
+          const accountHit = await authLimits.hit(
+            accountBucket,
+            Date.now(),
+            LOGIN_ACCOUNT_WINDOW_MS,
+            LOGIN_ACCOUNT_MAX
+          );
+          if (accountHit.limited) {
+            return res.status(429).json({
+              error: "Muitas tentativas de login. Aguarde alguns minutos e tente novamente.",
+              code: "rate_limited",
+            });
+          }
+        } catch (err) {
+          if (err instanceof AuthRateLimitUnavailable) return rateLimitUnavailable(res, "login");
+          throw err;
         }
         return res.status(401).json({ error: "Usuário ou senha incorretos." });
       };
 
       if (await verifyAdmin(u, p)) {
-        resetLoginBuckets(ip, u);
+        try {
+          await resetLoginBuckets(ip, u);
+        } catch (err) {
+          if (err instanceof AuthRateLimitUnavailable) return rateLimitUnavailable(res, "login");
+          throw err;
+        }
         const token = signSessionToken({
           r: "admin",
           n: ADMIN_USERNAME,
@@ -2403,7 +2458,12 @@ export function createApiApp() {
       if (!verifyPassword(p, user.password_hash)) {
         return rejectKnownAccount();
       }
-      resetLoginBuckets(ip, u);
+      try {
+        await resetLoginBuckets(ip, u);
+      } catch (err) {
+        if (err instanceof AuthRateLimitUnavailable) return rateLimitUnavailable(res, "login");
+        throw err;
+      }
       const permissions = (user.permissions as Record<string, boolean>) || {};
       const token = signSessionToken({
         r: "user",
@@ -2447,6 +2507,7 @@ export function createApiApp() {
         permissions,
       });
     } catch (err: any) {
+      if (err instanceof AuthRateLimitUnavailable) return rateLimitUnavailable(res, "login");
       console.error("[API] Erro em POST /api/auth/login:", err);
       return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
     }
@@ -2887,7 +2948,9 @@ export function createApiApp() {
       if (nextPassword.status === "invalid") {
         return res.status(400).json({ error: nextPassword.message, code: "invalid_new_password" });
       }
-      if (passwordChangeLimited(clientIp(req), `user:${auth.u}`)) {
+      const ownPasswordLimit = await passwordChangeLimited(clientIp(req), `user:${auth.u}`);
+      if (ownPasswordLimit === "unavailable") return rateLimitUnavailable(res, "password");
+      if (ownPasswordLimit === "limited") {
         return res.status(429).json({
           error: "Muitas tentativas de troca de senha. Aguarde alguns minutos e tente novamente.",
           code: "rate_limited",
@@ -2922,6 +2985,7 @@ export function createApiApp() {
       if (error) return res.status(500).json({ error: "Falha ao alterar senha." });
       return res.json({ ok: true, passwordUpdated: true });
     } catch (err: any) {
+      if (err instanceof AuthRateLimitUnavailable) return rateLimitUnavailable(res, "password");
       console.error("[API] Erro em POST /api/auth/change-my-password:", err);
       return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
     }
@@ -3276,11 +3340,15 @@ export function createApiApp() {
           code: "permissions_cas_unavailable",
         });
       }
-      if (nextPassword.status === "ready" && passwordChangeLimited(clientIp(req), `reset:${id}`)) {
-        return res.status(429).json({
-          error: "Muitas tentativas de troca de senha. Aguarde alguns minutos e tente novamente.",
-          code: "rate_limited",
-        });
+      if (nextPassword.status === "ready") {
+        const resetLimit = await passwordChangeLimited(clientIp(req), `reset:${id}`);
+        if (resetLimit === "unavailable") return rateLimitUnavailable(res, "password");
+        if (resetLimit === "limited") {
+          return res.status(429).json({
+            error: "Muitas tentativas de troca de senha. Aguarde alguns minutos e tente novamente.",
+            code: "rate_limited",
+          });
+        }
       }
       // Sem transação entre as duas tabelas (isso exigiria função no banco).
       // A revogação vem antes: se ela falha, a senha não muda. Se a senha falha
@@ -3324,6 +3392,7 @@ export function createApiApp() {
       }
       return res.json({ ...write.row, passwordUpdated: nextPassword.status === "ready" });
     } catch (err: any) {
+      if (err instanceof AuthRateLimitUnavailable) return rateLimitUnavailable(res, "password");
       console.error("[API] Erro em PUT /api/system-users/:id:", err);
       return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
     }
@@ -3866,7 +3935,9 @@ export function createApiApp() {
       }
       if (updates.some((item) => item.key === "admin_password")) {
         const auth = (req as unknown as { auth?: SessionPayload }).auth;
-        if (passwordChangeLimited(clientIp(req), "gerência")) {
+        const adminPasswordLimit = await passwordChangeLimited(clientIp(req), "gerência");
+        if (adminPasswordLimit === "unavailable") return rateLimitUnavailable(res, "password");
+        if (adminPasswordLimit === "limited") {
           return res.status(429).json({
             error: "Muitas tentativas de troca de senha. Aguarde alguns minutos e tente novamente.",
             code: "rate_limited",
@@ -3946,6 +4017,7 @@ export function createApiApp() {
         )
       );
     } catch (err: any) {
+      if (err instanceof AuthRateLimitUnavailable) return rateLimitUnavailable(res, "password");
       console.error("[API] Erro em PUT /api/workshop-settings:", err);
       return res.status(500).json({ error: err?.message ?? "Erro desconhecido" });
     }
