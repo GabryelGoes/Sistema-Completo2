@@ -254,6 +254,8 @@ import { PatioOsModalDadosRecentMedia } from '../patio/PatioOsModalDadosRecentMe
 import { PatioOsModalLabServicesSection } from '../patio/PatioOsModalLabServicesSection';
 import { PatioOsModalHistoricoTab } from '../patio/PatioOsModalHistoricoTab';
 import { VehicleObservationsSection } from '../patio/VehicleObservationsSection';
+import { VehicleEntryInspectionModal } from '../patio/VehicleEntryInspectionModal';
+import { VehicleEntryInspectionSection } from '../patio/VehicleEntryInspectionSection';
 import { VehicleOsStockCheckoutSection } from '../patio/VehicleOsStockCheckoutSection';
 import { OsCommentBubble } from '../patio/OsCommentBubble';
 import { OsCommentComposer } from '../patio/OsCommentComposer';
@@ -1942,6 +1944,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
   /** Estado dos itens (template_item_id -> complete|incomplete) para o card do modal de checklist */
   const [checklistState, setChecklistState] = useState<Record<string, 'complete' | 'incomplete'>>({});
   const [checklistStateLoading, setChecklistStateLoading] = useState(false);
+  /** Inspeção de Entrada (checklist versionado, separado dos templates admin). */
+  const [entryInspectionOpen, setEntryInspectionOpen] = useState(false);
+  const [entryInspectionRefreshToken, setEntryInspectionRefreshToken] = useState(0);
 
   // Estado para arquivamento (Entregue)
   const [archivingId, setArchivingId] = useState<string | null>(null);
@@ -2571,6 +2576,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
     setIsDeleteVehicleOpen(false);
     setIsDadosFichaExpanded(false);
     setUnarchiveError(null);
+    setEntryInspectionOpen(false);
   }, []);
 
   const patioPrimaryOverlayOpen = !!(selectedCard || selectedHistoryCard);
@@ -12770,6 +12776,18 @@ export const PatioView: React.FC<PatioViewProps> = ({
                           />
                         ) : null}
 
+                        {!isModuleMode && selectedCard?.id ? (
+                          <div className={isPatioPcModal ? 'patio-vm-aside-section' : 'mt-3'}>
+                            <VehicleEntryInspectionSection
+                              serviceOrderId={selectedCard.id}
+                              insetCardClass={`${vi} min-w-0 overflow-hidden shadow-none`}
+                              canEdit={can('canEditFicha') || can('canEditQueixa')}
+                              refreshToken={entryInspectionRefreshToken}
+                              onOpen={() => setEntryInspectionOpen(true)}
+                            />
+                          </div>
+                        ) : null}
+
                         {isPatioPcModal ? (
                          <div className={`${vi} patio-vm-aside-section patio-vm-aside-checklists min-w-0 overflow-hidden shadow-none`}>
                              <div className="patio-vm-aside-section-head relative flex items-center justify-between gap-2 border-b border-black/[0.06] bg-white/85 px-2.5 py-2 pl-3 backdrop-blur-[2px] dark:border-white/[0.08] dark:bg-zinc-950/35 sm:gap-3 sm:px-3 sm:py-2.5 sm:pl-4">
@@ -14312,6 +14330,24 @@ export const PatioView: React.FC<PatioViewProps> = ({
          </div>
          </ModalPortal>
       )}
+
+      {/* Inspeção de Entrada — checklist versionado (veículo) */}
+      {!isModuleMode && selectedCard?.id && patioPortalsVisible ? (
+        <VehicleEntryInspectionModal
+          isOpen={entryInspectionOpen}
+          serviceOrderId={selectedCard.id}
+          canEdit={can('canEditFicha') || can('canEditQueixa')}
+          vehicleLabel={
+            parsePatioCardTitle(selectedCard.name).vehicle ||
+            parsePatioCardTitle(selectedCard.name).plateOrModule ||
+            undefined
+          }
+          onClose={() => {
+            setEntryInspectionOpen(false);
+            setEntryInspectionRefreshToken((n) => n + 1);
+          }}
+        />
+      ) : null}
 
       {/* CAMERA MODAL — portal em body */}
       {isCameraOpen && patioPortalsVisible && (

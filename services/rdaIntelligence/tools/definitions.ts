@@ -233,6 +233,22 @@ export const RDA_PRODUCTION_TOOLS: RdaToolDefinition[] = [
     requiresHumanConfirmation: true,
     confirmationPolicy: "confirm_once",
   },
+  {
+    id: "rda_get_entry_inspection",
+    description:
+      "Consulta a Inspeção de Entrada de uma OS de veículo (checklist de condições gerais, freios e ABS). Retorna respostas, anomalias e bloqueio de teste de rodagem. NÃO trate as respostas como diagnóstico confirmado — são apenas registro de inspeção inicial.",
+    parameters: {
+      type: "object",
+      properties: {
+        serviceOrderId: { type: "string" },
+      },
+      required: ["serviceOrderId"],
+      additionalProperties: false,
+    },
+    requiredPermission: "access_patio",
+    side: "read",
+    requiresHumanConfirmation: false,
+  },
   // ----- Radar Fase 3: consultas gerenciais (somente gestão / access_radar_qualidade) -----
   {
     id: "rda_quality_person_profile",

@@ -2093,6 +2093,186 @@ export async function getServiceOrderChecklistState(
   return response.json();
 }
 
+// ---------- Inspeção de Entrada (veículo) ----------
+
+export type EntryInspectionStatusDto = "pending" | "in_progress" | "completed";
+export type EntryRoadTestStatusDto =
+  | "not_requested"
+  | "blocked"
+  | "cleared"
+  | "performed";
+
+export type EntryAnswerValueDto =
+  | "sim"
+  | "nao"
+  | "normal"
+  | "anormal"
+  | "baixo"
+  | "acesa"
+  | "apagada"
+  | "nao_verificado"
+  | "nao_aplicavel";
+
+export type EntryAnswerRecordDto = {
+  value: EntryAnswerValueDto | null;
+  note?: string | null;
+  answeredAt?: string | null;
+};
+
+export type EntryQuestionSnapshotDto = {
+  id: string;
+  group: string;
+  order: number;
+  prompt: string;
+  options: EntryAnswerValueDto[];
+  anomalyValues: EntryAnswerValueDto[];
+  criticalValues: EntryAnswerValueDto[];
+  requireJustificationIfUnchecked: boolean;
+};
+
+export type VehicleEntryInspectionDto = {
+  id: string;
+  serviceOrderId: string;
+  checklistId: string;
+  checklistVersion: number;
+  status: EntryInspectionStatusDto;
+  answers: Record<string, EntryAnswerRecordDto>;
+  questionSnapshot: EntryQuestionSnapshotDto[];
+  observations: string | null;
+  anomalySummary: string[];
+  responsibleUserId: string | null;
+  responsibleName: string | null;
+  startedAt: string | null;
+  completedAt: string | null;
+  roadTestStatus: EntryRoadTestStatusDto;
+  roadTestConfirmedAt: string | null;
+  roadTestConfirmedBy: string | null;
+  criticalCleared: boolean;
+  criticalClearedAt: string | null;
+  criticalClearedBy: string | null;
+  criticalClearanceNote: string | null;
+  updatedAt: string;
+  createdAt: string;
+  progress: { answered: number; total: number; percent: number };
+  safety: {
+    blocksRoadTest: boolean;
+    criticalCount: number;
+    anomalyCount: number;
+    criticalFindings: Array<{ questionId: string; prompt: string; value: string; message: string }>;
+    anomalyFindings: Array<{ questionId: string; prompt: string; value: string; message: string }>;
+  };
+  diagnosticClaim: false;
+};
+
+export type VehicleEntryInspectionResponse = {
+  orderType: string;
+  definition: {
+    checklistId: string;
+    checklistVersion: number;
+    questions: EntryQuestionSnapshotDto[];
+  };
+  inspection: VehicleEntryInspectionDto | null;
+  events: Array<{
+    id: string;
+    eventType: string;
+    actorName: string | null;
+    payload: Record<string, unknown>;
+    createdAt: string;
+  }>;
+  note: string;
+};
+
+export async function getVehicleEntryInspection(
+  serviceOrderId: string
+): Promise<VehicleEntryInspectionResponse> {
+  const response = await fetch(`${API_BASE}/service-orders/${serviceOrderId}/entry-inspection`);
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao carregar inspeção de entrada (${response.status})`);
+  }
+  return response.json();
+}
+
+export async function startVehicleEntryInspection(
+  serviceOrderId: string
+): Promise<{ inspection: VehicleEntryInspectionDto; created: boolean }> {
+  const response = await fetch(`${API_BASE}/service-orders/${serviceOrderId}/entry-inspection/start`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: "{}",
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao iniciar inspeção (${response.status})`);
+  }
+  return response.json();
+}
+
+export async function saveVehicleEntryInspection(
+  serviceOrderId: string,
+  body: {
+    answers: Record<string, EntryAnswerRecordDto>;
+    observations?: string | null;
+    expectedUpdatedAt: string;
+    markCompleted?: boolean;
+  }
+): Promise<{ inspection: VehicleEntryInspectionDto }> {
+  const response = await fetch(`${API_BASE}/service-orders/${serviceOrderId}/entry-inspection`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    const error = new Error(err.error || `Falha ao salvar inspeção (${response.status})`) as Error & {
+      code?: string;
+      inspection?: VehicleEntryInspectionDto;
+    };
+    error.code = err.code;
+    error.inspection = err.inspection;
+    throw error;
+  }
+  return response.json();
+}
+
+export async function clearVehicleEntryInspectionCritical(
+  serviceOrderId: string,
+  body: { note: string; expectedUpdatedAt: string }
+): Promise<{ inspection: VehicleEntryInspectionDto }> {
+  const response = await fetch(
+    `${API_BASE}/service-orders/${serviceOrderId}/entry-inspection/clear-critical`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    }
+  );
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao liberar bloqueio (${response.status})`);
+  }
+  return response.json();
+}
+
+export async function confirmVehicleEntryRoadTest(
+  serviceOrderId: string,
+  body: { confirm: true; expectedUpdatedAt: string }
+): Promise<{ inspection: VehicleEntryInspectionDto }> {
+  const response = await fetch(
+    `${API_BASE}/service-orders/${serviceOrderId}/entry-inspection/confirm-road-test`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    }
+  );
+  if (!response.ok) {
+    const err = await response.json().catch(() => ({}));
+    throw new Error(err.error || `Falha ao confirmar teste de rodagem (${response.status})`);
+  }
+  return response.json();
+}
+
 export async function updateServiceOrderChecklistItem(
   serviceOrderId: string,
   templateItemId: string,

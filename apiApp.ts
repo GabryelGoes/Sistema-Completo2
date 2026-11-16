@@ -71,6 +71,7 @@ import {
 import { registerRdaIntelligenceRoutes } from "./services/rdaIntelligence/index.js";
 import { registerRdaEvaluationRoutes } from "./services/rdaIntelligence/evaluations/registerRdaEvaluationRoutes.js";
 import { registerRdaWorkSessionRoutes } from "./services/rdaIntelligence/workSessions/registerRdaWorkSessionRoutes.js";
+import { registerVehicleEntryInspectionRoutes } from "./services/vehicleEntryInspection/registerRoutes.js";
 import {
   autoPauseWorkSessionsOnStageChange,
   listRunningWorkSessionIdsForKinds,
@@ -18002,6 +18003,12 @@ export function createApiApp() {
       console.error("[API] DELETE quality-incident attachment:", err);
       return res.status(500).json({ error: err?.message ?? "Erro" });
     }
+  });
+
+  // ----------------- Inspeção de Entrada (veículo) -----------------
+  registerVehicleEntryInspectionRoutes(app, {
+    WORKSHOP_ID,
+    supabaseAdmin,
   });
 
   // ----------------- RDA Intelligence (motor real + flag admin) -----------------

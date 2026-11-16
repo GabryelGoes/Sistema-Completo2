@@ -39,6 +39,7 @@
     "test:lab-finalizado-location": "tsx scripts/labFinalizadoLocation.selftest.ts",
     "test:rda-panels-zindex": "tsx scripts/rdaPanelsZIndex.selftest.ts",
     "test:rda-header-alerts-banners": "tsx scripts/rdaHeaderAlertsBanners.selftest.ts",
+    "test:vehicle-entry-inspection": "tsx scripts/vehicleEntryInspection.selftest.ts",
     "test:remove-os-work-time-panel": "tsx scripts/removeOsWorkTimePanel.selftest.ts",
     "test:workshop-settings-secrets": "tsx scripts/workshopSettingsSecrets.selftest.ts",
     "test:sec041-workshop-admin-settings": "tsx scripts/sec041WorkshopAdminSettings.selftest.ts",
