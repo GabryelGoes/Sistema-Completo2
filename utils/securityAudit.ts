@@ -77,8 +77,22 @@ const SECURITY_SETTING_KEYS = new Set([
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
+export const SECURITY_AUDIT_REASONS = [
+  "blocked_devices_read",
+  "device_session_read",
+  "employees_read",
+  "auth_store_missing",
+  "expired",
+  "missing_sid",
+  "invalid_signature",
+  "invalid_format",
+] as const;
+
+export type SecurityAuditReason = (typeof SECURITY_AUDIT_REASONS)[number];
+
 export type SecurityEventMetadata = {
   area?: "login" | "password" | "gerencia" | "users" | "devices" | "settings" | "audit";
+  reason?: SecurityAuditReason;
   changedKeys?: string[];
   permissionKeys?: string[];
   targetUserId?: string;
@@ -178,6 +192,7 @@ export function securityMetadata(input: SecurityEventMetadata | undefined): Secu
   if (typeof input.revokedCount === "number" && input.revokedCount >= 0 && input.revokedCount <= 10000) {
     metadata.revokedCount = Math.floor(input.revokedCount);
   }
+  if (input.reason && SECURITY_AUDIT_REASONS.includes(input.reason)) metadata.reason = input.reason;
   return metadata;
 }
 
@@ -372,6 +387,7 @@ export function createSecurityAudit(options: {
           draft.eventType,
           draft.outcome,
           metadata.area || "",
+          metadata.reason || "",
           actor || "",
           sessionId || "",
           deviceId || "",

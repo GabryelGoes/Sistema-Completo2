@@ -12,6 +12,7 @@ import {
   OVERVIEW_CRITICAL_TYPES,
   SECURITY_CENTER_EVENT_TYPES,
   actorLabel,
+  eventDetail,
   countEventTypes,
   formatSecurityCount,
   isCriticalSecurityEvent,
@@ -77,7 +78,9 @@ function main() {
       actorLabel({ eventType: "logout", actorUserId: "22222222-2222-4222-8222-222222222299" }, names) === "Funcionário removido" &&
       actorLabel({ eventType: "login_succeeded", actorUserId: null }, names) === "Gerência" &&
       actorLabel({ eventType: "login_denied", actorUserId: null }, names) === "Não identificado" &&
-      actorLabel({ eventType: "login_succeeded", actorUserId: "22222222-2222-4222-8222-222222222201" }, null) === "Funcionário",
+      actorLabel({ eventType: "login_succeeded", actorUserId: "22222222-2222-4222-8222-222222222201" }, null) === "Funcionário" &&
+      eventDetail({ metadata: { reason: "device_session_read" } }, names) === "Leitura da sessão" &&
+      eventDetail({ metadata: { reason: "select * from users" } }, names) === null,
     "nomes"
   );
 

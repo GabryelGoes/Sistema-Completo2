@@ -67,6 +67,9 @@ const tables: Record<string, Row[]> = {
 };
 
 let failDeviceReads = false;
+let failBlockedReads = false;
+let failSessionReads = false;
+let failEmployeeReads = false;
 const authReadCounts: Record<string, number> = {};
 
 function resetAuthReads(): void {
@@ -145,12 +148,14 @@ async function startMock(): Promise<{ server: http.Server; url: string }> {
         authReadCounts[table] = (authReadCounts[table] || 0) + 1;
       }
       if (
-        failDeviceReads &&
         req.method === "GET" &&
-        (table === "workshop_device_sessions" || table === "workshop_blocked_devices")
+        ((failDeviceReads && (table === "workshop_device_sessions" || table === "workshop_blocked_devices")) ||
+          (failBlockedReads && table === "workshop_blocked_devices") ||
+          (failSessionReads && table === "workshop_device_sessions") ||
+          (failEmployeeReads && table === "workshop_system_users"))
       ) {
         res.writeHead(500, { "content-type": "application/json" });
-        res.end(JSON.stringify({ message: "falha ficticia de leitura" }));
+        res.end(JSON.stringify({ message: "segredo-do-banco-nao-deve-vazar", code: "XX000" }));
         return;
       }
       const filters = parseFilters(url);
@@ -460,6 +465,38 @@ async function main() {
         unknownSidHit.status === 401 &&
         unknownSidHit.json?.code === "session_revoked",
       `anterior ${previousHit.status}, alheia ${forgedHit.status}, expirado ${expiredHit.status}, sem sid ${missingSidHit.status}, sid ${unknownSidHit.status}`
+    );
+    const invalidRows = (tables.workshop_security_events || []).filter((row) => row.event_type === "session_invalid");
+    const reason = (row: Row | undefined) => String((row?.metadata as { reason?: string } | undefined)?.reason || "");
+    const expiredRow = [...invalidRows].reverse().find((row) => reason(row) === "expired");
+    const missingRowAudit = [...invalidRows].reverse().find((row) => reason(row) === "missing_sid");
+    const forgedRow = [...invalidRows].reverse().find((row) => reason(row) === "invalid_signature");
+    const invalidDump = JSON.stringify(invalidRows);
+    record(
+      "token antigo, sem sid e com assinatura alheia ficam distintos e sem segredo",
+      reason(expiredRow) === "expired" &&
+        expiredRow?.actor_user_id === USER_ANA &&
+        expiredRow?.session_id == null &&
+        reason(missingRowAudit) === "missing_sid" &&
+        missingRowAudit?.actor_user_id === USER_ANA &&
+        reason(forgedRow) === "invalid_signature" &&
+        forgedRow?.actor_user_id == null &&
+        forgedRow?.session_id == null &&
+        !invalidDump.includes(SESSION_SECRET) &&
+        !invalidDump.includes("chave-alheia") &&
+        !invalidDump.includes("\"n\""),
+      `${reason(expiredRow)}/${reason(missingRowAudit)}/${reason(forgedRow)}`
+    );
+    const formatHit = await call(base, "abc", "GET", "/api/auth/my-access");
+    const formatRow = [...(tables.workshop_security_events || [])].reverse().find((row) => row.event_type === "session_invalid" && reason(row) === "invalid_format");
+    record(
+      "token ilegível não autoriza e não copia o texto",
+      formatHit.status === 401 &&
+        formatHit.json?.code === "session_invalid" &&
+        !formatHit.json?.token &&
+        reason(formatRow) === "invalid_format" &&
+        formatRow?.actor_user_id == null,
+      `status ${formatHit.status}`
     );
 
     const blockedId = `bloqueado-${crypto.randomUUID()}`;
@@ -867,6 +904,77 @@ async function main() {
       "IPv6 normalizado compartilha o contador",
       v6Hits.every((status) => status === 401) && v6Same.status === 429 && v6Other.status === 401,
       `${v6Hits.join(",")}, igual ${v6Same.status}, outro ${v6Other.status}`
+    );
+
+    const sessionsBeforeDiag = tables.workshop_device_sessions.length;
+    failEmployeeReads = true;
+    const employeesDown = await login(base, "ana", PASS_WRONG, "203.0.113.82", "aparelho-cadastro");
+    const sessionsDuringOutage = tables.workshop_device_sessions.length;
+    failEmployeeReads = false;
+    const employeesBack = await login(base, "ana", PASS_ANA_NOVA, "203.0.113.83", "aparelho-cadastro-ok");
+    const employeeEvent = [...(tables.workshop_security_events || [])].reverse().find((row) => row.event_type === "login_unavailable");
+    const employeeDump = JSON.stringify(employeeEvent || {});
+    record(
+      "consulta de funcionários indisponível não vira senha incorreta",
+      employeesDown.status === 503 &&
+        employeesDown.json?.code === "login_unavailable" &&
+        !employeesDown.json?.token &&
+        !String(employeesDown.json?.error || "").toLowerCase().includes("senha") &&
+        sessionsDuringOutage === sessionsBeforeDiag &&
+        String((employeeEvent?.metadata as { reason?: string } | undefined)?.reason) === "employees_read" &&
+        !employeeDump.includes("segredo-do-banco") &&
+        employeesBack.status === 200,
+      `falha ${employeesDown.status} ${employeesDown.json?.code || ""}, retorno ${employeesBack.status}`
+    );
+
+    failBlockedReads = true;
+    const blockedRead = await login(base, "bia", PASS_WRONG, "203.0.113.84", "aparelho-lista");
+    failBlockedReads = false;
+    const blockedEvent = [...(tables.workshop_security_events || [])].reverse().find((row) =>
+      row.event_type === "session_check_unavailable" &&
+      (row.metadata as { reason?: string } | undefined)?.reason === "blocked_devices_read"
+    );
+    record(
+      "falha na lista de aparelhos não autoriza",
+      blockedRead.status === 503 &&
+        blockedRead.json?.code === "session_check_unavailable" &&
+        !blockedRead.json?.token &&
+        !!blockedEvent &&
+        !JSON.stringify(blockedEvent).includes("segredo-do-banco"),
+      `status ${blockedRead.status}`
+    );
+
+    const diag = await login(base, "bia", PASS_BIA_NOVA, "203.0.113.85", "aparelho-sessao-diag");
+    const diagHeaders = {
+      "x-vercel-forwarded-for": "203.0.113.85",
+      "x-forwarded-for": "192.0.2.254",
+      "x-device-id": diag.deviceId,
+    };
+    failSessionReads = true;
+    const beforeReads = (tables.workshop_security_events || []).filter((row) =>
+      row.event_type === "session_check_unavailable" &&
+      (row.metadata as { reason?: string } | undefined)?.reason === "device_session_read"
+    ).length;
+    const firstRead = await call(base, diag.json?.token, "GET", "/api/auth/my-access", undefined, diagHeaders);
+    const secondRead = await call(base, diag.json?.token, "GET", "/api/auth/my-access", undefined, diagHeaders);
+    failSessionReads = false;
+    const readEvents = (tables.workshop_security_events || []).filter((row) =>
+      row.event_type === "session_check_unavailable" &&
+      (row.metadata as { reason?: string } | undefined)?.reason === "device_session_read"
+    );
+    const readBack = await call(base, diag.json?.token, "GET", "/api/auth/my-access", undefined, diagHeaders);
+    const readRow = readEvents[readEvents.length - 1];
+    record(
+      "falha da sessão identificada fica visível uma vez e não autoriza",
+      diag.status === 200 &&
+        firstRead.status === 503 &&
+        secondRead.status === 503 &&
+        readEvents.length === beforeReads + 1 &&
+        readRow?.actor_user_id === USER_BIA &&
+        readRow?.session_id === diag.json?.sessionId &&
+        !JSON.stringify(readRow || {}).includes("segredo-do-banco") &&
+        readBack.status === 200,
+      `primeira ${firstRead.status}, segunda ${secondRead.status}, retorno ${readBack.status}`
     );
   } finally {
     first.server.close();

@@ -5948,6 +5948,7 @@ export type SecurityEventRecord = {
   clientRef: string | null;
   metadata?: {
     area?: string;
+    reason?: string;
     changedKeys?: string[];
     permissionKeys?: string[];
     targetUserId?: string;

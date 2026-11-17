@@ -176,6 +176,25 @@ function rules() {
     stale.plans.length === 0 && fresh.plans.length === 1 && fresh.plans[0].severity === "warning",
     "sessão"
   );
+  const repeatedCheck = planSecurityAlerts({
+    volumeSource: "postgres",
+    buckets: [],
+    events: [
+      event("00000000-0000-4000-8000-000000000030", "session_check_unavailable", "2026-11-16T17:00:00.000Z"),
+      event("00000000-0000-4000-8000-000000000031", "session_check_unavailable", "2026-11-16T17:20:00.000Z"),
+      event("00000000-0000-4000-8000-000000000032", "session_check_unavailable", "2026-11-16T20:00:00.000Z"),
+      event("00000000-0000-4000-8000-000000000033", "session_check_unavailable", "2026-11-16T20:10:00.000Z"),
+    ],
+    stored: [],
+  });
+  record(
+    "repetições da mesma verificação não viram incidente importante",
+    repeatedCheck.plans.length === 1 &&
+      repeatedCheck.plans[0].severity === "warning" &&
+      repeatedCheck.plans[0].occurrenceCount === 4 &&
+      repeatedCheck.plans[0].explanation.includes("uma condição só"),
+    repeatedCheck.plans[0]?.severity || "sem plano"
+  );
 
   const down = planSecurityAlerts({
     volumeSource: "unavailable",
