@@ -25,10 +25,25 @@ export function getPatioBoardCardRadiusClass(isPcLayout: boolean, boardPanoramic
     : 'rounded-[2rem] sm:rounded-[2.25rem]';
 }
 
+export type PatioBoardColumnShellOpts = {
+  /**
+   * PR-B: smartphone / paint leve — fundo opaco, sem backdrop-blur.
+   * Não usar em tablet/desktop (preserva visual atual).
+   */
+  opaquePaint?: boolean;
+};
+
 /** Shell das colunas Trello / por mecânico — chapado, sem contorno marcado. */
-export function getPatioBoardColumnShellClass(isPcLayout: boolean): string {
+export function getPatioBoardColumnShellClass(
+  isPcLayout: boolean,
+  opts?: PatioBoardColumnShellOpts
+): string {
   if (isPcLayout) {
     return 'rounded-[1.35rem] border-0 bg-zinc-100/90 transition-[box-shadow,transform,background-color] duration-300 ease-out dark:bg-zinc-900/40';
+  }
+  if (opts?.opaquePaint) {
+    // Smartphone: opaco, sem backdrop-filter; transição só de cor (feedback leve).
+    return 'rounded-[1.35rem] border-0 bg-zinc-100 transition-[background-color] duration-200 ease-out motion-reduce:transition-none dark:bg-zinc-900';
   }
   return 'rounded-[1.35rem] border-0 bg-zinc-100/50 backdrop-blur-md transition-[box-shadow,transform,background-color] duration-300 ease-out dark:bg-zinc-900/45';
 }

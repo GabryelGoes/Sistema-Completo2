@@ -7499,17 +7499,32 @@ export const PatioView: React.FC<PatioViewProps> = ({
       data-lab-lista-pinned={labListaPinnedHeader ? 'true' : undefined}
       className={
         labListaPinnedHeader
-          ? 'relative flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden animate-in fade-in duration-500'
+          ? `relative flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden ${
+              isSmartphone
+                ? 'motion-safe:animate-in motion-safe:fade-in motion-safe:duration-200 motion-reduce:animate-none'
+                : 'animate-in fade-in duration-500'
+            }`
           : isModuleMode
-            ? 'relative flex h-full min-h-0 w-full flex-1 flex-col overflow-y-auto overscroll-contain touch-pan-y [-webkit-overflow-scrolling:touch] animate-in pb-32 fade-in duration-500 md:pb-8'
-            : 'relative min-h-full w-full animate-in pb-32 fade-in duration-500'
+            ? `relative flex h-full min-h-0 w-full flex-1 flex-col overflow-y-auto overscroll-contain touch-pan-y [-webkit-overflow-scrolling:touch] pb-32 md:pb-8 ${
+                isSmartphone
+                  ? 'motion-safe:animate-in motion-safe:fade-in motion-safe:duration-200 motion-reduce:animate-none'
+                  : 'animate-in fade-in duration-500'
+              }`
+            : `relative min-h-full w-full pb-32 ${
+                isSmartphone
+                  ? 'motion-safe:animate-in motion-safe:fade-in motion-safe:duration-200 motion-reduce:animate-none'
+                  : 'animate-in fade-in duration-500'
+              }`
       }
     >
-      <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
-        <div className="absolute -top-40 left-1/2 h-[min(480px,75vw)] w-[min(880px,100vw)] -translate-x-1/2 rounded-full bg-gradient-to-br from-cyan-400/[0.09] via-sky-400/[0.05] to-violet-500/[0.08] blur-[90px] dark:from-cyan-500/[0.08] dark:via-transparent dark:to-violet-600/[0.12]" />
-        <div className="absolute bottom-0 right-0 h-[380px] w-[min(520px,90vw)] translate-x-[15%] rounded-full bg-gradient-to-tl from-amber-400/[0.07] to-transparent blur-[100px] dark:from-amber-500/[0.08]" />
-        <div className="absolute bottom-1/4 left-0 h-[220px] w-[320px] -translate-x-1/3 rounded-full bg-[#007AFF]/[0.04] blur-[80px] dark:bg-[#007AFF]/[0.06]" />
-      </div>
+      {/* PR-B: blurs decorativos de página inteira só fora do smartphone (custo de composite). */}
+      {!isSmartphone ? (
+        <div className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
+          <div className="absolute -top-40 left-1/2 h-[min(480px,75vw)] w-[min(880px,100vw)] -translate-x-1/2 rounded-full bg-gradient-to-br from-cyan-400/[0.09] via-sky-400/[0.05] to-violet-500/[0.08] blur-[90px] dark:from-cyan-500/[0.08] dark:via-transparent dark:to-violet-600/[0.12]" />
+          <div className="absolute bottom-0 right-0 h-[380px] w-[min(520px,90vw)] translate-x-[15%] rounded-full bg-gradient-to-tl from-amber-400/[0.07] to-transparent blur-[100px] dark:from-amber-500/[0.08]" />
+          <div className="absolute bottom-1/4 left-0 h-[220px] w-[320px] -translate-x-1/3 rounded-full bg-[#007AFF]/[0.04] blur-[80px] dark:bg-[#007AFF]/[0.06]" />
+        </div>
+      ) : null}
 
       <div
         className={`relative z-0 mx-auto shrink-0 overflow-visible pt-0 md:pt-1 lg:pt-2 ${
@@ -7874,7 +7889,12 @@ export const PatioView: React.FC<PatioViewProps> = ({
         };
 
         const gridCols = Math.max(3, Math.min(6, patioGridColumnCount));
-        const gridClassName = `relative z-0 grid items-start perspective-[1400px] transition-[gap] duration-500 ease-[cubic-bezier(0.34,1.35,0.25,1)] gap-3 sm:gap-3.5 ${
+        // PR-B: no smartphone, sem perspective 3D e sem transição de gap (paint mais barato).
+        const gridClassName = `relative z-0 grid items-start gap-3 sm:gap-3.5 ${
+          isSmartphone
+            ? ''
+            : 'perspective-[1400px] transition-[gap] duration-500 ease-[cubic-bezier(0.34,1.35,0.25,1)] motion-reduce:transition-none'
+        } ${
           isPortraitOrientation
             ? boardPanoramic
               ? 'grid-cols-2 portrait:grid-cols-3'
@@ -7885,8 +7905,10 @@ export const PatioView: React.FC<PatioViewProps> = ({
           !isPortraitOrientation || isPcLayout
             ? ({ gridTemplateColumns: `repeat(${gridCols}, minmax(0, 1fr))` } as React.CSSProperties)
             : undefined;
-        const zoomOuterClass =
-          'origin-top will-change-[zoom] motion-safe:transition-[zoom] motion-safe:duration-500 motion-safe:ease-[cubic-bezier(0.34,1.35,0.25,1)]';
+        // Densidade: mantém `zoom` (tamanho dos cards). No phone: sem will-change nem transição de zoom.
+        const zoomOuterClass = isSmartphone
+          ? 'origin-top'
+          : 'origin-top will-change-[zoom] motion-safe:transition-[zoom] motion-safe:duration-500 motion-safe:ease-[cubic-bezier(0.34,1.35,0.25,1)]';
         const patioBoardZoomFor = (variant: 'grid' | 'hscroll') => {
           let z = boardCardZoomValueFromStep(cardZoomStep);
           // Retrato: limita o tamanho máximo para caber mais cartões.
@@ -7907,7 +7929,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
             style={
               {
                 zoom: patioBoardZoomFor(variant),
-                transition: 'zoom 0.55s cubic-bezier(0.34, 1.35, 0.25, 1)',
+                ...(isSmartphone
+                  ? {}
+                  : { transition: 'zoom 0.55s cubic-bezier(0.34, 1.35, 0.25, 1)' }),
                 backfaceVisibility: 'hidden',
                 WebkitBackfaceVisibility: 'hidden',
               } as React.CSSProperties & { zoom?: number; WebkitBackfaceVisibility?: string }
@@ -7918,8 +7942,13 @@ export const PatioView: React.FC<PatioViewProps> = ({
         );
 
         const cardRadiusClass = getPatioBoardCardRadiusClass(isPcLayout, boardPanoramic);
-        const boardColumnShellClass = getPatioBoardColumnShellClass(isPcLayout);
+        const boardColumnShellClass = getPatioBoardColumnShellClass(isPcLayout, {
+          opaquePaint: isSmartphone,
+        });
         const boardColumnHeaderTopClass = getPatioBoardColumnHeaderTopClass(isPcLayout);
+        const boardCardMotionClass = isSmartphone
+          ? 'active:scale-[0.99] transition-transform duration-100 ease-out motion-reduce:transition-none motion-reduce:active:scale-100'
+          : 'active:scale-[0.99] transition-[transform,box-shadow,background-color] duration-200 ease-out';
 
         const renderPatioBoardCard = (card: TrelloCard, trelloDrag: boolean) => {
           const titleParts = parsePatioCardTitle(card.name);
@@ -8028,10 +8057,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
                 }}
                 className={`
                   group relative flex h-auto min-h-0 w-full flex-col overflow-hidden
-                  bg-white dark:bg-zinc-900/70
+                  ${isSmartphone ? 'bg-white dark:bg-zinc-900' : 'bg-white dark:bg-zinc-900/70'}
                   ${patioBoardGlassCardShadow}
-                  active:scale-[0.99]
-                  transition-[transform,box-shadow,background-color] duration-200 ease-out
+                  ${boardCardMotionClass}
                   ${trelloDrag ? 'cursor-grab select-none active:cursor-grabbing' : 'cursor-pointer'}
                   ${
                     boardPanoramic

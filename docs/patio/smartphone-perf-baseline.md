@@ -108,9 +108,17 @@ Preencher esta tabela **somente** com dados reais coletados; não inventar FPS.
 - `backdrop-blur` + `zoom`/`will-change` dominam composite no Safari.  
 - Polls (8s/15s) causam hitch visível mesmo sem mudança de dados.
 
-### Melhorias verificadas em código (PR-B — após merge)
+### Melhorias verificadas em código (PR-B)
 
-Listar no PR-B: remoção/alívio de blur/backdrop/transição de zoom **somente** `isSmartphone`, com lint/typecheck verdes. **Impacto em FPS** permanece hipótese até T1–T6 em device.
+Implementado **somente** quando `isSmartphone` (tablet/desktop inalterados):
+
+- Blurs decorativos de página desligados.
+- Colunas Trello/mecânico com fundo opaco (`opaquePaint`) — sem `backdrop-blur-md`.
+- Cards dark com fundo opaco (`dark:bg-zinc-900`).
+- Mantém `zoom` (densidade); remove `will-change-[zoom]`, transição de zoom e `perspective-[1400px]`.
+- Transições de card mais curtas + `motion-reduce:*`; fade-in de entrada 200ms.
+
+**Impacto em FPS / jank em device real:** ainda **pendente** (T1–T6).
 
 ---
 
