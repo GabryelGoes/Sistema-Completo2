@@ -2108,10 +2108,17 @@ export type EntryAnswerValueDto =
   | "normal"
   | "anormal"
   | "baixo"
+  | "bom"
+  | "escurecido"
+  | "contaminado"
   | "acesa"
   | "apagada"
+  | "intermitente"
+  | "rodando"
+  | "guincho"
   | "nao_verificado"
-  | "nao_aplicavel";
+  | "nao_aplicavel"
+  | "nao_equipado";
 
 export type EntryAnswerRecordDto = {
   value: EntryAnswerValueDto | null;

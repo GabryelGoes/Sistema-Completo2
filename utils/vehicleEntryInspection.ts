@@ -1,13 +1,16 @@
 /**
  * Checklist versionado de Inspeção de Entrada do veículo.
+ * Registro simples das condições de chegada — sem bloqueios nem autorização.
  * Definição imutável por versão — inspeções antigas usam o snapshot gravado.
  */
 
 export const VEHICLE_ENTRY_CHECKLIST_ID = "vehicle_entry_inspection" as const;
-export const VEHICLE_ENTRY_CHECKLIST_VERSION = 1 as const;
+/** Modelo atual (17 perguntas). Inspeções antigas permanecem na v1 via snapshot. */
+export const VEHICLE_ENTRY_CHECKLIST_VERSION = 2 as const;
 
 export type EntryInspectionStatus = "pending" | "in_progress" | "completed";
 
+/** Mantido no schema/API por compatibilidade; a UI não usa mais bloqueio/rodagem. */
 export type EntryRoadTestStatus =
   | "not_requested"
   | "blocked"
@@ -20,10 +23,17 @@ export type EntryAnswerValue =
   | "normal"
   | "anormal"
   | "baixo"
+  | "bom"
+  | "escurecido"
+  | "contaminado"
   | "acesa"
   | "apagada"
+  | "intermitente"
+  | "rodando"
+  | "guincho"
   | "nao_verificado"
-  | "nao_aplicavel";
+  | "nao_aplicavel"
+  | "nao_equipado";
 
 export type EntryQuestionGroup =
   | "condicoes_gerais"
@@ -37,11 +47,12 @@ export type EntryQuestionDef = {
   order: number;
   prompt: string;
   options: readonly EntryAnswerValue[];
-  /** Respostas que indicam anomalia (resumo na ficha). */
+  /**
+   * Campos legados no snapshot (v1). Na v2 ficam vazios/false —
+   * o checklist não bloqueia nem exige justificativa.
+   */
   anomalyValues: readonly EntryAnswerValue[];
-  /** Respostas que bloqueiam teste de rodagem até avaliação técnica. */
   criticalValues: readonly EntryAnswerValue[];
-  /** Se true, "nao_verificado" exige justificativa. */
   requireJustificationIfUnchecked: boolean;
 };
 
@@ -70,16 +81,23 @@ export const ENTRY_ANSWER_LABELS: Record<EntryAnswerValue, string> = {
   normal: "Normal",
   anormal: "Anormal",
   baixo: "Baixo",
+  bom: "Bom",
+  escurecido: "Escurecido",
+  contaminado: "Contaminado",
   acesa: "Acesa",
   apagada: "Apagada",
+  intermitente: "Intermitente",
+  rodando: "Rodando",
+  guincho: "Guincho",
   nao_verificado: "Não verificado",
   nao_aplicavel: "Não aplicável",
+  nao_equipado: "Não equipado",
 };
 
 export const ENTRY_GROUP_LABELS: Record<EntryQuestionGroup, string> = {
   condicoes_gerais: "Condições gerais",
-  sistema_freios: "Sistema de freios",
-  sistema_abs: "Sistema ABS",
+  sistema_freios: "Freios",
+  sistema_abs: "ABS e painel",
   registro: "Registro",
 };
 
@@ -95,6 +113,8 @@ export const ENTRY_ROAD_TEST_LABELS: Record<EntryRoadTestStatus, string> = {
   cleared: "Liberado para avaliação",
   performed: "Realizado (confirmado)",
 };
+
+const NONE = [] as const satisfies readonly EntryAnswerValue[];
 
 const YES_NO_NV = ["sim", "nao", "nao_verificado"] as const satisfies readonly EntryAnswerValue[];
 const YES_NO_NV_NA = [
@@ -114,7 +134,7 @@ const FLUID_LEVEL = [
   "nao_verificado",
   "nao_aplicavel",
 ] as const satisfies readonly EntryAnswerValue[];
-const LAMP = [
+const LAMP_V1 = [
   "acesa",
   "apagada",
   "nao_verificado",
@@ -123,7 +143,44 @@ const LAMP = [
 const YES_NO = ["sim", "nao"] as const satisfies readonly EntryAnswerValue[];
 const YES_NO_NA = ["sim", "nao", "nao_aplicavel"] as const satisfies readonly EntryAnswerValue[];
 
-/** Modelo v1 — não altere itens; crie VEHICLE_ENTRY_CHECKLIST_VERSION = 2. */
+const ARRIVAL = ["rodando", "guincho", "nao_verificado"] as const satisfies readonly EntryAnswerValue[];
+const FLUID_LEVEL_V2 = ["normal", "baixo", "nao_verificado"] as const satisfies readonly EntryAnswerValue[];
+/** Estado visual do fluido — não é análise laboratorial. */
+const FLUID_STATE = [
+  "bom",
+  "escurecido",
+  "contaminado",
+  "nao_verificado",
+] as const satisfies readonly EntryAnswerValue[];
+const PANEL_LAMP = [
+  "apagada",
+  "acesa",
+  "intermitente",
+  "nao_verificado",
+] as const satisfies readonly EntryAnswerValue[];
+const TPMS_LAMP = [
+  "apagada",
+  "acesa",
+  "intermitente",
+  "nao_verificado",
+  "nao_equipado",
+] as const satisfies readonly EntryAnswerValue[];
+
+function q(
+  partial: Omit<
+    EntryQuestionDef,
+    "anomalyValues" | "criticalValues" | "requireJustificationIfUnchecked"
+  >
+): EntryQuestionDef {
+  return {
+    ...partial,
+    anomalyValues: NONE,
+    criticalValues: NONE,
+    requireJustificationIfUnchecked: false,
+  };
+}
+
+/** Modelo v1 — congelado; inspeções antigas usam o snapshot gravado. */
 export const VEHICLE_ENTRY_QUESTIONS_V1: readonly EntryQuestionDef[] = [
   {
     id: "ext_damage",
@@ -210,7 +267,7 @@ export const VEHICLE_ENTRY_QUESTIONS_V1: readonly EntryQuestionDef[] = [
     group: "sistema_abs",
     order: 9,
     prompt: "Luz de anomalia do ABS.",
-    options: LAMP,
+    options: LAMP_V1,
     anomalyValues: ["acesa"],
     criticalValues: [],
     requireJustificationIfUnchecked: false,
@@ -220,7 +277,7 @@ export const VEHICLE_ENTRY_QUESTIONS_V1: readonly EntryQuestionDef[] = [
     group: "sistema_abs",
     order: 10,
     prompt: "Luz de anomalia do controle de estabilidade/frenagem.",
-    options: LAMP,
+    options: LAMP_V1,
     anomalyValues: ["acesa"],
     criticalValues: [],
     requireJustificationIfUnchecked: false,
@@ -267,26 +324,150 @@ export const VEHICLE_ENTRY_QUESTIONS_V1: readonly EntryQuestionDef[] = [
   },
 ] as const;
 
+/** Modelo v2 — registro simples das condições de chegada (17 perguntas). */
+export const VEHICLE_ENTRY_QUESTIONS_V2: readonly EntryQuestionDef[] = [
+  q({
+    id: "arrival_mode",
+    group: "condicoes_gerais",
+    order: 1,
+    prompt: "Chegada do veículo.",
+    options: ARRIVAL,
+  }),
+  q({
+    id: "ext_damage",
+    group: "condicoes_gerais",
+    order: 2,
+    prompt: "Avarias externas visíveis?",
+    options: YES_NO_NV,
+  }),
+  q({
+    id: "underbody_leak",
+    group: "condicoes_gerais",
+    order: 3,
+    prompt: "Vazamentos aparentes sob o veículo?",
+    options: YES_NO_NV,
+  }),
+  q({
+    id: "misalignment",
+    group: "condicoes_gerais",
+    order: 4,
+    prompt: "Desalinhamento aparente?",
+    options: YES_NO_NV,
+  }),
+  q({
+    id: "brake_pedal",
+    group: "sistema_freios",
+    order: 5,
+    prompt: "Funcionamento do pedal de freio.",
+    options: NORMAL_ANORMAL_NV,
+  }),
+  q({
+    id: "brake_behavior",
+    group: "sistema_freios",
+    order: 6,
+    prompt: "Comportamento da frenagem.",
+    options: NORMAL_ANORMAL_NV,
+  }),
+  q({
+    id: "brake_noise",
+    group: "sistema_freios",
+    order: 7,
+    prompt: "Ruídos durante a frenagem?",
+    options: YES_NO_NV,
+  }),
+  q({
+    id: "brake_fluid_level",
+    group: "sistema_freios",
+    order: 8,
+    prompt: "Nível do fluido de freio.",
+    options: FLUID_LEVEL_V2,
+  }),
+  q({
+    id: "brake_fluid_state",
+    group: "sistema_freios",
+    order: 9,
+    prompt: "Estado visual do fluido de freio.",
+    options: FLUID_STATE,
+  }),
+  q({
+    id: "hydraulic_leak",
+    group: "sistema_freios",
+    order: 10,
+    prompt: "Vazamentos no sistema hidráulico?",
+    options: YES_NO_NV,
+  }),
+  q({
+    id: "abs_warning_light",
+    group: "sistema_abs",
+    order: 11,
+    prompt: "Luz do ABS.",
+    options: PANEL_LAMP,
+  }),
+  q({
+    id: "stability_warning_light",
+    group: "sistema_abs",
+    order: 12,
+    prompt: "Luz de estabilidade/controle de frenagem.",
+    options: PANEL_LAMP,
+  }),
+  q({
+    id: "airbag_srs_light",
+    group: "sistema_abs",
+    order: 13,
+    prompt: "Luz do Airbag/SRS.",
+    options: PANEL_LAMP,
+  }),
+  q({
+    id: "injection_light",
+    group: "sistema_abs",
+    order: 14,
+    prompt: "Luz de injeção eletrônica.",
+    options: PANEL_LAMP,
+  }),
+  q({
+    id: "tpms_light",
+    group: "sistema_abs",
+    order: 15,
+    prompt: "Luz do TPMS (pressão dos pneus).",
+    options: TPMS_LAMP,
+  }),
+  q({
+    id: "abs_behavior_report",
+    group: "sistema_abs",
+    order: 16,
+    prompt: "Relato de funcionamento anormal do ABS?",
+    options: YES_NO_NV,
+  }),
+  q({
+    id: "prior_abs_intervention",
+    group: "sistema_abs",
+    order: 17,
+    prompt: "Sinais de intervenção anterior no módulo, tubulações ou chicotes?",
+    options: YES_NO_NV,
+  }),
+] as const;
+
 export function getVehicleEntryQuestions(
   version: number = VEHICLE_ENTRY_CHECKLIST_VERSION
 ): readonly EntryQuestionDef[] {
   if (version === 1) return VEHICLE_ENTRY_QUESTIONS_V1;
-  // Versões futuras: retornar o snapshot embutido; desconhecidas caem na v1 só para leitura de labels.
-  return VEHICLE_ENTRY_QUESTIONS_V1;
+  if (version === 2) return VEHICLE_ENTRY_QUESTIONS_V2;
+  // Desconhecida: usa o modelo atual.
+  return VEHICLE_ENTRY_QUESTIONS_V2;
 }
 
 export function snapshotVehicleEntryQuestions(
   version: number = VEHICLE_ENTRY_CHECKLIST_VERSION
 ): EntryQuestionSnapshot[] {
-  return getVehicleEntryQuestions(version).map((q) => ({
-    id: q.id,
-    group: q.group,
-    order: q.order,
-    prompt: q.prompt,
-    options: [...q.options],
-    anomalyValues: [...q.anomalyValues],
-    criticalValues: [...q.criticalValues],
-    requireJustificationIfUnchecked: q.requireJustificationIfUnchecked,
+  return getVehicleEntryQuestions(version).map((item) => ({
+    id: item.id,
+    group: item.group,
+    order: item.order,
+    prompt: item.prompt,
+    options: [...item.options],
+    anomalyValues: [...item.anomalyValues],
+    criticalValues: [...item.criticalValues],
+    requireJustificationIfUnchecked: item.requireJustificationIfUnchecked,
   }));
 }
 
@@ -310,7 +491,11 @@ export type EntrySafetyFinding = {
   message: string;
 };
 
-export function evaluateEntryInspectionSafety(input: {
+/**
+ * Compatibilidade: não bloqueia diagnóstico/OS/rodagem e não exige justificativa.
+ * Mantido para não quebrar callers; sempre retorna sem impedimentos.
+ */
+export function evaluateEntryInspectionSafety(_input: {
   questions: EntryQuestionSnapshot[];
   answers: EntryInspectionAnswers;
 }): {
@@ -321,57 +506,13 @@ export function evaluateEntryInspectionSafety(input: {
   anomalySummary: string[];
   blocksRoadTest: boolean;
 } {
-  const findings: EntrySafetyFinding[] = [];
-  for (const q of input.questions) {
-    const ans = input.answers[q.id];
-    const value = ans?.value ?? null;
-    if (!value) continue;
-
-    if (q.criticalValues.includes(value)) {
-      findings.push({
-        questionId: q.id,
-        prompt: q.prompt,
-        value,
-        kind: "critical",
-        message: `Condição crítica: ${q.prompt} → ${ENTRY_ANSWER_LABELS[value]}`,
-      });
-    } else if (q.anomalyValues.includes(value)) {
-      findings.push({
-        questionId: q.id,
-        prompt: q.prompt,
-        value,
-        kind: "anomaly",
-        message: `${q.prompt} → ${ENTRY_ANSWER_LABELS[value]}`,
-      });
-    }
-
-    if (
-      q.requireJustificationIfUnchecked &&
-      value === "nao_verificado" &&
-      !(ans?.note || "").trim()
-    ) {
-      findings.push({
-        questionId: q.id,
-        prompt: q.prompt,
-        value,
-        kind: "needs_justification",
-        message: `Justificativa obrigatória: ${q.prompt} (não verificado)`,
-      });
-    }
-  }
-
-  const criticalFindings = findings.filter((f) => f.kind === "critical");
-  const anomalyFindings = findings.filter((f) => f.kind === "anomaly" || f.kind === "critical");
-  const missingJustifications = findings.filter((f) => f.kind === "needs_justification");
-  const anomalySummary = anomalyFindings.map((f) => f.message);
-
   return {
-    findings,
-    criticalFindings,
-    anomalyFindings,
-    missingJustifications,
-    anomalySummary,
-    blocksRoadTest: criticalFindings.length > 0,
+    findings: [],
+    criticalFindings: [],
+    anomalyFindings: [],
+    missingJustifications: [],
+    anomalySummary: [],
+    blocksRoadTest: false,
   };
 }
 
@@ -380,8 +521,8 @@ export function computeEntryInspectionProgress(input: {
   answers: EntryInspectionAnswers;
 }): { answered: number; total: number; percent: number } {
   const total = input.questions.length;
-  const answered = input.questions.filter((q) => {
-    const v = input.answers[q.id]?.value;
+  const answered = input.questions.filter((item) => {
+    const v = input.answers[item.id]?.value;
     return !!v && isEntryAnswerValue(v);
   }).length;
   const percent = total === 0 ? 0 : Math.round((answered / total) * 100);
@@ -400,15 +541,14 @@ export function deriveEntryInspectionStatus(input: {
   return "in_progress";
 }
 
+/** Compat: nunca bloqueia. */
 export function deriveRoadTestStatus(input: {
   blocksRoadTest: boolean;
   criticalCleared: boolean;
   roadTestPerformed: boolean;
 }): EntryRoadTestStatus {
   if (input.roadTestPerformed) return "performed";
-  if (input.blocksRoadTest && !input.criticalCleared) return "blocked";
-  if (input.blocksRoadTest && input.criticalCleared) return "cleared";
-  return "cleared";
+  return "not_requested";
 }
 
 export type EntrySaveValidation =
@@ -422,36 +562,27 @@ export function validateEntryAnswersPayload(input: {
   requireComplete?: boolean;
 }): EntrySaveValidation {
   for (const [qid, rec] of Object.entries(input.answers || {})) {
-    const q = input.questions.find((x) => x.id === qid);
-    if (!q) {
+    const question = input.questions.find((x) => x.id === qid);
+    if (!question) {
       return { ok: false, error: `Pergunta desconhecida neste checklist: ${qid}`, code: "unknown_question" };
     }
     if (rec?.value == null) continue;
-    if (!isEntryAnswerValue(rec.value) || !q.options.includes(rec.value)) {
+    if (!isEntryAnswerValue(rec.value) || !question.options.includes(rec.value)) {
       return {
         ok: false,
-        error: `Resposta inválida para “${q.prompt}”.`,
+        error: `Resposta inválida para “${question.prompt}”.`,
         code: "invalid_answer",
       };
     }
   }
 
-  const safety = evaluateEntryInspectionSafety(input);
-  if (safety.missingJustifications.length > 0) {
-    return {
-      ok: false,
-      error: safety.missingJustifications[0].message,
-      code: "justification_required",
-    };
-  }
-
   if (input.requireComplete) {
-    for (const q of input.questions) {
-      const v = input.answers[q.id]?.value;
+    for (const question of input.questions) {
+      const v = input.answers[question.id]?.value;
       if (!v) {
         return {
           ok: false,
-          error: `Responda: ${q.prompt}`,
+          error: `Responda: ${question.prompt}`,
           code: "incomplete",
         };
       }
@@ -461,6 +592,7 @@ export function validateEntryAnswersPayload(input: {
   return { ok: true };
 }
 
+/** Compat: confirmação de rodagem não é mais usada na UI; nunca bloqueia por crítico. */
 export function canConfirmRoadTestPerformed(input: {
   blocksRoadTest: boolean;
   criticalCleared: boolean;
@@ -471,14 +603,6 @@ export function canConfirmRoadTestPerformed(input: {
       ok: false,
       error: "Confirme explicitamente que o teste de rodagem foi realizado.",
       code: "road_test_unconfirmed",
-    };
-  }
-  if (input.blocksRoadTest && !input.criticalCleared) {
-    return {
-      ok: false,
-      error:
-        "Condições críticas impedem o teste de rodagem até avaliação técnica apropriada.",
-      code: "road_test_blocked",
     };
   }
   return { ok: true };

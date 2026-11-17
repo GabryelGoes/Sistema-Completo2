@@ -236,7 +236,7 @@ export const RDA_PRODUCTION_TOOLS: RdaToolDefinition[] = [
   {
     id: "rda_get_entry_inspection",
     description:
-      "Consulta a Inspeção de Entrada de uma OS de veículo (checklist de condições gerais, freios e ABS). Retorna respostas, anomalias e bloqueio de teste de rodagem. NÃO trate as respostas como diagnóstico confirmado — são apenas registro de inspeção inicial.",
+      "Consulta a Inspeção de Entrada de uma OS de veículo (registro simples das condições de chegada: gerais, freios, ABS e painel). NÃO trate as respostas como diagnóstico confirmado e NÃO há bloqueio de fluxo — é só registro.",
     parameters: {
       type: "object",
       properties: {
