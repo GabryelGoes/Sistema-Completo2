@@ -3,6 +3,18 @@
  * Não força tema escuro; respeita claro/escuro do app.
  */
 
+/**
+ * Smartphone: rolagem do body da OS mais estável com sticky de etapa
+ * (evita bounce/chain que amplifica o salto ao compactar o botão).
+ */
+@media (max-width: 767px) {
+  .patio-vm-scroll.patio-vm-scroll--minimal {
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: contain;
+    scroll-behavior: auto;
+  }
+}
+
 .patio-os-touch-meta-card {
   border-radius: 14px;
 }

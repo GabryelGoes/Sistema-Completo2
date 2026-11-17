@@ -1,4 +1,4 @@
-import React, { useEffect, useLayoutEffect, useState, useRef, useCallback, useMemo } from 'react';
+import React, { useEffect, useLayoutEffect, useState, useRef, useCallback, useMemo, startTransition } from 'react';
 import { createPortal } from 'react-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkBreaks from 'remark-breaks';
@@ -1548,6 +1548,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const budgetsSectionRef = useRef<HTMLDivElement>(null);
   const patioOsTouchScrollRef = useRef<HTMLDivElement>(null);
   const patioOsTouchDetailsRef = useRef<HTMLDivElement>(null);
+  const patioOsStageStickyRef = useRef<HTMLDivElement>(null);
   const [patioOsStageCompact, setPatioOsStageCompact] = useState(false);
   const openServiceOrderHandledRef = useRef(false);
   const lastOpenServiceOrderScanTokenRef = useRef(0);
@@ -2596,7 +2597,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
   const flushPatioPrimaryOverlays = useCallback(() => {
     setPreviewImages(null);
-    setSelectedCard(null);
+    const clearCard = () => setSelectedCard(null);
+    if (isSmartphone) startTransition(clearCard);
+    else clearCard();
     setSelectedHistoryCard(null);
     setHistoryServiceOrderDetail(null);
     setHistorySavedBudgets([]);
@@ -2608,7 +2611,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
     setIsDadosFichaExpanded(false);
     setUnarchiveError(null);
     setEntryInspectionOpen(false);
-  }, []);
+  }, [isSmartphone]);
 
   const patioPrimaryOverlayOpen = !!(selectedCard || selectedHistoryCard);
   const {
@@ -2700,7 +2703,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
     if (!selectedCard) setIsLabOsToolsOpen(false);
   }, [selectedCard?.id]);
 
-  /** Etapa sticky: compacta (~−35% altura) quando Cliente/Chassi/… saem da vista. */
+  /**
+   * Etapa sticky: compacta quando Cliente/Chassi/… saem da vista.
+   * No smartphone: histerese + compensação de scrollTop (evita “página sobe sozinha”
+   * quando a barra encolhe) e sem transição de altura.
+   */
   useEffect(() => {
     if (!(isPatioTabletLikeModal && !isModuleMode && selectedCard)) {
       setPatioOsStageCompact(false);
@@ -2709,15 +2716,59 @@ export const PatioView: React.FC<PatioViewProps> = ({
     const root = patioOsTouchScrollRef.current;
     const target = patioOsTouchDetailsRef.current;
     if (!root || !target) return;
-    const io = new IntersectionObserver(
+
+    if (!isSmartphone) {
+      const io = new IntersectionObserver(
+        ([entry]) => {
+          setPatioOsStageCompact(!entry.isIntersecting);
+        },
+        { root, threshold: 0, rootMargin: '0px 0px 0px 0px' }
+      );
+      io.observe(target);
+      return () => io.disconnect();
+    }
+
+    let compact = false;
+    let raf = 0;
+    const applyCompact = (next: boolean) => {
+      if (next === compact) return;
+      const sticky = patioOsStageStickyRef.current;
+      const beforeH = sticky?.getBoundingClientRect().height ?? 0;
+      compact = next;
+      setPatioOsStageCompact(next);
+      if (raf) cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        raf = requestAnimationFrame(() => {
+          const afterH = patioOsStageStickyRef.current?.getBoundingClientRect().height ?? beforeH;
+          const delta = beforeH - afterH;
+          if (Math.abs(delta) < 0.5) return;
+          // Sticky encolheu → conteúdo sobe; reduz scrollTop para manter o ponto sob o dedo.
+          root.scrollTop = Math.max(0, root.scrollTop - delta);
+        });
+      });
+    };
+
+    // Histerese: entra em compact um pouco antes; só volta ao expandido após margem.
+    const ioHide = new IntersectionObserver(
       ([entry]) => {
-        setPatioOsStageCompact(!entry.isIntersecting);
+        if (!entry.isIntersecting) applyCompact(true);
       },
-      { root, threshold: 0, rootMargin: '0px 0px 0px 0px' }
+      { root, threshold: 0, rootMargin: '-8px 0px 0px 0px' }
     );
-    io.observe(target);
-    return () => io.disconnect();
-  }, [isPatioTabletLikeModal, isModuleMode, selectedCard?.id]);
+    const ioShow = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) applyCompact(false);
+      },
+      { root, threshold: 0, rootMargin: '48px 0px 0px 0px' }
+    );
+    ioHide.observe(target);
+    ioShow.observe(target);
+    return () => {
+      if (raf) cancelAnimationFrame(raf);
+      ioHide.disconnect();
+      ioShow.disconnect();
+    };
+  }, [isPatioTabletLikeModal, isModuleMode, selectedCard?.id, isSmartphone]);
 
   useEffect(() => {
     if (!isLabOsToolsOpen) return;
@@ -3864,9 +3915,14 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const openVehicleCard = useCallback(
     (card: TrelloCard) => {
       prefetchVehicleComments(card.id);
-      setSelectedCard(card);
+      // Smartphone: abertura em transição para não bloquear o toque / scroll do quadro.
+      if (isSmartphone) {
+        startTransition(() => setSelectedCard(card));
+      } else {
+        setSelectedCard(card);
+      }
     },
-    [prefetchVehicleComments]
+    [prefetchVehicleComments, isSmartphone]
   );
 
   useEffect(() => {
@@ -7818,14 +7874,25 @@ export const PatioView: React.FC<PatioViewProps> = ({
             : ''
         }`}
       >
-      {/* Enquanto edita orçamento ou OS aberta: não reconcilia centenas de cards (trava digitação no Mac/PC). */}
-      {isBudgetOpen || selectedCard ? (
+      {/*
+        Mac/PC/tablet: desmonta o board com OS/orçamento aberto (evita reconciliar cards na digitação).
+        Smartphone: mantém o board montado (display:none) para abrir/fechar a OS sem remount caro.
+      */}
+      {(isBudgetOpen || selectedCard) && !isSmartphone ? (
         <div
           className="min-h-[min(50vh,28rem)] rounded-2xl bg-zinc-100/70 dark:bg-zinc-900/35"
           aria-hidden
         />
       ) : (
-      (() => {
+      <div
+        className={
+          isSmartphone && (isBudgetOpen || selectedCard)
+            ? 'hidden'
+            : undefined
+        }
+        aria-hidden={isSmartphone && !!(isBudgetOpen || selectedCard) ? true : undefined}
+      >
+      {(() => {
         const stageOrder = boardStages.map((s) => s.id as string);
         const byStage = (a: TrelloCard, b: TrelloCard) => {
           const ia = stageOrder.indexOf(a.idList);
@@ -8579,7 +8646,8 @@ export const PatioView: React.FC<PatioViewProps> = ({
                   )}
           </div>
         );
-      })()
+      })()}
+      </div>
       )}
 
       {appleBoardDrag.drag?.ghost && typeof document !== 'undefined'
@@ -9947,9 +10015,16 @@ export const PatioView: React.FC<PatioViewProps> = ({
                       />
                       </div>
                       <div
-                        className={`sticky top-0 z-20 border-b border-slate-200/60 bg-[#F2F2F7]/95 backdrop-blur-md transition-[padding] duration-200 dark:border-white/[0.08] dark:bg-zinc-950/95 sm:px-5 ${
-                          patioOsStageCompact ? 'px-3.5 py-1.5' : 'px-3.5 py-2.5'
-                        }`}
+                        ref={patioOsStageStickyRef}
+                        className={
+                          isSmartphone
+                            ? `sticky top-0 z-20 border-b border-slate-200/60 bg-[#F2F2F7] dark:border-white/[0.08] dark:bg-zinc-950 sm:px-5 ${
+                                patioOsStageCompact ? 'px-3.5 py-1.5' : 'px-3.5 py-2'
+                              }`
+                            : `sticky top-0 z-20 border-b border-slate-200/60 bg-[#F2F2F7]/95 backdrop-blur-md transition-[padding] duration-200 dark:border-white/[0.08] dark:bg-zinc-950/95 sm:px-5 ${
+                                patioOsStageCompact ? 'px-3.5 py-1.5' : 'px-3.5 py-2.5'
+                              }`
+                        }
                       >
                         <button
                           type="button"
@@ -9960,10 +10035,16 @@ export const PatioView: React.FC<PatioViewProps> = ({
                           }}
                           title="Alterar etapa"
                           aria-label={`Alterar etapa: ${modalListName}`}
-                          className={`flex w-full items-center justify-between gap-2 border-2 text-left shadow-sm transition-[padding,border-radius,filter,transform] duration-200 hover:brightness-110 active:scale-[0.99] ${
+                          className={`flex w-full items-center justify-between gap-2 border-2 text-left shadow-sm hover:brightness-110 active:scale-[0.99] ${
+                            isSmartphone
+                              ? 'transition-transform duration-100 ease-out motion-reduce:transition-none'
+                              : 'transition-[padding,border-radius,filter,transform] duration-200'
+                          } ${
                             patioOsStageCompact
                               ? 'rounded-xl px-2.5 py-[0.4rem]'
-                              : 'rounded-2xl px-3.5 py-3'
+                              : isSmartphone
+                                ? 'rounded-2xl px-3.5 py-2.5'
+                                : 'rounded-2xl px-3.5 py-3'
                           } ${
                             isExternalRepairStatus(modalStageStatus)
                               ? '!text-white'
