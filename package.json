@@ -34,6 +34,7 @@
     "test:rda-confirmation-autonomy": "tsx scripts/rdaConfirmationAutonomy.selftest.ts",
     "test:budget-service-outsourced": "tsx scripts/budgetServiceOutsourced.selftest.ts",
     "test:patio-garantia-remove": "tsx scripts/patioGarantiaRemove.selftest.ts",
+    "test:patio-smartphone-perf-dev": "tsx scripts/patioSmartphonePerfDev.selftest.ts",
     "test:vehicle-modal-pdf-viewer": "tsx scripts/vehicleModalPdfViewer.selftest.ts",
     "test:budget-diagnosis-improve": "tsx scripts/budgetDiagnosisImprove.selftest.ts",
     "test:lab-finalizado-location": "tsx scripts/labFinalizadoLocation.selftest.ts",
