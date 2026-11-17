@@ -7,11 +7,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   VEHICLE_ENTRY_CHECKLIST_ID,
   VEHICLE_ENTRY_CHECKLIST_VERSION,
-  canConfirmRoadTestPerformed,
   computeEntryInspectionProgress,
   deriveEntryInspectionStatus,
-  deriveRoadTestStatus,
-  evaluateEntryInspectionSafety,
   mergeEntryAnswers,
   normalizeAnswersFromUnknown,
   resolveQuestionDefs,
@@ -68,7 +65,6 @@ function mapInspection(row: InspectionRow) {
     Number(row.checklist_version) || VEHICLE_ENTRY_CHECKLIST_VERSION
   );
   const answers = normalizeAnswersFromUnknown(row.answers);
-  const safety = evaluateEntryInspectionSafety({ questions, answers });
   const progress = computeEntryInspectionProgress({ questions, answers });
   return {
     id: row.id,
@@ -80,27 +76,27 @@ function mapInspection(row: InspectionRow) {
     answers,
     questionSnapshot: questions,
     observations: row.observations ?? null,
-    anomalySummary: Array.isArray(row.anomaly_summary) ? row.anomaly_summary : safety.anomalySummary,
+    anomalySummary: [],
     responsibleUserId: row.responsible_user_id ?? null,
     responsibleName: row.responsible_name ?? null,
     startedAt: row.started_at ?? null,
     completedAt: row.completed_at ?? null,
-    roadTestStatus: row.road_test_status as EntryRoadTestStatus,
+    roadTestStatus: (row.road_test_status as EntryRoadTestStatus) || "not_requested",
     roadTestConfirmedAt: row.road_test_confirmed_at ?? null,
     roadTestConfirmedBy: row.road_test_confirmed_by ?? null,
-    criticalCleared: !!row.critical_cleared,
-    criticalClearedAt: row.critical_cleared_at ?? null,
-    criticalClearedBy: row.critical_cleared_by ?? null,
-    criticalClearanceNote: row.critical_clearance_note ?? null,
+    criticalCleared: false,
+    criticalClearedAt: null,
+    criticalClearedBy: null,
+    criticalClearanceNote: null,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
     progress,
     safety: {
-      blocksRoadTest: safety.blocksRoadTest && !row.critical_cleared,
-      criticalCount: safety.criticalFindings.length,
-      anomalyCount: safety.anomalyFindings.length,
-      criticalFindings: safety.criticalFindings,
-      anomalyFindings: safety.anomalyFindings,
+      blocksRoadTest: false,
+      criticalCount: 0,
+      anomalyCount: 0,
+      criticalFindings: [],
+      anomalyFindings: [],
     },
     /** Não é diagnóstico confirmado — apenas registro de inspeção. */
     diagnosticClaim: false as const,
@@ -363,23 +359,12 @@ export function registerVehicleEntryInspectionRoutes(
         return res.status(400).json({ error: validation.error, code: validation.code });
       }
 
-      const safety = evaluateEntryInspectionSafety({ questions, answers: merged });
-      // Sem críticos ativos → zera liberação. Com críticos → preserva liberação já feita.
-      const nextCriticalCleared = safety.blocksRoadTest ? !!row.critical_cleared : false;
-      const roadPerformed = row.road_test_status === "performed";
-      const roadTestStatus = deriveRoadTestStatus({
-        blocksRoadTest: safety.blocksRoadTest,
-        criticalCleared: nextCriticalCleared,
-        roadTestPerformed: roadPerformed,
-      });
-
       let status = deriveEntryInspectionStatus({
         answers: merged,
         questions,
         explicitStatus: markCompleted ? "completed" : null,
       });
       if (!markCompleted && status === "completed") {
-        // Completou todas as respostas sem flag → marca concluído.
         status = "completed";
       }
       if (status === "pending" && Object.keys(merged).length > 0) {
@@ -394,23 +379,22 @@ export function registerVehicleEntryInspectionRoutes(
             ? null
             : String(body.observations);
 
+      // Registro simples: sem bloqueios, sem resumo de anomalias na ficha.
       const updates: Record<string, unknown> = {
         answers: merged,
         observations,
-        anomaly_summary: safety.anomalySummary,
+        anomaly_summary: [],
         status,
-        road_test_status: roadTestStatus,
-        critical_cleared: nextCriticalCleared,
+        road_test_status: "not_requested",
+        critical_cleared: false,
+        critical_cleared_at: null,
+        critical_cleared_by: null,
+        critical_clearance_note: null,
         responsible_user_id: actor.userId || row.responsible_user_id,
         responsible_name: actor.name || row.responsible_name,
         updated_at: now,
         completed_at: status === "completed" ? row.completed_at || now : null,
       };
-      if (!nextCriticalCleared) {
-        updates.critical_cleared_at = null;
-        updates.critical_cleared_by = null;
-        updates.critical_clearance_note = null;
-      }
 
       const { data, error } = await supabaseAdmin
         .from("service_order_entry_inspections")
@@ -439,8 +423,6 @@ export function registerVehicleEntryInspectionRoutes(
         payload: {
           answered: computeEntryInspectionProgress({ questions, answers: merged }).answered,
           status,
-          anomalyCount: safety.anomalyFindings.length,
-          criticalCount: safety.criticalFindings.length,
         },
       });
 
@@ -453,175 +435,26 @@ export function registerVehicleEntryInspectionRoutes(
     }
   });
 
+  // Rotas legadas: o checklist não bloqueia mais condições críticas nem registra rodagem.
   app.post(
     "/api/service-orders/:id/entry-inspection/clear-critical",
-    async (req: Request, res: Response) => {
-      try {
-        if (!supabaseAdmin || !WORKSHOP_ID) {
-          return res.status(500).json({ error: "Servidor não configurado." });
-        }
-        const serviceOrderId = String(req.params.id || "").trim();
-        const row = await loadInspection(deps, serviceOrderId);
-        if (!row) return res.status(404).json({ error: "Inspeção não encontrada." });
-
-        const note = String((req.body as { note?: unknown })?.note || "").trim();
-        if (note.length < 8) {
-          return res.status(400).json({
-            error: "Informe a avaliação técnica (mín. 8 caracteres) para liberar o bloqueio.",
-            code: "clearance_note_required",
-          });
-        }
-        const expectedUpdatedAt = String(
-          (req.body as { expectedUpdatedAt?: unknown })?.expectedUpdatedAt || ""
-        ).trim();
-        if (!expectedUpdatedAt || String(row.updated_at) !== expectedUpdatedAt) {
-          return res.status(409).json({
-            error: "Inspeção desatualizada. Recarregue e tente novamente.",
-            code: "cas_conflict",
-            inspection: mapInspection(row),
-          });
-        }
-
-        const questions = resolveQuestionDefs(
-          row.question_snapshot as EntryQuestionSnapshot[] | null,
-          Number(row.checklist_version) || VEHICLE_ENTRY_CHECKLIST_VERSION
-        );
-        const answers = normalizeAnswersFromUnknown(row.answers);
-        const safety = evaluateEntryInspectionSafety({ questions, answers });
-        if (!safety.blocksRoadTest) {
-          return res.status(400).json({
-            error: "Não há condições críticas ativas para liberar.",
-            code: "no_critical",
-          });
-        }
-
-        const actor = await actorFromReq(req, deps);
-        const now = new Date().toISOString();
-        const roadTestStatus = deriveRoadTestStatus({
-          blocksRoadTest: true,
-          criticalCleared: true,
-          roadTestPerformed: row.road_test_status === "performed",
-        });
-
-        const { data, error } = await supabaseAdmin
-          .from("service_order_entry_inspections")
-          .update({
-            critical_cleared: true,
-            critical_cleared_at: now,
-            critical_cleared_by: actor.name || null,
-            critical_clearance_note: note,
-            road_test_status: roadTestStatus,
-            updated_at: now,
-          })
-          .eq("id", row.id)
-          .eq("updated_at", expectedUpdatedAt)
-          .select("*")
-          .maybeSingle();
-
-        if (error) return res.status(500).json({ error: error.message });
-        if (!data) {
-          return res.status(409).json({
-            error: "Inspeção desatualizada. Recarregue e tente novamente.",
-            code: "cas_conflict",
-          });
-        }
-
-        await appendEvent(deps, {
-          inspectionId: String(data.id),
-          serviceOrderId,
-          eventType: "critical_cleared",
-          actorUserId: actor.userId,
-          actorName: actor.name,
-          payload: { note },
-        });
-
-        return res.json({ inspection: mapInspection(data as InspectionRow) });
-      } catch (err: unknown) {
-        console.error("[API] POST entry-inspection/clear-critical:", err);
-        return res.status(500).json({
-          error: err instanceof Error ? err.message : "Erro desconhecido",
-        });
-      }
+    async (_req: Request, res: Response) => {
+      return res.status(410).json({
+        error:
+          "Bloqueio por condições críticas foi removido. A inspeção é apenas registro das condições de chegada.",
+        code: "feature_removed",
+      });
     }
   );
 
   app.post(
     "/api/service-orders/:id/entry-inspection/confirm-road-test",
-    async (req: Request, res: Response) => {
-      try {
-        if (!supabaseAdmin || !WORKSHOP_ID) {
-          return res.status(500).json({ error: "Servidor não configurado." });
-        }
-        const serviceOrderId = String(req.params.id || "").trim();
-        const row = await loadInspection(deps, serviceOrderId);
-        if (!row) return res.status(404).json({ error: "Inspeção não encontrada." });
-
-        const confirm = (req.body as { confirm?: unknown })?.confirm === true;
-        const expectedUpdatedAt = String(
-          (req.body as { expectedUpdatedAt?: unknown })?.expectedUpdatedAt || ""
-        ).trim();
-        if (!expectedUpdatedAt || String(row.updated_at) !== expectedUpdatedAt) {
-          return res.status(409).json({
-            error: "Inspeção desatualizada. Recarregue e tente novamente.",
-            code: "cas_conflict",
-            inspection: mapInspection(row),
-          });
-        }
-
-        const questions = resolveQuestionDefs(
-          row.question_snapshot as EntryQuestionSnapshot[] | null,
-          Number(row.checklist_version) || VEHICLE_ENTRY_CHECKLIST_VERSION
-        );
-        const answers = normalizeAnswersFromUnknown(row.answers);
-        const safety = evaluateEntryInspectionSafety({ questions, answers });
-        const gate = canConfirmRoadTestPerformed({
-          blocksRoadTest: safety.blocksRoadTest,
-          criticalCleared: !!row.critical_cleared,
-          confirm,
-        });
-        if (gate.ok === false) {
-          return res.status(400).json({ error: gate.error, code: gate.code });
-        }
-
-        const actor = await actorFromReq(req, deps);
-        const now = new Date().toISOString();
-        const { data, error } = await supabaseAdmin
-          .from("service_order_entry_inspections")
-          .update({
-            road_test_status: "performed",
-            road_test_confirmed_at: now,
-            road_test_confirmed_by: actor.name || null,
-            updated_at: now,
-          })
-          .eq("id", row.id)
-          .eq("updated_at", expectedUpdatedAt)
-          .select("*")
-          .maybeSingle();
-
-        if (error) return res.status(500).json({ error: error.message });
-        if (!data) {
-          return res.status(409).json({
-            error: "Inspeção desatualizada. Recarregue e tente novamente.",
-            code: "cas_conflict",
-          });
-        }
-
-        await appendEvent(deps, {
-          inspectionId: String(data.id),
-          serviceOrderId,
-          eventType: "road_test_performed",
-          actorUserId: actor.userId,
-          actorName: actor.name,
-          payload: { confirmed: true },
-        });
-
-        return res.json({ inspection: mapInspection(data as InspectionRow) });
-      } catch (err: unknown) {
-        console.error("[API] POST entry-inspection/confirm-road-test:", err);
-        return res.status(500).json({
-          error: err instanceof Error ? err.message : "Erro desconhecido",
-        });
-      }
+    async (_req: Request, res: Response) => {
+      return res.status(410).json({
+        error:
+          "Registro de teste de rodagem foi removido deste checklist. Use outros fluxos da OS se necessário.",
+        code: "feature_removed",
+      });
     }
   );
 }

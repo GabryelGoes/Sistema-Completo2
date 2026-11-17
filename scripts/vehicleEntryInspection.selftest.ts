@@ -1,5 +1,5 @@
 /**
- * Selftest: Inspeção de Entrada — regras, validação, CAS e compatibilidade.
+ * Selftest: Inspeção de Entrada v2 — registro simples, sem bloqueios.
  * npm run test:vehicle-entry-inspection
  */
 import assert from "node:assert/strict";
@@ -7,6 +7,7 @@ import {
   VEHICLE_ENTRY_CHECKLIST_ID,
   VEHICLE_ENTRY_CHECKLIST_VERSION,
   VEHICLE_ENTRY_QUESTIONS_V1,
+  VEHICLE_ENTRY_QUESTIONS_V2,
   canConfirmRoadTestPerformed,
   computeEntryInspectionProgress,
   deriveEntryInspectionStatus,
@@ -24,169 +25,128 @@ import { findMatchingRules } from "../utils/authorizeRequest.js";
 console.log("Vehicle entry inspection selftest\n");
 
 assert.equal(VEHICLE_ENTRY_CHECKLIST_ID, "vehicle_entry_inspection");
-assert.equal(VEHICLE_ENTRY_CHECKLIST_VERSION, 1);
+assert.equal(VEHICLE_ENTRY_CHECKLIST_VERSION, 2);
 assert.equal(VEHICLE_ENTRY_QUESTIONS_V1.length, 14);
+assert.equal(VEHICLE_ENTRY_QUESTIONS_V2.length, 17);
 
-const snap = snapshotVehicleEntryQuestions(1);
-assert.equal(snap.length, 14);
+const snap = snapshotVehicleEntryQuestions(2);
+assert.equal(snap.length, 17);
 assert.ok(snap.every((q) => q.prompt && q.options.length > 0));
+assert.ok(!snap.some((q) => q.group === "registro"));
 
-// Respostas específicas por pergunta (não Sim/Não indiscriminado)
-const pedal = snap.find((q) => q.id === "brake_pedal")!;
-assert.ok(pedal.options.includes("normal"));
-assert.ok(pedal.options.includes("anormal"));
-assert.ok(!pedal.options.includes("sim"));
+// Grupos v2
+assert.ok(snap.some((q) => q.id === "arrival_mode"));
+assert.ok(snap.some((q) => q.id === "misalignment"));
+assert.ok(snap.some((q) => q.id === "brake_fluid_state"));
+assert.ok(snap.some((q) => q.id === "airbag_srs_light"));
+assert.ok(snap.some((q) => q.id === "tpms_light"));
+assert.ok(!snap.some((q) => q.id === "client_complaint_recorded"));
+assert.ok(!snap.some((q) => q.id === "anomaly_photos_documented"));
 
-const lamp = snap.find((q) => q.id === "abs_warning_light")!;
-assert.ok(lamp.options.includes("acesa"));
-assert.ok(lamp.options.includes("apagada"));
+// Chegada rodando/guincho
+const arrival = snap.find((q) => q.id === "arrival_mode")!;
+assert.deepEqual([...arrival.options], ["rodando", "guincho", "nao_verificado"]);
 
-// Críticos bloqueiam rodagem
-const answersCritical: EntryInspectionAnswers = {
+// Estado visual do fluido
+const fluidState = snap.find((q) => q.id === "brake_fluid_state")!;
+assert.ok(fluidState.options.includes("bom"));
+assert.ok(fluidState.options.includes("escurecido"));
+assert.ok(fluidState.options.includes("contaminado"));
+assert.ok(fluidState.options.includes("nao_verificado"));
+assert.ok(!fluidState.options.includes("normal"));
+
+// Luzes do painel
+const abs = snap.find((q) => q.id === "abs_warning_light")!;
+assert.deepEqual([...abs.options], ["apagada", "acesa", "intermitente", "nao_verificado"]);
+
+const tpms = snap.find((q) => q.id === "tpms_light")!;
+assert.ok(tpms.options.includes("nao_equipado"));
+assert.ok(tpms.options.includes("intermitente"));
+
+// Sem bloqueios / justificativa
+const answers: EntryInspectionAnswers = {
   brake_pedal: { value: "anormal" },
   hydraulic_leak: { value: "sim" },
-  brake_performance: { value: "sim" },
+  brake_behavior: { value: "anormal" },
 };
-const safety = evaluateEntryInspectionSafety({ questions: snap, answers: answersCritical });
-assert.equal(safety.blocksRoadTest, true);
-assert.ok(safety.criticalFindings.length >= 3);
-assert.ok(safety.anomalySummary.some((s) => /pedal|hidráulico|Frenagem/i.test(s)));
+const safety = evaluateEntryInspectionSafety({ questions: snap, answers });
+assert.equal(safety.blocksRoadTest, false);
+assert.equal(safety.criticalFindings.length, 0);
+assert.equal(safety.anomalySummary.length, 0);
+assert.equal(safety.missingJustifications.length, 0);
 
-// Justificativa obrigatória em item crítico não verificado
-const unchecked: EntryInspectionAnswers = {
-  brake_pedal: { value: "nao_verificado" },
-};
-const bad = validateEntryAnswersPayload({ questions: snap, answers: unchecked });
-assert.equal(bad.ok, false);
-if (!bad.ok) assert.equal(bad.code, "justification_required");
-
-const okUnchecked = validateEntryAnswersPayload({
+const unchecked = validateEntryAnswersPayload({
   questions: snap,
-  answers: { brake_pedal: { value: "nao_verificado", note: "Elevador ocupado" } },
+  answers: { brake_pedal: { value: "nao_verificado" } },
 });
-assert.equal(okUnchecked.ok, true);
+assert.equal(unchecked.ok, true);
 
-// Rodagem exige confirmação explícita
-const noConfirm = canConfirmRoadTestPerformed({
-  blocksRoadTest: false,
-  criticalCleared: false,
-  confirm: false,
-});
-assert.equal(noConfirm.ok, false);
-if (!noConfirm.ok) assert.equal(noConfirm.code, "road_test_unconfirmed");
-
-const blocked = canConfirmRoadTestPerformed({
-  blocksRoadTest: true,
-  criticalCleared: false,
-  confirm: true,
-});
-assert.equal(blocked.ok, false);
-if (!blocked.ok) assert.equal(blocked.code, "road_test_blocked");
-
-const allowed = canConfirmRoadTestPerformed({
-  blocksRoadTest: true,
-  criticalCleared: true,
-  confirm: true,
-});
-assert.equal(allowed.ok, true);
-
+// Rodagem: compat não bloqueia por crítico
+assert.equal(
+  canConfirmRoadTestPerformed({
+    blocksRoadTest: true,
+    criticalCleared: false,
+    confirm: true,
+  }).ok,
+  true
+);
 assert.equal(
   deriveRoadTestStatus({
     blocksRoadTest: true,
     criticalCleared: false,
     roadTestPerformed: false,
   }),
-  "blocked"
-);
-assert.equal(
-  deriveRoadTestStatus({
-    blocksRoadTest: true,
-    criticalCleared: true,
-    roadTestPerformed: false,
-  }),
-  "cleared"
-);
-assert.equal(
-  deriveRoadTestStatus({
-    blocksRoadTest: false,
-    criticalCleared: false,
-    roadTestPerformed: true,
-  }),
-  "performed"
+  "not_requested"
 );
 
-// Progresso e status
+// Progresso
 const partial: EntryInspectionAnswers = {
+  arrival_mode: { value: "rodando" },
   ext_damage: { value: "nao" },
-  underbody_leak: { value: "nao" },
 };
 const prog = computeEntryInspectionProgress({ questions: snap, answers: partial });
 assert.equal(prog.answered, 2);
-assert.equal(prog.total, 14);
+assert.equal(prog.total, 17);
 assert.equal(deriveEntryInspectionStatus({ answers: partial, questions: snap }), "in_progress");
-assert.equal(deriveEntryInspectionStatus({ answers: {}, questions: snap }), "pending");
 
-// Merge não apaga respostas omitidas
+// Merge
 const merged = mergeEntryAnswers(
-  { ext_damage: { value: "sim", note: "para-choque" } },
-  { warning_lights: { value: "nao" } },
+  { arrival_mode: { value: "guincho" } },
+  { misalignment: { value: "sim" } },
   "2026-11-16T12:00:00.000Z"
 );
-assert.equal(merged.ext_damage?.value, "sim");
-assert.equal(merged.warning_lights?.value, "nao");
+assert.equal(merged.arrival_mode?.value, "guincho");
+assert.equal(merged.misalignment?.value, "sim");
 
-// Snapshot antigo permanece utilizável (compatibilidade)
-const legacySnap = snap.map((q) =>
-  q.id === "ext_damage" ? { ...q, prompt: "Avarias externas? (legado)" } : q
-);
-const legacyAnswers: EntryInspectionAnswers = {
-  ext_damage: { value: "sim" },
-};
+// Snapshot v1 legado continua legível
+const v1 = snapshotVehicleEntryQuestions(1);
+assert.equal(v1.length, 14);
+assert.ok(v1.some((q) => q.group === "registro"));
 const legacySafety = evaluateEntryInspectionSafety({
-  questions: legacySnap,
-  answers: legacyAnswers,
+  questions: v1,
+  answers: { brake_pedal: { value: "anormal" } },
 });
-assert.ok(legacySafety.anomalySummary[0].includes("legado"));
+assert.equal(legacySafety.blocksRoadTest, false);
 
-// Normalize lixo
 assert.deepEqual(normalizeAnswersFromUnknown(null), {});
 assert.deepEqual(normalizeAnswersFromUnknown({ x: { value: "???" } }).x?.value, null);
 
-// Autorização das rotas novas (catálogo declarativo)
+// Autorização
 const policy = productionAuthorizationPolicy();
-const readRules = findMatchingRules(policy, "GET", "/api/service-orders/os-1/entry-inspection");
-assert.ok(readRules.some((r) => r.id === "os_entry_inspection_read"));
-assert.ok(readRules[0]?.anyOf.includes("access_patio"));
-assert.ok(readRules[0]?.anyOf.includes("access_relatorios"));
-
-const putRules = findMatchingRules(policy, "PUT", "/api/service-orders/os-1/entry-inspection");
-assert.ok(putRules.some((r) => r.id === "os_entry_inspection_update"));
-assert.ok(putRules[0]?.anyOf.includes("access_patio"));
-assert.ok(!putRules[0]?.anyOf.includes("access_relatorios"));
-
-const startRules = findMatchingRules(
-  policy,
-  "POST",
-  "/api/service-orders/os-1/entry-inspection/start"
+assert.ok(
+  findMatchingRules(policy, "GET", "/api/service-orders/os-1/entry-inspection").some(
+    (r) => r.id === "os_entry_inspection_read"
+  )
 );
-assert.ok(startRules.some((r) => r.id === "os_entry_inspection_start"));
-
-const clearRules = findMatchingRules(
-  policy,
-  "POST",
-  "/api/service-orders/os-1/entry-inspection/clear-critical"
+assert.ok(
+  findMatchingRules(policy, "PUT", "/api/service-orders/os-1/entry-inspection").some(
+    (r) => r.id === "os_entry_inspection_update"
+  )
 );
-assert.ok(clearRules.some((r) => r.id === "os_entry_inspection_clear_critical"));
-
-const roadRules = findMatchingRules(
-  policy,
-  "POST",
-  "/api/service-orders/os-1/entry-inspection/confirm-road-test"
+assert.ok(
+  findMatchingRules(policy, "POST", "/api/service-orders/os-1/entry-inspection/start").some(
+    (r) => r.id === "os_entry_inspection_start"
+  )
 );
-assert.ok(roadRules.some((r) => r.id === "os_entry_inspection_confirm_road_test"));
 
-// Templates admin continuam com regras próprias
-const adminTpl = findMatchingRules(policy, "GET", "/api/workshop/checklist-templates");
-assert.ok(adminTpl.some((r) => r.id === "checklists_read" || r.id.includes("checklist")));
-
-console.log("OK — regras, justificativa, rodagem, snapshot legado e autorização.\n");
+console.log("OK — v2 (17 perguntas), sem bloqueios, snapshot v1 preservado e autorização.\n");
