@@ -120,6 +120,13 @@ Implementado **somente** quando `isSmartphone` (tablet/desktop inalterados):
 
 **Impacto em FPS / jank em device real:** ainda **pendente** (T1–T6).
 
+### Correção follow-up (scroll / abrir-fechar OS)
+
+- Board no smartphone permanece montado (`display: none`) com OS aberta — evita remount ao fechar.
+- Sticky da etapa: histerese + compensação de `scrollTop` + sem transição de padding no phone.
+- `startTransition` ao abrir/fechar card no phone.
+- Modal scroll: `overscroll-behavior-y: contain` em viewport ≤767px.
+
 ---
 
 ## 6. Checklist de regressão (obrigatório a cada PR)
