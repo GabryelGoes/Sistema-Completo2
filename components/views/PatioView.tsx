@@ -229,6 +229,12 @@ import {
   getPatioBoardColumnShellClass,
 } from '../../utils/patioBoardGlassCard';
 import {
+  isPatioSmartphonePerfDevEnabled,
+  patioPerfEnsureLongTaskObserver,
+  patioPerfMark,
+  patioPerfNoteBoardCommit,
+} from '../../utils/patioSmartphonePerfDev';
+import {
   boardCardZoomPrefersDenseGrid,
   boardCardZoomValueFromStep,
   getDefaultBoardCardZoomStepIndex,
@@ -2201,6 +2207,31 @@ export const PatioView: React.FC<PatioViewProps> = ({
   const patioTrelloColumnRem = trelloColumnWidthRemFromStep(trelloColStep);
   const { isDesktop, isTablet, isSmartphone, viewportWidth } = useDeviceTypeContext();
   const desktopShell = useDesktopShellLayout();
+
+  // PR-A: instrumentação DEV do quadro (sem PII). Ativar com ?patioPerf=1 ou localStorage patio_perf_dev=1.
+  useEffect(() => {
+    if (!isPatioSmartphonePerfDevEnabled()) return;
+    patioPerfEnsureLongTaskObserver();
+    patioPerfMark('enter', { cardCount: cards.length, detail: isSmartphone ? 'smartphone' : 'other' });
+  }, []);
+  useEffect(() => {
+    if (!isPatioSmartphonePerfDevEnabled()) return;
+    if (selectedCard || isBudgetOpen) return;
+    patioPerfNoteBoardCommit(cards.length);
+  }, [cards, selectedCard, isBudgetOpen]);
+  const selectedCardIdForPerf = selectedCard?.id ?? null;
+  const prevSelectedCardIdForPerfRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!isPatioSmartphonePerfDevEnabled()) return;
+    const prev = prevSelectedCardIdForPerfRef.current;
+    if (!prev && selectedCardIdForPerf) {
+      patioPerfMark('open_os', { cardCount: cards.length });
+    } else if (prev && !selectedCardIdForPerf) {
+      patioPerfMark('close_os', { cardCount: cards.length });
+    }
+    prevSelectedCardIdForPerfRef.current = selectedCardIdForPerf;
+  }, [selectedCardIdForPerf, cards.length]);
+
   /** Visualização da bancada em tela cheia. */
   const [benchFullscreenOpen, setBenchFullscreenOpen] = useState(false);
   /** Arrastar (pan) o quadro estilo Trello clicando em espaços vazios (PC). */
