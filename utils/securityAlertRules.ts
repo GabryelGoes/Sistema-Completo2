@@ -141,10 +141,10 @@ const RECORDED_RULES: RecordedRule[] = [
     id: "recorded_session_check",
     types: ["session_check_unavailable"],
     omittedRepeats: true,
-    severity: (count) => (count >= 3 ? "important" : "warning"),
+    severity: () => "warning",
     title: "Falha ao confirmar sessões",
     explain: (count, _removed, truncated) =>
-      `A consulta que confirma a sessão falhou em ${count} registro(s). Repetições no mesmo processo podem ter sido omitidas por cinco minutos.${truncated ? " A leitura do período passou do limite." : ""}`,
+      `A consulta que confirma a sessão falhou em ${count} registro(s). Repetições da mesma verificação são uma condição só, não incidentes separados. O registro permanece visível.${truncated ? " A leitura do período passou do limite." : ""}`,
   },
   {
     id: "recorded_rate_limit_down",

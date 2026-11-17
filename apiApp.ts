@@ -84,6 +84,14 @@ import { AuthRateLimitUnavailable } from "./utils/authRateLimit.js";
 import { resolveAuthRateLimitStore } from "./utils/postgresAuthRateLimit.js";
 import { clientIp } from "./utils/clientIp.js";
 import {
+  expiredSessionPayload,
+  inspectSessionToken,
+  sessionFailureReason,
+  sessionPayloadForGate,
+  signSessionToken,
+  type SessionTokenPayload,
+} from "./utils/sessionToken.js";
+import {
   changedPermissionKeys,
   createSecurityAudit,
   pageSecurityEvents,
@@ -218,16 +226,10 @@ const PASSWORD_IP_MAX = 10;
 const PASSWORD_ACCOUNT_MAX = 8;
 const PASSWORD_WINDOW_MS = 15 * 60 * 1000;
 
-type SessionPayload = {
-  r: "admin" | "user";
-  u?: string; // userId
-  n?: string; // username
-  /** ID da linha em workshop_device_sessions (logout remoto / bloqueio). */
-  sid?: string;
-  /** ID estável do aparelho (localStorage no cliente). */
-  did?: string;
-  exp: number;
-};
+type SessionPayload = SessionTokenPayload;
+type SessionCheckReason = "blocked_devices_read" | "device_session_read" | "auth_store_missing";
+type DeviceBlockResult = "clear" | "blocked" | SessionCheckReason;
+type SessionGate = "ok" | "invalid" | "revoked" | "blocked" | SessionCheckReason;
 
 const DEVICE_ONLINE_MS = 2 * 60 * 1000;
 /**
@@ -291,49 +293,6 @@ function normalizeDeviceClientInfo(
       ? body.deviceModel.trim().slice(0, 120)
       : parsed.deviceModel;
   return { platform, osName, deviceModel, userAgent: ua };
-}
-
-function b64url(input: Buffer | string): string {
-  return Buffer.from(input)
-    .toString("base64")
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_")
-    .replace(/=+$/, "");
-}
-
-function b64urlDecode(input: string): Buffer {
-  const pad = input.length % 4 === 0 ? "" : "=".repeat(4 - (input.length % 4));
-  return Buffer.from(input.replace(/-/g, "+").replace(/_/g, "/") + pad, "base64");
-}
-
-function signSessionToken(payload: Omit<SessionPayload, "exp">, ttlMs = SESSION_TTL_MS): string | null {
-  const ring = resolveSessionKeyRing();
-  if (!ring) return null;
-  const full: SessionPayload = { ...payload, exp: Date.now() + ttlMs };
-  const body = b64url(JSON.stringify(full));
-  const sig = b64url(crypto.createHmac("sha256", ring.current).update(body).digest());
-  return `${body}.${sig}`;
-}
-
-function verifySessionToken(token: string | undefined | null): SessionPayload | null {
-  const ring = resolveSessionKeyRing();
-  if (!ring) return null;
-  if (!token || typeof token !== "string") return null;
-  const parts = token.split(".");
-  if (parts.length !== 2) return null;
-  const [body, sig] = parts;
-  const matches = ring.verify.some((key) =>
-    safeStringEqual(sig, b64url(crypto.createHmac("sha256", key).update(body).digest()))
-  );
-  if (!matches) return null;
-  try {
-    const payload = JSON.parse(b64urlDecode(body).toString("utf8")) as SessionPayload;
-    if (!payload || (payload.r !== "admin" && payload.r !== "user")) return null;
-    if (typeof payload.exp !== "number" || payload.exp < Date.now()) return null;
-    return payload;
-  } catch {
-    return null;
-  }
 }
 
 function getBearerToken(req: { headers: Record<string, unknown> }): string | null {
@@ -1439,9 +1398,9 @@ export function createApiApp() {
     );
   }
 
-  async function isDeviceBlocked(deviceId: string): Promise<"clear" | "blocked" | "unavailable"> {
+  async function isDeviceBlocked(deviceId: string): Promise<DeviceBlockResult> {
     if (!deviceId) return "clear";
-    if (!supabaseAdmin || !WORKSHOP_ID) return "unavailable";
+    if (!supabaseAdmin || !WORKSHOP_ID) return "auth_store_missing";
     try {
       const { data, error } = await supabaseAdmin
         .from("workshop_blocked_devices")
@@ -1449,10 +1408,10 @@ export function createApiApp() {
         .eq("workshop_id", WORKSHOP_ID)
         .eq("device_id", deviceId)
         .maybeSingle();
-      if (error) return "unavailable";
+      if (error) return "blocked_devices_read";
       return data?.id ? "blocked" : "clear";
     } catch {
-      return "unavailable";
+      return "blocked_devices_read";
     }
   }
 
@@ -1466,9 +1425,9 @@ export function createApiApp() {
   async function enforceDeviceSession(
     req: express.Request,
     auth: SessionPayload
-  ): Promise<"ok" | "invalid" | "revoked" | "blocked" | "unavailable"> {
-    const blockMemo = new Map<string, "clear" | "blocked" | "unavailable">();
-    const blockStatus = async (id: string): Promise<"clear" | "blocked" | "unavailable"> => {
+  ): Promise<SessionGate> {
+    const blockMemo = new Map<string, DeviceBlockResult>();
+    const blockStatus = async (id: string): Promise<DeviceBlockResult> => {
       const known = blockMemo.get(id);
       if (known) return known;
       const status = await isDeviceBlocked(id);
@@ -1481,13 +1440,13 @@ export function createApiApp() {
     if (deviceId) {
       const block = await blockStatus(deviceId);
       if (block === "blocked") return "blocked";
-      if (block === "unavailable") return "unavailable";
+      if (block !== "clear") return block;
     }
 
     const sid = typeof auth.sid === "string" ? auth.sid.trim() : "";
     if (!sid) return "invalid";
     if (revokedSessionIds.has(sid)) return "revoked";
-    if (!supabaseAdmin || !WORKSHOP_ID) return "unavailable";
+    if (!supabaseAdmin || !WORKSHOP_ID) return "auth_store_missing";
 
     try {
       const { data, error } = await supabaseAdmin
@@ -1496,7 +1455,7 @@ export function createApiApp() {
         .eq("id", sid)
         .eq("workshop_id", WORKSHOP_ID)
         .maybeSingle();
-      if (error) return "unavailable";
+      if (error) return "device_session_read";
       if (!data || data.revoked_at) {
         rememberRevokedSession(sid);
         return "revoked";
@@ -1505,13 +1464,12 @@ export function createApiApp() {
       const sessionDevice = String(data.device_id || "").trim();
       if (sessionDevice) {
         const block = await blockStatus(sessionDevice);
-        if (block === "unavailable") return "unavailable";
-        if (block === "blocked") return "blocked";
+        if (block !== "clear") return block === "blocked" ? "blocked" : block;
       }
       if (revokedSessionIds.has(sid)) return "revoked";
       return "ok";
     } catch {
-      return "unavailable";
+      return "device_session_read";
     }
   }
 
@@ -1680,7 +1638,8 @@ export function createApiApp() {
     const bearer = getBearerToken(req);
 
     // 1) Sessão de staff (token HMAC do login) — acesso pleno.
-    const auth = verifySessionToken(bearer);
+    const inspected = inspectSessionToken(bearer);
+    const auth = sessionPayloadForGate(inspected);
     if (auth) {
       const gate = await enforceDeviceSession(req, auth);
       const auditActor = auth.r === "user" ? auth.u || null : null;
@@ -1693,7 +1652,7 @@ export function createApiApp() {
           actorUserId: auditActor,
           sessionId: auditSession,
           deviceId: auditDevice,
-          metadata: { area: "login" },
+          metadata: { area: "login", reason: "missing_sid" },
         });
         return res.status(401).json({
           error: "Sessão inválida ou expirada. Faça login novamente.",
@@ -1727,14 +1686,14 @@ export function createApiApp() {
           error: "Este dispositivo foi bloqueado e não pode acessar o sistema.",
         });
       }
-      if (gate === "unavailable") {
+      if (gate === "blocked_devices_read" || gate === "device_session_read" || gate === "auth_store_missing") {
         await auditFromReq(req, {
           eventType: "session_check_unavailable",
           outcome: "error",
           actorUserId: auditActor,
           sessionId: auditSession,
           deviceId: auditDevice,
-          metadata: { area: "login" },
+          metadata: { area: "login", reason: gate },
         });
         return res.status(503).json({
           error: "Não foi possível confirmar a sessão. Tente novamente.",
@@ -1764,13 +1723,16 @@ export function createApiApp() {
       return res.status(401).json({ error: "Token de TV inválido." });
     }
 
-    if (bearer) {
+    const failure = sessionFailureReason(inspected);
+    if (bearer && failure && failure !== "missing_sid") {
+      const trusted = expiredSessionPayload(inspected);
       await auditFromReq(req, {
         eventType: "session_invalid",
         outcome: "denied",
-        actorUserId: null,
-        sessionId: null,
-        metadata: { area: "login" },
+        actorUserId: trusted?.r === "user" ? trusted.u || null : null,
+        sessionId: trusted?.sid || null,
+        deviceId: trusted?.did || deviceIdFromReq(req) || null,
+        metadata: { area: "login", reason: failure },
       });
     }
     return res.status(401).json({
@@ -2444,17 +2406,21 @@ export function createApiApp() {
       const deviceId = deviceIdFromReq(req);
       if (deviceId) {
         const block = await isDeviceBlocked(deviceId);
-        if (block === "unavailable") {
-          await auditFromReq(req, { eventType: "session_check_unavailable", outcome: "error", metadata: { area: "login" } });
-          return res.status(503).json({
-            error: "Não foi possível confirmar a sessão. Tente novamente.",
-            code: "session_check_unavailable",
-          });
-        }
         if (block === "blocked") {
           await auditFromReq(req, { eventType: "device_blocked", outcome: "denied", metadata: { area: "login" } });
           return res.status(403).json({
             error: "Este dispositivo foi bloqueado e não pode acessar o sistema.",
+          });
+        }
+        if (block !== "clear") {
+          await auditFromReq(req, {
+            eventType: "session_check_unavailable",
+            outcome: "error",
+            metadata: { area: "login", reason: block },
+          });
+          return res.status(503).json({
+            error: "Não foi possível confirmar a sessão. Tente novamente.",
+            code: "session_check_unavailable",
           });
         }
       }
@@ -2511,7 +2477,7 @@ export function createApiApp() {
           n: ADMIN_USERNAME,
           sid: sessionId,
           did: deviceId || undefined,
-        });
+        }, SESSION_TTL_MS);
         if (!token) {
           return res.status(503).json({
             error: "Servidor sem segredo de sessão.",
@@ -2543,17 +2509,32 @@ export function createApiApp() {
       }
       if (!supabaseAdmin || !WORKSHOP_ID) {
         if (!adminName) {
-          await auditFromReq(req, { eventType: "login_unavailable", outcome: "error", metadata: { area: "login" } });
+          await auditFromReq(req, {
+            eventType: "login_unavailable",
+            outcome: "error",
+            metadata: { area: "login", reason: "auth_store_missing" },
+          });
+          return res.status(503).json({
+            error: "Não foi possível confirmar o cadastro. Tente novamente.",
+            code: "login_unavailable",
+          });
         }
-        return adminName ? rejectKnownAccount() : res.status(401).json({ error: "Usuário ou senha incorretos." });
+        return rejectKnownAccount();
       }
       const { data: users, error } = await supabaseAdmin
         .from("workshop_system_users")
         .select("id, username, display_name, permissions, password_hash, photo_url, is_technician, accent_color")
         .eq("workshop_id", WORKSHOP_ID);
       if (error) {
-        await auditFromReq(req, { eventType: "login_unavailable", outcome: "error", metadata: { area: "login" } });
-        return res.status(401).json({ error: "Usuário ou senha incorretos." });
+        await auditFromReq(req, {
+          eventType: "login_unavailable",
+          outcome: "error",
+          metadata: { area: "login", reason: "employees_read" },
+        });
+        return res.status(503).json({
+          error: "Não foi possível confirmar o cadastro. Tente novamente.",
+          code: "login_unavailable",
+        });
       }
       const uLower = u.toLowerCase();
       const user = (users || []).find((r) => String(r.username).trim().toLowerCase() === uLower);
@@ -2579,7 +2560,7 @@ export function createApiApp() {
         n: user.username,
         sid: sessionId,
         did: deviceId || undefined,
-      });
+      }, SESSION_TTL_MS);
       if (!token) {
         return res.status(503).json({
           error: "Servidor sem segredo de sessão.",

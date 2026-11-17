@@ -63,6 +63,7 @@ export type SecurityEventItem = {
   clientRef: string | null;
   metadata?: {
     area?: string;
+    reason?: string;
     changedKeys?: string[];
     permissionKeys?: string[];
     targetUserId?: string;
@@ -125,6 +126,17 @@ const EVENT_LABELS: Record<(typeof SECURITY_CENTER_EVENT_TYPES)[number], string>
   session_check_unavailable: "Verificação de sessão indisponível",
   rate_limit_unavailable: "Contador de tentativas indisponível",
   admin_access_denied: "Acesso administrativo recusado",
+};
+
+const REASON_LABELS: Record<string, string> = {
+  blocked_devices_read: "Leitura dos aparelhos bloqueados",
+  device_session_read: "Leitura da sessão",
+  employees_read: "Leitura dos funcionários",
+  auth_store_missing: "Cadastro indisponível",
+  expired: "Token fora do prazo",
+  missing_sid: "Token sem sessão",
+  invalid_signature: "Assinatura não confere",
+  invalid_format: "Token ilegível",
 };
 
 const SETTING_LABELS: Record<string, string> = {
@@ -217,7 +229,7 @@ export function targetLabel(targetUserId: string | undefined, names: ReadonlyMap
   return names.get(targetUserId) || "Funcionário removido";
 }
 
-export function eventDetail(event: SecurityEventItem, names: ReadonlyMap<string, string> | null): string | null {
+export function eventDetail(event: Pick<SecurityEventItem, "metadata">, names: ReadonlyMap<string, string> | null): string | null {
   const parts: string[] = [];
   const target = targetLabel(event.metadata?.targetUserId, names);
   if (target) parts.push(target);
@@ -228,6 +240,8 @@ export function eventDetail(event: SecurityEventItem, names: ReadonlyMap<string,
   if (typeof event.metadata?.revokedCount === "number") {
     parts.push(`${event.metadata.revokedCount} sessão(ões) encerrada(s)`);
   }
+  const reason = event.metadata?.reason ? REASON_LABELS[event.metadata.reason] : "";
+  if (reason) parts.push(reason);
   return parts.length ? parts.join(" · ") : null;
 }
 
