@@ -582,11 +582,13 @@ export function LabelTemplatesEditorModal({
               <p className="text-[12px] text-zinc-500 dark:text-zinc-400">
                 {LABEL_TEMPLATE_META.find((m) => m.id === activeId)?.description}
                 {' · Arraste os textos na prévia · gire e edite cada um no painel.'}
-                {hasPlateMercosul
-                  ? layout.keyOptions?.mercosulPlate !== false
-                    ? ' Placa no estilo Mercosul (desligue nas opções para texto tradicional).'
-                    : ' Placa em texto tradicional.'
-                  : ''}
+                {activeId === 'pecas_os'
+                  ? ' Layout fixo do mockup (faixa PEÇA + veículo / placa / cor / cliente).'
+                  : hasPlateMercosul
+                    ? layout.keyOptions?.mercosulPlate !== false
+                      ? ' Placa no estilo Mercosul (desligue nas opções para texto tradicional).'
+                      : ' Placa em texto tradicional.'
+                    : ''}
                 {activeId === 'chave' && layout.keyOptions?.dualCopy === false
                   ? ' Espelhamento desligado — arraste pela etiqueta toda.'
                   : ''}
@@ -616,7 +618,7 @@ export function LabelTemplatesEditorModal({
                     {building ? 'Montando prévia…' : 'Sem prévia'}
                   </div>
                 )}
-                {previewUrl && overlayElements.length > 0 ? (
+                {previewUrl && overlayElements.length > 0 && activeId !== 'pecas_os' ? (
                   <div className="pointer-events-none absolute inset-3">
                     {overlayElements.map((elDef) => {
                       const mapped =

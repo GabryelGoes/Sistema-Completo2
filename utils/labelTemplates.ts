@@ -107,7 +107,7 @@ export const LABEL_TEMPLATE_META: Array<{
   {
     id: 'pecas_os',
     title: 'Peças (OS veículo)',
-    description: 'Carro, cor e placa Mercosul — etiqueta para peças da OS',
+    description: 'Layout fixo do mockup — veículo, placa, cor e cliente',
   },
   {
     id: 'abs_modulo',
@@ -417,11 +417,15 @@ export function createDefaultChaveTemplate(): LabelTemplateLayout {
   };
 }
 
-/** Etiqueta de peças da OS (pátio) — paisagem 50×30 com placa Mercosul. */
+/**
+ * Etiqueta de peças da OS (pátio) — layout fixo do mockup (faixa PEÇA + campos).
+ * A renderização em `patioPecasLabelRender` desenha o design completo;
+ * os elementos abaixo documentam os campos dinâmicos no editor.
+ */
 export function createDefaultPecasOsTemplate(): LabelTemplateLayout {
   return {
     id: 'pecas_os',
-    version: 1,
+    version: 2,
     canvasW: LABEL_W,
     canvasH: LABEL_H,
     keyOptions: {
@@ -437,48 +441,18 @@ export function createDefaultPecasOsTemplate(): LabelTemplateLayout {
     },
     elements: [
       el({
-        id: 'banner',
-        kind: 'banner',
-        name: 'Faixa PEÇAS',
-        visible: true,
-        x: 10,
-        y: 8,
-        w: 120,
-        h: 22,
-        fontSize: 11,
-        fontWeight: '900',
-        labelText: 'PEÇAS',
-        align: 'left',
-      }),
-      el({
         id: 'vehicle',
         kind: 'text_field',
-        name: 'Carro',
+        name: 'Veículo',
         visible: true,
-        x: 10,
-        y: 34,
-        w: 364,
-        h: 36,
+        x: 90,
+        y: 14,
+        w: 280,
+        h: 48,
         fontSize: 12,
-        valueFontSize: 26,
+        valueFontSize: 46,
         fontWeight: '900',
         labelText: '',
-        align: 'left',
-        maxLines: 1,
-      }),
-      el({
-        id: 'color',
-        kind: 'text_field',
-        name: 'Cor',
-        visible: true,
-        x: 10,
-        y: 74,
-        w: 364,
-        h: 28,
-        fontSize: 12,
-        valueFontSize: 18,
-        fontWeight: 'bold',
-        labelText: 'Cor  ',
         align: 'left',
       }),
       el({
@@ -486,14 +460,45 @@ export function createDefaultPecasOsTemplate(): LabelTemplateLayout {
         kind: 'text_field',
         name: 'Placa',
         visible: true,
-        x: 48,
-        y: 112,
-        w: 288,
-        h: 112,
+        x: 90,
+        y: 100,
+        w: 140,
+        h: 50,
+        fontSize: 10,
+        valueFontSize: 18,
+        fontWeight: '900',
+        labelText: 'PLACA',
+        align: 'left',
+      }),
+      el({
+        id: 'color',
+        kind: 'text_field',
+        name: 'Cor',
+        visible: true,
+        x: 240,
+        y: 100,
+        w: 130,
+        h: 50,
+        fontSize: 10,
+        valueFontSize: 18,
+        fontWeight: '900',
+        labelText: 'COR',
+        align: 'left',
+      }),
+      el({
+        id: 'customer',
+        kind: 'text_field',
+        name: 'Cliente',
+        visible: true,
+        x: 90,
+        y: 180,
+        w: 280,
+        h: 28,
         fontSize: 12,
-        valueFontSize: 34,
-        labelText: '',
-        align: 'center',
+        valueFontSize: 15,
+        fontWeight: 'bold',
+        labelText: 'CLIENTE:',
+        align: 'left',
       }),
     ],
   };
@@ -836,11 +841,30 @@ export function normalizeLabelTemplate(
     );
   }
 
-  // Chave / peças: placa sem rótulo "Placa:" e nome amigável estável.
-  if (id === 'chave' || id === 'pecas_os') {
+  // Chave: placa sem rótulo "Placa:" e nome amigável estável.
+  if (id === 'chave') {
     elements = elements.map((e) =>
       e.id === 'plate' ? { ...e, labelText: '', name: 'Placa' } : e
     );
+  }
+
+  // Peças v1 → v2: layout fixo do mockup (campos veículo/placa/cor/cliente).
+  if (id === 'pecas_os') {
+    const savedVersion = Number(raw?.version ?? 0);
+    if (savedVersion > 0 && savedVersion < 2) {
+      elements = def.elements.map((fb) => ({ ...fb }));
+    } else {
+      // Garante customer mesmo em saves parciais.
+      for (const fb of def.elements) {
+        if (elements.some((e) => e.id === fb.id)) continue;
+        elements.push({ ...fb });
+      }
+      elements = elements.map((e) => {
+        if (e.id === 'plate') return { ...e, name: 'Placa' };
+        if (e.id === 'customer') return { ...e, name: 'Cliente' };
+        return e;
+      });
+    }
   }
 
   // ABS: só código de barras (sem QR).
@@ -940,7 +964,7 @@ export function normalizeLabelTemplate(
         : id === 'chave'
           ? Math.max(Number(raw?.version) || 0, Number(def.version) || 3)
           : id === 'pecas_os'
-            ? Math.max(Number(raw?.version) || 0, Number(def.version) || 1)
+            ? Math.max(Number(raw?.version) || 0, Number(def.version) || 2)
             : 1,
     canvasW: LABEL_W,
     canvasH: LABEL_H,
@@ -1106,9 +1130,11 @@ export const LABEL_SAMPLE_DATA = {
     plate: 'ABC1D23',
   },
   pecas_os: {
-    vehicleModel: 'COROLLA XEI',
-    vehicleColor: 'PRATA',
-    plate: 'ABC1D23',
+    vehicleModel: 'HR-V EXL 1.8 FLEX',
+    vehicleColor: 'BRANCO',
+    plate: 'AZK4B21',
+    customerName: 'Fernando Almeida',
+    vehicleYear: '2016',
   },
   abs_modulo: {
     brand: 'REI DO ABS',
