@@ -30,6 +30,7 @@ export const BUDGET_AGGREGATE_SHARED_KEYS = [
   "verifiedAt",
   "lastActorName",
   "lastActorPhotoUrl",
+  "lastActorUserId",
   "verifiedByPhotoUrl",
 ] as const;
 

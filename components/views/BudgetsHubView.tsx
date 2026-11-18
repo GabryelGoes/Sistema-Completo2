@@ -62,6 +62,7 @@ function normalizeAggregateItem(raw: PatioVehicleBudgetAggregateItem): PatioVehi
     verifiedByName: raw.verifiedByName ?? null,
     lastActorName: raw.lastActorName ?? null,
     lastActorPhotoUrl: raw.lastActorPhotoUrl ?? null,
+    lastActorUserId: raw.lastActorUserId ?? null,
     verifiedByPhotoUrl: raw.verifiedByPhotoUrl ?? null,
   };
 }
