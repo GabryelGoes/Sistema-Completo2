@@ -46,6 +46,7 @@ import {
   renderNiimbotPartLabelDataUrl,
 } from '../utils/niimbotLabelRender';
 import { renderPatioKeyLabelDataUrl } from '../utils/patioKeyLabelRender';
+import { renderPatioPecasLabelDataUrl } from '../utils/patioPecasLabelRender';
 import { KEY_LABEL_ICON_PRESETS } from '../utils/keyLabelIcons';
 import { niimbotService } from '../services/niimbotService';
 import { ModalPortal } from './ui/ModalPortal';
@@ -158,6 +159,9 @@ async function buildPreview(
   }
   if (id === 'abs_modulo') {
     return renderNiimbotAbsModuleLabelDataUrl({ ...LABEL_SAMPLE_DATA.abs_modulo }, layout);
+  }
+  if (id === 'pecas_os') {
+    return renderPatioPecasLabelDataUrl({ ...LABEL_SAMPLE_DATA.pecas_os }, layout);
   }
   return renderPatioKeyLabelDataUrl({ ...LABEL_SAMPLE_DATA.chave }, layout);
 }
@@ -312,6 +316,7 @@ export function LabelTemplatesEditorModal({
       lab_os: normalizeLabelTemplate('lab_os', next.lab_os),
       estoque: normalizeLabelTemplate('estoque', next.estoque),
       chave: normalizeLabelTemplate('chave', next.chave),
+      pecas_os: normalizeLabelTemplate('pecas_os', next.pecas_os),
       abs_modulo: normalizeLabelTemplate('abs_modulo', next.abs_modulo),
     };
     setStore(normalized);
@@ -467,6 +472,7 @@ export function LabelTemplatesEditorModal({
 
   if (!open) return null;
 
+  const hasPlateMercosul = activeId === 'chave' || activeId === 'pecas_os';
   const overlayElements = layout.elements.filter((e) => e.visible);
   const chaveDualCopy = layout.keyOptions?.dualCopy !== false;
   const chaveHalfH = Math.floor(
@@ -529,8 +535,8 @@ export function LabelTemplatesEditorModal({
                     : syncStatusNote
                       ? syncStatusNote
                       : remoteSaved
-                        ? 'Laboratório, estoque, chave · 50 × 30 mm · sincronizado em todos os dispositivos'
-                        : 'Laboratório, estoque, chave · 50 × 30 mm · cache local neste dispositivo'
+                        ? 'Lab, estoque, chave, peças · 50 × 30 mm · sincronizado em todos os dispositivos'
+                        : 'Lab, estoque, chave, peças · 50 × 30 mm · cache local neste dispositivo'
               }
             />
             <div className="mt-3 flex flex-wrap gap-1.5">
@@ -576,7 +582,7 @@ export function LabelTemplatesEditorModal({
               <p className="text-[12px] text-zinc-500 dark:text-zinc-400">
                 {LABEL_TEMPLATE_META.find((m) => m.id === activeId)?.description}
                 {' · Arraste os textos na prévia · gire e edite cada um no painel.'}
-                {activeId === 'chave'
+                {hasPlateMercosul
                   ? layout.keyOptions?.mercosulPlate !== false
                     ? ' Placa no estilo Mercosul (desligue nas opções para texto tradicional).'
                     : ' Placa em texto tradicional.'
@@ -668,34 +674,32 @@ export function LabelTemplatesEditorModal({
                 Alterações salvas automaticamente neste dispositivo
               </p>
 
-              {activeId === 'chave' ? (
-                <div className="space-y-2">
-                  <button
-                    type="button"
-                    disabled={printBusy || !previewUrl || building}
-                    onClick={() => void handlePrintTest()}
-                    className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-[14px] font-semibold text-white hover:bg-emerald-500 disabled:opacity-50"
+              <div className="space-y-2">
+                <button
+                  type="button"
+                  disabled={printBusy || !previewUrl || building}
+                  onClick={() => void handlePrintTest()}
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-2.5 text-[14px] font-semibold text-white hover:bg-emerald-500 disabled:opacity-50"
+                >
+                  {printBusy ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Printer className="h-4 w-4" />
+                  )}
+                  {printBusy ? 'Imprimindo teste…' : 'Imprimir etiqueta teste'}
+                </button>
+                {printMsg ? (
+                  <p
+                    className={`rounded-xl px-3 py-2 text-[12px] ${
+                      printMsg.includes('enviada')
+                        ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200'
+                        : 'bg-amber-50 text-amber-900 dark:bg-amber-950/40 dark:text-amber-100'
+                    }`}
                   >
-                    {printBusy ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Printer className="h-4 w-4" />
-                    )}
-                    {printBusy ? 'Imprimindo teste…' : 'Imprimir etiqueta teste'}
-                  </button>
-                  {printMsg ? (
-                    <p
-                      className={`rounded-xl px-3 py-2 text-[12px] ${
-                        printMsg.includes('enviada')
-                          ? 'bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-200'
-                          : 'bg-amber-50 text-amber-900 dark:bg-amber-950/40 dark:text-amber-100'
-                      }`}
-                    >
-                      {printMsg}
-                    </p>
-                  ) : null}
-                </div>
-              ) : null}
+                    {printMsg}
+                  </p>
+                ) : null}
+              </div>
 
               {/* Lista de elementos */}
               <div className="space-y-1.5">
@@ -776,12 +780,12 @@ export function LabelTemplatesEditorModal({
 
                     {selected.kind !== 'qr' &&
                     selected.kind !== 'barcode' &&
-                    !(activeId === 'chave' && selected.id === 'plate') ? (
+                    !(hasPlateMercosul && selected.id === 'plate') ? (
                       <div className="space-y-1.5">
                         <span className="text-[11px] font-bold uppercase tracking-wide text-zinc-500">
                           Rótulo / prefixo
                         </span>
-                        {activeId === 'chave' &&
+                        {hasPlateMercosul &&
                         (selected.id === 'customer' ||
                           selected.id === 'vehicle' ||
                           selected.id === 'color') ? (
@@ -828,28 +832,28 @@ export function LabelTemplatesEditorModal({
                             patchElement(selected.id, { labelText: e.target.value })
                           }
                           placeholder={
-                            activeId === 'chave'
+                            hasPlateMercosul
                               ? 'Ex.: 👤  ou Cliente:'
                               : 'Ex.: Cliente: ou OFICINA'
                           }
                           className="w-full rounded-xl border-0 bg-white px-3 py-2.5 text-[14px] font-medium text-zinc-900 outline-none dark:bg-zinc-900 dark:text-zinc-100"
                         />
                         <p className="text-[11px] text-zinc-500">
-                          {activeId === 'chave'
+                          {hasPlateMercosul
                             ? 'Ícones 👤 🚗 🎨 são desenhados em P&B para a Niimbot. Deixe vazio para só o valor.'
                             : 'Deixe vazio para imprimir só o valor (sem legenda).'}
                         </p>
                       </div>
                     ) : null}
 
-                    {activeId === 'chave' && selected.id === 'plate' ? (
+                    {hasPlateMercosul && selected.id === 'plate' ? (
                       <p className="rounded-xl bg-white px-3 py-2 text-[11px] text-zinc-500 dark:bg-zinc-900 dark:text-zinc-400">
                         A placa não usa o título &quot;Placa:&quot; — só o número (Mercosul ou
                         texto tradicional).
                       </p>
                     ) : null}
 
-                    {!(activeId === 'chave' && selected.id === 'plate' && layout.keyOptions?.mercosulPlate !== false) ? (
+                    {!(hasPlateMercosul && selected.id === 'plate' && layout.keyOptions?.mercosulPlate !== false) ? (
                       <label className="block space-y-1.5">
                         <span className="text-[11px] font-bold uppercase tracking-wide text-zinc-500">
                           Fonte
@@ -872,7 +876,7 @@ export function LabelTemplatesEditorModal({
                       </label>
                     ) : null}
 
-                    {!(activeId === 'chave' && selected.id === 'plate') ? (
+                    {!(hasPlateMercosul && selected.id === 'plate') ? (
                       <Stepper
                         label="Tamanho do rótulo"
                         value={selected.fontSize}
@@ -892,7 +896,7 @@ export function LabelTemplatesEditorModal({
                       selected.kind === 'human_code') && (
                       <Stepper
                         label={
-                          activeId === 'chave' && selected.id === 'plate'
+                          hasPlateMercosul && selected.id === 'plate'
                             ? 'Tamanho do texto da placa'
                             : 'Tamanho do valor'
                         }
@@ -986,7 +990,7 @@ export function LabelTemplatesEditorModal({
                     />
                     <Stepper
                       label={
-                        activeId === 'chave' && selected.id === 'plate'
+                        hasPlateMercosul && selected.id === 'plate'
                           ? 'Largura da placa'
                           : 'Largura'
                       }
@@ -997,7 +1001,7 @@ export function LabelTemplatesEditorModal({
                     />
                     <Stepper
                       label={
-                        activeId === 'chave' && selected.id === 'plate'
+                        hasPlateMercosul && selected.id === 'plate'
                           ? 'Altura da placa'
                           : 'Altura'
                       }
@@ -1127,10 +1131,12 @@ export function LabelTemplatesEditorModal({
                 </>
               )}
 
-              {activeId === 'chave' && layout.keyOptions ? (
+              {hasPlateMercosul && layout.keyOptions ? (
                 <div className="space-y-3 rounded-2xl border-0 bg-zinc-50 p-3.5 dark:bg-white/[0.03] sm:p-4">
                   <p className="text-[11px] font-bold uppercase tracking-wide text-zinc-500">
-                    Opções da etiqueta de chave
+                    {activeId === 'pecas_os'
+                      ? 'Opções da etiqueta de peças'
+                      : 'Opções da etiqueta de chave'}
                   </p>
                   <Stepper
                     label="Espaçamento de letras"
@@ -1199,27 +1205,29 @@ export function LabelTemplatesEditorModal({
                       })
                     }
                   />
-                  <Stepper
-                    label="Espaço entre faces"
-                    value={layout.keyOptions.halfGap}
-                    display={`${layout.keyOptions.halfGap} px`}
-                    onDec={() =>
-                      patchLayout({
-                        keyOptions: {
-                          ...layout.keyOptions!,
-                          halfGap: layout.keyOptions!.halfGap - 1,
-                        },
-                      })
-                    }
-                    onInc={() =>
-                      patchLayout({
-                        keyOptions: {
-                          ...layout.keyOptions!,
-                          halfGap: layout.keyOptions!.halfGap + 1,
-                        },
-                      })
-                    }
-                  />
+                  {activeId === 'chave' ? (
+                    <Stepper
+                      label="Espaço entre faces"
+                      value={layout.keyOptions.halfGap}
+                      display={`${layout.keyOptions.halfGap} px`}
+                      onDec={() =>
+                        patchLayout({
+                          keyOptions: {
+                            ...layout.keyOptions!,
+                            halfGap: layout.keyOptions!.halfGap - 1,
+                          },
+                        })
+                      }
+                      onInc={() =>
+                        patchLayout({
+                          keyOptions: {
+                            ...layout.keyOptions!,
+                            halfGap: layout.keyOptions!.halfGap + 1,
+                          },
+                        })
+                      }
+                    />
+                  ) : null}
                   <Stepper
                     label="Offset X"
                     value={layout.keyOptions.offsetX}
@@ -1276,28 +1284,32 @@ export function LabelTemplatesEditorModal({
                       { value: 'bottom', label: 'Base' },
                     ]}
                   />
-                  <label className="flex items-center justify-between gap-3 rounded-xl bg-white px-3 py-2.5 dark:bg-zinc-900">
-                    <span className="text-[12px] font-medium text-zinc-700 dark:text-zinc-200">
-                      Duas faces (cópia invertida)
-                    </span>
-                    <input
-                      type="checkbox"
-                      checked={layout.keyOptions.dualCopy !== false}
-                      onChange={(e) =>
-                        patchLayout({
-                          keyOptions: {
-                            ...layout.keyOptions!,
-                            dualCopy: e.target.checked,
-                          },
-                        })
-                      }
-                      className="h-4 w-4 accent-emerald-600"
-                    />
-                  </label>
-                  {layout.keyOptions.dualCopy === false ? (
-                    <p className="text-[11px] leading-relaxed text-zinc-500 dark:text-zinc-400">
-                      Espelhamento desligado: arraste textos e placa por toda a etiqueta.
-                    </p>
+                  {activeId === 'chave' ? (
+                    <>
+                      <label className="flex items-center justify-between gap-3 rounded-xl bg-white px-3 py-2.5 dark:bg-zinc-900">
+                        <span className="text-[12px] font-medium text-zinc-700 dark:text-zinc-200">
+                          Duas faces (cópia invertida)
+                        </span>
+                        <input
+                          type="checkbox"
+                          checked={layout.keyOptions.dualCopy !== false}
+                          onChange={(e) =>
+                            patchLayout({
+                              keyOptions: {
+                                ...layout.keyOptions!,
+                                dualCopy: e.target.checked,
+                              },
+                            })
+                          }
+                          className="h-4 w-4 accent-emerald-600"
+                        />
+                      </label>
+                      {layout.keyOptions.dualCopy === false ? (
+                        <p className="text-[11px] leading-relaxed text-zinc-500 dark:text-zinc-400">
+                          Espelhamento desligado: arraste textos e placa por toda a etiqueta.
+                        </p>
+                      ) : null}
+                    </>
                   ) : null}
                   <label className="flex items-center justify-between gap-3 rounded-xl bg-white px-3 py-2.5 dark:bg-zinc-900">
                     <span className="text-[12px] font-medium text-zinc-700 dark:text-zinc-200">

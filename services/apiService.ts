@@ -6386,7 +6386,7 @@ export interface WorkshopSettings {
     allowPreApproval?: boolean;
   }[];
   /**
-   * Layouts do editor de etiquetas (lab_os / estoque / chave / abs_modulo).
+   * Layouts do editor de etiquetas (lab_os / estoque / chave / pecas_os / abs_modulo).
    * null = ainda não sincronizado no servidor.
    */
   labelTemplates?: Record<string, unknown> | null;

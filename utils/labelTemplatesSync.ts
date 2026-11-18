@@ -56,7 +56,9 @@ function storeHasAnyTemplate(
   store: Partial<Record<string, unknown>> | null | undefined
 ): boolean {
   if (!store || typeof store !== 'object') return false;
-  return Boolean(store.lab_os || store.estoque || store.chave || store.abs_modulo);
+  return Boolean(
+    store.lab_os || store.estoque || store.chave || store.pecas_os || store.abs_modulo
+  );
 }
 
 /**
