@@ -12763,18 +12763,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             </div>
                           </div>
 
-                          {requiresExplicitCommentReadEffective &&
-                          selectedCard &&
-                          selectedModalCommentsUnread > 0 ? (
-                            <div className="border-b border-amber-200/80 bg-amber-50/70 px-3 py-2 dark:border-amber-500/30 dark:bg-amber-950/30">
-                              <p className="text-[12px] font-medium text-amber-900/90 dark:text-amber-200">
-                                {selectedModalCommentsUnread === 1
-                                  ? '1 mensagem não lida — toque em “Marcar como lida” em cada mensagem'
-                                  : `${selectedModalCommentsUnread} mensagens não lidas — toque em “Marcar como lida” em cada mensagem`}
-                              </p>
-                            </div>
-                          ) : null}
-
                              <div
                                ref={commentsListRef}
                                data-os-comments-scroll=""
