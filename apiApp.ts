@@ -1852,6 +1852,7 @@ export function createApiApp() {
     customerName?: string | null;
     authorDisplayName?: string | null;
     authorPhotoUrl?: string | null;
+    authorUserId?: string | null;
     source?: string;
     orderType?: string | null;
   }): Promise<Record<string, unknown>> {
@@ -1891,6 +1892,10 @@ export function createApiApp() {
       typeof params.authorPhotoUrl === "string" && params.authorPhotoUrl.trim()
         ? params.authorPhotoUrl.trim()
         : null;
+    const authorUserId =
+      typeof params.authorUserId === "string" && params.authorUserId.trim()
+        ? params.authorUserId.trim()
+        : null;
     return {
       service_order_id: params.serviceOrderId,
       budget_id: params.budgetId ?? null,
@@ -1899,6 +1904,7 @@ export function createApiApp() {
       customer_name: params.customerName ?? null,
       author_display_name: author,
       author_photo_url: photo,
+      author_user_id: authorUserId,
       technician_name: author,
       budget_number: budgetNumber,
       order_type: orderType,
@@ -1926,37 +1932,51 @@ export function createApiApp() {
     return { name: name || "Administrador", photoUrl };
   }
 
-  /** Resolve nome + foto de quem criou/editou/verificou um orçamento. */
+  function requestSessionUserId(req: express.Request): string | null {
+    const auth = (req as unknown as { auth?: SessionPayload }).auth;
+    if (auth?.r === "user" && typeof auth.u === "string" && auth.u.trim()) {
+      return auth.u.trim();
+    }
+    return null;
+  }
+
+  /** Resolve nome + foto + userId de quem criou/editou/verificou um orçamento. */
   async function resolveBudgetActorMeta(params: {
     actor?: unknown;
     actorTechnicianSlug?: unknown;
     actorTechnicianName?: unknown;
     actorDisplayName?: unknown;
-  }): Promise<{ name: string; photoUrl: string | null }> {
+    /** ID confiável da sessão (auth.u) — preferido ao slug do body. */
+    trustedUserId?: string | null;
+  }): Promise<{ name: string; photoUrl: string | null; userId: string | null }> {
     const isTechnician =
       params.actor === "technician" &&
       (typeof params.actorTechnicianSlug === "string" ||
         typeof params.actorTechnicianName === "string" ||
-        typeof params.actorDisplayName === "string");
+        typeof params.actorDisplayName === "string" ||
+        (typeof params.trustedUserId === "string" && !!params.trustedUserId.trim()));
 
     if (isTechnician) {
       const slug =
-        typeof params.actorTechnicianSlug === "string" ? params.actorTechnicianSlug.trim() : "";
+        (typeof params.trustedUserId === "string" && params.trustedUserId.trim()) ||
+        (typeof params.actorTechnicianSlug === "string" ? params.actorTechnicianSlug.trim() : "");
       const displayHint =
         (typeof params.actorDisplayName === "string" && params.actorDisplayName.trim()) ||
         (typeof params.actorTechnicianName === "string" && params.actorTechnicianName.trim()) ||
         "";
       let name = displayHint || slug || "Técnico";
       let photoUrl: string | null = null;
+      let userId: string | null = slug || null;
       if (supabaseAdmin && WORKSHOP_ID) {
         if (slug) {
           const { data } = await supabaseAdmin
             .from("workshop_system_users")
-            .select("display_name, username, photo_url")
+            .select("id, display_name, username, photo_url")
             .eq("workshop_id", WORKSHOP_ID)
             .eq("id", slug)
             .maybeSingle();
           if (data) {
+            userId = typeof data.id === "string" ? data.id : userId;
             name =
               (typeof data.display_name === "string" && data.display_name.trim()) ||
               (typeof data.username === "string" && data.username.trim()) ||
@@ -1971,7 +1991,7 @@ export function createApiApp() {
           const authorTrim = name.trim().toLowerCase();
           const { data: systemUsers } = await supabaseAdmin
             .from("workshop_system_users")
-            .select("photo_url, display_name, username")
+            .select("id, photo_url, display_name, username")
             .eq("workshop_id", WORKSHOP_ID);
           const u = (systemUsers ?? []).find(
             (t) =>
@@ -1979,9 +1999,10 @@ export function createApiApp() {
               String(t.username).trim().toLowerCase() === authorTrim
           );
           photoUrl = u?.photo_url?.trim() || null;
+          if (!userId && u?.id) userId = String(u.id);
         }
       }
-      return { name, photoUrl };
+      return { name, photoUrl, userId };
     }
 
     const admin = await getAdminDisplayMeta();
@@ -1989,7 +2010,16 @@ export function createApiApp() {
       typeof params.actorDisplayName === "string" && params.actorDisplayName.trim()
         ? params.actorDisplayName.trim()
         : "";
-    return { name: override || admin.name, photoUrl: admin.photoUrl };
+    return { name: override || admin.name, photoUrl: admin.photoUrl, userId: null };
+  }
+
+  function excludeSelfFromRecipients(
+    recipientIds: readonly string[],
+    actorUserId: string | null | undefined
+  ): string[] {
+    const self = typeof actorUserId === "string" ? actorUserId.trim() : "";
+    if (!self) return [...recipientIds];
+    return recipientIds.filter((id) => id !== self);
   }
 
   async function resolvePhotoUrlForDisplayName(name: string | null | undefined): Promise<string | null> {
@@ -6554,12 +6584,16 @@ export function createApiApp() {
           verifiedByName: b.verified_by_name != null ? String(b.verified_by_name) : null,
           lastActorName: null as string | null,
           lastActorPhotoUrl: null as string | null,
+          lastActorUserId: null as string | null,
           verifiedByPhotoUrl: null as string | null,
         };
       });
 
       // Enriquece autor/foto a partir das notificações recentes (criação/edição/aprovação).
-      const actorByBudget = new Map<string, { name: string; photoUrl: string | null }>();
+      const actorByBudget = new Map<
+        string,
+        { name: string; photoUrl: string | null; userId: string | null }
+      >();
       try {
         const { data: recentNotifs } = await supabaseAdmin
           .from("notifications")
@@ -6583,7 +6617,10 @@ export function createApiApp() {
             typeof payload.author_photo_url === "string" && payload.author_photo_url.trim()
               ? payload.author_photo_url.trim()
               : null;
-          actorByBudget.set(bid, { name, photoUrl });
+          const userIdRaw = payload.author_user_id;
+          const userId =
+            typeof userIdRaw === "string" && userIdRaw.trim() ? userIdRaw.trim() : null;
+          actorByBudget.set(bid, { name, photoUrl, userId });
         }
       } catch {
         /* opcional */
@@ -6616,6 +6653,7 @@ export function createApiApp() {
         if (fromNotif) {
           it.lastActorName = fromNotif.name;
           it.lastActorPhotoUrl = fromNotif.photoUrl;
+          it.lastActorUserId = fromNotif.userId;
         }
         if (it.verifiedByName) {
           it.verifiedByPhotoUrl =
@@ -9720,14 +9758,18 @@ export function createApiApp() {
         created && typeof created === "object" && "id" in created
           ? String((created as { id?: string }).id || "")
           : "";
+      const sessionUserId = requestSessionUserId(req);
       const isTechnicianActor =
         actor === "technician" &&
-        (typeof actorTechnicianSlug === "string" || typeof actorTechnicianName === "string");
+        (typeof actorTechnicianSlug === "string" ||
+          typeof actorTechnicianName === "string" ||
+          !!sessionUserId);
       const actorMeta = await resolveBudgetActorMeta({
         actor,
         actorTechnicianSlug,
         actorTechnicianName,
         actorDisplayName: (req.body as { actorDisplayName?: unknown })?.actorDisplayName,
+        trustedUserId: sessionUserId,
       });
       const budgetPayload = await buildBudgetNotifyPayload({
         serviceOrderId,
@@ -9737,6 +9779,7 @@ export function createApiApp() {
         customerName: customerNameBudget || null,
         authorDisplayName: actorMeta.name,
         authorPhotoUrl: actorMeta.photoUrl,
+        authorUserId: actorMeta.userId ?? sessionUserId,
         orderType:
           String((so as { order_type?: string | null }).order_type ?? "vehicle") === "module"
             ? "module"
@@ -9754,7 +9797,10 @@ export function createApiApp() {
         }).then(({ error: e }) => { if (e) console.error("[API] Notificação budget_created:", e); });
         }
       } else {
-        const technicianIds = await getTechnicianRecipientIdsForSystemType("budget_created");
+        const technicianIds = excludeSelfFromRecipients(
+          await getTechnicianRecipientIdsForSystemType("budget_created"),
+          actorMeta.userId ?? sessionUserId
+        );
         for (const techId of technicianIds) {
           await supabaseAdmin.from("notifications").insert({
             workshop_id: WORKSHOP_ID,
@@ -9906,11 +9952,13 @@ export function createApiApp() {
             });
           }
           const updatedApproval = saved.data;
+          const sessionUserIdApproval = requestSessionUserId(req);
           const actorMetaApproval = await resolveBudgetActorMeta({
             actor,
             actorTechnicianSlug,
             actorTechnicianName,
             actorDisplayName: (req.body as { actorDisplayName?: unknown })?.actorDisplayName,
+            trustedUserId: sessionUserIdApproval,
           });
           const approvalNotify = await buildBudgetNotifyPayload({
             serviceOrderId,
@@ -9920,6 +9968,7 @@ export function createApiApp() {
             customerName: customerNameBudgetEdit || null,
             authorDisplayName: actorMetaApproval.name,
             authorPhotoUrl: actorMetaApproval.photoUrl,
+            authorUserId: actorMetaApproval.userId ?? sessionUserIdApproval,
             orderType:
               String((so as { order_type?: string | null }).order_type ?? "vehicle") === "module"
                 ? "module"
@@ -9944,7 +9993,10 @@ export function createApiApp() {
                 target_slug: null,
               }).then(({ error: e }) => { if (e) console.error("[API] Notificação budget_items_approved:", e); });
             }
-            const technicianIds = await getTechnicianRecipientIdsForSystemType(notifType);
+            const technicianIds = excludeSelfFromRecipients(
+              await getTechnicianRecipientIdsForSystemType(notifType),
+              actorMetaApproval.userId ?? sessionUserIdApproval
+            );
             for (const techId of technicianIds) {
               await supabaseAdmin.from("notifications").insert({
                 workshop_id: WORKSHOP_ID,
@@ -10039,14 +10091,18 @@ export function createApiApp() {
         }
       }
 
+      const sessionUserId = requestSessionUserId(req);
       const isTechnicianActor =
         actor === "technician" &&
-        (typeof actorTechnicianSlug === "string" || typeof actorTechnicianName === "string");
+        (typeof actorTechnicianSlug === "string" ||
+          typeof actorTechnicianName === "string" ||
+          !!sessionUserId);
       const actorMeta = await resolveBudgetActorMeta({
         actor,
         actorTechnicianSlug,
         actorTechnicianName,
         actorDisplayName: (req.body as { actorDisplayName?: unknown })?.actorDisplayName,
+        trustedUserId: sessionUserId,
       });
       const budgetNotifyPayload = await buildBudgetNotifyPayload({
         serviceOrderId,
@@ -10056,6 +10112,7 @@ export function createApiApp() {
         customerName: customerNameBudgetEdit || null,
         authorDisplayName: actorMeta.name,
         authorPhotoUrl: actorMeta.photoUrl,
+        authorUserId: actorMeta.userId ?? sessionUserId,
         orderType:
           String((so as { order_type?: string | null }).order_type ?? "vehicle") === "module"
             ? "module"
@@ -10073,6 +10130,7 @@ export function createApiApp() {
         const notifType = "budget_items_approved";
         // Notifica admins e técnicos (quem estiver inscrito) — aprovação é evento
         // transversal; o orçamentista no PC também precisa ver o banner.
+        // O próprio autor é excluído dos destinatários técnicos e filtrado no cliente (inbox admin).
         const shouldAdmin = await shouldNotifyAdminForSystemType(notifType);
         if (shouldAdmin) {
           await supabaseAdmin.from("notifications").insert({
@@ -10083,7 +10141,10 @@ export function createApiApp() {
             target_slug: null,
           }).then(({ error: e }) => { if (e) console.error("[API] Notificação budget_items_approved:", e); });
         }
-        const technicianIds = await getTechnicianRecipientIdsForSystemType(notifType);
+        const technicianIds = excludeSelfFromRecipients(
+          await getTechnicianRecipientIdsForSystemType(notifType),
+          actorMeta.userId ?? sessionUserId
+        );
         for (const techId of technicianIds) {
           await supabaseAdmin.from("notifications").insert({
             workshop_id: WORKSHOP_ID,
@@ -10106,7 +10167,10 @@ export function createApiApp() {
           }).then(({ error: e }) => { if (e) console.error("[API] Notificação budget_edited:", e); });
           }
         } else {
-          const technicianIds = await getTechnicianRecipientIdsForSystemType("budget_edited");
+          const technicianIds = excludeSelfFromRecipients(
+            await getTechnicianRecipientIdsForSystemType("budget_edited"),
+            actorMeta.userId ?? sessionUserId
+          );
           for (const techId of technicianIds) {
             await supabaseAdmin.from("notifications").insert({
               workshop_id: WORKSHOP_ID,
@@ -10595,11 +10659,19 @@ export function createApiApp() {
         String((so as { order_type?: string | null }).order_type ?? "vehicle") === "module"
           ? "module"
           : "vehicle";
+      const commentSessionUserId = requestSessionUserId(req);
+      const commentAuthorUserId =
+        commentSessionUserId ||
+        (actor === "technician" &&
+        typeof (req.body as { authorUserId?: unknown })?.authorUserId === "string"
+          ? String((req.body as { authorUserId?: string }).authorUserId).trim()
+          : null);
       const commentPayload = {
         service_order_id: serviceOrderId,
         comment_id: createdComment.id,
         author_display_name: author,
         author_photo_url: authorPhotoUrlForPayload,
+        author_user_id: commentAuthorUserId,
         text: text.trim(),
         vehicle_plate: so.plate ?? null,
         vehicle_model: so.vehicle_model ?? null,
@@ -10620,10 +10692,7 @@ export function createApiApp() {
           }).then(({ error: notifErr }) => { if (notifErr) console.error("[API] Erro ao criar notificação de comentário (admin):", notifErr); });
         }
 
-        const authorUserId =
-          actor === "technician" && typeof (req.body as { authorUserId?: unknown })?.authorUserId === "string"
-            ? String((req.body as { authorUserId?: string }).authorUserId).trim()
-            : null;
+        const authorUserId = commentAuthorUserId;
         // Preferência: excluir pelo id do autor se enviado; senão tenta casar com display_name.
         let excludeId = authorUserId || null;
         if (!excludeId && author) {

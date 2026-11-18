@@ -3866,6 +3866,7 @@ export interface PatioVehicleBudgetAggregateItem {
   /** Último ator conhecido (criação/edição/aprovação) — banners do hub. */
   lastActorName?: string | null;
   lastActorPhotoUrl?: string | null;
+  lastActorUserId?: string | null;
   verifiedByPhotoUrl?: string | null;
 }
 

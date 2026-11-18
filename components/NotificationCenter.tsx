@@ -33,6 +33,10 @@ import {
   genieOriginFromSelector,
   type GenieOrigin,
 } from '../utils/GenieNotificationDismiss';
+import {
+  isSelfAuthoredNotification,
+  type SessionNotifyIdentity,
+} from '../utils/notificationSelfFilter';
 
 /** Primeiro nome do cliente a partir do nome completo. */
 function getFirstName(fullName: string | null | undefined): string | null {
@@ -351,6 +355,8 @@ export interface NotificationCenterProps {
   onNotificationClick?: (notification: Notification) => void;
   forTechnician?: boolean;
   technicianSlug?: string;
+  /** Identidade da sessão — omite banner/som das próprias ações. */
+  sessionIdentity?: SessionNotifyIdentity | null;
   theme?: 'light' | 'dark';
   placement?: NotificationCenterPlacement;
   /** Banners de orçamento minimizados (disponíveis em qualquer página no sino). */
@@ -370,6 +376,7 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
   onNotificationClick,
   forTechnician,
   technicianSlug,
+  sessionIdentity = null,
   theme = 'dark',
   placement = 'floating',
   minimizedBudgetBanners = [],
@@ -420,7 +427,19 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
   const minimizedCount = minimizedBudgetBanners.length;
   const badgeCount = unreadCount + minimizedCount;
 
+  const sessionIdentityRef = useRef(sessionIdentity);
+  sessionIdentityRef.current = sessionIdentity;
+
+  const isSelfNotification = (n: Notification): boolean => {
+    if (n.type === 'rda_management_alert' || n.type === 'rda_productivity_task') return false;
+    return isSelfAuthoredNotification(
+      n.payload as Record<string, unknown>,
+      sessionIdentityRef.current
+    );
+  };
+
   const emitNewNotification = (n: Notification, shownNative: boolean) => {
+    if (isSelfNotification(n)) return;
     if (n.type === 'comment') {
       onNewCommentRef.current?.(n);
     } else if (
@@ -466,6 +485,10 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
       } else {
         list.forEach((n) => {
           if (!n.read_at && !prevUnreadIdsRef.current.has(n.id)) {
+            if (isSelfNotification(n)) {
+              prevUnreadIdsRef.current.add(n.id);
+              return;
+            }
             const shownNative = showNativeDeviceNotification(n, !!forTechnician);
             emitNewNotification(n, shownNative);
           }
@@ -501,6 +524,10 @@ export const NotificationCenter: React.FC<NotificationCenterProps> = ({
       setUnreadCount(count);
       list.forEach((n) => {
         if (!n.read_at && !prevUnreadIdsRef.current.has(n.id)) {
+          if (isSelfNotification(n)) {
+            prevUnreadIdsRef.current.add(n.id);
+            return;
+          }
           const shownNative = showNativeDeviceNotification(n, !!forTechnician);
           emitNewNotification(n, shownNative);
         }

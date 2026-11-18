@@ -437,6 +437,8 @@ interface PatioViewProps {
   onNotificationClick?: (notification: import('../../services/apiService').Notification) => void;
   /** Callback quando há novo comentário (pop-up). */
   onNewCommentNotification?: (notification: import('../../services/apiService').Notification) => void;
+  /** Identidade da sessão para omitir banner das próprias ações. */
+  notificationSessionIdentity?: import('../../utils/notificationSelfFilter').SessionNotifyIdentity | null;
   /** Botão RDA Intelligence ao lado da Central de Notificações (mobile/tablet). */
   rdaHeaderControl?: React.ReactNode;
   /** Se definido, abre o modal do veículo com esta OS (vindo ex.: da central de notificações). */
@@ -1503,6 +1505,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
   onBudgetBannerNotification,
   onNotificationClick,
   onNewCommentNotification,
+  notificationSessionIdentity = null,
   rdaHeaderControl = null,
   openServiceOrderId: openServiceOrderIdProp,
   openServiceOrderScanToken = 0,
@@ -7835,6 +7838,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                           ? actorOptions?.actorTechnicianSlug
                           : undefined
                       }
+                      sessionIdentity={notificationSessionIdentity}
                       onBudgetBannerNotification={onBudgetBannerNotification}
                       onNotificationClick={onNotificationClick}
                       onNewCommentNotification={onNewCommentNotification}

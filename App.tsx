@@ -11,6 +11,11 @@ import {
 } from './components/MacOsBudgetBannerStack';
 import { CommentPopUp } from './components/CommentPopUp';
 import { playNotificationSound } from './utils/notificationSound';
+import {
+  isSelfAuthoredBanner,
+  isSelfAuthoredNotification,
+  type SessionNotifyIdentity,
+} from './utils/notificationSelfFilter';
 import { HomeView, type HomeAppId } from './components/views/HomeView';
 import { BudgetHubViewerModal } from './components/BudgetHubViewerModal';
 import {
@@ -688,14 +693,35 @@ export default function App() {
     [openBudgetFromBanner]
   );
 
+  const sessionNotifyIdentity = useMemo((): SessionNotifyIdentity | null => {
+    if (!authSession) return null;
+    return {
+      userId: authSession.userId ?? null,
+      role: authSession.role === 'admin' || authSession.role === 'user' ? authSession.role : null,
+      displayNames: [
+        authSession.displayName,
+        authSession.username,
+        authSession.role === 'admin' ? 'Administrador' : null,
+        authSession.role === 'admin' ? 'Gerência' : null,
+      ],
+    };
+  }, [authSession]);
+
   const pushBudgetBanner = useCallback(
     (item: MacOsBudgetBannerItem) => {
       const isAgenda =
         item.kind === 'agenda_day_before' || item.kind === 'agenda_soon';
-      const isRda = item.kind === 'rda_management_alert';
+      const isRda = item.kind === 'rda_management_alert' || item.kind === 'rda_productivity_task';
       if (!isDesktopShell && !isAgenda) return;
       const isComment = item.kind === 'comment';
       const isLabSemConserto = item.kind === 'lab_sem_conserto';
+      if (
+        !isAgenda &&
+        !isRda &&
+        isSelfAuthoredBanner(item.authorName, item.authorUserId ?? null, sessionNotifyIdentity)
+      ) {
+        return;
+      }
       if (isAgenda) {
         if (item.kind === 'agenda_day_before' && !agendaReminderSettings.dayBeforeEnabled) return;
         if (item.kind === 'agenda_soon' && !agendaReminderSettings.soonEnabled) return;
@@ -757,6 +783,7 @@ export default function App() {
       rdaBannerSettings,
       agendaReminderSettings.dayBeforeEnabled,
       agendaReminderSettings.soonEnabled,
+      sessionNotifyIdentity,
     ]
   );
 
@@ -770,6 +797,9 @@ export default function App() {
 
   const handleNewCommentNotification = useCallback(
     (n: Notification) => {
+      if (isSelfAuthoredNotification(n.payload as Record<string, unknown>, sessionNotifyIdentity)) {
+        return;
+      }
       // Toque próprio de comentário (diferente do arpejo de orçamento).
       playNotificationSound();
       if (isDesktopShell && commentBannerNotifications) {
@@ -782,6 +812,10 @@ export default function App() {
         const authorPhotoUrl =
           typeof n.payload.author_photo_url === 'string' && n.payload.author_photo_url.trim()
             ? n.payload.author_photo_url.trim()
+            : null;
+        const authorUserId =
+          typeof n.payload.author_user_id === 'string' && n.payload.author_user_id.trim()
+            ? n.payload.author_user_id.trim()
             : null;
         const commentText =
           typeof n.payload.text === 'string' ? n.payload.text : null;
@@ -799,6 +833,7 @@ export default function App() {
             typeof n.payload.customer_name === 'string' ? n.payload.customer_name : null,
           authorName: author,
           authorPhotoUrl,
+          authorUserId,
           commentText,
           commentNotification: n,
           boardScope: resolveBannerBoardScope({
@@ -811,7 +846,7 @@ export default function App() {
       }
       setCommentPopUpNotification(n);
     },
-    [isDesktopShell, commentBannerNotifications, pushBudgetBanner]
+    [isDesktopShell, commentBannerNotifications, pushBudgetBanner, sessionNotifyIdentity]
   );
 
   const handleBudgetHubEvents = useCallback(
@@ -834,6 +869,8 @@ export default function App() {
           ev.kind === 'verified'
             ? ev.item.verifiedByPhotoUrl ?? null
             : ev.item.lastActorPhotoUrl ?? null;
+        const authorUserId = ev.item.lastActorUserId ?? null;
+        if (isSelfAuthoredBanner(authorName, authorUserId, sessionNotifyIdentity)) continue;
         pushBudgetBanner({
           id: `${ev.kind}-${ev.item.budgetId}-${ev.item.contentSignature.slice(0, 12)}-${ev.item.approvalFingerprint ?? ''}-${ev.item.verifiedAt ?? ''}`,
           kind,
@@ -843,6 +880,7 @@ export default function App() {
           vehiclePlate: ev.item.plate,
           authorName,
           authorPhotoUrl,
+          authorUserId,
           budgetNumber: ev.budgetNumber,
           approvedItemsCount:
             ev.kind === 'approved' ? ev.item.approvedItemsCount ?? null : null,
@@ -853,7 +891,7 @@ export default function App() {
         });
       }
     },
-    [isDesktopShell, budgetBannerNotifications, pushBudgetBanner]
+    [isDesktopShell, budgetBannerNotifications, pushBudgetBanner, sessionNotifyIdentity]
   );
 
   const patioBudgetsHub = usePatioBudgetsHubNotifier({
@@ -864,48 +902,16 @@ export default function App() {
     onBudgetEvents: isDesktopShell && budgetBannerNotifications ? handleBudgetHubEvents : undefined,
   });
 
-  /** Banner imediato ao salvar aprovação neste cliente (não depende do poll/race do hub). */
-  useEffect(() => {
-    if (!isDesktopShell || !budgetBannerNotifications) return;
-    const onLocalApproved = (ev: Event) => {
-      const d = (ev as CustomEvent<{
-        serviceOrderId?: string;
-        budgetId?: string;
-        cardName?: string;
-        approvedItemsCount?: number;
-        authorName?: string | null;
-      }>).detail;
-      const soId = typeof d?.serviceOrderId === 'string' ? d.serviceOrderId.trim() : '';
-      const budgetId = typeof d?.budgetId === 'string' ? d.budgetId.trim() : '';
-      if (!soId || !budgetId) return;
-      const orderTypeRaw =
-        typeof (d as { orderType?: unknown })?.orderType === 'string'
-          ? String((d as { orderType?: string }).orderType).trim().toLowerCase()
-          : '';
-      pushBudgetBanner({
-        id: `local-approved-${budgetId}-${Date.now()}`,
-        kind: 'budget_items_approved',
-        serviceOrderId: soId,
-        budgetId,
-        vehicleModel: typeof d.cardName === 'string' && d.cardName.trim() ? d.cardName.trim() : null,
-        authorName: typeof d.authorName === 'string' && d.authorName.trim() ? d.authorName.trim() : null,
-        approvedItemsCount:
-          typeof d.approvedItemsCount === 'number' && d.approvedItemsCount >= 0
-            ? Math.floor(d.approvedItemsCount)
-            : null,
-        boardScope: resolveBannerBoardScope({
-          kind: 'budget_items_approved',
-          orderType: orderTypeRaw || null,
-        }),
-      });
-    };
-    window.addEventListener('rda-budget-items-approved', onLocalApproved);
-    return () => window.removeEventListener('rda-budget-items-approved', onLocalApproved);
-  }, [isDesktopShell, budgetBannerNotifications, pushBudgetBanner]);
-
   const handleBudgetBannerNotification = useCallback(
     (n: Notification) => {
       if (!isDesktopShell) return;
+      if (
+        n.type !== 'rda_management_alert' &&
+        n.type !== 'rda_productivity_task' &&
+        isSelfAuthoredNotification(n.payload as Record<string, unknown>, sessionNotifyIdentity)
+      ) {
+        return;
+      }
       if (n.type === 'rda_management_alert') {
         const severity =
           typeof n.payload.severity === 'string' ? n.payload.severity : 'warning';
@@ -974,6 +980,10 @@ export default function App() {
           typeof n.payload.author_photo_url === 'string' && n.payload.author_photo_url.trim()
             ? n.payload.author_photo_url.trim()
             : null;
+        const authorUserId =
+          typeof n.payload.author_user_id === 'string' && n.payload.author_user_id.trim()
+            ? n.payload.author_user_id.trim()
+            : null;
         const osRaw = n.payload.os_number;
         const osNumber =
           typeof osRaw === 'number' && osRaw >= 1
@@ -1000,6 +1010,7 @@ export default function App() {
             typeof n.payload.customer_name === 'string' ? n.payload.customer_name : null,
           authorName: author,
           authorPhotoUrl,
+          authorUserId,
           osNumber,
           boardScope: 'lab',
         });
@@ -1033,6 +1044,10 @@ export default function App() {
         typeof n.payload.author_photo_url === 'string' && n.payload.author_photo_url.trim()
           ? n.payload.author_photo_url.trim()
           : null;
+      const authorUserId =
+        typeof n.payload.author_user_id === 'string' && n.payload.author_user_id.trim()
+          ? n.payload.author_user_id.trim()
+          : null;
       const approvedRaw = n.payload.approved_items_count;
       const approvedItemsCount =
         typeof approvedRaw === 'number' && approvedRaw >= 0
@@ -1053,6 +1068,7 @@ export default function App() {
           typeof n.payload.vehicle_plate === 'string' ? n.payload.vehicle_plate : null,
         authorName: author,
         authorPhotoUrl,
+        authorUserId,
         budgetNumber,
         approvedItemsCount: n.type === 'budget_items_approved' ? approvedItemsCount : null,
         boardScope: resolveBannerBoardScope({
@@ -1061,7 +1077,7 @@ export default function App() {
         }),
       });
     },
-    [isDesktopShell, budgetBannerNotifications, pushBudgetBanner, rdaBannerSettings]
+    [isDesktopShell, budgetBannerNotifications, pushBudgetBanner, rdaBannerSettings, sessionNotifyIdentity]
   );
 
   const handleNotificationClick = useCallback(
@@ -1179,6 +1195,7 @@ export default function App() {
       onNotificationClick: handleNotificationClick,
       forTechnician: authSession.role === 'user' && !!authSession.userId,
       technicianSlug: authSession.role === 'user' ? authSession.userId : undefined,
+      sessionIdentity: sessionNotifyIdentity,
       minimizedBudgetBanners,
       onMinimizedBudgetActivate: handleMinimizedBudgetActivate,
       onMinimizedBudgetDismiss: (id) =>
@@ -1191,6 +1208,7 @@ export default function App() {
     handleNewCommentNotification,
     handleBudgetBannerNotification,
     handleNotificationClick,
+    sessionNotifyIdentity,
     minimizedBudgetBanners,
     handleMinimizedBudgetActivate,
   ]);
@@ -2453,6 +2471,7 @@ export default function App() {
               onBudgetBannerNotification={handleBudgetBannerNotification}
               onNotificationClick={handleNotificationClick}
               onNewCommentNotification={handleNewCommentNotification}
+              notificationSessionIdentity={sessionNotifyIdentity}
               rdaHeaderControl={userTab === 'patio' ? rdaHeaderControlMobile : null}
               blurPlates={cinematographicMode}
               isAppTabActive={userTab === 'patio'}
@@ -2484,6 +2503,7 @@ export default function App() {
               onBudgetBannerNotification={handleBudgetBannerNotification}
               onNotificationClick={handleNotificationClick}
               onNewCommentNotification={handleNewCommentNotification}
+              notificationSessionIdentity={sessionNotifyIdentity}
               rdaHeaderControl={userTab === 'laboratorio' ? rdaHeaderControlMobile : null}
               blurPlates={cinematographicMode}
               isAppTabActive={userTab === 'laboratorio'}
@@ -2521,6 +2541,7 @@ export default function App() {
               onNotificationClick={handleNotificationClick}
               forTechnician={!!authSession.userId}
               technicianSlug={authSession.userId}
+              sessionIdentity={sessionNotifyIdentity}
             />
           </div>
         ) : null}
@@ -2889,6 +2910,7 @@ export default function App() {
             onBudgetBannerNotification={handleBudgetBannerNotification}
             onNotificationClick={handleNotificationClick}
             onNewCommentNotification={handleNewCommentNotification}
+            notificationSessionIdentity={sessionNotifyIdentity}
             rdaHeaderControl={currentTab === 'patio' ? rdaHeaderControlMobile : null}
             blurPlates={cinematographicMode}
             isAppTabActive={currentTab === 'patio'}
@@ -2922,6 +2944,7 @@ export default function App() {
             onBudgetBannerNotification={handleBudgetBannerNotification}
             onNotificationClick={handleNotificationClick}
             onNewCommentNotification={handleNewCommentNotification}
+            notificationSessionIdentity={sessionNotifyIdentity}
             rdaHeaderControl={currentTab === 'laboratorio' ? rdaHeaderControlMobile : null}
             blurPlates={cinematographicMode}
             isAppTabActive={currentTab === 'laboratorio'}
@@ -3069,6 +3092,7 @@ export default function App() {
             onNotificationClick={handleNotificationClick}
             forTechnician={authSession?.role === 'user' && !!authSession?.userId}
             technicianSlug={authSession?.role === 'user' ? authSession.userId : undefined}
+            sessionIdentity={sessionNotifyIdentity}
           />
         </div>
       ) : null}

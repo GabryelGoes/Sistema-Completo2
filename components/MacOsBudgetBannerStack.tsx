@@ -43,6 +43,8 @@ export type MacOsBudgetBannerItem = {
   customerName?: string | null;
   authorName?: string | null;
   authorPhotoUrl?: string | null;
+  /** ID do autor (usuário do sistema) — evita banner para o próprio ator. */
+  authorUserId?: string | null;
   budgetNumber?: number | null;
   /** Contagem de itens aprovados (banner de aprovação). */
   approvedItemsCount?: number | null;
