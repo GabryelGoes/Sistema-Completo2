@@ -6076,10 +6076,17 @@ export const PatioView: React.FC<PatioViewProps> = ({
     )
       .trim()
       .toUpperCase() || '—';
+    const customerName =
+      (serviceOrderDetail?.customers?.name ?? title.customer ?? '').trim() || '—';
+    const yearRaw = serviceOrderDetail?.vehicle_year;
+    const vehicleYear =
+      typeof yearRaw === 'string' && yearRaw.trim() ? yearRaw.trim() : null;
     setPatioPecasLabel({
       vehicleModel,
       vehicleColor,
       plate,
+      customerName,
+      vehicleYear,
     });
   }, [isModuleMode, selectedCard, serviceOrderDetail]);
 

@@ -116,7 +116,9 @@ export function PatioPecasLabelPrintModal({
                 {label.vehicleModel}
               </p>
               <p className="mt-0.5 text-[12px] text-zinc-500 dark:text-zinc-400">
-                {[label.vehicleColor, label.plate].filter(Boolean).join(' · ')}
+                {[label.customerName, label.vehicleColor, label.plate]
+                  .filter(Boolean)
+                  .join(' · ')}
               </p>
             </div>
 
@@ -145,7 +147,8 @@ export function PatioPecasLabelPrintModal({
             )}
 
             <p className="rounded-xl bg-sky-50 px-3 py-2 text-[12px] text-sky-900 dark:bg-sky-950/40 dark:text-sky-100">
-              Layout editável em Configurações → Editor de etiquetas → Peças (OS veículo).
+              Layout no estilo do mockup (faixa PEÇA). Prévia também em Configurações →
+              Editor de etiquetas → Peças (OS veículo).
             </p>
 
             <div className="flex items-center justify-between gap-3 rounded-xl bg-zinc-50 px-3 py-2.5 dark:bg-white/[0.03]">
