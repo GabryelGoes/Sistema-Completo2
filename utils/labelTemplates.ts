@@ -1,13 +1,13 @@
 /**
  * Layouts editáveis das etiquetas Niimbot (50×30 mm / 384×240 px).
- * Persistidos no dispositivo (localStorage) e usados por lab, estoque, chave e futuras.
+ * Persistidos no dispositivo (localStorage) e usados por lab, estoque, chave, peças e futuras.
  */
 
 /** Dimensões B1 — espelhadas em niimbotLabelRender (evitar ciclo de import). */
 const LABEL_W = 384;
 const LABEL_H = 240;
 
-export type LabelTemplateId = 'lab_os' | 'estoque' | 'chave' | 'abs_modulo';
+export type LabelTemplateId = 'lab_os' | 'estoque' | 'chave' | 'pecas_os' | 'abs_modulo';
 
 export type LabelFontFamily =
   | 'Arial'
@@ -103,6 +103,11 @@ export const LABEL_TEMPLATE_META: Array<{
     id: 'chave',
     title: 'Chave (pátio)',
     description: 'Duas faces verticais — cliente, carro, cor e placa Mercosul',
+  },
+  {
+    id: 'pecas_os',
+    title: 'Peças (OS veículo)',
+    description: 'Carro, cor e placa Mercosul — etiqueta para peças da OS',
   },
   {
     id: 'abs_modulo',
@@ -412,6 +417,88 @@ export function createDefaultChaveTemplate(): LabelTemplateLayout {
   };
 }
 
+/** Etiqueta de peças da OS (pátio) — paisagem 50×30 com placa Mercosul. */
+export function createDefaultPecasOsTemplate(): LabelTemplateLayout {
+  return {
+    id: 'pecas_os',
+    version: 1,
+    canvasW: LABEL_W,
+    canvasH: LABEL_H,
+    keyOptions: {
+      letterSpacing: 0,
+      lineSpacing: 1,
+      margin: 4,
+      halfGap: 2,
+      vAlign: 'middle',
+      dualCopy: false,
+      offsetX: 0,
+      offsetY: 0,
+      mercosulPlate: true,
+    },
+    elements: [
+      el({
+        id: 'banner',
+        kind: 'banner',
+        name: 'Faixa PEÇAS',
+        visible: true,
+        x: 10,
+        y: 8,
+        w: 120,
+        h: 22,
+        fontSize: 11,
+        fontWeight: '900',
+        labelText: 'PEÇAS',
+        align: 'left',
+      }),
+      el({
+        id: 'vehicle',
+        kind: 'text_field',
+        name: 'Carro',
+        visible: true,
+        x: 10,
+        y: 34,
+        w: 364,
+        h: 36,
+        fontSize: 12,
+        valueFontSize: 26,
+        fontWeight: '900',
+        labelText: '',
+        align: 'left',
+        maxLines: 1,
+      }),
+      el({
+        id: 'color',
+        kind: 'text_field',
+        name: 'Cor',
+        visible: true,
+        x: 10,
+        y: 74,
+        w: 364,
+        h: 28,
+        fontSize: 12,
+        valueFontSize: 18,
+        fontWeight: 'bold',
+        labelText: 'Cor  ',
+        align: 'left',
+      }),
+      el({
+        id: 'plate',
+        kind: 'text_field',
+        name: 'Placa',
+        visible: true,
+        x: 48,
+        y: 112,
+        w: 288,
+        h: 112,
+        fontSize: 12,
+        valueFontSize: 34,
+        labelText: '',
+        align: 'center',
+      }),
+    ],
+  };
+}
+
 export function createDefaultAbsModuloTemplate(): LabelTemplateLayout {
   return {
     id: 'abs_modulo',
@@ -607,8 +694,14 @@ export function createDefaultAbsModuloTemplate(): LabelTemplateLayout {
 export function createDefaultTemplate(id: LabelTemplateId): LabelTemplateLayout {
   if (id === 'estoque') return createDefaultEstoqueTemplate();
   if (id === 'chave') return createDefaultChaveTemplate();
+  if (id === 'pecas_os') return createDefaultPecasOsTemplate();
   if (id === 'abs_modulo') return createDefaultAbsModuloTemplate();
   return createDefaultLabOsTemplate();
+}
+
+/** Templates com placa Mercosul / keyOptions (chave vertical ou peças paisagem). */
+export function labelTemplateUsesKeyOptions(id: LabelTemplateId): boolean {
+  return id === 'chave' || id === 'pecas_os';
 }
 
 function normalizeFontFamily(v: unknown): LabelFontFamily {
@@ -698,7 +791,8 @@ function normalizeKeyOptions(
     margin: clamp(Math.round(Number(src.margin ?? fallback.margin)), 0, 16),
     halfGap: clamp(Math.round(Number(src.halfGap ?? fallback.halfGap)), 0, 12),
     vAlign: normalizeVAlign(src.vAlign ?? fallback.vAlign),
-    dualCopy: src.dualCopy !== false,
+    dualCopy:
+      typeof src.dualCopy === 'boolean' ? src.dualCopy : fallback.dualCopy !== false,
     offsetX: clamp(Math.round(Number(src.offsetX ?? fallback.offsetX)), -40, 40),
     offsetY: clamp(Math.round(Number(src.offsetY ?? fallback.offsetY)), -40, 40),
     mercosulPlate: (src.mercosulPlate ?? fallback.mercosulPlate) !== false,
@@ -742,8 +836,8 @@ export function normalizeLabelTemplate(
     );
   }
 
-  // Chave: placa sem rótulo "Placa:" e nome amigável estável.
-  if (id === 'chave') {
+  // Chave / peças: placa sem rótulo "Placa:" e nome amigável estável.
+  if (id === 'chave' || id === 'pecas_os') {
     elements = elements.map((e) =>
       e.id === 'plate' ? { ...e, labelText: '', name: 'Placa' } : e
     );
@@ -845,12 +939,14 @@ export function normalizeLabelTemplate(
         ? Math.max(Number(raw?.version) || 0, Number(def.version) || 5)
         : id === 'chave'
           ? Math.max(Number(raw?.version) || 0, Number(def.version) || 3)
-          : 1,
+          : id === 'pecas_os'
+            ? Math.max(Number(raw?.version) || 0, Number(def.version) || 1)
+            : 1,
     canvasW: LABEL_W,
     canvasH: LABEL_H,
     elements,
     keyOptions:
-      id === 'chave'
+      id === 'chave' || id === 'pecas_os'
         ? normalizeKeyOptions(raw?.keyOptions, def.keyOptions!)
         : undefined,
   };
@@ -902,6 +998,7 @@ export function createDefaultLabelTemplatesStore(): LabelTemplatesStore {
     lab_os: createDefaultLabOsTemplate(),
     estoque: createDefaultEstoqueTemplate(),
     chave: createDefaultChaveTemplate(),
+    pecas_os: createDefaultPecasOsTemplate(),
     abs_modulo: createDefaultAbsModuloTemplate(),
   };
 }
@@ -915,6 +1012,7 @@ export function normalizeLabelTemplatesStore(
     lab_os: normalizeLabelTemplate('lab_os', parsed.lab_os),
     estoque: normalizeLabelTemplate('estoque', parsed.estoque),
     chave: normalizeLabelTemplate('chave', parsed.chave),
+    pecas_os: normalizeLabelTemplate('pecas_os', parsed.pecas_os),
     abs_modulo: normalizeLabelTemplate('abs_modulo', parsed.abs_modulo),
   };
 }
@@ -1003,6 +1101,11 @@ export const LABEL_SAMPLE_DATA = {
   },
   chave: {
     customerName: 'MARIA SANTOS',
+    vehicleModel: 'COROLLA XEI',
+    vehicleColor: 'PRATA',
+    plate: 'ABC1D23',
+  },
+  pecas_os: {
     vehicleModel: 'COROLLA XEI',
     vehicleColor: 'PRATA',
     plate: 'ABC1D23',

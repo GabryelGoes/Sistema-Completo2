@@ -3773,7 +3773,11 @@ export function createApiApp() {
     try {
       const parsed = JSON.parse(s);
       if (!parsed || typeof parsed !== "object") return null;
-      if (!(parsed.lab_os || parsed.estoque || parsed.chave || parsed.abs_modulo)) return null;
+      if (
+        !(parsed.lab_os || parsed.estoque || parsed.chave || parsed.pecas_os || parsed.abs_modulo)
+      ) {
+        return null;
+      }
       return parsed;
     } catch {
       return null;

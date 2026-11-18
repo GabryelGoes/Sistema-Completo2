@@ -264,7 +264,7 @@ export const AJUSTES_ITEMS: AjustesItemMeta[] = [
     categoryId: 'dispositivos',
     section: 'Impressão',
     title: 'Editor de etiquetas',
-    subtitle: 'Laboratório, estoque e chave',
+    subtitle: 'Laboratório, estoque, chave e peças',
     kind: 'action',
     iconFallback: 'tag',
   },
