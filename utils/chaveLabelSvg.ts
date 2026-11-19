@@ -71,8 +71,8 @@ export const CHAVE_FIELD_BASE_POS: Record<
 > = {
   modelo: { x: 42, y: 150, onBlack: true },
   cor: { x: 74, y: 150, onBlack: true },
-  cliente: { x: 149, y: 150, onBlack: false },
-  placa: { x: 222, y: 152, onBlack: false },
+  cliente: { x: 153, y: 150, onBlack: false },
+  placa: { x: 226, y: 152, onBlack: false },
 };
 
 const FACE2_DX = 250;

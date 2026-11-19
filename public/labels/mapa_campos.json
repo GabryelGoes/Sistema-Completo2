@@ -8,7 +8,7 @@
     "dpi_reference": 203,
     "bitmap_reference_px": [400, 240]
   },
-  "source": "SVG-base: faixa preta (modelo/cor branco); coluna cliente ampliada; placa menor perto da borda. Prefixo Cliente: opcional no editor.",
+  "source": "SVG-base: faixa preta (modelo/cor branco); coluna cliente sem linhas; placa menor perto da borda. Prefixo Cliente: opcional no editor.",
   "fields": {
     "modelo": {
       "ids": ["modelo-1", "modelo-2"],
@@ -38,7 +38,7 @@
       "source": "OS: placa",
       "region": "moldura_placa",
       "fill": "black",
-      "maxWidthSvgUnits": 140
+      "maxWidthSvgUnits": 124
     }
   },
   "printing": "Reutilizar pipeline existente. Renderizar SVG para bitmap monocromático sem alterar escala/aspecto. Testar orientação física no chaveiro e espelhamento se exigido pelo suporte."
