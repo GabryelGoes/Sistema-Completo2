@@ -168,7 +168,7 @@ async function buildPreview(
   if (id === 'pecas_os') {
     return renderPatioPecasLabelDataUrl({ ...LABEL_SAMPLE_DATA.pecas_os }, layout);
   }
-  return renderPatioKeyLabelDataUrl({ ...LABEL_SAMPLE_DATA.chave }, layout);
+  return await renderPatioKeyLabelDataUrl({ ...LABEL_SAMPLE_DATA.chave }, layout);
 }
 
 export function LabelTemplatesEditorModal({
@@ -477,8 +477,10 @@ export function LabelTemplatesEditorModal({
 
   if (!open) return null;
 
-  const hasPlateMercosul = activeId === 'chave';
+  const hasPlateMercosul = false; // chave usa SVG-base fixo; sem overlay Mercosul editável
+  const isChaveSvg = activeId === 'chave';
   const isPecasOs = activeId === 'pecas_os';
+  const isFixedSvgLabel = isChaveSvg || isPecasOs;
   const pecasOpts = normalizePecasOptions(
     layout.pecasOptions,
     createDefaultPecasOptions()
@@ -498,26 +500,6 @@ export function LabelTemplatesEditorModal({
     patchElement(id, partial);
   };
   const overlayElements = layout.elements.filter((e) => e.visible);
-  const chaveDualCopy = layout.keyOptions?.dualCopy !== false;
-  const chaveHalfH = Math.floor(
-    (NIIMBOT_LABEL_W_PX - (layout.keyOptions?.halfGap ?? 2)) / 2
-  );
-
-  /** Mapeia retângulo do bloco da chave → caixa na prévia de impressão (rot −90°). */
-  const chaveOverlayBox = (elDef: LabelElementDef) => {
-    const ex = elDef.x;
-    const ey = elDef.y;
-    const ew = Math.max(4, elDef.w);
-    const eh = Math.max(4, elDef.h);
-    return {
-      left: ey,
-      top: NIIMBOT_LABEL_H_PX - ex - ew,
-      width: eh,
-      height: ew,
-      // Rotação do elemento no bloco + rotação da face na impressão
-      rot: (Number(elDef.rotation) || 0) - 90,
-    };
-  };
 
   return (
     <ModalPortal>
@@ -608,14 +590,9 @@ export function LabelTemplatesEditorModal({
                 {' · Arraste os textos na prévia · gire e edite cada um no painel.'}
                 {isPecasOs
                   ? ' Use o painel à direita para ajustar faixa, tipografia e ícones.'
-                  : hasPlateMercosul
-                    ? layout.keyOptions?.mercosulPlate !== false
-                      ? ' Placa no estilo Mercosul (desligue nas opções para texto tradicional).'
-                      : ' Placa em texto tradicional.'
+                  : isChaveSvg
+                    ? ' Arte fixa do SVG-base (duas faces, textos a −90°). Só os dados da OS mudam na impressão.'
                     : ''}
-                {activeId === 'chave' && layout.keyOptions?.dualCopy === false
-                  ? ' Espelhamento desligado — arraste pela etiqueta toda.'
-                  : ''}
               </p>
               <div
                 ref={previewWrapRef}
@@ -642,27 +619,16 @@ export function LabelTemplatesEditorModal({
                     {building ? 'Montando prévia…' : 'Sem prévia'}
                   </div>
                 )}
-                {previewUrl && overlayElements.length > 0 && !isPecasOs ? (
+                {previewUrl && overlayElements.length > 0 && !isFixedSvgLabel ? (
                   <div className="pointer-events-none absolute inset-3">
                     {overlayElements.map((elDef) => {
-                      const mapped =
-                        activeId === 'chave'
-                          ? chaveOverlayBox(elDef)
-                          : {
-                              left: elDef.x,
-                              top: elDef.y,
-                              width: elDef.w,
-                              height: elDef.h,
-                              rot: Number(elDef.rotation) || 0,
-                            };
-                      // Com espelhamento: só a 1ª face é editável. Sem espelhamento: etiqueta toda.
-                      if (
-                        activeId === 'chave' &&
-                        chaveDualCopy &&
-                        mapped.left > chaveHalfH + 8
-                      ) {
-                        return null;
-                      }
+                      const mapped = {
+                        left: elDef.x,
+                        top: elDef.y,
+                        width: elDef.w,
+                        height: elDef.h,
+                        rot: Number(elDef.rotation) || 0,
+                      };
                       const left = `${(mapped.left / NIIMBOT_LABEL_W_PX) * 100}%`;
                       const top = `${(mapped.top / NIIMBOT_LABEL_H_PX) * 100}%`;
                       const width = `${(mapped.width / NIIMBOT_LABEL_W_PX) * 100}%`;
@@ -727,8 +693,18 @@ export function LabelTemplatesEditorModal({
                 ) : null}
               </div>
 
-              {/* Lista de elementos / resumo peças */}
-              {isPecasOs ? (
+              {/* Lista de elementos / resumo peças ou chave SVG */}
+              {isChaveSvg ? (
+                <div className="space-y-1.5 rounded-xl bg-zinc-50 px-3 py-2.5 dark:bg-white/[0.04]">
+                  <p className="text-[11px] font-bold uppercase tracking-wide text-zinc-500">
+                    SVG-base fixo
+                  </p>
+                  <p className="text-[12px] leading-snug text-zinc-600 dark:text-zinc-300">
+                    Template versionado em assets/labels/etiqueta_chaves_BASE_50x30.svg. A prévia
+                    usa o mesmo arquivo preenchido com dados de exemplo.
+                  </p>
+                </div>
+              ) : isPecasOs ? (
                 <div className="space-y-1.5 rounded-xl bg-zinc-50 px-3 py-2.5 dark:bg-white/[0.04]">
                   <p className="text-[11px] font-bold uppercase tracking-wide text-zinc-500">
                     Editor completo
@@ -775,7 +751,21 @@ export function LabelTemplatesEditorModal({
 
             {/* Painel de propriedades */}
             <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-5 py-4 custom-scrollbar sm:px-6">
-              {isPecasOs ? (
+              {isChaveSvg ? (
+                <div className="space-y-3 rounded-2xl border-0 bg-zinc-50 p-3.5 dark:bg-white/[0.03] sm:p-4">
+                  <p className="text-[11px] font-bold uppercase tracking-wide text-zinc-500">
+                    Etiqueta de chaves (SVG fixo)
+                  </p>
+                  <p className="text-[13px] leading-relaxed text-zinc-700 dark:text-zinc-200">
+                    A arte (faixas, separadores e moldura da placa) vem do arquivo SVG-base. Na
+                    impressão, o sistema preenche modelo, cor, cliente (com prefixo “Cliente: ”) e
+                    placa nas duas faces, com textos a −90°, e rasteriza em 384×240 para a Niimbot.
+                  </p>
+                  <p className="text-[12px] text-zinc-500">
+                    Arquivo: assets/labels/etiqueta_chaves_BASE_50x30.svg
+                  </p>
+                </div>
+              ) : isPecasOs ? (
                 <>
                   <div className="space-y-3 rounded-2xl border-0 bg-zinc-50 p-3.5 dark:bg-white/[0.03] sm:p-4">
                     <p className="text-[11px] font-bold uppercase tracking-wide text-zinc-500">

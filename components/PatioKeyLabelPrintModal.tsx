@@ -1,16 +1,9 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
-  AlignCenter,
-  AlignLeft,
-  AlignRight,
   Bluetooth,
   BluetoothConnected,
-  Bold,
   Loader2,
-  Minus,
-  Plus,
   Printer,
-  RotateCcw,
   Tag,
   X,
 } from 'lucide-react';
@@ -21,17 +14,11 @@ import {
   niimbotService,
   type NiimbotServiceSnapshot,
 } from '../services/niimbotService';
+import type { PatioKeyLabelInput } from '../utils/patioKeyLabelRender';
 import {
-  DEFAULT_PATIO_KEY_LABEL_STYLE,
-  loadPatioKeyLabelStyle,
-  normalizePatioKeyLabelStyle,
-  PATIO_KEY_LABEL_FONTS,
-  renderPatioKeyLabelDataUrl,
-  savePatioKeyLabelStyle,
-  type PatioKeyLabelInput,
-  type PatioKeyLabelStyle,
-} from '../utils/patioKeyLabelRender';
-import { loadLabelTemplate } from '../utils/labelTemplates';
+  renderChaveLabelFromSvg,
+  type ChaveLabelFitWarning,
+} from '../utils/chaveLabelSvg';
 import { NIIMBOT_LABEL_H_PX, NIIMBOT_LABEL_W_PX } from '../utils/niimbotLabelRender';
 import { ModalPortal } from './ui/ModalPortal';
 import { patioOsSecModalPcClass, usePatioOsPcLayout } from './patio/PatioOsPcLayoutContext';
@@ -46,90 +33,22 @@ export type PatioKeyLabelPrintModalProps = {
   onClose: () => void;
 };
 
-function Stepper({
-  label,
-  value,
-  display,
-  onDec,
-  onInc,
-  disabled,
-}: {
-  label: string;
-  value: string | number;
-  display?: string;
-  onDec: () => void;
-  onInc: () => void;
-  disabled?: boolean;
-}) {
-  return (
-    <div className="flex items-center justify-between gap-2">
-      <span className="text-[12px] font-medium text-zinc-600 dark:text-zinc-300">{label}</span>
-      <div className="flex items-center gap-1.5">
-        <button
-          type="button"
-          onClick={onDec}
-          disabled={disabled}
-          className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-200/80 text-zinc-800 disabled:opacity-40 dark:bg-white/10 dark:text-zinc-100"
-          aria-label={`Diminuir ${label}`}
-        >
-          <Minus className="h-4 w-4" />
-        </button>
-        <span className="min-w-[3.25rem] text-center text-[13px] font-semibold tabular-nums text-zinc-900 dark:text-zinc-100">
-          {display ?? value}
-        </span>
-        <button
-          type="button"
-          onClick={onInc}
-          disabled={disabled}
-          className="inline-flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-200/80 text-zinc-800 disabled:opacity-40 dark:bg-white/10 dark:text-zinc-100"
-          aria-label={`Aumentar ${label}`}
-        >
-          <Plus className="h-4 w-4" />
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function Segmented<T extends string>({
-  label,
-  value,
-  options,
-  onChange,
-  disabled,
-}: {
-  label: string;
-  value: T;
-  options: Array<{ value: T; label: string; icon?: React.ReactNode }>;
-  onChange: (v: T) => void;
-  disabled?: boolean;
-}) {
-  return (
-    <div className="space-y-1.5">
-      <p className="text-[11px] font-bold uppercase tracking-wide text-zinc-500">{label}</p>
-      <div className="flex flex-wrap gap-1 rounded-xl bg-zinc-100 p-1 dark:bg-white/[0.06]">
-        {options.map((opt) => {
-          const active = opt.value === value;
-          return (
-            <button
-              key={opt.value}
-              type="button"
-              disabled={disabled}
-              onClick={() => onChange(opt.value)}
-              className={`inline-flex flex-1 items-center justify-center gap-1 rounded-lg px-2 py-2 text-[12px] font-semibold transition ${
-                active
-                  ? 'bg-white text-zinc-900 shadow-sm dark:bg-zinc-800 dark:text-white'
-                  : 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-white'
-              } disabled:opacity-40`}
-            >
-              {opt.icon}
-              {opt.label}
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
+function warningLabel(w: ChaveLabelFitWarning): string {
+  const field =
+    w.field === 'modelo'
+      ? 'Modelo'
+      : w.field === 'cor'
+        ? 'Cor'
+        : w.field === 'cliente'
+          ? 'Cliente'
+          : 'Placa';
+  if (w.reason === 'abbreviated') {
+    return `${field} abreviado na prévia (“${w.fitted}”) para caber sem corte.`;
+  }
+  if (w.reason === 'empty') {
+    return `${field} ausente — exibindo traço.`;
+  }
+  return `${field}: fonte reduzida ao mínimo legível.`;
 }
 
 export function PatioKeyLabelPrintModal({ open, label, onClose }: PatioKeyLabelPrintModalProps) {
@@ -138,53 +57,46 @@ export function PatioKeyLabelPrintModal({ open, label, onClose }: PatioKeyLabelP
   const [copies, setCopies] = useState(1);
   const [busy, setBusy] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [warnings, setWarnings] = useState<ChaveLabelFitWarning[]>([]);
   const [localError, setLocalError] = useState<string | null>(null);
-  const [style, setStyle] = useState<PatioKeyLabelStyle>(() => loadPatioKeyLabelStyle());
 
   useBrowserBackLayer(open, onClose);
 
   useEffect(() => {
     if (!open) return;
-    setStyle(loadPatioKeyLabelStyle());
     return niimbotService.subscribe(setSnap);
   }, [open]);
-
-  const normalizedStyle = useMemo(() => normalizePatioKeyLabelStyle(style), [style]);
 
   useEffect(() => {
     if (!open || !label) {
       setPreviewUrl(null);
+      setWarnings([]);
       return;
     }
-    try {
-      setLocalError(null);
-      // Sempre o template do editor (não achatar tipografia da placa Mercosul).
-      setPreviewUrl(renderPatioKeyLabelDataUrl(label, loadLabelTemplate('chave')));
-    } catch (err) {
-      setPreviewUrl(null);
-      setLocalError(err instanceof Error ? err.message : 'Falha ao montar etiqueta');
-    }
-  }, [open, label, style]);
+    let cancelled = false;
+    setLocalError(null);
+    void renderChaveLabelFromSvg(label)
+      .then((result) => {
+        if (cancelled) return;
+        setPreviewUrl(result.dataUrl);
+        setWarnings(result.warnings);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setPreviewUrl(null);
+        setWarnings([]);
+        setLocalError(err instanceof Error ? err.message : 'Falha ao montar etiqueta');
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, label]);
 
   if (!open || !label) return null;
 
   const unsupported = snap.status === 'unsupported';
   const printing = snap.status === 'printing' || busy;
   const connected = snap.status === 'connected' || snap.status === 'printing';
-
-  const patchStyle = (partial: Partial<PatioKeyLabelStyle>) => {
-    setStyle((prev) => {
-      const next = normalizePatioKeyLabelStyle({ ...prev, ...partial });
-      savePatioKeyLabelStyle(next);
-      return next;
-    });
-  };
-
-  const resetStyle = () => {
-    const next = { ...DEFAULT_PATIO_KEY_LABEL_STYLE };
-    savePatioKeyLabelStyle(next);
-    setStyle(next);
-  };
 
   const run = async (fn: () => Promise<void>) => {
     setBusy(true);
@@ -212,7 +124,7 @@ export function PatioKeyLabelPrintModal({ open, label, onClose }: PatioKeyLabelP
         <div
           className={patioOsSecModalPcClass(
             patioOsPcLayout,
-            `${iosModalShell} relative flex h-[min(98dvh,980px)] w-full max-w-5xl flex-col overflow-hidden patio-os-sec-shell`
+            `${iosModalShell} relative flex h-[min(98dvh,860px)] w-full max-w-4xl flex-col overflow-hidden patio-os-sec-shell`
           )}
           data-patio-os-sec-role={patioOsPcLayout ? 'shell' : undefined}
           onClick={(e) => e.stopPropagation()}
@@ -233,25 +145,17 @@ export function PatioKeyLabelPrintModal({ open, label, onClose }: PatioKeyLabelP
           </div>
 
           <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
-            {/* Prévia fixa — não rola com os ajustes */}
-            <div className="shrink-0 space-y-2 border-b border-zinc-200/60 bg-white px-5 py-3 dark:border-white/[0.06] dark:bg-transparent sm:px-6 lg:w-[min(42%,460px)] lg:border-b-0 lg:border-r lg:py-4">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="truncate text-[13px] font-semibold text-zinc-900 dark:text-zinc-100">
-                    {label.customerName}
-                  </p>
-                  <p className="mt-0.5 truncate text-[12px] text-zinc-500 dark:text-zinc-400">
-                    {[label.vehicleModel, label.vehicleColor, label.plate].filter(Boolean).join(' · ')}
-                  </p>
-                </div>
-                <p className="shrink-0 text-right text-[11px] font-medium leading-snug text-emerald-700 dark:text-emerald-300">
-                  Salvo
-                  <br />
-                  permanentemente
+            <div className="shrink-0 space-y-2 border-b border-zinc-200/60 bg-white px-5 py-3 dark:border-white/[0.06] dark:bg-transparent sm:px-6 lg:w-[min(48%,480px)] lg:border-b-0 lg:border-r lg:py-4">
+              <div className="min-w-0">
+                <p className="truncate text-[13px] font-semibold text-zinc-900 dark:text-zinc-100">
+                  {label.customerName}
+                </p>
+                <p className="mt-0.5 truncate text-[12px] text-zinc-500 dark:text-zinc-400">
+                  {[label.vehicleModel, label.vehicleColor, label.plate].filter(Boolean).join(' · ')}
                 </p>
               </div>
               <p className="text-[11px] font-bold uppercase tracking-wide text-zinc-500">
-                Pré-visualização 50 × 30 mm
+                Pré-visualização 50 × 30 mm (SVG-base)
               </p>
               <div className="flex justify-center rounded-xl bg-zinc-100 px-4 py-3 dark:bg-white/[0.04]">
                 {previewUrl ? (
@@ -273,183 +177,28 @@ export function PatioKeyLabelPrintModal({ open, label, onClose }: PatioKeyLabelP
                 )}
               </div>
               <p className="text-center text-[11px] text-zinc-500 dark:text-zinc-400">
-                Qualquer ajuste é guardado neste dispositivo e reutilizado nas próximas impressões.
+                Arte fixa do SVG-base · textos rotacionados −90° · duas faces idênticas
               </p>
             </div>
 
-            {/* Só os ajustes rolam */}
             <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-5 py-4 custom-scrollbar sm:px-6">
-              <div className="flex items-center justify-between gap-2">
-                <p className="text-[11px] font-bold uppercase tracking-wide text-zinc-500">
-                  Ajustes rápidos
-                </p>
-                <button
-                  type="button"
-                  disabled={printing}
-                  onClick={resetStyle}
-                  className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[12px] font-semibold text-zinc-600 hover:bg-zinc-100 disabled:opacity-40 dark:text-zinc-300 dark:hover:bg-white/10"
-                >
-                  <RotateCcw className="h-3.5 w-3.5" />
-                  Resetar padrão
-                </button>
-              </div>
               <p className="rounded-xl bg-sky-50 px-3 py-2 text-[12px] text-sky-900 dark:bg-sky-950/40 dark:text-sky-100">
-                A placa Mercosul (tamanho e texto) segue o Editor de etiquetas. Ajustes
-                rápidos abaixo alteram só os textos Cliente/Carro/Cor. Editor completo:
-                Configurações → Editor de etiquetas.
+                A composição gráfica vem do template SVG fixo. Só os dados da OS (modelo, cor,
+                cliente e placa) são preenchidos nas duas faces.
               </p>
 
-              <div className="space-y-3 rounded-2xl border-0 bg-zinc-50 p-3.5 dark:bg-white/[0.03] sm:p-4">
-                <label className="block space-y-1.5">
-                  <span className="text-[11px] font-bold uppercase tracking-wide text-zinc-500">
-                    Fonte
-                  </span>
-                  <select
-                    value={normalizedStyle.fontFamily}
-                    disabled={printing}
-                    onChange={(e) =>
-                      patchStyle({
-                        fontFamily: e.target.value as PatioKeyLabelStyle['fontFamily'],
-                      })
-                    }
-                    className="w-full rounded-xl border-0 bg-white px-3 py-2.5 text-[14px] font-medium text-zinc-900 outline-none dark:bg-zinc-900 dark:text-zinc-100"
-                  >
-                    {PATIO_KEY_LABEL_FONTS.map((f) => (
-                      <option key={f.value} value={f.value} style={{ fontFamily: f.value }}>
-                        {f.label}
-                      </option>
+              {warnings.length > 0 ? (
+                <div className="space-y-1.5 rounded-xl bg-amber-50 px-3 py-2.5 dark:bg-amber-950/30">
+                  <p className="text-[11px] font-bold uppercase tracking-wide text-amber-800 dark:text-amber-200">
+                    Ajustes automáticos na prévia
+                  </p>
+                  <ul className="list-disc space-y-1 pl-4 text-[12px] text-amber-900 dark:text-amber-100">
+                    {warnings.map((w) => (
+                      <li key={`${w.field}-${w.reason}`}>{warningLabel(w)}</li>
                     ))}
-                  </select>
-                </label>
-
-                <Stepper
-                  label="Tamanho dos textos"
-                  value={normalizedStyle.fontSize}
-                  display={`${normalizedStyle.fontSize} px`}
-                  disabled={printing}
-                  onDec={() => patchStyle({ fontSize: normalizedStyle.fontSize - 1 })}
-                  onInc={() => patchStyle({ fontSize: normalizedStyle.fontSize + 1 })}
-                />
-
-                <Segmented
-                  label="Espessura"
-                  value={normalizedStyle.fontWeight}
-                  disabled={printing}
-                  onChange={(fontWeight) => patchStyle({ fontWeight })}
-                  options={[
-                    { value: 'normal', label: 'Normal' },
-                    { value: 'bold', label: 'Negrito', icon: <Bold className="h-3.5 w-3.5" /> },
-                    { value: '900', label: 'Extra' },
-                  ]}
-                />
-
-                <Stepper
-                  label="Espaçamento de letras"
-                  value={normalizedStyle.letterSpacing}
-                  display={`${normalizedStyle.letterSpacing.toFixed(1)}`}
-                  disabled={printing}
-                  onDec={() =>
-                    patchStyle({
-                      letterSpacing: Math.round((normalizedStyle.letterSpacing - 0.5) * 10) / 10,
-                    })
-                  }
-                  onInc={() =>
-                    patchStyle({
-                      letterSpacing: Math.round((normalizedStyle.letterSpacing + 0.5) * 10) / 10,
-                    })
-                  }
-                />
-
-                <Stepper
-                  label="Espaçamento de linhas"
-                  value={normalizedStyle.lineSpacing}
-                  display={`${normalizedStyle.lineSpacing.toFixed(2)}×`}
-                  disabled={printing}
-                  onDec={() =>
-                    patchStyle({
-                      lineSpacing: Math.round((normalizedStyle.lineSpacing - 0.05) * 100) / 100,
-                    })
-                  }
-                  onInc={() =>
-                    patchStyle({
-                      lineSpacing: Math.round((normalizedStyle.lineSpacing + 0.05) * 100) / 100,
-                    })
-                  }
-                />
-
-                <Segmented
-                  label="Alinhamento horizontal"
-                  value={normalizedStyle.align}
-                  disabled={printing}
-                  onChange={(align) => patchStyle({ align })}
-                  options={[
-                    { value: 'left', label: 'Esq.', icon: <AlignLeft className="h-3.5 w-3.5" /> },
-                    { value: 'center', label: 'Centro', icon: <AlignCenter className="h-3.5 w-3.5" /> },
-                    { value: 'right', label: 'Dir.', icon: <AlignRight className="h-3.5 w-3.5" /> },
-                  ]}
-                />
-
-                <Segmented
-                  label="Alinhamento vertical"
-                  value={normalizedStyle.vAlign}
-                  disabled={printing}
-                  onChange={(vAlign) => patchStyle({ vAlign })}
-                  options={[
-                    { value: 'top', label: 'Topo' },
-                    { value: 'middle', label: 'Meio' },
-                    { value: 'bottom', label: 'Base' },
-                  ]}
-                />
-
-                <Stepper
-                  label="Posição X"
-                  value={normalizedStyle.offsetX}
-                  display={`${normalizedStyle.offsetX} px`}
-                  disabled={printing}
-                  onDec={() => patchStyle({ offsetX: normalizedStyle.offsetX - 1 })}
-                  onInc={() => patchStyle({ offsetX: normalizedStyle.offsetX + 1 })}
-                />
-
-                <Stepper
-                  label="Posição Y"
-                  value={normalizedStyle.offsetY}
-                  display={`${normalizedStyle.offsetY} px`}
-                  disabled={printing}
-                  onDec={() => patchStyle({ offsetY: normalizedStyle.offsetY - 1 })}
-                  onInc={() => patchStyle({ offsetY: normalizedStyle.offsetY + 1 })}
-                />
-
-                <Stepper
-                  label="Margem"
-                  value={normalizedStyle.margin}
-                  display={`${normalizedStyle.margin} px`}
-                  disabled={printing}
-                  onDec={() => patchStyle({ margin: normalizedStyle.margin - 1 })}
-                  onInc={() => patchStyle({ margin: normalizedStyle.margin + 1 })}
-                />
-
-                <Stepper
-                  label="Espaço entre faces"
-                  value={normalizedStyle.halfGap}
-                  display={`${normalizedStyle.halfGap} px`}
-                  disabled={printing}
-                  onDec={() => patchStyle({ halfGap: normalizedStyle.halfGap - 1 })}
-                  onInc={() => patchStyle({ halfGap: normalizedStyle.halfGap + 1 })}
-                />
-
-                <label className="flex items-center justify-between gap-3 rounded-xl bg-white px-3 py-2.5 dark:bg-zinc-900">
-                  <span className="text-[12px] font-medium text-zinc-700 dark:text-zinc-200">
-                    Mostrar ícones/rótulos (👤 🚗 🎨)
-                  </span>
-                  <input
-                    type="checkbox"
-                    checked={normalizedStyle.showLabels}
-                    disabled={printing}
-                    onChange={(e) => patchStyle({ showLabels: e.target.checked })}
-                    className="h-4 w-4 accent-emerald-600"
-                  />
-                </label>
-              </div>
+                  </ul>
+                </div>
+              ) : null}
 
               <div className="flex items-center justify-between gap-3 rounded-xl bg-zinc-50 px-3 py-2.5 dark:bg-white/[0.03]">
                 <div className="flex min-w-0 items-center gap-2">
@@ -478,7 +227,9 @@ export function PatioKeyLabelPrintModal({ open, label, onClose }: PatioKeyLabelP
                 ) : null}
               </div>
 
-              <p className="text-[11px] leading-snug text-zinc-500 dark:text-zinc-400">{NIIMBOT_BLE_HELP}</p>
+              <p className="text-[11px] leading-snug text-zinc-500 dark:text-zinc-400">
+                {NIIMBOT_BLE_HELP}
+              </p>
 
               <label className="block">
                 <span className="text-[11px] font-bold uppercase tracking-wide text-zinc-500">
@@ -512,8 +263,8 @@ export function PatioKeyLabelPrintModal({ open, label, onClose }: PatioKeyLabelP
               disabled={printing || unsupported || !previewUrl}
               onClick={() =>
                 run(async () => {
-                  const url = renderPatioKeyLabelDataUrl(label, loadLabelTemplate('chave'));
-                  await niimbotService.printLabelImageUrl(url, { copies });
+                  const { dataUrl } = await renderChaveLabelFromSvg(label);
+                  await niimbotService.printLabelImageUrl(dataUrl, { copies });
                 })
               }
               className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 text-[15px] font-semibold text-white hover:bg-emerald-500 disabled:opacity-50"

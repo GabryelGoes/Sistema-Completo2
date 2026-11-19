@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg"
+  width="50mm"
+  height="30mm"
+  viewBox="0 0 500 300"
+  data-template="etiqueta_chaves_BASE_50x30"
+  data-dpi-reference="203"
+  data-bitmap-reference="384x240">
+  <!--
+    Arte fixa da etiqueta de chaves Niimbot 50×30 mm (duas faces 25×30).
+    Textos variáveis: modelo-1/2, cor-1/2, cliente-1/2, placa-1/2 (rotacionados -90°).
+    NÃO interpolar XML — preencher via textContent no DOM.
+  -->
+  <defs>
+    <style type="text/css"><![CDATA[
+      .chave-field {
+        fill: #000000;
+        font-family: Arial, Helvetica, sans-serif;
+        font-weight: 700;
+        text-anchor: middle;
+        dominant-baseline: middle;
+      }
+      .chave-brasil {
+        fill: #ffffff;
+        font-family: Arial, Helvetica, sans-serif;
+        font-weight: 800;
+        font-size: 11px;
+        letter-spacing: 0.5px;
+        text-anchor: middle;
+        dominant-baseline: middle;
+      }
+    ]]></style>
+  </defs>
+
+  <rect x="0" y="0" width="500" height="300" fill="#ffffff"/>
+  <rect x="6" y="8" width="488" height="284" rx="14" ry="14"
+    fill="none" stroke="#000000" stroke-width="4"/>
+  <line x1="250" y1="10" x2="250" y2="290" stroke="#000000" stroke-width="2"/>
+
+  <!-- FACE 1 -->
+  <g id="art-face-1">
+    <rect x="12" y="14" width="74" height="272" rx="12" ry="12" fill="#000000"/>
+    <line x1="105" y1="28" x2="105" y2="272" stroke="#000000" stroke-width="2"/>
+    <line x1="124" y1="28" x2="124" y2="272" stroke="#000000" stroke-width="2"/>
+    <rect x="148" y="28" width="86" height="244" rx="10" ry="10"
+      fill="#ffffff" stroke="#000000" stroke-width="3"/>
+    <rect x="153" y="34" width="18" height="232" rx="3" ry="3" fill="#000000"/>
+    <circle cx="162" cy="48" r="3.2" fill="#ffffff"/>
+    <circle cx="162" cy="252" r="3.2" fill="#ffffff"/>
+    <text class="chave-brasil" transform="rotate(-90 162 150)" x="162" y="150">BRASIL</text>
+  </g>
+
+  <!-- FACE 2 -->
+  <g id="art-face-2">
+    <rect x="262" y="14" width="74" height="272" rx="12" ry="12" fill="#000000"/>
+    <line x1="355" y1="28" x2="355" y2="272" stroke="#000000" stroke-width="2"/>
+    <line x1="374" y1="28" x2="374" y2="272" stroke="#000000" stroke-width="2"/>
+    <rect x="398" y="28" width="86" height="244" rx="10" ry="10"
+      fill="#ffffff" stroke="#000000" stroke-width="3"/>
+    <rect x="403" y="34" width="18" height="232" rx="3" ry="3" fill="#000000"/>
+    <circle cx="412" cy="48" r="3.2" fill="#ffffff"/>
+    <circle cx="412" cy="252" r="3.2" fill="#ffffff"/>
+    <text class="chave-brasil" transform="rotate(-90 412 150)" x="412" y="150">BRASIL</text>
+  </g>
+
+  <g id="fields-face-1" class="chave-field">
+    <text id="modelo-1" data-field="modelo" data-max-width="252"
+      transform="rotate(-90 96 150)" x="96" y="150" font-size="28">WRANGLER</text>
+    <text id="cor-1" data-field="cor" data-max-width="236"
+      transform="rotate(-90 114.5 150)" x="114.5" y="150" font-size="22">BRANCA</text>
+    <text id="cliente-1" data-field="cliente" data-max-width="256"
+      transform="rotate(-90 136 150)" x="136" y="150" font-size="16">Cliente: MECÂNICA LÍDER</text>
+    <text id="placa-1" data-field="placa" data-max-width="177"
+      transform="rotate(-90 206 150)" x="206" y="150" font-size="24">JAW1941</text>
+  </g>
+
+  <g id="fields-face-2" class="chave-field">
+    <text id="modelo-2" data-field="modelo" data-max-width="252"
+      transform="rotate(-90 346 150)" x="346" y="150" font-size="28">WRANGLER</text>
+    <text id="cor-2" data-field="cor" data-max-width="236"
+      transform="rotate(-90 364.5 150)" x="364.5" y="150" font-size="22">BRANCA</text>
+    <text id="cliente-2" data-field="cliente" data-max-width="256"
+      transform="rotate(-90 386 150)" x="386" y="150" font-size="16">Cliente: MECÂNICA LÍDER</text>
+    <text id="placa-2" data-field="placa" data-max-width="177"
+      transform="rotate(-90 456 150)" x="456" y="150" font-size="24">JAW1941</text>
+  </g>
+</svg>
