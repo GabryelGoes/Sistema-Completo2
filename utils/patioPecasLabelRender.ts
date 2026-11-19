@@ -1,8 +1,16 @@
 /**
  * Etiqueta de peças da OS (pátio) — Niimbot 50×30 mm (384×240).
- * Layout fixo inspirado no mockup: faixa PEÇA à esquerda + veículo / placa / cor / cliente.
+ * Layout tipo mockup, totalmente parametrizado via template (pecasOptions + elements).
  */
-import { loadLabelTemplate, type LabelTemplateLayout } from './labelTemplates';
+import {
+  createDefaultPecasOptions,
+  loadLabelTemplate,
+  normalizePecasOptions,
+  type LabelElementDef,
+  type LabelPecasOptions,
+  type LabelPecasSidebarIcon,
+  type LabelTemplateLayout,
+} from './labelTemplates';
 import { NIIMBOT_LABEL_H_PX, NIIMBOT_LABEL_W_PX } from './niimbotLabelRender';
 import {
   normalizeBrazilianPlate,
@@ -87,21 +95,20 @@ function roundRect(
   ctx.closePath();
 }
 
-/** Ícone carro + engrenagem (faixa PEÇA). */
-function drawPecaLogo(ctx: CanvasRenderingContext2D, cx: number, cy: number, size: number): void {
-  const s = Math.max(16, size);
-  ctx.save();
-  ctx.translate(cx, cy);
-  ctx.strokeStyle = '#ffffff';
-  ctx.fillStyle = '#ffffff';
-  ctx.lineWidth = Math.max(1.4, s * 0.07);
-  ctx.lineCap = 'round';
-  ctx.lineJoin = 'round';
+function findEl(
+  layout: LabelTemplateLayout,
+  id: string
+): LabelElementDef | undefined {
+  return layout.elements.find((e) => e.id === id);
+}
 
-  // Engrenagem (anel + dentes)
+function drawGear(
+  ctx: CanvasRenderingContext2D,
+  s: number,
+  teeth = 10
+): void {
   const gearR = s * 0.42;
   const holeR = s * 0.16;
-  const teeth = 10;
   ctx.beginPath();
   for (let i = 0; i < teeth; i++) {
     const a0 = (i / teeth) * Math.PI * 2;
@@ -120,8 +127,9 @@ function drawPecaLogo(ctx: CanvasRenderingContext2D, cx: number, cy: number, siz
   ctx.beginPath();
   ctx.arc(0, 0, holeR, 0, Math.PI * 2);
   ctx.stroke();
+}
 
-  // Carro (vista frontal) — corpo + teto
+function drawCarFront(ctx: CanvasRenderingContext2D, s: number): void {
   ctx.beginPath();
   ctx.moveTo(-s * 0.22, -s * 0.06);
   ctx.lineTo(-s * 0.12, -s * 0.26);
@@ -133,8 +141,6 @@ function drawPecaLogo(ctx: CanvasRenderingContext2D, cx: number, cy: number, siz
   ctx.lineTo(-s * 0.3, -s * 0.06);
   ctx.closePath();
   ctx.fill();
-
-  // para-brisa (traço branco sobre fundo — “vidro” via contorno)
   ctx.strokeStyle = '#ffffff';
   ctx.lineWidth = Math.max(1.2, s * 0.06);
   ctx.beginPath();
@@ -144,13 +150,71 @@ function drawPecaLogo(ctx: CanvasRenderingContext2D, cx: number, cy: number, siz
   ctx.lineTo(s * 0.14, -s * 0.08);
   ctx.closePath();
   ctx.stroke();
-
-  // faróis
   ctx.fillStyle = '#ffffff';
   ctx.beginPath();
   ctx.ellipse(-s * 0.17, s * 0.02, s * 0.055, s * 0.032, 0, 0, Math.PI * 2);
   ctx.ellipse(s * 0.17, s * 0.02, s * 0.055, s * 0.032, 0, 0, Math.PI * 2);
   ctx.fill();
+}
+
+function drawWrench(ctx: CanvasRenderingContext2D, s: number): void {
+  ctx.lineWidth = Math.max(2, s * 0.1);
+  ctx.beginPath();
+  ctx.moveTo(-s * 0.28, s * 0.22);
+  ctx.lineTo(s * 0.18, -s * 0.24);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(s * 0.22, -s * 0.28, s * 0.14, 0.2, Math.PI * 1.4);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(-s * 0.3, s * 0.26, s * 0.1, -0.4, Math.PI * 1.2);
+  ctx.stroke();
+}
+
+function drawTagIcon(ctx: CanvasRenderingContext2D, s: number): void {
+  ctx.beginPath();
+  ctx.moveTo(-s * 0.28, -s * 0.08);
+  ctx.lineTo(s * 0.05, -s * 0.28);
+  ctx.lineTo(s * 0.3, -s * 0.05);
+  ctx.lineTo(s * 0.08, s * 0.28);
+  ctx.lineTo(-s * 0.28, s * 0.08);
+  ctx.closePath();
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(-s * 0.12, -s * 0.02, s * 0.05, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+/** Ícone da faixa PEÇA. */
+function drawSidebarIcon(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  size: number,
+  kind: LabelPecasSidebarIcon
+): void {
+  if (kind === 'none' || size <= 0) return;
+  const s = Math.max(12, size);
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.strokeStyle = '#ffffff';
+  ctx.fillStyle = '#ffffff';
+  ctx.lineWidth = Math.max(1.4, s * 0.07);
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+
+  if (kind === 'car_gear') {
+    drawGear(ctx, s);
+    drawCarFront(ctx, s);
+  } else if (kind === 'car') {
+    drawCarFront(ctx, s);
+  } else if (kind === 'gear') {
+    drawGear(ctx, s);
+  } else if (kind === 'wrench') {
+    drawWrench(ctx, s);
+  } else if (kind === 'tag') {
+    drawTagIcon(ctx, s);
+  }
 
   ctx.restore();
 }
@@ -162,7 +226,7 @@ function drawIconBadge(
   size: number,
   kind: 'plate' | 'color' | 'person'
 ): void {
-  const s = Math.max(14, size);
+  const s = Math.max(12, size);
   ctx.fillStyle = '#000000';
   roundRect(ctx, x, y, s, s, Math.max(3, s * 0.18));
   ctx.fill();
@@ -186,7 +250,6 @@ function drawIconBadge(
     ctx.quadraticCurveTo(cx, y + s * 0.68, x + s * 0.18, y + s * 0.88);
     ctx.fill();
   } else if (kind === 'plate') {
-    // placa retangular
     roundRect(ctx, x + s * 0.16, y + s * 0.28, s * 0.68, s * 0.4, 2);
     ctx.stroke();
     ctx.beginPath();
@@ -198,7 +261,6 @@ function drawIconBadge(
     ctx.lineTo(x + s * 0.72, y + s * 0.55);
     ctx.stroke();
   } else {
-    // paleta
     ctx.beginPath();
     ctx.ellipse(cx, cy + s * 0.02, s * 0.28, s * 0.24, -0.3, 0, Math.PI * 2);
     ctx.stroke();
@@ -216,17 +278,23 @@ function drawIconBadge(
   ctx.restore();
 }
 
+function resolvePecasOptions(layout: LabelTemplateLayout): LabelPecasOptions {
+  return normalizePecasOptions(layout.pecasOptions, createDefaultPecasOptions());
+}
+
 /**
  * Monta PNG data URL da etiqueta de peças (384×240 / 50×30 mm).
- * Layout fixo (mockup); tipografia leve pode vir do template se existir.
  */
 export function renderPatioPecasLabelDataUrl(
   input: PatioPecasLabelInput,
-  _layoutInput?: LabelTemplateLayout | null
+  layoutInput?: LabelTemplateLayout | null
 ): string {
-  // Mantém load para garantir template no store / editor, sem forçar posições livres.
-  void loadLabelTemplate('pecas_os');
-  void _layoutInput;
+  const layout = layoutInput ?? loadLabelTemplate('pecas_os');
+  const opts = resolvePecasOptions(layout);
+  const vehicleEl = findEl(layout, 'vehicle');
+  const plateEl = findEl(layout, 'plate');
+  const colorEl = findEl(layout, 'color');
+  const customerEl = findEl(layout, 'customer');
 
   const W = NIIMBOT_LABEL_W_PX;
   const H = NIIMBOT_LABEL_H_PX;
@@ -244,7 +312,6 @@ export function renderPatioPecasLabelDataUrl(
   const color = toUpperClean(input.vehicleColor) || '—';
   const customer = cleanSpaces(input.customerName) || '—';
 
-  // Fundo branco + borda
   ctx.fillStyle = '#ffffff';
   ctx.fillRect(0, 0, W, H);
 
@@ -255,14 +322,12 @@ export function renderPatioPecasLabelDataUrl(
   roundRect(ctx, border, border, W - border * 2, H - border * 2, radius);
   ctx.stroke();
 
-  // Clip interno arredondado
   ctx.save();
   roundRect(ctx, border + 1, border + 1, W - border * 2 - 2, H - border * 2 - 2, radius - 2);
   ctx.clip();
 
-  // Faixa esquerda preta com corte diagonal
-  const leftTop = 78;
-  const leftBottom = 62;
+  const leftTop = opts.sidebarWidth;
+  const leftBottom = Math.max(36, Math.round(opts.sidebarWidth * 0.8));
   ctx.fillStyle = '#000000';
   ctx.beginPath();
   ctx.moveTo(border, border);
@@ -272,60 +337,78 @@ export function renderPatioPecasLabelDataUrl(
   ctx.closePath();
   ctx.fill();
 
-  // Logo + PEÇA + barra
   const midLeft = (leftTop + leftBottom) / 2;
-  drawPecaLogo(ctx, midLeft * 0.55 + border * 0.2, 58, 44);
+  const iconCx = midLeft * 0.55 + border * 0.2;
+  const iconCy = 52 + Math.max(0, (opts.sidebarIconSize - 44) * 0.15);
+  if (opts.sidebarIcon !== 'none' && opts.sidebarIconSize > 0) {
+    drawSidebarIcon(ctx, iconCx, iconCy, opts.sidebarIconSize, opts.sidebarIcon);
+  }
+
   ctx.fillStyle = '#ffffff';
-  ctx.font = '900 italic 28px Arial, Helvetica, sans-serif';
+  ctx.font = `900 italic ${opts.sidebarTextSize}px Arial, Helvetica, sans-serif`;
   ctx.textBaseline = 'middle';
   ctx.textAlign = 'center';
-  ctx.fillText('PEÇA', midLeft * 0.52, 118);
+  const sidebarLabel = (opts.sidebarText || 'PEÇA').trim() || 'PEÇA';
+  const textY =
+    opts.sidebarIcon !== 'none' && opts.sidebarIconSize > 0
+      ? iconCy + opts.sidebarIconSize * 0.55 + opts.sidebarTextSize * 0.55
+      : 100;
+  ctx.fillText(sidebarLabel, midLeft * 0.52, Math.min(H - 40, textY));
   ctx.textAlign = 'left';
-  // barra branca sob PEÇA
-  ctx.fillRect(midLeft * 0.28, 138, 36, 6);
 
-  // Área de conteúdo
+  if (opts.showSidebarBar) {
+    const barW = Math.max(20, Math.round(opts.sidebarTextSize * 1.25));
+    const barY = Math.min(H - 28, textY + opts.sidebarTextSize * 0.55);
+    ctx.fillRect(midLeft * 0.52 - barW / 2, barY, barW, Math.max(4, Math.round(opts.sidebarTextSize * 0.18)));
+  }
+
   const contentLeft = Math.max(leftTop, leftBottom) + 10;
   const contentRight = W - border - 10;
   const contentW = contentRight - contentLeft;
 
-  // —— Veículo ——
+  const vehicleSize = vehicleEl?.valueFontSize || 46;
+  const subtitleSize = vehicleEl?.fontSize || 15;
   const vehicleTop = border + 10;
   ctx.fillStyle = '#000000';
-  ctx.font = '900 italic 46px Arial, Helvetica, sans-serif';
+  ctx.font = `900 italic ${vehicleSize}px Arial, Helvetica, sans-serif`;
   ctx.textBaseline = 'top';
-  const titleFitted = fitText(ctx, title, contentW - 4);
-  ctx.fillText(titleFitted, contentLeft, vehicleTop);
+  ctx.fillText(fitText(ctx, title, contentW - 4), contentLeft, vehicleTop);
 
-  ctx.font = '700 15px Arial, Helvetica, sans-serif';
-  const subY = vehicleTop + 52;
+  ctx.font = `700 ${subtitleSize}px Arial, Helvetica, sans-serif`;
+  const subY = vehicleTop + Math.round(vehicleSize * 1.12);
   if (subtitle) {
     ctx.fillText(fitText(ctx, subtitle, contentW - 4), contentLeft, subY);
   }
 
-  // divisor
-  const div1Y = subY + (subtitle ? 24 : 8);
+  const div1Y = subY + (subtitle ? Math.round(subtitleSize * 1.5) : 8);
   ctx.lineWidth = 2;
   ctx.beginPath();
   ctx.moveTo(contentLeft - 2, div1Y);
   ctx.lineTo(contentRight, div1Y);
   ctx.stroke();
 
-  // —— Placa | Cor ——
+  const plateTitleSize = plateEl?.fontSize || 10;
+  const plateValueSize = plateEl?.valueFontSize || 18;
+  const colorTitleSize = colorEl?.fontSize || 10;
+  const colorValueSize = colorEl?.valueFontSize || 18;
+  const plateTitle = (plateEl?.labelText || 'PLACA').trim() || 'PLACA';
+  const colorTitle = (colorEl?.labelText || 'COR').trim() || 'COR';
+
   const chipY = div1Y + 10;
-  const chipH = 58;
+  const chipH = Math.max(
+    44,
+    Math.round(Math.max(plateTitleSize + plateValueSize, colorTitleSize + colorValueSize) + 22)
+  );
   const gap = 10;
   const chipW = (contentW - gap) / 2;
   const chipR = 10;
 
-  // fundo cinza claro (térmica faz dither)
   ctx.fillStyle = '#D8D8D8';
   roundRect(ctx, contentLeft, chipY, chipW, chipH, chipR);
   ctx.fill();
   roundRect(ctx, contentLeft + chipW + gap, chipY, chipW, chipH, chipR);
   ctx.fill();
 
-  // separador vertical
   const sepX = contentLeft + chipW + gap / 2;
   ctx.strokeStyle = '#000000';
   ctx.lineWidth = 2;
@@ -334,27 +417,43 @@ export function renderPatioPecasLabelDataUrl(
   ctx.lineTo(sepX, chipY + chipH - 8);
   ctx.stroke();
 
-  const badge = 22;
+  const badge = opts.fieldIconSize;
   const badgeY = chipY + (chipH - badge) / 2;
-  drawIconBadge(ctx, contentLeft + 8, badgeY, badge, 'plate');
-  drawIconBadge(ctx, contentLeft + chipW + gap + 8, badgeY, badge, 'color');
+  const platePad = opts.showPlateIcon ? badge + 16 : 10;
+  const colorPad = opts.showColorIcon ? badge + 16 : 10;
 
-  const plateTextX = contentLeft + 8 + badge + 8;
-  const colorTextX = contentLeft + chipW + gap + 8 + badge + 8;
-  const plateMaxW = chipW - badge - 24;
-  const colorMaxW = chipW - badge - 24;
+  if (opts.showPlateIcon) {
+    drawIconBadge(ctx, contentLeft + 8, badgeY, badge, 'plate');
+  }
+  if (opts.showColorIcon) {
+    drawIconBadge(ctx, contentLeft + chipW + gap + 8, badgeY, badge, 'color');
+  }
+
+  const plateTextX = contentLeft + platePad;
+  const colorTextX = contentLeft + chipW + gap + colorPad;
+  const plateMaxW = chipW - platePad - 8;
+  const colorMaxW = chipW - colorPad - 8;
 
   ctx.fillStyle = '#000000';
-  ctx.font = '700 10px Arial, Helvetica, sans-serif';
   ctx.textBaseline = 'top';
-  ctx.fillText('PLACA', plateTextX, chipY + 10);
-  ctx.fillText('COR', colorTextX, chipY + 10);
+  ctx.font = `700 ${plateTitleSize}px Arial, Helvetica, sans-serif`;
+  ctx.fillText(fitText(ctx, plateTitle, plateMaxW), plateTextX, chipY + 10);
+  ctx.font = `700 ${colorTitleSize}px Arial, Helvetica, sans-serif`;
+  ctx.fillText(fitText(ctx, colorTitle, colorMaxW), colorTextX, chipY + 10);
 
-  ctx.font = '900 18px Arial, Helvetica, sans-serif';
-  ctx.fillText(fitText(ctx, plate, plateMaxW), plateTextX, chipY + 26);
-  ctx.fillText(fitText(ctx, color, colorMaxW), colorTextX, chipY + 26);
+  ctx.font = `900 ${plateValueSize}px Arial, Helvetica, sans-serif`;
+  ctx.fillText(
+    fitText(ctx, plate, plateMaxW),
+    plateTextX,
+    chipY + 12 + plateTitleSize + 2
+  );
+  ctx.font = `900 ${colorValueSize}px Arial, Helvetica, sans-serif`;
+  ctx.fillText(
+    fitText(ctx, color, colorMaxW),
+    colorTextX,
+    chipY + 12 + colorTitleSize + 2
+  );
 
-  // divisor
   const div2Y = chipY + chipH + 10;
   ctx.lineWidth = 2;
   ctx.beginPath();
@@ -362,28 +461,29 @@ export function renderPatioPecasLabelDataUrl(
   ctx.lineTo(contentRight, div2Y);
   ctx.stroke();
 
-  // —— Cliente ——
+  const custTitleSize = customerEl?.fontSize || 15;
+  const custValueSize = customerEl?.valueFontSize || 15;
+  const custLabel = (customerEl?.labelText || 'CLIENTE:').trim() || 'CLIENTE:';
   const custY = div2Y + 12;
-  const custBadge = 22;
-  drawIconBadge(ctx, contentLeft, custY + 2, custBadge, 'person');
+  const custBadge = opts.fieldIconSize;
+  let custTextX = contentLeft;
+  if (opts.showCustomerIcon) {
+    drawIconBadge(ctx, contentLeft, custY + 2, custBadge, 'person');
+    custTextX = contentLeft + custBadge + 8;
+  }
+
   ctx.fillStyle = '#000000';
-  ctx.font = '800 15px Arial, Helvetica, sans-serif';
+  ctx.font = `800 ${custTitleSize}px Arial, Helvetica, sans-serif`;
   ctx.textBaseline = 'middle';
-  const custLabel = 'CLIENTE:';
-  const custTextX = contentLeft + custBadge + 8;
-  ctx.fillText(custLabel, custTextX, custY + custBadge / 2 + 2);
+  const midCustY = custY + Math.max(custBadge, custTitleSize) / 2 + 2;
+  ctx.fillText(custLabel, custTextX, midCustY);
   const labelW = ctx.measureText(custLabel).width;
-  ctx.font = '700 15px Arial, Helvetica, sans-serif';
+  ctx.font = `700 ${custValueSize}px Arial, Helvetica, sans-serif`;
   const nameMax = contentRight - (custTextX + labelW + 6);
-  ctx.fillText(
-    fitText(ctx, customer, nameMax),
-    custTextX + labelW + 6,
-    custY + custBadge / 2 + 2
-  );
+  ctx.fillText(fitText(ctx, customer, nameMax), custTextX + labelW + 6, midCustY);
 
   ctx.restore();
 
-  // reforça borda por cima
   ctx.strokeStyle = '#000000';
   ctx.lineWidth = 4;
   roundRect(ctx, border, border, W - border * 2, H - border * 2, radius);

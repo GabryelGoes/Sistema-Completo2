@@ -20,15 +20,20 @@ import {
 } from 'lucide-react';
 import {
   LABEL_FONTS,
+  LABEL_PECAS_SIDEBAR_ICONS,
   LABEL_SAMPLE_DATA,
   LABEL_TEMPLATE_META,
+  createDefaultPecasOptions,
   createDefaultTemplate,
   cssFontForElement,
   loadAllLabelTemplates,
   normalizeLabelTemplate,
+  normalizePecasOptions,
   type LabelElementDef,
   type LabelFontFamily,
   type LabelFontWeight,
+  type LabelPecasOptions,
+  type LabelPecasSidebarIcon,
   type LabelTemplateId,
   type LabelTemplateLayout,
   type LabelTemplatesStore,
@@ -472,7 +477,26 @@ export function LabelTemplatesEditorModal({
 
   if (!open) return null;
 
-  const hasPlateMercosul = activeId === 'chave' || activeId === 'pecas_os';
+  const hasPlateMercosul = activeId === 'chave';
+  const isPecasOs = activeId === 'pecas_os';
+  const pecasOpts = normalizePecasOptions(
+    layout.pecasOptions,
+    createDefaultPecasOptions()
+  );
+  const patchPecasOptions = (partial: Partial<LabelPecasOptions>) => {
+    patchLayout({
+      pecasOptions: normalizePecasOptions(
+        { ...pecasOpts, ...partial },
+        createDefaultPecasOptions()
+      ),
+    });
+  };
+  const patchPecasField = (
+    id: 'vehicle' | 'plate' | 'color' | 'customer',
+    partial: Partial<LabelElementDef>
+  ) => {
+    patchElement(id, partial);
+  };
   const overlayElements = layout.elements.filter((e) => e.visible);
   const chaveDualCopy = layout.keyOptions?.dualCopy !== false;
   const chaveHalfH = Math.floor(
@@ -582,8 +606,8 @@ export function LabelTemplatesEditorModal({
               <p className="text-[12px] text-zinc-500 dark:text-zinc-400">
                 {LABEL_TEMPLATE_META.find((m) => m.id === activeId)?.description}
                 {' · Arraste os textos na prévia · gire e edite cada um no painel.'}
-                {activeId === 'pecas_os'
-                  ? ' Layout fixo do mockup (faixa PEÇA + veículo / placa / cor / cliente).'
+                {isPecasOs
+                  ? ' Use o painel à direita para ajustar faixa, tipografia e ícones.'
                   : hasPlateMercosul
                     ? layout.keyOptions?.mercosulPlate !== false
                       ? ' Placa no estilo Mercosul (desligue nas opções para texto tradicional).'
@@ -618,7 +642,7 @@ export function LabelTemplatesEditorModal({
                     {building ? 'Montando prévia…' : 'Sem prévia'}
                   </div>
                 )}
-                {previewUrl && overlayElements.length > 0 && activeId !== 'pecas_os' ? (
+                {previewUrl && overlayElements.length > 0 && !isPecasOs ? (
                   <div className="pointer-events-none absolute inset-3">
                     {overlayElements.map((elDef) => {
                       const mapped =
@@ -703,44 +727,396 @@ export function LabelTemplatesEditorModal({
                 ) : null}
               </div>
 
-              {/* Lista de elementos */}
-              <div className="space-y-1.5">
-                <p className="text-[11px] font-bold uppercase tracking-wide text-zinc-500">
-                  Elementos
-                </p>
-                <div className="max-h-[180px] space-y-1 overflow-y-auto custom-scrollbar">
-                  {layout.elements.map((elDef) => {
-                    const active = selectedId === elDef.id;
-                    return (
-                      <button
-                        key={elDef.id}
-                        type="button"
-                        onClick={() => setSelectedId(elDef.id)}
-                        className={`flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-[13px] font-medium transition ${
-                          active
-                            ? 'bg-sky-50 text-sky-950 ring-1 ring-sky-200 dark:bg-sky-950/40 dark:text-sky-100 dark:ring-sky-800'
-                            : 'bg-zinc-50 text-zinc-800 hover:bg-zinc-100 dark:bg-white/[0.04] dark:text-zinc-200'
-                        }`}
-                      >
-                        {elDef.visible ? (
-                          <Eye className="h-3.5 w-3.5 shrink-0 opacity-70" />
-                        ) : (
-                          <EyeOff className="h-3.5 w-3.5 shrink-0 opacity-40" />
-                        )}
-                        <span className="min-w-0 flex-1 truncate">{elDef.name}</span>
-                        <span className="shrink-0 text-[10px] uppercase tracking-wide text-zinc-400">
-                          {elDef.kind}
-                        </span>
-                      </button>
-                    );
-                  })}
+              {/* Lista de elementos / resumo peças */}
+              {isPecasOs ? (
+                <div className="space-y-1.5 rounded-xl bg-zinc-50 px-3 py-2.5 dark:bg-white/[0.04]">
+                  <p className="text-[11px] font-bold uppercase tracking-wide text-zinc-500">
+                    Editor completo
+                  </p>
+                  <p className="text-[12px] leading-snug text-zinc-600 dark:text-zinc-300">
+                    Ajuste faixa, tipografia e ícones no painel à direita. O preview atualiza na hora.
+                  </p>
                 </div>
-              </div>
+              ) : (
+                <div className="space-y-1.5">
+                  <p className="text-[11px] font-bold uppercase tracking-wide text-zinc-500">
+                    Elementos
+                  </p>
+                  <div className="max-h-[180px] space-y-1 overflow-y-auto custom-scrollbar">
+                    {layout.elements.map((elDef) => {
+                      const active = selectedId === elDef.id;
+                      return (
+                        <button
+                          key={elDef.id}
+                          type="button"
+                          onClick={() => setSelectedId(elDef.id)}
+                          className={`flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-[13px] font-medium transition ${
+                            active
+                              ? 'bg-sky-50 text-sky-950 ring-1 ring-sky-200 dark:bg-sky-950/40 dark:text-sky-100 dark:ring-sky-800'
+                              : 'bg-zinc-50 text-zinc-800 hover:bg-zinc-100 dark:bg-white/[0.04] dark:text-zinc-200'
+                          }`}
+                        >
+                          {elDef.visible ? (
+                            <Eye className="h-3.5 w-3.5 shrink-0 opacity-70" />
+                          ) : (
+                            <EyeOff className="h-3.5 w-3.5 shrink-0 opacity-40" />
+                          )}
+                          <span className="min-w-0 flex-1 truncate">{elDef.name}</span>
+                          <span className="shrink-0 text-[10px] uppercase tracking-wide text-zinc-400">
+                            {elDef.kind}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Painel de propriedades */}
             <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-5 py-4 custom-scrollbar sm:px-6">
-              {!selected ? (
+              {isPecasOs ? (
+                <>
+                  <div className="space-y-3 rounded-2xl border-0 bg-zinc-50 p-3.5 dark:bg-white/[0.03] sm:p-4">
+                    <p className="text-[11px] font-bold uppercase tracking-wide text-zinc-500">
+                      Faixa preta (esquerda)
+                    </p>
+                    <Stepper
+                      label="Largura da faixa"
+                      value={pecasOpts.sidebarWidth}
+                      display={`${pecasOpts.sidebarWidth} px`}
+                      onDec={() => patchPecasOptions({ sidebarWidth: pecasOpts.sidebarWidth - 2 })}
+                      onInc={() => patchPecasOptions({ sidebarWidth: pecasOpts.sidebarWidth + 2 })}
+                    />
+                    <label className="block space-y-1.5">
+                      <span className="text-[11px] font-bold uppercase tracking-wide text-zinc-500">
+                        Texto da faixa
+                      </span>
+                      <input
+                        type="text"
+                        value={pecasOpts.sidebarText}
+                        maxLength={12}
+                        onChange={(e) => patchPecasOptions({ sidebarText: e.target.value })}
+                        className="w-full rounded-xl border-0 bg-white px-3 py-2.5 text-[14px] font-semibold text-zinc-900 outline-none dark:bg-zinc-900 dark:text-zinc-100"
+                      />
+                    </label>
+                    <Stepper
+                      label="Tamanho do texto da faixa"
+                      value={pecasOpts.sidebarTextSize}
+                      display={`${pecasOpts.sidebarTextSize} px`}
+                      onDec={() =>
+                        patchPecasOptions({ sidebarTextSize: pecasOpts.sidebarTextSize - 1 })
+                      }
+                      onInc={() =>
+                        patchPecasOptions({ sidebarTextSize: pecasOpts.sidebarTextSize + 1 })
+                      }
+                    />
+                    <div className="space-y-1.5">
+                      <span className="text-[11px] font-bold uppercase tracking-wide text-zinc-500">
+                        Ícone da faixa
+                      </span>
+                      <div className="grid grid-cols-2 gap-1.5">
+                        {LABEL_PECAS_SIDEBAR_ICONS.map((opt) => {
+                          const active = pecasOpts.sidebarIcon === opt.value;
+                          return (
+                            <button
+                              key={opt.value}
+                              type="button"
+                              onClick={() =>
+                                patchPecasOptions({
+                                  sidebarIcon: opt.value as LabelPecasSidebarIcon,
+                                })
+                              }
+                              className={`rounded-xl px-2.5 py-2 text-left text-[12px] font-semibold transition ${
+                                active
+                                  ? 'bg-emerald-600 text-white'
+                                  : 'bg-white text-zinc-800 hover:bg-zinc-100 dark:bg-zinc-900 dark:text-zinc-100 dark:hover:bg-zinc-800'
+                              }`}
+                            >
+                              {opt.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                    <Stepper
+                      label="Tamanho do ícone da faixa"
+                      value={pecasOpts.sidebarIconSize}
+                      display={`${pecasOpts.sidebarIconSize} px`}
+                      onDec={() =>
+                        patchPecasOptions({ sidebarIconSize: pecasOpts.sidebarIconSize - 2 })
+                      }
+                      onInc={() =>
+                        patchPecasOptions({ sidebarIconSize: pecasOpts.sidebarIconSize + 2 })
+                      }
+                    />
+                    <label className="flex items-center justify-between gap-3 rounded-xl bg-white px-3 py-2.5 dark:bg-zinc-900">
+                      <span className="text-[12px] font-medium text-zinc-700 dark:text-zinc-200">
+                        Barra branca sob o texto
+                      </span>
+                      <input
+                        type="checkbox"
+                        checked={pecasOpts.showSidebarBar}
+                        onChange={(e) =>
+                          patchPecasOptions({ showSidebarBar: e.target.checked })
+                        }
+                        className="h-4 w-4 accent-emerald-600"
+                      />
+                    </label>
+                  </div>
+
+                  <div className="space-y-3 rounded-2xl border-0 bg-zinc-50 p-3.5 dark:bg-white/[0.03] sm:p-4">
+                    <p className="text-[11px] font-bold uppercase tracking-wide text-zinc-500">
+                      Tipografia dos campos
+                    </p>
+                    <Stepper
+                      label="Nome do veículo"
+                      value={layout.elements.find((e) => e.id === 'vehicle')?.valueFontSize ?? 46}
+                      display={`${layout.elements.find((e) => e.id === 'vehicle')?.valueFontSize ?? 46} px`}
+                      onDec={() =>
+                        patchPecasField('vehicle', {
+                          valueFontSize:
+                            (layout.elements.find((e) => e.id === 'vehicle')?.valueFontSize ??
+                              46) - 1,
+                        })
+                      }
+                      onInc={() =>
+                        patchPecasField('vehicle', {
+                          valueFontSize:
+                            (layout.elements.find((e) => e.id === 'vehicle')?.valueFontSize ??
+                              46) + 1,
+                        })
+                      }
+                    />
+                    <Stepper
+                      label="Detalhe / ano (linha auxiliar)"
+                      value={layout.elements.find((e) => e.id === 'vehicle')?.fontSize ?? 15}
+                      display={`${layout.elements.find((e) => e.id === 'vehicle')?.fontSize ?? 15} px`}
+                      onDec={() =>
+                        patchPecasField('vehicle', {
+                          fontSize:
+                            (layout.elements.find((e) => e.id === 'vehicle')?.fontSize ?? 15) -
+                            1,
+                        })
+                      }
+                      onInc={() =>
+                        patchPecasField('vehicle', {
+                          fontSize:
+                            (layout.elements.find((e) => e.id === 'vehicle')?.fontSize ?? 15) +
+                            1,
+                        })
+                      }
+                    />
+                    <label className="block space-y-1.5">
+                      <span className="text-[11px] font-bold uppercase tracking-wide text-zinc-500">
+                        Texto do título PLACA
+                      </span>
+                      <input
+                        type="text"
+                        value={layout.elements.find((e) => e.id === 'plate')?.labelText ?? ''}
+                        onChange={(e) =>
+                          patchPecasField('plate', { labelText: e.target.value })
+                        }
+                        className="w-full rounded-xl border-0 bg-white px-3 py-2.5 text-[14px] font-medium text-zinc-900 outline-none dark:bg-zinc-900 dark:text-zinc-100"
+                      />
+                    </label>
+                    <Stepper
+                      label="Tamanho do título PLACA"
+                      value={layout.elements.find((e) => e.id === 'plate')?.fontSize ?? 10}
+                      display={`${layout.elements.find((e) => e.id === 'plate')?.fontSize ?? 10} px`}
+                      onDec={() =>
+                        patchPecasField('plate', {
+                          fontSize:
+                            (layout.elements.find((e) => e.id === 'plate')?.fontSize ?? 10) - 1,
+                        })
+                      }
+                      onInc={() =>
+                        patchPecasField('plate', {
+                          fontSize:
+                            (layout.elements.find((e) => e.id === 'plate')?.fontSize ?? 10) + 1,
+                        })
+                      }
+                    />
+                    <Stepper
+                      label="Texto da placa"
+                      value={layout.elements.find((e) => e.id === 'plate')?.valueFontSize ?? 18}
+                      display={`${layout.elements.find((e) => e.id === 'plate')?.valueFontSize ?? 18} px`}
+                      onDec={() =>
+                        patchPecasField('plate', {
+                          valueFontSize:
+                            (layout.elements.find((e) => e.id === 'plate')?.valueFontSize ??
+                              18) - 1,
+                        })
+                      }
+                      onInc={() =>
+                        patchPecasField('plate', {
+                          valueFontSize:
+                            (layout.elements.find((e) => e.id === 'plate')?.valueFontSize ??
+                              18) + 1,
+                        })
+                      }
+                    />
+                    <label className="block space-y-1.5">
+                      <span className="text-[11px] font-bold uppercase tracking-wide text-zinc-500">
+                        Texto do título COR
+                      </span>
+                      <input
+                        type="text"
+                        value={layout.elements.find((e) => e.id === 'color')?.labelText ?? ''}
+                        onChange={(e) =>
+                          patchPecasField('color', { labelText: e.target.value })
+                        }
+                        className="w-full rounded-xl border-0 bg-white px-3 py-2.5 text-[14px] font-medium text-zinc-900 outline-none dark:bg-zinc-900 dark:text-zinc-100"
+                      />
+                    </label>
+                    <Stepper
+                      label="Tamanho do título COR"
+                      value={layout.elements.find((e) => e.id === 'color')?.fontSize ?? 10}
+                      display={`${layout.elements.find((e) => e.id === 'color')?.fontSize ?? 10} px`}
+                      onDec={() =>
+                        patchPecasField('color', {
+                          fontSize:
+                            (layout.elements.find((e) => e.id === 'color')?.fontSize ?? 10) - 1,
+                        })
+                      }
+                      onInc={() =>
+                        patchPecasField('color', {
+                          fontSize:
+                            (layout.elements.find((e) => e.id === 'color')?.fontSize ?? 10) + 1,
+                        })
+                      }
+                    />
+                    <Stepper
+                      label="Texto da cor"
+                      value={layout.elements.find((e) => e.id === 'color')?.valueFontSize ?? 18}
+                      display={`${layout.elements.find((e) => e.id === 'color')?.valueFontSize ?? 18} px`}
+                      onDec={() =>
+                        patchPecasField('color', {
+                          valueFontSize:
+                            (layout.elements.find((e) => e.id === 'color')?.valueFontSize ??
+                              18) - 1,
+                        })
+                      }
+                      onInc={() =>
+                        patchPecasField('color', {
+                          valueFontSize:
+                            (layout.elements.find((e) => e.id === 'color')?.valueFontSize ??
+                              18) + 1,
+                        })
+                      }
+                    />
+                    <label className="block space-y-1.5">
+                      <span className="text-[11px] font-bold uppercase tracking-wide text-zinc-500">
+                        Texto do título CLIENTE
+                      </span>
+                      <input
+                        type="text"
+                        value={layout.elements.find((e) => e.id === 'customer')?.labelText ?? ''}
+                        onChange={(e) =>
+                          patchPecasField('customer', { labelText: e.target.value })
+                        }
+                        className="w-full rounded-xl border-0 bg-white px-3 py-2.5 text-[14px] font-medium text-zinc-900 outline-none dark:bg-zinc-900 dark:text-zinc-100"
+                      />
+                    </label>
+                    <Stepper
+                      label="Tamanho do título CLIENTE"
+                      value={layout.elements.find((e) => e.id === 'customer')?.fontSize ?? 15}
+                      display={`${layout.elements.find((e) => e.id === 'customer')?.fontSize ?? 15} px`}
+                      onDec={() =>
+                        patchPecasField('customer', {
+                          fontSize:
+                            (layout.elements.find((e) => e.id === 'customer')?.fontSize ?? 15) -
+                            1,
+                        })
+                      }
+                      onInc={() =>
+                        patchPecasField('customer', {
+                          fontSize:
+                            (layout.elements.find((e) => e.id === 'customer')?.fontSize ?? 15) +
+                            1,
+                        })
+                      }
+                    />
+                    <Stepper
+                      label="Nome do cliente"
+                      value={
+                        layout.elements.find((e) => e.id === 'customer')?.valueFontSize ?? 15
+                      }
+                      display={`${layout.elements.find((e) => e.id === 'customer')?.valueFontSize ?? 15} px`}
+                      onDec={() =>
+                        patchPecasField('customer', {
+                          valueFontSize:
+                            (layout.elements.find((e) => e.id === 'customer')?.valueFontSize ??
+                              15) - 1,
+                        })
+                      }
+                      onInc={() =>
+                        patchPecasField('customer', {
+                          valueFontSize:
+                            (layout.elements.find((e) => e.id === 'customer')?.valueFontSize ??
+                              15) + 1,
+                        })
+                      }
+                    />
+                  </div>
+
+                  <div className="space-y-3 rounded-2xl border-0 bg-zinc-50 p-3.5 dark:bg-white/[0.03] sm:p-4">
+                    <p className="text-[11px] font-bold uppercase tracking-wide text-zinc-500">
+                      Ícones dos campos
+                    </p>
+                    <Stepper
+                      label="Tamanho dos ícones"
+                      value={pecasOpts.fieldIconSize}
+                      display={`${pecasOpts.fieldIconSize} px`}
+                      onDec={() =>
+                        patchPecasOptions({ fieldIconSize: pecasOpts.fieldIconSize - 1 })
+                      }
+                      onInc={() =>
+                        patchPecasOptions({ fieldIconSize: pecasOpts.fieldIconSize + 1 })
+                      }
+                    />
+                    <label className="flex items-center justify-between gap-3 rounded-xl bg-white px-3 py-2.5 dark:bg-zinc-900">
+                      <span className="text-[12px] font-medium text-zinc-700 dark:text-zinc-200">
+                        Ícone da placa
+                      </span>
+                      <input
+                        type="checkbox"
+                        checked={pecasOpts.showPlateIcon}
+                        onChange={(e) =>
+                          patchPecasOptions({ showPlateIcon: e.target.checked })
+                        }
+                        className="h-4 w-4 accent-emerald-600"
+                      />
+                    </label>
+                    <label className="flex items-center justify-between gap-3 rounded-xl bg-white px-3 py-2.5 dark:bg-zinc-900">
+                      <span className="text-[12px] font-medium text-zinc-700 dark:text-zinc-200">
+                        Ícone da cor
+                      </span>
+                      <input
+                        type="checkbox"
+                        checked={pecasOpts.showColorIcon}
+                        onChange={(e) =>
+                          patchPecasOptions({ showColorIcon: e.target.checked })
+                        }
+                        className="h-4 w-4 accent-emerald-600"
+                      />
+                    </label>
+                    <label className="flex items-center justify-between gap-3 rounded-xl bg-white px-3 py-2.5 dark:bg-zinc-900">
+                      <span className="text-[12px] font-medium text-zinc-700 dark:text-zinc-200">
+                        Ícone do cliente
+                      </span>
+                      <input
+                        type="checkbox"
+                        checked={pecasOpts.showCustomerIcon}
+                        onChange={(e) =>
+                          patchPecasOptions({ showCustomerIcon: e.target.checked })
+                        }
+                        className="h-4 w-4 accent-emerald-600"
+                      />
+                    </label>
+                  </div>
+                </>
+              ) : !selected ? (
                 <p className="text-[13px] text-zinc-500">Selecione um elemento para editar.</p>
               ) : (
                 <>
@@ -1136,9 +1512,7 @@ export function LabelTemplatesEditorModal({
               {hasPlateMercosul && layout.keyOptions ? (
                 <div className="space-y-3 rounded-2xl border-0 bg-zinc-50 p-3.5 dark:bg-white/[0.03] sm:p-4">
                   <p className="text-[11px] font-bold uppercase tracking-wide text-zinc-500">
-                    {activeId === 'pecas_os'
-                      ? 'Opções da etiqueta de peças'
-                      : 'Opções da etiqueta de chave'}
+                    Opções da etiqueta de chave
                   </p>
                   <Stepper
                     label="Espaçamento de letras"
