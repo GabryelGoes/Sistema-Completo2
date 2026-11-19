@@ -9,6 +9,8 @@ const UUID_RE =
  * Algumas pistolas USB (HID wedge) assumem teclado US enquanto o SO usa outro layout.
  * Ex.: hífen vira `;` e dois-pontos vira `>`:
  *   RDA-OS:abed…  →  RDA;OS>abed…;…
+ * Com teclado ABNT2 no SO e pistola em layout US, o `:` (Shift+;) cai em `Ç`:
+ *   RDA-OS:abed…  →  RDA-OSÇabed…-…
  * Também há leitores que trocam `-` por `/`.
  */
 function normalizeLabOsScanText(raw: string): string {
@@ -18,6 +20,7 @@ function normalizeLabOsScanText(raw: string): string {
     .replace(/;/g, '-')
     .replace(/\//g, '-')
     .replace(/>/g, ':')
+    .replace(/[Çç]/g, ':') // US `:` → ABNT2 `Ç`
     .replace(/：/g, ':'); // fullwidth colon
 }
 
@@ -45,8 +48,9 @@ export function parseLabOsQrPayload(raw: string): string | null {
   }
 
   // Prefixo deformado pelo layout do teclado + UUID padrão.
+  // Separadores: : - _ . > Ç (Ç = : com pistola US + SO ABNT2)
   const flexible = s.match(
-    new RegExp(`RDA[-_.]?OS[:\\-_.>](${UUID_RE})`, 'i')
+    new RegExp(`RDA[-_.]?OS[:\\-_.>Çç](${UUID_RE})`, 'i')
   );
   if (flexible?.[1]) return flexible[1];
 
