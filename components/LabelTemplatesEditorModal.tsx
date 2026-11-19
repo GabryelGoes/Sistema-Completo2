@@ -508,18 +508,29 @@ export function LabelTemplatesEditorModal({
   ) => {
     patchElement(id, partial);
   };
+  const patchChaveSvgOptions = (partial: Partial<LabelChaveSvgOptions>) => {
+    patchLayout({
+      chaveSvgOptions: normalizeChaveSvgOptions(
+        {
+          ...chaveSvgOpts,
+          ...partial,
+          fields: partial.fields
+            ? { ...chaveSvgOpts.fields, ...partial.fields }
+            : chaveSvgOpts.fields,
+        },
+        createDefaultChaveSvgOptions()
+      ),
+    });
+  };
   const patchChaveSvgField = (
     field: LabelChaveSvgFieldKey,
     partial: Partial<LabelChaveSvgOptions['fields'][LabelChaveSvgFieldKey]>
   ) => {
-    const next: LabelChaveSvgOptions = {
+    patchChaveSvgOptions({
       fields: {
         ...chaveSvgOpts.fields,
         [field]: { ...chaveSvgOpts.fields[field], ...partial },
       },
-    };
-    patchLayout({
-      chaveSvgOptions: normalizeChaveSvgOptions(next, createDefaultChaveSvgOptions()),
     });
   };
   const overlayElements = layout.elements.filter((e) => e.visible);
@@ -791,7 +802,7 @@ export function LabelTemplatesEditorModal({
                       {
                         key: 'cliente' as const,
                         title: 'Cliente (coluna branca)',
-                        hint: 'Prefixo “Cliente: ” + nome',
+                        hint: 'Nome do cliente; título opcional abaixo',
                       },
                       {
                         key: 'placa' as const,
@@ -812,6 +823,21 @@ export function LabelTemplatesEditorModal({
                           </p>
                           <p className="mt-0.5 text-[12px] text-zinc-500">{section.hint}</p>
                         </div>
+                        {section.key === 'cliente' ? (
+                          <label className="flex items-center justify-between gap-3 rounded-xl bg-white px-3 py-2.5 dark:bg-zinc-900">
+                            <span className="text-[12px] font-medium text-zinc-700 dark:text-zinc-200">
+                              Mostrar título “Cliente:”
+                            </span>
+                            <input
+                              type="checkbox"
+                              checked={chaveSvgOpts.showClientePrefix !== false}
+                              onChange={(e) =>
+                                patchChaveSvgOptions({ showClientePrefix: e.target.checked })
+                              }
+                              className="h-4 w-4 accent-emerald-600"
+                            />
+                          </label>
+                        ) : null}
                         <Stepper
                           label="Offset X (coluna)"
                           value={f.offsetX}
