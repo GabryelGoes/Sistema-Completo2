@@ -84,6 +84,13 @@ function cleanSpaces(raw: string): string {
     .trim();
 }
 
+/** No máximo 2 nomes (tokens) para caber na etiqueta de chaves. */
+export function firstTwoNames(raw: string): string {
+  const parts = cleanSpaces(raw).split(' ').filter(Boolean);
+  if (parts.length === 0) return '';
+  return parts.slice(0, 2).join(' ');
+}
+
 /** Placa: preserva caracteres da OS; só normaliza espaços e caixa. Sem forçar Mercosul. */
 export function formatChaveLabelPlate(raw: string): string {
   const t = cleanSpaces(raw).toLocaleUpperCase('pt-BR');
@@ -91,7 +98,7 @@ export function formatChaveLabelPlate(raw: string): string {
 }
 
 export function formatChaveLabelModelo(raw: string): string {
-  return cleanSpaces(raw).toLocaleUpperCase('pt-BR') || '—';
+  return firstTwoNames(raw).toLocaleUpperCase('pt-BR') || '—';
 }
 
 export function formatChaveLabelCor(raw: string): string {
@@ -102,7 +109,11 @@ export function formatChaveLabelCliente(
   raw: string,
   showPrefix = true
 ): string {
-  const name = cleanSpaces(raw);
+  let name = cleanSpaces(raw);
+  if (name.toLocaleLowerCase('pt-BR').startsWith('cliente:')) {
+    name = cleanSpaces(name.slice(name.indexOf(':') + 1));
+  }
+  name = firstTwoNames(name);
   if (!showPrefix) {
     return name || '—';
   }
@@ -111,7 +122,6 @@ export function formatChaveLabelCliente(
     typeof mapaCampos?.fields?.cliente?.prefix === 'string'
       ? mapaCampos.fields.cliente.prefix
       : 'Cliente: ';
-  if (name.toLocaleLowerCase('pt-BR').startsWith('cliente:')) return name;
   return `${prefix}${name}`;
 }
 
