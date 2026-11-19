@@ -49,11 +49,23 @@ ok('placa antiga sem hífen inventado', formatChaveLabelPlate('jaw 1941') === 'J
 ok('placa mercosul preserva chars', formatChaveLabelPlate('azk4b21') === 'AZK4B21');
 ok('placa só limpa espaços', formatChaveLabelPlate('  abc 1d23 ') === 'ABC 1D23');
 ok('modelo upper', formatChaveLabelModelo('wrangler') === 'WRANGLER');
+ok(
+  'modelo no máximo 2 nomes',
+  formatChaveLabelModelo('Jeep Wrangler Unlimited Sport') === 'JEEP WRANGLER'
+);
 ok('cor upper', formatChaveLabelCor('branca') === 'BRANCA');
 ok('cliente com prefixo', formatChaveLabelCliente('Mecânica Líder') === 'Cliente: Mecânica Líder');
 ok(
   'cliente sem prefixo',
   formatChaveLabelCliente('Mecânica Líder', false) === 'Mecânica Líder'
+);
+ok(
+  'cliente no máximo 2 nomes',
+  formatChaveLabelCliente('João da Silva Santos') === 'Cliente: João da'
+);
+ok(
+  'cliente 2 nomes sem prefixo',
+  formatChaveLabelCliente('Maria Aparecida de Souza', false) === 'Maria Aparecida'
 );
 
 const sample = resolveChaveLabelValues({
