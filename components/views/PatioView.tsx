@@ -12829,7 +12829,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                data-os-comments-scroll=""
                                className={`${patioVehicleVm.commentsList} patio-vm-aside-comments-list os-comments-scroll !bg-[#E5DDD5]/55 dark:!bg-zinc-950/80 ${
                                  isPatioPcModal
-                                   ? 'max-h-[min(42vh,22rem)] overflow-y-auto overscroll-contain custom-scrollbar xl:max-h-[min(46vh,24rem)]'
+                                   ? 'max-h-[min(50.4vh,26.4rem)] overflow-y-auto overscroll-contain custom-scrollbar xl:max-h-[min(55.2vh,28.8rem)]'
                                    : 'max-h-[min(40vh,18rem)] overflow-y-auto overscroll-contain custom-scrollbar sm:max-h-[min(42vh,19rem)]'
                                }`}
                              >
