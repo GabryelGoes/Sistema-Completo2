@@ -157,7 +157,7 @@ html[data-device='tablet'] .patio-vm-header-meta--pc .patio-vm-meta-input--date:
 
 /*
  * Layout PC do mockup: coluna esquerda (header → abas → conteúdo) + sidebar
- * direita do topo ao fim (ações, status, comentários, estoque, checklists).
+ * direita do topo ao fim (ações, status, comentários, estoque).
  */
 html[data-device='desktop'] .patio-vehicle-modal--desktop .patio-vm-desktop-scroll,
 html[data-device='tablet'] .patio-vehicle-modal--desktop .patio-vm-desktop-scroll {
@@ -456,17 +456,17 @@ html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .pat
   }
 }
 
-/* Chat de comentários: área rolável com mouse/trackpad (PC). +20% vs baseline. */
+/* Chat de comentários: área rolável (PC). Sem card de checklists no aside — altura ampliada. */
 html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-vm-aside-comments {
   display: flex;
   flex-direction: column;
-  min-height: 16.8rem;
+  min-height: 22rem;
 }
 
 html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-vm-aside-comments-list {
   flex: 1 1 auto;
   min-height: 0;
-  max-height: min(50.4vh, 26.4rem);
+  max-height: min(62vh, 34rem);
   padding-top: 0.75rem;
   padding-bottom: 0.75rem;
   border-bottom: 0;
@@ -488,7 +488,7 @@ html[data-device='tablet'] .patio-vehicle-modal--desktop .os-comments-scroll {
 
 @media (min-width: 1280px) {
   html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-vm-aside-comments-list {
-    max-height: min(55.2vh, 28.8rem);
+    max-height: min(68vh, 38rem);
   }
 }
 
