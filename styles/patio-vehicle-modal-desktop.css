@@ -456,17 +456,17 @@ html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .pat
   }
 }
 
-/* Chat de comentários: área rolável com mouse/trackpad (PC). */
+/* Chat de comentários: área rolável com mouse/trackpad (PC). +20% vs baseline. */
 html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-vm-aside-comments {
   display: flex;
   flex-direction: column;
-  min-height: 14rem;
+  min-height: 16.8rem;
 }
 
 html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-vm-aside-comments-list {
   flex: 1 1 auto;
   min-height: 0;
-  max-height: min(42vh, 22rem);
+  max-height: min(50.4vh, 26.4rem);
   padding-top: 0.75rem;
   padding-bottom: 0.75rem;
   border-bottom: 0;
@@ -488,7 +488,7 @@ html[data-device='tablet'] .patio-vehicle-modal--desktop .os-comments-scroll {
 
 @media (min-width: 1280px) {
   html[data-device='desktop'] .patio-vehicle-modal--desktop.patio-vm-shell-v1 .patio-vm-aside-comments-list {
-    max-height: min(46vh, 24rem);
+    max-height: min(55.2vh, 28.8rem);
   }
 }
 
