@@ -1294,6 +1294,10 @@ export default function App() {
     module_identification?: string | null;
     issue_description?: string | null;
     bench_slot?: number | null;
+    bench_queued_at?: string | null;
+    oficina_shelf?: string | null;
+    order_type?: string | null;
+    status?: string | null;
     customer_name?: string | null;
     customers?: { name?: string | null } | null;
   };
@@ -1335,40 +1339,112 @@ export default function App() {
     });
   }, []);
 
-  const appendLabBatchFromScan = useCallback(
-    async (
-      osId: string,
-      result: LabScanOrderMeta | null | undefined,
-      opts: { feedback: string; ok: boolean; already?: boolean }
-    ) => {
-      let enriched: LabScanOrderMeta | null | undefined = result;
+  /** Preview da bipagem: monta item do lote sem movimentar ainda. */
+  const previewLabBatchFromScan = useCallback(
+    async (osId: string, mode: Extract<LabScanMode, 'saida' | 'retorno'>) => {
+      let order: LabScanOrderMeta;
       try {
-        const hasCustomer =
-          Boolean(enriched?.customers?.name?.trim()) ||
-          Boolean(enriched?.customer_name?.trim());
-        const missingMeta =
-          !enriched?.module_kind ||
-          !enriched?.vehicle_model ||
-          !enriched?.module_identification ||
-          !enriched?.issue_description?.trim() ||
-          !hasCustomer;
-        if (missingMeta) {
-          try {
-            enriched = { ...enriched, ...(await getServiceOrderById(osId)) };
-          } catch {
-            /* mantém o que veio da movimentação */
-          }
-        }
-        appendLabBatchItem(buildLabBatchItem(osId, enriched, opts));
+        order = await getServiceOrderById(osId);
       } catch (err: unknown) {
         appendLabBatchItem({
           id: osId,
           label: osId.slice(0, 8),
-          feedback: opts.feedback || (err instanceof Error ? err.message : 'Erro ao exibir peça'),
-          ok: opts.ok,
-          already: opts.already,
+          feedback: err instanceof Error ? err.message : 'OS não encontrada',
+          ok: false,
         });
+        return;
       }
+
+      if (String(order.order_type ?? '') !== 'module') {
+        appendLabBatchItem(
+          buildLabBatchItem(osId, order, {
+            feedback: 'Etiqueta não é de módulo do laboratório',
+            ok: false,
+          })
+        );
+        return;
+      }
+
+      if (String(order.status ?? '') === 'CANCELLED') {
+        appendLabBatchItem(
+          buildLabBatchItem(osId, order, {
+            feedback: 'OS arquivada — não é possível movimentar',
+            ok: false,
+          })
+        );
+        return;
+      }
+
+      const shelf =
+        typeof order.oficina_shelf === 'string' && order.oficina_shelf.trim()
+          ? order.oficina_shelf.trim()
+          : null;
+      const slot = typeof order.bench_slot === 'number' ? order.bench_slot : null;
+      const queued = Boolean(order.bench_queued_at);
+      const inLab = !shelf && (slot != null || queued);
+      const inPatio = Boolean(shelf);
+
+      if (mode === 'saida') {
+        if (inLab) {
+          appendLabBatchItem(
+            buildLabBatchItem(osId, order, {
+              feedback:
+                slot != null
+                  ? `Módulo já no laboratório · compartimento ${String(slot).padStart(2, '0')}`
+                  : 'Módulo já está na fila do laboratório',
+              ok: true,
+              already: true,
+            })
+          );
+          return;
+        }
+        if (!inPatio) {
+          appendLabBatchItem(
+            buildLabBatchItem(osId, order, {
+              feedback: 'Peça sem localização na oficina — não dá para enviar ao lab',
+              ok: false,
+            })
+          );
+          return;
+        }
+        appendLabBatchItem(
+          buildLabBatchItem(osId, order, {
+            feedback: 'Aguardando confirmação · Laboratório',
+            ok: true,
+          })
+        );
+        return;
+      }
+
+      // retorno → pátio/oficina
+      if (inPatio) {
+        appendLabBatchItem(
+          buildLabBatchItem(osId, order, {
+            feedback:
+              slot != null
+                ? `Módulo já no pátio · compartimento ${String(slot).padStart(2, '0')}`
+                : 'Módulo já está no pátio',
+            ok: true,
+            already: true,
+          })
+        );
+        return;
+      }
+      if (!inLab) {
+        appendLabBatchItem(
+          buildLabBatchItem(osId, order, {
+            feedback: 'Peça não está no laboratório — não dá para retornar ao pátio',
+            ok: false,
+          })
+        );
+        return;
+      }
+      appendLabBatchItem(
+        buildLabBatchItem(osId, order, {
+          feedback: 'Aguardando confirmação · Pátio',
+          ok: true,
+        })
+      );
     },
     [appendLabBatchItem, buildLabBatchItem]
   );
@@ -1423,106 +1499,70 @@ export default function App() {
       }
 
       if (labScanBusyRef.current) return;
+      if (mode !== 'saida' && mode !== 'retorno') return;
       labScanBusyRef.current = true;
-      const actorName =
-        authSession?.displayName ?? authSession?.username ?? 'Usuário';
-      const actorUserId = authSession?.userId ?? null;
       try {
-        if (mode === 'saida') {
-          try {
-            const result = await registerOficinaSaida(osId, { actorName, actorUserId });
-            playNotificationSound();
-            await appendLabBatchFromScan(osId, result, {
-              feedback: result.move?.feedback || 'OK · Laboratório',
-              ok: true,
-            });
-          } catch (err: unknown) {
-            const e = err as Error & {
-              already?: boolean;
-              location?: { kind: string; value: string | null };
-            };
-            if (e.already) {
-              playNotificationSound();
-              await appendLabBatchFromScan(osId, null, {
-                feedback:
-                  e.location?.kind === 'deposito' && e.location.value
-                    ? `Módulo já no laboratório · compartimento ${e.location.value}`
-                    : e.message || 'Módulo já está no laboratório',
-                ok: true,
-                already: true,
-              });
-            } else {
-              await appendLabBatchFromScan(osId, null, {
-                feedback: e.message || 'Falha na saída',
-                ok: false,
-              });
-            }
-          }
-        } else if (mode === 'retorno') {
-          try {
-            const result = await registerOficinaRetorno(osId, { actorName, actorUserId });
-            playNotificationSound();
-            await appendLabBatchFromScan(osId, result, {
-              feedback: result.move?.feedback || 'OK · Oficina',
-              ok: true,
-            });
-          } catch (err: unknown) {
-            const e = err as Error & {
-              already?: boolean;
-              location?: { kind: string; value: string | null };
-            };
-            if (e.already) {
-              playNotificationSound();
-              await appendLabBatchFromScan(osId, null, {
-                feedback:
-                  e.location?.kind === 'oficina' && e.location.value
-                    ? `Módulo já no pátio · ${e.location.value}`
-                    : e.message || 'Módulo já está no pátio',
-                ok: true,
-                already: true,
-              });
-            } else {
-              await appendLabBatchFromScan(osId, null, {
-                feedback: e.message || 'Falha no retorno',
-                ok: false,
-              });
-            }
-          }
-        }
+        // Só monta o lote — a localização muda no Confirmar / Enter.
+        await previewLabBatchFromScan(osId, mode);
+        playNotificationSound();
       } finally {
         labScanBusyRef.current = false;
       }
     })();
   }, [
-    appendLabBatchFromScan,
-    authSession?.displayName,
-    authSession?.userId,
-    authSession?.username,
     dismissShellOverlaysForNavigation,
     labScanMode,
+    previewLabBatchFromScan,
   ]);
 
   const handleLabBatchUndoLast = useCallback(() => {
+    // Ainda não houve movimentação: só remove a última bipagem do lote.
+    setLabScanBatch((prev) => prev.slice(0, -1));
+  }, []);
+
+  const handleLabBatchConfirm = useCallback(() => {
     void (async () => {
-      const last = labScanBatch[labScanBatch.length - 1];
-      if (!last?.ok || last.already) {
-        setLabScanBatch((prev) => prev.slice(0, -1));
+      const snapshot = labScanBatch;
+      const toMove = snapshot.filter((i) => i.ok && !i.already);
+      if (toMove.length === 0) {
+        setLabScanBatch([]);
+        return;
+      }
+      if (labScanMode !== 'saida' && labScanMode !== 'retorno') {
+        setLabScanBatch([]);
         return;
       }
       setLabScanBatchConfirming(true);
       const actorName =
         authSession?.displayName ?? authSession?.username ?? 'Usuário';
       const actorUserId = authSession?.userId ?? null;
+      const failures: string[] = [];
       try {
-        // Desfaz invertendo o movimento
-        if (labScanMode === 'saida') {
-          await registerOficinaRetorno(last.id, { actorName, actorUserId, force: true });
-        } else if (labScanMode === 'retorno') {
-          await registerOficinaSaida(last.id, { actorName, actorUserId, force: true });
+        for (const item of toMove) {
+          try {
+            if (labScanMode === 'saida') {
+              await registerOficinaSaida(item.id, { actorName, actorUserId });
+            } else {
+              await registerOficinaRetorno(item.id, { actorName, actorUserId });
+            }
+          } catch (err: unknown) {
+            const e = err as Error & { already?: boolean };
+            if (e.already) continue;
+            failures.push(
+              `${item.label || item.id.slice(0, 8)}: ${
+                e instanceof Error ? e.message : 'falha na movimentação'
+              }`
+            );
+          }
         }
-        setLabScanBatch((prev) => prev.slice(0, -1));
-      } catch (err: unknown) {
-        window.alert(err instanceof Error ? err.message : 'Não foi possível desfazer.');
+        setLabScanBatch([]);
+        if (failures.length > 0) {
+          window.alert(
+            failures.length === 1
+              ? `Não foi possível confirmar 1 peça:\n${failures[0]}`
+              : `Não foi possível confirmar ${failures.length} peças:\n${failures.join('\n')}`
+          );
+        }
       } finally {
         setLabScanBatchConfirming(false);
       }
@@ -1534,10 +1574,6 @@ export default function App() {
     labScanBatch,
     labScanMode,
   ]);
-
-  const handleLabBatchConfirm = useCallback(() => {
-    setLabScanBatch([]);
-  }, []);
 
   useBarcodeWedgeListener({
     enabled: Boolean(authSession),
