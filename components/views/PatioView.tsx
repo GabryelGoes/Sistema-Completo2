@@ -4128,11 +4128,9 @@ export const PatioView: React.FC<PatioViewProps> = ({
     return () => { cancelled = true; };
   }, [isAppTabActive]);
 
-  // Estado do checklist: modal do checklist ou preview na sidebar PC da OS
+  // Estado do checklist: só quando o modal de checklist está aberto
   useEffect(() => {
-    const orderId =
-      activeChecklistCardId ||
-      (isPatioPcModal && selectedCard?.id ? selectedCard.id : null);
+    const orderId = activeChecklistCardId;
     if (!orderId) {
       setChecklistState({});
       return;
@@ -4144,7 +4142,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
       .catch(() => { if (!cancelled) setChecklistState({}); })
       .finally(() => { if (!cancelled) setChecklistStateLoading(false); });
     return () => { cancelled = true; };
-  }, [activeChecklistCardId, activeChecklistTemplateId, isPatioPcModal, selectedCard?.id]);
+  }, [activeChecklistCardId, activeChecklistTemplateId]);
 
   // Deriva o cartão ativo e o template ativo
   const activeChecklistCard = cards.find(c => c.id === activeChecklistCardId);
@@ -12829,7 +12827,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                data-os-comments-scroll=""
                                className={`${patioVehicleVm.commentsList} patio-vm-aside-comments-list os-comments-scroll !bg-[#E5DDD5]/55 dark:!bg-zinc-950/80 ${
                                  isPatioPcModal
-                                   ? 'max-h-[min(50.4vh,26.4rem)] overflow-y-auto overscroll-contain custom-scrollbar xl:max-h-[min(55.2vh,28.8rem)]'
+                                   ? 'max-h-[min(62vh,34rem)] overflow-y-auto overscroll-contain custom-scrollbar xl:max-h-[min(68vh,38rem)]'
                                    : 'max-h-[min(40vh,18rem)] overflow-y-auto overscroll-contain custom-scrollbar sm:max-h-[min(42vh,19rem)]'
                                }`}
                              >
@@ -12975,60 +12973,6 @@ export const PatioView: React.FC<PatioViewProps> = ({
                               onOpen={() => setEntryInspectionOpen(true)}
                             />
                           </div>
-                        ) : null}
-
-                        {isPatioPcModal ? (
-                         <div className={`${vi} patio-vm-aside-section patio-vm-aside-checklists min-w-0 overflow-hidden shadow-none`}>
-                             <div className="patio-vm-aside-section-head relative flex items-center justify-between gap-2 border-b border-black/[0.06] bg-white/85 px-2.5 py-2 pl-3 backdrop-blur-[2px] dark:border-white/[0.08] dark:bg-zinc-950/35 sm:gap-3 sm:px-3 sm:py-2.5 sm:pl-4">
-                               <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-2.5">
-                                 <div className={uiOsModalSectionAppIcon}>
-                                   <img src="/icons/checklist-patio-ios.png" alt="" className="h-full w-full object-cover" />
-                                 </div>
-                                 <p className={uiOsModalCardSectionTitle}>Checklists</p>
-                               </div>
-                             </div>
-                             {checklistTemplates.length === 0 ? (
-                               <p className="px-3 py-4 text-sm text-zinc-600 dark:text-zinc-400 sm:px-4">
-                                 Nenhum checklist configurado. Crie na página inicial em Administração → Checklists do Pátio.
-                               </p>
-                             ) : (
-                               <div className="divide-y divide-zinc-200/70 dark:divide-white/[0.07]">
-                                 {checklistTemplates.map((tpl) => {
-                                   const total = tpl.items.length;
-                                   const done = tpl.items.filter(
-                                     (i) => (checklistState[i.id] ?? 'incomplete') === 'complete'
-                                   ).length;
-                                   return (
-                                   <button
-                                     key={tpl.id}
-                                     type="button"
-                                     onClick={() => { setActiveChecklistCardId(selectedCard.id); setActiveChecklistTemplateId(tpl.id); }}
-                                     className="patio-vm-aside-checklist-row group flex w-full items-center gap-3 px-3 py-3.5 text-left transition-[background-color,transform] duration-150 ease-out hover:bg-[#007AFF]/[0.06] active:scale-[0.99] dark:hover:bg-white/[0.04] sm:px-4"
-                                   >
-                                     <Circle
-                                       className="h-5 w-5 shrink-0 text-zinc-400 group-hover:text-[#007AFF] dark:text-zinc-500 dark:group-hover:text-[#7ab8ff]"
-                                       strokeWidth={1.75}
-                                       aria-hidden
-                                     />
-                                     <div className="min-w-0 flex-1">
-                                       <p className="truncate text-[14px] font-semibold text-zinc-900 dark:text-white">
-                                         {tpl.name}
-                                       </p>
-                                       <p className="text-[12px] tabular-nums text-zinc-500 dark:text-zinc-400">
-                                         {done}/{total}
-                                       </p>
-                                     </div>
-                                     <ChevronRight
-                                       className="h-4 w-4 shrink-0 text-zinc-400 group-hover:text-[#007AFF] dark:text-zinc-500"
-                                       strokeWidth={2.25}
-                                       aria-hidden
-                                     />
-                                   </button>
-                                   );
-                                 })}
-                               </div>
-                             )}
-                         </div>
                         ) : null}
 
                       </div>
