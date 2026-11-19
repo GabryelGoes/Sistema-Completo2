@@ -254,8 +254,8 @@ export function LabScanBatchPanel({
               {title}
             </h2>
             <p className="mt-1 text-[13px] text-zinc-500 dark:text-zinc-400">
-              {displayItems.length} peça{displayItems.length === 1 ? '' : 's'} no lote · continue
-              bipando ou confirme
+              {displayItems.length} peça{displayItems.length === 1 ? '' : 's'} no lote · a
+              localização só muda ao confirmar
             </p>
           </div>
 
