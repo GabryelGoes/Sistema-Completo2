@@ -8054,7 +8054,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
 
         const renderPatioBoardCard = (card: TrelloCard, trelloDrag: boolean) => {
           const titleParts = parsePatioCardTitle(card.name);
-          const model = titleParts.vehicle || card.name;
+          const model = firstTwoNames(titleParts.vehicle || card.name);
           const plate = isModuleMode ? '' : (titleParts.plateOrModule || '---');
           const customerName = titleParts.customer || '';
           

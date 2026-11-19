@@ -14,6 +14,7 @@ import {
 } from './labelTemplates';
 import { NIIMBOT_LABEL_H_PX, NIIMBOT_LABEL_W_PX } from './niimbotLabelRender';
 import type { PatioKeyLabelInput } from './patioKeyLabelRender';
+import { firstTwoNames } from './personNameFormat';
 
 /** SVG-base versionado (espelho de assets/labels/etiqueta_chaves_BASE_50x30.svg). */
 export const chaveBaseSvg = CHAVE_LABEL_BASE_SVG;
@@ -84,13 +85,6 @@ function cleanSpaces(raw: string): string {
     .trim();
 }
 
-/** No máximo 2 nomes (tokens) para caber na etiqueta de chaves. */
-export function firstTwoNames(raw: string): string {
-  const parts = cleanSpaces(raw).split(' ').filter(Boolean);
-  if (parts.length === 0) return '';
-  return parts.slice(0, 2).join(' ');
-}
-
 /** Placa: preserva caracteres da OS; só normaliza espaços e caixa. Sem forçar Mercosul. */
 export function formatChaveLabelPlate(raw: string): string {
   const t = cleanSpaces(raw).toLocaleUpperCase('pt-BR');
@@ -98,7 +92,7 @@ export function formatChaveLabelPlate(raw: string): string {
 }
 
 export function formatChaveLabelModelo(raw: string): string {
-  return firstTwoNames(raw).toLocaleUpperCase('pt-BR') || '—';
+  return firstTwoNames(cleanSpaces(raw)).toLocaleUpperCase('pt-BR') || '—';
 }
 
 export function formatChaveLabelCor(raw: string): string {
