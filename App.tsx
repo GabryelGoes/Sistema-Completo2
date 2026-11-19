@@ -1446,8 +1446,8 @@ export default function App() {
               await appendLabBatchFromScan(osId, null, {
                 feedback:
                   e.location?.kind === 'deposito' && e.location.value
-                    ? `Já no laboratório · ${e.location.value}`
-                    : e.message || 'Já no destino',
+                    ? `Módulo já no laboratório · compartimento ${e.location.value}`
+                    : e.message || 'Módulo já está no laboratório',
                 ok: true,
                 already: true,
               });
@@ -1476,8 +1476,8 @@ export default function App() {
               await appendLabBatchFromScan(osId, null, {
                 feedback:
                   e.location?.kind === 'oficina' && e.location.value
-                    ? `Já na oficina · ${e.location.value}`
-                    : e.message || 'Já no destino',
+                    ? `Módulo já no pátio · ${e.location.value}`
+                    : e.message || 'Módulo já está no pátio',
                 ok: true,
                 already: true,
               });
