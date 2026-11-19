@@ -113,6 +113,27 @@ export type LabelPecasOptions = {
   fieldIconSize: number;
 };
 
+/** Âncora do texto SVG na etiqueta de chaves (−90°). */
+export type LabelChaveSvgAnchor = 'start' | 'middle' | 'end';
+
+/** Layout editável de um campo no SVG-base de chaves (unidades do viewBox 500×300). */
+export type LabelChaveSvgFieldLayout = {
+  /** Deslocamento perpendicular ao texto (eixo X da face). */
+  offsetX: number;
+  /** Deslocamento ao longo do texto (eixo Y da face). */
+  offsetY: number;
+  fontSize: number;
+  maxWidth: number;
+  anchor: LabelChaveSvgAnchor;
+};
+
+export type LabelChaveSvgFieldKey = 'modelo' | 'cor' | 'cliente' | 'placa';
+
+/** Opções do editor SVG da etiqueta de chaves. */
+export type LabelChaveSvgOptions = {
+  fields: Record<LabelChaveSvgFieldKey, LabelChaveSvgFieldLayout>;
+};
+
 export type LabelTemplateLayout = {
   id: LabelTemplateId;
   version: number;
@@ -121,6 +142,7 @@ export type LabelTemplateLayout = {
   elements: LabelElementDef[];
   keyOptions?: LabelKeyOptions;
   pecasOptions?: LabelPecasOptions;
+  chaveSvgOptions?: LabelChaveSvgOptions;
 };
 
 export const LABEL_TEMPLATE_META: Array<{
@@ -380,11 +402,48 @@ export function createDefaultEstoqueTemplate(): LabelTemplateLayout {
   };
 }
 
+export function createDefaultChaveSvgOptions(): LabelChaveSvgOptions {
+  return {
+    fields: {
+      modelo: { offsetX: 0, offsetY: 0, fontSize: 26, maxWidth: 240, anchor: 'middle' },
+      cor: { offsetX: 0, offsetY: 0, fontSize: 20, maxWidth: 220, anchor: 'middle' },
+      cliente: { offsetX: 0, offsetY: 0, fontSize: 16, maxWidth: 256, anchor: 'middle' },
+      placa: { offsetX: 0, offsetY: 0, fontSize: 24, maxWidth: 177, anchor: 'middle' },
+    },
+  };
+}
+
+function normalizeChaveSvgAnchor(v: unknown, fallback: LabelChaveSvgAnchor): LabelChaveSvgAnchor {
+  return v === 'start' || v === 'middle' || v === 'end' ? v : fallback;
+}
+
+export function normalizeChaveSvgOptions(
+  raw: Partial<LabelChaveSvgOptions> | undefined,
+  fallback: LabelChaveSvgOptions = createDefaultChaveSvgOptions()
+): LabelChaveSvgOptions {
+  const srcFields = raw?.fields ?? {};
+  const out = createDefaultChaveSvgOptions();
+  (Object.keys(out.fields) as LabelChaveSvgFieldKey[]).forEach((key) => {
+    const fb = fallback.fields[key];
+    const src = (srcFields as Partial<Record<LabelChaveSvgFieldKey, Partial<LabelChaveSvgFieldLayout>>>)[
+      key
+    ];
+    out.fields[key] = {
+      offsetX: clamp(Math.round(Number(src?.offsetX ?? fb.offsetX)), -40, 40),
+      offsetY: clamp(Math.round(Number(src?.offsetY ?? fb.offsetY)), -60, 60),
+      fontSize: clamp(Math.round(Number(src?.fontSize ?? fb.fontSize)), 8, 48),
+      maxWidth: clamp(Math.round(Number(src?.maxWidth ?? fb.maxWidth)), 40, 280),
+      anchor: normalizeChaveSvgAnchor(src?.anchor ?? fb.anchor, fb.anchor),
+    };
+  });
+  return out;
+}
+
 export function createDefaultChaveTemplate(): LabelTemplateLayout {
-  // Coordenadas no bloco vertical (240 × ~191) — a impressão rotaciona o par de faces.
+  // SVG-base fixo (v4+): chaveSvgOptions alinha textos no template.
   return {
     id: 'chave',
-    version: 3,
+    version: 4,
     canvasW: LABEL_W,
     canvasH: LABEL_H,
     keyOptions: {
@@ -398,6 +457,7 @@ export function createDefaultChaveTemplate(): LabelTemplateLayout {
       offsetY: 0,
       mercosulPlate: true,
     },
+    chaveSvgOptions: createDefaultChaveSvgOptions(),
     elements: [
       el({
         id: 'customer',
@@ -1069,7 +1129,7 @@ export function normalizeLabelTemplate(
       id === 'abs_modulo'
         ? Math.max(Number(raw?.version) || 0, Number(def.version) || 5)
         : id === 'chave'
-          ? Math.max(Number(raw?.version) || 0, Number(def.version) || 3)
+          ? Math.max(Number(raw?.version) || 0, Number(def.version) || 4)
           : id === 'pecas_os'
             ? Math.max(Number(raw?.version) || 0, Number(def.version) || 3)
             : 1,
@@ -1083,6 +1143,13 @@ export function normalizeLabelTemplate(
     pecasOptions:
       id === 'pecas_os'
         ? normalizePecasOptions(raw?.pecasOptions, def.pecasOptions ?? createDefaultPecasOptions())
+        : undefined,
+    chaveSvgOptions:
+      id === 'chave'
+        ? normalizeChaveSvgOptions(
+            raw?.chaveSvgOptions,
+            def.chaveSvgOptions ?? createDefaultChaveSvgOptions()
+          )
         : undefined,
   };
 }

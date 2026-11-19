@@ -387,10 +387,14 @@ function renderKeyBlock(
  */
 export async function renderPatioKeyLabelDataUrl(
   input: PatioKeyLabelInput,
-  _styleOrLayout?: Partial<PatioKeyLabelStyle> | LabelTemplateLayout | null
+  styleOrLayout?: Partial<PatioKeyLabelStyle> | LabelTemplateLayout | null
 ): Promise<string> {
   const { renderChaveLabelFromSvg } = await import('./chaveLabelSvg');
-  const { dataUrl } = await renderChaveLabelFromSvg(input);
+  const layout =
+    styleOrLayout && 'elements' in styleOrLayout && Array.isArray(styleOrLayout.elements)
+      ? (styleOrLayout as LabelTemplateLayout)
+      : loadLabelTemplate('chave');
+  const { dataUrl } = await renderChaveLabelFromSvg(input, layout);
   return dataUrl;
 }
 

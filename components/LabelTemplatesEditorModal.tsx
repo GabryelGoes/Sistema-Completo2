@@ -23,12 +23,17 @@ import {
   LABEL_PECAS_SIDEBAR_ICONS,
   LABEL_SAMPLE_DATA,
   LABEL_TEMPLATE_META,
+  createDefaultChaveSvgOptions,
   createDefaultPecasOptions,
   createDefaultTemplate,
   cssFontForElement,
   loadAllLabelTemplates,
+  normalizeChaveSvgOptions,
   normalizeLabelTemplate,
   normalizePecasOptions,
+  type LabelChaveSvgAnchor,
+  type LabelChaveSvgFieldKey,
+  type LabelChaveSvgOptions,
   type LabelElementDef,
   type LabelFontFamily,
   type LabelFontWeight,
@@ -485,6 +490,10 @@ export function LabelTemplatesEditorModal({
     layout.pecasOptions,
     createDefaultPecasOptions()
   );
+  const chaveSvgOpts = normalizeChaveSvgOptions(
+    layout.chaveSvgOptions,
+    createDefaultChaveSvgOptions()
+  );
   const patchPecasOptions = (partial: Partial<LabelPecasOptions>) => {
     patchLayout({
       pecasOptions: normalizePecasOptions(
@@ -498,6 +507,20 @@ export function LabelTemplatesEditorModal({
     partial: Partial<LabelElementDef>
   ) => {
     patchElement(id, partial);
+  };
+  const patchChaveSvgField = (
+    field: LabelChaveSvgFieldKey,
+    partial: Partial<LabelChaveSvgOptions['fields'][LabelChaveSvgFieldKey]>
+  ) => {
+    const next: LabelChaveSvgOptions = {
+      fields: {
+        ...chaveSvgOpts.fields,
+        [field]: { ...chaveSvgOpts.fields[field], ...partial },
+      },
+    };
+    patchLayout({
+      chaveSvgOptions: normalizeChaveSvgOptions(next, createDefaultChaveSvgOptions()),
+    });
   };
   const overlayElements = layout.elements.filter((e) => e.visible);
 
@@ -697,11 +720,11 @@ export function LabelTemplatesEditorModal({
               {isChaveSvg ? (
                 <div className="space-y-1.5 rounded-xl bg-zinc-50 px-3 py-2.5 dark:bg-white/[0.04]">
                   <p className="text-[11px] font-bold uppercase tracking-wide text-zinc-500">
-                    SVG-base fixo
+                    Editor de alinhamento
                   </p>
                   <p className="text-[12px] leading-snug text-zinc-600 dark:text-zinc-300">
-                    Template versionado em assets/labels/etiqueta_chaves_BASE_50x30.svg. A prévia
-                    usa o mesmo arquivo preenchido com dados de exemplo.
+                    Modelo e cor na faixa preta (texto branco). Cliente na coluna. Placa na moldura.
+                    Ajuste offsets e tamanho à direita.
                   </p>
                 </div>
               ) : isPecasOs ? (
@@ -752,19 +775,125 @@ export function LabelTemplatesEditorModal({
             {/* Painel de propriedades */}
             <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-5 py-4 custom-scrollbar sm:px-6">
               {isChaveSvg ? (
-                <div className="space-y-3 rounded-2xl border-0 bg-zinc-50 p-3.5 dark:bg-white/[0.03] sm:p-4">
-                  <p className="text-[11px] font-bold uppercase tracking-wide text-zinc-500">
-                    Etiqueta de chaves (SVG fixo)
-                  </p>
-                  <p className="text-[13px] leading-relaxed text-zinc-700 dark:text-zinc-200">
-                    A arte (faixas, separadores e moldura da placa) vem do arquivo SVG-base. Na
-                    impressão, o sistema preenche modelo, cor, cliente (com prefixo “Cliente: ”) e
-                    placa nas duas faces, com textos a −90°, e rasteriza em 384×240 para a Niimbot.
-                  </p>
-                  <p className="text-[12px] text-zinc-500">
-                    Arquivo: assets/labels/etiqueta_chaves_BASE_50x30.svg
-                  </p>
-                </div>
+                <>
+                  {(
+                    [
+                      {
+                        key: 'modelo' as const,
+                        title: 'Modelo (faixa preta · branco)',
+                        hint: 'Nome do veículo dentro do campo preto',
+                      },
+                      {
+                        key: 'cor' as const,
+                        title: 'Cor (faixa preta · branco)',
+                        hint: 'Cor do veículo dentro do campo preto',
+                      },
+                      {
+                        key: 'cliente' as const,
+                        title: 'Cliente (coluna branca)',
+                        hint: 'Prefixo “Cliente: ” + nome',
+                      },
+                      {
+                        key: 'placa' as const,
+                        title: 'Placa (moldura)',
+                        hint: 'Caracteres da OS, sem forçar Mercosul',
+                      },
+                    ] as const
+                  ).map((section) => {
+                    const f = chaveSvgOpts.fields[section.key];
+                    return (
+                      <div
+                        key={section.key}
+                        className="space-y-3 rounded-2xl border-0 bg-zinc-50 p-3.5 dark:bg-white/[0.03] sm:p-4"
+                      >
+                        <div>
+                          <p className="text-[11px] font-bold uppercase tracking-wide text-zinc-500">
+                            {section.title}
+                          </p>
+                          <p className="mt-0.5 text-[12px] text-zinc-500">{section.hint}</p>
+                        </div>
+                        <Stepper
+                          label="Offset X (coluna)"
+                          value={f.offsetX}
+                          display={`${f.offsetX} px`}
+                          onDec={() =>
+                            patchChaveSvgField(section.key, { offsetX: f.offsetX - 1 })
+                          }
+                          onInc={() =>
+                            patchChaveSvgField(section.key, { offsetX: f.offsetX + 1 })
+                          }
+                        />
+                        <Stepper
+                          label="Offset Y (ao longo do texto)"
+                          value={f.offsetY}
+                          display={`${f.offsetY} px`}
+                          onDec={() =>
+                            patchChaveSvgField(section.key, { offsetY: f.offsetY - 1 })
+                          }
+                          onInc={() =>
+                            patchChaveSvgField(section.key, { offsetY: f.offsetY + 1 })
+                          }
+                        />
+                        <Stepper
+                          label="Tamanho da fonte"
+                          value={f.fontSize}
+                          display={`${f.fontSize} px`}
+                          onDec={() =>
+                            patchChaveSvgField(section.key, { fontSize: f.fontSize - 1 })
+                          }
+                          onInc={() =>
+                            patchChaveSvgField(section.key, { fontSize: f.fontSize + 1 })
+                          }
+                        />
+                        <Stepper
+                          label="Largura máxima"
+                          value={f.maxWidth}
+                          display={`${f.maxWidth} u`}
+                          onDec={() =>
+                            patchChaveSvgField(section.key, { maxWidth: f.maxWidth - 4 })
+                          }
+                          onInc={() =>
+                            patchChaveSvgField(section.key, { maxWidth: f.maxWidth + 4 })
+                          }
+                        />
+                        <Segmented<LabelChaveSvgAnchor>
+                          label="Alinhamento do texto"
+                          value={f.anchor}
+                          onChange={(anchor) => patchChaveSvgField(section.key, { anchor })}
+                          options={[
+                            {
+                              value: 'start',
+                              label: 'Início',
+                              icon: <AlignLeft className="h-3.5 w-3.5" />,
+                            },
+                            {
+                              value: 'middle',
+                              label: 'Centro',
+                              icon: <AlignCenter className="h-3.5 w-3.5" />,
+                            },
+                            {
+                              value: 'end',
+                              label: 'Fim',
+                              icon: <AlignRight className="h-3.5 w-3.5" />,
+                            },
+                          ]}
+                        />
+                      </div>
+                    );
+                  })}
+                  <button
+                    type="button"
+                    onClick={() =>
+                      patchLayout({
+                        chaveSvgOptions: createDefaultChaveSvgOptions(),
+                      })
+                    }
+                    className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl bg-zinc-100 px-3 py-2.5 text-[13px] font-semibold text-zinc-800 hover:bg-zinc-200 dark:bg-white/10 dark:text-zinc-100"
+                  >
+                    <RotateCcw className="h-3.5 w-3.5" />
+                    Resetar alinhamentos padrão
+                  </button>
+                </>
               ) : isPecasOs ? (
                 <>
                   <div className="space-y-3 rounded-2xl border-0 bg-zinc-50 p-3.5 dark:bg-white/[0.03] sm:p-4">

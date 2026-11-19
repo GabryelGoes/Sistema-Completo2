@@ -2,53 +2,41 @@
   "dimensions": {
     "width_mm": 50,
     "height_mm": 30,
-    "viewBox": [
-      0,
-      0,
-      500,
-      300
-    ],
+    "viewBox": [0, 0, 500, 300],
     "face_width_mm": 25,
     "fold_line_x": 250,
     "dpi_reference": 203,
-    "bitmap_reference_px": [
-      400,
-      240
-    ]
+    "bitmap_reference_px": [400, 240]
   },
-  "source": "SVG-base é a arte fixa; os textos variáveis são preenchidos via DOM SVG ou composição equivalente. Não usar a imagem de exemplo como fundo.",
+  "source": "SVG-base é a arte fixa; modelo/cor vão na faixa preta (texto branco); cliente na coluna branca; placa na moldura. Não usar a imagem de exemplo como fundo.",
   "fields": {
     "modelo": {
-      "ids": [
-        "modelo-1",
-        "modelo-2"
-      ],
+      "ids": ["modelo-1", "modelo-2"],
       "source": "OS: modelo",
-      "maxWidthSvgUnits": 252
+      "region": "faixa_preta",
+      "fill": "white",
+      "maxWidthSvgUnits": 240
     },
     "cor": {
-      "ids": [
-        "cor-1",
-        "cor-2"
-      ],
+      "ids": ["cor-1", "cor-2"],
       "source": "OS: cor",
-      "maxWidthSvgUnits": 236
+      "region": "faixa_preta",
+      "fill": "white",
+      "maxWidthSvgUnits": 220
     },
     "cliente": {
-      "ids": [
-        "cliente-1",
-        "cliente-2"
-      ],
+      "ids": ["cliente-1", "cliente-2"],
       "source": "OS: nome do cliente",
+      "region": "coluna_cliente",
       "prefix": "Cliente: ",
+      "fill": "black",
       "maxWidthSvgUnits": 256
     },
     "placa": {
-      "ids": [
-        "placa-1",
-        "placa-2"
-      ],
+      "ids": ["placa-1", "placa-2"],
       "source": "OS: placa",
+      "region": "moldura_placa",
+      "fill": "black",
       "maxWidthSvgUnits": 177
     }
   },
