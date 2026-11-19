@@ -8,21 +8,21 @@
     "dpi_reference": 203,
     "bitmap_reference_px": [400, 240]
   },
-  "source": "SVG-base é a arte fixa; modelo/cor vão na faixa preta (texto branco); cliente na coluna branca; placa na moldura. Não usar a imagem de exemplo como fundo.",
+  "source": "SVG-base: faixa preta ampliada (modelo/cor em branco); placa menor; cliente na coluna. Não usar a imagem de exemplo como fundo.",
   "fields": {
     "modelo": {
       "ids": ["modelo-1", "modelo-2"],
       "source": "OS: modelo",
       "region": "faixa_preta",
       "fill": "white",
-      "maxWidthSvgUnits": 240
+      "maxWidthSvgUnits": 248
     },
     "cor": {
       "ids": ["cor-1", "cor-2"],
       "source": "OS: cor",
       "region": "faixa_preta",
       "fill": "white",
-      "maxWidthSvgUnits": 220
+      "maxWidthSvgUnits": 236
     },
     "cliente": {
       "ids": ["cliente-1", "cliente-2"],
@@ -30,14 +30,14 @@
       "region": "coluna_cliente",
       "prefix": "Cliente: ",
       "fill": "black",
-      "maxWidthSvgUnits": 256
+      "maxWidthSvgUnits": 248
     },
     "placa": {
       "ids": ["placa-1", "placa-2"],
       "source": "OS: placa",
       "region": "moldura_placa",
       "fill": "black",
-      "maxWidthSvgUnits": 177
+      "maxWidthSvgUnits": 150
     }
   },
   "printing": "Reutilizar pipeline existente. Renderizar SVG para bitmap monocromático sem alterar escala/aspecto. Testar orientação física no chaveiro e espelhamento se exigido pelo suporte."

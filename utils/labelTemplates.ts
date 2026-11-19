@@ -405,10 +405,11 @@ export function createDefaultEstoqueTemplate(): LabelTemplateLayout {
 export function createDefaultChaveSvgOptions(): LabelChaveSvgOptions {
   return {
     fields: {
-      modelo: { offsetX: 0, offsetY: 0, fontSize: 26, maxWidth: 240, anchor: 'middle' },
-      cor: { offsetX: 0, offsetY: 0, fontSize: 20, maxWidth: 220, anchor: 'middle' },
-      cliente: { offsetX: 0, offsetY: 0, fontSize: 16, maxWidth: 256, anchor: 'middle' },
-      placa: { offsetX: 0, offsetY: 0, fontSize: 24, maxWidth: 177, anchor: 'middle' },
+      // Faixa preta ampliada — tipografia maior para evidenciar veículo/cor.
+      modelo: { offsetX: 0, offsetY: 0, fontSize: 30, maxWidth: 248, anchor: 'middle' },
+      cor: { offsetX: 0, offsetY: 0, fontSize: 22, maxWidth: 236, anchor: 'middle' },
+      cliente: { offsetX: 0, offsetY: 0, fontSize: 15, maxWidth: 248, anchor: 'middle' },
+      placa: { offsetX: 0, offsetY: 0, fontSize: 20, maxWidth: 150, anchor: 'middle' },
     },
   };
 }
@@ -440,10 +441,10 @@ export function normalizeChaveSvgOptions(
 }
 
 export function createDefaultChaveTemplate(): LabelTemplateLayout {
-  // SVG-base fixo (v4+): chaveSvgOptions alinha textos no template.
+  // SVG-base fixo (v5+): faixa preta ampliada + placa menor.
   return {
     id: 'chave',
-    version: 4,
+    version: 5,
     canvasW: LABEL_W,
     canvasH: LABEL_H,
     keyOptions: {
@@ -1129,7 +1130,7 @@ export function normalizeLabelTemplate(
       id === 'abs_modulo'
         ? Math.max(Number(raw?.version) || 0, Number(def.version) || 5)
         : id === 'chave'
-          ? Math.max(Number(raw?.version) || 0, Number(def.version) || 4)
+          ? Math.max(Number(raw?.version) || 0, Number(def.version) || 5)
           : id === 'pecas_os'
             ? Math.max(Number(raw?.version) || 0, Number(def.version) || 3)
             : 1,

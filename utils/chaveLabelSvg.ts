@@ -69,9 +69,9 @@ export const CHAVE_FIELD_BASE_POS: Record<
   ChaveLabelFieldKey,
   { x: number; y: number; onBlack: boolean }
 > = {
-  modelo: { x: 38, y: 150, onBlack: true },
-  cor: { x: 62, y: 150, onBlack: true },
-  cliente: { x: 120, y: 150, onBlack: false },
+  modelo: { x: 42, y: 150, onBlack: true },
+  cor: { x: 74, y: 150, onBlack: true },
+  cliente: { x: 138, y: 150, onBlack: false },
   placa: { x: 206, y: 150, onBlack: false },
 };
 
