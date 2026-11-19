@@ -8,9 +8,9 @@
   data-bitmap-reference="384x240">
   <!--
     Arte fixa da etiqueta de chaves Niimbot 50×30 mm (duas faces 25×30).
-    - modelo/cor: faixa preta ampliada, texto branco
-    - cliente: coluna branca entre faixa e placa
-    - placa: moldura Mercosul menor para dar destaque ao veículo
+    - modelo/cor: faixa preta, texto branco
+    - cliente: coluna branca ampliada
+    - placa: moldura menor, mais perto da borda da face
     Textos rotacionados -90°. Preencher só via textContent.
   -->
   <defs>
@@ -48,31 +48,30 @@
 
   <!-- FACE 1 -->
   <g id="art-face-1">
-    <!-- Faixa preta ampliada: modelo + cor -->
     <rect id="faixa-preta-1" x="12" y="14" width="102" height="272" rx="12" ry="12" fill="#000000"/>
-    <!-- Separadores da coluna do cliente -->
-    <line x1="124" y1="28" x2="124" y2="272" stroke="#000000" stroke-width="2"/>
-    <line x1="152" y1="28" x2="152" y2="272" stroke="#000000" stroke-width="2"/>
-    <!-- Moldura da placa (menor) -->
-    <rect x="160" y="40" width="68" height="220" rx="9" ry="9"
+    <!-- Coluna do cliente ampliada -->
+    <line x1="122" y1="28" x2="122" y2="272" stroke="#000000" stroke-width="2"/>
+    <line x1="176" y1="28" x2="176" y2="272" stroke="#000000" stroke-width="2"/>
+    <!-- Placa mais perto da borda da face (dobra) -->
+    <rect x="184" y="48" width="58" height="208" rx="8" ry="8"
       fill="#ffffff" stroke="#000000" stroke-width="3"/>
-    <rect x="164" y="46" width="14" height="208" rx="2.5" ry="2.5" fill="#000000"/>
-    <circle cx="171" cy="58" r="2.6" fill="#ffffff"/>
-    <circle cx="171" cy="236" r="2.6" fill="#ffffff"/>
-    <text class="chave-brasil" transform="rotate(-90 171 150)" x="171" y="150">BRASIL</text>
+    <rect x="188" y="54" width="12" height="196" rx="2" ry="2" fill="#000000"/>
+    <circle cx="194" cy="66" r="2.4" fill="#ffffff"/>
+    <circle cx="194" cy="238" r="2.4" fill="#ffffff"/>
+    <text class="chave-brasil" transform="rotate(-90 194 152)" x="194" y="152">BRASIL</text>
   </g>
 
   <!-- FACE 2 -->
   <g id="art-face-2">
     <rect id="faixa-preta-2" x="262" y="14" width="102" height="272" rx="12" ry="12" fill="#000000"/>
-    <line x1="374" y1="28" x2="374" y2="272" stroke="#000000" stroke-width="2"/>
-    <line x1="402" y1="28" x2="402" y2="272" stroke="#000000" stroke-width="2"/>
-    <rect x="410" y="40" width="68" height="220" rx="9" ry="9"
+    <line x1="372" y1="28" x2="372" y2="272" stroke="#000000" stroke-width="2"/>
+    <line x1="426" y1="28" x2="426" y2="272" stroke="#000000" stroke-width="2"/>
+    <rect x="434" y="48" width="58" height="208" rx="8" ry="8"
       fill="#ffffff" stroke="#000000" stroke-width="3"/>
-    <rect x="414" y="46" width="14" height="208" rx="2.5" ry="2.5" fill="#000000"/>
-    <circle cx="421" cy="58" r="2.6" fill="#ffffff"/>
-    <circle cx="421" cy="236" r="2.6" fill="#ffffff"/>
-    <text class="chave-brasil" transform="rotate(-90 421 150)" x="421" y="150">BRASIL</text>
+    <rect x="438" y="54" width="12" height="196" rx="2" ry="2" fill="#000000"/>
+    <circle cx="444" cy="66" r="2.4" fill="#ffffff"/>
+    <circle cx="444" cy="238" r="2.4" fill="#ffffff"/>
+    <text class="chave-brasil" transform="rotate(-90 444 152)" x="444" y="152">BRASIL</text>
   </g>
 
   <!-- Campos face 1 -->
@@ -82,9 +81,9 @@
     <text id="cor-1" data-field="cor"
       data-on-black="1" class="chave-field-on-black" fill="#ffffff" font-size="22" text-anchor="middle" data-max-width="236" x="74" y="150" transform="rotate(-90 74 150)">BRANCA</text>
     <text id="cliente-1" data-field="cliente"
-      class="chave-field" fill="#000000" font-size="15" text-anchor="middle" data-max-width="248" x="138" y="150" transform="rotate(-90 138 150)">Cliente: MECÂNICA LÍDER</text>
+      class="chave-field" fill="#000000" font-size="16" text-anchor="middle" data-max-width="248" x="149" y="150" transform="rotate(-90 149 150)">Cliente: MECÂNICA LÍDER</text>
     <text id="placa-1" data-field="placa"
-      class="chave-field" fill="#000000" font-size="20" text-anchor="middle" data-max-width="150" x="206" y="150" transform="rotate(-90 206 150)">JAW1941</text>
+      class="chave-field" fill="#000000" font-size="18" text-anchor="middle" data-max-width="140" x="222" y="152" transform="rotate(-90 222 152)">JAW1941</text>
   </g>
 
   <!-- Campos face 2 -->
@@ -94,8 +93,8 @@
     <text id="cor-2" data-field="cor"
       data-on-black="1" class="chave-field-on-black" fill="#ffffff" font-size="22" text-anchor="middle" data-max-width="236" x="324" y="150" transform="rotate(-90 324 150)">BRANCA</text>
     <text id="cliente-2" data-field="cliente"
-      class="chave-field" fill="#000000" font-size="15" text-anchor="middle" data-max-width="248" x="388" y="150" transform="rotate(-90 388 150)">Cliente: MECÂNICA LÍDER</text>
+      class="chave-field" fill="#000000" font-size="16" text-anchor="middle" data-max-width="248" x="399" y="150" transform="rotate(-90 399 150)">Cliente: MECÂNICA LÍDER</text>
     <text id="placa-2" data-field="placa"
-      class="chave-field" fill="#000000" font-size="20" text-anchor="middle" data-max-width="150" x="456" y="150" transform="rotate(-90 456 150)">JAW1941</text>
+      class="chave-field" fill="#000000" font-size="18" text-anchor="middle" data-max-width="140" x="472" y="152" transform="rotate(-90 472 152)">JAW1941</text>
   </g>
 </svg>

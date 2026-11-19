@@ -132,6 +132,8 @@ export type LabelChaveSvgFieldKey = 'modelo' | 'cor' | 'cliente' | 'placa';
 /** Opções do editor SVG da etiqueta de chaves. */
 export type LabelChaveSvgOptions = {
   fields: Record<LabelChaveSvgFieldKey, LabelChaveSvgFieldLayout>;
+  /** Se false, omite o prefixo “Cliente: ” no campo cliente. */
+  showClientePrefix: boolean;
 };
 
 export type LabelTemplateLayout = {
@@ -404,12 +406,13 @@ export function createDefaultEstoqueTemplate(): LabelTemplateLayout {
 
 export function createDefaultChaveSvgOptions(): LabelChaveSvgOptions {
   return {
+    showClientePrefix: true,
     fields: {
       // Faixa preta ampliada — tipografia maior para evidenciar veículo/cor.
       modelo: { offsetX: 0, offsetY: 0, fontSize: 30, maxWidth: 248, anchor: 'middle' },
       cor: { offsetX: 0, offsetY: 0, fontSize: 22, maxWidth: 236, anchor: 'middle' },
-      cliente: { offsetX: 0, offsetY: 0, fontSize: 15, maxWidth: 248, anchor: 'middle' },
-      placa: { offsetX: 0, offsetY: 0, fontSize: 20, maxWidth: 150, anchor: 'middle' },
+      cliente: { offsetX: 0, offsetY: 0, fontSize: 16, maxWidth: 248, anchor: 'middle' },
+      placa: { offsetX: 0, offsetY: 0, fontSize: 18, maxWidth: 140, anchor: 'middle' },
     },
   };
 }
@@ -424,6 +427,10 @@ export function normalizeChaveSvgOptions(
 ): LabelChaveSvgOptions {
   const srcFields = raw?.fields ?? {};
   const out = createDefaultChaveSvgOptions();
+  out.showClientePrefix =
+    typeof raw?.showClientePrefix === 'boolean'
+      ? raw.showClientePrefix
+      : fallback.showClientePrefix !== false;
   (Object.keys(out.fields) as LabelChaveSvgFieldKey[]).forEach((key) => {
     const fb = fallback.fields[key];
     const src = (srcFields as Partial<Record<LabelChaveSvgFieldKey, Partial<LabelChaveSvgFieldLayout>>>)[
@@ -441,10 +448,10 @@ export function normalizeChaveSvgOptions(
 }
 
 export function createDefaultChaveTemplate(): LabelTemplateLayout {
-  // SVG-base fixo (v5+): faixa preta ampliada + placa menor.
+  // SVG-base fixo (v6+): coluna do cliente ampliada + placa na borda.
   return {
     id: 'chave',
-    version: 5,
+    version: 6,
     canvasW: LABEL_W,
     canvasH: LABEL_H,
     keyOptions: {
@@ -1130,7 +1137,7 @@ export function normalizeLabelTemplate(
       id === 'abs_modulo'
         ? Math.max(Number(raw?.version) || 0, Number(def.version) || 5)
         : id === 'chave'
-          ? Math.max(Number(raw?.version) || 0, Number(def.version) || 5)
+          ? Math.max(Number(raw?.version) || 0, Number(def.version) || 6)
           : id === 'pecas_os'
             ? Math.max(Number(raw?.version) || 0, Number(def.version) || 3)
             : 1,

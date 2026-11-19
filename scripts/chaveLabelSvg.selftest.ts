@@ -51,6 +51,10 @@ ok('placa só limpa espaços', formatChaveLabelPlate('  abc 1d23 ') === 'ABC 1D2
 ok('modelo upper', formatChaveLabelModelo('wrangler') === 'WRANGLER');
 ok('cor upper', formatChaveLabelCor('branca') === 'BRANCA');
 ok('cliente com prefixo', formatChaveLabelCliente('Mecânica Líder') === 'Cliente: Mecânica Líder');
+ok(
+  'cliente sem prefixo',
+  formatChaveLabelCliente('Mecânica Líder', false) === 'Mecânica Líder'
+);
 
 const sample = resolveChaveLabelValues({
   vehicleModel: 'WRANGLER',
@@ -121,8 +125,27 @@ ok('modelo preenchido em branco', /id="modelo-1"[^>]*fill="#ffffff"/.test(filled
 ok('cor preenchida em branco', /id="cor-1"[^>]*fill="#ffffff"/.test(filled.svgMarkup));
 ok('cliente em preto', /id="cliente-1"[^>]*fill="#000000"/.test(filled.svgMarkup));
 ok('modelo na faixa ampliada (x=42)', /id="modelo-1"[^>]*x="42"/.test(filled.svgMarkup));
+ok('cliente na coluna ampliada', /id="cliente-1"[^>]*x="149"/.test(filled.svgMarkup));
 ok('faixa preta ampliada no SVG', /id="faixa-preta-1"[^>]*width="102"/.test(chaveBaseSvg));
-ok('placa menor no SVG', /width="68" height="220"/.test(chaveBaseSvg));
+ok('placa menor e na borda', /width="58" height="208"/.test(chaveBaseSvg));
+ok(
+  'sem título Cliente quando desligado',
+  textContentOf(
+    'cliente-1',
+    prepareChaveLabelSvgMarkupForTest(
+      {
+        vehicleModel: 'WRANGLER',
+        vehicleColor: 'BRANCA',
+        customerName: 'MECÂNICA LÍDER',
+        plate: 'JAW1941',
+      },
+      normalizeChaveSvgOptions({
+        ...createDefaultChaveSvgOptions(),
+        showClientePrefix: false,
+      })
+    ).svgMarkup
+  ) === 'MECÂNICA LÍDER'
+);
 
 const shifted = prepareChaveLabelSvgMarkupForTest(
   {
@@ -148,10 +171,11 @@ ok(
   /id="modelo-1"[^>]*x="46"/.test(shifted.svgMarkup) &&
     /id="modelo-1"[^>]*y="140"/.test(shifted.svgMarkup)
 );
+ok('showClientePrefix padrão true', createDefaultChaveSvgOptions().showClientePrefix === true);
 ok('fontSize do editor aplicado', /id="modelo-1"[^>]*font-size="32"/.test(shifted.svgMarkup));
 
 const tpl = createDefaultChaveTemplate();
-ok('template chave v5+', tpl.version >= 5 && !!tpl.chaveSvgOptions);
+ok('template chave v6+', tpl.version >= 6 && !!tpl.chaveSvgOptions);
 ok(
   'normalize injeta chaveSvgOptions',
   !!normalizeLabelTemplate('chave', { version: 3 }).chaveSvgOptions

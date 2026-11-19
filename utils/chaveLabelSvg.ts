@@ -71,8 +71,8 @@ export const CHAVE_FIELD_BASE_POS: Record<
 > = {
   modelo: { x: 42, y: 150, onBlack: true },
   cor: { x: 74, y: 150, onBlack: true },
-  cliente: { x: 138, y: 150, onBlack: false },
-  placa: { x: 206, y: 150, onBlack: false },
+  cliente: { x: 149, y: 150, onBlack: false },
+  placa: { x: 222, y: 152, onBlack: false },
 };
 
 const FACE2_DX = 250;
@@ -98,8 +98,14 @@ export function formatChaveLabelCor(raw: string): string {
   return cleanSpaces(raw).toLocaleUpperCase('pt-BR') || '—';
 }
 
-export function formatChaveLabelCliente(raw: string): string {
+export function formatChaveLabelCliente(
+  raw: string,
+  showPrefix = true
+): string {
   const name = cleanSpaces(raw);
+  if (!showPrefix) {
+    return name || '—';
+  }
   if (!name || name === '—') return 'Cliente: —';
   const prefix =
     typeof mapaCampos?.fields?.cliente?.prefix === 'string'
@@ -109,11 +115,15 @@ export function formatChaveLabelCliente(raw: string): string {
   return `${prefix}${name}`;
 }
 
-export function resolveChaveLabelValues(input: PatioKeyLabelInput): Record<ChaveLabelFieldKey, string> {
+export function resolveChaveLabelValues(
+  input: PatioKeyLabelInput,
+  options?: LabelChaveSvgOptions | null
+): Record<ChaveLabelFieldKey, string> {
+  const showPrefix = options?.showClientePrefix !== false;
   return {
     modelo: formatChaveLabelModelo(input.vehicleModel),
     cor: formatChaveLabelCor(input.vehicleColor),
-    cliente: formatChaveLabelCliente(input.customerName),
+    cliente: formatChaveLabelCliente(input.customerName, showPrefix),
     placa: formatChaveLabelPlate(input.plate),
   };
 }
@@ -280,7 +290,7 @@ export function prepareChaveLabelSvg(
     throw new Error('prepareChaveLabelSvg requer DOM (browser)');
   }
   const options = resolveChaveSvgOptions(layoutOrOptions);
-  const values = resolveChaveLabelValues(input);
+  const values = resolveChaveLabelValues(input, options);
   const { svg, cleanup } = mountSvg(chaveBaseSvg);
   const warnings: ChaveLabelFitWarning[] = [];
   try {
@@ -336,7 +346,7 @@ export function prepareChaveLabelSvgMarkupForTest(
   options: LabelChaveSvgOptions;
 } {
   const options = resolveChaveSvgOptions(layoutOrOptions ?? createDefaultChaveSvgOptions());
-  const values = resolveChaveLabelValues(input);
+  const values = resolveChaveLabelValues(input, options);
   let markup = String(chaveBaseSvg);
 
   (Object.keys(FIELD_IDS) as ChaveLabelFieldKey[]).forEach((field) => {
