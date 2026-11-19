@@ -9,8 +9,8 @@
   <!--
     Arte fixa da etiqueta de chaves Niimbot 50×30 mm (duas faces 25×30).
     - modelo/cor: faixa preta, texto branco
-    - cliente: coluna branca sem linhas de divisão
-    - placa: moldura ainda menor, perto da borda da face
+    - cliente: coluna branca ampliada
+    - placa: moldura menor, mais perto da borda da face
     Textos rotacionados -90°. Preencher só via textContent.
   -->
   <defs>
@@ -33,8 +33,8 @@
         fill: #ffffff;
         font-family: Arial, Helvetica, sans-serif;
         font-weight: 800;
-        font-size: 8px;
-        letter-spacing: 0.3px;
+        font-size: 9px;
+        letter-spacing: 0.4px;
         text-anchor: middle;
         dominant-baseline: middle;
       }
@@ -49,24 +49,29 @@
   <!-- FACE 1 -->
   <g id="art-face-1">
     <rect id="faixa-preta-1" x="12" y="14" width="102" height="272" rx="12" ry="12" fill="#000000"/>
-    <!-- Placa menor, mais perto da borda da face (dobra) -->
-    <rect x="192" y="56" width="50" height="192" rx="7" ry="7"
+    <!-- Coluna do cliente ampliada -->
+    <line x1="122" y1="28" x2="122" y2="272" stroke="#000000" stroke-width="2"/>
+    <line x1="176" y1="28" x2="176" y2="272" stroke="#000000" stroke-width="2"/>
+    <!-- Placa mais perto da borda da face (dobra) -->
+    <rect x="184" y="48" width="58" height="208" rx="8" ry="8"
       fill="#ffffff" stroke="#000000" stroke-width="3"/>
-    <rect x="195" y="61" width="11" height="182" rx="2" ry="2" fill="#000000"/>
-    <circle cx="200.5" cy="72" r="2.2" fill="#ffffff"/>
-    <circle cx="200.5" cy="232" r="2.2" fill="#ffffff"/>
-    <text class="chave-brasil" transform="rotate(-90 200.5 152)" x="200.5" y="152">BRASIL</text>
+    <rect x="188" y="54" width="12" height="196" rx="2" ry="2" fill="#000000"/>
+    <circle cx="194" cy="66" r="2.4" fill="#ffffff"/>
+    <circle cx="194" cy="238" r="2.4" fill="#ffffff"/>
+    <text class="chave-brasil" transform="rotate(-90 194 152)" x="194" y="152">BRASIL</text>
   </g>
 
   <!-- FACE 2 -->
   <g id="art-face-2">
     <rect id="faixa-preta-2" x="262" y="14" width="102" height="272" rx="12" ry="12" fill="#000000"/>
-    <rect x="442" y="56" width="50" height="192" rx="7" ry="7"
+    <line x1="372" y1="28" x2="372" y2="272" stroke="#000000" stroke-width="2"/>
+    <line x1="426" y1="28" x2="426" y2="272" stroke="#000000" stroke-width="2"/>
+    <rect x="434" y="48" width="58" height="208" rx="8" ry="8"
       fill="#ffffff" stroke="#000000" stroke-width="3"/>
-    <rect x="445" y="61" width="11" height="182" rx="2" ry="2" fill="#000000"/>
-    <circle cx="450.5" cy="72" r="2.2" fill="#ffffff"/>
-    <circle cx="450.5" cy="232" r="2.2" fill="#ffffff"/>
-    <text class="chave-brasil" transform="rotate(-90 450.5 152)" x="450.5" y="152">BRASIL</text>
+    <rect x="438" y="54" width="12" height="196" rx="2" ry="2" fill="#000000"/>
+    <circle cx="444" cy="66" r="2.4" fill="#ffffff"/>
+    <circle cx="444" cy="238" r="2.4" fill="#ffffff"/>
+    <text class="chave-brasil" transform="rotate(-90 444 152)" x="444" y="152">BRASIL</text>
   </g>
 
   <!-- Campos face 1 -->
@@ -76,9 +81,9 @@
     <text id="cor-1" class="chave-field-on-black" data-field="cor" data-max-width="236"
       data-on-black="1" transform="rotate(-90 74 150)" x="74" y="150" font-size="22"></text>
     <text id="cliente-1" class="chave-field" data-field="cliente" data-max-width="248"
-      transform="rotate(-90 153 150)" x="153" y="150" font-size="16"></text>
-    <text id="placa-1" class="chave-field" data-field="placa" data-max-width="124"
-      transform="rotate(-90 226 152)" x="226" y="152" font-size="17"></text>
+      transform="rotate(-90 149 150)" x="149" y="150" font-size="16"></text>
+    <text id="placa-1" class="chave-field" data-field="placa" data-max-width="140"
+      transform="rotate(-90 222 152)" x="222" y="152" font-size="18"></text>
   </g>
 
   <!-- Campos face 2 -->
@@ -88,8 +93,8 @@
     <text id="cor-2" class="chave-field-on-black" data-field="cor" data-max-width="236"
       data-on-black="1" transform="rotate(-90 324 150)" x="324" y="150" font-size="22"></text>
     <text id="cliente-2" class="chave-field" data-field="cliente" data-max-width="248"
-      transform="rotate(-90 403 150)" x="403" y="150" font-size="16"></text>
-    <text id="placa-2" class="chave-field" data-field="placa" data-max-width="124"
-      transform="rotate(-90 476 152)" x="476" y="152" font-size="17"></text>
+      transform="rotate(-90 399 150)" x="399" y="150" font-size="16"></text>
+    <text id="placa-2" class="chave-field" data-field="placa" data-max-width="140"
+      transform="rotate(-90 472 152)" x="472" y="152" font-size="18"></text>
   </g>
 </svg>

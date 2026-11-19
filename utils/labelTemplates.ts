@@ -412,7 +412,7 @@ export function createDefaultChaveSvgOptions(): LabelChaveSvgOptions {
       modelo: { offsetX: 0, offsetY: 0, fontSize: 30, maxWidth: 248, anchor: 'middle' },
       cor: { offsetX: 0, offsetY: 0, fontSize: 22, maxWidth: 236, anchor: 'middle' },
       cliente: { offsetX: 0, offsetY: 0, fontSize: 16, maxWidth: 248, anchor: 'middle' },
-      placa: { offsetX: 0, offsetY: 0, fontSize: 17, maxWidth: 124, anchor: 'middle' },
+      placa: { offsetX: 0, offsetY: 0, fontSize: 18, maxWidth: 140, anchor: 'middle' },
     },
   };
 }

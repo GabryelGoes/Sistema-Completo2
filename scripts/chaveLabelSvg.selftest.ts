@@ -125,10 +125,9 @@ ok('modelo preenchido em branco', /id="modelo-1"[^>]*fill="#ffffff"/.test(filled
 ok('cor preenchida em branco', /id="cor-1"[^>]*fill="#ffffff"/.test(filled.svgMarkup));
 ok('cliente em preto', /id="cliente-1"[^>]*fill="#000000"/.test(filled.svgMarkup));
 ok('modelo na faixa ampliada (x=42)', /id="modelo-1"[^>]*x="42"/.test(filled.svgMarkup));
-ok('cliente na coluna ampliada', /id="cliente-1"[^>]*x="153"/.test(filled.svgMarkup));
+ok('cliente na coluna ampliada', /id="cliente-1"[^>]*x="149"/.test(filled.svgMarkup));
 ok('faixa preta ampliada no SVG', /id="faixa-preta-1"[^>]*width="102"/.test(chaveBaseSvg));
-ok('placa menor e na borda', /width="50" height="192"/.test(chaveBaseSvg));
-ok('sem linhas da coluna do cliente', !/x1="122"/.test(chaveBaseSvg) && !/x1="176"/.test(chaveBaseSvg));
+ok('placa menor e na borda', /width="58" height="208"/.test(chaveBaseSvg));
 ok(
   'sem título Cliente quando desligado',
   textContentOf(
