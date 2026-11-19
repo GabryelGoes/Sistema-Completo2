@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Loader2, MapPin, Package, X } from 'lucide-react';
+import { AlertTriangle, Loader2, MapPin, Package, X } from 'lucide-react';
 import type { LabScanMode } from '../../utils/labScanMode';
 import {
   getLabProductKindPhotoUrl,
@@ -60,12 +60,45 @@ function formatComp(slot: number | null | undefined): string | null {
   return String(slot).padStart(2, '0');
 }
 
+/** Violeta = laboratório; âmbar = pátio/oficina. */
+function CompSlotBadge({
+  slot,
+  tone,
+  size = 'md',
+}: {
+  slot: string;
+  tone: 'lab' | 'patio';
+  size?: 'md' | 'sm';
+}) {
+  const toneClass =
+    tone === 'lab'
+      ? 'bg-violet-600 text-white shadow-[0_6px_16px_-8px_rgba(124,58,237,0.55)]'
+      : 'bg-[#F5D00B] text-black shadow-[0_6px_16px_-8px_rgba(245,208,11,0.45)]';
+  const sizeClass =
+    size === 'sm'
+      ? 'h-8 w-8 rounded-[0.65rem] text-[12px]'
+      : 'h-11 w-11 rounded-[0.85rem] text-[15px]';
+  return (
+    <span
+      className={`inline-flex shrink-0 items-center justify-center font-bold tabular-nums tracking-tight ${toneClass} ${sizeClass}`}
+      title={`Compartimento ${slot}`}
+      aria-label={`Compartimento ${slot}`}
+    >
+      {slot}
+    </span>
+  );
+}
+
 function ItemPhoto({
   moduleKind,
   sizeClass = 'h-28 w-28 sm:h-32 sm:w-32',
+  emphasizeAlready = false,
+  alreadyTone = 'lab',
 }: {
   moduleKind?: string | null;
   sizeClass?: string;
+  emphasizeAlready?: boolean;
+  alreadyTone?: 'lab' | 'patio';
 }) {
   const [, bump] = useState(0);
   useEffect(() => {
@@ -78,9 +111,15 @@ function ItemPhoto({
     ? storageThumbnailUrl(raw, { maxWidth: 320, maxHeight: 320, resize: 'cover' }) || raw
     : null;
 
+  const ringClass = emphasizeAlready
+    ? alreadyTone === 'lab'
+      ? 'ring-4 ring-violet-500/55 ring-offset-2 ring-offset-[#F2F2F7] dark:ring-offset-zinc-950'
+      : 'ring-4 ring-amber-400/70 ring-offset-2 ring-offset-[#F2F2F7] dark:ring-offset-zinc-950'
+    : '';
+
   return (
     <div
-      className={`relative shrink-0 overflow-hidden rounded-[1.35rem] border border-zinc-200/80 bg-zinc-100 shadow-[0_12px_28px_-14px_rgba(0,0,0,0.28)] dark:border-white/[0.1] dark:bg-zinc-900 ${sizeClass}`}
+      className={`relative shrink-0 overflow-hidden rounded-[1.35rem] border border-zinc-200/80 bg-zinc-100 shadow-[0_12px_28px_-14px_rgba(0,0,0,0.28)] dark:border-white/[0.1] dark:bg-zinc-900 ${sizeClass} ${ringClass}`}
     >
       {photoUrl ? (
         <img src={photoUrl} alt="" className="h-full w-full object-cover" />
@@ -112,6 +151,8 @@ export function LabScanBatchPanel({
   const [focusedId, setFocusedId] = useState<string | null>(latestId);
   const okCount = displayItems.filter((i) => i.ok).length;
   const canConfirm = open && !confirming && okCount > 0;
+  const destinationTone: 'lab' | 'patio' = mode === 'saida' ? 'lab' : 'patio';
+  const destinationLabel = mode === 'saida' ? 'laboratório' : 'pátio';
 
   // Novo bip → destaca a peça mais recente
   useEffect(() => {
@@ -131,6 +172,18 @@ export function LabScanBatchPanel({
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [canConfirm, onConfirm]);
+
+  useEffect(() => {
+    if (!open || confirming || presence.exiting) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      e.preventDefault();
+      e.stopPropagation();
+      onClear();
+    };
+    window.addEventListener('keydown', onKeyDown, true);
+    return () => window.removeEventListener('keydown', onKeyDown, true);
+  }, [open, confirming, presence.exiting, onClear]);
 
   if (!presence.mounted) return null;
   const focused =
@@ -153,6 +206,12 @@ export function LabScanBatchPanel({
   const complaint = stripLegacyComplaint(focused.issueDescription);
   const comp = formatComp(focused.benchSlot);
   const others = [...displayItems].reverse().filter((i) => i.id !== focused.id);
+  const hasBatchList = others.length > 0;
+
+  const alreadyBannerClass =
+    destinationTone === 'lab'
+      ? 'border-violet-500/50 bg-violet-500/[0.14] text-violet-950 dark:border-violet-400/45 dark:bg-violet-500/20 dark:text-violet-50'
+      : 'border-amber-500/55 bg-amber-400/25 text-amber-950 dark:border-[#F5D00B]/45 dark:bg-[#F5D00B]/18 dark:text-[#F5D00B]';
 
   return (
     <ModalPortal manageBackLayer={false}>
@@ -166,7 +225,11 @@ export function LabScanBatchPanel({
           role="dialog"
           aria-modal="true"
           aria-labelledby="lab-scan-batch-title"
-          className={`${iosVehicleModalShell} w-full max-w-[min(32rem,100%)] ${modalSheetAnimClass(presence.exiting)}`}
+          className={`${iosVehicleModalShell} w-full ${
+            hasBatchList
+              ? 'max-w-[min(54rem,calc(100vw-1.25rem))]'
+              : 'max-w-[min(32rem,100%)]'
+          } ${modalSheetAnimClass(presence.exiting)}`}
           onClick={(e) => e.stopPropagation()}
         >
           <div className="relative shrink-0 border-b border-zinc-200/70 px-5 pb-4 pt-5 dark:border-white/[0.08] sm:px-7 sm:pt-6">
@@ -192,118 +255,168 @@ export function LabScanBatchPanel({
             </h2>
             <p className="mt-1 text-[13px] text-zinc-500 dark:text-zinc-400">
               {displayItems.length} peça{displayItems.length === 1 ? '' : 's'} no lote · continue
-              bipando ou Enter para confirmar
+              bipando ou confirme
             </p>
           </div>
 
           <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-5 sm:px-7 sm:py-6">
-            <div className="flex flex-col items-center gap-5 sm:flex-row sm:items-start sm:gap-6">
-              <ItemPhoto moduleKind={focused.moduleKind} />
-              <div className="min-w-0 flex-1 text-center sm:text-left">
-                {focused.osNumber != null ? (
-                  <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-zinc-400 dark:text-zinc-500">
-                    OS {focused.osNumber}
-                  </p>
-                ) : null}
-                {/* Laboratório: tipo de peça em destaque; carro / cliente / queixa em seguida. */}
-                <p className="mt-1 text-[22px] font-semibold leading-snug tracking-tight text-zinc-900 dark:text-white sm:text-[24px]">
-                  {partLabel}
-                </p>
-                {moduleId ? (
-                  <p className="mt-0.5 truncate text-[12px] font-medium text-zinc-500 dark:text-zinc-400">
-                    {moduleId}
-                  </p>
-                ) : null}
-                <p className="mt-3 truncate text-[15px] font-medium text-zinc-800 dark:text-zinc-100">
-                  {vehicle}
-                </p>
-                <p className="mt-0.5 truncate text-[14px] font-medium text-zinc-600 dark:text-zinc-300">
-                  {customer}
-                </p>
-                <p
-                  className="mt-2 line-clamp-3 text-[13px] leading-snug text-zinc-500 dark:text-zinc-400"
-                  title={complaint || undefined}
-                >
-                  {complaint || 'Sem queixa registrada.'}
-                </p>
+            <div
+              className={
+                hasBatchList
+                  ? 'grid gap-5 lg:grid-cols-[minmax(0,1.15fr)_minmax(15rem,0.85fr)] lg:items-start lg:gap-6'
+                  : ''
+              }
+            >
+              <div className="min-w-0">
+                <div className="flex flex-col items-center gap-5 sm:flex-row sm:items-start sm:gap-6">
+                  <div className="flex flex-col items-center gap-2.5">
+                    <ItemPhoto
+                      moduleKind={focused.moduleKind}
+                      emphasizeAlready={Boolean(focused.already)}
+                      alreadyTone={destinationTone}
+                    />
+                    {comp ? (
+                      <CompSlotBadge slot={comp} tone={destinationTone} size="md" />
+                    ) : null}
+                  </div>
+                  <div className="min-w-0 flex-1 text-center sm:text-left">
+                    {focused.osNumber != null ? (
+                      <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-zinc-400 dark:text-zinc-500">
+                        OS {focused.osNumber}
+                      </p>
+                    ) : null}
+                    <p className="mt-1 text-[22px] font-semibold leading-snug tracking-tight text-zinc-900 dark:text-white sm:text-[24px]">
+                      {partLabel}
+                    </p>
+                    {moduleId ? (
+                      <p className="mt-0.5 truncate text-[12px] font-medium text-zinc-500 dark:text-zinc-400">
+                        {moduleId}
+                      </p>
+                    ) : null}
+                    <p className="mt-3 truncate text-[15px] font-medium text-zinc-800 dark:text-zinc-100">
+                      {vehicle}
+                    </p>
+                    <p className="mt-0.5 truncate text-[14px] font-medium text-zinc-600 dark:text-zinc-300">
+                      {customer}
+                    </p>
+                    <p
+                      className="mt-2 line-clamp-3 text-[13px] leading-snug text-zinc-500 dark:text-zinc-400"
+                      title={complaint || undefined}
+                    >
+                      {complaint || 'Sem queixa registrada.'}
+                    </p>
 
-                <div className="mt-4 flex flex-wrap items-center justify-center gap-2 sm:justify-start">
-                  <span
-                    className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[13px] font-semibold ${
-                      focused.ok
-                        ? focused.already
-                          ? 'bg-amber-100 text-amber-950 dark:bg-amber-500/20 dark:text-amber-100'
-                          : accent
-                        : 'bg-red-100 text-red-800 dark:bg-red-950/50 dark:text-red-200'
-                    }`}
-                  >
-                    <MapPin className="h-3.5 w-3.5 shrink-0" strokeWidth={2.4} aria-hidden />
-                    {focused.feedback}
-                  </span>
-                  {comp ? (
-                    <span className="inline-flex items-center rounded-full border border-zinc-200/90 bg-white px-3 py-1.5 text-[13px] font-bold tabular-nums text-zinc-700 dark:border-white/[0.12] dark:bg-zinc-900 dark:text-zinc-200">
-                      Comp. {comp}
-                    </span>
-                  ) : null}
+                    {focused.already ? (
+                      <div
+                        className={`mt-4 flex items-start gap-3 rounded-2xl border-2 px-3.5 py-3 text-left ${alreadyBannerClass}`}
+                        role="status"
+                      >
+                        <AlertTriangle
+                          className="mt-0.5 h-5 w-5 shrink-0"
+                          strokeWidth={2.4}
+                          aria-hidden
+                        />
+                        <div className="min-w-0">
+                          <p className="text-[15px] font-bold leading-snug tracking-tight">
+                            Já está no {destinationLabel}
+                          </p>
+                          <p className="mt-0.5 text-[13px] font-medium leading-snug opacity-90">
+                            {focused.feedback}
+                          </p>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="mt-4 flex flex-wrap items-center justify-center gap-2 sm:justify-start">
+                        <span
+                          className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[13px] font-semibold ${
+                            focused.ok
+                              ? accent
+                              : 'bg-red-100 text-red-800 dark:bg-red-950/50 dark:text-red-200'
+                          }`}
+                        >
+                          <MapPin className="h-3.5 w-3.5 shrink-0" strokeWidth={2.4} aria-hidden />
+                          {focused.feedback}
+                        </span>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
 
-            {others.length > 0 ? (
-              <div className="mt-6">
-                <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.14em] text-zinc-400 dark:text-zinc-500">
-                  Anteriores neste lote
-                </p>
-                <ul className="max-h-[10.5rem] space-y-2 overflow-y-auto overscroll-contain custom-scrollbar">
-                  {others.map((item) => {
-                    const itemVehicle = (item.vehicleModel || item.label || '—').trim() || '—';
-                    const itemPart =
-                      labProductDisplayLabel(item.moduleKind, item.moduleProductOther).trim() ||
-                      'Peça';
-                    const itemCustomer = (item.customerName || '').trim() || '—';
-                    return (
-                      <li key={item.id}>
-                        <button
-                          type="button"
-                          onClick={() => setFocusedId(item.id)}
-                          className="flex w-full items-center gap-3 rounded-2xl bg-white px-3 py-2.5 text-left transition hover:bg-zinc-50 active:scale-[0.99] dark:bg-zinc-900/80 dark:hover:bg-zinc-800/90"
-                        >
-                          <ItemPhoto
-                            moduleKind={item.moduleKind}
-                            sizeClass="h-11 w-11 !rounded-xl !shadow-none"
-                          />
-                          <div className="min-w-0 flex-1">
-                            <p className="truncate text-[13px] font-semibold text-zinc-900 dark:text-white">
-                              {itemPart}
-                              {item.osNumber != null ? (
-                                <span className="font-medium text-zinc-500 dark:text-zinc-400">
-                                  {' '}
-                                  · OS {item.osNumber}
-                                </span>
-                              ) : null}
-                            </p>
-                            <p className="truncate text-[12px] text-zinc-500 dark:text-zinc-400">
-                              {itemVehicle} · {itemCustomer}
-                            </p>
-                            <p
-                              className={`truncate text-[12px] ${
-                                item.ok
-                                  ? item.already
-                                    ? 'text-amber-700 dark:text-amber-300'
-                                    : 'text-zinc-500 dark:text-zinc-400'
-                                  : 'text-red-600 dark:text-red-300'
-                              }`}
-                            >
-                              {item.feedback}
-                            </p>
-                          </div>
-                        </button>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </div>
-            ) : null}
+              {hasBatchList ? (
+                <aside className="min-w-0 border-t border-zinc-200/70 pt-5 dark:border-white/[0.08] lg:border-l lg:border-t-0 lg:pl-6 lg:pt-0">
+                  <p className="mb-2.5 text-[11px] font-bold uppercase tracking-[0.14em] text-zinc-400 dark:text-zinc-500">
+                    Peças do lote
+                  </p>
+                  <ul className="max-h-[min(22rem,46vh)] space-y-2 overflow-y-auto overscroll-contain custom-scrollbar lg:max-h-[min(28rem,52vh)]">
+                    {others.map((item) => {
+                      const itemVehicle = (item.vehicleModel || item.label || '—').trim() || '—';
+                      const itemPart =
+                        labProductDisplayLabel(item.moduleKind, item.moduleProductOther).trim() ||
+                        'Peça';
+                      const itemCustomer = (item.customerName || '').trim() || '—';
+                      const itemComp = formatComp(item.benchSlot);
+                      return (
+                        <li key={item.id}>
+                          <button
+                            type="button"
+                            onClick={() => setFocusedId(item.id)}
+                            className={`flex w-full items-center gap-2.5 rounded-2xl px-2.5 py-2 text-left transition active:scale-[0.99] ${
+                              item.already
+                                ? destinationTone === 'lab'
+                                  ? 'bg-violet-500/[0.1] ring-1 ring-inset ring-violet-500/30 hover:bg-violet-500/[0.14] dark:bg-violet-500/15 dark:ring-violet-400/35'
+                                  : 'bg-amber-400/20 ring-1 ring-inset ring-amber-500/35 hover:bg-amber-400/28 dark:bg-[#F5D00B]/12 dark:ring-[#F5D00B]/30'
+                                : 'bg-white hover:bg-zinc-50 dark:bg-zinc-900/80 dark:hover:bg-zinc-800/90'
+                            }`}
+                          >
+                            <ItemPhoto
+                              moduleKind={item.moduleKind}
+                              sizeClass="h-11 w-11 !rounded-xl !shadow-none"
+                              emphasizeAlready={Boolean(item.already)}
+                              alreadyTone={destinationTone}
+                            />
+                            {itemComp ? (
+                              <CompSlotBadge slot={itemComp} tone={destinationTone} size="sm" />
+                            ) : (
+                              <span className="inline-flex h-8 w-8 shrink-0" aria-hidden />
+                            )}
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-[13px] font-semibold text-zinc-900 dark:text-white">
+                                {itemPart}
+                                {item.osNumber != null ? (
+                                  <span className="font-medium text-zinc-500 dark:text-zinc-400">
+                                    {' '}
+                                    · OS {item.osNumber}
+                                  </span>
+                                ) : null}
+                              </p>
+                              <p className="truncate text-[12px] text-zinc-500 dark:text-zinc-400">
+                                {itemVehicle} · {itemCustomer}
+                              </p>
+                              <p
+                                className={`truncate text-[12px] font-medium ${
+                                  item.ok
+                                    ? item.already
+                                      ? destinationTone === 'lab'
+                                        ? 'text-violet-700 dark:text-violet-300'
+                                        : 'text-amber-800 dark:text-amber-200'
+                                      : 'text-zinc-500 dark:text-zinc-400'
+                                    : 'text-red-600 dark:text-red-300'
+                                }`}
+                              >
+                                {item.already
+                                  ? `Já no ${destinationLabel}`
+                                  : item.feedback}
+                              </p>
+                            </div>
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </aside>
+              ) : null}
+            </div>
           </div>
 
           <div className="shrink-0 border-t border-zinc-200/70 bg-white/80 px-5 py-4 backdrop-blur-md dark:border-white/[0.08] dark:bg-zinc-950/60 sm:px-7">
@@ -324,9 +437,6 @@ export function LabScanBatchPanel({
               >
                 {confirming ? <Loader2 className="h-5 w-5 animate-spin" /> : null}
                 Confirmar
-                <kbd className="ml-0.5 hidden rounded-md bg-black/10 px-1.5 py-0.5 text-[11px] font-bold tracking-wide sm:inline dark:bg-white/15">
-                  Enter
-                </kbd>
               </button>
             </div>
           </div>
