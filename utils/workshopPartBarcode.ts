@@ -101,14 +101,22 @@ export function searchWorkshopPartsByText<T extends WorkshopPartCodeFields>(
 }
 
 /** Heurística de pistola USB: sequência muito rápida terminando em Enter/Tab.
- * Digitação humana (mesmo rápida) fica acima destes limiares. */
+ * Digitação humana (mesmo rápida) fica acima destes limiares.
+ *
+ * Códigos internos curtos (ex.: 22390, 4–5 dígitos) também precisam passar —
+ * o mínimo antigo de 6 caracteres engolia leituras válidas do estoque.
+ */
 export function isLikelyBarcodeWedgeKeystroke(opts: {
   elapsedMs: number;
   length: number;
 }): boolean {
   const { elapsedMs, length } = opts;
-  if (length < 6) return false;
+  if (length < 4) return false;
   const avg = elapsedMs / Math.max(1, length - 1);
+  // Códigos curtos: exige ritmo bem de pistola (evita Enter acidental após 4 teclas).
+  if (length <= 5) {
+    return avg <= 50 && elapsedMs <= 900;
+  }
   // Leitores HID costumam ficar bem abaixo de 50–60 ms/tecla.
   if (avg <= 55 && elapsedMs <= 2500) return true;
   if (length >= 10 && avg <= 75 && elapsedMs <= 4000) return true;

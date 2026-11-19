@@ -24,9 +24,15 @@ export type UseBarcodeWedgeListenerOptions = {
 const MAX_INTER_KEY_GAP_MS = 120;
 /** QR de OS do lab é longo (RDA-OS + UUID); leitores Bluetooth/HID lentos precisam de folga. */
 const MAX_INTER_KEY_GAP_LAB_OS_MS = 220;
+/** Códigos curtos de estoque (4–8 dígitos): leitores lentos/Bluetooth precisam de folga. */
+const MAX_INTER_KEY_GAP_SHORT_STOCK_MS = 180;
 
 function looksLikeLabOsBuffer(buf: string): boolean {
   return /^RDA/i.test(String(buf ?? '').replace(/\s+/g, ''));
+}
+
+function looksLikeShortStockCodeBuffer(buf: string): boolean {
+  return /^\d{1,8}$/.test(String(buf ?? '').replace(/\s+/g, ''));
 }
 
 function isEditableTarget(target: EventTarget | null): boolean {
@@ -191,7 +197,9 @@ export function useBarcodeWedgeListener({
       const gap = now - lastKeyAtRef.current;
       const gapLimit = looksLikeLabOsBuffer(bufferRef.current)
         ? MAX_INTER_KEY_GAP_LAB_OS_MS
-        : MAX_INTER_KEY_GAP_MS;
+        : looksLikeShortStockCodeBuffer(bufferRef.current)
+          ? MAX_INTER_KEY_GAP_SHORT_STOCK_MS
+          : MAX_INTER_KEY_GAP_MS;
       if (gap > gapLimit) {
         // Digitação humana / pausa: descarta buffer anterior e recomeça.
         bufferRef.current = ch;
