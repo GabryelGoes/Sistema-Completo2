@@ -382,72 +382,16 @@ function renderKeyBlock(
 
 /**
  * Etiqueta de chave — impressão B1 exatamente 50×30 mm (384×240).
- * Conteúdo vertical (leitura na chave) com duas cópias; 2ª rotacionada 180°.
+ * Composição gráfica: SVG-base fixo (`assets/labels/etiqueta_chaves_BASE_50x30.svg`).
+ * O parâmetro de estilo/layout antigo é ignorado (arte não é mais montada em canvas).
  */
-export function renderPatioKeyLabelDataUrl(
+export async function renderPatioKeyLabelDataUrl(
   input: PatioKeyLabelInput,
-  styleOrLayout?: Partial<PatioKeyLabelStyle> | LabelTemplateLayout | null
-): string {
-  let layout = loadLabelTemplate('chave');
-
-  if (styleOrLayout && 'elements' in styleOrLayout && Array.isArray(styleOrLayout.elements)) {
-    layout = styleOrLayout as LabelTemplateLayout;
-  } else if (styleOrLayout) {
-    layout = applyStyleToTemplate(
-      layout,
-      normalizePatioKeyLabelStyle({
-        ...DEFAULT_PATIO_KEY_LABEL_STYLE,
-        ...(styleOrLayout as Partial<PatioKeyLabelStyle>),
-      })
-    );
-  }
-
-  const opts = layout.keyOptions!;
-  const portraitW = NIIMBOT_LABEL_H_PX; // 240 = 30 mm
-  const portraitH = NIIMBOT_LABEL_W_PX; // 384 = 50 mm
-  const dual = opts.dualCopy !== false;
-  const halfH = Math.floor((portraitH - opts.halfGap) / 2);
-  // Sem espelhamento: usa a etiqueta inteira para posicionar textos/placa.
-  const blockH = dual ? halfH : portraitH;
-
-  const portrait = document.createElement('canvas');
-  portrait.width = portraitW;
-  portrait.height = portraitH;
-  const pctx = portrait.getContext('2d');
-  if (!pctx) throw new Error('Canvas 2D indisponível');
-
-  pctx.fillStyle = '#ffffff';
-  pctx.fillRect(0, 0, portraitW, portraitH);
-
-  const block = renderKeyBlock(portraitW, blockH, input, layout);
-  pctx.drawImage(block, 0, 0);
-
-  if (dual) {
-    pctx.save();
-    pctx.translate(portraitW, portraitH);
-    pctx.rotate(Math.PI);
-    pctx.drawImage(block, 0, 0);
-    pctx.restore();
-  }
-
-  const printW = NIIMBOT_LABEL_W_PX;
-  const printH = NIIMBOT_LABEL_H_PX;
-  const canvas = document.createElement('canvas');
-  canvas.width = printW;
-  canvas.height = printH;
-  const ctx = canvas.getContext('2d');
-  if (!ctx) throw new Error('Canvas 2D indisponível');
-
-  ctx.fillStyle = '#ffffff';
-  ctx.fillRect(0, 0, printW, printH);
-
-  ctx.save();
-  ctx.translate(0, printH);
-  ctx.rotate(-Math.PI / 2);
-  ctx.drawImage(portrait, 0, 0);
-  ctx.restore();
-
-  return canvas.toDataURL('image/png');
+  _styleOrLayout?: Partial<PatioKeyLabelStyle> | LabelTemplateLayout | null
+): Promise<string> {
+  const { renderChaveLabelFromSvg } = await import('./chaveLabelSvg');
+  const { dataUrl } = await renderChaveLabelFromSvg(input);
+  return dataUrl;
 }
 
 export type { LabelElementDef, LabelTemplateLayout };
