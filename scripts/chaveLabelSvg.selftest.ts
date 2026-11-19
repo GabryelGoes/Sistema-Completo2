@@ -120,7 +120,9 @@ ok(
 ok('modelo preenchido em branco', /id="modelo-1"[^>]*fill="#ffffff"/.test(filled.svgMarkup));
 ok('cor preenchida em branco', /id="cor-1"[^>]*fill="#ffffff"/.test(filled.svgMarkup));
 ok('cliente em preto', /id="cliente-1"[^>]*fill="#000000"/.test(filled.svgMarkup));
-ok('modelo na faixa (x=38)', /id="modelo-1"[^>]*x="38"/.test(filled.svgMarkup));
+ok('modelo na faixa ampliada (x=42)', /id="modelo-1"[^>]*x="42"/.test(filled.svgMarkup));
+ok('faixa preta ampliada no SVG', /id="faixa-preta-1"[^>]*width="102"/.test(chaveBaseSvg));
+ok('placa menor no SVG', /width="68" height="220"/.test(chaveBaseSvg));
 
 const shifted = prepareChaveLabelSvgMarkupForTest(
   {
@@ -136,20 +138,20 @@ const shifted = prepareChaveLabelSvgMarkupForTest(
         ...createDefaultChaveSvgOptions().fields.modelo,
         offsetX: 4,
         offsetY: -10,
-        fontSize: 30,
+        fontSize: 32,
       },
     },
   })
 );
 ok(
   'offset X/Y aplicados',
-  /id="modelo-1"[^>]*x="42"/.test(shifted.svgMarkup) &&
+  /id="modelo-1"[^>]*x="46"/.test(shifted.svgMarkup) &&
     /id="modelo-1"[^>]*y="140"/.test(shifted.svgMarkup)
 );
-ok('fontSize do editor aplicado', /id="modelo-1"[^>]*font-size="30"/.test(shifted.svgMarkup));
+ok('fontSize do editor aplicado', /id="modelo-1"[^>]*font-size="32"/.test(shifted.svgMarkup));
 
 const tpl = createDefaultChaveTemplate();
-ok('template chave v4+', tpl.version >= 4 && !!tpl.chaveSvgOptions);
+ok('template chave v5+', tpl.version >= 5 && !!tpl.chaveSvgOptions);
 ok(
   'normalize injeta chaveSvgOptions',
   !!normalizeLabelTemplate('chave', { version: 3 }).chaveSvgOptions
