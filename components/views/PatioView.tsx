@@ -9724,7 +9724,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             }}
                           >
                             <Tag className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" strokeWidth={2.25} aria-hidden />
-                            Imprimir etiqueta
+                            Etiqueta de Chaves
                           </button>
                           <button
                             type="button"
@@ -9736,7 +9736,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                             }}
                           >
                             <Tag className="h-4 w-4 shrink-0 text-sky-600 dark:text-sky-400" strokeWidth={2.25} aria-hidden />
-                            Etiqueta de peças
+                            Etiqueta de Peças
                           </button>
                         </>
                       ) : null}
@@ -11507,7 +11507,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                     className="inline-flex items-center gap-1 rounded-xl border border-emerald-600 bg-emerald-600 px-2.5 py-1 text-[11px] font-semibold text-white transition-colors hover:bg-emerald-700 dark:border-emerald-500 dark:bg-emerald-600 dark:hover:bg-emerald-500"
                                   >
                                     <Tag className="h-3 w-3" aria-hidden strokeWidth={2.5} />
-                                    Imprimir etiqueta
+                                    Etiqueta de Chaves
                                   </button>
                                 ) : null}
                                 {can('canEditQueixa') && !isEditingDesc ? (
@@ -12756,7 +12756,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                           }}
                                         >
                                           <Tag className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" strokeWidth={2.25} aria-hidden />
-                                          Imprimir etiqueta
+                                          Etiqueta de Chaves
                                         </button>
                                         <button
                                           type="button"
@@ -12768,7 +12768,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                           }}
                                         >
                                           <Tag className="h-4 w-4 shrink-0 text-sky-600 dark:text-sky-400" strokeWidth={2.25} aria-hidden />
-                                          Etiqueta de peças
+                                          Etiqueta de Peças
                                         </button>
                                         {can('canDeleteCards') ? (
                                           <button

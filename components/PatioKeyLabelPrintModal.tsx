@@ -140,7 +140,7 @@ export function PatioKeyLabelPrintModal({ open, label, onClose }: PatioKeyLabelP
           <div className="patio-os-sec-header shrink-0 border-b border-zinc-200/70 bg-white px-5 pb-3 pt-8 pr-24 dark:border-white/[0.06] dark:bg-transparent sm:px-6">
             <IosModalHeader
               icon={<Tag className="h-5 w-5 text-zinc-800" />}
-              title="Imprimir etiqueta"
+              title="Etiqueta de Chaves"
               subtitle={`${NIIMBOT_MODEL_LABEL} · chave · ${NIIMBOT_SIZE_LABEL}`}
             />
           </div>
