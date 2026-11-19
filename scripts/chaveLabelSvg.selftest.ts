@@ -10,7 +10,14 @@ import {
   resolveChaveLabelValues,
   chaveBaseSvg,
   mapaCampos,
+  CHAVE_FIELD_BASE_POS,
 } from '../utils/chaveLabelSvg.ts';
+import {
+  createDefaultChaveSvgOptions,
+  createDefaultChaveTemplate,
+  normalizeChaveSvgOptions,
+  normalizeLabelTemplate,
+} from '../utils/labelTemplates.ts';
 
 let failed = 0;
 
@@ -30,8 +37,13 @@ ok('SVG tem cor-1/2', /id="cor-1"/.test(chaveBaseSvg) && /id="cor-2"/.test(chave
 ok('SVG tem cliente-1/2', /id="cliente-1"/.test(chaveBaseSvg) && /id="cliente-2"/.test(chaveBaseSvg));
 ok('SVG tem placa-1/2', /id="placa-1"/.test(chaveBaseSvg) && /id="placa-2"/.test(chaveBaseSvg));
 ok('SVG textos a -90°', /rotate\(-90/.test(chaveBaseSvg));
+ok('modelo/cor na faixa preta (classe)', /chave-field-on-black/.test(chaveBaseSvg));
+ok('modelo base dentro da faixa', CHAVE_FIELD_BASE_POS.modelo.x >= 12 && CHAVE_FIELD_BASE_POS.modelo.x <= 90);
+ok('cor base dentro da faixa', CHAVE_FIELD_BASE_POS.cor.onBlack === true);
+ok('cliente fora da faixa', CHAVE_FIELD_BASE_POS.cliente.onBlack === false);
 ok('mapa_campos 50×30', mapaCampos.dimensions.width_mm === 50 && mapaCampos.dimensions.height_mm === 30);
 ok('mapa fold 250', mapaCampos.dimensions.fold_line_x === 250);
+ok('mapa modelo faixa_preta', mapaCampos.fields.modelo.region === 'faixa_preta');
 
 ok('placa antiga sem hífen inventado', formatChaveLabelPlate('jaw 1941') === 'JAW 1941' || formatChaveLabelPlate('jaw1941') === 'JAW1941');
 ok('placa mercosul preserva chars', formatChaveLabelPlate('azk4b21') === 'AZK4B21');
@@ -103,6 +115,44 @@ ok('campo ausente vira traço', textContentOf('modelo-1', missing.svgMarkup) ===
 ok(
   'cliente ausente com prefixo',
   textContentOf('cliente-1', missing.svgMarkup) === 'Cliente: —'
+);
+
+ok('modelo preenchido em branco', /id="modelo-1"[^>]*fill="#ffffff"/.test(filled.svgMarkup));
+ok('cor preenchida em branco', /id="cor-1"[^>]*fill="#ffffff"/.test(filled.svgMarkup));
+ok('cliente em preto', /id="cliente-1"[^>]*fill="#000000"/.test(filled.svgMarkup));
+ok('modelo na faixa (x=38)', /id="modelo-1"[^>]*x="38"/.test(filled.svgMarkup));
+
+const shifted = prepareChaveLabelSvgMarkupForTest(
+  {
+    vehicleModel: 'WRANGLER',
+    vehicleColor: 'BRANCA',
+    customerName: 'MECÂNICA LÍDER',
+    plate: 'JAW1941',
+  },
+  normalizeChaveSvgOptions({
+    fields: {
+      ...createDefaultChaveSvgOptions().fields,
+      modelo: {
+        ...createDefaultChaveSvgOptions().fields.modelo,
+        offsetX: 4,
+        offsetY: -10,
+        fontSize: 30,
+      },
+    },
+  })
+);
+ok(
+  'offset X/Y aplicados',
+  /id="modelo-1"[^>]*x="42"/.test(shifted.svgMarkup) &&
+    /id="modelo-1"[^>]*y="140"/.test(shifted.svgMarkup)
+);
+ok('fontSize do editor aplicado', /id="modelo-1"[^>]*font-size="30"/.test(shifted.svgMarkup));
+
+const tpl = createDefaultChaveTemplate();
+ok('template chave v4+', tpl.version >= 4 && !!tpl.chaveSvgOptions);
+ok(
+  'normalize injeta chaveSvgOptions',
+  !!normalizeLabelTemplate('chave', { version: 3 }).chaveSvgOptions
 );
 
 // Garante que o markup de teste não usa interpolação solta quebrando tags

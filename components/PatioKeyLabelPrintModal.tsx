@@ -19,6 +19,7 @@ import {
   renderChaveLabelFromSvg,
   type ChaveLabelFitWarning,
 } from '../utils/chaveLabelSvg';
+import { loadLabelTemplate } from '../utils/labelTemplates';
 import { NIIMBOT_LABEL_H_PX, NIIMBOT_LABEL_W_PX } from '../utils/niimbotLabelRender';
 import { ModalPortal } from './ui/ModalPortal';
 import { patioOsSecModalPcClass, usePatioOsPcLayout } from './patio/PatioOsPcLayoutContext';
@@ -75,7 +76,7 @@ export function PatioKeyLabelPrintModal({ open, label, onClose }: PatioKeyLabelP
     }
     let cancelled = false;
     setLocalError(null);
-    void renderChaveLabelFromSvg(label)
+    void renderChaveLabelFromSvg(label, loadLabelTemplate('chave'))
       .then((result) => {
         if (cancelled) return;
         setPreviewUrl(result.dataUrl);
@@ -263,7 +264,10 @@ export function PatioKeyLabelPrintModal({ open, label, onClose }: PatioKeyLabelP
               disabled={printing || unsupported || !previewUrl}
               onClick={() =>
                 run(async () => {
-                  const { dataUrl } = await renderChaveLabelFromSvg(label);
+                  const { dataUrl } = await renderChaveLabelFromSvg(
+                    label,
+                    loadLabelTemplate('chave')
+                  );
                   await niimbotService.printLabelImageUrl(dataUrl, { copies });
                 })
               }
