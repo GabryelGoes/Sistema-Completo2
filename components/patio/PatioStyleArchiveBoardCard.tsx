@@ -63,6 +63,7 @@ export function PatioStyleArchiveBoardCard({
   footerAppend,
 }: PatioStyleArchiveBoardCardProps) {
   const customerLine = firstTwoNames((customerFullName || '').trim());
+  const modelLine = firstTwoNames((model || '').trim());
   const hasCustomer = Boolean(customerLine);
   const plate = (plateOrModule || '---').trim() || '---';
   const mechanic = (mechanicName || '').trim();
@@ -120,9 +121,9 @@ export function PatioStyleArchiveBoardCard({
             <div className="min-w-0">
               <div className={boardPanoramic ? 'mb-[calc(0.25rem*1.6146)] portrait:mb-1' : 'mb-1.5 portrait:mb-1'}>
                 <h3
-                  className={`font-vehicle ${getPatioBoardModelTitleClass(model, boardPanoramic, true)} font-bold text-zinc-900 dark:text-white uppercase leading-[0.9] tracking-tight break-words portrait:inline-block portrait:w-full portrait:origin-top-left portrait:scale-[0.85] ${vehicleCardTitleShadow}`}
+                  className={`font-vehicle ${getPatioBoardModelTitleClass(modelLine, boardPanoramic, true)} font-bold text-zinc-900 dark:text-white uppercase leading-[0.9] tracking-tight break-words portrait:inline-block portrait:w-full portrait:origin-top-left portrait:scale-[0.85] ${vehicleCardTitleShadow}`}
                 >
-                  {model}
+                  {modelLine}
                 </h3>
                 {!isModuleMode && (vehicleColor ?? '').trim() ? (
                   <p
