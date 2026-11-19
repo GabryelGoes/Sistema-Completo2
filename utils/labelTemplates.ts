@@ -75,6 +75,44 @@ export type LabelKeyOptions = {
   mercosulPlate: boolean;
 };
 
+/** Ícone da faixa preta (etiqueta de peças). */
+export type LabelPecasSidebarIcon =
+  | 'car_gear'
+  | 'car'
+  | 'gear'
+  | 'wrench'
+  | 'tag'
+  | 'none';
+
+export const LABEL_PECAS_SIDEBAR_ICONS: Array<{
+  value: LabelPecasSidebarIcon;
+  label: string;
+}> = [
+  { value: 'car_gear', label: 'Carro + engrenagem' },
+  { value: 'car', label: 'Carro' },
+  { value: 'gear', label: 'Engrenagem' },
+  { value: 'wrench', label: 'Chave' },
+  { value: 'tag', label: 'Etiqueta' },
+  { value: 'none', label: 'Sem ícone' },
+];
+
+/** Opções exclusivas do layout mockup de peças. */
+export type LabelPecasOptions = {
+  /** Largura da faixa preta no topo (px no canvas 384). */
+  sidebarWidth: number;
+  /** Texto na faixa (ex.: PEÇA). */
+  sidebarText: string;
+  sidebarTextSize: number;
+  sidebarIcon: LabelPecasSidebarIcon;
+  sidebarIconSize: number;
+  /** Barra branca sob o texto da faixa. */
+  showSidebarBar: boolean;
+  showPlateIcon: boolean;
+  showColorIcon: boolean;
+  showCustomerIcon: boolean;
+  fieldIconSize: number;
+};
+
 export type LabelTemplateLayout = {
   id: LabelTemplateId;
   version: number;
@@ -82,6 +120,7 @@ export type LabelTemplateLayout = {
   canvasH: number;
   elements: LabelElementDef[];
   keyOptions?: LabelKeyOptions;
+  pecasOptions?: LabelPecasOptions;
 };
 
 export const LABEL_TEMPLATE_META: Array<{
@@ -107,7 +146,7 @@ export const LABEL_TEMPLATE_META: Array<{
   {
     id: 'pecas_os',
     title: 'Peças (OS veículo)',
-    description: 'Layout fixo do mockup — veículo, placa, cor e cliente',
+    description: 'Mockup editável — faixa, ícones, tipografia e campos',
   },
   {
     id: 'abs_modulo',
@@ -417,15 +456,29 @@ export function createDefaultChaveTemplate(): LabelTemplateLayout {
   };
 }
 
+export function createDefaultPecasOptions(): LabelPecasOptions {
+  return {
+    sidebarWidth: 78,
+    sidebarText: 'PEÇA',
+    sidebarTextSize: 28,
+    sidebarIcon: 'car_gear',
+    sidebarIconSize: 44,
+    showSidebarBar: true,
+    showPlateIcon: true,
+    showColorIcon: true,
+    showCustomerIcon: true,
+    fieldIconSize: 22,
+  };
+}
+
 /**
- * Etiqueta de peças da OS (pátio) — layout fixo do mockup (faixa PEÇA + campos).
- * A renderização em `patioPecasLabelRender` desenha o design completo;
- * os elementos abaixo documentam os campos dinâmicos no editor.
+ * Etiqueta de peças da OS (pátio) — mockup editável (faixa PEÇA + campos).
+ * `pecasOptions` controla faixa/ícones; `elements` controlam tipografia e títulos.
  */
 export function createDefaultPecasOsTemplate(): LabelTemplateLayout {
   return {
     id: 'pecas_os',
-    version: 2,
+    version: 3,
     canvasW: LABEL_W,
     canvasH: LABEL_H,
     keyOptions: {
@@ -439,6 +492,7 @@ export function createDefaultPecasOsTemplate(): LabelTemplateLayout {
       offsetY: 0,
       mercosulPlate: true,
     },
+    pecasOptions: createDefaultPecasOptions(),
     elements: [
       el({
         id: 'vehicle',
@@ -449,7 +503,7 @@ export function createDefaultPecasOsTemplate(): LabelTemplateLayout {
         y: 14,
         w: 280,
         h: 48,
-        fontSize: 12,
+        fontSize: 15,
         valueFontSize: 46,
         fontWeight: '900',
         labelText: '',
@@ -494,7 +548,7 @@ export function createDefaultPecasOsTemplate(): LabelTemplateLayout {
         y: 180,
         w: 280,
         h: 28,
-        fontSize: 12,
+        fontSize: 15,
         valueFontSize: 15,
         fontWeight: 'bold',
         labelText: 'CLIENTE:',
@@ -804,6 +858,58 @@ function normalizeKeyOptions(
   };
 }
 
+function normalizePecasSidebarIcon(v: unknown): LabelPecasSidebarIcon {
+  return LABEL_PECAS_SIDEBAR_ICONS.some((i) => i.value === v)
+    ? (v as LabelPecasSidebarIcon)
+    : 'car_gear';
+}
+
+export function normalizePecasOptions(
+  raw: Partial<LabelPecasOptions> | undefined,
+  fallback: LabelPecasOptions = createDefaultPecasOptions()
+): LabelPecasOptions {
+  const src = raw ?? {};
+  return {
+    sidebarWidth: clamp(Math.round(Number(src.sidebarWidth ?? fallback.sidebarWidth)), 40, 140),
+    sidebarText:
+      typeof src.sidebarText === 'string' && src.sidebarText.trim()
+        ? src.sidebarText.trim().slice(0, 12)
+        : fallback.sidebarText,
+    sidebarTextSize: clamp(
+      Math.round(Number(src.sidebarTextSize ?? fallback.sidebarTextSize)),
+      10,
+      48
+    ),
+    sidebarIcon: normalizePecasSidebarIcon(src.sidebarIcon ?? fallback.sidebarIcon),
+    sidebarIconSize: clamp(
+      Math.round(Number(src.sidebarIconSize ?? fallback.sidebarIconSize)),
+      0,
+      72
+    ),
+    showSidebarBar:
+      typeof src.showSidebarBar === 'boolean'
+        ? src.showSidebarBar
+        : fallback.showSidebarBar !== false,
+    showPlateIcon:
+      typeof src.showPlateIcon === 'boolean'
+        ? src.showPlateIcon
+        : fallback.showPlateIcon !== false,
+    showColorIcon:
+      typeof src.showColorIcon === 'boolean'
+        ? src.showColorIcon
+        : fallback.showColorIcon !== false,
+    showCustomerIcon:
+      typeof src.showCustomerIcon === 'boolean'
+        ? src.showCustomerIcon
+        : fallback.showCustomerIcon !== false,
+    fieldIconSize: clamp(
+      Math.round(Number(src.fieldIconSize ?? fallback.fieldIconSize)),
+      12,
+      36
+    ),
+  };
+}
+
 export function normalizeLabelTemplate(
   id: LabelTemplateId,
   raw: Partial<LabelTemplateLayout> | null | undefined
@@ -848,13 +954,12 @@ export function normalizeLabelTemplate(
     );
   }
 
-  // Peças v1 → v2: layout fixo do mockup (campos veículo/placa/cor/cliente).
+  // Peças: garante campos do mockup; v1/v2 → v3 traz pecasOptions editáveis.
   if (id === 'pecas_os') {
     const savedVersion = Number(raw?.version ?? 0);
     if (savedVersion > 0 && savedVersion < 2) {
       elements = def.elements.map((fb) => ({ ...fb }));
     } else {
-      // Garante customer mesmo em saves parciais.
       for (const fb of def.elements) {
         if (elements.some((e) => e.id === fb.id)) continue;
         elements.push({ ...fb });
@@ -862,6 +967,8 @@ export function normalizeLabelTemplate(
       elements = elements.map((e) => {
         if (e.id === 'plate') return { ...e, name: 'Placa' };
         if (e.id === 'customer') return { ...e, name: 'Cliente' };
+        if (e.id === 'vehicle') return { ...e, name: 'Veículo' };
+        if (e.id === 'color') return { ...e, name: 'Cor' };
         return e;
       });
     }
@@ -964,7 +1071,7 @@ export function normalizeLabelTemplate(
         : id === 'chave'
           ? Math.max(Number(raw?.version) || 0, Number(def.version) || 3)
           : id === 'pecas_os'
-            ? Math.max(Number(raw?.version) || 0, Number(def.version) || 2)
+            ? Math.max(Number(raw?.version) || 0, Number(def.version) || 3)
             : 1,
     canvasW: LABEL_W,
     canvasH: LABEL_H,
@@ -972,6 +1079,10 @@ export function normalizeLabelTemplate(
     keyOptions:
       id === 'chave' || id === 'pecas_os'
         ? normalizeKeyOptions(raw?.keyOptions, def.keyOptions!)
+        : undefined,
+    pecasOptions:
+      id === 'pecas_os'
+        ? normalizePecasOptions(raw?.pecasOptions, def.pecasOptions ?? createDefaultPecasOptions())
         : undefined,
   };
 }
