@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>OS Desktop — Antes × Depois · Rei do ABS</title>
+  <style>
+    :root {
+      --brand-yellow: #F5D00B;
+      --ink: #0A0A0A;
+      --paper: #F4F4F5;
+      --card: #FFFFFF;
+      --muted: #71717A;
+      --line: rgba(24,24,27,.12);
+      --blue: #007AFF;
+      --ease: cubic-bezier(0.32, 0.72, 0, 1);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "SF Pro Text", "Segoe UI", system-ui, sans-serif;
+      background: #111;
+      color: #fafafa;
+    }
+    .page {
+      max-width: 1440px;
+      margin: 0 auto;
+      padding: 28px 24px 64px;
+    }
+    h1 {
+      font-family: "SF Pro Display", "SF Pro Text", sans-serif;
+      font-size: 28px;
+      letter-spacing: -0.02em;
+      margin: 0 0 8px;
+    }
+    .lede {
+      color: #a1a1aa;
+      max-width: 62ch;
+      line-height: 1.5;
+      margin-bottom: 28px;
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+    @media (max-width: 1100px) {
+      .grid { grid-template-columns: 1fr; }
+    }
+    .panel {
+      border-radius: 16px;
+      overflow: hidden;
+      border: 1px solid #27272a;
+      background: #18181b;
+    }
+    .panel-label {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #a1a1aa;
+      border-bottom: 1px solid #27272a;
+    }
+    .tag {
+      border-radius: 999px;
+      padding: 4px 10px;
+      font-size: 10px;
+      letter-spacing: 0.04em;
+    }
+    .tag-before { background: #3f3f46; color: #e4e4e7; }
+    .tag-after { background: var(--brand-yellow); color: #111; }
+
+    /* Shared mock chrome */
+    .os {
+      height: 620px;
+      display: grid;
+      background: var(--paper);
+      color: var(--ink);
+      font-size: 13px;
+    }
+    .os-before {
+      grid-template-columns: 1.35fr 0.85fr;
+      grid-template-rows: auto auto 1fr;
+    }
+    .os-after {
+      grid-template-columns: minmax(0,1.2fr) 320px;
+      grid-template-rows: auto auto 1fr;
+      background: linear-gradient(180deg, #ECECEE 0%, #F7F7F8 40%, #F2F2F4 100%);
+    }
+    .hdr {
+      grid-column: 1 / -1;
+      background: #fff;
+      border-bottom: 1px solid var(--line);
+      padding: 14px 20px;
+    }
+    .hdr-row { display: flex; align-items: center; gap: 12px; }
+    .logo {
+      width: 42px; height: 42px; border-radius: 10px;
+      background: linear-gradient(145deg, var(--brand-yellow), #d4b40a);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.45);
+    }
+    .title {
+      font-family: "SF Pro Display", sans-serif;
+      font-weight: 800;
+      font-size: 26px;
+      letter-spacing: -0.02em;
+      text-transform: uppercase;
+      line-height: 1;
+    }
+    .plate {
+      font-family: "Barlow Condensed", "Arial Narrow", sans-serif;
+      font-weight: 700;
+      background: #111;
+      color: #fff;
+      padding: 4px 10px;
+      border-radius: 4px;
+      letter-spacing: 0.08em;
+      font-size: 14px;
+    }
+    .meta {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      margin-top: 12px;
+    }
+    .meta-card {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 8px 10px;
+      background: #fafafa;
+    }
+    .meta-card small {
+      display: block;
+      color: var(--muted);
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      margin-bottom: 4px;
+    }
+    .tabs {
+      grid-column: 1 / 2;
+      display: flex;
+      gap: 0;
+      background: rgba(255,255,255,.95);
+      border-bottom: 1px solid var(--line);
+      padding: 0 16px;
+    }
+    .tab {
+      padding: 14px 16px;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: #71717a;
+      border: 0;
+      background: transparent;
+      position: relative;
+    }
+    .tab.active { color: var(--blue); }
+    .tab.active::after {
+      content: "";
+      position: absolute; left: 12px; right: 12px; bottom: 0;
+      height: 2px; background: var(--blue); border-radius: 2px;
+    }
+    .main {
+      padding: 16px 20px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .aside {
+      border-left: 1px solid var(--line);
+      padding: 16px;
+      background: #F2F2F7;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .card {
+      background: #fff;
+      border: 1px solid rgba(24,24,27,.1);
+      border-radius: 10px;
+      padding: 12px 14px;
+    }
+    .sec-h {
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      color: #52525b;
+      margin: 0 0 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .sec-h .icon {
+      width: 28px; height: 28px; border-radius: 8px;
+      background: linear-gradient(180deg,#fff,#f4f4f5);
+      border: 1px solid #e4e4e7;
+    }
+    .ghost { height: 10px; border-radius: 4px; background: #e4e4e7; margin: 6px 0; }
+    .ghost.w60 { width: 60%; }
+    .ghost.w40 { width: 40%; }
+    .ghost.w80 { width: 80%; }
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center;
+      border-radius: 10px; border: 0; padding: 10px 14px;
+      font-weight: 700; font-size: 12px;
+    }
+    .btn-blue { background: var(--blue); color: #fff; }
+    .btn-muted { background: #e4e4e7; color: #18181b; }
+    .stack { display: flex; flex-direction: column; gap: 8px; }
+
+    /* AFTER differences */
+    .os-after .hdr {
+      background: rgba(255,255,255,.72);
+      backdrop-filter: blur(18px) saturate(160%);
+      -webkit-backdrop-filter: blur(18px) saturate(160%);
+      box-shadow: 0 1px 0 rgba(255,255,255,.5) inset;
+      border-bottom: 0;
+      position: relative;
+    }
+    .os-after .hdr::after {
+      content: "";
+      position: absolute; left: 0; right: 0; bottom: -12px; height: 12px;
+      background: linear-gradient(to bottom, rgba(0,0,0,.06), transparent);
+      pointer-events: none;
+    }
+    .brand-chip {
+      margin-left: auto;
+      background: var(--ink);
+      color: var(--brand-yellow);
+      font-weight: 800;
+      font-size: 11px;
+      letter-spacing: 0.08em;
+      padding: 8px 12px;
+      border-radius: 999px;
+    }
+    .os-after .meta { gap: 10px; }
+    .os-after .meta-card {
+      border: 0;
+      background: rgba(255,255,255,.9);
+      box-shadow: 0 1px 0 rgba(255,255,255,.8) inset, 0 8px 24px -18px rgba(0,0,0,.35);
+      border-radius: 14px;
+      transition: transform 150ms var(--ease);
+    }
+    .os-after .meta-card:active { transform: scale(0.98); }
+    .os-after .meta-card small {
+      letter-spacing: 0.06em;
+      color: #71717a;
+    }
+    .os-after .tabs {
+      background: transparent;
+      border: 0;
+      padding: 10px 20px 0;
+      gap: 6px;
+    }
+    .os-after .tab {
+      border-radius: 999px;
+      padding: 10px 14px;
+      letter-spacing: 0.04em;
+      font-weight: 650;
+      background: rgba(255,255,255,.55);
+      color: #52525b;
+    }
+    .os-after .tab.active {
+      background: var(--ink);
+      color: var(--brand-yellow);
+    }
+    .os-after .tab.active::after { display: none; }
+    .os-after .main { padding: 18px 20px 20px; gap: 14px; }
+    .os-after .card {
+      border: 0;
+      border-radius: 16px;
+      box-shadow: 0 10px 30px -22px rgba(0,0,0,.4);
+      padding: 14px 16px;
+    }
+    .os-after .sec-h {
+      letter-spacing: 0.06em;
+      color: #3f3f46;
+    }
+    .os-after .sec-h .icon {
+      background: var(--brand-yellow);
+      border: 0;
+    }
+    .os-after .aside {
+      margin: 12px 12px 12px 0;
+      border: 0;
+      border-radius: 18px;
+      background: rgba(255,255,255,.7);
+      backdrop-filter: blur(16px);
+      box-shadow: 0 18px 40px -28px rgba(0,0,0,.45);
+      padding: 14px;
+    }
+    .btn-brand {
+      background: var(--brand-yellow);
+      color: #111;
+      transition: transform 120ms var(--ease);
+    }
+    .btn-brand:active { transform: scale(0.97); }
+    .btn-ink {
+      background: var(--ink);
+      color: #fff;
+    }
+    .media-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+    }
+    .thumb {
+      aspect-ratio: 1;
+      border-radius: 12px;
+      background: linear-gradient(145deg, #d4d4d8, #f4f4f5);
+      border: 1px solid #e4e4e7;
+    }
+    .os-after .thumb {
+      box-shadow: 0 8px 18px -14px rgba(0,0,0,.5);
+    }
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      border-radius: 999px;
+      padding: 6px 10px;
+      background: #111;
+      color: var(--brand-yellow);
+      font-size: 11px;
+      font-weight: 700;
+    }
+    .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--brand-yellow); }
+
+    .notes {
+      margin-top: 28px;
+      display: grid;
+      grid-template-columns: 1.2fr 1fr;
+      gap: 16px;
+    }
+    .notes article {
+      background: #18181b;
+      border: 1px solid #27272a;
+      border-radius: 14px;
+      padding: 16px 18px;
+    }
+    .notes h2 {
+      margin: 0 0 10px;
+      font-size: 15px;
+      letter-spacing: -0.01em;
+    }
+    .notes ul { margin: 0; padding-left: 18px; color: #d4d4d8; line-height: 1.55; }
+    .notes li { margin: 6px 0; }
+    .k { color: var(--brand-yellow); font-weight: 700; }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <h1>OS de veículo (Pátio) — Desktop · Antes × Depois</h1>
+    <p class="lede">
+      Protótipo de planejamento (sem código do app). Identidade Rei do ABS preservada
+      (<span class="k">amarelo #F5D00B</span>, preto, branco). Estrutura e usabilidade via
+      <strong>ui-ux-pro-max</strong>; materiais, press e movimento via <strong>apple-design</strong>.
+      Escopo: somente desktop/PC.
+    </p>
+
+    <div class="grid">
+      <section class="panel">
+        <div class="panel-label">
+          <span>Antes — estado atual (modelo)</span>
+          <span class="tag tag-before">Hoje</span>
+        </div>
+        <div class="os os-before">
+          <header class="hdr">
+            <div class="hdr-row">
+              <div class="logo"></div>
+              <div class="title">Civic EX</div>
+              <div class="plate">ABC1D23</div>
+            </div>
+            <div class="meta">
+              <div class="meta-card"><small>Cliente</small>Maria Souza</div>
+              <div class="meta-card"><small>KM</small>84.210</div>
+              <div class="meta-card"><small>Entrada</small>11/11/2026</div>
+              <div class="meta-card"><small>Técnico</small>João</div>
+            </div>
+          </header>
+          <div class="tabs">
+            <button class="tab active">Dados</button>
+            <button class="tab">Orçamentos</button>
+            <button class="tab">Arquivos</button>
+            <button class="tab">Manutenções</button>
+            <button class="tab">Serviços Lab</button>
+          </div>
+          <div class="main">
+            <div class="card">
+              <p class="sec-h"><span class="icon"></span> Queixa do cliente</p>
+              <div class="ghost w80"></div>
+              <div class="ghost w60"></div>
+            </div>
+            <div class="card">
+              <p class="sec-h"><span class="icon"></span> Observações</p>
+              <div class="ghost w40"></div>
+              <div class="ghost w80"></div>
+            </div>
+            <div class="card">
+              <p class="sec-h"><span class="icon"></span> Autorização de diagnóstico</p>
+              <button class="btn btn-blue">Abrir autorização</button>
+            </div>
+          </div>
+          <aside class="aside">
+            <div class="card">
+              <p class="sec-h">Alterar status</p>
+              <button class="btn btn-muted" style="width:100%">Em serviço</button>
+            </div>
+            <div class="card">
+              <p class="sec-h">Comentários</p>
+              <div class="ghost w80"></div>
+              <div class="ghost w60"></div>
+            </div>
+            <div class="card">
+              <p class="sec-h">Peças do estoque</p>
+              <div class="ghost w40"></div>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-label">
+          <span>Depois — proposta desktop</span>
+          <span class="tag tag-after">Proposta</span>
+        </div>
+        <div class="os os-after">
+          <header class="hdr">
+            <div class="hdr-row">
+              <div class="logo"></div>
+              <div>
+                <div class="title">Civic EX</div>
+                <div style="margin-top:6px;display:flex;gap:8px;align-items:center">
+                  <div class="plate">ABC1D23</div>
+                  <span class="status-pill"><span class="dot"></span> Em serviço</span>
+                </div>
+              </div>
+              <span class="brand-chip">REI DO ABS · OS</span>
+            </div>
+            <div class="meta">
+              <div class="meta-card"><small>Cliente</small>Maria Souza</div>
+              <div class="meta-card"><small>KM</small>84.210</div>
+              <div class="meta-card"><small>Entrada</small>11/11/2026</div>
+              <div class="meta-card"><small>Técnico</small>João · atribuir</div>
+            </div>
+          </header>
+          <div class="tabs">
+            <button class="tab active">Dados</button>
+            <button class="tab">Orçamentos</button>
+            <button class="tab">Arquivos</button>
+            <button class="tab">Manutenções</button>
+            <button class="tab">Lab</button>
+          </div>
+          <div class="main">
+            <div class="card">
+              <p class="sec-h"><span class="icon"></span> Queixa</p>
+              <div class="ghost w80"></div>
+              <div class="ghost w60"></div>
+            </div>
+            <div class="card">
+              <p class="sec-h"><span class="icon"></span> Observações</p>
+              <div class="ghost w40"></div>
+            </div>
+            <div class="card">
+              <p class="sec-h"><span class="icon"></span> Mídia recente</p>
+              <div class="media-row">
+                <div class="thumb"></div><div class="thumb"></div>
+                <div class="thumb"></div><div class="thumb"></div>
+              </div>
+            </div>
+          </div>
+          <aside class="aside">
+            <div class="stack">
+              <button class="btn btn-brand" style="width:100%">Alterar etapa</button>
+              <button class="btn btn-ink" style="width:100%">Novo orçamento</button>
+            </div>
+            <div class="card" style="background:rgba(255,255,255,.85)">
+              <p class="sec-h">Comentários</p>
+              <div class="ghost w80"></div>
+              <div class="ghost w40"></div>
+            </div>
+            <div class="card" style="background:rgba(255,255,255,.85)">
+              <p class="sec-h">Estoque na OS</p>
+              <div class="ghost w60"></div>
+            </div>
+          </aside>
+        </div>
+      </section>
+    </div>
+
+    <div class="notes">
+      <article>
+        <h2>O que muda (perceptível)</h2>
+        <ul>
+          <li>Chrome translúcido + fade de scroll no header (Apple materials), sem perder contraste.</li>
+          <li>Abas viram pills pretas/amarelas (marca) no lugar do underline azul de sistema.</li>
+          <li>Aside como painel flutuante; CTAs primários da oficina em amarelo/preto.</li>
+          <li>Arquivos ganham “mídia recente” no fluxo Dados para reduzir caça de anexos.</li>
+          <li>Tracking tipográfico por tamanho; menos UPPERCASE denso; cards sem borda rígida.</li>
+          <li>Press em pointer-down e transição de aba/painel simétrica (vocabulário Apple já no repo).</li>
+        </ul>
+      </article>
+      <article>
+        <h2>O que não muda</h2>
+        <ul>
+          <li>Abas e campos existentes (Dados, Orçamentos, Arquivos, Manutenções, Lab).</li>
+          <li>Regras de etapa, permissões, estoque, orçamento, diagnósticos, impressões.</li>
+          <li>Mobile/tablet layouts e APIs/banco.</li>
+          <li>Identidade amarelo/preto/branco (sem paleta azul-laranja genérica do gerador).</li>
+        </ul>
+      </article>
+    </div>
+  </div>
+</body>
+</html>
