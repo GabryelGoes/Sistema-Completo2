@@ -128,6 +128,29 @@ console.log("\n4) Ajustes sem callback implícito");
   assert(vis.orcamentos_prefs === false, "prefs orçamento exigem access_settings");
   assert(vis.perfil === true, "perfil pessoal preservado");
   assert(vis.dispositivo === true, "dispositivo preservado");
+  assert(vis.rda_ligado === false, "rda_ligado exige gerência/full_access");
+}
+
+console.log("\n4b) Interruptor RDA visível para admin / full_access");
+{
+  const admin = resolveAjustesVisibility({
+    role: "admin",
+    permissions: undefined,
+    isSystemUser: false,
+    isTechnician: false,
+    hasTechnicianProfile: false,
+    hasLogout: true,
+  });
+  assert(admin.rda_ligado === true, "admin vê Ligar/desligar RDA");
+  const full = resolveAjustesVisibility({
+    role: "user",
+    permissions: { full_access: true, access_home: true },
+    isSystemUser: true,
+    isTechnician: false,
+    hasTechnicianProfile: false,
+    hasLogout: true,
+  });
+  assert(full.rda_ligado === true, "full_access vê Ligar/desligar RDA");
 }
 
 console.log("\n5) Sessão antiga / privilégio removido antes do sync");

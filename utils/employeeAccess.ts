@@ -311,6 +311,8 @@ export function resolveAjustesVisibility(input: ResolveAjustesVisibilityInput): 
     // Layout deste aparelho: disponível a todo funcionário logado (não é admin de oficina).
     dispositivo: true,
     etiquetas: full || !!p.access_settings,
+    // Interruptor mestre: só quem pode gravar a flag (gerência / full_access).
+    rda_ligado: isWorkshopAdmin || (isSystemUser && !!p.full_access),
     memoria_rda: isWorkshopAdmin || (isSystemUser && !!p.full_access),
     inteligencia_operacional:
       isWorkshopAdmin || (isSystemUser && (!!p.full_access || !!p.access_radar_qualidade)),
