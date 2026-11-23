@@ -170,10 +170,15 @@ export function WorkshopPartDetailView({
                 {photos.map((slot, index) => {
                   const url = (slot.remoteUrl ?? slot.previewUrl)?.trim();
                   const canPreview = !!url;
+                  const isHero = pcLayout && index === 0;
                   return (
                   <div
                     key={slot.id}
-                    className="group relative aspect-square overflow-hidden rounded-xl border-0 bg-zinc-100 dark:bg-white/[0.03]"
+                    className={`group relative overflow-hidden rounded-xl border-0 bg-zinc-100 dark:bg-white/[0.03] ${
+                      isHero
+                        ? 'estoque-pc-detail-photo-hero col-span-2 aspect-[4/3]'
+                        : 'aspect-square'
+                    }`}
                   >
                     {canPreview ? (
                       <button
@@ -204,7 +209,7 @@ export function WorkshopPartDetailView({
                       />
                     )}
                     {index === 0 ? (
-                      <span className="pointer-events-none absolute left-1 top-1 z-[1] rounded-md bg-emerald-600 px-1.5 py-0.5 text-[9px] font-bold uppercase text-white">
+                      <span className="pointer-events-none absolute left-2 top-2 z-[1] rounded-md bg-emerald-600 px-1.5 py-0.5 text-[9px] font-bold uppercase text-white shadow-sm">
                         Capa
                       </span>
                     ) : null}
