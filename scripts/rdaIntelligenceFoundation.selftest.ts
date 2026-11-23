@@ -65,6 +65,34 @@ assert(
   describeRdaFeatureFlag({ settingValue: null, envValue: null }).source === "default",
   "source default"
 );
+assert(
+  resolveRdaIntelligenceEnabled({ settingValue: "false", envValue: "true" }) === false,
+  "setting false vence env true (economia de tokens)"
+);
+assert(
+  resolveRdaIntelligenceEnabled({ settingValue: "true", envValue: "false" }) === true,
+  "setting true vence env false"
+);
+assert(
+  resolveRdaIntelligenceEnabled({ settingValue: null, envValue: "true" }) === true,
+  "sem setting, env true liga"
+);
+assert(
+  describeRdaFeatureFlag({ settingValue: "false", envValue: "true" }).source === "setting",
+  "describe source setting quando explícito"
+);
+assert(
+  describeRdaFeatureFlag({ settingValue: "false", envValue: "true" }).enabled === false,
+  "describe enabled false com setting off"
+);
+assert(
+  describeRdaFeatureFlag({ settingValue: "false", envValue: "true" }).envWouldEnable === true,
+  "envWouldEnable informa env ativo"
+);
+assert(
+  describeRdaFeatureFlag({ settingValue: "false", envValue: "true" }).settingExplicit === true,
+  "settingExplicit true"
+);
 
 console.log("\n2) Tool registry + param validation");
 const registry = createRdaToolRegistry();
