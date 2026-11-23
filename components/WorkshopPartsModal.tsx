@@ -52,7 +52,6 @@ import {
   updateWorkshopPartPurchase,
   deleteWorkshopPartPurchase,
   getWorkshopPartPendingReservations,
-  lookupWorkshopPartByCode,
   verifyStockGuardPassword,
   type WorkshopPart,
   type WorkshopPartCategory,
@@ -77,7 +76,7 @@ import { WorkshopEstoqueLedgerModal } from './WorkshopEstoqueLedgerModal';
 import { WorkshopSuppliersModal } from './WorkshopSuppliersModal';
 import { setActiveBarcodeScanClaim } from '../utils/activeBarcodeScanClaim';
 import { isLabOsQrPayload } from '../utils/labOsQrCode';
-import { findWorkshopPartByCode, normalizeBarcodeInput } from '../utils/workshopPartBarcode';
+import { normalizeBarcodeInput } from '../utils/workshopPartBarcode';
 import { StockGuardPasswordModal } from './StockGuardPasswordModal';
 import {
   formValuesToApiPayload,
@@ -1258,7 +1257,7 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
 
   /**
    * Com o módulo de estoque aberto, a pistola USB (busca / “Escanear código”)
-   * abre o modal de visualização do produto. Código inexistente → hub p/ cadastrar.
+   * abre o hub “Estoque · Leitura”. A ficha completa abre só via “Expandir”.
    * Não reivindica se ficha/entrada/saída/cadastro já estiver aberto (campo local).
    */
   const stockUsbClaimBlocked =
@@ -1272,34 +1271,15 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
 
   useEffect(() => {
     if (!isOpen || stockUsbClaimBlocked) return;
-    return setActiveBarcodeScanClaim(async (raw) => {
+    return setActiveBarcodeScanClaim((raw) => {
       const code = normalizeBarcodeInput(raw);
       if (!code) return false;
       if (isLabOsQrPayload(code)) return false;
-
-      const local = findWorkshopPartByCode(parts, code);
-      if (local) {
-        setScanHubOpen(false);
-        setScanHubExternal(null);
-        void openProductView(local);
-        return true;
-      }
-      try {
-        const remote = await lookupWorkshopPartByCode(code);
-        if (remote) {
-          setScanHubOpen(false);
-          setScanHubExternal(null);
-          void openProductView(remote);
-          return true;
-        }
-      } catch {
-        /* cai no hub “não encontrado” */
-      }
       setScanHubOpen(true);
       setScanHubExternal({ code, token: Date.now() });
       return true;
     });
-  }, [isOpen, stockUsbClaimBlocked, parts, openProductView]);
+  }, [isOpen, stockUsbClaimBlocked]);
 
   /** Intenção vinda da leitura USB global (editar / cadastrar / saída). */
   useEffect(() => {
@@ -1716,24 +1696,46 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
             <div
               className={
                 isEstoquePcLayout
-                  ? 'estoque-pc-nested-header shrink-0 border-b border-zinc-200/70 bg-white px-6 pb-3 pt-3 pr-28 dark:border-white/[0.06] dark:bg-transparent sm:px-8'
+                  ? 'estoque-pc-nested-header estoque-pc-product-view-header shrink-0 border-b border-zinc-200/70 bg-white px-6 pb-4 pt-3 pr-28 dark:border-white/[0.06] dark:bg-transparent sm:px-10'
                   : isDesktopShell
-                    ? 'shrink-0 border-b border-zinc-200/70 bg-white px-6 pb-4 pt-[max(2rem,env(safe-area-inset-top)+0.75rem)] pr-28 dark:border-white/[0.06] dark:bg-transparent sm:px-8'
+                    ? 'shrink-0 border-b border-zinc-200/70 bg-white px-6 pb-5 pt-[max(2rem,env(safe-area-inset-top)+0.75rem)] pr-28 dark:border-white/[0.06] dark:bg-transparent sm:px-10'
                     : 'shrink-0 border-b border-zinc-200/70 bg-white px-6 pb-4 pt-8 pr-28 dark:border-white/[0.06] dark:bg-transparent'
               }
             >
-              <h2
-                id="workshop-part-view-title"
-                className="font-display pr-2 text-[22px] font-semibold leading-tight tracking-tight text-zinc-900 sm:text-[26px] dark:text-white"
-              >
-                {(parts.find((p) => p.id === viewPart.id) ?? viewPart).name}
-              </h2>
+              {(() => {
+                const vp = parts.find((p) => p.id === viewPart.id) ?? viewPart;
+                const brandModel = [vp.brand, vp.model].filter(Boolean).join(' · ');
+                const codeBits = [vp.barcode, vp.original_code, vp.numeric_code]
+                  .filter(Boolean)
+                  .join(' · ');
+                return (
+                  <div className="min-w-0 max-w-5xl">
+                    <p className="text-[11px] font-bold uppercase tracking-[0.14em] text-emerald-700 dark:text-emerald-400">
+                      Produto
+                      {partNumberById.get(vp.id) != null
+                        ? ` · #${partNumberById.get(vp.id)}`
+                        : ''}
+                    </p>
+                    <h2
+                      id="workshop-part-view-title"
+                      className="font-display mt-1 pr-2 text-[24px] font-semibold leading-[1.15] tracking-[-0.02em] text-zinc-900 sm:text-[30px] dark:text-white"
+                    >
+                      {vp.name}
+                    </h2>
+                    {(brandModel || codeBits) && (
+                      <p className="mt-1.5 truncate text-[13px] text-zinc-500 dark:text-zinc-400">
+                        {[brandModel || null, codeBits || null].filter(Boolean).join(' · ')}
+                      </p>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
             <div
               data-estoque-detail-scroll={isEstoquePcLayout ? '' : undefined}
               className={
                 isEstoquePcLayout
-                  ? 'estoque-pc-nested-scroll min-h-0 flex-1 overflow-y-auto overscroll-y-auto touch-pan-y bg-white custom-scrollbar [scrollbar-gutter:stable] dark:bg-transparent'
+                  ? 'estoque-pc-nested-scroll min-h-0 flex-1 overflow-y-auto overscroll-y-auto touch-pan-y bg-zinc-50/80 custom-scrollbar [scrollbar-gutter:stable] dark:bg-transparent'
                   : 'min-h-0 flex-1 overflow-y-auto overscroll-y-auto touch-pan-y bg-white px-6 py-6 sm:px-8 custom-scrollbar [scrollbar-gutter:stable] dark:bg-transparent'
               }
             >

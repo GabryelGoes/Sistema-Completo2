@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ClipboardList,
+  Expand,
   Loader2,
   PackageMinus,
   PackagePlus,
@@ -50,10 +51,7 @@ export type WorkshopPartScanHubModalProps = {
   onRegisterProduct: (barcode: string) => void;
   onSaleOutbound: (part: WorkshopPart) => void;
   onConsumableOutbound: (part: WorkshopPart) => void;
-  /**
-   * Se informado, ao achar o produto abre a ficha de visualização (em vez
-   * de mostrar o card resumido dentro do hub).
-   */
+  /** Abre a ficha completa do produto (botão Expandir no card de leitura). */
   onViewProduct?: (part: WorkshopPart) => void;
   /** Quando o código é um módulo ABS (ABS-######), abre a área ABS. */
   onOpenAbsModule?: (publicId: string) => void;
@@ -170,15 +168,8 @@ export function WorkshopPartScanHubModal({
         }
         const found = await lookupWorkshopPartByCode(trimmed);
         if (seq !== lookupSeqRef.current) return;
-        if (found) {
-          if (onViewProduct) {
-            onViewProduct(found);
-            return;
-          }
-          setResolved({ kind: 'part', code: trimmed, part: found });
-        } else {
-          setResolved({ kind: 'missing_part', code: trimmed });
-        }
+        if (found) setResolved({ kind: 'part', code: trimmed, part: found });
+        else setResolved({ kind: 'missing_part', code: trimmed });
       } catch (e) {
         if (seq !== lookupSeqRef.current) return;
         setError(e instanceof Error ? e.message : 'Falha ao consultar o código.');
@@ -186,7 +177,7 @@ export function WorkshopPartScanHubModal({
         if (seq === lookupSeqRef.current) setLookingUp(false);
       }
     },
-    [onOpenAbsModule, onViewProduct]
+    [onOpenAbsModule]
   );
 
   useEffect(() => {
@@ -300,6 +291,13 @@ export function WorkshopPartScanHubModal({
                 scannedCode={resolved.code}
                 desktopLayout={isDesktopShell}
                 purchaseBanner={purchaseBanner}
+                onExpand={
+                  onViewProduct
+                    ? () => {
+                        onViewProduct(resolved.part);
+                      }
+                    : undefined
+                }
                 onEdit={() => {
                   onEditProduct(resolved.part);
                   onClose();
@@ -368,6 +366,7 @@ function PartQuickCard({
   scannedCode,
   desktopLayout = false,
   purchaseBanner = null,
+  onExpand,
   onEdit,
   onStockEntry,
   onSale,
@@ -377,6 +376,7 @@ function PartQuickCard({
   scannedCode: string;
   desktopLayout?: boolean;
   purchaseBanner?: string | null;
+  onExpand?: () => void;
   onEdit: () => void;
   onStockEntry: () => void;
   onSale: () => void;
@@ -436,15 +436,28 @@ function PartQuickCard({
         >
           {part.name}
         </p>
-        <button
-          type="button"
-          onClick={onEdit}
-          className="inline-flex shrink-0 items-center gap-1 rounded-lg px-1.5 py-1 text-[12px] font-medium text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-700 dark:text-zinc-500 dark:hover:bg-white/[0.06] dark:hover:text-zinc-200"
-          title="Editar cadastro"
-        >
-          <Pencil className="h-3.5 w-3.5" strokeWidth={2} />
-          Editar
-        </button>
+        <div className="flex shrink-0 items-center gap-1">
+          {onExpand ? (
+            <button
+              type="button"
+              onClick={onExpand}
+              className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-2 py-1 text-[12px] font-semibold text-white transition hover:bg-emerald-500"
+              title="Abrir ficha completa do produto"
+            >
+              <Expand className="h-3.5 w-3.5" strokeWidth={2.2} />
+              Expandir
+            </button>
+          ) : null}
+          <button
+            type="button"
+            onClick={onEdit}
+            className="inline-flex items-center gap-1 rounded-lg px-1.5 py-1 text-[12px] font-medium text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-700 dark:text-zinc-500 dark:hover:bg-white/[0.06] dark:hover:text-zinc-200"
+            title="Editar cadastro"
+          >
+            <Pencil className="h-3.5 w-3.5" strokeWidth={2} />
+            Editar
+          </button>
+        </div>
       </div>
       <p className="mt-1 truncate text-[13px] text-zinc-500 dark:text-zinc-400">
         {[part.brand, part.model].filter(Boolean).join(' · ') || '—'}
@@ -513,6 +526,16 @@ function PartQuickCard({
 
   const actions = (
     <div className={`space-y-2 ${desktopLayout ? 'flex h-full flex-col justify-center space-y-2.5' : ''}`}>
+      {onExpand ? (
+        <ActionButton
+          tone="zinc"
+          compact={desktopLayout}
+          icon={<Expand className="h-5 w-5" />}
+          title="Expandir"
+          subtitle="Abrir a ficha completa do produto"
+          onClick={onExpand}
+        />
+      ) : null}
       <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-zinc-500 dark:text-zinc-400">
         Movimentações
       </p>
@@ -588,7 +611,7 @@ function ActionButton({
   onClick,
   compact = false,
 }: {
-  tone: 'emerald' | 'violet' | 'sky';
+  tone: 'emerald' | 'violet' | 'sky' | 'zinc';
   icon: React.ReactNode;
   title: string;
   subtitle: string;
@@ -613,6 +636,12 @@ function ActionButton({
       icon: 'bg-sky-600 text-white',
       title: 'text-sky-950 dark:text-sky-100',
       sub: 'text-sky-800/80 dark:text-sky-200/75',
+    },
+    zinc: {
+      row: 'bg-zinc-900 hover:bg-zinc-800 dark:bg-white dark:hover:bg-zinc-100',
+      icon: 'bg-white/15 text-white dark:bg-zinc-900 dark:text-white',
+      title: 'text-white dark:text-zinc-900',
+      sub: 'text-white/75 dark:text-zinc-600',
     },
   }[tone];
 
