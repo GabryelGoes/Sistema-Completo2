@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Loader2, Pencil, Printer, Tag, Trash2, ZoomIn } from 'lucide-react';
 import type { WorkshopPartLabContext } from '../services/apiService';
 import { printWorkshopPartSheet } from '../utils/workshopPartPrintSheet';
@@ -76,10 +76,17 @@ export type WorkshopPartDetailViewProps = {
   onDelete: () => void;
   /** Oculta editar/excluir (ex.: visualização rápida no orçamento). */
   readOnly?: boolean;
+  /**
+   * Oculta o bloco de ações do rodapé (ficha/etiqueta/editar/excluir).
+   * Use quando o pai expõe essas ações no cabeçalho (menu ⋯).
+   */
+  hideActionButtons?: boolean;
   /** Ações extras no rodapé (ex.: usar peça no orçamento). */
   footerExtra?: React.ReactNode;
   /** Atualiza o produto na lista (ex.: código gerado na etiqueta). */
   onPartUpdated?: (part: WorkshopPart) => void;
+  /** Permite ao pai abrir o modal de impressão de etiqueta. */
+  openLabelPrintRef?: React.MutableRefObject<(() => void) | null>;
 };
 
 export function WorkshopPartDetailView({
@@ -93,8 +100,10 @@ export function WorkshopPartDetailView({
   onEdit,
   onDelete,
   readOnly = false,
+  hideActionButtons = false,
   footerExtra,
   onPartUpdated,
+  openLabelPrintRef,
 }: WorkshopPartDetailViewProps) {
   const pcLayout = useEstoquePcLayout();
   const unit = part.unit_of_measure ?? 'UN';
@@ -120,6 +129,14 @@ export function WorkshopPartDetailView({
   const [labelPrintOpen, setLabelPrintOpen] = useState(false);
 
   useBrowserBackLayer(!!previewImages, () => setPreviewImages(null));
+
+  useEffect(() => {
+    if (!openLabelPrintRef) return;
+    openLabelPrintRef.current = () => setLabelPrintOpen(true);
+    return () => {
+      openLabelPrintRef.current = null;
+    };
+  }, [openLabelPrintRef]);
 
   const handlePrint = () => {
     printWorkshopPartSheet({
@@ -265,15 +282,7 @@ export function WorkshopPartDetailView({
             <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
                 <p className={labelCls}>Em estoque</p>
-                <p
-                  className={`mt-1 text-[22px] font-semibold tracking-[-0.02em] tabular-nums leading-none ${
-                    stockStatus === 'zero'
-                      ? 'text-red-600 dark:text-red-400'
-                      : stockStatus === 'low'
-                        ? 'text-amber-700 dark:text-amber-300'
-                        : 'text-zinc-900 dark:text-white'
-                  }`}
-                >
+                <p className="mt-1 text-[22px] font-semibold tracking-[-0.02em] tabular-nums leading-none text-emerald-600 dark:text-emerald-400">
                   {fmtQty(part.stock_qty, unit)}
                 </p>
               </div>
@@ -480,6 +489,7 @@ export function WorkshopPartDetailView({
         </>
       )}
 
+      {!hideActionButtons || footerExtra ? (
       <div
         className={
           pcLayout
@@ -487,26 +497,30 @@ export function WorkshopPartDetailView({
             : 'flex flex-col gap-3 border-t border-zinc-200/50 pt-5 dark:border-white/[0.06]'
         }
       >
-        <button
-          type="button"
-          onClick={() => setLabelPrintOpen(true)}
-          disabled={loading}
-          className="inline-flex w-full items-center justify-center gap-2 rounded-xl border-0 bg-amber-50 px-5 py-3 text-[15px] font-semibold text-amber-950 shadow-none hover:bg-amber-100 disabled:opacity-50 dark:bg-amber-950/40 dark:text-amber-100 dark:hover:bg-amber-950/60"
-        >
-          <Tag className="h-5 w-5" />
-          Imprimir etiqueta
-        </button>
-        <button
-          type="button"
-          onClick={handlePrint}
-          disabled={loading}
-          className="inline-flex w-full items-center justify-center gap-2 rounded-xl border-0 bg-teal-50 px-5 py-3 text-[15px] font-semibold text-teal-900 shadow-none hover:bg-teal-100 disabled:opacity-50 dark:bg-teal-950/40 dark:text-teal-100 dark:hover:bg-teal-950/60"
-        >
-          <Printer className="h-5 w-5" />
-          Imprimir ficha
-        </button>
+        {!hideActionButtons ? (
+          <>
+            <button
+              type="button"
+              onClick={() => setLabelPrintOpen(true)}
+              disabled={loading}
+              className="inline-flex w-full items-center justify-center gap-2 rounded-xl border-0 bg-amber-50 px-5 py-3 text-[15px] font-semibold text-amber-950 shadow-none hover:bg-amber-100 disabled:opacity-50 dark:bg-amber-950/40 dark:text-amber-100 dark:hover:bg-amber-950/60"
+            >
+              <Tag className="h-5 w-5" />
+              Imprimir etiqueta
+            </button>
+            <button
+              type="button"
+              onClick={handlePrint}
+              disabled={loading}
+              className="inline-flex w-full items-center justify-center gap-2 rounded-xl border-0 bg-teal-50 px-5 py-3 text-[15px] font-semibold text-teal-900 shadow-none hover:bg-teal-100 disabled:opacity-50 dark:bg-teal-950/40 dark:text-teal-100 dark:hover:bg-teal-950/60"
+            >
+              <Printer className="h-5 w-5" />
+              Imprimir ficha
+            </button>
+          </>
+        ) : null}
         {footerExtra ? <div className={pcLayout ? 'col-span-2' : undefined}>{footerExtra}</div> : null}
-        {!readOnly ? (
+        {!hideActionButtons && !readOnly ? (
         <div
           className={
             pcLayout
@@ -533,6 +547,7 @@ export function WorkshopPartDetailView({
         </div>
         ) : null}
       </div>
+      ) : null}
 
       {previewImages ? (
         <Lightbox

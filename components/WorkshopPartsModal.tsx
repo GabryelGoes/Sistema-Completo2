@@ -8,6 +8,8 @@ import {
   Plus,
   Pencil,
   Trash2,
+  MoreHorizontal,
+  Tag,
 } from 'lucide-react';
 import { iosModalShell, iosModalClose, iosModalInsetCard, SHELL_MODULE_OVERLAY_Z, NESTED_STOCK_OVERLAY_Z } from './ui/iosModalStyles';
 
@@ -221,6 +223,9 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
   const [viewPurchases, setViewPurchases] = useState<WorkshopPartPurchase[]>([]);
   const [viewLabContext, setViewLabContext] = useState<WorkshopPartLabContext | null>(null);
   const [loadingViewPart, setLoadingViewPart] = useState(false);
+  const [viewToolsOpen, setViewToolsOpen] = useState(false);
+  const viewToolsMenuRef = useRef<HTMLDivElement | null>(null);
+  const openViewLabelPrintRef = useRef<(() => void) | null>(null);
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingName, setEditingName] = useState('');
@@ -537,7 +542,28 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
     setViewPurchases([]);
     setViewLabContext(null);
     setLoadingViewPart(false);
+    setViewToolsOpen(false);
   }, []);
+
+  useEffect(() => {
+    if (!viewToolsOpen) return;
+    const onPointerDown = (event: MouseEvent | TouchEvent) => {
+      const target = event.target as Node | null;
+      if (target && viewToolsMenuRef.current?.contains(target)) return;
+      setViewToolsOpen(false);
+    };
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setViewToolsOpen(false);
+    };
+    document.addEventListener('mousedown', onPointerDown);
+    document.addEventListener('touchstart', onPointerDown, { passive: true });
+    document.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.removeEventListener('mousedown', onPointerDown);
+      document.removeEventListener('touchstart', onPointerDown);
+      document.removeEventListener('keydown', onKeyDown);
+    };
+  }, [viewToolsOpen]);
 
   useEffect(() => {
     if (!isOpen) {
@@ -1585,7 +1611,96 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
             onClick={(e) => e.stopPropagation()}
             role="dialog"
             aria-modal="true"
+            aria-labelledby="workshop-part-view-title"
           >
+            <div
+              ref={viewToolsMenuRef}
+              className={
+                isDesktopShell
+                  ? 'absolute top-[max(1rem,env(safe-area-inset-top))] right-[max(4.25rem,env(safe-area-inset-right)+3.25rem)] z-20'
+                  : 'absolute top-4 right-14 z-20'
+              }
+            >
+              <button
+                type="button"
+                onClick={() => setViewToolsOpen((open) => !open)}
+                className="flex h-11 w-11 items-center justify-center rounded-full bg-black/5 text-zinc-600 transition-[transform,background-color] duration-150 ease-out hover:bg-black/10 active:scale-[0.94] dark:bg-white/10 dark:text-zinc-300 dark:hover:bg-white/15"
+                aria-expanded={viewToolsOpen}
+                aria-haspopup="menu"
+                aria-label="Mais opções"
+                title="Mais opções"
+              >
+                <MoreHorizontal className="h-5 w-5" strokeWidth={2.2} aria-hidden />
+              </button>
+              {viewToolsOpen ? (
+                <div
+                  role="menu"
+                  className="absolute right-0 top-[calc(100%+0.4rem)] z-30 min-w-[13.5rem] overflow-hidden rounded-2xl border border-zinc-200/90 bg-white py-1.5 text-zinc-900 shadow-[0_12px_40px_-8px_rgba(0,0,0,0.25)] dark:border-white/[0.12] dark:bg-zinc-900 dark:text-zinc-100"
+                >
+                  <button
+                    type="button"
+                    role="menuitem"
+                    disabled={loadingViewPart}
+                    onClick={() => {
+                      setViewToolsOpen(false);
+                      const part = parts.find((p) => p.id === viewPart.id) ?? viewPart;
+                      const photoUrls = viewPhotos
+                        .map((slot) => (slot.remoteUrl ?? slot.previewUrl)?.trim())
+                        .filter((url): url is string => !!url);
+                      printWorkshopPartSheet({
+                        part,
+                        catalogNumber: partNumberById.get(viewPart.id),
+                        categories,
+                        purchases: viewPurchases,
+                        photoUrls,
+                        labContext: viewLabContext,
+                      });
+                    }}
+                    className="flex w-full items-center gap-2.5 px-3.5 py-2.5 text-left text-[14px] font-medium text-zinc-800 transition-colors hover:bg-zinc-100 disabled:opacity-50 dark:text-zinc-100 dark:hover:bg-white/[0.06]"
+                  >
+                    <Printer className="h-4 w-4 shrink-0 text-teal-600 dark:text-teal-400" aria-hidden />
+                    Imprimir ficha
+                  </button>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    disabled={loadingViewPart}
+                    onClick={() => {
+                      setViewToolsOpen(false);
+                      openViewLabelPrintRef.current?.();
+                    }}
+                    className="flex w-full items-center gap-2.5 px-3.5 py-2.5 text-left text-[14px] font-medium text-zinc-800 transition-colors hover:bg-zinc-100 disabled:opacity-50 dark:text-zinc-100 dark:hover:bg-white/[0.06]"
+                  >
+                    <Tag className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" aria-hidden />
+                    Imprimir etiqueta
+                  </button>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      setViewToolsOpen(false);
+                      handleEditFromView();
+                    }}
+                    className="flex w-full items-center gap-2.5 px-3.5 py-2.5 text-left text-[14px] font-medium text-zinc-800 transition-colors hover:bg-zinc-100 dark:text-zinc-100 dark:hover:bg-white/[0.06]"
+                  >
+                    <Pencil className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden />
+                    Editar
+                  </button>
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      setViewToolsOpen(false);
+                      void handleDelete(viewPart.id);
+                    }}
+                    className="flex w-full items-center gap-2.5 px-3.5 py-2.5 text-left text-[14px] font-medium text-red-600 transition-colors hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/40"
+                  >
+                    <Trash2 className="h-4 w-4 shrink-0" aria-hidden />
+                    Excluir
+                  </button>
+                </div>
+              ) : null}
+            </div>
             <button
               type="button"
               onClick={closeProductView}
@@ -1607,44 +1722,13 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
                     : 'shrink-0 border-b border-zinc-200/70 bg-white px-6 pb-4 pt-8 pr-28 dark:border-white/[0.06] dark:bg-transparent'
               }
             >
-              <IosModalHeader
-                icon={<img src="/icons/estoque-ios.png" alt="" className="h-full w-full min-h-0 object-cover" />}
-                title="Estoque — visualização"
-                subtitle={
-                  partNumberById.get(viewPart.id) != null
-                    ? `#${partNumberById.get(viewPart.id)} · ${viewPart.brand?.trim() || '—'} / ${viewPart.name} / ${viewPart.location?.trim() || '—'}`
-                    : `${viewPart.brand?.trim() || '—'} / ${viewPart.name} / ${viewPart.location?.trim() || '—'}`
-                }
-                gradientClass="from-emerald-500 to-teal-700"
-              />
+              <h2
+                id="workshop-part-view-title"
+                className="font-display pr-2 text-[22px] font-semibold leading-tight tracking-tight text-zinc-900 sm:text-[26px] dark:text-white"
+              >
+                {(parts.find((p) => p.id === viewPart.id) ?? viewPart).name}
+              </h2>
             </div>
-            <button
-              type="button"
-              disabled={loadingViewPart}
-              onClick={() => {
-                const part = parts.find((p) => p.id === viewPart.id) ?? viewPart;
-                const photoUrls = viewPhotos
-                  .map((slot) => (slot.remoteUrl ?? slot.previewUrl)?.trim())
-                  .filter((url): url is string => !!url);
-                printWorkshopPartSheet({
-                  part,
-                  catalogNumber: partNumberById.get(viewPart.id),
-                  categories,
-                  purchases: viewPurchases,
-                  photoUrls,
-                  labContext: viewLabContext,
-                });
-              }}
-              className={
-                isDesktopShell
-                  ? `${iosModalClose} top-[max(1rem,env(safe-area-inset-top))] right-[max(4.25rem,env(safe-area-inset-right)+3.25rem)] !bg-teal-600 !text-white hover:!bg-teal-500`
-                  : `${iosModalClose} right-14 !bg-teal-600 !text-white hover:!bg-teal-500`
-              }
-              aria-label="Imprimir ficha"
-              title="Imprimir ficha"
-            >
-              <Printer className="w-5 h-5" />
-            </button>
             <div
               data-estoque-detail-scroll={isEstoquePcLayout ? '' : undefined}
               className={
@@ -1661,6 +1745,8 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
                 categories={categories}
                 labContext={viewLabContext}
                 loading={loadingViewPart}
+                hideActionButtons
+                openLabelPrintRef={openViewLabelPrintRef}
                 onEdit={handleEditFromView}
                 onDelete={() => void handleDelete(viewPart.id)}
                 onPartUpdated={(updated) => {
