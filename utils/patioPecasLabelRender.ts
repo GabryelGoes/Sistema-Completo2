@@ -284,8 +284,10 @@ function resolvePecasOptions(layout: LabelTemplateLayout): LabelPecasOptions {
 
 /**
  * Monta PNG data URL da etiqueta de peças (384×240 / 50×30 mm).
+ * Preferir `renderPatioPecasLabelDataUrl` (async, SVG-base). Mantido para prévia
+ * legada do editor de opções de faixa — a impressão Niimbot usa o SVG.
  */
-export function renderPatioPecasLabelDataUrl(
+export function renderPatioPecasLabelCanvasDataUrl(
   input: PatioPecasLabelInput,
   layoutInput?: LabelTemplateLayout | null
 ): string {
@@ -490,4 +492,18 @@ export function renderPatioPecasLabelDataUrl(
   ctx.stroke();
 
   return canvas.toDataURL('image/png');
+}
+
+/**
+ * Etiqueta de peças — impressão B1 exatamente 50×30 mm (384×240).
+ * Composição gráfica: SVG-base fixo (`assets/labels/etiqueta_pecas_BASE_50x30.svg`)
+ * com marca PEÇAS (carro + engrenagem). O layout canvas legado é ignorado.
+ */
+export async function renderPatioPecasLabelDataUrl(
+  input: PatioPecasLabelInput,
+  _layoutInput?: LabelTemplateLayout | null
+): Promise<string> {
+  const { renderPecasLabelFromSvg } = await import('./pecasLabelSvg');
+  const { dataUrl } = await renderPecasLabelFromSvg(input);
+  return dataUrl;
 }

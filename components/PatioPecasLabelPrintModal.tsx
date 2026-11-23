@@ -49,13 +49,21 @@ export function PatioPecasLabelPrintModal({
       setPreviewUrl(null);
       return;
     }
-    try {
-      setLocalError(null);
-      setPreviewUrl(renderPatioPecasLabelDataUrl(label));
-    } catch (err) {
-      setPreviewUrl(null);
-      setLocalError(err instanceof Error ? err.message : 'Falha ao montar etiqueta');
-    }
+    let cancelled = false;
+    setLocalError(null);
+    void renderPatioPecasLabelDataUrl(label)
+      .then((url) => {
+        if (cancelled) return;
+        setPreviewUrl(url);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setPreviewUrl(null);
+        setLocalError(err instanceof Error ? err.message : 'Falha ao montar etiqueta');
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [open, label]);
 
   if (!open || !label) return null;
@@ -147,8 +155,8 @@ export function PatioPecasLabelPrintModal({
             )}
 
             <p className="rounded-xl bg-sky-50 px-3 py-2 text-[12px] text-sky-900 dark:bg-sky-950/40 dark:text-sky-100">
-              Layout no estilo do mockup (faixa PEÇA). Prévia também em Configurações →
-              Editor de etiquetas → Peças (OS veículo).
+              Layout SVG fixo com marca PEÇAS (carro + engrenagem). Prévia e impressão usam
+              o mesmo renderer Niimbot 50×30 mm.
             </p>
 
             <div className="flex items-center justify-between gap-3 rounded-xl bg-zinc-50 px-3 py-2.5 dark:bg-white/[0.03]">
@@ -213,7 +221,7 @@ export function PatioPecasLabelPrintModal({
               disabled={printing || unsupported || !previewUrl}
               onClick={() =>
                 run(async () => {
-                  const url = renderPatioPecasLabelDataUrl(label);
+                  const url = previewUrl ?? (await renderPatioPecasLabelDataUrl(label));
                   await niimbotService.printLabelImageUrl(url, { copies });
                 })
               }
