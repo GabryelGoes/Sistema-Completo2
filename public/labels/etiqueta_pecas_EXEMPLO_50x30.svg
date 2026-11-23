@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="50mm" height="30mm" viewBox="0 0 500 300">
+<title>Etiqueta de peças 50 x 30 mm - base</title>
+<rect width="500" height="300" fill="#fff"/>
+<rect x="5" y="5" width="490" height="290" rx="17" fill="#fff" stroke="#000" stroke-width="7"/>
+<path d="M22 5 H140 V295 H22 Q5 295 5 278 V22 Q5 5 22 5Z" fill="#000"/>
+<!-- Marca PEÇAS: carro branco sobre engrenagem branca, desenho vetorial fixo -->
+<g id="marca-pecas" aria-label="Carro e engrenagem">
+  <g transform="translate(76 105)" fill="none" stroke="#fff" stroke-width="6" stroke-linejoin="round" stroke-linecap="round">
+    <path d="M-6 -47 V-39 M-6 40 V47 M-47 -5 H-39 M27 -34 L21 -27 M-34 28 L-28 22 M-34 -35 L-28 -28 M27 27 L21 21"/>
+    <circle cx="-6" cy="-4" r="32" stroke-width="9" stroke-dasharray="22 6"/>
+  </g>
+  <path d="M36 107 L43 87 Q46 81 55 81 H95 Q102 81 106 88 L113 107 L119 115 V137 Q119 141 114 141 H108 V148 H96 V141 H53 V148 H41 V141 H35 Q31 141 31 136 V115 Z" fill="#fff"/>
+  <path d="M47 105 L53 90 H96 L103 105 Z" fill="#000"/>
+  <rect x="42" y="117" width="16" height="8" rx="3" fill="#000"/>
+  <rect x="93" y="117" width="16" height="8" rx="3" fill="#000"/>
+  <path d="M65 130 H85" stroke="#000" stroke-width="4" stroke-linecap="round"/>
+</g>
+<text x="75" y="192" font-family="Arial, sans-serif" font-size="31" font-weight="900" fill="white" text-anchor="middle">PEÇAS</text>
+<path d="M38 207 H112" stroke="white" stroke-width="5" stroke-linecap="round"/>
+<path d="M145 16 V284" stroke="#000" stroke-width="2"/>
+<!-- Área principal: modelo, cor, cliente, placa -->
+<text x="164" y="39" font-family="Arial, sans-serif" font-size="15" font-weight="700" fill="#555">VEÍCULO</text>
+<line x1="164" y1="104" x2="477" y2="104" stroke="#000" stroke-width="2"/>
+<text x="164" y="128" font-family="Arial, sans-serif" font-size="15" font-weight="700" fill="#555">COR</text>
+<text x="164" y="174" font-family="Arial, sans-serif" font-size="15" font-weight="700" fill="#555">CLIENTE</text>
+<line x1="164" y1="211" x2="477" y2="211" stroke="#000" stroke-width="2"/>
+<rect x="164" y="222" width="313" height="58" rx="7" fill="#fff" stroke="#000" stroke-width="3"/>
+<rect x="164" y="222" width="313" height="14" rx="5" fill="#000"/>
+<rect x="164" y="230" width="313" height="6" fill="#000"/>
+<text x="320" y="233" font-family="Arial, sans-serif" font-size="10" font-weight="700" fill="white" text-anchor="middle">BRASIL</text>
+<g id="campos-dinamicos" font-family="Arial, sans-serif" fill="#000">
+<text x="164" y="83" font-size="34" font-weight="800">WRANGLER</text>
+<text x="164" y="153" font-size="23" font-weight="700">BRANCA</text>
+<text x="164" y="199" font-size="23" font-weight="700">MECÂNICA LÍDER</text>
+<text x="320" y="270" font-size="36" font-weight="800" text-anchor="middle">JAW1941</text>
+</g>
+</svg>
