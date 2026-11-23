@@ -7353,7 +7353,12 @@ export async function submitRdaEvaluation(input: {
 export type RdaStatusDto = {
   phase: number;
   operational: boolean;
-  feature: { enabled: boolean; source: string };
+  feature: {
+    enabled: boolean;
+    source: string;
+    settingExplicit?: boolean;
+    envWouldEnable?: boolean;
+  };
   provider: { id: string; configured: boolean; callsAllowed: boolean };
   usage?: {
     totalTokens: number;

@@ -289,7 +289,11 @@ export const RdaAssistantPanel: React.FC<Props> = ({
                 {canManageFlag(authSession) ? (
                   <button
                     type="button"
-                    className="rounded-lg bg-zinc-100 px-2 py-1 text-[11px] dark:bg-zinc-800"
+                    className={`rounded-lg px-2 py-1 text-[11px] font-semibold ${
+                      status?.feature.enabled
+                        ? 'bg-red-100 text-red-800 dark:bg-red-950/50 dark:text-red-200'
+                        : 'bg-emerald-100 text-emerald-900 dark:bg-emerald-950/50 dark:text-emerald-100'
+                    }`}
                     onClick={async () => {
                       try {
                         await setRdaIntelligenceEnabled(!status?.feature.enabled);
@@ -298,8 +302,9 @@ export const RdaAssistantPanel: React.FC<Props> = ({
                         setError(e instanceof Error ? e.message : 'Falha ao salvar');
                       }
                     }}
+                    title="Também em Ajustes → RDA Intelligence → Ligar / desligar RDA"
                   >
-                    {status?.feature.enabled ? 'Desativar RDA' : 'Ativar RDA'}
+                    {status?.feature.enabled ? 'Desligar (economizar tokens)' : 'Ligar RDA'}
                   </button>
                 ) : null}
                 {canManageFlag(authSession) || authSession?.permissions?.access_radar_qualidade ? (

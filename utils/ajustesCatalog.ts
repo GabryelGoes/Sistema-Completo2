@@ -32,6 +32,7 @@ export type AjustesItemId =
   | 'dispositivo'
   | 'dispositivos_conectados'
   | 'etiquetas'
+  | 'rda_ligado'
   | 'memoria_rda'
   | 'inteligencia_operacional'
   | 'gestao_patio_rda'
@@ -119,7 +120,7 @@ export const AJUSTES_CATEGORIES: AjustesCategoryMeta[] = [
   {
     id: 'inteligencia',
     label: 'RDA Intelligence',
-    hint: 'Memória e insights operacionais',
+    hint: 'Ligar/desligar IA, memória e alertas',
     iconSrc: '/icons/configuracoes-ios.png',
   },
 ];
@@ -267,6 +268,15 @@ export const AJUSTES_ITEMS: AjustesItemMeta[] = [
     subtitle: 'Laboratório, estoque, chave e peças',
     kind: 'action',
     iconFallback: 'tag',
+  },
+  {
+    id: 'rda_ligado',
+    categoryId: 'inteligencia',
+    section: 'Controle',
+    title: 'Ligar / desligar RDA',
+    subtitle: 'Corta chat, scans e consumo de tokens da OpenAI',
+    kind: 'action',
+    iconFallback: 'wrench',
   },
   {
     id: 'memoria_rda',

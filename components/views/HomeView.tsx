@@ -29,6 +29,7 @@ import { UserProfileModal } from '../UserProfileModal';
 import { AjustesHubPanel, type AjustesVisibility } from '../ajustes/AjustesHubPanel';
 import type { AjustesItemId } from '../../utils/ajustesCatalog';
 import { RdaKnowledgeMemoryPanel } from '../rda/RdaKnowledgeMemoryPanel';
+import { RdaMasterControlPanel } from '../rda/RdaMasterControlPanel';
 import { RdaOperationalIntelligencePanel } from '../rda/RdaOperationalIntelligencePanel';
 import { RdaPatioIntelligencePanel } from '../rda/RdaPatioIntelligencePanel';
 import { RdaLabEstoqueIntelligencePanel } from '../rda/RdaLabEstoqueIntelligencePanel';
@@ -36,7 +37,7 @@ import { RdaProactiveIntelligencePanel } from '../rda/RdaProactiveIntelligencePa
 import { RdaProductivityPanel } from '../rda/RdaProductivityPanel';
 import { QUALITY_RADAR_ICON } from '../../constants/qualityRadar';
 import { ERROR_BULLETIN_ICON, TECHNICAL_BULLETINS_MODULE_LABEL } from '../../constants/errorBulletinIcon';
-import type { SystemUserPermissions } from '../../services/apiService';
+import type { AuthSession, SystemUserPermissions } from '../../services/apiService';
 import { homeModuleAllowed, resolveAjustesVisibility } from '../../utils/employeeAccess';
 import { warmPatioOrLaboratoryBoard } from '../../services/boardWarmup';
 import { useRegisterModalOpen } from '../ui/ModalLayerContext';
@@ -279,6 +280,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
   const [isSecurityCenterOpen, setIsSecurityCenterOpen] = useState(false);
   const [isBudgetPrefsOpen, setIsBudgetPrefsOpen] = useState(false);
   const [isLabelEditorOpen, setIsLabelEditorOpen] = useState(false);
+  const [isRdaMasterOpen, setIsRdaMasterOpen] = useState(false);
   const [isRdaMemoryOpen, setIsRdaMemoryOpen] = useState(false);
   const [isRdaOpsOpen, setIsRdaOpsOpen] = useState(false);
   const [isRdaPatioIntelOpen, setIsRdaPatioIntelOpen] = useState(false);
@@ -302,6 +304,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
     setIsSecurityCenterOpen(false);
     setIsBudgetPrefsOpen(false);
     setIsLabelEditorOpen(false);
+    setIsRdaMasterOpen(false);
     setIsRdaMemoryOpen(false);
     setIsRdaOpsOpen(false);
     setIsRdaPatioIntelOpen(false);
@@ -385,6 +388,26 @@ export const HomeView: React.FC<HomeViewProps> = ({
   const isWorkshopAdmin = !isSystemUser && !isTechnician;
   const showFullAdminHub = isWorkshopAdmin || (isSystemUser && !!perms.full_access);
   const employeeRole = isSystemUser ? 'user' : isWorkshopAdmin ? 'admin' : undefined;
+  const rdaAuthSession = useMemo((): AuthSession | null => {
+    if (isWorkshopAdmin) return { role: 'admin' };
+    if (isSystemUser) {
+      return {
+        role: 'user',
+        username: systemUserUsername,
+        displayName: systemUserDisplayName,
+        permissions: perms,
+        isTechnician: systemUserIsTechnician,
+      };
+    }
+    return null;
+  }, [
+    isWorkshopAdmin,
+    isSystemUser,
+    systemUserUsername,
+    systemUserDisplayName,
+    perms,
+    systemUserIsTechnician,
+  ]);
   const hasRichQuickGrid =
     showFullAdminHub ||
     !!perms.access_tv_patio ||
@@ -470,7 +493,17 @@ export const HomeView: React.FC<HomeViewProps> = ({
           if (!ajustesVisibility.etiquetas) break;
           setIsLabelEditorOpen(true);
           break;
+        case 'rda_ligado':
+          setIsRdaMemoryOpen(false);
+          setIsRdaOpsOpen(false);
+          setIsRdaPatioIntelOpen(false);
+          setIsRdaLabEstoqueIntelOpen(false);
+          setIsRdaProactiveOpen(false);
+          setIsRdaProductivityOpen(false);
+          setIsRdaMasterOpen(true);
+          break;
         case 'memoria_rda':
+          setIsRdaMasterOpen(false);
           setIsRdaOpsOpen(false);
           setIsRdaPatioIntelOpen(false);
           setIsRdaLabEstoqueIntelOpen(false);
@@ -479,6 +512,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
           setIsRdaMemoryOpen(true);
           break;
         case 'inteligencia_operacional':
+          setIsRdaMasterOpen(false);
           setIsRdaMemoryOpen(false);
           setIsRdaPatioIntelOpen(false);
           setIsRdaLabEstoqueIntelOpen(false);
@@ -487,6 +521,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
           setIsRdaOpsOpen(true);
           break;
         case 'gestao_patio_rda':
+          setIsRdaMasterOpen(false);
           setIsRdaMemoryOpen(false);
           setIsRdaOpsOpen(false);
           setIsRdaLabEstoqueIntelOpen(false);
@@ -495,6 +530,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
           setIsRdaPatioIntelOpen(true);
           break;
         case 'lab_estoque_rda':
+          setIsRdaMasterOpen(false);
           setIsRdaMemoryOpen(false);
           setIsRdaOpsOpen(false);
           setIsRdaPatioIntelOpen(false);
@@ -503,6 +539,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
           setIsRdaLabEstoqueIntelOpen(true);
           break;
         case 'monitoramento_proativo_rda':
+          setIsRdaMasterOpen(false);
           setIsRdaMemoryOpen(false);
           setIsRdaOpsOpen(false);
           setIsRdaPatioIntelOpen(false);
@@ -515,6 +552,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
           }
           break;
         case 'produtividade_rda':
+          setIsRdaMasterOpen(false);
           setIsRdaMemoryOpen(false);
           setIsRdaOpsOpen(false);
           setIsRdaPatioIntelOpen(false);
@@ -731,6 +769,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
       isSecurityCenterOpen ||
       isBudgetPrefsOpen ||
       isLabelEditorOpen ||
+      isRdaMasterOpen ||
       isRdaMemoryOpen ||
       isRdaOpsOpen ||
       isRdaPatioIntelOpen ||
@@ -756,6 +795,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
       isSecurityCenterOpen,
       isBudgetPrefsOpen,
       isLabelEditorOpen,
+      isRdaMasterOpen,
       isRdaMemoryOpen,
       isRdaOpsOpen,
       isRdaPatioIntelOpen,
@@ -791,6 +831,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
   useBrowserBackLayer(isSecurityCenterOpen, () => setIsSecurityCenterOpen(false));
   useBrowserBackLayer(isBudgetPrefsOpen, () => setIsBudgetPrefsOpen(false));
   useBrowserBackLayer(isLabelEditorOpen, () => setIsLabelEditorOpen(false));
+  useBrowserBackLayer(isRdaMasterOpen, () => setIsRdaMasterOpen(false));
   useBrowserBackLayer(isRdaMemoryOpen, () => setIsRdaMemoryOpen(false));
   useBrowserBackLayer(isRdaOpsOpen, () => setIsRdaOpsOpen(false));
   useBrowserBackLayer(isRdaPatioIntelOpen, () => setIsRdaPatioIntelOpen(false));
@@ -1438,6 +1479,13 @@ export const HomeView: React.FC<HomeViewProps> = ({
       {/* RDA, usuários e inventário privilegiado: preservam gate !isTechnician. */}
       {!isTechnician && (
         <>
+          <RdaMasterControlPanel
+            isOpen={isRdaMasterOpen}
+            onClose={() => setIsRdaMasterOpen(false)}
+            desktopShell={Boolean(desktopShell)}
+            ajustesHubChrome={Boolean(desktopShell)}
+            authSession={rdaAuthSession}
+          />
           <RdaKnowledgeMemoryPanel
             isOpen={isRdaMemoryOpen}
             onClose={() => setIsRdaMemoryOpen(false)}
