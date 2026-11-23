@@ -50,6 +50,7 @@ import {
   updateWorkshopPartPurchase,
   deleteWorkshopPartPurchase,
   getWorkshopPartPendingReservations,
+  lookupWorkshopPartByCode,
   verifyStockGuardPassword,
   type WorkshopPart,
   type WorkshopPartCategory,
@@ -74,7 +75,7 @@ import { WorkshopEstoqueLedgerModal } from './WorkshopEstoqueLedgerModal';
 import { WorkshopSuppliersModal } from './WorkshopSuppliersModal';
 import { setActiveBarcodeScanClaim } from '../utils/activeBarcodeScanClaim';
 import { isLabOsQrPayload } from '../utils/labOsQrCode';
-import { normalizeBarcodeInput } from '../utils/workshopPartBarcode';
+import { findWorkshopPartByCode, normalizeBarcodeInput } from '../utils/workshopPartBarcode';
 import { StockGuardPasswordModal } from './StockGuardPasswordModal';
 import {
   formValuesToApiPayload,
@@ -1230,8 +1231,8 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
   }, [isOpen]);
 
   /**
-   * Com o módulo de estoque aberto, a pistola USB abre o hub de leitura:
-   * produto existente → ficha rápida; código novo → pergunta de cadastro.
+   * Com o módulo de estoque aberto, a pistola USB (busca / “Escanear código”)
+   * abre o modal de visualização do produto. Código inexistente → hub p/ cadastrar.
    * Não reivindica se ficha/entrada/saída/cadastro já estiver aberto (campo local).
    */
   const stockUsbClaimBlocked =
@@ -1245,16 +1246,34 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
 
   useEffect(() => {
     if (!isOpen || stockUsbClaimBlocked) return;
-    return setActiveBarcodeScanClaim((raw) => {
+    return setActiveBarcodeScanClaim(async (raw) => {
       const code = normalizeBarcodeInput(raw);
       if (!code) return false;
       if (isLabOsQrPayload(code)) return false;
-      // Com a página ABS aberta o claim fica com ela; aqui só hub de peças.
+
+      const local = findWorkshopPartByCode(parts, code);
+      if (local) {
+        setScanHubOpen(false);
+        setScanHubExternal(null);
+        void openProductView(local);
+        return true;
+      }
+      try {
+        const remote = await lookupWorkshopPartByCode(code);
+        if (remote) {
+          setScanHubOpen(false);
+          setScanHubExternal(null);
+          void openProductView(remote);
+          return true;
+        }
+      } catch {
+        /* cai no hub “não encontrado” */
+      }
       setScanHubOpen(true);
       setScanHubExternal({ code, token: Date.now() });
       return true;
     });
-  }, [isOpen, stockUsbClaimBlocked]);
+  }, [isOpen, stockUsbClaimBlocked, parts, openProductView]);
 
   /** Intenção vinda da leitura USB global (editar / cadastrar / saída). */
   useEffect(() => {
@@ -1810,6 +1829,11 @@ export const WorkshopPartsModal: React.FC<WorkshopPartsModalProps> = ({
         onConsumableOutbound={(part) => {
           setOutboundInitialPart(part);
           setOutboundMode('consumable');
+        }}
+        onViewProduct={(part) => {
+          setScanHubOpen(false);
+          setScanHubExternal(null);
+          void openProductView(part);
         }}
         onOpenAbsModule={(publicId) => {
           setScanHubOpen(false);

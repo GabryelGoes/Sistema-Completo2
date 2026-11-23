@@ -50,6 +50,11 @@ export type WorkshopPartScanHubModalProps = {
   onRegisterProduct: (barcode: string) => void;
   onSaleOutbound: (part: WorkshopPart) => void;
   onConsumableOutbound: (part: WorkshopPart) => void;
+  /**
+   * Se informado, ao achar o produto abre a ficha de visualização (em vez
+   * de mostrar o card resumido dentro do hub).
+   */
+  onViewProduct?: (part: WorkshopPart) => void;
   /** Quando o código é um módulo ABS (ABS-######), abre a área ABS. */
   onOpenAbsModule?: (publicId: string) => void;
   /** Classe Tailwind de z-index do overlay (padrão: nested stock). */
@@ -77,6 +82,7 @@ export function WorkshopPartScanHubModal({
   onRegisterProduct,
   onSaleOutbound,
   onConsumableOutbound,
+  onViewProduct,
   onOpenAbsModule,
   overlayZClass = NESTED_STOCK_OVERLAY_Z,
 }: WorkshopPartScanHubModalProps) {
@@ -164,8 +170,15 @@ export function WorkshopPartScanHubModal({
         }
         const found = await lookupWorkshopPartByCode(trimmed);
         if (seq !== lookupSeqRef.current) return;
-        if (found) setResolved({ kind: 'part', code: trimmed, part: found });
-        else setResolved({ kind: 'missing_part', code: trimmed });
+        if (found) {
+          if (onViewProduct) {
+            onViewProduct(found);
+            return;
+          }
+          setResolved({ kind: 'part', code: trimmed, part: found });
+        } else {
+          setResolved({ kind: 'missing_part', code: trimmed });
+        }
       } catch (e) {
         if (seq !== lookupSeqRef.current) return;
         setError(e instanceof Error ? e.message : 'Falha ao consultar o código.');
@@ -173,7 +186,7 @@ export function WorkshopPartScanHubModal({
         if (seq === lookupSeqRef.current) setLookingUp(false);
       }
     },
-    [onOpenAbsModule]
+    [onOpenAbsModule, onViewProduct]
   );
 
   useEffect(() => {
