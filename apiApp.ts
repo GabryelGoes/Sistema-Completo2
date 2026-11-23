@@ -1400,7 +1400,8 @@ export function createApiApp() {
 
   async function isDeviceBlocked(deviceId: string): Promise<DeviceBlockResult> {
     if (!deviceId) return "clear";
-    if (!supabaseAdmin || !WORKSHOP_ID) return "auth_store_missing";
+    // Sem Supabase (dev / Cloud Agent): não há cadastro de bloqueios — não impede a Gerência.
+    if (!supabaseAdmin || !WORKSHOP_ID) return "clear";
     try {
       const { data, error } = await supabaseAdmin
         .from("workshop_blocked_devices")
@@ -1446,7 +1447,8 @@ export function createApiApp() {
     const sid = typeof auth.sid === "string" ? auth.sid.trim() : "";
     if (!sid) return "invalid";
     if (revokedSessionIds.has(sid)) return "revoked";
-    if (!supabaseAdmin || !WORKSHOP_ID) return "auth_store_missing";
+    // Fallback Gerência sem Supabase: token assinado basta (sem tabela de sessões).
+    if (!supabaseAdmin || !WORKSHOP_ID) return "ok";
 
     try {
       const { data, error } = await supabaseAdmin
