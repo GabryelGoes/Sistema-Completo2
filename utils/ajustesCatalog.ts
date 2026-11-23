@@ -75,6 +75,7 @@ export type AjustesItemMeta = {
     | 'monitor'
     | 'devices'
     | 'tag'
+    | 'power'
     | 'external';
   externalHref?: string;
   danger?: boolean;
@@ -276,7 +277,7 @@ export const AJUSTES_ITEMS: AjustesItemMeta[] = [
     title: 'Ligar / desligar RDA',
     subtitle: 'Corta chat, scans e consumo de tokens da OpenAI',
     kind: 'action',
-    iconFallback: 'wrench',
+    iconFallback: 'power',
   },
   {
     id: 'memoria_rda',

@@ -5,6 +5,7 @@ import {
   ExternalLink,
   KeyRound,
   LogOut,
+  Power,
   Shield,
   MonitorSmartphone,
   Package,
@@ -44,6 +45,7 @@ export type AjustesVisibility = {
   dispositivos_conectados: boolean;
   dispositivo: boolean;
   etiquetas: boolean;
+  rda_ligado: boolean;
   memoria_rda: boolean;
   inteligencia_operacional: boolean;
   gestao_patio_rda: boolean;
@@ -118,6 +120,8 @@ function itemIcon(item: AjustesItemMeta, perfilIconSrc?: string | null) {
       <Smartphone />
     ) : fallback === 'tag' ? (
       <Tag />
+    ) : fallback === 'power' ? (
+      <Power className="text-emerald-600 dark:text-emerald-400" />
     ) : fallback === 'external' ? (
       <ExternalLink />
     ) : (
