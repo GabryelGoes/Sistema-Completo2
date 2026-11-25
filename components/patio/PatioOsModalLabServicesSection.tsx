@@ -570,7 +570,7 @@ export const PatioOsModalLabServicesSection: React.FC<PatioOsModalLabServicesSec
             </div>
           ) : null}
 
-          {/* 2+3. Item a enviar + Arquivos do pátio (PC: lado a lado e menores) */}
+          {/* 1. Item a enviar + Enviar como garantia */}
           <div className="space-y-2">
             <label className="mb-1.5 block text-[12px] font-semibold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
               Item a enviar
@@ -611,25 +611,29 @@ export const PatioOsModalLabServicesSection: React.FC<PatioOsModalLabServicesSec
                 />
               </button>
 
-              {onSelectedPatioAttachmentPathsChange && patioAttachments.length > 0 ? (
+              {typeof onLabServiceGarantiaChange === 'function' ? (
                 <button
                   type="button"
-                  onClick={() => setPatioFilesPanelOpen((v) => !v)}
+                  onClick={() => onLabServiceGarantiaChange(!newLabServiceGarantia)}
                   disabled={busy}
-                  aria-expanded={patioFilesPanelOpen}
-                  className={`inline-flex shrink-0 items-center justify-center gap-1.5 border-0 bg-[#007AFF] font-bold uppercase tracking-[0.05em] text-white transition-[filter] hover:brightness-110 disabled:opacity-55 dark:bg-[#0A84FF] ${
+                  aria-pressed={newLabServiceGarantia}
+                  title={
+                    newLabServiceGarantia
+                      ? 'Garantia ativa — a OS nasce com etiqueta Garantia'
+                      : 'Marcar envio como garantia'
+                  }
+                  className={`inline-flex shrink-0 items-center justify-center gap-1.5 border font-bold uppercase tracking-[0.05em] transition-[background-color,filter,border-color] disabled:opacity-55 ${
                     !collapsible
                       ? 'h-9 rounded-lg px-2.5 text-[10px]'
                       : 'h-11 w-full rounded-xl px-3 text-[12px]'
+                  } ${
+                    newLabServiceGarantia
+                      ? 'border-red-600 bg-red-600 text-white hover:brightness-110 dark:border-red-500 dark:bg-red-500'
+                      : 'border-red-500/40 bg-red-500/[0.08] text-red-700 hover:bg-red-500/[0.14] dark:border-red-400/35 dark:bg-red-500/10 dark:text-red-300 dark:hover:bg-red-500/20'
                   }`}
                 >
-                  <Plus className={!collapsible ? 'h-3.5 w-3.5' : 'h-4 w-4'} strokeWidth={2.5} aria-hidden />
-                  Arquivos do Pátio
-                  {selectedPatioAttachmentPaths.length > 0 ? (
-                    <span className="rounded-full bg-white/25 px-1.5 py-0.5 text-[10px] font-bold tabular-nums text-white">
-                      {selectedPatioAttachmentPaths.length}
-                    </span>
-                  ) : null}
+                  <Tag className={!collapsible ? 'h-3.5 w-3.5' : 'h-4 w-4'} strokeWidth={2.5} aria-hidden />
+                  Enviar como garantia
                 </button>
               ) : null}
             </div>
@@ -643,27 +647,12 @@ export const PatioOsModalLabServicesSection: React.FC<PatioOsModalLabServicesSec
                 autoFocus
               />
             ) : null}
-
-            {patioFilesPanelOpen &&
-            onSelectedPatioAttachmentPathsChange &&
-            patioAttachments.length > 0 ? (
-              <div className="rounded-xl border border-zinc-200/80 bg-white/95 p-3 dark:border-white/[0.1] dark:bg-zinc-950/60">
-                <PatioOriginAttachmentsPicker
-                  attachments={patioAttachments}
-                  selectedPaths={selectedPatioAttachmentPaths}
-                  onChange={onSelectedPatioAttachmentPathsChange}
-                  disabled={busy}
-                />
-              </div>
-            ) : null}
           </div>
 
-          {/* 4. Serviço (orçamento / manual) + Enviar */}
+          {/* 2. Serviço (orçamento / manual) */}
           <div
             className={`patio-vm-lab-compose grid grid-cols-1 gap-2 ${
-              pcLayout
-                ? 'sm:grid-cols-[160px_minmax(0,1fr)_auto]'
-                : 'sm:grid-cols-[180px_minmax(0,1fr)_auto]'
+              pcLayout ? 'sm:grid-cols-[160px_minmax(0,1fr)]' : 'sm:grid-cols-[180px_minmax(0,1fr)]'
             }`}
           >
             <select
@@ -695,20 +684,9 @@ export const PatioOsModalLabServicesSection: React.FC<PatioOsModalLabServicesSec
                 className={`${inputClass} !h-11 !py-0 text-[13px]`}
               />
             )}
-            <button
-              type="button"
-              onClick={onCreateLabService}
-              disabled={busy}
-              className={`inline-flex items-center justify-center gap-2 rounded-xl bg-[#007AFF] font-semibold text-white transition-[transform,filter] hover:brightness-105 active:scale-[0.98] disabled:opacity-55 ${
-                pcLayout ? 'h-11 px-4 text-[13px]' : 'px-3 py-2 text-[13px]'
-              }`}
-            >
-              {creatingLabService ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
-              Enviar
-            </button>
           </div>
 
-          {/* 5. Detalhes */}
+          {/* 3. Detalhes */}
           <div>
             <label
               htmlFor="new-lab-service-details"
@@ -733,25 +711,59 @@ export const PatioOsModalLabServicesSection: React.FC<PatioOsModalLabServicesSec
             />
           </div>
 
-          {typeof onLabServiceGarantiaChange === 'function' ? (
-            <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-red-500/25 bg-red-500/[0.06] px-3.5 py-3 transition-colors hover:bg-red-500/[0.08] dark:border-red-400/20 dark:bg-red-500/10 dark:hover:bg-red-500/[0.14]">
-              <input
-                type="checkbox"
-                checked={newLabServiceGarantia}
-                onChange={(e) => onLabServiceGarantiaChange(e.target.checked)}
+          {/* 4. Arquivos do pátio (abaixo dos detalhes) + prévia selecionada */}
+          {onSelectedPatioAttachmentPathsChange && patioAttachments.length > 0 ? (
+            <div className="space-y-2">
+              <button
+                type="button"
+                onClick={() => setPatioFilesPanelOpen((v) => !v)}
                 disabled={busy}
-                className="mt-0.5 h-4 w-4 rounded border-zinc-300 text-red-600 focus:ring-red-500/40"
-              />
-              <span className="min-w-0">
-                <span className="block text-[14px] font-semibold text-zinc-900 dark:text-white">
-                  Enviar como garantia
-                </span>
-                <span className="mt-0.5 block text-[12px] text-zinc-500 dark:text-zinc-400">
-                  A OS do laboratório nasce com a etiqueta Garantia
-                </span>
-              </span>
-            </label>
+                aria-expanded={patioFilesPanelOpen}
+                className={`inline-flex w-full items-center justify-center gap-1.5 border-0 bg-[#007AFF] font-bold uppercase tracking-[0.05em] text-white transition-[filter] hover:brightness-110 disabled:opacity-55 dark:bg-[#0A84FF] ${
+                  !collapsible
+                    ? 'h-10 rounded-lg px-3 text-[11px]'
+                    : 'h-11 rounded-xl px-3 text-[12px]'
+                }`}
+              >
+                <Paperclip className={!collapsible ? 'h-3.5 w-3.5' : 'h-4 w-4'} strokeWidth={2.5} aria-hidden />
+                Arquivos do Pátio
+                {selectedPatioAttachmentPaths.length > 0 ? (
+                  <span className="rounded-full bg-white/25 px-1.5 py-0.5 text-[10px] font-bold tabular-nums text-white">
+                    {selectedPatioAttachmentPaths.length}
+                  </span>
+                ) : null}
+              </button>
+
+              {patioFilesPanelOpen ? (
+                <div className="rounded-xl border border-zinc-200/80 bg-white/95 p-3 dark:border-white/[0.1] dark:bg-zinc-950/60">
+                  <PatioOriginAttachmentsPicker
+                    attachments={patioAttachments}
+                    selectedPaths={selectedPatioAttachmentPaths}
+                    onChange={onSelectedPatioAttachmentPathsChange}
+                    disabled={busy}
+                  />
+                </div>
+              ) : null}
+            </div>
           ) : null}
+
+          {/* 5. Enviar — abaixo de tudo do formulário */}
+          <button
+            type="button"
+            onClick={onCreateLabService}
+            disabled={busy}
+            className={`inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#007AFF] font-semibold text-white transition-[transform,filter] hover:brightness-105 active:scale-[0.98] disabled:opacity-55 ${
+              pcLayout ? 'h-11 px-4 text-[14px]' : 'h-11 px-3 text-[14px]'
+            }`}
+          >
+            {creatingLabService ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+            Enviar
+            {newLabServiceGarantia ? (
+              <span className="rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide">
+                Garantia
+              </span>
+            ) : null}
+          </button>
           </div>
 
           {/* 6. Envios rápidos → abre modal com lista */}
