@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useCallback, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { Plus, Loader2, Trash2, ArrowRight, ChevronDown, ChevronRight, X, Check, CheckCircle2, Pencil, Paperclip, Tag, RefreshCw, MoreHorizontal } from 'lucide-react';
 import type { LabServiceLink } from '../../types';
@@ -134,6 +134,12 @@ export const PatioOsModalLabServicesSection: React.FC<PatioOsModalLabServicesSec
   const [patioFilesPanelOpen, setPatioFilesPanelOpen] = useState(false);
   /** Menu ⋮ do card de serviço enviado (etiqueta / anexar / excluir). */
   const [cardMenuLinkId, setCardMenuLinkId] = useState<string | null>(null);
+  const [cardMenuPos, setCardMenuPos] = useState<{
+    top?: number;
+    bottom?: number;
+    right: number;
+  } | null>(null);
+  const cardMenuTriggerRef = useRef<HTMLButtonElement | null>(null);
   const cardMenuRef = useRef<HTMLDivElement | null>(null);
   const isOpen = !collapsible || expanded;
   const listProductKindOptions = productKindOptions.filter((opt) => opt.value !== otherProductKindId);
@@ -210,11 +216,42 @@ export const PatioOsModalLabServicesSection: React.FC<PatioOsModalLabServicesSec
     return () => window.removeEventListener('keydown', onKey, true);
   }, [itemPickerOpen]);
 
+  const updateCardMenuPosition = useCallback(() => {
+    const el = cardMenuTriggerRef.current;
+    if (!el || typeof window === 'undefined') return;
+    const rect = el.getBoundingClientRect();
+    const margin = 8;
+    const estimatedHeight = 148;
+    const spaceBelow = window.innerHeight - rect.bottom - margin;
+    const spaceAbove = rect.top - margin;
+    const openAbove = spaceBelow < estimatedHeight && spaceAbove > spaceBelow;
+    const right = Math.max(margin, window.innerWidth - rect.right);
+    if (openAbove) {
+      setCardMenuPos({
+        bottom: window.innerHeight - rect.top + 6,
+        right,
+      });
+    } else {
+      setCardMenuPos({
+        top: rect.bottom + 6,
+        right,
+      });
+    }
+  }, []);
+
+  useLayoutEffect(() => {
+    if (!cardMenuLinkId) {
+      setCardMenuPos(null);
+      return;
+    }
+    updateCardMenuPosition();
+  }, [cardMenuLinkId, updateCardMenuPosition]);
+
   useEffect(() => {
     if (!cardMenuLinkId) return;
     const onPointerDown = (e: PointerEvent) => {
       const t = e.target as Node | null;
-      if (cardMenuRef.current?.contains(t)) return;
+      if (cardMenuRef.current?.contains(t) || cardMenuTriggerRef.current?.contains(t)) return;
       setCardMenuLinkId(null);
     };
     const onKey = (e: KeyboardEvent) => {
@@ -223,13 +260,18 @@ export const PatioOsModalLabServicesSection: React.FC<PatioOsModalLabServicesSec
       e.stopPropagation();
       setCardMenuLinkId(null);
     };
+    const onReposition = () => updateCardMenuPosition();
     window.addEventListener('pointerdown', onPointerDown, true);
     window.addEventListener('keydown', onKey, true);
+    window.addEventListener('resize', onReposition);
+    window.addEventListener('scroll', onReposition, true);
     return () => {
       window.removeEventListener('pointerdown', onPointerDown, true);
       window.removeEventListener('keydown', onKey, true);
+      window.removeEventListener('resize', onReposition);
+      window.removeEventListener('scroll', onReposition, true);
     };
-  }, [cardMenuLinkId]);
+  }, [cardMenuLinkId, updateCardMenuPosition]);
 
   const handleSelectQuickService = (preset: LabQuickService) => {
     if (!onQuickSendService || busy) return;
@@ -467,21 +509,15 @@ export const PatioOsModalLabServicesSection: React.FC<PatioOsModalLabServicesSec
                     className="patio-vm-lab-link-row flex items-start gap-3 rounded-xl border border-zinc-200/70 bg-white/95 p-3 dark:border-white/[0.1] dark:bg-zinc-950/60"
                   >
                     <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <p className="min-w-0 truncate text-[14px] font-semibold text-zinc-900 dark:text-zinc-100">
-                          {link.serviceLabel}
-                        </p>
-                        {statusBadge}
-                      </div>
+                      <p className="truncate text-[14px] font-semibold text-zinc-900 dark:text-zinc-100">
+                        {link.serviceLabel}
+                      </p>
                       {link.serviceDetails?.trim() ? (
                         <p className="mt-1.5 whitespace-pre-wrap text-[12px] leading-relaxed text-zinc-600 dark:text-zinc-300">
                           {link.serviceDetails.trim()}
                         </p>
                       ) : null}
-                      <p className="mt-1 text-[11px] text-zinc-500 dark:text-zinc-400">
-                        {link.source === 'budget' ? 'Origem: orçamento' : 'Origem: manual'} · OS lab{' '}
-                        {link.laboratoryOrderId.slice(0, 8)}
-                      </p>
+                      <div className="mt-1.5">{statusBadge}</div>
                     </div>
 
                     <div className="flex shrink-0 items-center gap-1.5 self-start pt-0.5">
@@ -509,73 +545,78 @@ export const PatioOsModalLabServicesSection: React.FC<PatioOsModalLabServicesSec
                       >
                         Abrir <ArrowRight className="h-3.5 w-3.5" aria-hidden />
                       </button>
-                      <div
-                        className="relative"
-                        ref={menuOpen ? cardMenuRef : undefined}
+                      <button
+                        type="button"
+                        ref={menuOpen ? cardMenuTriggerRef : undefined}
+                        onClick={() => setCardMenuLinkId(menuOpen ? null : link.id)}
+                        disabled={busy}
+                        aria-expanded={menuOpen}
+                        aria-haspopup="menu"
+                        aria-label={`Mais opções de ${link.serviceLabel}`}
+                        className="inline-flex size-8 items-center justify-center rounded-lg border border-zinc-200/90 bg-white text-zinc-600 transition-colors hover:bg-zinc-50 hover:text-[#007AFF] active:scale-[0.97] disabled:opacity-60 dark:border-white/[0.12] dark:bg-zinc-950/70 dark:text-zinc-300 dark:hover:bg-zinc-900"
                       >
-                        <button
-                          type="button"
-                          onClick={() => setCardMenuLinkId(menuOpen ? null : link.id)}
-                          disabled={busy}
-                          aria-expanded={menuOpen}
-                          aria-haspopup="menu"
-                          aria-label={`Mais opções de ${link.serviceLabel}`}
-                          className="inline-flex size-8 items-center justify-center rounded-lg border border-zinc-200/90 bg-white text-zinc-600 transition-colors hover:bg-zinc-50 hover:text-[#007AFF] active:scale-[0.97] disabled:opacity-60 dark:border-white/[0.12] dark:bg-zinc-950/70 dark:text-zinc-300 dark:hover:bg-zinc-900"
-                        >
-                          <MoreHorizontal className="h-4 w-4" strokeWidth={2.2} aria-hidden />
-                        </button>
-                        {menuOpen ? (
-                          <div
-                            role="menu"
-                            className="absolute right-0 z-30 mt-1 min-w-[11rem] overflow-hidden rounded-xl border border-zinc-200/80 bg-white py-1 shadow-[0_16px_40px_-12px_rgba(0,0,0,0.35)] dark:border-white/[0.1] dark:bg-zinc-900 dark:shadow-[0_20px_48px_-14px_rgba(0,0,0,0.7)]"
-                          >
-                            {onPrintLabOsLabel ? (
-                              <button
-                                type="button"
-                                role="menuitem"
-                                disabled={busy}
-                                className="flex w-full items-center gap-2 px-3 py-2 text-left text-[13px] font-semibold text-zinc-800 hover:bg-zinc-50 disabled:opacity-55 dark:text-zinc-100 dark:hover:bg-white/[0.06]"
-                                onClick={() => {
-                                  setCardMenuLinkId(null);
-                                  onPrintLabOsLabel(link.laboratoryOrderId);
-                                }}
-                              >
-                                <Tag className="h-3.5 w-3.5 text-emerald-600" strokeWidth={2.5} aria-hidden />
-                                Etiqueta
-                              </button>
-                            ) : null}
-                            {canAttach ? (
-                              <button
-                                type="button"
-                                role="menuitem"
-                                disabled={busy || copyingPatioAttachments}
-                                className="flex w-full items-center gap-2 px-3 py-2 text-left text-[13px] font-semibold text-zinc-800 hover:bg-zinc-50 disabled:opacity-55 dark:text-zinc-100 dark:hover:bg-white/[0.06]"
-                                onClick={() => {
-                                  setCardMenuLinkId(null);
-                                  setAttachToLabOrderId(link.laboratoryOrderId);
-                                  setAttachToLabPaths([]);
-                                }}
-                              >
-                                <Paperclip className="h-3.5 w-3.5 text-[#007AFF]" aria-hidden />
-                                Anexar
-                              </button>
-                            ) : null}
-                            <button
-                              type="button"
-                              role="menuitem"
-                              disabled={labServiceLinksSaving}
-                              className="flex w-full items-center gap-2 px-3 py-2 text-left text-[13px] font-semibold text-red-600 hover:bg-red-50 disabled:opacity-55 dark:text-red-400 dark:hover:bg-red-950/40"
-                              onClick={() => {
-                                setCardMenuLinkId(null);
-                                onRemoveLabServiceLink(link.id);
+                        <MoreHorizontal className="h-4 w-4" strokeWidth={2.2} aria-hidden />
+                      </button>
+                      {menuOpen && cardMenuPos && typeof document !== 'undefined'
+                        ? createPortal(
+                            <div
+                              ref={cardMenuRef}
+                              role="menu"
+                              className="fixed z-[360] min-w-[11rem] overflow-hidden rounded-xl border border-zinc-200/80 bg-white py-1 shadow-[0_16px_40px_-12px_rgba(0,0,0,0.35)] dark:border-white/[0.1] dark:bg-zinc-900 dark:shadow-[0_20px_48px_-14px_rgba(0,0,0,0.7)]"
+                              style={{
+                                top: cardMenuPos.top,
+                                bottom: cardMenuPos.bottom,
+                                right: cardMenuPos.right,
                               }}
                             >
-                              <Trash2 className="h-3.5 w-3.5" aria-hidden />
-                              Excluir
-                            </button>
-                          </div>
-                        ) : null}
-                      </div>
+                              {onPrintLabOsLabel ? (
+                                <button
+                                  type="button"
+                                  role="menuitem"
+                                  disabled={busy}
+                                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-[13px] font-semibold text-zinc-800 hover:bg-zinc-50 disabled:opacity-55 dark:text-zinc-100 dark:hover:bg-white/[0.06]"
+                                  onClick={() => {
+                                    setCardMenuLinkId(null);
+                                    onPrintLabOsLabel(link.laboratoryOrderId);
+                                  }}
+                                >
+                                  <Tag className="h-3.5 w-3.5 text-emerald-600" strokeWidth={2.5} aria-hidden />
+                                  Etiqueta
+                                </button>
+                              ) : null}
+                              {canAttach ? (
+                                <button
+                                  type="button"
+                                  role="menuitem"
+                                  disabled={busy || copyingPatioAttachments}
+                                  className="flex w-full items-center gap-2 px-3 py-2 text-left text-[13px] font-semibold text-zinc-800 hover:bg-zinc-50 disabled:opacity-55 dark:text-zinc-100 dark:hover:bg-white/[0.06]"
+                                  onClick={() => {
+                                    setCardMenuLinkId(null);
+                                    setAttachToLabOrderId(link.laboratoryOrderId);
+                                    setAttachToLabPaths([]);
+                                  }}
+                                >
+                                  <Paperclip className="h-3.5 w-3.5 text-[#007AFF]" aria-hidden />
+                                  Anexar
+                                </button>
+                              ) : null}
+                              <button
+                                type="button"
+                                role="menuitem"
+                                disabled={labServiceLinksSaving}
+                                className="flex w-full items-center gap-2 px-3 py-2 text-left text-[13px] font-semibold text-red-600 hover:bg-red-50 disabled:opacity-55 dark:text-red-400 dark:hover:bg-red-950/40"
+                                onClick={() => {
+                                  setCardMenuLinkId(null);
+                                  onRemoveLabServiceLink(link.id);
+                                }}
+                              >
+                                <Trash2 className="h-3.5 w-3.5" aria-hidden />
+                                Excluir
+                              </button>
+                            </div>,
+                            document.body
+                          )
+                        : null}
                     </div>
                   </div>
                 );
