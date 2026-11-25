@@ -84,6 +84,11 @@ import { AuthRateLimitUnavailable } from "./utils/authRateLimit.js";
 import { resolveAuthRateLimitStore } from "./utils/postgresAuthRateLimit.js";
 import { clientIp } from "./utils/clientIp.js";
 import {
+  ELEVATION_PASSWORD_WINDOW_MS,
+  buildElevationPasswordFailure,
+  elevationPasswordBucketKey,
+} from "./utils/elevationPasswordAttempts.js";
+import {
   expiredSessionPayload,
   inspectSessionToken,
   sessionFailureReason,
@@ -2326,6 +2331,98 @@ export function createApiApp() {
 
   // memory por padrão. postgres só com AUTH_RATE_LIMIT_STORE=postgres, depois da migration.
   const authLimits = resolveAuthRateLimitStore(process.env, supabaseAdmin);
+
+  function elevationPasswordKeyFromReq(req: express.Request): string {
+    const auth = (req as unknown as { auth?: SessionPayload }).auth;
+    return elevationPasswordBucketKey({
+      sessionId: auth?.sid || null,
+      deviceId: auth?.did || deviceIdFromReq(req) || null,
+      ip: clientIp(req),
+    });
+  }
+
+  async function resetElevationPasswordFailures(req: express.Request): Promise<void> {
+    try {
+      await authLimits.reset(elevationPasswordKeyFromReq(req));
+    } catch (err) {
+      if (err instanceof AuthRateLimitUnavailable) return;
+      throw err;
+    }
+  }
+
+  async function revokeCurrentSessionBestEffort(req: express.Request): Promise<void> {
+    const auth = (req as unknown as { auth?: SessionPayload }).auth;
+    if (!auth?.sid) return;
+    rememberRevokedSession(auth.sid);
+    if (!supabaseAdmin || !WORKSHOP_ID) return;
+    try {
+      await supabaseAdmin
+        .from("workshop_device_sessions")
+        .update({ revoked_at: new Date().toISOString() })
+        .eq("id", auth.sid)
+        .eq("workshop_id", WORKSHOP_ID)
+        .is("revoked_at", null);
+    } catch {
+      /* best-effort */
+    }
+  }
+
+  /**
+   * Senha de elevação errada: 1–2 → invalid_credentials (mantém login);
+   * 3 → session_invalid + revoga sessão (logout).
+   */
+  async function elevationPasswordDeniedPayload(
+    req: express.Request,
+    baseError: string
+  ): Promise<{ status: 401; body: Record<string, unknown> }> {
+    let attempts = 1;
+    try {
+      const hit = await authLimits.hit(
+        elevationPasswordKeyFromReq(req),
+        Date.now(),
+        ELEVATION_PASSWORD_WINDOW_MS,
+        3
+      );
+      attempts = hit.count;
+    } catch (err) {
+      if (!(err instanceof AuthRateLimitUnavailable)) throw err;
+      // Sem contador: não derruba a sessão no primeiro erro.
+      return {
+        status: 401,
+        body: { error: baseError, code: "invalid_credentials", attempts: 1 },
+      };
+    }
+    const built = buildElevationPasswordFailure({ attempts, baseError });
+    if (built.lockSession) {
+      await revokeCurrentSessionBestEffort(req);
+      await auditFromReq(req, {
+        eventType: "session_invalid",
+        outcome: "denied",
+        metadata: { area: "gerencia" },
+      });
+      try {
+        await authLimits.reset(elevationPasswordKeyFromReq(req));
+      } catch {
+        /* ignore */
+      }
+    } else {
+      await auditFromReq(req, {
+        eventType: "admin_access_denied",
+        outcome: "denied",
+        metadata: { area: "gerencia" },
+      });
+    }
+    return { status: 401, body: built.body };
+  }
+
+  async function respondElevationPasswordDenied(
+    req: express.Request,
+    res: express.Response,
+    baseError: string
+  ) {
+    const payload = await elevationPasswordDeniedPayload(req, baseError);
+    return res.status(payload.status).json(payload.body);
+  }
   const securityAudit = createSecurityAudit({
     workshopId: () => WORKSHOP_ID,
     secret: () => resolveSessionKeyRing()?.current || "",
@@ -13270,11 +13367,13 @@ export function createApiApp() {
       if (!pwd) return res.status(400).json({ error: "Informe a senha." });
       const ok = await verifyStockGuardPassword(pwd);
       if (!ok) {
-        return res.status(401).json({
-          error:
-            "Senha incorreta. Use a senha da Gerência ou a senha de proteção do estoque em Alterar senhas.",
-        });
+        return respondElevationPasswordDenied(
+          req,
+          res,
+          "Senha incorreta. Use a senha da Gerência ou a senha de proteção do estoque em Alterar senhas."
+        );
       }
+      await resetElevationPasswordFailures(req);
       return res.json({ ok: true });
     } catch (err: any) {
       console.error("[API] Erro em POST /api/workshop-parts/verify-stock-guard:", err);
@@ -13293,11 +13392,13 @@ export function createApiApp() {
       if (!movementId) return res.status(400).json({ error: "ID da movimentação ausente." });
       if (!pwd) return res.status(400).json({ error: "Informe a senha." });
       if (!(await verifyStockGuardPassword(pwd))) {
-        return res.status(401).json({
-          error:
-            "Senha incorreta. Use a senha da Gerência ou a senha de proteção do estoque em Alterar senhas.",
-        });
+        return respondElevationPasswordDenied(
+          req,
+          res,
+          "Senha incorreta. Use a senha da Gerência ou a senha de proteção do estoque em Alterar senhas."
+        );
       }
+      await resetElevationPasswordFailures(req);
 
       let { data: movement, error: fetchErr } = await supabaseAdmin
         .from("workshop_part_stock_movements")
@@ -14815,6 +14916,11 @@ export function createApiApp() {
     photosBucket: VEHICLE_PHOTOS_BUCKET,
     // Excluir módulos ABS do estoque: senha da Gerência (ou proteção do estoque).
     verifyDeletePassword: verifyStockGuardPassword,
+    denyElevationPassword: async (req, baseError) =>
+      elevationPasswordDeniedPayload(req as express.Request, baseError),
+    clearElevationPasswordFailures: async (req) => {
+      await resetElevationPasswordFailures(req as express.Request);
+    },
   });
 
   // ----------------- TÉCNICOS DA OFICINA (atribuição nos cards) -----------------
@@ -16598,26 +16704,24 @@ export function createApiApp() {
       }
       const adminOk = await verifyAdminPasswordOnly(pwd);
       if (!adminOk) {
-      const expected = await supabaseAdmin
-        .from("workshop_settings")
-        .select("value")
-        .eq("workshop_id", WORKSHOP_ID)
-        .eq("key", "vehicle_delete_password")
-        .maybeSingle();
-      const expectedPassword = expected?.data?.value?.trim() ?? "";
-      if (!expectedPassword) {
-          return res.status(401).json({
-            error:
-              "Senha incorreta. Use a senha do administrador (login Gerência) ou configure a senha de exclusão em Alterar senhas.",
-          });
-        }
-        if (pwd !== expectedPassword) {
-          return res.status(401).json({
-            error:
-              "Senha incorreta. Use a senha do administrador (login Gerência) ou a senha de exclusão em Alterar senhas.",
-          });
+        const expected = await supabaseAdmin
+          .from("workshop_settings")
+          .select("value")
+          .eq("workshop_id", WORKSHOP_ID)
+          .eq("key", "vehicle_delete_password")
+          .maybeSingle();
+        const expectedPassword = expected?.data?.value?.trim() ?? "";
+        if (!expectedPassword || pwd !== expectedPassword) {
+          return respondElevationPasswordDenied(
+            req,
+            res,
+            expectedPassword
+              ? "Senha incorreta. Use a senha do administrador (login Gerência) ou a senha de exclusão em Alterar senhas."
+              : "Senha incorreta. Use a senha do administrador (login Gerência) ou configure a senha de exclusão em Alterar senhas."
+          );
         }
       }
+      await resetElevationPasswordFailures(req);
       const archivedAt = new Date().toISOString();
       const { data, error } = await supabaseAdmin
         .from("service_orders")
