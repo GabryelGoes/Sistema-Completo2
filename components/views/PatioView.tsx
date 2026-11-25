@@ -9205,7 +9205,7 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                            <div className="relative flex h-24 items-center justify-center overflow-hidden bg-zinc-100/80 dark:bg-white/[0.04]">
                                               <div className="flex flex-col items-center justify-center gap-1">
                                                  <FileText className="h-8 w-8 text-red-500" />
-                                                 <span className="text-[10px] font-bold text-zinc-500 dark:text-zinc-400">PDF</span>
+                                                 <span className="text-[10px] font-bold text-red-600 dark:text-red-400">PDF</span>
                                               </div>
                                               <div className="absolute inset-0 flex items-center justify-center bg-black/45 opacity-0 transition-opacity group-hover:opacity-100">
                                                  <Eye className="h-5 w-5 text-white" />
@@ -12448,7 +12448,11 @@ export const PatioView: React.FC<PatioViewProps> = ({
                                                <>
                                                  {isPatioPcModal ? (
                                                    <span
-                                                     className="inline-flex shrink-0 items-center rounded-md bg-zinc-100 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.06em] text-zinc-500 dark:bg-white/[0.08] dark:text-zinc-400"
+                                                     className={
+                                                       kindLabel === 'PDF'
+                                                         ? 'inline-flex shrink-0 items-center rounded-md bg-red-50 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.06em] text-red-600 dark:bg-red-950/45 dark:text-red-400'
+                                                         : 'inline-flex shrink-0 items-center rounded-md bg-zinc-100 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-[0.06em] text-zinc-500 dark:bg-white/[0.08] dark:text-zinc-400'
+                                                     }
                                                      aria-hidden
                                                    >
                                                      {kindLabel}
