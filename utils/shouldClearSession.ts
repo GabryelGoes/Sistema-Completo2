@@ -1,6 +1,6 @@
 /**
- * 401 de senha atual incorreta não encerra a sessão.
- * Sessão inválida, sessão revogada e aparelho bloqueado encerram.
+ * 401 com `invalid_credentials` não encerra a sessão (senha atual / elevação Gerência
+ * nas tentativas 1–2). Sessão inválida, sessão revogada e aparelho bloqueado encerram.
  * 503 de verificação indisponível não encerra: a próxima tentativa recupera sozinha.
  */
 export function shouldClearSession(

@@ -60,6 +60,15 @@ type AbsRouteDeps = {
    * (Gerência e/ou senha de proteção do estoque).
    */
   verifyDeletePassword?: (password: string) => Promise<boolean>;
+  /**
+   * Contador 3 tentativas + logout de sessão.
+   * Preferir em vez do 401 cru, para não derrubar o login no 1º erro.
+   */
+  denyElevationPassword?: (
+    req: unknown,
+    baseError: string
+  ) => Promise<{ status: number; body: Record<string, unknown> }>;
+  clearElevationPasswordFailures?: (req: unknown) => Promise<void>;
 };
 
 function passwordFromDeleteReq(req: {
@@ -85,7 +94,10 @@ function passwordFromDeleteReq(req: {
 async function requireAbsDeletePassword(
   deps: AbsRouteDeps,
   req: { body?: unknown; query?: unknown; headers?: Record<string, unknown> }
-): Promise<{ ok: true } | { ok: false; status: number; error: string }> {
+): Promise<
+  | { ok: true }
+  | { ok: false; status: number; error: string; body?: Record<string, unknown> }
+> {
   const pwd = passwordFromDeleteReq(req);
   if (!pwd) {
     return { ok: false, status: 400, error: 'Informe a senha do administrador para excluir.' };
@@ -103,12 +115,26 @@ async function requireAbsDeletePassword(
   }
   const ok = await deps.verifyDeletePassword(pwd);
   if (!ok) {
+    const baseError =
+      'Senha incorreta. Use a senha da Gerência (admin) ou a senha de proteção do estoque em Alterar senhas.';
+    if (deps.denyElevationPassword) {
+      const denied = await deps.denyElevationPassword(req, baseError);
+      return {
+        ok: false,
+        status: denied.status,
+        error: String(denied.body.error || baseError),
+        body: denied.body,
+      };
+    }
     return {
       ok: false,
       status: 401,
-      error:
-        'Senha incorreta. Use a senha da Gerência (admin) ou a senha de proteção do estoque em Alterar senhas.',
+      error: baseError,
+      body: { error: baseError, code: 'invalid_credentials' },
     };
+  }
+  if (deps.clearElevationPasswordFailures) {
+    await deps.clearElevationPasswordFailures(req);
   }
   return { ok: true };
 }
@@ -1136,7 +1162,9 @@ export function registerAbsModuleRoutes(app: Express, deps: AbsRouteDeps) {
       const id = String(req.params.id || '').trim();
       if (!id) return res.status(400).json({ error: 'ID do modelo inválido.' });
       const auth = await requireAbsDeletePassword(deps, req);
-      if (auth.ok === false) return res.status(auth.status).json({ error: auth.error });
+      if (auth.ok === false) {
+        return res.status(auth.status).json(auth.body || { error: auth.error });
+      }
       const force =
         String(req.query.force || req.body?.force || '').toLowerCase() === '1' ||
         String(req.query.force || req.body?.force || '').toLowerCase() === 'true';
@@ -2372,7 +2400,9 @@ export function registerAbsModuleRoutes(app: Express, deps: AbsRouteDeps) {
         return res.status(400).json({ error: 'ID de módulo ABS inválido.' });
       }
       const auth = await requireAbsDeletePassword(deps, req);
-      if (auth.ok === false) return res.status(auth.status).json({ error: auth.error });
+      if (auth.ok === false) {
+        return res.status(auth.status).json(auth.body || { error: auth.error });
+      }
 
       if (isDevMemoryActive(deps)) {
         const ok = deleteDevAbsModule(publicId);
