@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { Plus, Loader2, Trash2, ArrowRight, ChevronDown, ChevronRight, X, Check, CheckCircle2, Pencil, Paperclip, Tag, RefreshCw } from 'lucide-react';
+import { Plus, Loader2, Trash2, ArrowRight, ChevronDown, ChevronRight, X, Check, CheckCircle2, Pencil, Paperclip, Tag, RefreshCw, MoreHorizontal } from 'lucide-react';
 import type { LabServiceLink } from '../../types';
 import type { ServiceOrderDetail } from '../../services/apiService';
 import {
@@ -132,6 +132,9 @@ export const PatioOsModalLabServicesSection: React.FC<PatioOsModalLabServicesSec
   const [attachToLabPaths, setAttachToLabPaths] = useState<string[]>([]);
   /** Arquivos do pátio só abrem ao clicar no botão — não ficam expostos por padrão. */
   const [patioFilesPanelOpen, setPatioFilesPanelOpen] = useState(false);
+  /** Menu ⋮ do card de serviço enviado (etiqueta / anexar / excluir). */
+  const [cardMenuLinkId, setCardMenuLinkId] = useState<string | null>(null);
+  const cardMenuRef = useRef<HTMLDivElement | null>(null);
   const isOpen = !collapsible || expanded;
   const listProductKindOptions = productKindOptions.filter((opt) => opt.value !== otherProductKindId);
   const linkedCount = labServiceLinksDraft.length;
@@ -206,6 +209,27 @@ export const PatioOsModalLabServicesSection: React.FC<PatioOsModalLabServicesSec
     window.addEventListener('keydown', onKey, true);
     return () => window.removeEventListener('keydown', onKey, true);
   }, [itemPickerOpen]);
+
+  useEffect(() => {
+    if (!cardMenuLinkId) return;
+    const onPointerDown = (e: PointerEvent) => {
+      const t = e.target as Node | null;
+      if (cardMenuRef.current?.contains(t)) return;
+      setCardMenuLinkId(null);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      e.preventDefault();
+      e.stopPropagation();
+      setCardMenuLinkId(null);
+    };
+    window.addEventListener('pointerdown', onPointerDown, true);
+    window.addEventListener('keydown', onKey, true);
+    return () => {
+      window.removeEventListener('pointerdown', onPointerDown, true);
+      window.removeEventListener('keydown', onKey, true);
+    };
+  }, [cardMenuLinkId]);
 
   const handleSelectQuickService = (preset: LabQuickService) => {
     if (!onQuickSendService || busy) return;
@@ -427,15 +451,40 @@ export const PatioOsModalLabServicesSection: React.FC<PatioOsModalLabServicesSec
                     statusLower.includes('pronto pra entrega') ||
                     statusLower.includes('pronto pra retirada'));
                 const receiving = receivingLabOrderId === link.laboratoryOrderId;
+                const menuOpen = cardMenuLinkId === link.id;
+                const canAttach =
+                  typeof onCopyPatioAttachmentsToLab === 'function' && patioAttachments.length > 0;
                 const statusBadge = (
                   <span
-                    className={`inline-flex items-center rounded-full border px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.1em] ${statusStyle}`}
+                    className={`inline-flex max-w-full items-center truncate rounded-md border px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em] ${statusStyle}`}
                   >
                     {statusLabel}
                   </span>
                 );
-                const actionButtons = (
-                  <>
+                return (
+                  <div
+                    key={link.id}
+                    className="patio-vm-lab-link-row flex items-start gap-3 rounded-xl border border-zinc-200/70 bg-white/95 p-3 dark:border-white/[0.1] dark:bg-zinc-950/60"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="min-w-0 truncate text-[14px] font-semibold text-zinc-900 dark:text-zinc-100">
+                          {link.serviceLabel}
+                        </p>
+                        {statusBadge}
+                      </div>
+                      {link.serviceDetails?.trim() ? (
+                        <p className="mt-1.5 whitespace-pre-wrap text-[12px] leading-relaxed text-zinc-600 dark:text-zinc-300">
+                          {link.serviceDetails.trim()}
+                        </p>
+                      ) : null}
+                      <p className="mt-1 text-[11px] text-zinc-500 dark:text-zinc-400">
+                        {link.source === 'budget' ? 'Origem: orçamento' : 'Origem: manual'} · OS lab{' '}
+                        {link.laboratoryOrderId.slice(0, 8)}
+                      </p>
+                    </div>
+
+                    <div className="flex shrink-0 items-center gap-1.5 self-start pt-0.5">
                       {canReceive ? (
                         <button
                           type="button"
@@ -443,7 +492,7 @@ export const PatioOsModalLabServicesSection: React.FC<PatioOsModalLabServicesSec
                           disabled={busy || receiving}
                           title="Confirmar recebimento e arquivar a OS do laboratório"
                           aria-label={`Recebido — arquivar OS de ${link.serviceLabel}`}
-                          className="inline-flex items-center gap-1 rounded-lg border border-emerald-500/50 bg-emerald-600 px-2.5 py-1.5 text-[12px] font-semibold text-white shadow-sm shadow-emerald-500/20 transition-[transform,filter] hover:bg-emerald-500 active:scale-[0.98] disabled:opacity-60"
+                          className="inline-flex h-8 items-center gap-1 rounded-lg border border-emerald-500/50 bg-emerald-600 px-2 text-[11px] font-semibold text-white transition-[transform,filter] hover:bg-emerald-500 active:scale-[0.98] disabled:opacity-60"
                         >
                           {receiving ? (
                             <RefreshCw className="h-3.5 w-3.5 animate-spin" aria-hidden />
@@ -453,86 +502,80 @@ export const PatioOsModalLabServicesSection: React.FC<PatioOsModalLabServicesSec
                           Recebido
                         </button>
                       ) : null}
-                      {onPrintLabOsLabel ? (
-                        <button
-                          type="button"
-                          onClick={() => onPrintLabOsLabel(link.laboratoryOrderId)}
-                          disabled={busy}
-                          title="Imprimir etiqueta da OS do laboratório"
-                          aria-label={`Imprimir etiqueta de ${link.serviceLabel}`}
-                          className="inline-flex items-center gap-1 rounded-lg border border-emerald-500/35 bg-emerald-600 px-2.5 py-1.5 text-[12px] font-semibold text-white shadow-sm shadow-emerald-500/20 transition-[transform,filter] hover:bg-emerald-500 active:scale-[0.98] disabled:opacity-60"
-                        >
-                          <Tag className="h-3.5 w-3.5" strokeWidth={2.5} aria-hidden />
-                          {pcLayout ? 'Etiqueta' : 'Imprimir etiqueta'}
-                        </button>
-                      ) : null}
-                      {onCopyPatioAttachmentsToLab && patioAttachments.length > 0 ? (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setAttachToLabOrderId(link.laboratoryOrderId);
-                            setAttachToLabPaths([]);
-                          }}
-                          disabled={busy || copyingPatioAttachments}
-                          title="Anexar fotos ou documentos desta OS do pátio"
-                          className="inline-flex items-center gap-1 rounded-lg border border-zinc-200/90 bg-white px-2.5 py-1.5 text-[12px] font-semibold text-zinc-700 transition-[transform,background-color] hover:bg-zinc-50 active:scale-[0.98] dark:border-white/[0.12] dark:bg-zinc-950/70 dark:text-zinc-200 dark:hover:bg-zinc-900 disabled:opacity-60"
-                        >
-                          <Paperclip className="h-3.5 w-3.5" />
-                          {pcLayout ? 'Anexar' : 'Anexar da OS'}
-                        </button>
-                      ) : null}
                       <button
                         type="button"
                         onClick={() => onOpenLaboratoryOrder?.(link.laboratoryOrderId)}
-                        className="inline-flex items-center gap-1 rounded-lg border border-[#007AFF]/25 bg-[#007AFF]/10 px-2.5 py-1.5 text-[12px] font-semibold text-[#007AFF] transition-[transform,background-color] hover:bg-[#007AFF]/15 active:scale-[0.98]"
+                        className="inline-flex h-8 items-center gap-1 rounded-lg border border-[#007AFF]/25 bg-[#007AFF]/10 px-2.5 text-[12px] font-semibold text-[#007AFF] transition-[transform,background-color] hover:bg-[#007AFF]/15 active:scale-[0.98]"
                       >
-                        Abrir <ArrowRight className="h-3.5 w-3.5" />
+                        Abrir <ArrowRight className="h-3.5 w-3.5" aria-hidden />
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => onRemoveLabServiceLink(link.id)}
-                        disabled={labServiceLinksSaving}
-                        title="Remover vínculo e excluir OS do laboratório"
-                        aria-label={`Excluir serviço ${link.serviceLabel} e a OS do laboratório`}
-                        className="inline-flex items-center gap-1 rounded-lg border border-red-300/70 bg-red-50 px-2.5 py-1.5 text-[12px] font-semibold text-red-700 transition-[transform,opacity] active:scale-[0.98] dark:border-red-500/35 dark:bg-red-500/10 dark:text-red-300 disabled:opacity-60"
+                      <div
+                        className="relative"
+                        ref={menuOpen ? cardMenuRef : undefined}
                       >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
-                  </>
-                );
-                return (
-                  <div
-                    key={link.id}
-                    className={`patio-vm-lab-link-row flex flex-col gap-2 rounded-xl border border-zinc-200/70 bg-white/95 p-3 dark:border-white/[0.1] dark:bg-zinc-950/60${
-                      pcLayout
-                        ? ' sm:gap-2.5'
-                        : ' sm:flex-row sm:items-center sm:justify-between'
-                    }`}
-                  >
-                    <div className={`min-w-0${pcLayout ? ' flex flex-wrap items-start justify-between gap-2' : ''}`}>
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-[14px] font-semibold text-zinc-900 dark:text-zinc-100">
-                          {link.serviceLabel}
-                        </p>
-                        {link.serviceDetails?.trim() ? (
-                          <p className="mt-1.5 whitespace-pre-wrap text-[12px] leading-relaxed text-zinc-600 dark:text-zinc-300">
-                            {link.serviceDetails.trim()}
-                          </p>
+                        <button
+                          type="button"
+                          onClick={() => setCardMenuLinkId(menuOpen ? null : link.id)}
+                          disabled={busy}
+                          aria-expanded={menuOpen}
+                          aria-haspopup="menu"
+                          aria-label={`Mais opções de ${link.serviceLabel}`}
+                          className="inline-flex size-8 items-center justify-center rounded-lg border border-zinc-200/90 bg-white text-zinc-600 transition-colors hover:bg-zinc-50 hover:text-[#007AFF] active:scale-[0.97] disabled:opacity-60 dark:border-white/[0.12] dark:bg-zinc-950/70 dark:text-zinc-300 dark:hover:bg-zinc-900"
+                        >
+                          <MoreHorizontal className="h-4 w-4" strokeWidth={2.2} aria-hidden />
+                        </button>
+                        {menuOpen ? (
+                          <div
+                            role="menu"
+                            className="absolute right-0 z-30 mt-1 min-w-[11rem] overflow-hidden rounded-xl border border-zinc-200/80 bg-white py-1 shadow-[0_16px_40px_-12px_rgba(0,0,0,0.35)] dark:border-white/[0.1] dark:bg-zinc-900 dark:shadow-[0_20px_48px_-14px_rgba(0,0,0,0.7)]"
+                          >
+                            {onPrintLabOsLabel ? (
+                              <button
+                                type="button"
+                                role="menuitem"
+                                disabled={busy}
+                                className="flex w-full items-center gap-2 px-3 py-2 text-left text-[13px] font-semibold text-zinc-800 hover:bg-zinc-50 disabled:opacity-55 dark:text-zinc-100 dark:hover:bg-white/[0.06]"
+                                onClick={() => {
+                                  setCardMenuLinkId(null);
+                                  onPrintLabOsLabel(link.laboratoryOrderId);
+                                }}
+                              >
+                                <Tag className="h-3.5 w-3.5 text-emerald-600" strokeWidth={2.5} aria-hidden />
+                                Etiqueta
+                              </button>
+                            ) : null}
+                            {canAttach ? (
+                              <button
+                                type="button"
+                                role="menuitem"
+                                disabled={busy || copyingPatioAttachments}
+                                className="flex w-full items-center gap-2 px-3 py-2 text-left text-[13px] font-semibold text-zinc-800 hover:bg-zinc-50 disabled:opacity-55 dark:text-zinc-100 dark:hover:bg-white/[0.06]"
+                                onClick={() => {
+                                  setCardMenuLinkId(null);
+                                  setAttachToLabOrderId(link.laboratoryOrderId);
+                                  setAttachToLabPaths([]);
+                                }}
+                              >
+                                <Paperclip className="h-3.5 w-3.5 text-[#007AFF]" aria-hidden />
+                                Anexar
+                              </button>
+                            ) : null}
+                            <button
+                              type="button"
+                              role="menuitem"
+                              disabled={labServiceLinksSaving}
+                              className="flex w-full items-center gap-2 px-3 py-2 text-left text-[13px] font-semibold text-red-600 hover:bg-red-50 disabled:opacity-55 dark:text-red-400 dark:hover:bg-red-950/40"
+                              onClick={() => {
+                                setCardMenuLinkId(null);
+                                onRemoveLabServiceLink(link.id);
+                              }}
+                            >
+                              <Trash2 className="h-3.5 w-3.5" aria-hidden />
+                              Excluir
+                            </button>
+                          </div>
                         ) : null}
-                        <p className="mt-1 text-[11px] text-zinc-500 dark:text-zinc-400">
-                          {link.source === 'budget' ? 'Origem: orçamento' : 'Origem: manual'} · OS lab{' '}
-                          {link.laboratoryOrderId.slice(0, 8)}
-                        </p>
                       </div>
-                      {pcLayout ? <div className="shrink-0 pt-0.5">{statusBadge}</div> : null}
-                    </div>
-                    <div
-                      className={`flex flex-wrap items-center gap-2${
-                        pcLayout ? ' border-t border-zinc-100 pt-2.5 dark:border-white/[0.06]' : ''
-                      }`}
-                    >
-                      {!pcLayout ? statusBadge : null}
-                      {actionButtons}
                     </div>
                   </div>
                 );
@@ -719,16 +762,12 @@ export const PatioOsModalLabServicesSection: React.FC<PatioOsModalLabServicesSec
                 onClick={() => setPatioFilesPanelOpen((v) => !v)}
                 disabled={busy}
                 aria-expanded={patioFilesPanelOpen}
-                className={`inline-flex w-full items-center justify-center gap-1.5 border-0 bg-[#007AFF] font-bold uppercase tracking-[0.05em] text-white transition-[filter] hover:brightness-110 disabled:opacity-55 dark:bg-[#0A84FF] ${
-                  !collapsible
-                    ? 'h-10 rounded-lg px-3 text-[11px]'
-                    : 'h-11 rounded-xl px-3 text-[12px]'
-                }`}
+                className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-zinc-200/90 bg-white px-3 text-[13px] font-semibold text-zinc-700 transition-[transform,background-color] hover:bg-zinc-50 active:scale-[0.98] disabled:opacity-55 dark:border-white/[0.12] dark:bg-zinc-950/70 dark:text-zinc-200 dark:hover:bg-zinc-900"
               >
-                <Paperclip className={!collapsible ? 'h-3.5 w-3.5' : 'h-4 w-4'} strokeWidth={2.5} aria-hidden />
+                <Paperclip className="h-3.5 w-3.5 text-[#007AFF]" strokeWidth={2.25} aria-hidden />
                 Arquivos do Pátio
                 {selectedPatioAttachmentPaths.length > 0 ? (
-                  <span className="rounded-full bg-white/25 px-1.5 py-0.5 text-[10px] font-bold tabular-nums text-white">
+                  <span className="rounded-md bg-[#007AFF]/12 px-1.5 py-0.5 text-[10px] font-bold tabular-nums text-[#007AFF] dark:bg-[#007AFF]/20 dark:text-[#9ec9ff]">
                     {selectedPatioAttachmentPaths.length}
                   </span>
                 ) : null}
@@ -752,14 +791,12 @@ export const PatioOsModalLabServicesSection: React.FC<PatioOsModalLabServicesSec
             type="button"
             onClick={onCreateLabService}
             disabled={busy}
-            className={`inline-flex w-full items-center justify-center gap-2 rounded-xl bg-[#007AFF] font-semibold text-white transition-[transform,filter] hover:brightness-105 active:scale-[0.98] disabled:opacity-55 ${
-              pcLayout ? 'h-11 px-4 text-[14px]' : 'h-11 px-3 text-[14px]'
-            }`}
+            className="inline-flex h-9 items-center justify-center gap-1.5 self-start rounded-lg bg-[#007AFF] px-4 text-[13px] font-semibold text-white transition-[transform,filter] hover:brightness-105 active:scale-[0.98] disabled:opacity-55"
           >
-            {creatingLabService ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+            {creatingLabService ? <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden /> : <Plus className="h-3.5 w-3.5" aria-hidden />}
             Enviar
             {newLabServiceGarantia ? (
-              <span className="rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide">
+              <span className="rounded-md bg-white/20 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide">
                 Garantia
               </span>
             ) : null}
