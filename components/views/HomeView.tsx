@@ -139,6 +139,11 @@ interface HomeViewProps {
   onOpenPartsStock?: () => void;
   /** Abre Painéis de TV (modal global no App quando definido). */
   onOpenTvPatio?: () => void;
+  /**
+   * Atalhos de teclado PC (P/A/O/E/T/R/B/Q) para abrir módulos da home.
+   * Ligar só com a aba Home ativa no shell desktop.
+   */
+  moduleShortcutsActive?: boolean;
 }
 
 /** Cartões da home mobile sem backdrop-blur (melhor FPS em GPU fraca). */
@@ -261,6 +266,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
   onSettingsHubOpenChange,
   onOpenPartsStock,
   onOpenTvPatio,
+  moduleShortcutsActive = false,
 }) => {
   const hubCardClass = desktopShell ? desktopHomeHubCard : mobileHubTileCard;
   const [isServicesModalOpen, setIsServicesModalOpen] = useState(false);
@@ -1014,6 +1020,59 @@ export const HomeView: React.FC<HomeViewProps> = ({
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [finishQuickEditMode, isHomeSettingsHubOpen, isQuickEditMode]);
+
+  /** Atalhos PC na home: Pátio / Agenda / Orçamentos / Estoque / TV / Relatórios / Boletins / Radar. */
+  useEffect(() => {
+    if (!moduleShortcutsActive || !desktopShell) return;
+    const KEY_TO_TILE: Record<string, QuickTileId> = {
+      p: 'patio',
+      a: 'agenda',
+      o: 'orcamentos',
+      e: 'parts_stock',
+      t: 'tv_patio',
+      r: 'relatorios',
+      b: 'boletim_erros',
+      q: 'radar_qualidade',
+    };
+    const isEditableTarget = (target: EventTarget | null): boolean => {
+      if (!(target instanceof HTMLElement)) return false;
+      const tag = target.tagName;
+      if (tag === 'TEXTAREA' || tag === 'SELECT') return true;
+      if (tag === 'INPUT') {
+        const type = (target as HTMLInputElement).type || 'text';
+        if (
+          ['button', 'checkbox', 'radio', 'file', 'submit', 'reset', 'range', 'color', 'hidden'].includes(
+            type
+          )
+        ) {
+          return false;
+        }
+        return true;
+      }
+      return target.isContentEditable;
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.defaultPrevented || e.repeat) return;
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      if (isHomeSettingsHubOpen || isQuickEditMode || childModalStackActive) return;
+      if (isEditableTarget(e.target)) return;
+      const tileId = KEY_TO_TILE[e.key.toLowerCase()];
+      if (!tileId) return;
+      if (!operationalById[tileId]) return;
+      e.preventDefault();
+      handleQuickActivate(tileId);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [
+    childModalStackActive,
+    desktopShell,
+    handleQuickActivate,
+    isHomeSettingsHubOpen,
+    isQuickEditMode,
+    moduleShortcutsActive,
+    operationalById,
+  ]);
 
   const toggleQuickTileSize = useCallback((appId: QuickTileId) => {
     setQuickLayout((prev) => {

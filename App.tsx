@@ -2301,6 +2301,7 @@ export default function App() {
           >
             <HomeView
               desktopShell={isDesktopShell}
+              moduleShortcutsActive={isDesktopShell && userTab === 'home'}
               settingsHubOpen={settingsHubOpen}
               onSettingsHubOpenChange={(open) => {
                 setSettingsHubOpen(open);
@@ -2765,6 +2766,7 @@ export default function App() {
         >
           <HomeView
             desktopShell={isDesktopShell}
+            moduleShortcutsActive={isDesktopShell && currentTab === 'home'}
             settingsHubOpen={settingsHubOpen}
             onSettingsHubOpenChange={(open) => {
               setSettingsHubOpen(open);
