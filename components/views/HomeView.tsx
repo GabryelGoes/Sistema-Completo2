@@ -1021,11 +1021,12 @@ export const HomeView: React.FC<HomeViewProps> = ({
     return () => window.removeEventListener('keydown', onKey);
   }, [finishQuickEditMode, isHomeSettingsHubOpen, isQuickEditMode]);
 
-  /** Atalhos PC na home: Pátio / Agenda / Orçamentos / Estoque / TV / Relatórios / Boletins / Radar. */
+  /** Atalhos PC na home: Pátio / Lab / Agenda / Orçamentos / Estoque / TV / Relatórios / Boletins / Radar. */
   useEffect(() => {
     if (!moduleShortcutsActive || !desktopShell) return;
     const KEY_TO_TILE: Record<string, QuickTileId> = {
       p: 'patio',
+      l: 'laboratorio',
       a: 'agenda',
       o: 'orcamentos',
       e: 'parts_stock',
